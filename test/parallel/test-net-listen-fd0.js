@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var gotError = false;
+let gotError = false;
 
 process.on('exit', function() {
   assert(gotError instanceof Error);

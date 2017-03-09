@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
-var tmp = common.tmpDir;
-var filename = path.resolve(tmp, 'truncate-file.txt');
-var data = new Buffer(1024 * 16);
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+const tmp = common.tmpDir;
+const filename = path.resolve(tmp, 'truncate-file.txt');
+const data = new Buffer(1024 * 16);
 data.fill('x');
 
 common.refreshTmpDir();
 
-var stat;
+let stat;
 
 // truncateSync
 fs.writeFileSync(filename, data);
@@ -27,7 +27,7 @@ assert.equal(stat.size, 0);
 
 // ftruncateSync
 fs.writeFileSync(filename, data);
-var fd = fs.openSync(filename, 'r+');
+const fd = fs.openSync(filename, 'r+');
 
 stat = fs.statSync(filename);
 assert.equal(stat.size, 1024 * 16);

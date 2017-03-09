@@ -12,7 +12,7 @@
     process.chdir(__dirname);
 
     // slow but simple
-    var envCopy = JSON.parse(JSON.stringify(process.env));
+    const envCopy = JSON.parse(JSON.stringify(process.env));
     envCopy.TEST_INIT = 1;
 
     child.exec('"' + process.execPath + '" test-init', {env: envCopy},

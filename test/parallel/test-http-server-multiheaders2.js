@@ -4,10 +4,10 @@
 // that support it, and dropping duplicates for other fields.
 
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var multipleAllowed = [
+const multipleAllowed = [
   'Accept',
   'Accept-Charset',
   'Accept-Encoding',
@@ -31,7 +31,7 @@ var multipleAllowed = [
   'X-Some-Random-Header',
 ];
 
-var multipleForbidden = [
+const multipleForbidden = [
   'Content-Type',
   'User-Agent',
   'Referer',
@@ -48,7 +48,7 @@ var multipleForbidden = [
   //'Content-Length',
 ];
 
-var srv = http.createServer(function(req, res) {
+const srv = http.createServer(function(req, res) {
   multipleForbidden.forEach(function(header) {
     assert.equal(req.headers[header.toLowerCase()],
                  'foo', 'header parsed incorrectly: ' + header);
@@ -70,7 +70,7 @@ function makeHeader(value) {
   };
 }
 
-var headers = []
+const headers = []
   .concat(multipleAllowed.map(makeHeader('foo')))
   .concat(multipleForbidden.map(makeHeader('foo')))
   .concat(multipleAllowed.map(makeHeader('bar')))

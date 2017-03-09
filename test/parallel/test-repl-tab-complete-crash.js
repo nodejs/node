@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const repl = require('repl');
 
-var referenceErrorCount = 0;
+let referenceErrorCount = 0;
 
 common.ArrayStream.prototype.write = function(msg) {
   if (msg.startsWith('ReferenceError: ')) {

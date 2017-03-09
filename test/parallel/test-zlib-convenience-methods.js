@@ -2,13 +2,13 @@
 // test convenience methods with and without options supplied
 
 require('../common');
-var assert = require('assert');
-var zlib = require('zlib');
+const assert = require('assert');
+const zlib = require('zlib');
 
-var hadRun = 0;
+let hadRun = 0;
 
-var expect = 'blahblahblahblahblahblah';
-var opts = {
+const expect = 'blahblahblahblahblahblah';
+const opts = {
   level: 9,
   chunkSize: 1024,
 };
@@ -38,7 +38,7 @@ var opts = {
     });
   });
 
-  var result = zlib[method[0] + 'Sync'](expect, opts);
+  let result = zlib[method[0] + 'Sync'](expect, opts);
   result = zlib[method[1] + 'Sync'](result, opts);
   assert.equal(result, expect,
                'Should get original string after ' +

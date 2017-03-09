@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var repl = require('./helper-debugger-repl.js');
+const repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('breakpoints.js');
 
-var addTest = repl.addTest;
+const addTest = repl.addTest;
 
 // Next
 addTest('n', [

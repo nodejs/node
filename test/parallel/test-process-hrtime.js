@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // the default behavior, return an Array "tuple" of numbers
-var tuple = process.hrtime();
+const tuple = process.hrtime();
 
 // validate the default behavior
 validateTuple(tuple);

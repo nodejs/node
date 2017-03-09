@@ -2,11 +2,11 @@
 
 // Flags: --harmony-proxies
 
-var common = require('../common');
-var assert = require('assert');
-var repl = require('repl');
-var referenceErrors = 0;
-var expectedReferenceErrors = 0;
+const common = require('../common');
+const assert = require('assert');
+const repl = require('repl');
+let referenceErrors = 0;
+let expectedReferenceErrors = 0;
 
 function getDoNotCallFunction() {
   expectedReferenceErrors += 1;
@@ -19,14 +19,14 @@ process.on('exit', function() {
   assert.strictEqual(referenceErrors, expectedReferenceErrors);
 });
 
-var works = [['inner.one'], 'inner.o'];
+const works = [['inner.one'], 'inner.o'];
 const putIn = new common.ArrayStream();
-var testMe = repl.start('', putIn);
+const testMe = repl.start('', putIn);
 
 // Some errors are passed to the domain, but do not callback
 testMe._domain.on('error', function(err) {
   // Errors come from another context, so instanceof doesn't work
-  var str = err.toString();
+  const str = err.toString();
 
   if (/^ReferenceError:/.test(str))
     referenceErrors++;
@@ -173,7 +173,7 @@ testMe.complete('str.len', common.mustCall(function(error, data) {
 putIn.run(['.clear']);
 
 // tab completion should not break on spaces
-var spaceTimeout = setTimeout(function() {
+const spaceTimeout = setTimeout(function() {
   throw new Error('timeout');
 }, 1000);
 
@@ -234,7 +234,7 @@ testMe.complete('proxy.', common.mustCall(function(error, data) {
 }));
 
 // Make sure tab completion does not include integer members of an Array
-var array_elements = [ [
+const array_elements = [ [
   'ary.__defineGetter__',
   'ary.__defineSetter__',
   'ary.__lookupGetter__',
@@ -284,7 +284,7 @@ testMe.complete('ary.', common.mustCall(function(error, data) {
 }));
 
 // Make sure tab completion does not include integer keys in an object
-var obj_elements = [ [
+const obj_elements = [ [
   'obj.__defineGetter__',
   'obj.__defineSetter__',
   'obj.__lookupGetter__',
@@ -321,7 +321,7 @@ const testNonGlobal = repl.start({
 });
 
 const builtins = [['Infinity', '', 'Int16Array', 'Int32Array',
-                                 'Int8Array'], 'I'];
+  'Int8Array'], 'I'];
 
 if (typeof Intl === 'object') {
   builtins[0].push('Intl');

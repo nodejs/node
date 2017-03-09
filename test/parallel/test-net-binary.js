@@ -1,4 +1,4 @@
-/* eslint-disable strict */
+/* eslint-disable strict, no-var */
 require('../common');
 var assert = require('assert');
 var net = require('net');

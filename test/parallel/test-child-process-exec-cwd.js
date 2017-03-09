@@ -1,9 +1,9 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
+const assert = require('assert');
+const exec = require('child_process').exec;
 
-var pwdcommand, dir;
+let pwdcommand, dir;
 
 if (common.isWindows) {
   pwdcommand = 'echo %cd%';

@@ -5,15 +5,15 @@ const net = require('net');
 
 const N = 1024 * 1024;
 const part_N = N / 3;
-var chars_recved = 0;
-var npauses = 0;
+let chars_recved = 0;
+let npauses = 0;
 
 console.log('build big string');
 const body = 'C'.repeat(N);
 
 console.log('start server on port ' + common.PORT);
 
-var server = net.createServer(function(connection) {
+const server = net.createServer(function(connection) {
   connection.write(body.slice(0, part_N));
   connection.write(body.slice(part_N, 2 * part_N));
   assert.equal(false, connection.write(body.slice(2 * part_N, N)));
@@ -24,8 +24,8 @@ var server = net.createServer(function(connection) {
 });
 
 server.listen(common.PORT, function() {
-  var paused = false;
-  var client = net.createConnection(common.PORT);
+  let paused = false;
+  const client = net.createConnection(common.PORT);
   client.setEncoding('ascii');
   client.on('data', function(d) {
     chars_recved += d.length;
@@ -35,7 +35,7 @@ server.listen(common.PORT, function() {
       npauses += 1;
       paused = true;
       console.log('pause');
-      var x = chars_recved;
+      const x = chars_recved;
       setTimeout(function() {
         assert.equal(chars_recved, x);
         client.resume();

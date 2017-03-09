@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var path = require('path');
+const path = require('path');
 
-var f = __filename;
+const f = __filename;
 
 assert.equal(path.basename(f), 'test-path.js');
 assert.equal(path.basename(f, '.js'), 'test-path');
@@ -32,7 +32,7 @@ assert.equal(path.posix.basename('basename.ext\\\\'), 'basename.ext\\\\');
 // POSIX filenames may include control characters
 // c.f. http://www.dwheeler.com/essays/fixing-unix-linux-filenames.html
 if (!common.isWindows) {
-  var controlCharFilename = 'Icon' + String.fromCharCode(13);
+  const controlCharFilename = 'Icon' + String.fromCharCode(13);
   assert.equal(path.basename('/a/b/' + controlCharFilename),
                controlCharFilename);
 }
@@ -139,10 +139,10 @@ assert.equal(path.posix.extname('file.\\'), '.\\');
 assert.equal(path.posix.extname('file.\\\\'), '.\\\\');
 
 // path.join tests
-var failures = [];
-var joinTests =
+let failures = [];
+let joinTests =
     // arguments                     result
-    [[['.', 'x/b', '..', '/b/c.js'], 'x/b/c.js'],
+  [[['.', 'x/b', '..', '/b/c.js'], 'x/b/c.js'],
      [['/.', 'x/b', '..', '/b/c.js'], '/x/b/c.js'],
      [['/foo', '../../../bar'], '/bar'],
      [['foo', '../../../bar'], '../../bar'],
@@ -188,7 +188,7 @@ var joinTests =
      [['/', '', '/foo'], '/foo'],
      [['', '/', 'foo'], '/foo'],
      [['', '/', '/foo'], '/foo']
-    ];
+  ];
 
 // Windows-specific join tests
 if (common.isWindows) {
@@ -242,21 +242,21 @@ if (common.isWindows) {
 
 // Run the join tests.
 joinTests.forEach(function(test) {
-  var actual = path.join.apply(path, test[0]);
-  var expected = common.isWindows ? test[1].replace(/\//g, '\\') : test[1];
-  var message = 'path.join(' + test[0].map(JSON.stringify).join(',') + ')' +
-                '\n  expect=' + JSON.stringify(expected) +
-                '\n  actual=' + JSON.stringify(actual);
+  const actual = path.join.apply(path, test[0]);
+  const expected = common.isWindows ? test[1].replace(/\//g, '\\') : test[1];
+  const message = 'path.join(' + test[0].map(JSON.stringify).join(',') + ')' +
+                  '\n  expect=' + JSON.stringify(expected) +
+                  '\n  actual=' + JSON.stringify(actual);
   if (actual !== expected) failures.push('\n' + message);
   // assert.equal(actual, expected, message);
 });
 assert.equal(failures.length, 0, failures.join(''));
 
 // Test thrown TypeErrors
-var typeErrorTests = [true, false, 7, null, {}, undefined, [], NaN];
+const typeErrorTests = [true, false, 7, null, {}, undefined, [], NaN];
 
 function fail(fn) {
-  var args = Array.prototype.slice.call(arguments, 1);
+  const args = Array.prototype.slice.call(arguments, 1);
 
   assert.throws(function() {
     fn.apply(null, args);
@@ -303,12 +303,12 @@ assert.equal(path.posix.normalize('a//b//./c'), 'a/b/c');
 assert.equal(path.posix.normalize('a//b//.'), 'a/b');
 
 // path.resolve tests
-var resolveTests;
+let resolveTests;
 if (common.isWindows) {
   // windows
   resolveTests =
       // arguments                                    result
-      [[['c:/blah\\blah', 'd:/games', 'c:../a'], 'c:\\blah\\a'],
+  [[['c:/blah\\blah', 'd:/games', 'c:../a'], 'c:\\blah\\a'],
        [['c:/ignore', 'd:\\a/b\\c/d', '\\e.exe'], 'd:\\e.exe'],
        [['c:/ignore', 'c:/some/file'], 'c:\\some\\file'],
        [['d:/ignore', 'd:some/dir//'], 'd:\\ignore\\some\\dir'],
@@ -319,12 +319,12 @@ if (common.isWindows) {
        [['c:/', '//server/share'], '\\\\server\\share\\'],
        [['c:/', '//server//share'], '\\\\server\\share\\'],
        [['c:/', '///some//dir'], 'c:\\some\\dir']
-      ];
+  ];
 } else {
   // Posix
   resolveTests =
       // arguments                                    result
-      [[['/var/lib', '../', 'file/'], '/var/file'],
+  [[['/var/lib', '../', 'file/'], '/var/file'],
        [['/var/lib', '/../', 'file/'], '/file'],
        [['a/b/c/', '../../..'], process.cwd()],
        [['.'], process.cwd()],
@@ -332,11 +332,11 @@ if (common.isWindows) {
 }
 failures = [];
 resolveTests.forEach(function(test) {
-  var actual = path.resolve.apply(path, test[0]);
-  var expected = test[1];
-  var message = 'path.resolve(' + test[0].map(JSON.stringify).join(',') + ')' +
-                '\n  expect=' + JSON.stringify(expected) +
-                '\n  actual=' + JSON.stringify(actual);
+  const actual = path.resolve.apply(path, test[0]);
+  const expected = test[1];
+  const message = 'path.resolve(' + test[0].map(JSON.stringify).join(',') +
+                  ')' + '\n  expect=' + JSON.stringify(expected) +
+                  '\n  actual=' + JSON.stringify(actual);
   if (actual !== expected) failures.push('\n' + message);
   // assert.equal(actual, expected, message);
 });
@@ -368,12 +368,12 @@ assert.equal(path.posix.isAbsolute('bar/'), false);
 assert.equal(path.posix.isAbsolute('./baz'), false);
 
 // path.relative tests
-var relativeTests;
+let relativeTests;
 if (common.isWindows) {
   // windows
   relativeTests =
       // arguments                     result
-      [['c:/blah\\blah', 'd:/games', 'd:\\games'],
+  [['c:/blah\\blah', 'd:/games', 'd:\\games'],
        ['c:/aaaa/bbbb', 'c:/aaaa', '..'],
        ['c:/aaaa/bbbb', 'c:/cccc', '..\\..\\cccc'],
        ['c:/aaaa/bbbb', 'c:/aaaa/bbbb', ''],
@@ -385,7 +385,7 @@ if (common.isWindows) {
   // posix
   relativeTests =
       // arguments                    result
-      [['/var/lib', '/var', '..'],
+  [['/var/lib', '/var', '..'],
        ['/var/lib', '/bin', '../../bin'],
        ['/var/lib', '/var/lib', ''],
        ['/var/lib', '/var/apache', '../apache'],
@@ -394,13 +394,13 @@ if (common.isWindows) {
 }
 failures = [];
 relativeTests.forEach(function(test) {
-  var actual = path.relative(test[0], test[1]);
-  var expected = test[2];
-  var message = 'path.relative(' +
-                test.slice(0, 2).map(JSON.stringify).join(',') +
-                ')' +
-                '\n  expect=' + JSON.stringify(expected) +
-                '\n  actual=' + JSON.stringify(actual);
+  const actual = path.relative(test[0], test[1]);
+  const expected = test[2];
+  const message = 'path.relative(' +
+                  test.slice(0, 2).map(JSON.stringify).join(',') +
+                  ')' +
+                  '\n  expect=' + JSON.stringify(expected) +
+                  '\n  actual=' + JSON.stringify(actual);
   if (actual !== expected) failures.push('\n' + message);
 });
 assert.equal(failures.length, 0, failures.join(''));

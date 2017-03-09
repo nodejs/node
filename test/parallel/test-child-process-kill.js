@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var cat = spawn(common.isWindows ? 'cmd' : 'cat');
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const cat = spawn(common.isWindows ? 'cmd' : 'cat');
 
 cat.stdout.on('end', common.mustCall(function() {}));
 cat.stderr.on('data', common.fail);

@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var EventEmitter = require('events');
-var assert = require('assert');
+const EventEmitter = require('events');
+const assert = require('assert');
 
-var EE = new EventEmitter();
+const EE = new EventEmitter();
 
 assert.throws(function() {
   EE.emit('error', 'Accepts a string');

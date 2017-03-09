@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
 // Simple test of Node's HTTP Client mutable headers
 // OutgoingMessage.prototype.setHeader(name, value)
@@ -11,15 +11,15 @@ var http = require('http');
 // <ClientRequest>.method
 // <ClientRequest>.path
 
-var testsComplete = 0;
-var test = 'headers';
-var content = 'hello world\n';
-var cookies = [
+let testsComplete = 0;
+let test = 'headers';
+const content = 'hello world\n';
+const cookies = [
   'session_token=; path=/; expires=Sun, 15-Sep-2030 13:48:52 GMT',
   'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT'
 ];
 
-var s = http.createServer(function(req, res) {
+const s = http.createServer(function(req, res) {
   switch (test) {
     case 'headers':
       assert.throws(function() { res.setHeader(); });
@@ -32,8 +32,8 @@ var s = http.createServer(function(req, res) {
       res.setHeader('set-cookie', cookies);
       res.setHeader('x-test-array-header', [1, 2, 3]);
 
-      var val1 = res.getHeader('x-test-header');
-      var val2 = res.getHeader('x-test-header2');
+      const val1 = res.getHeader('x-test-header');
+      const val2 = res.getHeader('x-test-header2');
       assert.equal(val1, 'testing');
       assert.equal(val2, 'testing');
 
@@ -69,7 +69,7 @@ function nextTest() {
     return s.close();
   }
 
-  var bufferedResponse = '';
+  let bufferedResponse = '';
 
   http.get({ port: s.address().port }, function(response) {
     console.log('TEST: ' + test);

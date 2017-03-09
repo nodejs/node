@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var f = __filename;
+const assert = require('assert');
+const fs = require('fs');
+const f = __filename;
 
 fs.exists(f, common.mustCall(function(y) {
   assert.strictEqual(y, true);

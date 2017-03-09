@@ -5,7 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
-var spdyDict = new Buffer([
+const spdyDict = new Buffer([
   'optionsgetheadpostputdeletetraceacceptaccept-charsetaccept-encodingaccept-',
   'languageauthorizationexpectfromhostif-modified-sinceif-matchif-none-matchi',
   'f-rangeif-unmodifiedsincemax-forwardsproxy-authorizationrangerefererteuser',
@@ -21,23 +21,23 @@ var spdyDict = new Buffer([
   '.1statusversionurl\0'
 ].join(''));
 
-var deflate = zlib.createDeflate({ dictionary: spdyDict });
+const deflate = zlib.createDeflate({ dictionary: spdyDict });
 
-var input = [
+const input = [
   'HTTP/1.1 200 Ok',
   'Server: node.js',
   'Content-Length: 0',
   ''
 ].join('\r\n');
 
-var called = 0;
+let called = 0;
 
 //
 // We'll use clean-new inflate stream each time
 // and .reset() old dirty deflate one
 //
 function run(num) {
-  var inflate = zlib.createInflate({ dictionary: spdyDict });
+  const inflate = zlib.createInflate({ dictionary: spdyDict });
 
   if (num === 2) {
     deflate.reset();
@@ -50,7 +50,7 @@ function run(num) {
   });
 
   // Get data from inflate stream
-  var output = [];
+  const output = [];
   inflate.on('data', function(chunk) {
     output.push(chunk);
   });

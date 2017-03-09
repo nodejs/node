@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 crypto.DEFAULT_ENCODING = 'buffer';
 
@@ -21,7 +21,7 @@ const EVEN_LENGTH_PLAIN = 'Hello node world!AbC09876dDeFgHi';
 const KEY_PLAIN = 'S3c.r.e.t.K.e.Y!';
 const IV_PLAIN = 'blahFizz2011Buzz';
 
-var CIPHER_NAME = 'aes-128-cbc';
+const CIPHER_NAME = 'aes-128-cbc';
 
 
 /*
@@ -31,20 +31,20 @@ var CIPHER_NAME = 'aes-128-cbc';
 // echo -n 'Hello node world!' | \
 // openssl enc -aes-128-cbc -e -K 5333632e722e652e742e4b2e652e5921 \
 // -iv 626c616846697a7a3230313142757a7a | xxd -p -c256
-var ODD_LENGTH_ENCRYPTED =
+const ODD_LENGTH_ENCRYPTED =
     '7f57859550d4d2fdb9806da2a750461a9fe77253cd1cbd4b07beee4e070d561f';
 
 // echo -n 'Hello node world!AbC09876dDeFgHi' | \
 // openssl enc -aes-128-cbc -e -K 5333632e722e652e742e4b2e652e5921 \
 // -iv 626c616846697a7a3230313142757a7a | xxd -p -c256
-var EVEN_LENGTH_ENCRYPTED =
+const EVEN_LENGTH_ENCRYPTED =
     '7f57859550d4d2fdb9806da2a750461ab46e71b3d78ebe2d9684dfc87f7575b988' +
     '6119866912cb8c7bcaf76c5ebc2378';
 
 // echo -n 'Hello node world!AbC09876dDeFgHi' | \
 // openssl enc -aes-128-cbc -e -K 5333632e722e652e742e4b2e652e5921 \
 // -iv 626c616846697a7a3230313142757a7a -nopad | xxd -p -c256
-var EVEN_LENGTH_ENCRYPTED_NOPAD =
+const EVEN_LENGTH_ENCRYPTED_NOPAD =
     '7f57859550d4d2fdb9806da2a750461ab46e' +
     '71b3d78ebe2d9684dfc87f7575b9';
 
@@ -54,17 +54,17 @@ var EVEN_LENGTH_ENCRYPTED_NOPAD =
  */
 
 function enc(plain, pad) {
-  var encrypt = crypto.createCipheriv(CIPHER_NAME, KEY_PLAIN, IV_PLAIN);
+  const encrypt = crypto.createCipheriv(CIPHER_NAME, KEY_PLAIN, IV_PLAIN);
   encrypt.setAutoPadding(pad);
-  var hex = encrypt.update(plain, 'ascii', 'hex');
+  let hex = encrypt.update(plain, 'ascii', 'hex');
   hex += encrypt.final('hex');
   return hex;
 }
 
 function dec(encd, pad) {
-  var decrypt = crypto.createDecipheriv(CIPHER_NAME, KEY_PLAIN, IV_PLAIN);
+  const decrypt = crypto.createDecipheriv(CIPHER_NAME, KEY_PLAIN, IV_PLAIN);
   decrypt.setAutoPadding(pad);
-  var plain = decrypt.update(encd, 'hex');
+  let plain = decrypt.update(encd, 'hex');
   plain += decrypt.final('binary');
   return plain;
 }

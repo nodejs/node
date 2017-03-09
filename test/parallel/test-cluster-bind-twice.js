@@ -18,17 +18,17 @@
 //
 // See https://github.com/joyent/node/issues/2721 for more details.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var fork = require('child_process').fork;
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const fork = require('child_process').fork;
+const http = require('http');
 
-var id = process.argv[2];
+const id = process.argv[2];
 
 if (!id) {
-  var a = fork(__filename, ['one']);
-  var b = fork(__filename, ['two']);
+  const a = fork(__filename, ['one']);
+  const b = fork(__filename, ['two']);
 
   a.on('exit', function(c) {
     if (c) {
@@ -82,7 +82,7 @@ if (!id) {
     assert(ok);
   });
 
-  var server = http.createServer(common.fail);
+  const server = http.createServer(common.fail);
   process.on('message', function(m) {
     if (typeof m === 'object') return; // ignore system messages
     if (m === 'QUIT') process.exit();
@@ -99,7 +99,7 @@ if (!id) {
 }
 
 function startWorker() {
-  var worker = cluster.fork();
+  const worker = cluster.fork();
   worker.on('exit', process.exit);
   worker.on('message', process.send.bind(process));
   process.on('message', worker.send.bind(worker));

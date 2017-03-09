@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 let interval_fired = false;
 let timeout_fired = false;
@@ -9,8 +9,8 @@ let unref_timer = false;
 let unref_callbacks = 0;
 let checks = 0;
 
-var LONG_TIME = 10 * 1000;
-var SHORT_TIME = 100;
+const LONG_TIME = 10 * 1000;
+const SHORT_TIME = 100;
 
 assert.doesNotThrow(function() {
   setTimeout(function() {}, 10).unref().ref().unref();
@@ -56,7 +56,7 @@ setInterval(function() {
 
 // Should not assert on args.Holder()->InternalFieldCount() > 0. See #4261.
 (function() {
-  var t = setInterval(function() {}, 1);
+  const t = setInterval(function() {}, 1);
   process.nextTick(t.unref.bind({}));
   process.nextTick(t.unref.bind(t));
 })();

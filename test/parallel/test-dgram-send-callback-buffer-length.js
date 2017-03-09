@@ -1,17 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var dgram = require('dgram');
-var client, timer, buf, len, offset;
+const dgram = require('dgram');
 
 
-client = dgram.createSocket('udp4');
+const client = dgram.createSocket('udp4');
 
-buf = new Buffer(256);
-offset = 20;
+const buf = new Buffer(256);
+const offset = 20;
 
-len = buf.length - offset;
+const len = buf.length - offset;
 
 
 client.send(buf, offset, len, common.PORT, '127.0.0.1', function(err, bytes) {
@@ -21,6 +20,6 @@ client.send(buf, offset, len, common.PORT, '127.0.0.1', function(err, bytes) {
   client.close();
 });
 
-timer = setTimeout(function() {
+const timer = setTimeout(function() {
   throw new Error('Timeout');
 }, 200);

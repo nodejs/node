@@ -20,13 +20,14 @@ if (common.inFreeBSDJail) {
   return;
 }
 
+let bindAddress;
 // take the first non-internal interface as the address for binding
-get_bindAddress: for (var name in networkInterfaces) {
-  var interfaces = networkInterfaces[name];
-  for (var i = 0; i < interfaces.length; i++) {
-    var localInterface = interfaces[i];
+get_bindAddress: for (const name in networkInterfaces) {
+  const interfaces = networkInterfaces[name];
+  for (let i = 0; i < interfaces.length; i++) {
+    const localInterface = interfaces[i];
     if (!localInterface.internal && localInterface.family === 'IPv4') {
-      var bindAddress = localInterface.address;
+      bindAddress = localInterface.address;
       break get_bindAddress;
     }
   }
@@ -54,9 +55,9 @@ if (process.argv[2] !== 'child') {
   }, TIMEOUT);
 
   //launch child processes
-  for (var x = 0; x < listeners; x++) {
+  for (let x = 0; x < listeners; x++) {
     (function() {
-      var worker = fork(process.argv[1], ['child']);
+      const worker = fork(process.argv[1], ['child']);
       workers[worker.pid] = worker;
 
       worker.messagesReceived = [];
@@ -111,12 +112,12 @@ if (process.argv[2] !== 'child') {
                           'messages. Will now compare.');
 
             Object.keys(workers).forEach(function(pid) {
-              var worker = workers[pid];
+              const worker = workers[pid];
 
-              var count = 0;
+              let count = 0;
 
               worker.messagesReceived.forEach(function(buf) {
-                for (var i = 0; i < messages.length; ++i) {
+                for (let i = 0; i < messages.length; ++i) {
                   if (buf.toString() === messages[i].toString()) {
                     count++;
                     break;
@@ -141,7 +142,7 @@ if (process.argv[2] !== 'child') {
     })(x);
   }
 
-  var sendSocket = dgram.createSocket({
+  const sendSocket = dgram.createSocket({
     type: 'udp4',
     reuseAddr: true
   });
@@ -158,7 +159,7 @@ if (process.argv[2] !== 'child') {
   });
 
   sendSocket.sendNext = function() {
-    var buf = messages[i++];
+    const buf = messages[i++];
 
     if (!buf) {
       try { sendSocket.close(); } catch (e) {}
@@ -184,15 +185,15 @@ if (process.argv[2] !== 'child') {
 
   function killChildren(children) {
     Object.keys(children).forEach(function(key) {
-      var child = children[key];
+      const child = children[key];
       child.kill();
     });
   }
 }
 
 if (process.argv[2] === 'child') {
-  var receivedMessages = [];
-  var listenSocket = dgram.createSocket({
+  const receivedMessages = [];
+  const listenSocket = dgram.createSocket({
     type: 'udp4',
     reuseAddr: true
   });

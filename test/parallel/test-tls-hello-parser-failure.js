@@ -1,34 +1,34 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var net = require('net');
-var fs = require('fs');
+const net = require('net');
+const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/test_key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem')
 };
 
-var bonkers = new Buffer(1024 * 1024);
+const bonkers = new Buffer(1024 * 1024);
 bonkers.fill(42);
 
-var server = tls.createServer(options, function(c) {
+const server = tls.createServer(options, function(c) {
 
 }).listen(0, function() {
-  var client = net.connect(this.address().port, function() {
+  const client = net.connect(this.address().port, function() {
     client.write(bonkers);
   });
 
-  var once = false;
+  let once = false;
 
-  var writeAgain = setTimeout(function() {
+  const writeAgain = setTimeout(function() {
     client.write(bonkers);
   });
 

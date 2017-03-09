@@ -12,11 +12,11 @@ const Writable = stream.Writable;
 // node version target: 0.12
 
 const expectedChunks = ['please', 'buffer', 'me', 'kindly'];
-var inputChunks = expectedChunks.slice(0);
-var seenChunks = [];
-var seenEnd = false;
+const inputChunks = expectedChunks.slice(0);
+let seenChunks = [];
+let seenEnd = false;
 
-var w = new Writable();
+const w = new Writable();
 // lets arrange to store the chunks
 w._write = function(chunk, encoding, cb) {
   // stream end event is not seen before the last write
@@ -33,8 +33,8 @@ w.on('finish', () => {
 });
 
 function writeChunks(remainingChunks, callback) {
-  var writeChunk = remainingChunks.shift();
-  var writeState;
+  const writeChunk = remainingChunks.shift();
+  let writeState;
 
   if (writeChunk) {
     setImmediate(() => {
@@ -74,12 +74,12 @@ writeChunks(inputChunks, () => {
   assert.equal(seenChunks.length, 4);
 
   // did the chunks match
-  for (var i = 0, l = expectedChunks.length; i < l; i++) {
-    var seen = seenChunks[i];
+  for (let i = 0, l = expectedChunks.length; i < l; i++) {
+    const seen = seenChunks[i];
     // there was a chunk
     assert.ok(seen);
 
-    var expected = new Buffer(expectedChunks[i]);
+    const expected = new Buffer(expectedChunks[i]);
     // it was what we expected
     assert.ok(seen.equals(expected));
   }

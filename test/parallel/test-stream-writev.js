@@ -1,13 +1,13 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var stream = require('stream');
+const stream = require('stream');
 
-var queue = [];
-for (var decode = 0; decode < 2; decode++) {
-  for (var uncork = 0; uncork < 2; uncork++) {
-    for (var multi = 0; multi < 2; multi++) {
+const queue = [];
+for (let decode = 0; decode < 2; decode++) {
+  for (let uncork = 0; uncork < 2; uncork++) {
+    for (let multi = 0; multi < 2; multi++) {
       queue.push([!!decode, !!uncork, !!multi]);
     }
   }
@@ -16,7 +16,7 @@ for (var decode = 0; decode < 2; decode++) {
 run();
 
 function run() {
-  var t = queue.pop();
+  const t = queue.pop();
   if (t)
     test(t[0], t[1], t[2], run);
   else
@@ -25,11 +25,11 @@ function run() {
 
 function test(decode, uncork, multi, next) {
   console.log('# decode=%j uncork=%j multi=%j', decode, uncork, multi);
-  var counter = 0;
-  var expectCount = 0;
+  let counter = 0;
+  let expectCount = 0;
   function cnt(msg) {
     expectCount++;
-    var expect = expectCount;
+    const expect = expectCount;
     return function(er) {
       if (er)
         throw er;
@@ -38,12 +38,12 @@ function test(decode, uncork, multi, next) {
     };
   }
 
-  var w = new stream.Writable({ decodeStrings: decode });
+  const w = new stream.Writable({ decodeStrings: decode });
   w._write = function(chunk, e, cb) {
     assert(false, 'Should not call _write');
   };
 
-  var expectChunks = decode ? [
+  const expectChunks = decode ? [
     { encoding: 'buffer',
       chunk: [104, 101, 108, 108, 111, 44, 32] },
     { encoding: 'buffer',
@@ -62,7 +62,7 @@ function test(decode, uncork, multi, next) {
     { encoding: 'hex', chunk: 'facebea7deadbeefdecafbad' }
   ];
 
-  var actualChunks;
+  let actualChunks;
   w._writev = function(chunks, cb) {
     actualChunks = chunks.map(function(chunk) {
       return {

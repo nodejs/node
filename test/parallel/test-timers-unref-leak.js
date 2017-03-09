@@ -1,17 +1,17 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var called = 0;
-var closed = 0;
+let called = 0;
+let closed = 0;
 
-var timeout = setTimeout(function() {
+const timeout = setTimeout(function() {
   called++;
 }, 10);
 timeout.unref();
 
 // Wrap `close` method to check if the handle was closed
-var close = timeout._handle.close;
+const close = timeout._handle.close;
 timeout._handle.close = function() {
   closed++;
   return close.apply(this, arguments);

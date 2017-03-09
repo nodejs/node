@@ -1,13 +1,13 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var events = require('events');
+const assert = require('assert');
+const events = require('events');
 
-var e = new events.EventEmitter();
+const e = new events.EventEmitter();
 
-var events_new_listener_emited = [];
-var listeners_new_listener_emited = [];
-var times_hello_emited = 0;
+const events_new_listener_emited = [];
+const listeners_new_listener_emited = [];
+let times_hello_emited = 0;
 
 // sanity check
 assert.equal(e.addListener, e.on);
@@ -33,7 +33,7 @@ e.once('newListener', function(name, listener) {
 });
 e.on('hello', hello);
 
-var foo = function() {};
+const foo = function() {};
 e.once('foo', foo);
 
 console.log('start');
@@ -42,7 +42,7 @@ e.emit('hello', 'a', 'b');
 
 
 // just make sure that this doesn't throw:
-var f = new events.EventEmitter();
+const f = new events.EventEmitter();
 f.setMaxListeners(0);
 
 
@@ -52,9 +52,9 @@ process.on('exit', function() {
   assert.equal(1, times_hello_emited);
 });
 
-var listen1 = function listen1() {};
-var listen2 = function listen2() {};
-var e1 = new events.EventEmitter();
+const listen1 = function listen1() {};
+const listen2 = function listen2() {};
+const e1 = new events.EventEmitter();
 e1.once('newListener', function() {
   assert.deepEqual(e1.listeners('hello'), []);
   e1.once('newListener', function() {

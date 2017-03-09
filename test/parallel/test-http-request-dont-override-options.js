@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var requests = 0;
+let requests = 0;
 
 http.createServer(function(req, res) {
   res.writeHead(200);
@@ -12,13 +12,13 @@ http.createServer(function(req, res) {
 
   requests++;
 }).listen(0, function() {
-  var agent = new http.Agent();
+  const agent = new http.Agent();
   agent.defaultPort = this.address().port;
 
   // options marked as explicitly undefined for readability
   // in this test, they should STAY undefined as options should not
   // be mutable / modified
-  var options = {
+  const options = {
     host: undefined,
     hostname: common.localhostIPv4,
     port: undefined,

@@ -13,8 +13,8 @@ const fs = require('fs');
 
 const dir = common.fixturesDir;
 const options = { key: fs.readFileSync(dir + '/test_key.pem'),
-                  cert: fs.readFileSync(dir + '/test_cert.pem'),
-                  ca: [ fs.readFileSync(dir + '/test_ca.pem') ] };
+  cert: fs.readFileSync(dir + '/test_cert.pem'),
+  ca: [ fs.readFileSync(dir + '/test_ca.pem') ] };
 
 const writes = [
   'some server data',

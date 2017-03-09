@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
@@ -18,10 +18,11 @@ assert.doesNotThrow(function() {
 });
 
 // an Object with a custom .inspect() function
-var custom_inspect = { foo: 'bar', inspect: function() { return 'inspect'; } };
+const custom_inspect = { foo: 'bar',
+  inspect: function() { return 'inspect'; } };
 
-var stdout_write = global.process.stdout.write;
-var strings = [];
+const stdout_write = global.process.stdout.write;
+const strings = [];
 global.process.stdout.write = function(string) {
   strings.push(string);
 };

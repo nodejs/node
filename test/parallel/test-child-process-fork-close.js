@@ -3,7 +3,7 @@ const assert = require('assert');
 const common = require('../common');
 const fork = require('child_process').fork;
 
-var cp = fork(common.fixturesDir + '/child-process-message-and-exit.js');
+const cp = fork(common.fixturesDir + '/child-process-message-and-exit.js');
 
 let gotMessage = false;
 let gotExit = false;

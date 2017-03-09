@@ -1,24 +1,24 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var TCP = process.binding('tcp_wrap').TCP;
-var WriteWrap = process.binding('stream_wrap').WriteWrap;
+const TCP = process.binding('tcp_wrap').TCP;
+const WriteWrap = process.binding('stream_wrap').WriteWrap;
 
-var server = new TCP();
+const server = new TCP();
 
-var r = server.bind('0.0.0.0', 0);
+const r = server.bind('0.0.0.0', 0);
 assert.equal(0, r);
-var port = {};
+let port = {};
 server.getsockname(port);
 port = port.port;
 
 server.listen(128);
 
-var sliceCount = 0, eofCount = 0;
+let sliceCount = 0, eofCount = 0;
 
-var writeCount = 0;
-var recvCount = 0;
+let writeCount = 0;
+let recvCount = 0;
 
 server.onconnection = function(err, client) {
   assert.equal(0, client.writeQueueSize);
@@ -39,7 +39,7 @@ server.onconnection = function(err, client) {
 
       assert.equal(0, client.writeQueueSize);
 
-      var req = new WriteWrap();
+      const req = new WriteWrap();
       req.async = false;
       const returnCode = client.writeBuffer(req, buffer);
       assert.equal(returnCode, 0);
@@ -81,9 +81,9 @@ server.onconnection = function(err, client) {
   };
 };
 
-var net = require('net');
+const net = require('net');
 
-var c = net.createConnection(port);
+const c = net.createConnection(port);
 c.on('connect', function() {
   c.end('hello world');
 });

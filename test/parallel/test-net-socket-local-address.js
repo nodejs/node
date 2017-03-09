@@ -9,9 +9,9 @@ if (common.inFreeBSDJail) {
   return;
 }
 
-var conns = 0;
-var clientLocalPorts = [];
-var serverRemotePorts = [];
+let conns = 0;
+const clientLocalPorts = [];
+const serverRemotePorts = [];
 const client = new net.Socket();
 const server = net.createServer((socket) => {
   serverRemotePorts.push(socket.remotePort);

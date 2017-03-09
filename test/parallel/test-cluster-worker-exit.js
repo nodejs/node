@@ -6,15 +6,15 @@
 // - the worker.suicide flag, and worker.state are correct
 // - the worker process actually goes away
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
-var EXIT_CODE = 42;
+const EXIT_CODE = 42;
 
 if (cluster.isWorker) {
-  var http = require('http');
-  var server = http.Server(function() { });
+  const http = require('http');
+  const server = http.Server(function() { });
 
   server.once('listening', function() {
     process.exit(EXIT_CODE);
@@ -23,7 +23,7 @@ if (cluster.isWorker) {
 
 } else if (cluster.isMaster) {
 
-  var expected_results = {
+  const expected_results = {
     cluster_emitDisconnect: [1, "the cluster did not emit 'disconnect'"],
     cluster_emitExit: [1, "the cluster did not emit 'exit'"],
     cluster_exitCode: [EXIT_CODE, 'the cluster exited w/ incorrect exitCode'],
@@ -36,7 +36,7 @@ if (cluster.isWorker) {
     worker_exitCode: [EXIT_CODE, 'the worker exited w/ incorrect exitCode'],
     worker_signalCode: [null, 'the worker exited w/ incorrect signalCode']
   };
-  var results = {
+  const results = {
     cluster_emitDisconnect: 0,
     cluster_emitExit: 0,
     worker_emitDisconnect: 0,
@@ -45,7 +45,7 @@ if (cluster.isWorker) {
 
 
   // start worker
-  var worker = cluster.fork();
+  const worker = cluster.fork();
 
   worker.once('listening', function() {
     // the worker is up and running...
@@ -83,7 +83,7 @@ if (cluster.isWorker) {
     }
   });
 
-  var finish_test = function() {
+  const finish_test = function() {
     try {
       checkResults(expected_results, results);
     } catch (exc) {
@@ -102,12 +102,12 @@ if (cluster.isWorker) {
 // some helper functions ...
 
 function checkResults(expected_results, results) {
-  for (var k in expected_results) {
+  for (const k in expected_results) {
     const actual = results[k];
     const expected = expected_results[k];
 
-    var msg = (expected[1] || '') +
-              (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
+    const msg = (expected[1] || '') +
+                (' [expected: ' + expected[0] + ' / actual: ' + actual + ']');
 
     if (expected && expected.length) {
       assert.equal(actual, expected[0], msg);

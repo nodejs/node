@@ -65,7 +65,7 @@ assert.throws(function() {
   results_arr.push(2);
 
   setImmediate(common.mustCall(function() {
-    for (var i = 0; i < results_arr.length; i++) {
+    for (let i = 0; i < results_arr.length; i++) {
       assert.equal(results_arr[i],
                    i,
                    `verifyExecutionOrder(${arg}) results: ${results_arr}`);

@@ -1,22 +1,22 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var net = require('net');
-var fs = require('fs');
+const net = require('net');
+const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = tls.createServer(options, function(c) {
+const server = tls.createServer(options, function(c) {
   setTimeout(function() {
     c.write('hello');
     setTimeout(function() {
@@ -27,13 +27,13 @@ var server = tls.createServer(options, function(c) {
 });
 
 server.listen(0, function() {
-  var socket = net.connect(this.address().port, function() {
-    var s = socket.setTimeout(common.platformTimeout(240), function() {
+  const socket = net.connect(this.address().port, function() {
+    const s = socket.setTimeout(common.platformTimeout(240), function() {
       throw new Error('timeout');
     });
     assert.ok(s instanceof net.Socket);
 
-    var tsocket = tls.connect({
+    const tsocket = tls.connect({
       socket: socket,
       rejectUnauthorized: false
     });

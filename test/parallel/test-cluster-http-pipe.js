@@ -13,7 +13,7 @@ if (common.isWindows) {
 
 if (cluster.isMaster) {
   common.refreshTmpDir();
-  var worker = cluster.fork();
+  const worker = cluster.fork();
   worker.on('message', common.mustCall(function(msg) {
     assert.equal(msg, 'DONE');
   }));

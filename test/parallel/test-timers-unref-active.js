@@ -19,8 +19,8 @@ require('../common');
 const timers = require('timers');
 const assert = require('assert');
 
-var someObject = {};
-var nbTimeouts = 0;
+const someObject = {};
+let nbTimeouts = 0;
 
 /*
  * libuv 0.10.x uses GetTickCount on Windows to implement timers, which uses

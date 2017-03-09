@@ -16,7 +16,7 @@ const http = require('http');
 const hostname = '::1';
 
 function httpreq() {
-  var req = http.request({
+  const req = http.request({
     host: hostname,
     port: server.address().port,
     path: '/',

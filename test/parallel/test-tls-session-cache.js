@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
@@ -18,27 +18,27 @@ doTest({ tickets: false }, function() {
 });
 
 function doTest(testOptions, callback) {
-  var assert = require('assert');
-  var tls = require('tls');
-  var fs = require('fs');
-  var join = require('path').join;
-  var spawn = require('child_process').spawn;
+  const assert = require('assert');
+  const tls = require('tls');
+  const fs = require('fs');
+  const join = require('path').join;
+  const spawn = require('child_process').spawn;
 
-  var keyFile = join(common.fixturesDir, 'agent.key');
-  var certFile = join(common.fixturesDir, 'agent.crt');
-  var key = fs.readFileSync(keyFile);
-  var cert = fs.readFileSync(certFile);
-  var options = {
+  const keyFile = join(common.fixturesDir, 'agent.key');
+  const certFile = join(common.fixturesDir, 'agent.crt');
+  const key = fs.readFileSync(keyFile);
+  const cert = fs.readFileSync(certFile);
+  const options = {
     key: key,
     cert: cert,
     ca: [cert],
     requestCert: true
   };
-  var requestCount = 0;
-  var resumeCount = 0;
-  var session;
+  let requestCount = 0;
+  let resumeCount = 0;
+  let session;
 
-  var server = tls.createServer(options, function(cleartext) {
+  const server = tls.createServer(options, function(cleartext) {
     cleartext.on('error', function(er) {
       // We're ok with getting ECONNRESET in this test, but it's
       // timing-dependent, and thus unreliable. Any other errors
@@ -72,7 +72,7 @@ function doTest(testOptions, callback) {
   });
 
   server.listen(0, function() {
-    var args = [
+    const args = [
       's_client',
       '-tls1',
       '-connect', `localhost:${this.address().port}`,
@@ -86,7 +86,7 @@ function doTest(testOptions, callback) {
     if (common.isWindows)
       args.push('-no_rand_screen');
 
-    var client = spawn(common.opensslCli, args, {
+    const client = spawn(common.opensslCli, args, {
       stdio: [ 0, 1, 'pipe' ]
     });
     client.stderr.setEncoding('utf8');

@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var events = require('events');
+const events = require('events');
 
-var e = new events.EventEmitter();
+const e = new events.EventEmitter();
 
 e.once('hello', common.mustCall(function(a, b) {}));
 
@@ -11,7 +11,7 @@ e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 
-var remove = function() {
+const remove = function() {
   common.fail('once->foo should not be emitted');
 };
 

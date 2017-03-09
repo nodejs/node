@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var fork = cluster.fork;
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const fork = cluster.fork;
 
 if (cluster.isMaster) {
   fork(); // it is intentionally called `fork` instead of

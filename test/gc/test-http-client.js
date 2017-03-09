@@ -17,7 +17,7 @@ let countGC = 0;
 
 console.log('We should do ' + todo + ' requests');
 
-var server = http.createServer(serverHandler);
+const server = http.createServer(serverHandler);
 server.listen(0, getall);
 
 
@@ -33,7 +33,7 @@ function getall() {
       res.on('end', gc);
     }
 
-    var req = http.get({
+    const req = http.get({
       hostname: 'localhost',
       pathname: '/',
       port: server.address().port
@@ -46,7 +46,7 @@ function getall() {
   setImmediate(getall);
 }
 
-for (var i = 0; i < 10; i++)
+for (let i = 0; i < 10; i++)
   getall();
 
 function afterGC() {

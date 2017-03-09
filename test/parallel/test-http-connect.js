@@ -1,12 +1,12 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var serverGotConnect = false;
-var clientGotConnect = false;
+let serverGotConnect = false;
+let clientGotConnect = false;
 
-var server = http.createServer(common.fail);
+const server = http.createServer(common.fail);
 server.on('connect', function(req, socket, firstBodyChunk) {
   assert.equal(req.method, 'CONNECT');
   assert.equal(req.url, 'google.com:443');
@@ -15,7 +15,7 @@ server.on('connect', function(req, socket, firstBodyChunk) {
 
   socket.write('HTTP/1.1 200 Connection established\r\n\r\n');
 
-  var data = firstBodyChunk.toString();
+  let data = firstBodyChunk.toString();
   socket.on('data', function(buf) {
     data += buf.toString();
   });
@@ -24,13 +24,13 @@ server.on('connect', function(req, socket, firstBodyChunk) {
   });
 });
 server.listen(0, function() {
-  var req = http.request({
+  const req = http.request({
     port: this.address().port,
     method: 'CONNECT',
     path: 'google.com:443'
   }, common.fail);
 
-  var clientRequestClosed = false;
+  let clientRequestClosed = false;
   req.on('close', function() {
     clientRequestClosed = true;
   });
@@ -40,7 +40,7 @@ server.listen(0, function() {
     clientGotConnect = true;
 
     // Make sure this request got removed from the pool.
-    var name = 'localhost:' + server.address().port;
+    const name = 'localhost:' + server.address().port;
     assert(!http.globalAgent.sockets.hasOwnProperty(name));
     assert(!http.globalAgent.requests.hasOwnProperty(name));
 
@@ -59,7 +59,7 @@ server.listen(0, function() {
     assert.equal(socket.listeners('error').length, 0);
     assert.equal(socket.listeners('agentRemove').length, 0);
 
-    var data = firstBodyChunk.toString();
+    let data = firstBodyChunk.toString();
     socket.on('data', function(buf) {
       data += buf.toString();
     });

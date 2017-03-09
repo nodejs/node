@@ -6,7 +6,7 @@ const Script = require('vm').Script;
 common.globalCheck = false;
 
 console.error('run a string');
-var script = new Script('\'passed\';');
+let script = new Script('\'passed\';');
 console.error('script created');
 const result1 = script.runInNewContext();
 const result2 = script.runInNewContext();
@@ -41,7 +41,7 @@ global.foo = 2;
 global.obj = { foo: 0, baz: 3 };
 script = new Script(global.code);
 /* eslint-disable no-unused-vars */
-var baz = script.runInNewContext(global.obj);
+const baz = script.runInNewContext(global.obj);
 /* eslint-enable no-unused-vars */
 assert.equal(1, global.obj.foo);
 assert.equal(2, global.obj.bar);
@@ -55,7 +55,7 @@ assert.equal(global.foo, 100);
 
 console.error('modify an object by reference');
 script = new Script('f.a = 2');
-var f = { a: 1 };
+const f = { a: 1 };
 script.runInNewContext({ f: f });
 assert.equal(f.a, 2);
 

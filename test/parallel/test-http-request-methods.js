@@ -1,13 +1,13 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var http = require('http');
+const assert = require('assert');
+const net = require('net');
+const http = require('http');
 
 // Test that the DELETE, PATCH and PURGE verbs get passed through correctly
 
 ['DELETE', 'PATCH', 'PURGE'].forEach(function(method, index) {
-  var server = http.createServer(common.mustCall(function(req, res) {
+  const server = http.createServer(common.mustCall(function(req, res) {
     assert.strictEqual(req.method, method);
     res.writeHead(200, {'Content-Type': 'text/plain'});
     res.write('hello ');
@@ -17,8 +17,8 @@ var http = require('http');
   server.listen(0);
 
   server.on('listening', common.mustCall(function() {
-    var c = net.createConnection(this.address().port);
-    var server_response = '';
+    const c = net.createConnection(this.address().port);
+    let server_response = '';
 
     c.setEncoding('utf8');
 

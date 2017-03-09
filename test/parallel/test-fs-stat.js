@@ -1,7 +1,7 @@
 /* eslint-disable strict */
 const common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const assert = require('assert');
+const fs = require('fs');
 
 fs.stat('.', common.mustCall(function(err, stats) {
   assert.ifError(err);
@@ -37,9 +37,8 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
 
 // fstatSync
 fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
-  var stats;
   try {
-    stats = fs.fstatSync(fd);
+    var stats = fs.fstatSync(fd); // eslint-disable-line no-var
   } catch (err) {
     common.fail(err);
   }

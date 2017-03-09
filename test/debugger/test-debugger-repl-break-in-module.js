@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var repl = require('./helper-debugger-repl.js');
+const repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('break-in-module/main.js');
 

@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var zlib = require('zlib');
+const common = require('../common');
+const assert = require('assert');
+const zlib = require('zlib');
 
 // Should raise an error, not trigger an assertion in src/node_zlib.cc
 (function() {
-  var stream = zlib.createInflate();
+  const stream = zlib.createInflate();
 
   stream.on('error', common.mustCall(function(err) {
     assert(/Missing dictionary/.test(err.message));
@@ -17,7 +17,7 @@ var zlib = require('zlib');
 
 // Should raise an error, not trigger an assertion in src/node_zlib.cc
 (function() {
-  var stream = zlib.createInflate({ dictionary: Buffer('fail') });
+  const stream = zlib.createInflate({ dictionary: Buffer('fail') });
 
   stream.on('error', common.mustCall(function(err) {
     assert(/Bad dictionary/.test(err.message));
@@ -29,7 +29,7 @@ var zlib = require('zlib');
 
 // Should raise an error, not trigger an assertion in src/node_zlib.cc
 (function() {
-  var stream = zlib.createInflateRaw({ dictionary: Buffer('fail') });
+  const stream = zlib.createInflateRaw({ dictionary: Buffer('fail') });
 
   stream.on('error', common.mustCall(function(err) {
     // It's not possible to separate invalid dict and invalid data when using

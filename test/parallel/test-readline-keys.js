@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var PassThrough = require('stream').PassThrough;
-var assert = require('assert');
-var inherits = require('util').inherits;
-var extend = require('util')._extend;
-var Interface = require('readline').Interface;
+const PassThrough = require('stream').PassThrough;
+const assert = require('assert');
+const inherits = require('util').inherits;
+const extend = require('util')._extend;
+const Interface = require('readline').Interface;
 
 
 function FakeInput() {
@@ -13,11 +13,11 @@ function FakeInput() {
 inherits(FakeInput, PassThrough);
 
 
-var fi = new FakeInput();
-var fo = new FakeInput();
+const fi = new FakeInput();
+const fo = new FakeInput();
 new Interface({ input: fi, output: fo, terminal: true });
 
-var keys = [];
+let keys = [];
 fi.on('keypress', function(s, k) {
   keys.push(k);
 });
@@ -75,8 +75,8 @@ const addKeyIntervalTest = (sequences, expectedKeys, interval,
     fi.on('keypress', (s, k) => keys.push(k));
 
     const emitKeys = (arr) => {
-      var head = arr.shift();
-      var tail = arr;
+      const head = arr.shift();
+      const tail = arr;
       if (head) {
         fi.write(head);
         setTimeout(() => emitKeys(tail), interval);

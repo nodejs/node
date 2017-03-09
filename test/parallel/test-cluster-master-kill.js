@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
 if (cluster.isWorker) {
 
   // keep the worker alive
-  var http = require('http');
+  const http = require('http');
   http.Server().listen(common.PORT, '127.0.0.1');
 
 } else if (process.argv[2] === 'cluster') {
 
-  var worker = cluster.fork();
+  const worker = cluster.fork();
 
   // send PID info to testcase process
   process.send({
@@ -28,10 +28,10 @@ if (cluster.isWorker) {
 } else {
 
   // This is the testcase
-  var fork = require('child_process').fork;
+  const fork = require('child_process').fork;
 
   // is process alive helper
-  var isAlive = function(pid) {
+  const isAlive = function(pid) {
     try {
       //this will throw an error if the process is dead
       process.kill(pid, 0);
@@ -43,23 +43,23 @@ if (cluster.isWorker) {
   };
 
   // Spawn a cluster process
-  var master = fork(process.argv[1], ['cluster']);
+  const master = fork(process.argv[1], ['cluster']);
 
   // get pid info
-  var pid = null;
+  let pid = null;
   master.once('message', function(data) {
     pid = data.pid;
   });
 
   // When master is dead
-  var alive = true;
+  let alive = true;
   master.on('exit', function(code) {
 
     // make sure that the master died on purpose
     assert.equal(code, 0);
 
     // check worker process status
-    var pollWorker = function() {
+    const pollWorker = function() {
       alive = isAlive(pid);
       if (alive) {
         setTimeout(pollWorker, 50);

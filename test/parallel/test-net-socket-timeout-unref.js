@@ -12,7 +12,7 @@ const server = net.createServer(function(c) {
 server.listen(0);
 server.unref();
 
-var connections = 0;
+let connections = 0;
 const sockets = [];
 const delays = [8, 5, 3, 6, 2, 4];
 

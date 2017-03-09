@@ -1,10 +1,10 @@
 'use strict';
-var NUM_WORKERS = 4;
-var PACKETS_PER_WORKER = 10;
+const NUM_WORKERS = 4;
+const PACKETS_PER_WORKER = 10;
 
-var cluster = require('cluster');
-var common = require('../common');
-var dgram = require('dgram');
+const cluster = require('cluster');
+const common = require('../common');
+const dgram = require('dgram');
 
 
 if (common.isWindows) {
@@ -20,10 +20,10 @@ else
 
 
 function master() {
-  var received = 0;
+  let received = 0;
 
   // Start listening on a socket.
-  var socket = dgram.createSocket('udp4');
+  const socket = dgram.createSocket('udp4');
   socket.bind(common.PORT);
 
   // Disconnect workers when the expected number of messages have been
@@ -43,22 +43,22 @@ function master() {
   });
 
   // Fork workers.
-  for (var i = 0; i < NUM_WORKERS; i++)
+  for (let i = 0; i < NUM_WORKERS; i++)
     cluster.fork();
 }
 
 
 function worker() {
   // Create udp socket and send packets to master.
-  var socket = dgram.createSocket('udp4');
-  var buf = new Buffer('hello world');
+  const socket = dgram.createSocket('udp4');
+  const buf = new Buffer('hello world');
 
   // This test is intended to exercise the cluster binding of udp sockets, but
   // since sockets aren't clustered when implicitly bound by at first call of
   // send(), explicitly bind them to an ephemeral port.
   socket.bind(0);
 
-  for (var i = 0; i < PACKETS_PER_WORKER; i++)
+  for (let i = 0; i < PACKETS_PER_WORKER; i++)
     socket.send(buf, 0, buf.length, common.PORT, '127.0.0.1');
 
   console.log('worker %d sent %d packets', cluster.worker.id,

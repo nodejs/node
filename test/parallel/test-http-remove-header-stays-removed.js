@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
-var server = http.createServer(function(request, response) {
+const server = http.createServer(function(request, response) {
   // removed headers should stay removed, even if node automatically adds them
   // to the output:
   response.removeHeader('connection');
@@ -20,7 +20,7 @@ var server = http.createServer(function(request, response) {
   this.close();
 });
 
-var response = '';
+let response = '';
 
 process.on('exit', function() {
   assert.equal('beep boop\n', response);

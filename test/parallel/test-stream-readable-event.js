@@ -1,17 +1,17 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var Readable = require('stream').Readable;
+const Readable = require('stream').Readable;
 
 (function first() {
   // First test, not reading when the readable is added.
   // make sure that on('readable', ...) triggers a readable event.
-  var r = new Readable({
+  const r = new Readable({
     highWaterMark: 3
   });
 
-  var _readCalled = false;
+  let _readCalled = false;
   r._read = function(n) {
     _readCalled = true;
   };
@@ -19,7 +19,7 @@ var Readable = require('stream').Readable;
   // This triggers a 'readable' event, which is lost.
   r.push(new Buffer('blerg'));
 
-  var caughtReadable = false;
+  let caughtReadable = false;
   setTimeout(function() {
     // we're testing what we think we are
     assert(!r._readableState.reading);
@@ -41,11 +41,11 @@ var Readable = require('stream').Readable;
   // second test, make sure that readable is re-emitted if there's
   // already a length, while it IS reading.
 
-  var r = new Readable({
+  const r = new Readable({
     highWaterMark: 3
   });
 
-  var _readCalled = false;
+  let _readCalled = false;
   r._read = function(n) {
     _readCalled = true;
   };
@@ -53,7 +53,7 @@ var Readable = require('stream').Readable;
   // This triggers a 'readable' event, which is lost.
   r.push(new Buffer('bl'));
 
-  var caughtReadable = false;
+  let caughtReadable = false;
   setTimeout(function() {
     // assert we're testing what we think we are
     assert(r._readableState.reading);
@@ -74,11 +74,11 @@ var Readable = require('stream').Readable;
 (function third() {
   // Third test, not reading when the stream has not passed
   // the highWaterMark but *has* reached EOF.
-  var r = new Readable({
+  const r = new Readable({
     highWaterMark: 30
   });
 
-  var _readCalled = false;
+  let _readCalled = false;
   r._read = function(n) {
     _readCalled = true;
   };
@@ -87,7 +87,7 @@ var Readable = require('stream').Readable;
   r.push(new Buffer('blerg'));
   r.push(null);
 
-  var caughtReadable = false;
+  let caughtReadable = false;
   setTimeout(function() {
     // assert we're testing what we think we are
     assert(!r._readableState.reading);

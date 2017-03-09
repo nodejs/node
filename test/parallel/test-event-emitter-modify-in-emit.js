@@ -1,11 +1,11 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var events = require('events');
+const assert = require('assert');
+const events = require('events');
 
-var callbacks_called = [];
+let callbacks_called = [];
 
-var e = new events.EventEmitter();
+const e = new events.EventEmitter();
 
 function callback1() {
   callbacks_called.push('callback1');

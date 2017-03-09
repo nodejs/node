@@ -1,11 +1,9 @@
 'use strict';
 const common = require('../common');
-var domain = require('domain');
-var assert = require('assert');
+const domain = require('domain');
+const assert = require('assert');
 
-var timeout;
-
-var timeoutd = domain.create();
+const timeoutd = domain.create();
 
 timeoutd.on('error', common.mustCall(function(e) {
   assert.equal(e.message, 'Timeout UNREFd', 'Domain should catch timer error');
@@ -18,7 +16,7 @@ timeoutd.run(function() {
   }).unref();
 });
 
-var immediated = domain.create();
+const immediated = domain.create();
 
 immediated.on('error', common.mustCall(function(e) {
   assert.equal(e.message, 'Immediate Error',
@@ -31,4 +29,4 @@ immediated.run(function() {
   });
 });
 
-timeout = setTimeout(function() {}, 10 * 1000);
+const timeout = setTimeout(function() {}, 10 * 1000);

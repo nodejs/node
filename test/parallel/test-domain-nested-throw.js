@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var domain = require('domain');
+const domain = require('domain');
 
-var dispose;
+let dispose;
 switch (process.argv[2]) {
   case 'true':
     dispose = true;
@@ -18,10 +18,10 @@ switch (process.argv[2]) {
 }
 
 function parent() {
-  var node = process.execPath;
-  var spawn = require('child_process').spawn;
-  var opt = { stdio: 'inherit' };
-  var child = spawn(node, [__filename, 'true'], opt);
+  const node = process.execPath;
+  const spawn = require('child_process').spawn;
+  const opt = { stdio: 'inherit' };
+  let child = spawn(node, [__filename, 'true'], opt);
   child.on('exit', function(c) {
     assert(!c);
     child = spawn(node, [__filename, 'false'], opt);
@@ -32,11 +32,11 @@ function parent() {
   });
 }
 
-var gotDomain1Error = false;
-var gotDomain2Error = false;
+let gotDomain1Error = false;
+let gotDomain2Error = false;
 
-var threw1 = false;
-var threw2 = false;
+let threw1 = false;
+let threw2 = false;
 
 function throw1() {
   threw1 = true;
@@ -49,7 +49,7 @@ function throw2() {
 }
 
 function inner(throw1, throw2) {
-  var domain1 = domain.createDomain();
+  const domain1 = domain.createDomain();
 
   domain1.on('error', function(err) {
     if (gotDomain1Error) {
@@ -67,7 +67,7 @@ function inner(throw1, throw2) {
 }
 
 function outer() {
-  var domain2 = domain.createDomain();
+  const domain2 = domain.createDomain();
 
   domain2.on('error', function(err) {
     if (gotDomain2Error) {

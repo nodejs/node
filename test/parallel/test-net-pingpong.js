@@ -5,9 +5,9 @@ const net = require('net');
 
 function pingPongTest(port, host) {
   const N = 1000;
-  var count = 0;
-  var sentPongs = 0;
-  var sent_final_ping = false;
+  let count = 0;
+  let sentPongs = 0;
+  let sent_final_ping = false;
 
   const server = net.createServer(
     { allowHalfOpen: true },

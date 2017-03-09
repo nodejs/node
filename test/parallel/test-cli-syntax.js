@@ -6,10 +6,10 @@ const path = require('path');
 
 const common = require('../common');
 
-var node = process.execPath;
+const node = process.execPath;
 
 // test both sets of arguments that check syntax
-var syntaxArgs = [
+const syntaxArgs = [
   ['-c'],
   ['--check']
 ];
@@ -26,8 +26,8 @@ var syntaxArgs = [
 
   // loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
-    var _args = args.concat(file);
-    var c = spawnSync(node, _args, {encoding: 'utf8'});
+    const _args = args.concat(file);
+    const c = spawnSync(node, _args, {encoding: 'utf8'});
 
     // no output should be produced
     assert.strictEqual(c.stdout, '', 'stdout produced');
@@ -47,14 +47,14 @@ var syntaxArgs = [
 
   // loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
-    var _args = args.concat(file);
-    var c = spawnSync(node, _args, {encoding: 'utf8'});
+    const _args = args.concat(file);
+    const c = spawnSync(node, _args, {encoding: 'utf8'});
 
     // no stdout should be produced
     assert.strictEqual(c.stdout, '', 'stdout produced');
 
     // stderr should have a syntax error message
-    var match = c.stderr.match(/^SyntaxError: Unexpected identifier$/m);
+    const match = c.stderr.match(/^SyntaxError: Unexpected identifier$/m);
     assert(match, 'stderr incorrect');
 
     assert.strictEqual(c.status, 1, 'code == ' + c.status);
@@ -70,14 +70,14 @@ var syntaxArgs = [
 
   // loop each possible option, `-c` or `--check`
   syntaxArgs.forEach(function(args) {
-    var _args = args.concat(file);
-    var c = spawnSync(node, _args, {encoding: 'utf8'});
+    const _args = args.concat(file);
+    const c = spawnSync(node, _args, {encoding: 'utf8'});
 
     // no stdout should be produced
     assert.strictEqual(c.stdout, '', 'stdout produced');
 
     // stderr should have a module not found error message
-    var match = c.stderr.match(/^Error: Cannot find module/m);
+    const match = c.stderr.match(/^Error: Cannot find module/m);
     assert(match, 'stderr incorrect');
 
     assert.strictEqual(c.status, 1, 'code == ' + c.status);

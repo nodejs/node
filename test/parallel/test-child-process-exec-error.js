@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var child_process = require('child_process');
+const common = require('../common');
+const assert = require('assert');
+const child_process = require('child_process');
 
 function test(fun, code) {
   fun('does-not-exist', common.mustCall(function(err) {

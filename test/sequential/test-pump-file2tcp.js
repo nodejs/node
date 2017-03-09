@@ -1,22 +1,22 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var fs = require('fs');
-var util = require('util');
-var path = require('path');
-var fn = path.join(common.fixturesDir, 'elipses.txt');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const fs = require('fs');
+const util = require('util');
+const path = require('path');
+const fn = path.join(common.fixturesDir, 'elipses.txt');
 
-var expected = fs.readFileSync(fn, 'utf8');
+const expected = fs.readFileSync(fn, 'utf8');
 
-var server = net.createServer(function(stream) {
+const server = net.createServer(function(stream) {
   util.pump(fs.createReadStream(fn), stream, function() {
     server.close();
   });
 });
 
 server.listen(common.PORT, function() {
-  var conn = net.createConnection(common.PORT);
+  const conn = net.createConnection(common.PORT);
   conn.setEncoding('utf8');
   conn.on('data', function(chunk) {
     buffer += chunk;
@@ -27,7 +27,7 @@ server.listen(common.PORT, function() {
   });
 });
 
-var buffer = '';
+let buffer = '';
 
 server.on('listening', function() {
 });

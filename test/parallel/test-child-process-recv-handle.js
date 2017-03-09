@@ -2,10 +2,10 @@
 // Test that a Linux specific quirk in the handle passing protocol is handled
 // correctly. See https://github.com/joyent/node/issues/5330 for details.
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'worker')
   worker();
@@ -15,10 +15,10 @@ else
 function master() {
   // spawn() can only create one IPC channel so we use stdin/stdout as an
   // ad-hoc command channel.
-  var proc = spawn(process.execPath, [__filename, 'worker'], {
+  const proc = spawn(process.execPath, [__filename, 'worker'], {
     stdio: ['pipe', 'pipe', 'pipe', 'ipc']
   });
-  var handle = null;
+  let handle = null;
   proc.on('exit', function() {
     handle.close();
   });
@@ -43,7 +43,7 @@ function worker() {
     assert.equal(data, 'ok\r\n');
     process._channel.readStart();
   });
-  var n = 0;
+  let n = 0;
   process.on('message', function(msg, handle) {
     n += 1;
     if (n === 1) {

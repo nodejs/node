@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.writeHead(200, {
     'Content-Type': 'text/plain',
     'Connection': 'close'
@@ -17,12 +17,12 @@ common.refreshTmpDir();
 
 server.listen(common.PIPE, common.mustCall(function() {
 
-  var options = {
+  const options = {
     socketPath: common.PIPE,
     path: '/'
   };
 
-  var req = http.get(options, common.mustCall(function(res) {
+  const req = http.get(options, common.mustCall(function(res) {
     assert.equal(res.statusCode, 200);
     assert.equal(res.headers['content-type'], 'text/plain');
 
