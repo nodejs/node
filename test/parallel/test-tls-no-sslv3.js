@@ -29,7 +29,7 @@ server.listen(0, '127.0.0.1', function() {
                 '-connect', address];
 
   // for the performance and stability issue in s_client on Windows
-  if (common.isWindows)
+  if (common.needNoRandScreen)
     args.push('-no_rand_screen');
 
   const client = spawn(common.opensslCli, args, { stdio: 'pipe' });

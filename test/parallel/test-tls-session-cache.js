@@ -117,7 +117,7 @@ function doTest(testOptions, callback) {
     ].concat(testOptions.tickets ? [] : '-no_ticket');
 
     // for the performance and stability issue in s_client on Windows
-    if (common.isWindows)
+    if (common.needNoRandScreen)
       args.push('-no_rand_screen');
 
     function spawnClient() {

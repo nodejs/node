@@ -18,12 +18,15 @@ const server = net.createServer(function(s) {
   });
 });
 
+const expected_err = common.isOpenSSL10 ? /unknown protocol/ :
+  /wrong version number/;
+
 server.listen(0, function() {
   const req = https.request({ port: this.address().port });
   req.end();
 
   req.once('error', common.mustCall(function(err) {
-    assert(/wrong version number/.test(err.message));
+    assert(expected_err.test(err.message));
     server.close();
   }));
 });
