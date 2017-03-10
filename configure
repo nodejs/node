@@ -156,6 +156,7 @@ parser.add_option('--openssl-fips',
 parser.add_option('--use-openssl110',
     action='store_true',
     dest='use_openssl110',
+    default=True,
     help='Build with OpenSSL-1.1.0 (Experimental)')
 
 parser.add_option('--openssl-use-def-ca-store',
@@ -597,7 +598,9 @@ def get_nasm_version(asm):
             Please make sure you have installed nasm from http://www.nasm.us
             or add an option of openssl_no_asm.
         ''')
-    sys.exit()
+#    sys.exit()
+# fallback to openssl_no_asm when nasm is not installed
+    return 0
 
   match = re.match(r"NASM version ([2-9]\.[0-9][0-9]+)",
                    proc.communicate()[0])
