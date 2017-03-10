@@ -22,6 +22,11 @@ function listenError(literals, ...values) {
   net.createServer().listen().on('listening', common.mustCall(close));
   // Test listen(cb)
   net.createServer().listen(common.mustCall(close));
+  // Test listen(port)
+  net.createServer().listen(0).on('listening', common.mustCall(close));
+  // Test listen({port})
+  net.createServer().listen({port: 0})
+    .on('listening', common.mustCall(close));
 }
 
 // Test listen(port, cb) and listen({port: port}, cb) combinations
