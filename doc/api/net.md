@@ -526,7 +526,8 @@ Possible signatures:
 * [socket.connect(options[, connectListener])][`socket.connect(options)`]
 * [socket.connect(path[, connectListener])][`socket.connect(path)`]
   for [IPC][] connections.
-* [socket.connect(port[, host][, connectListener])][`socket.connect(port, host)`] for TCP connections.
+* [socket.connect(port[, host][, connectListener])][`socket.connect(port, host)`]
+  for TCP connections.
 
 This function is asynchronous. When the connection is established, the
 [`'connect'`][] event will be emitted. If there is a problem connecting,
@@ -609,9 +610,12 @@ called with `{port: port, host: host}` as `options`.
 added: v6.1.0
 -->
 
-If `true` - [`socket.connect(options[, connectListener])`][`socket.connect(options)`] was called and
-haven't yet finished. Will be set to `false` before emitting `connect` event
-and/or calling [`socket.connect(options[, connectListener])`][`socket.connect(options)`]'s callback.
+If `true` -
+[`socket.connect(options[, connectListener])`][`socket.connect(options)`]
+was called and haven't yet finished. Will be set to `false` before emitting
+`connect` event and/or calling
+[`socket.connect(options[, connectListener])`][`socket.connect(options)`]'s
+callback.
 
 ### socket.destroy([exception])
 <!-- YAML
