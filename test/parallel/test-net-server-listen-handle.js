@@ -49,8 +49,11 @@ function randomHandle(type) {
   if (errno < 0) {  // uv.errname requires err < 0
     assert(errno >= 0, `unable to bind ${handleName}: ${uv.errname(errno)}`);
   }
-  // err >= 0 but fd = -1, should not happen
-  assert(handle.fd !== -1, `Bound ${handleName} has fd -1 and errno ${errno}`);
+  if (!common.isWindows) {  // fd doesn't work on windows
+    // err >= 0 but fd = -1, should not happen
+    assert.notStrictEqual(handle.fd, -1,
+                          `Bound ${handleName} has fd -1 and errno ${errno}`);
+  }
   return handle;
 }
 
@@ -74,7 +77,7 @@ function randomPipes(number) {
 }
 
 // Not a public API, used by child_process
-{
+if (!common.isWindows) {  // Windows doesn't support {fd: <n>}
   const handles = randomPipes(2);  // generate pipes in advance
   // Test listen(pipe)
   net.createServer()
@@ -100,6 +103,9 @@ function randomPipes(number) {
   net.createServer()
     .listen({_handle: randomHandle('tcp')})
     .on('listening', closeServer());
+}
+
+if (!common.isWindows) {  // Windows doesn't support {fd: <n>}
   // Test listen({fd: tcp.fd}, cb)
   net.createServer()
     .listen({fd: randomHandle('tcp').fd}, closeServer());
@@ -109,7 +115,7 @@ function randomPipes(number) {
     .on('listening', closeServer());
 }
 
-{
+if (!common.isWindows) {  // Windows doesn't support {fd: <n>}
   const handles = randomPipes(6);  // generate pipes in advance
   // Test listen({handle: pipe}, cb)
   net.createServer()
@@ -134,7 +140,7 @@ function randomPipes(number) {
     .on('listening', closePipeServer(handles[5]));
 }
 
-{
+if (!common.isWindows) {  // Windows doesn't support {fd: <n>}
   // Test invalid fd
   const fd = fs.openSync(__filename, 'r');
   net.createServer()
