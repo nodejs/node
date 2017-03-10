@@ -2,12 +2,20 @@
 
 const common = require('../common');
 const net = require('net');
-function close() { this.close(); }
+
+common.refreshTmpDir();
+
+function closeServer() {
+  return common.mustCall(function() {
+    this.close();
+  });
+}
 
 let counter = 0;
 
+// Avoid conflict with listen-handle
 function randomPipePath() {
-  return common.PIPE + '-listen-pipe-' + (counter++);
+  return common.PIPE + '-listen-path-' + (counter++);
 }
 
 // Test listen(path)
@@ -15,7 +23,7 @@ function randomPipePath() {
   const handlePath = randomPipePath();
   net.createServer()
     .listen(handlePath)
-    .on('listening', common.mustCall(close));
+    .on('listening', closeServer());
 }
 
 // Test listen({path})
@@ -23,19 +31,19 @@ function randomPipePath() {
   const handlePath = randomPipePath();
   net.createServer()
     .listen({path: handlePath})
-    .on('listening', common.mustCall(close));
+    .on('listening', closeServer());
 }
 
 // Test listen(path, cb)
 {
   const handlePath = randomPipePath();
   net.createServer()
-    .listen(handlePath, common.mustCall(close));
+    .listen(handlePath, closeServer());
 }
 
 // Test listen(path, cb)
 {
   const handlePath = randomPipePath();
   net.createServer()
-    .listen({path: handlePath}, common.mustCall(close));
+    .listen({path: handlePath}, closeServer());
 }

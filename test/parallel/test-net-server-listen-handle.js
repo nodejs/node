@@ -28,8 +28,9 @@ function closePipeServer(handle) {
 
 let counter = 0;
 
+// Avoid conflict with listen-path
 function randomPipePath() {
-  return common.PIPE + '-listen-pipe-' + (counter++);
+  return common.PIPE + '-listen-handle-' + (counter++);
 }
 
 function randomHandle(type) {
