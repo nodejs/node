@@ -45,6 +45,7 @@ using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
 using v8::RetainedObjectInfo;
+using v8::Symbol;
 using v8::TryCatch;
 using v8::Uint32Array;
 using v8::Value;
@@ -324,6 +325,17 @@ void AsyncWrap::Initialize(Local<Object> target,
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
   FORCE_SET_TARGET_FIELD(target, "Providers", async_providers);
+
+  // These Symbols are used throughout node so the stored values on each object
+  // can be accessed easily across files.
+  FORCE_SET_TARGET_FIELD(
+      target,
+      "async_id_symbol",
+      Symbol::New(isolate, FIXED_ONE_BYTE_STRING(isolate, "asyncId")));
+  FORCE_SET_TARGET_FIELD(
+      target,
+      "trigger_id_symbol",
+      Symbol::New(isolate, FIXED_ONE_BYTE_STRING(isolate, "triggerId")));
 
 #undef FORCE_SET_TARGET_FIELD
 
