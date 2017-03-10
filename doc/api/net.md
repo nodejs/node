@@ -40,7 +40,7 @@ double-backslashes, such as:
 
 ```js
 net.createServer().listen(
-    path.join('\\\\?\\pipe', process.cwd(), 'myctl'))
+    path.join('\\\\?\\pipe', process.cwd(), 'myctl'));
 ```
 
 ## Class: net.Server
@@ -107,7 +107,7 @@ Returns an object with `port`, `family`, and `address` properties:
 Example:
 
 ```js
-var server = net.createServer((socket) => {
+const server = net.createServer((socket) => {
   socket.end('goodbye\n');
 }).on('error', (err) => {
   // handle errors here
@@ -758,7 +758,7 @@ socket.setTimeout(3000);
 socket.on('timeout', () => {
   console.log('socket timeout');
   socket.end();
-})
+});
 ```
 
 If `timeout` is 0, then the existing idle timeout is disabled.
@@ -997,8 +997,8 @@ server.listen(8124, () => {
 
 Test this by using `telnet`:
 
-```sh
-telnet localhost 8124
+```console
+$ telnet localhost 8124
 ```
 
 To listen on the socket `/tmp/echo.sock` the third line from the last would
@@ -1012,8 +1012,8 @@ server.listen('/tmp/echo.sock', () => {
 
 Use `nc` to connect to a UNIX domain socket server:
 
-```js
-nc -U /tmp/echo.sock
+```console
+$ nc -U /tmp/echo.sock
 ```
 
 ## net.isIP(input)
