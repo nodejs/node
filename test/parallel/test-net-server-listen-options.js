@@ -3,6 +3,10 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const util = require('util');
+const fs = require('fs');
+const uv = process.binding('uv');
+const TCP = process.binding('tcp_wrap').TCP;
+const Pipe = process.binding('pipe_wrap').Pipe;
 
 function close() { this.close(); }
 
@@ -22,6 +26,117 @@ function listenError(literals, ...values) {
   net.createServer().listen().on('listening', common.mustCall(close));
   // Test listen(cb)
   net.createServer().listen(common.mustCall(close));
+  // Test listen(port)
+  net.createServer().listen(0).on('listening', common.mustCall(close));
+  // Test listen({port})
+  net.createServer().listen({port: 0})
+    .on('listening', common.mustCall(close));
+}
+
+let counter = 0;
+
+function randomPipePath() {
+  return common.PIPE + '-listen-pipe-' + (counter++);
+}
+
+function randomHandle(type) {
+  let handle, err;
+  if (type === 'tcp') {
+    handle = new TCP();
+    err = handle.bind('0.0.0.0', 0);
+    if (err < 0) {  // uv.errname requires err < 0
+      assert(err >= 0, `unable to bind arbitrary tcp port: ${uv.errname(err)}`);
+    }
+  } else {
+    const path = randomPipePath();
+    handle = new Pipe();
+    err = handle.bind(path);
+    if (err < 0) {  // uv.errname requires err < 0
+      assert(err >= 0, `unable to bind pipe ${path}: ${uv.errname(err)}`);
+    }
+  }
+  return handle;
+}
+
+{
+  // Test listen(path)
+  net.createServer()
+    .listen(randomPipePath())
+    .on('listening', common.mustCall(close));
+  // Test listen({path})
+  net.createServer()
+    .listen({path: randomPipePath()}, common.mustCall(close));
+  // Test listen(path, cb)
+  net.createServer()
+    .listen(randomPipePath(), common.mustCall(close));
+  // Test listen(path, cb)
+  net.createServer()
+    .listen({path: randomPipePath()}, common.mustCall(close));
+}
+
+// Not a public API, used by child_process
+{
+  // Test listen(handle)
+  net.createServer()
+    .listen(randomHandle('tcp'))
+    .on('listening', common.mustCall(close));
+  net.createServer()
+    .listen(randomHandle('pipe'))
+    .on('listening', common.mustCall(close));
+}
+
+// Not a public API, used by child_process
+{
+  // Test listen(handle, cb)
+  net.createServer()
+    .listen(randomHandle('tcp'), common.mustCall(close));
+  net.createServer()
+    .listen(randomHandle('pipe'), common.mustCall(close));
+}
+
+{
+  // Test listen({handle}, cb)
+  net.createServer()
+    .listen({handle: randomHandle('tcp')}, common.mustCall(close));
+  net.createServer()
+    .listen({handle: randomHandle('pipe')}, common.mustCall(close));
+}
+
+{
+  // Test listen({_handle: handle}, cb)
+  net.createServer()
+    .listen({_handle: randomHandle('tcp')}, common.mustCall(close));
+  net.createServer()
+    .listen({_handle: randomHandle('pipe')}, common.mustCall(close));
+}
+
+{
+  // Test listen({fd: handle})
+  net.createServer()
+    .listen({fd: randomHandle('tcp').fd})
+    .on('listening', common.mustCall(close));
+  net.createServer()
+    .listen({fd: randomHandle('pipe').fd})
+    .on('listening', common.mustCall(close));
+}
+
+{
+  // Test listen({fd: handle}, cb)
+  net.createServer()
+    .listen({fd: randomHandle('tcp').fd}, common.mustCall(close));
+  net.createServer()
+    .listen({fd: randomHandle('pipe').fd}, common.mustCall(close));
+}
+
+{
+  // Test invalid fd
+  const fd = fs.openSync(__filename, 'r');
+  net.createServer()
+    .listen({fd: fd}, common.mustNotCall())
+    .on('error', common.mustCall(function(err) {
+      assert.strictEqual(err + '', 'Error: listen EINVAL');
+      this.close();
+    }));
 }
 
 // Test listen(port, cb) and listen({port: port}, cb) combinations
