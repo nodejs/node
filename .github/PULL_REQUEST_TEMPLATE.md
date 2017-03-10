@@ -13,7 +13,9 @@ Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 - [ ] `make -j4 test` (UNIX), or `vcbuild test` (Windows) passes
 - [ ] tests and/or benchmarks are included
 - [ ] documentation is changed or added
-- [ ] commit message follows commit guidelines
+- [ ] commit message follows [commit guidelines][]
 
 ##### Affected core subsystem(s)
 <!-- Provide affected core subsystem(s) (like doc, cluster, crypto, etc). -->
+
+[commit guidelines]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#commit-guidelines
