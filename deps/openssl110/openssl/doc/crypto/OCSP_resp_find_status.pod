@@ -1,0 +1,139 @@
+=pod
+
+=head1 NAME
+
+OCSP_resp_get0_certs,
+OCSP_resp_get0_id,
+OCSP_resp_get0_produced_at,
+OCSP_resp_find_status, OCSP_resp_count, OCSP_resp_get0, OCSP_resp_find,
+OCSP_single_get0_status, OCSP_check_validity
+- OCSP response utility functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/ocsp.h>
+
+ int OCSP_resp_find_status(OCSP_BASICRESP *bs, OCSP_CERTID *id, int *status,
+                           int *reason,
+                           ASN1_GENERALIZEDTIME **revtime,
+                           ASN1_GENERALIZEDTIME **thisupd,
+                           ASN1_GENERALIZEDTIME **nextupd);
+
+ int OCSP_resp_count(OCSP_BASICRESP *bs);
+ OCSP_SINGLERESP *OCSP_resp_get0(OCSP_BASICRESP *bs, int idx);
+ int OCSP_resp_find(OCSP_BASICRESP *bs, OCSP_CERTID *id, int last);
+ int OCSP_single_get0_status(OCSP_SINGLERESP *single, int *reason,
+                             ASN1_GENERALIZEDTIME **revtime,
+                             ASN1_GENERALIZEDTIME **thisupd,
+                             ASN1_GENERALIZEDTIME **nextupd);
+
+ const ASN1_GENERALIZEDTIME *OCSP_resp_get0_produced_at(
+                             const OCSP_BASICRESP* single);
+
+ const STACK_OF(X509) *OCSP_resp_get0_certs(const OCSP_BASICRESP *bs);
+
+ int OCSP_resp_get0_id(const OCSP_BASICRESP *bs,
+                       const ASN1_OCTET_STRING **pid,
+                       const X509_NAME **pname);
+
+ int OCSP_check_validity(ASN1_GENERALIZEDTIME *thisupd,
+                         ASN1_GENERALIZEDTIME *nextupd,
+                         long sec, long maxsec);
+
+=head1 DESCRIPTION
+
+OCSP_resp_find_status() searches B<bs> for an OCSP response for B<id>. If it is
+successful the fields of the response are returned in B<*status>, B<*reason>,
+B<*revtime>, B<*thisupd> and B<*nextupd>.  The B<*status> value will be one of
+B<V_OCSP_CERTSTATUS_GOOD>, B<V_OCSP_CERTSTATUS_REVOKED> or
+B<V_OCSP_CERTSTATUS_UNKNOWN>. The B<*reason> and B<*revtime> fields are only
+set if the status is B<V_OCSP_CERTSTATUS_REVOKED>. If set the B<*reason> field
+will be set to the revocation reason which will be one of
+B<OCSP_REVOKED_STATUS_NOSTATUS>, B<OCSP_REVOKED_STATUS_UNSPECIFIED>,
+B<OCSP_REVOKED_STATUS_KEYCOMPROMISE>, B<OCSP_REVOKED_STATUS_CACOMPROMISE>,
+B<OCSP_REVOKED_STATUS_AFFILIATIONCHANGED>, B<OCSP_REVOKED_STATUS_SUPERSEDED>,
+B<OCSP_REVOKED_STATUS_CESSATIONOFOPERATION>,
+B<OCSP_REVOKED_STATUS_CERTIFICATEHOLD> or B<OCSP_REVOKED_STATUS_REMOVEFROMCRL>.
+
+OCSP_resp_count() returns the number of B<OCSP_SINGLERESP> structures in B<bs>.
+
+OCSP_resp_get0() returns the B<OCSP_SINGLERESP> structure in B<bs>
+corresponding to index B<idx>. Where B<idx> runs from 0 to
+OCSP_resp_count(bs) - 1.
+
+OCSP_resp_find() searches B<bs> for B<id> and returns the index of the first
+matching entry after B<last> or starting from the beginning if B<last> is -1.
+
+OCSP_single_get0_status() extracts the fields of B<single> in B<*reason>,
+B<*revtime>, B<*thisupd> and B<*nextupd>.
+
+OCSP_resp_get0_produced_at() extracts the B<producedAt> field from the
+single response B<bs>.
+
+OCSP_resp_get0_certs() returns any certificates included in B<bs>.
+
+OCSP_resp_get0_id() gets the responder id of <bs>. If the responder ID is
+a name then <*pname> is set to the name and B<*pid> is set to NULL. If the
+responder ID is by key ID then B<*pid> is set to the key ID and B<*pname>
+is set to NULL.
+
+OCSP_check_validity() checks the validity of B<thisupd> and B<nextupd> values
+which will be typically obtained from OCSP_resp_find_status() or
+OCSP_single_get0_status(). If B<sec> is non-zero it indicates how many seconds
+leeway should be allowed in the check. If B<maxsec> is positive it indicates
+the maximum age of B<thisupd> in seconds.
+
+=head1 RETURN VALUES
+
+OCSP_resp_find_status() returns 1 if B<id> is found in B<bs> and 0 otherwise.
+
+OCSP_resp_count() returns the total number of B<OCSP_SINGLERESP> fields in
+B<bs>.
+
+OCSP_resp_get0() returns a pointer to an B<OCSP_SINGLERESP> structure or
+B<NULL> if B<idx> is out of range.
+
+OCSP_resp_find() returns the index of B<id> in B<bs> (which may be 0) or -1 if
+B<id> was not found.
+
+OCSP_single_get0_status() returns the status of B<single> or -1 if an error
+occurred.
+
+=head1 NOTES
+
+Applications will typically call OCSP_resp_find_status() using the certificate
+ID of interest and then check its validity using OCSP_check_validity(). They
+can then take appropriate action based on the status of the certificate.
+
+An OCSP response for a certificate contains B<thisUpdate> and B<nextUpdate>
+fields. Normally the current time should be between these two values. To
+account for clock skew the B<maxsec> field can be set to non-zero in
+OCSP_check_validity(). Some responders do not set the B<nextUpdate> field, this
+would otherwise mean an ancient response would be considered valid: the
+B<maxsec> parameter to OCSP_check_validity() can be used to limit the permitted
+age of responses.
+
+The values written to B<*revtime>, B<*thisupd> and B<*nextupd> by
+OCSP_resp_find_status() and OCSP_single_get0_status() are internal pointers
+which B<MUST NOT> be freed up by the calling application. Any or all of these
+parameters can be set to NULL if their value is not required.
+
+=head1 SEE ALSO
+
+L<crypto(3)>,
+L<OCSP_cert_to_id(3)>,
+L<OCSP_request_add1_nonce(3)>,
+L<OCSP_REQUEST_new(3)>,
+L<OCSP_response_status(3)>,
+L<OCSP_sendreq_new(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2015-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

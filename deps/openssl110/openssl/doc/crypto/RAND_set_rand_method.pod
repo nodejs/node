@@ -1,0 +1,81 @@
+=pod
+
+=head1 NAME
+
+RAND_set_rand_method, RAND_get_rand_method, RAND_OpenSSL - select RAND method
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand.h>
+
+ void RAND_set_rand_method(const RAND_METHOD *meth);
+
+ const RAND_METHOD *RAND_get_rand_method(void);
+
+ RAND_METHOD *RAND_OpenSSL(void);
+
+=head1 DESCRIPTION
+
+A B<RAND_METHOD> specifies the functions that OpenSSL uses for random number
+generation. By modifying the method, alternative implementations such as
+hardware RNGs may be used. IMPORTANT: See the NOTES section for important
+information about how these RAND API functions are affected by the use of
+B<ENGINE> API calls.
+
+Initially, the default RAND_METHOD is the OpenSSL internal implementation, as
+returned by RAND_OpenSSL().
+
+RAND_set_default_method() makes B<meth> the method for PRNG use. B<NB>: This is
+true only whilst no ENGINE has been set as a default for RAND, so this function
+is no longer recommended.
+
+RAND_get_default_method() returns a pointer to the current RAND_METHOD.
+However, the meaningfulness of this result is dependent on whether the ENGINE
+API is being used, so this function is no longer recommended.
+
+=head1 THE RAND_METHOD STRUCTURE
+
+ typedef struct rand_meth_st
+ {
+        void (*seed)(const void *buf, int num);
+        int (*bytes)(unsigned char *buf, int num);
+        void (*cleanup)(void);
+        void (*add)(const void *buf, int num, int entropy);
+        int (*pseudorand)(unsigned char *buf, int num);
+        int (*status)(void);
+ } RAND_METHOD;
+
+The components point to method implementations used by (or called by), in order,
+RAND_seed(), RAND_bytes(), internal RAND cleanup, RAND_add(), RAND_pseudo_rand()
+and RAND_status().
+Each component may be NULL if the function is not implemented.
+
+=head1 RETURN VALUES
+
+RAND_set_rand_method() returns no value. RAND_get_rand_method() and
+RAND_OpenSSL() return pointers to the respective methods.
+
+=head1 NOTES
+
+RAND_METHOD implementations are grouped together with other
+algorithmic APIs (eg. RSA_METHOD, EVP_CIPHER, etc) in B<ENGINE> modules. If a
+default ENGINE is specified for RAND functionality using an ENGINE API function,
+that will override any RAND defaults set using the RAND API (ie.
+RAND_set_rand_method()). For this reason, the ENGINE API is the recommended way
+to control default implementations for use in RAND and other cryptographic
+algorithms.
+
+=head1 SEE ALSO
+
+L<rand(3)>, L<engine(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

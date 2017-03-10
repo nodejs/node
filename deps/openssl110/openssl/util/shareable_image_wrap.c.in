@@ -1,0 +1,113 @@
+/*
+ * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the OpenSSL license (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
+
+/*
+ * This program allows for easy execution of programs in the OpenSSL build
+ * directory, in a manner that's similar to how util/shlib_wrap.sh.  Simply
+ * take the command you want to execute and prefix that with
+ * 'mcr [.util]shlib_wrap', for example:
+ *
+ * $ mcr [.util]shlib_wrap mcr [.apps]openssl s_client -connect www.openssl.org:443
+ */
+
+#ifndef __VMS
+# error "VMS ONLY!"
+#endif
+
+#include <stdio.h>
+#include <descrip.h>
+#include <ssdef.h>
+#include <lib$routines.h>
+{-
+    use File::Spec::Functions qw(rel2abs);
+    our $sv = sprintf "%02d%02d", $config{shlib_major}, $config{shlib_minor};
+    our $pz = $config{pointer_size};
+    our $bldd = rel2abs($config{builddir});
+    ""
+-}
+/* The logical name table we check and affect */
+$DESCRIPTOR(lnm_process_table, "LNM$PROCESS_TABLE");
+
+/* The first logical name we deal with, the buffer for its old value,
+ * and its temporary new value
+ */
+const $DESCRIPTOR(lnm1, "OSSL$LIBCRYPTO{- $sv -}_SHR{- $pz -}");
+char lnm1oldbuf[256]; short lnm1oldlen = 0;
+$DESCRIPTOR(lnm1old, lnm1oldbuf);
+const $DESCRIPTOR(lnm1new, "{- $bldd -}OSSL$LIBCRYPTO{- $sv -}_SHR{- $pz -}.EXE");
+
+/* The second logical name we deal with, the buffer for its old value,
+ * and its temporary new value
+ */
+const $DESCRIPTOR(lnm2, "OSSL$LIBSSL{- $sv -}_SHR{- $pz -}");
+char lnm2oldbuf[256]; short lnm2oldlen = 0;
+$DESCRIPTOR(lnm2old, lnm2oldbuf);
+const $DESCRIPTOR(lnm2new, "{- $bldd -}OSSL$LIBSSL{- $sv -}_SHR{- $pz -}.EXE");
+
+/* The foreign command we want to run with the logical names above set
+ * to their temporary values
+ */
+char foreign_cmd_buf[4096]; short foreign_cmd_len = 0;
+$DESCRIPTOR(foreign_cmd, foreign_cmd_buf);
+
+int main()
+{
+    int status = 0;
+    int lnm1status = 0, lnm2status = 0;
+
+    /* Fetch the command line.  lib$get_foreign() is nice enough to
+     * strip away the program name, thus only returning the arguments,
+     * which is exactly what we need.
+     */
+    lib$get_foreign(&foreign_cmd, 0, &foreign_cmd_len);
+    foreign_cmd.dsc$w_length = foreign_cmd_len;
+
+#ifdef DEBUG
+    foreign_cmd_buf[foreign_cmd_len] = '\0';
+    printf("[%d] %s\n\n", foreign_cmd_len, foreign_cmd_buf);
+#endif
+
+    /* Fetch the first logical name value and save the status */
+    lnm1status = lib$get_logical(&lnm1, &lnm1old, &lnm1oldlen,
+                                 &lnm_process_table);
+    if (lnm1status == SS$_NORMAL)
+        lnm1old.dsc$w_length = lnm1oldlen;
+    else if (lnm1status != SS$_NOLOGNAM)
+        return lnm1status;
+
+    /* Fetch the first logical name value and save the status */
+    lnm2status = lib$get_logical(&lnm2, &lnm2old, &lnm2oldlen,
+                                 &lnm_process_table);
+    if (lnm2status == SS$_NORMAL)
+        lnm2old.dsc$w_length = lnm2oldlen;
+    else if (lnm2status != SS$_NOLOGNAM)
+        return lnm2status;
+
+    /* Set the temporary new values for both logical names */
+    lib$set_logical(&lnm1, &lnm1new, &lnm_process_table);
+    lib$set_logical(&lnm2, &lnm2new, &lnm_process_table);
+
+    /* Execute the arguments as a command.  The better be a command! */
+    status = lib$spawn(&foreign_cmd);
+
+    /* If the logical names we set had old values, restore them.
+     * Otherwise, simply delete their current values.
+     */
+    if (lnm1status == SS$_NORMAL)
+        lib$set_logical(&lnm1, &lnm1old, &lnm_process_table);
+    else
+        lib$delete_logical(&lnm1, &lnm_process_table);
+    if (lnm2status == SS$_NORMAL)
+        lib$set_logical(&lnm2, &lnm2old, &lnm_process_table);
+    else
+        lib$delete_logical(&lnm2, &lnm_process_table);
+
+    /* Return the status from the execution of the foreign command */
+    return status;
+}

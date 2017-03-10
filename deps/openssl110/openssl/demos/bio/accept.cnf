@@ -1,0 +1,17 @@
+# Example configuration file
+# Port to listen on
+Port = 4433
+# Disable TLS v1.2 for test.
+# Protocol = ALL, -TLSv1.2
+# Only support 3 curves
+Curves = P-521:P-384:P-256
+# Restricted signature algorithms
+SignatureAlgorithms = RSA+SHA512:ECDSA+SHA512 
+Certificate=server.pem
+PrivateKey=server.pem
+ChainCAFile=root.pem
+VerifyCAFile=root.pem
+
+# Request certificate
+VerifyMode=Request
+ClientCAFile=root.pem

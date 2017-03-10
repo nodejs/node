@@ -1,0 +1,114 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set_mode, SSL_set_mode, SSL_CTX_get_mode, SSL_get_mode - manipulate SSL engine mode
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ long SSL_CTX_set_mode(SSL_CTX *ctx, long mode);
+ long SSL_set_mode(SSL *ssl, long mode);
+
+ long SSL_CTX_get_mode(SSL_CTX *ctx);
+ long SSL_get_mode(SSL *ssl);
+
+=head1 DESCRIPTION
+
+SSL_CTX_set_mode() adds the mode set via bitmask in B<mode> to B<ctx>.
+Options already set before are not cleared.
+
+SSL_set_mode() adds the mode set via bitmask in B<mode> to B<ssl>.
+Options already set before are not cleared.
+
+SSL_CTX_get_mode() returns the mode set for B<ctx>.
+
+SSL_get_mode() returns the mode set for B<ssl>.
+
+=head1 NOTES
+
+The following mode changes are available:
+
+=over 4
+
+=item SSL_MODE_ENABLE_PARTIAL_WRITE
+
+Allow SSL_write(..., n) to return r with 0 < r < n (i.e. report success
+when just a single record has been written). When not set (the default),
+SSL_write() will only report success once the complete chunk was written.
+Once SSL_write() returns with r, r bytes have been successfully written
+and the next call to SSL_write() must only send the n-r bytes left,
+imitating the behaviour of write().
+
+=item SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
+
+Make it possible to retry SSL_write() with changed buffer location
+(the buffer contents must stay the same). This is not the default to avoid
+the misconception that non-blocking SSL_write() behaves like
+non-blocking write().
+
+=item SSL_MODE_AUTO_RETRY
+
+Never bother the application with retries if the transport is blocking.
+If a renegotiation take place during normal operation, a
+L<SSL_read(3)> or L<SSL_write(3)> would return
+with -1 and indicate the need to retry with SSL_ERROR_WANT_READ.
+In a non-blocking environment applications must be prepared to handle
+incomplete read/write operations.
+In a blocking environment, applications are not always prepared to
+deal with read/write operations returning without success report. The
+flag SSL_MODE_AUTO_RETRY will cause read/write operations to only
+return after the handshake and successful completion.
+
+=item SSL_MODE_RELEASE_BUFFERS
+
+When we no longer need a read buffer or a write buffer for a given SSL,
+then release the memory we were using to hold it.
+Using this flag can
+save around 34k per idle SSL connection.
+This flag has no effect on SSL v2 connections, or on DTLS connections.
+
+=item SSL_MODE_SEND_FALLBACK_SCSV
+
+Send TLS_FALLBACK_SCSV in the ClientHello.
+To be set only by applications that reconnect with a downgraded protocol
+version; see draft-ietf-tls-downgrade-scsv-00 for details.
+
+DO NOT ENABLE THIS if your application attempts a normal handshake.
+Only use this in explicit fallback retries, following the guidance
+in draft-ietf-tls-downgrade-scsv-00.
+
+=item SSL_MODE_ASYNC
+
+Enable asynchronous processing. TLS I/O operations may indicate a retry with
+SSL_ERROR_WANT_ASYNC with this mode set if an asynchronous capable engine is
+used to perform cryptographic operations. See L<SSL_get_error(3)>.
+
+=back
+
+=head1 RETURN VALUES
+
+SSL_CTX_set_mode() and SSL_set_mode() return the new mode bitmask
+after adding B<mode>.
+
+SSL_CTX_get_mode() and SSL_get_mode() return the current bitmask.
+
+=head1 SEE ALSO
+
+L<ssl(3)>, L<SSL_read(3)>, L<SSL_write(3)>, L<SSL_get_error(3)>
+
+=head1 HISTORY
+
+SSL_MODE_ASYNC was first added to OpenSSL 1.1.0.
+
+=head1 COPYRIGHT
+
+Copyright 2001-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

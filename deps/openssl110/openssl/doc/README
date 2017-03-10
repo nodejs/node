@@ -1,0 +1,20 @@
+
+README  This file
+
+fingerprints.txt
+        PGP fingerprints of authoried release signers
+
+standards.txt
+        Moved to the web, https://www.openssl.org/docs/standards.html
+
+HOWTO/
+        A few how-to documents; not necessarily up-to-date
+apps/
+        The openssl command-line tools; start with openssl.pod
+ssl/
+        The SSL library; start with ssl.pod
+crypto/
+        The cryptographic library; start with crypto.pod
+
+Formatted versions of the manpages (apps,ssl,crypto) can be found at
+        https://www.openssl.org/docs/manpages.html
