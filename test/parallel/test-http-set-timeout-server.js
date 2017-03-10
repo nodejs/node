@@ -117,10 +117,13 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
 
 test(function serverResponseTimeoutWithPipeline(cb) {
   let caughtTimeout = '';
+  let secReceived = false;
   process.on('exit', function() {
     assert.strictEqual(caughtTimeout, '/2');
   });
   const server = http.createServer(function(req, res) {
+    if (req.url === '/2')
+      secReceived = true;
     const s = res.setTimeout(50, function() {
       caughtTimeout += req.url;
     });
@@ -128,9 +131,11 @@ test(function serverResponseTimeoutWithPipeline(cb) {
     if (req.url === '/1') res.end();
   });
   server.on('timeout', function(socket) {
-    socket.destroy();
-    server.close();
-    cb();
+    if (secReceived) {
+      socket.destroy();
+      server.close();
+      cb();
+    }
   });
   server.listen(common.mustCall(function() {
     const port = server.address().port;
