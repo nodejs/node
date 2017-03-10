@@ -135,8 +135,9 @@ added: v0.1.90
      understand the `-c` switch on UNIX or `/d /s /c` on Windows. On Windows,
      command line parsing should be compatible with `cmd.exe`.)
   * `timeout` {number} (Default: `0`)
-  * [`maxBuffer`][] {number} largest amount of data (in bytes) allowed on
-    stdout or stderr - if exceeded child process is killed (Default: `200*1024`)
+  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+    stderr. (Default: `200*1024`) If exceeded, the child process is terminated.
+    See caveat at [`maxBuffer` and Unicode][].
   * `killSignal` {string|integer} (Default: `'SIGTERM'`)
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
@@ -212,8 +213,9 @@ added: v0.1.91
   * `env` {Object} Environment key-value pairs
   * `encoding` {string} (Default: `'utf8'`)
   * `timeout` {number} (Default: `0`)
-  * [`maxBuffer`][] {number} largest amount of data (in bytes) allowed on
-    stdout or stderr - if exceeded child process is killed (Default: `200*1024`)
+  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+    stderr. (Default: `200*1024`) If exceeded, the child process is terminated.
+    See caveat at [`maxBuffer` and Unicode][].
   * `killSignal` {string|integer} (Default: `'SIGTERM'`)
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
@@ -618,8 +620,9 @@ changes:
     is allowed to run. (Default: `undefined`)
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. (Default: `'SIGTERM'`)
-  * [`maxBuffer`][] {number} largest amount of data (in bytes) allowed on
-    stdout or stderr - if exceeded child process is killed
+  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+    stderr. (Default: `200*1024`) If exceeded, the child process is terminated.
+    See caveat at [`maxBuffer` and Unicode][].
   * `encoding` {string} The encoding used for all stdio inputs and outputs. (Default: `'buffer'`)
 * Returns: {Buffer|string} The stdout from the command
 
@@ -664,8 +667,9 @@ changes:
     is allowed to run. (Default: `undefined`)
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. (Default: `'SIGTERM'`)
-  * [`maxBuffer`][] {number} largest amount of data (in bytes) allowed on
-    stdout or stderr - if exceeded child process is killed
+  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+    stderr. (Default: `200*1024`) If exceeded, the child process is terminated.
+    See caveat at [`maxBuffer` and Unicode][].
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     (Default: `'buffer'`)
 * Returns: {Buffer|string} The stdout from the command
@@ -716,8 +720,9 @@ changes:
     is allowed to run. (Default: `undefined`)
   * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. (Default: `'SIGTERM'`)
-  * [`maxBuffer`][] {number} largest amount of data (in bytes) allowed on
-    stdout or stderr - if exceeded child process is killed
+  * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
+    stderr. (Default: `200*1024`) If exceeded, the child process is terminated.
+    See caveat at [`maxBuffer` and Unicode][].
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     (Default: `'buffer'`)
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
@@ -1235,7 +1240,7 @@ to `stdout` although there are only 4 characters.
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
-[`maxBuffer`]: #child_process_maxbuffer_and_unicode
+[`maxBuffer` and Unicode]: #child_process_maxbuffer_and_unicode
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`options.detached`]: #child_process_options_detached
