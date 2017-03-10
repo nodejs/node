@@ -39,6 +39,8 @@ set enable_vtune_arg=
 set configure_flags=
 set build_addons=
 set dll=
+set openssl_no_asm=
+set use_openssl110=
 set test_node_inspect=
 
 :next-arg
@@ -85,6 +87,8 @@ if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
 if /i "%1"=="enable-vtune"  set enable_vtune_arg=1&goto arg-ok
 if /i "%1"=="dll"           set dll=1&goto arg-ok
+if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
+if /i "%1"=="use-openssl110"   set use_openssl110=1&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -116,6 +120,8 @@ if defined release_urlbase set configure_flags=%configure_flags% --release-urlba
 if defined download_arg set configure_flags=%configure_flags% %download_arg%
 if defined enable_vtune_arg set configure_flags=%configure_flags% --enable-vtune-profiling
 if defined dll set configure_flags=%configure_flags% --shared
+if defined openssl_no_asm set configure_flags=%configure_flags% --openssl-no-asm
+if defined use_openssl110 set configure_flags=%configure_flags% --use-openssl110
 
 if "%i18n_arg%"=="full-icu" set configure_flags=%configure_flags% --with-intl=full-icu
 if "%i18n_arg%"=="small-icu" set configure_flags=%configure_flags% --with-intl=small-icu
@@ -372,7 +378,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vc2015] [download-all] [enable-vtune]
+echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vc2015] [download-all] [enable-vtune] [openssl-no-asm] [use-openssl110]
 echo Examples:
 echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build

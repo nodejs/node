@@ -133,6 +133,19 @@
       }, {
         'use_openssl_def': 0,
       }],
+      [ 'use_openssl110=="true"', {
+        'openssl_target%': 'openssl110',
+        'openssl_ordinals%': [
+          'deps/openssl110/openssl/util/libcrypto.num',
+          'deps/openssl110/openssl/util/libssl.num',
+        ],
+      }, {
+        'openssl_target%': 'openssl',
+        'openssl_ordinals%': [
+          'deps/openssl/openssl/util/libeay.num',
+          'deps/openssl/openssl/util/ssleay.num',
+        ],
+      }],
     ],
   },
 
@@ -373,10 +386,10 @@
             }],
             [ 'node_shared_openssl=="false"', {
               'dependencies': [
-                './deps/openssl/openssl.gyp:openssl',
+                './deps/<(openssl_target)/openssl.gyp:openssl',
 
                 # For tests
-                './deps/openssl/openssl.gyp:openssl-cli',
+                './deps/<(openssl_target)/openssl.gyp:openssl-cli',
               ],
               # Do not let unused OpenSSL symbols to slip away
               'conditions': [
@@ -392,7 +405,7 @@
                     ['OS in "linux freebsd" and node_shared=="false"', {
                       'ldflags': [
                         '-Wl,--whole-archive,'
-                            '<(OBJ_DIR)/deps/openssl/'
+                            '<(OBJ_DIR)/deps/<(openssl_target)/'
                             '<(OPENSSL_PRODUCT)',
                         '-Wl,--no-whole-archive',
                       ],
@@ -623,10 +636,7 @@
           'actions': [
             {
               'action_name': 'mkssldef',
-              'inputs': [
-                'deps/openssl/openssl/util/libeay.num',
-                'deps/openssl/openssl/util/ssleay.num',
-              ],
+              'inputs': ['<@(openssl_ordinals)'],
               'outputs': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
               'action': [
                 'python',
@@ -933,7 +943,7 @@
             }],
             [ 'node_shared_openssl=="false"', {
               'dependencies': [
-                'deps/openssl/openssl.gyp:openssl'
+                'deps/<(openssl_target)/openssl.gyp:openssl'
               ]
             }],
             [ 'node_shared_http_parser=="false"', {
@@ -958,6 +968,9 @@
             'deps/v8/src/v8.gyp:v8',
             'deps/v8/src/v8.gyp:v8_libplatform'
           ],
+        }],
+        [ 'openssl_no_asm==1', {
+          'defines': ['OPENSSL_NO_ASM'],
         }],
       ]
     }

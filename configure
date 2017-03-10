@@ -153,6 +153,11 @@ parser.add_option('--openssl-fips',
     dest='openssl_fips',
     help='Build OpenSSL using FIPS canister .o file in supplied folder')
 
+parser.add_option('--use-openssl110',
+    action='store_true',
+    dest='use_openssl110',
+    help='Build with OpenSSL-1.1.0 (Experimental)')
+
 parser.add_option('--openssl-use-def-ca-store',
     action='store_true',
     dest='use_openssl_ca_store',
@@ -582,6 +587,26 @@ def get_xcode_version(cc):
   return get_version_helper(
     cc, r"(^Apple LLVM version) ([5-9]\.[0-9]+)")
 
+def get_nasm_version(asm):
+  try:
+    proc = subprocess.Popen(shlex.split(asm) + ['-v'],
+                            stdin=subprocess.PIPE, stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE)
+  except OSError:
+    print('''Node.js configure error: No acceptable ASM compiler found!
+            Please make sure you have installed nasm from http://www.nasm.us
+            or add an option of openssl_no_asm.
+        ''')
+    sys.exit()
+
+  match = re.match(r"NASM version ([2-9]\.[0-9][0-9]+)",
+                   proc.communicate()[0])
+
+  if match:
+    return match.group(1)
+  else:
+    return 0
+
 def get_gas_version(cc):
   try:
     proc = subprocess.Popen(shlex.split(cc) + ['-Wa,-v', '-c', '-o',
@@ -612,6 +637,11 @@ def get_gas_version(cc):
 # quite prepared to go that far yet.
 def check_compiler(o):
   if sys.platform == 'win32':
+    if options.use_openssl110 and not options.openssl_no_asm:
+      nasm_version = get_nasm_version('nasm')
+      o['variables']['nasm_version'] = nasm_version
+      if nasm_version == 0:
+        o['variables']['openssl_no_asm'] = 1
     return
 
   ok, is_clang, clang_version, gcc_version = try_check_compiler(CXX, 'c++')
@@ -960,21 +990,47 @@ def configure_v8(o):
 
 
 def configure_openssl(o):
-  o['variables']['node_use_openssl'] = b(not options.without_ssl)
-  o['variables']['node_shared_openssl'] = b(options.shared_openssl)
-  o['variables']['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
+  variables = o['variables'];
+  variables['node_use_openssl'] = b(not options.without_ssl)
+  variables['node_shared_openssl'] = b(options.shared_openssl)
+  variables['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
   if options.use_openssl_ca_store:
     o['defines'] += ['NODE_OPENSSL_CERT_STORE']
   if options.openssl_fips:
-    o['variables']['openssl_fips'] = options.openssl_fips
+    variables['openssl_fips'] = options.openssl_fips
     fips_dir = os.path.join(root_dir, 'deps', 'openssl', 'fips')
     fips_ld = os.path.abspath(os.path.join(fips_dir, 'fipsld'))
     o['make_fips_settings'] = [
       ['LINK', fips_ld + ' <(openssl_fips)/bin/fipsld'],
     ]
   else:
-    o['variables']['openssl_fips'] = ''
+    variables['openssl_fips'] = ''
 
+  if options.use_openssl110:
+    variables['use_openssl110'] = 'true'
+
+    # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
+    # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
+    openssl110_asm_supported = \
+    ('gas_version' in variables and variables['gas_version'] >= '2.23') or \
+    ('xcode_version' in variables and variables['xcode_version'] >= '5.0') or \
+    ('llvm_version' in variables and variables['llvm_version'] >= '3.3') or \
+    ('nasm_version' in variables and variables['nasm_version'] >= '2.10')
+
+    if not openssl110_asm_supported and variables['openssl_no_asm'] == 0:
+      warn('asm compiler is old. openssl_no_asm is added.')
+      variables['openssl_no_asm'] = 1
+
+    # s390x is not asm supprted
+    if variables['target_arch'] == 's390x' and variables['openssl_no_asm'] == 0:
+      warn('s390x does not support openssl asm.')
+      variables['openssl_no_asm'] = 1
+
+    if options.openssl_fips:
+      warn('openssl-1.1.0 does not support FIPS. Use 1.0.2 instead.')
+      variables['use_openssl110'] = 'false'
+  else:
+    variables['use_openssl110'] = 'false'
 
   if options.without_ssl:
     return
