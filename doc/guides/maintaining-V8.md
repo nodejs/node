@@ -93,11 +93,11 @@ includes the following branches<sup>1</sup>:
    </td>
    <td>2017-04-01
    </td>
-   <td>5.4
+   <td>5.5
    </td>
-   <td>2016-10-18
+   <td>2016-12-06
    </td>
-   <td>~2016-12-01
+   <td>2017-01-24
    </td>
   </tr>
   <tr>
@@ -107,11 +107,11 @@ includes the following branches<sup>1</sup>:
    </td>
    <td>N/A
    </td>
-   <td>5.4
+   <td>5.6
    </td>
-   <td>2016-10-18
+   <td>2017-01-31
    </td>
-   <td>~2016-12-01
+   <td>2017-03-07
    </td>
   </tr>
 </table>
