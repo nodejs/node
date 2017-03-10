@@ -132,6 +132,8 @@ class SecureContext : public BaseObject {
   static void LoadPKCS12(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetFreeListLength(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableTicketKeyCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CtxGetter(v8::Local<v8::String> property,

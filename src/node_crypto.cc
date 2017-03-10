@@ -50,7 +50,8 @@
 #include <string.h>
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-static void DH_get0_pqg(const DH *dh, const BIGNUM **p, const BIGNUM **q, const BIGNUM **g) {
+static void DH_get0_pqg(const DH *dh, const BIGNUM **p, const BIGNUM **q,
+                        const BIGNUM **g) {
   if (p != NULL)
     *p = dh->p;
   if (q != NULL)
@@ -59,7 +60,8 @@ static void DH_get0_pqg(const DH *dh, const BIGNUM **p, const BIGNUM **q, const 
     *g = dh->g;
 }
 
-static void RSA_get0_key(const RSA *r, const BIGNUM **n, const BIGNUM **e, const BIGNUM **d) {
+static void RSA_get0_key(const RSA *r, const BIGNUM **n, const BIGNUM **e,
+                         const BIGNUM **d) {
   if (n != NULL)
     *n = r->n;
   if (e != NULL)
@@ -88,16 +90,15 @@ static int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g) {
   return 1;
 }
 
-static void DH_get0_key(const DH *dh, const BIGNUM **pub_key, const BIGNUM **priv_key)
-{
+static void DH_get0_key(const DH *dh, const BIGNUM **pub_key,
+                        const BIGNUM **priv_key) {
   if (pub_key != NULL)
     *pub_key = dh->pub_key;
   if (priv_key != NULL)
     *priv_key = dh->priv_key;
 }
 
-static int DH_set0_key(DH *dh, BIGNUM *pub_key, BIGNUM *priv_key)
-{
+static int DH_set0_key(DH *dh, BIGNUM *pub_key, BIGNUM *priv_key) {
   if (dh->pub_key == NULL && pub_key == NULL)
     return 0;
 
@@ -113,19 +114,14 @@ static int DH_set0_key(DH *dh, BIGNUM *pub_key, BIGNUM *priv_key)
   return 1;
 }
 
-static const char *SSL_SESSION_get0_hostname(const SSL_SESSION *s) {
-  return s->tlsext_hostname;
-}
-
-static void SSL_SESSION_get0_ticket(const SSL_SESSION *s, const unsigned char **tick, size_t *len) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static void SSL_SESSION_get0_ticket(const SSL_SESSION *s,
+                                    const unsigned char **tick, size_t *len) {
   *len = s->tlsext_ticklen;
   if (tick != NULL)
     *tick = s->tlsext_tick;
 }
-
-static int SSL_SESSION_has_ticket(const SSL_SESSION *s) {
-  return (s->tlsext_ticklen > 0) ? 1 : 0;
-}
+#endif
 
 #define SSL_get_tlsext_status_type(ssl) (ssl->tlsext_status_type)
 
@@ -294,18 +290,19 @@ template int SSLWrap<TLSWrap>::SelectALPNCallback(
     void* arg);
 #endif  // TLSEXT_TYPE_application_layer_protocol_negotiation
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
   static_assert(sizeof(uv_thread_t) <= sizeof(void*),
                 "uv_thread_t does not fit in a pointer");
   CRYPTO_THREADID_set_pointer(tid, reinterpret_cast<void*>(uv_thread_self()));
 }
-
+#endif
 
 static void crypto_lock_init(void) {
   mutexes = new Mutex[CRYPTO_num_locks()];
 }
 
-
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 static void crypto_lock_cb(int mode, int n, const char* file, int line) {
   CHECK(!(mode & CRYPTO_LOCK) ^ !(mode & CRYPTO_UNLOCK));
   CHECK(!(mode & CRYPTO_READ) ^ !(mode & CRYPTO_WRITE));
@@ -316,7 +313,7 @@ static void crypto_lock_cb(int mode, int n, const char* file, int line) {
   else
     mutex->Unlock();
 }
-
+#endif
 
 static int CryptoPemCallback(char *buf, int size, int rwflag, void *u) {
   if (u) {
@@ -457,9 +454,9 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
 
   const SSL_METHOD* method = SSLv23_method();
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   if (args.Length() == 1 && args[0]->IsString()) {
     const node::Utf8Value sslmethod(env->isolate(), args[0]);
-
     // Note that SSLv2 and SSLv3 are disallowed but SSLv2_method and friends
     // are still accepted.  They are OpenSSL's way of saying that all known
     // protocols are supported unless explicitly disabled (which we do below
@@ -506,6 +503,87 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   }
 
   sc->ctx_ = SSL_CTX_new(method);
+
+#else
+  int min_version = 0, max_version = 0;
+
+  if (args.Length() == 1 && args[0]->IsString()) {
+    const node::Utf8Value sslmethod(env->isolate(), args[0]);
+    if (strcmp(*sslmethod, "SSLv2_method") == 0) {
+      return env->ThrowError("SSLv2 methods disabled");
+    } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
+      return env->ThrowError("SSLv2 methods disabled");
+    } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
+      return env->ThrowError("SSLv2 methods disabled");
+    } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
+      return env->ThrowError("SSLv3 methods disabled");
+    } else if (strcmp(*sslmethod, "SSLv3_server_method") == 0) {
+      return env->ThrowError("SSLv3 methods disabled");
+    } else if (strcmp(*sslmethod, "SSLv3_client_method") == 0) {
+      return env->ThrowError("SSLv3 methods disabled");
+    } else if (strcmp(*sslmethod, "SSLv23_method") == 0) {
+      method = TLS_method();
+    } else if (strcmp(*sslmethod, "SSLv23_server_method") == 0) {
+      method = TLS_server_method();
+    } else if (strcmp(*sslmethod, "SSLv23_client_method") == 0) {
+      method = TLS_client_method();
+    } else if (strcmp(*sslmethod, "TLSv1_method") == 0) {
+      method = TLS_method();
+      min_version = TLS1_VERSION;
+      max_version = TLS1_VERSION;
+    } else if (strcmp(*sslmethod, "TLSv1_server_method") == 0) {
+      method = TLS_server_method();
+      min_version = TLS1_VERSION;
+      max_version = TLS1_VERSION;
+    } else if (strcmp(*sslmethod, "TLSv1_client_method") == 0) {
+      method = TLS_client_method();
+      min_version = TLS1_VERSION;
+      max_version = TLS1_VERSION;
+    } else if (strcmp(*sslmethod, "TLSv1_1_method") == 0) {
+      method = TLS_method();
+      min_version = TLS1_1_VERSION;
+      max_version = TLS1_1_VERSION;
+    } else if (strcmp(*sslmethod, "TLSv1_1_server_method") == 0) {
+      method = TLS_server_method();
+      min_version = TLS1_1_VERSION;
+      max_version = TLS1_1_VERSION;
+    } else if (strcmp(*sslmethod, "TLSv1_1_client_method") == 0) {
+      method = TLS_client_method();
+      min_version = TLS1_1_VERSION;
+      max_version = TLS1_1_VERSION;
+    } else if (strcmp(*sslmethod, "TLSv1_2_method") == 0) {
+      method = TLS_method();
+      min_version = TLS1_2_VERSION;
+      max_version = TLS1_2_VERSION;
+    } else if (strcmp(*sslmethod, "TLSv1_2_server_method") == 0) {
+      method = TLS_server_method();
+      min_version = TLS1_2_VERSION;
+      max_version = TLS1_2_VERSION;
+    } else if (strcmp(*sslmethod, "TLSv1_2_client_method") == 0) {
+      method = TLS_client_method();
+      min_version = TLS1_2_VERSION;
+      max_version = TLS1_2_VERSION;
+    } else if (strcmp(*sslmethod, "TLS_method") == 0) {
+      method = TLS_method();
+    } else if (strcmp(*sslmethod, "TLS_server_method") == 0) {
+      method = TLS_server_method();
+    } else if (strcmp(*sslmethod, "TLS_client_method") == 0) {
+      method = TLS_client_method();
+    } else {
+      return env->ThrowError("Unknown method");
+    }
+  }
+
+  sc->ctx_ = SSL_CTX_new(method);
+
+  if (min_version || max_version) {
+    SSL_CTX_set_min_proto_version(sc->ctx_, min_version);
+    SSL_CTX_set_max_proto_version(sc->ctx_, max_version);
+  }
+
+#endif
+
+
   SSL_CTX_set_app_data(sc->ctx_, sc);
 
   // Disable SSLv2 in the case when method == SSLv23_method() and the
@@ -1229,7 +1307,7 @@ void SecureContext::GetTicketKeys(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
-  long length = SSL_CTX_get_tlsext_ticket_keys(wrap->ctx_, NULL, 0);
+  size_t length = SSL_CTX_get_tlsext_ticket_keys(wrap->ctx_, NULL, 0);
   Local<Object> buff = Buffer::New(wrap->env(), length).ToLocalChecked();
   if (SSL_CTX_get_tlsext_ticket_keys(wrap->ctx_,
                                      Buffer::Data(buff),
@@ -1254,8 +1332,8 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Ticket keys");
 
-  long length = SSL_CTX_get_tlsext_ticket_keys(wrap->ctx_, NULL, 0);
-  if (Buffer::Length(args[0]) != (size_t)length) {
+  size_t length = SSL_CTX_get_tlsext_ticket_keys(wrap->ctx_, NULL, 0);
+  if (Buffer::Length(args[0]) != length) {
     return env->ThrowTypeError("Ticket keys length incorrect");
   }
 
@@ -1519,7 +1597,8 @@ int SSLWrap<Base>::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
   i2d_SSL_SESSION(sess, &serialized);
 
   unsigned int session_id_length;
-  const unsigned char *session_id = SSL_SESSION_get_id(sess, &session_id_length);
+  const unsigned char *session_id = SSL_SESSION_get_id(sess,
+                                                       &session_id_length);
 
   Local<Object> session = Buffer::Copy(
       env, reinterpret_cast<const char *>(session_id),
@@ -1667,7 +1746,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
     rsa = EVP_PKEY_get1_RSA(pkey);
 
   if (rsa != nullptr) {
-      const BIGNUM* n,* e;
+      const BIGNUM* n, * e;
       RSA_get0_key(rsa, &n, &e, NULL);
       BN_print(bio, n);
       BIO_get_mem_ptr(bio, &mem);
@@ -1675,7 +1754,6 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                 String::NewFromUtf8(env->isolate(), mem->data,
                                     String::kNormalString, mem->length));
       (void) BIO_reset(bio);
-
 
       uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(e));
       uint32_t lo = static_cast<uint32_t>(exponent_word);
@@ -1685,6 +1763,7 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
       } else {
           BIO_printf(bio, "0x%x%08x", hi, lo);
       }
+
       BIO_get_mem_ptr(bio, &mem);
       info->Set(env->exponent_string(),
                 String::NewFromUtf8(env->isolate(), mem->data,
@@ -3855,7 +3934,7 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
 bool Hmac::HmacUpdate(const char* data, int len) {
   if (!initialised_)
     return false;
-  int r = HMAC_Update(&ctx_, reinterpret_cast<const unsigned char*>(data), len);
+  int r = HMAC_Update(ctx_, reinterpret_cast<const unsigned char*>(data), len);
   return r == 1;
 }
 
@@ -5763,7 +5842,12 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
 void GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   SSL_CTX* ctx = SSL_CTX_new(TLSv1_server_method());
+#else
+  SSL_CTX* ctx = SSL_CTX_new(TLS_server_method());
+#endif
+
   if (ctx == nullptr) {
     return env->ThrowError("SSL_CTX_new() failed.");
   }
@@ -6057,7 +6141,10 @@ void InitCryptoOnce() {
 
   crypto_lock_init();
   CRYPTO_set_locking_callback(crypto_lock_cb);
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   CRYPTO_THREADID_set_callback(crypto_threadid_cb);
+#endif
 
 #ifdef NODE_FIPS_MODE
   /* Override FIPS settings in cnf file, if needed. */

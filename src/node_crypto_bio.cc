@@ -48,8 +48,7 @@ static long Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
 
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-const BIO_METHOD *GetNodeBioMethod()
-{
+const BIO_METHOD *GetNodeBioMethod() {
 static const BIO_METHOD method = {
     BIO_TYPE_MEM,
     "node.js SSL buffer",
@@ -66,8 +65,7 @@ static const BIO_METHOD method = {
 }
 
 #else
-BIO_METHOD *GetNodeBioMethod()
-{
+BIO_METHOD *GetNodeBioMethod() {
   BIO_METHOD *method = BIO_meth_new(BIO_TYPE_MEM, "node.js SSL buffer");
   BIO_meth_set_write(method, Write);
   BIO_meth_set_read(method, Read);
