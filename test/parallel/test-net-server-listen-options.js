@@ -40,21 +40,22 @@ function randomPipePath() {
 }
 
 function randomHandle(type) {
-  let handle, err;
+  let handle, err, handleName;
   if (type === 'tcp') {
     handle = new TCP();
     err = handle.bind('0.0.0.0', 0);
-    if (err < 0) {  // uv.errname requires err < 0
-      assert(err >= 0, `unable to bind arbitrary tcp port: ${uv.errname(err)}`);
-    }
+    handleName = 'arbitrary tcp port';
   } else {
     const path = randomPipePath();
     handle = new Pipe();
     err = handle.bind(path);
-    if (err < 0) {  // uv.errname requires err < 0
-      assert(err >= 0, `unable to bind pipe ${path}: ${uv.errname(err)}`);
-    }
+    handleName = `pipe ${path}`;
   }
+
+  if (err < 0) {  // uv.errname requires err < 0
+    assert(err >= 0, `unable to bind ${handleName}: ${uv.errname(err)}`);
+  }
+  assert(handle.fd !== -1, `${handleName} has fd -1`);
   return handle;
 }
 
