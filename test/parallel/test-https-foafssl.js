@@ -80,7 +80,7 @@ server.listen(0, function() {
                 '-key', join(common.fixturesDir, 'foafssl.key')];
 
   // for the performance and stability issue in s_client on Windows
-  if (common.isWindows)
+  if (common.needNoRandScreen)
     args.push('-no_rand_screen');
 
   const client = spawn(common.opensslCli, args);

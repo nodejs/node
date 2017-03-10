@@ -332,7 +332,6 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "loadPKCS12", SecureContext::LoadPKCS12);
   env->SetProtoMethod(t, "getTicketKeys", SecureContext::GetTicketKeys);
   env->SetProtoMethod(t, "setTicketKeys", SecureContext::SetTicketKeys);
-  env->SetProtoMethod(t, "setFreeListLength", SecureContext::SetFreeListLength);
   env->SetProtoMethod(t,
                       "enableTicketKeyCallback",
                       SecureContext::EnableTicketKeyCallback);
@@ -1193,18 +1192,6 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(true);
 #endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
-}
-
-
-void SecureContext::SetFreeListLength(const FunctionCallbackInfo<Value>& args) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
-  // |freelist_max_len| was removed in OpenSSL 1.1.0. In that version OpenSSL
-  // mallocs and frees buffers directly, without the use of a freelist.
-  SecureContext* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-
-  wrap->ctx_->freelist_max_len = args[0]->Int32Value();
-#endif
 }
 
 
@@ -4147,7 +4134,7 @@ static int Node_SignFinal(EVP_MD_CTX* mdctx, unsigned char* md,
   if (!EVP_DigestFinal_ex(mdctx, m, &m_len))
     return rv;
 
-  if (EVP_MD_CTX_test_flags(mdctx, EVP_MD_FLAG_DIGALGID_MASK)) {
+  if(EVP_MD_CTX_pkey_ctx(mdctx) == nullptr) { 
     size_t sltmp = static_cast<size_t>(EVP_PKEY_size(pkey));
     pkctx = EVP_PKEY_CTX_new(pkey, nullptr);
     if (pkctx == nullptr)
@@ -4156,7 +4143,7 @@ static int Node_SignFinal(EVP_MD_CTX* mdctx, unsigned char* md,
       goto err;
     if (!ApplyRSAOptions(pkey, pkctx, padding, pss_salt_len))
       goto err;
-    if (EVP_PKEY_CTX_set_signature_md(pkctx, EVP_MD_CTX_md_data(mdctx)) <= 0)
+    if (EVP_PKEY_CTX_set_signature_md(pkctx, EVP_MD_CTX_md(mdctx)) <= 0)
       goto err;
     if (EVP_PKEY_sign(pkctx, md, &sltmp, m, m_len) <= 0)
       goto err;
@@ -4457,7 +4444,7 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
     goto err;
   if (!ApplyRSAOptions(pkey, pkctx, padding, saltlen))
     goto err;
-  if (EVP_PKEY_CTX_set_signature_md(pkctx, EVP_MD_CTX_md_data(mdctx_)) <= 0)
+  if (EVP_PKEY_CTX_set_signature_md(pkctx, EVP_MD_CTX_md(mdctx_)) <= 0)
     goto err;
   r = EVP_PKEY_verify(pkctx,
                       reinterpret_cast<const unsigned char*>(sig),

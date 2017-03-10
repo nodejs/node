@@ -128,8 +128,6 @@ class SecureContext : public BaseObject {
   static void LoadPKCS12(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetFreeListLength(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableTicketKeyCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CtxGetter(v8::Local<v8::String> property,
@@ -466,6 +464,7 @@ class CipherBase : public BaseObject {
         auth_tag_(nullptr),
         auth_tag_len_(0) {
     MakeWeak<CipherBase>(this);
+    ctx_ = EVP_CIPHER_CTX_new();
   }
 
  private:
@@ -501,6 +500,7 @@ class Hmac : public BaseObject {
       : BaseObject(env, wrap),
         initialised_(false) {
     MakeWeak<Hmac>(this);
+    ctx_ = HMAC_CTX_new();
   }
 
  private:
@@ -530,6 +530,7 @@ class Hash : public BaseObject {
       : BaseObject(env, wrap),
         initialised_(false) {
     MakeWeak<Hash>(this);
+    mdctx_ = EVP_MD_CTX_new();
   }
 
  private:
@@ -553,6 +554,7 @@ class SignBase : public BaseObject {
   SignBase(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
         initialised_(false) {
+    mdctx_ = EVP_MD_CTX_new();
   }
 
   ~SignBase() override {

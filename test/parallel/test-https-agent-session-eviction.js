@@ -47,7 +47,7 @@ function faultyServer(port) {
   https.createServer(options, function(req, res) {
     res.end('hello faulty');
   }).listen(port, function() {
-    second(this);
+    common.isOpenSSL10 ? second(this) : forth(this);
   });
 }
 

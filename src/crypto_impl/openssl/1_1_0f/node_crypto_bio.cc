@@ -28,47 +28,28 @@
 
 namespace node {
 
-const BIO_METHOD* NodeBIO::CreateBioMethod() {
-  BIO_METHOD* biom = BIO_meth_new(BIO_TYPE_MEM, "node.js SSL buffer");
-  BIO_meth_set_write(biom, Write);
-  BIO_meth_set_read(biom, NodeBIO::Read);
-  BIO_meth_set_puts(biom, NodeBIO::Puts);
-  BIO_meth_set_gets(biom, NodeBIO::Gets);
-  BIO_meth_set_ctrl(biom, NodeBIO::Ctrl);
-  BIO_meth_set_create(biom, NodeBIO::New);
-  BIO_meth_set_destroy(biom, NodeBIO::Free);
-  return biom;
-}
-const BIO_METHOD* NodeBIO::method = NodeBIO::CreateBioMethod();
-/*
-BIO_TYPE_MEM,
-  "node.js SSL buffer",
-  NodeBIO::Write,
-  NodeBIO::Read,
-  NodeBIO::Puts,
-  NodeBIO::Gets,
-  NodeBIO::Ctrl,
-  NodeBIO::New,
-  NodeBIO::Free,
-  nullptr
-};
-{
-  if (method_tls_corrupt == NULL) {
-    method_tls_corrupt = BIO_meth_new(BIO_TYPE_CUSTOM_FILTER, "node.js SSL buffer");
-    if (   method_tls_corrupt == NULL
-        || !BIO_meth_set_write(method_tls_corrupt, tls_corrupt_write)
-            || !BIO_meth_set_read(method_tls_corrupt, tls_corrupt_read)
-            || !BIO_meth_set_puts(method_tls_corrupt, tls_corrupt_puts)
-            || !BIO_meth_set_gets(method_tls_corrupt, tls_corrupt_gets)
-            || !BIO_meth_set_ctrl(method_tls_corrupt, tls_corrupt_ctrl)
-            || !BIO_meth_set_create(method_tls_corrupt, tls_corrupt_new)
-            || !BIO_meth_set_destroy(method_tls_corrupt, tls_corrupt_free))
-            return NULL;
-    }
-    return method_tls_corrupt;
-}
-*/
+static int New(BIO* bio);
+static int Free(BIO* bio);
+static int Read(BIO* bio, char* out, int len);
+static int Write(BIO* bio, const char* data, int len);
+static int Puts(BIO* bio, const char* str);
+static int Gets(BIO* bio, char* out, int size);
+static long Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
+                 void* ptr);
 
+BIO_METHOD* GetBioMethod() {
+  BIO_METHOD* method = BIO_meth_new(BIO_TYPE_MEM, "node.js SSL buffer");
+  BIO_meth_set_write(method, Write);
+  BIO_meth_set_read(method, Read);
+  BIO_meth_set_puts(method, Puts);
+  BIO_meth_set_gets(method, Gets);
+  BIO_meth_set_ctrl(method, Ctrl);
+  BIO_meth_set_create(method, New);
+  BIO_meth_set_destroy(method, Free);
+  return method;
+}
+
+const BIO_METHOD* method = GetBioMethod();
 
 BIO* NodeBIO::New() {
   // The const_cast doesn't violate const correctness.  OpenSSL's usage of
@@ -97,7 +78,7 @@ void NodeBIO::AssignEnvironment(Environment* env) {
 }
 
 
-int NodeBIO::New(BIO* bio) {
+static int New(BIO* bio) {
   BIO_set_data(bio, new NodeBIO());
 
   // XXX Why am I doing it?!
@@ -108,13 +89,13 @@ int NodeBIO::New(BIO* bio) {
 }
 
 
-int NodeBIO::Free(BIO* bio) {
+static int Free(BIO* bio) {
   if (bio == nullptr)
     return 0;
 
   if (BIO_get_shutdown(bio)) {
     if (BIO_get_init(bio) && BIO_get_data(bio) != nullptr) {
-      delete FromBIO(bio);
+      delete NodeBIO::FromBIO(bio);
       BIO_set_data(bio, nullptr);
     }
   }
@@ -123,16 +104,17 @@ int NodeBIO::Free(BIO* bio) {
 }
 
 
-int NodeBIO::Read(BIO* bio, char* out, int len) {
+static int Read(BIO* bio, char* out, int len) {
   int bytes;
+  NodeBIO* nbio = NodeBIO::FromBIO(bio);
+
   BIO_clear_retry_flags(bio);
 
-  bytes = FromBIO(bio)->Read(out, len);
+  bytes = nbio->Read(out, len);
 
   if (bytes == 0) {
-    //bytes = bio->num;
-    //if (bytes != 0) {
-    if (BIO_should_retry(bio)) {
+    bytes = nbio->eof_return();
+    if (bytes != 0) {
       BIO_set_retry_read(bio);
     }
   }
@@ -174,22 +156,22 @@ size_t NodeBIO::PeekMultiple(char** out, size_t* size, size_t* count) {
 }
 
 
-int NodeBIO::Write(BIO* bio, const char* data, int len) {
+static int Write(BIO* bio, const char* data, int len) {
   BIO_clear_retry_flags(bio);
 
-  FromBIO(bio)->Write(data, len);
+  NodeBIO::FromBIO(bio)->Write(data, len);
 
   return len;
 }
 
 
-int NodeBIO::Puts(BIO* bio, const char* str) {
+static int Puts(BIO* bio, const char* str) {
   return Write(bio, str, strlen(str));
 }
 
 
-int NodeBIO::Gets(BIO* bio, char* out, int size) {
-  NodeBIO* nbio =  FromBIO(bio);
+static int Gets(BIO* bio, char* out, int size) {
+  NodeBIO* nbio =  NodeBIO::FromBIO(bio);
 
   if (nbio->Length() == 0)
     return 0;
@@ -213,12 +195,12 @@ int NodeBIO::Gets(BIO* bio, char* out, int size) {
 }
 
 
-long NodeBIO::Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
-                   void* ptr) {
+static long Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
+                 void* ptr) {
   NodeBIO* nbio;
   long ret;  // NOLINT(runtime/int)
 
-  nbio = FromBIO(bio);
+  nbio = NodeBIO::FromBIO(bio);
   ret = 1;
 
   switch (cmd) {
@@ -229,7 +211,8 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
       ret = nbio->Length() == 0;
       break;
     case BIO_C_SET_BUF_MEM_EOF_RETURN:
-      BIO_set_mem_eof_return(bio, num);
+      //BIO_set_mem_eof_return(bio, num);
+      nbio->set_eof_return(num);
       break;
     case BIO_CTRL_INFO:
       ret = nbio->Length();

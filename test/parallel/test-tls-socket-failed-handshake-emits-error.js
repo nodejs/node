@@ -11,6 +11,10 @@ const assert = require('assert');
 
 const bonkers = Buffer.alloc(1024, 42);
 
+const expected_err = common.isOpenSSL10 ?
+      /SSL routines:SSL23_GET_CLIENT_HELLO:unknown protocol/ :
+  /wrong version number/;
+
 const server = net.createServer(function(c) {
   setTimeout(function() {
     const s = new tls.TLSSocket(c, {
@@ -19,10 +23,10 @@ const server = net.createServer(function(c) {
     });
 
     s.on('error', common.mustCall(function(e) {
+
       assert.ok(e instanceof Error,
                 'Instance of Error should be passed to error handler');
-      assert.ok(e.message.match(
-        /SSL routines:SSL23_GET_CLIENT_HELLO:unknown protocol/),
+      assert.ok(e.message.match(expected_err),
                 'Expecting SSL unknown protocol');
     }));
 
