@@ -1,3 +1,3 @@
-setTimeout(function() {
+setTimeout(() => {
   throw new Error('timeout');
 }, 10);

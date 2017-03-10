@@ -1,11 +1,11 @@
 const util = require('util');
 
-var regexIn = process.argv[2];
-var replacement = process.argv[3];
-var re = new RegExp(regexIn, 'g');
-var stdin = process.openStdin();
+const regexIn = process.argv[2];
+const replacement = process.argv[3];
+const re = new RegExp(regexIn, 'g');
+const stdin = process.openStdin();
 
-stdin.on('data', function(data) {
+stdin.on('data', (data) => {
   data = data.toString();
   process.stdout.write(data.replace(re, replacement));
 });

@@ -1,12 +1,10 @@
 console.error('load fixtures/b/d.js');
 
-var string = 'D';
+let string = 'D';
 
-exports.D = function() {
-  return string;
-};
+exports.D = () => string;
 
-process.on('exit', function() {
+process.on('exit', () => {
   string = 'D done';
 });
 

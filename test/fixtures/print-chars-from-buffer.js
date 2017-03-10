@@ -1,9 +1,9 @@
 const assert = require('assert');
 
-var n = parseInt(process.argv[2]);
+const n = parseInt(process.argv[2]);
 
-var b = Buffer.allocUnsafe(n);
-for (var i = 0; i < n; i++) {
+const b = Buffer.allocUnsafe(n);
+for (let i = 0; i < n; i++) {
   b[i] = 100;
 }
 

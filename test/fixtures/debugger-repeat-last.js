@@ -1,7 +1,7 @@
-var a = 1;
+let a = 1;
 
-var b = 2;
+let b = 2;
 
-var c = 3;
+let c = 3;
 
 b = c;

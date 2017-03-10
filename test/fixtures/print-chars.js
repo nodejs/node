@@ -1,5 +1,5 @@
 const assert = require('assert');
 
-var n = parseInt(process.argv[2]);
+const n = parseInt(process.argv[2]);
 
 process.stdout.write('c'.repeat(n));

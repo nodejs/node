@@ -1,3 +1,1 @@
-exports.hello = function() {
-  return 'hello from module';
-};
+exports.hello = () => 'hello from module';

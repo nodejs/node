@@ -4,13 +4,13 @@ function write() {
   } catch (ex) {
     throw new Error('this should never happen');
   }
-  setImmediate(function() {
+  setImmediate(() => {
     write();
   });
 }
 
-process.stdout.on('error', function(er) {
-  console.error(JSON.stringify(er));
+process.stdout.on('error', (err) => {
+  console.error(JSON.stringify(err));
   process.exit(42);
 });
 

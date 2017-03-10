@@ -8,21 +8,17 @@ assert.strictEqual('world', package.hello);
 
 console.error('load fixtures/b/c.js');
 
-var string = 'C';
+let string = 'C';
 
+// constructor
 exports.SomeClass = function() {
-
 };
 
-exports.C = function() {
-  return string;
-};
+exports.C = () => string;
 
-exports.D = function() {
-  return d.D();
-};
+exports.D = () => d.D();
 
-process.on('exit', function() {
+process.on('exit', () => {
   string = 'C done';
   console.log('b/c.js exit');
 });
