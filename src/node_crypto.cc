@@ -102,6 +102,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Null;
 using v8::Object;
@@ -3974,14 +3975,18 @@ void SignBase::CheckThrow(SignBase::Error error) {
   }
 }
 
-int SignBase::GetRSAOptions(Environment* env, v8::Local<v8::Object> options,
-                            int* padding, int* saltlen) {
-  MaybeLocal<Value> maybePadding = options->Get(env->padding_string());
-  if (maybePadding.IsEmpty()) return 0;
+bool SignBase::GetRSAOptions(Environment* env, v8::Local<v8::Object> options,
+                            int* padding, int* salt_len) {
+  MaybeLocal<Value> maybe_padding = options->Get(env->context(),
+                                                 env->padding_string());
+  if (maybe_padding.IsEmpty()) return false;
 
-  Local<Value> paddingValue = maybePadding.ToLocalChecked();
-  if (paddingValue->IsNumber()) {
-    *padding = paddingValue->Int32Value();
+  Local<Value> padding_value = maybe_padding.ToLocalChecked();
+  if (padding_value->IsInt32()) {
+    Maybe<int32_t> maybe_padding = padding_value->Int32Value(env->context());
+    if (maybe_padding.IsNothing()) return false;
+
+    *padding = maybe_padding.ToChecked();
     switch (*padding) {
       case RSA_PKCS1_PADDING:
       case RSA_PKCS1_PSS_PADDING:
@@ -3989,21 +3994,24 @@ int SignBase::GetRSAOptions(Environment* env, v8::Local<v8::Object> options,
       default:
         env->ThrowError("padding must be RSA_PKCS1_PADDING or "
                         "RSA_PKCS1_PSS_PADDING");
-        return 0;
+        return false;
     }
   }
 
   if (*padding == RSA_PKCS1_PSS_PADDING) {
-    MaybeLocal<Value> maybeSaltlen = options->Get(env->salt_length_string());
-    if (maybeSaltlen.IsEmpty()) return 0;
+    MaybeLocal<Value> maybe_saltlen = options->Get(env->context(),
+                                                   env->salt_length_string());
+    if (maybe_saltlen.IsEmpty()) return 0;
 
-    Local<Value> saltlenValue = maybeSaltlen.ToLocalChecked();
-    if (saltlenValue->IsNumber()) {
-      *saltlen = saltlenValue->Int32Value();
+    Local<Value> saltlen_value = maybe_saltlen.ToLocalChecked();
+    if (saltlen_value->IsInt32()) {
+      Maybe<int32_t> maybe_salt_len = saltlen_value->Int32Value(env->context());
+      if (maybe_salt_len.IsNothing()) return false;
+      *salt_len = maybe_salt_len.ToChecked();
     }
   }
 
-  return 1;
+  return true;
 }
 
 
@@ -4106,7 +4114,7 @@ static int Node_SignFinal(EVP_MD_CTX* mdctx, unsigned char* md,
   if (mdctx->digest->flags & EVP_MD_FLAG_PKEY_METHOD_SIGNATURE) {
     size_t sltmp = static_cast<size_t>(EVP_PKEY_size(pkey));
     pkctx = EVP_PKEY_CTX_new(pkey, nullptr);
-    if (!pkctx)
+    if (pkctx == nullptr)
       goto err;
     if (EVP_PKEY_sign_init(pkctx) <= 0)
       goto err;
@@ -4129,13 +4137,13 @@ static int Node_SignFinal(EVP_MD_CTX* mdctx, unsigned char* md,
     return rv;
   }
 
-  if (!mdctx->digest->sign) {
+  if (mdctx->digest->sign == nullptr) {
     EVPerr(EVP_F_EVP_SIGNFINAL, EVP_R_NO_SIGN_FUNCTION_CONFIGURED);
     return 0;
   }
 
-  return (mdctx->digest->sign(mdctx->digest->type, m, m_len, md, sig_len,
-    pkey->pkey.ptr));
+  return mdctx->digest->sign(mdctx->digest->type, m, m_len, md, sig_len,
+                             pkey->pkey.ptr);
 }
 
 SignBase::Error Sign::SignFinal(const char* key_pem,
@@ -4236,7 +4244,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   int padding = RSA_PKCS1_PADDING;
   int salt_len = RSA_PSS_SALTLEN_MAX_SIGN;
   if (args[3]->IsObject()) {
-    Local<Object> options = Local<Object>::Cast(args[3]);
+    Local<Object> options = args[3].As<Object>();
     if (!sign->GetRSAOptions(env, options, &padding, &salt_len))
       return;
   }
@@ -4420,7 +4428,7 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
   fatal = false;
 
   pkctx = EVP_PKEY_CTX_new(pkey, nullptr);
-  if (!pkctx)
+  if (pkctx == nullptr)
     goto err;
   if (EVP_PKEY_verify_init(pkctx) <= 0)
     goto err;
@@ -4501,7 +4509,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   int padding = RSA_PKCS1_PADDING;
   int salt_len = RSA_PSS_SALTLEN_AUTO;
   if (args.Length() >= 4 && args[3]->IsObject()) {
-    Local<Object> options = Local<Object>::Cast(args[3]);
+    Local<Object> options = args[3].As<Object>();
     if (!verify->GetRSAOptions(env, options, &padding, &salt_len))
       return;
   }

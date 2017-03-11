@@ -577,7 +577,7 @@ class SignBase : public BaseObject {
 
  protected:
   void CheckThrow(Error error);
-  int GetRSAOptions(Environment* env, v8::Local<v8::Object> options,
+  bool GetRSAOptions(Environment* env, v8::Local<v8::Object> options,
                     int* padding, int* salt_len);
 
   EVP_MD_CTX mdctx_; /* coverity[member_decl] */

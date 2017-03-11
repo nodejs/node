@@ -975,16 +975,18 @@ Calculates the signature on all the data passed through using either
 
 The `private_key` argument can be an object or a string. If `private_key` is a
 string, it is treated as a raw key with no passphrase. If `private_key` is an
-object, it is interpreted as a hash containing some of these properties:
+object, it must contain one or more of the following properties:
 
 * `key`: {string} - PEM encoded private key (required)
 * `passphrase`: {string} - passphrase for the private key
-* `padding`: {integer} - RSA padding, either `RSA_PKCS1_PADDING` (default) or
-  `RSA_PKCS1_PSS_PADDING`
+* `padding`: {integer} - Optional padding value for RSA, one of the following:
+  * `crypto.constants.RSA_PKCS1_PADDING` (default)
+  * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 * `saltLength`: {integer} - salt length for when padding is
-  `RSA_PKCS1_PSS_PADDING`. The special value `RSA_PSS_SALTLEN_DIGEST` sets the
-  salt length to the digest size, `RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it
-  to the maximum permissible value.
+  `RSA_PKCS1_PSS_PADDING`. The special value
+  `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
+  size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
+  maximum permissible value.
 
 The `output_format` can specify one of `'latin1'`, `'hex'` or `'base64'`. If
 `output_format` is provided a string is returned; otherwise a [`Buffer`][] is
@@ -1087,16 +1089,17 @@ added: v0.1.92
 Verifies the provided data using the given `object` and `signature`.
 The `object` argument can be either a string containing a PEM encoded object,
 which can be an RSA public key, a DSA public key, or an X.509 certificate,
-or an object with some of the following properties:
->>>>>>> Various improvements related to PR #11705
+or an object with one or more of the following properties:
 
 * `key`: {string} - PEM encoded private key (required)
-* `padding`: {integer} - RSA padding, either `RSA_PKCS1_PADDING` (default) or
-  `RSA_PKCS1_PSS_PADDING`
+* `padding`: {integer} - Optional padding value for RSA, one of the following:
+  * `crypto.constants.RSA_PKCS1_PADDING` (default)
+  * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 * `saltLength`: {integer} - salt length for when padding is
-  `RSA_PKCS1_PSS_PADDING`. The special value `RSA_PSS_SALTLEN_DIGEST` sets the
-  salt length to the digest size, `RSA_PSS_SALTLEN_AUTO` (default) causes it to
-  be determined automatically.
+  `RSA_PKCS1_PSS_PADDING`. The special value
+  `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
+  size, `crypto.constants.RSA_PSS_SALTLEN_AUTO` (default) causes it to be
+  determined automatically.
 
 The `signature` argument is the previously calculated signature for the data, in
 the `signature_format` which can be `'latin1'`, `'hex'` or `'base64'`.
