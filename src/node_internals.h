@@ -70,6 +70,10 @@ extern bool config_preserve_symlinks;
 // it to stderr.
 extern std::string config_warning_file;  // NOLINT(runtime/string)
 
+// Set in node.cc by ParseArgs when --pending-deprecation or
+// NODE_PENDING_DEPRECATION is used
+extern bool config_pending_deprecation;
+
 // Tells whether it is safe to call v8::Isolate::GetCurrent().
 extern bool v8_initialized;
 

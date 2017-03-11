@@ -116,6 +116,10 @@ Print stack traces for deprecations.
 Throw errors for deprecations.
 
 .TP
+.BR \-\-pending\-deprecation
+Emit pending deprecation warnings.
+
+.TP
 .BR \-\-no\-warnings
 Silence all process warnings (including deprecations).
 
@@ -253,6 +257,10 @@ When set to \fI1\fR, process warnings are silenced.
 .TP
 .BR NODE_PATH =\fIpath\fR[:\fI...\fR]
 \':\'\-separated list of directories prefixed to the module search path.
+
+.TP
+.BR NODE_PENDING_DEPRECATION = \fI1\fR
+When set to \fI1\fR, emit pending deprecation warnings.
 
 .TP
 .BR NODE_REPL_HISTORY =\fIfile\fR

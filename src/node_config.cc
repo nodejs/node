@@ -49,6 +49,9 @@ void InitConfig(Local<Object> target,
   if (config_preserve_symlinks)
     READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
 
+  if (config_pending_deprecation)
+    READONLY_BOOLEAN_PROPERTY("pendingDeprecation");
+
   if (!config_warning_file.empty()) {
     Local<String> name = OneByteString(env->isolate(), "warningFile");
     Local<String> value = String::NewFromUtf8(env->isolate(),

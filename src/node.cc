@@ -209,6 +209,10 @@ bool trace_warnings = false;
 // that is used by lib/module.js
 bool config_preserve_symlinks = false;
 
+// Set by ParseArgs when --pending-deprecation or NODE_PENDING_DEPRECATION
+// is used.
+bool config_pending_deprecation = false;
+
 // Set in node.cc by ParseArgs when --redirect-warnings= is used.
 std::string config_warning_file;  // NOLINT(runtime/string)
 
@@ -3741,6 +3745,8 @@ static void ParseArgs(int* argc,
       short_circuit = true;
     } else if (strcmp(arg, "--zero-fill-buffers") == 0) {
       zero_fill_all_buffers = true;
+    } else if (strcmp(arg, "--pending-deprecation") == 0) {
+      config_pending_deprecation = true;
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;
@@ -4262,6 +4268,12 @@ void Init(int* argc,
   // --no_foo from the command line.
   V8::SetFlagsFromString(NODE_V8_OPTIONS, sizeof(NODE_V8_OPTIONS) - 1);
 #endif
+
+  {
+    std::string text;
+    config_pending_deprecation =
+        SafeGetenv("NODE_PENDING_DEPRECATION", &text) && text[0] == '1';
+  }
 
   // Allow for environment set preserving symlinks.
   {
