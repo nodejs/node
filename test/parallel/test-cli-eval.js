@@ -117,6 +117,17 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
                assert.strictEqual(stdout, '');
                assert.strictEqual(stderr, '');
              }));
+
+  // Make sure that monkey-patching process.execArgv doesn't cause child_process
+  // to incorrectly munge execArgv.
+  child.exec(
+    `${nodejs} -e "process.execArgv = ['-e', 'console.log(42)', 'thirdArg'];` +
+                  `require('child_process').fork('${emptyFile}')"`,
+    common.mustCall((err, stdout, stderr) => {
+      assert.ifError(err);
+      assert.strictEqual(stdout, '42\n');
+      assert.strictEqual(stderr, '');
+    }));
 }
 
 // Regression test for https://github.com/nodejs/node/issues/8534.
