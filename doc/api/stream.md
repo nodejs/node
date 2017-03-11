@@ -1007,7 +1007,7 @@ function parseHeader(stream, callback) {
         const remaining = split.join('\n\n');
         const buf = Buffer.from(remaining, 'utf8');
         stream.removeListener('error', callback);
-        // set the readable listener before unshifting
+        // remove the readable listener before unshifting
         stream.removeListener('readable', onReadable);
         if (buf.length)
           stream.unshift(buf);
