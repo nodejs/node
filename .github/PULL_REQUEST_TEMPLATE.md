@@ -18,4 +18,4 @@ Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 ##### Affected core subsystem(s)
 <!-- Provide affected core subsystem(s) (like doc, cluster, crypto, etc). -->
 
-[commit guidelines]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#required-format-for-commit-logs
+[commit guidelines]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#commit-guidelines

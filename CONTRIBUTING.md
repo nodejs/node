@@ -95,7 +95,7 @@ $ git add my/changed/files
 $ git commit
 ```
 
-### Required format for commit logs
+### Commit guidelines
 
 Writing good commit logs is important. A commit log should describe what
 changed and why. Follow these guidelines when writing one:
