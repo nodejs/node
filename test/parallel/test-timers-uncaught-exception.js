@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var exceptions = 0;
-var timer1 = 0;
-var timer2 = 0;
+let exceptions = 0;
+let timer1 = 0;
+let timer2 = 0;
 
 // the first timer throws...
 console.error('set first timer');
@@ -29,7 +29,7 @@ function uncaughtException(err) {
 }
 process.on('uncaughtException', uncaughtException);
 
-var exited = false;
+let exited = false;
 process.on('exit', function() {
   assert(!exited);
   exited = true;

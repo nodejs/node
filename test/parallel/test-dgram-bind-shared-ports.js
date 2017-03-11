@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const dgram = require('dgram');
 
 function noop() {}
 
 if (cluster.isMaster) {
-  var worker1 = cluster.fork();
+  const worker1 = cluster.fork();
 
   if (common.isWindows) {
-    var checkErrType = function(er) {
+    const checkErrType = function(er) {
       assert.equal(er.code, 'ENOTSUP');
       worker1.kill();
     };
@@ -21,7 +21,7 @@ if (cluster.isMaster) {
 
   worker1.on('message', function(msg) {
     assert.equal(msg, 'success');
-    var worker2 = cluster.fork();
+    const worker2 = cluster.fork();
 
     worker2.on('message', function(msg) {
       assert.equal(msg, 'socket2:EADDRINUSE');
@@ -30,8 +30,8 @@ if (cluster.isMaster) {
     });
   });
 } else {
-  var socket1 = dgram.createSocket('udp4', noop);
-  var socket2 = dgram.createSocket('udp4', noop);
+  const socket1 = dgram.createSocket('udp4', noop);
+  const socket2 = dgram.createSocket('udp4', noop);
 
   socket1.on('error', function(err) {
     // no errors expected

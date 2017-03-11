@@ -1,9 +1,9 @@
 /* eslint-disable no-debugger */
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const vm = require('vm');
+const spawn = require('child_process').spawn;
 
 assert.throws(function() {
   vm.runInDebugContext('*');
@@ -32,8 +32,8 @@ assert.strictEqual(vm.runInDebugContext(undefined), undefined);
 // See https://github.com/nodejs/node/issues/1190, accessing named interceptors
 // and accessors inside a debug event listener should not crash.
 (function() {
-  var Debug = vm.runInDebugContext('Debug');
-  var breaks = 0;
+  const Debug = vm.runInDebugContext('Debug');
+  let breaks = 0;
 
   function ondebugevent(evt, exc) {
     if (evt !== Debug.DebugEvent.Break) return;
@@ -73,13 +73,13 @@ assert.strictEqual(vm.runInDebugContext(undefined), undefined);
 
 // See https://github.com/nodejs/node/issues/1190, fatal errors should not
 // crash the process.
-var script = common.fixturesDir + '/vm-run-in-debug-context.js';
-var proc = spawn(process.execPath, [script]);
-var data = [];
+const script = common.fixturesDir + '/vm-run-in-debug-context.js';
+let proc = spawn(process.execPath, [script]);
+const data = [];
 proc.stdout.on('data', common.fail);
 proc.stderr.on('data', data.push.bind(data));
 proc.stderr.once('end', common.mustCall(function() {
-  var haystack = Buffer.concat(data).toString('utf8');
+  const haystack = Buffer.concat(data).toString('utf8');
   assert(/SyntaxError: Unexpected token \*/.test(haystack));
 }));
 proc.once('exit', common.mustCall(function(exitCode, signalCode) {

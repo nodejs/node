@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
 if (cluster.isWorker) {
-  var http = require('http');
+  const http = require('http');
   http.Server(function() {
 
   }).listen(common.PORT, '127.0.0.1');
@@ -15,7 +15,7 @@ if (cluster.isWorker) {
 
 } else if (cluster.isMaster) {
 
-  var checks = {
+  const checks = {
     cluster: {
       emitDisconnect: false,
       emitExit: false,
@@ -32,7 +32,7 @@ if (cluster.isWorker) {
   };
 
   // helper function to check if a process is alive
-  var alive = function(pid) {
+  const alive = function(pid) {
     try {
       process.kill(pid, 0);
       return true;
@@ -42,7 +42,7 @@ if (cluster.isWorker) {
   };
 
   // start worker
-  var worker = cluster.fork();
+  const worker = cluster.fork();
 
   // Disconnect worker when it is ready
   worker.once('listening', function() {
@@ -73,8 +73,8 @@ if (cluster.isWorker) {
 
   process.once('exit', function() {
 
-    var w = checks.worker;
-    var c = checks.cluster;
+    const w = checks.worker;
+    const c = checks.cluster;
 
     // events
     assert.ok(w.emitDisconnect, 'Disconnect event did not emit');

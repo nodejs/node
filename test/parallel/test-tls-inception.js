@@ -1,20 +1,20 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var path = require('path');
-var net = require('net');
+const fs = require('fs');
+const path = require('path');
+const net = require('net');
 
-var options, a, b;
+let options;
 
-var body = new Buffer(400000).fill('A');
+const body = new Buffer(400000).fill('A');
 
 options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
@@ -22,13 +22,13 @@ options = {
 };
 
 // the "proxy" server
-a = tls.createServer(options, function(socket) {
-  var options = {
+const a = tls.createServer(options, function(socket) {
+  const options = {
     host: '127.0.0.1',
     port: b.address().port,
     rejectUnauthorized: false
   };
-  var dest = net.connect(options);
+  const dest = net.connect(options);
   dest.pipe(socket);
   socket.pipe(dest);
 
@@ -38,7 +38,7 @@ a = tls.createServer(options, function(socket) {
 });
 
 // the "target" server
-b = tls.createServer(options, function(socket) {
+const b = tls.createServer(options, function(socket) {
   socket.end(body);
 });
 
@@ -49,14 +49,13 @@ a.listen(0, function() {
       port: a.address().port,
       rejectUnauthorized: false
     };
-    var socket = tls.connect(options);
-    var ssl;
-    ssl = tls.connect({
+    const socket = tls.connect(options);
+    const ssl = tls.connect({
       socket: socket,
       rejectUnauthorized: false
     });
     ssl.setEncoding('utf8');
-    var buf = '';
+    let buf = '';
     ssl.on('data', function(data) {
       buf += data;
     });

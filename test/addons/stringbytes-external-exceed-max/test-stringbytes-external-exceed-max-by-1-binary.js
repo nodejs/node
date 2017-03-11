@@ -14,8 +14,9 @@ if (!common.enoughTestMem) {
 // v8::String::kMaxLength defined in v8.h
 const kStringMaxLength = process.binding('buffer').kStringMaxLength;
 
+let buf;
 try {
-  var buf = new Buffer(kStringMaxLength + 1);
+  buf = new Buffer(kStringMaxLength + 1);
 } catch (e) {
   // If the exception is not due to memory confinement then rethrow it.
   if (e.message !== 'Invalid array buffer length') throw (e);
@@ -33,7 +34,7 @@ assert.throws(function() {
   buf.toString('binary');
 }, /toString failed/);
 
-var maxString = buf.toString('binary', 1);
+let maxString = buf.toString('binary', 1);
 assert.equal(maxString.length, kStringMaxLength);
 // Free the memory early instead of at the end of the next assignment
 maxString = undefined;

@@ -3,11 +3,11 @@ require('../common');
 const assert = require('assert');
 const L = require('_linklist'); // eslint-disable-line no-restricted-modules
 
-var list = { name: 'list' };
-var A = { name: 'A' };
-var B = { name: 'B' };
-var C = { name: 'C' };
-var D = { name: 'D' };
+const list = { name: 'list' };
+const A = { name: 'A' };
+const B = { name: 'B' };
+const C = { name: 'C' };
+const D = { name: 'D' };
 
 
 L.init(list);
@@ -35,7 +35,7 @@ L.append(list, D);
 // list -> A -> B -> C -> D
 assert.equal(A, L.peek(list));
 
-var x = L.shift(list);
+let x = L.shift(list);
 assert.equal(A, x);
 // list -> B -> C -> D
 assert.equal(B, L.peek(list));

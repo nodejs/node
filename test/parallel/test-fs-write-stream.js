@@ -4,7 +4,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-var file = path.join(common.tmpDir, 'write.txt');
+const file = path.join(common.tmpDir, 'write.txt');
 
 common.refreshTmpDir();
 
@@ -20,7 +20,7 @@ common.refreshTmpDir();
 })();
 
 (function() {
-  var stream = fs.createWriteStream(file);
+  const stream = fs.createWriteStream(file);
 
   stream.on('drain', function() {
     assert.fail(null, null, '\'drain\' event must not be emitted before ' +

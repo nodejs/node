@@ -1,14 +1,14 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var msg = 'Hello';
-var server = http.createServer(function(req, res) {
+const assert = require('assert');
+const http = require('http');
+const msg = 'Hello';
+const server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end(msg);
 }).listen(0, function() {
   http.get({port: this.address().port}, function(res) {
-    var data = '';
+    let data = '';
     res.on('readable', common.mustCall(function() {
       console.log('readable event');
       data += res.read();

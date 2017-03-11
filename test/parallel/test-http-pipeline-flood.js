@@ -26,7 +26,7 @@ switch (process.argv[2]) {
 function parent() {
   const http = require('http');
   const bigResponse = Buffer.alloc(10240, 'x');
-  var backloggedReqs = 0;
+  let backloggedReqs = 0;
 
   const server = http.createServer(function(req, res) {
     res.setHeader('content-length', bigResponse.length);
@@ -68,7 +68,7 @@ function child() {
   const port = +process.argv[3];
   const conn = net.connect({ port: port });
 
-  var req = `GET / HTTP/1.1\r\nHost: localhost:${port}\r\nAccept: */*\r\n\r\n`;
+  let req = `GET / HTTP/1.1\r\nHost: localhost:${port}\r\nAccept: */*\r\n\r\n`;
 
   req = new Array(10241).join(req);
 

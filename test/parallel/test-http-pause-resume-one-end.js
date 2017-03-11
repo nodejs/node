@@ -1,15 +1,15 @@
 'use strict';
 const common = require('../common');
-var http = require('http');
+const http = require('http');
 
-var server = http.Server(function(req, res) {
+const server = http.Server(function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('Hello World\n');
   server.close();
 });
 
 server.listen(0, common.mustCall(function() {
-  var opts = {
+  const opts = {
     port: this.address().port,
     headers: { connection: 'close' }
   };

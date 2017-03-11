@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var dgram = require('dgram');
+const common = require('../common');
+const dgram = require('dgram');
 
-var buf = new Buffer(1024);
+const buf = new Buffer(1024);
 buf.fill(42);
 
-var socket = dgram.createSocket('udp4');
+const socket = dgram.createSocket('udp4');
 
 socket.send(buf, 0, buf.length, common.PORT, 'localhost');
 

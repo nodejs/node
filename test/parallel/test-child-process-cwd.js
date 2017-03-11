@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var returns = 0;
+let returns = 0;
 
 /*
   Spawns 'pwd' with given options, then test
@@ -11,9 +11,9 @@ var returns = 0;
     (after removing traling whitespace)
 */
 function testCwd(options, forCode, forData) {
-  var data = '';
+  let data = '';
 
-  var child = common.spawnPwd(options);
+  const child = common.spawnPwd(options);
 
   child.stdout.setEncoding('utf8');
 
@@ -45,7 +45,7 @@ if (common.isWindows) {
 
 // Assume does-not-exist doesn't exist, expect exitCode=-1 and errno=ENOENT
 (function() {
-  var errors = 0;
+  let errors = 0;
 
   testCwd({cwd: 'does-not-exist'}, -1).on('error', function(e) {
     assert.equal(e.code, 'ENOENT');

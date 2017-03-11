@@ -9,7 +9,7 @@ const child = spawn(process.execPath, [], {
   })
 });
 const wanted = child.pid + '\n';
-var found = '';
+let found = '';
 
 child.stdout.setEncoding('utf8');
 child.stdout.on('data', function(c) {

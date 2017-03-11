@@ -2,17 +2,17 @@
 // We've experienced a regression where the module loader stats a bunch of
 // directories on require() even if it's been called before. The require()
 // should caching the request.
-var common = require('../common');
-var fs = require('fs');
-var assert = require('assert');
+const common = require('../common');
+const fs = require('fs');
+const assert = require('assert');
 
-var counter = 0;
+let counter = 0;
 
 // Switch out the two stat implementations so that they increase a counter
 // each time they are called.
 
-var _statSync = fs.statSync;
-var _stat = fs.stat;
+const _statSync = fs.statSync;
+const _stat = fs.stat;
 
 fs.statSync = function() {
   counter++;
@@ -31,7 +31,7 @@ require('./../fixtures/a.js');
 require('http');
 
 console.log('counterBefore = %d', counter);
-var counterBefore = counter;
+const counterBefore = counter;
 
 // Now load the module a bunch of times with equivalent paths.
 // stat should not be called.
@@ -47,6 +47,6 @@ for (let i = 0; i < 100; i++) {
 }
 
 console.log('counterAfter = %d', counter);
-var counterAfter = counter;
+const counterAfter = counter;
 
 assert.equal(counterBefore, counterAfter);

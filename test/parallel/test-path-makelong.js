@@ -1,11 +1,11 @@
 'use strict';
-var assert = require('assert');
-var path = require('path');
-var common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const common = require('../common');
 
 if (common.isWindows) {
-  var file = path.join(common.fixturesDir, 'a.js');
-  var resolvedFile = path.resolve(file);
+  const file = path.join(common.fixturesDir, 'a.js');
+  const resolvedFile = path.resolve(file);
 
   assert.equal('\\\\?\\' + resolvedFile, path._makeLong(file));
   assert.equal('\\\\?\\' + resolvedFile, path._makeLong('\\\\?\\' + file));

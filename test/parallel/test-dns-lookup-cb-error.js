@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var cares = process.binding('cares_wrap');
+const assert = require('assert');
+const cares = process.binding('cares_wrap');
 
-var dns = require('dns');
+const dns = require('dns');
 
 // Stub `getaddrinfo` to *always* error.
 cares.getaddrinfo = function() {
@@ -11,7 +11,7 @@ cares.getaddrinfo = function() {
 };
 
 assert.doesNotThrow(function() {
-  var tickValue = 0;
+  let tickValue = 0;
 
   dns.lookup('example.com', function(error, result, addressType) {
     assert.equal(tickValue, 1);

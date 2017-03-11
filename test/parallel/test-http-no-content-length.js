@@ -1,15 +1,15 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var http = require('http');
+const assert = require('assert');
+const net = require('net');
+const http = require('http');
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   // Neither Content-Length nor Connection
   socket.end('HTTP/1.1 200 ok\r\n\r\nHello');
 }).listen(0, common.mustCall(function() {
   http.get({port: this.address().port}, common.mustCall(function(res) {
-    var body = '';
+    let body = '';
 
     res.setEncoding('utf8');
     res.on('data', function(chunk) {

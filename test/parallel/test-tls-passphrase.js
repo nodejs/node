@@ -1,20 +1,20 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
+const path = require('path');
 
-var key = fs.readFileSync(path.join(common.fixturesDir, 'pass-key.pem'));
-var cert = fs.readFileSync(path.join(common.fixturesDir, 'pass-cert.pem'));
+const key = fs.readFileSync(path.join(common.fixturesDir, 'pass-key.pem'));
+const cert = fs.readFileSync(path.join(common.fixturesDir, 'pass-cert.pem'));
 
-var server = tls.Server({
+const server = tls.Server({
   key: key,
   passphrase: 'passphrase',
   cert: cert,
@@ -26,7 +26,7 @@ var server = tls.Server({
 });
 
 server.listen(0, common.mustCall(function() {
-  var c = tls.connect({
+  const c = tls.connect({
     port: this.address().port,
     key: key,
     passphrase: 'passphrase',

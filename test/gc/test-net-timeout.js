@@ -5,14 +5,13 @@
 function serverHandler(sock) {
   sock.setTimeout(120000);
   sock.resume();
-  var timer;
   sock.on('close', function() {
     clearTimeout(timer);
   });
   sock.on('error', function(err) {
     assert.strictEqual(err.code, 'ECONNRESET');
   });
-  timer = setTimeout(function() {
+  const timer = setTimeout(function() {
     sock.end('hello\n');
   }, 100);
 }
@@ -28,7 +27,7 @@ let countGC = 0;
 
 console.log('We should do ' + todo + ' requests');
 
-var server = net.createServer(serverHandler);
+const server = net.createServer(serverHandler);
 server.listen(0, getall);
 
 function getall() {
@@ -36,7 +35,7 @@ function getall() {
     return;
 
   (function() {
-    var req = net.connect(server.address().port);
+    const req = net.connect(server.address().port);
     req.resume();
     req.setTimeout(10, function() {
       //console.log('timeout (expected)')
@@ -52,7 +51,7 @@ function getall() {
   setImmediate(getall);
 }
 
-for (var i = 0; i < 10; i++)
+for (let i = 0; i < 10; i++)
   getall();
 
 function afterGC() {

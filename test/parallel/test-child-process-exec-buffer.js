@@ -1,9 +1,9 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
-var os = require('os');
-var str = 'hello';
+const assert = require('assert');
+const exec = require('child_process').exec;
+const os = require('os');
+const str = 'hello';
 
 // default encoding
 exec('echo ' + str, common.mustCall(function(err, stdout, stderr) {

@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
 function unlink(pathname) {
   try {
@@ -13,8 +13,8 @@ function unlink(pathname) {
 common.refreshTmpDir();
 
 (function() {
-  var ncalls = 0;
-  var pathname = common.tmpDir + '/test1';
+  let ncalls = 0;
+  const pathname = common.tmpDir + '/test1';
 
   unlink(pathname);
 
@@ -31,8 +31,8 @@ common.refreshTmpDir();
 })();
 
 (function() {
-  var ncalls = 0;
-  var pathname = common.tmpDir + '/test2';
+  let ncalls = 0;
+  const pathname = common.tmpDir + '/test2';
 
   unlink(pathname);
 
@@ -49,12 +49,12 @@ common.refreshTmpDir();
 })();
 
 (function() {
-  var pathname = common.tmpDir + '/test3';
+  const pathname = common.tmpDir + '/test3';
 
   unlink(pathname);
   fs.mkdirSync(pathname);
 
-  var exists = common.fileExists(pathname);
+  const exists = common.fileExists(pathname);
   unlink(pathname);
 
   assert.equal(exists, true);

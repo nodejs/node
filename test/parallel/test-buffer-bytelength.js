@@ -1,8 +1,8 @@
 'use strict';
 
 require('../common');
-var assert = require('assert');
-var Buffer = require('buffer').Buffer;
+const assert = require('assert');
+const Buffer = require('buffer').Buffer;
 
 // coerce values to string
 assert.equal(Buffer.byteLength(32, 'raw'), 2);
@@ -11,9 +11,9 @@ assert.equal(Buffer.byteLength({}, 'raws'), 15);
 assert.equal(Buffer.byteLength(), 9);
 
 // buffer
-var incomplete = new Buffer([0xe4, 0xb8, 0xad, 0xe6, 0x96]);
+const incomplete = new Buffer([0xe4, 0xb8, 0xad, 0xe6, 0x96]);
 assert.equal(Buffer.byteLength(incomplete), 5);
-var ascii = new Buffer('abc');
+const ascii = new Buffer('abc');
 assert.equal(Buffer.byteLength(ascii), 3);
 
 // special case: zero length string

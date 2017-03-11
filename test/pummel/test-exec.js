@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
+const common = require('../common');
+const assert = require('assert');
+const exec = require('child_process').exec;
 
-var SLEEP3_COMMAND;
+let SLEEP3_COMMAND;
 if (!common.isWindows) {
   // Unix.
   SLEEP3_COMMAND = 'sleep 3';
@@ -14,8 +14,8 @@ if (!common.isWindows) {
 }
 
 
-var success_count = 0;
-var error_count = 0;
+let success_count = 0;
+let error_count = 0;
 
 
 exec(
@@ -55,9 +55,9 @@ exec('thisisnotavalidcommand', function(err, stdout, stderr) {
 });
 
 
-var sleeperStart = new Date();
+const sleeperStart = new Date();
 exec(SLEEP3_COMMAND, { timeout: 50 }, function(err, stdout, stderr) {
-  var diff = (new Date()) - sleeperStart;
+  const diff = (new Date()) - sleeperStart;
   console.log('\'sleep 3\' with timeout 50 took %d ms', diff);
   assert.ok(diff < 500);
   assert.ok(err);
@@ -68,8 +68,8 @@ exec(SLEEP3_COMMAND, { timeout: 50 }, function(err, stdout, stderr) {
 });
 
 
-var startSleep3 = new Date();
-var killMeTwice = exec(SLEEP3_COMMAND, {timeout: 1000}, killMeTwiceCallback);
+const startSleep3 = new Date();
+const killMeTwice = exec(SLEEP3_COMMAND, {timeout: 1000}, killMeTwiceCallback);
 
 process.nextTick(function() {
   console.log('kill pid %d', killMeTwice.pid);
@@ -81,7 +81,7 @@ process.nextTick(function() {
 });
 
 function killMeTwiceCallback(err, stdout, stderr) {
-  var diff = (new Date()) - startSleep3;
+  const diff = (new Date()) - startSleep3;
   // We should have already killed this process. Assert that the timeout still
   // works and that we are getting the proper callback parameters.
   assert.ok(err);

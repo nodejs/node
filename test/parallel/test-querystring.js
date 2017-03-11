@@ -1,31 +1,31 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // test using assert
-var qs = require('querystring');
+const qs = require('querystring');
 
 // folding block, commented to pass gjslint
 // {{{
 // [ wonkyQS, canonicalQS, obj ]
-var qsTestCases = [
+const qsTestCases = [
   ['foo=918854443121279438895193',
-   'foo=918854443121279438895193',
+    'foo=918854443121279438895193',
    {'foo': '918854443121279438895193'}],
   ['foo=bar', 'foo=bar', {'foo': 'bar'}],
   ['foo=bar&foo=quux', 'foo=bar&foo=quux', {'foo': ['bar', 'quux']}],
   ['foo=1&bar=2', 'foo=1&bar=2', {'foo': '1', 'bar': '2'}],
   ['my+weird+field=q1%212%22%27w%245%267%2Fz8%29%3F',
-   'my%20weird%20field=q1!2%22\'w%245%267%2Fz8)%3F',
+    'my%20weird%20field=q1!2%22\'w%245%267%2Fz8)%3F',
    {'my weird field': 'q1!2"\'w$5&7/z8)?' }],
   ['foo%3Dbaz=bar', 'foo%3Dbaz=bar', {'foo=baz': 'bar'}],
   ['foo=baz=bar', 'foo=baz%3Dbar', {'foo': 'baz=bar'}],
   ['str=foo&arr=1&arr=2&arr=3&somenull=&undef=',
-   'str=foo&arr=1&arr=2&arr=3&somenull=&undef=',
-   { 'str': 'foo',
-     'arr': ['1', '2', '3'],
-     'somenull': '',
-     'undef': ''}],
+    'str=foo&arr=1&arr=2&arr=3&somenull=&undef=',
+    { 'str': 'foo',
+      'arr': ['1', '2', '3'],
+      'somenull': '',
+      'undef': ''}],
   [' foo = bar ', '%20foo%20=%20bar%20', {' foo ': ' bar '}],
   ['foo=%zx', 'foo=%25zx', {'foo': '%zx'}],
   ['foo=%EF%BF%BD', 'foo=%EF%BF%BD', {'foo': '\ufffd' }],
@@ -43,20 +43,20 @@ var qsTestCases = [
 ];
 
 // [ wonkyQS, canonicalQS, obj ]
-var qsColonTestCases = [
+const qsColonTestCases = [
   ['foo:bar', 'foo:bar', {'foo': 'bar'}],
   ['foo:bar;foo:quux', 'foo:bar;foo:quux', {'foo': ['bar', 'quux']}],
   ['foo:1&bar:2;baz:quux',
-   'foo:1%26bar%3A2;baz:quux',
+    'foo:1%26bar%3A2;baz:quux',
    {'foo': '1&bar:2', 'baz': 'quux'}],
   ['foo%3Abaz:bar', 'foo%3Abaz:bar', {'foo:baz': 'bar'}],
   ['foo:baz:bar', 'foo:baz%3Abar', {'foo': 'baz:bar'}]
 ];
 
 // [wonkyObj, qs, canonicalObj]
-var extendedFunction = function() {};
+const extendedFunction = function() {};
 extendedFunction.prototype = {a: 'b'};
-var qsWeirdObjects = [
+const qsWeirdObjects = [
   [{regexp: /./g}, 'regexp=', {'regexp': ''}],
   [{regexp: new RegExp('.', 'g')}, 'regexp=', {'regexp': ''}],
   [{fn: function() {}}, 'fn=', {'fn': ''}],
@@ -74,10 +74,10 @@ var qsWeirdObjects = [
 ];
 // }}}
 
-var vm = require('vm');
-var foreignObject = vm.runInNewContext('({"foo": ["bar", "baz"]})');
+const vm = require('vm');
+const foreignObject = vm.runInNewContext('({"foo": ["bar", "baz"]})');
 
-var qsNoMungeTestCases = [
+const qsNoMungeTestCases = [
   ['', {}],
   ['foo=bar&foo=baz', {'foo': ['bar', 'baz']}],
   ['foo=bar&foo=baz', foreignObject],
@@ -112,14 +112,14 @@ qsNoMungeTestCases.forEach(function(testCase) {
 
 // test the nested qs-in-qs case
 (function() {
-  var f = qs.parse('a=b&q=x%3Dy%26y%3Dz');
+  const f = qs.parse('a=b&q=x%3Dy%26y%3Dz');
   f.q = qs.parse(f.q);
   assert.deepEqual(f, { a: 'b', q: { x: 'y', y: 'z' } });
 })();
 
 // nested in colon
 (function() {
-  var f = qs.parse('a:b;q:x%3Ay%3By%3Az', ';', ':');
+  const f = qs.parse('a:b;q:x%3Ay%3By%3Az', ';', ':');
   f.q = qs.parse(f.q, ';', ':');
   assert.deepEqual(f, { a: 'b', q: { x: 'y', y: 'z' } });
 })();
@@ -192,7 +192,7 @@ assert.equal(
 function testUnlimitedKeys() {
   const query = {};
 
-  for (var i = 0; i < 2000; i++) query[i] = i;
+  for (let i = 0; i < 2000; i++) query[i] = i;
 
   const url = qs.stringify(query);
 
@@ -203,7 +203,7 @@ function testUnlimitedKeys() {
 testUnlimitedKeys();
 
 
-var b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
+const b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
                           '%0d%ac%a2%2f%9d%eb%d8%a2%e6');
 // <Buffer d3 f2 55 67 1f 36 76 24 5e 98 cb 0d ac a2 2f 9d eb d8 a2 e6>
 assert.equal(0xd3, b[0]);
@@ -241,13 +241,13 @@ assert.deepEqual(
 function demoEncode(str) {
   return str[0];
 }
-var obj = { aa: 'aa', bb: 'bb', cc: 'cc' };
+const obj = { aa: 'aa', bb: 'bb', cc: 'cc' };
 assert.equal(
   qs.stringify(obj, null, null, { encodeURIComponent: demoEncode }),
   'a=a&b=b&c=c');
 
 // test overriding .unescape
-var prevUnescape = qs.unescape;
+const prevUnescape = qs.unescape;
 qs.unescape = function(str) {
   return str.replace(/o/g, '_');
 };

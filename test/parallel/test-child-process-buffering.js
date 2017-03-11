@@ -1,10 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 function pwd(callback) {
-  var output = '';
-  var child = common.spawnPwd();
+  let output = '';
+  const child = common.spawnPwd();
 
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', function(s) {

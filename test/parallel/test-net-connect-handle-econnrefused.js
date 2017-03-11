@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
 
 
 // Hopefully nothing is running on common.PORT
-var c = net.createConnection(common.PORT);
+const c = net.createConnection(common.PORT);
 
 c.on('connect', function() {
   console.error('connected?!');

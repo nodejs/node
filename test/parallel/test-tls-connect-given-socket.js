@@ -1,37 +1,37 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var net = require('net');
-var fs = require('fs');
-var path = require('path');
+const net = require('net');
+const fs = require('fs');
+const path = require('path');
 
-var serverConnected = 0;
-var clientConnected = 0;
+let serverConnected = 0;
+let clientConnected = 0;
 
-var options = {
+const options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };
 
-var server = tls.createServer(options, function(socket) {
+const server = tls.createServer(options, function(socket) {
   serverConnected++;
   socket.end('Hello');
 }).listen(0, function() {
-  var waiting = 2;
+  let waiting = 2;
   function establish(socket) {
-    var client = tls.connect({
+    const client = tls.connect({
       rejectUnauthorized: false,
       socket: socket
     }, function() {
       clientConnected++;
-      var data = '';
+      let data = '';
       client.on('data', function(chunk) {
         data += chunk.toString();
       });
@@ -48,25 +48,25 @@ var server = tls.createServer(options, function(socket) {
   }
 
   // Immediate death socket
-  var immediateDeath = net.connect(this.address().port);
+  const immediateDeath = net.connect(this.address().port);
   establish(immediateDeath).destroy();
 
   // Outliving
-  var outlivingTCP = net.connect(this.address().port);
+  const outlivingTCP = net.connect(this.address().port);
   outlivingTCP.on('connect', function() {
     outlivingTLS.destroy();
     next();
   });
-  var outlivingTLS = establish(outlivingTCP);
+  const outlivingTLS = establish(outlivingTCP);
 
   function next() {
     // Already connected socket
-    var connected = net.connect(server.address().port, function() {
+    const connected = net.connect(server.address().port, function() {
       establish(connected);
     });
 
     // Connecting socket
-    var connecting = net.connect(server.address().port);
+    const connecting = net.connect(server.address().port);
     establish(connecting);
 
   }

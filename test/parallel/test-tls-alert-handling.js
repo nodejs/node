@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
@@ -12,11 +12,11 @@ if (!common.hasCrypto) {
   return;
 }
 
-var tls = require('tls');
-var net = require('net');
-var fs = require('fs');
+const tls = require('tls');
+const net = require('net');
+const fs = require('fs');
 
-var success = false;
+let success = false;
 
 function filenamePEM(n) {
   return require('path').join(common.fixturesDir, 'keys', n + '.pem');
@@ -26,15 +26,15 @@ function loadPEM(n) {
   return fs.readFileSync(filenamePEM(n));
 }
 
-var opts = {
+const opts = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert')
 };
 
-var max_iter = 20;
-var iter = 0;
+const max_iter = 20;
+let iter = 0;
 
-var server = tls.createServer(opts, function(s) {
+const server = tls.createServer(opts, function(s) {
   s.pipe(s);
   s.on('error', function(e) {
     // ignore error
@@ -47,7 +47,7 @@ server.listen(0, function() {
 
 
 function sendClient() {
-  var client = tls.connect(server.address().port, {
+  const client = tls.connect(server.address().port, {
     rejectUnauthorized: false
   });
   client.on('data', function(chunk) {
@@ -71,9 +71,9 @@ function sendClient() {
 
 
 function sendBADTLSRecord() {
-  var BAD_RECORD = new Buffer([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
-  var socket = net.connect(server.address().port);
-  var client = tls.connect({
+  const BAD_RECORD = new Buffer([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
+  const socket = net.connect(server.address().port);
+  const client = tls.connect({
     socket: socket,
     rejectUnauthorized: false
   }, function() {

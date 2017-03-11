@@ -8,8 +8,8 @@ const buf = new Buffer(10 * 1024 * 1024);
 buf.fill(0x62);
 
 const errs = [];
-var clientSocket;
-var serverSocket;
+let clientSocket;
+let serverSocket;
 
 function ready() {
   if (clientSocket && serverSocket) {
@@ -18,7 +18,7 @@ function ready() {
   }
 }
 
-var srv = net.createServer(function onConnection(conn) {
+const srv = net.createServer(function onConnection(conn) {
   conn.on('error', function(err) {
     errs.push(err);
     if (errs.length > 1 && errs[0] === errs[1])
@@ -30,7 +30,7 @@ var srv = net.createServer(function onConnection(conn) {
   serverSocket = conn;
   ready();
 }).listen(0, function() {
-  var client = net.connect({ port: this.address().port });
+  const client = net.connect({ port: this.address().port });
 
   client.on('connect', function() {
     clientSocket = client;

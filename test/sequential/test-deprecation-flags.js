@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var execFile = require('child_process').execFile;
-var depmod = require.resolve('../fixtures/deprecated.js');
-var node = process.execPath;
+const common = require('../common');
+const assert = require('assert');
+const execFile = require('child_process').execFile;
+const depmod = require.resolve('../fixtures/deprecated.js');
+const node = process.execPath;
 
-var depUserland =
+const depUserland =
     require.resolve(common.fixturesDir + '/deprecated-userland-function.js');
 
-var normal = [depmod];
-var noDep = ['--no-deprecation', depmod];
-var traceDep = ['--trace-deprecation', depmod];
+const normal = [depmod];
+const noDep = ['--no-deprecation', depmod];
+const traceDep = ['--trace-deprecation', depmod];
 
 execFile(node, normal, function(er, stdout, stderr) {
   console.error('normal: show deprecation warning');
@@ -33,7 +33,7 @@ execFile(node, traceDep, function(er, stdout, stderr) {
   console.error('--trace-deprecation: show stack');
   assert.equal(er, null);
   assert.equal(stdout, '');
-  var stack = stderr.trim().split('\n');
+  const stack = stderr.trim().split('\n');
   // just check the top and bottom.
   assert.equal(stack[0],
                'Trace: util.p is deprecated. Use console.error instead.');

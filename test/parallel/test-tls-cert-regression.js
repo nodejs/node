@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
 
-var cert =
+const cert =
 `-----BEGIN CERTIFICATE-----
 MIIBfjCCASgCCQDmmNjAojbDQjANBgkqhkiG9w0BAQUFADBFMQswCQYDVQQGEwJB
 VTETMBEGA1UECBMKU29tZS1TdGF0ZTEhMB8GA1UEChMYSW50ZXJuZXQgV2lkZ2l0
@@ -21,7 +21,7 @@ uvCyndyeB4d24FlfqEUlkfaWCZlNKRaV9YhLDiEg3BcIreFo4brtKQfZzTRs0GVm
 KHg=
 -----END CERTIFICATE-----`;
 
-var key =
+const key =
 `-----BEGIN RSA PRIVATE KEY-----
 MIIBPQIBAAJBAPKwlfMX6HGZIt1xm7fna72eWcOYfUfSxSugghvqYgJt2Oi3lH+w
 sU1O9FzRIVmpeIjDXhbpMjsa1HtzSiccPXsCAwEAAQJBAM4uU9aJE0OfdE1p/X+K
@@ -33,7 +33,7 @@ AOaJnkQrmurlRdePX6LvN/LgGAQoxwovfjcOYNnZsIVY
 -----END RSA PRIVATE KEY-----`;
 
 function test(cert, key, cb) {
-  var server = tls.createServer({
+  const server = tls.createServer({
     cert: cert,
     key: key
   }).listen(0, function() {

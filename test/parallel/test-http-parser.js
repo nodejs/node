@@ -1,19 +1,19 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var HTTPParser = process.binding('http_parser').HTTPParser;
+const HTTPParser = process.binding('http_parser').HTTPParser;
 
-var CRLF = '\r\n';
-var REQUEST = HTTPParser.REQUEST;
-var RESPONSE = HTTPParser.RESPONSE;
+const CRLF = '\r\n';
+const REQUEST = HTTPParser.REQUEST;
+const RESPONSE = HTTPParser.RESPONSE;
 
-var methods = HTTPParser.methods;
+const methods = HTTPParser.methods;
 
-var kOnHeaders = HTTPParser.kOnHeaders | 0;
-var kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
-var kOnBody = HTTPParser.kOnBody | 0;
-var kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
+const kOnHeaders = HTTPParser.kOnHeaders | 0;
+const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
+const kOnBody = HTTPParser.kOnBody | 0;
+const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 
 // The purpose of this test is not to check HTTP compliance but to test the
 // binding. Tests for pathological http messages should be submitted
@@ -22,7 +22,7 @@ var kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 
 
 function newParser(type) {
-  var parser = new HTTPParser(type);
+  const parser = new HTTPParser(type);
 
   parser.headers = [];
   parser.url = '';
@@ -47,7 +47,7 @@ function newParser(type) {
 
 
 function mustCall(f, times) {
-  var actual = 0;
+  let actual = 0;
 
   process.setMaxListeners(256);
   process.on('exit', function() {
@@ -63,7 +63,7 @@ function mustCall(f, times) {
 
 function expectBody(expected) {
   return mustCall(function(buf, start, len) {
-    var body = '' + buf.slice(start, start + len);
+    const body = '' + buf.slice(start, start + len);
     assert.equal(body, expected);
   });
 }
@@ -73,20 +73,20 @@ function expectBody(expected) {
 // Simple request test.
 //
 (function() {
-  var request = Buffer(
+  const request = Buffer(
       'GET /hello HTTP/1.1' + CRLF +
       CRLF);
 
-  var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
-                                   url, statusCode, statusMessage, upgrade,
-                                   shouldKeepAlive) {
+  const onHeadersComplete = function(versionMajor, versionMinor, headers,
+                                     method, url, statusCode, statusMessage,
+                                     upgrade, shouldKeepAlive) {
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 1);
     assert.equal(method, methods.indexOf('GET'));
     assert.equal(url || parser.url, '/hello');
   };
 
-  var parser = newParser(REQUEST);
+  const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
   parser.execute(request, 0, request.length);
 
@@ -111,16 +111,16 @@ function expectBody(expected) {
 // Simple response test.
 //
 (function() {
-  var request = Buffer(
+  const request = Buffer(
       'HTTP/1.1 200 OK' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Content-Length: 4' + CRLF +
       CRLF +
       'pong');
 
-  var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
-                                   url, statusCode, statusMessage, upgrade,
-                                   shouldKeepAlive) {
+  const onHeadersComplete = function(versionMajor, versionMinor, headers,
+                                     method, url, statusCode, statusMessage,
+                                     upgrade, shouldKeepAlive) {
     assert.equal(method, undefined);
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 1);
@@ -128,12 +128,12 @@ function expectBody(expected) {
     assert.equal(statusMessage, 'OK');
   };
 
-  var onBody = function(buf, start, len) {
-    var body = '' + buf.slice(start, start + len);
+  const onBody = function(buf, start, len) {
+    const body = '' + buf.slice(start, start + len);
     assert.equal(body, 'pong');
   };
 
-  var parser = newParser(RESPONSE);
+  const parser = newParser(RESPONSE);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
   parser[kOnBody] = mustCall(onBody);
   parser.execute(request, 0, request.length);
@@ -144,13 +144,13 @@ function expectBody(expected) {
 // Response with no headers.
 //
 (function() {
-  var request = Buffer(
+  const request = Buffer(
       'HTTP/1.0 200 Connection established' + CRLF +
       CRLF);
 
-  var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
-                                   url, statusCode, statusMessage, upgrade,
-                                   shouldKeepAlive) {
+  const onHeadersComplete = function(versionMajor, versionMinor, headers,
+                                     method, url, statusCode, statusMessage,
+                                     upgrade, shouldKeepAlive) {
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 0);
     assert.equal(method, undefined);
@@ -159,7 +159,7 @@ function expectBody(expected) {
     assert.deepEqual(headers || parser.headers, []);
   };
 
-  var parser = newParser(RESPONSE);
+  const parser = newParser(RESPONSE);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
   parser.execute(request, 0, request.length);
 })();
@@ -169,7 +169,7 @@ function expectBody(expected) {
 // Trailing headers.
 //
 (function() {
-  var request = Buffer(
+  const request = Buffer(
       'POST /it HTTP/1.1' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
       CRLF +
@@ -180,16 +180,16 @@ function expectBody(expected) {
       'Content-Type: text/plain' + CRLF +
       CRLF);
 
-  var seen_body = false;
+  let seen_body = false;
 
-  var onHeaders = function(headers, url) {
+  const onHeaders = function(headers, url) {
     assert.ok(seen_body); // trailers should come after the body
     assert.deepEqual(headers, ['Vary', '*', 'Content-Type', 'text/plain']);
   };
 
-  var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
-                                   url, statusCode, statusMessage, upgrade,
-                                   shouldKeepAlive) {
+  const onHeadersComplete = function(versionMajor, versionMinor, headers,
+                                     method, url, statusCode, statusMessage,
+                                     upgrade, shouldKeepAlive) {
     assert.equal(method, methods.indexOf('POST'));
     assert.equal(url || parser.url, '/it');
     assert.equal(versionMajor, 1);
@@ -198,13 +198,13 @@ function expectBody(expected) {
     parser[kOnHeaders] = mustCall(onHeaders);
   };
 
-  var onBody = function(buf, start, len) {
-    var body = '' + buf.slice(start, start + len);
+  const onBody = function(buf, start, len) {
+    const body = '' + buf.slice(start, start + len);
     assert.equal(body, 'ping');
     seen_body = true;
   };
 
-  var parser = newParser(REQUEST);
+  const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
   parser[kOnBody] = mustCall(onBody);
   parser.execute(request, 0, request.length);
@@ -215,16 +215,16 @@ function expectBody(expected) {
 // Test header ordering.
 //
 (function() {
-  var request = Buffer(
+  const request = Buffer(
       'GET / HTTP/1.0' + CRLF +
       'X-Filler: 1337' + CRLF +
       'X-Filler:   42' + CRLF +
       'X-Filler2:  42' + CRLF +
       CRLF);
 
-  var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
-                                   url, statusCode, statusMessage, upgrade,
-                                   shouldKeepAlive) {
+  const onHeadersComplete = function(versionMajor, versionMinor, headers,
+                                     method, url, statusCode, statusMessage,
+                                     upgrade, shouldKeepAlive) {
     assert.equal(method, methods.indexOf('GET'));
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 0);
@@ -233,7 +233,7 @@ function expectBody(expected) {
         ['X-Filler', '1337', 'X-Filler', '42', 'X-Filler2', '42']);
   };
 
-  var parser = newParser(REQUEST);
+  const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
   parser.execute(request, 0, request.length);
 })();
@@ -244,17 +244,17 @@ function expectBody(expected) {
 //
 (function() {
   // 256 X-Filler headers
-  var lots_of_headers = 'X-Filler: 42' + CRLF;
+  let lots_of_headers = 'X-Filler: 42' + CRLF;
   lots_of_headers = lots_of_headers.repeat(256);
 
-  var request = Buffer(
+  const request = Buffer(
       'GET /foo/bar/baz?quux=42#1337 HTTP/1.0' + CRLF +
       lots_of_headers +
       CRLF);
 
-  var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
-                                   url, statusCode, statusMessage, upgrade,
-                                   shouldKeepAlive) {
+  const onHeadersComplete = function(versionMajor, versionMinor, headers,
+                                     method, url, statusCode, statusMessage,
+                                     upgrade, shouldKeepAlive) {
     assert.equal(method, methods.indexOf('GET'));
     assert.equal(url || parser.url, '/foo/bar/baz?quux=42#1337');
     assert.equal(versionMajor, 1);
@@ -263,13 +263,13 @@ function expectBody(expected) {
     headers = headers || parser.headers;
 
     assert.equal(headers.length, 2 * 256); // 256 key/value pairs
-    for (var i = 0; i < headers.length; i += 2) {
+    for (let i = 0; i < headers.length; i += 2) {
       assert.equal(headers[i], 'X-Filler');
       assert.equal(headers[i + 1], '42');
     }
   };
 
-  var parser = newParser(REQUEST);
+  const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
   parser.execute(request, 0, request.length);
 })();
@@ -279,28 +279,28 @@ function expectBody(expected) {
 // Test request body
 //
 (function() {
-  var request = Buffer(
+  const request = Buffer(
       'POST /it HTTP/1.1' + CRLF +
       'Content-Type: application/x-www-form-urlencoded' + CRLF +
       'Content-Length: 15' + CRLF +
       CRLF +
       'foo=42&bar=1337');
 
-  var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
-                                   url, statusCode, statusMessage, upgrade,
-                                   shouldKeepAlive) {
+  const onHeadersComplete = function(versionMajor, versionMinor, headers,
+                                     method, url, statusCode, statusMessage,
+                                     upgrade, shouldKeepAlive) {
     assert.equal(method, methods.indexOf('POST'));
     assert.equal(url || parser.url, '/it');
     assert.equal(versionMajor, 1);
     assert.equal(versionMinor, 1);
   };
 
-  var onBody = function(buf, start, len) {
-    var body = '' + buf.slice(start, start + len);
+  const onBody = function(buf, start, len) {
+    const body = '' + buf.slice(start, start + len);
     assert.equal(body, 'foo=42&bar=1337');
   };
 
-  var parser = newParser(REQUEST);
+  const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
   parser[kOnBody] = mustCall(onBody);
   parser.execute(request, 0, request.length);
@@ -311,7 +311,7 @@ function expectBody(expected) {
 // Test chunked request body
 //
 (function() {
-  var request = Buffer(
+  const request = Buffer(
       'POST /it HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
@@ -324,9 +324,9 @@ function expectBody(expected) {
       '1234567890' + CRLF +
       '0' + CRLF);
 
-  var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
-                                   url, statusCode, statusMessage, upgrade,
-                                   shouldKeepAlive) {
+  const onHeadersComplete = function(versionMajor, versionMinor, headers,
+                                     method, url, statusCode, statusMessage,
+                                     upgrade, shouldKeepAlive) {
     assert.equal(method, methods.indexOf('POST'));
     assert.equal(url || parser.url, '/it');
     assert.equal(versionMajor, 1);
@@ -336,12 +336,12 @@ function expectBody(expected) {
   let body_part = 0;
   const body_parts = ['123', '123456', '1234567890'];
 
-  var onBody = function(buf, start, len) {
-    var body = '' + buf.slice(start, start + len);
+  const onBody = function(buf, start, len) {
+    const body = '' + buf.slice(start, start + len);
     assert.equal(body, body_parts[body_part++]);
   };
 
-  var parser = newParser(REQUEST);
+  const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
   parser[kOnBody] = mustCall(onBody, body_parts.length);
   parser.execute(request, 0, request.length);
@@ -352,7 +352,7 @@ function expectBody(expected) {
 // Test chunked request body spread over multiple buffers (packets)
 //
 (function() {
-  var request = Buffer(
+  let request = Buffer(
       'POST /it HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
@@ -362,9 +362,9 @@ function expectBody(expected) {
       '6' + CRLF +
       '123456' + CRLF);
 
-  var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
-                                   url, statusCode, statusMessage, upgrade,
-                                   shouldKeepAlive) {
+  const onHeadersComplete = function(versionMajor, versionMinor, headers,
+                                     method, url, statusCode, statusMessage,
+                                     upgrade, shouldKeepAlive) {
     assert.equal(method, methods.indexOf('POST'));
     assert.equal(url || parser.url, '/it');
     assert.equal(versionMajor, 1);
@@ -375,12 +375,12 @@ function expectBody(expected) {
   const body_parts =
           ['123', '123456', '123456789', '123456789ABC', '123456789ABCDEF'];
 
-  var onBody = function(buf, start, len) {
-    var body = '' + buf.slice(start, start + len);
+  const onBody = function(buf, start, len) {
+    const body = '' + buf.slice(start, start + len);
     assert.equal(body, body_parts[body_part++]);
   };
 
-  var parser = newParser(REQUEST);
+  const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
   parser[kOnBody] = mustCall(onBody, body_parts.length);
   parser.execute(request, 0, request.length);
@@ -402,7 +402,7 @@ function expectBody(expected) {
 // Stress test.
 //
 (function() {
-  var request = Buffer(
+  const request = Buffer(
       'POST /helpme HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
@@ -420,7 +420,7 @@ function expectBody(expected) {
       '0' + CRLF);
 
   function test(a, b) {
-    var onHeadersComplete = function(versionMajor, versionMinor, headers,
+    const onHeadersComplete = function(versionMajor, versionMinor, headers,
                                      method, url, statusCode, statusMessage,
                                      upgrade, shouldKeepAlive) {
       assert.equal(method, methods.indexOf('POST'));
@@ -429,15 +429,15 @@ function expectBody(expected) {
       assert.equal(versionMinor, 1);
     };
 
-    var expected_body = '123123456123456789123456789ABC123456789ABCDEF';
+    let expected_body = '123123456123456789123456789ABC123456789ABCDEF';
 
-    var onBody = function(buf, start, len) {
-      var chunk = '' + buf.slice(start, start + len);
+    const onBody = function(buf, start, len) {
+      const chunk = '' + buf.slice(start, start + len);
       assert.equal(expected_body.indexOf(chunk), 0);
       expected_body = expected_body.slice(chunk.length);
     };
 
-    var parser = newParser(REQUEST);
+    const parser = newParser(REQUEST);
     parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
     parser[kOnBody] = onBody;
     parser.execute(a, 0, a.length);
@@ -446,11 +446,11 @@ function expectBody(expected) {
     assert.equal(expected_body, '');
   }
 
-  for (var i = 1; i < request.length - 1; ++i) {
-    var a = request.slice(0, i);
+  for (let i = 1; i < request.length - 1; ++i) {
+    const a = request.slice(0, i);
     console.error('request.slice(0, ' + i + ') = ',
                   JSON.stringify(a.toString()));
-    var b = request.slice(i);
+    const b = request.slice(i);
     console.error('request.slice(' + i + ') = ',
                   JSON.stringify(b.toString()));
     test(a, b);
@@ -462,7 +462,7 @@ function expectBody(expected) {
 // Byte by byte test.
 //
 (function() {
-  var request = Buffer(
+  const request = Buffer(
       'POST /it HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
@@ -479,9 +479,9 @@ function expectBody(expected) {
       '123456789ABCDEF' + CRLF +
       '0' + CRLF);
 
-  var onHeadersComplete = function(versionMajor, versionMinor, headers, method,
-                                   url, statusCode, statusMessage, upgrade,
-                                   shouldKeepAlive) {
+  const onHeadersComplete = function(versionMajor, versionMinor, headers,
+                                     method, url, statusCode, statusMessage,
+                                     upgrade, shouldKeepAlive) {
     assert.equal(method, methods.indexOf('POST'));
     assert.equal(url || parser.url, '/it');
     assert.equal(versionMajor, 1);
@@ -491,19 +491,19 @@ function expectBody(expected) {
         ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
   };
 
-  var expected_body = '123123456123456789123456789ABC123456789ABCDEF';
+  let expected_body = '123123456123456789123456789ABC123456789ABCDEF';
 
-  var onBody = function(buf, start, len) {
-    var chunk = '' + buf.slice(start, start + len);
+  const onBody = function(buf, start, len) {
+    const chunk = '' + buf.slice(start, start + len);
     assert.equal(expected_body.indexOf(chunk), 0);
     expected_body = expected_body.slice(chunk.length);
   };
 
-  var parser = newParser(REQUEST);
+  const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
   parser[kOnBody] = onBody;
 
-  for (var i = 0; i < request.length; ++i) {
+  for (let i = 0; i < request.length; ++i) {
     parser.execute(request, i, 1);
   }
 
@@ -515,7 +515,7 @@ function expectBody(expected) {
 // Test parser reinit sequence.
 //
 (function() {
-  var req1 = Buffer(
+  const req1 = Buffer(
       'PUT /this HTTP/1.1' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Transfer-Encoding: chunked' + CRLF +
@@ -524,16 +524,16 @@ function expectBody(expected) {
       'ping' + CRLF +
       '0' + CRLF);
 
-  var req2 = Buffer(
+  const req2 = Buffer(
       'POST /that HTTP/1.0' + CRLF +
       'Content-Type: text/plain' + CRLF +
       'Content-Length: 4' + CRLF +
       CRLF +
       'pong');
 
-  var onHeadersComplete1 = function(versionMajor, versionMinor, headers, method,
-                                    url, statusCode, statusMessage, upgrade,
-                                    shouldKeepAlive) {
+  const onHeadersComplete1 = function(versionMajor, versionMinor, headers,
+                                      method, url, statusCode, statusMessage,
+                                      upgrade, shouldKeepAlive) {
     assert.equal(method, methods.indexOf('PUT'));
     assert.equal(url, '/this');
     assert.equal(versionMajor, 1);
@@ -543,9 +543,9 @@ function expectBody(expected) {
         ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
   };
 
-  var onHeadersComplete2 = function(versionMajor, versionMinor, headers, method,
-                                    url, statusCode, statusMessage, upgrade,
-                                    shouldKeepAlive) {
+  const onHeadersComplete2 = function(versionMajor, versionMinor, headers,
+                                      method, url, statusCode, statusMessage,
+                                      upgrade, shouldKeepAlive) {
     assert.equal(method, methods.indexOf('POST'));
     assert.equal(url, '/that');
     assert.equal(versionMajor, 1);
@@ -554,7 +554,7 @@ function expectBody(expected) {
                      ['Content-Type', 'text/plain', 'Content-Length', '4']);
   };
 
-  var parser = newParser(REQUEST);
+  const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = onHeadersComplete1;
   parser[kOnBody] = expectBody('ping');
   parser.execute(req1, 0, req1.length);
@@ -568,11 +568,11 @@ function expectBody(expected) {
 // Test parser 'this' safety
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {
-  var request = Buffer(
+  const request = Buffer(
       'GET /hello HTTP/1.1' + CRLF +
       CRLF);
 
-  var parser = newParser(REQUEST);
-  var notparser = { execute: parser.execute };
+  const parser = newParser(REQUEST);
+  const notparser = { execute: parser.execute };
   notparser.execute(request, 0, request.length);
 }, TypeError);

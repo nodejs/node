@@ -4,8 +4,9 @@ const assert = require('assert');
 
 const http = require('http');
 
+let https;
 if (common.hasCrypto) {
-  var https = require('https');
+  https = require('https');
 } else {
   common.skip('missing crypto');
 }

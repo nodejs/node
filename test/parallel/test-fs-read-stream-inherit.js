@@ -76,7 +76,7 @@ process.on('exit', function() {
 });
 
 const file4 = fs.createReadStream(rangeFile, Object.create({bufferSize: 1,
-                                  start: 1, end: 2}));
+  start: 1, end: 2}));
 assert.strictEqual(file4.start, 1);
 assert.strictEqual(file4.end, 2);
 let contentRead = '';
@@ -88,7 +88,7 @@ file4.on('end', function(data) {
 });
 
 const file5 = fs.createReadStream(rangeFile, Object.create({bufferSize: 1,
-                                  start: 1}));
+  start: 1}));
 assert.strictEqual(file5.start, 1);
 file5.data = '';
 file5.on('data', function(data) {
@@ -100,7 +100,7 @@ file5.on('end', function() {
 
 // https://github.com/joyent/node/issues/2320
 const file6 = fs.createReadStream(rangeFile, Object.create({bufferSize: 1.23,
-                                  start: 1}));
+  start: 1}));
 assert.strictEqual(file6.start, 1);
 file6.data = '';
 file6.on('data', function(data) {
@@ -115,7 +115,7 @@ assert.throws(function() {
 }, /start must be <= end/);
 
 const stream = fs.createReadStream(rangeFile, Object.create({ start: 0,
-                                   end: 0 }));
+  end: 0 }));
 assert.strictEqual(stream.start, 0);
 assert.strictEqual(stream.end, 0);
 stream.data = '';
@@ -158,7 +158,7 @@ function file7Next() {
 
 // Just to make sure autoClose won't close the stream because of error.
 const file8 = fs.createReadStream(null, Object.create({fd: 13337,
-                                  autoClose: false }));
+  autoClose: false }));
 file8.on('data', function() {});
 file8.on('error', common.mustCall(function() {}));
 

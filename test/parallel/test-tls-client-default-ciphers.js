@@ -1,17 +1,17 @@
 'use strict';
-var assert = require('assert');
-var common = require('../common');
+const assert = require('assert');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
 function Done() {}
 
 function test1() {
-  var ciphers = '';
+  let ciphers = '';
 
   tls.createSecureContext = function(options) {
     ciphers = options.ciphers;

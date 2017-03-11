@@ -5,15 +5,15 @@
  */
 
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var hadError = 0;
+let hadError = 0;
 
 function httpreq(count) {
   if (1 < count) return;
 
-  var req = http.request({
+  const req = http.request({
     host: 'not-a-real-domain-name.nobody-would-register-this-as-a-tld',
     port: 80,
     path: '/',

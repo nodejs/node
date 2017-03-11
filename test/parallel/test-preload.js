@@ -4,24 +4,24 @@ const assert = require('assert');
 const path = require('path');
 const child_process = require('child_process');
 
-var nodeBinary = process.argv[0];
+const nodeBinary = process.argv[0];
 
-var preloadOption = function(preloads) {
-  var option = '';
+const preloadOption = function(preloads) {
+  let option = '';
   preloads.forEach(function(preload, index) {
     option += '-r ' + preload + ' ';
   });
   return option;
 };
 
-var fixture = function(name) {
+const fixture = function(name) {
   return path.join(common.fixturesDir, name);
 };
 
-var fixtureA = fixture('printA.js');
-var fixtureB = fixture('printB.js');
-var fixtureC = fixture('printC.js');
-var fixtureThrows = fixture('throws_error4.js');
+const fixtureA = fixture('printA.js');
+const fixtureB = fixture('printB.js');
+const fixtureC = fixture('printC.js');
+const fixtureThrows = fixture('throws_error4.js');
 
 // test preloading a single module works
 child_process.exec(nodeBinary + ' ' +

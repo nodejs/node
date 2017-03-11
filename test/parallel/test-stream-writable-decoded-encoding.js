@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var stream = require('stream');
-var util = require('util');
+const stream = require('stream');
+const util = require('util');
 
 function MyWritable(fn, options) {
   stream.Writable.call(this, options);
@@ -18,7 +18,7 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
 };
 
 (function decodeStringsTrue() {
-  var m = new MyWritable(function(isBuffer, type, enc) {
+  const m = new MyWritable(function(isBuffer, type, enc) {
     assert(isBuffer);
     assert.equal(type, 'object');
     assert.equal(enc, 'buffer');
@@ -29,7 +29,7 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
 })();
 
 (function decodeStringsFalse() {
-  var m = new MyWritable(function(isBuffer, type, enc) {
+  const m = new MyWritable(function(isBuffer, type, enc) {
     assert(!isBuffer);
     assert.equal(type, 'string');
     assert.equal(enc, 'utf8');

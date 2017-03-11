@@ -4,12 +4,12 @@ const assert = require('assert');
 
 const dns = require('dns');
 
-var existing = dns.getServers();
+const existing = dns.getServers();
 assert(existing.length > 0);
 
 function noop() {}
 
-var goog = [
+const goog = [
   '8.8.8.8',
   '8.8.4.4',
 ];
@@ -19,7 +19,7 @@ assert.throws(function() { dns.setServers(['foobar']); },
               /^Error: IP address is not properly formatted: foobar$/);
 assert.deepEqual(dns.getServers(), goog);
 
-var goog6 = [
+const goog6 = [
   '2001:4860:4860::8888',
   '2001:4860:4860::8844',
 ];
@@ -30,11 +30,11 @@ goog6.push('4.4.4.4');
 dns.setServers(goog6);
 assert.deepEqual(dns.getServers(), goog6);
 
-var ports = [
+const ports = [
   '4.4.4.4:53',
   '[2001:4860:4860::8888]:53',
 ];
-var portsExpected = [
+const portsExpected = [
   '4.4.4.4',
   '2001:4860:4860::8888',
 ];

@@ -1,14 +1,14 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var Process = process.binding('process_wrap').Process;
-var Pipe = process.binding('pipe_wrap').Pipe;
-var pipe = new Pipe();
-var p = new Process();
+const assert = require('assert');
+const Process = process.binding('process_wrap').Process;
+const Pipe = process.binding('pipe_wrap').Pipe;
+const pipe = new Pipe();
+const p = new Process();
 
-var processExited = false;
-var gotPipeEOF = false;
-var gotPipeData = false;
+let processExited = false;
+let gotPipeEOF = false;
+let gotPipeData = false;
 
 p.onexit = function(exitCode, signal) {
   console.log('exit');
@@ -45,7 +45,7 @@ p.spawn({
 // 'this' safety
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {
-  var notp = { spawn: p.spawn };
+  const notp = { spawn: p.spawn };
   notp.spawn({
     file: process.execPath,
     args: [process.execPath, '-v'],

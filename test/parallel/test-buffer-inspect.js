@@ -1,20 +1,20 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var util = require('util');
+const util = require('util');
 
-var buffer = require('buffer');
+const buffer = require('buffer');
 
 buffer.INSPECT_MAX_BYTES = 2;
 
-var b = new Buffer(4);
+let b = new Buffer(4);
 b.fill('1234');
 
-var s = new buffer.SlowBuffer(4);
+let s = new buffer.SlowBuffer(4);
 s.fill('1234');
 
-var expected = '<Buffer 31 32 ... >';
+let expected = '<Buffer 31 32 ... >';
 
 assert.strictEqual(util.inspect(b), expected);
 assert.strictEqual(util.inspect(s), expected);

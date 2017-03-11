@@ -1,15 +1,15 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var spawn = require('child_process').spawn;
-var sub = path.join(common.fixturesDir, 'print-chars.js');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const spawn = require('child_process').spawn;
+const sub = path.join(common.fixturesDir, 'print-chars.js');
 
-var n = 500000;
+const n = 500000;
 
-var child = spawn(process.argv[0], [sub, n]);
+const child = spawn(process.argv[0], [sub, n]);
 
-var count = 0;
+let count = 0;
 
 child.stderr.setEncoding('utf8');
 child.stderr.on('data', function(data) {

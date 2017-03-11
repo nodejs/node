@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var cluster = require('cluster');
+const cluster = require('cluster');
 
 if (cluster.isMaster) {
-  var worker = cluster.fork().on('online', disconnect);
+  const worker = cluster.fork().on('online', disconnect);
 
   function disconnect() {
     worker.disconnect();

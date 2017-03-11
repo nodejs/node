@@ -90,13 +90,13 @@ const tests = [
   },
   {
     env: { NODE_REPL_HISTORY: '',
-           NODE_REPL_HISTORY_FILE: enoentHistoryPath },
+      NODE_REPL_HISTORY_FILE: enoentHistoryPath },
     test: [UP],
     expected: [prompt, replDisabled, prompt]
   },
   {
     env: { NODE_REPL_HISTORY: '',
-           NODE_REPL_HISTORY_FILE: oldHistoryPath },
+      NODE_REPL_HISTORY_FILE: oldHistoryPath },
     test: [UP],
     expected: [prompt, replDisabled, prompt]
   },
@@ -117,13 +117,13 @@ const tests = [
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
-           NODE_REPL_HISTORY_FILE: oldHistoryPath },
+      NODE_REPL_HISTORY_FILE: oldHistoryPath },
     test: [UP, CLEAR],
     expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
-           NODE_REPL_HISTORY_FILE: '' },
+      NODE_REPL_HISTORY_FILE: '' },
     test: [UP, CLEAR],
     expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
   },
@@ -136,7 +136,7 @@ const tests = [
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath },
     test: [UP, CLEAR, '\'42\'', ENTER],
     expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt, '\'',
-               '4', '2', '\'', '\'42\'\n', prompt, prompt],
+      '4', '2', '\'', '\'42\'\n', prompt, prompt],
     after: function ensureHistoryFixture() {
       // XXX(Fishrock123) Make sure nothing weird happened to our fixture
       //  or it's temporary copy.
@@ -153,23 +153,23 @@ const tests = [
     env: {},
     test: [UP, UP, ENTER],
     expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
-               prompt]
+      prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
-           NODE_REPL_HISTORY_SIZE: 1 },
+      NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP, UP, CLEAR],
     expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
   },
   {
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath,
-           NODE_REPL_HISTORY_SIZE: 1 },
+      NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP, UP, UP, CLEAR],
     expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPathFail,
-           NODE_REPL_HISTORY_SIZE: 1 },
+      NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP],
     expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
   },
@@ -188,7 +188,7 @@ const tests = [
 const numtests = tests.length;
 
 
-var testsNotRan = tests.length;
+let testsNotRan = tests.length;
 
 process.on('beforeExit', () =>
   assert.strictEqual(testsNotRan, 0)

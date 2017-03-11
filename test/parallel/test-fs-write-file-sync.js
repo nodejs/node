@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
-var openCount = 0;
-var mode;
-var content;
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
+let openCount = 0;
+let mode;
+let content;
 
 // Need to hijack fs.open/close to make sure that things
 // get closed once they're opened.
@@ -28,7 +28,7 @@ if (common.isWindows) {
 common.refreshTmpDir();
 
 // Test writeFileSync
-var file1 = path.join(common.tmpDir, 'testWriteFileSync.txt');
+const file1 = path.join(common.tmpDir, 'testWriteFileSync.txt');
 
 fs.writeFileSync(file1, '123', {mode: mode});
 
@@ -38,7 +38,7 @@ assert.equal('123', content);
 assert.equal(mode, fs.statSync(file1).mode & 0o777);
 
 // Test appendFileSync
-var file2 = path.join(common.tmpDir, 'testAppendFileSync.txt');
+const file2 = path.join(common.tmpDir, 'testAppendFileSync.txt');
 
 fs.appendFileSync(file2, 'abc', {mode: mode});
 

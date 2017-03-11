@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var zero = [];
-var one  = [ new Buffer('asdf') ];
-var long = [];
-for (var i = 0; i < 10; i++) long.push(new Buffer('asdf'));
+const zero = [];
+const one  = [ new Buffer('asdf') ];
+const long = [];
+for (let i = 0; i < 10; i++) long.push(new Buffer('asdf'));
 
-var flatZero = Buffer.concat(zero);
-var flatOne = Buffer.concat(one);
-var flatLong = Buffer.concat(long);
-var flatLongLen = Buffer.concat(long, 40);
+const flatZero = Buffer.concat(zero);
+const flatOne = Buffer.concat(one);
+const flatLong = Buffer.concat(long);
+const flatLongLen = Buffer.concat(long, 40);
 
 assert(flatZero.length === 0);
 assert(flatOne.toString() === 'asdf');

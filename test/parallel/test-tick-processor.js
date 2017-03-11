@@ -53,12 +53,12 @@ runTest(/Runtime_DateCurrentTime/,
 
 function runTest(pattern, code) {
   cp.execFileSync(process.execPath, ['-prof', '-pe', code]);
-  var matches = fs.readdirSync(common.tmpDir);
+  const matches = fs.readdirSync(common.tmpDir);
 
   assert.strictEqual(matches.length, 1, 'There should be a single log file.');
 
-  var log = matches[0];
-  var out = cp.execSync(process.execPath +
+  const log = matches[0];
+  const out = cp.execSync(process.execPath +
                         ' --prof-process --call-graph-size=10 ' + log,
                         {encoding: 'utf8'});
   assert(pattern.test(out), `${pattern} not matching ${out}`);

@@ -1,22 +1,22 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var options = {
+const options = {
   method: 'GET',
   port: undefined,
   host: '127.0.0.1',
   path: '/'
 };
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   // this space intentionally left blank
 });
 
 server.listen(0, options.host, function() {
   options.port = this.address().port;
-  var req = http.request(options, function(res) {
+  const req = http.request(options, function(res) {
     // this space intentionally left blank
   });
   req.on('error', function() {
@@ -26,7 +26,7 @@ server.listen(0, options.host, function() {
     server.close();
   });
 
-  var timeout_events = 0;
+  let timeout_events = 0;
   req.setTimeout(1);
   req.on('timeout', function() {
     timeout_events += 1;

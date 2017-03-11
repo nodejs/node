@@ -1,11 +1,11 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var zlib = require('zlib');
-var gz = zlib.Gzip();
-var emptyBuffer = new Buffer(0);
-var received = 0;
+const zlib = require('zlib');
+const gz = zlib.Gzip();
+const emptyBuffer = new Buffer(0);
+let received = 0;
 gz.on('data', function(c) {
   received += c.length;
 });

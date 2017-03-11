@@ -76,7 +76,7 @@ function run_test_2() {
   const buffer = Buffer.from('123456');
 
   const options = { start: 10,
-                    flags: 'r+' };
+    flags: 'r+' };
   const file = fs.createWriteStream(filepath, options);
   console.log('    (debug: start         ', file.start);
   console.log('    (debug: pos           ', file.pos);
@@ -117,7 +117,7 @@ function run_test_3() {
   const data = '\u2026\u2026';    // 3 bytes * 2 = 6 bytes in UTF-8
 
   const options = { start: 10,
-                    flags: 'r+' };
+    flags: 'r+' };
   const file = fs.createWriteStream(filepath, options);
   console.log('    (debug: start         ', file.start);
   console.log('    (debug: pos           ', file.pos);

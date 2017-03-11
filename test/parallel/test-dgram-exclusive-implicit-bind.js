@@ -20,10 +20,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const dgram = require('dgram');
 
 // Without an explicit bind, send() causes an implicit bind, which always
 // generate a unique per-socket ephemeral port. An explicit bind to a port
@@ -40,15 +40,15 @@ var dgram = require('dgram');
 // with ENOTSUP.
 
 if (cluster.isMaster) {
-  var pass;
-  var messages = 0;
-  var ports = {};
+  let pass;
+  let messages = 0;
+  const ports = {};
 
   process.on('exit', function() {
     assert.strictEqual(pass, true);
   });
 
-  var target = dgram.createSocket('udp4');
+  const target = dgram.createSocket('udp4');
 
   target.on('message', function(buf, rinfo) {
     messages++;
@@ -85,7 +85,7 @@ if (cluster.isMaster) {
   return;
 }
 
-var source = dgram.createSocket('udp4');
+const source = dgram.createSocket('udp4');
 
 if (process.env.BOUND === 'y') {
   source.bind(0);

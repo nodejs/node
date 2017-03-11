@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
 common.refreshTmpDir();
 
-var stream = fs.createWriteStream(common.tmpDir + '/out', {
+const stream = fs.createWriteStream(common.tmpDir + '/out', {
   highWaterMark: 10
 });
-var err = new Error('BAM');
+const err = new Error('BAM');
 
-var write = fs.write;
-var writeCalls = 0;
+const write = fs.write;
+let writeCalls = 0;
 fs.write = function() {
   switch (writeCalls++) {
     case 0:
@@ -21,7 +21,7 @@ fs.write = function() {
     case 1:
       // then it breaks
       console.error('second write');
-      var cb = arguments[arguments.length - 1];
+      const cb = arguments[arguments.length - 1];
       return process.nextTick(function() {
         cb(err);
       });

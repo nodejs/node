@@ -70,8 +70,8 @@ function test1() {
 }
 
 function test2() {
-  var r = new Readable({ encoding: 'base64' });
-  var reads = 5;
+  const r = new Readable({ encoding: 'base64' });
+  let reads = 5;
   r._read = function(n) {
     if (!reads--)
       return r.push(null); // EOF
@@ -79,9 +79,9 @@ function test2() {
       return r.push(new Buffer('x'));
   };
 
-  var results = [];
+  const results = [];
   function flow() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = r.read()))
       results.push(chunk + '');
   }

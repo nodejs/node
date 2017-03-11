@@ -25,7 +25,7 @@ if (cluster.isMaster) {
 
   cluster.setupMaster({
     execArgv: [`--debug-port=${process.debugPort}`,
-               `--debug=${process.debugPort}`]
+      `--debug=${process.debugPort}`]
   });
 
   console.log('forked worker should have --debug-port, with offset = 2');

@@ -43,13 +43,13 @@ let server;
 
 function executeRequest(cb) {
   cp.exec([process.execPath,
-           __filename,
-           'request',
-           server.address().port,
-           '|',
-           process.execPath,
-           __filename,
-           'shasum' ].join(' '),
+    __filename,
+    'request',
+    server.address().port,
+    '|',
+    process.execPath,
+    __filename,
+    'shasum' ].join(' '),
           (err, stdout, stderr) => {
             if (err) throw err;
             assert.equal('8c206a1a87599f532ce68675536f0b1546900d7a',

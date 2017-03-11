@@ -1,11 +1,11 @@
 'use strict';
 
 // This test requires the program 'wrk'
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var http = require('http');
-var url = require('url');
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const http = require('http');
+const url = require('url');
 
 if (common.isWindows) {
   common.skip('no `wrk` on windows');
@@ -39,7 +39,7 @@ function runAb(opts, callback) {
   }
 
   args.push(url.format({ hostname: '127.0.0.1',
-                         port: common.PORT, protocol: 'http'}));
+    port: common.PORT, protocol: 'http'}));
 
   const child = spawn('wrk', args);
   child.stderr.pipe(process.stderr);

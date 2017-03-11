@@ -17,6 +17,6 @@ fs.read(fd,
           assert.equal(bytesRead, expected.length);
         }));
 
-var r = fs.readSync(fd, expected.length, 0, 'utf-8');
+const r = fs.readSync(fd, expected.length, 0, 'utf-8');
 assert.equal(r[0], expected);
 assert.equal(r[1], expected.length);

@@ -6,7 +6,7 @@ const net = require('net');
 const NUM = 8;
 const connections = [];
 const clients = [];
-var clients_counter = 0;
+let clients_counter = 0;
 
 const server = net.createServer(function listener(c) {
   connections.push(c);

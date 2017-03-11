@@ -9,7 +9,7 @@ const fs = require('fs');
 const net = require('net');
 const tls = require('tls');
 const providers = Object.keys(async_wrap.Providers);
-var flags = 0;
+let flags = 0;
 
 // Make sure all asserts have run at least once.
 process.on('exit', () => assert.equal(flags, 0b111));

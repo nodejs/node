@@ -1,29 +1,29 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
-var expectFilePath = common.isWindows ||
+const expectFilePath = common.isWindows ||
                      process.platform === 'linux' ||
                      process.platform === 'darwin';
 
-var watchSeenOne = 0;
-var watchSeenTwo = 0;
-var watchSeenThree = 0;
+let watchSeenOne = 0;
+let watchSeenTwo = 0;
+let watchSeenThree = 0;
 
-var testDir = common.tmpDir;
+const testDir = common.tmpDir;
 
-var filenameOne = 'watch.txt';
-var filepathOne = path.join(testDir, filenameOne);
+const filenameOne = 'watch.txt';
+const filepathOne = path.join(testDir, filenameOne);
 
-var filenameTwo = 'hasOwnProperty';
-var filepathTwo = filenameTwo;
-var filepathTwoAbs = path.join(testDir, filenameTwo);
+const filenameTwo = 'hasOwnProperty';
+const filepathTwo = filenameTwo;
+const filepathTwoAbs = path.join(testDir, filenameTwo);
 
-var filenameThree = 'newfile.txt';
-var testsubdir = path.join(testDir, 'testsubdir');
-var filepathThree = path.join(testsubdir, filenameThree);
+const filenameThree = 'newfile.txt';
+const testsubdir = path.join(testDir, 'testsubdir');
+const filepathThree = path.join(testsubdir, filenameThree);
 
 
 process.on('exit', function() {
@@ -38,7 +38,7 @@ fs.writeFileSync(filepathOne, 'hello');
 
 assert.doesNotThrow(
     function() {
-      var watcher = fs.watch(filepathOne);
+      const watcher = fs.watch(filepathOne);
       watcher.on('change', function(event, filename) {
         assert.equal('change', event);
 
@@ -62,7 +62,7 @@ fs.writeFileSync(filepathTwoAbs, 'howdy');
 
 assert.doesNotThrow(
     function() {
-      var watcher = fs.watch(filepathTwo, function(event, filename) {
+      const watcher = fs.watch(filepathTwo, function(event, filename) {
         assert.equal('change', event);
 
         if (expectFilePath) {
@@ -82,8 +82,8 @@ fs.mkdirSync(testsubdir, 0o700);
 
 assert.doesNotThrow(
     function() {
-      var watcher = fs.watch(testsubdir, function(event, filename) {
-        var renameEv = common.isSunOS ? 'change' : 'rename';
+      const watcher = fs.watch(testsubdir, function(event, filename) {
+        const renameEv = common.isSunOS ? 'change' : 'rename';
         assert.equal(renameEv, event);
         if (expectFilePath) {
           assert.equal('newfile.txt', filename);
@@ -97,7 +97,7 @@ assert.doesNotThrow(
 );
 
 setImmediate(function() {
-  var fd = fs.openSync(filepathThree, 'w');
+  const fd = fs.openSync(filepathThree, 'w');
   fs.closeSync(fd);
 });
 
@@ -109,9 +109,9 @@ fs.watch(__filename, {persistent: false}, function() {
 
 // whitebox test to ensure that wrapped FSEvent is safe
 // https://github.com/joyent/node/issues/6690
-var oldhandle;
+let oldhandle;
 assert.throws(function() {
-  var w = fs.watch(__filename, function(event, filename) { });
+  const w = fs.watch(__filename, function(event, filename) { });
   oldhandle = w._handle;
   w._handle = { close: w._handle.close };
   w.close();
@@ -119,7 +119,7 @@ assert.throws(function() {
 oldhandle.close(); // clean up
 
 assert.throws(function() {
-  var w = fs.watchFile(__filename, {persistent: false}, function() {});
+  const w = fs.watchFile(__filename, {persistent: false}, function() {});
   oldhandle = w._handle;
   w._handle = { stop: w._handle.stop };
   w.stop();

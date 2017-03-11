@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var os = require('os');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const os = require('os');
+const path = require('path');
 
 
 process.env.TMPDIR = '/tmpdir';
@@ -39,38 +39,38 @@ if (common.isWindows) {
   assert.equal(os.tmpdir(), '/');
 }
 
-var endianness = os.endianness();
+const endianness = os.endianness();
 console.log('endianness = %s', endianness);
 assert.ok(/[BL]E/.test(endianness));
 
-var hostname = os.hostname();
+const hostname = os.hostname();
 console.log('hostname = %s', hostname);
 assert.ok(hostname.length > 0);
 
-var uptime = os.uptime();
+const uptime = os.uptime();
 console.log('uptime = %d', uptime);
 assert.ok(uptime > 0);
 
-var cpus = os.cpus();
+const cpus = os.cpus();
 console.log('cpus = ', cpus);
 assert.ok(cpus.length > 0);
 
-var type = os.type();
+const type = os.type();
 console.log('type = ', type);
 assert.ok(type.length > 0);
 
-var release = os.release();
+const release = os.release();
 console.log('release = ', release);
 assert.ok(release.length > 0);
 //TODO: Check format on more than just AIX
 if (common.isAix)
   assert.ok(/^\d+\.\d+$/.test(release));
 
-var platform = os.platform();
+const platform = os.platform();
 console.log('platform = ', platform);
 assert.ok(platform.length > 0);
 
-var arch = os.arch();
+const arch = os.arch();
 console.log('arch = ', arch);
 assert.ok(arch.length > 0);
 
@@ -82,7 +82,7 @@ if (process.platform != 'sunos') {
 }
 
 
-var interfaces = os.networkInterfaces();
+const interfaces = os.networkInterfaces();
 console.error(interfaces);
 switch (platform) {
   case 'linux':
@@ -90,8 +90,8 @@ switch (platform) {
       const filter = function(e) { return e.address == '127.0.0.1'; };
       const actual = interfaces.lo.filter(filter);
       const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                        mac: '00:00:00:00:00:00', family: 'IPv4',
-                        internal: true }];
+        mac: '00:00:00:00:00:00', family: 'IPv4',
+        internal: true }];
       assert.deepEqual(actual, expected);
       break;
     }
@@ -100,18 +100,18 @@ switch (platform) {
       const filter = function(e) { return e.address == '127.0.0.1'; };
       const actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
       const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                        mac: '00:00:00:00:00:00', family: 'IPv4',
-                        internal: true }];
+        mac: '00:00:00:00:00:00', family: 'IPv4',
+        internal: true }];
       assert.deepEqual(actual, expected);
       break;
     }
 }
 
-var EOL = os.EOL;
+const EOL = os.EOL;
 assert.ok(EOL.length > 0);
 
 
-var home = os.homedir();
+const home = os.homedir();
 
 console.log('homedir = ' + home);
 assert.ok(typeof home === 'string');

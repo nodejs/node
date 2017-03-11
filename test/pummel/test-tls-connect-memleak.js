@@ -1,16 +1,16 @@
 'use strict';
 // Flags: --expose-gc
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
 assert(typeof gc === 'function', 'Run this test with --expose-gc');
 
@@ -21,9 +21,10 @@ tls.createServer({
 
 (function() {
   // 2**26 == 64M entries
-  for (var i = 0, junk = [0]; i < 26; ++i) junk = junk.concat(junk);
+  let junk = [0];
+  for (let i = 0; i < 26; ++i) junk = junk.concat(junk);
 
-  var options = { rejectUnauthorized: false };
+  const options = { rejectUnauthorized: false };
   tls.connect(common.PORT, '127.0.0.1', options, function() {
     assert.notStrictEqual(junk.length, 0);  // keep reference alive
     setTimeout(done, 10);
@@ -32,10 +33,10 @@ tls.createServer({
 })();
 
 function done() {
-  var before = process.memoryUsage().rss;
+  const before = process.memoryUsage().rss;
   gc();
-  var after = process.memoryUsage().rss;
-  var reclaimed = (before - after) / 1024;
+  const after = process.memoryUsage().rss;
+  const reclaimed = (before - after) / 1024;
   console.log('%d kB reclaimed', reclaimed);
   assert(reclaimed > 256 * 1024);  // it's more like 512M on x64
   process.exit();

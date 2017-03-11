@@ -4,11 +4,11 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var testIndex = 0;
+let testIndex = 0;
 const testCount = 2 * 4 * 6;
 const responseBody = 'Hi mars!';
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   function reply(header) {
     switch (testIndex % 4) {
       case 0:
@@ -67,13 +67,13 @@ var server = http.createServer(function(req, res) {
 
 server.listen(0, common.mustCall(function() {
   const port = this.address().port;
-  for (var i = 0; i < testCount; i++) {
+  for (let i = 0; i < testCount; i++) {
     http.get({ port: port, path: '/' }, common.mustCall(function(res) {
       assert.strictEqual(res.headers.a, 'foo invalid: bar');
       assert.strictEqual(res.headers.b, 'foo invalid: bar');
       assert.strictEqual(res.headers.foo, undefined);
       assert.strictEqual(res.headers.invalid, undefined);
-      var data = '';
+      let data = '';
       res.setEncoding('utf8');
       res.on('data', function(s) { data += s; });
       res.on('end', common.mustCall(function() {

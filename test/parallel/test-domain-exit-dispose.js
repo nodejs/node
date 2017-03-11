@@ -1,11 +1,11 @@
 'use strict';
 require('../common');
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
+const common = require('../common');
+const assert = require('assert');
+const domain = require('domain');
 
 // no matter what happens, we should increment a 10 times.
-var a = 0;
+let a = 0;
 log();
 function log() {
   console.log(a++, process.domain);
@@ -15,7 +15,7 @@ function log() {
 // in 50ms we'll throw an error.
 setTimeout(err, 50);
 function err() {
-  var d = domain.create();
+  const d = domain.create();
   d.on('error', handle);
   d.run(err2);
 

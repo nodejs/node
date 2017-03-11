@@ -1,22 +1,22 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
+const path = require('path');
 
-var options = {
+const options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };
 
-var server = tls.createServer(options, common.mustCall(function(socket) {
+const server = tls.createServer(options, common.mustCall(function(socket) {
   socket.on('data', function(data) {
     console.error(data.toString());
     assert.equal(data, 'ok');
@@ -26,7 +26,7 @@ var server = tls.createServer(options, common.mustCall(function(socket) {
 });
 
 function unauthorized() {
-  var socket = tls.connect({
+  const socket = tls.connect({
     port: server.address().port,
     servername: 'localhost',
     rejectUnauthorized: false
@@ -40,7 +40,7 @@ function unauthorized() {
 }
 
 function rejectUnauthorized() {
-  var socket = tls.connect(server.address().port, {
+  const socket = tls.connect(server.address().port, {
     servername: 'localhost'
   }, common.fail);
   socket.on('error', function(err) {
@@ -51,7 +51,7 @@ function rejectUnauthorized() {
 }
 
 function authorized() {
-  var socket = tls.connect(server.address().port, {
+  const socket = tls.connect(server.address().port, {
     ca: [fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))],
     servername: 'localhost'
   }, function() {

@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var Buffer = require('buffer').Buffer;
-var fs = require('fs');
-var fn = path.join(common.tmpDir, 'write.txt');
-var fn2 = path.join(common.tmpDir, 'write2.txt');
-var expected = 'ümlaut.';
-var constants = require('constants');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const Buffer = require('buffer').Buffer;
+const fs = require('fs');
+const fn = path.join(common.tmpDir, 'write.txt');
+const fn2 = path.join(common.tmpDir, 'write2.txt');
+const expected = 'ümlaut.';
+const constants = require('constants');
 
 common.refreshTmpDir();
 

@@ -1,4 +1,4 @@
-/* eslint-disable max-len, strict */
+/* eslint-disable max-len, strict, no-var */
 const common = require('../common');
 const assert = require('assert');
 
@@ -257,7 +257,7 @@ function error_test() {
       send: 'RegExp.$1\nRegExp.$2\nRegExp.$3\nRegExp.$4\nRegExp.$5\n' +
             'RegExp.$6\nRegExp.$7\nRegExp.$8\nRegExp.$9\n',
       expect: ['\'1\'\n', '\'2\'\n', '\'3\'\n', '\'4\'\n', '\'5\'\n', '\'6\'\n',
-               '\'7\'\n', '\'8\'\n', '\'9\'\n'].join(`${prompt_unix}`) },
+        '\'7\'\n', '\'8\'\n', '\'9\'\n'].join(`${prompt_unix}`) },
     // regression tests for https://github.com/nodejs/node/issues/2749
     { client: client_unix, send: 'function x() {\nreturn \'\\n\';\n }',
       expect: prompt_multiline + prompt_multiline +

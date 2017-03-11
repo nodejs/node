@@ -1,11 +1,11 @@
 'use strict';
-var NUM_WORKERS = 4;
-var PACKETS_PER_WORKER = 10;
+const NUM_WORKERS = 4;
+const PACKETS_PER_WORKER = 10;
 
-var assert = require('assert');
-var cluster = require('cluster');
-var common = require('../common');
-var dgram = require('dgram');
+const assert = require('assert');
+const cluster = require('cluster');
+const common = require('../common');
+const dgram = require('dgram');
 
 
 if (common.isWindows) {
@@ -21,10 +21,10 @@ else
 
 
 function master() {
-  var listening = 0;
+  let listening = 0;
 
   // Fork 4 workers.
-  for (var i = 0; i < NUM_WORKERS; i++)
+  for (let i = 0; i < NUM_WORKERS; i++)
     cluster.fork();
 
   // Wait until all workers are listening.
@@ -33,9 +33,9 @@ function master() {
       return;
 
     // Start sending messages.
-    var buf = new Buffer('hello world');
-    var socket = dgram.createSocket('udp4');
-    var sent = 0;
+    const buf = new Buffer('hello world');
+    const socket = dgram.createSocket('udp4');
+    let sent = 0;
     doSend();
 
     function doSend() {
@@ -55,13 +55,13 @@ function master() {
 
   // Set up event handlers for every worker. Each worker sends a message when
   // it has received the expected number of packets. After that it disconnects.
-  for (var key in cluster.workers) {
+  for (const key in cluster.workers) {
     if (cluster.workers.hasOwnProperty(key))
       setupWorker(cluster.workers[key]);
   }
 
   function setupWorker(worker) {
-    var received = 0;
+    let received = 0;
 
     worker.on('message', common.mustCall((msg) => {
       received = msg.received;
@@ -76,10 +76,10 @@ function master() {
 
 
 function worker() {
-  var received = 0;
+  let received = 0;
 
   // Create udp socket and start listening.
-  var socket = dgram.createSocket('udp4');
+  const socket = dgram.createSocket('udp4');
 
   socket.on('message', function(data, info) {
     received++;

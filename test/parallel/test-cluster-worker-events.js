@@ -1,13 +1,13 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const assert = require('assert');
+const cluster = require('cluster');
 
-var OK = 2;
+const OK = 2;
 
 if (cluster.isMaster) {
 
-  var worker = cluster.fork();
+  const worker = cluster.fork();
 
   worker.on('exit', function(code) {
     assert.strictEqual(code, OK);
@@ -24,8 +24,8 @@ if (cluster.isMaster) {
 
 assert(cluster.isWorker);
 
-var sawProcess;
-var sawWorker;
+let sawProcess;
+let sawWorker;
 
 process.on('message', function(m) {
   assert(!sawProcess);
@@ -39,7 +39,7 @@ cluster.worker.on('message', function(m) {
   check(m);
 });
 
-var messages = [];
+const messages = [];
 
 function check(m) {
   messages.push(m);

@@ -4,7 +4,7 @@ const assert = require('assert');
 const http = require('http');
 
 const MAX_REQUESTS = 12;
-var reqNum = 0;
+let reqNum = 0;
 
 const server = http.Server(common.mustCall(function(req, res) {
   switch (reqNum) {

@@ -1,9 +1,9 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const assert = require('assert');
+const fs = require('fs');
 
-var caughtException = false;
+let caughtException = false;
 try {
   // should throw ENOENT, not EBADF
   // see https://github.com/joyent/node/pull/1228

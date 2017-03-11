@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
 
-var winPaths = [
+const winPaths = [
   'C:\\path\\dir\\index.html',
   'C:\\another_path\\DIR\\1\\2\\33\\index',
   'another_path\\DIR with spaces\\1\\2\\33\\index',
@@ -19,13 +19,13 @@ var winPaths = [
   '\\\\?\\UNC\\server\\share'
 ];
 
-var winSpecialCaseFormatTests = [
+const winSpecialCaseFormatTests = [
   [{dir: 'some\\dir'}, 'some\\dir\\'],
   [{base: 'index.html'}, 'index.html'],
   [{}, '']
 ];
 
-var unixPaths = [
+const unixPaths = [
   '/home/user/dir/file.txt',
   '/home/user/a dir/another File.zip',
   '/home/user/a dir//another&File.',
@@ -38,35 +38,35 @@ var unixPaths = [
   ''
 ];
 
-var unixSpecialCaseFormatTests = [
+const unixSpecialCaseFormatTests = [
   [{dir: 'some/dir'}, 'some/dir/'],
   [{base: 'index.html'}, 'index.html'],
   [{}, '']
 ];
 
-var errors = [
+const errors = [
   {method: 'parse', input: [null],
-   message: /Path must be a string. Received null/},
+    message: /Path must be a string. Received null/},
   {method: 'parse', input: [{}],
-   message: /Path must be a string. Received {}/},
+    message: /Path must be a string. Received {}/},
   {method: 'parse', input: [true],
-   message: /Path must be a string. Received true/},
+    message: /Path must be a string. Received true/},
   {method: 'parse', input: [1],
-   message: /Path must be a string. Received 1/},
+    message: /Path must be a string. Received 1/},
   {method: 'parse', input: [],
-   message: /Path must be a string. Received undefined/},
+    message: /Path must be a string. Received undefined/},
   {method: 'format', input: [null],
-   message: /Parameter 'pathObject' must be an object, not/},
+    message: /Parameter 'pathObject' must be an object, not/},
   {method: 'format', input: [''],
-   message: /Parameter 'pathObject' must be an object, not string/},
+    message: /Parameter 'pathObject' must be an object, not string/},
   {method: 'format', input: [true],
-   message: /Parameter 'pathObject' must be an object, not boolean/},
+    message: /Parameter 'pathObject' must be an object, not boolean/},
   {method: 'format', input: [1],
-   message: /Parameter 'pathObject' must be an object, not number/},
+    message: /Parameter 'pathObject' must be an object, not number/},
   {method: 'format', input: [{root: true}],
-   message: /'pathObject.root' must be a string or undefined, not boolean/},
+    message: /'pathObject.root' must be a string or undefined, not boolean/},
   {method: 'format', input: [{root: 12}],
-   message: /'pathObject.root' must be a string or undefined, not number/},
+    message: /'pathObject.root' must be a string or undefined, not number/},
 ];
 
 checkParseFormat(path.win32, winPaths);
@@ -95,7 +95,7 @@ function checkErrors(path) {
 
 function checkParseFormat(path, paths) {
   paths.forEach(function(element) {
-    var output = path.parse(element);
+    const output = path.parse(element);
     assert.strictEqual(typeof output.root, 'string');
     assert.strictEqual(typeof output.dir, 'string');
     assert.strictEqual(typeof output.base, 'string');

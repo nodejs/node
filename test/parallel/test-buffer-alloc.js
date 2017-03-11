@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var Buffer = require('buffer').Buffer;
-var SlowBuffer = require('buffer').SlowBuffer;
+const Buffer = require('buffer').Buffer;
+const SlowBuffer = require('buffer').SlowBuffer;
 
 // counter to ensure unique value is always copied
-var cntr = 0;
+let cntr = 0;
 
-var b = Buffer.alloc(1024);
+const b = Buffer.alloc(1024);
 
 console.log('b.length == %d', b.length);
 assert.strictEqual(1024, b.length);
@@ -24,15 +24,15 @@ for (let i = 0; i < 1024; i++) {
   assert.strictEqual(i % 256, b[i]);
 }
 
-var c = Buffer.alloc(512);
+const c = Buffer.alloc(512);
 console.log('c.length == %d', c.length);
 assert.strictEqual(512, c.length);
 
-var d = Buffer.from([]);
+const d = Buffer.from([]);
 assert.strictEqual(0, d.length);
 
-var ui32 = new Uint32Array(4).fill(42);
-var e = Buffer.from(ui32);
+const ui32 = new Uint32Array(4).fill(42);
+const e = Buffer.from(ui32);
 assert.deepEqual(ui32, e);
 
 // First check Buffer#fill() works as expected.
@@ -177,7 +177,7 @@ Buffer.allocUnsafe(8).fill('');
 }
 
 // copy string longer than buffer length (failure will segfault)
-var bb = Buffer.allocUnsafe(10);
+const bb = Buffer.allocUnsafe(10);
 bb.fill('hello crazy world');
 
 
@@ -212,7 +212,7 @@ assert.equal(b.copy(c, 0, 100, 10), 0);
 // when targetStart > targetLength, zero copied
 assert.equal(b.copy(c, 512, 0, 10), 0);
 
-var caught_error;
+let caught_error;
 
 // invalid encoding for Buffer.toString
 caught_error = null;
@@ -351,7 +351,7 @@ assert.equal(rangeBuffer.toString({toString: function() {
 }}), 'abc');
 
 // testing for smart defaults and ability to pass string values as offset
-var writeTest = Buffer.from('abcdes');
+const writeTest = Buffer.from('abcdes');
 writeTest.write('n', 'ascii');
 writeTest.write('o', 'ascii', '1');
 writeTest.write('d', '2', 'ascii');
@@ -393,20 +393,20 @@ assert.equal(writeTest.toString(), 'nodejs');
 
 // UTF-8 slice test
 
-var utf8String = '¡hέlló wôrld!';
-var offset = 100;
+const utf8String = '¡hέlló wôrld!';
+const offset = 100;
 
 b.write(utf8String, 0, Buffer.byteLength(utf8String), 'utf8');
-var utf8Slice = b.toString('utf8', 0, Buffer.byteLength(utf8String));
+let utf8Slice = b.toString('utf8', 0, Buffer.byteLength(utf8String));
 assert.equal(utf8String, utf8Slice);
 
-var written = b.write(utf8String, offset, 'utf8');
+let written = b.write(utf8String, offset, 'utf8');
 assert.equal(Buffer.byteLength(utf8String), written);
 utf8Slice = b.toString('utf8', offset, offset + Buffer.byteLength(utf8String));
 assert.equal(utf8String, utf8Slice);
 
-var sliceA = b.slice(offset, offset + Buffer.byteLength(utf8String));
-var sliceB = b.slice(offset, offset + Buffer.byteLength(utf8String));
+const sliceA = b.slice(offset, offset + Buffer.byteLength(utf8String));
+const sliceB = b.slice(offset, offset + Buffer.byteLength(utf8String));
 for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
   assert.equal(sliceA[i], sliceB[i]);
 }
@@ -513,10 +513,10 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
 }
 
 
-var arrayIsh = {0: 0, 1: 1, 2: 2, 3: 3, length: 4};
-var g = Buffer.from(arrayIsh);
+const arrayIsh = {0: 0, 1: 1, 2: 2, 3: 3, length: 4};
+let g = Buffer.from(arrayIsh);
 assert.deepEqual(g, Buffer.from([0, 1, 2, 3]));
-var strArrayIsh = {0: '0', 1: '1', 2: '2', 3: '3', length: 4};
+const strArrayIsh = {0: '0', 1: '1', 2: '2', 3: '3', length: 4};
 g = Buffer.from(strArrayIsh);
 assert.deepEqual(g, Buffer.from([0, 1, 2, 3]));
 
@@ -672,7 +672,7 @@ assert.equal(
 );
 
 // This string encodes single '.' character in UTF-16
-var dot = Buffer.from('//4uAA==', 'base64');
+const dot = Buffer.from('//4uAA==', 'base64');
 assert.equal(dot[0], 0xff);
 assert.equal(dot[1], 0xfe);
 assert.equal(dot[2], 0x2e);
@@ -726,11 +726,11 @@ assert.equal(0, Buffer.from('hello').slice(0, 0).length);
 
 // test hex toString
 console.log('Create hex string from buffer');
-var hexb = Buffer.allocUnsafe(256);
+const hexb = Buffer.allocUnsafe(256);
 for (let i = 0; i < 256; i++) {
   hexb[i] = i;
 }
-var hexStr = hexb.toString('hex');
+const hexStr = hexb.toString('hex');
 assert.equal(hexStr,
              '000102030405060708090a0b0c0d0e0f' +
              '101112131415161718191a1b1c1d1e1f' +
@@ -750,7 +750,7 @@ assert.equal(hexStr,
              'f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff');
 
 console.log('Create buffer from hex string');
-var hexb2 = Buffer.from(hexStr, 'hex');
+const hexb2 = Buffer.from(hexStr, 'hex');
 for (let i = 0; i < 256; i++) {
   assert.equal(hexb2[i], hexb[i]);
 }
@@ -768,7 +768,7 @@ for (let i = 0; i < 256; i++) {
 
 function buildBuffer(data) {
   if (Array.isArray(data)) {
-    var buffer = Buffer.allocUnsafe(data.length);
+    const buffer = Buffer.allocUnsafe(data.length);
     data.forEach(function(v, k) {
       buffer[k] = v;
     });
@@ -777,7 +777,7 @@ function buildBuffer(data) {
   return null;
 }
 
-var x = buildBuffer([0x81, 0xa3, 0x66, 0x6f, 0x6f, 0xa3, 0x62, 0x61, 0x72]);
+const x = buildBuffer([0x81, 0xa3, 0x66, 0x6f, 0x6f, 0xa3, 0x62, 0x61, 0x72]);
 
 console.log(x.inspect());
 assert.equal('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
@@ -969,7 +969,7 @@ assert.equal(0, Buffer.from('hello').slice(0, 0).length);
 {
   // test for buffer overrun
   const buf = Buffer.from([0, 0, 0, 0, 0]); // length: 5
-  var sub = buf.slice(0, 4);         // length: 4
+  const sub = buf.slice(0, 4);         // length: 4
   written = sub.write('12345', 'binary');
   assert.equal(written, 4);
   assert.equal(buf[4], 0);
@@ -1044,10 +1044,10 @@ Buffer.from(Buffer.alloc(0), 0, 0);
 
 // issue GH-7849
 (function() {
-  var buf = Buffer.from('test');
-  var json = JSON.stringify(buf);
-  var obj = JSON.parse(json);
-  var copy = Buffer.from(obj);
+  const buf = Buffer.from('test');
+  const json = JSON.stringify(buf);
+  const obj = JSON.parse(json);
+  const copy = Buffer.from(obj);
 
   assert(buf.equals(copy));
 })();
@@ -1076,44 +1076,44 @@ assert(Buffer.alloc.toString().length < 600, 'Buffer.alloc is not inlineable');
 
 // attempt to overflow buffers, similar to previous bug in array buffers
 assert.throws(function() {
-  var buf = Buffer(8);
+  const buf = Buffer(8);
   buf.readFloatLE(0xffffffff);
 }, RangeError);
 
 assert.throws(function() {
-  var buf = Buffer.allocUnsafe(8);
+  const buf = Buffer.allocUnsafe(8);
   buf.writeFloatLE(0.0, 0xffffffff);
 }, RangeError);
 
 assert.throws(function() {
-  var buf = Buffer.allocUnsafe(8);
+  const buf = Buffer.allocUnsafe(8);
   buf.readFloatLE(0xffffffff);
 }, RangeError);
 
 assert.throws(function() {
-  var buf = Buffer.allocUnsafe(8);
+  const buf = Buffer.allocUnsafe(8);
   buf.writeFloatLE(0.0, 0xffffffff);
 }, RangeError);
 
 
 // ensure negative values can't get past offset
 assert.throws(function() {
-  var buf = Buffer.allocUnsafe(8);
+  const buf = Buffer.allocUnsafe(8);
   buf.readFloatLE(-1);
 }, RangeError);
 
 assert.throws(function() {
-  var buf = Buffer.allocUnsafe(8);
+  const buf = Buffer.allocUnsafe(8);
   buf.writeFloatLE(0.0, -1);
 }, RangeError);
 
 assert.throws(function() {
-  var buf = Buffer.allocUnsafe(8);
+  const buf = Buffer.allocUnsafe(8);
   buf.readFloatLE(-1);
 }, RangeError);
 
 assert.throws(function() {
-  var buf = Buffer.allocUnsafe(8);
+  const buf = Buffer.allocUnsafe(8);
   buf.writeFloatLE(0.0, -1);
 }, RangeError);
 
@@ -1133,7 +1133,7 @@ assert.throws(function() {
 }
 
 [16, 32].forEach(function(bits) {
-  var buf = Buffer.allocUnsafe(bits / 8 - 1);
+  const buf = Buffer.allocUnsafe(bits / 8 - 1);
 
   assert.throws(function() { buf['readUInt' + bits + 'BE'](0); },
                 RangeError,
@@ -1153,7 +1153,7 @@ assert.throws(function() {
 });
 
 [16, 32].forEach(function(bits) {
-  var buf = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
+  const buf = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
 
   assert.equal(buf['readUInt' + bits + 'BE'](0),
                 (0xFFFFFFFF >>> (32 - bits)));
@@ -1170,7 +1170,7 @@ assert.throws(function() {
 
 // test for common read(U)IntLE/BE
 (function() {
-  var buf = Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
+  const buf = Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
 
   assert.equal(buf.readUIntLE(0, 1), 0x01);
   assert.equal(buf.readUIntBE(0, 1), 0x01);
@@ -1192,7 +1192,7 @@ assert.throws(function() {
 
 // test for common write(U)IntLE/BE
 (function() {
-  var buf = Buffer.allocUnsafe(3);
+  let buf = Buffer.allocUnsafe(3);
   buf.writeUIntLE(0x123456, 0, 3);
   assert.deepEqual(buf.toJSON().data, [0x56, 0x34, 0x12]);
   assert.equal(buf.readUIntLE(0, 3), 0x123456);
@@ -1285,7 +1285,7 @@ assert.throws(function() {
 
 // test Buffer slice
 (function() {
-  var buf = Buffer.from('0123456789');
+  const buf = Buffer.from('0123456789');
   assert.equal(buf.slice(-10, 10), '0123456789');
   assert.equal(buf.slice(-20, 10), '0123456789');
   assert.equal(buf.slice(-20, -10), '');
@@ -1318,7 +1318,7 @@ assert.throws(function() {
     assert.equal(buf.slice(0, -i), s.slice(0, -i));
   }
 
-  var utf16Buf = Buffer.from('0123456789', 'utf16le');
+  const utf16Buf = Buffer.from('0123456789', 'utf16le');
   assert.deepEqual(utf16Buf.slice(0, 6), Buffer.from('012', 'utf16le'));
 
   assert.equal(buf.slice('0', '1'), '0');
@@ -1342,7 +1342,7 @@ assert.throws(function() {
 // Regression test for #6111. Constructing a buffer from another buffer
 // should a) work, and b) not corrupt the source buffer.
 (function() {
-  var a = [0];
+  let a = [0];
   for (let i = 0; i < 7; ++i) a = a.concat(a);
   a = a.map(function(_, i) { return i; });
   const b = Buffer.from(a);
@@ -1367,10 +1367,10 @@ assert.throws(function() {
 
 if (common.hasCrypto) {
   // Test truncation after decode
-  var crypto = require('crypto');
+  const crypto = require('crypto');
 
-  var b1 = Buffer.from('YW55=======', 'base64');
-  var b2 = Buffer.from('YW55', 'base64');
+  const b1 = Buffer.from('YW55=======', 'base64');
+  const b2 = Buffer.from('YW55', 'base64');
 
   assert.equal(
     crypto.createHash('sha1').update(b1).digest('hex'),
@@ -1404,17 +1404,17 @@ if (common.hasCrypto) {
 }
 
 assert.throws(function() {
-  var b = Buffer.allocUnsafe(1);
+  const b = Buffer.allocUnsafe(1);
   Buffer.compare(b, 'abc');
 });
 
 assert.throws(function() {
-  var b = Buffer.allocUnsafe(1);
+  const b = Buffer.allocUnsafe(1);
   Buffer.compare('abc', b);
 });
 
 assert.throws(function() {
-  var b = Buffer.allocUnsafe(1);
+  const b = Buffer.allocUnsafe(1);
   b.compare('abc');
 });
 
@@ -1432,7 +1432,7 @@ assert.throws(function() {
 }
 
 assert.throws(function() {
-  var b = Buffer.allocUnsafe(1);
+  const b = Buffer.allocUnsafe(1);
   b.equals('abc');
 });
 
@@ -1441,7 +1441,7 @@ assert.throws(function() {
   Buffer.allocUnsafe(1422561062959).toString('utf8');
 });
 
-var ps = Buffer.poolSize;
+const ps = Buffer.poolSize;
 Buffer.poolSize = 0;
 assert.equal(Buffer.allocUnsafe(1).parent, undefined);
 Buffer.poolSize = ps;

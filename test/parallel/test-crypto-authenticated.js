@@ -323,16 +323,16 @@ for (const i in TEST_CASES) {
   }
 
   (function() {
-    var encrypt = crypto.createCipheriv(test.algo,
+    const encrypt = crypto.createCipheriv(test.algo,
       new Buffer(test.key, 'hex'), new Buffer(test.iv, 'hex'));
     if (test.aad)
       encrypt.setAAD(new Buffer(test.aad, 'hex'));
 
-    var inputEncoding = test.plainIsHex ? 'hex' : 'ascii';
-    var hex = encrypt.update(test.plain, inputEncoding, 'hex');
+    const inputEncoding = test.plainIsHex ? 'hex' : 'ascii';
+    let hex = encrypt.update(test.plain, inputEncoding, 'hex');
     hex += encrypt.final('hex');
 
-    var auth_tag = encrypt.getAuthTag();
+    const auth_tag = encrypt.getAuthTag();
     // only test basic encryption run if output is marked as tampered.
     if (!test.tampered) {
       assert.equal(hex, test.ct);
@@ -341,15 +341,15 @@ for (const i in TEST_CASES) {
   })();
 
   (function() {
-    var decrypt = crypto.createDecipheriv(test.algo,
+    const decrypt = crypto.createDecipheriv(test.algo,
       new Buffer(test.key, 'hex'), new Buffer(test.iv, 'hex'));
     decrypt.setAuthTag(new Buffer(test.tag, 'hex'));
     if (test.aad)
       decrypt.setAAD(new Buffer(test.aad, 'hex'));
 
-    var outputEncoding = test.plainIsHex ? 'hex' : 'ascii';
+    const outputEncoding = test.plainIsHex ? 'hex' : 'ascii';
 
-    var msg = decrypt.update(test.ct, 'hex', outputEncoding);
+    let msg = decrypt.update(test.ct, 'hex', outputEncoding);
     if (!test.tampered) {
       msg += decrypt.final(outputEncoding);
       assert.strictEqual(msg, test.plain);
@@ -365,12 +365,12 @@ for (const i in TEST_CASES) {
       assert.throws(() => { crypto.createCipher(test.algo, test.password); },
                     /not supported in FIPS mode/);
     } else {
-      var encrypt = crypto.createCipher(test.algo, test.password);
+      const encrypt = crypto.createCipher(test.algo, test.password);
       if (test.aad)
         encrypt.setAAD(new Buffer(test.aad, 'hex'));
-      var hex = encrypt.update(test.plain, 'ascii', 'hex');
+      let hex = encrypt.update(test.plain, 'ascii', 'hex');
       hex += encrypt.final('hex');
-      var auth_tag = encrypt.getAuthTag();
+      const auth_tag = encrypt.getAuthTag();
       // only test basic encryption run if output is marked as tampered.
       if (!test.tampered) {
         assert.equal(hex, test.ct);
@@ -385,11 +385,11 @@ for (const i in TEST_CASES) {
       assert.throws(() => { crypto.createDecipher(test.algo, test.password); },
                     /not supported in FIPS mode/);
     } else {
-      var decrypt = crypto.createDecipher(test.algo, test.password);
+      const decrypt = crypto.createDecipher(test.algo, test.password);
       decrypt.setAuthTag(new Buffer(test.tag, 'hex'));
       if (test.aad)
         decrypt.setAAD(new Buffer(test.aad, 'hex'));
-      var msg = decrypt.update(test.ct, 'hex', 'ascii');
+      let msg = decrypt.update(test.ct, 'hex', 'ascii');
       if (!test.tampered) {
         msg += decrypt.final('ascii');
         assert.equal(msg, test.plain);
@@ -409,7 +409,7 @@ for (const i in TEST_CASES) {
 
   (function() {
     // non-authenticating mode:
-    var encrypt = crypto.createCipheriv('aes-128-cbc',
+    const encrypt = crypto.createCipheriv('aes-128-cbc',
       'ipxp9a6i1Mb4USb4', '6fKjEjR3Vl30EUYC');
     encrypt.update('blah', 'ascii');
     encrypt.final();
@@ -420,7 +420,7 @@ for (const i in TEST_CASES) {
 
   (function() {
     // trying to get tag before inputting all data:
-    var encrypt = crypto.createCipheriv(test.algo,
+    const encrypt = crypto.createCipheriv(test.algo,
       new Buffer(test.key, 'hex'), new Buffer(test.iv, 'hex'));
     encrypt.update('blah', 'ascii');
     assert.throws(function() { encrypt.getAuthTag(); }, / state/);
@@ -428,7 +428,7 @@ for (const i in TEST_CASES) {
 
   (function() {
     // trying to set tag on encryption object:
-    var encrypt = crypto.createCipheriv(test.algo,
+    const encrypt = crypto.createCipheriv(test.algo,
       Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
     assert.throws(() => { encrypt.setAuthTag(Buffer.from(test.tag, 'hex')); },
                   / state/);
@@ -436,7 +436,7 @@ for (const i in TEST_CASES) {
 
   (function() {
     // trying to read tag from decryption object:
-    var decrypt = crypto.createDecipheriv(test.algo,
+    const decrypt = crypto.createDecipheriv(test.algo,
       new Buffer(test.key, 'hex'), new Buffer(test.iv, 'hex'));
     assert.throws(function() { decrypt.getAuthTag(); }, / state/);
   })();

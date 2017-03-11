@@ -14,8 +14,9 @@ if (!common.enoughTestMem) {
   return;
 }
 
+let buf;
 try {
-  var buf = new Buffer(kStringMaxLength);
+  buf = new Buffer(kStringMaxLength);
 } catch (e) {
   // If the exception is not due to memory confinement then rethrow it.
   if (e.message !== 'Invalid array buffer length') throw (e);

@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
-var success_count = 0;
-var error_count = 0;
-var response = '';
-var child;
+const common = require('../common');
+const assert = require('assert');
+const exec = require('child_process').exec;
+let success_count = 0;
+let error_count = 0;
+let response = '';
+let child;
 
 function after(err, stdout, stderr) {
   if (err) {

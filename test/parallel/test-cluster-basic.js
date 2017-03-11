@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
 assert.equal('NODE_UNIQUE_ID' in process.env, false,
              'NODE_UNIQUE_ID should be removed on startup');
@@ -14,13 +14,13 @@ function forEach(obj, fn) {
 
 
 if (cluster.isWorker) {
-  var http = require('http');
+  const http = require('http');
   http.Server(function() {
 
   }).listen(common.PORT, '127.0.0.1');
 } else if (cluster.isMaster) {
 
-  var checks = {
+  const checks = {
     cluster: {
       events: {
         fork: false,
@@ -56,8 +56,7 @@ if (cluster.isWorker) {
     }
   };
 
-  var worker;
-  var stateNames = Object.keys(checks.worker.states);
+  const stateNames = Object.keys(checks.worker.states);
 
   //Check events, states, and emit arguments
   forEach(checks.cluster.events, function(bool, name, index) {
@@ -72,7 +71,7 @@ if (cluster.isWorker) {
       checks.cluster.equal[name] = worker === arguments[0];
 
       //Check state
-      var state = stateNames[index];
+      const state = stateNames[index];
       checks.worker.states[state] = (state === worker.state);
     });
   });
@@ -88,7 +87,7 @@ if (cluster.isWorker) {
   });
 
   //Create worker
-  worker = cluster.fork();
+  const worker = cluster.fork();
   assert.equal(worker.id, 1);
   assert.ok(worker instanceof cluster.Worker,
             'the worker is not a instance of the Worker constructor');
@@ -111,10 +110,10 @@ if (cluster.isWorker) {
 
         case 'listening':
           assert.equal(arguments.length, 1);
-          var expect = { address: '127.0.0.1',
-                         port: common.PORT,
-                         addressType: 4,
-                         fd: undefined };
+          const expect = { address: '127.0.0.1',
+            port: common.PORT,
+            addressType: 4,
+            fd: undefined };
           assert.deepEqual(arguments[0], expect);
           break;
 

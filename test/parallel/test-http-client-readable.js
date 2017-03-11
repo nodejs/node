@@ -1,10 +1,10 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var util = require('util');
+const assert = require('assert');
+const http = require('http');
+const util = require('util');
 
-var Duplex = require('stream').Duplex;
+const Duplex = require('stream').Duplex;
 
 function FakeAgent() {
   http.Agent.call(this);
@@ -12,8 +12,8 @@ function FakeAgent() {
 util.inherits(FakeAgent, http.Agent);
 
 FakeAgent.prototype.createConnection = function createConnection() {
-  var s = new Duplex();
-  var once = false;
+  const s = new Duplex();
+  let once = false;
 
   s._read = function _read() {
     if (once)
@@ -38,9 +38,9 @@ FakeAgent.prototype.createConnection = function createConnection() {
   return s;
 };
 
-var received = '';
+let received = '';
 
-var req = http.request({
+const req = http.request({
   agent: new FakeAgent()
 }, common.mustCall(function(res) {
   res.on('data', function(chunk) {

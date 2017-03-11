@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 if (cluster.isWorker) {
   net.createServer(function(socket) {
@@ -14,13 +14,13 @@ if (cluster.isWorker) {
   }).listen(common.PORT + 1, '127.0.0.1');
 
 } else if (cluster.isMaster) {
-  var servers = 2;
+  const servers = 2;
 
   // test a single TCP server
-  var testConnection = function(port, cb) {
-    var socket = net.connect(port, '127.0.0.1', function() {
+  const testConnection = function(port, cb) {
+    const socket = net.connect(port, '127.0.0.1', function() {
       // buffer result
-      var result = '';
+      let result = '';
       socket.on('data', function(chunk) { result += chunk; });
 
       // check result
@@ -31,10 +31,10 @@ if (cluster.isWorker) {
   };
 
   // test both servers created in the cluster
-  var testCluster = function(cb) {
-    var done = 0;
+  const testCluster = function(cb) {
+    let done = 0;
 
-    for (var i = 0, l = servers; i < l; i++) {
+    for (let i = 0, l = servers; i < l; i++) {
       testConnection(common.PORT + i, function(success) {
         assert.ok(success);
         done += 1;
@@ -46,13 +46,13 @@ if (cluster.isWorker) {
   };
 
   // start two workers and execute callback when both is listening
-  var startCluster = function(cb) {
-    var workers = 8;
-    var online = 0;
+  const startCluster = function(cb) {
+    const workers = 8;
+    let online = 0;
 
-    for (var i = 0, l = workers; i < l; i++) {
+    for (let i = 0, l = workers; i < l; i++) {
 
-      var worker = cluster.fork();
+      const worker = cluster.fork();
       worker.on('listening', function() {
         online += 1;
         if (online === workers * servers) {
@@ -63,13 +63,13 @@ if (cluster.isWorker) {
   };
 
 
-  var results = {
+  const results = {
     start: 0,
     test: 0,
     disconnect: 0
   };
 
-  var test = function(again) {
+  const test = function(again) {
     //1. start cluster
     startCluster(function() {
       results.start += 1;

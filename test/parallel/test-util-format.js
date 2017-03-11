@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var util = require('util');
-var symbol = Symbol('foo');
+const assert = require('assert');
+const util = require('util');
+const symbol = Symbol('foo');
 
 assert.strictEqual(util.format(), '');
 assert.strictEqual(util.format(''), '');
@@ -60,7 +60,7 @@ assert.strictEqual(util.format('o: %j, a: %j', {}), 'o: {}, a: %j');
 assert.strictEqual(util.format('o: %j, a: %j'), 'o: %j, a: %j');
 
 (function() {
-  var o = {};
+  const o = {};
   o.o = o;
   assert.strictEqual(util.format('%j', o), '[Circular]');
 })();
