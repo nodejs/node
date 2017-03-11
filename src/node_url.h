@@ -470,19 +470,19 @@ enum url_parse_state {
 #define XX(name) name,
   PARSESTATES(XX)
 #undef XX
-} url_parse_state;
+};
 
 enum url_flags {
 #define XX(name, val) name = val,
   FLAGS(XX)
 #undef XX
-} url_flags;
+};
 
 enum url_cb_args {
 #define XX(name) name,
   ARGS(XX)
 #undef XX
-} url_cb_args;
+};
 
 static inline bool IsSpecial(std::string scheme) {
 #define XX(name, _) if (scheme == name) return true;
@@ -528,6 +528,91 @@ struct url_host {
   url_host_value value;
   enum url_host_type type;
 };
+
+class URL {
+ public:
+  static void Parse(const char* input,
+                    const size_t len,
+                    enum url_parse_state state_override,
+                    struct url_data* url,
+                    const struct url_data* base,
+                    bool has_base);
+
+  URL(const char* input, const size_t len) {
+    Parse(input, len, kUnknownState, &context_, nullptr, false);
+  }
+
+  URL(const char* input, const size_t len, const URL* base) {
+    if (base != nullptr)
+      Parse(input, len, kUnknownState, &context_, &(base->context_), true);
+    else
+      Parse(input, len, kUnknownState, &context_, nullptr, false);
+  }
+
+  URL(const char* input, const size_t len,
+      const char* base, const size_t baselen) {
+    if (base != nullptr && baselen > 0) {
+      URL _base(base, baselen);
+      Parse(input, len, kUnknownState, &context_, &(_base.context_), true);
+    } else {
+      Parse(input, len, kUnknownState, &context_, nullptr, false);
+    }
+  }
+
+  explicit URL(std::string input) :
+      URL(input.c_str(), input.length()) {}
+
+  URL(std::string input, const URL* base) :
+      URL(input.c_str(), input.length(), base) {}
+
+  URL(std::string input, std::string base) :
+      URL(input.c_str(), input.length(), base.c_str(), base.length()) {}
+
+  int32_t flags() {
+    return context_.flags;
+  }
+
+  int port() {
+    return context_.port;
+  }
+
+  const std::string& protocol() const {
+    return context_.scheme;
+  }
+
+  const std::string& username() const {
+    return context_.username;
+  }
+
+  const std::string& password() const {
+    return context_.password;
+  }
+
+  const std::string& host() const {
+    return context_.host;
+  }
+
+  const std::string& query() const {
+    return context_.query;
+  }
+
+  const std::string& fragment() const {
+    return context_.fragment;
+  }
+
+  std::string path() {
+    std::string ret;
+    for (auto i = context_.path.begin(); i != context_.path.end(); i++) {
+      ret += '/';
+      ret += *i;
+    }
+    return ret;
+  }
+
+ private:
+  struct url_data context_;
+};
+
 }  // namespace url
 
 }  // namespace node
