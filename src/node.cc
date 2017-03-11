@@ -1036,10 +1036,15 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 
 
 void* ArrayBufferAllocator::Allocate(size_t size) {
-  if (zero_fill_field_ || zero_fill_all_buffers)
+  if (zero_fill_all_buffers || zero_fill_field_ == 1) {
     return node::UncheckedCalloc(size);
-  else
-    return node::UncheckedMalloc(size);
+  } else if (zero_fill_field_ == 3) {
+    void* mem = node::UncheckedMalloc(size);
+    if (mem != nullptr)
+      memset(mem, random_fill_value_, size);
+    return mem;
+  }
+  return node::UncheckedMalloc(size);
 }
 
 static bool DomainHasErrorHandler(const Environment* env,

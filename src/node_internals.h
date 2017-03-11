@@ -196,6 +196,11 @@ inline bool IsBigEndian() {
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
+  ArrayBufferAllocator() {
+    unsigned int seed = time(NULL);
+    random_fill_value_ = rand_r(&seed) % 256;
+  }
+
   inline uint32_t* zero_fill_field() { return &zero_fill_field_; }
 
   virtual void* Allocate(size_t size);  // Defined in src/node.cc
@@ -205,6 +210,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
  private:
   uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
+  uint8_t random_fill_value_;
 };
 
 // Clear any domain and/or uncaughtException handlers to force the error's
