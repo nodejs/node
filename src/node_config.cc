@@ -1,4 +1,5 @@
 #include "node.h"
+#include "node_buffer.h"
 #include "node_i18n.h"
 #include "env.h"
 #include "env-inl.h"
@@ -48,6 +49,9 @@ void InitConfig(Local<Object> target,
 
   if (config_preserve_symlinks)
     READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
+
+  if (zero_fill_all_buffers)
+    READONLY_BOOLEAN_PROPERTY("zeroFillBuffers");
 
   if (!config_warning_file.empty()) {
     Local<String> name = OneByteString(env->isolate(), "warningFile");
