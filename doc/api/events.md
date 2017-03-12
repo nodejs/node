@@ -148,7 +148,7 @@ can be used. (_Note, however, that the `domain` module has been deprecated_)
 const myEmitter = new MyEmitter();
 
 process.on('uncaughtException', (err) => {
-  console.log('whoops! there was an error');
+  console.error('whoops! there was an error');
 });
 
 myEmitter.emit('error', new Error('whoops!'));
@@ -160,7 +160,7 @@ As a best practice, listeners should always be added for the `'error'` events.
 ```js
 const myEmitter = new MyEmitter();
 myEmitter.on('error', (err) => {
-  console.log('whoops! there was an error');
+  console.error('whoops! there was an error');
 });
 myEmitter.emit('error', new Error('whoops!'));
 // Prints: whoops! there was an error
