@@ -199,6 +199,7 @@ inline Environment::Environment(IsolateData* isolate_data,
 #endif
       handle_cleanup_waiting_(0),
       http_parser_buffer_(nullptr),
+      fs_stats_field_array_(nullptr),
       context_(context->GetIsolate(), context) {
   // We'll be creating new objects so make sure we've entered the context.
   v8::HandleScope handle_scope(isolate());
@@ -378,6 +379,15 @@ inline char* Environment::http_parser_buffer() const {
 inline void Environment::set_http_parser_buffer(char* buffer) {
   CHECK_EQ(http_parser_buffer_, nullptr);  // Should be set only once.
   http_parser_buffer_ = buffer;
+}
+
+inline double* Environment::fs_stats_field_array() const {
+  return fs_stats_field_array_;
+}
+
+inline void Environment::set_fs_stats_field_array(double* fields) {
+  CHECK_EQ(fs_stats_field_array_, nullptr);  // Should be set only once.
+  fs_stats_field_array_ = fields;
 }
 
 inline Environment* Environment::from_cares_timer_handle(uv_timer_t* handle) {

@@ -86,12 +86,11 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
   Environment* env = wrap->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
-  Local<Value> argv[] = {
-    BuildStatsObject(env, curr),
-    BuildStatsObject(env, prev),
-    Integer::New(env->isolate(), status)
-  };
-  wrap->MakeCallback(env->onchange_string(), arraysize(argv), argv);
+
+  FillStatsArray(env->fs_stats_field_array(), curr);
+  FillStatsArray(env->fs_stats_field_array() + 14, prev);
+  Local<Value> arg = Integer::New(env->isolate(), status);
+  wrap->MakeCallback(env->onchange_string(), 1, &arg);
 }
 
 
