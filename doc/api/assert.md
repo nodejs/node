@@ -143,7 +143,7 @@ assert.deepStrictEqual({a: 1}, {a: '1'});
 // AssertionError: { a: 1 } deepStrictEqual { a: '1' }
 // because 1 !== '1' using strict equality
 
-// The following objects don't have owned properties
+// The following objects don't have own properties
 const date = new Date();
 const object = {};
 const fakeDate = {};
@@ -600,3 +600,4 @@ For more information, see
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
 [mdn-equality-guide]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Equality_comparisons_and_sameness
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
+[Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
