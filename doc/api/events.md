@@ -98,7 +98,7 @@ listener will be invoked _every time_ the named event is emitted.
 
 ```js
 const myEmitter = new MyEmitter();
-var m = 0;
+let m = 0;
 myEmitter.on('event', () => {
   console.log(++m);
 });
@@ -114,7 +114,7 @@ the listener is unregistered and *then* called.
 
 ```js
 const myEmitter = new MyEmitter();
-var m = 0;
+let m = 0;
 myEmitter.once('event', () => {
   console.log(++m);
 });
@@ -491,7 +491,7 @@ Removes the specified `listener` from the listener array for the event named
 `eventName`.
 
 ```js
-var callback = (stream) => {
+const callback = (stream) => {
   console.log('someone connected!');
 };
 server.on('connection', callback);
@@ -513,12 +513,12 @@ events will behave as expected.
 ```js
 const myEmitter = new MyEmitter();
 
-var callbackA = () => {
+const callbackA = () => {
   console.log('A');
   myEmitter.removeListener('event', callbackB);
 };
 
-var callbackB = () => {
+const callbackB = () => {
   console.log('B');
 };
 
