@@ -17,7 +17,7 @@ assert.strictEqual('passed', result);
 console.error('thrown error');
 assert.throws(function() {
   vm.runInNewContext('throw new Error(\'test\');');
-});
+}, /^Error: test$/);
 
 global.hello = 5;
 vm.runInNewContext('hello = 2');
