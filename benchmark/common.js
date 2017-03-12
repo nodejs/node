@@ -38,7 +38,7 @@ function Benchmark(fn, configs, options) {
 }
 
 Benchmark.prototype._parseArgs = function(argv, configs) {
-  const cliOptions = Object.assign({}, configs);
+  const cliOptions = {};
   const extraOptions = {};
   // Parse configuration arguments
   for (const arg of argv) {
@@ -47,17 +47,20 @@ Benchmark.prototype._parseArgs = function(argv, configs) {
       console.error('bad argument: ' + arg);
       process.exit(1);
     }
+    const config = match[1];
 
-    if (configs[match[1]]) {
+    if (configs[config]) {
       // Infer the type from the config object and parse accordingly
-      const isNumber = typeof configs[match[1]][0] === 'number';
+      const isNumber = typeof configs[config][0] === 'number';
       const value = isNumber ? +match[2] : match[2];
-      cliOptions[match[1]] = [value];
+      if (!cliOptions[config])
+        cliOptions[config] = [];
+      cliOptions[config].push(value);
     } else {
-      extraOptions[match[1]] = match[2];
+      extraOptions[config] = match[2];
     }
   }
-  return { cli: cliOptions, extra: extraOptions };
+  return { cli: Object.assign({}, configs, cliOptions), extra: extraOptions };
 };
 
 Benchmark.prototype._queue = function(options) {
