@@ -33,7 +33,7 @@ assert.throws(() => {
 assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();
   outgoingMessage.setHeader.call({_header: 'test'}, 'test', 'value');
-}, /^Error: Can't set headers after they are sent.$/);
+}, /^Error: Can't set headers after they are sent\.$/);
 
 assert.throws(() => {
   const outgoingMessage = new OutgoingMessage();

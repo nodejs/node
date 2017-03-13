@@ -90,7 +90,7 @@ assert.throws(function() {
     columnOffset: 123
   });
 }, function(err) {
-  return /expected-filename.js:33:130/.test(err.stack);
+  return /expected-filename\.js:33:130/.test(err.stack);
 }, 'Expected appearance of proper offset in Error stack');
 
 // https://github.com/nodejs/node/issues/6158

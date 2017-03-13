@@ -72,7 +72,7 @@ addTest('sb("setInterval()", "!(setInterval.flag++)")', [
 
 // Continue
 addTest('c', [
-  /break in timers.js:\d+/,
+  /break in timers\.js:\d+/,
   /\d/, /\d/, /\d/, /\d/, /\d/
 ]);
 

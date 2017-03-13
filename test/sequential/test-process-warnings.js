@@ -29,5 +29,5 @@ execFile(node, traceWarn, function(er, stdout, stderr) {
   assert.strictEqual(er, null);
   assert.strictEqual(stdout, '');
   assert(/^\(.+\)\sWarning: a bad practice warning/.test(stderr));
-  assert(/at Object\.<anonymous>\s\(.+warnings.js:3:9\)/.test(stderr));
+  assert(/at Object\.<anonymous>\s\(.+warnings\.js:3:9\)/.test(stderr));
 });

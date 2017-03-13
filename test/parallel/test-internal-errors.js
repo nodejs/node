@@ -41,11 +41,11 @@ assert.strictEqual(err5.code, 'TEST_ERROR_1');
 
 assert.throws(
   () => new errors.Error('TEST_FOO_KEY'),
-  /^AssertionError: An invalid error message key was used: TEST_FOO_KEY.$/);
+  /^AssertionError: An invalid error message key was used: TEST_FOO_KEY\.$/);
 // Calling it twice yields same result (using the key does not create it)
 assert.throws(
   () => new errors.Error('TEST_FOO_KEY'),
-  /^AssertionError: An invalid error message key was used: TEST_FOO_KEY.$/);
+  /^AssertionError: An invalid error message key was used: TEST_FOO_KEY\.$/);
 assert.throws(
   () => new errors.Error(1),
   /^AssertionError: 'number' === 'string'$/);

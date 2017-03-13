@@ -52,7 +52,7 @@ assert.throws(function() {
   };
   vm.runInNewContext('runInVM(10)', context, { timeout: 10000 });
   throw new Error('Test 5 failed');
-}, /Script execution timed out./);
+}, /Script execution timed out\./);
 
 // Test 6: Nested vm timeouts, outer timeout is shorter and fires first.
 assert.throws(function() {
@@ -63,7 +63,7 @@ assert.throws(function() {
   };
   vm.runInNewContext('runInVM(10000)', context, { timeout: 100 });
   throw new Error('Test 6 failed');
-}, /Script execution timed out./);
+}, /Script execution timed out\./);
 
 // Test 7: Nested vm timeouts, inner script throws an error.
 assert.throws(function() {
