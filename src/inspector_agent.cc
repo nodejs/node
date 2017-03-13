@@ -495,11 +495,9 @@ class InspectorTimerHandle {
 
 class NodeInspectorClient : public V8InspectorClient {
  public:
-  NodeInspectorClient(node::Environment* env,
-                      v8::Platform* platform) : env_(env),
-                                                platform_(platform),
-                                                terminated_(false),
-                                                running_nested_loop_(false) {
+  NodeInspectorClient(node::Environment* env, node::NodePlatform* platform)
+      : env_(env), platform_(platform), terminated_(false),
+        running_nested_loop_(false) {
     client_ = V8Inspector::create(env->isolate(), this);
     contextCreated(env->context(), "Node.js Main Context");
   }
@@ -511,8 +509,7 @@ class NodeInspectorClient : public V8InspectorClient {
     terminated_ = false;
     running_nested_loop_ = true;
     while (!terminated_ && channel_->waitForFrontendMessage()) {
-      while (v8::platform::PumpMessageLoop(platform_, env_->isolate()))
-        {}
+      platform_->FlushForegroundTasksInternal();
     }
     terminated_ = false;
     running_nested_loop_ = false;
@@ -618,7 +615,7 @@ class NodeInspectorClient : public V8InspectorClient {
 
  private:
   node::Environment* env_;
-  v8::Platform* platform_;
+  node::NodePlatform* platform_;
   bool terminated_;
   bool running_nested_loop_;
   std::unique_ptr<V8Inspector> client_;
@@ -637,7 +634,7 @@ Agent::Agent(Environment* env) : parent_env_(env),
 Agent::~Agent() {
 }
 
-bool Agent::Start(v8::Platform* platform, const char* path,
+bool Agent::Start(node::NodePlatform* platform, const char* path,
                   const DebugOptions& options) {
   path_ = path == nullptr ? "" : path;
   debug_options_ = options;

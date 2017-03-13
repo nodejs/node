@@ -3,14 +3,14 @@
 namespace node {
 namespace tracing {
 
-v8::TracingController* controller_ = nullptr;
+v8::TracingController* g_controller = nullptr;
 
 void TraceEventHelper::SetTracingController(v8::TracingController* controller) {
-  controller_ = controller;
+  g_controller = controller;
 }
 
 v8::TracingController* TraceEventHelper::GetTracingController() {
-  return controller_;
+  return g_controller;
 }
 
 }  // namespace tracing
