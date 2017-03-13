@@ -136,6 +136,7 @@ rules:
   assert-throws-arguments: [2, { requireTwo: false }]
   new-with-error: [2, Error, RangeError, TypeError, SyntaxError, ReferenceError]
   timer-arguments: 2
+  no-unescaped-regexp-dot: 2
 
 # Global scoped method and vars
 globals:

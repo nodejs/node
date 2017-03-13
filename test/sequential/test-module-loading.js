@@ -121,7 +121,7 @@ const my_path = require('../fixtures/path');
 assert.ok(my_path.path_func instanceof Function);
 // this one does not exist and should throw
 assert.throws(function() { require('./utils'); },
-              /^Error: Cannot find module '.\/utils'$/);
+              /^Error: Cannot find module '\.\/utils'$/);
 
 let errorThrown = false;
 try {
@@ -318,5 +318,5 @@ assert.strictEqual(42, require('../fixtures/utf8-bom.json'));
 assert.throws(function() {
   require('../fixtures/test-error-first-line-offset.js');
 }, function(err) {
-  return /test-error-first-line-offset.js:1:/.test(err.stack);
+  return /test-error-first-line-offset\.js:1:/.test(err.stack);
 }, 'Expected appearance of proper offset in Error stack');

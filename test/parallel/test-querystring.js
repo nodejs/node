@@ -110,7 +110,9 @@ const qsColonTestCases = [
 const extendedFunction = function() {};
 extendedFunction.prototype = {a: 'b'};
 const qsWeirdObjects = [
+  // eslint-disable-next-line no-unescaped-regexp-dot
   [{regexp: /./g}, 'regexp=', {'regexp': ''}],
+  // eslint-disable-next-line no-unescaped-regexp-dot
   [{regexp: new RegExp('.', 'g')}, 'regexp=', {'regexp': ''}],
   [{fn: function() {}}, 'fn=', {'fn': ''}],
   [{fn: new Function('')}, 'fn=', {'fn': ''}],
