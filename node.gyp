@@ -190,6 +190,7 @@
         'src/node_http_parser.cc',
         'src/node_main.cc',
         'src/node_os.cc',
+        'src/node_platform.cc',
         'src/node_revert.cc',
         'src/node_serdes.cc',
         'src/node_url.cc',
@@ -238,6 +239,7 @@
         'src/node_internals.h',
         'src/node_javascript.h',
         'src/node_mutex.h',
+        'src/node_platform.h',
         'src/node_root_certs.h',
         'src/node_version.h',
         'src/node_watchdog.h',
@@ -656,6 +658,8 @@
       'defines': [ 'NODE_WANT_INTERNALS=1' ],
 
       'sources': [
+        'src/node_platform.cc',
+        'src/node_platform.h',
         'test/cctest/test_base64.cc',
         'test/cctest/test_environment.cc',
         'test/cctest/test_util.cc',

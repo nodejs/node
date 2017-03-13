@@ -31,7 +31,8 @@ class EnvironmentTest : public NodeTestFixture {
         const Argv& argv) {
       context_ = v8::Context::New(isolate);
       CHECK(!context_.IsEmpty());
-      isolate_data_ = CreateIsolateData(isolate, uv_default_loop());
+      isolate_data_ = CreateIsolateData(isolate,
+                                        NodeTestFixture::CurrentLoop());
       CHECK_NE(nullptr, isolate_data_);
       environment_ = CreateEnvironment(isolate_data_,
                                        context_,
