@@ -887,7 +887,6 @@ v8_source_set("v8_base") {
 
     ### gcmole(all) ###
     "include/v8-debug.h",
-    "include/v8-experimental.h",
     "include/v8-platform.h",
     "include/v8-profiler.h",
     "include/v8-testing.h",
@@ -905,8 +904,6 @@ v8_source_set("v8_base") {
     "src/api-arguments-inl.h",
     "src/api-arguments.cc",
     "src/api-arguments.h",
-    "src/api-experimental.cc",
-    "src/api-experimental.h",
     "src/api-natives.cc",
     "src/api-natives.h",
     "src/api.cc",
@@ -1386,8 +1383,6 @@ v8_source_set("v8_base") {
     "src/external-reference-table.h",
     "src/factory.cc",
     "src/factory.h",
-    "src/fast-accessor-assembler.cc",
-    "src/fast-accessor-assembler.h",
     "src/fast-dtoa.cc",
     "src/fast-dtoa.h",
     "src/feedback-vector-inl.h",
