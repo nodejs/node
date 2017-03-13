@@ -12,6 +12,7 @@ const err1 = new errors.Error('TEST_ERROR_1', 'test');
 const err2 = new errors.TypeError('TEST_ERROR_1', 'test');
 const err3 = new errors.RangeError('TEST_ERROR_1', 'test');
 const err4 = new errors.Error('TEST_ERROR_2', 'abc', 'xyz');
+const err5 = new errors.Error('TEST_ERROR_1');
 
 assert(err1 instanceof Error);
 assert.strictEqual(err1.name, 'Error[TEST_ERROR_1]');
@@ -32,6 +33,11 @@ assert(err4 instanceof Error);
 assert.strictEqual(err4.name, 'Error[TEST_ERROR_2]');
 assert.strictEqual(err4.message, 'abc xyz');
 assert.strictEqual(err4.code, 'TEST_ERROR_2');
+
+assert(err5 instanceof Error);
+assert.strictEqual(err5.name, 'Error[TEST_ERROR_1]');
+assert.strictEqual(err5.message, 'Error for testing purposes: %s');
+assert.strictEqual(err5.code, 'TEST_ERROR_1');
 
 assert.throws(
   () => new errors.Error('TEST_FOO_KEY'),
@@ -118,3 +124,9 @@ assert.throws(() => {
                            type: TypeError,
                            message: /^Error for testing 2/ }));
 }, /AssertionError: .+ does not match \S/);
+
+assert.doesNotThrow(() => errors.E('TEST_ERROR_USED_SYMBOL'));
+assert.throws(
+  () => errors.E('TEST_ERROR_USED_SYMBOL'),
+  /^AssertionError: Error symbol: TEST_ERROR_USED_SYMBOL was already used\.$/
+);
