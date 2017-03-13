@@ -4,7 +4,6 @@
 #include <string>
 
 #include "env-inl.h"
-#include "libplatform/libplatform.h"
 
 namespace node {
 namespace tracing {

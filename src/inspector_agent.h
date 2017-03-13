@@ -14,6 +14,7 @@
 // Forward declaration to break recursive dependency chain with src/env.h.
 namespace node {
 class Environment;
+class NodePlatform;
 }  // namespace node
 
 #include "v8.h"
@@ -42,7 +43,7 @@ class Agent {
   ~Agent();
 
   // Create client_, may create io_ if option enabled
-  bool Start(v8::Platform* platform, const char* path,
+  bool Start(node::NodePlatform* platform, const char* path,
              const DebugOptions& options);
   // Stop and destroy io_
   void Stop();

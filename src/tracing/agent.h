@@ -1,6 +1,7 @@
 #ifndef SRC_TRACING_AGENT_H_
 #define SRC_TRACING_AGENT_H_
 
+#include "node_platform.h"
 #include "tracing/node_trace_buffer.h"
 #include "tracing/node_trace_writer.h"
 #include "uv.h"
