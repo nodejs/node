@@ -12,12 +12,10 @@
 #include <limits>
 #include <vector>
 #include "include/v8-debug.h"
-#include "include/v8-experimental.h"
 #include "include/v8-profiler.h"
 #include "include/v8-testing.h"
 #include "include/v8-util.h"
 #include "src/accessors.h"
-#include "src/api-experimental.h"
 #include "src/api-natives.h"
 #include "src/assert-scope.h"
 #include "src/background-parsing-task.h"
@@ -1286,8 +1284,7 @@ void FunctionTemplate::Inherit(v8::Local<FunctionTemplate> value) {
 }
 
 static Local<FunctionTemplate> FunctionTemplateNew(
-    i::Isolate* isolate, FunctionCallback callback,
-    experimental::FastAccessorBuilder* fast_handler, v8::Local<Value> data,
+    i::Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
     v8::Local<Signature> signature, int length, bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>()) {
   i::Handle<i::Struct> struct_obj =
@@ -1305,7 +1302,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     if (data.IsEmpty()) {
       data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
     }
-    Utils::ToLocal(obj)->SetCallHandler(callback, data, fast_handler);
+    Utils::ToLocal(obj)->SetCallHandler(callback, data);
   }
   obj->set_length(length);
   obj->set_undetectable(false);
@@ -1328,8 +1325,8 @@ Local<FunctionTemplate> FunctionTemplate::New(
   // function templates when the isolate is created for serialization.
   LOG_API(i_isolate, FunctionTemplate, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  auto templ = FunctionTemplateNew(i_isolate, callback, nullptr, data,
-                                   signature, length, false);
+  auto templ =
+      FunctionTemplateNew(i_isolate, callback, data, signature, length, false);
   if (behavior == ConstructorBehavior::kThrow) templ->RemovePrototype();
   return templ;
 }
@@ -1349,25 +1346,14 @@ MaybeLocal<FunctionTemplate> FunctionTemplate::FromSnapshot(Isolate* isolate,
   return Local<FunctionTemplate>();
 }
 
-Local<FunctionTemplate> FunctionTemplate::NewWithFastHandler(
-    Isolate* isolate, FunctionCallback callback,
-    experimental::FastAccessorBuilder* fast_handler, v8::Local<Value> data,
-    v8::Local<Signature> signature, int length) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, FunctionTemplate, NewWithFastHandler);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  return FunctionTemplateNew(i_isolate, callback, fast_handler, data, signature,
-                             length, false);
-}
-
 Local<FunctionTemplate> FunctionTemplate::NewWithCache(
     Isolate* isolate, FunctionCallback callback, Local<Private> cache_property,
     Local<Value> data, Local<Signature> signature, int length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, FunctionTemplate, NewWithCache);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  return FunctionTemplateNew(i_isolate, callback, nullptr, data, signature,
-                             length, false, cache_property);
+  return FunctionTemplateNew(i_isolate, callback, data, signature, length,
+                             false, cache_property);
 }
 
 Local<Signature> Signature::New(Isolate* isolate,
@@ -1387,10 +1373,8 @@ Local<AccessorSignature> AccessorSignature::New(
     (obj)->setter(*foreign);                                            \
   } while (false)
 
-
-void FunctionTemplate::SetCallHandler(
-    FunctionCallback callback, v8::Local<Value> data,
-    experimental::FastAccessorBuilder* fast_handler) {
+void FunctionTemplate::SetCallHandler(FunctionCallback callback,
+                                      v8::Local<Value> data) {
   auto info = Utils::OpenHandle(this);
   EnsureNotInstantiated(info, "v8::FunctionTemplate::SetCallHandler");
   i::Isolate* isolate = info->GetIsolate();
@@ -1401,11 +1385,6 @@ void FunctionTemplate::SetCallHandler(
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
-  i::MaybeHandle<i::Code> code =
-      i::experimental::BuildCodeFromFastAccessorBuilder(fast_handler);
-  if (!code.is_null()) {
-    obj->set_fast_handler(*code.ToHandleChecked());
-  }
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
@@ -5077,8 +5056,8 @@ MaybeLocal<Function> Function::New(Local<Context> context,
   i::Isolate* isolate = Utils::OpenHandle(*context)->GetIsolate();
   LOG_API(isolate, Function, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  auto templ = FunctionTemplateNew(isolate, callback, nullptr, data,
-                                   Local<Signature>(), length, true);
+  auto templ = FunctionTemplateNew(isolate, callback, data, Local<Signature>(),
+                                   length, true);
   if (behavior == ConstructorBehavior::kThrow) templ->RemovePrototype();
   return templ->GetFunction(context);
 }

@@ -1190,13 +1190,7 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   Handle<String> name = class_name->IsString()
                             ? Handle<String>::cast(class_name)
                             : isolate->factory()->empty_string();
-  Handle<Code> code;
-  if (info->call_code()->IsCallHandlerInfo() &&
-      CallHandlerInfo::cast(info->call_code())->fast_handler()->IsCode()) {
-    code = isolate->builtins()->HandleFastApiCall();
-  } else {
-    code = isolate->builtins()->HandleApiCall();
-  }
+  Handle<Code> code = isolate->builtins()->HandleApiCall();
   bool is_constructor = !info->remove_prototype();
   Handle<SharedFunctionInfo> result =
       isolate->factory()->NewSharedFunctionInfo(name, code, is_constructor);
