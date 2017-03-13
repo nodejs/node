@@ -5,10 +5,10 @@ const fs = require('fs');
 const path = require('path');
 
 const numberError = new RegExp('^TypeError: "options" must be a string ' +
-                               'or an object, got number instead.$');
+                               'or an object, got number instead\\.$');
 
 const booleanError = new RegExp('^TypeError: "options" must be a string ' +
-                                'or an object, got boolean instead.$');
+                                'or an object, got boolean instead\\.$');
 
 const example = path.join(common.tmpDir, 'dummy');
 

@@ -18,7 +18,7 @@ const options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
 };
 
-const expectedHeader = /^HTTP\/1.1 200 OK/;
+const expectedHeader = /^HTTP\/1\.1 200 OK/;
 const expectedBody = /hello world\n/;
 const expectCertError = /^Error: unable to verify the first certificate$/;
 

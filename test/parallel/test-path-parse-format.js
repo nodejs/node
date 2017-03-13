@@ -90,15 +90,15 @@ const unixSpecialCaseFormatTests = [
 
 const errors = [
   {method: 'parse', input: [null],
-   message: /^TypeError: Path must be a string. Received null$/},
+   message: /^TypeError: Path must be a string\. Received null$/},
   {method: 'parse', input: [{}],
-   message: /^TypeError: Path must be a string. Received {}$/},
+   message: /^TypeError: Path must be a string\. Received {}$/},
   {method: 'parse', input: [true],
-   message: /^TypeError: Path must be a string. Received true$/},
+   message: /^TypeError: Path must be a string\. Received true$/},
   {method: 'parse', input: [1],
-   message: /^TypeError: Path must be a string. Received 1$/},
+   message: /^TypeError: Path must be a string\. Received 1$/},
   {method: 'parse', input: [],
-   message: /^TypeError: Path must be a string. Received undefined$/},
+   message: /^TypeError: Path must be a string\. Received undefined$/},
   {method: 'format', input: [null],
    message:
       /^TypeError: Parameter "pathObject" must be an object, not object$/},
