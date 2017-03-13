@@ -1,5 +1,6 @@
 'use strict';
 
+const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const marked = require('marked');
@@ -20,13 +21,8 @@ tokens.push({ type: 'heading' });
 for (var i = 0; i < tokens.length; i++) {
   var token = tokens[i];
   if (token.type === 'heading' && token.text) {
-    const blockName = token.text;
-    if (files && Object.keys(files).length !== 0) {
-      verifyFiles(files,
-                  blockName,
-                  console.log.bind(null, 'wrote'),
-                  function(err) { if (err) throw err; });
-    }
+    if (files && Object.keys(files).length !== 0)
+      verifyFiles(files, token.text);
     files = {};
   } else if (token.type === 'code') {
     var match = token.text.match(/^\/\/\s+(.*\.(?:cc|h|js))[\r\n]/);
@@ -36,17 +32,7 @@ for (var i = 0; i < tokens.length; i++) {
   }
 }
 
-function once(fn) {
-  var once = false;
-  return function() {
-    if (once)
-      return;
-    once = true;
-    fn.apply(this, arguments);
-  };
-}
-
-function verifyFiles(files, blockName, onprogress, ondone) {
+function verifyFiles(files, blockName) {
   // must have a .cc and a .js to be a valid test
   if (!Object.keys(files).some((name) => /\.cc$/.test(name)) ||
       !Object.keys(files).some((name) => /\.js$/.test(name))) {
@@ -91,22 +77,24 @@ ${files[name].replace('Release', "' + common.buildType + '")}
     })
   });
 
-  fs.mkdir(dir, function() {
-    // Ignore errors
+  try {
+    fs.mkdirSync(dir);
+  } catch (e) {
+    assert.strictEqual(e.code, 'EEXIST');
+  }
 
-    var done = once(ondone);
-    var waiting = files.length;
-    files.forEach(function(file) {
-      fs.writeFile(file.path, file.content, function(err) {
-        if (err)
-          return done(err);
+  for (const file of files) {
+    try {
+      var content = fs.readFileSync(file.path);
+    } catch (e) {
+      assert.strictEqual(e.code, 'ENOENT');
+    }
 
-        if (onprogress)
-          onprogress(file.path);
+    // Only update when file content has changed to prevent unneeded rebuilds.
+    if (content && content.toString() === file.content)
+      continue;
 
-        if (--waiting === 0)
-          done();
-      });
-    });
-  });
+    fs.writeFileSync(file.path, file.content);
+    console.log('wrote', file.path);
+  }
 }
