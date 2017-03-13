@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include "node_platform.h"
 #include "v8-platform.h"
 #include "trace_event_common.h"
 
