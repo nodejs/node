@@ -16,7 +16,6 @@ if (cluster.isMaster) {
     const worker = cluster.fork();
 
     worker.on('exit', common.mustCall((code, signal) => {
-      assert.strictEqual(code, null);
       assert.strictEqual(signal, 'SIGTERM');
     }));
 
