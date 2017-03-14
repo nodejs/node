@@ -46,6 +46,8 @@ VALID_MSVS_GUID_CHARS = re.compile(r'^[A-F0-9\-]+$')
 
 
 generator_default_variables = {
+    'DRIVER_PREFIX': '',
+    'DRIVER_SUFFIX': '.sys',
     'EXECUTABLE_PREFIX': '',
     'EXECUTABLE_SUFFIX': '.exe',
     'STATIC_LIB_PREFIX': '',
@@ -91,6 +93,7 @@ generator_additional_non_configuration_keys = [
     'msvs_target_platform_minversion',
 ]
 
+generator_filelist_paths = None
 
 # List of precompiled header related keys.
 precomp_keys = [
@@ -256,6 +259,8 @@ def _ToolSetOrAppend(tools, tool_name, setting, value, only_if_unset=False):
   if not tools.get(tool_name):
     tools[tool_name] = dict()
   tool = tools[tool_name]
+  if 'CompileAsWinRT' == setting:
+    return
   if tool.get(setting):
     if only_if_unset: return
     if type(tool[setting]) == list and type(value) == list:
@@ -267,6 +272,10 @@ def _ToolSetOrAppend(tools, tool_name, setting, value, only_if_unset=False):
               value, setting, tool_name, str(tool[setting])))
   else:
     tool[setting] = value
+
+
+def _ConfigTargetVersion(config_data):
+  return config_data.get('msvs_target_version', 'Windows7')
 
 
 def _ConfigPlatform(config_data):
@@ -283,6 +292,23 @@ def _ConfigBaseName(config_name, platform_name):
 def _ConfigFullName(config_name, config_data):
   platform_name = _ConfigPlatform(config_data)
   return '%s|%s' % (_ConfigBaseName(config_name, platform_name), platform_name)
+
+
+def _ConfigWindowsTargetPlatformVersion(config_data, version):
+  config_ver = config_data.get('msvs_windows_sdk_version')
+  vers = [config_ver] if config_ver else version.compatible_sdks
+  for ver in vers:
+    for key in [
+      r'HKLM\Software\Microsoft\Microsoft SDKs\Windows\%s',
+      r'HKLM\Software\Wow6432Node\Microsoft\Microsoft SDKs\Windows\%s']:
+      sdk_dir = MSVSVersion._RegistryGetValue(key % ver, 'InstallationFolder')
+      if not sdk_dir:
+        continue
+      version = MSVSVersion._RegistryGetValue(key % ver, 'ProductVersion') or ''
+      # Find a matching entry in sdk_dir\include.
+      names = sorted([x for x in os.listdir(r'%s\include' % sdk_dir)
+                      if x.startswith(version)], reverse=True)
+      return names[0]
 
 
 def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
@@ -901,6 +927,8 @@ def _GetMsbuildToolsetOfProject(proj_path, spec, version):
   toolset = default_config.get('msbuild_toolset')
   if not toolset and version.DefaultToolset():
     toolset = version.DefaultToolset()
+  if spec['type'] == 'windows_driver':
+    toolset = 'WindowsKernelModeDriver10.0'
   return toolset
 
 
@@ -1084,6 +1112,7 @@ def _GetMSVSConfigurationType(spec, build_file):
         'shared_library': '2',  # .dll
         'loadable_module': '2',  # .dll
         'static_library': '4',  # .lib
+        'windows_driver': '5',  # .sys
         'none': '10',  # Utility type
         }[spec['type']]
   except KeyError:
@@ -1268,6 +1297,7 @@ def _GetOutputFilePathAndTool(spec, msbuild):
       'executable': ('VCLinkerTool', 'Link', '$(OutDir)', '.exe'),
       'shared_library': ('VCLinkerTool', 'Link', '$(OutDir)', '.dll'),
       'loadable_module': ('VCLinkerTool', 'Link', '$(OutDir)', '.dll'),
+      'windows_driver': ('VCLinkerTool', 'Link', '$(OutDir)', '.sys'),
       'static_library': ('VCLibrarianTool', 'Lib', '$(OutDir)lib\\', '.lib'),
   }
   output_file_props = output_file_map.get(spec['type'])
@@ -1330,7 +1360,8 @@ def _GetDisabledWarnings(config):
 
 def _GetModuleDefinition(spec):
   def_file = ''
-  if spec['type'] in ['shared_library', 'loadable_module', 'executable']:
+  if spec['type'] in ['shared_library', 'loadable_module', 'executable',
+                      'windows_driver']:
     def_files = [s for s in spec.get('sources', []) if s.endswith('.def')]
     if len(def_files) == 1:
       def_file = _FixPath(def_files[0])
@@ -1936,6 +1967,19 @@ def PerformBuild(data, configurations, params):
     print 'Building [%s]: %s' % (config, arguments)
     rtn = subprocess.check_call(arguments)
 
+
+def CalculateGeneratorInputInfo(params):
+  if params.get('flavor') == 'ninja':
+    toplevel = params['options'].toplevel_dir
+    qualified_out_dir = os.path.normpath(os.path.join(
+        toplevel, ninja_generator.ComputeOutputDir(params),
+        'gypfiles-msvs-ninja'))
+
+    global generator_filelist_paths
+    generator_filelist_paths = {
+        'toplevel': toplevel,
+        'qualified_out_dir': qualified_out_dir,
+    }
 
 def GenerateOutput(target_list, target_dicts, data, params):
   """Generate .sln and .vcproj files.
@@ -2622,7 +2666,7 @@ def _GetMSBuildProjectConfigurations(configurations):
   return [group]
 
 
-def _GetMSBuildGlobalProperties(spec, guid, gyp_file_name):
+def _GetMSBuildGlobalProperties(spec, version, guid, gyp_file_name):
   namespace = os.path.splitext(gyp_file_name)[0]
   properties = [
       ['PropertyGroup', {'Label': 'Globals'},
@@ -2637,6 +2681,18 @@ def _GetMSBuildGlobalProperties(spec, guid, gyp_file_name):
      os.environ.get('PROCESSOR_ARCHITEW6432') == 'AMD64':
     properties[0].append(['PreferredToolArchitecture', 'x64'])
 
+  if spec.get('msvs_target_platform_version'):
+    target_platform_version = spec.get('msvs_target_platform_version')
+    properties[0].append(['WindowsTargetPlatformVersion',
+                          target_platform_version])
+    if spec.get('msvs_target_platform_minversion'):
+      target_platform_minversion = spec.get('msvs_target_platform_minversion')
+      properties[0].append(['WindowsTargetPlatformMinVersion',
+                            target_platform_minversion])
+    else:
+      properties[0].append(['WindowsTargetPlatformMinVersion',
+                            target_platform_version])
+
   if spec.get('msvs_enable_winrt'):
     properties[0].append(['DefaultLanguage', 'en-US'])
     properties[0].append(['AppContainerApplication', 'true'])
@@ -2645,24 +2701,31 @@ def _GetMSBuildGlobalProperties(spec, guid, gyp_file_name):
       properties[0].append(['ApplicationTypeRevision', app_type_revision])
     else:
       properties[0].append(['ApplicationTypeRevision', '8.1'])
-
-    if spec.get('msvs_target_platform_version'):
-      target_platform_version = spec.get('msvs_target_platform_version')
-      properties[0].append(['WindowsTargetPlatformVersion',
-                            target_platform_version])
-      if spec.get('msvs_target_platform_minversion'):
-        target_platform_minversion = spec.get('msvs_target_platform_minversion')
-        properties[0].append(['WindowsTargetPlatformMinVersion',
-                              target_platform_minversion])
-      else:
-        properties[0].append(['WindowsTargetPlatformMinVersion',
-                              target_platform_version])
     if spec.get('msvs_enable_winphone'):
       properties[0].append(['ApplicationType', 'Windows Phone'])
     else:
       properties[0].append(['ApplicationType', 'Windows Store'])
 
+  platform_name = None
+  msvs_windows_sdk_version = None
+  for configuration in spec['configurations'].itervalues():
+    platform_name = platform_name or _ConfigPlatform(configuration)
+    msvs_windows_sdk_version = (msvs_windows_sdk_version or
+                  _ConfigWindowsTargetPlatformVersion(configuration, version))
+    if platform_name and msvs_windows_sdk_version:
+      break
+  if msvs_windows_sdk_version:
+    properties[0].append(['WindowsTargetPlatformVersion',
+                          str(msvs_windows_sdk_version)])
+  elif version.compatible_sdks:
+    raise GypError('%s requires any SDK of %o version, but non were found' %
+                   (version.description, version.compatible_sdks))
+
+  if platform_name == 'ARM':
+    properties[0].append(['WindowsSDKDesktopARMSupport', 'true'])
+
   return properties
+
 
 def _GetMSBuildConfigurationDetails(spec, build_file):
   properties = {}
@@ -2670,8 +2733,13 @@ def _GetMSBuildConfigurationDetails(spec, build_file):
     msbuild_attributes = _GetMSBuildAttributes(spec, settings, build_file)
     condition = _GetConfigurationCondition(name, settings)
     character_set = msbuild_attributes.get('CharacterSet')
+    config_type = msbuild_attributes.get('ConfigurationType')
     _AddConditionalProperty(properties, condition, 'ConfigurationType',
-                            msbuild_attributes['ConfigurationType'])
+                            config_type)
+    if config_type == 'Driver':
+      _AddConditionalProperty(properties, condition, 'DriverType', 'WDM')
+      _AddConditionalProperty(properties, condition, 'TargetVersion',
+                              _ConfigTargetVersion(settings))
     if character_set:
       if 'msvs_enable_winrt' not in spec :
         _AddConditionalProperty(properties, condition, 'CharacterSet',
@@ -2770,6 +2838,7 @@ def _ConvertMSVSConfigurationType(config_type):
         '1': 'Application',
         '2': 'DynamicLibrary',
         '4': 'StaticLibrary',
+        '5': 'Driver',
         '10': 'Utility'
     }[config_type]
   return config_type
@@ -2798,6 +2867,9 @@ def _GetMSBuildAttributes(spec, config, build_file):
     product_name = spec.get('product_name', '$(ProjectName)')
     target_name = prefix + product_name
     msbuild_attributes['TargetName'] = target_name
+  if 'TargetExt' not in msbuild_attributes and 'product_extension' in spec:
+    ext = spec.get('product_extension')
+    msbuild_attributes['TargetExt'] = '.' + ext
 
   if spec.get('msvs_external_builder'):
     external_out_dir = spec.get('msvs_external_builder_out_dir', '.')
@@ -2809,6 +2881,7 @@ def _GetMSBuildAttributes(spec, config, build_file):
       'executable': 'Link',
       'shared_library': 'Link',
       'loadable_module': 'Link',
+      'windows_driver': 'Link',
       'static_library': 'Lib',
   }
   msbuild_tool = msbuild_tool_map.get(spec['type'])
@@ -2851,6 +2924,9 @@ def _GetMSBuildConfigurationGlobalProperties(spec, configurations, build_file):
                             attributes['OutputDirectory'])
     _AddConditionalProperty(properties, condition, 'TargetName',
                             attributes['TargetName'])
+    if 'TargetExt' in attributes:
+      _AddConditionalProperty(properties, condition, 'TargetExt',
+                              attributes['TargetExt'])
 
     if attributes.get('TargetPath'):
       _AddConditionalProperty(properties, condition, 'TargetPath',
@@ -3203,6 +3279,9 @@ def _GetMSBuildProjectReferences(project):
           ['ReferenceOutputAssembly', 'false']
           ]
       for config in dependency.spec.get('configurations', {}).itervalues():
+        if config.get('msvs_use_library_dependency_inputs', 0):
+          project_ref.append(['UseLibraryDependencyInputs', 'true'])
+          break
         # If it's disabled in any config, turn it off in the reference.
         if config.get('msvs_2010_disable_uldi_when_referenced', 0):
           project_ref.append(['UseLibraryDependencyInputs', 'false'])
@@ -3295,7 +3374,8 @@ def _GenerateMSBuildProject(project, options, version, generator_flags):
       }]
 
   content += _GetMSBuildProjectConfigurations(configurations)
-  content += _GetMSBuildGlobalProperties(spec, project.guid, project_file_name)
+  content += _GetMSBuildGlobalProperties(spec, version, project.guid,
+                                         project_file_name)
   content += import_default_section
   content += _GetMSBuildConfigurationDetails(spec, project.build_file)
   if spec.get('msvs_enable_winphone'):

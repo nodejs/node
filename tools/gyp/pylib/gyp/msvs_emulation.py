@@ -485,8 +485,9 @@ class MsvsSettings(object):
     if self.msvs_precompiled_header[config]:
       source_ext = os.path.splitext(self.msvs_precompiled_source[config])[1]
       if _LanguageMatchesForPch(source_ext, extension):
-        pch = os.path.split(self.msvs_precompiled_header[config])[1]
-        return ['/Yu' + pch, '/FI' + pch, '/Fp${pchprefix}.' + pch + '.pch']
+        pch = self.msvs_precompiled_header[config]
+        pchbase = os.path.split(pch)[1]
+        return ['/Yu' + pch, '/FI' + pch, '/Fp${pchprefix}.' + pchbase + '.pch']
     return  []
 
   def GetCflagsC(self, config):
@@ -888,7 +889,7 @@ class PrecompiledHeader(object):
   def _PchHeader(self):
     """Get the header that will appear in an #include line for all source
     files."""
-    return os.path.split(self.settings.msvs_precompiled_header[self.config])[1]
+    return self.settings.msvs_precompiled_header[self.config]
 
   def GetObjDependencies(self, sources, objs, arch):
     """Given a list of sources files and the corresponding object files,
@@ -961,6 +962,10 @@ def _ExtractImportantEnvironment(output_of_set):
       'tmp',
       )
   env = {}
+  # This occasionally happens and leads to misleading SYSTEMROOT error messages
+  # if not caught here.
+  if output_of_set.count('=') == 0:
+    raise Exception('Invalid output_of_set. Value is:\n%s' % output_of_set)
   for line in output_of_set.splitlines():
     for envvar in envvars_to_save:
       if re.match(envvar + '=', line.lower()):
@@ -1029,6 +1034,8 @@ def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags,
     popen = subprocess.Popen(
         args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     variables, _ = popen.communicate()
+    if popen.returncode != 0:
+      raise Exception('"%s" failed with error %d' % (args, popen.returncode))
     env = _ExtractImportantEnvironment(variables)
 
     # Inject system includes from gyp files into INCLUDE.

@@ -1587,7 +1587,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       for link_dep in link_deps:
         assert ' ' not in link_dep, (
             "Spaces in alink input filenames not supported (%s)"  % link_dep)
-      if (self.flavor not in ('mac', 'openbsd', 'win') and not
+      if (self.flavor not in ('mac', 'openbsd', 'netbsd', 'win') and not
           self.is_standalone_static_library):
         self.WriteDoCmd([self.output_binary], link_deps, 'alink_thin',
                         part_of_all, postbuilds=postbuilds)
@@ -1754,7 +1754,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
       # Hash the target name to avoid generating overlong filenames.
       cmddigest = hashlib.sha1(command if command else self.target).hexdigest()
-      intermediate = "%s.intermediate" % cmddigest
+      intermediate = "%s.intermediate" % (cmddigest)
       self.WriteLn('%s: %s' % (' '.join(outputs), intermediate))
       self.WriteLn('\t%s' % '@:');
       self.WriteLn('%s: %s' % ('.INTERMEDIATE', intermediate))
@@ -2055,6 +2055,11 @@ def GenerateOutput(target_list, target_dicts, data, params):
     header_params.update({
         'flock': 'lockf',
     })
+  elif flavor == 'openbsd':
+    copy_archive_arguments = '-pPRf'
+    header_params.update({
+        'copy_archive_args': copy_archive_arguments,
+    })
   elif flavor == 'aix':
     copy_archive_arguments = '-pPRf'
     header_params.update({
@@ -2069,10 +2074,10 @@ def GenerateOutput(target_list, target_dicts, data, params):
     'AR.target':   GetEnvironFallback(('AR_target', 'AR'), '$(AR)'),
     'CXX.target':  GetEnvironFallback(('CXX_target', 'CXX'), '$(CXX)'),
     'LINK.target': GetEnvironFallback(('LINK_target', 'LINK'), '$(LINK)'),
-    'CC.host':     GetEnvironFallback(('CC_host', 'CC'), 'gcc'),
-    'AR.host':     GetEnvironFallback(('AR_host', 'AR'), 'ar'),
-    'CXX.host':    GetEnvironFallback(('CXX_host', 'CXX'), 'g++'),
-    'LINK.host':   GetEnvironFallback(('LINK_host', 'LINK'), '$(CXX.host)'),
+    'CC.host':     GetEnvironFallback(('CC_host',), 'gcc'),
+    'AR.host':     GetEnvironFallback(('AR_host',), 'ar'),
+    'CXX.host':    GetEnvironFallback(('CXX_host',), 'g++'),
+    'LINK.host':   GetEnvironFallback(('LINK_host',), '$(CXX.host)'),
   })
 
   build_file, _, _ = gyp.common.ParseQualifiedTarget(target_list[0])

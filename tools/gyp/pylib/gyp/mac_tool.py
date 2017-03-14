@@ -17,6 +17,7 @@ import plistlib
 import re
 import shutil
 import string
+import struct
 import subprocess
 import sys
 import tempfile
@@ -48,6 +49,7 @@ class MacTool(object):
   def ExecCopyBundleResource(self, source, dest, convert_to_binary):
     """Copies a resource file to the bundle/Resources directory, performing any
     necessary compilation on each resource."""
+    convert_to_binary = convert_to_binary == 'True'
     extension = os.path.splitext(source)[1].lower()
     if os.path.isdir(source):
       # Copy tree.
@@ -61,10 +63,15 @@ class MacTool(object):
       return self._CopyXIBFile(source, dest)
     elif extension == '.storyboard':
       return self._CopyXIBFile(source, dest)
-    elif extension == '.strings':
-      self._CopyStringsFile(source, dest, convert_to_binary)
+    elif extension == '.strings' and not convert_to_binary:
+      self._CopyStringsFile(source, dest)
     else:
+      if os.path.exists(dest):
+        os.unlink(dest)
       shutil.copy(source, dest)
+
+    if convert_to_binary and extension in ('.plist', '.strings'):
+      self._ConvertToBinary(dest)
 
   def _CopyXIBFile(self, source, dest):
     """Compiles a XIB file with ibtool into a binary plist in the bundle."""
@@ -76,8 +83,26 @@ class MacTool(object):
     if os.path.relpath(dest):
       dest = os.path.join(base, dest)
 
-    args = ['xcrun', 'ibtool', '--errors', '--warnings', '--notices',
-        '--output-format', 'human-readable-text', '--compile', dest, source]
+    args = ['xcrun', 'ibtool', '--errors', '--warnings', '--notices']
+
+    if os.environ['XCODE_VERSION_ACTUAL'] > '0700':
+      args.extend(['--auto-activate-custom-fonts'])
+      if 'IPHONEOS_DEPLOYMENT_TARGET' in os.environ:
+        args.extend([
+            '--target-device', 'iphone', '--target-device', 'ipad',
+            '--minimum-deployment-target',
+            os.environ['IPHONEOS_DEPLOYMENT_TARGET'],
+        ])
+      else:
+        args.extend([
+            '--target-device', 'mac',
+            '--minimum-deployment-target',
+            os.environ['MACOSX_DEPLOYMENT_TARGET'],
+        ])
+
+    args.extend(['--output-format', 'human-readable-text', '--compile', dest,
+        source])
+
     ibtool_section_re = re.compile(r'/\*.*\*/')
     ibtool_re = re.compile(r'.*note:.*is clipping its content')
     ibtoolout = subprocess.Popen(args, stdout=subprocess.PIPE)
@@ -96,7 +121,7 @@ class MacTool(object):
     subprocess.check_call([
         'xcrun', 'plutil', '-convert', 'binary1', '-o', dest, dest])
 
-  def _CopyStringsFile(self, source, dest, convert_to_binary):
+  def _CopyStringsFile(self, source, dest):
     """Copies a .strings file using iconv to reconvert the input into UTF-16."""
     input_code = self._DetectInputEncoding(source) or "UTF-8"
 
@@ -116,16 +141,13 @@ class MacTool(object):
     fp.write(s.decode(input_code).encode('UTF-16'))
     fp.close()
 
-    if convert_to_binary == 'True':
-      self._ConvertToBinary(dest)
-
   def _DetectInputEncoding(self, file_name):
     """Reads the first few bytes from file_name and tries to guess the text
     encoding. Returns None as a guess if it can't detect it."""
     fp = open(file_name, 'rb')
     try:
       header = fp.read(3)
-    except e:
+    except:
       fp.close()
       return None
     fp.close()
@@ -153,7 +175,7 @@ class MacTool(object):
 
     # Go through all the environment variables and replace them as variables in
     # the file.
-    IDENT_RE = re.compile(r'[/\s]')
+    IDENT_RE = re.compile(r'[_/\s]')
     for key in os.environ:
       if key.startswith('_'):
         continue
@@ -228,7 +250,8 @@ class MacTool(object):
   def ExecFilterLibtool(self, *cmd_list):
     """Calls libtool and filters out '/path/to/libtool: file: foo.o has no
     symbols'."""
-    libtool_re = re.compile(r'^.*libtool: file: .* has no symbols$')
+    libtool_re = re.compile(r'^.*libtool: (?:for architecture: \S* )?'
+                            r'file: .* has no symbols$')
     libtool_re5 = re.compile(
         r'^.*libtool: warning for library: ' +
         r'.* the table of contents is empty ' +
@@ -252,6 +275,23 @@ class MacTool(object):
           os.utime(cmd_list[i+1], None)
           break
     return libtoolout.returncode
+
+  def ExecPackageIosFramework(self, framework):
+    # Find the name of the binary based on the part before the ".framework".
+    binary = os.path.basename(framework).split('.')[0]
+    module_path = os.path.join(framework, 'Modules');
+    if not os.path.exists(module_path):
+      os.mkdir(module_path)
+    module_template = 'framework module %s {\n' \
+                      '  umbrella header "%s.h"\n' \
+                      '\n' \
+                      '  export *\n' \
+                      '  module * { export * }\n' \
+                      '}\n' % (binary, binary)
+
+    module_file = open(os.path.join(module_path, 'module.modulemap'), "w")
+    module_file.write(module_template)
+    module_file.close()
 
   def ExecPackageFramework(self, framework, version):
     """Takes a path to Something.framework and the Current version of that and
@@ -288,6 +328,23 @@ class MacTool(object):
     if os.path.lexists(link):
       os.remove(link)
     os.symlink(dest, link)
+
+  def ExecCompileIosFrameworkHeaderMap(self, out, framework, *all_headers):
+    framework_name = os.path.basename(framework).split('.')[0]
+    all_headers = map(os.path.abspath, all_headers)
+    filelist = {}
+    for header in all_headers:
+      filename = os.path.basename(header)
+      filelist[filename] = header
+      filelist[os.path.join(framework_name, filename)] = header
+    WriteHmap(out, filelist)
+
+  def ExecCopyIosFrameworkHeaders(self, framework, *copy_headers):
+    header_path = os.path.join(framework, 'Headers');
+    if not os.path.exists(header_path):
+      os.makedirs(header_path)
+    for header in copy_headers:
+      shutil.copy(header, os.path.join(header_path, os.path.basename(header)))
 
   def ExecCompileXcassets(self, keys, *inputs):
     """Compiles multiple .xcassets files into a single .car file.
@@ -349,49 +406,28 @@ class MacTool(object):
       self._MergePlist(merged_plist, plist)
     plistlib.writePlist(merged_plist, output)
 
-  def ExecCodeSignBundle(self, key, resource_rules, entitlements, provisioning):
+  def ExecCodeSignBundle(self, key, entitlements, provisioning, path, preserve):
     """Code sign a bundle.
 
     This function tries to code sign an iOS bundle, following the same
     algorithm as Xcode:
-      1. copy ResourceRules.plist from the user or the SDK into the bundle,
-      2. pick the provisioning profile that best match the bundle identifier,
+      1. pick the provisioning profile that best match the bundle identifier,
          and copy it into the bundle as embedded.mobileprovision,
-      3. copy Entitlements.plist from user or SDK next to the bundle,
-      4. code sign the bundle.
+      2. copy Entitlements.plist from user or SDK next to the bundle,
+      3. code sign the bundle.
     """
-    resource_rules_path = self._InstallResourceRules(resource_rules)
     substitutions, overrides = self._InstallProvisioningProfile(
         provisioning, self._GetCFBundleIdentifier())
     entitlements_path = self._InstallEntitlements(
         entitlements, substitutions, overrides)
-    subprocess.check_call([
-        'codesign', '--force', '--sign', key, '--resource-rules',
-        resource_rules_path, '--entitlements', entitlements_path,
-        os.path.join(
-            os.environ['TARGET_BUILD_DIR'],
-            os.environ['FULL_PRODUCT_NAME'])])
 
-  def _InstallResourceRules(self, resource_rules):
-    """Installs ResourceRules.plist from user or SDK into the bundle.
-
-    Args:
-      resource_rules: string, optional, path to the ResourceRules.plist file
-        to use, default to "${SDKROOT}/ResourceRules.plist"
-
-    Returns:
-      Path to the copy of ResourceRules.plist into the bundle.
-    """
-    source_path = resource_rules
-    target_path = os.path.join(
-        os.environ['BUILT_PRODUCTS_DIR'],
-        os.environ['CONTENTS_FOLDER_PATH'],
-        'ResourceRules.plist')
-    if not source_path:
-      source_path = os.path.join(
-          os.environ['SDKROOT'], 'ResourceRules.plist')
-    shutil.copy2(source_path, target_path)
-    return target_path
+    args = ['codesign', '--force', '--sign', key]
+    if preserve == 'True':
+      args.extend(['--deep', '--preserve-metadata=identifier,entitlements'])
+    else:
+      args.extend(['--entitlements', entitlements_path])
+    args.extend(['--timestamp=none', path])
+    subprocess.check_call(args)
 
   def _InstallProvisioningProfile(self, profile, bundle_identifier):
     """Installs embedded.mobileprovision into the bundle.
@@ -605,6 +641,72 @@ class MacTool(object):
     if isinstance(data, dict):
       return {k: self._ExpandVariables(data[k], substitutions) for k in data}
     return data
+
+def NextGreaterPowerOf2(x):
+  return 2**(x).bit_length()
+
+def WriteHmap(output_name, filelist):
+  """Generates a header map based on |filelist|.
+
+  Per Mark Mentovai:
+    A header map is structured essentially as a hash table, keyed by names used
+    in #includes, and providing pathnames to the actual files.
+
+  The implementation below and the comment above comes from inspecting:
+    http://www.opensource.apple.com/source/distcc/distcc-2503/distcc_dist/include_server/headermap.py?txt
+  while also looking at the implementation in clang in:
+    https://llvm.org/svn/llvm-project/cfe/trunk/lib/Lex/HeaderMap.cpp
+  """
+  magic = 1751998832
+  version = 1
+  _reserved = 0
+  count = len(filelist)
+  capacity = NextGreaterPowerOf2(count)
+  strings_offset = 24 + (12 * capacity)
+  max_value_length = len(max(filelist.items(), key=lambda (k,v):len(v))[1])
+
+  out = open(output_name, "wb")
+  out.write(struct.pack('<LHHLLLL', magic, version, _reserved, strings_offset,
+                        count, capacity, max_value_length))
+
+  # Create empty hashmap buckets.
+  buckets = [None] * capacity
+  for file, path in filelist.items():
+    key = 0
+    for c in file:
+      key += ord(c.lower()) * 13
+
+    # Fill next empty bucket.
+    while buckets[key & capacity - 1] is not None:
+      key = key + 1
+    buckets[key & capacity - 1] = (file, path)
+
+  next_offset = 1
+  for bucket in buckets:
+    if bucket is None:
+      out.write(struct.pack('<LLL', 0, 0, 0))
+    else:
+      (file, path) = bucket
+      key_offset = next_offset
+      prefix_offset = key_offset + len(file) + 1
+      suffix_offset = prefix_offset + len(os.path.dirname(path) + os.sep) + 1
+      next_offset = suffix_offset + len(os.path.basename(path)) + 1
+      out.write(struct.pack('<LLL', key_offset, prefix_offset, suffix_offset))
+
+  # Pad byte since next offset starts at 1.
+  out.write(struct.pack('<x'))
+
+  for bucket in buckets:
+    if bucket is not None:
+      (file, path) = bucket
+      out.write(struct.pack('<%ds' % len(file), file))
+      out.write(struct.pack('<s', '\0'))
+      base = os.path.dirname(path) + os.sep
+      out.write(struct.pack('<%ds' % len(base), base))
+      out.write(struct.pack('<s', '\0'))
+      path = os.path.basename(path)
+      out.write(struct.pack('<%ds' % len(path), path))
+      out.write(struct.pack('<s', '\0'))
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv[1:]))
