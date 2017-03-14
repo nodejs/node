@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td>
+<a href="#7.7.3">7.7.3</a><br/>
 <a href="#7.7.2">7.7.2</a><br/>
 <a href="#7.7.1">7.7.1</a><br/>
 <a href="#7.7.0">7.7.0</a><br/>
@@ -29,6 +30,45 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="7.7.3"></a>
+## 2017-03-14, Version 7.7.3 (Current), @italoacasas
+
+### Notable changes
+
+* **module**: The [module loading global fallback](https://nodejs.org/dist/latest-v6.x/docs/api/modules.html#modules_loading_from_the_global_folders) to the Node executable's directory now works correctly on Windows. (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
+* **net**: `Socket.prototype.connect` now once again functions without a callback. (Juwan Yoo) [#11762](https://github.com/nodejs/node/pull/11762)
+* **url**: `URL.prototype.origin` now properly specified an opaque return of `'null'` for `file://` URLs. (Brian White) [#11691](https://github.com/nodejs/node/pull/11691)
+
+### Commits
+
+* [[`542a3735a7`](https://github.com/nodejs/node/commit/542a3735a7)] - **build**: add node_use_openssl check to install.py (Daniel Bevenius) [#11766](https://github.com/nodejs/node/pull/11766)
+* [[`2fcefeeda0`](https://github.com/nodejs/node/commit/2fcefeeda0)] - **dgram**: refactor dgram to module.exports (Claudio Rodriguez) [#11696](https://github.com/nodejs/node/pull/11696)
+* [[`dd3e6adaa7`](https://github.com/nodejs/node/commit/dd3e6adaa7)] - **doc**: add missing changelog heading for 7.7.2 (Evan Lucas) [#11823](https://github.com/nodejs/node/pull/11823)
+* [[`b543fd441c`](https://github.com/nodejs/node/commit/b543fd441c)] - **doc**: update to current V8 versions (Franziska Hinkelmann) [#11787](https://github.com/nodejs/node/pull/11787)
+* [[`6cc7b30c62`](https://github.com/nodejs/node/commit/6cc7b30c62)] - **doc**: improve child_process `maxBuffer` text (Rich Trott) [#11791](https://github.com/nodejs/node/pull/11791)
+* [[`188cbc6eea`](https://github.com/nodejs/node/commit/188cbc6eea)] - **doc**: package main can be directory with an index (Bradley Farias) [#11581](https://github.com/nodejs/node/pull/11581)
+* [[`a20aa0ee48`](https://github.com/nodejs/node/commit/a20aa0ee48)] - **doc**: http cleanup and missing argument types (Amelia Clarke) [#11681](https://github.com/nodejs/node/pull/11681)
+* [[`8a1b2b4417`](https://github.com/nodejs/node/commit/8a1b2b4417)] - **doc**: reduce font size on smaller screens (Gibson Fahnestock) [#11695](https://github.com/nodejs/node/pull/11695)
+* [[`5bea8b42d9`](https://github.com/nodejs/node/commit/5bea8b42d9)] - **doc**: fix occurences of "the the" (Jeroen Mandersloot) [#11711](https://github.com/nodejs/node/pull/11711)
+* [[`517c3af21a`](https://github.com/nodejs/node/commit/517c3af21a)] - **doc**: fix process links to console.log/error (Sam Roberts) [#11718](https://github.com/nodejs/node/pull/11718)
+* [[`108449b6ff`](https://github.com/nodejs/node/commit/108449b6ff)] - **doc**: add Franziska Hinkelmann to the CTC (Rod Vagg) [#11488](https://github.com/nodejs/node/pull/11488)
+* [[`9c3cf13cbc`](https://github.com/nodejs/node/commit/9c3cf13cbc)] - **doc**: argument types for https methods (Amelia Clarke) [#11681](https://github.com/nodejs/node/pull/11681)
+* [[`103458772a`](https://github.com/nodejs/node/commit/103458772a)] - **module**: fix loading from global folders on Windows (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
+* [[`1dff218cd1`](https://github.com/nodejs/node/commit/1dff218cd1)] - **net**: allow missing callback for Socket.connect (Juwan Yoo) [#11762](https://github.com/nodejs/node/pull/11762)
+* [[`52f0092f54`](https://github.com/nodejs/node/commit/52f0092f54)] - **s390**: enable march=z196 (Junliang Yan) [#11730](https://github.com/nodejs/node/pull/11730)
+* [[`032becdc28`](https://github.com/nodejs/node/commit/032becdc28)] - **src**: add missing #include \<unicode/ustring.h\> (Steven R. Loomis) [#11754](https://github.com/nodejs/node/issues/11754)
+* [[`1da2afcc26`](https://github.com/nodejs/node/commit/1da2afcc26)] - **src**: drop the NODE_ISOLATE_SLOT macro (Anna Henningsen) [#11692](https://github.com/nodejs/node/pull/11692)
+* [[`734ddbe77b`](https://github.com/nodejs/node/commit/734ddbe77b)] - **test**: fix flaky test-http-set-timeout-server (Santiago Gimeno) [#11790](https://github.com/nodejs/node/pull/11790)
+* [[`aaf8536dbc`](https://github.com/nodejs/node/commit/aaf8536dbc)] - **test**: add test for loading from global folders (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
+* [[`c01c7a490a`](https://github.com/nodejs/node/commit/c01c7a490a)] - **test**: add script to create 0-dns-cert.pem (Shigeki Ohtsu) [#11579](https://github.com/nodejs/node/pull/11579)
+* [[`4477e15217`](https://github.com/nodejs/node/commit/4477e15217)] - **test**: add regex in test_cyclic_link_protection (Clarence Dimitri CHARLES) [#11622](https://github.com/nodejs/node/pull/11622)
+* [[`3d55cf06b1`](https://github.com/nodejs/node/commit/3d55cf06b1)] - **test**: add more WHATWG URL origin tests (Brian White) [#11691](https://github.com/nodejs/node/pull/11691)
+* [[`a98d963082`](https://github.com/nodejs/node/commit/a98d963082)] - **test**: increase coverage of console (DavidCai) [#11653](https://github.com/nodejs/node/pull/11653)
+* [[`1af0fa4b84`](https://github.com/nodejs/node/commit/1af0fa4b84)] - **test**: test buffer behavior when zeroFill undefined (Rich Trott) [#11706](https://github.com/nodejs/node/pull/11706)
+* [[`1e52ba3b3d`](https://github.com/nodejs/node/commit/1e52ba3b3d)] - **test**: limit lint rule disabling in message test (Rich Trott) [#11724](https://github.com/nodejs/node/pull/11724)
+* [[`5e7baa5a72`](https://github.com/nodejs/node/commit/5e7baa5a72)] - **tools**: add links to the stability index reference (Michael Cox) [#11664](https://github.com/nodejs/node/pull/11664)
+* [[`c5874d1bd4`](https://github.com/nodejs/node/commit/c5874d1bd4)] - **url**: remove invalid file protocol check (Brian White) [#11691](https://github.com/nodejs/node/pull/11691)
 
 <a id="7.7.2"></a>
 ## 2017-03-08, Version 7.7.2 (Current), @evanlucas
