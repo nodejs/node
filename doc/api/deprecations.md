@@ -582,6 +582,14 @@ deprecated.
 *Note*: `OutgoingMessage.prototype._renderHeaders` was never documented as
 an officially supported API.
 
+<a id="DEP0068"></a>
+### DEP0068: node debug
+
+Type: Runtime
+
+`node debug` corresponds to the legacy CLI debugger which has been replaced with
+a V8-inspector based CLI debugger available through `node inspect`.
+
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size

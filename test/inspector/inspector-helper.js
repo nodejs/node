@@ -461,7 +461,7 @@ exports.startNodeForInspectorTest = function(callback,
     clearTimeout(timeoutId);
     console.log('[err]', text);
     if (found) return;
-    const match = text.match(/Debugger listening on port (\d+)/);
+    const match = text.match(/Debugger listening on .*:(\d+)/);
     found = true;
     child.stderr.removeListener('data', dataCallback);
     assert.ok(match, text);
