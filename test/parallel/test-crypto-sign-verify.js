@@ -116,7 +116,7 @@ const keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
         key: keyPem,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
       });
-  }, /^Error: padding must be RSA_PKCS1_PADDING or RSA_PKCS1_PSS_PADDING$/);
+  }, /^Error:.*illegal or unsupported padding mode$/);
 }
 
 // Test throws exception when key options is null

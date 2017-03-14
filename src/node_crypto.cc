@@ -3975,45 +3975,6 @@ void SignBase::CheckThrow(SignBase::Error error) {
   }
 }
 
-bool SignBase::GetRSAOptions(Environment* env, v8::Local<v8::Object> options,
-                            int* padding, int* salt_len) {
-  MaybeLocal<Value> maybe_padding = options->Get(env->context(),
-                                                 env->padding_string());
-  if (maybe_padding.IsEmpty()) return false;
-
-  Local<Value> padding_value = maybe_padding.ToLocalChecked();
-  if (padding_value->IsInt32()) {
-    Maybe<int32_t> maybe_padding = padding_value->Int32Value(env->context());
-    if (maybe_padding.IsNothing()) return false;
-
-    *padding = maybe_padding.ToChecked();
-    switch (*padding) {
-      case RSA_PKCS1_PADDING:
-      case RSA_PKCS1_PSS_PADDING:
-        break;
-      default:
-        env->ThrowError("padding must be RSA_PKCS1_PADDING or "
-                        "RSA_PKCS1_PSS_PADDING");
-        return false;
-    }
-  }
-
-  if (*padding == RSA_PKCS1_PSS_PADDING) {
-    MaybeLocal<Value> maybe_saltlen = options->Get(env->context(),
-                                                   env->salt_length_string());
-    if (maybe_saltlen.IsEmpty()) return 0;
-
-    Local<Value> saltlen_value = maybe_saltlen.ToLocalChecked();
-    if (saltlen_value->IsInt32()) {
-      Maybe<int32_t> maybe_salt_len = saltlen_value->Int32Value(env->context());
-      if (maybe_salt_len.IsNothing()) return false;
-      *salt_len = maybe_salt_len.ToChecked();
-    }
-  }
-
-  return true;
-}
-
 static bool ApplyRSAOptions(EVP_PKEY* pkey, EVP_PKEY_CTX* pkctx, int padding,
                             int salt_len) {
   if (pkey->type == EVP_PKEY_RSA || pkey->type == EVP_PKEY_RSA2) {
@@ -4249,13 +4210,15 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   size_t buf_len = Buffer::Length(args[0]);
   char* buf = Buffer::Data(args[0]);
 
-  int padding = RSA_PKCS1_PADDING;
-  int salt_len = RSA_PSS_SALTLEN_MAX_SIGN;
-  if (args[3]->IsObject()) {
-    Local<Object> options = args[3].As<Object>();
-    if (!sign->GetRSAOptions(env, options, &padding, &salt_len))
-      return;
-  }
+  CHECK(args[3]->IsInt32());
+  Maybe<int32_t> maybe_padding = args[3]->Int32Value(env->context());
+  CHECK(maybe_padding.IsJust());
+  int padding = maybe_padding.ToChecked();
+
+  CHECK(args[4]->IsInt32());
+  Maybe<int32_t> maybe_salt_len = args[4]->Int32Value(env->context());
+  CHECK(maybe_salt_len.IsJust());
+  int salt_len = maybe_salt_len.ToChecked();
 
   md_len = 8192;  // Maximum key size is 8192 bits
   md_value = new unsigned char[md_len];
@@ -4508,13 +4471,15 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
     hbuf = Buffer::Data(args[1]);
   }
 
-  int padding = RSA_PKCS1_PADDING;
-  int salt_len = RSA_PSS_SALTLEN_AUTO;
-  if (args.Length() >= 4 && args[3]->IsObject()) {
-    Local<Object> options = args[3].As<Object>();
-    if (!verify->GetRSAOptions(env, options, &padding, &salt_len))
-      return;
-  }
+  CHECK(args[3]->IsInt32());
+  Maybe<int32_t> maybe_padding = args[3]->Int32Value(env->context());
+  CHECK(maybe_padding.IsJust());
+  int padding = maybe_padding.ToChecked();
+
+  CHECK(args[4]->IsInt32());
+  Maybe<int32_t> maybe_salt_len = args[4]->Int32Value(env->context());
+  CHECK(maybe_salt_len.IsJust());
+  int salt_len = maybe_salt_len.ToChecked();
 
   bool verify_result;
   Error err = verify->VerifyFinal(kbuf, klen, hbuf, hlen, padding, salt_len,
