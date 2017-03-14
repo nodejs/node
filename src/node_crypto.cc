@@ -4014,7 +4014,8 @@ bool SignBase::GetRSAOptions(Environment* env, v8::Local<v8::Object> options,
   return true;
 }
 
-static bool ApplyRSAOptions(EVP_PKEY* pkey, EVP_PKEY_CTX* pkctx, int padding, int salt_len) {
+static bool ApplyRSAOptions(EVP_PKEY* pkey, EVP_PKEY_CTX* pkctx, int padding,
+                            int salt_len) {
   if (pkey->type == EVP_PKEY_RSA || pkey->type == EVP_PKEY_RSA2) {
     if (EVP_PKEY_CTX_set_rsa_padding(pkctx, padding) <= 0)
       return false;
