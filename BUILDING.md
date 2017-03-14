@@ -78,7 +78,7 @@ Depending on host platform, the selection of toolchains may vary.
 
 Prerequisites:
 
-* `gcc` and `g++` 4.8 or newer, or
+* `gcc` and `g++` 4.8.5 or newer, or
 * `clang` and `clang++` 3.4 or newer
 * Python 2.6 or 2.7
 * GNU Make 3.81 or newer
