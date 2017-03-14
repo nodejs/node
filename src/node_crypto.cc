@@ -4014,6 +4014,19 @@ bool SignBase::GetRSAOptions(Environment* env, v8::Local<v8::Object> options,
   return true;
 }
 
+static bool ApplyRSAOptions(EVP_PKEY* pkey, EVP_PKEY_CTX* pkctx, int padding, int salt_len) {
+  if (pkey->type == EVP_PKEY_RSA || pkey->type == EVP_PKEY_RSA2) {
+    if (EVP_PKEY_CTX_set_rsa_padding(pkctx, padding) <= 0)
+      return false;
+    if (padding == RSA_PKCS1_PSS_PADDING) {
+      if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkctx, salt_len) <= 0)
+        return false;
+    }
+  }
+
+  return true;
+}
+
 
 
 void Sign::Initialize(Environment* env, v8::Local<v8::Object> target) {
@@ -4118,14 +4131,8 @@ static int Node_SignFinal(EVP_MD_CTX* mdctx, unsigned char* md,
       goto err;
     if (EVP_PKEY_sign_init(pkctx) <= 0)
       goto err;
-    if (pkey->type == EVP_PKEY_RSA || pkey->type == EVP_PKEY_RSA2) {
-      if (EVP_PKEY_CTX_set_rsa_padding(pkctx, padding) <= 0)
-        goto err;
-      if (padding == RSA_PKCS1_PSS_PADDING) {
-        if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkctx, pss_salt_len) <= 0)
-          goto err;
-      }
-    }
+    if (!ApplyRSAOptions(pkey, pkctx, padding, pss_salt_len))
+      goto err;
     if (EVP_PKEY_CTX_set_signature_md(pkctx, mdctx->digest) <= 0)
       goto err;
     if (EVP_PKEY_sign(pkctx, md, &sltmp, m, m_len) <= 0)
@@ -4432,14 +4439,8 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
     goto err;
   if (EVP_PKEY_verify_init(pkctx) <= 0)
     goto err;
-  if (pkey->type == EVP_PKEY_RSA || pkey->type == EVP_PKEY_RSA2) {
-    if (EVP_PKEY_CTX_set_rsa_padding(pkctx, padding) <= 0)
-      goto err;
-    if (padding == RSA_PKCS1_PSS_PADDING) {
-      if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkctx, saltlen) <= 0)
-        goto err;
-    }
-  }
+  if (!ApplyRSAOptions(pkey, pkctx, padding, saltlen))
+    goto err;
   if (EVP_PKEY_CTX_set_signature_md(pkctx, mdctx_.digest) <= 0)
     goto err;
   r = EVP_PKEY_verify(pkctx,
