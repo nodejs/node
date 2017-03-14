@@ -755,6 +755,10 @@ in `list`. This however causes an additional loop to be executed in order to
 calculate the `totalLength`, so it is faster to provide the length explicitly if
 it is already known.
 
+If `totalLength` is provided, it is coerced to an unsigned integer. If the
+combined length of the `Buffer`s in `list` exceeds `totalLength`, the result is
+truncated to `totalLength`.
+
 Example: Create a single `Buffer` from a list of three `Buffer` instances
 
 ```js
