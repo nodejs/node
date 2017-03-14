@@ -13,7 +13,7 @@ file a new issue.
 
 Prerequisites:
 
-* `gcc` and `g++` 4.8.5 or newer
+* `gcc` and `g++` 4.8.5 or newer, or
 * `clang` and `clang++` 3.4 or newer
 * Python 2.6 or 2.7
 * GNU Make 3.81 or newer
