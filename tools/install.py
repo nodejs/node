@@ -166,10 +166,26 @@ def headers(action):
     subdir_files('deps/uv/include', 'include/node/', action)
 
   if 'true' == variables.get('node_use_openssl') and \
-     'false' == variables.get('node_shared_openssl'):
+     'false' == variables.get('node_shared_openssl') and \
+     'false' == variables.get('use_openssl110'):
     subdir_files('deps/openssl/openssl/include/openssl', 'include/node/openssl/', action)
     subdir_files('deps/openssl/config/archs', 'include/node/openssl/archs', action)
     action(['deps/openssl/config/opensslconf.h'], 'include/node/openssl/')
+
+  if 'true' == variables.get('node_use_openssl') and \
+     'false' == variables.get('node_shared_openssl') and \
+     'true' == variables.get('use_openssl110'):
+    subdir_files('deps/openssl110/openssl/include/openssl', 'include/node/openssl/', action)
+    subdir_files('deps/openssl110/config/archs', 'include/node/openssl/archs', action)
+    action(['deps/openssl110/config/opensslconf.h'], 'include/node/openssl/')
+    action(['deps/openssl110/config/opensslconf_asm.h'], 'include/node/openssl/')
+    action(['deps/openssl110/config/opensslconf_no-asm.h'], 'include/node/openssl/')
+    action(['deps/openssl110/config/bn_conf.h'], 'include/node/openssl/')
+    action(['deps/openssl110/config/bn_conf_asm.h'], 'include/node/openssl/')
+    action(['deps/openssl110/config/bn_conf_no-asm.h'], 'include/node/openssl/')
+    action(['deps/openssl110/config/dso_conf.h'], 'include/node/openssl/')
+    action(['deps/openssl110/config/dso_conf_asm.h'], 'include/node/openssl/')
+    action(['deps/openssl110/config/dso_conf_no-asm.h'], 'include/node/openssl/')
 
   if 'false' == variables.get('node_shared_zlib'):
     action([
