@@ -623,8 +623,9 @@ assert.doesNotThrow(function() {
                      '{ a: 123, inspect: [Function: inspect] }');
 
   const subject = { a: 123, [util.inspect.custom]() { return this; } };
+  const UIC = 'util.inspect.custom';
   assert.strictEqual(util.inspect(subject),
-                     '{ a: 123 }');
+                     `{ a: 123,\n  [Symbol(${UIC})]: [Function: [${UIC}]] }`);
 }
 
 // util.inspect with "colors" option should produce as many lines as without it
@@ -694,18 +695,27 @@ if (typeof Symbol !== 'undefined') {
 
   subject[Symbol('symbol')] = 42;
 
-  assert.strictEqual(util.inspect(subject), '{}');
+  assert.strictEqual(util.inspect(subject), '{ [Symbol(symbol)]: 42 }');
   assert.strictEqual(
     util.inspect(subject, options),
     '{ [Symbol(symbol)]: 42 }'
   );
 
+  Object.defineProperty(
+    subject,
+    Symbol(),
+    {enumerable: false, value: 'non-enum'});
+  assert.strictEqual(util.inspect(subject), '{ [Symbol(symbol)]: 42 }');
+  assert.strictEqual(
+    util.inspect(subject, options),
+    '{ [Symbol(symbol)]: 42, [Symbol()]: \'non-enum\' }'
+  );
+
   subject = [1, 2, 3];
   subject[Symbol('symbol')] = 42;
 
-  assert.strictEqual(util.inspect(subject), '[ 1, 2, 3 ]');
-  assert.strictEqual(util.inspect(subject, options),
-                     '[ 1, 2, 3, [length]: 3, [Symbol(symbol)]: 42 ]');
+  assert.strictEqual(util.inspect(subject),
+                     '[ 1, 2, 3, [Symbol(symbol)]: 42 ]');
 }
 
 // test Set
