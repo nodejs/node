@@ -23,10 +23,6 @@
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
-const TCP = process.binding('tcp_wrap').TCP;
-const Pipe = process.binding('pipe_wrap').Pipe;
-
-common.refreshTmpDir();
 
 function testClients(getSocketOpt, getConnectOpt, getConnectCb) {
   const cloneOptions = (index) =>
@@ -120,107 +116,6 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
         clientReceivedFIN++;
         console.error(`No. ${index} connection has been closed by both ` +
                       `sides, ${clientReceivedFIN} clients have closed`);
-      }));
-    });
-
-    testClients(getSocketOpt, getConnectOpt, getConnectCb);
-  }));
-}
-
-// Test TCP fd is wrapped correctly
-if (!common.isWindows) {  // Doesn't support this on windows
-  let counter = 0;
-  const server = net.createServer()
-  .on('connection', forAllClients(function serverOnConnection(socket) {
-    socket.end('ok');
-    socket.on('end', common.mustCall(function() {
-      counter++;
-      if (counter === CLIENT_VARIANTS) {
-        setTimeout(() => {
-          server.close();
-        }, 50);
-      }
-    }, 1));
-  }))
-  .listen(0, 'localhost', common.mustCall(function serverOnListen() {
-    const handleMap = new Map();
-    const getSocketOpt = (index) => {
-      const handle = new TCP();
-      const address = server.address().address;
-      let err = 0;
-      if (net.isIPv6(address)) {
-        err = handle.bind6(address, 0);
-      } else {
-        err = handle.bind(address, 0);
-      }
-
-      assert(err >= 0, '' + err);
-      assert.notStrictEqual(handle.fd, -1);
-      handleMap.set(index, handle);
-      return { fd: handle.fd };
-    };
-
-    const getConnectOpt = () => ({
-      host: 'localhost',
-      port: server.address().port,
-    });
-
-    const getConnectCb = (index) => common.mustCall(function clientOnConnect() {
-      const client = this;
-      // Test if it's wrapping an existing fd
-      assert(handleMap.has(index));
-      const oldHandle = handleMap.get(index);
-      assert.strictEqual(oldHandle.fd, this._handle.fd);
-      client.end();
-      client.on('close', common.mustCall(function() {
-        oldHandle.close();
-      }));
-    });
-
-    testClients(getSocketOpt, getConnectOpt, getConnectCb);
-  }));
-}
-
-// Test Pipe fd is wrapped correctly
-if (!common.isWindows) {  // Doesn't support this on windows
-  const prefix = `${common.PIPE}-net-connect-options-fd`;
-  const serverPath = `${prefix}-server`;
-  let counter = 0;
-  let socketCounter = 0;
-  const server = net.createServer()
-  .on('connection', forAllClients(function serverOnConnection(socket) {
-    socket.end('ok');
-    socket.on('end', common.mustCall(function() {
-      counter++;
-      if (counter === CLIENT_VARIANTS) {
-        setTimeout(() => {
-          server.close();
-        }, 50);
-      }
-    }, 1));
-  }))
-  .listen({path: serverPath}, common.mustCall(function serverOnListen() {
-    const handleMap = new Map();
-    const getSocketOpt = (index) => {
-      const handle = new Pipe();
-      const err = handle.bind(`${prefix}-client-${socketCounter++}`);
-      assert(err >= 0, '' + err);
-      assert.notStrictEqual(handle.fd, -1);
-      handleMap.set(index, handle);
-      return { fd: handle.fd };
-    };
-    const getConnectOpt = () => ({
-      path: serverPath
-    });
-    const getConnectCb = (index) => common.mustCall(function clientOnConnect() {
-      const client = this;
-      // Test if it's wrapping an existing fd
-      assert(handleMap.has(index));
-      const oldHandle = handleMap.get(index);
-      assert.strictEqual(oldHandle.fd, this._handle.fd);
-      client.end();
-      client.on('close', common.mustCall(function clientOnClose() {
-        oldHandle.close();
       }));
     });
 
