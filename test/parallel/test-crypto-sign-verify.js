@@ -76,10 +76,10 @@ const modSize = 1024;
 {
   function testPSS(algo, hLen) {
     // Maximum permissible salt length
-    let max = modSize / 8 - hLen - 2;
+    const max = modSize / 8 - hLen - 2;
 
     function getEffectiveSaltLength(saltLength) {
-      switch(saltLength) {
+      switch (saltLength) {
         case crypto.constants.RSA_PSS_SALTLEN_DIGEST:
           return hLen;
         case crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN:
@@ -89,7 +89,7 @@ const modSize = 1024;
       }
     }
 
-    let signSaltLengths = [
+    const signSaltLengths = [
       crypto.constants.RSA_PSS_SALTLEN_DIGEST,
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
       crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN,
@@ -97,7 +97,7 @@ const modSize = 1024;
       0, 16, 32, 64, 128
     ];
 
-    let verifySaltLengths = [
+    const verifySaltLengths = [
       crypto.constants.RSA_PSS_SALTLEN_DIGEST,
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
       getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
@@ -105,16 +105,16 @@ const modSize = 1024;
     ];
 
     signSaltLengths.forEach((signSaltLength) => {
-      if(signSaltLength > max) {
+      if (signSaltLength > max) {
         // If the salt length is too big, an Error should be thrown
         assert.throws(() => {
           crypto.createSign(algo)
-                .update('Test123')
-                .sign({
-                  key: keyPem,
-                  padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                  saltLength: signSaltLength
-                });
+            .update('Test123')
+            .sign({
+              key: keyPem,
+              padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+              saltLength: signSaltLength
+            });
         }, /^Error:.*data too large for key size$/);
       } else {
         // Otherwise, a valid signature should be generated
@@ -137,8 +137,8 @@ const modSize = 1024;
                              padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
                              saltLength: verifySaltLength
                            }, s4);
-          let saltLengthCorrect = getEffectiveSaltLength(signSaltLength) ==
-                                  getEffectiveSaltLength(verifySaltLength);
+          const saltLengthCorrect = getEffectiveSaltLength(signSaltLength) ==
+                                    getEffectiveSaltLength(verifySaltLength);
           assert.strictEqual(verified, saltLengthCorrect, 'verify (PSS)');
         });
 
@@ -171,7 +171,7 @@ const modSize = 1024;
 
 // Test exceptions for invalid `padding` and `saltLength` values
 {
-  [null, undefined, NaN, "boom", {}, []].forEach((invalidValue) => {
+  [null, undefined, NaN, 'boom', {}, []].forEach((invalidValue) => {
     assert.throws(() => {
       crypto.createSign('RSA-SHA256')
         .update('Test123')
