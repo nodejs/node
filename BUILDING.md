@@ -111,6 +111,9 @@ Prerequisites:
   * [Visual Studio 2015 Update 3](https://www.visualstudio.com/), all editions
     including the Community edition (remember to select
     "Common Tools for Visual C++ 2015" feature during installation).
+  * [Visual Studio 2017](https://www.visualstudio.com/), all editions. The
+    required components are "VC++ 2017 v141 toolset", "Visual Studio C++ core
+    features" and one of the "Windows 10 SDK".
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
