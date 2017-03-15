@@ -12,6 +12,7 @@ const crypto = require('crypto');
 // Test certificates
 const certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
 const keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
+const modSize = 1024;
 
 // Test signing and verifying
 {
@@ -71,44 +72,126 @@ const keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
   assert.strictEqual(verified, true, 'sign and verify (stream)');
 }
 
+// Special tests for RSA_PKCS1_PSS_PADDING
 {
-  ['RSA-SHA1', 'RSA-SHA256'].forEach((algo) => {
-    [null, -2, -1, 0, 16, 32, 64].forEach((saltLength) => {
-      let verified;
+  function testPSS(algo, hLen) {
+    // Maximum permissible salt length
+    let max = modSize / 8 - hLen - 2;
 
-      // Test sign and verify with the given parameters
-      const s4 = crypto.createSign(algo)
-                       .update('Test123')
-                       .sign({
-                         key: keyPem,
-                         padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                         saltLength
-                       });
-      verified = crypto.createVerify(algo)
-                       .update('Test')
-                       .update('123')
-                       .verify({
-                         key: certPem,
-                         padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                         saltLength
-                       }, s4);
-      assert.strictEqual(verified, true, 'sign and verify (buffer, PSS)');
+    function getEffectiveSaltLength(saltLength) {
+      switch(saltLength) {
+        case crypto.constants.RSA_PSS_SALTLEN_DIGEST:
+          return hLen;
+        case crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN:
+          return max;
+        default:
+          return saltLength;
+      }
+    }
 
-      // Setting the salt length to RSA_PSS_SALTLEN_AUTO should always work for
-      // verification
-      verified = crypto.createVerify(algo)
-                       .update('Test123')
-                       .verify({
-                         key: certPem,
-                         padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-                         saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
-                       }, s4);
-      assert.strictEqual(verified, true, 'sign and verify (buffer, PSS)');
+    let signSaltLengths = [
+      crypto.constants.RSA_PSS_SALTLEN_DIGEST,
+      getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
+      crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN,
+      getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
+      0, 16, 32, 64, 128
+    ];
+
+    let verifySaltLengths = [
+      crypto.constants.RSA_PSS_SALTLEN_DIGEST,
+      getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_DIGEST),
+      getEffectiveSaltLength(crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN),
+      0, 16, 32, 64, 128
+    ];
+
+    signSaltLengths.forEach((signSaltLength) => {
+      if(signSaltLength > max) {
+        // If the salt length is too big, an Error should be thrown
+        assert.throws(() => {
+          crypto.createSign(algo)
+                .update('Test123')
+                .sign({
+                  key: keyPem,
+                  padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+                  saltLength: signSaltLength
+                });
+        }, /^Error:.*data too large for key size$/);
+      } else {
+        // Otherwise, a valid signature should be generated
+        const s4 = crypto.createSign(algo)
+                         .update('Test123')
+                         .sign({
+                           key: keyPem,
+                           padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+                           saltLength: signSaltLength
+                         });
+
+        let verified;
+        verifySaltLengths.forEach((verifySaltLength) => {
+          // Verification should succeed if and only if the salt length is
+          // correct
+          verified = crypto.createVerify(algo)
+                           .update('Test123')
+                           .verify({
+                             key: certPem,
+                             padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+                             saltLength: verifySaltLength
+                           }, s4);
+          let saltLengthCorrect = getEffectiveSaltLength(signSaltLength) ==
+                                  getEffectiveSaltLength(verifySaltLength);
+          assert.strictEqual(verified, saltLengthCorrect, 'verify (PSS)');
+        });
+
+        // Verification using RSA_PSS_SALTLEN_AUTO should always work
+        verified = crypto.createVerify(algo)
+                         .update('Test123')
+                         .verify({
+                           key: certPem,
+                           padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+                           saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+                         }, s4);
+        assert.strictEqual(verified, true, 'verify (PSS with SALTLEN_AUTO)');
+
+        // Verifying an incorrect message should never work
+        verified = crypto.createVerify(algo)
+                         .update('Test1234')
+                         .verify({
+                           key: certPem,
+                           padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+                           saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+                         }, s4);
+        assert.strictEqual(verified, false, 'verify (PSS, incorrect)');
+      }
     });
-  });
+  }
+
+  testPSS('RSA-SHA1', 20);
+  testPSS('RSA-SHA256', 32);
 }
 
+// Test exceptions for invalid `padding` and `saltLength` values
 {
+  [null, undefined, NaN, "boom", {}, []].forEach((invalidValue) => {
+    assert.throws(() => {
+      crypto.createSign('RSA-SHA256')
+        .update('Test123')
+        .sign({
+          key: keyPem,
+          padding: invalidValue
+        });
+    }, /^TypeError: padding must be an integer$/);
+
+    assert.throws(() => {
+      crypto.createSign('RSA-SHA256')
+        .update('Test123')
+        .sign({
+          key: keyPem,
+          padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: invalidValue
+        });
+    }, /^TypeError: saltLength must be an integer$/);
+  });
+
   assert.throws(() => {
     crypto.createSign('RSA-SHA1')
       .update('Test123')
