@@ -49,42 +49,77 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
 
 // Test allowHalfOpen
 {
-  let counter = 0;
+  let clientReceivedFIN = 0;
+  let serverConnections = 0;
+  let clientSentFIN = 0;
+  let serverReceivedFIN = 0;
   const server = net.createServer({
     allowHalfOpen: true
   })
-  .on('connection', forAllClients(function(socket) {
+  .on('connection', forAllClients(function serverOnConnection(socket) {
+    const serverConnection = ++serverConnections;
+    let clientId;
+    console.error(`${serverConnections} 'connection' emitted on server`);
     socket.resume();
     // 'end' on each socket must not be emitted twice
-    socket.on('end', common.mustCall(function() {}, 1));
+    socket.on('data', common.mustCall(function(data) {
+      clientId = data.toString();
+      console.error(`${serverConnection} server connection is started ` +
+                    `by client No. ${clientId}`);
+    }));
+    socket.on('end', common.mustCall(function() {
+      serverReceivedFIN++;
+      console.error(`Server recieved FIN sent by No. ${clientId}`);
+      if (serverReceivedFIN === CLIENT_VARIANTS) {
+        setTimeout(() => {
+          server.close();
+          console.error(`No. ${clientId} connection is closing server: ` +
+                        `${serverReceivedFIN} FIN received by server, ` +
+                        `${clientReceivedFIN} FIN received by client, ` +
+                        `${clientSentFIN} FIN sent by client, ` +
+                        `${serverConnections} FIN sent by server`);
+        }, 50);
+      }
+    }, 1));
     socket.end();
+    console.error(`Server has sent ${serverConnections} FIN`);
   }))
-  .listen(0, common.mustCall(function() {
+  .on('close', common.mustCall(function serverOnClose() {
+    console.error('Server has been closed: ' +
+                  `${serverReceivedFIN} FIN received by server, ` +
+                  `${clientReceivedFIN} FIN received by client, ` +
+                  `${clientSentFIN} FIN sent by client, ` +
+                  `${serverConnections} FIN sent by server`);
+  }))
+  .listen(0, 'localhost', common.mustCall(function serverOnListen() {
+    const host = 'localhost';
+    const port = server.address().port;
+
+    console.error(`Server starts at ${host}:${port}`);
     const getSocketOpt = () => ({ allowHalfOpen: true });
-    const getConnectOpt = () => ({
-      host: server.address().address,
-      port: server.address().port,
-    });
-    const getConnectCb = () => common.mustCall(function() {
+    const getConnectOpt = () => ({ host, port });
+    const getConnectCb = (index) => common.mustCall(function clientOnConnect() {
       const client = this;
+      console.error(`'connect' emitted on Client ${index}`);
       client.resume();
-      client.on('end', common.mustCall(function() {
+      client.on('end', common.mustCall(function clientOnEnd() {
         setTimeout(function() {
           // when allowHalfOpen is true, client must still be writable
           // after the server closes the connections, but not readable
+          console.error(`No. ${index} client received FIN`);
           assert(!client.readable);
           assert(client.writable);
-          assert(client.write('foo'));
+          assert(client.write(index + ''));
           client.end();
+          clientSentFIN++;
+          console.error(`No. ${index} client sent FIN, ` +
+                        `${clientSentFIN} have been sent`);
         }, 50);
       }));
-      client.on('close', common.mustCall(function() {
-        counter++;
-        if (counter === CLIENT_VARIANTS) {
-          setTimeout(() => {
-            server.close();
-          }, 50);
-        }
+      client.on('close', common.mustCall(function clientOnClose() {
+        clientReceivedFIN++;
+        console.error(`No. ${index} connection has been closed by both ` +
+                      `sides, ${clientReceivedFIN} clients have closed`);
       }));
     });
 
@@ -96,10 +131,18 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
 if (!common.isWindows) {  // Doesn't support this on windows
   let counter = 0;
   const server = net.createServer()
-  .on('connection', forAllClients(function(socket) {
+  .on('connection', forAllClients(function serverOnConnection(socket) {
     socket.end('ok');
+    socket.on('end', common.mustCall(function() {
+      counter++;
+      if (counter === CLIENT_VARIANTS) {
+        setTimeout(() => {
+          server.close();
+        }, 50);
+      }
+    }, 1));
   }))
-  .listen(0, common.mustCall(function() {
+  .listen(0, 'localhost', common.mustCall(function serverOnListen() {
     const handleMap = new Map();
     const getSocketOpt = (index) => {
       const handle = new TCP();
@@ -118,11 +161,11 @@ if (!common.isWindows) {  // Doesn't support this on windows
     };
 
     const getConnectOpt = () => ({
-      host: server.address().address,
+      host: 'localhost',
       port: server.address().port,
     });
 
-    const getConnectCb = (index) => common.mustCall(function() {
+    const getConnectCb = (index) => common.mustCall(function clientOnConnect() {
       const client = this;
       // Test if it's wrapping an existing fd
       assert(handleMap.has(index));
@@ -131,10 +174,6 @@ if (!common.isWindows) {  // Doesn't support this on windows
       client.end();
       client.on('close', common.mustCall(function() {
         oldHandle.close();
-        counter++;
-        if (counter === CLIENT_VARIANTS) {
-          server.close();
-        }
       }));
     });
 
@@ -149,10 +188,18 @@ if (!common.isWindows) {  // Doesn't support this on windows
   let counter = 0;
   let socketCounter = 0;
   const server = net.createServer()
-  .on('connection', forAllClients(function(socket) {
+  .on('connection', forAllClients(function serverOnConnection(socket) {
     socket.end('ok');
+    socket.on('end', common.mustCall(function() {
+      counter++;
+      if (counter === CLIENT_VARIANTS) {
+        setTimeout(() => {
+          server.close();
+        }, 50);
+      }
+    }, 1));
   }))
-  .listen({path: serverPath}, common.mustCall(function() {
+  .listen({path: serverPath}, common.mustCall(function serverOnListen() {
     const handleMap = new Map();
     const getSocketOpt = (index) => {
       const handle = new Pipe();
@@ -165,19 +212,15 @@ if (!common.isWindows) {  // Doesn't support this on windows
     const getConnectOpt = () => ({
       path: serverPath
     });
-    const getConnectCb = (index) => common.mustCall(function() {
+    const getConnectCb = (index) => common.mustCall(function clientOnConnect() {
       const client = this;
       // Test if it's wrapping an existing fd
       assert(handleMap.has(index));
       const oldHandle = handleMap.get(index);
       assert.strictEqual(oldHandle.fd, this._handle.fd);
       client.end();
-      client.on('close', common.mustCall(function() {
+      client.on('close', common.mustCall(function clientOnClose() {
         oldHandle.close();
-        counter++;
-        if (counter === CLIENT_VARIANTS) {
-          server.close();
-        }
       }));
     });
 
