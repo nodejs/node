@@ -31,11 +31,11 @@ test('break on (uncaught) exceptions', (t) => {
     .then(() => cli.command('breakOnException'))
     .then(() => cli.stepCommand('c'))
     .then(() => {
-      t.match(cli.output, `exception in ${script}:4`);
+      t.match(cli.output, `exception in ${script}:3`);
     })
     .then(() => cli.stepCommand('c'))
     .then(() => {
-      t.match(cli.output, `exception in ${script}:10`);
+      t.match(cli.output, `exception in ${script}:9`);
     })
 
     // Next run: With `breakOnUncaught` it only pauses on the 2nd exception
@@ -46,7 +46,7 @@ test('break on (uncaught) exceptions', (t) => {
     })
     .then(() => cli.stepCommand('c'))
     .then(() => {
-      t.match(cli.output, `exception in ${script}:10`);
+      t.match(cli.output, `exception in ${script}:9`);
     })
 
     // Next run: Back to the initial state! It should die again.
