@@ -22,10 +22,13 @@
 'use strict';
 const { spawn } = require('child_process');
 const { EventEmitter } = require('events');
+const net = require('net');
 const util = require('util');
 
+const runAsStandalone = typeof __dirname !== 'undefined';
+
 const [ InspectClient, createRepl ] =
-  (typeof __dirname !== 'undefined') ?
+  runAsStandalone ?
   // This copy of node-inspect is on-disk, relative paths make sense.
   [
     require('./internal/inspect_client'),
@@ -39,7 +42,16 @@ const [ InspectClient, createRepl ] =
 
 const debuglog = util.debuglog('inspect');
 
-exports.port = 9229;
+const DEBUG_PORT_PATTERN = /^--(?:debug|inspect)-port=(\d+)$/;
+function getDefaultPort() {
+  for (const arg of process.execArgv) {
+    const match = arg.match(DEBUG_PORT_PATTERN);
+    if (match) {
+      return +match[1];
+    }
+  }
+  return 9229;
+}
 
 function runScript(script, scriptArgs, inspectPort, childPrint) {
   return new Promise((resolve) => {
@@ -88,6 +100,45 @@ function createAgentProxy(domain, client) {
   });
 }
 
+function portIsFree(host, port, timeout = 2000) {
+  const retryDelay = 150;
+  let didTimeOut = false;
+
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      didTimeOut = true;
+      reject(new Error(
+        `Timeout (${timeout}) waiting for ${host}:${port} to be free`));
+    }, timeout);
+
+    function pingPort() {
+      if (didTimeOut) return;
+
+      const socket = net.connect(port, host);
+      let didRetry = false;
+      function retry() {
+        if (!didRetry && !didTimeOut) {
+          didRetry = true;
+          setTimeout(pingPort, retryDelay);
+        }
+      }
+
+      socket.on('error', (error) => {
+        if (error.code === 'ECONNREFUSED') {
+          resolve();
+        } else {
+          retry();
+        }
+      });
+      socket.on('connect', () => {
+        socket.destroy();
+        retry();
+      });
+    }
+    pingPort();
+  });
+}
+
 class NodeInspector {
   constructor(options, stdin, stdout) {
     this.options = options;
@@ -128,8 +179,9 @@ class NodeInspector {
     process.once('SIGHUP', process.exit.bind(process, 0));
 
     this.run()
-      .then(() => {
-        this.repl = startRepl();
+      .then(() => startRepl())
+      .then((repl) => {
+        this.repl = repl;
         this.repl.on('exit', () => {
           process.exit(0);
         });
@@ -139,15 +191,19 @@ class NodeInspector {
   }
 
   suspendReplWhile(fn) {
-    this.repl.rli.pause();
+    if (this.repl) {
+      this.repl.rli.pause();
+    }
     this.stdin.pause();
     this.paused = true;
     return new Promise((resolve) => {
       resolve(fn());
     }).then(() => {
       this.paused = false;
-      this.repl.rli.resume();
-      this.repl.displayPrompt();
+      if (this.repl) {
+        this.repl.rli.resume();
+        this.repl.displayPrompt();
+      }
       this.stdin.resume();
     }).then(null, (error) => process.nextTick(() => { throw error; }));
   }
@@ -162,7 +218,14 @@ class NodeInspector {
 
   run() {
     this.killChild();
-    return this._runScript().then((child) => {
+    const { host, port } = this.options;
+
+    const runOncePortIsFree = () => {
+      return portIsFree(host, port)
+        .then(() => this._runScript());
+    };
+
+    return runOncePortIsFree().then((child) => {
       this.child = child;
 
       let connectionAttempts = 0;
@@ -173,6 +236,7 @@ class NodeInspector {
         return this.client.connect()
           .then(() => {
             debuglog('connection established');
+            this.stdout.write(' ok');
           }, (error) => {
             debuglog('connect failed', error);
             // If it's failed to connect 10 times then print failed message
@@ -186,7 +250,6 @@ class NodeInspector {
           });
       };
 
-      const { host, port } = this.options;
       this.print(`connecting to ${host}:${port} ..`, true);
       return attemptConnect();
     });
@@ -225,7 +288,7 @@ class NodeInspector {
 
 function parseArgv([target, ...args]) {
   let host = '127.0.0.1';
-  let port = exports.port;
+  let port = getDefaultPort();
   let isRemote = false;
   let script = target;
   let scriptArgs = args;
@@ -258,8 +321,12 @@ function startInspect(argv = process.argv.slice(2),
                       stdout = process.stdout) {
   /* eslint-disable no-console */
   if (argv.length < 1) {
-    console.error('Usage: node-inspect script.js');
-    console.error('       node-inspect <host>:<port>');
+    const invokedAs = runAsStandalone ?
+      'node-inspect' :
+      `${process.argv0} ${process.argv[1]}`;
+
+    console.error(`Usage: ${invokedAs} script.js`);
+    console.error(`       ${invokedAs} <host>:<port>`);
     process.exit(1);
   }
 

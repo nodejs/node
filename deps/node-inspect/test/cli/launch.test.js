@@ -8,7 +8,9 @@ const startCLI = require('./start-cli');
 test('examples/empty.js', (t) => {
   const script = Path.join('examples', 'empty.js');
   const cli = startCLI([script]);
-  return cli.waitForPrompt()
+
+  return cli.waitFor(/break/)
+    .then(() => cli.waitForPrompt())
     .then(() => {
       t.match(cli.output, 'debug>', 'prints a prompt');
       t.match(
