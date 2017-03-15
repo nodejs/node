@@ -15,11 +15,6 @@
 #include <stdio.h>
 #include <cmath>
 
-#if defined(NODE_HAVE_I18N_SUPPORT)
-#include <unicode/utf8.h>
-#include <unicode/utf.h>
-#endif
-
 #define UNICODE_REPLACEMENT_CHARACTER 0xFFFD
 
 namespace node {
@@ -74,21 +69,6 @@ namespace url {
     output->assign(*buf, buf.length());
     return true;
   }
-
-  // Unfortunately there's not really a better way to do this.
-  // Iterate through each encoded codepoint and verify that
-  // it is a valid unicode codepoint.
-  static bool IsValidUTF8(std::string* input) {
-    const char* p = input->c_str();
-    int32_t len = input->length();
-    for (int32_t i = 0; i < len;) {
-      UChar32 c;
-      U8_NEXT_UNSAFE(p, i, c);
-      if (!U_IS_UNICODE_CHAR(c))
-        return false;
-    }
-    return true;
-  }
 #else
   // Intentional non-ops if ICU is not present.
   static inline bool ToUnicode(std::string* input, std::string* output) {
@@ -98,10 +78,6 @@ namespace url {
 
   static inline bool ToASCII(std::string* input, std::string* output) {
     *output = *input;
-    return true;
-  }
-
-  static bool IsValidUTF8(std::string* input) {
     return true;
   }
 #endif
@@ -354,12 +330,6 @@ namespace url {
 
     // First, we have to percent decode
     PercentDecode(input, length, &decoded);
-
-    // If there are any invalid UTF8 byte sequences, we have to fail.
-    // Unfortunately this means iterating through the string and checking
-    // each decoded codepoint.
-    if (!IsValidUTF8(&decoded))
-      goto end;
 
     // Then we have to punycode toASCII
     if (!ToASCII(&decoded, &decoded))
