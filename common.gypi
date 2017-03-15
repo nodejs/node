@@ -43,7 +43,7 @@
         'v8_postmortem_support%': 'true',
       }],
       ['OS== "mac"', {
-        'OBJ_DIR': '<(PRODUCT_DIR)/obj',
+        'OBJ_DIR': '<(PRODUCT_DIR)/obj.target',
         'V8_BASE': '<(PRODUCT_DIR)/libv8_base.a',
       }, {
         'conditions': [
