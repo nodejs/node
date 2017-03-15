@@ -1,3 +1,30 @@
+### 1.10.6
+
+* chore: Fix usage text for embedded mode - **[@addaleax](https://github.com/addaleax)** [#20](https://github.com/nodejs/node-inspect/pull/20)
+  - [`b0779f5`](https://github.com/nodejs/node-inspect/commit/b0779f597104e9ada5681f64d7e714525b753511) **chore:** Fix usage text for embedded mode
+* print 'ok' after connection - **[@ofrobots](https://github.com/ofrobots)** [#25](https://github.com/nodejs/node-inspect/pull/25)
+  - [`2a47125`](https://github.com/nodejs/node-inspect/commit/2a4712577f6996fbb078dcfcd7320c397685d76a) **fix:** print 'ok' after connection
+* Make autocompletion in REPL work - **[@aqrln](https://github.com/aqrln)** [#28](https://github.com/nodejs/node-inspect/pull/28)
+  - [`ccab737`](https://github.com/nodejs/node-inspect/commit/ccab737399249a8c2230ed6adfec579c7d724364) **fix:** Make autocompletion in REPL work
+* Remove console.error() statement - **[@aqrln](https://github.com/aqrln)** [#30](https://github.com/nodejs/node-inspect/pull/30)
+  - [`032b045`](https://github.com/nodejs/node-inspect/commit/032b045d4d73622c77b7ebcc26781c6ad98200b3) **style:** Remove console.error() statement
+* Take --debug-port into account - **[@jkrems](https://github.com/jkrems)** [#26](https://github.com/nodejs/node-inspect/pull/26)
+  - [`054d4b1`](https://github.com/nodejs/node-inspect/commit/054d4b10e65f12a3a4b10b4c0ab2a4768cc5e893) **fix:** Take --debug-port into account
+* Delay run until breakpoints are restored - **[@jkrems](https://github.com/jkrems)** [#34](https://github.com/nodejs/node-inspect/pull/34)
+  - [`802b88c`](https://github.com/nodejs/node-inspect/commit/802b88c8ad0a57608cb9e0cb4bf46ed683bb6344) **fix:** Delay run until breakpoints are restored
+  - [`2b93173`](https://github.com/nodejs/node-inspect/commit/2b93173d95e7f8b30d85603613cb2ae3b3ec18db) **fix:** Use single string for paused notice
+  - [`b4d5ee2`](https://github.com/nodejs/node-inspect/commit/b4d5ee2a3d25613b35a2e8e10a0eb75582cc5654) **fix:** Work around inconsistent handling of strict directive
+  - [`f6ccfc7`](https://github.com/nodejs/node-inspect/commit/f6ccfc7f4d00ad4fdf3b581b677f8d7f1699c44c) **fix:** Only restart after port is free
+  - [`8b101bf`](https://github.com/nodejs/node-inspect/commit/8b101bf669ca102df4980bfad3e0436ef1c2f1a4) **test:** Skip exact match on AIX
+* [`a4e4b6f`](https://github.com/nodejs/node-inspect/commit/a4e4b6feeba4dedfd2c89ef32f39e813314d3bbd) **chore:** Fix repo info in package.json
+
+
+### 1.10.5
+
+* docs: minor edits to governance docs - **[@joshgav](https://github.com/joshgav)** [#17](https://github.com/buggerjs/node-inspect/pull/17)
+  - [`a70fe04`](https://github.com/buggerjs/node-inspect/commit/a70fe04bdde9b7c74588685066291f9b11183328) **docs:** minor edits to governance docs
+
+
 ### 1.10.4
 
 * [`1c31bf7`](https://github.com/buggerjs/node-inspect/commit/1c31bf7d1b3ea1b424ae0662526596670cb506c9) **chore:** Support embedded mode
