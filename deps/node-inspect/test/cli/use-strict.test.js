@@ -5,8 +5,8 @@ const { test } = require('tap');
 
 const startCLI = require('./start-cli');
 
-test('display and navigate backtrace', (t) => {
-  const script = Path.join('examples', 'backtrace.js');
+test('for whiles that starts with strict directive', (t) => {
+  const script = Path.join('examples', 'use-strict.js');
   const cli = startCLI([script]);
 
   function onFatal(error) {
@@ -16,14 +16,11 @@ test('display and navigate backtrace', (t) => {
 
   return cli.waitFor(/break/)
     .then(() => cli.waitForPrompt())
-    .then(() => cli.stepCommand('c'))
-    .then(() => cli.command('bt'))
     .then(() => {
-      t.match(cli.output, `#0 topFn ${script}:7:2`);
-    })
-    .then(() => cli.command('backtrace'))
-    .then(() => {
-      t.match(cli.output, `#0 topFn ${script}:7:2`);
+      t.match(
+        cli.output,
+        /break in [^:]+:(?:1|2)[^\d]/,
+        'pauses either on strict directive or first "real" line');
     })
     .then(() => cli.quit())
     .then(null, onFatal);

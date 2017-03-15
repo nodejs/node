@@ -1,17 +1,17 @@
 {
   "name": "node-inspect",
-  "version": "1.10.4",
+  "version": "1.10.6",
   "description": "Node Inspect",
   "license": "MIT",
   "main": "lib/_inspect.js",
   "bin": "cli.js",
-  "homepage": "https://github.com/buggerjs/node-inspect",
+  "homepage": "https://github.com/nodejs/node-inspect",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/buggerjs/node-inspect"
+    "url": "git+ssh://git@github.com/nodejs/node-inspect"
   },
   "bugs": {
-    "url": "https://github.com/buggerjs/node-inspect/issues"
+    "url": "https://github.com/nodejs/node-inspect/issues"
   },
   "scripts": {
     "pretest": "eslint --rulesdir=tools/eslint-rules lib test",
