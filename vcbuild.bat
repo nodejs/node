@@ -27,6 +27,7 @@ set msi=
 set upload=
 set licensertf=
 set jslint=
+set cpplint=
 set build_testgc_addon=
 set noetw=
 set noetw_msi_arg=
@@ -57,7 +58,7 @@ if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
-if /i "%1"=="test"          set test_args=%test_args% addons doctool known_issues message parallel sequential -J&set jslint=1&set build_addons=1&goto arg-ok
+if /i "%1"=="test"          set test_args=%test_args% addons doctool known_issues message parallel sequential -J&set cpplint=1&set jslint=1&set build_addons=1&goto arg-ok
 if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap addons doctool inspector known_issues message sequential parallel&set cctest_args=%cctest_args% --gtest_output=tap:cctest.tap&set build_addons=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
@@ -67,11 +68,13 @@ if /i "%1"=="test-inspector" set test_args=%test_args% inspector&goto arg-ok
 if /i "%1"=="test-tick-processor" set test_args=%test_args% tick-processor&goto arg-ok
 if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
-if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc inspector internet pummel&set build_testgc_addon=1&set jslint=1&goto arg-ok
+if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc inspector internet pummel&set build_testgc_addon=1&set cpplint=1&set jslint=1&goto arg-ok
 if /i "%1"=="test-known-issues" set test_args=%test_args% known_issues&goto arg-ok
 if /i "%1"=="test-node-inspect" set test_node_inspect=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="jslint-ci"     set jslint_ci=1&goto arg-ok
+if /i "%1"=="lint"          set cpplint=1&set jslint=1&goto arg-ok
+if /i "%1"=="lint-ci"       set cpplint=1&set jslint_ci=1&goto arg-ok
 if /i "%1"=="package"       set package=1&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=small-icu&goto arg-ok
 if /i "%1"=="build-release" set build_release=1&goto arg-ok
@@ -322,14 +325,14 @@ for /d %%F in (test\addons\??_*) do (
 "%node_exe%" tools\doc\addon-verify.js
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
-SetLocal EnableDelayedExpansion
+setlocal EnableDelayedExpansion
 for /d %%F in (test\addons\*) do (
   "%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild ^
     --directory="%%F" ^
     --nodedir="%cd%"
   if !errorlevel! neq 0 exit /b !errorlevel!
 )
-EndLocal
+endlocal
 goto run-tests
 
 :run-tests
@@ -339,14 +342,56 @@ set USE_EMBEDDED_NODE_INSPECT=1
 goto node-tests
 
 :node-tests
-if "%test_args%"=="" goto jslint
+if "%test_args%"=="" goto cpplint
 if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
 echo running 'python tools\test.py %test_args%'
 python tools\test.py %test_args%
+goto cpplint
+
+:cpplint
+if not defined cpplint goto jslint
+echo running cpplint
+set cppfilelist=
+setlocal enabledelayedexpansion
+for /f "tokens=*" %%G in ('dir /b /s /a src\*.c src\*.cc src\*.h ^
+test\addons\*.cc test\addons\*.h test\cctest\*.cc test\cctest\*.h ^
+test\gc\binding.cc tools\icu\*.cc tools\icu\*.h') do (
+  set relpath=%%G
+  set relpath=!relpath:*%~dp0=!
+  call :add-to-list !relpath!
+)
+( endlocal
+  set cppfilelist=%localcppfilelist%
+)
+python tools/cpplint.py %cppfilelist%
+python tools/check-imports.py
 goto jslint
+
+:add-to-list
+echo %1 | findstr /c:"src\node_root_certs.h"
+if %errorlevel% equ 0 goto exit
+
+echo %1 | findstr /c:"src\queue.h"
+if %errorlevel% equ 0 goto exit
+
+echo %1 | findstr /c:"src\tree.h"
+if %errorlevel% equ 0 goto exit
+
+@rem skip subfolders under /src
+echo %1 | findstr /r /c:"src\\.*\\.*"
+if %errorlevel% equ 0 goto exit
+
+echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.h"
+if %errorlevel% equ 0 goto exit
+
+echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.cc"
+if %errorlevel% equ 0 goto exit
+
+set "localcppfilelist=%localcppfilelist% %1"
+goto exit
 
 :jslint
 if defined jslint_ci goto jslint-ci
