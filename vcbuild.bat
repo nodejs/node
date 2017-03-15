@@ -407,7 +407,6 @@ echo running jslint-ci
 %config%\node tools\jslint.js -J -f tap -o test-eslint.tap benchmark lib test tools
 goto exit
 
-
 :no-lint
 echo Linting is not available through the source tarball.
 echo Use the git repo instead: $ git clone https://github.com/nodejs/node.git
