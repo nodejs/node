@@ -375,8 +375,7 @@ namespace url {
     }
 
     // First, we have to percent decode
-    if (PercentDecode(input, length, &decoded) < 0)
-      goto end;
+    PercentDecode(input, length, &decoded);
 
     // If there are any invalid UTF8 byte sequences, we have to fail.
     // Unfortunately this means iterating through the string and checking
