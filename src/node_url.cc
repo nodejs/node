@@ -494,7 +494,9 @@ namespace url {
     if (flags->IsInt32())
       base->flags = flags->Int32Value(context).FromJust();
 
-    GET_AND_SET(env, base_obj, scheme, base, URL_FLAGS_HAS_SCHEME);
+    Local<Value> scheme = GET(env, base_obj, "scheme");
+    base->scheme = Utf8Value(env->isolate(), scheme).out();
+
     GET_AND_SET(env, base_obj, username, base, URL_FLAGS_HAS_USERNAME);
     GET_AND_SET(env, base_obj, password, base, URL_FLAGS_HAS_PASSWORD);
     GET_AND_SET(env, base_obj, host, base, URL_FLAGS_HAS_HOST);
@@ -656,7 +658,6 @@ namespace url {
           } else if (ch == ':' || (has_state_override && ch == kEOL)) {
             buffer += ':';
             if (buffer.size() > 0) {
-              url->flags |= URL_FLAGS_HAS_SCHEME;
               url->scheme = buffer;
             }
             if (IsSpecial(url->scheme)) {
@@ -672,7 +673,6 @@ namespace url {
               state = kFile;
             } else if (special &&
                        has_base &&
-                       base->flags & URL_FLAGS_HAS_SCHEME &&
                        url->scheme == base->scheme) {
               state = kSpecialRelativeOrAuthority;
             } else if (special) {
@@ -702,7 +702,6 @@ namespace url {
             url->flags |= URL_FLAGS_FAILED;
             return;
           } else if (cannot_be_base && ch == '#') {
-            url->flags |= URL_FLAGS_HAS_SCHEME;
             url->scheme = base->scheme;
             if (IsSpecial(url->scheme)) {
               url->flags |= URL_FLAGS_SPECIAL;
@@ -725,12 +724,10 @@ namespace url {
             url->flags |= URL_FLAGS_CANNOT_BE_BASE;
             state = kFragment;
           } else if (has_base &&
-                     base->flags & URL_FLAGS_HAS_SCHEME &&
                      base->scheme != "file:") {
             state = kRelative;
             continue;
           } else {
-            url->flags |= URL_FLAGS_HAS_SCHEME;
             url->scheme = "file:";
             url->flags |= URL_FLAGS_SPECIAL;
             special = true;
@@ -756,7 +753,6 @@ namespace url {
           }
           break;
         case kRelative:
-          url->flags |= URL_FLAGS_HAS_SCHEME;
           url->scheme = base->scheme;
           if (IsSpecial(url->scheme)) {
             url->flags |= URL_FLAGS_SPECIAL;
@@ -1022,7 +1018,6 @@ namespace url {
         case kFile:
           base_is_file = (
               has_base &&
-              base->flags & URL_FLAGS_HAS_SCHEME &&
               base->scheme == "file:");
           switch (ch) {
             case kEOL:
@@ -1105,7 +1100,6 @@ namespace url {
             state = kFileHost;
           } else {
             if (has_base &&
-                base->flags & URL_FLAGS_HAS_SCHEME &&
                 base->scheme == "file:" &&
                 base->flags & URL_FLAGS_HAS_PATH &&
                 base->path.size() > 0 &&
@@ -1166,8 +1160,7 @@ namespace url {
                 url->path.push_back("");
               }
             } else {
-              if (url->flags & URL_FLAGS_HAS_SCHEME &&
-                  url->scheme == "file:" &&
+              if (url->scheme == "file:" &&
                   url->path.empty() &&
                   buffer.size() == 2 &&
                   WINDOWS_DRIVE_LETTER(buffer[0], buffer[1])) {
@@ -1241,8 +1234,7 @@ namespace url {
                              const struct url_data* url) {
     Isolate* isolate = env->isolate();
     argv[ARG_FLAGS] = Integer::NewFromUnsigned(isolate, url->flags);
-    if (url->flags & URL_FLAGS_HAS_SCHEME)
-      argv[ARG_PROTOCOL] = OneByteString(isolate, url->scheme.c_str());
+    argv[ARG_PROTOCOL] = OneByteString(isolate, url->scheme.c_str());
     if (url->flags & URL_FLAGS_HAS_USERNAME)
       argv[ARG_USERNAME] = UTF8STRING(isolate, url->username);
     if (url->flags & URL_FLAGS_HAS_PASSWORD)
