@@ -401,7 +401,7 @@ console.log(arr); // logs the full array
 
 ## util.promisify(original)
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 * `original` {Function}
@@ -471,7 +471,7 @@ standard format of taking an error-first callback as the last argument.
 
 ### util.promisify.custom
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 * {symbol}
