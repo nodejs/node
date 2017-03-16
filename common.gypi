@@ -233,7 +233,7 @@
         'SuppressStartupBanner': 'true',
       },
     },
-    'msvs_disabled_warnings': [4351, 4355, 4800],
+    'msvs_disabled_warnings': [4351, 4355, 4800, 4251, 4244, 4312, 4275],
     'conditions': [
       ['asan == 1 and OS != "mac"', {
         'cflags+': [

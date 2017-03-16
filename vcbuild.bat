@@ -1,4 +1,4 @@
-@echo off
+@if not defined DEBUG_VCBUILD echo off
 
 cd %~dp0
 
@@ -15,7 +15,7 @@ if /i "%1"=="/?" goto help
 set config=Release
 set target=Build
 set target_arch=x64
-set target_env=
+set target_env=vs2015
 set noprojgen=
 set nobuild=
 set sign=
@@ -42,6 +42,8 @@ set build_addons=
 set dll=
 set build_addons_napi=
 set test_node_inspect=
+if not defined msbverbosity set "msbverbosity=/nologo /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal"
+if not defined no_multi_proc set no_multi_proc=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -51,9 +53,11 @@ if /i "%1"=="clean"         set target=Clean&goto arg-ok
 if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
-if /i "%1"=="vc2015"        set target_env=vc2015&goto arg-ok
+if /i "%1"=="vs2015"        set target_env=vs2015&goto arg-ok
+if /i "%1"=="vs2017"        set target_env=vs2017&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
+if /i "%1"=="noparallel"    set no_multi_proc=:1&goto arg-ok
 if /i "%1"=="nosign"        set "sign="&echo Note: vcbuild no longer signs by default. "nosign" is redundant.&goto arg-ok
 if /i "%1"=="sign"          set sign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
@@ -85,11 +89,12 @@ if /i "%1"=="upload"        set upload=1&goto arg-ok
 if /i "%1"=="small-icu"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
 if /i "%1"=="intl-none"     set i18n_arg=%1&goto arg-ok
-if /i "%1"=="without-intl"     set i18n_arg=%1&goto arg-ok
+if /i "%1"=="without-intl"  set i18n_arg=%1&goto arg-ok
 if /i "%1"=="download-all"  set download_arg="--download=all"&goto arg-ok
 if /i "%1"=="ignore-flaky"  set test_args=%test_args% --flaky-tests=dontcare&goto arg-ok
 if /i "%1"=="enable-vtune"  set enable_vtune_arg=1&goto arg-ok
 if /i "%1"=="dll"           set dll=1&goto arg-ok
+if /i "%1"=="verbose"       set "msbverbosity=/clp:Verbosity=d /fl /flp:logfile=node.build.log;verbosity=d"&set verbose=1&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -100,6 +105,7 @@ shift
 goto next-arg
 
 :args-done
+if defined DEBUG_VCBUILD echo on
 
 if defined build_release (
   set config=Release
@@ -114,6 +120,7 @@ if defined build_release (
 set "node_exe=%config%\node.exe"
 
 if "%config%"=="Debug" set configure_flags=%configure_flags% --debug
+if defined verbose set configure_flags=%configure_flags% --verbose
 if defined nosnapshot set configure_flags=%configure_flags% --without-snapshot
 if defined noetw set configure_flags=%configure_flags% --without-etw& set noetw_msi_arg=/p:NoETW=1
 if defined noperfctr set configure_flags=%configure_flags% --without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
@@ -142,7 +149,32 @@ if defined noprojgen if defined nobuild if not defined sign if not defined msi g
 
 @rem Set environment for msbuild
 
+@rem Look for Visual Studio 2017
+:vs-set-2017
+if "%target_env%" NEQ "vs2017" goto vs-set-2015
+echo Looking for Visual Studio 2017
+if defined VisualStudioVersion if "%VisualStudioVersion%"=="15.0" goto found_vs2017
+set ps_call=powershell -NoProfile -ExecutionPolicy Unrestricted
+set ps_args="%~dp0tools\msvs-com-helper\GetKey.ps1" IsVcCompatible InstallationPath
+if defined verbose set ps_args=%ps_args% -Information
+@rem this call could return multiple hits, so arbitrarily we pick the last one
+for /F "tokens=*" %%A IN ('%ps_call% %ps_args%') DO set VS2017_INST_PATH=%%A
+if "_%VS2017_INST_PATH%_" == "__" goto vs-set-2015
+if NOT EXIST "%VS2017_INST_PATH%" goto vs-set-2015
+@rem GYP_MSVS_VERSION=2015 is a workaround for old `GYP`
+if %target_arch%==x64 SET VS_TARGET_ARCH=amd64
+set "VSVARSALL="%VS2017_INST_PATH%\VC\Auxiliary\Build\vcvarsall.bat" %VS_TARGET_ARCH%"
+call %VSVARSALL%
+:found_vs2017
+echo Found MSVS version %VisualStudioVersion%
+set GYP_MSVS_VERSION=2015
+set PLATFORM_TOOLSET=v141
+set VS_TARGET_ARCH=x86
+goto msbuild-found
+
 @rem Look for Visual Studio 2015
+:vs-set-2015
+if "%target_env%" NEQ "vs2015" goto msbuild-not-found
 echo Looking for Visual Studio 2015
 if not defined VS140COMNTOOLS goto msbuild-not-found
 if not exist "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
@@ -179,8 +211,9 @@ goto run
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-echo configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG%
+if defined verbose echo on
 python configure %configure_flags% --dest-cpu=%target_arch% --tag=%TAG%
+@if not defined DEBUG_VCBUILD echo off
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
@@ -192,7 +225,9 @@ if defined nobuild goto sign
 @rem Build the sln with msbuild.
 set "msbplatform=Win32"
 if "%target_arch%"=="x64" set "msbplatform=x64"
-msbuild node.sln /m /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+@echo on
+msbuild node.sln /m%no_multi_proc% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% %msbverbosity%
+@if not defined DEBUG_VCBUILD echo off
 if errorlevel 1 goto exit
 if "%target%" == "Clean" goto exit
 
@@ -289,6 +324,7 @@ if not defined SSHCONFIG (
   echo SSHCONFIG is not set for upload
   exit /b 1
 )
+
 if not defined STAGINGSERVER set STAGINGSERVER=node-www
 ssh -F %SSHCONFIG% %STAGINGSERVER% "mkdir -p nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%"
 scp -F %SSHCONFIG% Release\node.exe %STAGINGSERVER%:nodejs/%DISTTYPEDIR%/v%FULLVERSION%/win-%target_arch%/node.exe
@@ -445,10 +481,10 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vc2015] [download-all] [enable-vtune] [lint/lint-ci/jslint/jslint-ci]
+echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vs2015/vs2017] [download-all] [enable-vtune] [lint/lint-ci] [noparallel] [verbose]
 echo Examples:
 echo   vcbuild.bat                : builds release build
-echo   vcbuild.bat debug          : builds debug build
+echo   vcbuild.bat debug verbose  : builds debug build with verbose output and node.build.log file
 echo   vcbuild.bat release msi    : builds release build and MSI installer package
 echo   vcbuild.bat test           : builds debug build and runs tests
 echo   vcbuild.bat build-release  : builds the release distribution as used by nodejs.org
