@@ -246,17 +246,18 @@ namespace VisualStudioConfiguration
 
             if (hasMSBuild && hasVCTools)
             {
+                string setPath = String.Format("set \"VS2017_INSTALL={0}\"", path);
                 if (Win10SDKVer > 0)
                 {
                     Console.WriteLine("  - Using this installation with Windows 10 SDK");
-                    string[] lines = { String.Format("set \"VS2017_INSTALL={0}\"", path), String.Format("set \"VS2017_SDK=10.0.{0}.0\"", Win10SDKVer) };
+                    string[] lines = { setPath, String.Format("set \"VS2017_SDK=10.0.{0}.0\"", Win10SDKVer) };
                     System.IO.File.WriteAllLines(@"Set_VS2017.bat", lines);
                     return true;
                 }
                 else if (hasWin8SDK)
                 {
                     Console.WriteLine("  - Using this installation with Windows 8.1 SDK");
-                    string[] lines = { String.Format("set \"VS2017_INSTALL={0}\"", path), "set \"VS2017_SDK=8.1\"" };
+                    string[] lines = { setPath, "set \"VS2017_SDK=8.1\"" };
                     System.IO.File.WriteAllLines(@"Set_VS2017.bat", lines);
                     return true;
                 }
