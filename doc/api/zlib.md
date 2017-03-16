@@ -277,7 +277,7 @@ Compression strategy.
 <!-- YAML
 added: v0.11.1
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `dictionary` option can be an Uint8Array now.
   - version: v5.11.0
@@ -491,10 +491,10 @@ without a callback.
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -502,10 +502,10 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -518,10 +518,10 @@ Compress a chunk of data with [Deflate][].
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -529,10 +529,10 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -545,10 +545,10 @@ Compress a chunk of data with [DeflateRaw][].
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -556,10 +556,10 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -572,10 +572,10 @@ Decompress a chunk of data with [Gunzip][].
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -583,10 +583,10 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -599,10 +599,10 @@ Compress a chunk of data with [Gzip][].
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -610,10 +610,10 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -626,10 +626,10 @@ Decompress a chunk of data with [Inflate][].
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -637,10 +637,10 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -653,10 +653,10 @@ Decompress a chunk of data with [InflateRaw][].
 <!-- YAML
 added: v0.6.0
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
@@ -664,10 +664,10 @@ changes:
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `buffer` parameter can be any TypedArray or DataView now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12001
     description: The `buffer` parameter can be an Uint8Array now.
 -->
