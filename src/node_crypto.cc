@@ -4411,7 +4411,6 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
                       siglen,
                       m,
                       m_len);
-  fatal = false;
 
  err:
   EVP_PKEY_CTX_free(pkctx);

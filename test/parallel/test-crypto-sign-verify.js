@@ -171,26 +171,27 @@ const modSize = 1024;
 
 // Test exceptions for invalid `padding` and `saltLength` values
 {
-  [null, undefined, NaN, 'boom', {}, []].forEach((invalidValue) => {
-    assert.throws(() => {
-      crypto.createSign('RSA-SHA256')
-        .update('Test123')
-        .sign({
-          key: keyPem,
-          padding: invalidValue
-        });
-    }, /^TypeError: padding must be an integer$/);
+  [null, undefined, NaN, 'boom', {}, [], true, false]
+    .forEach((invalidValue) => {
+      assert.throws(() => {
+        crypto.createSign('RSA-SHA256')
+          .update('Test123')
+          .sign({
+            key: keyPem,
+            padding: invalidValue
+          });
+      }, /^TypeError: padding must be an integer$/);
 
-    assert.throws(() => {
-      crypto.createSign('RSA-SHA256')
-        .update('Test123')
-        .sign({
-          key: keyPem,
-          padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: invalidValue
-        });
-    }, /^TypeError: saltLength must be an integer$/);
-  });
+      assert.throws(() => {
+        crypto.createSign('RSA-SHA256')
+          .update('Test123')
+          .sign({
+            key: keyPem,
+            padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+            saltLength: invalidValue
+          });
+      }, /^TypeError: saltLength must be an integer$/);
+    });
 
   assert.throws(() => {
     crypto.createSign('RSA-SHA1')
