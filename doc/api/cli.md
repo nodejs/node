@@ -94,6 +94,26 @@ Follows `require()`'s module resolution
 rules. `module` may be either a path to a file, or a node module name.
 
 
+### `--inspect[=host:port]`
+<!-- YAML
+added: v6.3.0
+-->
+
+Activate inspector on host:port. Default is 127.0.0.1:9229.
+
+V8 inspector integration allows tools such as Chrome DevTools and IDEs to debug
+and profile Node.js instances. The tools attach to Node.js instances via a
+tcp port and communicate using the [Chrome Debugging Protocol][].
+
+
+### `--inspect-brk[=host:port]`
+<!-- YAML
+added: v7.6.0
+-->
+
+Activate inspector on host:port and break at start of user script.
+
+
 ### `--no-deprecation`
 <!-- YAML
 added: v0.8.0
@@ -425,6 +445,7 @@ OpenSSL, it may cause them to trust the same CAs as node.
 
 [emit_warning]: process.html#process_process_emitwarning_warning_name_ctor
 [Buffer]: buffer.html#buffer_buffer
+[Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer
 [debugger]: debugger.html
 [REPL]: repl.html
 [SlowBuffer]: buffer.html#buffer_class_slowbuffer

@@ -93,6 +93,17 @@ Preload the specified module at startup. Follows `require()`'s module resolution
 rules. \fImodule\fR may be either a path to a file, or a node module name.
 
 .TP
+.BR \-\-inspect \fI[=host:port]\fR
+Activate inspector on host:port. Default is 127.0.0.1:9229.
+
+V8 Inspector integration allows attaching Chrome DevTools and IDEs to Node.js
+instances for debugging and profiling. It uses the Chrome Debugging Protocol.
+
+.TP
+.BR \-\-inspect-brk \fI[=host:port]\fR
+Activate inspector on host:port and break at start of user script.
+
+.TP
 .BR \-\-no\-deprecation
 Silence deprecation warnings.
 
