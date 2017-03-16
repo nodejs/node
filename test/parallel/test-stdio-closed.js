@@ -10,7 +10,7 @@ if (common.isWindows) {
     process.stdin;
     process.stdout;
     process.stderr;
-    process.exit(0);
+    return;
   }
   const python = process.env.PYTHON || 'python';
   const script = path.join(common.fixturesDir, 'spawn_closed_stdio.py');
