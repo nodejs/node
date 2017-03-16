@@ -451,13 +451,12 @@ static inline void PercentDecode(const char* input,
   XX(URL_FLAGS_INVALID_PARSE_STATE, 0x04)                                     \
   XX(URL_FLAGS_TERMINATED, 0x08)                                              \
   XX(URL_FLAGS_SPECIAL, 0x10)                                                 \
-  XX(URL_FLAGS_HAS_SCHEME, 0x20)                                              \
-  XX(URL_FLAGS_HAS_USERNAME, 0x40)                                            \
-  XX(URL_FLAGS_HAS_PASSWORD, 0x80)                                            \
-  XX(URL_FLAGS_HAS_HOST, 0x100)                                               \
-  XX(URL_FLAGS_HAS_PATH, 0x200)                                               \
-  XX(URL_FLAGS_HAS_QUERY, 0x400)                                              \
-  XX(URL_FLAGS_HAS_FRAGMENT, 0x800)
+  XX(URL_FLAGS_HAS_USERNAME, 0x20)                                            \
+  XX(URL_FLAGS_HAS_PASSWORD, 0x40)                                            \
+  XX(URL_FLAGS_HAS_HOST, 0x80)                                                \
+  XX(URL_FLAGS_HAS_PATH, 0x100)                                               \
+  XX(URL_FLAGS_HAS_QUERY, 0x200)                                              \
+  XX(URL_FLAGS_HAS_FRAGMENT, 0x400)
 
 #define ARGS(XX)                                                              \
   XX(ARG_FLAGS)                                                               \
