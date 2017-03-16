@@ -707,7 +707,7 @@ actual byte length is returned.
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The arguments can now be `Uint8Array`s.
 -->
@@ -736,7 +736,7 @@ console.log(arr.sort(Buffer.compare));
 <!-- YAML
 added: v0.7.11
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The elements of `list` can now be `Uint8Array`s.
 -->
@@ -984,7 +984,7 @@ console.log(buffer.buffer === arrayBuffer);
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The `target` parameter can now be a `Uint8Array`.
   - version: v5.11.0
@@ -1146,7 +1146,7 @@ for (const pair of buf.entries()) {
 <!-- YAML
 added: v0.11.13
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The arguments can now be `Uint8Array`s.
 -->
@@ -1257,7 +1257,7 @@ console.log(buf.includes('this', 4));
 <!-- YAML
 added: v1.5.0
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The `value` can now be a `Uint8Array`.
   - version: v5.7.0, v4.4.0
@@ -1374,7 +1374,7 @@ for (const key of buf.keys()) {
 <!-- YAML
 added: v6.0.0
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The `value` can now be a `Uint8Array`.
 -->
@@ -1503,7 +1503,7 @@ console.log(buf.length);
 
 ### buf.parent
 <!-- YAML
-deprecated: REPLACEME
+deprecated: v8.0.0
 -->
 
 > Stability: 0 - Deprecated: Use [`buf.buffer`] instead.
@@ -2517,7 +2517,7 @@ Note that this is a property on the `buffer` module returned by
 <!-- YAML
 added: v7.1.0
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/10236
     description: The `source` parameter can now be a `Uint8Array`.
 -->

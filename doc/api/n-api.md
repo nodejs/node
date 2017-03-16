@@ -2950,7 +2950,7 @@ callback invocation, even if it has been successfully cancelled.
 
 ### napi_get_version
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 ```C
 NAPI_EXTERN napi_status napi_get_version(napi_env env,

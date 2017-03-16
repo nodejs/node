@@ -18,7 +18,7 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
     description: Set and Map content is also compared
   - version: v6.4.0, v4.7.1
@@ -102,7 +102,7 @@ parameter is undefined, a default error message is assigned.
 <!-- YAML
 added: v1.2.0
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/12142
     description: Set and Map content is also compared
   - version: v6.4.0, v4.7.1

@@ -55,7 +55,7 @@ myConsole.warn(`Danger ${name}! Danger!`);
 ## Class: Console
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/9744
     description: Errors that occur while writing to the underlying streams
                  will now be ignored.

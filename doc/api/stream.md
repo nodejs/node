@@ -353,7 +353,7 @@ See also: [`writable.uncork()`][].
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11608
     description: The `chunk` argument can now be a `Uint8Array` instance.
 -->
@@ -439,7 +439,7 @@ See also: [`writable.cork()`][].
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11608
     description: The `chunk` argument can now be a `Uint8Array` instance.
   - version: v6.0.0
@@ -512,7 +512,7 @@ A Writable stream in object mode will always ignore the `encoding` argument.
 
 ##### writable.destroy([error])
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 Destroy the stream, and emit the passed error. After this call, the
@@ -997,7 +997,7 @@ setTimeout(() => {
 <!-- YAML
 added: v0.9.11
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11608
     description: The `chunk` argument can now be a `Uint8Array` instance.
 -->
@@ -1099,7 +1099,7 @@ myReader.on('readable', () => {
 
 ##### readable.destroy([error])
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 Destroy the stream, and emit `'error'`. After this call, the
@@ -1148,7 +1148,7 @@ Examples of Transform streams include:
 
 ##### transform.destroy([error])
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 Destroy the stream, and emit `'error'`. After this call, the
@@ -1415,7 +1415,7 @@ user programs.
 
 #### writable.\_destroy(err, callback)
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 * `err` {Error} An error.
@@ -1424,7 +1424,7 @@ added: REPLACEME
 
 #### writable.\_final(callback)
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 * `callback` {Function} Call this function (optionally with an error
@@ -1585,7 +1585,7 @@ user programs.
 #### readable.push(chunk[, encoding])
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11608
     description: The `chunk` argument can now be a `Uint8Array` instance.
 -->

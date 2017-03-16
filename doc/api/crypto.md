@@ -971,7 +971,7 @@ console.log(sign.sign(privateKey).toString('hex'));
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11705
     description: Support for RSASSA-PSS and additional options was added.
 -->
@@ -1095,7 +1095,7 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v0.1.92
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11705
     description: Support for RSASSA-PSS and additional options was added.
 -->
@@ -1277,10 +1277,10 @@ The `key` is the raw key used by the `algorithm` and `iv` is an
 <!-- YAML
 added: v0.11.12
 changes:
-  - version: REPLACEME
-    pr-url: REPLACEME
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/12223
     description: The `prime` argument can be any `TypedArray` or `DataView` now.
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11983
     description: The `prime` argument can be a `Uint8Array` now.
   - version: v6.0.0
@@ -1502,7 +1502,7 @@ console.log(hashes); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: REPLACEME
+  - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11305
     description: The `digest` parameter is always required now.
   - version: v6.0.0
