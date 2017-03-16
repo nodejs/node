@@ -996,14 +996,22 @@ namespace url {
               int port = 0;
               for (size_t i = 0; i < buffer.size(); i++)
                 port = port * 10 + buffer[i] - '0';
-              if (port >= 0 && port <= 0xffff) {
-                url->port = NormalizePort(url->scheme, port);
-              } else if (!has_state_override) {
-                url->flags |= URL_FLAGS_FAILED;
+              if (port < 0 || port > 0xffff) {
+                // TODO(TimothyGu): This hack is currently needed for the host
+                // setter since it needs access to hostname if it is valid, and
+                // if the FAILED flag is set the entire response to JS layer
+                // will be empty.
+                if (state_override == kHost)
+                  url->port = -1;
+                else
+                  url->flags |= URL_FLAGS_FAILED;
                 return;
               }
+              url->port = NormalizePort(url->scheme, port);
               buffer.clear();
             }
+            if (has_state_override)
+              return;
             state = kPathStart;
             continue;
           } else {
