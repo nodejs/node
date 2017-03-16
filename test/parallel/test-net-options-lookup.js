@@ -5,10 +5,10 @@ const net = require('net');
 
 const expectedError = /^TypeError: "lookup" option should be a function$/;
 
-['foobar', 1, {}, []].forEach((input => { connectThrows(input); }))
+['foobar', 1, {}, []].forEach((input => connectThrows(input) ));
 
 function connectThrows(input) {
-  var opts = {
+  const opts = {
     host: 'localhost',
     port: common.PORT,
     lookup: input,
@@ -19,10 +19,10 @@ function connectThrows(input) {
   }, expectedError);
 }
 
-[() => {}].forEach((input => { connectDoesNotThrow(input); }))
+[() => {}].forEach((input => connectDoesNotThrow(input) ));
 
 function connectDoesNotThrow(input) {
-  var opts = {
+  const opts = {
     host: 'localhost',
     port: common.PORT,
     lookup: input,
