@@ -151,7 +151,7 @@ Throw errors for deprecations.
 
 ### `--pending-deprecation`
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 Emit pending deprecation warnings.
@@ -172,7 +172,7 @@ Silence all process warnings (including deprecations).
 
 ### `--napi-modules`
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 Enable loading native modules compiled with the ABI-stable Node.js API (N-API)
@@ -187,7 +187,7 @@ Print stack traces for process warnings (including deprecations).
 
 ### `--redirect-warnings=file`
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 Write process warnings to the given file instead of printing to stderr. The
@@ -360,7 +360,7 @@ Specify ICU data load path. (overrides `NODE_ICU_DATA`)
 
 ### `-`
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 Alias for stdin, analogous to the use of - in other command line utilities,
@@ -422,7 +422,7 @@ When set to `1`, process warnings are silenced.
 
 ### `NODE_OPTIONS=options...`
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 `options...` are interpreted as if they had been specified on the command line
@@ -461,7 +461,7 @@ V8 options that are allowed are:
 
 ### `NODE_PENDING_DEPRECATION=1`
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 When set to `1`, emit pending deprecation warnings.
@@ -543,7 +543,7 @@ OpenSSL, it may cause them to trust the same CAs as node.
 
 ### `NODE_REDIRECT_WARNINGS=file`
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 When set, process warnings will be emitted to the given file instead of

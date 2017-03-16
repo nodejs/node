@@ -17,7 +17,7 @@ back-end and receiving message responses and notifications.
 
 ### Constructor: new inspector.Session()
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 Create a new instance of the `inspector.Session` class. The inspector session
@@ -28,7 +28,7 @@ can be dispatched to the inspector backend.
 
 ### Event: 'inspectorNotification'
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 * {Object} The notification message object
@@ -45,7 +45,7 @@ It is also possible to subscribe only to notifications with specific method:
 
 ### Event: &lt;inspector-protocol-method&gt;
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 * {Object} The notification message object
@@ -64,7 +64,7 @@ session.on('Debugger.paused', ({params}) => console.log(params.hitBreakpoints));
 
 ### session.connect()
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 Connects a session to the inspector back-end. An exception will be thrown
@@ -73,7 +73,7 @@ a front-end connected to the Inspector WebSocket port.
 
 ### session.post(method[, params][, callback])
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 * method {string}
@@ -100,7 +100,7 @@ to the run-time events.
 
 ### session.disconnect()
 <!-- YAML
-added: REPLACEME
+added: v8.0.0
 -->
 
 Immediately close the session. All pending message callbacks will be called

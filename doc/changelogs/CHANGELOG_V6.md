@@ -1,4 +1,4 @@
-# Node.js v6 ChangeLog
+# Node.js 6 ChangeLog
 
 <table>
 <tr>
@@ -37,6 +37,7 @@
 </table>
 
 * Other Versions
+  * [8.x](CHANGELOG_V8.md)
   * [7.x](CHANGELOG_V7.md)
   * [5.x](CHANGELOG_V5.md)
   * [4.x](CHANGELOG_V4.md)

@@ -639,7 +639,7 @@ If the Node.js process was not spawned with an IPC channel,
 
 ## process.emitWarning(warning[, options])
 <!-- YAML
-added: REPLACEME
+added: 8.0.0
 -->
 
 * `warning` {string|Error} The warning to emit.
