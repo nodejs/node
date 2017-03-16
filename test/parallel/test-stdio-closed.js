@@ -6,10 +6,15 @@ const fs = require('fs');
 const path = require('path');
 
 if (common.isWindows) {
+  if (process.argv[2] === 'child') {
+    process.stdin;
+    process.stdout;
+    process.stderr;
+    process.exit(0);
+  }
   const python = process.env.PYTHON || 'python';
-  const script = path.join(__dirname, '..', 'fixtures',
-                           'spawn_closed_stdio.py');
-  const proc = spawn(python, [ script, process.execPath ]);
+  const script = path.join(common.fixturesDir, 'spawn_closed_stdio.py');
+  const proc = spawn(python, [script, process.execPath, __filename, 'child']);
   proc.on('exit', common.mustCall(function(exitCode) {
     assert.strictEqual(exitCode, 0);
   }));

@@ -4215,10 +4215,11 @@ inline void PlatformInit() {
 #endif  // __POSIX__
 #ifdef _WIN32
   for (int fd = 0; fd <= 2; ++fd) {
-    auto handle = (HANDLE) _get_osfhandle(fd);
+    auto handle = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
     if (handle == INVALID_HANDLE_VALUE ||
         GetFileType(handle) == FILE_TYPE_UNKNOWN) {
-      if (_close(fd) || fd != _open("nul", _O_RDWR))
+      _close(fd);
+      if (fd != _open("nul", _O_RDWR))
         ABORT();
     }
   }
