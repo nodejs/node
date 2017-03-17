@@ -1,15 +1,16 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const assert = require('assert');
+const fs = require('fs');
 
-[undefined, null, {}, []].forEach((input) => throws(input));
-
-function throws(input) {
+[undefined, null, []].forEach((input) => {
   assert.throws(() => fs._toUnixTimestamp(input)
-  , 'Error: Cannot parse time: ' + input);
-}
+  , new RegExp('^Error: Cannot parse time: ' + input + '$'));
+});
 
-[1, '1', Date.now()].forEach((input) => {
+assert.throws(() => fs._toUnixTimestamp({})
+, /^Error: Cannot parse time: \[object Object\]$/);
+
+[1, '1', Date.now(), -1, '-1', Infinity].forEach((input) => {
   assert.doesNotThrow(() => fs._toUnixTimestamp(input));
 });
