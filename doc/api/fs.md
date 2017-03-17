@@ -1880,8 +1880,7 @@ follow these rules:
   returns milliseconds, so it should be divided by 1000 before passing it in.
 - If the value is a numeric string like `'123456789'`, the value will get
   converted to the corresponding number.
-- If the value is `NaN` or `Infinity`, the value will get converted to
-  `Date.now() / 1000`.
+- If the value is `NaN`, `Infinity` or `-Infinity`, an Error will be thrown.
 
 ## fs.utimesSync(path, atime, mtime)
 <!-- YAML
