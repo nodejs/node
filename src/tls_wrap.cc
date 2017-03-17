@@ -426,6 +426,12 @@ void TLSWrap::ClearOut() {
       memcpy(buf.base, current, avail);
       OnRead(avail, &buf);
 
+      // Caveat emptor: OnRead() calls into JS land which can result in
+      // the SSL context object being destroyed.  We have to carefully
+      // check that ssl_ != nullptr afterwards.
+      if (ssl_ == nullptr)
+        return;
+
       read -= avail;
       current += avail;
     }
