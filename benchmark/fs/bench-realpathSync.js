@@ -3,6 +3,8 @@
 const common = require('../common');
 const fs = require('fs');
 const path = require('path');
+
+process.chdir(__dirname);
 const resolved_path = path.resolve(__dirname, '../../lib/');
 const relative_path = path.relative(__dirname, '../../lib/');
 
