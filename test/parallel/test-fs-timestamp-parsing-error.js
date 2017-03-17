@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-const assert = require('assert');
 const fs = require('fs');
+const assert = require('assert');
 
-[undefined, null, []].forEach((input) => {
+[Infinity, -Infinity, NaN].forEach((input) => {
   assert.throws(() => fs._toUnixTimestamp(input),
                 new RegExp('^Error: Cannot parse time: ' + input + '$'));
 });
@@ -11,6 +11,7 @@ const fs = require('fs');
 assert.throws(() => fs._toUnixTimestamp({}),
               /^Error: Cannot parse time: \[object Object\]$/);
 
-[1, '1', Date.now(), -1, '-1', Infinity].forEach((input) => {
+const okInputs = [1, -1, '1', '-1', Date.now()];
+okInputs.forEach((input) => {
   assert.doesNotThrow(() => fs._toUnixTimestamp(input));
 });

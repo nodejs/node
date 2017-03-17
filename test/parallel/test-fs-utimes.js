@@ -143,17 +143,15 @@ function testIt(atime, mtime, callback) {
 const stats = fs.statSync(__filename);
 
 // run tests
-const runTest = common.mustCall(testIt, 6);
+const runTest = common.mustCall(testIt, 5);
 
 runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
   runTest(new Date(), new Date(), function() {
     runTest(123456.789, 123456.789, function() {
       runTest(stats.mtime, stats.mtime, function() {
-        runTest(NaN, Infinity, function() {
-          runTest('123456', -1, common.mustCall(function() {
-            // done
-          }));
-        });
+        runTest('123456', -1, common.mustCall(function() {
+          // done
+        }));
       });
     });
   });
