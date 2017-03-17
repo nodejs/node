@@ -8,6 +8,71 @@ If you consistently can reproduce a test failure, search for it in the
 [Node.js issue tracker](https://github.com/nodejs/node/issues) or
 file a new issue.
 
+## Supported platforms
+
+This list of supported platforms is current as of the branch / release to
+which it is attached.
+
+### Input
+
+Node.js relies on V8 and libuv. Therefore, we adopt a subset of their
+supported platforms.
+
+### Strategy
+
+Support is divided into three tiers:
+
+* **Tier 1**: Full test coverage and maintenance by the Node.js core team and
+  the broader community.
+* **Tier 2**: Full test coverage but more limited maintenance,
+  often provided by the vendor of the platform.
+* **Experimental**: Known to compile but not necessarily reliably or with
+  a full passing test suite. These are often working to be promoted to Tier
+  2 but are not quite ready. There is at least one individual actively
+  providing maintenance and the team is striving to broaden quality and
+  reliability of support.
+
+### Supported platforms
+
+|  System      | Support type | Version                          | Architectures        | Notes            |
+|--------------|--------------|----------------------------------|----------------------|------------------|
+| GNU/Linux    | Tier 1       | kernel >= 2.6.18, glibc >= 2.5   | x86, x64, arm, arm64 |                  |
+| macOS        | Tier 1       | >= 10.10                         | x64                  |                  |
+| Windows      | Tier 1       | >= Windows 7 or >= Windows2008R2 | x86, x64             |                  |
+| SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1        |
+| FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
+| GNU/Linux    | Tier 2       | kernel >= 4.2.0, glibc >= 2.19   | ppc64be              |                  |
+| GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le              |                  |
+| AIX          | Tier 2       | >= 6.1 TL09                      | ppc64be              |                  |
+| GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17    | s390x                |                  |
+| macOS        | Experimental | >= 10.8 < 10.10                  | x64                  | no test coverage |
+| Linux (musl) | Experimental | musl >= 1.0                      | x64                  |                  |
+
+note1 - The gcc4.8-libs package needs to be installed, because node
+  binaries have been built with GCC 4.8, for which runtime libraries are not
+  installed by default. For these node versions, the recommended binaries
+  are the ones available in pkgsrc, not the one available from nodejs.org.
+  Note that the binaries downloaded from the pkgsrc repositories are not
+  officially supported by the Node.js project, and instead are supported
+  by Joyent. SmartOS images >= 16.4 are not supported because
+  GCC 4.8 runtime libraries are not available in their pkgsrc repository
+
+### Supported toolchains
+
+Depending on host platform, the selection of toolchains may vary.
+
+#### Unix
+
+* GCC 4.8.5 or newer
+* Clang 3.4.1 or newer
+
+#### Windows
+
+* Building Node: Visual Studio 2015 or Visual C++ Build Tools 2015 or newer
+* Building native add-ons: Visual Studio 2013 or Visual C++ Build Tools 2015
+  or newer
+
+## Building Node.js on supported platforms
 
 ### Unix / OS X
 
@@ -20,9 +85,9 @@ Prerequisites:
 
 On OS X, you will also need:
 * [Xcode](https://developer.apple.com/xcode/download/)
-  * You also need to install the `Command Line Tools` via Xcode. You can find
+  - You also need to install the `Command Line Tools` via Xcode. You can find
     this under the menu `Xcode -> Preferences -> Downloads`
-  * This step will install `gcc` and the related toolchain containing `make`
+  - This step will install `gcc` and the related toolchain containing `make`
 
 * After building, you may want to setup [firewall rules](tools/macosx-firewall.sh)
 to avoid popups asking to accept incoming network connections when running tests:
@@ -51,7 +116,8 @@ the `-j4` flag. See the
 [GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html)
 for more information.
 
-Note that the above requires that `python` resolve to Python 2.6 or 2.7 and not a newer version.
+Note that the above requires that `python` resolve to Python 2.6 or 2.7
+and not a newer version.
 
 To run the tests:
 
@@ -252,9 +318,11 @@ It is possible to build Node.js with
 
 **Note**: building in this way does **not** allow you to claim that the
 runtime is FIPS 140-2 validated. Instead you can indicate that the runtime
-uses a validated module. See the [security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf)
+uses a validated module. See the
+[security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf)
 page 60 for more details. In addition, the validation for the underlying module
-is only valid if it is deployed in accordance with its [security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
+is only valid if it is deployed in accordance with its
+[security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf).
 If you need FIPS validated cryptography it is recommended that you read both
 the [security policy](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp1747.pdf)
 and [user guide](https://openssl.org/docs/fips/UserGuide-2.0.pdf).
