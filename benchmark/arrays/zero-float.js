@@ -27,9 +27,13 @@ function main(conf) {
   bench.start();
   var arr = new clazz(n * 1e6);
   for (var i = 0; i < 10; ++i) {
+    run();
+  }
+  bench.end(n);
+
+  function run() {
     for (var j = 0, k = arr.length; j < k; ++j) {
       arr[j] = 0.0;
     }
   }
-  bench.end(n);
 }
