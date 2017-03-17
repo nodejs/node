@@ -49,7 +49,6 @@ if (process.argv[2] === 'you-are-the-child') {
 delete process.env.NON_EXISTING_VARIABLE;
 assert.strictEqual(true, delete process.env.NON_EXISTING_VARIABLE);
 
-/* eslint-disable max-len */
 /* For the moment we are not going to support setting the timezone via the
  * environment variables. The problem is that various V8 platform backends
  * deal with timezone in different ways. The windows platform backend caches
@@ -66,7 +65,6 @@ date = new Date('Fri, 10 Sep 1982 03:15:00 GMT');
 assert.strictEqual(3, date.getUTCHours());
 assert.strictEqual(5, date.getHours());
 */
-/* eslint-enable max-len */
 
 // Environment variables should be case-insensitive on Windows, and
 // case-sensitive on other platforms.
