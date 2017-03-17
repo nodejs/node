@@ -7,11 +7,11 @@
 const common = require('../common');
 const assert = require('assert');
 const domain = require('domain');
-const child_process = require('child_process');
+const net = require('net');
 
 let errorHandlerCalled = false;
 
-let test = () => {
+const test = () => {
   const d = domain.create();
 
   d.once('error', (err) => {
@@ -19,12 +19,12 @@ let test = () => {
   });
 
   d.run(function() {
-    const server = net.createServer(function(conn) {
+    const server = net.createServer((conn) => {
       conn.pipe(conn);
     });
-    server.listen(0, common.localhostIPv4, function() {
+    server.listen(0, common.localhostIPv4, () => {
       const conn = net.connect(this.address().port, common.localhostIPv4);
-      conn.once('data', function() {
+      conn.once('data', () => {
         throw new Error('ok');
       });
       conn.end('ok');

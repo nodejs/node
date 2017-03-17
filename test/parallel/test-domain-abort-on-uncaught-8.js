@@ -7,23 +7,22 @@
 const common = require('../common');
 const assert = require('assert');
 const domain = require('domain');
-const child_process = require('child_process');
 
 let errorHandlerCalled = false;
 
-let test = () => {
-    const d = domain.create();
-    const d2 = domain.create();
+const test = () => {
+  const d = domain.create();
+  const d2 = domain.create();
 
-    d2.on('error', function errorHandler() {
-      errorHandlerCalled = true;
-    });
+  d2.on('error', function errorHandler() {
+    errorHandlerCalled = true;
+  });
 
-    d.run(function() {
-      d2.run(function() {
-        throw new Error('boom!');
-      });
+  d.run(function() {
+    d2.run(function() {
+      throw new Error('boom!');
     });
+  });
 };
 
 

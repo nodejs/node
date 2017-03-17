@@ -7,11 +7,10 @@
 const common = require('../common');
 const assert = require('assert');
 const domain = require('domain');
-const child_process = require('child_process');
 
 let errorHandlerCalled = false;
 
-let nextTick = () => {
+const nextTick = () => {
   const d = domain.create();
 
   d.once('error', (err) => {
@@ -21,7 +20,7 @@ let nextTick = () => {
   d.run(() => {
     process.nextTick(() => {
       throw new Error('exceptional!');
-    })
+    });
   });
 };
 

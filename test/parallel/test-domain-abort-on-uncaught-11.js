@@ -7,11 +7,10 @@
 const common = require('../common');
 const assert = require('assert');
 const domain = require('domain');
-const child_process = require('child_process');
 
 let errorHandlerCalled = false;
 
-let test = () => {
+const test = () => {
   const d = domain.create();
   const d2 = domain.create();
 

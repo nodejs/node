@@ -260,7 +260,7 @@ exports.childShouldThrowAndAbort = function() {
 
 exports.childShouldNotThrowAndAbort = () => {
   let testCmd = '';
-  if(!exports.isWindows){
+  if (!exports.isWindows) {
     testCmd += 'ulimit -c 0 && ';
   }
 
