@@ -936,17 +936,13 @@ void V8::DisposeGlobal(i::Object** location) {
   i::GlobalHandles::Destroy(location);
 }
 
-
-void V8::Eternalize(Isolate* v8_isolate, Value* value, int* index) {
+Value* V8::Eternalize(Isolate* v8_isolate, Value* value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::Object* object = *Utils::OpenHandle(value);
-  isolate->eternal_handles()->Create(isolate, object, index);
-}
-
-
-Local<Value> V8::GetEternal(Isolate* v8_isolate, int index) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  return Utils::ToLocal(isolate->eternal_handles()->Get(index));
+  int index = -1;
+  isolate->eternal_handles()->Create(isolate, object, &index);
+  return reinterpret_cast<Value*>(
+      isolate->eternal_handles()->Get(index).location());
 }
 
 
