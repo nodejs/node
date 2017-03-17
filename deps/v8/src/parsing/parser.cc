@@ -1729,6 +1729,10 @@ Statement* Parser::RewriteSwitchStatement(Expression* tag,
   Block* cases_block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
   cases_block->statements()->Add(switch_statement, zone());
   cases_block->set_scope(scope);
+  DCHECK_IMPLIES(scope != nullptr,
+                 switch_statement->position() >= scope->start_position());
+  DCHECK_IMPLIES(scope != nullptr,
+                 switch_statement->position() < scope->end_position());
   switch_block->statements()->Add(cases_block, zone());
   return switch_block;
 }
