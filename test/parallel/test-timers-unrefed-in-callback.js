@@ -30,7 +30,7 @@ function Test1() {
 
   const timer1 = setInterval(() => {
     timer1.unref();
-    if (counter1++ === 10) {
+    if (counter1++ === 3) {
       clearInterval(timer1);
       server.close(() => {
         Test2();
@@ -49,13 +49,13 @@ function Test2() {
 
   const timer2 = setInterval(() => {
     timer2.unref();
-    if (counter2++ === 10)
+    if (counter2++ === 3)
       server.close();
   }, 1);
 }
 
 process.on('exit', () => {
-  assert.strictEqual(counter1, 11);
+  assert.strictEqual(counter1, 4);
 });
 
 Test1();
