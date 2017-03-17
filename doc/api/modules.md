@@ -149,11 +149,13 @@ require(X) from module at path Y
 1. If X is a core module,
    a. return the core module
    b. STOP
-2. If X begins with './' or '/' or '../'
+2. If X begins with '/'
+   a. set Y to be the filesystem root
+3. If X begins with './' or '/' or '../'
    a. LOAD_AS_FILE(Y + X)
    b. LOAD_AS_DIRECTORY(Y + X)
-3. LOAD_NODE_MODULES(X, dirname(Y))
-4. THROW "not found"
+4. LOAD_NODE_MODULES(X, dirname(Y))
+5. THROW "not found"
 
 LOAD_AS_FILE(X)
 1. If X is a file, load X as JavaScript text.  STOP
