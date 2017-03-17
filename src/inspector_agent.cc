@@ -404,7 +404,7 @@ AgentImpl::~AgentImpl() {
   auto close_cb = [](uv_handle_t* handle) {
     delete reinterpret_cast<uv_async_t*>(handle);
   };
-  if(!uv_is_closing()){
+  if(!uv_is_closing(data_written_)){
     uv_close(reinterpret_cast<uv_handle_t*>(data_written_), close_cb);
   }
     
