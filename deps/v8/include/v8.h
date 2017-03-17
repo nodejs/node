@@ -366,8 +366,8 @@ template <class T> class Eternal {
     Set(isolate, handle);
   }
   // Can only be safely called if already set.
-  V8_INLINE Local<T> Get(Isolate* isolate);
-  V8_INLINE bool IsEmpty() { return index_ == kInitialValue; }
+  V8_INLINE Local<T> Get(Isolate* isolate) const;
+  V8_INLINE bool IsEmpty() const { return index_ == kInitialValue; }
   template<class S> V8_INLINE void Set(Isolate* isolate, Local<S> handle);
 
  private:
@@ -8604,9 +8604,8 @@ void Eternal<T>::Set(Isolate* isolate, Local<S> handle) {
   V8::Eternalize(isolate, reinterpret_cast<Value*>(*handle), &this->index_);
 }
 
-
-template<class T>
-Local<T> Eternal<T>::Get(Isolate* isolate) {
+template <class T>
+Local<T> Eternal<T>::Get(Isolate* isolate) const {
   return Local<T>(reinterpret_cast<T*>(*V8::GetEternal(isolate, index_)));
 }
 
