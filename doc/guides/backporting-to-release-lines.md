@@ -24,8 +24,10 @@ The releaser will then add a comment that a backport is needed.
 ## What can be backported?
 
 The "Current" release line is much more lenient than the LTS release lines in
-what can be landed. Our LTS release lines require that commits live in a Current
-release for at least 2 weeks before backporting. Please see the [LTS Plan][]
+what can be landed. Our LTS release lines (v4.x and v6.x as of March 2017)
+require that commits mature in a Current release for at least 2 weeks before
+they can be landed on staging. If the commit can not be cherry-picked from
+master a manual backport will need to be submitted. Please see the [LTS Plan][]
 for more information. After that time, if the commit can be cherry-picked
 cleanly from master, then nothing needs to be done. If not, a backport pull
 request will need to be submitted.
@@ -68,7 +70,7 @@ hint: and commit the result with 'git commit'
 
 * Make the required changes to remove the conflicts, add the files to the index
   using `git add`, and then commit the changes. That can be done with
-  `git commit`.
+  `git cherry-pick --continue`.
 * The commit message should be as close as possible to the commit message on the
   master branch, unless the commit has to be different due to dependencies that
   are not present in the targeted release line. The only exception is that the
