@@ -547,7 +547,7 @@ that the stream will *remain* paused once those destinations drain and ask for
 more data.
 
 *Note*: If a [Readable][] is switched into flowing mode and there are no
-consumers available handle the data, that data will be lost. This can occur,
+consumers available to handle the data, that data will be lost. This can occur,
 for instance, when the `readable.resume()` method is called without a listener
 attached to the `'data'` event, or when a `'data'` event handler is removed
 from the stream.
