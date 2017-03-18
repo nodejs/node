@@ -7,24 +7,25 @@
 const common = require('../common');
 const assert = require('assert');
 const domain = require('domain');
-const net = require('net');
+
 
 let errorHandlerCalled = false;
 
 const test = () => {
+  const net = require('net');
   const d = domain.create();
 
-  d.once('error', (err) => {
+  d.on('error', function(err) {
     errorHandlerCalled = true;
   });
 
   d.run(function() {
-    const server = net.createServer((conn) => {
+    const server = net.createServer(function(conn) {
       conn.pipe(conn);
     });
-    server.listen(0, common.localhostIPv4, () => {
+    server.listen(0, common.localhostIPv4, function() {
       const conn = net.connect(this.address().port, common.localhostIPv4);
-      conn.once('data', () => {
+      conn.once('data', function() {
         throw new Error('ok');
       });
       conn.end('ok');

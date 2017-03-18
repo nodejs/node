@@ -10,7 +10,7 @@ const domain = require('domain');
 
 let errorHandlerCalled = false;
 
-let test = () => {
+const test = () => {
   const d = domain.create();
 
   d.once('error', (err) => {
