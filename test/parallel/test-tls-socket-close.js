@@ -9,35 +9,37 @@ const net = require('net');
 const key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
 const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
 
-const T = 100;
-
+let tlsSocket;
 // tls server
 const tlsServer = tls.createServer({ cert, key }, (socket) => {
-  setTimeout(() => {
-    socket.on('error', (error) => {
-      assert.strictEqual(error.code, 'EINVAL');
-      tlsServer.close();
-      netServer.close();
-    });
-    socket.write('bar');
-  }, T * 2);
+  tlsSocket = socket;
+  socket.on('error', common.mustCall((error) => {
+    assert.strictEqual(error.code, 'EINVAL');
+    tlsServer.close();
+    netServer.close();
+  }));
 });
 
+let netSocket;
 // plain tcp server
 const netServer = net.createServer((socket) => {
-    // if client wants to use tls
+  // if client wants to use tls
   tlsServer.emit('connection', socket);
 
-  socket.setTimeout(T, () => {
-    // this breaks if TLSSocket is already managing the socket:
-    socket.destroy();
-  });
+  netSocket = socket;
 }).listen(0, common.mustCall(function() {
-
   // connect client
   tls.connect({
     host: 'localhost',
     port: this.address().port,
     rejectUnauthorized: false
-  }).write('foo');
+  }).write('foo', 'utf8', common.mustCall(() => {
+    assert(netSocket);
+    netSocket.setTimeout(1, common.mustCall(() => {
+      assert(tlsSocket);
+      // this breaks if TLSSocket is already managing the socket:
+      netSocket.destroy();
+      netSocket.on('close', () => { tlsSocket.write('bar'); });
+    }));
+  }));
 }));
