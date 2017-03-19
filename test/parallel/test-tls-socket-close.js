@@ -10,7 +10,6 @@ const key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
 const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
 
 let tlsSocket;
-let interval;
 // tls server
 const tlsServer = tls.createServer({ cert, key }, (socket) => {
   tlsSocket = socket;
@@ -18,7 +17,6 @@ const tlsServer = tls.createServer({ cert, key }, (socket) => {
     assert.strictEqual(error.code, 'EINVAL');
     tlsServer.close();
     netServer.close();
-    clearInterval(interval);
   }));
 });
 
