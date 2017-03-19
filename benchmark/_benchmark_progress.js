@@ -104,7 +104,7 @@ class BenchmarkProgress {
           `| ${fraction(completedFiles, scheduledFiles)} files ` +
           `| ${fraction(completedRunsForFile, runsPerFile)} runs ` +
           `| ${fraction(completedConfig, scheduledConfig)} configs]` +
-          `: ${caption}`;
+          `: ${caption} `;
   }
 
   updateProgress(finished) {
