@@ -41,7 +41,16 @@ const netServer = net.createServer((socket) => {
       assert(tlsSocket);
       // this breaks if TLSSocket is already managing the socket:
       netSocket.destroy();
-      netSocket.on('close', () => { tlsSocket.write('bar'); });
+      const interval = setInterval(() => {
+        // Checking this way allows us to do the right at a time that causes a
+        // segmentation fault (not always, but often) in Node.js 7.7.3 and
+        // earlier. If we instead, for example, wait on the `close` event, then
+        // it will not segmentation fault, which is what this test is all about.
+        if (tlsSocket._handle._parent.bytesRead === 0) {
+          tlsSocket.write('bar');
+          clearInterval(interval);
+        }
+      }, 1);
     }));
   }));
 }));
