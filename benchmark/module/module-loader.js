@@ -35,6 +35,8 @@ function main(conf) {
     measureFull(n, conf.useCache === 'true');
   else
     measureDir(n, conf.useCache === 'true');
+
+  rmrf(tmpDirectory);
 }
 
 function measureFull(n, useCache) {
