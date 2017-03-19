@@ -34,6 +34,8 @@ function main(conf) {
     measureFull(n);
   else
     measureDir(n);
+
+  rmrf(tmpDirectory);
 }
 
 function measureFull(n) {
