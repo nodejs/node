@@ -39,7 +39,7 @@ const netServer = net.createServer((socket) => {
       assert(tlsSocket);
       // this breaks if TLSSocket is already managing the socket:
       netSocket.destroy();
-      netSocket.on('close', () => { tlsSocket.write('bar'); });
+      const interval = setTimeout(() => { tlsSocket.write('bar'); }, 2);
     }));
   }));
 }));
