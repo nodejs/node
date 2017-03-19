@@ -4,7 +4,10 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  method: ['object', 'nullProtoObject', 'fakeMap', 'map'],
+  method: [
+    'object', 'nullProtoObject', 'nullProtoLiteralObject', 'storageObject',
+    'fakeMap', 'map'
+  ],
   millions: [1]
 });
 
@@ -24,6 +27,37 @@ function runObject(n) {
 
 function runNullProtoObject(n) {
   const m = Object.create(null);
+  var i = 0;
+  bench.start();
+  for (; i < n; i++) {
+    m['i' + i] = i;
+    m['s' + i] = String(i);
+    assert.strictEqual(String(m['i' + i]), m['s' + i]);
+    m['i' + i] = undefined;
+    m['s' + i] = undefined;
+  }
+  bench.end(n / 1e6);
+}
+
+function runNullProtoLiteralObject(n) {
+  const m = { __proto__: null };
+  var i = 0;
+  bench.start();
+  for (; i < n; i++) {
+    m['i' + i] = i;
+    m['s' + i] = String(i);
+    assert.strictEqual(String(m['i' + i]), m['s' + i]);
+    m['i' + i] = undefined;
+    m['s' + i] = undefined;
+  }
+  bench.end(n / 1e6);
+}
+
+function StorageObject() {}
+StorageObject.prototype = Object.create(null);
+
+function runStorageObject(n) {
+  const m = new StorageObject();
   var i = 0;
   bench.start();
   for (; i < n; i++) {
@@ -83,6 +117,12 @@ function main(conf) {
       break;
     case 'nullProtoObject':
       runNullProtoObject(n);
+      break;
+    case 'nullProtoLiteralObject':
+      runNullProtoLiteralObject(n);
+      break;
+    case 'storageObject':
+      runStorageObject(n);
       break;
     case 'fakeMap':
       runFakeMap(n);
