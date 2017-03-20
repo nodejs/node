@@ -1014,7 +1014,7 @@ changes:
     `false`.
   * `rejectUnauthorized` {boolean} If `true` the server will reject any
     connection which is not authorized with the list of supplied CAs. This
-    option only has an effect if `requestCert` is `true`. Defaults to `false`.
+    option only has an effect if `requestCert` is `true`. Defaults to `true`.
   * `NPNProtocols` {string[]|Buffer} An array of strings or a `Buffer` naming
     possible NPN protocols. (Protocols should be ordered by their priority.)
   * `ALPNProtocols` {string[]|Buffer} An array of strings or a `Buffer` naming
