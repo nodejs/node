@@ -408,7 +408,11 @@
                   ],
                 }],
               ],
-            }]]
+            }],
+            [ 'system_ca_certs!=""', {
+              'defines': [ 'SYSTEM_CA_CERTS="<(system_ca_certs)"' ],
+            }]
+          ]
         }, {
           'defines': [ 'HAVE_OPENSSL=0' ]
         }],
