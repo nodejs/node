@@ -27,21 +27,22 @@
 
 namespace node {
 
-using v8::Isolate;
+using v8::Context;
 using v8::Local;
 using v8::String;
 using v8::Value;
 
 template <typename T>
-static void MakeUtf8String(Isolate* isolate,
+static void MakeUtf8String(Local<Context> context,
                            Local<Value> value,
                            T* target) {
-  Local<String> string = value->ToString(isolate);
-  if (string.IsEmpty()) {
+  Local<String> string;
+  if (!value->ToString(context).ToLocal(&string)) {
     target->Invalidate();
     return;
   }
 
+  auto isolate = context->GetIsolate();
   const size_t storage = StringBytes::StorageSize(isolate, string, UTF8) + 1;
   target->AllocateSufficientStorage(storage);
   const int flags =
@@ -50,24 +51,24 @@ static void MakeUtf8String(Isolate* isolate,
   target->SetLengthAndZeroTerminate(length);
 }
 
-Utf8Value::Utf8Value(Isolate* isolate, Local<Value> value) {
+Utf8Value::Utf8Value(Local<Context> context, Local<Value> value) {
   if (value.IsEmpty()) {
     Invalidate();
     return;
   }
 
-  MakeUtf8String(isolate, value, this);
+  MakeUtf8String(context, value, this);
 }
 
 
-TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value) {
+TwoByteValue::TwoByteValue(Local<Context> context, Local<Value> value) {
   if (value.IsEmpty()) {
     Invalidate();
     return;
   }
 
-  Local<String> string = value->ToString(isolate);
-  if (string.IsEmpty()) {
+  Local<String> string;
+  if (!value->ToString(context).ToLocal(&string)) {
     Invalidate();
     return;
   }
@@ -81,7 +82,7 @@ TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value) {
   SetLengthAndZeroTerminate(length);
 }
 
-BufferValue::BufferValue(Isolate* isolate, Local<Value> value) {
+BufferValue::BufferValue(Local<Context> context, Local<Value> value) {
   // Slightly different take on Utf8Value. If value is a String,
   // it will return a Utf8 encoded string. If value is a Buffer,
   // it will copy the data out of the Buffer as is.
@@ -92,7 +93,7 @@ BufferValue::BufferValue(Isolate* isolate, Local<Value> value) {
   }
 
   if (value->IsString()) {
-    MakeUtf8String(isolate, value, this);
+    MakeUtf8String(context, value, this);
   } else if (Buffer::HasInstance(value)) {
     const size_t len = Buffer::Length(value);
     // Leave place for the terminating '\0' byte.
