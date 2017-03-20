@@ -41,7 +41,8 @@ using v8::Value;
   {                                                                           \
     Local<Value> val = GET(env, obj, #name);                                  \
     if (val->IsString()) {                                                    \
-      Utf8Value value(env->isolate(), val.As<String>());                      \
+      Utf8Value value(env->isolate(), val);                                   \
+      CHECK(!value.IsInvalidated());                                          \
       data->name = *value;                                                    \
       data->flags |= flag;                                                    \
     }                                                                         \
@@ -509,7 +510,8 @@ namespace url {
     for (int32_t n = 0; n < len; n++) {
       Local<Value> val = ary->Get(env->context(), n).ToLocalChecked();
       if (val->IsString()) {
-        Utf8Value value(env->isolate(), val.As<String>());
+        Utf8Value value(env->isolate(), val);
+        CHECK(!value.IsInvalidated());
         vec->push_back(std::string(*value, value.length()));
       }
     }
@@ -562,6 +564,7 @@ namespace url {
     Local<Value> scheme = GET(env, context_obj, "scheme");
     if (scheme->IsString()) {
       Utf8Value value(env->isolate(), scheme);
+      CHECK(!value.IsInvalidated());
       context->scheme.assign(*value, value.length());
     }
     Local<Value> port = GET(env, context_obj, "port");
@@ -1297,7 +1300,6 @@ namespace url {
   static void Parse(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK_GE(args.Length(), 5);
-    CHECK(args[0]->IsString());
     CHECK(args[2]->IsUndefined() ||
           args[2]->IsNull() ||
           args[2]->IsObject());
@@ -1306,6 +1308,7 @@ namespace url {
           args[3]->IsObject());
     CHECK(args[4]->IsFunction());
     Utf8Value input(env->isolate(), args[0]);
+    CHECK(!input.IsInvalidated());
     enum url_parse_state state_override = kUnknownState;
     if (args[1]->IsNumber()) {
       state_override = static_cast<enum url_parse_state>(
@@ -1323,8 +1326,8 @@ namespace url {
   static void EncodeAuthSet(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK_GE(args.Length(), 1);
-    CHECK(args[0]->IsString());
     Utf8Value value(env->isolate(), args[0]);
+    CHECK(!value.IsInvalidated());
     std::string output;
     const size_t len = value.length();
     output.reserve(len);
@@ -1341,10 +1344,10 @@ namespace url {
   static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK_GE(args.Length(), 2);
-    CHECK(args[0]->IsString());
     CHECK(args[1]->IsNumber());
 
     TwoByteValue value(env->isolate(), args[0]);
+    CHECK(!value.IsInvalidated());
     const size_t n = value.length();
 
     const int64_t start = args[1]->IntegerValue(env->context()).FromJust();
@@ -1376,8 +1379,8 @@ namespace url {
   static void DomainToASCII(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK_GE(args.Length(), 1);
-    CHECK(args[0]->IsString());
     Utf8Value value(env->isolate(), args[0]);
+    CHECK(!value.IsInvalidated());
 
     url_host host{{""}, HOST_TYPE_DOMAIN};
     ParseHost(&host, *value, value.length());
@@ -1396,8 +1399,8 @@ namespace url {
   static void DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK_GE(args.Length(), 1);
-    CHECK(args[0]->IsString());
     Utf8Value value(env->isolate(), args[0]);
+    CHECK(!value.IsInvalidated());
 
     url_host host{{""}, HOST_TYPE_DOMAIN};
     ParseHost(&host, *value, value.length(), true);
