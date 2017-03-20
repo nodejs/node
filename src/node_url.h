@@ -463,6 +463,10 @@ static inline void PercentDecode(const char* input,
   XX(ARG_QUERY)                                                               \
   XX(ARG_FRAGMENT)
 
+#define ERR_ARGS(XX)                                                          \
+  XX(ERR_ARG_FLAGS)                                                           \
+  XX(ERR_ARG_INPUT)                                                           \
+
 static const char kEOL = -1;
 
 enum url_parse_state {
@@ -483,6 +487,12 @@ enum url_cb_args {
   ARGS(XX)
 #undef XX
 };
+
+enum url_error_cb_args {
+#define XX(name) name,
+  ERR_ARGS(XX)
+#undef XX
+} url_error_cb_args;
 
 static inline bool IsSpecial(std::string scheme) {
 #define XX(name, _) if (scheme == name) return true;
