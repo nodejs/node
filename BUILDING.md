@@ -72,6 +72,11 @@ Depending on host platform, the selection of toolchains may vary.
 * Building native add-ons: Visual Studio 2013 or Visual C++ Build Tools 2015
   or newer
 
+### Shared libraries & dependencies
+
+Node.js intends to support building against shared representations of
+dependencies found in the [*deps*](./deps/) directory.
+
 ## Building Node.js on supported platforms
 
 ### Unix / OS X
