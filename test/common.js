@@ -254,7 +254,7 @@ exports.childShouldThrowAndAbort = function() {
 };
 
 
-// This test makes sure that when using --abort-on-uncaught-exception and
+// This function makes sure that when using --abort-on-uncaught-exception and
 // when throwing an error from within a domain that has an error handler
 // setup, the process _does not_ abort.
 
@@ -269,8 +269,8 @@ exports.childShouldNotThrowAndAbort = () => {
 
   const child = child_process.exec(testCmd);
   child.on('exit', (code, signal) => {
-    const errorMsg = `Test should have exited with exit code 0 
-    but insteand exited with code ${code} and signal ${signal}`;
+    const errorMsg = 'Test should have exited with exit code 0 but instead ' +
+      `exited with ${code} and signal ${signal}`;
     assert.strictEqual(code, 0, errorMsg);
   });
 };
