@@ -814,9 +814,7 @@ int SyncProcessRunner::ParseStdioOptions(Local<Value> js_value) {
   HandleScope scope(env()->isolate());
   Local<Array> js_stdio_options;
 
-  if (!js_value->IsArray())
-    return UV_EINVAL;
-
+  CHECK(js_value->IsArray());
   js_stdio_options = js_value.As<Array>();
 
   stdio_count_ = js_stdio_options->Length();
@@ -946,10 +944,8 @@ int SyncProcessRunner::CopyJsString(Local<Value> js_value,
   size_t size, written;
   char* buffer;
 
-  if (js_value->IsString())
-    js_string = js_value.As<String>();
-  else
-    js_string = js_value->ToString(env()->isolate());
+  CHECK(js_value->IsString());
+  js_string = js_value.As<String>();
 
   // Include space for null terminator byte.
   size = StringBytes::StorageSize(isolate, js_string, UTF8) + 1;
@@ -973,18 +969,9 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   char** list;
   char* buffer;
 
-  if (!js_value->IsArray())
-    return UV_EINVAL;
-
-  js_array = js_value.As<Array>()->Clone().As<Array>();
+  CHECK(js_value->IsArray());
+  js_array = js_value.As<Array>();
   length = js_array->Length();
-
-  // Convert all array elements to string. Modify the js object itself if
-  // needed - it's okay since we cloned the original object.
-  for (uint32_t i = 0; i < length; i++) {
-    if (!js_array->Get(i)->IsString())
-      js_array->Set(i, js_array->Get(i)->ToString(env()->isolate()));
-  }
 
   // Index has a pointer to every string element, plus one more for a final
   // null pointer.
@@ -994,7 +981,9 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   // after every string. Align strings to cache lines.
   data_size = 0;
   for (uint32_t i = 0; i < length; i++) {
-    data_size += StringBytes::StorageSize(isolate, js_array->Get(i), UTF8) + 1;
+    auto el = js_array->Get(i);
+    CHECK(el->IsString());
+    data_size += StringBytes::StorageSize(isolate, el, UTF8) + 1;
     data_size = ROUND_UP(data_size, sizeof(void*));
   }
 

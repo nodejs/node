@@ -200,3 +200,34 @@ if (!common.isWindows) {
   fail('killSignal', {}, typeErr);
   fail('killSignal', noop, typeErr);
 }
+
+{
+  // Validate the args argument
+  const err = /^TypeError: Incorrect value of args option$/;
+
+  function pass(value) {
+    // Run the command with the specified option. Since it's not a real command,
+    // spawnSync() should run successfully but return an ENOENT error.
+    const child = spawnSync('not_a_real_command', value);
+    assert.strictEqual(child.error.code, 'ENOENT');
+  }
+
+  function fail(value, message = err) {
+    assert.throws(() => {
+      spawnSync('not_a_real_command', value);
+    }, message);
+  }
+
+  pass([]);
+  pass(['a']);
+  pass({}); // in which case the args argument is actually options
+  pass(undefined);
+  fail(null);
+  fail('a');
+  fail(42);
+  fail(false);
+  fail(Symbol());
+  fail([Symbol()], /^TypeError: Cannot convert a Symbol value to a string$/);
+  fail([{ toString() { throw new TypeError('stringifier'); } }],
+       /^TypeError: stringifier$/);
+}
