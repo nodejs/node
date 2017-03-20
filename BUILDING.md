@@ -39,7 +39,7 @@ Support is divided into three tiers:
 | GNU/Linux    | Tier 1       | kernel >= 2.6.18, glibc >= 2.5   | x86, x64, arm, arm64 |                  |
 | macOS        | Tier 1       | >= 10.10                         | x64                  |                  |
 | Windows      | Tier 1       | >= Windows 7 or >= Windows2008R2 | x86, x64             |                  |
-| SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1        |
+| SmartOS      | Tier 2       | >= 14 < 16.4                     | x86, x64             | see note1        |
 | FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
 | GNU/Linux    | Tier 2       | kernel >= 4.2.0, glibc >= 2.19   | ppc64be              |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le              |                  |
@@ -63,8 +63,8 @@ Depending on host platform, the selection of toolchains may vary.
 
 #### Unix
 
-* GCC 4.8.5 or newer
-* Clang 3.4.1 or newer
+* GCC 4.8 or newer
+* Clang 3.4 or newer
 
 #### Windows
 
