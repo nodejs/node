@@ -337,6 +337,8 @@ more information about the governance of the Node.js project, see
 **Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
 * [vkurchatkin](https://github.com/vkurchatkin) -
 **Vladimir Kurchatkin** &lt;vladimir.kurchatkin@gmail.com&gt;
+* [vsemozhetbyt](https://github.com/vsemozhetbyt) -
+**Vse Mozhet Byt** &lt;vsemozhetbyt@gmail.com&gt; (he/him)
 * [watilde](https://github.com/watilde) -
 **Daijiro Wachi** &lt;daijiro.wachi@gmail.com&gt; (he/him)
 * [whitlockjc](https://github.com/whitlockjc) -
