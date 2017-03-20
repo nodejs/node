@@ -1,6 +1,6 @@
 # Node.js
 
-[![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/nodejs/node?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/29/badge)](https://bestpractices.coreinfrastructure.org/projects/29)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/nodejs/node?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/29/badge)](https://bestpractices.coreinfrastructure.org/projects/29)
 
 Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. Node.js
 uses an event-driven, non-blocking I/O model that makes it lightweight and
