@@ -12,22 +12,7 @@ added: v0.5.9
 * `value` {any}
 * `message` {any}
 
-An alias of [`assert.ok()`][] .
-
-```js
-const assert = require('assert');
-
-assert(true);
-// OK
-assert(1);
-// OK
-assert(false);
-// throws "AssertionError: false == true"
-assert(0);
-// throws "AssertionError: 0 == true"
-assert(false, 'it\'s false');
-// throws "AssertionError: it's false"
-```
+An alias of [`assert.ok()`][].
 
 ## assert.deepEqual(actual, expected[, message])
 <!-- YAML
