@@ -2076,8 +2076,7 @@ void SSLWrap<Base>::VerifyError(const FunctionCallbackInfo<Value>& args) {
   Local<String> reason_string = OneByteString(isolate, reason);
   Local<Value> exception_value = Exception::Error(reason_string);
   Local<Object> exception_object = exception_value->ToObject(isolate);
-  exception_object->Set(FIXED_ONE_BYTE_STRING(isolate, "code"),
-                        OneByteString(isolate, code));
+  exception_object->Set(w->env()->code_string(), OneByteString(isolate, code));
   args.GetReturnValue().Set(exception_object);
 }
 
@@ -3276,7 +3275,7 @@ void Connection::SetSNICallback(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Object> obj = Object::New(env->isolate());
-  obj->Set(FIXED_ONE_BYTE_STRING(args.GetIsolate(), "onselect"), args[0]);
+  obj->Set(env->onselect_string(), args[0]);
   conn->sniObject_.Reset(args.GetIsolate(), obj);
 }
 #endif
@@ -5605,7 +5604,7 @@ void RandomBytes(const FunctionCallbackInfo<Value>& args) {
   RandomBytesRequest* req = new RandomBytesRequest(env, obj, size);
 
   if (args[1]->IsFunction()) {
-    obj->Set(FIXED_ONE_BYTE_STRING(args.GetIsolate(), "ondone"), args[1]);
+    obj->Set(env->ondone_string(), args[1]);
 
     if (env->in_domain())
       obj->Set(env->domain_string(), env->domain_array()->Get(0));

@@ -743,8 +743,7 @@ class ContextifyScript : public BaseObject {
       return -1;
     }
 
-    Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "timeout");
-    Local<Value> value = options.As<Object>()->Get(key);
+    Local<Value> value = options.As<Object>()->Get(env->timeout_string());
     if (value->IsUndefined()) {
       return -1;
     }
