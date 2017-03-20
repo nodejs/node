@@ -40,7 +40,7 @@ const netServer = net.createServer((socket) => {
       // this breaks if TLSSocket is already managing the socket:
       netSocket.destroy();
       const interval = setInterval(() => {
-        // Checking this way allows us to do the right at a time that causes a
+        // Checking this way allows us to do the write at a time that causes a
         // segmentation fault (not always, but often) in Node.js 7.7.3 and
         // earlier. If we instead, for example, wait on the `close` event, then
         // it will not segmentation fault, which is what this test is all about.
