@@ -180,6 +180,9 @@ static const char* trace_enabled_categories = nullptr;
 std::string icu_data_dir;  // NOLINT(runtime/string)
 #endif
 
+// N-API is in experimental state, disabled by default.
+bool load_napi_modules = false;
+
 // used by C++ modules as well
 bool no_deprecation = false;
 
@@ -2463,15 +2466,24 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   }
   if (mp->nm_version != NODE_MODULE_VERSION) {
     char errmsg[1024];
-    snprintf(errmsg,
-             sizeof(errmsg),
-             "The module '%s'"
-             "\nwas compiled against a different Node.js version using"
-             "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
-             "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
-             "re-installing\nthe module (for instance, using `npm rebuild` or "
-             "`npm install`).",
-             *filename, mp->nm_version, NODE_MODULE_VERSION);
+    if (mp->nm_version == -1) {
+      snprintf(errmsg,
+               sizeof(errmsg),
+               "The module '%s'"
+               "\nwas compiled against the Node.js API. This feature is "
+               "\nexperimental and must be enabled on the command-line.",
+               *filename);
+    } else {
+      snprintf(errmsg,
+               sizeof(errmsg),
+               "The module '%s'"
+               "\nwas compiled against a different Node.js version using"
+               "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
+               "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
+               "re-installing\nthe module (for instance, using `npm rebuild` "
+               "or `npm install`).",
+               *filename, mp->nm_version, NODE_MODULE_VERSION);
+    }
 
     // NOTE: `mp` is allocated inside of the shared library's memory, calling
     // `uv_dlclose` will deallocate it
@@ -3535,6 +3547,7 @@ static void PrintHelp() {
          "  --trace-deprecation        show stack traces on deprecations\n"
          "  --throw-deprecation        throw an exception on deprecations\n"
          "  --no-warnings              silence all process warnings\n"
+         "  --napi-modules[=yes|no]    load N-API modules (default no)\n"
          "  --trace-warnings           show stack traces on process warnings\n"
          "  --redirect-warnings=path\n"
          "                             write warnings to path instead of\n"
@@ -3705,6 +3718,12 @@ static void ParseArgs(int* argc,
       force_repl = true;
     } else if (strcmp(arg, "--no-deprecation") == 0) {
       no_deprecation = true;
+    } else if (strcmp(arg, "--napi-modules") == 0) {
+      load_napi_modules = true;
+    } else if (strcmp(arg, "--napi-modules=yes") == 0) {
+      load_napi_modules = true;
+    } else if (strcmp(arg, "--napi-modules=no") == 0) {
+      load_napi_modules = false;
     } else if (strcmp(arg, "--no-warnings") == 0) {
       no_process_warnings = true;
     } else if (strcmp(arg, "--trace-warnings") == 0) {
@@ -4472,6 +4491,11 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   // Enable debugger
   if (debug_enabled)
     EnableDebug(&env);
+
+  if (load_napi_modules) {
+    ProcessEmitWarning(&env, "N-API is an experimental feature "
+        "and could change at any time.");
+  }
 
   {
     SealHandleScope seal(isolate);
