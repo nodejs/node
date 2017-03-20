@@ -69,7 +69,8 @@ Depending on host platform, the selection of toolchains may vary.
 #### Windows
 
 * Building Node: Visual Studio 2015 or Visual C++ Build Tools 2015 or newer
-* Building native add-ons: Visual Studio 2013 or Visual C++ Build Tools 2015 or newer
+* Building native add-ons: Visual Studio 2013 or Visual C++ Build Tools 2015
+  or newer
 
 ## Building Node.js on supported platforms
 
