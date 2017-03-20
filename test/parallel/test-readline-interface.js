@@ -303,14 +303,14 @@ function isWarned(emitter) {
     return false;
   });
 
-  // duplicate lines are removed from history when `options.deDupeHistory`
-  // is `true`
+  // duplicate lines are removed from history when
+  // `options.removeHistoryDuplicates` is `true`
   fi = new FakeInput();
   rli = new readline.Interface({
     input: fi,
     output: fi,
     terminal: true,
-    deDupeHistory: true
+    removeHistoryDuplicates: true
   });
   expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
   callCount = 0;
@@ -333,14 +333,14 @@ function isWarned(emitter) {
   assert.strictEqual(callCount, 0);
   rli.close();
 
-  // duplicate lines are not removed from history when `options.deDupeHistory`
-  // is `false`
+  // duplicate lines are not removed from history when
+  // `options.removeHistoryDuplicates` is `false`
   fi = new FakeInput();
   rli = new readline.Interface({
     input: fi,
     output: fi,
     terminal: true,
-    deDupeHistory: false
+    removeHistoryDuplicates: false
   });
   expectedLines = ['foo', 'bar', 'baz', 'bar', 'bat', 'bat'];
   callCount = 0;
