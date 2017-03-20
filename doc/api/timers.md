@@ -164,19 +164,26 @@ Cancels a `Timeout` object created by [`setTimeout()`][].
 
 ## Manual Timers
 
-It is possible to make any object a timer. Reusing an existing object as a timer
-slightly reduces memory consumption. Another advantage is that you control
-when the timer will be started.
+It is possible, but not recommended, to make any object a timer. Under special
+circumstances this can be advantageous. However, in general practice, using
+this API is strongly discouraged. This is due to the fact that when using this API
+it is important to track timer enrollment state. A memory leak will occur if a
+timer is enrolled but never unenrolled.
+
+*Note*: This API is considered *unsafe*. Despite being public, it is subject
+to change at any time.
 
 Example:
 
 ```js
-var timers = require('timers');
-var atimer = {
+'use strict';
+
+const timers = require('timers');
+const atimer = {
   _onTimeout: function() {
     console.log('timeout');
   }
-}
+};
 
 timers.enroll(atimer, 1000); // make the `atimer` object a timer
 timers.active(atimer); // start the timer
