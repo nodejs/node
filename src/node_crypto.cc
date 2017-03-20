@@ -141,9 +141,11 @@ static X509_NAME *cnnic_ev_name =
 
 static Mutex* mutexes;
 
+#if !defined(NODE_OPENSSL_CERT_STORE)
 const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
 };
+#endif
 
 std::string extra_root_certs_file;  // NOLINT(runtime/string)
 
@@ -718,6 +720,7 @@ static int X509_up_ref(X509* cert) {
 
 
 static X509_STORE* NewRootCertStore() {
+#if !defined(NODE_OPENSSL_CERT_STORE)
   if (root_certs_vector.empty()) {
     for (size_t i = 0; i < arraysize(root_certs); i++) {
       BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
@@ -730,6 +733,7 @@ static X509_STORE* NewRootCertStore() {
       root_certs_vector.push_back(x509);
     }
   }
+#endif
 
   X509_STORE* store = X509_STORE_new();
   if (ssl_openssl_cert_store) {
