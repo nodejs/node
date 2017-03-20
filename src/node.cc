@@ -4218,6 +4218,8 @@ inline void PlatformInit() {
     auto handle = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
     if (handle == INVALID_HANDLE_VALUE ||
         GetFileType(handle) == FILE_TYPE_UNKNOWN) {
+      // Ignore _close result. If it fails or not depends on used Windows
+      // version. We will just check _open result.
       _close(fd);
       if (fd != _open("nul", _O_RDWR))
         ABORT();
