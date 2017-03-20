@@ -9,7 +9,7 @@ const repl = require('repl');
   const options = {
     eval: common.mustCall((cmd, context) => {
       // Assertions here will not cause the test to exit with an error code
-      // so set a boolean that is checked in process.on('exit',...) instead.
+      // so set a boolean that is checked later instead.
       evalCalledWithExpectedArgs = (cmd === 'function f() {}\n' &&
                                     context.foo === 'bar');
     })
@@ -29,7 +29,5 @@ const repl = require('repl');
     r.write('.exit\n');
   }
 
-  process.on('exit', () => {
-    assert(evalCalledWithExpectedArgs);
-  });
+  assert(evalCalledWithExpectedArgs);
 }
