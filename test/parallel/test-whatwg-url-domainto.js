@@ -13,6 +13,15 @@ const { domainToASCII, domainToUnicode } = require('url');
 const tests = require('../fixtures/url-idna.js');
 
 {
+  assert.throws(() => domainToASCII(),
+                /^TypeError: "domain" argument must be specified$/);
+  assert.throws(() => domainToUnicode(),
+                /^TypeError: "domain" argument must be specified$/);
+  assert.strictEqual(domainToASCII(undefined), 'undefined');
+  assert.strictEqual(domainToUnicode(undefined), 'undefined');
+}
+
+{
   for (const [i, { ascii, unicode }] of tests.valid.entries()) {
     assert.strictEqual(ascii, domainToASCII(unicode),
                        `domainToASCII(${i + 1})`);
