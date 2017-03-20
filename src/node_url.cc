@@ -1233,7 +1233,8 @@ namespace url {
                     enum url_parse_state state_override,
                     Local<Value> base_obj,
                     Local<Value> context_obj,
-                    Local<Function> cb) {
+                    Local<Function> cb,
+                    Local<Value> error_cb) {
     Isolate* isolate = env->isolate();
     Local<Context> context = env->context();
     HandleScope handle_scope(isolate);
@@ -1254,20 +1255,19 @@ namespace url {
 
     // Define the return value placeholders
     const Local<Value> undef = Undefined(isolate);
-    Local<Value> argv[9] = {
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-      undef,
-    };
-
-    argv[ARG_FLAGS] = Integer::NewFromUnsigned(isolate, url.flags);
     if (!(url.flags & URL_FLAGS_FAILED)) {
+      Local<Value> argv[9] = {
+        undef,
+        undef,
+        undef,
+        undef,
+        undef,
+        undef,
+        undef,
+        undef,
+        undef,
+      };
+      argv[ARG_FLAGS] = Integer::NewFromUnsigned(isolate, url.flags);
       if (url.flags & URL_FLAGS_HAS_SCHEME)
         argv[ARG_PROTOCOL] = OneByteString(isolate, url.scheme.c_str());
       if (url.flags & URL_FLAGS_HAS_USERNAME)
@@ -1284,22 +1284,31 @@ namespace url {
         argv[ARG_PORT] = Integer::New(isolate, url.port);
       if (url.flags & URL_FLAGS_HAS_PATH)
         argv[ARG_PATH] = Copy(env, url.path);
+      (void)cb->Call(context, recv, arraysize(argv), argv);
+    } else if (error_cb->IsFunction()) {
+      Local<Value> argv[2] = { undef, undef };
+      argv[ERR_ARG_FLAGS] = Integer::NewFromUnsigned(isolate, url.flags);
+      argv[ERR_ARG_INPUT] =
+        String::NewFromUtf8(env->isolate(),
+                            input,
+                            v8::NewStringType::kNormal).ToLocalChecked();
+      (void)error_cb.As<Function>()->Call(context, recv, arraysize(argv), argv);
     }
-
-    (void)cb->Call(context, recv, 9, argv);
   }
 
   static void Parse(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK_GE(args.Length(), 5);
-    CHECK(args[0]->IsString());
-    CHECK(args[2]->IsUndefined() ||
+    CHECK(args[0]->IsString());  // input
+    CHECK(args[2]->IsUndefined() ||  // base context
           args[2]->IsNull() ||
           args[2]->IsObject());
-    CHECK(args[3]->IsUndefined() ||
+    CHECK(args[3]->IsUndefined() ||  // context
           args[3]->IsNull() ||
           args[3]->IsObject());
-    CHECK(args[4]->IsFunction());
+    CHECK(args[4]->IsFunction());  // complete callback
+    CHECK(args[5]->IsUndefined() || args[5]->IsFunction());  // error callback
+
     Utf8Value input(env->isolate(), args[0]);
     enum url_parse_state state_override = kUnknownState;
     if (args[1]->IsNumber()) {
@@ -1312,7 +1321,8 @@ namespace url {
           state_override,
           args[2],
           args[3],
-          args[4].As<Function>());
+          args[4].As<Function>(),
+          args[5]);
   }
 
   static void EncodeAuthSet(const FunctionCallbackInfo<Value>& args) {
