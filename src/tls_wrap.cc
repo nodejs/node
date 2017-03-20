@@ -794,14 +794,6 @@ void TLSWrap::EnableSessionCallbacks(
 }
 
 
-void TLSWrap::OnStreamClose(const FunctionCallbackInfo<Value>& args) {
-  TLSWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
-
-  wrap->stream_ = nullptr;
-}
-
-
 void TLSWrap::DestroySSL(const FunctionCallbackInfo<Value>& args) {
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
@@ -932,7 +924,6 @@ void TLSWrap::Initialize(Local<Object> target,
   env->SetProtoMethod(t, "enableSessionCallbacks", EnableSessionCallbacks);
   env->SetProtoMethod(t, "destroySSL", DestroySSL);
   env->SetProtoMethod(t, "enableCertCb", EnableCertCb);
-  env->SetProtoMethod(t, "onStreamClose", OnStreamClose);
 
   StreamBase::AddMethods<TLSWrap>(env, t, StreamBase::kFlagHasWritev);
   SSLWrap<TLSWrap>::AddMethods(env, t);
