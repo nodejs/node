@@ -1132,7 +1132,7 @@ added: v0.1.90
 A `Readable Stream` that represents the child process's `stderr`.
 
 If the child was spawned with `stdio[2]` set to anything other than `'pipe'`,
-then this will be `undefined`.
+then this will be `null`.
 
 `child.stderr` is an alias for `child.stdio[2]`. Both properties will refer to
 the same value.
@@ -1150,7 +1150,7 @@ A `Writable Stream` that represents the child process's `stdin`.
 continue until this stream has been closed via `end()`.*
 
 If the child was spawned with `stdio[0]` set to anything other than `'pipe'`,
-then this will be `undefined`.
+then this will be `null`.
 
 `child.stdin` is an alias for `child.stdio[0]`. Both properties will refer to
 the same value.
@@ -1205,7 +1205,7 @@ added: v0.1.90
 A `Readable Stream` that represents the child process's `stdout`.
 
 If the child was spawned with `stdio[1]` set to anything other than `'pipe'`,
-then this will be `undefined`.
+then this will be `null`.
 
 `child.stdout` is an alias for `child.stdio[1]`. Both properties will refer
 to the same value.
