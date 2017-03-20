@@ -37,8 +37,10 @@ static void MakeUtf8String(Isolate* isolate,
                            Local<Value> value,
                            T* target) {
   Local<String> string = value->ToString(isolate);
-  if (string.IsEmpty())
+  if (string.IsEmpty()) {
+    target->Invalidate();
     return;
+  }
 
   const size_t storage = StringBytes::StorageSize(isolate, string, UTF8) + 1;
   target->AllocateSufficientStorage(storage);
@@ -49,8 +51,10 @@ static void MakeUtf8String(Isolate* isolate,
 }
 
 Utf8Value::Utf8Value(Isolate* isolate, Local<Value> value) {
-  if (value.IsEmpty())
+  if (value.IsEmpty()) {
+    Invalidate();
     return;
+  }
 
   MakeUtf8String(isolate, value, this);
 }
@@ -58,12 +62,15 @@ Utf8Value::Utf8Value(Isolate* isolate, Local<Value> value) {
 
 TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value) {
   if (value.IsEmpty()) {
+    Invalidate();
     return;
   }
 
   Local<String> string = value->ToString(isolate);
-  if (string.IsEmpty())
+  if (string.IsEmpty()) {
+    Invalidate();
     return;
+  }
 
   // Allocate enough space to include the null terminator
   const size_t storage = string->Length() + 1;
