@@ -149,5 +149,5 @@ class AddonTestConfiguration(SimpleTestConfiguration):
       if self.Contains(path, test):
         file_path = join(self.root, reduce(join, test[1:], "") + ".js")
         result.append(
-            SimpleTestCase(test, file_path, arch, mode, self.context, self))
+            SimpleTestCase(test, file_path, arch, mode, self.context, self, self.additional_flags))
     return result
