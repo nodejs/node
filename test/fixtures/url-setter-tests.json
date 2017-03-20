@@ -112,6 +112,55 @@
             }
         },
         {
+            "href": "gopher://example.net:1234",
+            "new_value": "file",
+            "expected": {
+                "href": "gopher://example.net:1234/",
+                "protocol": "gopher:"
+            }
+        },
+        {
+            "href": "wss://x:x@example.net:1234",
+            "new_value": "file",
+            "expected": {
+                "href": "wss://x:x@example.net:1234/",
+                "protocol": "wss:"
+            }
+        },
+        {
+            "comment": "Can’t switch from file URL with no host",
+            "href": "file://localhost/",
+            "new_value": "http",
+            "expected": {
+                "href": "file:///",
+                "protocol": "file:"
+            }
+        },
+        {
+            "href": "file:///test",
+            "new_value": "gopher",
+            "expected": {
+                "href": "file:///test",
+                "protocol": "file:"
+            }
+        },
+        {
+            "href": "file:",
+            "new_value": "wss",
+            "expected": {
+                "href": "file:///",
+                "protocol": "file:"
+            }
+        },
+        {
+            "href": "file://hi/path",
+            "new_value": "s",
+            "expected": {
+                "href": "file://hi/path",
+                "protocol": "file:"
+            }
+        },
+        {
             "href": "https://example.net",
             "new_value": "s",
             "expected": {
