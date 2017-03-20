@@ -120,9 +120,10 @@ v8:
 
 test: all
 	$(MAKE) build-addons
+	$(MAKE) build-addons-napi
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
-		doctool inspector known_issues message pseudo-tty parallel sequential addons
+		doctool inspector known_issues message pseudo-tty parallel sequential addons addons-napi
 	$(MAKE) lint
 
 test-parallel: all
@@ -189,6 +190,41 @@ test/addons/.buildstamp: config.gypi \
 # TODO(bnoordhuis) Force rebuild after gyp update.
 build-addons: $(NODE_EXE) test/addons/.buildstamp
 
+ADDONS_NAPI_BINDING_GYPS := \
+	$(filter-out test/addons-napi/??_*/binding.gyp, \
+		$(wildcard test/addons-napi/*/binding.gyp))
+
+ADDONS_NAPI_BINDING_SOURCES := \
+	$(filter-out test/addons-napi/??_*/*.cc, $(wildcard test/addons-napi/*/*.cc)) \
+	$(filter-out test/addons-napi/??_*/*.h, $(wildcard test/addons-napi/*/*.h))
+
+# Implicitly depends on $(NODE_EXE), see the build-addons-napi rule for rationale.
+test/addons-napi/.buildstamp: config.gypi \
+	deps/npm/node_modules/node-gyp/package.json \
+	$(ADDONS_NAPI_BINDING_GYPS) $(ADDONS_NAPI_BINDING_SOURCES) \
+	deps/uv/include/*.h deps/v8/include/*.h \
+	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
+	src/node_api.h src/node_api_types.h
+#	Cannot use $(wildcard test/addons-napi/*/) here, it's evaluated before
+#	embedded addons have been generated from the documentation.
+	@for dirname in test/addons-napi/*/; do \
+		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
+		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
+		        --loglevel=$(LOGLEVEL) rebuild \
+			--python="$(PYTHON)" \
+			--directory="$$PWD/$$dirname" \
+			--nodedir="$$PWD" || exit 1 ; \
+	done
+	touch $@
+
+# .buildstamp and .docbuildstamp need $(NODE_EXE) but cannot depend on it
+# directly because it calls make recursively.  The parent make cannot know
+# if the subprocess touched anything so it pessimistically assumes that
+# .buildstamp and .docbuildstamp are out of date and need a rebuild.
+# Just goes to show that recursive make really is harmful...
+# TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
+build-addons-napi: $(NODE_EXE) test/addons-napi/.buildstamp
+
 clear-stalled:
 	# Clean up any leftover processes but don't error if found.
 	ps awwx | grep Release/node | grep -v grep | cat
@@ -200,7 +236,9 @@ clear-stalled:
 test-gc: all test/gc/node_modules/weak/build/Release/weakref.node
 	$(PYTHON) tools/test.py --mode=release gc
 
-test-build: | all build-addons
+test-build: | all build-addons build-addons-napi
+
+test-build-addons-napi: all build-addons-napi
 
 test-all: test-build test/gc/node_modules/weak/build/Release/weakref.node
 	$(PYTHON) tools/test.py --mode=debug,release
@@ -208,12 +246,12 @@ test-all: test-build test/gc/node_modules/weak/build/Release/weakref.node
 test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
-CI_NATIVE_SUITES := addons
+CI_NATIVE_SUITES := addons addons-napi
 CI_JS_SUITES := doctool inspector known_issues message parallel pseudo-tty sequential
 
 # Build and test addons without building anything else
 test-ci-native: LOGLEVEL := info
-test-ci-native: | test/addons/.buildstamp
+test-ci-native: | test/addons/.buildstamp test/addons-napi/.buildstamp
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
@@ -231,11 +269,11 @@ test-ci-js: | clear-stalled
 	fi
 
 test-ci: LOGLEVEL := info
-test-ci: | clear-stalled build-addons
+test-ci: | clear-stalled build-addons build-addons-napi
 	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES)
+		$(TEST_CI_ARGS) $(CI_JS_SUITES) addons-napi $(CI_NATIVE_SUITES)
 	# Clean up any leftover processes, error if found.
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -282,7 +320,10 @@ test-npm: $(NODE_EXE)
 test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
 
-test-addons: test-build
+test-addons-napi: test-build-addons-napi
+	$(PYTHON) tools/test.py --mode=release addons-napi
+
+test-addons: test-build test-addons-napi
 	$(PYTHON) tools/test.py --mode=release addons
 
 test-addons-clean:
@@ -813,6 +854,8 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	test/addons/*/*.h \
 	test/cctest/*.cc \
 	test/cctest/*.h \
+	test/addons-napi/*/*.cc \
+	test/addons-napi/*/*.h \
 	tools/icu/*.cc \
 	tools/icu/*.h \
 	))
@@ -857,5 +900,6 @@ endif
         bench-buffer bench-net bench-http bench-fs bench-tls cctest run-ci \
         test-v8 test-v8-intl test-v8-benchmarks test-v8-all v8 lint-ci \
         bench-ci lint-js-ci doc-only $(TARBALL)-headers test-ci test-ci-native \
-        test-ci-js build-ci test-hash-seed clear-stalled
+        test-ci-js build-ci test-hash-seed clear-stalled  test-addons-napi \
+        build-addons-napi
 
