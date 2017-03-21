@@ -511,6 +511,12 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
  */
 NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = 0);
 
+/* Registers a callback with the passed-in Environment instance. The callback
+ * is called after the event loop exits, but before the VM is disposed.
+ * Callbacks are run in reverse order of registration, i.e. newest first.
+ */
+NODE_EXTERN void AtExit(Environment* env, void (*cb)(void* arg), void* arg = 0);
+
 }  // namespace node
 
 #endif  // SRC_NODE_H_
