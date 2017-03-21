@@ -38,13 +38,26 @@ case $ARCH in
         ;;
 esac
 
+NDK_PATH=$1
+function make_toolchain {
+    $NDK_PATH/build/tools/make-standalone-toolchain.sh \
+         --toolchain=$TOOLCHAIN_NAME-$CC_VER \
+        --arch=$ARCH \
+        --install-dir=$TOOLCHAIN \
+        --platform=android-21
+}
+
 export TOOLCHAIN=$PWD/android-toolchain
-mkdir -p $TOOLCHAIN
-$1/build/tools/make-standalone-toolchain.sh \
-    --toolchain=$TOOLCHAIN_NAME-$CC_VER \
-    --arch=$ARCH \
-    --install-dir=$TOOLCHAIN \
-    --platform=android-21
+if [ -d "$TOOLCHAIN" ]; then
+    read -r -p "NDK toolchain already exists. Replace it?  [y/N]" response
+    case "$response" in
+        [Yy])
+            rm -rf "$TOOLCHAIN"
+            make_toolchain
+    esac
+else
+    make_toolchain
+fi
 export PATH=$TOOLCHAIN/bin:$PATH
 export AR=$TOOLCHAIN/bin/$SUFFIX-ar
 export CC=$TOOLCHAIN/bin/$SUFFIX-gcc
