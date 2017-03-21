@@ -89,4 +89,4 @@ assert.throws(() => {
   new vm.Script('function abc() {}', {
     cachedData: 'ohai'
   });
-});
+}, /^TypeError: options.cachedData must be a Buffer instance$/);
