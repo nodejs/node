@@ -376,23 +376,11 @@ Path to the 'root' directory. either `/` or `c:\\` (windows)
 
 Logs '1..0 # Skipped: ' + `msg`
 
-### spawnCat(options)
-* `options` [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
-* return [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
-
-Platform normalizes the `cat` command.
-
 ### spawnPwd(options)
 * `options` [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
 * return [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
 
 Platform normalizes the `pwd` command.
-
-### spawnSyncCat(options)
-* `options` [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
-* return [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
-
-Synchronous version of `spawnCat`.
 
 ### spawnSyncPwd(options)
 * `options` [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)

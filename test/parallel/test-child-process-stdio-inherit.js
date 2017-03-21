@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
@@ -52,5 +52,5 @@ function grandparent() {
 
 function parent() {
   // should not immediately exit.
-  common.spawnCat({ stdio: 'inherit' });
+  spawn('cat', [], { stdio: 'inherit' });
 }
