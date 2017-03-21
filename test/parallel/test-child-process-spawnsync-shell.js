@@ -23,7 +23,7 @@ assert.strictEqual(echo.args[echo.args.length - 1].replace(/"/g, ''),
 assert.strictEqual(echo.stdout.toString().trim(), 'foo');
 
 // Verify that shell features can be used
-const cmd = common.isWindows ? 'echo bar | more' : 'echo bar | cat';
+const cmd = 'echo bar | cat';
 const command = cp.spawnSync(cmd, {shell: true});
 
 assert.strictEqual(command.stdout.toString().trim(), 'bar');
