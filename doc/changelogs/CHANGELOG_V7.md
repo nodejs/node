@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td>
+<a href="#7.7.4">7.7.4</a><br/>
 <a href="#7.7.3">7.7.3</a><br/>
 <a href="#7.7.2">7.7.2</a><br/>
 <a href="#7.7.1">7.7.1</a><br/>
@@ -30,6 +31,66 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="7.7.4"></a>
+## 2017-03-21, Version 7.7.4 (Current), @cjihrig
+
+### Notable changes
+
+Thank you to @italoacasas for preparing the majority of this release.
+
+* **deps**: Add node-inspect 1.10.6 (Jan Krems) [#11869](https://github.com/nodejs/node/pull/11869)
+* **inspector**: proper WS URLs when bound to 0.0.0.0 (Eugene Ostroukhov) [#11850](https://github.com/nodejs/node/pull/11850)
+* **tls**: fix segfault on destroy after partial read. (Ben Noordhuis) [#11898](https://github.com/nodejs/node/pull/11898)
+
+### Commits
+
+* [[`f48763c5b9`](https://github.com/nodejs/node/commit/f48763c5b9)] - **benchmark**: remove benchmarks forced optimizations (Bartosz Sosnowski)
+* [[`dcac2d8f04`](https://github.com/nodejs/node/commit/dcac2d8f04)] - **benchmark**: benchmark comparing forEach with for (James M Snell) [#11582](https://github.com/nodejs/node/pull/11582)
+* [[`80949f3d88`](https://github.com/nodejs/node/commit/80949f3d88)] - **build**: add cpp linting to windows build (liusi) [#11856](https://github.com/nodejs/node/pull/11856)
+* [[`5244ee346b`](https://github.com/nodejs/node/commit/5244ee346b)] - **build**: mac OBJ_DIR should point to obj.target (Daniel Bevenius) [#11857](https://github.com/nodejs/node/pull/11857)
+* [[`5b1d61ce09`](https://github.com/nodejs/node/commit/5b1d61ce09)] - **child_process**: fix deoptimizing use of arguments (Vse Mozhet Byt) [#11748](https://github.com/nodejs/node/pull/11748)
+* [[`ca319862fd`](https://github.com/nodejs/node/commit/ca319862fd)] - **deps**: cherry-pick ca0f9573 from V8 upstream (Ali Ijaz Sheikh)
+* [[`a7e4b029da`](https://github.com/nodejs/node/commit/a7e4b029da)] - **deps**: Add node-inspect 1.10.6 (Jan Krems) [#11869](https://github.com/nodejs/node/pull/11869)
+* [[`0c00b655d8`](https://github.com/nodejs/node/commit/0c00b655d8)] - **doc**: Fix #7065: cli help documentation for --inspect (Noj Vek) [#11660](https://github.com/nodejs/node/pull/11660)
+* [[`60ad7af65e`](https://github.com/nodejs/node/commit/60ad7af65e)] - **doc**: deprecate debug protocol (Jan Krems) [#10320](https://github.com/nodejs/node/pull/10320)
+* [[`a5f7393541`](https://github.com/nodejs/node/commit/a5f7393541)] - **doc**: add vsemozhetbyt to collaborators (Vse Mozhet Byt) [#11932](https://github.com/nodejs/node/pull/11932)
+* [[`0c091262bd`](https://github.com/nodejs/node/commit/0c091262bd)] - **doc**: add note that vm module is not a security mechanism (Ruslan Bekenev) [#11557](https://github.com/nodejs/node/pull/11557)
+* [[`6d6a65e2ad`](https://github.com/nodejs/node/commit/6d6a65e2ad)] - **doc**: linkable commit message guidelines (Sam Roberts) [#11792](https://github.com/nodejs/node/pull/11792)
+* [[`7c7228ed4b`](https://github.com/nodejs/node/commit/7c7228ed4b)] - **doc**: gcc version is at least 4.8.5 in BUILDING.md (detailyang) [#11840](https://github.com/nodejs/node/pull/11840)
+* [[`9861ec93d4`](https://github.com/nodejs/node/commit/9861ec93d4)] - **doc**: increase Buffer.concat() documentation (cjihrig) [#11845](https://github.com/nodejs/node/pull/11845)
+* [[`54879ab7d1`](https://github.com/nodejs/node/commit/54879ab7d1)] - **doc**: fix mistakes in stream doc (object mode) (Christian d'Heureuse) [#11807](https://github.com/nodejs/node/pull/11807)
+* [[`78ca15dd78`](https://github.com/nodejs/node/commit/78ca15dd78)] - **doc**: argument types for dns methods (Amelia Clarke) [#11764](https://github.com/nodejs/node/pull/11764)
+* [[`e84e33c87c`](https://github.com/nodejs/node/commit/e84e33c87c)] - **doc**: fix a typo in api/process.md (Gaara) [#11780](https://github.com/nodejs/node/pull/11780)
+* [[`75fcf53173`](https://github.com/nodejs/node/commit/75fcf53173)] - **doc**: missing argument types for events methods (Amelia Clarke) [#11802](https://github.com/nodejs/node/pull/11802)
+* [[`ae52b63df2`](https://github.com/nodejs/node/commit/ae52b63df2)] - **doc**: correct comment error in stream.md (Alexander) [#11804](https://github.com/nodejs/node/pull/11804)
+* [[`e6f113d3d5`](https://github.com/nodejs/node/commit/e6f113d3d5)] - **doc**: console.log() -> console.error() in events.md (Vse Mozhet Byt) [#11810](https://github.com/nodejs/node/pull/11810)
+* [[`cde5d71db1`](https://github.com/nodejs/node/commit/cde5d71db1)] - **doc**: var -> let / const in events.md (Vse Mozhet Byt) [#11810](https://github.com/nodejs/node/pull/11810)
+* [[`d0fb578d64`](https://github.com/nodejs/node/commit/d0fb578d64)] - **fs**: avoid using forEach (James M Snell) [#11582](https://github.com/nodejs/node/pull/11582)
+* [[`14e3ad0c5e`](https://github.com/nodejs/node/commit/14e3ad0c5e)] - **inspector**: proper WS URLs when bound to 0.0.0.0 (Eugene Ostroukhov) [#11850](https://github.com/nodejs/node/pull/11850)
+* [[`fbbcd1aa89`](https://github.com/nodejs/node/commit/fbbcd1aa89)] - **lib**: Fix swallowed events in inspect integration (Jan Krems) [#11869](https://github.com/nodejs/node/pull/11869)
+* [[`9cc712ca18`](https://github.com/nodejs/node/commit/9cc712ca18)] - **lib**: remove unused msg parameter in debug_agent (mr-spd) [#11833](https://github.com/nodejs/node/pull/11833)
+* [[`77c69f7ace`](https://github.com/nodejs/node/commit/77c69f7ace)] - **lib, test**: add duplicate symbol checking in E() (DavidCai) [#11829](https://github.com/nodejs/node/pull/11829)
+* [[`7e230727fc`](https://github.com/nodejs/node/commit/7e230727fc)] - **module**: avoid using forEach (James M Snell) [#11582](https://github.com/nodejs/node/pull/11582)
+* [[`c0a2e02f51`](https://github.com/nodejs/node/commit/c0a2e02f51)] - **net**: avoid using forEach (James M Snell) [#11582](https://github.com/nodejs/node/pull/11582)
+* [[`a0b1aa1161`](https://github.com/nodejs/node/commit/a0b1aa1161)] - **readline**: avoid using forEach (James M Snell) [#11582](https://github.com/nodejs/node/pull/11582)
+* [[`e19ca8ba11`](https://github.com/nodejs/node/commit/e19ca8ba11)] - **readline**: remove unneeded eslint-disable comment (Rich Trott) [#11836](https://github.com/nodejs/node/pull/11836)
+* [[`62e726109a`](https://github.com/nodejs/node/commit/62e726109a)] - **repl**: avoid using forEach (James M Snell) [#11582](https://github.com/nodejs/node/pull/11582)
+* [[`90be5a1f19`](https://github.com/nodejs/node/commit/90be5a1f19)] - **stream**: avoid using forEach (James M Snell) [#11582](https://github.com/nodejs/node/pull/11582)
+* [[`2cab00aec0`](https://github.com/nodejs/node/commit/2cab00aec0)] - **test**: fix assertion in vm test (AnnaMag) [#11862](https://github.com/nodejs/node/pull/11862)
+* [[`8bda7b8d39`](https://github.com/nodejs/node/commit/8bda7b8d39)] - **test**: add coverage for child_process bounds check (Rich Trott) [#11800](https://github.com/nodejs/node/pull/11800)
+* [[`3ae58acd29`](https://github.com/nodejs/node/commit/3ae58acd29)] - **test**: failing behaviour on sandboxed Proxy (AnnaMag) [#11671](https://github.com/nodejs/node/pull/11671)
+* [[`560d8eed9a`](https://github.com/nodejs/node/commit/560d8eed9a)] - **test**: delay child exit in AIX for pseudo-tty tests (Gireesh Punathil) [#11715](https://github.com/nodejs/node/pull/11715)
+* [[`f9c831f4b1`](https://github.com/nodejs/node/commit/f9c831f4b1)] - **test**: fix flaky test-domain-abort-on-uncaught (Rich Trott) [#11817](https://github.com/nodejs/node/pull/11817)
+* [[`2649dab274`](https://github.com/nodejs/node/commit/2649dab274)] - **test**: added test for indexed properties (AnnaMag) [#11769](https://github.com/nodejs/node/pull/11769)
+* [[`2df662c95a`](https://github.com/nodejs/node/commit/2df662c95a)] - **test**: test resolveObject with an empty path (Daijiro Wachi) [#11811](https://github.com/nodejs/node/pull/11811)
+* [[`d2c9111614`](https://github.com/nodejs/node/commit/d2c9111614)] - **test**: fix repl-function-redefinition-edge-case (Alexey Orlenko) [#11772](https://github.com/nodejs/node/pull/11772)
+* [[`c9cf922248`](https://github.com/nodejs/node/commit/c9cf922248)] - **test**: add regex to assert.throws (Matej Krajčovič) [#11815](https://github.com/nodejs/node/pull/11815)
+* [[`5f6025ba68`](https://github.com/nodejs/node/commit/5f6025ba68)] - **test**: fail when child dies in fork-net (Joyee Cheung) [#11684](https://github.com/nodejs/node/pull/11684)
+* [[`c626734409`](https://github.com/nodejs/node/commit/c626734409)] - **tls**: fix segfault on destroy after partial read (Ben Noordhuis) [#11898](https://github.com/nodejs/node/pull/11898)
+* [[`646ee559df`](https://github.com/nodejs/node/commit/646ee559df)] - **tls**: avoid using forEach (James M Snell) [#11582](https://github.com/nodejs/node/pull/11582)
+* [[`540830116b`](https://github.com/nodejs/node/commit/540830116b)] - **tls**: keep track of stream that is closed (jBarz) [#11776](https://github.com/nodejs/node/pull/11776)
+* [[`9a59913039`](https://github.com/nodejs/node/commit/9a59913039)] - **util**: avoid using forEach (James M Snell) [#11582](https://github.com/nodejs/node/pull/11582)
 
 <a id="7.7.3"></a>
 ## 2017-03-14, Version 7.7.3 (Current), @italoacasas
