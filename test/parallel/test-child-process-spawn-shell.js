@@ -34,7 +34,7 @@ echo.on('close', common.mustCall((code, signal) => {
 }));
 
 // Verify that shell features can be used
-const cmd = common.isWindows ? 'echo bar | more' : 'echo bar | cat';
+const cmd = 'echo bar | cat';
 const command = cp.spawn(cmd, {
   encoding: 'utf8',
   shell: true

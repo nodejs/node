@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const spawnSync = require('child_process').spawnSync;
 
 let options = {stdio: ['pipe']};
 let child = common.spawnPwd(options);
@@ -36,7 +37,7 @@ assert.strictEqual(child.stdout, null);
 assert.strictEqual(child.stderr, null);
 
 options = {stdio: 'ignore'};
-child = common.spawnSyncCat(options);
+child = spawnSync('cat', [], options);
 assert.deepStrictEqual(options, {stdio: 'ignore'});
 
 assert.throws(() => {

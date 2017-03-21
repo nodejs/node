@@ -261,28 +261,6 @@ exports.ddCommand = function(filename, kilobytes) {
 };
 
 
-exports.spawnCat = function(options) {
-  const spawn = require('child_process').spawn;
-
-  if (exports.isWindows) {
-    return spawn('more', [], options);
-  } else {
-    return spawn('cat', [], options);
-  }
-};
-
-
-exports.spawnSyncCat = function(options) {
-  const spawnSync = require('child_process').spawnSync;
-
-  if (exports.isWindows) {
-    return spawnSync('more', [], options);
-  } else {
-    return spawnSync('cat', [], options);
-  }
-};
-
-
 exports.spawnPwd = function(options) {
   const spawn = require('child_process').spawn;
 
