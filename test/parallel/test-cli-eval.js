@@ -144,3 +144,22 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
   assert.strictEqual(proc.stderr, '');
   assert.strictEqual(proc.stdout, 'start\nbeforeExit\nexit\n');
 }
+
+// Regression test for https://github.com/nodejs/node/issues/11948.
+{
+  const script = `
+      process.on('message', (message) => {
+        if (message === 'ping') process.send('pong');
+        if (message === 'exit') process.disconnect();
+      });
+  `;
+  const proc = child.fork('-e', [script]);
+  proc.on('exit', common.mustCall((exitCode, signalCode) => {
+    assert.strictEqual(exitCode, 0);
+    assert.strictEqual(signalCode, null);
+  }));
+  proc.on('message', (message) => {
+    if (message === 'pong') proc.send('exit');
+  });
+  proc.send('ping');
+}
