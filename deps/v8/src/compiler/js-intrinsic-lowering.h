@@ -40,8 +40,10 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
 
  private:
   Reduction ReduceCreateIterResultObject(Node* node);
+  Reduction ReduceDebugIsActive(Node* node);
   Reduction ReduceDeoptimizeNow(Node* node);
   Reduction ReduceGeneratorClose(Node* node);
+  Reduction ReduceGeneratorGetContext(Node* node);
   Reduction ReduceGeneratorGetInputOrDebugPos(Node* node);
   Reduction ReduceGeneratorGetResumeMode(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
@@ -57,7 +59,6 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceToObject(Node* node);
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
-  Reduction ReduceNewObject(Node* node);
   Reduction ReduceGetSuperConstructor(Node* node);
 
   Reduction Change(Node* node, const Operator* op);

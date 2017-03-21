@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --invoke-weak-callbacks --omit-quit --gc-interval=355 --expose-debug-as=debug
+// Flags: --invoke-weak-callbacks --omit-quit --gc-interval=355
 
 var __v_33 = {};
 __v_4 = 70000;

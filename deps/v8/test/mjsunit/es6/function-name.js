@@ -373,3 +373,52 @@
   assertEquals('function () {}', obj.h.toString());
   assertEquals('() => {}', obj.i.toString());
 })();
+
+(function testClassNameOrder() {
+  assertEquals(['length', 'prototype'], Object.getOwnPropertyNames(class {}));
+
+  class A { }
+  assertEquals(['length', 'prototype', 'name'], Object.getOwnPropertyNames(A));
+
+  class B { static foo() { } }
+  assertEquals(['length', 'prototype', 'foo', 'name'], Object.getOwnPropertyNames(B));
+
+  class C { static name() { } static foo() { } }
+  assertEquals(['length', 'prototype', 'name', 'foo'], Object.getOwnPropertyNames(C));
+})();
+
+(function testStaticName() {
+  class C { static name() { return 42; } }
+  assertEquals(42, C.name());
+  assertEquals(undefined, new C().name);
+
+  class D { static get name() { return 17; } }
+  assertEquals(17, D.name);
+  assertEquals(undefined, new D().name);
+
+  var c = class { static name() { return 42; } }
+  assertEquals(42, c.name());
+  assertEquals(undefined, new c().name);
+
+  var d = class { static get name() { return 17; } }
+  assertEquals(17, d.name);
+  assertEquals(undefined, new d().name);
+})();
+
+(function testNonStaticName() {
+  class C { name() { return 42; } }
+  assertEquals('C', C.name);
+  assertEquals(42, new C().name());
+
+  class D { get name() { return 17; } }
+  assertEquals('D', D.name);
+  assertEquals(17, new D().name);
+
+  var c = class { name() { return 42; } }
+  assertEquals('c', c.name);
+  assertEquals(42, new c().name());
+
+  var d = class { get name() { return 17; } }
+  assertEquals('d', d.name);
+  assertEquals(17, new d().name);
+})();

@@ -29,12 +29,12 @@ PASS x instanceof Base is false
 PASS new (class extends Base { constructor() { } }) threw exception ReferenceError: this is not defined.
 PASS new (class extends Base { constructor() { return 1; } }) threw exception TypeError: Derived constructors may only return object or undefined.
 PASS new (class extends null { constructor() { return undefined } }) threw exception ReferenceError: this is not defined.
-PASS new (class extends null { constructor() { super(); return undefined } }) threw exception TypeError: super is not a constructor.
+PASS new (class extends null { constructor() { super(); return undefined } }) threw exception TypeError: Super constructor null of anonymous class is not a constructor.
 PASS x = { }; new (class extends null { constructor() { return x } }); is x
 PASS x instanceof Object is true
 PASS new (class extends null { constructor() { } }) threw exception ReferenceError: this is not defined.
 PASS new (class extends null { constructor() { return 1; } }) threw exception TypeError: Derived constructors may only return object or undefined.
-PASS new (class extends null { constructor() { super() } }) threw exception TypeError: super is not a constructor.
+PASS new (class extends null { constructor() { super() } }) threw exception TypeError: Super constructor null of anonymous class is not a constructor.
 PASS new (class { constructor() { super() } }) threw exception SyntaxError: 'super' keyword unexpected here.
 PASS function x() { super(); } threw exception SyntaxError: 'super' keyword unexpected here.
 PASS new (class extends Object { constructor() { function x() { super() } } }) threw exception SyntaxError: 'super' keyword unexpected here.

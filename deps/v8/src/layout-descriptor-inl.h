@@ -28,7 +28,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
 
 bool LayoutDescriptor::InobjectUnboxedField(int inobject_properties,
                                             PropertyDetails details) {
-  if (details.type() != DATA || !details.representation().IsDouble()) {
+  if (details.location() != kField || !details.representation().IsDouble()) {
     return false;
   }
   // We care only about in-object properties.

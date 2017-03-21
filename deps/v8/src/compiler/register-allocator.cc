@@ -2985,7 +2985,7 @@ void LinearScanAllocator::FindFreeRegistersForRange(
     GetFPRegisterSet(rep, &num_regs, &num_codes, &codes);
   DCHECK_GE(positions.length(), num_regs);
 
-  for (int i = 0; i < num_regs; i++) {
+  for (int i = 0; i < num_regs; ++i) {
     positions[i] = LifetimePosition::MaxPosition();
   }
 
@@ -3009,9 +3009,17 @@ void LinearScanAllocator::FindFreeRegistersForRange(
 
   for (LiveRange* cur_inactive : inactive_live_ranges()) {
     DCHECK(cur_inactive->End() > range->Start());
+    int cur_reg = cur_inactive->assigned_register();
+    // No need to carry out intersections, when this register won't be
+    // interesting to this range anyway.
+    // TODO(mtrofin): extend to aliased ranges, too.
+    if ((kSimpleFPAliasing || !check_fp_aliasing()) &&
+        positions[cur_reg] < range->Start()) {
+      continue;
+    }
+
     LifetimePosition next_intersection = cur_inactive->FirstIntersection(range);
     if (!next_intersection.IsValid()) continue;
-    int cur_reg = cur_inactive->assigned_register();
     if (kSimpleFPAliasing || !check_fp_aliasing()) {
       positions[cur_reg] = Min(positions[cur_reg], next_intersection);
       TRACE("Register %s is free until pos %d (2)\n", RegisterName(cur_reg),
@@ -3111,8 +3119,9 @@ bool LinearScanAllocator::TryAllocateFreeReg(
   const int* codes = allocatable_register_codes();
   MachineRepresentation rep = current->representation();
   if (!kSimpleFPAliasing && (rep == MachineRepresentation::kFloat32 ||
-                             rep == MachineRepresentation::kSimd128))
+                             rep == MachineRepresentation::kSimd128)) {
     GetFPRegisterSet(rep, &num_regs, &num_codes, &codes);
+  }
 
   DCHECK_GE(free_until_pos.length(), num_codes);
 
@@ -3166,6 +3175,9 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
                              rep == MachineRepresentation::kSimd128))
     GetFPRegisterSet(rep, &num_regs, &num_codes, &codes);
 
+  // use_pos keeps track of positions a register/alias is used at.
+  // block_pos keeps track of positions where a register/alias is blocked
+  // from.
   LifetimePosition use_pos[RegisterConfiguration::kMaxFPRegisters];
   LifetimePosition block_pos[RegisterConfiguration::kMaxFPRegisters];
   for (int i = 0; i < num_regs; i++) {
@@ -3181,6 +3193,8 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
         block_pos[cur_reg] = use_pos[cur_reg] =
             LifetimePosition::GapFromInstructionIndex(0);
       } else {
+        DCHECK_NE(LifetimePosition::GapFromInstructionIndex(0),
+                  block_pos[cur_reg]);
         use_pos[cur_reg] =
             range->NextLifetimePositionRegisterIsBeneficial(current->Start());
       }
@@ -3196,7 +3210,9 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
               LifetimePosition::GapFromInstructionIndex(0);
         } else {
           use_pos[aliased_reg] =
-              range->NextLifetimePositionRegisterIsBeneficial(current->Start());
+              Min(block_pos[aliased_reg],
+                  range->NextLifetimePositionRegisterIsBeneficial(
+                      current->Start()));
         }
       }
     }
@@ -3204,10 +3220,23 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
 
   for (LiveRange* range : inactive_live_ranges()) {
     DCHECK(range->End() > current->Start());
-    LifetimePosition next_intersection = range->FirstIntersection(current);
-    if (!next_intersection.IsValid()) continue;
     int cur_reg = range->assigned_register();
     bool is_fixed = range->TopLevel()->IsFixed();
+
+    // Don't perform costly intersections if they are guaranteed to not update
+    // block_pos or use_pos.
+    // TODO(mtrofin): extend to aliased ranges, too.
+    if ((kSimpleFPAliasing || !check_fp_aliasing())) {
+      if (is_fixed) {
+        if (block_pos[cur_reg] < range->Start()) continue;
+      } else {
+        if (use_pos[cur_reg] < range->Start()) continue;
+      }
+    }
+
+    LifetimePosition next_intersection = range->FirstIntersection(current);
+    if (!next_intersection.IsValid()) continue;
+
     if (kSimpleFPAliasing || !check_fp_aliasing()) {
       if (is_fixed) {
         block_pos[cur_reg] = Min(block_pos[cur_reg], next_intersection);

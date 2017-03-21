@@ -34,8 +34,7 @@ class InjectedScriptNative final {
 
   int m_lastBoundObjectId;
   v8::Isolate* m_isolate;
-  protocol::HashMap<int, std::unique_ptr<v8::Global<v8::Value>>>
-      m_idToWrappedObject;
+  protocol::HashMap<int, v8::Global<v8::Value>> m_idToWrappedObject;
   typedef protocol::HashMap<int, String16> IdToObjectGroupName;
   IdToObjectGroupName m_idToObjectGroupName;
   typedef protocol::HashMap<String16, std::vector<int>> NameToObjectGroup;

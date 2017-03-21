@@ -10,6 +10,14 @@
 namespace v8 {
 namespace internal {
 
+#define SIDE_EFFECT_CHECK(ISOLATE, F, RETURN_TYPE)            \
+  do {                                                        \
+    if (ISOLATE->needs_side_effect_check() &&                 \
+        !PerformSideEffectCheck(ISOLATE, FUNCTION_ADDR(F))) { \
+      return Handle<RETURN_TYPE>();                           \
+    }                                                         \
+  } while (false)
+
 #define FOR_EACH_CALLBACK_TABLE_MAPPING_1_NAME(F)                  \
   F(AccessorNameGetterCallback, "get", v8::Value, Object)          \
   F(GenericNamedPropertyQueryCallback, "has", v8::Integer, Object) \
@@ -19,6 +27,7 @@ namespace internal {
   Handle<InternalReturn> PropertyCallbackArguments::Call(Function f,          \
                                                          Handle<Name> name) { \
     Isolate* isolate = this->isolate();                                       \
+    SIDE_EFFECT_CHECK(isolate, f, InternalReturn);                            \
     RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Function);        \
     VMState<EXTERNAL> state(isolate);                                         \
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));              \
@@ -43,6 +52,7 @@ FOR_EACH_CALLBACK_TABLE_MAPPING_1_NAME(WRITE_CALL_1_NAME)
   Handle<InternalReturn> PropertyCallbackArguments::Call(Function f,       \
                                                          uint32_t index) { \
     Isolate* isolate = this->isolate();                                    \
+    SIDE_EFFECT_CHECK(isolate, f, InternalReturn);                         \
     RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Function);     \
     VMState<EXTERNAL> state(isolate);                                      \
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));           \
@@ -62,6 +72,7 @@ Handle<Object> PropertyCallbackArguments::Call(
     GenericNamedPropertySetterCallback f, Handle<Name> name,
     Handle<Object> value) {
   Isolate* isolate = this->isolate();
+  SIDE_EFFECT_CHECK(isolate, f, Object);
   RuntimeCallTimerScope timer(
       isolate, &RuntimeCallStats::GenericNamedPropertySetterCallback);
   VMState<EXTERNAL> state(isolate);
@@ -77,6 +88,7 @@ Handle<Object> PropertyCallbackArguments::Call(
     GenericNamedPropertyDefinerCallback f, Handle<Name> name,
     const v8::PropertyDescriptor& desc) {
   Isolate* isolate = this->isolate();
+  SIDE_EFFECT_CHECK(isolate, f, Object);
   RuntimeCallTimerScope timer(
       isolate, &RuntimeCallStats::GenericNamedPropertyDefinerCallback);
   VMState<EXTERNAL> state(isolate);
@@ -92,6 +104,7 @@ Handle<Object> PropertyCallbackArguments::Call(IndexedPropertySetterCallback f,
                                                uint32_t index,
                                                Handle<Object> value) {
   Isolate* isolate = this->isolate();
+  SIDE_EFFECT_CHECK(isolate, f, Object);
   RuntimeCallTimerScope timer(isolate,
                               &RuntimeCallStats::IndexedPropertySetterCallback);
   VMState<EXTERNAL> state(isolate);
@@ -107,6 +120,7 @@ Handle<Object> PropertyCallbackArguments::Call(
     IndexedPropertyDefinerCallback f, uint32_t index,
     const v8::PropertyDescriptor& desc) {
   Isolate* isolate = this->isolate();
+  SIDE_EFFECT_CHECK(isolate, f, Object);
   RuntimeCallTimerScope timer(
       isolate, &RuntimeCallStats::IndexedPropertyDefinerCallback);
   VMState<EXTERNAL> state(isolate);
@@ -121,6 +135,10 @@ Handle<Object> PropertyCallbackArguments::Call(
 void PropertyCallbackArguments::Call(AccessorNameSetterCallback f,
                                      Handle<Name> name, Handle<Object> value) {
   Isolate* isolate = this->isolate();
+  if (isolate->needs_side_effect_check() &&
+      !PerformSideEffectCheck(isolate, FUNCTION_ADDR(f))) {
+    return;
+  }
   RuntimeCallTimerScope timer(isolate,
                               &RuntimeCallStats::AccessorNameSetterCallback);
   VMState<EXTERNAL> state(isolate);
@@ -130,6 +148,8 @@ void PropertyCallbackArguments::Call(AccessorNameSetterCallback f,
       ApiNamedPropertyAccess("interceptor-named-set", holder(), *name));
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), info);
 }
+
+#undef SIDE_EFFECT_CHECK
 
 }  // namespace internal
 }  // namespace v8

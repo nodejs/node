@@ -19,6 +19,11 @@ struct MockTask : public Task {
   MOCK_METHOD0(Die, void());
 };
 
+struct MockIdleTask : public IdleTask {
+  virtual ~MockIdleTask() { Die(); }
+  MOCK_METHOD1(Run, void(double deadline_in_seconds));
+  MOCK_METHOD0(Die, void());
+};
 
 class DefaultPlatformWithMockTime : public DefaultPlatform {
  public:
@@ -126,6 +131,35 @@ TEST(DefaultPlatformTest, PendingDelayedTasksAreDestroyedOnShutdown) {
   }
 }
 
+TEST(DefaultPlatformTest, RunIdleTasks) {
+  InSequence s;
+
+  int dummy;
+  Isolate* isolate = reinterpret_cast<Isolate*>(&dummy);
+
+  DefaultPlatformWithMockTime platform;
+
+  StrictMock<MockIdleTask>* task = new StrictMock<MockIdleTask>;
+  platform.CallIdleOnForegroundThread(isolate, task);
+  EXPECT_CALL(*task, Run(42.0 + 23.0));
+  EXPECT_CALL(*task, Die());
+  platform.IncreaseTime(23.0);
+  platform.RunIdleTasks(isolate, 42.0);
+}
+
+TEST(DefaultPlatformTest, PendingIdleTasksAreDestroyedOnShutdown) {
+  InSequence s;
+
+  int dummy;
+  Isolate* isolate = reinterpret_cast<Isolate*>(&dummy);
+
+  {
+    DefaultPlatformWithMockTime platform;
+    StrictMock<MockIdleTask>* task = new StrictMock<MockIdleTask>;
+    platform.CallIdleOnForegroundThread(isolate, task);
+    EXPECT_CALL(*task, Die());
+  }
+}
 
 }  // namespace platform
 }  // namespace v8

@@ -103,20 +103,6 @@
 }],  # 'gc_stress == True and mode == debug'
 
 ##############################################################################
-['variant == ignition and msan', {
-  # TODO(mythria,4680): Too slow and timeout on ignition.
-  'dfg-double-vote-fuzz': [SKIP],
-  'dfg-int-overflow-in-loop': [SKIP],
-}],  # variant == ignition and msan
-
-##############################################################################
-['variant == ignition_turbofan and msan', {
-  # TODO(mythria,4680): Too slow and timeout on ignition.
-  'dfg-double-vote-fuzz': [SKIP],
-  'dfg-int-overflow-in-loop': [SKIP],
-}],  # variant == ignition_turbofan and msan
-
-##############################################################################
 ['arch == arm64 and msan', {
   # Stack size too large with masm on Arm64.
   'fast/js/excessive-comma-usage': [SKIP],
@@ -133,6 +119,11 @@
 ['variant == asm_wasm', {
   '*': [SKIP],
 }],  # variant == asm_wasm
+
+##############################################################################
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
 
 ##############################################################################
 ]

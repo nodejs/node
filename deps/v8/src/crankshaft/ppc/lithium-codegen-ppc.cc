@@ -5,6 +5,7 @@
 #include "src/crankshaft/ppc/lithium-codegen-ppc.h"
 
 #include "src/base/bits.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/crankshaft/hydrogen-osr.h"
@@ -186,15 +187,18 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
       __ CallRuntime(Runtime::kNewScriptContext);
       deopt_mode = Safepoint::kLazyDeopt;
     } else {
-      if (slots <= FastNewFunctionContextStub::kMaximumSlots) {
-        FastNewFunctionContextStub stub(isolate());
+      if (slots <=
+          ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+        Callable callable = CodeFactory::FastNewFunctionContext(
+            isolate(), info()->scope()->scope_type());
         __ mov(FastNewFunctionContextDescriptor::SlotsRegister(),
                Operand(slots));
-        __ CallStub(&stub);
-        // Result of FastNewFunctionContextStub is always in new space.
+        __ Call(callable.code(), RelocInfo::CODE_TARGET);
+        // Result of the FastNewFunctionContext builtin is always in new space.
         need_write_barrier = false;
       } else {
         __ push(r4);
+        __ Push(Smi::FromInt(info()->scope()->scope_type()));
         __ CallRuntime(Runtime::kNewFunctionContext);
       }
     }
@@ -1986,16 +1990,32 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
   DoubleRegister result = ToDoubleRegister(instr->result());
   switch (instr->op()) {
     case Token::ADD:
-      __ fadd(result, left, right);
+      if (CpuFeatures::IsSupported(VSX)) {
+        __ xsadddp(result, left, right);
+      } else {
+        __ fadd(result, left, right);
+      }
       break;
     case Token::SUB:
-      __ fsub(result, left, right);
+      if (CpuFeatures::IsSupported(VSX)) {
+        __ xssubdp(result, left, right);
+      } else {
+        __ fsub(result, left, right);
+      }
       break;
     case Token::MUL:
-      __ fmul(result, left, right);
+      if (CpuFeatures::IsSupported(VSX)) {
+        __ xsmuldp(result, left, right);
+      } else {
+        __ fmul(result, left, right);
+      }
       break;
     case Token::DIV:
-      __ fdiv(result, left, right);
+      if (CpuFeatures::IsSupported(VSX)) {
+        __ xsdivdp(result, left, right);
+      } else {
+        __ fdiv(result, left, right);
+      }
       break;
     case Token::MOD: {
       __ PrepareCallCFunction(0, 2, scratch0());
@@ -3049,7 +3069,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
       // protector cell contains (Smi) Isolate::kProtectorValid. Otherwise
       // it needs to bail out.
       __ LoadRoot(result, Heap::kArrayProtectorRootIndex);
-      __ LoadP(result, FieldMemOperand(result, Cell::kValueOffset));
+      __ LoadP(result, FieldMemOperand(result, PropertyCell::kValueOffset));
       __ CmpSmiLiteral(result, Smi::FromInt(Isolate::kProtectorValid), r0);
       DeoptimizeIf(ne, instr, DeoptimizeReason::kHole);
     }
@@ -3307,7 +3327,7 @@ void LCodeGen::DoContext(LContext* instr) {
 
 void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   DCHECK(ToRegister(instr->context()).is(cp));
-  __ Move(scratch0(), instr->hydrogen()->pairs());
+  __ Move(scratch0(), instr->hydrogen()->declarations());
   __ push(scratch0());
   __ LoadSmiLiteral(scratch0(), Smi::FromInt(instr->hydrogen()->flags()));
   __ push(scratch0());
@@ -4331,12 +4351,21 @@ void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
       if (Smi::IsValid(int_key)) {
         __ LoadSmiLiteral(r6, Smi::FromInt(int_key));
       } else {
-        // We should never get here at runtime because there is a smi check on
-        // the key before this point.
-        __ stop("expected smi");
+        Abort(kArrayIndexConstantValueTooBig);
       }
     } else {
+      Label is_smi;
+#if V8_TARGET_ARCH_PPC64
       __ SmiTag(r6, ToRegister(key));
+#else
+      // Deopt if the key is outside Smi range. The stub expects Smi and would
+      // bump the elements into dictionary mode (and trigger a deopt) anyways.
+      __ SmiTagCheckOverflow(r6, ToRegister(key), r0);
+      __ BranchOnNoOverflow(&is_smi);
+      __ PopSafepointRegisters();
+      DeoptimizeIf(al, instr, DeoptimizeReason::kOverflow, cr0);
+      __ bind(&is_smi);
+#endif
     }
 
     GrowArrayElementsStub stub(isolate(), instr->hydrogen()->kind());

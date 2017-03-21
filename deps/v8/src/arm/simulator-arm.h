@@ -151,10 +151,11 @@ class Simulator {
   void set_d_register(int dreg, const uint64_t* value);
   void get_d_register(int dreg, uint32_t* value);
   void set_d_register(int dreg, const uint32_t* value);
-  void get_q_register(int qreg, uint64_t* value);
-  void set_q_register(int qreg, const uint64_t* value);
-  void get_q_register(int qreg, uint32_t* value);
-  void set_q_register(int qreg, const uint32_t* value);
+  // Support for NEON.
+  template <typename T>
+  void get_q_register(int qreg, T* value);
+  template <typename T>
+  void set_q_register(int qreg, const T* value);
 
   void set_s_register(int reg, unsigned int value);
   unsigned int get_s_register(int reg) const;
@@ -339,6 +340,8 @@ class Simulator {
   void DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instruction* instr);
   void DecodeVCMP(Instruction* instr);
   void DecodeVCVTBetweenDoubleAndSingle(Instruction* instr);
+  int32_t ConvertDoubleToInt(double val, bool unsigned_integer,
+                             VFPRoundingMode mode);
   void DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr);
 
   // Executes one instruction.

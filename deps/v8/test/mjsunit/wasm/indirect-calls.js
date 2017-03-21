@@ -11,7 +11,7 @@ var module = (function () {
   var builder = new WasmModuleBuilder();
 
   var sig_index = builder.addType(kSig_i_ii);
-  builder.addImport("add", sig_index);
+  builder.addImport("q", "add", sig_index);
   builder.addFunction("add", sig_index)
     .addBody([
       kExprGetLocal, 0, kExprGetLocal, 1, kExprCallFunction, 0
@@ -32,7 +32,7 @@ var module = (function () {
     .exportFunc()
   builder.appendToTable([1, 2, 3]);
 
-  return builder.instantiate({add: function(a, b) { return a + b | 0; }});
+  return builder.instantiate({q: {add: function(a, b) { return a + b | 0; }}});
 })();
 
 // Check the module exists.
@@ -54,7 +54,7 @@ module = (function () {
 
   var sig_i_ii = builder.addType(kSig_i_ii);
   var sig_i_i = builder.addType(kSig_i_i);
-  var mul = builder.addImport("mul", sig_i_ii);
+  var mul = builder.addImport("q", "mul", sig_i_ii);
   var add = builder.addFunction("add", sig_i_ii)
     .addBody([
       kExprGetLocal, 0,  // --
@@ -76,7 +76,7 @@ module = (function () {
     .exportFunc();
   builder.appendToTable([mul.index, add.index, popcnt.index, main.index]);
 
-  return builder.instantiate({mul: function(a, b) { return a * b | 0; }});
+  return builder.instantiate({q: {mul: function(a, b) { return a * b | 0; }}});
 })();
 
 assertEquals(-6, module.exports.main(0, -2, 3));
@@ -185,14 +185,14 @@ assertTraps(kTrapFuncInvalid, "module.exports.main(12, 3)");
     .exportAs("main");
 
   builder.setFunctionTableLength(10);
-  var g = builder.addImportedGlobal("base", undefined, kAstI32);
+  var g = builder.addImportedGlobal("fff", "base", kWasmI32);
   builder.addFunctionTableInit(g, true, [f.mul.index, f.add.index, f.sub.index]);
 
   var module = new WebAssembly.Module(builder.toBuffer());
 
   for (var i = 0; i < 5; i++) {
     print(" base = " + i);
-    var instance = new WebAssembly.Instance(module, {base: i});
+    var instance = new WebAssembly.Instance(module, {fff: {base: i}});
     main = instance.exports.main;
     for (var j = 0; j < i; j++) {
       assertTraps(kTrapFuncSigMismatch, "main(12, " + j + ")");

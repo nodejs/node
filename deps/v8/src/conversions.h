@@ -167,7 +167,15 @@ inline bool IsInt32Double(double value);
 // We also have to check for negative 0 as it is not a UInteger32.
 inline bool IsUint32Double(double value);
 
+// Tries to convert |value| to a uint32, setting the result in |uint32_value|.
+// If the output does not compare equal to the input, returns false and the
+// value in |uint32_value| is left unspecified.
+// Used for conversions such as in ECMA-262 15.4.2.2, which check "ToUint32(len)
+// is equal to len".
+inline bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value);
+
 // Convert from Number object to C integer.
+inline uint32_t PositiveNumberToUint32(Object* number);
 inline int32_t NumberToInt32(Object* number);
 inline uint32_t NumberToUint32(Object* number);
 inline int64_t NumberToInt64(Object* number);

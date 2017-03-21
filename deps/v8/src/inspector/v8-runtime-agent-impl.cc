@@ -241,7 +241,7 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
         inspector->client()->ensureDefaultContextInGroup(contextGroupId);
     if (defaultContext.IsEmpty())
       return Response::Error("Cannot find default execution context");
-    *contextId = V8Debugger::contextId(defaultContext);
+    *contextId = InspectedContext::contextId(defaultContext);
   }
   return Response::OK();
 }
@@ -293,11 +293,11 @@ void V8RuntimeAgentImpl::evaluate(
   if (evalIsDisabled) scope.context()->AllowCodeGenerationFromStrings(true);
 
   v8::MaybeLocal<v8::Value> maybeResultValue;
-  v8::Local<v8::Script> script = m_inspector->compileScript(
-      scope.context(), toV8String(m_inspector->isolate(), expression),
-      String16(), false);
-  if (!script.IsEmpty())
+  v8::Local<v8::Script> script;
+  if (m_inspector->compileScript(scope.context(), expression, String16())
+          .ToLocal(&script)) {
     maybeResultValue = m_inspector->runCompiledScript(scope.context(), script);
+  }
 
   if (evalIsDisabled) scope.context()->AllowCodeGenerationFromStrings(false);
 
@@ -379,10 +379,14 @@ void V8RuntimeAgentImpl::callFunctionOn(
   if (silent.fromMaybe(false)) scope.ignoreExceptionsAndMuteConsole();
   if (userGesture.fromMaybe(false)) scope.pretendUserGesture();
 
-  v8::MaybeLocal<v8::Value> maybeFunctionValue =
-      m_inspector->compileAndRunInternalScript(
-          scope.context(),
-          toV8String(m_inspector->isolate(), "(" + expression + ")"));
+  v8::MaybeLocal<v8::Value> maybeFunctionValue;
+  v8::Local<v8::Script> functionScript;
+  if (m_inspector
+          ->compileScript(scope.context(), "(" + expression + ")", String16())
+          .ToLocal(&functionScript)) {
+    maybeFunctionValue =
+        m_inspector->runCompiledScript(scope.context(), functionScript);
+  }
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.
   response = scope.initialize();
@@ -543,11 +547,11 @@ Response V8RuntimeAgentImpl::compileScript(
   if (!response.isSuccess()) return response;
 
   if (!persistScript) m_inspector->debugger()->muteScriptParsedEvents();
-  v8::Local<v8::Script> script = m_inspector->compileScript(
-      scope.context(), toV8String(m_inspector->isolate(), expression),
-      sourceURL, false);
+  v8::Local<v8::Script> script;
+  bool isOk = m_inspector->compileScript(scope.context(), expression, sourceURL)
+                  .ToLocal(&script);
   if (!persistScript) m_inspector->debugger()->unmuteScriptParsedEvents();
-  if (script.IsEmpty()) {
+  if (!isOk) {
     if (scope.tryCatch().HasCaught()) {
       response = scope.injectedScript()->createExceptionDetails(
           scope.tryCatch(), String16(), false, exceptionDetails);
@@ -702,7 +706,7 @@ void V8RuntimeAgentImpl::reportExecutionContextCreated(
           .build();
   if (!context->auxData().isEmpty())
     description->setAuxData(protocol::DictionaryValue::cast(
-        protocol::parseJSON(context->auxData())));
+        protocol::StringUtil::parseJSON(context->auxData())));
   m_frontend.executionContextCreated(std::move(description));
 }
 

@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/globals.h"
 #include "src/handles.h"
@@ -40,19 +41,16 @@ enum class CompileJobStatus {
 
 class V8_EXPORT_PRIVATE CompilerDispatcherJob {
  public:
-  CompilerDispatcherJob(Isolate* isolate, Handle<SharedFunctionInfo> shared,
+  CompilerDispatcherJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
+                        Handle<SharedFunctionInfo> shared,
                         size_t max_stack_size);
   ~CompilerDispatcherJob();
 
   CompileJobStatus status() const { return status_; }
-  bool can_parse_on_background_thread() const {
-    return can_parse_on_background_thread_;
-  }
-  // Should only be called after kReadyToCompile.
-  bool can_compile_on_background_thread() const {
-    DCHECK(compile_job_.get());
-    return can_compile_on_background_thread_;
-  }
+
+  // Returns true if this CompilerDispatcherJob was created for the given
+  // function.
+  bool IsAssociatedWith(Handle<SharedFunctionInfo> shared) const;
 
   // Transition from kInitial to kReadyToParse.
   void PrepareToParseOnMainThread();
@@ -78,6 +76,13 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   // Transition from any state to kInitial and free all resources.
   void ResetOnMainThread();
 
+  // Estimate how long the next step will take using the tracer.
+  double EstimateRuntimeOfNextStepInMs() const;
+
+  // Even though the name does not imply this, ShortPrint() must only be invoked
+  // on the main thread.
+  void ShortPrint();
+
  private:
   FRIEND_TEST(CompilerDispatcherJobTest, ScopeChain);
 
@@ -86,6 +91,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   CompilerDispatcherTracer* tracer_;
   Handle<SharedFunctionInfo> shared_;  // Global handle.
   Handle<String> source_;        // Global handle.
+  Handle<String> wrapper_;       // Global handle.
+  std::unique_ptr<v8::String::ExternalStringResourceBase> source_wrapper_;
   size_t max_stack_size_;
 
   // Members required for parsing.
@@ -100,8 +107,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   std::unique_ptr<CompilationInfo> compile_info_;
   std::unique_ptr<CompilationJob> compile_job_;
 
-  bool can_parse_on_background_thread_;
-  bool can_compile_on_background_thread_;
+  bool trace_compiler_dispatcher_jobs_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherJob);
 };

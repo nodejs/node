@@ -16,11 +16,9 @@ namespace v8 {
 enum DebugEvent {
   Break = 1,
   Exception = 2,
-  NewFunction = 3,
-  BeforeCompile = 4,
-  AfterCompile = 5,
-  CompileError = 6,
-  AsyncTaskEvent = 7,
+  AfterCompile = 3,
+  CompileError = 4,
+  AsyncTaskEvent = 5,
 };
 
 class V8_EXPORT Debug {
@@ -87,7 +85,6 @@ class V8_EXPORT Debug {
     virtual ~Message() {}
   };
 
-
   /**
    * An event details object passed to the debug event listener.
    */
@@ -145,7 +142,7 @@ class V8_EXPORT Debug {
    *
    * \param message the debug message handler message object
    *
-   * A MessageHandler2 does not take possession of the message data,
+   * A MessageHandler does not take possession of the message data,
    * and must not rely on the data persisting after the handler returns.
    */
   typedef void (*MessageHandler)(const Message& message);
@@ -167,33 +164,37 @@ class V8_EXPORT Debug {
   static void CancelDebugBreak(Isolate* isolate);
 
   // Check if a debugger break is scheduled in the given isolate.
-  static bool CheckDebugBreak(Isolate* isolate);
+  V8_DEPRECATED("No longer supported",
+                static bool CheckDebugBreak(Isolate* isolate));
 
   // Message based interface. The message protocol is JSON.
-  static void SetMessageHandler(Isolate* isolate, MessageHandler handler);
+  V8_DEPRECATED("No longer supported",
+                static void SetMessageHandler(Isolate* isolate,
+                                              MessageHandler handler));
 
-  static void SendCommand(Isolate* isolate,
-                          const uint16_t* command, int length,
-                          ClientData* client_data = NULL);
+  V8_DEPRECATED("No longer supported",
+                static void SendCommand(Isolate* isolate,
+                                        const uint16_t* command, int length,
+                                        ClientData* client_data = NULL));
 
- /**
-  * Run a JavaScript function in the debugger.
-  * \param fun the function to call
-  * \param data passed as second argument to the function
-  * With this call the debugger is entered and the function specified is called
-  * with the execution state as the first argument. This makes it possible to
-  * get access to information otherwise not available during normal JavaScript
-  * execution e.g. details on stack frames. Receiver of the function call will
-  * be the debugger context global object, however this is a subject to change.
-  * The following example shows a JavaScript function which when passed to
-  * v8::Debug::Call will return the current line of JavaScript execution.
-  *
-  * \code
-  *   function frame_source_line(exec_state) {
-  *     return exec_state.frame(0).sourceLine();
-  *   }
-  * \endcode
-  */
+  /**
+   * Run a JavaScript function in the debugger.
+   * \param fun the function to call
+   * \param data passed as second argument to the function
+   * With this call the debugger is entered and the function specified is called
+   * with the execution state as the first argument. This makes it possible to
+   * get access to information otherwise not available during normal JavaScript
+   * execution e.g. details on stack frames. Receiver of the function call will
+   * be the debugger context global object, however this is a subject to change.
+   * The following example shows a JavaScript function which when passed to
+   * v8::Debug::Call will return the current line of JavaScript execution.
+   *
+   * \code
+   *   function frame_source_line(exec_state) {
+   *     return exec_state.frame(0).sourceLine();
+   *   }
+   * \endcode
+   */
   // TODO(dcarney): data arg should be a MaybeLocal
   static MaybeLocal<Value> Call(Local<Context> context,
                                 v8::Local<v8::Function> fun,
@@ -202,8 +203,9 @@ class V8_EXPORT Debug {
   /**
    * Returns a mirror object for the given object.
    */
-  static MaybeLocal<Value> GetMirror(Local<Context> context,
-                                     v8::Local<v8::Value> obj);
+  V8_DEPRECATED("No longer supported",
+                static MaybeLocal<Value> GetMirror(Local<Context> context,
+                                                   v8::Local<v8::Value> obj));
 
   /**
    * Makes V8 process all pending debug messages.
@@ -236,7 +238,8 @@ class V8_EXPORT Debug {
    * "Evaluate" debug command behavior currently is not specified in scope
    * of this method.
    */
-  static void ProcessDebugMessages(Isolate* isolate);
+  V8_DEPRECATED("No longer supported",
+                static void ProcessDebugMessages(Isolate* isolate));
 
   /**
    * Debugger is running in its own context which is entered while debugger
@@ -245,13 +248,16 @@ class V8_EXPORT Debug {
    * to change. The Context exists only when the debugger is active, i.e. at
    * least one DebugEventListener or MessageHandler is set.
    */
-  static Local<Context> GetDebugContext(Isolate* isolate);
+  V8_DEPRECATED("Use v8-inspector",
+                static Local<Context> GetDebugContext(Isolate* isolate));
 
   /**
    * While in the debug context, this method returns the top-most non-debug
    * context, if it exists.
    */
-  static MaybeLocal<Context> GetDebuggedContext(Isolate* isolate);
+  V8_DEPRECATED(
+      "No longer supported",
+      static MaybeLocal<Context> GetDebuggedContext(Isolate* isolate));
 
   /**
    * Enable/disable LiveEdit functionality for the given Isolate

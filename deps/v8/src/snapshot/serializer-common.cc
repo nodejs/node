@@ -21,8 +21,7 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
-    DCHECK(map_->Get(addr).IsNothing() ||
-           strncmp(table->name(i), "Redirect to ", 12) == 0);
+    DCHECK(map_->Get(addr).IsNothing());
     map_->Set(addr, i);
     DCHECK(map_->Get(addr).IsJust());
   }
@@ -79,6 +78,15 @@ void SerializerDeserializer::Iterate(Isolate* isolate, ObjectVisitor* visitor) {
 
 bool SerializerDeserializer::CanBeDeferred(HeapObject* o) {
   return !o->IsString() && !o->IsScript();
+}
+
+void SerializerDeserializer::RestoreExternalReferenceRedirectors(
+    List<AccessorInfo*>* accessor_infos) {
+  // Restore wiped accessor infos.
+  for (AccessorInfo* info : *accessor_infos) {
+    Foreign::cast(info->js_getter())
+        ->set_foreign_address(info->redirected_getter());
+  }
 }
 
 }  // namespace internal

@@ -28,7 +28,8 @@ class LivenessAnalysisTest : public GraphTest {
         jsgraph_(isolate(), graph(), common(), &javascript_, nullptr,
                  &machine_),
         analyzer_(locals_count, false, zone()),
-        empty_values_(graph()->NewNode(common()->StateValues(0), 0, nullptr)),
+        empty_values_(graph()->NewNode(
+            common()->StateValues(0, SparseInputMask::Dense()), 0, nullptr)),
         next_checkpoint_id_(0),
         current_block_(nullptr) {}
 
@@ -48,7 +49,8 @@ class LivenessAnalysisTest : public GraphTest {
     int ast_num = next_checkpoint_id_++;
     int first_const = intconst_from_bailout_id(ast_num, locals_count_);
 
-    const Operator* locals_op = common()->StateValues(locals_count_);
+    const Operator* locals_op =
+        common()->StateValues(locals_count_, SparseInputMask::Dense());
 
     ZoneVector<Node*> local_inputs(locals_count_, nullptr, zone());
     for (int i = 0; i < locals_count_; i++) {

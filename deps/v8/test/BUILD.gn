@@ -3,7 +3,7 @@
 # found in the LICENSE file.
 
 import("../gni/isolate.gni")
-import("//build_overrides/v8.gni")
+import("../gni/v8.gni")
 
 group("gn_all") {
   testonly = true
@@ -21,7 +21,7 @@ group("gn_all") {
     ]
   }
 
-  if (v8_enable_inspector_override) {
+  if (v8_enable_inspector) {
     deps += [ "inspector:inspector-test" ]
   }
 
@@ -138,7 +138,7 @@ v8_isolate_run("fuzzer") {
 
 v8_isolate_run("inspector-test") {
   deps = []
-  if (v8_enable_inspector_override) {
+  if (v8_enable_inspector) {
     deps += [ "inspector:inspector-test" ]
   }
 

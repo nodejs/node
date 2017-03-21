@@ -14,11 +14,11 @@
 var Wasm = {
   instantiateModuleFromAsm: function(text, stdlib, ffi, heap) {
     var module_decl = eval('(' + text + ')');
-    if (%IsNotAsmWasmCode(module_decl)) {
+    if (!%IsAsmWasmCode(module_decl)) {
       throw "validate failure";
     }
     var ret = module_decl(stdlib, ffi, heap);
-    if (%IsNotAsmWasmCode(module_decl)) {
+    if (!%IsAsmWasmCode(module_decl)) {
       throw "bad module args";
     }
     return ret;

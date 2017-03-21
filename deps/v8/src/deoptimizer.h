@@ -254,7 +254,7 @@ class TranslatedState {
   void Prepare(bool has_adapted_arguments, Address stack_frame_pointer);
 
   // Store newly materialized values into the isolate.
-  void StoreMaterializedValuesAndDeopt();
+  void StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame);
 
   typedef std::vector<TranslatedFrame>::iterator iterator;
   iterator begin() { return frames_.begin(); }
@@ -292,6 +292,9 @@ class TranslatedState {
   void UpdateFromPreviouslyMaterializedObjects();
   Handle<Object> MaterializeAt(int frame_index, int* value_index);
   Handle<Object> MaterializeObjectAt(int object_index);
+  class CapturedObjectMaterializer;
+  Handle<Object> MaterializeCapturedObjectAt(TranslatedValue* slot,
+                                             int frame_index, int* value_index);
   bool GetAdaptedArguments(Handle<JSObject>* result, int frame_index);
 
   static uint32_t GetUInt32Slot(Address fp, int slot_index);
@@ -419,8 +422,9 @@ class Deoptimizer : public Malloced {
 
   // Deoptimize the function now. Its current optimized code will never be run
   // again and any activations of the optimized code will get deoptimized when
-  // execution returns.
-  static void DeoptimizeFunction(JSFunction* function);
+  // execution returns. If {code} is specified then the given code is targeted
+  // instead of the function code (e.g. OSR code not installed on function).
+  static void DeoptimizeFunction(JSFunction* function, Code* code = nullptr);
 
   // Deoptimize all code in the given isolate.
   static void DeoptimizeAll(Isolate* isolate);

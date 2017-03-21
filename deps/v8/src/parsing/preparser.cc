@@ -67,6 +67,8 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
         return PreParserIdentifier::Prototype();
       if (scanner->LiteralMatches("constructor", 11))
         return PreParserIdentifier::Constructor();
+      if (scanner->LiteralMatches("name", 4))
+        return PreParserIdentifier::Name();
       return PreParserIdentifier::Default();
   }
 }
@@ -86,16 +88,19 @@ PreParserIdentifier PreParser::GetSymbol() const {
 PreParser::PreParseResult PreParser::PreParseFunction(
     FunctionKind kind, DeclarationScope* function_scope, bool parsing_module,
     bool is_inner_function, bool may_abort, int* use_counts) {
-  RuntimeCallTimerScope runtime_timer(
-      runtime_call_stats_,
-      track_unresolved_variables_
-          ? &RuntimeCallStats::PreParseWithVariableResolution
-          : &RuntimeCallStats::PreParseNoVariableResolution);
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   parsing_module_ = parsing_module;
   use_counts_ = use_counts;
   DCHECK(!track_unresolved_variables_);
   track_unresolved_variables_ = is_inner_function;
+#ifdef DEBUG
+  function_scope->set_is_being_lazily_parsed(true);
+#endif
+
+  // In the preparser, we use the function literal ids to count how many
+  // FunctionLiterals were encountered. The PreParser doesn't actually persist
+  // FunctionLiterals, so there IDs don't matter.
+  ResetFunctionLiteralId();
 
   // The caller passes the function_scope which is not yet inserted into the
   // scope_state_. All scopes above the function_scope are ignored by the
@@ -108,7 +113,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   PreParserFormalParameters formals(function_scope);
   bool has_duplicate_parameters = false;
-  DuplicateFinder duplicate_finder(scanner()->unicode_cache());
+  DuplicateFinder duplicate_finder;
   std::unique_ptr<ExpressionClassifier> formals_classifier;
 
   // Parse non-arrow function parameters. For arrow functions, the parameters
@@ -126,13 +131,26 @@ PreParser::PreParseResult PreParser::PreParseFunction(
         formals_end_position, CHECK_OK_VALUE(kPreParseSuccess));
     has_duplicate_parameters =
         !classifier()->is_valid_formal_parameter_list_without_duplicates();
+
+    if (track_unresolved_variables_) {
+      function_scope->DeclareVariableName(
+          ast_value_factory()->arguments_string(), VAR);
+      function_scope->DeclareVariableName(ast_value_factory()->this_string(),
+                                          VAR);
+    }
   }
 
   Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
   LazyParsingResult result = ParseStatementListAndLogFunction(
       &formals, has_duplicate_parameters, may_abort, ok);
+
+  if (is_sloppy(function_scope->language_mode())) {
+    function_scope->HoistSloppyBlockFunctions(nullptr);
+  }
+
   use_counts_ = nullptr;
   track_unresolved_variables_ = false;
+
   if (result == kLazyParsingAborted) {
     return kPreParseAbort;
   } else if (stack_overflow()) {
@@ -156,8 +174,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     if (is_strict(function_scope->language_mode())) {
       int end_pos = scanner()->location().end_pos;
       CheckStrictOctalLiteral(function_scope->start_position(), end_pos, ok);
-      CheckDecimalLiteralWithLeadingZero(function_scope->start_position(),
-                                         end_pos);
     }
   }
   return kPreParseSuccess;
@@ -184,19 +200,23 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     LanguageMode language_mode, bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
+  const RuntimeCallStats::CounterId counters[2][2] = {
+      {&RuntimeCallStats::PreParseBackgroundNoVariableResolution,
+       &RuntimeCallStats::PreParseNoVariableResolution},
+      {&RuntimeCallStats::PreParseBackgroundWithVariableResolution,
+       &RuntimeCallStats::PreParseWithVariableResolution}};
   RuntimeCallTimerScope runtime_timer(
       runtime_call_stats_,
-      track_unresolved_variables_
-          ? &RuntimeCallStats::PreParseWithVariableResolution
-          : &RuntimeCallStats::PreParseNoVariableResolution);
+      counters[track_unresolved_variables_][parsing_on_main_thread_]);
 
   // Parse function body.
   PreParserStatementList body;
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
   FunctionState function_state(&function_state_, &scope_state_, function_scope);
-  DuplicateFinder duplicate_finder(scanner()->unicode_cache());
+  DuplicateFinder duplicate_finder;
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
+  GetNextFunctionLiteralId();
 
   Expect(Token::LPAREN, CHECK_OK);
   int start_position = scanner()->location().beg_pos;
@@ -216,6 +236,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Parsing the body may change the language mode in our scope.
   language_mode = function_scope->language_mode();
 
+  if (is_sloppy(language_mode)) {
+    function_scope->HoistSloppyBlockFunctions(nullptr);
+  }
+
   // Validate name and parameter names. We can do this only after parsing the
   // function, since the function can declare itself strict.
   CheckFunctionName(language_mode, function_name, function_name_validity,
@@ -227,7 +251,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   int end_position = scanner()->location().end_pos;
   if (is_strict(language_mode)) {
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
-    CheckDecimalLiteralWithLeadingZero(start_position, end_position);
   }
   function_scope->set_end_position(end_position);
 
@@ -253,25 +276,26 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
   DCHECK(this->scope()->is_function_scope());
-  log_.LogFunction(body_end, formals->num_parameters(),
-                   formals->function_length, has_duplicate_parameters,
-                   function_state_->materialized_literal_count(),
-                   function_state_->expected_property_count());
+  log_.LogFunction(
+      body_end, formals->num_parameters(), formals->function_length,
+      has_duplicate_parameters, function_state_->materialized_literal_count(),
+      function_state_->expected_property_count(), GetLastFunctionLiteralId());
   return kLazyParsingComplete;
 }
 
 PreParserExpression PreParser::ExpressionFromIdentifier(
     PreParserIdentifier name, int start_position, InferName infer) {
+  VariableProxy* proxy = nullptr;
   if (track_unresolved_variables_) {
     AstNodeFactory factory(ast_value_factory());
     // Setting the Zone is necessary because zone_ might be the temp Zone, and
     // AstValueFactory doesn't know about it.
     factory.set_zone(zone());
     DCHECK_NOT_NULL(name.string_);
-    scope()->NewUnresolved(&factory, name.string_, start_position,
-                           NORMAL_VARIABLE);
+    proxy = scope()->NewUnresolved(&factory, name.string_, start_position,
+                                   NORMAL_VARIABLE);
   }
-  return PreParserExpression::FromIdentifier(name, zone());
+  return PreParserExpression::FromIdentifier(name, proxy, zone());
 }
 
 void PreParser::DeclareAndInitializeVariables(
@@ -279,23 +303,16 @@ void PreParser::DeclareAndInitializeVariables(
     const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZoneList<const AstRawString*>* names, bool* ok) {
-  if (declaration->pattern.identifiers_ != nullptr) {
+  if (declaration->pattern.variables_ != nullptr) {
     DCHECK(FLAG_lazy_inner_functions);
-    /* Mimic what Parser does when declaring variables (see
-       Parser::PatternRewriter::VisitVariableProxy).
-
-       var + no initializer -> RemoveUnresolved
-       let / const + no initializer -> RemoveUnresolved
-       var + initializer -> RemoveUnresolved followed by NewUnresolved
-       let / const + initializer -> RemoveUnresolved
-    */
-
-    if (declaration->initializer.IsEmpty() ||
-        (declaration_descriptor->mode == VariableMode::LET ||
-         declaration_descriptor->mode == VariableMode::CONST)) {
-      for (auto identifier : *(declaration->pattern.identifiers_)) {
-        declaration_descriptor->scope->RemoveUnresolved(identifier);
-      }
+    Scope* scope = declaration_descriptor->hoist_scope;
+    if (scope == nullptr) {
+      scope = this->scope();
+    }
+    for (auto variable : *(declaration->pattern.variables_)) {
+      declaration_descriptor->scope->RemoveUnresolved(variable);
+      scope->DeclareVariableName(variable->raw_name(),
+                                 declaration_descriptor->mode);
     }
   }
 }

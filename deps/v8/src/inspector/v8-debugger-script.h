@@ -32,6 +32,7 @@
 
 #include "src/base/macros.h"
 #include "src/inspector/string-16.h"
+#include "src/inspector/string-util.h"
 
 #include "include/v8.h"
 #include "src/debug/debug-interface.h"
@@ -40,55 +41,56 @@ namespace v8_inspector {
 
 class V8DebuggerScript {
  public:
-  V8DebuggerScript(v8::Isolate* isolate,
-                   v8::Local<v8::DebugInterface::Script> script,
-                   bool isLiveEdit);
-  ~V8DebuggerScript();
+  static std::unique_ptr<V8DebuggerScript> Create(
+      v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
+      bool isLiveEdit);
+  static std::unique_ptr<V8DebuggerScript> CreateWasm(
+      v8::Isolate* isolate, v8::Local<v8::debug::WasmScript> underlyingScript,
+      String16 id, String16 url, String16 source);
+
+  virtual ~V8DebuggerScript();
 
   const String16& scriptId() const { return m_id; }
   const String16& url() const { return m_url; }
   bool hasSourceURL() const { return !m_sourceURL.isEmpty(); }
   const String16& sourceURL() const;
-  const String16& sourceMappingURL() const { return m_sourceMappingURL; }
-  v8::Local<v8::String> source(v8::Isolate*) const;
-  const String16& hash() const { return m_hash; }
+  virtual const String16& sourceMappingURL() const = 0;
+  virtual String16 source(v8::Isolate*) const { return m_source; }
+  const String16& hash(v8::Isolate*) const;
   int startLine() const { return m_startLine; }
   int startColumn() const { return m_startColumn; }
   int endLine() const { return m_endLine; }
   int endColumn() const { return m_endColumn; }
   int executionContextId() const { return m_executionContextId; }
-  const String16& executionContextAuxData() const {
-    return m_executionContextAuxData;
-  }
-  bool isLiveEdit() const { return m_isLiveEdit; }
+  virtual bool isLiveEdit() const = 0;
 
   void setSourceURL(const String16&);
-  void setSourceMappingURL(const String16&);
-  void setSource(v8::Local<v8::String>);
+  virtual void setSourceMappingURL(const String16&) = 0;
+  virtual void setSource(v8::Local<v8::String> source) {
+    m_source = toProtocolString(source);
+  }
 
-  bool getPossibleBreakpoints(
-      const v8::DebugInterface::Location& start,
-      const v8::DebugInterface::Location& end,
-      std::vector<v8::DebugInterface::Location>* locations);
+  virtual bool getPossibleBreakpoints(
+      const v8::debug::Location& start, const v8::debug::Location& end,
+      std::vector<v8::debug::Location>* locations) = 0;
 
- private:
+ protected:
+  V8DebuggerScript(v8::Isolate*, String16 id, String16 url);
+
   String16 m_id;
   String16 m_url;
   String16 m_sourceURL;
-  String16 m_sourceMappingURL;
-  v8::Global<v8::String> m_source;
-  String16 m_hash;
-  int m_startLine;
-  int m_startColumn;
-  int m_endLine;
-  int m_endColumn;
-  int m_executionContextId;
-  String16 m_executionContextAuxData;
-  bool m_isLiveEdit;
+  String16 m_source;
+  mutable String16 m_hash;
+  int m_startLine = 0;
+  int m_startColumn = 0;
+  int m_endLine = 0;
+  int m_endColumn = 0;
+  int m_executionContextId = 0;
 
   v8::Isolate* m_isolate;
-  v8::Global<v8::DebugInterface::Script> m_script;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(V8DebuggerScript);
 };
 

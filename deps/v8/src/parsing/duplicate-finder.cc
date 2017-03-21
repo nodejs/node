@@ -4,81 +4,24 @@
 
 #include "src/parsing/duplicate-finder.h"
 
-#include "src/conversions.h"
-#include "src/unicode-cache.h"
-
 namespace v8 {
 namespace internal {
 
-int DuplicateFinder::AddOneByteSymbol(Vector<const uint8_t> key, int value) {
-  return AddSymbol(key, true, value);
+bool DuplicateFinder::AddOneByteSymbol(Vector<const uint8_t> key) {
+  return AddSymbol(key, true);
 }
 
-int DuplicateFinder::AddTwoByteSymbol(Vector<const uint16_t> key, int value) {
-  return AddSymbol(Vector<const uint8_t>::cast(key), false, value);
+bool DuplicateFinder::AddTwoByteSymbol(Vector<const uint16_t> key) {
+  return AddSymbol(Vector<const uint8_t>::cast(key), false);
 }
 
-int DuplicateFinder::AddSymbol(Vector<const uint8_t> key, bool is_one_byte,
-                               int value) {
+bool DuplicateFinder::AddSymbol(Vector<const uint8_t> key, bool is_one_byte) {
   uint32_t hash = Hash(key, is_one_byte);
   byte* encoding = BackupKey(key, is_one_byte);
   base::HashMap::Entry* entry = map_.LookupOrInsert(encoding, hash);
   int old_value = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
-  entry->value =
-      reinterpret_cast<void*>(static_cast<intptr_t>(value | old_value));
+  entry->value = reinterpret_cast<void*>(1);
   return old_value;
-}
-
-int DuplicateFinder::AddNumber(Vector<const uint8_t> key, int value) {
-  DCHECK(key.length() > 0);
-  // Quick check for already being in canonical form.
-  if (IsNumberCanonical(key)) {
-    return AddOneByteSymbol(key, value);
-  }
-
-  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY;
-  double double_value = StringToDouble(unicode_constants_, key, flags, 0.0);
-  int length;
-  const char* string;
-  if (!std::isfinite(double_value)) {
-    string = "Infinity";
-    length = 8;  // strlen("Infinity");
-  } else {
-    string = DoubleToCString(double_value,
-                             Vector<char>(number_buffer_, kBufferSize));
-    length = StrLength(string);
-  }
-  return AddSymbol(
-      Vector<const byte>(reinterpret_cast<const byte*>(string), length), true,
-      value);
-}
-
-bool DuplicateFinder::IsNumberCanonical(Vector<const uint8_t> number) {
-  // Test for a safe approximation of number literals that are already
-  // in canonical form: max 15 digits, no leading zeroes, except an
-  // integer part that is a single zero, and no trailing zeros below
-  // the decimal point.
-  int pos = 0;
-  int length = number.length();
-  if (number.length() > 15) return false;
-  if (number[pos] == '0') {
-    pos++;
-  } else {
-    while (pos < length &&
-           static_cast<unsigned>(number[pos] - '0') <= ('9' - '0'))
-      pos++;
-  }
-  if (length == pos) return true;
-  if (number[pos] != '.') return false;
-  pos++;
-  bool invalid_last_digit = true;
-  while (pos < length) {
-    uint8_t digit = number[pos] - '0';
-    if (digit > '9' - '0') return false;
-    invalid_last_digit = (digit == 0);
-    pos++;
-  }
-  return !invalid_last_digit;
 }
 
 uint32_t DuplicateFinder::Hash(Vector<const uint8_t> key, bool is_one_byte) {

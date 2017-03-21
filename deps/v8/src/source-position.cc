@@ -43,29 +43,16 @@ std::ostream& operator<<(std::ostream& out, const SourcePosition& pos) {
   return out;
 }
 
-SourcePositionInfo SourcePosition::Info(
-    Handle<SharedFunctionInfo> function) const {
-  SourcePositionInfo result(*this, function);
-  Handle<Script> script(Script::cast(function->script()));
-  Script::PositionInfo pos;
-  if (Script::GetPositionInfo(script, ScriptOffset(), &pos,
-                              Script::WITH_OFFSET)) {
-    result.line = pos.line;
-    result.column = pos.column;
-  }
-  return result;
-}
-
 std::vector<SourcePositionInfo> SourcePosition::InliningStack(
     CompilationInfo* cinfo) const {
   SourcePosition pos = *this;
   std::vector<SourcePositionInfo> stack;
   while (pos.isInlined()) {
     const auto& inl = cinfo->inlined_functions()[pos.InliningId()];
-    stack.push_back(pos.Info(inl.shared_info));
+    stack.push_back(SourcePositionInfo(pos, inl.shared_info));
     pos = inl.position.position;
   }
-  stack.push_back(pos.Info(cinfo->shared_info()));
+  stack.push_back(SourcePositionInfo(pos, cinfo->shared_info()));
   return stack;
 }
 
@@ -80,12 +67,12 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
         deopt_data->InliningPositions()->get(pos.InliningId());
     Handle<SharedFunctionInfo> function(
         deopt_data->GetInlinedFunction(inl.inlined_function_id));
-    stack.push_back(pos.Info(function));
+    stack.push_back(SourcePositionInfo(pos, function));
     pos = inl.position;
   }
   Handle<SharedFunctionInfo> function(
       SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo()));
-  stack.push_back(pos.Info(function));
+  stack.push_back(SourcePositionInfo(pos, function));
   return stack;
 }
 
@@ -124,6 +111,18 @@ void SourcePosition::Print(std::ostream& out, Code* code) const {
     }
     out << " inlined at ";
     inl.position.Print(out, code);
+  }
+}
+
+SourcePositionInfo::SourcePositionInfo(SourcePosition pos,
+                                       Handle<SharedFunctionInfo> f)
+    : position(pos), function(f) {
+  Handle<Script> script(Script::cast(function->script()));
+  Script::PositionInfo info;
+  if (Script::GetPositionInfo(script, pos.ScriptOffset(), &info,
+                              Script::WITH_OFFSET)) {
+    line = info.line;
+    column = info.column;
   }
 }
 

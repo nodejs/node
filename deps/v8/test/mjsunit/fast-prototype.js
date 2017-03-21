@@ -101,11 +101,12 @@ for (var i = 0; i < 4; i++) {
 
 var x = {a: 1, b: 2, c: 3};
 var o = { __proto__: x };
-assertTrue(%HasFastProperties(x));
+assertFalse(%HasFastProperties(x));
 for (key in x) {
   assertTrue(key == 'a');
   break;
 }
+assertTrue(%HasFastProperties(x));
 delete x.b;
 for (key in x) {
   assertTrue(key == 'a');

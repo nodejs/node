@@ -6,6 +6,7 @@
 #include "src/crankshaft/s390/lithium-codegen-s390.h"
 
 #include "src/base/bits.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/crankshaft/hydrogen-osr.h"
@@ -177,15 +178,18 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
       __ CallRuntime(Runtime::kNewScriptContext);
       deopt_mode = Safepoint::kLazyDeopt;
     } else {
-      if (slots <= FastNewFunctionContextStub::kMaximumSlots) {
-        FastNewFunctionContextStub stub(isolate());
+      if (slots <=
+          ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+        Callable callable = CodeFactory::FastNewFunctionContext(
+            isolate(), info()->scope()->scope_type());
         __ mov(FastNewFunctionContextDescriptor::SlotsRegister(),
                Operand(slots));
-        __ CallStub(&stub);
-        // Result of FastNewFunctionContextStub is always in new space.
+        __ Call(callable.code(), RelocInfo::CODE_TARGET);
+        // Result of the FastNewFunctionContext builtin is always in new space.
         need_write_barrier = false;
       } else {
         __ push(r3);
+        __ Push(Smi::FromInt(info()->scope()->scope_type()));
         __ CallRuntime(Runtime::kNewFunctionContext);
       }
     }
@@ -1283,8 +1287,12 @@ void LCodeGen::DoFlooringDivI(LFlooringDivI* instr) {
   __ bge(&done, Label::kNear);
 
   // If there is no remainder then we are done.
-  __ lr(scratch, result);
-  __ msr(scratch, divisor);
+  if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+    __ msrkc(scratch, result, divisor);
+  } else {
+    __ lr(scratch, result);
+    __ msr(scratch, divisor);
+  }
   __ Cmp32(dividend, scratch);
   __ beq(&done, Label::kNear);
 
@@ -1415,36 +1423,48 @@ void LCodeGen::DoMulI(LMulI* instr) {
     Register right = ToRegister(right_op);
 
     if (can_overflow) {
+      if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+        // result = left * right.
+        if (instr->hydrogen()->representation().IsSmi()) {
+          __ SmiUntag(scratch, right);
+          __ MulPWithCondition(result, left, scratch);
+        } else {
+          __ msrkc(result, left, right);
+          __ LoadW(result, result);
+        }
+        DeoptimizeIf(overflow, instr, DeoptimizeReason::kOverflow);
+      } else {
 #if V8_TARGET_ARCH_S390X
-      // result = left * right.
-      if (instr->hydrogen()->representation().IsSmi()) {
-        __ SmiUntag(result, left);
-        __ SmiUntag(scratch, right);
-        __ msgr(result, scratch);
-      } else {
-        __ LoadRR(result, left);
-        __ msgr(result, right);
-      }
-      __ TestIfInt32(result, r0);
-      DeoptimizeIf(ne, instr, DeoptimizeReason::kOverflow);
-      if (instr->hydrogen()->representation().IsSmi()) {
-        __ SmiTag(result);
-      }
+        // result = left * right.
+        if (instr->hydrogen()->representation().IsSmi()) {
+          __ SmiUntag(result, left);
+          __ SmiUntag(scratch, right);
+          __ msgr(result, scratch);
+        } else {
+          __ LoadRR(result, left);
+          __ msgr(result, right);
+        }
+        __ TestIfInt32(result, r0);
+        DeoptimizeIf(ne, instr, DeoptimizeReason::kOverflow);
+        if (instr->hydrogen()->representation().IsSmi()) {
+          __ SmiTag(result);
+        }
 #else
-      // r0:scratch = scratch * right
-      if (instr->hydrogen()->representation().IsSmi()) {
-        __ SmiUntag(scratch, left);
-        __ mr_z(r0, right);
-        __ LoadRR(result, scratch);
-      } else {
         // r0:scratch = scratch * right
-        __ LoadRR(scratch, left);
-        __ mr_z(r0, right);
-        __ LoadRR(result, scratch);
-      }
-      __ TestIfInt32(r0, result, scratch);
-      DeoptimizeIf(ne, instr, DeoptimizeReason::kOverflow);
+        if (instr->hydrogen()->representation().IsSmi()) {
+          __ SmiUntag(scratch, left);
+          __ mr_z(r0, right);
+          __ LoadRR(result, scratch);
+        } else {
+          // r0:scratch = scratch * right
+          __ LoadRR(scratch, left);
+          __ mr_z(r0, right);
+          __ LoadRR(result, scratch);
+        }
+        __ TestIfInt32(r0, result, scratch);
+        DeoptimizeIf(ne, instr, DeoptimizeReason::kOverflow);
 #endif
+      }
     } else {
       if (instr->hydrogen()->representation().IsSmi()) {
         __ SmiUntag(result, left);
@@ -1721,35 +1741,12 @@ void LCodeGen::DoSubI(LSubI* instr) {
   }
 }
 
-void LCodeGen::DoRSubI(LRSubI* instr) {
-  LOperand* left = instr->left();
-  LOperand* right = instr->right();
-  LOperand* result = instr->result();
-
-  DCHECK(!instr->hydrogen()->CheckFlag(HValue::kCanOverflow) &&
-         right->IsConstantOperand());
-
-#if V8_TARGET_ARCH_S390X
-  // The overflow detection needs to be tested on the lower 32-bits.
-  // As a result, on 64-bit, we need to force 32-bit arithmetic operations
-  // to set the CC overflow bit properly.  The result is then sign-extended.
-  bool checkOverflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
-#else
-  bool checkOverflow = true;
-#endif
-
-  Operand right_operand = ToOperand(right);
-  __ mov(r0, right_operand);
-
-  if (!checkOverflow) {
-    __ SubP_ExtendSrc(ToRegister(result), r0, ToRegister(left));
-  } else {
-    __ Sub32(ToRegister(result), r0, ToRegister(left));
-  }
-}
-
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  __ mov(ToRegister(instr->result()), Operand(instr->value()));
+  Register dst = ToRegister(instr->result());
+  if (instr->value() == 0)
+    __ XorP(dst, dst);
+  else
+    __ Load(dst, Operand(instr->value()));
 }
 
 void LCodeGen::DoConstantS(LConstantS* instr) {
@@ -1992,20 +1989,38 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
   DoubleRegister left = ToDoubleRegister(instr->left());
   DoubleRegister right = ToDoubleRegister(instr->right());
   DoubleRegister result = ToDoubleRegister(instr->result());
-  // All operations except MOD are computed in-place.
-  DCHECK(instr->op() == Token::MOD || left.is(result));
   switch (instr->op()) {
     case Token::ADD:
-      __ adbr(result, right);
+      if (CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+        __ vfa(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ adbr(result, right);
+      }
       break;
     case Token::SUB:
-      __ sdbr(result, right);
+      if (CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+        __ vfs(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ sdbr(result, right);
+      }
       break;
     case Token::MUL:
-      __ mdbr(result, right);
+      if (CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+        __ vfm(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ mdbr(result, right);
+      }
       break;
     case Token::DIV:
-      __ ddbr(result, right);
+      if (CpuFeatures::IsSupported(VECTOR_FACILITY)) {
+        __ vfd(result, left, right);
+      } else {
+        DCHECK(result.is(left));
+        __ ddbr(result, right);
+      }
       break;
     case Token::MOD: {
       __ PrepareCallCFunction(0, 2, scratch0());
@@ -3012,7 +3027,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
       // protector cell contains (Smi) Isolate::kProtectorValid. Otherwise
       // it needs to bail out.
       __ LoadRoot(result, Heap::kArrayProtectorRootIndex);
-      __ LoadP(result, FieldMemOperand(result, Cell::kValueOffset));
+      __ LoadP(result, FieldMemOperand(result, PropertyCell::kValueOffset));
       __ CmpSmiLiteral(result, Smi::FromInt(Isolate::kProtectorValid), r0);
       DeoptimizeIf(ne, instr, DeoptimizeReason::kHole);
     }
@@ -3258,7 +3273,7 @@ void LCodeGen::DoContext(LContext* instr) {
 
 void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   DCHECK(ToRegister(instr->context()).is(cp));
-  __ Move(scratch0(), instr->hydrogen()->pairs());
+  __ Move(scratch0(), instr->hydrogen()->declarations());
   __ push(scratch0());
   __ LoadSmiLiteral(scratch0(), Smi::FromInt(instr->hydrogen()->flags()));
   __ push(scratch0());
@@ -3391,31 +3406,17 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
 void LCodeGen::EmitMathAbs(LMathAbs* instr) {
   Register input = ToRegister(instr->value());
   Register result = ToRegister(instr->result());
-  Label done;
-  __ CmpP(input, Operand::Zero());
-  __ Move(result, input);
-  __ bge(&done, Label::kNear);
-  __ LoadComplementRR(result, result);
+  __ LoadPositiveP(result, input);
   // Deoptimize on overflow.
   DeoptimizeIf(overflow, instr, DeoptimizeReason::kOverflow, cr0);
-  __ bind(&done);
 }
 
 #if V8_TARGET_ARCH_S390X
 void LCodeGen::EmitInteger32MathAbs(LMathAbs* instr) {
   Register input = ToRegister(instr->value());
   Register result = ToRegister(instr->result());
-  Label done;
-  __ Cmp32(input, Operand::Zero());
-  __ Move(result, input);
-  __ bge(&done, Label::kNear);
-
-  // Deoptimize on overflow.
-  __ Cmp32(input, Operand(0x80000000));
-  DeoptimizeIf(eq, instr, DeoptimizeReason::kOverflow);
-
-  __ LoadComplementRR(result, result);
-  __ bind(&done);
+  __ LoadPositive32(result, input);
+  DeoptimizeIf(overflow, instr, DeoptimizeReason::kOverflow);
 }
 #endif
 
@@ -3537,9 +3538,13 @@ void LCodeGen::DoMathFround(LMathFround* instr) {
 }
 
 void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
-  DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister result = ToDoubleRegister(instr->result());
-  __ sqdbr(result, input);
+  LOperand* input = instr->value();
+  if (input->IsDoubleRegister()) {
+    __ Sqrt(result, ToDoubleRegister(instr->value()));
+  } else {
+    __ Sqrt(result, ToMemOperand(input));
+  }
 }
 
 void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
@@ -4287,12 +4292,21 @@ void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
       if (Smi::IsValid(int_key)) {
         __ LoadSmiLiteral(r5, Smi::FromInt(int_key));
       } else {
-        // We should never get here at runtime because there is a smi check on
-        // the key before this point.
-        __ stop("expected smi");
+        Abort(kArrayIndexConstantValueTooBig);
       }
     } else {
+      Label is_smi;
+#if V8_TARGET_ARCH_S390X
       __ SmiTag(r5, ToRegister(key));
+#else
+      // Deopt if the key is outside Smi range. The stub expects Smi and would
+      // bump the elements into dictionary mode (and trigger a deopt) anyways.
+      __ Add32(r5, ToRegister(key), ToRegister(key));
+      __ b(nooverflow, &is_smi);
+      __ PopSafepointRegisters();
+      DeoptimizeIf(al, instr, DeoptimizeReason::kOverflow, cr0);
+      __ bind(&is_smi);
+#endif
     }
 
     GrowArrayElementsStub stub(isolate(), instr->hydrogen()->kind());
@@ -4877,14 +4891,42 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->value();
-  __ TestIfSmi(ToRegister(input));
+  if (input->IsRegister()) {
+    __ TestIfSmi(ToRegister(input));
+  } else if (input->IsStackSlot()) {
+    MemOperand value = ToMemOperand(input);
+#if !V8_TARGET_LITTLE_ENDIAN
+#if V8_TARGET_ARCH_S390X
+    __ TestIfSmi(MemOperand(value.rb(), value.offset() + 7));
+#else
+    __ TestIfSmi(MemOperand(value.rb(), value.offset() + 3));
+#endif
+#else
+    __ TestIfSmi(value);
+#endif
+  }
   DeoptimizeIf(ne, instr, DeoptimizeReason::kNotASmi, cr0);
 }
 
 void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
   if (!instr->hydrogen()->value()->type().IsHeapObject()) {
     LOperand* input = instr->value();
-    __ TestIfSmi(ToRegister(input));
+    if (input->IsRegister()) {
+      __ TestIfSmi(ToRegister(input));
+    } else if (input->IsStackSlot()) {
+      MemOperand value = ToMemOperand(input);
+#if !V8_TARGET_LITTLE_ENDIAN
+#if V8_TARGET_ARCH_S390X
+      __ TestIfSmi(MemOperand(value.rb(), value.offset() + 7));
+#else
+      __ TestIfSmi(MemOperand(value.rb(), value.offset() + 3));
+#endif
+#else
+      __ TestIfSmi(value);
+#endif
+    } else {
+      UNIMPLEMENTED();
+    }
     DeoptimizeIf(eq, instr, DeoptimizeReason::kSmi, cr0);
   }
 }

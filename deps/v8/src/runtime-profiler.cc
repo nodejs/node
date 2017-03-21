@@ -170,7 +170,7 @@ void RuntimeProfiler::AttemptOnStackReplacement(JavaScriptFrame* frame,
                                                 int loop_nesting_levels) {
   JSFunction* function = frame->function();
   SharedFunctionInfo* shared = function->shared();
-  if (!FLAG_use_osr || function->shared()->IsBuiltin()) {
+  if (!FLAG_use_osr || !function->shared()->IsUserJavaScript()) {
     return;
   }
 
@@ -474,10 +474,10 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
     // Update shared function info ticks after checking for whether functions
     // should be optimized to keep FCG (which updates ticks on code) and
     // Ignition (which updates ticks on shared function info) in sync.
-    List<JSFunction*> functions(4);
+    List<SharedFunctionInfo*> functions(4);
     frame->GetFunctions(&functions);
     for (int i = functions.length(); --i >= 0;) {
-      SharedFunctionInfo* shared_function_info = functions[i]->shared();
+      SharedFunctionInfo* shared_function_info = functions[i];
       int ticks = shared_function_info->profiler_ticks();
       if (ticks < Smi::kMaxValue) {
         shared_function_info->set_profiler_ticks(ticks + 1);

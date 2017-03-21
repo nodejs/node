@@ -43,8 +43,6 @@ class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
   bool idleStarted();
   bool idleFinished();
 
-  void collectSample();
-
  private:
   String16 nextProfileId();
 

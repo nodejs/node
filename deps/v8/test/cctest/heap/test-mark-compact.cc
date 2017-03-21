@@ -41,6 +41,8 @@
 
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
+#include "src/heap/mark-compact-inl.h"
+#include "src/heap/mark-compact.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -480,6 +482,38 @@ TEST(RegressJoinThreadsOnIsolateDeinit) {
   intptr_t size_limit = ShortLivingIsolate() * 2;
   for (int i = 0; i < 10; i++) {
     CHECK_GT(size_limit, ShortLivingIsolate());
+  }
+}
+
+TEST(Regress5829) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope sc(CcTest::isolate());
+  Heap* heap = isolate->heap();
+  heap::SealCurrentObjects(heap);
+  i::MarkCompactCollector* collector = heap->mark_compact_collector();
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
+  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsStopped()) {
+    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+                                  i::GarbageCollectionReason::kTesting);
+  }
+  CHECK(marking->IsMarking());
+  marking->StartBlackAllocationForTesting();
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(10, TENURED);
+  Address old_end = array->address() + array->Size();
+  // Right trim the array without clearing the mark bits.
+  array->set_length(9);
+  heap->CreateFillerObjectAt(old_end - kPointerSize, kPointerSize,
+                             ClearRecordedSlots::kNo);
+  heap->old_space()->EmptyAllocationInfo();
+  LiveObjectIterator<kGreyObjects> it(Page::FromAddress(array->address()));
+  HeapObject* object = nullptr;
+  while ((object = it.Next()) != nullptr) {
+    CHECK(!object->IsFiller());
   }
 }
 

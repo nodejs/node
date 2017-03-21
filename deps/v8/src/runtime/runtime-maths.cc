@@ -15,7 +15,7 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_GenerateRandomNumbers) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
 
   Handle<Context> native_context = isolate->native_context();
   DCHECK_EQ(0, native_context->math_random_index()->value());

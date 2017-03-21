@@ -166,7 +166,7 @@ class BitVector : public ZoneObject {
     return true;
   }
 
-  bool Equals(const BitVector& other) {
+  bool Equals(const BitVector& other) const {
     for (int i = 0; i < data_length_; i++) {
       if (data_[i] != other.data_[i]) return false;
     }

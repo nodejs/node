@@ -26,7 +26,7 @@ var Node = {
     return this.opcode.startsWith('JS');
   },
   isSimplified: function() {
-    if (this.isJavaScript) return false;
+    if (this.isJavaScript()) return false;
     return this.opcode.endsWith('Phi') ||
       this.opcode.startsWith('Boolean') ||
       this.opcode.startsWith('Number') ||

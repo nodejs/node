@@ -55,7 +55,6 @@ from testrunner.local import utils
 # build/include_what_you_use: Started giving false positives for variables
 #   named "string" and "map" assuming that you needed to include STL headers.
 # TODO(bmeurer): Fix and re-enable readability/check
-# TODO(epertoso): Maybe re-enable readability/fn_size after
 # http://crrev.com/2199323003 relands.
 
 LINT_RULES = """
@@ -70,6 +69,8 @@ LINT_RULES = """
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
 FLAGS_LINE = re.compile("//\s*Flags:.*--([A-z0-9-])+_[A-z0-9].*\n")
+
+TOOLS_PATH = dirname(abspath(__file__))
 
 def CppLintWorker(command):
   try:
@@ -156,13 +157,34 @@ class SourceFileProcessor(object):
   files and invoke a custom check on the files.
   """
 
-  def Run(self, path):
+  def RunOnPath(self, path):
+    """Runs processor on all files under the given path."""
+
     all_files = []
     for file in self.GetPathsToSearch():
       all_files += self.FindFilesIn(join(path, file))
-    if not self.ProcessFiles(all_files, path):
-      return False
-    return True
+    return self.ProcessFiles(all_files)
+
+  def RunOnFiles(self, files):
+    """Runs processor only on affected files."""
+
+    # Helper for getting directory pieces.
+    dirs = lambda f: dirname(f).split(os.sep)
+
+    # Path offsets where to look (to be in sync with RunOnPath).
+    # Normalize '.' to check for it with str.startswith.
+    search_paths = [('' if p == '.' else p) for p in self.GetPathsToSearch()]
+
+    all_files = [
+      f.AbsoluteLocalPath()
+      for f in files
+      if (not self.IgnoreFile(f.LocalPath()) and
+          self.IsRelevant(f.LocalPath()) and
+          all(not self.IgnoreDir(d) for d in dirs(f.LocalPath())) and
+          any(map(f.LocalPath().startswith, search_paths)))
+    ]
+
+    return self.ProcessFiles(all_files)
 
   def IgnoreDir(self, name):
     return (name.startswith('.') or
@@ -214,7 +236,7 @@ class CppLintProcessor(SourceFileProcessor):
 
     return None
 
-  def ProcessFiles(self, files, path):
+  def ProcessFiles(self, files):
     good_files_cache = FileContentsCache('.cpplint-cache')
     good_files_cache.Load()
     files = good_files_cache.FilterUnchangedFiles(files)
@@ -224,7 +246,7 @@ class CppLintProcessor(SourceFileProcessor):
 
     filters = ",".join([n for n in LINT_RULES])
     command = [sys.executable, 'cpplint.py', '--filter', filters]
-    cpplint = self.GetCpplintScript(join(path, "tools"))
+    cpplint = self.GetCpplintScript(TOOLS_PATH)
     if cpplint is None:
       print('Could not find cpplint.py. Make sure '
             'depot_tools is installed and in the path.')
@@ -314,11 +336,13 @@ class SourceProcessor(SourceFileProcessor):
                        'libraries.cc',
                        'libraries-empty.cc',
                        'lua_binarytrees.js',
+                       'meta-123.js',
                        'memops.js',
                        'poppler.js',
                        'primes.js',
                        'raytrace.js',
                        'regexp-pcre.js',
+                       'resources-123.js',
                        'rjsmin.py',
                        'script-breakpoint.h',
                        'sqlite.js',
@@ -336,6 +360,8 @@ class SourceProcessor(SourceFileProcessor):
                        'zlib.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']
 
+  IGNORE_COPYRIGHTS_DIRECTORY = "test/test262/local-tests"
+
   def EndOfDeclaration(self, line):
     return line == "}" or line == "};"
 
@@ -351,7 +377,8 @@ class SourceProcessor(SourceFileProcessor):
       if '\t' in contents:
         print "%s contains tabs" % name
         result = False
-    if not base in SourceProcessor.IGNORE_COPYRIGHTS:
+    if not base in SourceProcessor.IGNORE_COPYRIGHTS and \
+        not SourceProcessor.IGNORE_COPYRIGHTS_DIRECTORY in name:
       if not COPYRIGHT_HEADER_PATTERN.search(contents):
         print "%s is missing a correct copyright header." % name
         result = False
@@ -381,7 +408,7 @@ class SourceProcessor(SourceFileProcessor):
         result = False
     return result
 
-  def ProcessFiles(self, files, path):
+  def ProcessFiles(self, files):
     success = True
     violations = 0
     for file in files:
@@ -438,45 +465,23 @@ def _CheckStatusFileForDuplicateKeys(filepath):
   json.loads(contents, object_pairs_hook=check_pairs)
   return status["success"]
 
-def CheckStatusFiles(workspace):
-  success = True
-  suite_paths = utils.GetSuitePaths(join(workspace, "test"))
-  for root in suite_paths:
-    suite_path = join(workspace, "test", root)
-    status_file_path = join(suite_path, root + ".status")
-    suite = testsuite.TestSuite.LoadTestSuite(suite_path)
-    if suite and exists(status_file_path):
+
+class StatusFilesProcessor(SourceFileProcessor):
+  """Checks status files for incorrect syntax and duplicate keys."""
+
+  def IsRelevant(self, name):
+    return name.endswith('.status')
+
+  def GetPathsToSearch(self):
+    return ['test']
+
+  def ProcessFiles(self, files):
+    success = True
+    for status_file_path in files:
       success &= statusfile.PresubmitCheck(status_file_path)
       success &= _CheckStatusFileForDuplicateKeys(status_file_path)
-  return success
+    return success
 
-def CheckAuthorizedAuthor(input_api, output_api):
-  """For non-googler/chromites committers, verify the author's email address is
-  in AUTHORS.
-  """
-  # TODO(maruel): Add it to input_api?
-  import fnmatch
-
-  author = input_api.change.author_email
-  if not author:
-    input_api.logging.info('No author, skipping AUTHOR check')
-    return []
-  authors_path = input_api.os_path.join(
-      input_api.PresubmitLocalPath(), 'AUTHORS')
-  valid_authors = (
-      input_api.re.match(r'[^#]+\s+\<(.+?)\>\s*$', line)
-      for line in open(authors_path))
-  valid_authors = [item.group(1).lower() for item in valid_authors if item]
-  if not any(fnmatch.fnmatch(author.lower(), valid) for valid in valid_authors):
-    input_api.logging.info('Valid authors are %s', ', '.join(valid_authors))
-    return [output_api.PresubmitPromptWarning(
-        ('%s is not in AUTHORS file. If you are a new contributor, please visit'
-        '\n'
-        'http://www.chromium.org/developers/contributing-code and read the '
-        '"Legal" section\n'
-        'If you are a chromite, verify the contributor signed the CLA.') %
-        author)]
-  return []
 
 def GetOptions():
   result = optparse.OptionParser()
@@ -492,11 +497,12 @@ def Main():
   success = True
   print "Running C++ lint check..."
   if not options.no_lint:
-    success &= CppLintProcessor().Run(workspace)
+    success &= CppLintProcessor().RunOnPath(workspace)
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
-  success &= SourceProcessor().Run(workspace)
-  success &= CheckStatusFiles(workspace)
+  success &= SourceProcessor().RunOnPath(workspace)
+  print "Running status-files check..."
+  success &= StatusFilesProcessor().RunOnPath(workspace)
   if success:
     return 0
   else:

@@ -13,46 +13,26 @@
 
 var AsyncFunctionNext;
 var AsyncFunctionThrow;
-var GlobalPromise;
-var IsPromise;
-var NewPromiseCapability;
-var PerformPromiseThen;
-var PromiseCreate;
-var PromiseNextMicrotaskID;
-var RejectPromise;
-var ResolvePromise;
 
 utils.Import(function(from) {
   AsyncFunctionNext = from.AsyncFunctionNext;
   AsyncFunctionThrow = from.AsyncFunctionThrow;
-  GlobalPromise = from.GlobalPromise;
-  IsPromise = from.IsPromise;
-  NewPromiseCapability = from.NewPromiseCapability;
-  PerformPromiseThen = from.PerformPromiseThen;
-  PromiseCreate = from.PromiseCreate;
-  RejectPromise = from.RejectPromise;
-  ResolvePromise = from.ResolvePromise;
 });
 
-var promiseAsyncStackIDSymbol =
-    utils.ImportNow("promise_async_stack_id_symbol");
 var promiseHandledBySymbol =
     utils.ImportNow("promise_handled_by_symbol");
 var promiseForwardingHandlerSymbol =
     utils.ImportNow("promise_forwarding_handler_symbol");
-var promiseHandledHintSymbol =
-    utils.ImportNow("promise_handled_hint_symbol");
-var promiseHasHandlerSymbol =
-    utils.ImportNow("promise_has_handler_symbol");
 
 // -------------------------------------------------------------------
 
 function PromiseCastResolved(value) {
-  if (IsPromise(value)) {
+  // TODO(caitp): This is non spec compliant. See v8:5694.
+  if (%is_promise(value)) {
     return value;
   } else {
-    var promise = PromiseCreate();
-    ResolvePromise(promise, value);
+    var promise = %promise_internal_constructor(UNDEFINED);
+    %promise_resolve(promise, value);
     return promise;
   }
 }
@@ -90,15 +70,14 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
     return;
   }
 
-  // Just forwarding the exception, so no debugEvent for throwawayCapability
-  var throwawayCapability = NewPromiseCapability(GlobalPromise, false);
+  var throwawayPromise = %promise_internal_constructor(promise);
 
   // The Promise will be thrown away and not handled, but it shouldn't trigger
   // unhandled reject events as its work is done
-  SET_PRIVATE(throwawayCapability.promise, promiseHasHandlerSymbol, true);
+  %PromiseMarkAsHandled(throwawayPromise);
 
   if (DEBUG_IS_ACTIVE) {
-    if (IsPromise(awaited)) {
+    if (%is_promise(awaited)) {
       // Mark the reject handler callback to be a forwarding edge, rather
       // than a meaningful catch handler
       SET_PRIVATE(onRejected, promiseForwardingHandlerSymbol, true);
@@ -106,11 +85,10 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
 
     // Mark the dependency to outerPromise in case the throwaway Promise is
     // found on the Promise stack
-    SET_PRIVATE(throwawayCapability.promise, promiseHandledBySymbol,
-                outerPromise);
+    SET_PRIVATE(throwawayPromise, promiseHandledBySymbol, outerPromise);
   }
 
-  PerformPromiseThen(promise, onFulfilled, onRejected, throwawayCapability);
+  %perform_promise_then(promise, onFulfilled, onRejected, throwawayPromise);
 }
 
 // Called by the parser from the desugaring of 'await' when catch
@@ -122,43 +100,32 @@ function AsyncFunctionAwaitUncaught(generator, awaited, outerPromise) {
 // Called by the parser from the desugaring of 'await' when catch
 // prediction indicates that there is a locally surrounding catch block
 function AsyncFunctionAwaitCaught(generator, awaited, outerPromise) {
-  if (DEBUG_IS_ACTIVE && IsPromise(awaited)) {
-    SET_PRIVATE(awaited, promiseHandledHintSymbol, true);
+  if (DEBUG_IS_ACTIVE && %is_promise(awaited)) {
+    %PromiseMarkHandledHint(awaited);
   }
   AsyncFunctionAwait(generator, awaited, outerPromise);
 }
 
 // How the parser rejects promises from async/await desugaring
 function RejectPromiseNoDebugEvent(promise, reason) {
-  return RejectPromise(promise, reason, false);
+  return %promise_internal_reject(promise, reason, false);
 }
 
 function AsyncFunctionPromiseCreate() {
-  var promise = PromiseCreate();
+  var promise = %promise_internal_constructor(UNDEFINED);
   if (DEBUG_IS_ACTIVE) {
     // Push the Promise under construction in an async function on
     // the catch prediction stack to handle exceptions thrown before
     // the first await.
-    %DebugPushPromise(promise);
     // Assign ID and create a recurring task to save stack for future
     // resumptions from await.
-    var id = %DebugNextMicrotaskId();
-    SET_PRIVATE(promise, promiseAsyncStackIDSymbol, id);
-    %DebugAsyncTaskEvent("enqueueRecurring", id, "async function");
+    %DebugAsyncFunctionPromiseCreated(promise);
   }
   return promise;
 }
 
 function AsyncFunctionPromiseRelease(promise) {
   if (DEBUG_IS_ACTIVE) {
-    // Cancel
-    var id = GET_PRIVATE(promise, promiseAsyncStackIDSymbol);
-
-    // Don't send invalid events when catch prediction is turned on in
-    // the middle of some async operation.
-    if (!IS_UNDEFINED(id)) {
-      %DebugAsyncTaskEvent("cancel", id, "async function");
-    }
     // Pop the Promise under construction in an async function on
     // from catch prediction stack.
     %DebugPopPromise();

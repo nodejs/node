@@ -797,6 +797,9 @@ void* OS::Allocate(const size_t requested,
   return mbase;
 }
 
+void* OS::AllocateGuarded(const size_t requested) {
+  return VirtualAlloc(nullptr, requested, MEM_RESERVE, PAGE_NOACCESS);
+}
 
 void OS::Free(void* address, const size_t size) {
   // TODO(1240712): VirtualFree has a return value which is ignored here.
@@ -821,6 +824,10 @@ void OS::Guard(void* address, const size_t size) {
   VirtualProtect(address, size, PAGE_NOACCESS, &oldprotect);
 }
 
+void OS::Unprotect(void* address, const size_t size) {
+  LPVOID result = VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE);
+  DCHECK_IMPLIES(result != nullptr, GetLastError() == 0);
+}
 
 void OS::Sleep(TimeDelta interval) {
   ::Sleep(static_cast<DWORD>(interval.InMilliseconds()));

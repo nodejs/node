@@ -44,6 +44,8 @@ void Smi::SmiVerify() {
 
 
 void HeapObject::HeapObjectVerify() {
+  VerifyHeapPointer(map());
+  CHECK(map()->IsMap());
   InstanceType instance_type = map()->instance_type();
 
   if (instance_type < FIRST_NONSTRING_TYPE) {
@@ -104,7 +106,6 @@ void HeapObject::HeapObjectVerify() {
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_PROMISE_TYPE:
       JSObject::cast(this)->JSObjectVerify();
       break;
     case JS_GENERATOR_OBJECT_TYPE:
@@ -142,9 +143,6 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_MODULE_NAMESPACE_TYPE:
       JSModuleNamespace::cast(this)->JSModuleNamespaceVerify();
-      break;
-    case JS_FIXED_ARRAY_ITERATOR_TYPE:
-      JSFixedArrayIterator::cast(this)->JSFixedArrayIteratorVerify();
       break;
     case JS_SET_TYPE:
       JSSet::cast(this)->JSSetVerify();
@@ -204,6 +202,12 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_WEAK_SET_TYPE:
       JSWeakSet::cast(this)->JSWeakSetVerify();
+      break;
+    case JS_PROMISE_CAPABILITY_TYPE:
+      JSPromiseCapability::cast(this)->JSPromiseCapabilityVerify();
+      break;
+    case JS_PROMISE_TYPE:
+      JSPromise::cast(this)->JSPromiseVerify();
       break;
     case JS_REGEXP_TYPE:
       JSRegExp::cast(this)->JSRegExpVerify();
@@ -337,7 +341,9 @@ void JSObject::JSObjectVerify() {
     DescriptorArray* descriptors = map()->instance_descriptors();
     Isolate* isolate = GetIsolate();
     for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
-      if (descriptors->GetDetails(i).type() == DATA) {
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (details.location() == kField) {
+        DCHECK_EQ(kData, details.kind());
         Representation r = descriptors->GetDetails(i).representation();
         FieldIndex index = FieldIndex::ForDescriptor(map(), i);
         if (IsUnboxedDoubleField(index)) {
@@ -471,7 +477,7 @@ void JSGeneratorObject::JSGeneratorObjectVerify() {
   VerifyObjectField(kFunctionOffset);
   VerifyObjectField(kContextOffset);
   VerifyObjectField(kReceiverOffset);
-  VerifyObjectField(kOperandStackOffset);
+  VerifyObjectField(kRegisterFileOffset);
   VerifyObjectField(kContinuationOffset);
 }
 
@@ -604,21 +610,29 @@ void JSFunction::JSFunctionVerify() {
 
 void SharedFunctionInfo::SharedFunctionInfoVerify() {
   CHECK(IsSharedFunctionInfo());
-  VerifyObjectField(kNameOffset);
+
   VerifyObjectField(kCodeOffset);
-  VerifyObjectField(kOptimizedCodeMapOffset);
+  VerifyObjectField(kDebugInfoOffset);
   VerifyObjectField(kFeedbackMetadataOffset);
-  VerifyObjectField(kScopeInfoOffset);
-  VerifyObjectField(kOuterScopeInfoOffset);
+  VerifyObjectField(kFunctionDataOffset);
+  VerifyObjectField(kFunctionIdentifierOffset);
   VerifyObjectField(kInstanceClassNameOffset);
+  VerifyObjectField(kNameOffset);
+  VerifyObjectField(kOptimizedCodeMapOffset);
+  VerifyObjectField(kOuterScopeInfoOffset);
+  VerifyObjectField(kScopeInfoOffset);
+  VerifyObjectField(kScriptOffset);
+
   CHECK(function_data()->IsUndefined(GetIsolate()) || IsApiFunction() ||
         HasBytecodeArray() || HasAsmWasmData());
-  VerifyObjectField(kFunctionDataOffset);
-  VerifyObjectField(kScriptOffset);
-  VerifyObjectField(kDebugInfoOffset);
+
   CHECK(function_identifier()->IsUndefined(GetIsolate()) ||
         HasBuiltinFunctionId() || HasInferredName());
-  VerifyObjectField(kFunctionIdentifierOffset);
+
+  if (scope_info()->length() > 0) {
+    CHECK(kind() == scope_info()->function_kind());
+    CHECK_EQ(kind() == kModule, scope_info()->scope_type() == MODULE_SCOPE);
+  }
 }
 
 
@@ -876,6 +890,35 @@ void JSWeakSet::JSWeakSetVerify() {
   CHECK(table()->IsHashTable() || table()->IsUndefined(GetIsolate()));
 }
 
+void JSPromiseCapability::JSPromiseCapabilityVerify() {
+  CHECK(IsJSPromiseCapability());
+  JSObjectVerify();
+  VerifyPointer(promise());
+  VerifyPointer(resolve());
+  VerifyPointer(reject());
+}
+
+void JSPromise::JSPromiseVerify() {
+  CHECK(IsJSPromise());
+  JSObjectVerify();
+  Isolate* isolate = GetIsolate();
+  VerifySmiField(kStatusOffset);
+  CHECK(result()->IsUndefined(isolate) || result()->IsObject());
+  CHECK(deferred_promise()->IsUndefined(isolate) ||
+        deferred_promise()->IsJSReceiver() ||
+        deferred_promise()->IsFixedArray());
+  CHECK(deferred_on_resolve()->IsUndefined(isolate) ||
+        deferred_on_resolve()->IsCallable() ||
+        deferred_on_resolve()->IsFixedArray());
+  CHECK(deferred_on_reject()->IsUndefined(isolate) ||
+        deferred_on_reject()->IsCallable() ||
+        deferred_on_reject()->IsFixedArray());
+  CHECK(fulfill_reactions()->IsUndefined(isolate) ||
+        fulfill_reactions()->IsCallable() ||
+        fulfill_reactions()->IsFixedArray());
+  CHECK(reject_reactions()->IsUndefined(isolate) ||
+        reject_reactions()->IsCallable() || reject_reactions()->IsFixedArray());
+}
 
 void JSRegExp::JSRegExpVerify() {
   JSObjectVerify();
@@ -988,14 +1031,12 @@ void Box::BoxVerify() {
 }
 
 void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
-  Isolate* isolate = GetIsolate();
   CHECK(IsPromiseResolveThenableJobInfo());
   CHECK(thenable()->IsJSReceiver());
   CHECK(then()->IsJSReceiver());
   CHECK(resolve()->IsJSFunction());
   CHECK(reject()->IsJSFunction());
-  CHECK(debug_id()->IsNumber() || debug_id()->IsUndefined(isolate));
-  CHECK(debug_name()->IsString() || debug_name()->IsUndefined(isolate));
+  VerifySmiField(kDebugIdOffset);
   CHECK(context()->IsContext());
 }
 
@@ -1003,26 +1044,23 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
   Isolate* isolate = GetIsolate();
   CHECK(IsPromiseReactionJobInfo());
   CHECK(value()->IsObject());
-  CHECK(tasks()->IsJSArray() || tasks()->IsCallable());
-  CHECK(deferred()->IsJSObject() || deferred()->IsUndefined(isolate));
-  CHECK(debug_id()->IsNumber() || debug_id()->IsUndefined(isolate));
-  CHECK(debug_name()->IsString() || debug_name()->IsUndefined(isolate));
+  CHECK(tasks()->IsFixedArray() || tasks()->IsCallable());
+  CHECK(deferred_promise()->IsUndefined(isolate) ||
+        deferred_promise()->IsJSReceiver() ||
+        deferred_promise()->IsFixedArray());
+  CHECK(deferred_on_resolve()->IsUndefined(isolate) ||
+        deferred_on_resolve()->IsCallable() ||
+        deferred_on_resolve()->IsFixedArray());
+  CHECK(deferred_on_reject()->IsUndefined(isolate) ||
+        deferred_on_reject()->IsCallable() ||
+        deferred_on_reject()->IsFixedArray());
+  VerifySmiField(kDebugIdOffset);
   CHECK(context()->IsContext());
 }
 
 void JSModuleNamespace::JSModuleNamespaceVerify() {
   CHECK(IsJSModuleNamespace());
   VerifyPointer(module());
-}
-
-void JSFixedArrayIterator::JSFixedArrayIteratorVerify() {
-  CHECK(IsJSFixedArrayIterator());
-
-  VerifyPointer(array());
-  VerifyPointer(initial_next());
-  VerifySmiField(kIndexOffset);
-
-  CHECK_LE(index(), array()->length());
 }
 
 void ModuleInfoEntry::ModuleInfoEntryVerify() {
@@ -1078,6 +1116,12 @@ void PrototypeInfo::PrototypeInfoVerify() {
   CHECK(validity_cell()->IsCell() || validity_cell()->IsSmi());
 }
 
+void Tuple2::Tuple2Verify() {
+  CHECK(IsTuple2());
+  VerifyObjectField(kValue1Offset);
+  VerifyObjectField(kValue2Offset);
+}
+
 void Tuple3::Tuple3Verify() {
   CHECK(IsTuple3());
   VerifyObjectField(kValue1Offset);
@@ -1091,6 +1135,11 @@ void ContextExtension::ContextExtensionVerify() {
   VerifyObjectField(kExtensionOffset);
 }
 
+void ConstantElementsPair::ConstantElementsPairVerify() {
+  CHECK(IsConstantElementsPair());
+  VerifySmiField(kElementsKindOffset);
+  VerifyObjectField(kConstantValuesOffset);
+}
 
 void AccessorInfo::AccessorInfoVerify() {
   CHECK(IsAccessorInfo());

@@ -24,17 +24,17 @@ using compiler::LinkageLocation;
 
 namespace {
 
-MachineType MachineTypeFor(LocalType type) {
+MachineType MachineTypeFor(ValueType type) {
   switch (type) {
-    case kAstI32:
+    case kWasmI32:
       return MachineType::Int32();
-    case kAstI64:
+    case kWasmI64:
       return MachineType::Int64();
-    case kAstF64:
+    case kWasmF64:
       return MachineType::Float64();
-    case kAstF32:
+    case kWasmF32:
       return MachineType::Float32();
-    case kAstS128:
+    case kWasmS128:
       return MachineType::Simd128();
     default:
       UNREACHABLE();
@@ -173,7 +173,7 @@ struct Allocator {
 
   int stack_offset;
 
-  LinkageLocation Next(LocalType type) {
+  LinkageLocation Next(ValueType type) {
     if (IsFloatingPoint(type)) {
       // Allocate a floating point register/stack location.
       if (fp_offset < fp_count) {
@@ -182,7 +182,7 @@ struct Allocator {
         // Allocate floats using a double register, but modify the code to
         // reflect how ARM FP registers alias.
         // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
-        if (type == kAstF32) {
+        if (type == kWasmF32) {
           int float_reg_code = reg.code() * 2;
           DCHECK(float_reg_code < RegisterConfiguration::kMaxFPRegisters);
           return regloc(DoubleRegister::from_code(float_reg_code),
@@ -206,11 +206,11 @@ struct Allocator {
       }
     }
   }
-  bool IsFloatingPoint(LocalType type) {
-    return type == kAstF32 || type == kAstF64;
+  bool IsFloatingPoint(ValueType type) {
+    return type == kWasmF32 || type == kWasmF64;
   }
-  int Words(LocalType type) {
-    if (kPointerSize < 8 && (type == kAstI64 || type == kAstF64)) {
+  int Words(ValueType type) {
+    if (kPointerSize < 8 && (type == kWasmI64 || type == kWasmF64)) {
       return 2;
     }
     return 1;
@@ -285,7 +285,7 @@ CallDescriptor* ModuleEnv::GetWasmCallDescriptor(Zone* zone,
   // Add return location(s).
   const int return_count = static_cast<int>(locations.return_count_);
   for (int i = 0; i < return_count; i++) {
-    LocalType ret = fsig->GetReturn(i);
+    ValueType ret = fsig->GetReturn(i);
     locations.AddReturn(rets.Next(ret));
   }
 
@@ -294,7 +294,7 @@ CallDescriptor* ModuleEnv::GetWasmCallDescriptor(Zone* zone,
   // Add register and/or stack parameter(s).
   const int parameter_count = static_cast<int>(fsig->parameter_count());
   for (int i = 0; i < parameter_count; i++) {
-    LocalType param = fsig->GetParam(i);
+    ValueType param = fsig->GetParam(i);
     locations.AddParam(params.Next(param));
   }
 

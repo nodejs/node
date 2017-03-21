@@ -11,6 +11,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/platform/time.h"
 #include "src/list.h"
+#include "src/utils.h"
 
 #include "src/base/once.h"
 
@@ -324,7 +325,6 @@ class Shell : public i::AllStatic {
                             Local<Value> name, bool print_result,
                             bool report_exceptions);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
-  static const char* ToCString(const v8::String::Utf8Value& value);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Local<String> ReadFile(Isolate* isolate, const char* name);
   static Local<Context> CreateEvaluationContext(Isolate* isolate);
@@ -360,6 +360,7 @@ class Shell : public i::AllStatic {
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmCreateAllowCrossRealmAccess(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -456,7 +457,10 @@ class Shell : public i::AllStatic {
   static bool SetOptions(int argc, char* argv[]);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static MaybeLocal<Context> CreateRealm(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+      const v8::FunctionCallbackInfo<v8::Value>& args, int index,
+      v8::MaybeLocal<Value> global_object);
+  static void DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& args,
+                           int index);
   static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Context> context,
                                             const std::string& file_name);
 };

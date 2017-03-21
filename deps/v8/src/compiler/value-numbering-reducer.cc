@@ -18,8 +18,8 @@ namespace {
 
 size_t HashCode(Node* node) {
   size_t h = base::hash_combine(node->op()->HashCode(), node->InputCount());
-  for (int j = 0; j < node->InputCount(); ++j) {
-    h = base::hash_combine(h, node->InputAt(j)->id());
+  for (Node* input : node->inputs()) {
+    h = base::hash_combine(h, input->id());
   }
   return h;
 }
@@ -32,10 +32,17 @@ bool Equals(Node* a, Node* b) {
   DCHECK_NOT_NULL(b->op());
   if (!a->op()->Equals(b->op())) return false;
   if (a->InputCount() != b->InputCount()) return false;
-  for (int j = 0; j < a->InputCount(); ++j) {
-    DCHECK_NOT_NULL(a->InputAt(j));
-    DCHECK_NOT_NULL(b->InputAt(j));
-    if (a->InputAt(j)->id() != b->InputAt(j)->id()) return false;
+  Node::Inputs aInputs = a->inputs();
+  Node::Inputs bInputs = b->inputs();
+
+  auto aIt = aInputs.begin();
+  auto bIt = bInputs.begin();
+  auto aEnd = aInputs.end();
+
+  for (; aIt != aEnd; ++aIt, ++bIt) {
+    DCHECK_NOT_NULL(*aIt);
+    DCHECK_NOT_NULL(*bIt);
+    if ((*aIt)->id() != (*bIt)->id()) return false;
   }
   return true;
 }

@@ -13,7 +13,8 @@ RemoteObjectIdBase::RemoteObjectIdBase() : m_injectedScriptId(0) {}
 
 std::unique_ptr<protocol::DictionaryValue>
 RemoteObjectIdBase::parseInjectedScriptId(const String16& objectId) {
-  std::unique_ptr<protocol::Value> parsedValue = protocol::parseJSON(objectId);
+  std::unique_ptr<protocol::Value> parsedValue =
+      protocol::StringUtil::parseJSON(objectId);
   if (!parsedValue || parsedValue->type() != protocol::Value::TypeObject)
     return nullptr;
 

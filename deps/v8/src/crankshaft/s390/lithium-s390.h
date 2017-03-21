@@ -133,7 +133,6 @@ class LCodeGen;
   V(StringCharFromCode)                      \
   V(StringCompareAndBranch)                  \
   V(SubI)                                    \
-  V(RSubI)                                   \
   V(TaggedToI)                               \
   V(ThisFunction)                            \
   V(TransitionElementsKind)                  \
@@ -1087,20 +1086,6 @@ class LSubI final : public LTemplateInstruction<1, 2, 0> {
   LOperand* right() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(SubI, "sub-i")
-  DECLARE_HYDROGEN_ACCESSOR(Sub)
-};
-
-class LRSubI final : public LTemplateInstruction<1, 2, 0> {
- public:
-  LRSubI(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
-  }
-
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(RSubI, "rsub-i")
   DECLARE_HYDROGEN_ACCESSOR(Sub)
 };
 
@@ -2141,7 +2126,6 @@ class LChunkBuilder final : public LChunkBuilderBase {
 
   LInstruction* DoMultiplyAdd(HMul* mul, HValue* addend);
   LInstruction* DoMultiplySub(HValue* minuend, HMul* mul);
-  LInstruction* DoRSub(HSub* instr);
 
   static bool HasMagicNumberForDivisor(int32_t divisor);
 

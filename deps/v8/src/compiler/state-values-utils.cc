@@ -4,6 +4,8 @@
 
 #include "src/compiler/state-values-utils.h"
 
+#include "src/bit-vector.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -47,6 +49,16 @@ bool StateValuesCache::IsKeysEqualToNode(StateValuesKey* key, Node* node) {
   if (key->count != static_cast<size_t>(node->InputCount())) {
     return false;
   }
+
+  DCHECK(node->opcode() == IrOpcode::kStateValues);
+  SparseInputMask node_mask = SparseInputMaskOf(node->op());
+
+  if (node_mask != key->mask) {
+    return false;
+  }
+
+  // Comparing real inputs rather than sparse inputs, since we already know the
+  // sparse input masks are the same.
   for (size_t i = 0; i < key->count; i++) {
     if (key->values[i] != node->InputAt(static_cast<int>(i))) {
       return false;
@@ -62,6 +74,9 @@ bool StateValuesCache::AreValueKeysEqual(StateValuesKey* key1,
   if (key1->count != key2->count) {
     return false;
   }
+  if (key1->mask != key2->mask) {
+    return false;
+  }
   for (size_t i = 0; i < key1->count; i++) {
     if (key1->values[i] != key2->values[i]) {
       return false;
@@ -73,19 +88,18 @@ bool StateValuesCache::AreValueKeysEqual(StateValuesKey* key1,
 
 Node* StateValuesCache::GetEmptyStateValues() {
   if (empty_state_values_ == nullptr) {
-    empty_state_values_ = graph()->NewNode(common()->StateValues(0));
+    empty_state_values_ =
+        graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
   }
   return empty_state_values_;
 }
 
-
-NodeVector* StateValuesCache::GetWorkingSpace(size_t level) {
-  while (working_space_.size() <= level) {
-    void* space = zone()->New(sizeof(NodeVector));
-    working_space_.push_back(new (space)
-                                 NodeVector(kMaxInputCount, nullptr, zone()));
+StateValuesCache::WorkingBuffer* StateValuesCache::GetWorkingSpace(
+    size_t level) {
+  if (working_space_.size() <= level) {
+    working_space_.resize(level + 1);
   }
-  return working_space_[level];
+  return &working_space_[level];
 }
 
 namespace {
@@ -93,24 +107,24 @@ namespace {
 int StateValuesHashKey(Node** nodes, size_t count) {
   size_t hash = count;
   for (size_t i = 0; i < count; i++) {
-    hash = hash * 23 + nodes[i]->id();
+    hash = hash * 23 + (nodes[i] == nullptr ? 0 : nodes[i]->id());
   }
   return static_cast<int>(hash & 0x7fffffff);
 }
 
 }  // namespace
 
-
-Node* StateValuesCache::GetValuesNodeFromCache(Node** nodes, size_t count) {
-  StateValuesKey key(count, nodes);
+Node* StateValuesCache::GetValuesNodeFromCache(Node** nodes, size_t count,
+                                               SparseInputMask mask) {
+  StateValuesKey key(count, mask, nodes);
   int hash = StateValuesHashKey(nodes, count);
   ZoneHashMap::Entry* lookup =
       hash_map_.LookupOrInsert(&key, hash, ZoneAllocationPolicy(zone()));
   DCHECK_NOT_NULL(lookup);
   Node* node;
   if (lookup->value == nullptr) {
-    int input_count = static_cast<int>(count);
-    node = graph()->NewNode(common()->StateValues(input_count), input_count,
+    int node_count = static_cast<int>(count);
+    node = graph()->NewNode(common()->StateValues(node_count, mask), node_count,
                             nodes);
     NodeKey* new_key = new (zone()->New(sizeof(NodeKey))) NodeKey(node);
     lookup->key = new_key;
@@ -121,106 +135,190 @@ Node* StateValuesCache::GetValuesNodeFromCache(Node** nodes, size_t count) {
   return node;
 }
 
+SparseInputMask::BitMaskType StateValuesCache::FillBufferWithValues(
+    WorkingBuffer* node_buffer, size_t* node_count, size_t* values_idx,
+    Node** values, size_t count, const BitVector* liveness) {
+  SparseInputMask::BitMaskType input_mask = 0;
 
-class StateValuesCache::ValueArrayIterator {
- public:
-  ValueArrayIterator(Node** values, size_t count)
-      : values_(values), count_(count), current_(0) {}
+  // Virtual nodes are the live nodes plus the implicit optimized out nodes,
+  // which are implied by the liveness mask.
+  size_t virtual_node_count = *node_count;
 
-  void Advance() {
-    if (!done()) {
-      current_++;
+  while (*values_idx < count && *node_count < kMaxInputCount &&
+         virtual_node_count < SparseInputMask::kMaxSparseInputs) {
+    DCHECK_LE(*values_idx, static_cast<size_t>(INT_MAX));
+
+    if (liveness == nullptr ||
+        liveness->Contains(static_cast<int>(*values_idx))) {
+      input_mask |= 1 << (virtual_node_count);
+      (*node_buffer)[(*node_count)++] = values[*values_idx];
+    }
+    virtual_node_count++;
+
+    (*values_idx)++;
+  }
+
+  DCHECK(*node_count <= StateValuesCache::kMaxInputCount);
+  DCHECK(virtual_node_count <= SparseInputMask::kMaxSparseInputs);
+
+  // Add the end marker at the end of the mask.
+  input_mask |= SparseInputMask::kEndMarker << virtual_node_count;
+
+  return input_mask;
+}
+
+Node* StateValuesCache::BuildTree(size_t* values_idx, Node** values,
+                                  size_t count, const BitVector* liveness,
+                                  size_t level) {
+  WorkingBuffer* node_buffer = GetWorkingSpace(level);
+  size_t node_count = 0;
+  SparseInputMask::BitMaskType input_mask = SparseInputMask::kDenseBitMask;
+
+  if (level == 0) {
+    input_mask = FillBufferWithValues(node_buffer, &node_count, values_idx,
+                                      values, count, liveness);
+    // Make sure we returned a sparse input mask.
+    DCHECK_NE(input_mask, SparseInputMask::kDenseBitMask);
+  } else {
+    while (*values_idx < count && node_count < kMaxInputCount) {
+      if (count - *values_idx < kMaxInputCount - node_count) {
+        // If we have fewer values remaining than inputs remaining, dump the
+        // remaining values into this node.
+        // TODO(leszeks): We could optimise this further by only counting
+        // remaining live nodes.
+
+        size_t previous_input_count = node_count;
+        input_mask = FillBufferWithValues(node_buffer, &node_count, values_idx,
+                                          values, count, liveness);
+        // Make sure we have exhausted our values.
+        DCHECK_EQ(*values_idx, count);
+        // Make sure we returned a sparse input mask.
+        DCHECK_NE(input_mask, SparseInputMask::kDenseBitMask);
+
+        // Make sure we haven't touched inputs below previous_input_count in the
+        // mask.
+        DCHECK_EQ(input_mask & ((1 << previous_input_count) - 1), 0u);
+        // Mark all previous inputs as live.
+        input_mask |= ((1 << previous_input_count) - 1);
+
+        break;
+
+      } else {
+        // Otherwise, add the values to a subtree and add that as an input.
+        Node* subtree =
+            BuildTree(values_idx, values, count, liveness, level - 1);
+        (*node_buffer)[node_count++] = subtree;
+        // Don't touch the bitmask, so that it stays dense.
+      }
     }
   }
 
-  bool done() { return current_ >= count_; }
-
-  Node* node() {
-    DCHECK(!done());
-    return values_[current_];
-  }
-
- private:
-  Node** values_;
-  size_t count_;
-  size_t current_;
-};
-
-
-Node* StateValuesCache::BuildTree(ValueArrayIterator* it, size_t max_height) {
-  if (max_height == 0) {
-    Node* node = it->node();
-    it->Advance();
-    return node;
-  }
-  DCHECK(!it->done());
-
-  NodeVector* buffer = GetWorkingSpace(max_height);
-  size_t count = 0;
-  for (; count < kMaxInputCount; count++) {
-    if (it->done()) break;
-    (*buffer)[count] = BuildTree(it, max_height - 1);
-  }
-  if (count == 1) {
-    return (*buffer)[0];
+  if (node_count == 1 && input_mask == SparseInputMask::kDenseBitMask) {
+    // Elide the StateValue node if there is only one, dense input. This will
+    // only happen if we built a single subtree (as nodes with values are always
+    // sparse), and so we can replace ourselves with it.
+    DCHECK_EQ((*node_buffer)[0]->opcode(), IrOpcode::kStateValues);
+    return (*node_buffer)[0];
   } else {
-    return GetValuesNodeFromCache(&(buffer->front()), count);
+    return GetValuesNodeFromCache(node_buffer->data(), node_count,
+                                  SparseInputMask(input_mask));
   }
 }
 
-
-Node* StateValuesCache::GetNodeForValues(Node** values, size_t count) {
 #if DEBUG
+namespace {
+
+void CheckTreeContainsValues(Node* tree, Node** values, size_t count,
+                             const BitVector* liveness) {
+  CHECK_EQ(count, StateValuesAccess(tree).size());
+
+  int i;
+  auto access = StateValuesAccess(tree);
+  auto it = access.begin();
+  auto itend = access.end();
+  for (i = 0; it != itend; ++it, ++i) {
+    if (liveness == nullptr || liveness->Contains(i)) {
+      CHECK((*it).node == values[i]);
+    } else {
+      CHECK((*it).node == nullptr);
+    }
+  }
+  CHECK_EQ(static_cast<size_t>(i), count);
+}
+
+}  // namespace
+#endif
+
+Node* StateValuesCache::GetNodeForValues(Node** values, size_t count,
+                                         const BitVector* liveness) {
+#if DEBUG
+  // Check that the values represent actual values, and not a tree of values.
   for (size_t i = 0; i < count; i++) {
-    DCHECK_NE(values[i]->opcode(), IrOpcode::kStateValues);
-    DCHECK_NE(values[i]->opcode(), IrOpcode::kTypedStateValues);
+    if (values[i] != nullptr) {
+      DCHECK_NE(values[i]->opcode(), IrOpcode::kStateValues);
+      DCHECK_NE(values[i]->opcode(), IrOpcode::kTypedStateValues);
+    }
+  }
+  if (liveness != nullptr) {
+    // Liveness can have extra bits for the stack or accumulator, which we
+    // ignore here.
+    DCHECK_LE(count, static_cast<size_t>(liveness->length()));
+
+    for (size_t i = 0; i < count; i++) {
+      if (liveness->Contains(static_cast<int>(i))) {
+        DCHECK_NOT_NULL(values[i]);
+      }
+    }
   }
 #endif
+
   if (count == 0) {
     return GetEmptyStateValues();
   }
+
+  // This is a worst-case tree height estimate, assuming that all values are
+  // live. We could get a better estimate by counting zeroes in the liveness
+  // vector, but there's no point -- any excess height in the tree will be
+  // collapsed by the single-input elision at the end of BuildTree.
   size_t height = 0;
-  size_t max_nodes = 1;
-  while (count > max_nodes) {
+  size_t max_inputs = kMaxInputCount;
+  while (count > max_inputs) {
     height++;
-    max_nodes *= kMaxInputCount;
+    max_inputs *= kMaxInputCount;
   }
 
-  ValueArrayIterator it(values, count);
+  size_t values_idx = 0;
+  Node* tree = BuildTree(&values_idx, values, count, liveness, height);
+  // The values should be exhausted by the end of BuildTree.
+  DCHECK_EQ(values_idx, count);
 
-  Node* tree = BuildTree(&it, height);
+  // The 'tree' must be rooted with a state value node.
+  DCHECK_EQ(tree->opcode(), IrOpcode::kStateValues);
 
-  // If the 'tree' is a single node, equip it with a StateValues wrapper.
-  if (tree->opcode() != IrOpcode::kStateValues &&
-      tree->opcode() != IrOpcode::kTypedStateValues) {
-    tree = GetValuesNodeFromCache(&tree, 1);
-  }
+#if DEBUG
+  CheckTreeContainsValues(tree, values, count, liveness);
+#endif
 
   return tree;
 }
 
-
 StateValuesAccess::iterator::iterator(Node* node) : current_depth_(0) {
-  // A hacky way initialize - just set the index before the node we want
-  // to process and then advance to it.
-  stack_[current_depth_].node = node;
-  stack_[current_depth_].index = -1;
-  Advance();
+  stack_[current_depth_] =
+      SparseInputMaskOf(node->op()).IterateOverInputs(node);
+  EnsureValid();
 }
 
-
-StateValuesAccess::iterator::StatePos* StateValuesAccess::iterator::Top() {
+SparseInputMask::InputIterator* StateValuesAccess::iterator::Top() {
   DCHECK(current_depth_ >= 0);
   DCHECK(current_depth_ < kMaxInlineDepth);
   return &(stack_[current_depth_]);
 }
 
-
 void StateValuesAccess::iterator::Push(Node* node) {
   current_depth_++;
   CHECK(current_depth_ < kMaxInlineDepth);
-  stack_[current_depth_].node = node;
-  stack_[current_depth_].index = 0;
+  stack_[current_depth_] =
+      SparseInputMaskOf(node->op()).IterateOverInputs(node);
 }
 
 
@@ -234,48 +332,61 @@ bool StateValuesAccess::iterator::done() { return current_depth_ < 0; }
 
 
 void StateValuesAccess::iterator::Advance() {
-  // Advance the current index.
-  Top()->index++;
+  Top()->Advance();
+  EnsureValid();
+}
 
-  // Fix up the position to point to a valid node.
+void StateValuesAccess::iterator::EnsureValid() {
   while (true) {
-    // TODO(jarin): Factor to a separate method.
-    Node* node = Top()->node;
-    int index = Top()->index;
+    SparseInputMask::InputIterator* top = Top();
 
-    if (index >= node->InputCount()) {
-      // Pop stack and move to the next sibling.
+    if (top->IsEmpty()) {
+      // We are on a valid (albeit optimized out) node.
+      return;
+    }
+
+    if (top->IsEnd()) {
+      // We have hit the end of this iterator. Pop the stack and move to the
+      // next sibling iterator.
       Pop();
       if (done()) {
         // Stack is exhausted, we have reached the end.
         return;
       }
-      Top()->index++;
-    } else if (node->InputAt(index)->opcode() == IrOpcode::kStateValues ||
-               node->InputAt(index)->opcode() == IrOpcode::kTypedStateValues) {
-      // Nested state, we need to push to the stack.
-      Push(node->InputAt(index));
-    } else {
-      // We are on a valid node, we can stop the iteration.
-      return;
+      Top()->Advance();
+      continue;
     }
+
+    // At this point the value is known to be live and within our input nodes.
+    Node* value_node = top->GetReal();
+
+    if (value_node->opcode() == IrOpcode::kStateValues ||
+        value_node->opcode() == IrOpcode::kTypedStateValues) {
+      // Nested state, we need to push to the stack.
+      Push(value_node);
+      continue;
+    }
+
+    // We are on a valid node, we can stop the iteration.
+    return;
   }
 }
 
-
-Node* StateValuesAccess::iterator::node() {
-  return Top()->node->InputAt(Top()->index);
-}
-
+Node* StateValuesAccess::iterator::node() { return Top()->Get(nullptr); }
 
 MachineType StateValuesAccess::iterator::type() {
-  Node* state = Top()->node;
-  if (state->opcode() == IrOpcode::kStateValues) {
+  Node* parent = Top()->parent();
+  if (parent->opcode() == IrOpcode::kStateValues) {
     return MachineType::AnyTagged();
   } else {
-    DCHECK_EQ(IrOpcode::kTypedStateValues, state->opcode());
-    ZoneVector<MachineType> const* types = MachineTypesOf(state->op());
-    return (*types)[Top()->index];
+    DCHECK_EQ(IrOpcode::kTypedStateValues, parent->opcode());
+
+    if (Top()->IsEmpty()) {
+      return MachineType::None();
+    } else {
+      ZoneVector<MachineType> const* types = MachineTypesOf(parent->op());
+      return (*types)[Top()->real_index()];
+    }
   }
 }
 
@@ -300,14 +411,24 @@ StateValuesAccess::TypedNode StateValuesAccess::iterator::operator*() {
 
 size_t StateValuesAccess::size() {
   size_t count = 0;
-  for (int i = 0; i < node_->InputCount(); i++) {
-    if (node_->InputAt(i)->opcode() == IrOpcode::kStateValues ||
-        node_->InputAt(i)->opcode() == IrOpcode::kTypedStateValues) {
-      count += StateValuesAccess(node_->InputAt(i)).size();
-    } else {
+  SparseInputMask mask = SparseInputMaskOf(node_->op());
+
+  SparseInputMask::InputIterator iterator = mask.IterateOverInputs(node_);
+
+  for (; !iterator.IsEnd(); iterator.Advance()) {
+    if (iterator.IsEmpty()) {
       count++;
+    } else {
+      Node* value = iterator.GetReal();
+      if (value->opcode() == IrOpcode::kStateValues ||
+          value->opcode() == IrOpcode::kTypedStateValues) {
+        count += StateValuesAccess(value).size();
+      } else {
+        count++;
+      }
     }
   }
+
   return count;
 }
 

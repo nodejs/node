@@ -637,7 +637,16 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
 
 ProfileGenerator::ProfileGenerator(Isolate* isolate,
                                    CpuProfilesCollection* profiles)
-    : isolate_(isolate), profiles_(profiles) {}
+    : isolate_(isolate), profiles_(profiles) {
+  RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
+  for (int i = 0; i < RuntimeCallStats::counters_count; ++i) {
+    RuntimeCallCounter* counter = &(rcs->*(RuntimeCallStats::counters[i]));
+    DCHECK(counter->name());
+    auto entry = new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
+                               CodeEntry::kEmptyNamePrefix, "native V8Runtime");
+    code_map_.AddCode(reinterpret_cast<Address>(counter), entry, 1);
+  }
+}
 
 void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   std::vector<CodeEntry*> entries;
@@ -742,20 +751,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
 }
 
 CodeEntry* ProfileGenerator::FindEntry(void* address) {
-  CodeEntry* entry = code_map_.FindEntry(reinterpret_cast<Address>(address));
-  if (!entry) {
-    RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
-    void* start = reinterpret_cast<void*>(rcs);
-    void* end = reinterpret_cast<void*>(rcs + 1);
-    if (start <= address && address < end) {
-      RuntimeCallCounter* counter =
-          reinterpret_cast<RuntimeCallCounter*>(address);
-      entry = new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name,
-                            CodeEntry::kEmptyNamePrefix, "native V8Runtime");
-      code_map_.AddCode(reinterpret_cast<Address>(address), entry, 1);
-    }
-  }
-  return entry;
+  return code_map_.FindEntry(reinterpret_cast<Address>(address));
 }
 
 CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {

@@ -20,7 +20,7 @@ var instance4;
   var builder = new WasmModuleBuilder();
 
   builder.addMemory(1,1, true);
-  builder.addImport("getValue", kSig_i_v);
+  builder.addImport("", "getValue", kSig_i_v);
   builder.addFunction("f", kSig_i_v)
     .addBody([
       kExprCallFunction, 0
@@ -29,11 +29,11 @@ var instance4;
   module = new WebAssembly.Module(builder.toBuffer());
   %ValidateWasmModuleState(module);
   %ValidateWasmInstancesChain(module, 0);
-  instance1 = new WebAssembly.Instance(module, {getValue: () => 1});
+  instance1 = new WebAssembly.Instance(module, {"": {getValue: () => 1}});
   %ValidateWasmInstancesChain(module, 1);
-  instance2 = new WebAssembly.Instance(module, {getValue: () => 2});
+  instance2 = new WebAssembly.Instance(module, {"": {getValue: () => 2}});
   %ValidateWasmInstancesChain(module, 2);
-  instance3 = new WebAssembly.Instance(module, {getValue: () => 3});
+  instance3 = new WebAssembly.Instance(module, {"": {getValue: () => 3}});
   %ValidateWasmInstancesChain(module, 3);
 })();
 
@@ -62,7 +62,7 @@ gc();
 %ValidateWasmModuleState(module);
 
 (function CompiledModuleInstancesInitialize4AndClearModule() {
-  instance4 = new WebAssembly.Instance(module, {getValue: () => 4});
+  instance4 = new WebAssembly.Instance(module, {"": {getValue: () => 4}});
   assertEquals(4, instance4.exports.f());
   module = null;
 })();

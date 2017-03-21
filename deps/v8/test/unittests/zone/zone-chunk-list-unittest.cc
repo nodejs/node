@@ -4,7 +4,6 @@
 
 #include "src/zone/zone-chunk-list.h"
 
-#include "src/list-inl.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "testing/gtest/include/gtest/gtest.h"

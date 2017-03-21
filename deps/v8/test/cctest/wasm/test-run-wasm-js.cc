@@ -97,48 +97,36 @@ void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc, double a,
 }  // namespace
 
 TEST(Run_Int32Sub_jswrapped) {
-  CcTest::InitializeVM();
-  TestSignatures sigs;
-  TestingModule module;
-  WasmFunctionCompiler t(sigs.i_ii(), &module);
-  BUILD(t, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  Handle<JSFunction> jsfunc = module.WrapCode(t.CompileAndAdd());
+  WasmRunner<int, int, int> r(kExecuteCompiled);
+  BUILD(r, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  Handle<JSFunction> jsfunc = r.module().WrapCode(r.function()->func_index);
 
   EXPECT_CALL(33, jsfunc, 44, 11);
   EXPECT_CALL(-8723487, jsfunc, -8000000, 723487);
 }
 
 TEST(Run_Float32Div_jswrapped) {
-  CcTest::InitializeVM();
-  TestSignatures sigs;
-  TestingModule module;
-  WasmFunctionCompiler t(sigs.f_ff(), &module);
-  BUILD(t, WASM_F32_DIV(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  Handle<JSFunction> jsfunc = module.WrapCode(t.CompileAndAdd());
+  WasmRunner<float, float, float> r(kExecuteCompiled);
+  BUILD(r, WASM_F32_DIV(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  Handle<JSFunction> jsfunc = r.module().WrapCode(r.function()->func_index);
 
   EXPECT_CALL(92, jsfunc, 46, 0.5);
   EXPECT_CALL(64, jsfunc, -16, -0.25);
 }
 
 TEST(Run_Float64Add_jswrapped) {
-  CcTest::InitializeVM();
-  TestSignatures sigs;
-  TestingModule module;
-  WasmFunctionCompiler t(sigs.d_dd(), &module);
-  BUILD(t, WASM_F64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  Handle<JSFunction> jsfunc = module.WrapCode(t.CompileAndAdd());
+  WasmRunner<double, double, double> r(kExecuteCompiled);
+  BUILD(r, WASM_F64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  Handle<JSFunction> jsfunc = r.module().WrapCode(r.function()->func_index);
 
   EXPECT_CALL(3, jsfunc, 2, 1);
   EXPECT_CALL(-5.5, jsfunc, -5.25, -0.25);
 }
 
 TEST(Run_I32Popcount_jswrapped) {
-  CcTest::InitializeVM();
-  TestSignatures sigs;
-  TestingModule module;
-  WasmFunctionCompiler t(sigs.i_i(), &module);
-  BUILD(t, WASM_I32_POPCNT(WASM_GET_LOCAL(0)));
-  Handle<JSFunction> jsfunc = module.WrapCode(t.CompileAndAdd());
+  WasmRunner<int, int> r(kExecuteCompiled);
+  BUILD(r, WASM_I32_POPCNT(WASM_GET_LOCAL(0)));
+  Handle<JSFunction> jsfunc = r.module().WrapCode(r.function()->func_index);
 
   EXPECT_CALL(2, jsfunc, 9, 0);
   EXPECT_CALL(3, jsfunc, 11, 0);
@@ -146,15 +134,13 @@ TEST(Run_I32Popcount_jswrapped) {
 }
 
 TEST(Run_CallJS_Add_jswrapped) {
-  CcTest::InitializeVM();
+  WasmRunner<int, int> r(kExecuteCompiled);
   TestSignatures sigs;
-  TestingModule module;
-  WasmFunctionCompiler t(sigs.i_i(), &module);
   uint32_t js_index =
-      module.AddJsFunction(sigs.i_i(), "(function(a) { return a + 99; })");
-  BUILD(t, WASM_CALL_FUNCTION(js_index, WASM_GET_LOCAL(0)));
+      r.module().AddJsFunction(sigs.i_i(), "(function(a) { return a + 99; })");
+  BUILD(r, WASM_CALL_FUNCTION(js_index, WASM_GET_LOCAL(0)));
 
-  Handle<JSFunction> jsfunc = module.WrapCode(t.CompileAndAdd());
+  Handle<JSFunction> jsfunc = r.module().WrapCode(r.function()->func_index);
 
   EXPECT_CALL(101, jsfunc, 2, -8);
   EXPECT_CALL(199, jsfunc, 100, -1);
@@ -164,16 +150,16 @@ TEST(Run_CallJS_Add_jswrapped) {
 void RunJSSelectTest(int which) {
   const int kMaxParams = 8;
   PredictableInputValues inputs(0x100);
-  LocalType type = kAstF64;
-  LocalType types[kMaxParams + 1] = {type, type, type, type, type,
+  ValueType type = kWasmF64;
+  ValueType types[kMaxParams + 1] = {type, type, type, type, type,
                                      type, type, type, type};
   for (int num_params = which + 1; num_params < kMaxParams; num_params++) {
     HandleScope scope(CcTest::InitIsolateOnce());
     FunctionSig sig(1, num_params, types);
 
-    TestingModule module;
-    uint32_t js_index = AddJSSelector(&module, &sig, which);
-    WasmFunctionCompiler t(&sig, &module);
+    WasmRunner<void> r(kExecuteCompiled);
+    uint32_t js_index = AddJSSelector(&r.module(), &sig, which);
+    WasmFunctionCompiler& t = r.NewFunction(&sig);
 
     {
       std::vector<byte> code;
@@ -189,7 +175,7 @@ void RunJSSelectTest(int which) {
       t.Build(&code[0], &code[end]);
     }
 
-    Handle<JSFunction> jsfunc = module.WrapCode(t.CompileAndAdd());
+    Handle<JSFunction> jsfunc = r.module().WrapCode(t.function_index());
     double expected = inputs.arg_d(which);
     EXPECT_CALL(expected, jsfunc, 0.0, 0.0);
   }
@@ -240,15 +226,15 @@ void RunWASMSelectTest(int which) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   const int kMaxParams = 8;
   for (int num_params = which + 1; num_params < kMaxParams; num_params++) {
-    LocalType type = kAstF64;
-    LocalType types[kMaxParams + 1] = {type, type, type, type, type,
+    ValueType type = kWasmF64;
+    ValueType types[kMaxParams + 1] = {type, type, type, type, type,
                                        type, type, type, type};
     FunctionSig sig(1, num_params, types);
 
-    TestingModule module;
-    WasmFunctionCompiler t(&sig, &module);
+    WasmRunner<void> r(kExecuteCompiled);
+    WasmFunctionCompiler& t = r.NewFunction(&sig);
     BUILD(t, WASM_GET_LOCAL(which));
-    Handle<JSFunction> jsfunc = module.WrapCode(t.CompileAndAdd());
+    Handle<JSFunction> jsfunc = r.module().WrapCode(t.function_index());
 
     Handle<Object> args[] = {
         isolate->factory()->NewNumber(inputs.arg_d(0)),
@@ -311,16 +297,16 @@ void RunWASMSelectAlignTest(int num_args, int num_params) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   const int kMaxParams = 10;
   DCHECK_LE(num_args, kMaxParams);
-  LocalType type = kAstF64;
-  LocalType types[kMaxParams + 1] = {type, type, type, type, type, type,
+  ValueType type = kWasmF64;
+  ValueType types[kMaxParams + 1] = {type, type, type, type, type, type,
                                      type, type, type, type, type};
   FunctionSig sig(1, num_params, types);
 
   for (int which = 0; which < num_params; which++) {
-    TestingModule module;
-    WasmFunctionCompiler t(&sig, &module);
+    WasmRunner<void> r(kExecuteCompiled);
+    WasmFunctionCompiler& t = r.NewFunction(&sig);
     BUILD(t, WASM_GET_LOCAL(which));
-    Handle<JSFunction> jsfunc = module.WrapCode(t.CompileAndAdd());
+    Handle<JSFunction> jsfunc = r.module().WrapCode(t.function_index());
 
     Handle<Object> args[] = {isolate->factory()->NewNumber(inputs.arg_d(0)),
                              isolate->factory()->NewNumber(inputs.arg_d(1)),
@@ -407,10 +393,12 @@ void RunJSSelectAlignTest(int num_args, int num_params) {
   const int kMaxParams = 10;
   CHECK_LE(num_args, kMaxParams);
   CHECK_LE(num_params, kMaxParams);
-  LocalType type = kAstF64;
-  LocalType types[kMaxParams + 1] = {type, type, type, type, type, type,
+  ValueType type = kWasmF64;
+  ValueType types[kMaxParams + 1] = {type, type, type, type, type, type,
                                      type, type, type, type, type};
   FunctionSig sig(1, num_params, types);
+  i::AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
 
   // Build the calling code.
   std::vector<byte> code;
@@ -419,21 +407,21 @@ void RunJSSelectAlignTest(int num_args, int num_params) {
     ADD_CODE(code, WASM_GET_LOCAL(i));
   }
 
-  ADD_CODE(code, kExprCallFunction, 0);
+  uint8_t predicted_js_index = 1;
+  ADD_CODE(code, kExprCallFunction, predicted_js_index);
 
   size_t end = code.size();
   code.push_back(0);
 
   // Call different select JS functions.
   for (int which = 0; which < num_params; which++) {
-    HandleScope scope(isolate);
-    TestingModule module;
-    uint32_t js_index = AddJSSelector(&module, &sig, which);
-    CHECK_EQ(0u, js_index);
-    WasmFunctionCompiler t(&sig, &module);
+    WasmRunner<void> r(kExecuteCompiled);
+    uint32_t js_index = AddJSSelector(&r.module(), &sig, which);
+    CHECK_EQ(predicted_js_index, js_index);
+    WasmFunctionCompiler& t = r.NewFunction(&sig);
     t.Build(&code[0], &code[end]);
 
-    Handle<JSFunction> jsfunc = module.WrapCode(t.CompileAndAdd());
+    Handle<JSFunction> jsfunc = r.module().WrapCode(t.function_index());
 
     Handle<Object> args[] = {
         factory->NewNumber(inputs.arg_d(0)),

@@ -212,7 +212,7 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
   DCHECK(code->instruction_start() == code->address() + Code::kHeaderSize);
 
   // Debug info has to be emitted first.
-  if (FLAG_perf_prof_debug_info && shared != nullptr) {
+  if (FLAG_perf_prof && shared != nullptr) {
     LogWriteDebugInfo(code, shared);
   }
 
@@ -246,6 +246,38 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
   LogWriteBytes(reinterpret_cast<const char*>(code_pointer), code_size);
 }
 
+namespace {
+
+std::unique_ptr<char[]> GetScriptName(Handle<Script> script) {
+  Object* name_or_url = script->GetNameOrSourceURL();
+  int name_length = 0;
+  std::unique_ptr<char[]> name_string;
+  if (name_or_url->IsString()) {
+    return String::cast(name_or_url)
+        ->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &name_length);
+  } else {
+    const char unknown[] = "<unknown>";
+    name_length = static_cast<int>(strlen(unknown));
+    char* buffer = NewArray<char>(name_length);
+    base::OS::StrNCpy(buffer, name_length + 1, unknown,
+                      static_cast<size_t>(name_length));
+    return std::unique_ptr<char[]>(buffer);
+  }
+}
+
+SourcePositionInfo GetSourcePositionInfo(Handle<Code> code,
+                                         Handle<SharedFunctionInfo> function,
+                                         SourcePosition pos) {
+  if (code->is_turbofanned() || code->is_crankshafted()) {
+    DisallowHeapAllocation disallow;
+    return pos.InliningStack(code)[0];
+  } else {
+    return SourcePositionInfo(pos, function);
+  }
+}
+
+}  // namespace
+
 void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   // Compute the entry count and get the name of the script.
   uint32_t entry_count = 0;
@@ -255,24 +287,6 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   }
   if (entry_count == 0) return;
   Handle<Script> script(Script::cast(shared->script()));
-  Handle<Object> name_or_url(Script::GetNameOrSourceURL(script));
-
-  int name_length = 0;
-  std::unique_ptr<char[]> name_string;
-  if (name_or_url->IsString()) {
-    name_string =
-        Handle<String>::cast(name_or_url)
-            ->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &name_length);
-    DCHECK_EQ(0, name_string.get()[name_length]);
-  } else {
-    const char unknown[] = "<unknown>";
-    name_length = static_cast<int>(strlen(unknown));
-    char* buffer = NewArray<char>(name_length);
-    base::OS::StrNCpy(buffer, name_length + 1, unknown,
-                      static_cast<size_t>(name_length));
-    name_string = std::unique_ptr<char[]>(buffer);
-  }
-  DCHECK_EQ(name_length, static_cast<int>(strlen(name_string.get())));
 
   PerfJitCodeDebugInfo debug_info;
 
@@ -284,42 +298,44 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
   uint32_t size = sizeof(debug_info);
   // Add the sizes of fixed parts of entries.
   size += entry_count * sizeof(PerfJitDebugEntry);
-  // Add the size of the name after the first entry.
-  size += (static_cast<uint32_t>(name_length) + 1) * entry_count;
+  // Add the size of the name after each entry.
+
+  Handle<Code> code_handle(code);
+  Handle<SharedFunctionInfo> function_handle(shared);
+  for (SourcePositionTableIterator iterator(code->source_position_table());
+       !iterator.done(); iterator.Advance()) {
+    SourcePositionInfo info(GetSourcePositionInfo(code_handle, function_handle,
+                                                  iterator.source_position()));
+    Handle<Script> script(Script::cast(info.function->script()));
+    std::unique_ptr<char[]> name_string = GetScriptName(script);
+    size += (static_cast<uint32_t>(strlen(name_string.get())) + 1);
+  }
 
   int padding = ((size + 7) & (~7)) - size;
-
   debug_info.size_ = size + padding;
-
   LogWriteBytes(reinterpret_cast<const char*>(&debug_info), sizeof(debug_info));
 
-  int script_line_offset = script->line_offset();
-  Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
   Address code_start = code->instruction_start();
 
   for (SourcePositionTableIterator iterator(code->source_position_table());
        !iterator.done(); iterator.Advance()) {
-    int position = iterator.source_position().ScriptOffset();
-    int line_number = Script::GetLineNumber(script, position);
-    // Compute column.
-    int relative_line_number = line_number - script_line_offset;
-    int start =
-        (relative_line_number == 0)
-            ? 0
-            : Smi::cast(line_ends->get(relative_line_number - 1))->value() + 1;
-    int column_offset = position - start;
-    if (relative_line_number == 0) {
-      // For the case where the code is on the same line as the script tag.
-      column_offset += script->column_offset();
-    }
-
+    SourcePositionInfo info(GetSourcePositionInfo(code_handle, function_handle,
+                                                  iterator.source_position()));
     PerfJitDebugEntry entry;
+    // TODO(danno): There seems to be a bug in the dwarf handling of JIT code in
+    // the perf tool. It seems to erroneously believe that the first instruction
+    // of functions is at offset 0x40 when displayed in "perf report". To
+    // compensate for this, add a magic constant to the position addresses when
+    // writing them out.
     entry.address_ =
-        reinterpret_cast<uint64_t>(code_start + iterator.code_offset());
-    entry.line_number_ = line_number;
-    entry.column_ = column_offset;
+        reinterpret_cast<intptr_t>(code_start + iterator.code_offset() + 0x40);
+    entry.line_number_ = info.line + 1;
+    entry.column_ = info.column + 1;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
-    LogWriteBytes(name_string.get(), name_length + 1);
+    Handle<Script> script(Script::cast(info.function->script()));
+    std::unique_ptr<char[]> name_string = GetScriptName(script);
+    LogWriteBytes(name_string.get(),
+                  static_cast<uint32_t>(strlen(name_string.get())) + 1);
   }
   char padding_bytes[] = "\0\0\0\0\0\0\0\0";
   LogWriteBytes(padding_bytes, padding);

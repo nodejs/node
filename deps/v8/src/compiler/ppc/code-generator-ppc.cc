@@ -34,6 +34,7 @@ class PPCOperandConverter final : public InstructionOperandConverter {
       case kFlags_branch:
       case kFlags_deoptimize:
       case kFlags_set:
+      case kFlags_trap:
         return SetRC;
       case kFlags_none:
         return LeaveRC;
@@ -263,7 +264,8 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
       // Overflow checked for add/sub only.
       switch (op) {
 #if V8_TARGET_ARCH_PPC64
-        case kPPC_Add:
+        case kPPC_Add32:
+        case kPPC_Add64:
         case kPPC_Sub:
 #endif
         case kPPC_AddWithOverflow32:
@@ -276,7 +278,8 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     case kNotOverflow:
       switch (op) {
 #if V8_TARGET_ARCH_PPC64
-        case kPPC_Add:
+        case kPPC_Add32:
+        case kPPC_Add64:
         case kPPC_Sub:
 #endif
         case kPPC_AddWithOverflow32:
@@ -761,36 +764,33 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                      \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr, asm_instrx)   \
-  do {                                                        \
-    Label done;                                               \
-    Register result = i.OutputRegister();                     \
-    AddressingMode mode = kMode_None;                         \
-    MemOperand operand = i.MemoryOperand(&mode);              \
-    __ sync();                                                \
-    if (mode == kMode_MRI) {                                  \
-    __ asm_instr(result, operand);                            \
-    } else {                                                  \
-    __ asm_instrx(result, operand);                           \
-    }                                                         \
-    __ bind(&done);                                           \
-    __ cmp(result, result);                                   \
-    __ bne(&done);                                            \
-    __ isync();                                               \
+#define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr, asm_instrx) \
+  do {                                                      \
+    Label done;                                             \
+    Register result = i.OutputRegister();                   \
+    AddressingMode mode = kMode_None;                       \
+    MemOperand operand = i.MemoryOperand(&mode);            \
+    if (mode == kMode_MRI) {                                \
+      __ asm_instr(result, operand);                        \
+    } else {                                                \
+      __ asm_instrx(result, operand);                       \
+    }                                                       \
+    __ lwsync();                                            \
   } while (0)
-#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr, asm_instrx)  \
-  do {                                                        \
-    size_t index = 0;                                         \
-    AddressingMode mode = kMode_None;                         \
-    MemOperand operand = i.MemoryOperand(&mode, &index);      \
-    Register value = i.InputRegister(index);                  \
-    __ sync();                                                \
-    if (mode == kMode_MRI) {                                  \
-      __ asm_instr(value, operand);                           \
-    } else {                                                  \
-      __ asm_instrx(value, operand);                          \
-    }                                                         \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                      \
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr, asm_instrx) \
+  do {                                                       \
+    size_t index = 0;                                        \
+    AddressingMode mode = kMode_None;                        \
+    MemOperand operand = i.MemoryOperand(&mode, &index);     \
+    Register value = i.InputRegister(index);                 \
+    __ lwsync();                                             \
+    if (mode == kMode_MRI) {                                 \
+      __ asm_instr(value, operand);                          \
+    } else {                                                 \
+      __ asm_instrx(value, operand);                         \
+    }                                                        \
+    __ sync();                                               \
+    DCHECK_EQ(LeaveRC, i.OutputRCBit());                     \
   } while (0)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -1322,7 +1322,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 63 - i.InputInt32(2), i.OutputRCBit());
       break;
 #endif
-    case kPPC_Add:
+    case kPPC_Add32:
 #if V8_TARGET_ARCH_PPC64
       if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
         ASSEMBLE_ADD_WITH_OVERFLOW();
@@ -1335,10 +1335,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ addi(i.OutputRegister(), i.InputRegister(0), i.InputImmediate(1));
           DCHECK_EQ(LeaveRC, i.OutputRCBit());
         }
+        __ extsw(i.OutputRegister(), i.OutputRegister());
 #if V8_TARGET_ARCH_PPC64
       }
 #endif
       break;
+#if V8_TARGET_ARCH_PPC64
+    case kPPC_Add64:
+      if (FlagsModeField::decode(instr->opcode()) != kFlags_none) {
+        ASSEMBLE_ADD_WITH_OVERFLOW();
+      } else {
+        if (HasRegisterInput(instr, 1)) {
+          __ add(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+                 LeaveOE, i.OutputRCBit());
+        } else {
+          __ addi(i.OutputRegister(), i.InputRegister(0), i.InputImmediate(1));
+          DCHECK_EQ(LeaveRC, i.OutputRCBit());
+        }
+      }
+      break;
+#endif
     case kPPC_AddWithOverflow32:
       ASSEMBLE_ADD_WITH_OVERFLOW32();
       break;
@@ -1431,19 +1447,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_FLOAT_BINOP_RC(fdiv, MiscField::decode(instr->opcode()));
       break;
     case kPPC_Mod32:
-      ASSEMBLE_MODULO(divw, mullw);
+      if (CpuFeatures::IsSupported(MODULO)) {
+        __ modsw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      } else {
+        ASSEMBLE_MODULO(divw, mullw);
+      }
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_Mod64:
-      ASSEMBLE_MODULO(divd, mulld);
+      if (CpuFeatures::IsSupported(MODULO)) {
+        __ modsd(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      } else {
+        ASSEMBLE_MODULO(divd, mulld);
+      }
       break;
 #endif
     case kPPC_ModU32:
-      ASSEMBLE_MODULO(divwu, mullw);
+      if (CpuFeatures::IsSupported(MODULO)) {
+        __ moduw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      } else {
+        ASSEMBLE_MODULO(divwu, mullw);
+      }
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_ModU64:
-      ASSEMBLE_MODULO(divdu, mulld);
+      if (CpuFeatures::IsSupported(MODULO)) {
+        __ modud(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      } else {
+        ASSEMBLE_MODULO(divdu, mulld);
+      }
       break;
 #endif
     case kPPC_ModDouble:
@@ -1984,6 +2016,82 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ b(GetLabel(target));
 }
 
+void CodeGenerator::AssembleArchTrap(Instruction* instr,
+                                     FlagsCondition condition) {
+  class OutOfLineTrap final : public OutOfLineCode {
+   public:
+    OutOfLineTrap(CodeGenerator* gen, bool frame_elided, Instruction* instr)
+        : OutOfLineCode(gen),
+          frame_elided_(frame_elided),
+          instr_(instr),
+          gen_(gen) {}
+
+    void Generate() final {
+      PPCOperandConverter i(gen_, instr_);
+
+      Runtime::FunctionId trap_id = static_cast<Runtime::FunctionId>(
+          i.InputInt32(instr_->InputCount() - 1));
+      bool old_has_frame = __ has_frame();
+      if (frame_elided_) {
+        __ set_has_frame(true);
+        __ EnterFrame(StackFrame::WASM_COMPILED, true);
+      }
+      GenerateCallToTrap(trap_id);
+      if (frame_elided_) {
+        __ set_has_frame(old_has_frame);
+      }
+      if (FLAG_debug_code) {
+        __ stop(GetBailoutReason(kUnexpectedReturnFromWasmTrap));
+      }
+    }
+
+   private:
+    void GenerateCallToTrap(Runtime::FunctionId trap_id) {
+      if (trap_id == Runtime::kNumFunctions) {
+        // We cannot test calls to the runtime in cctest/test-run-wasm.
+        // Therefore we emit a call to C here instead of a call to the runtime.
+        // We use the context register as the scratch register, because we do
+        // not have a context here.
+        __ PrepareCallCFunction(0, 0, cp);
+        __ CallCFunction(
+            ExternalReference::wasm_call_trap_callback_for_testing(isolate()),
+            0);
+      } else {
+        __ Move(cp, isolate()->native_context());
+        gen_->AssembleSourcePosition(instr_);
+        __ CallRuntime(trap_id);
+      }
+      ReferenceMap* reference_map =
+          new (gen_->zone()) ReferenceMap(gen_->zone());
+      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                            Safepoint::kNoLazyDeopt);
+    }
+
+    bool frame_elided_;
+    Instruction* instr_;
+    CodeGenerator* gen_;
+  };
+  bool frame_elided = !frame_access_state()->has_frame();
+  auto ool = new (zone()) OutOfLineTrap(this, frame_elided, instr);
+  Label* tlabel = ool->entry();
+  Label end;
+
+  ArchOpcode op = instr->arch_opcode();
+  CRegister cr = cr0;
+  Condition cond = FlagsConditionToCondition(condition, op);
+  if (op == kPPC_CmpDouble) {
+    // check for unordered if necessary
+    if (cond == le) {
+      __ bunordered(&end, cr);
+      // Unnecessary for eq/lt since only FU bit will be set.
+    } else if (cond == gt) {
+      __ bunordered(tlabel, cr);
+      // Unnecessary for ne/ge since only FU bit will be set.
+    }
+  }
+  __ b(cond, tlabel, cr);
+  __ bind(&end);
+}
 
 // Assembles boolean materializations after an instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
@@ -2257,11 +2365,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       switch (src.type()) {
         case Constant::kInt32:
 #if V8_TARGET_ARCH_PPC64
-          if (src.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
+          if (RelocInfo::IsWasmSizeReference(src.rmode())) {
 #else
-          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
-              src.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE ||
-              src.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
+          if (RelocInfo::IsWasmReference(src.rmode())) {
 #endif
             __ mov(dst, Operand(src.ToInt32(), src.rmode()));
           } else {
@@ -2270,11 +2376,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
         case Constant::kInt64:
 #if V8_TARGET_ARCH_PPC64
-          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
-              src.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE) {
+          if (RelocInfo::IsWasmPtrReference(src.rmode())) {
             __ mov(dst, Operand(src.ToInt64(), src.rmode()));
           } else {
-            DCHECK(src.rmode() != RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+            DCHECK(!RelocInfo::IsWasmSizeReference(src.rmode()));
 #endif
             __ mov(dst, Operand(src.ToInt64()));
 #if V8_TARGET_ARCH_PPC64
@@ -2313,8 +2418,23 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       DoubleRegister dst = destination->IsFPRegister()
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
-      double value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
-                                                        : src.ToFloat64();
+      double value;
+// bit_cast of snan is converted to qnan on ia32/x64
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+      intptr_t valueInt = (src.type() == Constant::kFloat32)
+                              ? src.ToFloat32AsInt()
+                              : src.ToFloat64AsInt();
+      if (valueInt == ((src.type() == Constant::kFloat32)
+                           ? 0x7fa00000
+                           : 0x7fa0000000000000)) {
+        value = bit_cast<double, int64_t>(0x7ff4000000000000L);
+      } else {
+#endif
+        value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
+                                                   : src.ToFloat64();
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+      }
+#endif
       __ LoadDoubleLiteral(dst, value, kScratchReg);
       if (destination->IsFPStackSlot()) {
         __ StoreDouble(dst, g.ToMemOperand(destination), r0);

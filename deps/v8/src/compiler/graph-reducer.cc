@@ -25,15 +25,17 @@ enum class GraphReducer::State : uint8_t {
 
 void Reducer::Finalize() {}
 
-
 GraphReducer::GraphReducer(Zone* zone, Graph* graph, Node* dead)
     : graph_(graph),
       dead_(dead),
       state_(graph, 4),
       reducers_(zone),
       revisit_(zone),
-      stack_(zone) {}
-
+      stack_(zone) {
+  if (dead != nullptr) {
+    NodeProperties::SetType(dead_, Type::None());
+  }
+}
 
 GraphReducer::~GraphReducer() {}
 
@@ -113,17 +115,23 @@ void GraphReducer::ReduceTop() {
 
   if (node->IsDead()) return Pop();  // Node was killed while on stack.
 
+  Node::Inputs node_inputs = node->inputs();
+
   // Recurse on an input if necessary.
-  int start = entry.input_index < node->InputCount() ? entry.input_index : 0;
-  for (int i = start; i < node->InputCount(); i++) {
-    Node* input = node->InputAt(i);
-    entry.input_index = i + 1;
-    if (input != node && Recurse(input)) return;
+  int start = entry.input_index < node_inputs.count() ? entry.input_index : 0;
+  for (int i = start; i < node_inputs.count(); ++i) {
+    Node* input = node_inputs[i];
+    if (input != node && Recurse(input)) {
+      entry.input_index = i + 1;
+      return;
+    }
   }
-  for (int i = 0; i < start; i++) {
-    Node* input = node->InputAt(i);
-    entry.input_index = i + 1;
-    if (input != node && Recurse(input)) return;
+  for (int i = 0; i < start; ++i) {
+    Node* input = node_inputs[i];
+    if (input != node && Recurse(input)) {
+      entry.input_index = i + 1;
+      return;
+    }
   }
 
   // Remember the max node id before reduction.
@@ -139,10 +147,13 @@ void GraphReducer::ReduceTop() {
   Node* const replacement = reduction.replacement();
   if (replacement == node) {
     // In-place update of {node}, may need to recurse on an input.
-    for (int i = 0; i < node->InputCount(); ++i) {
-      Node* input = node->InputAt(i);
-      entry.input_index = i + 1;
-      if (input != node && Recurse(input)) return;
+    Node::Inputs node_inputs = node->inputs();
+    for (int i = 0; i < node_inputs.count(); ++i) {
+      Node* input = node_inputs[i];
+      if (input != node && Recurse(input)) {
+        entry.input_index = i + 1;
+        return;
+      }
     }
   }
 

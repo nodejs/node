@@ -364,10 +364,13 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
       zone(), false, 1, CallDescriptor::kNeedsFrameState);
 
   // Build frame state for the state before the call.
-  Node* parameters =
-      m.AddNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(1));
-  Node* locals = m.AddNode(m.common()->TypedStateValues(&empty_types));
-  Node* stack = m.AddNode(m.common()->TypedStateValues(&empty_types));
+  Node* parameters = m.AddNode(
+      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
+      m.Int32Constant(1));
+  Node* locals = m.AddNode(
+      m.common()->TypedStateValues(&empty_types, SparseInputMask::Dense()));
+  Node* stack = m.AddNode(
+      m.common()->TypedStateValues(&empty_types, SparseInputMask::Dense()));
   Node* context_sentinel = m.Int32Constant(0);
   Node* state_node = m.AddNode(
       m.common()->FrameState(bailout_id, OutputFrameStateCombine::Push(),
@@ -376,9 +379,9 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
       m.UndefinedConstant());
 
   // Build the call.
-  Node* args[] = {receiver, m.UndefinedConstant(), m.Int32Constant(1), context};
-  Node* call =
-      m.CallNWithFrameState(descriptor, function_node, args, state_node);
+  Node* nodes[] = {function_node,      receiver, m.UndefinedConstant(),
+                   m.Int32Constant(1), context,  state_node};
+  Node* call = m.CallNWithFrameState(descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -419,12 +422,15 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
 
   // Build frame state for the state before the call.
-  Node* parameters =
-      m.AddNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(43));
-  Node* locals = m.AddNode(m.common()->TypedStateValues(&float64_type),
-                           m.Float64Constant(0.5));
-  Node* stack = m.AddNode(m.common()->TypedStateValues(&tagged_type),
-                          m.UndefinedConstant());
+  Node* parameters = m.AddNode(
+      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
+      m.Int32Constant(43));
+  Node* locals = m.AddNode(
+      m.common()->TypedStateValues(&float64_type, SparseInputMask::Dense()),
+      m.Float64Constant(0.5));
+  Node* stack = m.AddNode(
+      m.common()->TypedStateValues(&tagged_type, SparseInputMask::Dense()),
+      m.UndefinedConstant());
   Node* context_sentinel = m.Int32Constant(0);
   Node* state_node = m.AddNode(
       m.common()->FrameState(bailout_id_before, OutputFrameStateCombine::Push(),
@@ -433,9 +439,9 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
       m.UndefinedConstant());
 
   // Build the call.
-  Node* args[] = {function_node, receiver, context};
   Node* stub_code = m.HeapConstant(callable.code());
-  Node* call = m.CallNWithFrameState(descriptor, stub_code, args, state_node);
+  Node* nodes[] = {stub_code, function_node, receiver, context, state_node};
+  Node* call = m.CallNWithFrameState(descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -477,15 +483,6 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
                                                     // We inserted 0 here.
   EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(5)));
   EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(6))->IsUndefined(isolate()));
-  EXPECT_EQ(MachineType::AnyTagged(),
-            desc_before->GetType(0));  // function is always
-                                       // tagged/any.
-  EXPECT_EQ(MachineType::Int32(), desc_before->GetType(1));
-  EXPECT_EQ(MachineType::AnyTagged(),
-            desc_before->GetType(2));  // context is always
-                                       // tagged/any.
-  EXPECT_EQ(MachineType::Float64(), desc_before->GetType(3));
-  EXPECT_EQ(MachineType::AnyTagged(), desc_before->GetType(4));
 
   // Function.
   EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(7)));
@@ -521,24 +518,30 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
 
   // Build frame state for the state before the call.
-  Node* parameters =
-      m.AddNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(63));
-  Node* locals =
-      m.AddNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(64));
-  Node* stack =
-      m.AddNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(65));
+  Node* parameters = m.AddNode(
+      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
+      m.Int32Constant(63));
+  Node* locals = m.AddNode(
+      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
+      m.Int32Constant(64));
+  Node* stack = m.AddNode(
+      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
+      m.Int32Constant(65));
   Node* frame_state_parent = m.AddNode(
       m.common()->FrameState(bailout_id_parent,
                              OutputFrameStateCombine::Ignore(),
                              m.GetFrameStateFunctionInfo(1, 1)),
       parameters, locals, stack, context, function_node, m.UndefinedConstant());
 
-  Node* parameters2 =
-      m.AddNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(43));
-  Node* locals2 = m.AddNode(m.common()->TypedStateValues(&float64_type),
-                            m.Float64Constant(0.25));
-  Node* stack2 = m.AddNode(m.common()->TypedStateValues(&int32x2_type),
-                           m.Int32Constant(44), m.Int32Constant(45));
+  Node* parameters2 = m.AddNode(
+      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
+      m.Int32Constant(43));
+  Node* locals2 = m.AddNode(
+      m.common()->TypedStateValues(&float64_type, SparseInputMask::Dense()),
+      m.Float64Constant(0.25));
+  Node* stack2 = m.AddNode(
+      m.common()->TypedStateValues(&int32x2_type, SparseInputMask::Dense()),
+      m.Int32Constant(44), m.Int32Constant(45));
   Node* state_node = m.AddNode(
       m.common()->FrameState(bailout_id_before, OutputFrameStateCombine::Push(),
                              m.GetFrameStateFunctionInfo(1, 1)),
@@ -546,9 +549,9 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
       frame_state_parent);
 
   // Build the call.
-  Node* args[] = {function_node, receiver, context2};
   Node* stub_code = m.HeapConstant(callable.code());
-  Node* call = m.CallNWithFrameState(descriptor, stub_code, args, state_node);
+  Node* nodes[] = {stub_code, function_node, receiver, context2, state_node};
+  Node* call = m.CallNWithFrameState(descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -585,31 +588,20 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_EQ(1u, desc_before_outer->locals_count());
   EXPECT_EQ(1u, desc_before_outer->stack_count());
   // Values from parent environment.
-  EXPECT_EQ(MachineType::AnyTagged(), desc_before->GetType(0));
   EXPECT_EQ(63, s.ToInt32(call_instr->InputAt(3)));
-  EXPECT_EQ(MachineType::Int32(), desc_before_outer->GetType(1));
   // Context:
   EXPECT_EQ(66, s.ToInt32(call_instr->InputAt(4)));
-  EXPECT_EQ(MachineType::AnyTagged(), desc_before_outer->GetType(2));
   EXPECT_EQ(64, s.ToInt32(call_instr->InputAt(5)));
-  EXPECT_EQ(MachineType::Int32(), desc_before_outer->GetType(3));
   EXPECT_EQ(65, s.ToInt32(call_instr->InputAt(6)));
-  EXPECT_EQ(MachineType::Int32(), desc_before_outer->GetType(4));
   // Values from the nested frame.
   EXPECT_EQ(1u, desc_before->parameters_count());
   EXPECT_EQ(1u, desc_before->locals_count());
   EXPECT_EQ(2u, desc_before->stack_count());
-  EXPECT_EQ(MachineType::AnyTagged(), desc_before->GetType(0));
   EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(8)));
-  EXPECT_EQ(MachineType::Int32(), desc_before->GetType(1));
   EXPECT_EQ(46, s.ToInt32(call_instr->InputAt(9)));
-  EXPECT_EQ(MachineType::AnyTagged(), desc_before->GetType(2));
   EXPECT_EQ(0.25, s.ToFloat64(call_instr->InputAt(10)));
-  EXPECT_EQ(MachineType::Float64(), desc_before->GetType(3));
   EXPECT_EQ(44, s.ToInt32(call_instr->InputAt(11)));
-  EXPECT_EQ(MachineType::Int32(), desc_before->GetType(4));
   EXPECT_EQ(45, s.ToInt32(call_instr->InputAt(12)));
-  EXPECT_EQ(MachineType::Int32(), desc_before->GetType(5));
 
   // Function.
   EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(13)));

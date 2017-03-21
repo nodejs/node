@@ -15,12 +15,7 @@ class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
-    fetchspecs = [
-      "+refs/heads/*:refs/heads/*",
-      "+refs/pending/*:refs/pending/*",
-      "+refs/pending-tags/*:refs/pending-tags/*",
-    ]
-    self.Git("fetch origin %s" % " ".join(fetchspecs))
+    self.Git("fetch origin +refs/heads/*:refs/heads/*")
     self.GitCheckout("origin/master")
     self.DeleteBranch("work-branch")
 
@@ -155,12 +150,23 @@ class EditChangeLog(Step):
     TextToFile(changelog_entry, self.Config("CHANGELOG_ENTRY_FILE"))
 
 
+class PushBranchRef(Step):
+  MESSAGE = "Create branch ref."
+
+  def RunStep(self):
+    cmd = "push origin %s:refs/heads/%s" % (self["push_hash"], self["version"])
+    if self._options.dry_run:
+      print "Dry run. Command:\ngit %s" % cmd
+    else:
+      self.Git(cmd)
+
+
 class MakeBranch(Step):
   MESSAGE = "Create the branch."
 
   def RunStep(self):
     self.Git("reset --hard origin/master")
-    self.Git("checkout -b work-branch %s" % self["push_hash"])
+    self.Git("new-branch work-branch --upstream origin/%s" % self["version"])
     self.GitCheckoutFile(CHANGELOG_FILE, self["latest_version"])
     self.GitCheckoutFile(VERSION_FILE, self["latest_version"])
     self.GitCheckoutFile(WATCHLISTS_FILE, self["latest_version"])
@@ -223,37 +229,11 @@ class CommitBranch(Step):
     os.remove(self.Config("CHANGELOG_ENTRY_FILE"))
 
 
-class FixBrokenTag(Step):
-  MESSAGE = "Check for a missing tag and fix that instead."
-
-  def RunStep(self):
-    commit = None
-    try:
-      commit = self.GitLog(
-          n=1, format="%H",
-          grep=self["commit_title"],
-          branch="origin/%s" % self["version"],
-      )
-    except GitFailedException:
-      # In the normal case, the remote doesn't exist yet and git will fail.
-      pass
-    if commit:
-      print "Found %s. Trying to repair tag and bail out." % self["version"]
-      self.Git("tag %s %s" % (self["version"], commit))
-      self.Git("push origin refs/tags/%s" % self["version"])
-      return True
-
-
 class PushBranch(Step):
   MESSAGE = "Push changes."
 
   def RunStep(self):
-    pushspecs = [
-      "refs/heads/work-branch:refs/pending/heads/%s" % self["version"],
-      "%s:refs/pending-tags/heads/%s" % (self["push_hash"], self["version"]),
-      "%s:refs/heads/%s" % (self["push_hash"], self["version"]),
-    ]
-    cmd = "push origin %s" % " ".join(pushspecs)
+    cmd = "cl land --bypass-hooks -f"
     if self._options.dry_run:
       print "Dry run. Command:\ngit %s" % cmd
     else:
@@ -319,12 +299,12 @@ class CreateRelease(ScriptsBase):
       DetectLastRelease,
       PrepareChangeLog,
       EditChangeLog,
+      PushBranchRef,
       MakeBranch,
       AddChangeLog,
       SetVersion,
       EnableMergeWatchlist,
       CommitBranch,
-      FixBrokenTag,
       PushBranch,
       TagRevision,
       CleanUp,

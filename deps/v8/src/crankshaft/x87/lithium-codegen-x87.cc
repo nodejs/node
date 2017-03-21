@@ -7,6 +7,7 @@
 #include "src/crankshaft/x87/lithium-codegen-x87.h"
 
 #include "src/base/bits.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
@@ -146,15 +147,18 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
       __ CallRuntime(Runtime::kNewScriptContext);
       deopt_mode = Safepoint::kLazyDeopt;
     } else {
-      if (slots <= FastNewFunctionContextStub::kMaximumSlots) {
-        FastNewFunctionContextStub stub(isolate());
+      if (slots <=
+          ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+        Callable callable = CodeFactory::FastNewFunctionContext(
+            isolate(), info()->scope()->scope_type());
         __ mov(FastNewFunctionContextDescriptor::SlotsRegister(),
                Immediate(slots));
-        __ CallStub(&stub);
-        // Result of FastNewFunctionContextStub is always in new space.
+        __ Call(callable.code(), RelocInfo::CODE_TARGET);
+        // Result of the FastNewFunctionContext builtin is always in new space.
         need_write_barrier = false;
       } else {
-        __ push(edi);
+        __ Push(edi);
+        __ Push(Smi::FromInt(info()->scope()->scope_type()));
         __ CallRuntime(Runtime::kNewFunctionContext);
       }
     }
@@ -3017,7 +3021,16 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // object as a receiver to normal functions. Values have to be
   // passed unchanged to builtins and strict-mode functions.
   Label receiver_ok, global_object;
-  Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
+  Label::Distance dist;
+
+  // For x87 debug version jitted code's size exceeds 128 bytes whether
+  // FLAG_deopt_every_n_times
+  // is set or not. Always use Label:kFar for label distance for debug mode.
+  if (FLAG_debug_code)
+    dist = Label::kFar;
+  else
+    dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
+
   Register scratch = ToRegister(instr->temp());
 
   if (!instr->hydrogen()->known_function()) {
@@ -3037,9 +3050,9 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
 
   // Normal function. Replace undefined or null with global receiver.
   __ cmp(receiver, factory()->null_value());
-  __ j(equal, &global_object, Label::kNear);
+  __ j(equal, &global_object, dist);
   __ cmp(receiver, factory()->undefined_value());
-  __ j(equal, &global_object, Label::kNear);
+  __ j(equal, &global_object, dist);
 
   // The receiver should be a JS object.
   __ test(receiver, Immediate(kSmiTagMask));
@@ -3047,7 +3060,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ CmpObjectType(receiver, FIRST_JS_RECEIVER_TYPE, scratch);
   DeoptimizeIf(below, instr, DeoptimizeReason::kNotAJavaScriptObject);
 
-  __ jmp(&receiver_ok, Label::kNear);
+  __ jmp(&receiver_ok, dist);
   __ bind(&global_object);
   __ mov(receiver, FieldOperand(function, JSFunction::kContextOffset));
   __ mov(receiver, ContextOperand(receiver, Context::NATIVE_CONTEXT_INDEX));
@@ -3144,7 +3157,7 @@ void LCodeGen::DoContext(LContext* instr) {
 
 void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   DCHECK(ToRegister(instr->context()).is(esi));
-  __ push(Immediate(instr->hydrogen()->pairs()));
+  __ push(Immediate(instr->hydrogen()->declarations()));
   __ push(Immediate(Smi::FromInt(instr->hydrogen()->flags())));
   __ push(Immediate(instr->hydrogen()->feedback_vector()));
   CallRuntime(Runtime::kDeclareGlobals, instr);

@@ -26,7 +26,6 @@ class Graph;
 class LoopAssignmentAnalysis;
 class LoopBuilder;
 class Node;
-class TypeHintAnalysis;
 
 
 // The AstGraphBuilder produces a high-level IR graph, based on an
@@ -39,8 +38,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
  public:
   AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
                   float invocation_frequency,
-                  LoopAssignmentAnalysis* loop_assignment = nullptr,
-                  TypeHintAnalysis* type_hint_analysis = nullptr);
+                  LoopAssignmentAnalysis* loop_assignment = nullptr);
   virtual ~AstGraphBuilder() {}
 
   // Creates a graph by visiting the entire AST.
@@ -73,8 +71,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   class ControlScope;
   class ControlScopeForBreakable;
   class ControlScopeForIteration;
-  class ControlScopeForCatch;
-  class ControlScopeForFinally;
   class Environment;
   friend class ControlBuilder;
 
@@ -98,10 +94,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
-  SetOncePointer<Node> new_target_;
-
-  // Tracks how many try-blocks are currently entered.
-  int try_nesting_level_;
 
   // Temporary storage for building node input lists.
   int input_buffer_size_;
@@ -118,9 +110,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Result of loop assignment analysis performed before graph creation.
   LoopAssignmentAnalysis* loop_assignment_analysis_;
-
-  // Result of type hint analysis performed before graph creation.
-  TypeHintAnalysis* type_hint_analysis_;
 
   // Cache for StateValues nodes for frame states.
   StateValuesCache state_values_cache_;
@@ -170,9 +159,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Get or create the node that represents the incoming function context.
   Node* GetFunctionContext();
-
-  // Get or create the node that represents the incoming new target value.
-  Node* GetNewTarget();
 
   // Get or create the node that represents the empty frame state.
   Node* GetEmptyFrameState();
@@ -262,11 +248,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   // Named and keyed loads require a VectorSlotPair for successful lowering.
   VectorSlotPair CreateVectorSlotPair(FeedbackVectorSlot slot) const;
 
-  // Determine which contexts need to be checked for extension objects that
-  // might shadow the optimistic declaration of dynamic lookup variables.
-  uint32_t ComputeBitsetForDynamicGlobal(Variable* variable);
-  uint32_t ComputeBitsetForDynamicContext(Variable* variable);
-
   // Computes the frequency for JSCallFunction and JSCallConstruct nodes.
   float ComputeCallFrequency(FeedbackVectorSlot slot) const;
 
@@ -283,15 +264,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Builder to create an arguments object if it is used.
   Node* BuildArgumentsObject(Variable* arguments);
-
-  // Builder to create an array of rest parameters if used.
-  Node* BuildRestArgumentsArray(Variable* rest);
-
-  // Builder that assigns to the {.this_function} internal variable if needed.
-  Node* BuildThisFunctionVariable(Variable* this_function_var);
-
-  // Builder that assigns to the {new.target} internal variable if needed.
-  Node* BuildNewTargetVariable(Variable* new_target_var);
 
   // Builders for variable load and assignment.
   Node* BuildVariableAssignment(Variable* variable, Node* value,
@@ -316,25 +288,11 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   Node* BuildNamedStore(Node* receiver, Handle<Name> name, Node* value,
                         const VectorSlotPair& feedback);
 
-  // Builders for super property loads and stores.
-  Node* BuildKeyedSuperStore(Node* receiver, Node* home_object, Node* key,
-                             Node* value);
-  Node* BuildNamedSuperStore(Node* receiver, Node* home_object,
-                             Handle<Name> name, Node* value);
-  Node* BuildNamedSuperLoad(Node* receiver, Node* home_object,
-                            Handle<Name> name, const VectorSlotPair& feedback);
-  Node* BuildKeyedSuperLoad(Node* receiver, Node* home_object, Node* key,
-                            const VectorSlotPair& feedback);
-
   // Builders for global variable loads and stores.
   Node* BuildGlobalLoad(Handle<Name> name, const VectorSlotPair& feedback,
                         TypeofMode typeof_mode);
   Node* BuildGlobalStore(Handle<Name> name, Node* value,
                          const VectorSlotPair& feedback);
-
-  // Builders for dynamic variable loads and stores.
-  Node* BuildDynamicLoad(Handle<Name> name, TypeofMode typeof_mode);
-  Node* BuildDynamicStore(Handle<Name> name, Node* value);
 
   // Builders for accessing the function context.
   Node* BuildLoadGlobalObject();
@@ -342,7 +300,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Builders for automatic type conversion.
   Node* BuildToBoolean(Node* input, TypeFeedbackId feedback_id);
-  Node* BuildToName(Node* input, BailoutId bailout_id);
   Node* BuildToObject(Node* input, BailoutId bailout_id);
 
   // Builder for adding the [[HomeObject]] to a value if the value came from a
@@ -354,17 +311,12 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   Node* BuildThrowError(Node* exception, BailoutId bailout_id);
   Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
   Node* BuildThrowConstAssignError(BailoutId bailout_id);
-  Node* BuildThrowStaticPrototypeError(BailoutId bailout_id);
-  Node* BuildThrowUnsupportedSuperError(BailoutId bailout_id);
 
   // Builders for dynamic hole-checks at runtime.
   Node* BuildHoleCheckThenThrow(Node* value, Variable* var, Node* not_hole,
                                 BailoutId bailout_id);
   Node* BuildHoleCheckElseThrow(Node* value, Variable* var, Node* for_hole,
                                 BailoutId bailout_id);
-
-  // Builders for conditional errors.
-  Node* BuildThrowIfStaticPrototype(Node* name, BailoutId bailout_id);
 
   // Builders for non-local control flow.
   Node* BuildReturn(Node* return_value);
@@ -387,17 +339,8 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   // Optimization for variable load from global object.
   Node* TryLoadGlobalConstant(Handle<Name> name);
 
-  // Optimization for variable load of dynamic lookup slot that is most likely
-  // to resolve to a global slot or context slot (inferred from scope chain).
-  Node* TryLoadDynamicVariable(Variable* variable, Handle<String> name,
-                               BailoutId bailout_id,
-                               const VectorSlotPair& feedback,
-                               OutputFrameStateCombine combine,
-                               TypeofMode typeof_mode);
-
   // Optimizations for automatic type conversion.
   Node* TryFastToBoolean(Node* input);
-  Node* TryFastToName(Node* input);
 
   // ===========================================================================
   // The following visitation methods all recursively visit a subtree of the
@@ -408,7 +351,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Visit statements.
   void VisitIfNotNull(Statement* stmt);
-  void VisitInScope(Statement* stmt, Scope* scope, Node* context);
 
   // Visit expressions.
   void Visit(Expression* expr);
@@ -622,7 +564,6 @@ class AstGraphBuilderWithPositions final : public AstGraphBuilder {
   AstGraphBuilderWithPositions(Zone* local_zone, CompilationInfo* info,
                                JSGraph* jsgraph, float invocation_frequency,
                                LoopAssignmentAnalysis* loop_assignment,
-                               TypeHintAnalysis* type_hint_analysis,
                                SourcePositionTable* source_positions,
                                int inlining_id = SourcePosition::kNotInlined);
 

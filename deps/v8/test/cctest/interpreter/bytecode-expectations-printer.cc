@@ -25,6 +25,21 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
+  switch (idx) {
+#define COMPARE_NATIVE_CONTEXT_INTRINSIC_IDX(NAME, Type, name) \
+  case Context::NAME:                                          \
+    return #name;
+
+    NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(COMPARE_NATIVE_CONTEXT_INTRINSIC_IDX)
+
+    default:
+      break;
+  }
+
+  return "UnknownIntrinsicIndex";
+}
+
 // static
 const char* const BytecodeExpectationsPrinter::kDefaultTopFunctionName =
     "__genbckexp_wrapper__";
@@ -162,9 +177,15 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
       case OperandType::kFlag8:
         stream << bytecode_iterator.GetFlagOperand(op_index);
         break;
-      case OperandType::kIdx:
-        stream << bytecode_iterator.GetIndexOperand(op_index);
+      case OperandType::kIdx: {
+        uint32_t idx = bytecode_iterator.GetIndexOperand(op_index);
+        if (bytecode == Bytecode::kCallJSRuntime && op_index == 0) {
+          stream << "%" << NameForNativeContextIntrinsicIndex(idx);
+        } else {
+          stream << idx;
+        }
         break;
+      }
       case OperandType::kUImm:
         stream << bytecode_iterator.GetUnsignedImmediateOperand(op_index);
         break;

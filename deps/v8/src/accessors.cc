@@ -167,13 +167,35 @@ void Accessors::ArrayLengthSetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
 
+  DCHECK(Utils::OpenHandle(*name)->SameValue(isolate->heap()->length_string()));
+
   Handle<JSReceiver> object = Utils::OpenHandle(*info.Holder());
   Handle<JSArray> array = Handle<JSArray>::cast(object);
   Handle<Object> length_obj = Utils::OpenHandle(*val);
 
+  bool was_readonly = JSArray::HasReadOnlyLength(array);
+
   uint32_t length = 0;
   if (!JSArray::AnythingToArrayLength(isolate, length_obj, &length)) {
     isolate->OptionalRescheduleException(false);
+    return;
+  }
+
+  if (!was_readonly && V8_UNLIKELY(JSArray::HasReadOnlyLength(array)) &&
+      length != array->length()->Number()) {
+    // AnythingToArrayLength() may have called setter re-entrantly and modified
+    // its property descriptor. Don't perform this check if "length" was
+    // previously readonly, as this may have been called during
+    // DefineOwnPropertyIgnoreAttributes().
+    if (info.ShouldThrowOnError()) {
+      Factory* factory = isolate->factory();
+      isolate->Throw(*factory->NewTypeError(
+          MessageTemplate::kStrictReadOnlyProperty, Utils::OpenHandle(*name),
+          i::Object::TypeOf(isolate, object), object));
+      isolate->OptionalRescheduleException(false);
+    } else {
+      info.GetReturnValue().Set(false);
+    }
     return;
   }
 
@@ -518,34 +540,6 @@ Handle<AccessorInfo> Accessors::ScriptSourceMappingUrlInfo(
 
 
 //
-// Accessors::ScriptIsEmbedderDebugScript
-//
-
-
-void Accessors::ScriptIsEmbedderDebugScriptGetter(
-    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-  DisallowHeapAllocation no_allocation;
-  HandleScope scope(isolate);
-  Object* object = *Utils::OpenHandle(*info.Holder());
-  bool is_embedder_debug_script = Script::cast(JSValue::cast(object)->value())
-                                      ->origin_options()
-                                      .IsEmbedderDebugScript();
-  Object* res = *isolate->factory()->ToBoolean(is_embedder_debug_script);
-  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
-}
-
-
-Handle<AccessorInfo> Accessors::ScriptIsEmbedderDebugScriptInfo(
-    Isolate* isolate, PropertyAttributes attributes) {
-  Handle<String> name(isolate->factory()->InternalizeOneByteString(
-      STATIC_CHAR_VECTOR("is_debugger_script")));
-  return MakeAccessor(isolate, name, &ScriptIsEmbedderDebugScriptGetter,
-                      nullptr, attributes);
-}
-
-
-//
 // Accessors::ScriptGetContextData
 //
 
@@ -829,8 +823,8 @@ static Handle<Object> ArgumentsForInlinedFunction(
   Handle<FixedArray> array = factory->NewFixedArray(argument_count);
   bool should_deoptimize = false;
   for (int i = 0; i < argument_count; ++i) {
-    // If we materialize any object, we should deopt because we might alias
-    // an object that was eliminated by escape analysis.
+    // If we materialize any object, we should deoptimize the frame because we
+    // might alias an object that was eliminated by escape analysis.
     should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
     Handle<Object> value = iter->GetValue();
     array->set(i, *value);
@@ -839,7 +833,7 @@ static Handle<Object> ArgumentsForInlinedFunction(
   arguments->set_elements(*array);
 
   if (should_deoptimize) {
-    translated_values.StoreMaterializedValuesAndDeopt();
+    translated_values.StoreMaterializedValuesAndDeopt(frame);
   }
 
   // Return the freshly allocated arguments object.
@@ -850,10 +844,10 @@ static Handle<Object> ArgumentsForInlinedFunction(
 static int FindFunctionInFrame(JavaScriptFrame* frame,
                                Handle<JSFunction> function) {
   DisallowHeapAllocation no_allocation;
-  List<JSFunction*> functions(2);
-  frame->GetFunctions(&functions);
-  for (int i = functions.length() - 1; i >= 0; i--) {
-    if (functions[i] == *function) return i;
+  List<FrameSummary> frames(2);
+  frame->Summarize(&frames);
+  for (int i = frames.length() - 1; i >= 0; i--) {
+    if (*frames[i].AsJavaScript().function() == *function) return i;
   }
   return -1;
 }
@@ -957,19 +951,16 @@ static inline bool AllowAccessToFunction(Context* current_context,
 class FrameFunctionIterator {
  public:
   FrameFunctionIterator(Isolate* isolate, const DisallowHeapAllocation& promise)
-      : isolate_(isolate),
-        frame_iterator_(isolate),
-        functions_(2),
-        index_(0) {
-    GetFunctions();
+      : isolate_(isolate), frame_iterator_(isolate), frames_(2), index_(0) {
+    GetFrames();
   }
   JSFunction* next() {
     while (true) {
-      if (functions_.length() == 0) return NULL;
-      JSFunction* next_function = functions_[index_];
+      if (frames_.length() == 0) return NULL;
+      JSFunction* next_function = *frames_[index_].AsJavaScript().function();
       index_--;
       if (index_ < 0) {
-        GetFunctions();
+        GetFrames();
       }
       // Skip functions from other origins.
       if (!AllowAccessToFunction(isolate_->context(), next_function)) continue;
@@ -990,18 +981,18 @@ class FrameFunctionIterator {
   }
 
  private:
-  void GetFunctions() {
-    functions_.Rewind(0);
+  void GetFrames() {
+    frames_.Rewind(0);
     if (frame_iterator_.done()) return;
     JavaScriptFrame* frame = frame_iterator_.frame();
-    frame->GetFunctions(&functions_);
-    DCHECK(functions_.length() > 0);
+    frame->Summarize(&frames_);
+    DCHECK(frames_.length() > 0);
     frame_iterator_.Advance();
-    index_ = functions_.length() - 1;
+    index_ = frames_.length() - 1;
   }
   Isolate* isolate_;
   JavaScriptFrameIterator frame_iterator_;
-  List<JSFunction*> functions_;
+  List<FrameSummary> frames_;
   int index_;
 };
 
@@ -1025,10 +1016,11 @@ MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
     if (caller == NULL) return MaybeHandle<JSFunction>();
   } while (caller->shared()->is_toplevel());
 
-  // If caller is a built-in function and caller's caller is also built-in,
+  // If caller is not user code and caller's caller is also not user code,
   // use that instead.
   JSFunction* potential_caller = caller;
-  while (potential_caller != NULL && potential_caller->shared()->IsBuiltin()) {
+  while (potential_caller != NULL &&
+         !potential_caller->shared()->IsUserJavaScript()) {
     caller = potential_caller;
     potential_caller = it.next();
   }
@@ -1210,7 +1202,8 @@ void Accessors::ErrorStackGetter(
   // If stack is still an accessor (this could have changed in the meantime
   // since FormatStackTrace can execute arbitrary JS), replace it with a data
   // property.
-  Handle<Object> receiver = Utils::OpenHandle(*info.This());
+  Handle<Object> receiver =
+      Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
   Handle<Name> name = Utils::OpenHandle(*key);
   if (IsAccessor(receiver, name, holder)) {
     result = ReplaceAccessorWithDataProperty(isolate, receiver, holder, name,
@@ -1236,8 +1229,8 @@ void Accessors::ErrorStackSetter(
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> obj =
-      Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
+  Handle<JSObject> obj = Handle<JSObject>::cast(
+      Utils::OpenHandle(*v8::Local<v8::Value>(info.This())));
 
   // Clear internal properties to avoid memory leaks.
   Handle<Symbol> stack_trace_symbol = isolate->factory()->stack_trace_symbol();

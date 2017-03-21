@@ -19,10 +19,10 @@ class Array {
 public:
     static std::unique_ptr<Array<T>> create()
     {
-        return wrapUnique(new Array<T>());
+        return std::unique_ptr<Array<T>>(new Array<T>());
     }
 
-    static std::unique_ptr<Array<T>> parse(protocol::Value* value, ErrorSupport* errors)
+    static std::unique_ptr<Array<T>> fromValue(protocol::Value* value, ErrorSupport* errors)
     {
         protocol::ListValue* array = ListValue::cast(value);
         if (!array) {
@@ -33,7 +33,7 @@ public:
         errors->push();
         for (size_t i = 0; i < array->size(); ++i) {
             errors->setName(StringUtil::fromInteger(i));
-            std::unique_ptr<T> item = ValueConversions<T>::parse(array->at(i), errors);
+            std::unique_ptr<T> item = ValueConversions<T>::fromValue(array->at(i), errors);
             result->m_vector.push_back(std::move(item));
         }
         errors->pop();
@@ -57,11 +57,11 @@ public:
         return m_vector[index].get();
     }
 
-    std::unique_ptr<protocol::ListValue> serialize()
+    std::unique_ptr<protocol::ListValue> toValue()
     {
         std::unique_ptr<protocol::ListValue> result = ListValue::create();
         for (auto& item : m_vector)
-            result->pushValue(ValueConversions<T>::serialize(item));
+            result->pushValue(ValueConversions<T>::toValue(item));
         return result;
     }
 
@@ -74,10 +74,10 @@ class ArrayBase {
 public:
     static std::unique_ptr<Array<T>> create()
     {
-        return wrapUnique(new Array<T>());
+        return std::unique_ptr<Array<T>>(new Array<T>());
     }
 
-    static std::unique_ptr<Array<T>> parse(protocol::Value* value, ErrorSupport* errors)
+    static std::unique_ptr<Array<T>> fromValue(protocol::Value* value, ErrorSupport* errors)
     {
         protocol::ListValue* array = ListValue::cast(value);
         if (!array) {
@@ -88,7 +88,7 @@ public:
         std::unique_ptr<Array<T>> result(new Array<T>());
         for (size_t i = 0; i < array->size(); ++i) {
             errors->setName(StringUtil::fromInteger(i));
-            T item = ValueConversions<T>::parse(array->at(i), errors);
+            T item = ValueConversions<T>::fromValue(array->at(i), errors);
             result->m_vector.push_back(item);
         }
         errors->pop();
@@ -112,11 +112,11 @@ public:
         return m_vector[index];
     }
 
-    std::unique_ptr<protocol::ListValue> serialize()
+    std::unique_ptr<protocol::ListValue> toValue()
     {
         std::unique_ptr<protocol::ListValue> result = ListValue::create();
         for (auto& item : m_vector)
-            result->pushValue(ValueConversions<T>::serialize(item));
+            result->pushValue(ValueConversions<T>::toValue(item));
         return result;
     }
 

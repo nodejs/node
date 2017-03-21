@@ -17,14 +17,14 @@ class ListValue;
 class DictionaryValue;
 class Value;
 
-class {{config.lib.export_macro}} Value {
+class {{config.lib.export_macro}} Value : public Serializable {
     PROTOCOL_DISALLOW_COPY(Value);
 public:
-    virtual ~Value() { }
+    virtual ~Value() override { }
 
     static std::unique_ptr<Value> null()
     {
-        return wrapUnique(new Value());
+        return std::unique_ptr<Value>(new Value());
     }
 
     enum ValueType {
@@ -48,9 +48,9 @@ public:
     virtual bool asString(String* output) const;
     virtual bool asSerialized(String* output) const;
 
-    String toJSONString() const;
     virtual void writeJSON(StringBuilder* output) const;
     virtual std::unique_ptr<Value> clone() const;
+    String serialize() override;
 
 protected:
     Value() : m_type(TypeNull) { }
@@ -67,17 +67,17 @@ class {{config.lib.export_macro}} FundamentalValue : public Value {
 public:
     static std::unique_ptr<FundamentalValue> create(bool value)
     {
-        return wrapUnique(new FundamentalValue(value));
+        return std::unique_ptr<FundamentalValue>(new FundamentalValue(value));
     }
 
     static std::unique_ptr<FundamentalValue> create(int value)
     {
-        return wrapUnique(new FundamentalValue(value));
+        return std::unique_ptr<FundamentalValue>(new FundamentalValue(value));
     }
 
     static std::unique_ptr<FundamentalValue> create(double value)
     {
-        return wrapUnique(new FundamentalValue(value));
+        return std::unique_ptr<FundamentalValue>(new FundamentalValue(value));
     }
 
     bool asBoolean(bool* output) const override;
@@ -102,12 +102,12 @@ class {{config.lib.export_macro}} StringValue : public Value {
 public:
     static std::unique_ptr<StringValue> create(const String& value)
     {
-        return wrapUnique(new StringValue(value));
+        return std::unique_ptr<StringValue>(new StringValue(value));
     }
 
     static std::unique_ptr<StringValue> create(const char* value)
     {
-        return wrapUnique(new StringValue(value));
+        return std::unique_ptr<StringValue>(new StringValue(value));
     }
 
     bool asString(String* output) const override;
@@ -125,7 +125,7 @@ class {{config.lib.export_macro}} SerializedValue : public Value {
 public:
     static std::unique_ptr<SerializedValue> create(const String& value)
     {
-        return wrapUnique(new SerializedValue(value));
+        return std::unique_ptr<SerializedValue>(new SerializedValue(value));
     }
 
     bool asSerialized(String* output) const override;
@@ -143,7 +143,7 @@ public:
     using Entry = std::pair<String, Value*>;
     static std::unique_ptr<DictionaryValue> create()
     {
-        return wrapUnique(new DictionaryValue());
+        return std::unique_ptr<DictionaryValue>(new DictionaryValue());
     }
 
     static DictionaryValue* cast(Value* value)
@@ -155,7 +155,7 @@ public:
 
     static std::unique_ptr<DictionaryValue> cast(std::unique_ptr<Value> value)
     {
-        return wrapUnique(DictionaryValue::cast(value.release()));
+        return std::unique_ptr<DictionaryValue>(DictionaryValue::cast(value.release()));
     }
 
     void writeJSON(StringBuilder* output) const override;
@@ -209,7 +209,7 @@ class {{config.lib.export_macro}} ListValue : public Value {
 public:
     static std::unique_ptr<ListValue> create()
     {
-        return wrapUnique(new ListValue());
+        return std::unique_ptr<ListValue>(new ListValue());
     }
 
     static ListValue* cast(Value* value)
@@ -221,7 +221,7 @@ public:
 
     static std::unique_ptr<ListValue> cast(std::unique_ptr<Value> value)
     {
-        return wrapUnique(ListValue::cast(value.release()));
+        return std::unique_ptr<ListValue>(ListValue::cast(value.release()));
     }
 
     ~ListValue() override;

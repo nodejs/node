@@ -4,7 +4,9 @@
 
 #include "src/api.h"
 #include "src/heap/array-buffer-tracker.h"
+#include "src/heap/spaces.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -188,6 +190,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
 }
 
 TEST(ArrayBuffer_NonLivePromotion) {
+  if (!FLAG_incremental_marking) return;
   // The test verifies that the marking state is preserved when promoting
   // a buffer to old space.
   CcTest::InitializeVM();
@@ -223,6 +226,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
 }
 
 TEST(ArrayBuffer_LivePromotion) {
+  if (!FLAG_incremental_marking) return;
   // The test verifies that the marking state is preserved when promoting
   // a buffer to old space.
   CcTest::InitializeVM();
@@ -257,6 +261,7 @@ TEST(ArrayBuffer_LivePromotion) {
 }
 
 TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
+  if (!i::FLAG_incremental_marking) return;
   // The test verifies that the marking state is preserved across semispace
   // copy.
   CcTest::InitializeVM();

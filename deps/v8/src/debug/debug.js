@@ -43,11 +43,9 @@ var sourceLineBeginningSkip = /^(?:\s*(?:\/\*.*?\*\/)*)*/;
 // from the API include file debug.h.
 Debug.DebugEvent = { Break: 1,
                      Exception: 2,
-                     NewFunction: 3,
-                     BeforeCompile: 4,
-                     AfterCompile: 5,
-                     CompileError: 6,
-                     AsyncTaskEvent: 7 };
+                     AfterCompile: 3,
+                     CompileError: 4,
+                     AsyncTaskEvent: 5 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,
@@ -256,20 +254,6 @@ function ScriptBreakPoint(type, script_id_or_name, opt_line, opt_column,
 }
 
 
-// Creates a clone of script breakpoint that is linked to another script.
-ScriptBreakPoint.prototype.cloneForOtherScript = function (other_script) {
-  var copy = new ScriptBreakPoint(Debug.ScriptBreakPointType.ScriptId,
-      other_script.id, this.line_, this.column_, this.groupId_,
-      this.position_alignment_);
-  copy.number_ = next_break_point_number++;
-  script_break_points.push(copy);
-
-  copy.active_ = this.active_;
-  copy.condition_ = this.condition_;
-  return copy;
-};
-
-
 ScriptBreakPoint.prototype.number = function() {
   return this.number_;
 };
@@ -435,31 +419,6 @@ ScriptBreakPoint.prototype.clear = function () {
 };
 
 
-// Function called from runtime when a new script is compiled to set any script
-// break points set in this script.
-function UpdateScriptBreakPoints(script) {
-  for (var i = 0; i < script_break_points.length; i++) {
-    var break_point = script_break_points[i];
-    if ((break_point.type() == Debug.ScriptBreakPointType.ScriptName ||
-         break_point.type() == Debug.ScriptBreakPointType.ScriptRegExp) &&
-        break_point.matchesScript(script)) {
-      break_point.set(script);
-    }
-  }
-}
-
-
-function GetScriptBreakPoints(script) {
-  var result = [];
-  for (var i = 0; i < script_break_points.length; i++) {
-    if (script_break_points[i].matchesScript(script)) {
-      result.push(script_break_points[i]);
-    }
-  }
-  return result;
-}
-
-
 Debug.setListener = function(listener, opt_data) {
   if (!IS_FUNCTION(listener) && !IS_UNDEFINED(listener) && !IS_NULL(listener)) {
     throw %make_type_error(kDebuggerType);
@@ -476,7 +435,7 @@ Debug.setListener = function(listener, opt_data) {
 Debug.findScript = function(func_or_script_name) {
   if (IS_FUNCTION(func_or_script_name)) {
     return %FunctionGetScript(func_or_script_name);
-  } else if (IS_REGEXP(func_or_script_name)) {
+  } else if (%IsRegExp(func_or_script_name)) {
     var scripts = this.scripts();
     var last_result = null;
     var result_count = 0;
@@ -879,11 +838,8 @@ ExecutionState.prototype.prepareStep = function(action) {
   throw %make_type_error(kDebuggerType);
 };
 
-ExecutionState.prototype.evaluateGlobal = function(source, disable_break,
-    opt_additional_context) {
-  return MakeMirror(%DebugEvaluateGlobal(this.break_id, source,
-                                         TO_BOOLEAN(disable_break),
-                                         opt_additional_context));
+ExecutionState.prototype.evaluateGlobal = function(source) {
+  return MakeMirror(%DebugEvaluateGlobal(this.break_id, source));
 };
 
 ExecutionState.prototype.frameCount = function() {
@@ -1132,25 +1088,19 @@ function MakeScriptObject_(script, include_source) {
 }
 
 
-function MakeAsyncTaskEvent(type, id, name) {
-  return new AsyncTaskEvent(type, id, name);
+function MakeAsyncTaskEvent(type, id) {
+  return new AsyncTaskEvent(type, id);
 }
 
 
-function AsyncTaskEvent(type, id, name) {
+function AsyncTaskEvent(type, id) {
   this.type_ = type;
   this.id_ = id;
-  this.name_ = name;
 }
 
 
 AsyncTaskEvent.prototype.type = function() {
   return this.type_;
-}
-
-
-AsyncTaskEvent.prototype.name = function() {
-  return this.name_;
 }
 
 
@@ -1915,8 +1865,6 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
   var expression = request.arguments.expression;
   var frame = request.arguments.frame;
   var global = request.arguments.global;
-  var disable_break = request.arguments.disable_break;
-  var additional_context = request.arguments.additional_context;
 
   // The expression argument could be an integer so we convert it to a
   // string.
@@ -1931,33 +1879,11 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
     return response.failed('Arguments "frame" and "global" are exclusive');
   }
 
-  var additional_context_object;
-  if (additional_context) {
-    additional_context_object = {};
-    for (var i = 0; i < additional_context.length; i++) {
-      var mapping = additional_context[i];
-
-      if (!IS_STRING(mapping.name)) {
-        return response.failed("Context element #" + i +
-            " doesn't contain name:string property");
-      }
-
-      var raw_value = DebugCommandProcessor.resolveValue_(mapping);
-      additional_context_object[mapping.name] = raw_value;
-    }
-  }
-
   // Global evaluate.
   if (global) {
     // Evaluate in the native context.
-    response.body = this.exec_state_.evaluateGlobal(
-        expression, TO_BOOLEAN(disable_break), additional_context_object);
+    response.body = this.exec_state_.evaluateGlobal(expression);
     return;
-  }
-
-  // Default value for disable_break is true.
-  if (IS_UNDEFINED(disable_break)) {
-    disable_break = true;
   }
 
   // No frames no evaluate in frame.
@@ -1972,13 +1898,11 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
       return response.failed('Invalid frame "' + frame + '"');
     }
     // Evaluate in the specified frame.
-    response.body = this.exec_state_.frame(frame_number).evaluate(
-        expression, TO_BOOLEAN(disable_break), additional_context_object);
+    response.body = this.exec_state_.frame(frame_number).evaluate(expression);
     return;
   } else {
     // Evaluate in the selected frame.
-    response.body = this.exec_state_.frame().evaluate(
-        expression, TO_BOOLEAN(disable_break), additional_context_object);
+    response.body = this.exec_state_.frame().evaluate(expression);
     return;
   }
 };
@@ -2464,12 +2388,6 @@ utils.InstallFunctions(utils, DONT_ENUM, [
   "MakeCompileEvent", MakeCompileEvent,
   "MakeAsyncTaskEvent", MakeAsyncTaskEvent,
   "IsBreakPointTriggered", IsBreakPointTriggered,
-  "UpdateScriptBreakPoints", UpdateScriptBreakPoints,
 ]);
-
-// Export to liveedit.js
-utils.Export(function(to) {
-  to.GetScriptBreakPoints = GetScriptBreakPoints;
-});
 
 })

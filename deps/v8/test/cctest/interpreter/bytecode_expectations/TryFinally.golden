@@ -12,7 +12,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 52
+bytecode array length: 47
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
@@ -26,11 +26,13 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaZero),
                 B(Star), R(1),
-  /*   53 E> */ B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+  /*   53 E> */ B(SetPendingMessage),
                 B(Star), R(3),
   /*   70 S> */ B(LdaSmi), U8(3),
                 B(Star), R(0),
-  /*   72 E> */ B(CallRuntime), U16(Runtime::kInterpreterSetPendingMessage), R(3), U8(1),
+                B(Ldar), R(3),
+  /*   72 E> */ B(SetPendingMessage),
                 B(LdaZero),
                 B(TestEqualStrict), R(1), U8(0),
                 B(JumpIfTrue), U8(4),
@@ -53,7 +55,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 82
+bytecode array length: 74
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
@@ -62,12 +64,13 @@ bytecodes: [
                 B(Mov), R(context), R(5),
   /*   51 S> */ B(LdaSmi), U8(2),
                 B(Star), R(0),
-                B(Jump), U8(27),
+                B(Jump), U8(24),
                 B(Star), R(6),
                 B(Ldar), R(closure),
   /*   53 E> */ B(CreateCatchContext), R(6), U8(0), U8(1),
                 B(Star), R(5),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Ldar), R(5),
                 B(PushContext), R(1),
   /*   71 S> */ B(LdaSmi), U8(20),
@@ -79,11 +82,13 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaZero),
                 B(Star), R(2),
-  /*   73 E> */ B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+  /*   73 E> */ B(SetPendingMessage),
                 B(Star), R(4),
   /*   90 S> */ B(LdaSmi), U8(3),
                 B(Star), R(0),
-  /*   92 E> */ B(CallRuntime), U16(Runtime::kInterpreterSetPendingMessage), R(4), U8(1),
+                B(Ldar), R(4),
+  /*   92 E> */ B(SetPendingMessage),
                 B(LdaZero),
                 B(TestEqualStrict), R(2), U8(0),
                 B(JumpIfTrue), U8(4),
@@ -98,7 +103,7 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [8, 42, 48],
+  [8, 39, 45],
   [11, 15, 17],
 ]
 
@@ -110,7 +115,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 108
+bytecode array length: 97
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(4),
@@ -118,23 +123,25 @@ bytecodes: [
                 B(Mov), R(context), R(6),
   /*   55 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-                B(Jump), U8(27),
+                B(Jump), U8(24),
                 B(Star), R(7),
                 B(Ldar), R(closure),
   /*   57 E> */ B(CreateCatchContext), R(7), U8(0), U8(1),
                 B(Star), R(6),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Ldar), R(6),
                 B(PushContext), R(1),
   /*   74 S> */ B(LdaSmi), U8(2),
                 B(Star), R(0),
                 B(PopContext), R(1),
-                B(Jump), U8(27),
+                B(Jump), U8(24),
                 B(Star), R(6),
                 B(Ldar), R(closure),
   /*   76 E> */ B(CreateCatchContext), R(6), U8(0), U8(2),
                 B(Star), R(5),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Ldar), R(5),
                 B(PushContext), R(1),
   /*   95 S> */ B(LdaSmi), U8(20),
@@ -146,11 +153,13 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaZero),
                 B(Star), R(2),
-  /*   97 E> */ B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+  /*   97 E> */ B(SetPendingMessage),
                 B(Star), R(4),
   /*  114 S> */ B(LdaSmi), U8(3),
                 B(Star), R(0),
-  /*  116 E> */ B(CallRuntime), U16(Runtime::kInterpreterSetPendingMessage), R(4), U8(1),
+                B(Ldar), R(4),
+  /*  116 E> */ B(SetPendingMessage),
                 B(LdaZero),
                 B(TestEqualStrict), R(2), U8(0),
                 B(JumpIfTrue), U8(4),
@@ -166,8 +175,8 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [4, 68, 74],
-  [7, 41, 43],
+  [4, 62, 68],
+  [7, 38, 40],
   [10, 14, 16],
 ]
 

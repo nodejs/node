@@ -15,25 +15,25 @@ namespace {{namespace}} {
 
 template<typename T>
 struct ValueConversions {
-    static std::unique_ptr<T> parse(protocol::Value* value, ErrorSupport* errors)
+    static std::unique_ptr<T> fromValue(protocol::Value* value, ErrorSupport* errors)
     {
-        return T::parse(value, errors);
+        return T::fromValue(value, errors);
     }
 
-    static std::unique_ptr<protocol::Value> serialize(T* value)
+    static std::unique_ptr<protocol::Value> toValue(T* value)
     {
-        return value->serialize();
+        return value->toValue();
     }
 
-    static std::unique_ptr<protocol::Value> serialize(const std::unique_ptr<T>& value)
+    static std::unique_ptr<protocol::Value> toValue(const std::unique_ptr<T>& value)
     {
-        return value->serialize();
+        return value->toValue();
     }
 };
 
 template<>
 struct ValueConversions<bool> {
-    static bool parse(protocol::Value* value, ErrorSupport* errors)
+    static bool fromValue(protocol::Value* value, ErrorSupport* errors)
     {
         bool result = false;
         bool success = value ? value->asBoolean(&result) : false;
@@ -42,7 +42,7 @@ struct ValueConversions<bool> {
         return result;
     }
 
-    static std::unique_ptr<protocol::Value> serialize(bool value)
+    static std::unique_ptr<protocol::Value> toValue(bool value)
     {
         return FundamentalValue::create(value);
     }
@@ -50,7 +50,7 @@ struct ValueConversions<bool> {
 
 template<>
 struct ValueConversions<int> {
-    static int parse(protocol::Value* value, ErrorSupport* errors)
+    static int fromValue(protocol::Value* value, ErrorSupport* errors)
     {
         int result = 0;
         bool success = value ? value->asInteger(&result) : false;
@@ -59,7 +59,7 @@ struct ValueConversions<int> {
         return result;
     }
 
-    static std::unique_ptr<protocol::Value> serialize(int value)
+    static std::unique_ptr<protocol::Value> toValue(int value)
     {
         return FundamentalValue::create(value);
     }
@@ -67,7 +67,7 @@ struct ValueConversions<int> {
 
 template<>
 struct ValueConversions<double> {
-    static double parse(protocol::Value* value, ErrorSupport* errors)
+    static double fromValue(protocol::Value* value, ErrorSupport* errors)
     {
         double result = 0;
         bool success = value ? value->asDouble(&result) : false;
@@ -76,7 +76,7 @@ struct ValueConversions<double> {
         return result;
     }
 
-    static std::unique_ptr<protocol::Value> serialize(double value)
+    static std::unique_ptr<protocol::Value> toValue(double value)
     {
         return FundamentalValue::create(value);
     }
@@ -84,7 +84,7 @@ struct ValueConversions<double> {
 
 template<>
 struct ValueConversions<String> {
-    static String parse(protocol::Value* value, ErrorSupport* errors)
+    static String fromValue(protocol::Value* value, ErrorSupport* errors)
     {
         String result;
         bool success = value ? value->asString(&result) : false;
@@ -93,7 +93,7 @@ struct ValueConversions<String> {
         return result;
     }
 
-    static std::unique_ptr<protocol::Value> serialize(const String& value)
+    static std::unique_ptr<protocol::Value> toValue(const String& value)
     {
         return StringValue::create(value);
     }
@@ -101,7 +101,7 @@ struct ValueConversions<String> {
 
 template<>
 struct ValueConversions<Value> {
-    static std::unique_ptr<Value> parse(protocol::Value* value, ErrorSupport* errors)
+    static std::unique_ptr<Value> fromValue(protocol::Value* value, ErrorSupport* errors)
     {
         bool success = !!value;
         if (!success) {
@@ -111,12 +111,12 @@ struct ValueConversions<Value> {
         return value->clone();
     }
 
-    static std::unique_ptr<protocol::Value> serialize(Value* value)
+    static std::unique_ptr<protocol::Value> toValue(Value* value)
     {
         return value->clone();
     }
 
-    static std::unique_ptr<protocol::Value> serialize(const std::unique_ptr<Value>& value)
+    static std::unique_ptr<protocol::Value> toValue(const std::unique_ptr<Value>& value)
     {
         return value->clone();
     }
@@ -124,7 +124,7 @@ struct ValueConversions<Value> {
 
 template<>
 struct ValueConversions<DictionaryValue> {
-    static std::unique_ptr<DictionaryValue> parse(protocol::Value* value, ErrorSupport* errors)
+    static std::unique_ptr<DictionaryValue> fromValue(protocol::Value* value, ErrorSupport* errors)
     {
         bool success = value && value->type() == protocol::Value::TypeObject;
         if (!success)
@@ -132,12 +132,12 @@ struct ValueConversions<DictionaryValue> {
         return DictionaryValue::cast(value->clone());
     }
 
-    static std::unique_ptr<protocol::Value> serialize(DictionaryValue* value)
+    static std::unique_ptr<protocol::Value> toValue(DictionaryValue* value)
     {
         return value->clone();
     }
 
-    static std::unique_ptr<protocol::Value> serialize(const std::unique_ptr<DictionaryValue>& value)
+    static std::unique_ptr<protocol::Value> toValue(const std::unique_ptr<DictionaryValue>& value)
     {
         return value->clone();
     }
@@ -145,7 +145,7 @@ struct ValueConversions<DictionaryValue> {
 
 template<>
 struct ValueConversions<ListValue> {
-    static std::unique_ptr<ListValue> parse(protocol::Value* value, ErrorSupport* errors)
+    static std::unique_ptr<ListValue> fromValue(protocol::Value* value, ErrorSupport* errors)
     {
         bool success = value && value->type() == protocol::Value::TypeArray;
         if (!success)
@@ -153,12 +153,12 @@ struct ValueConversions<ListValue> {
         return ListValue::cast(value->clone());
     }
 
-    static std::unique_ptr<protocol::Value> serialize(ListValue* value)
+    static std::unique_ptr<protocol::Value> toValue(ListValue* value)
     {
         return value->clone();
     }
 
-    static std::unique_ptr<protocol::Value> serialize(const std::unique_ptr<ListValue>& value)
+    static std::unique_ptr<protocol::Value> toValue(const std::unique_ptr<ListValue>& value)
     {
         return value->clone();
     }

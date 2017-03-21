@@ -7,6 +7,7 @@
 #include "include/v8-experimental.h"
 #include "include/v8.h"
 #include "src/api.h"
+#include "src/objects-inl.h"
 
 namespace i = v8::internal;
 
@@ -246,4 +247,34 @@ TEST(CachedAccessorCrankshaft) {
   CompileRun("%OptimizeFunctionOnNextCall(g);");
 
   ExpectInt32("g()", 789);
+}
+
+namespace {
+
+static void Setter(v8::Local<v8::String> name, v8::Local<v8::Value> value,
+                   const v8::PropertyCallbackInfo<void>& info) {}
+}
+
+// Re-declaration of non-configurable accessors should throw.
+TEST(RedeclareAccessor) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+
+  v8::Local<v8::ObjectTemplate> object_template = templ->InstanceTemplate();
+  object_template->SetAccessor(
+      v8_str("foo"), NULL, Setter, v8::Local<v8::Value>(),
+      v8::AccessControl::DEFAULT, v8::PropertyAttribute::DontDelete);
+
+  v8::Local<v8::Context> ctx =
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
+
+  // Declare function.
+  v8::Local<v8::String> code = v8_str("function foo() {};");
+
+  v8::TryCatch try_catch(CcTest::isolate());
+  v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).IsEmpty();
+  CHECK(try_catch.HasCaught());
 }

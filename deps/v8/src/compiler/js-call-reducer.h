@@ -25,8 +25,7 @@ class JSCallReducer final : public AdvancedReducer {
   // Flags that control the mode of operation.
   enum Flag {
     kNoFlags = 0u,
-    kBailoutOnUninitialized = 1u << 0,
-    kDeoptimizationEnabled = 1u << 1
+    kDeoptimizationEnabled = 1u << 0,
   };
   typedef base::Flags<Flag> Flags;
 
@@ -41,12 +40,22 @@ class JSCallReducer final : public AdvancedReducer {
 
  private:
   Reduction ReduceArrayConstructor(Node* node);
+  Reduction ReduceCallApiFunction(
+      Node* node, Node* target,
+      Handle<FunctionTemplateInfo> function_template_info);
   Reduction ReduceNumberConstructor(Node* node);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeCall(Node* node);
+  Reduction ReduceFunctionPrototypeHasInstance(Node* node);
   Reduction ReduceObjectPrototypeGetProto(Node* node);
   Reduction ReduceJSCallConstruct(Node* node);
   Reduction ReduceJSCallFunction(Node* node);
+
+  enum HolderLookup { kHolderNotFound, kHolderIsReceiver, kHolderFound };
+
+  HolderLookup LookupHolder(Handle<JSObject> object,
+                            Handle<FunctionTemplateInfo> function_template_info,
+                            Handle<JSObject>* holder);
 
   Graph* graph() const;
   Flags flags() const { return flags_; }

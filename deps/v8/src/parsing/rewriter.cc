@@ -6,6 +6,7 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 
@@ -14,8 +15,8 @@ namespace internal {
 
 class Processor final : public AstVisitor<Processor> {
  public:
-  Processor(Isolate* isolate, DeclarationScope* closure_scope, Variable* result,
-            AstValueFactory* ast_value_factory)
+  Processor(uintptr_t stack_limit, DeclarationScope* closure_scope,
+            Variable* result, AstValueFactory* ast_value_factory)
       : result_(result),
         result_assigned_(false),
         replacement_(nullptr),
@@ -25,7 +26,7 @@ class Processor final : public AstVisitor<Processor> {
         closure_scope_(closure_scope),
         factory_(ast_value_factory) {
     DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
-    InitializeAstVisitor(isolate);
+    InitializeAstVisitor(stack_limit);
   }
 
   Processor(Parser* parser, DeclarationScope* closure_scope, Variable* result,
@@ -243,7 +244,6 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   // Only rewrite finally if it could contain 'break' or 'continue'. Always
   // rewrite try.
   if (breakable_) {
-    bool set_after = is_set_;
     // Only set result before a 'break' or 'continue'.
     is_set_ = true;
     Visit(node->finally_block());
@@ -265,7 +265,6 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
         0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
     node->finally_block()->statements()->Add(
         factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
-    is_set_ = set_after;
   }
   Visit(node->try_block());
   node->set_try_block(replacement_->AsBlock());
@@ -356,23 +355,36 @@ DECLARATION_NODE_LIST(DEF_VISIT)
 // Assumes code has been parsed.  Mutates the AST, so the AST should not
 // continue to be used in the case of failure.
 bool Rewriter::Rewrite(ParseInfo* info) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
+  RuntimeCallTimerScope runtimeTimer(
+      info->isolate(), &RuntimeCallStats::CompileRewriteReturnResult);
+
   FunctionLiteral* function = info->literal();
   DCHECK_NOT_NULL(function);
   Scope* scope = function->scope();
   DCHECK_NOT_NULL(scope);
   if (!scope->is_script_scope() && !scope->is_eval_scope()) return true;
+
   DeclarationScope* closure_scope = scope->GetClosureScope();
 
   ZoneList<Statement*>* body = function->body();
   if (!body->is_empty()) {
     Variable* result = closure_scope->NewTemporary(
         info->ast_value_factory()->dot_result_string());
-    // The name string must be internalized at this point.
-    info->ast_value_factory()->Internalize(info->isolate());
-    DCHECK(!result->name().is_null());
-    Processor processor(info->isolate(), closure_scope, result,
-                        info->ast_value_factory());
+    Processor processor(info->isolate()->stack_guard()->real_climit(),
+                        closure_scope, result, info->ast_value_factory());
     processor.Process(body);
+
+    // TODO(leszeks): Remove this check and releases once internalization is
+    // moved out of parsing/analysis.
+    DCHECK(ThreadId::Current().Equals(info->isolate()->thread_id()));
+    no_deref.Release();
+    no_handles.Release();
+    no_allocation.Release();
+
     // Internalize any values created during rewriting.
     info->ast_value_factory()->Internalize(info->isolate());
     if (processor.HasStackOverflow()) return false;
@@ -392,6 +404,10 @@ bool Rewriter::Rewrite(ParseInfo* info) {
 
 bool Rewriter::Rewrite(Parser* parser, DeclarationScope* closure_scope,
                        DoExpression* expr, AstValueFactory* factory) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
   Block* block = expr->block();
   DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
   DCHECK(block->scope() == nullptr ||

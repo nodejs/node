@@ -5,8 +5,8 @@
 #ifndef V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 #define V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 
-#include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
+#include "src/compiler/instruction.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/schedule.h"
 #include "src/macro-assembler.h"
@@ -345,10 +345,17 @@ class FlagsContinuation final {
     return FlagsContinuation(condition, result);
   }
 
+  // Creates a new flags continuation for a wasm trap.
+  static FlagsContinuation ForTrap(FlagsCondition condition,
+                                   Runtime::FunctionId trap_id, Node* result) {
+    return FlagsContinuation(condition, trap_id, result);
+  }
+
   bool IsNone() const { return mode_ == kFlags_none; }
   bool IsBranch() const { return mode_ == kFlags_branch; }
   bool IsDeoptimize() const { return mode_ == kFlags_deoptimize; }
   bool IsSet() const { return mode_ == kFlags_set; }
+  bool IsTrap() const { return mode_ == kFlags_trap; }
   FlagsCondition condition() const {
     DCHECK(!IsNone());
     return condition_;
@@ -364,6 +371,10 @@ class FlagsContinuation final {
   Node* result() const {
     DCHECK(IsSet());
     return frame_state_or_result_;
+  }
+  Runtime::FunctionId trap_id() const {
+    DCHECK(IsTrap());
+    return trap_id_;
   }
   BasicBlock* true_block() const {
     DCHECK(IsBranch());
@@ -437,6 +448,15 @@ class FlagsContinuation final {
     DCHECK_NOT_NULL(result);
   }
 
+  FlagsContinuation(FlagsCondition condition, Runtime::FunctionId trap_id,
+                    Node* result)
+      : mode_(kFlags_trap),
+        condition_(condition),
+        frame_state_or_result_(result),
+        trap_id_(trap_id) {
+    DCHECK_NOT_NULL(result);
+  }
+
   FlagsMode const mode_;
   FlagsCondition condition_;
   DeoptimizeReason reason_;      // Only value if mode_ == kFlags_deoptimize
@@ -444,6 +464,7 @@ class FlagsContinuation final {
                                  // or mode_ == kFlags_set.
   BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch.
   BasicBlock* false_block_;      // Only valid if mode_ == kFlags_branch.
+  Runtime::FunctionId trap_id_;  // Only valid if mode_ == kFlags_trap.
 };
 
 }  // namespace compiler

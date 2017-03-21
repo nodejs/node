@@ -54,11 +54,13 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
  private:
   Reduction ReduceJSInstanceOf(Node* node);
+  Reduction ReduceJSOrdinaryHasInstance(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
   Reduction ReduceJSStoreProperty(Node* node);
+  Reduction ReduceJSStoreDataPropertyInLiteral(Node* node);
 
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
                                 MapHandleList const& receiver_maps,
@@ -116,6 +118,9 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                         AccessMode access_mode,
                                         KeyedAccessStoreMode store_mode);
 
+  // Construct an appropriate heap object check.
+  Node* BuildCheckHeapObject(Node* receiver, Node** effect, Node* control);
+
   // Construct an appropriate map check.
   Node* BuildCheckMaps(Node* receiver, Node* effect, Node* control,
                        std::vector<Handle<Map>> const& maps);
@@ -146,7 +151,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
   ValueEffectControl InlineApiCall(
       Node* receiver, Node* context, Node* target, Node* frame_state,
-      ZoneVector<Node*>* stack_parameters, Node* effect, Node* control,
+      Node* parameter, Node* effect, Node* control,
       Handle<SharedFunctionInfo> shared_info,
       Handle<FunctionTemplateInfo> function_template_info);
 

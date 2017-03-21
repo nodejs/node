@@ -12,6 +12,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -201,7 +202,7 @@ class VirtualObject : public ZoneObject {
   }
   bool UpdateFrom(const VirtualObject& other);
   bool MergeFrom(MergeCache* cache, Node* at, Graph* graph,
-                 CommonOperatorBuilder* common);
+                 CommonOperatorBuilder* common, bool initialMerge);
   void SetObjectState(Node* node) { object_state_ = node; }
   Node* GetObjectState() const { return object_state_; }
   bool IsCopyRequired() const { return status_ & kCopyRequired; }
@@ -252,10 +253,14 @@ bool VirtualObject::UpdateFrom(const VirtualObject& other) {
 class VirtualState : public ZoneObject {
  public:
   VirtualState(Node* owner, Zone* zone, size_t size)
-      : info_(size, nullptr, zone), owner_(owner) {}
+      : info_(size, nullptr, zone),
+        initialized_(static_cast<int>(size), zone),
+        owner_(owner) {}
 
   VirtualState(Node* owner, const VirtualState& state)
       : info_(state.info_.size(), nullptr, state.info_.get_allocator().zone()),
+        initialized_(state.initialized_.length(),
+                     state.info_.get_allocator().zone()),
         owner_(owner) {
     for (size_t i = 0; i < info_.size(); ++i) {
       if (state.info_[i]) {
@@ -280,6 +285,7 @@ class VirtualState : public ZoneObject {
 
  private:
   ZoneVector<VirtualObject*> info_;
+  BitVector initialized_;
   Node* owner_;
 
   DISALLOW_COPY_AND_ASSIGN(VirtualState);
@@ -375,6 +381,7 @@ VirtualObject* VirtualState::VirtualObjectFromAlias(size_t alias) {
 
 void VirtualState::SetVirtualObject(Alias alias, VirtualObject* obj) {
   info_[alias] = obj;
+  if (obj) initialized_.Add(alias);
 }
 
 bool VirtualState::UpdateFrom(VirtualState* from, Zone* zone) {
@@ -431,7 +438,6 @@ bool IsEquivalentPhi(Node* phi, ZoneVector<Node*>& inputs) {
   }
   return true;
 }
-
 }  // namespace
 
 bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
@@ -440,12 +446,21 @@ bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
   int value_input_count = static_cast<int>(cache->fields().size());
   Node* rep = GetField(i);
   if (!rep || !IsCreatedPhi(i)) {
+    Type* phi_type = Type::None();
+    for (Node* input : cache->fields()) {
+      CHECK_NOT_NULL(input);
+      CHECK(!input->IsDead());
+      Type* input_type = NodeProperties::GetType(input);
+      phi_type = Type::Union(phi_type, input_type, graph->zone());
+    }
     Node* control = NodeProperties::GetControlInput(at);
     cache->fields().push_back(control);
     Node* phi = graph->NewNode(
         common->Phi(MachineRepresentation::kTagged, value_input_count),
         value_input_count + 1, &cache->fields().front());
+    NodeProperties::SetType(phi, phi_type);
     SetField(i, phi, true);
+
 #ifdef DEBUG
     if (FLAG_trace_turbo_escape) {
       PrintF("    Creating Phi #%d as merge of", phi->id());
@@ -471,12 +486,15 @@ bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
 }
 
 bool VirtualObject::MergeFrom(MergeCache* cache, Node* at, Graph* graph,
-                              CommonOperatorBuilder* common) {
+                              CommonOperatorBuilder* common,
+                              bool initialMerge) {
   DCHECK(at->opcode() == IrOpcode::kEffectPhi ||
          at->opcode() == IrOpcode::kPhi);
   bool changed = false;
   for (size_t i = 0; i < field_count(); ++i) {
-    if (Node* field = cache->GetFields(i)) {
+    if (!initialMerge && GetField(i) == nullptr) continue;
+    Node* field = cache->GetFields(i);
+    if (field && !IsCreatedPhi(i)) {
       changed = changed || GetField(i) != field;
       SetField(i, field);
       TRACE("    Field %zu agree on rep #%d\n", i, field->id());
@@ -516,8 +534,11 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
         fields = std::min(obj->field_count(), fields);
       }
     }
-    if (cache->objects().size() == cache->states().size()) {
+    if (cache->objects().size() == cache->states().size() &&
+        (mergeObject || !initialized_.Contains(alias))) {
+      bool initialMerge = false;
       if (!mergeObject) {
+        initialMerge = true;
         VirtualObject* obj = new (zone)
             VirtualObject(cache->objects().front()->id(), this, zone, fields,
                           cache->objects().front()->IsInitialized());
@@ -542,7 +563,9 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
         PrintF("\n");
       }
 #endif  // DEBUG
-      changed = mergeObject->MergeFrom(cache, at, graph, common) || changed;
+      changed =
+          mergeObject->MergeFrom(cache, at, graph, common, initialMerge) ||
+          changed;
     } else {
       if (mergeObject) {
         TRACE("  Alias %d, virtual object removed\n", alias);
@@ -795,6 +818,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kSelect:
       // TODO(mstarzinger): The following list of operators will eventually be
       // handled by the EscapeAnalysisReducer (similar to ObjectIsSmi).
+      case IrOpcode::kConvertTaggedHoleToUndefined:
       case IrOpcode::kStringEqual:
       case IrOpcode::kStringLessThan:
       case IrOpcode::kStringLessThanOrEqual:
@@ -802,6 +826,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kPlainPrimitiveToNumber:
       case IrOpcode::kPlainPrimitiveToWord32:
       case IrOpcode::kPlainPrimitiveToFloat64:
+      case IrOpcode::kStringCharAt:
       case IrOpcode::kStringCharCodeAt:
       case IrOpcode::kObjectIsCallable:
       case IrOpcode::kObjectIsNumber:
@@ -863,7 +888,11 @@ EscapeAnalysis::EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common,
       virtual_states_(zone),
       replacements_(zone),
       cycle_detection_(zone),
-      cache_(nullptr) {}
+      cache_(nullptr) {
+  // Type slot_not_analyzed_ manually.
+  double v = OpParameter<double>(slot_not_analyzed_);
+  NodeProperties::SetType(slot_not_analyzed_, Type::Range(v, v, zone));
+}
 
 EscapeAnalysis::~EscapeAnalysis() {}
 
@@ -966,6 +995,7 @@ void EscapeAnalysis::RunObjectAnalysis() {
           // VirtualObjects, and we want to delay phis to improve performance.
           if (use->opcode() == IrOpcode::kEffectPhi) {
             if (!status_analysis_->IsInQueue(use->id())) {
+              status_analysis_->SetInQueue(use->id(), true);
               queue.push_front(use);
             }
           } else if ((use->opcode() != IrOpcode::kLoadField &&
@@ -1044,6 +1074,19 @@ bool EscapeStatusAnalysis::IsEffectBranchPoint(Node* node) {
   return false;
 }
 
+namespace {
+
+bool HasFrameStateInput(const Operator* op) {
+  if (op->opcode() == IrOpcode::kCall || op->opcode() == IrOpcode::kTailCall) {
+    const CallDescriptor* d = CallDescriptorOf(op);
+    return d->NeedsFrameState();
+  } else {
+    return OperatorProperties::HasFrameStateInput(op);
+  }
+}
+
+}  // namespace
+
 bool EscapeAnalysis::Process(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kAllocate:
@@ -1079,6 +1122,9 @@ bool EscapeAnalysis::Process(Node* node) {
       }
       ProcessAllocationUsers(node);
       break;
+  }
+  if (HasFrameStateInput(node->op())) {
+    virtual_states_[node->id()]->SetCopyRequired();
   }
   return true;
 }
@@ -1173,8 +1219,7 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
           static_cast<void*>(virtual_states_[effect->id()]),
           effect->op()->mnemonic(), effect->id(), node->op()->mnemonic(),
           node->id());
-    if (status_analysis_->IsEffectBranchPoint(effect) ||
-        OperatorProperties::HasFrameStateInput(node->op())) {
+    if (status_analysis_->IsEffectBranchPoint(effect)) {
       virtual_states_[node->id()]->SetCopyRequired();
       TRACE(", effect input %s#%d is branch point", effect->op()->mnemonic(),
             effect->id());
@@ -1393,10 +1438,16 @@ void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* load,
       Node* rep = replacement(load);
       if (!rep || !IsEquivalentPhi(rep, cache_->fields())) {
         int value_input_count = static_cast<int>(cache_->fields().size());
+        Type* phi_type = Type::None();
+        for (Node* input : cache_->fields()) {
+          Type* input_type = NodeProperties::GetType(input);
+          phi_type = Type::Union(phi_type, input_type, graph()->zone());
+        }
         cache_->fields().push_back(NodeProperties::GetControlInput(from));
         Node* phi = graph()->NewNode(
             common()->Phi(MachineRepresentation::kTagged, value_input_count),
             value_input_count + 1, &cache_->fields().front());
+        NodeProperties::SetType(phi, phi_type);
         status_analysis_->ResizeStatusVector();
         SetReplacement(load, phi);
         TRACE(" got phi created.\n");
@@ -1583,13 +1634,14 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
         cache_->fields().clear();
         for (size_t i = 0; i < vobj->field_count(); ++i) {
           if (Node* field = vobj->GetField(i)) {
-            cache_->fields().push_back(field);
+            cache_->fields().push_back(ResolveReplacement(field));
           }
         }
         int input_count = static_cast<int>(cache_->fields().size());
         Node* new_object_state =
             graph()->NewNode(common()->ObjectState(input_count), input_count,
                              &cache_->fields().front());
+        NodeProperties::SetType(new_object_state, Type::OtherInternal());
         vobj->SetObjectState(new_object_state);
         TRACE(
             "Creating object state #%d for vobj %p (from node #%d) at effect "

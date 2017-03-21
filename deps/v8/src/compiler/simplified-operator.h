@@ -14,6 +14,7 @@
 #include "src/handles.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
+#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {
@@ -64,6 +65,7 @@ struct FieldAccess {
   BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
   int offset;                     // offset of the field, without tag.
   MaybeHandle<Name> name;         // debugging only.
+  MaybeHandle<Map> map;           // map of the field value (if known).
   Type* type;                     // type of the field.
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
@@ -143,6 +145,41 @@ std::ostream& operator<<(std::ostream&, CheckForMinusZeroMode);
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*) WARN_UNUSED_RESULT;
 
+// Flags for map checks.
+enum class CheckMapsFlag : uint8_t {
+  kNone = 0u,
+  kTryMigrateInstance = 1u << 0,  // Try instance migration.
+};
+typedef base::Flags<CheckMapsFlag> CheckMapsFlags;
+
+DEFINE_OPERATORS_FOR_FLAGS(CheckMapsFlags)
+
+std::ostream& operator<<(std::ostream&, CheckMapsFlags);
+
+// A descriptor for map checks.
+class CheckMapsParameters final {
+ public:
+  CheckMapsParameters(CheckMapsFlags flags, ZoneHandleSet<Map> const& maps)
+      : flags_(flags), maps_(maps) {}
+
+  CheckMapsFlags flags() const { return flags_; }
+  ZoneHandleSet<Map> const& maps() const { return maps_; }
+
+ private:
+  CheckMapsFlags const flags_;
+  ZoneHandleSet<Map> const maps_;
+};
+
+bool operator==(CheckMapsParameters const&, CheckMapsParameters const&);
+bool operator!=(CheckMapsParameters const&, CheckMapsParameters const&);
+
+size_t hash_value(CheckMapsParameters const&);
+
+std::ostream& operator<<(std::ostream&, CheckMapsParameters const&);
+
+CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
+    WARN_UNUSED_RESULT;
+
 // A descriptor for growing elements backing stores.
 enum class GrowFastElementsFlag : uint8_t {
   kNone = 0u,
@@ -160,16 +197,35 @@ GrowFastElementsFlags GrowFastElementsFlagsOf(const Operator*)
     WARN_UNUSED_RESULT;
 
 // A descriptor for elements kind transitions.
-enum class ElementsTransition : uint8_t {
-  kFastTransition,  // simple transition, just updating the map.
-  kSlowTransition   // full transition, round-trip to the runtime.
+class ElementsTransition final {
+ public:
+  enum Mode : uint8_t {
+    kFastTransition,  // simple transition, just updating the map.
+    kSlowTransition   // full transition, round-trip to the runtime.
+  };
+
+  ElementsTransition(Mode mode, Handle<Map> source, Handle<Map> target)
+      : mode_(mode), source_(source), target_(target) {}
+
+  Mode mode() const { return mode_; }
+  Handle<Map> source() const { return source_; }
+  Handle<Map> target() const { return target_; }
+
+ private:
+  Mode const mode_;
+  Handle<Map> const source_;
+  Handle<Map> const target_;
 };
+
+bool operator==(ElementsTransition const&, ElementsTransition const&);
+bool operator!=(ElementsTransition const&, ElementsTransition const&);
 
 size_t hash_value(ElementsTransition);
 
 std::ostream& operator<<(std::ostream&, ElementsTransition);
 
-ElementsTransition ElementsTransitionOf(const Operator* op) WARN_UNUSED_RESULT;
+ElementsTransition const& ElementsTransitionOf(const Operator* op)
+    WARN_UNUSED_RESULT;
 
 // A hint for speculative number operations.
 enum class NumberOperationHint : uint8_t {
@@ -185,6 +241,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, NumberOperationHint);
 
 NumberOperationHint NumberOperationHintOf(const Operator* op)
     WARN_UNUSED_RESULT;
+
+int ParameterCountOf(const Operator* op) WARN_UNUSED_RESULT;
 
 PretenureFlag PretenureFlagOf(const Operator* op) WARN_UNUSED_RESULT;
 
@@ -294,6 +352,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringEqual();
   const Operator* StringLessThan();
   const Operator* StringLessThanOrEqual();
+  const Operator* StringCharAt();
   const Operator* StringCharCodeAt();
   const Operator* StringFromCharCode();
   const Operator* StringFromCodePoint(UnicodeEncoding encoding);
@@ -319,9 +378,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* CheckIf();
   const Operator* CheckBounds();
-  const Operator* CheckMaps(int map_input_count);
+  const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>);
 
   const Operator* CheckHeapObject();
+  const Operator* CheckInternalizedString();
   const Operator* CheckNumber();
   const Operator* CheckSmi();
   const Operator* CheckString();
@@ -354,6 +414,12 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ObjectIsSmi();
   const Operator* ObjectIsString();
   const Operator* ObjectIsUndetectable();
+
+  // new-rest-parameter-elements
+  const Operator* NewRestParameterElements(int parameter_count);
+
+  // new-unmapped-arguments-elements
+  const Operator* NewUnmappedArgumentsElements(int parameter_count);
 
   // array-buffer-was-neutered buffer
   const Operator* ArrayBufferWasNeutered();

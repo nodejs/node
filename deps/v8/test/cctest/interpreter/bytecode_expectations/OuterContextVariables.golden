@@ -26,7 +26,7 @@ bytecodes: [
   /*  102 S> */ B(LdaContextSlot), R(context), U8(4), U8(1),
                 B(Star), R(0),
                 B(LdaCurrentContextSlot), U8(4),
-  /*  120 E> */ B(Mul), R(0), U8(2),
+  /*  118 E> */ B(Mul), R(0), U8(2),
   /*  130 S> */ B(Return),
 ]
 constant pool: [

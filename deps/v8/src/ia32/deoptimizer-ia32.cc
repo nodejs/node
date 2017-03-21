@@ -164,8 +164,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // Right trim the relocation info to free up remaining space.
   const int delta = reloc_info->length() - new_reloc_length;
   if (delta > 0) {
-    isolate->heap()->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(
-        reloc_info, delta);
+    isolate->heap()->RightTrimFixedArray(reloc_info, delta);
   }
 }
 

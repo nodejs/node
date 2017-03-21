@@ -125,6 +125,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Inc32:
     case kX64Int32x4Create:
     case kX64Int32x4ExtractLane:
+    case kX64Int32x4ReplaceLane:
+    case kX64Int32x4Add:
+    case kX64Int32x4Sub:
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;
@@ -155,7 +158,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
       return kHasSideEffect;
 
     case kX64Movl:
-    case kX64TrapMovl:
       if (instr->HasOutput()) {
         DCHECK(instr->InputCount() >= 1);
         return instr->InputAt(0)->IsRegister() ? kNoOpcodeFlags

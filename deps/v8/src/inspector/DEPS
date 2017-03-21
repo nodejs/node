@@ -4,6 +4,7 @@ include_rules = [
   "+src/base/macros.h",
   "+src/base/logging.h",
   "+src/base/platform/platform.h",
+  "+src/conversions.h",
   "+src/inspector",
   "+src/tracing",
   "-include/v8-debug.h",

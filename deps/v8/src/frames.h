@@ -29,9 +29,10 @@ int JSCallerSavedCode(int n);
 
 // Forward declarations.
 class ExternalCallbackScope;
+class Isolate;
 class StackFrameIteratorBase;
 class ThreadLocalTop;
-class Isolate;
+class WasmInstanceObject;
 
 class InnerPointerToCodeCache {
  public:
@@ -66,13 +67,6 @@ class InnerPointerToCodeCache {
 };
 
 
-// Every try-block pushes the context register.
-class TryBlockConstant : public AllStatic {
- public:
-  static const int kElementCount = 1;
-};
-
-
 class StackHandlerConstants : public AllStatic {
  public:
   static const int kNextOffset = 0 * kPointerSize;
@@ -103,9 +97,10 @@ class StackHandler BASE_EMBEDDED {
   V(EXIT, ExitFrame)                                     \
   V(JAVA_SCRIPT, JavaScriptFrame)                        \
   V(OPTIMIZED, OptimizedFrame)                           \
-  V(WASM, WasmFrame)                                     \
+  V(WASM_COMPILED, WasmCompiledFrame)                    \
   V(WASM_TO_JS, WasmToJsFrame)                           \
   V(JS_TO_WASM, JsToWasmFrame)                           \
+  V(WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame)   \
   V(INTERPRETED, InterpretedFrame)                       \
   V(STUB, StubFrame)                                     \
   V(STUB_FAILURE_TRAMPOLINE, StubFailureTrampolineFrame) \
@@ -448,12 +443,11 @@ class StackFrame BASE_EMBEDDED {
   };
 
   struct State {
-    State() : sp(NULL), fp(NULL), pc_address(NULL),
-              constant_pool_address(NULL) { }
-    Address sp;
-    Address fp;
-    Address* pc_address;
-    Address* constant_pool_address;
+    Address sp = nullptr;
+    Address fp = nullptr;
+    Address* pc_address = nullptr;
+    Address* callee_pc_address = nullptr;
+    Address* constant_pool_address = nullptr;
   };
 
   // Copy constructor; it breaks the connection to host iterator
@@ -470,9 +464,12 @@ class StackFrame BASE_EMBEDDED {
   bool is_exit() const { return type() == EXIT; }
   bool is_optimized() const { return type() == OPTIMIZED; }
   bool is_interpreted() const { return type() == INTERPRETED; }
-  bool is_wasm() const { return type() == WASM; }
+  bool is_wasm_compiled() const { return type() == WASM_COMPILED; }
   bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
   bool is_js_to_wasm() const { return type() == JS_TO_WASM; }
+  bool is_wasm_interpreter_entry() const {
+    return type() == WASM_INTERPRETER_ENTRY;
+  }
   bool is_arguments_adaptor() const { return type() == ARGUMENTS_ADAPTOR; }
   bool is_builtin() const { return type() == BUILTIN; }
   bool is_internal() const { return type() == INTERNAL; }
@@ -488,10 +485,17 @@ class StackFrame BASE_EMBEDDED {
     return (type == JAVA_SCRIPT) || (type == OPTIMIZED) ||
            (type == INTERPRETED) || (type == BUILTIN);
   }
+  bool is_wasm() const {
+    Type type = this->type();
+    return type == WASM_COMPILED || type == WASM_INTERPRETER_ENTRY;
+  }
 
   // Accessors.
   Address sp() const { return state_.sp; }
   Address fp() const { return state_.fp; }
+  Address callee_pc() const {
+    return state_.callee_pc_address ? *state_.callee_pc_address : nullptr;
+  }
   Address caller_sp() const { return GetCallerStackPointer(); }
 
   // If this frame is optimized and was dynamically aligned return its old
@@ -733,7 +737,7 @@ class BuiltinExitFrame : public ExitFrame {
   friend class StackFrameIteratorBase;
 };
 
-class JavaScriptFrame;
+class StandardFrame;
 
 class FrameSummary BASE_EMBEDDED {
  public:
@@ -744,26 +748,154 @@ class FrameSummary BASE_EMBEDDED {
   // information, but it might miss frames.
   enum Mode { kExactSummary, kApproximateSummary };
 
-  FrameSummary(Object* receiver, JSFunction* function,
-               AbstractCode* abstract_code, int code_offset,
-               bool is_constructor, Mode mode = kExactSummary);
+// Subclasses for the different summary kinds:
+#define FRAME_SUMMARY_VARIANTS(F)                                             \
+  F(JAVA_SCRIPT, JavaScriptFrameSummary, java_script_summary_, JavaScript)    \
+  F(WASM_COMPILED, WasmCompiledFrameSummary, wasm_compiled_summary_,          \
+    WasmCompiled)                                                             \
+  F(WASM_INTERPRETED, WasmInterpretedFrameSummary, wasm_interpreted_summary_, \
+    WasmInterpreted)
 
-  static FrameSummary GetFirst(JavaScriptFrame* frame);
+#define FRAME_SUMMARY_KIND(kind, type, field, desc) kind,
+  enum Kind { FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_KIND) };
+#undef FRAME_SUMMARY_KIND
 
-  Handle<Object> receiver() const { return receiver_; }
-  Handle<JSFunction> function() const { return function_; }
-  Handle<AbstractCode> abstract_code() const { return abstract_code_; }
-  int code_offset() const { return code_offset_; }
-  bool is_constructor() const { return is_constructor_; }
+  class FrameSummaryBase {
+   public:
+    FrameSummaryBase(Isolate* isolate, Kind kind)
+        : isolate_(isolate), kind_(kind) {}
+    Isolate* isolate() const { return isolate_; }
+    Kind kind() const { return kind_; }
 
-  void Print();
+   private:
+    Isolate* isolate_;
+    Kind kind_;
+  };
+
+  class JavaScriptFrameSummary : public FrameSummaryBase {
+   public:
+    JavaScriptFrameSummary(Isolate* isolate, Object* receiver,
+                           JSFunction* function, AbstractCode* abstract_code,
+                           int code_offset, bool is_constructor,
+                           Mode mode = kExactSummary);
+
+    Handle<Object> receiver() const { return receiver_; }
+    Handle<JSFunction> function() const { return function_; }
+    Handle<AbstractCode> abstract_code() const { return abstract_code_; }
+    int code_offset() const { return code_offset_; }
+    bool is_constructor() const { return is_constructor_; }
+    bool is_subject_to_debugging() const;
+    int SourcePosition() const;
+    int SourceStatementPosition() const;
+    Handle<Object> script() const;
+    Handle<String> FunctionName() const;
+    Handle<Context> native_context() const;
+
+   private:
+    Handle<Object> receiver_;
+    Handle<JSFunction> function_;
+    Handle<AbstractCode> abstract_code_;
+    int code_offset_;
+    bool is_constructor_;
+  };
+
+  class WasmFrameSummary : public FrameSummaryBase {
+   protected:
+    WasmFrameSummary(Isolate*, Kind, Handle<WasmInstanceObject>,
+                     bool at_to_number_conversion);
+
+   public:
+    Handle<Object> receiver() const;
+    uint32_t function_index() const;
+    int byte_offset() const;
+    bool is_constructor() const { return false; }
+    bool is_subject_to_debugging() const { return true; }
+    int SourcePosition() const;
+    int SourceStatementPosition() const { return SourcePosition(); }
+    Handle<Script> script() const;
+    Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
+    Handle<String> FunctionName() const;
+    Handle<Context> native_context() const;
+    bool at_to_number_conversion() const { return at_to_number_conversion_; }
+
+   private:
+    Handle<WasmInstanceObject> wasm_instance_;
+    bool at_to_number_conversion_;
+  };
+
+  class WasmCompiledFrameSummary : public WasmFrameSummary {
+   public:
+    WasmCompiledFrameSummary(Isolate*, Handle<WasmInstanceObject>, Handle<Code>,
+                             int code_offset, bool at_to_number_conversion);
+    uint32_t function_index() const;
+    Handle<Code> code() const { return code_; }
+    int code_offset() const { return code_offset_; }
+    int byte_offset() const;
+
+   private:
+    Handle<Code> code_;
+    int code_offset_;
+  };
+
+  class WasmInterpretedFrameSummary : public WasmFrameSummary {
+   public:
+    WasmInterpretedFrameSummary(Isolate*, Handle<WasmInstanceObject>,
+                                uint32_t function_index, int byte_offset);
+    uint32_t function_index() const { return function_index_; }
+    int code_offset() const { return byte_offset_; }
+    int byte_offset() const { return byte_offset_; }
+
+   private:
+    uint32_t function_index_;
+    int byte_offset_;
+  };
+
+#undef FRAME_SUMMARY_FIELD
+#define FRAME_SUMMARY_CONS(kind, type, field, desc) \
+  FrameSummary(type summ) : field(summ) {}  // NOLINT
+  FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_CONS)
+#undef FRAME_SUMMARY_CONS
+
+  ~FrameSummary();
+
+  static inline FrameSummary GetFirst(const StandardFrame* frame) {
+    return Get(frame, 0);
+  }
+  static FrameSummary Get(const StandardFrame* frame, int index);
+  static FrameSummary GetSingle(const StandardFrame* frame);
+
+  // Dispatched accessors.
+  Handle<Object> receiver() const;
+  int code_offset() const;
+  bool is_constructor() const;
+  bool is_subject_to_debugging() const;
+  Handle<Object> script() const;
+  int SourcePosition() const;
+  int SourceStatementPosition() const;
+  Handle<String> FunctionName() const;
+  Handle<Context> native_context() const;
+
+#define FRAME_SUMMARY_CAST(kind_, type, field, desc)      \
+  bool Is##desc() const { return base_.kind() == kind_; } \
+  const type& As##desc() const {                          \
+    DCHECK_EQ(base_.kind(), kind_);                       \
+    return field;                                         \
+  }
+  FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_CAST)
+#undef FRAME_SUMMARY_CAST
+
+  bool IsWasm() const { return IsWasmCompiled() || IsWasmInterpreted(); }
+  const WasmFrameSummary& AsWasm() const {
+    if (IsWasmCompiled()) return AsWasmCompiled();
+    return AsWasmInterpreted();
+  }
 
  private:
-  Handle<Object> receiver_;
-  Handle<JSFunction> function_;
-  Handle<AbstractCode> abstract_code_;
-  int code_offset_;
-  bool is_constructor_;
+#define FRAME_SUMMARY_FIELD(kind, type, field, desc) type field;
+  union {
+    FrameSummaryBase base_;
+    FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_FIELD)
+  };
 };
 
 class StandardFrame : public StackFrame {
@@ -790,6 +922,11 @@ class StandardFrame : public StackFrame {
 
   // Check if this frame is a constructor frame invoked through 'new'.
   virtual bool IsConstructor() const;
+
+  // Build a list with summaries for this frame including all inlined frames.
+  virtual void Summarize(
+      List<FrameSummary>* frames,
+      FrameSummary::Mode mode = FrameSummary::kExactSummary) const;
 
   static StandardFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_standard());
@@ -840,10 +977,9 @@ class JavaScriptFrame : public StandardFrame {
  public:
   Type type() const override { return JAVA_SCRIPT; }
 
-  // Build a list with summaries for this frame including all inlined frames.
-  virtual void Summarize(
+  void Summarize(
       List<FrameSummary>* frames,
-      FrameSummary::Mode mode = FrameSummary::kExactSummary) const;
+      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
 
   // Accessors.
   virtual JSFunction* function() const;
@@ -862,9 +998,6 @@ class JavaScriptFrame : public StandardFrame {
   inline Address GetOperandSlot(int index) const;
   inline Object* GetOperand(int index) const;
   inline int ComputeOperandsCount() const;
-
-  // Generator support to preserve operand stack.
-  void SaveOperandStack(FixedArray* store) const;
 
   // Debugger access.
   void SetParameterValue(int index, Object* value) const;
@@ -892,12 +1025,11 @@ class JavaScriptFrame : public StandardFrame {
   // Determine the code for the frame.
   Code* unchecked_code() const override;
 
-  // Return a list with JSFunctions of this frame.
-  virtual void GetFunctions(List<JSFunction*>* functions) const;
+  // Return a list with {SharedFunctionInfo} objects of this frame.
+  virtual void GetFunctions(List<SharedFunctionInfo*>* functions) const;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
-  //  - JavaScriptFrame : Data is the stack depth at entry of the try-block.
   //  - OptimizedFrame  : Data is the stack slot count of the entire frame.
   //  - InterpretedFrame: Data is the register index holding the context.
   virtual int LookupExceptionHandlerInTable(
@@ -919,6 +1051,11 @@ class JavaScriptFrame : public StandardFrame {
 
   static void PrintTop(Isolate* isolate, FILE* file, bool print_args,
                        bool print_line_number);
+
+  static void CollectFunctionAndOffsetForICStats(JSFunction* function,
+                                                 AbstractCode* code,
+                                                 int code_offset);
+  static void CollectTopFrameForICStats(Isolate* isolate);
 
  protected:
   inline explicit JavaScriptFrame(StackFrameIteratorBase* iterator);
@@ -968,10 +1105,10 @@ class OptimizedFrame : public JavaScriptFrame {
   // GC support.
   void Iterate(ObjectVisitor* v) const override;
 
-  // Return a list with JSFunctions of this frame.
+  // Return a list with {SharedFunctionInfo} objects of this frame.
   // The functions are ordered bottom-to-top (i.e. functions.last()
   // is the top-most activation)
-  void GetFunctions(List<JSFunction*>* functions) const override;
+  void GetFunctions(List<SharedFunctionInfo*>* functions) const override;
 
   void Summarize(
       List<FrameSummary>* frames,
@@ -1094,9 +1231,9 @@ class BuiltinFrame final : public JavaScriptFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmFrame : public StandardFrame {
+class WasmCompiledFrame : public StandardFrame {
  public:
-  Type type() const override { return WASM; }
+  Type type() const override { return WASM_COMPILED; }
 
   // GC support.
   void Iterate(ObjectVisitor* v) const override;
@@ -1113,18 +1250,59 @@ class WasmFrame : public StandardFrame {
   Code* unchecked_code() const override;
 
   // Accessors.
-  Object* wasm_instance() const;
+  WasmInstanceObject* wasm_instance() const;
   uint32_t function_index() const;
   Script* script() const override;
   int position() const override;
+  bool at_to_number_conversion() const;
 
-  static WasmFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_wasm());
-    return static_cast<WasmFrame*>(frame);
+  void Summarize(List<FrameSummary>* frames,
+                 FrameSummary::Mode mode) const override;
+
+  static WasmCompiledFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_wasm_compiled());
+    return static_cast<WasmCompiledFrame*>(frame);
   }
 
  protected:
-  inline explicit WasmFrame(StackFrameIteratorBase* iterator);
+  inline explicit WasmCompiledFrame(StackFrameIteratorBase* iterator);
+
+  Address GetCallerStackPointer() const override;
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class WasmInterpreterEntryFrame : public StandardFrame {
+ public:
+  Type type() const override { return WASM_INTERPRETER_ENTRY; }
+
+  // GC support.
+  void Iterate(ObjectVisitor* v) const override;
+
+  // Printing support.
+  void Print(StringStream* accumulator, PrintMode mode,
+             int index) const override;
+
+  void Summarize(
+      List<FrameSummary>* frames,
+      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
+
+  // Determine the code for the frame.
+  Code* unchecked_code() const override;
+
+  // Accessors.
+  WasmInstanceObject* wasm_instance() const;
+  Script* script() const override;
+  int position() const override;
+
+  static WasmInterpreterEntryFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_wasm_interpreter_entry());
+    return static_cast<WasmInterpreterEntryFrame*>(frame);
+  }
+
+ protected:
+  inline explicit WasmInterpreterEntryFrame(StackFrameIteratorBase* iterator);
 
   Address GetCallerStackPointer() const override;
 
@@ -1315,7 +1493,6 @@ class StackTraceFrameIterator BASE_EMBEDDED {
   inline bool is_javascript() const;
   inline bool is_wasm() const;
   inline JavaScriptFrame* javascript_frame() const;
-  inline WasmFrame* wasm_frame() const;
 
   // Advance to the frame holding the arguments for the current
   // frame. This only affects the current frame if it is a javascript frame and

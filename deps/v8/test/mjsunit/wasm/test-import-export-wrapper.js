@@ -21,7 +21,7 @@ var expect_no_elison = 1;
     var second_module = new WasmModuleBuilder();
     var sig_index = second_module.addType(kSig_i_i);
     second_module
-        .addImportWithModule("import_module_2", "import_name_2", sig_index);
+        .addImport("import_module_2", "import_name_2", sig_index);
     second_module
         .addFunction("second_export", sig_index)
         .addBody([
@@ -34,7 +34,7 @@ var expect_no_elison = 1;
     var first_module = new WasmModuleBuilder();
     var sig_index = first_module.addType(kSig_i_i);
     first_module
-        .addImportWithModule("import_module_1", "import_name_1", sig_index);
+        .addImport("import_module_1", "import_name_1", sig_index);
     first_module
         .addFunction("first_export", sig_index)
         .addBody([
@@ -81,7 +81,7 @@ var expect_no_elison = 1;
  var sig_index1 = second_module.addType(kSig_i_i);
  var sig_index_ll = second_module.addType(kSig_l_l);
  second_module
-     .addImportWithModule("import_module_2", "import_name_2", sig_index1);
+     .addImport("import_module_2", "import_name_2", sig_index1);
  second_module
      .addFunction("second_export", sig_index_ll)
      .addBody([
@@ -97,7 +97,7 @@ var expect_no_elison = 1;
  var sig_index = first_module.addType(kSig_i_v);
  var sig_index_ll = first_module.addType(kSig_l_l);
  first_module
-     .addImportWithModule("import_module_1", "import_name_1", sig_index_ll);
+     .addImport("import_module_1", "import_name_1", sig_index_ll);
  first_module
      .addFunction("first_export", sig_index)
      .addBody([
@@ -138,7 +138,7 @@ assertThrows(function TestWasmWrapperNoElisionLessParams() {
     var second_module = new WasmModuleBuilder();
     var sig_index_1 = second_module.addType(kSig_i_i);
     second_module
-        .addImportWithModule("import_module_2", "import_name_2", sig_index_1);
+        .addImport("import_module_2", "import_name_2", sig_index_1);
     second_module
         .addFunction("second_export", sig_index_1)
         .addBody([
@@ -151,7 +151,7 @@ assertThrows(function TestWasmWrapperNoElisionLessParams() {
     var first_module = new WasmModuleBuilder();
     var sig_index_2 = first_module.addType(kSig_i_ii);
     first_module
-        .addImportWithModule("import_module_1", "import_name_1", sig_index_2);
+        .addImport("import_module_1", "import_name_1", sig_index_2);
     first_module
         .addFunction("first_export", sig_index_2)
         .addBody([
@@ -195,7 +195,7 @@ assertThrows(function TestWasmWrapperNoElisionMoreParams() {
     var second_module = new WasmModuleBuilder();
     var sig_index_3 = second_module.addType(kSig_i_iii);
     second_module
-        .addImportWithModule("import_module_2", "import_name_2", sig_index_3);
+        .addImport("import_module_2", "import_name_2", sig_index_3);
     second_module
         .addFunction("second_export", sig_index_3)
         .addBody([
@@ -210,7 +210,7 @@ assertThrows(function TestWasmWrapperNoElisionMoreParams() {
     var first_module = new WasmModuleBuilder();
     var sig_index_2 = first_module.addType(kSig_i_ii);
     first_module
-        .addImportWithModule("import_module_1", "import_name_1", sig_index_2);
+        .addImport("import_module_1", "import_name_1", sig_index_2);
     first_module
         .addFunction("first_export", sig_index_2)
         .addBody([
@@ -254,7 +254,7 @@ assertThrows(function TestWasmWrapperNoElisionTypeMismatch() {
     var second_module = new WasmModuleBuilder();
     var sig_index_2 = second_module.addType(kSig_d_dd);
     second_module
-        .addImportWithModule("import_module_2", "import_name_2", sig_index_2);
+        .addImport("import_module_2", "import_name_2", sig_index_2);
     second_module
         .addFunction("second_export", sig_index_2)
         .addBody([
@@ -268,7 +268,7 @@ assertThrows(function TestWasmWrapperNoElisionTypeMismatch() {
     var first_module = new WasmModuleBuilder();
     var sig_index_2 = first_module.addType(kSig_i_ii);
     first_module
-        .addImportWithModule("import_module_1", "import_name_1", sig_index_2);
+        .addImport("import_module_1", "import_name_1", sig_index_2);
     first_module
         .addFunction("first_export", sig_index_2)
         .addBody([

@@ -17,7 +17,7 @@ enum PointerDirection { OLD_TO_OLD, OLD_TO_NEW };
 
 // TODO(ulan): Investigate performance of de-templatizing this class.
 template <PointerDirection direction>
-class RememberedSet {
+class RememberedSet : public AllStatic {
  public:
   // Given a page and a slot in that page, this function adds the slot to the
   // remembered set.
@@ -29,6 +29,19 @@ class RememberedSet {
     }
     uintptr_t offset = slot_addr - chunk->address();
     slot_set[offset / Page::kPageSize].Insert(offset % Page::kPageSize);
+  }
+
+  // Given a page and a slot in that page, this function returns true if
+  // the remembered set contains the slot.
+  static bool Contains(MemoryChunk* chunk, Address slot_addr) {
+    DCHECK(chunk->Contains(slot_addr));
+    SlotSet* slot_set = GetSlotSet(chunk);
+    if (slot_set == nullptr) {
+      return false;
+    }
+    uintptr_t offset = slot_addr - chunk->address();
+    return slot_set[offset / Page::kPageSize].Contains(offset %
+                                                       Page::kPageSize);
   }
 
   // Given a page and a slot in that page, this function removes the slot from

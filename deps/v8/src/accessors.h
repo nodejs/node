@@ -43,7 +43,6 @@ class AccessorInfo;
   V(ScriptType)                   \
   V(ScriptSourceUrl)              \
   V(ScriptSourceMappingUrl)       \
-  V(ScriptIsEmbedderDebugScript)  \
   V(StringLength)
 
 #define ACCESSOR_SETTER_LIST(V) \

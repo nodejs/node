@@ -83,7 +83,10 @@ class LiveEdit : AllStatic {
   static void ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
                                   Handle<JSArray> shared_info_array);
 
-  static void FunctionSourceUpdated(Handle<JSArray> shared_info_array);
+  static void FixupScript(Handle<Script> script, int max_function_literal_id);
+
+  static void FunctionSourceUpdated(Handle<JSArray> shared_info_array,
+                                    int new_function_literal_id);
 
   // Updates script field in FunctionSharedInfo.
   static void SetFunctionScript(Handle<JSValue> function_wrapper,
@@ -278,7 +281,7 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
 
   void SetInitialProperties(Handle<String> name, int start_position,
                             int end_position, int param_num, int literal_count,
-                            int parent_index);
+                            int parent_index, int function_literal_id);
 
   void SetFunctionScopeInfo(Handle<Object> scope_info_array) {
     this->SetField(kFunctionScopeInfoOffset_, scope_info_array);
@@ -311,7 +314,8 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   static const int kParentIndexOffset_ = 5;
   static const int kSharedFunctionInfoOffset_ = 6;
   static const int kLiteralNumOffset_ = 7;
-  static const int kSize_ = 8;
+  static const int kFunctionLiteralIdOffset_ = 8;
+  static const int kSize_ = 9;
 
   friend class JSArrayBasedStruct<FunctionInfoWrapper>;
 };

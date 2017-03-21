@@ -9,13 +9,14 @@
 #include "src/arguments.h"
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
+#include "src/builtins/builtins.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parsing.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {
@@ -23,7 +24,7 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   CHECK(isolate->bootstrapper()->IsActive());
   return isolate->heap()->undefined_value();
 }
@@ -31,7 +32,7 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
 
 RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
   CHECK(isolate->bootstrapper()->IsActive());
   JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
@@ -44,7 +45,7 @@ RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
 
 RUNTIME_FUNCTION(Runtime_ExportExperimentalFromRuntime) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
   CHECK(isolate->bootstrapper()->IsActive());
   JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
@@ -57,7 +58,7 @@ RUNTIME_FUNCTION(Runtime_ExportExperimentalFromRuntime) {
 
 RUNTIME_FUNCTION(Runtime_InstallToContext) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   CHECK(array->HasFastElements());
   CHECK(isolate->bootstrapper()->IsActive());
@@ -82,14 +83,14 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
 
 RUNTIME_FUNCTION(Runtime_Throw) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   return isolate->Throw(args[0]);
 }
 
 
 RUNTIME_FUNCTION(Runtime_ReThrow) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   return isolate->ReThrow(args[0]);
 }
 
@@ -106,9 +107,9 @@ RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
   CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);
 
   Handle<Object> undefined = isolate->factory()->undefined_value();
-  Handle<Object> arg0 = (args.length() > 1) ? args.at<Object>(1) : undefined;
-  Handle<Object> arg1 = (args.length() > 2) ? args.at<Object>(2) : undefined;
-  Handle<Object> arg2 = (args.length() > 3) ? args.at<Object>(3) : undefined;
+  Handle<Object> arg0 = (args.length() > 1) ? args.at(1) : undefined;
+  Handle<Object> arg1 = (args.length() > 2) ? args.at(2) : undefined;
+  Handle<Object> arg2 = (args.length() > 3) ? args.at(3) : undefined;
 
   MessageTemplate::Template message_id =
       static_cast<MessageTemplate::Template>(message_id_smi);
@@ -117,77 +118,23 @@ RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
                                  NewTypeError(message_id, arg0, arg1, arg2));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(message_id, 0);
-  CONVERT_SMI_ARG_CHECKED(byte_offset, 1);
-  Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
-      static_cast<MessageTemplate::Template>(message_id));
-
-  // For wasm traps, the byte offset (a.k.a source position) can not be
-  // determined from relocation info, since the explicit checks for traps
-  // converge in one singe block which calls this runtime function.
-  // We hence pass the byte offset explicitely, and patch it into the top-most
-  // frame (a wasm frame) on the collected stack trace.
-  // TODO(wasm): This implementation is temporary, see bug #5007:
-  // https://bugs.chromium.org/p/v8/issues/detail?id=5007
-  Handle<JSObject> error = Handle<JSObject>::cast(error_obj);
-  Handle<Object> stack_trace_obj = JSReceiver::GetDataProperty(
-      error, isolate->factory()->stack_trace_symbol());
-  // Patch the stack trace (array of <receiver, function, code, position>).
-  if (stack_trace_obj->IsJSArray()) {
-    Handle<FrameArray> stack_elements(
-        FrameArray::cast(JSArray::cast(*stack_trace_obj)->elements()));
-    DCHECK(stack_elements->Code(0)->kind() == AbstractCode::WASM_FUNCTION);
-    DCHECK(stack_elements->Offset(0)->value() >= 0);
-    stack_elements->SetOffset(0, Smi::FromInt(-1 - byte_offset));
-  }
-
-  // Patch the detailed stack trace (array of JSObjects with various
-  // properties).
-  Handle<Object> detailed_stack_trace_obj = JSReceiver::GetDataProperty(
-      error, isolate->factory()->detailed_stack_trace_symbol());
-  if (detailed_stack_trace_obj->IsJSArray()) {
-    Handle<FixedArray> stack_elements(
-        FixedArray::cast(JSArray::cast(*detailed_stack_trace_obj)->elements()));
-    DCHECK_GE(stack_elements->length(), 1);
-    Handle<JSObject> top_frame(JSObject::cast(stack_elements->get(0)));
-    Handle<String> wasm_offset_key =
-        isolate->factory()->InternalizeOneByteString(
-            STATIC_CHAR_VECTOR("column"));
-    LookupIterator it(top_frame, wasm_offset_key, top_frame,
-                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-    if (it.IsFound()) {
-      DCHECK(JSReceiver::GetDataProperty(&it)->IsSmi());
-      // Make column number 1-based here.
-      Maybe<bool> data_set = JSReceiver::SetDataProperty(
-          &it, handle(Smi::FromInt(byte_offset + 1), isolate));
-      DCHECK(data_set.IsJust() && data_set.FromJust() == true);
-      USE(data_set);
-    }
-  }
-
-  return isolate->Throw(*error_obj);
-}
-
 RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return isolate->UnwindAndFindHandler();
 }
 
 
 RUNTIME_FUNCTION(Runtime_PromoteScheduledException) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return isolate->PromoteScheduledException();
 }
 
 
 RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
@@ -196,7 +143,7 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
 
 RUNTIME_FUNCTION(Runtime_NewTypeError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_INT32_ARG_CHECKED(template_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
   auto message_template =
@@ -207,7 +154,7 @@ RUNTIME_FUNCTION(Runtime_NewTypeError) {
 
 RUNTIME_FUNCTION(Runtime_NewReferenceError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_INT32_ARG_CHECKED(template_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
   auto message_template =
@@ -218,7 +165,7 @@ RUNTIME_FUNCTION(Runtime_NewReferenceError) {
 
 RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_INT32_ARG_CHECKED(template_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
   auto message_template =
@@ -234,7 +181,7 @@ RUNTIME_FUNCTION(Runtime_ThrowCannotConvertToPrimitive) {
 
 RUNTIME_FUNCTION(Runtime_ThrowIllegalInvocation) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kIllegalInvocation));
 }
@@ -249,6 +196,14 @@ RUNTIME_FUNCTION(Runtime_ThrowIncompatibleMethodReceiver) {
       NewTypeError(MessageTemplate::kIncompatibleMethodReceiver, arg0, arg1));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowInvalidHint) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, hint, 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kInvalidHint, hint));
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
@@ -256,11 +211,18 @@ RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
 
 RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
       NewTypeError(MessageTemplate::kIteratorResultNotAnObject, value));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowSymbolIteratorInvalid) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowNotGeneric) {
@@ -290,7 +252,7 @@ RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
 
 RUNTIME_FUNCTION(Runtime_StackGuard) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
 
   // First check if this is a real stack overflow.
   StackLimitCheck check(isolate);
@@ -304,14 +266,14 @@ RUNTIME_FUNCTION(Runtime_StackGuard) {
 
 RUNTIME_FUNCTION(Runtime_Interrupt) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return isolate->stack_guard()->HandleInterrupts();
 }
 
 
 RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CHECK(IsAligned(size, kPointerSize));
   CHECK(size > 0);
@@ -322,14 +284,14 @@ RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
 
 RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CHECK(IsAligned(size, kPointerSize));
   CHECK(size > 0);
-  CHECK(size <= kMaxRegularHeapObjectSize);
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
   AllocationSpace space = AllocateTargetSpace::decode(flags);
+  CHECK(size <= kMaxRegularHeapObjectSize || space == LO_SPACE);
   return *isolate->factory()->NewFillerObject(size, double_align, space);
 }
 
@@ -365,20 +327,19 @@ namespace {
 bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
   JavaScriptFrameIterator it(isolate);
   if (!it.done()) {
-    JavaScriptFrame* frame = it.frame();
-    JSFunction* fun = frame->function();
-    Object* script = fun->shared()->script();
+    // Compute the location from the function and the relocation info of the
+    // baseline code. For optimized code this will use the deoptimization
+    // information to get canonical location information.
+    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    it.frame()->Summarize(&frames);
+    auto& summary = frames.last().AsJavaScript();
+    Handle<SharedFunctionInfo> shared(summary.function()->shared());
+    Handle<Object> script(shared->script(), isolate);
+    int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
     if (script->IsScript() &&
-        !(Script::cast(script)->source()->IsUndefined(isolate))) {
-      Handle<Script> casted_script(Script::cast(script), isolate);
-      // Compute the location from the function and the relocation info of the
-      // baseline code. For optimized code this will use the deoptimization
-      // information to get canonical location information.
-      List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-      it.frame()->Summarize(&frames);
-      FrameSummary& summary = frames.last();
-      int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
-      *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));
+        !(Handle<Script>::cast(script)->source()->IsUndefined(isolate))) {
+      Handle<Script> casted_script = Handle<Script>::cast(script);
+      *target = MessageLocation(casted_script, pos, pos + 1, shared);
       return true;
     }
   }
@@ -390,12 +351,9 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     Zone zone(isolate->allocator(), ZONE_NAME);
-    std::unique_ptr<ParseInfo> info(
-        location.function()->shared()->is_function()
-            ? new ParseInfo(&zone, handle(location.function()->shared()))
-            : new ParseInfo(&zone, location.script()));
-    if (Parser::ParseStatic(info.get())) {
-      CallPrinter printer(isolate, location.function()->shared()->IsBuiltin());
+    std::unique_ptr<ParseInfo> info(new ParseInfo(&zone, location.shared()));
+    if (parsing::ParseAny(info.get())) {
+      CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info->literal(), location.start_pos());
       if (str->length() > 0) return str;
     } else {
@@ -522,20 +480,20 @@ RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
       isolate, Object::OrdinaryHasInstance(isolate, callable, object));
 }
 
-RUNTIME_FUNCTION(Runtime_IsWasmInstance) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, object, 0);
-  bool is_wasm_instance =
-      object->IsJSObject() && wasm::IsWasmInstance(JSObject::cast(object));
-  return *isolate->factory()->ToBoolean(is_wasm_instance);
-}
-
 RUNTIME_FUNCTION(Runtime_Typeof) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   return *Object::TypeOf(isolate, object);
+}
+
+RUNTIME_FUNCTION(Runtime_AllowDynamicFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
+  Handle<JSObject> global_proxy(target->global_proxy(), isolate);
+  return *isolate->factory()->ToBoolean(
+      Builtins::AllowDynamicFunction(isolate, target, global_proxy));
 }
 
 }  // namespace internal

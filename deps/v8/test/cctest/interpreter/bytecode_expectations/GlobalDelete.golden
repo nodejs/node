@@ -16,16 +16,17 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 11
 bytecodes: [
   /*   32 E> */ B(StackCheck),
-  /*   39 S> */ B(LdaGlobal), U8(2),
+  /*   39 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(0),
-                B(LdaConstant), U8(0),
+                B(LdaConstant), U8(1),
                 B(DeletePropertySloppy), R(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
@@ -42,16 +43,17 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 11
 bytecodes: [
   /*   28 E> */ B(StackCheck),
-  /*   51 S> */ B(LdaGlobal), U8(2),
+  /*   51 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(0),
                 B(LdaSmi), U8(1),
                 B(DeletePropertyStrict), R(0),
   /*   71 S> */ B(Return),
 ]
 constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]

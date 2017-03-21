@@ -6,6 +6,7 @@
 #include "src/handles-inl.h"
 #include "src/handles.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"

@@ -2,8 +2,8 @@ Running testFunction with generated WASM bytes...
 Paused on 'debugger;'
 Number of frames: 5
   - [0] {"functionName":"call_debugger","function_lineNumber":1,"function_columnNumber":24,"lineNumber":2,"columnNumber":4}
-  - [1] {"functionName":"call_func","lineNumber":1,"columnNumber":1}
-  - [2] {"functionName":"main","lineNumber":2,"columnNumber":1}
+  - [1] {"functionName":"call_func","lineNumber":1,"columnNumber":2}
+  - [2] {"functionName":"main","lineNumber":2,"columnNumber":4}
   - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":14,"columnNumber":19}
   - [4] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
 Getting v8-generated stack trace...
@@ -12,7 +12,7 @@ Error: this is your stack trace:
     -- skipped --
     at call_debugger (<anonymous>:3:5)
     at call_func (<WASM>[1]+1)
-    at main (<WASM>[2]+1)
+    at main (<WASM>[2]+3)
     at testFunction (<anonymous>:15:20)
     at <anonymous>:1:1
 Finished!

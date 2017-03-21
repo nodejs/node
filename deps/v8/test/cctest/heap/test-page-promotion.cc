@@ -42,6 +42,7 @@ namespace v8 {
 namespace internal {
 
 UNINITIALIZED_TEST(PagePromotion_NewToOld) {
+  if (!i::FLAG_incremental_marking) return;
   v8::Isolate* isolate = NewIsolateForPagePromotion();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   {

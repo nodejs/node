@@ -252,7 +252,11 @@ inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
 inline BuiltinFrame::BuiltinFrame(StackFrameIteratorBase* iterator)
     : JavaScriptFrame(iterator) {}
 
-inline WasmFrame::WasmFrame(StackFrameIteratorBase* iterator)
+inline WasmCompiledFrame::WasmCompiledFrame(StackFrameIteratorBase* iterator)
+    : StandardFrame(iterator) {}
+
+inline WasmInterpreterEntryFrame::WasmInterpreterEntryFrame(
+    StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}
 
 inline WasmToJsFrame::WasmToJsFrame(StackFrameIteratorBase* iterator)
@@ -311,13 +315,7 @@ bool StackTraceFrameIterator::is_javascript() const {
 bool StackTraceFrameIterator::is_wasm() const { return frame()->is_wasm(); }
 
 JavaScriptFrame* StackTraceFrameIterator::javascript_frame() const {
-  DCHECK(is_javascript());
-  return static_cast<JavaScriptFrame*>(frame());
-}
-
-WasmFrame* StackTraceFrameIterator::wasm_frame() const {
-  DCHECK(is_wasm());
-  return static_cast<WasmFrame*>(frame());
+  return JavaScriptFrame::cast(frame());
 }
 
 inline StackFrame* SafeStackFrameIterator::frame() const {

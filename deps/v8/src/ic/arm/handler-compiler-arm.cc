@@ -135,14 +135,6 @@ void PropertyHandlerCompiler::DiscardVectorAndSlot() {
   __ add(sp, sp, Operand(2 * kPointerSize));
 }
 
-void PropertyHandlerCompiler::PushReturnAddress(Register tmp) {
-  // No-op. Return address is in lr register.
-}
-
-void PropertyHandlerCompiler::PopReturnAddress(Register tmp) {
-  // No-op. Return address is in lr register.
-}
-
 void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,
     Handle<Name> name, Register scratch0, Register scratch1) {
@@ -188,18 +180,6 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
   __ bind(&done);
   __ DecrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
 }
-
-
-void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
-    MacroAssembler* masm, int index, Register result, Label* miss) {
-  __ LoadNativeContextSlot(index, result);
-  // Load its initial map. The global functions all have initial maps.
-  __ ldr(result,
-         FieldMemOperand(result, JSFunction::kPrototypeOrInitialMapOffset));
-  // Load the prototype from the initial map.
-  __ ldr(result, FieldMemOperand(result, Map::kPrototypeOffset));
-}
-
 
 void NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(
     MacroAssembler* masm, Register receiver, Register scratch1,
@@ -355,58 +335,6 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Label* label,
   }
 }
 
-
-void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
-  __ mov(this->name(), Operand(name));
-}
-
-
-void NamedStoreHandlerCompiler::GenerateRestoreMap(Handle<Map> transition,
-                                                   Register map_reg,
-                                                   Register scratch,
-                                                   Label* miss) {
-  Handle<WeakCell> cell = Map::WeakCellForMap(transition);
-  DCHECK(!map_reg.is(scratch));
-  __ LoadWeakValue(map_reg, cell, miss);
-  if (transition->CanBeDeprecated()) {
-    __ ldr(scratch, FieldMemOperand(map_reg, Map::kBitField3Offset));
-    __ tst(scratch, Operand(Map::Deprecated::kMask));
-    __ b(ne, miss);
-  }
-}
-
-
-void NamedStoreHandlerCompiler::GenerateConstantCheck(Register map_reg,
-                                                      int descriptor,
-                                                      Register value_reg,
-                                                      Register scratch,
-                                                      Label* miss_label) {
-  DCHECK(!map_reg.is(scratch));
-  DCHECK(!map_reg.is(value_reg));
-  DCHECK(!value_reg.is(scratch));
-  __ LoadInstanceDescriptors(map_reg, scratch);
-  __ ldr(scratch,
-         FieldMemOperand(scratch, DescriptorArray::GetValueOffset(descriptor)));
-  __ cmp(value_reg, scratch);
-  __ b(ne, miss_label);
-}
-
-void NamedStoreHandlerCompiler::GenerateFieldTypeChecks(FieldType* field_type,
-                                                        Register value_reg,
-                                                        Label* miss_label) {
-  Register map_reg = scratch1();
-  Register scratch = scratch2();
-  DCHECK(!value_reg.is(map_reg));
-  DCHECK(!value_reg.is(scratch));
-  __ JumpIfSmi(value_reg, miss_label);
-  if (field_type->IsClass()) {
-    __ ldr(map_reg, FieldMemOperand(value_reg, HeapObject::kMapOffset));
-    __ CmpWeakValue(map_reg, Map::WeakCellForMap(field_type->AsClass()),
-                    scratch);
-    __ b(ne, miss_label);
-  }
-}
-
 void PropertyHandlerCompiler::GenerateAccessCheck(
     Handle<WeakCell> native_context_cell, Register scratch1, Register scratch2,
     Label* miss, bool compare_native_contexts_only) {
@@ -536,13 +464,6 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     TailCallBuiltin(masm(), MissBuiltin(kind()));
     __ bind(&success);
   }
-}
-
-
-void NamedLoadHandlerCompiler::GenerateLoadConstant(Handle<Object> value) {
-  // Return the constant value.
-  __ Move(r0, value);
-  __ Ret();
 }
 
 void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(

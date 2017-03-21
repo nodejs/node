@@ -97,6 +97,16 @@ class WasmFunctionBuilder {
   }
 
   addBody(body) {
+    for (let b of body) {
+      if (typeof b != 'number') throw new Error("invalid body");
+    }
+    this.body = body;
+    // Automatically add the end for the function block to the body.
+    body.push(kExprEnd);
+    return this;
+  }
+
+  addBodyWithEnd(body) {
     this.body = body;
     return this;
   }
@@ -179,32 +189,28 @@ class WasmModuleBuilder {
     return func;
   }
 
-  addImportWithModule(module, name, type) {
+  addImport(module = "", name, type) {
     let type_index = (typeof type) == "number" ? type : this.addType(type);
     this.imports.push({module: module, name: name, kind: kExternalFunction,
                        type: type_index});
     return this.num_imported_funcs++;
   }
 
-  addImport(name, type) {
-    return this.addImportWithModule(name, undefined, type);
-  }
-
-  addImportedGlobal(module, name, type) {
+  addImportedGlobal(module = "", name, type) {
     let o = {module: module, name: name, kind: kExternalGlobal, type: type,
              mutable: false}
     this.imports.push(o);
     return this.num_imported_globals++;
   }
 
-  addImportedMemory(module, name, initial = 0, maximum) {
+  addImportedMemory(module = "", name, initial = 0, maximum) {
     let o = {module: module, name: name, kind: kExternalMemory,
              initial: initial, maximum: maximum};
     this.imports.push(o);
     return this;
   }
 
-  addImportedTable(module, name, initial, maximum) {
+  addImportedTable(module = "", name, initial, maximum) {
     let o = {module: module, name: name, kind: kExternalTable, initial: initial,
              maximum: maximum};
     this.imports.push(o);
@@ -229,12 +235,12 @@ class WasmModuleBuilder {
     this.exports.push({name: name, kind: kExternalMemory, index: 0});
   }
 
-  addFunctionTableInit(base, is_global, array) {
+  addFunctionTableInit(base, is_global, array, is_import = false) {
     this.function_table_inits.push({base: base, is_global: is_global,
                                     array: array});
     if (!is_global) {
       var length = base + array.length;
-      if (length > this.function_table_length) {
+      if (length > this.function_table_length && !is_import) {
         this.function_table_length = length;
       }
     }
@@ -357,15 +363,15 @@ class WasmModuleBuilder {
           if ((typeof global.init_index) == "undefined") {
             // Emit a constant initializer.
             switch (global.type) {
-            case kAstI32:
+            case kWasmI32:
               section.emit_u8(kExprI32Const);
               section.emit_u32v(global.init);
               break;
-            case kAstI64:
+            case kWasmI64:
               section.emit_u8(kExprI64Const);
-              section.emit_u8(global.init);
+              section.emit_u32v(global.init);
               break;
-            case kAstF32:
+            case kWasmF32:
               section.emit_u8(kExprF32Const);
               f32_view[0] = global.init;
               section.emit_u8(byte_view[0]);
@@ -373,7 +379,7 @@ class WasmModuleBuilder {
               section.emit_u8(byte_view[2]);
               section.emit_u8(byte_view[3]);
               break;
-            case kAstF64:
+            case kWasmF64:
               section.emit_u8(kExprF64Const);
               f64_view[0] = global.init;
               section.emit_u8(byte_view[0]);
@@ -461,16 +467,16 @@ class WasmModuleBuilder {
           if (l != undefined) {
             let local_decls_count = 0;
             if (l.i32_count > 0) {
-              local_decls.push({count: l.i32_count, type: kAstI32});
+              local_decls.push({count: l.i32_count, type: kWasmI32});
             }
             if (l.i64_count > 0) {
-              local_decls.push({count: l.i64_count, type: kAstI64});
+              local_decls.push({count: l.i64_count, type: kWasmI64});
             }
             if (l.f32_count > 0) {
-              local_decls.push({count: l.f32_count, type: kAstF32});
+              local_decls.push({count: l.f32_count, type: kWasmF32});
             }
             if (l.f64_count > 0) {
-              local_decls.push({count: l.f64_count, type: kAstF64});
+              local_decls.push({count: l.f64_count, type: kWasmF64});
             }
           }
 
@@ -551,9 +557,9 @@ class WasmModuleBuilder {
     return buffer;
   }
 
-  instantiate(...args) {
+  instantiate(ffi) {
     let module = new WebAssembly.Module(this.toBuffer());
-    let instance = new WebAssembly.Instance(module, ...args);
+    let instance = new WebAssembly.Instance(module, ffi);
     return instance;
   }
 }

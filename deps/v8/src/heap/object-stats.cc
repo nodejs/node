@@ -441,10 +441,8 @@ void ObjectStatsCollector::RecordJSCollectionDetails(JSObject* obj) {
 }
 
 void ObjectStatsCollector::RecordScriptDetails(Script* obj) {
-  Object* infos = WeakFixedArray::cast(obj->shared_function_infos());
-  if (infos->IsWeakFixedArray())
-    RecordFixedArrayHelper(obj, WeakFixedArray::cast(infos),
-                           SHARED_FUNCTION_INFOS_SUB_TYPE, 0);
+  FixedArray* infos = FixedArray::cast(obj->shared_function_infos());
+  RecordFixedArrayHelper(obj, infos, SHARED_FUNCTION_INFOS_SUB_TYPE, 0);
 }
 
 void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
@@ -546,13 +544,6 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
   if (!feedback_metadata->is_empty()) {
     RecordFixedArrayHelper(sfi, feedback_metadata,
                            TYPE_FEEDBACK_METADATA_SUB_TYPE, 0);
-    Object* names =
-        feedback_metadata->get(TypeFeedbackMetadata::kNamesTableIndex);
-    if (!names->IsSmi()) {
-      UnseededNumberDictionary* names = UnseededNumberDictionary::cast(
-          feedback_metadata->get(TypeFeedbackMetadata::kNamesTableIndex));
-      RecordHashTableHelper(sfi, names, TYPE_FEEDBACK_METADATA_SUB_TYPE);
-    }
   }
 
   if (!sfi->OptimizedCodeMapIsCleared()) {

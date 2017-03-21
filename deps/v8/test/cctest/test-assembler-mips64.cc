@@ -6005,12 +6005,14 @@ void helper_madd_msub_maddf_msubf(F func) {
 
     (CALL_GENERATED_CODE(isolate, f, &tc, 0, 0, 0, 0));
 
-    T res_add = tc.fr + (tc.fs * tc.ft);
     T res_sub;
+    T res_add;
     if (kArchVariant != kMips64r6) {
+      res_add = tc.fr + (tc.fs * tc.ft);
       res_sub = (tc.fs * tc.ft) - tc.fr;
     } else {
-      res_sub = tc.fr - (tc.fs * tc.ft);
+      res_add = std::fma(tc.fs, tc.ft, tc.fr);
+      res_sub = std::fma(-tc.fs, tc.ft, tc.fr);
     }
 
     CHECK_EQ(tc.fd_add, res_add);

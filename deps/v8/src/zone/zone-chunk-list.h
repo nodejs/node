@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "src/globals.h"
+#include "src/utils.h"
 #include "src/zone/zone.h"
 
 #ifndef V8_SRC_ZONE_ZONE_CHUNK_LIST_H_

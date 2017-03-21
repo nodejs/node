@@ -583,7 +583,6 @@ class InitializedHandleScope {
   std::unique_ptr<InitializedHandleScopeImpl> initialized_handle_scope_impl_;
 };
 
-
 class HandleAndZoneScope : public InitializedHandleScope {
  public:
   HandleAndZoneScope();
@@ -595,6 +594,20 @@ class HandleAndZoneScope : public InitializedHandleScope {
  private:
   v8::internal::AccountingAllocator allocator_;
   std::unique_ptr<i::Zone> main_zone_;
+};
+
+class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  explicit StaticOneByteResource(const char* data) : data_(data) {}
+
+  ~StaticOneByteResource() {}
+
+  const char* data() const { return data_; }
+
+  size_t length() const { return strlen(data_); }
+
+ private:
+  const char* data_;
 };
 
 #endif  // ifndef CCTEST_H_

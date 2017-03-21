@@ -17,9 +17,9 @@ namespace internal {
 BUILTIN(ReflectDefineProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<Object> target = args.at<Object>(1);
-  Handle<Object> key = args.at<Object>(2);
-  Handle<Object> attributes = args.at<Object>(3);
+  Handle<Object> target = args.at(1);
+  Handle<Object> key = args.at(2);
+  Handle<Object> attributes = args.at(3);
 
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -48,8 +48,8 @@ BUILTIN(ReflectDefineProperty) {
 BUILTIN(ReflectDeleteProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> target = args.at<Object>(1);
-  Handle<Object> key = args.at<Object>(2);
+  Handle<Object> target = args.at(1);
+  Handle<Object> key = args.at(2);
 
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -73,7 +73,7 @@ BUILTIN(ReflectGet) {
   HandleScope scope(isolate);
   Handle<Object> target = args.atOrUndefined(isolate, 1);
   Handle<Object> key = args.atOrUndefined(isolate, 2);
-  Handle<Object> receiver = args.length() > 3 ? args.at<Object>(3) : target;
+  Handle<Object> receiver = args.length() > 3 ? args.at(3) : target;
 
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -95,8 +95,8 @@ BUILTIN(ReflectGet) {
 BUILTIN(ReflectGetOwnPropertyDescriptor) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> target = args.at<Object>(1);
-  Handle<Object> key = args.at<Object>(2);
+  Handle<Object> target = args.at(1);
+  Handle<Object> key = args.at(2);
 
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -121,7 +121,7 @@ BUILTIN(ReflectGetOwnPropertyDescriptor) {
 BUILTIN(ReflectGetPrototypeOf) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> target = args.at<Object>(1);
+  Handle<Object> target = args.at(1);
 
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -138,8 +138,8 @@ BUILTIN(ReflectGetPrototypeOf) {
 BUILTIN(ReflectHas) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> target = args.at<Object>(1);
-  Handle<Object> key = args.at<Object>(2);
+  Handle<Object> target = args.at(1);
+  Handle<Object> key = args.at(2);
 
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -162,7 +162,7 @@ BUILTIN(ReflectHas) {
 BUILTIN(ReflectIsExtensible) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> target = args.at<Object>(1);
+  Handle<Object> target = args.at(1);
 
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -181,7 +181,7 @@ BUILTIN(ReflectIsExtensible) {
 BUILTIN(ReflectOwnKeys) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> target = args.at<Object>(1);
+  Handle<Object> target = args.at(1);
 
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -203,7 +203,7 @@ BUILTIN(ReflectOwnKeys) {
 BUILTIN(ReflectPreventExtensions) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> target = args.at<Object>(1);
+  Handle<Object> target = args.at(1);
 
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -224,7 +224,7 @@ BUILTIN(ReflectSet) {
   Handle<Object> target = args.atOrUndefined(isolate, 1);
   Handle<Object> key = args.atOrUndefined(isolate, 2);
   Handle<Object> value = args.atOrUndefined(isolate, 3);
-  Handle<Object> receiver = args.length() > 4 ? args.at<Object>(4) : target;
+  Handle<Object> receiver = args.length() > 4 ? args.at(4) : target;
 
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -249,8 +249,8 @@ BUILTIN(ReflectSet) {
 BUILTIN(ReflectSetPrototypeOf) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> target = args.at<Object>(1);
-  Handle<Object> proto = args.at<Object>(2);
+  Handle<Object> target = args.at(1);
+  Handle<Object> proto = args.at(2);
 
   if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(

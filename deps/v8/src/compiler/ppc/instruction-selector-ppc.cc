@@ -155,6 +155,9 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
                              cont->reason(), cont->frame_state());
+  } else if (cont->IsTrap()) {
+    inputs[input_count++] = g.UseImmediate(cont->trap_id());
+    selector->Emit(opcode, output_count, outputs, input_count, inputs);
   } else {
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
   }
@@ -337,6 +340,11 @@ void InstructionSelector::VisitStore(Node* node) {
            g.UseRegister(base), g.UseRegister(offset), g.UseRegister(value));
     }
   }
+}
+
+void InstructionSelector::VisitProtectedStore(Node* node) {
+  // TODO(eholk)
+  UNIMPLEMENTED();
 }
 
 // Architecture supports unaligned access, therefore VisitLoad is used instead
@@ -836,7 +844,7 @@ void VisitPairBinop(InstructionSelector* selector, InstructionCode opcode,
 }
 
 void InstructionSelector::VisitInt32PairAdd(Node* node) {
-  VisitPairBinop(this, kPPC_AddPair, kPPC_Add, node);
+  VisitPairBinop(this, kPPC_AddPair, kPPC_Add32, node);
 }
 
 void InstructionSelector::VisitInt32PairSub(Node* node) {
@@ -1013,13 +1021,13 @@ void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitWord32ReverseBytes(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitInt32Add(Node* node) {
-  VisitBinop<Int32BinopMatcher>(this, node, kPPC_Add, kInt16Imm);
+  VisitBinop<Int32BinopMatcher>(this, node, kPPC_Add32, kInt16Imm);
 }
 
 
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitInt64Add(Node* node) {
-  VisitBinop<Int64BinopMatcher>(this, node, kPPC_Add, kInt16Imm);
+  VisitBinop<Int64BinopMatcher>(this, node, kPPC_Add64, kInt16Imm);
 }
 #endif
 
@@ -1481,11 +1489,11 @@ void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
 void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop<Int64BinopMatcher>(this, node, kPPC_Add, kInt16Imm,
+    return VisitBinop<Int64BinopMatcher>(this, node, kPPC_Add64, kInt16Imm,
                                          &cont);
   }
   FlagsContinuation cont;
-  VisitBinop<Int64BinopMatcher>(this, node, kPPC_Add, kInt16Imm, &cont);
+  VisitBinop<Int64BinopMatcher>(this, node, kPPC_Add64, kInt16Imm, &cont);
 }
 
 
@@ -1530,9 +1538,12 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->reason(),
                              cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+  } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
+  } else {
+    DCHECK(cont->IsTrap());
+    selector->Emit(opcode, g.NoOutput(), left, right,
+                   g.UseImmediate(cont->trap_id()));
   }
 }
 
@@ -1693,7 +1704,7 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
 #if V8_TARGET_ARCH_PPC64
               case IrOpcode::kInt64AddWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop<Int64BinopMatcher>(selector, node, kPPC_Add,
+                return VisitBinop<Int64BinopMatcher>(selector, node, kPPC_Add64,
                                                      kInt16Imm, cont);
               case IrOpcode::kInt64SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
@@ -1779,6 +1790,19 @@ void InstructionSelector::VisitDeoptimizeIf(Node* node) {
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
       kEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+  VisitWord32CompareZero(this, node, node->InputAt(0), &cont);
+}
+
+void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kNotEqual, func_id, node->InputAt(1));
+  VisitWord32CompareZero(this, node, node->InputAt(0), &cont);
+}
+
+void InstructionSelector::VisitTrapUnless(Node* node,
+                                          Runtime::FunctionId func_id) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kEqual, func_id, node->InputAt(1));
   VisitWord32CompareZero(this, node, node->InputAt(0), &cont);
 }
 

@@ -25,6 +25,14 @@ TEST(TestTraceConfig) {
   CHECK_EQ(trace_config->IsCategoryGroupEnabled(
                TRACE_DISABLED_BY_DEFAULT("v8.runtime")),
            true);
+  CHECK_EQ(trace_config->IsCategoryGroupEnabled("v8,v8.cpu_profile"), true);
+  CHECK_EQ(
+      trace_config->IsCategoryGroupEnabled("v8,disabled-by-default-v8.runtime"),
+      true);
+  CHECK_EQ(trace_config->IsCategoryGroupEnabled(
+               "v8_cpu_profile,v8.cpu_profile.hires"),
+           false);
+
   delete trace_config;
 }
 

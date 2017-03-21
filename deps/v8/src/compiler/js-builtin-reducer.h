@@ -57,8 +57,8 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
                                          IterationKind kind);
   Reduction ReduceArrayPop(Node* node);
   Reduction ReduceArrayPush(Node* node);
+  Reduction ReduceDateNow(Node* node);
   Reduction ReduceDateGetTime(Node* node);
-  Reduction ReduceFunctionHasInstance(Node* node);
   Reduction ReduceGlobalIsFinite(Node* node);
   Reduction ReduceGlobalIsNaN(Node* node);
   Reduction ReduceMathAbs(Node* node);
@@ -99,6 +99,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceNumberIsNaN(Node* node);
   Reduction ReduceNumberIsSafeInteger(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
+  Reduction ReduceObjectCreate(Node* node);
   Reduction ReduceStringCharAt(Node* node);
   Reduction ReduceStringCharCodeAt(Node* node);
   Reduction ReduceStringFromCharCode(Node* node);

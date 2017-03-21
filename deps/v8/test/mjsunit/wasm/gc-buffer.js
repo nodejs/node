@@ -12,7 +12,7 @@ function run(f) {
   // the module (i.e. the underlying array buffer of WASM wire bytes dies).
   var module = (() => {
     var builder = new WasmModuleBuilder();
-    builder.addImport("the_name_of_my_import", kSig_i_i);
+    builder.addImport("mod", "the_name_of_my_import", kSig_i_i);
     builder.addFunction("main", kSig_i_i)
       .addBody([
         kExprGetLocal, 0,
@@ -25,7 +25,7 @@ function run(f) {
   gc();
   for (var i = 0; i < 10; i++) {
     print("  instance " + i);
-    var instance = new WebAssembly.Instance(module, {the_name_of_my_import: f});
+    var instance = new WebAssembly.Instance(module, {"mod": {the_name_of_my_import: f}});
     var g = instance.exports.main;
     assertEquals("function", typeof g);
     for (var j = 0; j < 10; j++) {

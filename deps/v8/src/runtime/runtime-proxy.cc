@@ -44,7 +44,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyCall) {
     // 6.a. Return Call(target, thisArgument, argumentsList).
     ScopedVector<Handle<Object>> argv(arguments_length);
     for (int i = 0; i < arguments_length; ++i) {
-      argv[i] = args.at<Object>(i + 1);
+      argv[i] = args.at(i + 1);
     }
     RETURN_RESULT_OR_FAILURE(
         isolate, Execution::Call(isolate, target, receiver, arguments_length,
@@ -100,7 +100,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyConstruct) {
     // 6.b. Return Construct(target, argumentsList, newTarget).
     ScopedVector<Handle<Object>> argv(arguments_length);
     for (int i = 0; i < arguments_length; ++i) {
-      argv[i] = args.at<Object>(i + 1);
+      argv[i] = args.at(i + 1);
     }
     RETURN_RESULT_OR_FAILURE(
         isolate, Execution::New(isolate, target, new_target, arguments_length,
@@ -135,7 +135,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyConstruct) {
 
 RUNTIME_FUNCTION(Runtime_IsJSProxy) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSProxy());
 }
@@ -143,7 +143,7 @@ RUNTIME_FUNCTION(Runtime_IsJSProxy) {
 
 RUNTIME_FUNCTION(Runtime_JSProxyGetHandler) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
   return proxy->handler();
 }
@@ -151,7 +151,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyGetHandler) {
 
 RUNTIME_FUNCTION(Runtime_JSProxyGetTarget) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
   return proxy->target();
 }
@@ -159,7 +159,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyGetTarget) {
 
 RUNTIME_FUNCTION(Runtime_JSProxyRevoke) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSProxy, proxy, 0);
   JSProxy::Revoke(proxy);
   return isolate->heap()->undefined_value();

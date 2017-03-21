@@ -8,6 +8,8 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/factory.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -320,6 +322,42 @@ void LoadElimination::AbstractField::Print() const {
   }
 }
 
+bool LoadElimination::AbstractMaps::Lookup(
+    Node* object, ZoneHandleSet<Map>* object_maps) const {
+  for (auto pair : info_for_node_) {
+    if (MustAlias(object, pair.first)) {
+      *object_maps = pair.second;
+      return true;
+    }
+  }
+  return false;
+}
+
+LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Kill(
+    Node* object, Zone* zone) const {
+  for (auto pair : this->info_for_node_) {
+    if (MayAlias(object, pair.first)) {
+      AbstractMaps* that = new (zone) AbstractMaps(zone);
+      for (auto pair : this->info_for_node_) {
+        if (!MayAlias(object, pair.first)) that->info_for_node_.insert(pair);
+      }
+      return that;
+    }
+  }
+  return this;
+}
+
+void LoadElimination::AbstractMaps::Print() const {
+  for (auto pair : info_for_node_) {
+    PrintF("    #%d:%s\n", pair.first->id(), pair.first->op()->mnemonic());
+    OFStream os(stdout);
+    ZoneHandleSet<Map> const& maps = pair.second;
+    for (size_t i = 0; i < maps.size(); ++i) {
+      os << "     - " << Brief(*maps[i]) << "\n";
+    }
+  }
+}
+
 bool LoadElimination::AbstractState::Equals(AbstractState const* that) const {
   if (this->checks_) {
     if (!that->checks_ || !that->checks_->Equals(this->checks_)) {
@@ -343,6 +381,13 @@ bool LoadElimination::AbstractState::Equals(AbstractState const* that) const {
     } else if (that_field) {
       return false;
     }
+  }
+  if (this->maps_) {
+    if (!that->maps_ || !that->maps_->Equals(this->maps_)) {
+      return false;
+    }
+  } else if (that->maps_) {
+    return false;
   }
   return true;
 }
@@ -372,6 +417,11 @@ void LoadElimination::AbstractState::Merge(AbstractState const* that,
       }
     }
   }
+
+  // Merge the information we have about the maps.
+  if (this->maps_) {
+    this->maps_ = that->maps_ ? that->maps_->Merge(this->maps_, zone) : nullptr;
+  }
 }
 
 Node* LoadElimination::AbstractState::LookupCheck(Node* node) const {
@@ -387,6 +437,35 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::AddCheck(
     that->checks_ = new (zone) AbstractChecks(node, zone);
   }
   return that;
+}
+
+bool LoadElimination::AbstractState::LookupMaps(
+    Node* object, ZoneHandleSet<Map>* object_map) const {
+  return this->maps_ && this->maps_->Lookup(object, object_map);
+}
+
+LoadElimination::AbstractState const* LoadElimination::AbstractState::AddMaps(
+    Node* object, ZoneHandleSet<Map> maps, Zone* zone) const {
+  AbstractState* that = new (zone) AbstractState(*this);
+  if (that->maps_) {
+    that->maps_ = that->maps_->Extend(object, maps, zone);
+  } else {
+    that->maps_ = new (zone) AbstractMaps(object, maps, zone);
+  }
+  return that;
+}
+
+LoadElimination::AbstractState const* LoadElimination::AbstractState::KillMaps(
+    Node* object, Zone* zone) const {
+  if (this->maps_) {
+    AbstractMaps const* that_maps = this->maps_->Kill(object, zone);
+    if (this->maps_ != that_maps) {
+      AbstractState* that = new (zone) AbstractState(*this);
+      that->maps_ = that_maps;
+      return that;
+    }
+  }
+  return this;
 }
 
 Node* LoadElimination::AbstractState::LookupElement(Node* object,
@@ -456,7 +535,7 @@ LoadElimination::AbstractState::KillFields(Node* object, Zone* zone) const {
       AbstractField const* that_field = this_field->Kill(object, zone);
       if (that_field != this_field) {
         AbstractState* that = new (zone) AbstractState(*this);
-        that->fields_[i] = this_field;
+        that->fields_[i] = that_field;
         while (++i < arraysize(fields_)) {
           if (this->fields_[i] != nullptr) {
             that->fields_[i] = this->fields_[i]->Kill(object, zone);
@@ -480,6 +559,10 @@ void LoadElimination::AbstractState::Print() const {
   if (checks_) {
     PrintF("   checks:\n");
     checks_->Print();
+  }
+  if (maps_) {
+    PrintF("   maps:\n");
+    maps_->Print();
   }
   if (elements_) {
     PrintF("   elements:\n");
@@ -520,23 +603,18 @@ Reduction LoadElimination::ReduceArrayBufferWasNeutered(Node* node) {
 }
 
 Reduction LoadElimination::ReduceCheckMaps(Node* node) {
+  ZoneHandleSet<Map> const maps = CheckMapsParametersOf(node->op()).maps();
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  int const map_input_count = node->op()->ValueInputCount() - 1;
-  if (Node* const object_map =
-          state->LookupField(object, FieldIndexOf(HeapObject::kMapOffset))) {
-    for (int i = 0; i < map_input_count; ++i) {
-      Node* map = NodeProperties::GetValueInput(node, 1 + i);
-      if (map == object_map) return Replace(effect);
-    }
+  ZoneHandleSet<Map> object_maps;
+  if (state->LookupMaps(object, &object_maps)) {
+    if (maps.contains(object_maps)) return Replace(effect);
+    state = state->KillMaps(object, zone());
+    // TODO(turbofan): Compute the intersection.
   }
-  if (map_input_count == 1) {
-    Node* const map0 = NodeProperties::GetValueInput(node, 1);
-    state = state->AddField(object, FieldIndexOf(HeapObject::kMapOffset), map0,
-                            zone());
-  }
+  state = state->AddMaps(object, maps, zone());
   return UpdateState(node, state);
 }
 
@@ -546,18 +624,16 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  Node* fixed_array_map = jsgraph()->FixedArrayMapConstant();
-  if (Node* const elements_map =
-          state->LookupField(elements, FieldIndexOf(HeapObject::kMapOffset))) {
     // Check if the {elements} already have the fixed array map.
-    if (elements_map == fixed_array_map) {
-      ReplaceWithValue(node, elements, effect);
-      return Replace(elements);
-    }
+  ZoneHandleSet<Map> elements_maps;
+  ZoneHandleSet<Map> fixed_array_maps(factory()->fixed_array_map());
+  if (state->LookupMaps(elements, &elements_maps) &&
+      fixed_array_maps.contains(elements_maps)) {
+    ReplaceWithValue(node, elements, effect);
+    return Replace(elements);
   }
   // We know that the resulting elements have the fixed array map.
-  state = state->AddField(node, FieldIndexOf(HeapObject::kMapOffset),
-                          fixed_array_map, zone());
+  state = state->AddMaps(node, fixed_array_maps, zone());
   // Kill the previous elements on {object}.
   state =
       state->KillField(object, FieldIndexOf(JSObject::kElementsOffset), zone());
@@ -575,14 +651,12 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
   if (state == nullptr) return NoChange();
   if (flags & GrowFastElementsFlag::kDoubleElements) {
     // We know that the resulting elements have the fixed double array map.
-    Node* fixed_double_array_map = jsgraph()->FixedDoubleArrayMapConstant();
-    state = state->AddField(node, FieldIndexOf(HeapObject::kMapOffset),
-                            fixed_double_array_map, zone());
+    state = state->AddMaps(
+        node, ZoneHandleSet<Map>(factory()->fixed_double_array_map()), zone());
   } else {
     // We know that the resulting elements have the fixed array map.
-    Node* fixed_array_map = jsgraph()->FixedArrayMapConstant();
-    state = state->AddField(node, FieldIndexOf(HeapObject::kMapOffset),
-                            fixed_array_map, zone());
+    state = state->AddMaps(
+        node, ZoneHandleSet<Map>(factory()->fixed_array_map()), zone());
   }
   if (flags & GrowFastElementsFlag::kArrayObject) {
     // Kill the previous Array::length on {object}.
@@ -599,31 +673,30 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
 }
 
 Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
+  ElementsTransition transition = ElementsTransitionOf(node->op());
   Node* const object = NodeProperties::GetValueInput(node, 0);
-  Node* const source_map = NodeProperties::GetValueInput(node, 1);
-  Node* const target_map = NodeProperties::GetValueInput(node, 2);
+  Handle<Map> source_map(transition.source());
+  Handle<Map> target_map(transition.target());
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  if (Node* const object_map =
-          state->LookupField(object, FieldIndexOf(HeapObject::kMapOffset))) {
-    if (target_map == object_map) {
+  ZoneHandleSet<Map> object_maps;
+  if (state->LookupMaps(object, &object_maps)) {
+    if (ZoneHandleSet<Map>(target_map).contains(object_maps)) {
       // The {object} already has the {target_map}, so this TransitionElements
       // {node} is fully redundant (independent of what {source_map} is).
       return Replace(effect);
     }
-    state =
-        state->KillField(object, FieldIndexOf(HeapObject::kMapOffset), zone());
-    if (source_map == object_map) {
-      state = state->AddField(object, FieldIndexOf(HeapObject::kMapOffset),
-                              target_map, zone());
+    if (object_maps.contains(ZoneHandleSet<Map>(source_map))) {
+      object_maps.remove(source_map, zone());
+      object_maps.insert(target_map, zone());
+      state = state->KillMaps(object, zone());
+      state = state->AddMaps(object, object_maps, zone());
     }
   } else {
-    state =
-        state->KillField(object, FieldIndexOf(HeapObject::kMapOffset), zone());
+    state = state->KillMaps(object, zone());
   }
-  ElementsTransition transition = ElementsTransitionOf(node->op());
-  switch (transition) {
+  switch (transition.mode()) {
     case ElementsTransition::kFastTransition:
       break;
     case ElementsTransition::kSlowTransition:
@@ -642,23 +715,40 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
   Node* const control = NodeProperties::GetControlInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  int field_index = FieldIndexOf(access);
-  if (field_index >= 0) {
-    if (Node* replacement = state->LookupField(object, field_index)) {
-      // Make sure we don't resurrect dead {replacement} nodes.
-      if (!replacement->IsDead()) {
-        // We might need to guard the {replacement} if the type of the
-        // {node} is more precise than the type of the {replacement}.
-        Type* const node_type = NodeProperties::GetType(node);
-        if (!NodeProperties::GetType(replacement)->Is(node_type)) {
-          replacement = graph()->NewNode(common()->TypeGuard(node_type),
-                                         replacement, control);
-        }
-        ReplaceWithValue(node, replacement, effect);
-        return Replace(replacement);
-      }
+  if (access.offset == HeapObject::kMapOffset &&
+      access.base_is_tagged == kTaggedBase) {
+    DCHECK(IsAnyTagged(access.machine_type.representation()));
+    ZoneHandleSet<Map> object_maps;
+    if (state->LookupMaps(object, &object_maps) && object_maps.size() == 1) {
+      Node* value = jsgraph()->HeapConstant(object_maps[0]);
+      NodeProperties::SetType(value, Type::OtherInternal());
+      ReplaceWithValue(node, value, effect);
+      return Replace(value);
     }
-    state = state->AddField(object, field_index, node, zone());
+  } else {
+    int field_index = FieldIndexOf(access);
+    if (field_index >= 0) {
+      if (Node* replacement = state->LookupField(object, field_index)) {
+        // Make sure we don't resurrect dead {replacement} nodes.
+        if (!replacement->IsDead()) {
+          // We might need to guard the {replacement} if the type of the
+          // {node} is more precise than the type of the {replacement}.
+          Type* const node_type = NodeProperties::GetType(node);
+          if (!NodeProperties::GetType(replacement)->Is(node_type)) {
+            replacement = graph()->NewNode(common()->TypeGuard(node_type),
+                                           replacement, control);
+            NodeProperties::SetType(replacement, node_type);
+          }
+          ReplaceWithValue(node, replacement, effect);
+          return Replace(replacement);
+        }
+      }
+      state = state->AddField(object, field_index, node, zone());
+    }
+  }
+  Handle<Map> field_map;
+  if (access.map.ToHandle(&field_map)) {
+    state = state->AddMaps(node, ZoneHandleSet<Map>(field_map), zone());
   }
   return UpdateState(node, state);
 }
@@ -670,19 +760,33 @@ Reduction LoadElimination::ReduceStoreField(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  int field_index = FieldIndexOf(access);
-  if (field_index >= 0) {
-    Node* const old_value = state->LookupField(object, field_index);
-    if (old_value == new_value) {
-      // This store is fully redundant.
-      return Replace(effect);
+  if (access.offset == HeapObject::kMapOffset &&
+      access.base_is_tagged == kTaggedBase) {
+    DCHECK(IsAnyTagged(access.machine_type.representation()));
+    // Kill all potential knowledge about the {object}s map.
+    state = state->KillMaps(object, zone());
+    Type* const new_value_type = NodeProperties::GetType(new_value);
+    if (new_value_type->IsHeapConstant()) {
+      // Record the new {object} map information.
+      ZoneHandleSet<Map> object_maps(
+          Handle<Map>::cast(new_value_type->AsHeapConstant()->Value()));
+      state = state->AddMaps(object, object_maps, zone());
     }
-    // Kill all potentially aliasing fields and record the new value.
-    state = state->KillField(object, field_index, zone());
-    state = state->AddField(object, field_index, new_value, zone());
   } else {
-    // Unsupported StoreField operator.
-    state = state->KillFields(object, zone());
+    int field_index = FieldIndexOf(access);
+    if (field_index >= 0) {
+      Node* const old_value = state->LookupField(object, field_index);
+      if (old_value == new_value) {
+        // This store is fully redundant.
+        return Replace(effect);
+      }
+      // Kill all potentially aliasing fields and record the new value.
+      state = state->KillField(object, field_index, zone());
+      state = state->AddField(object, field_index, new_value, zone());
+    } else {
+      // Unsupported StoreField operator.
+      state = state->KillFields(object, zone());
+    }
   }
   return UpdateState(node, state);
 }
@@ -703,6 +807,7 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
       if (!NodeProperties::GetType(replacement)->Is(node_type)) {
         replacement = graph()->NewNode(common()->TypeGuard(node_type),
                                        replacement, control);
+        NodeProperties::SetType(replacement, node_type);
       }
       ReplaceWithValue(node, replacement, effect);
       return Replace(replacement);
@@ -865,21 +970,31 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             break;
           }
           case IrOpcode::kTransitionElementsKind: {
+            ElementsTransition transition = ElementsTransitionOf(current->op());
             Node* const object = NodeProperties::GetValueInput(current, 0);
-            state = state->KillField(
-                object, FieldIndexOf(HeapObject::kMapOffset), zone());
-            state = state->KillField(
-                object, FieldIndexOf(JSObject::kElementsOffset), zone());
+            ZoneHandleSet<Map> object_maps;
+            if (!state->LookupMaps(object, &object_maps) ||
+                !ZoneHandleSet<Map>(transition.target())
+                     .contains(object_maps)) {
+              state = state->KillMaps(object, zone());
+              state = state->KillField(
+                  object, FieldIndexOf(JSObject::kElementsOffset), zone());
+            }
             break;
           }
           case IrOpcode::kStoreField: {
             FieldAccess const& access = FieldAccessOf(current->op());
             Node* const object = NodeProperties::GetValueInput(current, 0);
-            int field_index = FieldIndexOf(access);
-            if (field_index < 0) {
-              state = state->KillFields(object, zone());
+            if (access.offset == HeapObject::kMapOffset) {
+              // Invalidate what we know about the {object}s map.
+              state = state->KillMaps(object, zone());
             } else {
-              state = state->KillField(object, field_index, zone());
+              int field_index = FieldIndexOf(access);
+              if (field_index < 0) {
+                state = state->KillFields(object, zone());
+              } else {
+                state = state->KillField(object, field_index, zone());
+              }
             }
             break;
           }
@@ -911,7 +1026,8 @@ int LoadElimination::FieldIndexOf(int offset) {
   DCHECK_EQ(0, offset % kPointerSize);
   int field_index = offset / kPointerSize;
   if (field_index >= static_cast<int>(kMaxTrackedFields)) return -1;
-  return field_index;
+  DCHECK_LT(0, field_index);
+  return field_index - 1;
 }
 
 // static
@@ -956,6 +1072,8 @@ CommonOperatorBuilder* LoadElimination::common() const {
 }
 
 Graph* LoadElimination::graph() const { return jsgraph()->graph(); }
+
+Factory* LoadElimination::factory() const { return jsgraph()->factory(); }
 
 }  // namespace compiler
 }  // namespace internal

@@ -44,7 +44,6 @@ v8_executable("cctest") {
     "compiler/test-run-bytecode-graph-builder.cc",
     "compiler/test-run-calls-to-external-references.cc",
     "compiler/test-run-deopt.cc",
-    "compiler/test-run-inlining.cc",
     "compiler/test-run-intrinsics.cc",
     "compiler/test-run-jsbranches.cc",
     "compiler/test-run-jscalls.cc",
@@ -91,6 +90,7 @@ v8_executable("cctest") {
     "interpreter/test-source-positions.cc",
     "libplatform/test-tracing.cc",
     "libsampler/test-sampler.cc",
+    "parsing/test-parse-decision.cc",
     "parsing/test-scanner-streams.cc",
     "parsing/test-scanner.cc",
     "print-extension.cc",
@@ -98,6 +98,7 @@ v8_executable("cctest") {
     "profiler-extension.cc",
     "profiler-extension.h",
     "test-access-checks.cc",
+    "test-accessor-assembler.cc",
     "test-accessors.cc",
     "test-api-accessors.cc",
     "test-api-fast-accessor-builder.cc",
@@ -190,6 +191,7 @@ v8_executable("cctest") {
     "wasm/test-run-wasm-module.cc",
     "wasm/test-run-wasm-relocation.cc",
     "wasm/test-run-wasm.cc",
+    "wasm/test-wasm-breakpoints.cc",
     "wasm/test-wasm-stack.cc",
     "wasm/test-wasm-trap-position.cc",
     "wasm/wasm-run-utils.h",
@@ -204,6 +206,7 @@ v8_executable("cctest") {
       "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
       "test-run-wasm-relocation-arm.cc",
+      "wasm/test-run-wasm-simd.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
     sources += [  ### gcmole(arch:arm64) ###
@@ -218,6 +221,7 @@ v8_executable("cctest") {
       "test-run-wasm-relocation-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
+      "wasm/test-run-wasm-simd-lowering.cc",
     ]
   } else if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###
@@ -229,6 +233,7 @@ v8_executable("cctest") {
       "test-log-stack-tracer.cc",
       "test-macro-assembler-ia32.cc",
       "test-run-wasm-relocation-ia32.cc",
+      "wasm/test-run-wasm-simd-lowering.cc",
     ]
   } else if (v8_current_cpu == "mips") {
     sources += [  ### gcmole(arch:mips) ###
@@ -238,6 +243,7 @@ v8_executable("cctest") {
       "test-code-stubs.h",
       "test-disasm-mips.cc",
       "test-macro-assembler-mips.cc",
+      "wasm/test-run-wasm-simd-lowering.cc",
     ]
   } else if (v8_current_cpu == "mipsel") {
     sources += [  ### gcmole(arch:mipsel) ###
@@ -247,6 +253,7 @@ v8_executable("cctest") {
       "test-code-stubs.h",
       "test-disasm-mips.cc",
       "test-macro-assembler-mips.cc",
+      "wasm/test-run-wasm-simd-lowering.cc",
     ]
   } else if (v8_current_cpu == "mips64") {
     sources += [  ### gcmole(arch:mips64) ###
@@ -256,6 +263,7 @@ v8_executable("cctest") {
       "test-code-stubs.h",
       "test-disasm-mips64.cc",
       "test-macro-assembler-mips64.cc",
+      "wasm/test-run-wasm-simd-lowering.cc",
     ]
   } else if (v8_current_cpu == "mips64el") {
     sources += [  ### gcmole(arch:mips64el) ###
@@ -265,6 +273,7 @@ v8_executable("cctest") {
       "test-code-stubs.h",
       "test-disasm-mips64.cc",
       "test-macro-assembler-mips64.cc",
+      "wasm/test-run-wasm-simd-lowering.cc",
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [  ### gcmole(arch:x64) ###
@@ -276,7 +285,6 @@ v8_executable("cctest") {
       "test-log-stack-tracer.cc",
       "test-macro-assembler-x64.cc",
       "test-run-wasm-relocation-x64.cc",
-      "wasm/test-run-wasm-simd-lowering.cc",
       "wasm/test-run-wasm-simd.cc",
     ]
   } else if (v8_current_cpu == "x87") {
@@ -289,6 +297,7 @@ v8_executable("cctest") {
       "test-log-stack-tracer.cc",
       "test-macro-assembler-x87.cc",
       "test-run-wasm-relocation-x87.cc",
+      "wasm/test-run-wasm-simd-lowering.cc",
     ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [  ### gcmole(arch:ppc) ###
@@ -296,6 +305,7 @@ v8_executable("cctest") {
       "test-code-stubs.cc",
       "test-code-stubs.h",
       "test-disasm-ppc.cc",
+      "wasm/test-run-wasm-simd-lowering.cc",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [  ### gcmole(arch:s390) ###
@@ -303,6 +313,7 @@ v8_executable("cctest") {
       "test-code-stubs.cc",
       "test-code-stubs.h",
       "test-disasm-s390.cc",
+      "wasm/test-run-wasm-simd-lowering.cc",
     ]
   }
 
@@ -347,9 +358,16 @@ v8_executable("cctest") {
   cflags = []
   ldflags = []
 
+  # crbug.com/676417: Suppress symbol import warning from linker.
+  if (is_win && is_component_build) {
+    ldflags = [ "/ignore:4217" ]
+  }
+
   if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
       v8_current_cpu == "arm" || v8_current_cpu == "arm64" ||
-      v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
+      v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
+      v8_current_cpu == "mips" || v8_current_cpu == "mips64" ||
+      v8_current_cpu == "mipsel" || v8_current_cpu == "mipsel64") {
     # Disable fmadd/fmsub so that expected results match generated code in
     # RunFloat64MulAndFloat64Add1 and friends.
     cflags += [ "-ffp-contract=off" ]

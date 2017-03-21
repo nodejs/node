@@ -59,7 +59,8 @@ class Snapshot : public AllStatic {
   // Create a new context using the internal partial snapshot.
   static MaybeHandle<Context> NewContextFromSnapshot(
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
-      size_t context_index);
+      size_t context_index,
+      v8::DeserializeInternalFieldsCallback internal_fields_deserializer);
 
   static bool HaveASnapshotToStartFrom(Isolate* isolate);
 

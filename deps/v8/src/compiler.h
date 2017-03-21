@@ -22,6 +22,10 @@ class CompilationJob;
 class JavaScriptFrame;
 class ParseInfo;
 class ScriptData;
+template <typename T>
+class ThreadedList;
+template <typename T>
+class ThreadedListZoneEntry;
 
 // The V8 compiler API.
 //
@@ -63,10 +67,15 @@ class Compiler : public AllStatic {
   // offer this chance, optimized closure instantiation will not call this.
   static void PostInstantiation(Handle<JSFunction> function, PretenureFlag);
 
+  typedef ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>
+      EagerInnerFunctionLiterals;
+
   // Parser::Parse, then Compiler::Analyze.
   static bool ParseAndAnalyze(ParseInfo* info);
-  // Rewrite, analyze scopes, and renumber.
-  static bool Analyze(ParseInfo* info);
+  // Rewrite, analyze scopes, and renumber. If |eager_literals| is non-null, it
+  // is appended with inner function literals which should be eagerly compiled.
+  static bool Analyze(ParseInfo* info,
+                      EagerInnerFunctionLiterals* eager_literals = nullptr);
   // Adds deoptimization support, requires ParseAndAnalyze.
   static bool EnsureDeoptimizationSupport(CompilationInfo* info);
   // Ensures that bytecode is generated, calls ParseAndAnalyze internally.
@@ -158,11 +167,7 @@ class CompilationJob {
 
   CompilationJob(Isolate* isolate, CompilationInfo* info,
                  const char* compiler_name,
-                 State initial_state = State::kReadyToPrepare)
-      : info_(info),
-        compiler_name_(compiler_name),
-        state_(initial_state),
-        stack_limit_(isolate->stack_guard()->real_climit()) {}
+                 State initial_state = State::kReadyToPrepare);
   virtual ~CompilationJob() {}
 
   // Prepare the compile job. Must be called on the main thread.
@@ -191,6 +196,11 @@ class CompilationJob {
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
   uintptr_t stack_limit() const { return stack_limit_; }
 
+  bool executed_on_background_thread() const {
+    DCHECK_IMPLIES(!can_execute_on_background_thread(),
+                   !executed_on_background_thread_);
+    return executed_on_background_thread_;
+  }
   State state() const { return state_; }
   CompilationInfo* info() const { return info_; }
   Isolate* isolate() const;
@@ -207,12 +217,14 @@ class CompilationJob {
 
  private:
   CompilationInfo* info_;
+  ThreadId isolate_thread_id_;
   base::TimeDelta time_taken_to_prepare_;
   base::TimeDelta time_taken_to_execute_;
   base::TimeDelta time_taken_to_finalize_;
   const char* compiler_name_;
   State state_;
   uintptr_t stack_limit_;
+  bool executed_on_background_thread_;
 
   MUST_USE_RESULT Status UpdateState(Status status, State next_state) {
     if (status == SUCCEEDED) {

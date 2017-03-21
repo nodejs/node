@@ -36,10 +36,4 @@
   # tested standalone.
   'modules-skip*': [SKIP],
 }],  # ALWAYS
-
-['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
-  # Ongoing implementation of modules.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-  'modules-*': [SKIP],
-}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
 ]

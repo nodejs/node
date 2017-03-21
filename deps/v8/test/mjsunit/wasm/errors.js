@@ -25,6 +25,23 @@ function instance(bytes, imports = {}) {
   return new WebAssembly.Instance(module(bytes), imports);
 }
 
+// instantiate should succeed but run should fail.
+function instantiateAndFailAtRuntime(bytes, imports = {}) {
+  var instance = undefined;
+  try {
+    instance = new WebAssembly.Instance(module(bytes), imports);
+  } catch(e) {
+    // If we fail at startup.
+    if (e instanceof WebAssembly.RuntimeError) {
+      throw e;
+    }
+    // Swallow other instantiation errors because we expect instantiation
+    // to succeed but runtime to fail.
+    return;
+  }
+  instance.exports.run();
+}
+
 function builder() {
   return new WasmModuleBuilder;
 }
@@ -33,17 +50,23 @@ function assertCompileError(bytes) {
   assertThrows(() => module(bytes), WebAssembly.CompileError);
 }
 
-function assertLinkError(bytes, imports = {}) {
+// default imports to {} so we get LinkError by default, thus allowing us to
+// distinguish the TypeError we want to catch
+function assertTypeError(bytes, imports = {}) {
   assertThrows(() => instance(bytes, imports), TypeError);
 }
 
-function assertRuntimeError(bytes, imports = {}) {
-  assertThrows(() => instance(bytes, imports).exports.run(),
+function assertLinkError(bytes, imports) {
+  assertThrows(() => instance(bytes, imports), WebAssembly.LinkError);
+}
+
+function assertRuntimeError(bytes, imports) {
+  assertThrows(() => instantiateAndFailAtRuntime(bytes, imports),
     WebAssembly.RuntimeError);
 }
 
-function assertConversionError(bytes, imports = {}) {
-  assertThrows(() => instance(bytes, imports).exports.run(), TypeError);
+function assertConversionError(bytes, imports) {
+  assertThrows(() => instantiateAndFailAtRuntime(bytes, imports), TypeError);
 }
 
 (function TestDecodingError() {
@@ -67,28 +90,27 @@ function assertConversionError(bytes, imports = {}) {
   let b;
 
   b = builder();
-  b.addImportWithModule("foo", "bar", kSig_v_v);
+  b.addImport("foo", "bar", kSig_v_v);
   assertLinkError(b.toBuffer(), {});
   b = builder();
-  b.addImportWithModule("foo", "bar", kSig_v_v);
+  b.addImport("foo", "bar", kSig_v_v);
   assertLinkError(b.toBuffer(), {foo: {}});
   b = builder();
-  b.addImportWithModule("foo", "bar", kSig_v_v);
+  b.addImport("foo", "bar", kSig_v_v);
   assertLinkError(b.toBuffer(), {foo: {bar: 9}});
 
   b = builder();
-  b.addImportedGlobal("foo", "bar", kAstI32);
+  b.addImportedGlobal("foo", "bar", kWasmI32);
   assertLinkError(b.toBuffer(), {});
-  // TODO(titzer): implement stricter import checks for globals.
-  // b = builder();
-  // b.addImportedGlobal("foo", "bar", kAstI32);
-  // assertLinkError(b.toBuffer(), {foo: {}});
-  // b = builder();
-  // b.addImportedGlobal("foo", "bar", kAstI32);
-  // assertLinkError(b.toBuffer(), {foo: {bar: ""}});
-  // b = builder();
-  // b.addImportedGlobal("foo", "bar", kAstI32);
-  // assertLinkError(b.toBuffer(), {foo: {bar: () => 9}});
+  b = builder();
+  b.addImportedGlobal("foo", "bar", kWasmI32);
+  assertLinkError(b.toBuffer(), {foo: {}});
+  b = builder();
+  b.addImportedGlobal("foo", "bar", kWasmI32);
+  assertLinkError(b.toBuffer(), {foo: {bar: ""}});
+  b = builder();
+  b.addImportedGlobal("foo", "bar", kWasmI32);
+  assertLinkError(b.toBuffer(), {foo: {bar: () => 9}});
 
   b = builder();
   b.addImportedMemory("foo", "bar");
@@ -96,11 +118,16 @@ function assertConversionError(bytes, imports = {}) {
   b = builder();
   b.addImportedMemory("foo", "bar");
   assertLinkError(b.toBuffer(), {foo: {}});
-  // TODO(titzer): implement stricter import checks for globals.
-  // b = builder();
-  // b.addImportedMemory("foo", "bar", 1);
-  // assertLinkError(b.toBuffer(),
-  //     {foo: {bar: new WebAssembly.Memory({initial: 0})}});
+  b = builder();
+  b.addImportedMemory("foo", "bar", 1);
+  assertLinkError(b.toBuffer(),
+      {foo: {bar: () => new WebAssembly.Memory({initial: 0})}});
+
+  b = builder();
+  b.addFunction("startup", kSig_v_v).addBody([
+    kExprUnreachable,
+  ]).end().addStart(0);
+  assertRuntimeError(b.toBuffer());
 })();
 
 (function TestTrapError() {
@@ -124,10 +151,12 @@ function assertConversionError(bytes, imports = {}) {
 
 (function TestConversionError() {
   let b = builder();
-  b.addImportWithModule("foo", "bar", kSig_v_l);
+  b.addImport("foo", "bar", kSig_v_l);
   assertConversionError(b.addFunction("run", kSig_v_v).addBody([
     kExprI64Const, 0, kExprCallFunction, 0
-  ]).exportFunc().end().toBuffer());
+  ]).exportFunc().end().toBuffer(), {foo:{bar: (l)=>{}}});
+
+  b = builder()
   assertConversionError(builder().addFunction("run", kSig_l_v).addBody([
     kExprI64Const, 0
   ]).exportFunc().end().toBuffer());

@@ -209,8 +209,30 @@ class InputUseInfos {
 
 #endif  // DEBUG
 
-}  // namespace
+bool CanOverflowSigned32(const Operator* op, Type* left, Type* right,
+                         Zone* type_zone) {
+  // We assume the inputs are checked Signed32 (or known statically
+  // to be Signed32). Technically, theinputs could also be minus zero, but
+  // that cannot cause overflow.
+  left = Type::Intersect(left, Type::Signed32(), type_zone);
+  right = Type::Intersect(right, Type::Signed32(), type_zone);
+  if (!left->IsInhabited() || !right->IsInhabited()) return false;
+  switch (op->opcode()) {
+    case IrOpcode::kSpeculativeNumberAdd:
+      return (left->Max() + right->Max() > kMaxInt) ||
+             (left->Min() + right->Min() < kMinInt);
 
+    case IrOpcode::kSpeculativeNumberSubtract:
+      return (left->Max() - right->Min() > kMaxInt) ||
+             (left->Min() - right->Max() < kMinInt);
+
+    default:
+      UNREACHABLE();
+  }
+  return true;
+}
+
+}  // namespace
 
 class RepresentationSelector {
  public:
@@ -675,6 +697,11 @@ class RepresentationSelector {
            GetUpperBound(node->InputAt(1))->Is(type);
   }
 
+  bool IsNodeRepresentationTagged(Node* node) {
+    MachineRepresentation representation = GetInfo(node)->representation();
+    return IsAnyTagged(representation);
+  }
+
   bool OneInputCannotBe(Node* node, Type* type) {
     DCHECK_EQ(2, node->op()->ValueInputCount());
     return !GetUpperBound(node->InputAt(0))->Maybe(type) ||
@@ -988,8 +1015,9 @@ class RepresentationSelector {
                machine_type.semantic() == MachineSemantic::kUint32);
         (*types)[i] = machine_type;
       }
-      NodeProperties::ChangeOp(node,
-                               jsgraph_->common()->TypedStateValues(types));
+      SparseInputMask mask = SparseInputMaskOf(node->op());
+      NodeProperties::ChangeOp(
+          node, jsgraph_->common()->TypedStateValues(types, mask));
     }
     SetOutput(node, MachineRepresentation::kTagged);
   }
@@ -1002,9 +1030,14 @@ class RepresentationSelector {
         // TODO(turbofan): Special treatment for ExternalPointer here,
         // to avoid incompatible truncations. We really need a story
         // for the JSFunction::entry field.
-        UseInfo use_info = input_type->Is(Type::ExternalPointer())
-                               ? UseInfo::PointerInt()
-                               : UseInfo::Any();
+        UseInfo use_info = UseInfo::None();
+        if (input_type->IsInhabited()) {
+          if (input_type->Is(Type::ExternalPointer())) {
+            use_info = UseInfo::PointerInt();
+          } else {
+            use_info = UseInfo::Any();
+          }
+        }
         EnqueueInput(node, i, use_info);
       }
     } else if (lower()) {
@@ -1019,7 +1052,9 @@ class RepresentationSelector {
         // TODO(turbofan): Special treatment for ExternalPointer here,
         // to avoid incompatible truncations. We really need a story
         // for the JSFunction::entry field.
-        if (input_type->Is(Type::ExternalPointer())) {
+        if (!input_type->IsInhabited()) {
+          (*types)[i] = MachineType::None();
+        } else if (input_type->Is(Type::ExternalPointer())) {
           (*types)[i] = MachineType::Pointer();
         } else {
           MachineRepresentation rep = input_type->IsInhabited()
@@ -1080,17 +1115,14 @@ class RepresentationSelector {
         return kNoWriteBarrier;
       }
       if (value_type->IsHeapConstant()) {
-        Handle<HeapObject> value_object = value_type->AsHeapConstant()->Value();
-        RootIndexMap root_index_map(jsgraph_->isolate());
-        int root_index = root_index_map.Lookup(*value_object);
-        if (root_index != RootIndexMap::kInvalidRootIndex &&
-            jsgraph_->isolate()->heap()->RootIsImmortalImmovable(root_index)) {
-          // Write barriers are unnecessary for immortal immovable roots.
-          return kNoWriteBarrier;
-        }
-        if (value_object->IsMap()) {
-          // Write barriers for storing maps are cheaper.
-          return kMapWriteBarrier;
+        Heap::RootListIndex root_index;
+        Heap* heap = jsgraph_->isolate()->heap();
+        if (heap->IsRootHandle(value_type->AsHeapConstant()->Value(),
+                               &root_index)) {
+          if (heap->RootIsImmortalImmovable(root_index)) {
+            // Write barriers are unnecessary for immortal immovable roots.
+            return kNoWriteBarrier;
+          }
         }
       }
       if (field_representation == MachineRepresentation::kTaggedPointer ||
@@ -1164,6 +1196,7 @@ class RepresentationSelector {
     if (BothInputsAre(node, Type::PlainPrimitive())) {
       if (truncation.IsUnused()) return VisitUnused(node);
     }
+
     if (BothInputsAre(node, type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
         (GetUpperBound(node)->Is(Type::Signed32()) ||
          GetUpperBound(node)->Is(Type::Unsigned32()) ||
@@ -1177,33 +1210,38 @@ class RepresentationSelector {
     // Try to use type feedback.
     NumberOperationHint hint = NumberOperationHintOf(node->op());
 
-    // Handle the case when no int32 checks on inputs are necessary
-    // (but an overflow check is needed on the output).
-    if (BothInputsAre(node, Type::Signed32()) ||
-        (BothInputsAre(node, Type::Signed32OrMinusZero()) &&
-         NodeProperties::GetType(node)->Is(type_cache_.kSafeInteger))) {
-      // If both the inputs the feedback are int32, use the overflow op.
-      if (hint == NumberOperationHint::kSignedSmall ||
-          hint == NumberOperationHint::kSigned32) {
-        VisitBinop(node, UseInfo::TruncatingWord32(),
-                   MachineRepresentation::kWord32, Type::Signed32());
-        if (lower()) ChangeToInt32OverflowOp(node);
-        return;
-      }
-    }
-
     if (hint == NumberOperationHint::kSignedSmall ||
         hint == NumberOperationHint::kSigned32) {
-      UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint);
-      // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
-      // a minus zero check for the right hand side, since we already
-      // know that the left hand side is a proper Signed32 value,
-      // potentially guarded by a check.
-      UseInfo right_use = CheckedUseInfoAsWord32FromHint(
-          hint, CheckForMinusZeroMode::kDontCheckForMinusZero);
-      VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
-                 Type::Signed32());
-      if (lower()) ChangeToInt32OverflowOp(node);
+      Type* left_feedback_type = TypeOf(node->InputAt(0));
+      Type* right_feedback_type = TypeOf(node->InputAt(1));
+      // Handle the case when no int32 checks on inputs are necessary (but
+      // an overflow check is needed on the output).
+      // TODO(jarin) We should not look at the upper bound because the typer
+      // could have already baked in some feedback into the upper bound.
+      if (BothInputsAre(node, Type::Signed32()) ||
+          (BothInputsAre(node, Type::Signed32OrMinusZero()) &&
+           GetUpperBound(node)->Is(type_cache_.kSafeInteger))) {
+        VisitBinop(node, UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kWord32, Type::Signed32());
+      } else {
+        UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint);
+        // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
+        // a minus zero check for the right hand side, since we already
+        // know that the left hand side is a proper Signed32 value,
+        // potentially guarded by a check.
+        UseInfo right_use = CheckedUseInfoAsWord32FromHint(
+            hint, CheckForMinusZeroMode::kDontCheckForMinusZero);
+        VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
+                   Type::Signed32());
+      }
+      if (lower()) {
+        if (CanOverflowSigned32(node->op(), left_feedback_type,
+                                right_feedback_type, graph_zone())) {
+          ChangeToInt32OverflowOp(node);
+        } else {
+          ChangeToPureOp(node, Int32Op(node));
+        }
+      }
       return;
     }
 
@@ -1550,13 +1588,38 @@ class RepresentationSelector {
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         switch (hint) {
           case NumberOperationHint::kSignedSmall:
-          case NumberOperationHint::kSigned32:
-            VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                       MachineRepresentation::kBit);
-            if (lower()) ChangeToPureOp(node, Int32Op(node));
+          case NumberOperationHint::kSigned32: {
+            if (propagate()) {
+              VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                         MachineRepresentation::kBit);
+            } else if (retype()) {
+              SetOutput(node, MachineRepresentation::kBit, Type::Any());
+            } else {
+              DCHECK(lower());
+              Node* lhs = node->InputAt(0);
+              Node* rhs = node->InputAt(1);
+              if (IsNodeRepresentationTagged(lhs) &&
+                  IsNodeRepresentationTagged(rhs)) {
+                VisitBinop(node, UseInfo::CheckedSignedSmallAsTaggedSigned(),
+                           MachineRepresentation::kBit);
+                ChangeToPureOp(
+                    node, changer_->TaggedSignedOperatorFor(node->opcode()));
+
+              } else {
+                VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                           MachineRepresentation::kBit);
+                ChangeToPureOp(node, Int32Op(node));
+              }
+            }
             return;
-          case NumberOperationHint::kNumber:
+          }
           case NumberOperationHint::kNumberOrOddball:
+            // Abstract and strict equality don't perform ToNumber conversions
+            // on Oddballs, so make sure we don't accidentially sneak in a
+            // hint with Oddball feedback here.
+            DCHECK_NE(IrOpcode::kSpeculativeNumberEqual, node->opcode());
+          // Fallthrough
+          case NumberOperationHint::kNumber:
             VisitBinop(node, CheckedUseInfoAsFloat64FromHint(hint),
                        MachineRepresentation::kBit);
             if (lower()) ChangeToPureOp(node, Float64Op(node));
@@ -2156,9 +2219,15 @@ class RepresentationSelector {
         return VisitBinop(node, UseInfo::AnyTagged(),
                           MachineRepresentation::kTaggedPointer);
       }
-      case IrOpcode::kStringCharCodeAt: {
+      case IrOpcode::kStringCharAt: {
         VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
-                   MachineRepresentation::kWord32);
+                   MachineRepresentation::kTaggedPointer);
+        return;
+      }
+      case IrOpcode::kStringCharCodeAt: {
+        // TODO(turbofan): Allow builtins to return untagged values.
+        VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kTaggedSigned);
         return;
       }
       case IrOpcode::kStringFromCharCode: {
@@ -2205,6 +2274,17 @@ class RepresentationSelector {
         ProcessInput(node, 0, UseInfo::Bool());
         ProcessRemainingInputs(node, 1);
         SetOutput(node, MachineRepresentation::kNone);
+        return;
+      }
+      case IrOpcode::kCheckInternalizedString: {
+        if (InputIs(node, Type::InternalizedString())) {
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
+        }
         return;
       }
       case IrOpcode::kCheckNumber: {
@@ -2449,6 +2529,12 @@ class RepresentationSelector {
         VisitObjectIs(node, Type::Undetectable(), lowering);
         return;
       }
+      case IrOpcode::kNewRestParameterElements:
+      case IrOpcode::kNewUnmappedArgumentsElements: {
+        ProcessRemainingInputs(node, 0);
+        SetOutput(node, MachineRepresentation::kTaggedPointer);
+        return;
+      }
       case IrOpcode::kArrayBufferWasNeutered: {
         VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         return;
@@ -2466,8 +2552,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckTaggedHole: {
-        VisitUnop(node, UseInfo::AnyTagged(),
-                  MachineRepresentation::kTaggedPointer);
+        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
         return;
       }
       case IrOpcode::kConvertTaggedHoleToUndefined: {

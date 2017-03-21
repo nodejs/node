@@ -18,8 +18,9 @@ DeadCodeElimination::DeadCodeElimination(Editor* editor, Graph* graph,
     : AdvancedReducer(editor),
       graph_(graph),
       common_(common),
-      dead_(graph->NewNode(common->Dead())) {}
-
+      dead_(graph->NewNode(common->Dead())) {
+  NodeProperties::SetType(dead_, Type::None());
+}
 
 Reduction DeadCodeElimination::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -40,11 +41,11 @@ Reduction DeadCodeElimination::Reduce(Node* node) {
 
 Reduction DeadCodeElimination::ReduceEnd(Node* node) {
   DCHECK_EQ(IrOpcode::kEnd, node->opcode());
-  int const input_count = node->InputCount();
-  DCHECK_LE(1, input_count);
+  Node::Inputs inputs = node->inputs();
+  DCHECK_LE(1, inputs.count());
   int live_input_count = 0;
-  for (int i = 0; i < input_count; ++i) {
-    Node* const input = node->InputAt(i);
+  for (int i = 0; i < inputs.count(); ++i) {
+    Node* const input = inputs[i];
     // Skip dead inputs.
     if (input->opcode() == IrOpcode::kDead) continue;
     // Compact live inputs.
@@ -53,20 +54,20 @@ Reduction DeadCodeElimination::ReduceEnd(Node* node) {
   }
   if (live_input_count == 0) {
     return Replace(dead());
-  } else if (live_input_count < input_count) {
+  } else if (live_input_count < inputs.count()) {
     node->TrimInputCount(live_input_count);
     NodeProperties::ChangeOp(node, common()->End(live_input_count));
     return Changed(node);
   }
-  DCHECK_EQ(input_count, live_input_count);
+  DCHECK_EQ(inputs.count(), live_input_count);
   return NoChange();
 }
 
 
 Reduction DeadCodeElimination::ReduceLoopOrMerge(Node* node) {
   DCHECK(IrOpcode::IsMergeOpcode(node->opcode()));
-  int const input_count = node->InputCount();
-  DCHECK_LE(1, input_count);
+  Node::Inputs inputs = node->inputs();
+  DCHECK_LE(1, inputs.count());
   // Count the number of live inputs to {node} and compact them on the fly, also
   // compacting the inputs of the associated {Phi} and {EffectPhi} uses at the
   // same time.  We consider {Loop}s dead even if only the first control input
@@ -74,8 +75,8 @@ Reduction DeadCodeElimination::ReduceLoopOrMerge(Node* node) {
   int live_input_count = 0;
   if (node->opcode() != IrOpcode::kLoop ||
       node->InputAt(0)->opcode() != IrOpcode::kDead) {
-    for (int i = 0; i < input_count; ++i) {
-      Node* const input = node->InputAt(i);
+    for (int i = 0; i < inputs.count(); ++i) {
+      Node* const input = inputs[i];
       // Skip dead inputs.
       if (input->opcode() == IrOpcode::kDead) continue;
       // Compact live inputs.
@@ -83,7 +84,7 @@ Reduction DeadCodeElimination::ReduceLoopOrMerge(Node* node) {
         node->ReplaceInput(live_input_count, input);
         for (Node* const use : node->uses()) {
           if (NodeProperties::IsPhi(use)) {
-            DCHECK_EQ(input_count + 1, use->InputCount());
+            DCHECK_EQ(inputs.count() + 1, use->InputCount());
             use->ReplaceInput(live_input_count, use->InputAt(i));
           }
         }
@@ -109,9 +110,9 @@ Reduction DeadCodeElimination::ReduceLoopOrMerge(Node* node) {
     return Replace(node->InputAt(0));
   }
   DCHECK_LE(2, live_input_count);
-  DCHECK_LE(live_input_count, input_count);
+  DCHECK_LE(live_input_count, inputs.count());
   // Trim input count for the {Merge} or {Loop} node.
-  if (live_input_count < input_count) {
+  if (live_input_count < inputs.count()) {
     // Trim input counts for all phi uses and revisit them.
     for (Node* const use : node->uses()) {
       if (NodeProperties::IsPhi(use)) {

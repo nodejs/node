@@ -2,20 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-Debug = new DebugWrapper();
-Debug.enable();
+Debug = debug.Debug
 
-// Simple debug event handler which performs 100 steps and then retrieves
-// the resulting value of "i" in f().
+// Simple debug event handler which first time hit will perform 1000 steps and
+// second time hit will evaluate and store the value of "i". If requires that
+// the global property "state" is initially zero.
+
+var bp1, bp2;
 
 function listener(event, exec_state, event_data, data) {
   if (event == Debug.DebugEvent.Break) {
     if (step_count > 0) {
-      Debug.stepInto();
+      exec_state.prepareStep(Debug.StepAction.StepIn);
       step_count--;
     } else {
-      const frameid = exec_state.frames[0].callFrameId;
-      result = Debug.evaluate(frameid, "i").value;
+      result = exec_state.frame().evaluate("i").value();
+      // Clear the break point on line 2 if set.
+      if (bp2) {
+        Debug.clearBreakPoint(bp2);
+      }
     }
   }
 };
@@ -25,19 +30,18 @@ Debug.setListener(listener);
 
 // Test debug event for break point.
 function f() {
-  var i;                       // Line 1.
-  for (i = 0; i < 100; i++) {  // Line 2.
-    x = 1;                     // Line 3.
+  var i;                        // Line 1.
+  for (i = 0; i < 1000; i++) {  // Line 2.
+    x = 1;                      // Line 3.
   }
 };
 
 // Set a breakpoint on the for statement (line 1).
-Debug.setBreakPoint(f, 1);
+bp1 = Debug.setBreakPoint(f, 1);
 
-// Check that performing 100 steps will make i 33.
-let step_count = 100;
-let result = -1;
-
+// Check that performing 1000 steps will make i 333.
+var step_count = 1000;
+result = -1;
 f();
-
-assertEquals(33, result);
+assertEquals(333, result);
+Debug.setListener(null);

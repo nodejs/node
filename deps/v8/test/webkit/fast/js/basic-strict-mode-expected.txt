@@ -119,10 +119,10 @@ PASS 'use strict'; for(;;)continue missingLabel threw exception SyntaxError: Und
 PASS (function (){'use strict'; for(;;)continue missingLabel}) threw exception SyntaxError: Undefined label 'missingLabel'.
 PASS 'use strict'; 007; threw exception SyntaxError: Octal literals are not allowed in strict mode..
 PASS (function (){'use strict'; 007;}) threw exception SyntaxError: Octal literals are not allowed in strict mode..
-PASS 'use strict'; '\007'; threw exception SyntaxError: Octal literals are not allowed in strict mode..
-PASS (function (){'use strict'; '\007';}) threw exception SyntaxError: Octal literals are not allowed in strict mode..
-PASS '\007'; 'use strict'; threw exception SyntaxError: Octal literals are not allowed in strict mode..
-PASS (function (){'\007'; 'use strict';}) threw exception SyntaxError: Octal literals are not allowed in strict mode..
+PASS 'use strict'; '\007'; threw exception SyntaxError: Octal escape sequences are not allowed in strict mode..
+PASS (function (){'use strict'; '\007';}) threw exception SyntaxError: Octal escape sequences are not allowed in strict mode..
+PASS '\007'; 'use strict'; threw exception SyntaxError: Octal escape sequences are not allowed in strict mode..
+PASS (function (){'\007'; 'use strict';}) threw exception SyntaxError: Octal escape sequences are not allowed in strict mode..
 PASS 'use strict'; delete aDeletableProperty; threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
 PASS (function (){'use strict'; delete aDeletableProperty;}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..
 PASS 'use strict'; (function (){ delete someDeclaredGlobal;}) threw exception SyntaxError: Delete of an unqualified identifier in strict mode..

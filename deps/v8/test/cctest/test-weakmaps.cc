@@ -249,6 +249,7 @@ TEST(Regress2060b) {
 
 
 TEST(Regress399527) {
+  if (!FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();

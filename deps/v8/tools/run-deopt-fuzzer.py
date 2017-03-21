@@ -60,8 +60,7 @@ TIMEOUT_SCALEFACTOR = {"debug"   : 4,
 MODE_FLAGS = {
     "debug"   : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--enable-slow-asserts",
-                 "--debug-code", "--verify-heap",
-                 "--noconcurrent-recompilation"],
+                 "--verify-heap", "--noconcurrent-recompilation"],
     "release" : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--noconcurrent-recompilation"]}
 

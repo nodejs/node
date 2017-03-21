@@ -190,6 +190,7 @@ enum {
   B7 = 1 << 7,
   B8 = 1 << 8,
   B9 = 1 << 9,
+  B10 = 1 << 10,
   B12 = 1 << 12,
   B16 = 1 << 16,
   B17 = 1 << 17,
@@ -217,7 +218,6 @@ enum {
   kOff12Mask = (1 << 12) - 1,
   kOff8Mask = (1 << 8) - 1
 };
-
 
 enum BarrierOption {
   OSHLD = 0x1,
@@ -327,12 +327,12 @@ enum LFlag {
 
 // NEON data type
 enum NeonDataType {
-  NeonS8 = 0x1,   // U = 0, imm3 = 0b001
-  NeonS16 = 0x2,  // U = 0, imm3 = 0b010
-  NeonS32 = 0x4,  // U = 0, imm3 = 0b100
+  NeonS8 = 0x1,             // U = 0, imm3 = 0b001
+  NeonS16 = 0x2,            // U = 0, imm3 = 0b010
+  NeonS32 = 0x4,            // U = 0, imm3 = 0b100
   NeonU8 = 1 << 24 | 0x1,   // U = 1, imm3 = 0b001
   NeonU16 = 1 << 24 | 0x2,  // U = 1, imm3 = 0b010
-  NeonU32 = 1 << 24 | 0x4,   // U = 1, imm3 = 0b100
+  NeonU32 = 1 << 24 | 0x4,  // U = 1, imm3 = 0b100
   NeonDataTypeSizeMask = 0x7,
   NeonDataTypeUMask = 1 << 24
 };
@@ -374,9 +374,9 @@ const int32_t  kDefaultStopCode = -1;
 // Type of VFP register. Determines register encoding.
 enum VFPRegPrecision {
   kSinglePrecision = 0,
-  kDoublePrecision = 1
+  kDoublePrecision = 1,
+  kSimd128Precision = 2
 };
-
 
 // VFP FPSCR constants.
 enum VFPConversionMode {
@@ -667,15 +667,22 @@ class Instruction {
 
 
  private:
-  // Join split register codes, depending on single or double precision.
+  // Join split register codes, depending on register precision.
   // four_bit is the position of the least-significant bit of the four
   // bit specifier. one_bit is the position of the additional single bit
   // specifier.
   inline int VFPGlueRegValue(VFPRegPrecision pre, int four_bit, int one_bit) {
     if (pre == kSinglePrecision) {
       return (Bits(four_bit + 3, four_bit) << 1) | Bit(one_bit);
+    } else {
+      int reg_num = (Bit(one_bit) << 4) | Bits(four_bit + 3, four_bit);
+      if (pre == kDoublePrecision) {
+        return reg_num;
+      }
+      DCHECK_EQ(kSimd128Precision, pre);
+      DCHECK_EQ(reg_num & 1, 0);
+      return reg_num / 2;
     }
-    return (Bit(one_bit) << 4) | Bits(four_bit + 3, four_bit);
   }
 
   // We need to prevent the creation of instances of class Instruction.

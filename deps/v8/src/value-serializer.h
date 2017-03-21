@@ -112,7 +112,8 @@ class ValueSerializer {
   void WriteJSRegExp(JSRegExp* regexp);
   Maybe<bool> WriteJSMap(Handle<JSMap> map) WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSet(Handle<JSSet> map) WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSArrayBuffer(JSArrayBuffer* array_buffer);
+  Maybe<bool> WriteJSArrayBuffer(Handle<JSArrayBuffer> array_buffer)
+      WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView* array_buffer);
   Maybe<bool> WriteWasmModule(Handle<JSObject> object) WARN_UNUSED_RESULT;
   Maybe<bool> WriteHostObject(Handle<JSObject> object) WARN_UNUSED_RESULT;

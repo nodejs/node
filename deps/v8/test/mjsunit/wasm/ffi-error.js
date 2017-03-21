@@ -11,7 +11,7 @@ function testCallFFI(ffi) {
   var builder = new WasmModuleBuilder();
 
   var sig_index = kSig_i_dd;
-  builder.addImport("fun", sig_index);
+  builder.addImport("", "fun", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
       kExprGetLocal, 0,              // --
@@ -25,8 +25,7 @@ function testCallFFI(ffi) {
 
 // everything is good.
 (function() {
-  var ffi = new Object();
-  ffi.fun = function(a, b) { print(a, b); }
+  var ffi = {"": {fun: function(a, b) { print(a, b); }}}
   testCallFFI(ffi);
 })();
 
@@ -101,7 +100,7 @@ assertThrows(function() {
   var builder = new WasmModuleBuilder();
   var sig_index = builder.addType(kSig_i_i);
   var sig_i64_index = builder.addType(kSig_i_l);
-  var index = builder.addImport("func", sig_i64_index);
+  var index = builder.addImport("", "func", sig_i64_index);
   builder.addFunction("main", sig_index)
     .addBody([
       kExprGetLocal, 0,
@@ -110,8 +109,19 @@ assertThrows(function() {
     ])        // --
     .exportFunc();
   var func = function() {return {};};
-  var main = builder.instantiate({func: func}).exports.main;
+  var main = builder.instantiate({"": {func: func}}).exports.main;
   assertThrows(function() {
     main(13);
   }, TypeError);
+})();
+
+(function ImportSymbolToNumberThrows() {
+  var builder = new WasmModuleBuilder();
+  var index = builder.addImport("", "func", kSig_i_v);
+  builder.addFunction("main", kSig_i_v)
+      .addBody([kExprCallFunction, 0])
+      .exportFunc();
+  var func = () => Symbol();
+  var main = builder.instantiate({"": {func: func}}).exports.main;
+  assertThrows(() => main(), TypeError);
 })();

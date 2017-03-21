@@ -8,16 +8,16 @@
 namespace v8 {
 namespace internal {
 
-TEST(CompilerDispatcherTracerTest, EstimateZeroWithoutSamples) {
+TEST(CompilerDispatcherTracerTest, EstimateWithoutSamples) {
   CompilerDispatcherTracer tracer(nullptr);
 
   EXPECT_EQ(0.0, tracer.EstimatePrepareToParseInMs());
-  EXPECT_EQ(0.0, tracer.EstimateParseInMs(0));
-  EXPECT_EQ(0.0, tracer.EstimateParseInMs(42));
+  EXPECT_EQ(1.0, tracer.EstimateParseInMs(0));
+  EXPECT_EQ(1.0, tracer.EstimateParseInMs(42));
   EXPECT_EQ(0.0, tracer.EstimateFinalizeParsingInMs());
   EXPECT_EQ(0.0, tracer.EstimatePrepareToCompileInMs());
-  EXPECT_EQ(0.0, tracer.EstimateCompileInMs(0));
-  EXPECT_EQ(0.0, tracer.EstimateCompileInMs(42));
+  EXPECT_EQ(1.0, tracer.EstimateCompileInMs(0));
+  EXPECT_EQ(1.0, tracer.EstimateCompileInMs(42));
   EXPECT_EQ(0.0, tracer.EstimateFinalizeCompilingInMs());
 }
 
@@ -36,7 +36,7 @@ TEST(CompilerDispatcherTracerTest, Average) {
 TEST(CompilerDispatcherTracerTest, SizeBasedAverage) {
   CompilerDispatcherTracer tracer(nullptr);
 
-  EXPECT_EQ(0.0, tracer.EstimateParseInMs(100));
+  EXPECT_EQ(1.0, tracer.EstimateParseInMs(100));
 
   // All three samples parse 100 units/ms.
   tracer.RecordParse(1.0, 100);

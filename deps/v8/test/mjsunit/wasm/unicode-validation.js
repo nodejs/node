@@ -45,7 +45,7 @@ function checkImportsAndExports(imported_module_name, imported_function_name,
     internal_function_name, exported_function_name, shouldThrow) {
   var builder = new WasmModuleBuilder();
 
-  builder.addImportWithModule(imported_module_name, imported_function_name,
+  builder.addImport(imported_module_name, imported_function_name,
       kSig_v_v);
 
   builder.addFunction(internal_function_name, kSig_v_v)

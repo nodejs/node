@@ -1,0 +1,102 @@
+Tests that Runtime.evaluate will generate correct previews.
+
+Running test: testObjectPropertiesPreview
+{
+    description : Object
+    overflow : false
+    properties : [
+        [0] : {
+            name : p1
+            type : object
+            value : Object
+        }
+        [1] : {
+            name : p2
+            type : object
+            value : Object
+        }
+        [2] : {
+            name : p3
+            type : function
+            value : 
+        }
+        [3] : {
+            name : p4
+            type : accessor
+        }
+        [4] : {
+            name : p6
+            type : accessor
+        }
+    ]
+    type : object
+}
+
+Running test: testArrayPropertiesPreview
+{
+    description : Array(8)
+    overflow : false
+    properties : [
+        [0] : {
+            name : 2
+            type : number
+            value : 1
+        }
+        [1] : {
+            name : 3
+            subtype : array
+            type : object
+            value : Array(1)
+        }
+        [2] : {
+            name : 4
+            type : function
+            value : 
+        }
+        [3] : {
+            name : nonEntryFunction
+            type : function
+            value : 
+        }
+        [4] : {
+            name : 5
+            type : accessor
+        }
+        [5] : {
+            name : 7
+            type : accessor
+        }
+    ]
+    subtype : array
+    type : object
+}
+
+Running test: testInheritingObjectPropertiesPreview
+{
+    description : Object
+    overflow : false
+    properties : [
+        [0] : {
+            name : prototype
+            type : object
+            value : Object
+        }
+    ]
+    type : object
+}
+
+Running test: testInheritingArrayPropertiesPreview
+{
+    description : Array(0)
+    overflow : false
+    properties : [
+        [0] : {
+            name : prototype
+            subtype : array
+            type : object
+            value : Array(8)
+        }
+    ]
+    subtype : array
+    type : object
+}

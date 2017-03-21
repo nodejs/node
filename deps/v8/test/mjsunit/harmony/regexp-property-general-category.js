@@ -63,3 +63,7 @@ assertTrue(/\P{L}/u.test("\uA6EE"));
 
 assertTrue(/\p{Lowercase_Letter}/u.test("a"));
 assertTrue(/\p{Math_Symbol}/u.test("+"));
+
+assertTrue(/\p{gc=Ll}/u.test("a"));
+assertTrue(/\p{General_Category=Math_Symbol}/u.test("+"));
+assertTrue(/\p{General_Category=L}/u.test("X"));

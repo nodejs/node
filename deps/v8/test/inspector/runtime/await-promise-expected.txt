@@ -29,6 +29,18 @@ Running test: testRejectedPromise
             stackTrace : {
                 callFrames : [
                 ]
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 8
+                            functionName : 
+                            lineNumber : 0
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.reject
+                }
             }
             text : Uncaught (in promise)
         }

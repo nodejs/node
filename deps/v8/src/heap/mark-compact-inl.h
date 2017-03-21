@@ -15,7 +15,7 @@ namespace internal {
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
   DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(obj)));
   if (marking_deque()->Push(obj)) {
-    MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
+    MemoryChunk::IncrementLiveBytes(obj, obj->Size());
   } else {
     MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
     Marking::BlackToGrey(mark_bit);
@@ -26,7 +26,7 @@ void MarkCompactCollector::PushBlack(HeapObject* obj) {
 void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
   DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(obj)));
   if (!marking_deque()->Unshift(obj)) {
-    MemoryChunk::IncrementLiveBytesFromGC(obj, -obj->Size());
+    MemoryChunk::IncrementLiveBytes(obj, -obj->Size());
     MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
     Marking::BlackToGrey(mark_bit);
   }
@@ -47,7 +47,7 @@ void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
   DCHECK(Marking::IsWhite(mark_bit));
   DCHECK(ObjectMarking::MarkBitFrom(obj) == mark_bit);
   Marking::WhiteToBlack(mark_bit);
-  MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
+  MemoryChunk::IncrementLiveBytes(obj, obj->Size());
 }
 
 
@@ -195,12 +195,13 @@ HeapObject* LiveObjectIterator<T>::Next() {
           object = black_object;
         }
       } else if ((T == kGreyObjects || T == kAllLiveObjects)) {
+        map = base::NoBarrierAtomicValue<Map*>::FromAddress(addr)->Value();
         object = HeapObject::FromAddress(addr);
       }
 
       // We found a live object.
       if (object != nullptr) {
-        if (map != nullptr && map == heap()->one_pointer_filler_map()) {
+        if (map == heap()->one_pointer_filler_map()) {
           // Black areas together with slack tracking may result in black one
           // word filler objects. We filter these objects out in the iterator.
           object = nullptr;

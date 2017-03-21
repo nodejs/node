@@ -53,7 +53,8 @@
     const fulfilledPromise = v8.createPromise();
     v8.resolvePromise(
       fulfilledPromise,
-      hasOwn({ test: 'test' }, 'test') ? 1 : -1
+      hasOwn({ test: 'test' }, 'test') ? 1 : -1,
+      undefined  // pass an extra arg to test arguments adapter frame
     );
 
     const fulfilledPromise2 = Promise_resolve(call(function (arg1, arg2) {

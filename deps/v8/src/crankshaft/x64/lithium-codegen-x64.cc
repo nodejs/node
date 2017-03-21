@@ -7,6 +7,7 @@
 #include "src/crankshaft/x64/lithium-codegen-x64.h"
 
 #include "src/base/bits.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/crankshaft/hydrogen-osr.h"
@@ -179,14 +180,17 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
       __ CallRuntime(Runtime::kNewScriptContext);
       deopt_mode = Safepoint::kLazyDeopt;
     } else {
-      if (slots <= FastNewFunctionContextStub::kMaximumSlots) {
-        FastNewFunctionContextStub stub(isolate());
+      if (slots <=
+          ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+        Callable callable = CodeFactory::FastNewFunctionContext(
+            isolate(), info()->scope()->scope_type());
         __ Set(FastNewFunctionContextDescriptor::SlotsRegister(), slots);
-        __ CallStub(&stub);
+        __ Call(callable.code(), RelocInfo::CODE_TARGET);
         // Result of FastNewFunctionContextStub is always in new space.
         need_write_barrier = false;
       } else {
         __ Push(rdi);
+        __ Push(Smi::FromInt(info()->scope()->scope_type()));
         __ CallRuntime(Runtime::kNewFunctionContext);
       }
     }
@@ -2825,7 +2829,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
       // protector cell contains (Smi) Isolate::kProtectorValid. Otherwise
       // it needs to bail out.
       __ LoadRoot(result, Heap::kArrayProtectorRootIndex);
-      __ Cmp(FieldOperand(result, Cell::kValueOffset),
+      __ Cmp(FieldOperand(result, PropertyCell::kValueOffset),
              Smi::FromInt(Isolate::kProtectorValid));
       DeoptimizeIf(not_equal, instr, DeoptimizeReason::kHole);
     }
@@ -2958,9 +2962,9 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
 
   // Normal function. Replace undefined or null with global receiver.
   __ CompareRoot(receiver, Heap::kNullValueRootIndex);
-  __ j(equal, &global_object, Label::kNear);
+  __ j(equal, &global_object, dist);
   __ CompareRoot(receiver, Heap::kUndefinedValueRootIndex);
-  __ j(equal, &global_object, Label::kNear);
+  __ j(equal, &global_object, dist);
 
   // The receiver should be a JS object.
   Condition is_smi = __ CheckSmi(receiver);
@@ -2968,7 +2972,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ CmpObjectType(receiver, FIRST_JS_RECEIVER_TYPE, kScratchRegister);
   DeoptimizeIf(below, instr, DeoptimizeReason::kNotAJavaScriptObject);
 
-  __ jmp(&receiver_ok, Label::kNear);
+  __ jmp(&receiver_ok, dist);
   __ bind(&global_object);
   __ movp(receiver, FieldOperand(function, JSFunction::kContextOffset));
   __ movp(receiver, ContextOperand(receiver, Context::NATIVE_CONTEXT_INDEX));
@@ -3062,7 +3066,7 @@ void LCodeGen::DoContext(LContext* instr) {
 
 void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   DCHECK(ToRegister(instr->context()).is(rsi));
-  __ Push(instr->hydrogen()->pairs());
+  __ Push(instr->hydrogen()->declarations());
   __ Push(Smi::FromInt(instr->hydrogen()->flags()));
   __ Push(instr->hydrogen()->feedback_vector());
   CallRuntime(Runtime::kDeclareGlobals, instr);

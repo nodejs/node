@@ -9,6 +9,23 @@
   "resources": ["base.js"],
   "tests": [
     {
+      "name": "AsyncAwait",
+      "path": ["AsyncAwait"],
+      "main": "run.js",
+      "resources": [
+        "native.js",
+        "baseline-babel-es2017.js",
+        "baseline-naive-promises.js"
+      ],
+      "flags": ["--allow-natives-syntax"],
+      "results_regexp": "^%s\\-AsyncAwait\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "BaselineES2017"},
+        {"name": "BaselineNaivePromises"},
+        {"name": "Native"}
+      ]
+    },
+    {
       "name": "Generators",
       "path": ["Generators"],
       "main": "run.js",
@@ -73,6 +90,28 @@
       "tests": [
         {"name": "Super"},
         {"name": "DefaultConstructor"}
+      ]
+    },
+    {
+      "name": "Closures",
+      "path": ["Closures"],
+      "main": "run.js",
+      "resources": ["closures.js"],
+      "flags": [],
+      "results_regexp": "^%s\\-Closures\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Closures"}
+      ]
+    },
+    {
+      "name": "ClosuresMarkForTierUp",
+      "path": ["Closures"],
+      "main": "run.js",
+      "resources": ["closures.js"],
+      "flags": ["--mark_shared_functions_for_tier_up"],
+      "results_regexp": "^%s\\-Closures\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Closures"}
       ]
     },
     {

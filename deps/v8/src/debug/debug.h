@@ -12,6 +12,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
 #include "src/debug/debug-interface.h"
+#include "src/debug/interface-types.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/flags.h"
@@ -71,10 +72,12 @@ enum DebugBreakType {
   DEBUG_BREAK_SLOT_AT_TAIL_CALL,
 };
 
+const int kDebugPromiseNoID = 0;
+const int kDebugPromiseFirstID = 1;
+
 class BreakLocation {
  public:
-  static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
-                                 JavaScriptFrame* frame);
+  static BreakLocation FromFrame(StandardFrame* frame);
 
   static void AllAtCurrentStatement(Handle<DebugInfo> debug_info,
                                     JavaScriptFrame* frame,
@@ -240,20 +243,17 @@ class DebugInfoListNode {
   DebugInfoListNode* next_;
 };
 
-
 // Message delivered to the message handler callback. This is either a debugger
 // event or the response to a command.
-class MessageImpl: public v8::Debug::Message {
+class MessageImpl : public v8::Debug::Message {
  public:
   // Create a message object for a debug event.
-  static MessageImpl NewEvent(DebugEvent event,
-                              bool running,
+  static MessageImpl NewEvent(DebugEvent event, bool running,
                               Handle<JSObject> exec_state,
                               Handle<JSObject> event_data);
 
   // Create a message object for the response to a debug command.
-  static MessageImpl NewResponse(DebugEvent event,
-                                 bool running,
+  static MessageImpl NewResponse(DebugEvent event, bool running,
                                  Handle<JSObject> exec_state,
                                  Handle<JSObject> event_data,
                                  Handle<String> response_json,
@@ -272,26 +272,21 @@ class MessageImpl: public v8::Debug::Message {
   virtual v8::Isolate* GetIsolate() const;
 
  private:
-  MessageImpl(bool is_event,
-              DebugEvent event,
-              bool running,
-              Handle<JSObject> exec_state,
-              Handle<JSObject> event_data,
-              Handle<String> response_json,
-              v8::Debug::ClientData* client_data);
+  MessageImpl(bool is_event, DebugEvent event, bool running,
+              Handle<JSObject> exec_state, Handle<JSObject> event_data,
+              Handle<String> response_json, v8::Debug::ClientData* client_data);
 
-  bool is_event_;  // Does this message represent a debug event?
-  DebugEvent event_;  // Debug event causing the break.
-  bool running_;  // Will the VM start running after this event?
-  Handle<JSObject> exec_state_;  // Current execution state.
-  Handle<JSObject> event_data_;  // Data associated with the event.
+  bool is_event_;                 // Does this message represent a debug event?
+  DebugEvent event_;              // Debug event causing the break.
+  bool running_;                  // Will the VM start running after this event?
+  Handle<JSObject> exec_state_;   // Current execution state.
+  Handle<JSObject> event_data_;   // Data associated with the event.
   Handle<String> response_json_;  // Response JSON if message holds a response.
   v8::Debug::ClientData* client_data_;  // Client data passed with the request.
 };
 
-
 // Details of the debug event delivered to the debug event listener.
-class EventDetailsImpl : public v8::DebugInterface::EventDetails {
+class EventDetailsImpl : public debug::EventDetails {
  public:
   EventDetailsImpl(DebugEvent event,
                    Handle<JSObject> exec_state,
@@ -315,7 +310,6 @@ class EventDetailsImpl : public v8::DebugInterface::EventDetails {
   v8::Debug::ClientData* client_data_;  // Data passed to DebugBreakForCommand.
 };
 
-
 // Message send by user to v8 debugger or debugger output message.
 // In addition to command text it may contain a pointer to some user data
 // which are expected to be passed along with the command reponse to message
@@ -330,14 +324,13 @@ class CommandMessage {
   void Dispose();
   Vector<uint16_t> text() const { return text_; }
   v8::Debug::ClientData* client_data() const { return client_data_; }
+
  private:
-  CommandMessage(const Vector<uint16_t>& text,
-                 v8::Debug::ClientData* data);
+  CommandMessage(const Vector<uint16_t>& text, v8::Debug::ClientData* data);
 
   Vector<uint16_t> text_;
   v8::Debug::ClientData* client_data_;
 };
-
 
 // A Queue of CommandMessage objects.  A thread-safe version is
 // LockingCommandMessageQueue, based on this class.
@@ -349,6 +342,7 @@ class CommandMessageQueue BASE_EMBEDDED {
   CommandMessage Get();
   void Put(const CommandMessage& message);
   void Clear() { start_ = end_ = 0; }  // Queue is empty after Clear().
+
  private:
   // Doubles the size of the message queue, and copies the messages.
   void Expand();
@@ -358,7 +352,6 @@ class CommandMessageQueue BASE_EMBEDDED {
   int end_;
   int size_;  // The size of the queue buffer.  Queue can hold size-1 messages.
 };
-
 
 // LockingCommandMessageQueue is a thread-safe circular buffer of CommandMessage
 // messages.  The message data is not managed by LockingCommandMessageQueue.
@@ -371,13 +364,13 @@ class LockingCommandMessageQueue BASE_EMBEDDED {
   CommandMessage Get();
   void Put(const CommandMessage& message);
   void Clear();
+
  private:
   Logger* logger_;
   CommandMessageQueue queue_;
   mutable base::Mutex mutex_;
   DISALLOW_COPY_AND_ASSIGN(LockingCommandMessageQueue);
 };
-
 
 class DebugFeatureTracker {
  public:
@@ -416,10 +409,8 @@ class Debug {
   void OnThrow(Handle<Object> exception);
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
-  void OnBeforeCompile(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
-  void OnAsyncTaskEvent(Handle<String> type, Handle<Object> id,
-                        Handle<String> name);
+  void OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id);
 
   // API facing.
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
@@ -452,6 +443,13 @@ class Debug {
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
 
+  // The parameter is either a BreakPointInfo object, or a FixedArray of
+  // BreakPointInfo objects.
+  // Returns an empty handle if no breakpoint is hit, or a FixedArray with all
+  // hit breakpoints.
+  MaybeHandle<FixedArray> GetHitBreakPointObjects(
+      Handle<Object> break_point_objects);
+
   // Stepping handling.
   void PrepareStep(StepAction step_action);
   void PrepareStepIn(Handle<JSFunction> function);
@@ -464,7 +462,11 @@ class Debug {
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, std::set<int>* positions);
 
-  void RecordAsyncFunction(Handle<JSGeneratorObject> generator_object);
+  void RecordGenerator(Handle<JSGeneratorObject> generator_object);
+
+  int NextAsyncTaskId(Handle<JSObject> promise);
+
+  void SetAsyncTaskListener(debug::AsyncTaskListener listener, void* data);
 
   // Returns whether the operation succeeded. Compilation can only be triggered
   // if a valid closure is passed as the second argument, otherwise the shared
@@ -510,6 +512,9 @@ class Debug {
     return is_active() && !debug_context().is_null() && break_id() != 0;
   }
 
+  bool PerformSideEffectCheck(Handle<JSFunction> function);
+  bool PerformSideEffectCheckForCallback(Address function);
+
   // Flags and states.
   DebugScope* debugger_entry() {
     return reinterpret_cast<DebugScope*>(
@@ -543,6 +548,10 @@ class Debug {
     return reinterpret_cast<Address>(&is_active_);
   }
 
+  Address hook_on_function_call_address() {
+    return reinterpret_cast<Address>(&hook_on_function_call_);
+  }
+
   Address after_break_target_address() {
     return reinterpret_cast<Address>(&after_break_target_);
   }
@@ -563,6 +572,7 @@ class Debug {
   explicit Debug(Isolate* isolate);
 
   void UpdateState();
+  void UpdateHookOnFunctionCall();
   void Unload();
   void SetNextBreakId() {
     thread_local_.break_id_ = ++thread_local_.break_count_;
@@ -570,7 +580,9 @@ class Debug {
 
   // Check whether there are commands in the command queue.
   inline bool has_commands() const { return !command_queue_.IsEmpty(); }
-  inline bool ignore_events() const { return is_suppressed_ || !is_active_; }
+  inline bool ignore_events() const {
+    return is_suppressed_ || !is_active_ || isolate_->needs_side_effect_check();
+  }
   inline bool break_disabled() const {
     return break_disabled_ || in_debug_event_listener_;
   }
@@ -595,9 +607,8 @@ class Debug {
       Handle<Object> promise);
   MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, v8::DebugEvent type);
-  MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(Handle<String> type,
-                                                         Handle<Object> id,
-                                                         Handle<String> name);
+  MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(Handle<Smi> type,
+                                                         Handle<Smi> id);
 
   // Mirror cache handling.
   void ClearMirrorCache();
@@ -607,13 +618,10 @@ class Debug {
                          Handle<Object> event_data,
                          v8::Debug::ClientData* client_data);
   void ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script);
-  void ProcessDebugEvent(v8::DebugEvent event,
-                         Handle<JSObject> event_data,
+  void ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data,
                          bool auto_continue);
-  void NotifyMessageHandler(v8::DebugEvent event,
-                            Handle<JSObject> exec_state,
-                            Handle<JSObject> event_data,
-                            bool auto_continue);
+  void NotifyMessageHandler(v8::DebugEvent event, Handle<JSObject> exec_state,
+                            Handle<JSObject> event_data, bool auto_continue);
   void InvokeMessageHandler(MessageImpl message);
 
   // Find the closest source position for a break point for a given position.
@@ -633,9 +641,9 @@ class Debug {
 
   void ActivateStepOut(StackFrame* frame);
   void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
-  Handle<Object> CheckBreakPoints(Handle<DebugInfo> debug_info,
-                                  BreakLocation* location,
-                                  bool* has_break_points = nullptr);
+  MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
+                                           BreakLocation* location,
+                                           bool* has_break_points = nullptr);
   bool IsMutedAtCurrentLocation(JavaScriptFrame* frame);
   bool CheckBreakPoint(Handle<Object> break_point_object);
   MaybeHandle<Object> CallFunction(const char* name, int argc,
@@ -657,20 +665,37 @@ class Debug {
 
   v8::Debug::MessageHandler message_handler_;
 
+  debug::AsyncTaskListener async_task_listener_ = nullptr;
+  void* async_task_listener_data_ = nullptr;
+
   static const int kQueueInitialSize = 4;
   base::Semaphore command_received_;  // Signaled for each command received.
   LockingCommandMessageQueue command_queue_;
 
+  // Debugger is active, i.e. there is a debug event listener attached.
   bool is_active_;
+  // Debugger needs to be notified on every new function call.
+  // Used for stepping and read-only checks
+  bool hook_on_function_call_;
+  // Suppress debug events.
   bool is_suppressed_;
+  // LiveEdit is enabled.
   bool live_edit_enabled_;
+  // Do not trigger debug break events.
   bool break_disabled_;
+  // Do not break on break points.
   bool break_points_active_;
+  // Nested inside a debug event listener.
   bool in_debug_event_listener_;
+  // Trigger debug break events for all exceptions.
   bool break_on_exception_;
+  // Trigger debug break events for uncaught exceptions.
   bool break_on_uncaught_exception_;
+  // Termination exception because side effect check has failed.
+  bool side_effect_check_failed_;
 
-  DebugInfoListNode* debug_info_list_;  // List of active debug info objects.
+  // List of active debug info objects.
+  DebugInfoListNode* debug_info_list_;
 
   // Storage location for jump when exiting debug break calls.
   // Note that this address is not GC safe.  It should be computed immediately
@@ -716,6 +741,8 @@ class Debug {
     Handle<Object> return_value_;
 
     Object* suspended_generator_;
+
+    int async_task_count_;
   };
 
   // Storage location for registers when handling debug break calls
@@ -728,6 +755,7 @@ class Debug {
   friend class DisableBreak;
   friend class LiveEdit;
   friend class SuppressDebug;
+  friend class NoSideEffectScope;
 
   friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
   friend void CheckDebuggerUnloaded(bool check_functions);  // In test-debug.cc
@@ -767,12 +795,12 @@ class DebugScope BASE_EMBEDDED {
 // Stack allocated class for disabling break.
 class DisableBreak BASE_EMBEDDED {
  public:
-  explicit DisableBreak(Debug* debug, bool disable_break)
+  explicit DisableBreak(Debug* debug)
       : debug_(debug),
         previous_break_disabled_(debug->break_disabled_),
         previous_in_debug_event_listener_(debug->in_debug_event_listener_) {
-    debug_->break_disabled_ = disable_break;
-    debug_->in_debug_event_listener_ = disable_break;
+    debug_->break_disabled_ = true;
+    debug_->in_debug_event_listener_ = true;
   }
   ~DisableBreak() {
     debug_->break_disabled_ = previous_break_disabled_;
@@ -801,6 +829,23 @@ class SuppressDebug BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(SuppressDebug);
 };
 
+class NoSideEffectScope {
+ public:
+  NoSideEffectScope(Isolate* isolate, bool disallow_side_effects)
+      : isolate_(isolate),
+        old_needs_side_effect_check_(isolate->needs_side_effect_check()) {
+    isolate->set_needs_side_effect_check(old_needs_side_effect_check_ ||
+                                         disallow_side_effects);
+    isolate->debug()->UpdateHookOnFunctionCall();
+    isolate->debug()->side_effect_check_failed_ = false;
+  }
+  ~NoSideEffectScope();
+
+ private:
+  Isolate* isolate_;
+  bool old_needs_side_effect_check_;
+  DISALLOW_COPY_AND_ASSIGN(NoSideEffectScope);
+};
 
 // Code generator routines.
 class DebugCodegen : public AllStatic {

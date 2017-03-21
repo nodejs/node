@@ -33,17 +33,6 @@
 
 var DebuggerScript = {};
 
-/**
- * @param {?CompileEvent} eventData
- */
-DebuggerScript.getAfterCompileScript = function(eventData)
-{
-    var script = eventData.script().value();
-    if (!script.is_debugger_script)
-        return script;
-    return null;
-}
-
 /** @type {!Map<!ScopeType, string>} */
 DebuggerScript._scopeTypeNames = new Map();
 DebuggerScript._scopeTypeNames.set(ScopeType.Global, "global");
@@ -53,6 +42,8 @@ DebuggerScript._scopeTypeNames.set(ScopeType.Closure, "closure");
 DebuggerScript._scopeTypeNames.set(ScopeType.Catch, "catch");
 DebuggerScript._scopeTypeNames.set(ScopeType.Block, "block");
 DebuggerScript._scopeTypeNames.set(ScopeType.Script, "script");
+DebuggerScript._scopeTypeNames.set(ScopeType.Eval, "eval");
+DebuggerScript._scopeTypeNames.set(ScopeType.Module, "module");
 
 /**
  * @param {function()} fun
@@ -70,6 +61,34 @@ DebuggerScript.getFunctionScopes = function(fun)
     var result = [];
     for (var i = 0; i < count; i++) {
         var scopeDetails = functionMirror.scope(i).details();
+        var scopeObject = DebuggerScript._buildScopeObject(scopeDetails.type(), scopeDetails.object());
+        if (!scopeObject)
+            continue;
+        result.push({
+            type: /** @type {string} */(DebuggerScript._scopeTypeNames.get(scopeDetails.type())),
+            object: scopeObject,
+            name: scopeDetails.name() || ""
+        });
+    }
+    return result;
+}
+
+/**
+ * @param {Object} gen
+ * @return {?Array<!Scope>}
+ */
+DebuggerScript.getGeneratorScopes = function(gen)
+{
+    var mirror = MakeMirror(gen);
+    if (!mirror.isGenerator())
+        return null;
+    var generatorMirror = /** @type {!GeneratorMirror} */(mirror);
+    var count = generatorMirror.scopeCount();
+    if (count == 0)
+        return null;
+    var result = [];
+    for (var i = 0; i < count; i++) {
+        var scopeDetails = generatorMirror.scope(i).details();
         var scopeObject = DebuggerScript._buildScopeObject(scopeDetails.type(), scopeDetails.object());
         if (!scopeObject)
             continue;
@@ -123,20 +142,6 @@ DebuggerScript.getCollectionEntries = function(object)
             result.push({ value: values[i] });
         return result;
     }
-}
-
-/**
- * @param {string|undefined} contextData
- * @return {number}
- */
-DebuggerScript._executionContextId = function(contextData)
-{
-    if (!contextData)
-        return 0;
-    var match = contextData.match(/^[^,]*,([^,]*),.*$/);
-    if (!match)
-        return 0;
-    return parseInt(match[1], 10) || 0;
 }
 
 /**
@@ -467,12 +472,9 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     function contextId()
     {
         var mirror = ensureFuncMirror();
-        // Old V8 do not have context() function on these objects
-        if (!mirror.context)
-            return DebuggerScript._executionContextId(mirror.script().value().context_data);
         var context = mirror.context();
-        if (context)
-            return DebuggerScript._executionContextId(context.data());
+        if (context && context.data())
+            return Number(context.data());
         return 0;
     }
 
@@ -491,7 +493,7 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
      */
     function evaluate(expression)
     {
-        return frameMirror.evaluate(expression, false).value();
+        return frameMirror.evaluate(expression).value();
     }
 
     /** @return {undefined} */
@@ -541,15 +543,21 @@ DebuggerScript._buildScopeObject = function(scopeType, scopeObject)
     case ScopeType.Catch:
     case ScopeType.Block:
     case ScopeType.Script:
+    case ScopeType.Eval:
+    case ScopeType.Module:
         // For transient objects we create a "persistent" copy that contains
         // the same properties.
         // Reset scope object prototype to null so that the proto properties
         // don't appear in the local scope section.
         var properties = /** @type {!ObjectMirror} */(MakeMirror(scopeObject, true /* transient */)).properties();
         // Almost always Script scope will be empty, so just filter out that noise.
-        // Also drop empty Block scopes, should we get any.
-        if (!properties.length && (scopeType === ScopeType.Script || scopeType === ScopeType.Block))
+        // Also drop empty Block, Eval and Script scopes, should we get any.
+        if (!properties.length && (scopeType === ScopeType.Script ||
+                                   scopeType === ScopeType.Block ||
+                                   scopeType === ScopeType.Eval ||
+                                   scopeType === ScopeType.Module)) {
             break;
+        }
         result = { __proto__: null };
         for (var j = 0; j < properties.length; j++) {
             var name = properties[j].name();

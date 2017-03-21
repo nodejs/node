@@ -88,6 +88,7 @@ namespace internal {
     "The function_data field should be a BytecodeArray on interpreter entry")  \
   V(kGeneratedCodeIsTooLarge, "Generated code is too large")                   \
   V(kGenerator, "Generator")                                                   \
+  V(kGetIterator, "GetIterator")                                               \
   V(kGlobalFunctionsMustHaveInitialMap,                                        \
     "Global functions must have initial map")                                  \
   V(kGraphBuildingFailed, "Optimized graph construction failed")               \
@@ -125,6 +126,7 @@ namespace internal {
   V(kLookupVariableInCountOperation, "Lookup variable in count operation")     \
   V(kMapBecameDeprecated, "Map became deprecated")                             \
   V(kMapBecameUnstable, "Map became unstable")                                 \
+  V(kMissingBytecodeArray, "Missing bytecode array from function")             \
   V(kNativeFunctionLiteral, "Native function literal")                         \
   V(kNeedSmiLiteral, "Need a Smi literal here")                                \
   V(kNoCasesLeft, "No cases left")                                             \
@@ -138,7 +140,6 @@ namespace internal {
   V(kNotEnoughSpillSlotsForOsr, "Not enough spill slots for OSR")              \
   V(kNotEnoughVirtualRegistersRegalloc,                                        \
     "Not enough virtual registers (regalloc)")                                 \
-  V(kObjectFoundInSmiOnlyArray, "Object found in smi-only array")              \
   V(kObjectLiteralWithComplexProperty, "Object literal with complex property") \
   V(kOffsetOutOfRange, "Offset out of range")                                  \
   V(kOperandIsANumber, "Operand is a number")                                  \
@@ -165,7 +166,7 @@ namespace internal {
   V(kObjectNotTagged, "The object is not tagged")                              \
   V(kOptimizationDisabled, "Optimization disabled")                            \
   V(kOptimizationDisabledForTest, "Optimization disabled for test")            \
-  V(kOptimizedTooManyTimes, "Optimized too many times")                        \
+  V(kDeoptimizedTooManyTimes, "Deoptimized too many times")                    \
   V(kOutOfVirtualRegistersWhileTryingToAllocateTempRegister,                   \
     "Out of virtual registers while trying to allocate temp register")         \
   V(kParseScopeError, "Parse/scope error")                                     \
@@ -263,7 +264,9 @@ namespace internal {
   V(kWrongArgumentCountForInvokeIntrinsic,                                     \
     "Wrong number of arguments for intrinsic")                                 \
   V(kShouldNotDirectlyEnterOsrFunction,                                        \
-    "Should not directly enter OSR-compiled function")
+    "Should not directly enter OSR-compiled function")                         \
+  V(kUnexpectedReturnFromWasmTrap,                                             \
+    "Should not return after throwing a wasm trap")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
 enum BailoutReason {

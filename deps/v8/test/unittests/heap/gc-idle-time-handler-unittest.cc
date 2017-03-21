@@ -89,6 +89,7 @@ TEST_F(GCIdleTimeHandlerTest, DontDoFinalIncrementalMarkCompact) {
 
 
 TEST_F(GCIdleTimeHandlerTest, ContextDisposeLowRate) {
+  if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
   heap_state.incremental_marking_stopped = true;
@@ -99,6 +100,7 @@ TEST_F(GCIdleTimeHandlerTest, ContextDisposeLowRate) {
 
 
 TEST_F(GCIdleTimeHandlerTest, ContextDisposeHighRate) {
+  if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate =
@@ -111,6 +113,7 @@ TEST_F(GCIdleTimeHandlerTest, ContextDisposeHighRate) {
 
 
 TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeZeroIdleTime) {
+  if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate = 1.0;
@@ -122,6 +125,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeZeroIdleTime) {
 
 
 TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
+  if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate =
@@ -134,6 +138,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
 
 
 TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime2) {
+  if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
   heap_state.contexts_disposal_rate =
@@ -146,6 +151,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime2) {
 
 
 TEST_F(GCIdleTimeHandlerTest, IncrementalMarking1) {
+  if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   double idle_time_ms = 10;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
@@ -154,6 +160,7 @@ TEST_F(GCIdleTimeHandlerTest, IncrementalMarking1) {
 
 
 TEST_F(GCIdleTimeHandlerTest, NotEnoughTime) {
+  if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.incremental_marking_stopped = true;
   size_t speed = kMarkCompactSpeed;
@@ -164,6 +171,7 @@ TEST_F(GCIdleTimeHandlerTest, NotEnoughTime) {
 
 
 TEST_F(GCIdleTimeHandlerTest, DoNotStartIncrementalMarking) {
+  if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.incremental_marking_stopped = true;
   double idle_time_ms = 10.0;
@@ -173,6 +181,7 @@ TEST_F(GCIdleTimeHandlerTest, DoNotStartIncrementalMarking) {
 
 
 TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop) {
+  if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.incremental_marking_stopped = true;
   double idle_time_ms = 10.0;
@@ -185,6 +194,7 @@ TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop) {
 
 
 TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeNothingToDo) {
+  if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   for (int i = 0; i < kMaxNotifications; i++) {
     GCIdleTimeAction action = handler()->Compute(0, heap_state);
@@ -194,6 +204,7 @@ TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeNothingToDo) {
 
 
 TEST_F(GCIdleTimeHandlerTest, SmallIdleTimeNothingToDo) {
+  if (!handler()->Enabled()) return;
   GCIdleTimeHeapState heap_state = DefaultHeapState();
   heap_state.incremental_marking_stopped = true;
   for (int i = 0; i < kMaxNotifications; i++) {
@@ -204,6 +215,8 @@ TEST_F(GCIdleTimeHandlerTest, SmallIdleTimeNothingToDo) {
 
 
 TEST_F(GCIdleTimeHandlerTest, DoneIfNotMakingProgressOnIncrementalMarking) {
+  if (!handler()->Enabled()) return;
+
   // Regression test for crbug.com/489323.
   GCIdleTimeHeapState heap_state = DefaultHeapState();
 

@@ -6,6 +6,7 @@
 
 #include "src/field-type.h"
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
 
 namespace v8 {

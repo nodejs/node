@@ -17,8 +17,8 @@ namespace internal {
 namespace wasm {
 
 // forward declarations.
+struct ModuleBytesEnv;
 struct WasmFunction;
-struct WasmInstance;
 class WasmInterpreterInternals;
 
 typedef size_t pc_t;
@@ -32,23 +32,23 @@ typedef ZoneMap<pc_t, pcdiff_t> ControlTransferMap;
 
 // Macro for defining union members.
 #define FOREACH_UNION_MEMBER(V) \
-  V(i32, kAstI32, int32_t)      \
-  V(u32, kAstI32, uint32_t)     \
-  V(i64, kAstI64, int64_t)      \
-  V(u64, kAstI64, uint64_t)     \
-  V(f32, kAstF32, float)        \
-  V(f64, kAstF64, double)
+  V(i32, kWasmI32, int32_t)     \
+  V(u32, kWasmI32, uint32_t)    \
+  V(i64, kWasmI64, int64_t)     \
+  V(u64, kWasmI64, uint64_t)    \
+  V(f32, kWasmF32, float)       \
+  V(f64, kWasmF64, double)
 
 // Representation of values within the interpreter.
 struct WasmVal {
-  LocalType type;
+  ValueType type;
   union {
 #define DECLARE_FIELD(field, localtype, ctype) ctype field;
     FOREACH_UNION_MEMBER(DECLARE_FIELD)
 #undef DECLARE_FIELD
   } val;
 
-  WasmVal() : type(kAstStmt) {}
+  WasmVal() : type(kWasmStmt) {}
 
 #define DECLARE_CONSTRUCTOR(field, localtype, ctype) \
   explicit WasmVal(ctype v) : type(localtype) { val.field = v; }
@@ -56,12 +56,21 @@ struct WasmVal {
 #undef DECLARE_CONSTRUCTOR
 
   template <typename T>
-  T to() {
+  inline T to() {
+    UNREACHABLE();
+  }
+
+  template <typename T>
+  inline T to_unchecked() {
     UNREACHABLE();
   }
 };
 
 #define DECLARE_CAST(field, localtype, ctype) \
+  template <>                                 \
+  inline ctype WasmVal::to_unchecked() {      \
+    return val.field;                         \
+  }                                           \
   template <>                                 \
   inline ctype WasmVal::to() {                \
     CHECK_EQ(localtype, type);                \
@@ -69,11 +78,6 @@ struct WasmVal {
   }
 FOREACH_UNION_MEMBER(DECLARE_CAST)
 #undef DECLARE_CAST
-
-template <>
-inline void WasmVal::to() {
-  CHECK_EQ(kAstStmt, type);
-}
 
 // Representation of frames within the interpreter.
 class WasmFrame {
@@ -135,7 +139,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     bool GetBreakpoint(const WasmFunction* function, int pc);
   };
 
-  WasmInterpreter(WasmInstance* instance, AccountingAllocator* allocator);
+  WasmInterpreter(const ModuleBytesEnv& env, AccountingAllocator* allocator);
   ~WasmInterpreter();
 
   //==========================================================================

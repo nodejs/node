@@ -55,6 +55,8 @@ import sys
 #
 consts_misc = [
     { 'name': 'FirstNonstringType',     'value': 'FIRST_NONSTRING_TYPE' },
+    { 'name': 'APIObjectType',          'value': 'JS_API_OBJECT_TYPE' },
+    { 'name': 'SpecialAPIObjectType',   'value': 'JS_SPECIAL_API_OBJECT_TYPE' },
 
     { 'name': 'IsNotStringMask',        'value': 'kIsNotStringMask' },
     { 'name': 'StringTag',              'value': 'kStringTag' },
@@ -91,12 +93,12 @@ consts_misc = [
 
     { 'name': 'prop_idx_first',
         'value': 'DescriptorArray::kFirstIndex' },
-    { 'name': 'prop_type_field',
-        'value': 'DATA' },
-    { 'name': 'prop_type_const_field',
-        'value': 'DATA_CONSTANT' },
-    { 'name': 'prop_type_mask',
-        'value': 'PropertyDetails::TypeField::kMask' },
+    { 'name': 'prop_kind_Data',
+        'value': 'kData' },
+    { 'name': 'prop_kind_Accessor',
+        'value': 'kAccessor' },
+    { 'name': 'prop_kind_mask',
+        'value': 'PropertyDetails::KindField::kMask' },
     { 'name': 'prop_index_mask',
         'value': 'PropertyDetails::FieldIndexField::kMask' },
     { 'name': 'prop_index_shift',
@@ -225,6 +227,7 @@ extras_accessors = [
     'JSFunction, context, Context, kContextOffset',
     'HeapObject, map, Map, kMapOffset',
     'JSObject, elements, Object, kElementsOffset',
+    'JSObject, internal_fields, uintptr_t, kHeaderSize',
     'FixedArray, data, uintptr_t, kHeaderSize',
     'JSArrayBuffer, backing_store, Object, kBackingStoreOffset',
     'JSArrayBufferView, byte_offset, Object, kByteOffsetOffset',

@@ -850,12 +850,12 @@ TEST(ReduceFloat32Sub) {
   }
 
   Node* x = R.Parameter();
-  Node* zero = R.Constant<float>(0.0);
   Node* nan = R.Constant<float>(std::numeric_limits<float>::quiet_NaN());
 
-  R.CheckBinop(x, x, zero);   // x - 0 => x
-  R.CheckBinop(nan, nan, x);  // nan - x  => nan
-  R.CheckBinop(nan, x, nan);  // x - nan => nan
+  // nan - x  => nan
+  R.CheckFoldBinop(std::numeric_limits<float>::quiet_NaN(), nan, x);
+  // x - nan => nan
+  R.CheckFoldBinop(std::numeric_limits<float>::quiet_NaN(), x, nan);
 }
 
 TEST(ReduceFloat64Sub) {
@@ -870,12 +870,12 @@ TEST(ReduceFloat64Sub) {
   }
 
   Node* x = R.Parameter();
-  Node* zero = R.Constant<double>(0.0);
   Node* nan = R.Constant<double>(std::numeric_limits<double>::quiet_NaN());
 
-  R.CheckBinop(x, x, zero);   // x - 0 => x
-  R.CheckBinop(nan, nan, x);  // nan - x  => nan
-  R.CheckBinop(nan, x, nan);  // x - nan => nan
+  // nan - x  => nan
+  R.CheckFoldBinop(std::numeric_limits<double>::quiet_NaN(), nan, x);
+  // x - nan => nan
+  R.CheckFoldBinop(std::numeric_limits<double>::quiet_NaN(), x, nan);
 }
 
 // TODO(titzer): test MachineOperatorReducer for Word64And

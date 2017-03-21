@@ -21,6 +21,7 @@ StartupSerializer::StartupSerializer(
 }
 
 StartupSerializer::~StartupSerializer() {
+  RestoreExternalReferenceRedirectors(&accessor_infos_);
   OutputStatistics("StartupSerializer");
 }
 
@@ -65,6 +66,14 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
 
   FlushSkip(skip);
+
+  if (isolate_->external_reference_redirector() && obj->IsAccessorInfo()) {
+    // Wipe external reference redirects in the accessor info.
+    AccessorInfo* info = AccessorInfo::cast(obj);
+    Address original_address = Foreign::cast(info->getter())->foreign_address();
+    Foreign::cast(info->js_getter())->set_foreign_address(original_address);
+    accessor_infos_.Add(info);
+  }
 
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer object_serializer(this, obj, &sink_, how_to_code,
@@ -116,10 +125,8 @@ void StartupSerializer::SerializeStrongReferences() {
   CHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
   CHECK(isolate->handle_scope_implementer()->blocks()->is_empty());
-  CHECK_EQ(0, isolate->global_handles()->NumberOfWeakHandles());
+  CHECK_EQ(0, isolate->global_handles()->global_handles_count());
   CHECK_EQ(0, isolate->eternal_handles()->NumberOfHandles());
-  // We don't support serializing installed extensions.
-  CHECK(!isolate->has_installed_extensions());
   // First visit immortal immovables to make sure they end up in the first page.
   serializing_immortal_immovables_roots_ = true;
   isolate->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG_ROOT_LIST);

@@ -34,7 +34,12 @@ class Decoder {
   Decoder(const byte* start, const byte* end)
       : start_(start),
         pc_(start),
-        limit_(end),
+        end_(end),
+        error_pc_(nullptr),
+        error_pt_(nullptr) {}
+  Decoder(const byte* start, const byte* pc, const byte* end)
+      : start_(start),
+        pc_(pc),
         end_(end),
         error_pc_(nullptr),
         error_pt_(nullptr) {}
@@ -44,7 +49,7 @@ class Decoder {
   inline bool check(const byte* base, unsigned offset, unsigned length,
                     const char* msg) {
     DCHECK_GE(base, start_);
-    if ((base + offset + length) > limit_) {
+    if ((base + offset + length) > end_) {
       error(base, base + offset, "%s", msg);
       return false;
     }
@@ -185,22 +190,27 @@ class Decoder {
 
   // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
   void consume_bytes(uint32_t size, const char* name = "skip") {
-    TRACE("  +%d  %-20s: %d bytes\n", static_cast<int>(pc_ - start_), name,
-          size);
+#if DEBUG
+    if (name) {
+      // Only trace if the name is not null.
+      TRACE("  +%d  %-20s: %d bytes\n", static_cast<int>(pc_ - start_), name,
+            size);
+    }
+#endif
     if (checkAvailable(size)) {
       pc_ += size;
     } else {
-      pc_ = limit_;
+      pc_ = end_;
     }
   }
 
-  // Check that at least {size} bytes exist between {pc_} and {limit_}.
+  // Check that at least {size} bytes exist between {pc_} and {end_}.
   bool checkAvailable(int size) {
     intptr_t pc_overflow_value = std::numeric_limits<intptr_t>::max() - size;
     if (size < 0 || (intptr_t)pc_ > pc_overflow_value) {
       error(pc_, nullptr, "reading %d bytes would underflow/overflow", size);
       return false;
-    } else if (pc_ < start_ || limit_ < (pc_ + size)) {
+    } else if (pc_ < start_ || end_ < (pc_ + size)) {
       error(pc_, nullptr, "expected %d bytes, fell off end", size);
       return false;
     } else {
@@ -241,11 +251,11 @@ class Decoder {
   template <typename T>
   T traceOffEnd() {
     T t = 0;
-    for (const byte* ptr = pc_; ptr < limit_; ptr++) {
+    for (const byte* ptr = pc_; ptr < end_; ptr++) {
       TRACE("%02x ", *ptr);
     }
     TRACE("<end>\n");
-    pc_ = limit_;
+    pc_ = end_;
     return t;
   }
 
@@ -272,7 +282,6 @@ class Decoder {
   void Reset(const byte* start, const byte* end) {
     start_ = start;
     pc_ = start;
-    limit_ = end;
     end_ = end;
     error_pc_ = nullptr;
     error_pt_ = nullptr;
@@ -281,16 +290,16 @@ class Decoder {
 
   bool ok() const { return error_msg_ == nullptr; }
   bool failed() const { return !ok(); }
-  bool more() const { return pc_ < limit_; }
+  bool more() const { return pc_ < end_; }
 
-  const byte* start() { return start_; }
-  const byte* pc() { return pc_; }
-  uint32_t pc_offset() { return static_cast<uint32_t>(pc_ - start_); }
+  const byte* start() const { return start_; }
+  const byte* pc() const { return pc_; }
+  uint32_t pc_offset() const { return static_cast<uint32_t>(pc_ - start_); }
+  const byte* end() const { return end_; }
 
  protected:
   const byte* start_;
   const byte* pc_;
-  const byte* limit_;
   const byte* end_;
   const byte* error_pc_;
   const byte* error_pt_;
@@ -308,7 +317,7 @@ class Decoder {
     const int kMaxLength = (sizeof(IntType) * 8 + 6) / 7;
     const byte* ptr = base + offset;
     const byte* end = ptr + kMaxLength;
-    if (end > limit_) end = limit_;
+    if (end > end_) end = end_;
     int shift = 0;
     byte b = 0;
     IntType result = 0;
@@ -358,7 +367,7 @@ class Decoder {
       const int kMaxLength = (sizeof(IntType) * 8 + 6) / 7;
       const byte* pos = pc_;
       const byte* end = pc_ + kMaxLength;
-      if (end > limit_) end = limit_;
+      if (end > end_) end = end_;
 
       IntType result = 0;
       int shift = 0;

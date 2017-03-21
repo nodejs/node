@@ -25,25 +25,6 @@ using namespace v8::internal;
 // Helper functions.
 //
 
-static void CheckPropertyDetailsFieldsConsistency(PropertyType type,
-                                                  PropertyKind kind,
-                                                  PropertyLocation location) {
-  int type_value = PropertyDetails::TypeField::encode(type);
-  int kind_location_value = PropertyDetails::KindField::encode(kind) |
-                            PropertyDetails::LocationField::encode(location);
-  CHECK_EQ(type_value, kind_location_value);
-}
-
-
-TEST(PropertyDetailsFieldsConsistency) {
-  CheckPropertyDetailsFieldsConsistency(DATA, kData, kField);
-  CheckPropertyDetailsFieldsConsistency(DATA_CONSTANT, kData, kDescriptor);
-  CheckPropertyDetailsFieldsConsistency(ACCESSOR, kAccessor, kField);
-  CheckPropertyDetailsFieldsConsistency(ACCESSOR_CONSTANT, kAccessor,
-                                        kDescriptor);
-}
-
-
 TEST(TransitionArray_SimpleFieldTransitions) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());

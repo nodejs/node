@@ -11,13 +11,13 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 19
+bytecode array length: 20
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(2),
+                B(CreateClosure), U8(0), U8(2), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),
@@ -37,13 +37,13 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 20
+bytecode array length: 21
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(2),
+                B(CreateClosure), U8(0), U8(2), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),
@@ -63,13 +63,13 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 38
+bytecode array length: 39
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(2),
+                B(CreateClosure), U8(0), U8(2), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(LdaSmi), U8(20),
@@ -98,13 +98,13 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 24
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(4),
-                B(CreateClosure), U8(0), U8(2),
+                B(CreateClosure), U8(0), U8(2), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),

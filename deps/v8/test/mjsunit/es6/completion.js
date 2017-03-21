@@ -107,8 +107,21 @@ assertEquals(undefined, eval(
   'var b = 1; ' +
   'outer: while (1) { while (1) { if (b--) 42; else break outer; }; 666 }'));
 
-// The following is not what ES6 says, but see ES bug 4540.
 assertUndef(eval('42; switch (0) { case 0: 1; if (true) break; }'));  // ES5: 1
+
+assertUndef(eval('a: while(true) { do { 0 } while(false); switch(1) { case 0: 1; case 1: break a; }; 0 }'));
+assertUndef(eval('a: while(true) { do { 0 } while(false); try {} finally { break a }; 0 }'));
+assertUndef(eval('a: while(true) { b: while(true) { 0; break b; }; switch(1) { case 1: break a; }; 2 }'));
+assertUndef(eval('a: while(true) { b: while(true) { 0; break b; }; while (true) { break a; }; 2 }'));
+assertUndef(eval('while (true) { 20; a:{ break a; }  with ({}) break; 30; }'));
+assertEquals(42, eval('a: while(true) { switch(0) { case 0: 42; case 1: break a; }; 33 }'));
+
+assertUndef(eval(
+  'for (var i = 0; i < 2; ++i) { if (i) { try {} finally { break; } } 0; }'
+));
+assertUndef(eval(
+  'for (var i = 0; i < 2; ++i) { if (i) { try {} finally { continue; } } 0; }'
+));
 
 
 
@@ -146,10 +159,3 @@ assertUndef(eval(
 assertUndef(eval("1; try{2; throwOnReturn();} catch(e){}"));
 assertUndef(eval("1; twoFunc();"));
 assertEquals(2, eval("1; with ( { a: 0 } ) { 2; }"));
-
-assertUndef(eval('a: while(true) { do { 0 } while(false); switch(1) { case 0: 1; case 1: break a; }; 0 }'));
-assertUndef(eval('a: while(true) { do { 0 } while(false); try {} finally { break a }; 0 }'));
-assertUndef(eval('a: while(true) { b: while(true) { 0; break b; }; switch(1) { case 1: break a; }; 2 }'));
-assertUndef(eval('a: while(true) { b: while(true) { 0; break b; }; while (true) { break a; }; 2 }'));
-assertUndef(eval('while (true) { 20; a:{ break a; }  with ({}) break; 30; }'));
-assertEquals(42, eval('a: while(true) { switch(0) { case 0: 42; case 1: break a; }; 33 }'));

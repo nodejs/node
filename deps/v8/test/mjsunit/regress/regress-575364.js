@@ -8,4 +8,4 @@ function f() {
   "use asm";
 
 }
-assertTrue(%IsNotAsmWasmCode(f));
+assertFalse(%IsAsmWasmCode(f));

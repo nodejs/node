@@ -288,7 +288,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   void NextInternal(Map* map, JSReceiver* holder);
   template <bool is_element>
   inline State LookupInHolder(Map* map, JSReceiver* holder) {
-    return map->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE
+    return map->IsSpecialReceiverMap()
                ? LookupInSpecialHolder<is_element>(map, holder)
                : LookupInRegularHolder<is_element>(map, holder);
   }

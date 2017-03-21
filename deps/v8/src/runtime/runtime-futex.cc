@@ -19,7 +19,7 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_AtomicsWait) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_INT32_ARG_CHECKED(value, 2);
@@ -37,7 +37,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsWait) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsWake) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_INT32_ARG_CHECKED(count, 2);
@@ -53,7 +53,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsWake) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CHECK(sta->GetBuffer()->is_shared());

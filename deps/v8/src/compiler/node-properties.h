@@ -132,6 +132,11 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   static MaybeHandle<Context> GetSpecializationContext(
       Node* node, MaybeHandle<Context> context = MaybeHandle<Context>());
 
+  // Walk up the context chain from the given {node} until we reduce the {depth}
+  // to 0 or hit a node that does not extend the context chain ({depth} will be
+  // updated accordingly).
+  static Node* GetOuterContext(Node* node, size_t* depth);
+
   // ---------------------------------------------------------------------------
   // Type.
 

@@ -21,6 +21,8 @@ class InspectedContext {
  public:
   ~InspectedContext();
 
+  static int contextId(v8::Local<v8::Context>);
+
   v8::Local<v8::Context> context() const;
   int contextId() const { return m_contextId; }
   int contextGroupId() const { return m_contextGroupId; }

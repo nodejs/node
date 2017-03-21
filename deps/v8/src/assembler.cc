@@ -35,8 +35,11 @@
 #include "src/assembler.h"
 
 #include <math.h>
+#include <string.h>
 #include <cmath>
+
 #include "src/api.h"
+#include "src/assembler-inl.h"
 #include "src/base/cpu.h"
 #include "src/base/functional.h"
 #include "src/base/ieee754.h"
@@ -61,28 +64,6 @@
 #include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serializer-common.h"
 #include "src/wasm/wasm-external-refs.h"
-
-#if V8_TARGET_ARCH_IA32
-#include "src/ia32/assembler-ia32-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_X64
-#include "src/x64/assembler-x64-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/assembler-arm64-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_ARM
-#include "src/arm/assembler-arm-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_PPC
-#include "src/ppc/assembler-ppc-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_MIPS
-#include "src/mips/assembler-mips-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_MIPS64
-#include "src/mips64/assembler-mips64-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_S390
-#include "src/s390/assembler-s390-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_X87
-#include "src/x87/assembler-x87-inl.h"  // NOLINT
-#else
-#error "Unknown architecture."
-#endif
 
 // Include native regexp-macro-assembler.
 #ifndef V8_INTERPRETED_REGEXP
@@ -353,8 +334,7 @@ void RelocInfo::update_wasm_memory_reference(
     uint32_t current_size_reference = wasm_memory_size_reference();
     uint32_t updated_size_reference =
         new_size + (current_size_reference - old_size);
-    unchecked_update_wasm_memory_size(updated_size_reference,
-                                      icache_flush_mode);
+    unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
   } else {
     UNREACHABLE();
   }
@@ -375,6 +355,18 @@ void RelocInfo::update_wasm_global_reference(
   unchecked_update_wasm_memory_reference(updated_reference, icache_flush_mode);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     Assembler::FlushICache(isolate_, pc_, sizeof(int32_t));
+  }
+}
+
+void RelocInfo::update_wasm_function_table_size_reference(
+    uint32_t old_size, uint32_t new_size, ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmFunctionTableSizeReference(rmode_));
+  uint32_t current_size_reference = wasm_function_table_size_reference();
+  uint32_t updated_size_reference =
+      new_size + (current_size_reference - old_size);
+  unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
   }
 }
 
@@ -782,14 +774,14 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "debug break slot at tail call";
     case CODE_AGE_SEQUENCE:
       return "code age sequence";
-    case GENERATOR_CONTINUATION:
-      return "generator continuation";
     case WASM_MEMORY_REFERENCE:
       return "wasm memory reference";
     case WASM_MEMORY_SIZE_REFERENCE:
       return "wasm memory size reference";
     case WASM_GLOBAL_REFERENCE:
       return "wasm global value reference";
+    case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
+      return "wasm function table size reference";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -884,10 +876,10 @@ void RelocInfo::Verify(Isolate* isolate) {
     case DEBUG_BREAK_SLOT_AT_RETURN:
     case DEBUG_BREAK_SLOT_AT_CALL:
     case DEBUG_BREAK_SLOT_AT_TAIL_CALL:
-    case GENERATOR_CONTINUATION:
     case WASM_MEMORY_REFERENCE:
     case WASM_MEMORY_SIZE_REFERENCE:
     case WASM_GLOBAL_REFERENCE:
+    case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
     case NONE32:
     case NONE64:
       break;
@@ -1202,6 +1194,12 @@ static void f64_mod_wrapper(double* param0, double* param1) {
 ExternalReference ExternalReference::f64_mod_wrapper_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_mod_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_call_trap_callback_for_testing(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::call_trap_callback_for_testing)));
 }
 
 ExternalReference ExternalReference::log_enter_external_function(
@@ -1548,6 +1546,14 @@ ExternalReference ExternalReference::ieee754_tanh_function(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::tanh), BUILTIN_FP_CALL));
 }
 
+void* libc_memchr(void* string, int character, size_t search_length) {
+  return memchr(string, character, search_length);
+}
+
+ExternalReference ExternalReference::libc_memchr_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memchr)));
+}
+
 ExternalReference ExternalReference::page_flags(Page* page) {
   return ExternalReference(reinterpret_cast<Address>(page) +
                            MemoryChunk::kFlagsOffset);
@@ -1569,11 +1575,19 @@ ExternalReference ExternalReference::is_tail_call_elimination_enabled_address(
   return ExternalReference(isolate->is_tail_call_elimination_enabled_address());
 }
 
+ExternalReference ExternalReference::promise_hook_address(Isolate* isolate) {
+  return ExternalReference(isolate->promise_hook_address());
+}
+
 ExternalReference ExternalReference::debug_is_active_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->is_active_address());
 }
 
+ExternalReference ExternalReference::debug_hook_on_function_call_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug()->hook_on_function_call_address());
+}
 
 ExternalReference ExternalReference::debug_after_break_target_address(
     Isolate* isolate) {
@@ -1911,12 +1925,6 @@ void Assembler::RecordComment(const char* msg) {
     EnsureSpace ensure_space(this);
     RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
-}
-
-
-void Assembler::RecordGeneratorContinuation() {
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::GENERATOR_CONTINUATION);
 }
 
 

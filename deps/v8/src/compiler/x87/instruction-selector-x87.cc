@@ -312,6 +312,11 @@ void InstructionSelector::VisitStore(Node* node) {
   }
 }
 
+void InstructionSelector::VisitProtectedStore(Node* node) {
+  // TODO(eholk)
+  UNIMPLEMENTED();
+}
+
 // Architecture supports unaligned access, therefore VisitLoad is used instead
 void InstructionSelector::VisitUnalignedLoad(Node* node) { UNREACHABLE(); }
 
@@ -1540,6 +1545,15 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
       kEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+}
+
+void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
+  UNREACHABLE();
+}
+
+void InstructionSelector::VisitTrapUnless(Node* node,
+                                          Runtime::FunctionId func_id) {
+  UNREACHABLE();
 }
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {

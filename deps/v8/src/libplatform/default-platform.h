@@ -41,6 +41,8 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
 
   bool PumpMessageLoop(v8::Isolate* isolate);
 
+  void RunIdleTasks(v8::Isolate* isolate, double idle_time_in_seconds);
+
   // v8::Platform implementation.
   size_t NumberOfAvailableBackgroundThreads() override;
   void CallOnBackgroundThread(Task* task,
@@ -74,13 +76,15 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
 
   Task* PopTaskInMainThreadQueue(v8::Isolate* isolate);
   Task* PopTaskInMainThreadDelayedQueue(v8::Isolate* isolate);
+  IdleTask* PopTaskInMainThreadIdleQueue(v8::Isolate* isolate);
 
   base::Mutex lock_;
   bool initialized_;
   int thread_pool_size_;
   std::vector<WorkerThread*> thread_pool_;
   TaskQueue queue_;
-  std::map<v8::Isolate*, std::queue<Task*> > main_thread_queue_;
+  std::map<v8::Isolate*, std::queue<Task*>> main_thread_queue_;
+  std::map<v8::Isolate*, std::queue<IdleTask*>> main_thread_idle_queue_;
 
   typedef std::pair<double, Task*> DelayedEntry;
   std::map<v8::Isolate*,

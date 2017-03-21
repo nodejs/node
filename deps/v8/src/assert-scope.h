@@ -26,12 +26,12 @@ enum PerThreadAssertType {
   LAST_PER_THREAD_ASSERT_TYPE
 };
 
-
 enum PerIsolateAssertType {
   JAVASCRIPT_EXECUTION_ASSERT,
   JAVASCRIPT_EXECUTION_THROWS,
   DEOPTIMIZATION_ASSERT,
-  COMPILATION_ASSERT
+  COMPILATION_ASSERT,
+  NO_EXCEPTION_ASSERT
 };
 
 template <PerThreadAssertType kType, bool kAllow>
@@ -41,6 +41,8 @@ class PerThreadAssertScope {
   V8_EXPORT_PRIVATE ~PerThreadAssertScope();
 
   V8_EXPORT_PRIVATE static bool IsAllowed();
+
+  void Release();
 
  private:
   PerThreadAssertData* data_;
@@ -76,6 +78,7 @@ class PerThreadAssertScopeDebugOnly : public
 class PerThreadAssertScopeDebugOnly {
  public:
   PerThreadAssertScopeDebugOnly() { }
+  void Release() {}
 #endif
 };
 
@@ -147,6 +150,14 @@ typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, false>
 typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_ASSERT, true>
     AllowJavascriptExecution;
 
+// Scope to document where we do not expect javascript execution (debug only)
+typedef PerIsolateAssertScopeDebugOnly<JAVASCRIPT_EXECUTION_ASSERT, false>
+    DisallowJavascriptExecutionDebugOnly;
+
+// Scope to introduce an exception to DisallowJavascriptExecutionDebugOnly.
+typedef PerIsolateAssertScopeDebugOnly<JAVASCRIPT_EXECUTION_ASSERT, true>
+    AllowJavascriptExecutionDebugOnly;
+
 // Scope in which javascript execution leads to exception being thrown.
 typedef PerIsolateAssertScope<JAVASCRIPT_EXECUTION_THROWS, false>
     ThrowOnJavascriptExecution;
@@ -170,6 +181,14 @@ typedef PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, false>
 // Scope to introduce an exception to DisallowDeoptimization.
 typedef PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, true>
     AllowCompilation;
+
+// Scope to document where we do not expect exceptions.
+typedef PerIsolateAssertScopeDebugOnly<NO_EXCEPTION_ASSERT, false>
+    DisallowExceptions;
+
+// Scope to introduce an exception to DisallowExceptions.
+typedef PerIsolateAssertScopeDebugOnly<NO_EXCEPTION_ASSERT, true>
+    AllowExceptions;
 }  // namespace internal
 }  // namespace v8
 

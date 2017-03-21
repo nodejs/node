@@ -333,7 +333,7 @@ function StringToLocaleUpperCase() {
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.2.1
 function HtmlEscape(str) {
-  return %_Call(StringReplace, TO_STRING(str), /"/g, "&quot;");
+  return %RegExpInternalReplace(/"/g, TO_STRING(str), "&quot;");
 }
 
 

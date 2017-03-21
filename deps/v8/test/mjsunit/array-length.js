@@ -132,3 +132,30 @@ for (var i = 0; i < 7; i++) {
   var frozen_object = Object.freeze({__proto__:[]});
   assertThrows(function () { frozen_object.length = 10 });
 })();
+
+(function sloppyReentrantDescriptorChange() {
+  var b = [];
+  b.length = {
+    valueOf() {
+      Object.defineProperty(b, "length", {writable: false});
+      return 1;
+    }
+  };
+  assertEquals(0, b.length);
+})();
+
+(function strictReentrantDescriptorChange() {
+  var b = [];
+  assertThrows(() => {
+    "use strict";
+    b.length = {
+      valueOf() {
+        Object.defineProperty(b, "length", {writable: false});
+        return 1;
+      }
+    };
+  }, TypeError);
+
+  b.length = { valueOf() { return 0; } };
+  assertEquals(0, b.length);
+})();
