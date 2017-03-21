@@ -24,6 +24,7 @@ require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
+const errors = require('../../lib/internal/errors');
 
 console.error('load test-module-loading.js');
 
@@ -120,8 +121,10 @@ console.error('test name clashes');
 const my_path = require('../fixtures/path');
 assert.ok(my_path.path_func instanceof Function);
 // this one does not exist and should throw
-assert.throws(function() { require('./utils'); },
-              /^Error: Cannot find module '.\/utils'$/);
+const notFoundPath = './utils';
+const notFoundError = new errors.Error('MODULE_NOT_FOUND', notFoundPath);
+assert.throws(function() { require(notFoundPath); },
+              new RegExp(notFoundError.message));
 
 let errorThrown = false;
 try {
@@ -224,6 +227,7 @@ const children = module.children.reduce(function red(set, child) {
 
 assert.deepStrictEqual(children, {
   'common.js': {},
+  '../lib/internal/errors.js': {},
   'fixtures/not-main-module.js': {},
   'fixtures/a.js': {
     'fixtures/b/c.js': {

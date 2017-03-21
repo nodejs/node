@@ -2,10 +2,13 @@
 const common = require('../common');
 const path = require('path');
 const assert = require('assert');
+const errors = require('../../lib/internal/errors');
 
+const internalModuleName = 'internal/freelist';
+const expectedError = new errors.Error('MODULE_NOT_FOUND', internalModuleName);
 assert.throws(function() {
-  require('internal/freelist');
-}, /^Error: Cannot find module 'internal\/freelist'$/);
+  require(internalModuleName);
+}, new RegExp(expectedError.message));
 
 assert.strictEqual(
   require(path.join(common.fixturesDir, 'internal-modules')),
