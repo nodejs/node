@@ -22,8 +22,8 @@
 'use strict';
 
 const common = require('../common');
-const Readable = require('_stream_readable');
-const Writable = require('_stream_writable');
+const Readable = require('stream').Readable;
+const Writable = require('stream').Writable;
 const assert = require('assert');
 
 // tiny node-tap lookalike.

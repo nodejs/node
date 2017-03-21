@@ -22,8 +22,8 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const PassThrough = require('_stream_passthrough');
-const Transform = require('_stream_transform');
+const PassThrough = require('stream').PassThrough;
+const Transform = require('stream').Transform;
 
 // tiny node-tap lookalike.
 const tests = [];

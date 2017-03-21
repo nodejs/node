@@ -20,9 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+
 require('../common');
-const R = require('_stream_readable');
-const W = require('_stream_writable');
+const R = require('stream').Readable;
+const W = require('stream').Writable;
 const assert = require('assert');
 
 const src = new R({encoding: 'base64'});
