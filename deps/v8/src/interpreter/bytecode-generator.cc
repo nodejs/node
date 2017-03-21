@@ -106,12 +106,19 @@ class BytecodeGenerator::ControlScope BASE_EMBEDDED {
   void Break(Statement* stmt) { PerformCommand(CMD_BREAK, stmt); }
   void Continue(Statement* stmt) { PerformCommand(CMD_CONTINUE, stmt); }
   void ReturnAccumulator() { PerformCommand(CMD_RETURN, nullptr); }
+  void AsyncReturnAccumulator() { PerformCommand(CMD_ASYNC_RETURN, nullptr); }
   void ReThrowAccumulator() { PerformCommand(CMD_RETHROW, nullptr); }
 
   class DeferredCommands;
 
  protected:
-  enum Command { CMD_BREAK, CMD_CONTINUE, CMD_RETURN, CMD_RETHROW };
+  enum Command {
+    CMD_BREAK,
+    CMD_CONTINUE,
+    CMD_RETURN,
+    CMD_ASYNC_RETURN,
+    CMD_RETHROW
+  };
   void PerformCommand(Command command, Statement* statement);
   virtual bool Execute(Command command, Statement* statement) = 0;
 
@@ -221,6 +228,9 @@ class BytecodeGenerator::ControlScopeForTopLevel final
       case CMD_RETURN:
         generator()->BuildReturn();
         return true;
+      case CMD_ASYNC_RETURN:
+        generator()->BuildAsyncReturn();
+        return true;
       case CMD_RETHROW:
         generator()->BuildReThrow();
         return true;
@@ -249,6 +259,7 @@ class BytecodeGenerator::ControlScopeForBreakable final
         return true;
       case CMD_CONTINUE:
       case CMD_RETURN:
+      case CMD_ASYNC_RETURN:
       case CMD_RETHROW:
         break;
     }
@@ -286,6 +297,7 @@ class BytecodeGenerator::ControlScopeForIteration final
         loop_builder_->Continue();
         return true;
       case CMD_RETURN:
+      case CMD_ASYNC_RETURN:
       case CMD_RETHROW:
         break;
     }
@@ -311,6 +323,7 @@ class BytecodeGenerator::ControlScopeForTryCatch final
       case CMD_BREAK:
       case CMD_CONTINUE:
       case CMD_RETURN:
+      case CMD_ASYNC_RETURN:
         break;
       case CMD_RETHROW:
         generator()->BuildReThrow();
@@ -337,6 +350,7 @@ class BytecodeGenerator::ControlScopeForTryFinally final
       case CMD_BREAK:
       case CMD_CONTINUE:
       case CMD_RETURN:
+      case CMD_ASYNC_RETURN:
       case CMD_RETHROW:
         commands_->RecordCommand(command, statement);
         try_finally_builder_->LeaveTry();
@@ -1045,7 +1059,12 @@ void BytecodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
 void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   builder()->SetStatementPosition(stmt);
   VisitForAccumulatorValue(stmt->expression());
-  execution_control()->ReturnAccumulator();
+
+  if (stmt->is_async_return()) {
+    execution_control()->AsyncReturnAccumulator();
+  } else {
+    execution_control()->ReturnAccumulator();
+  }
 }
 
 void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
@@ -1980,6 +1999,28 @@ void BytecodeGenerator::BuildReturn() {
         Runtime::kTraceExit, result);
   }
   builder()->Return();
+}
+
+void BytecodeGenerator::BuildAsyncReturn() {
+  DCHECK(IsAsyncFunction(info()->literal()->kind()));
+  RegisterAllocationScope register_scope(this);
+  RegisterList args = register_allocator()->NewRegisterList(3);
+  Register receiver = args[0];
+  Register promise = args[1];
+  Register return_value = args[2];
+  builder()->StoreAccumulatorInRegister(return_value);
+
+  Variable* var_promise = scope()->promise_var();
+  DCHECK_NOT_NULL(var_promise);
+  BuildVariableLoad(var_promise, FeedbackVectorSlot::Invalid(),
+                    HoleCheckMode::kElided);
+  builder()
+      ->StoreAccumulatorInRegister(promise)
+      .LoadUndefined()
+      .StoreAccumulatorInRegister(receiver)
+      .CallJSRuntime(Context::PROMISE_RESOLVE_INDEX, args)
+      .LoadAccumulatorWithRegister(promise);
+  BuildReturn();
 }
 
 void BytecodeGenerator::BuildReThrow() { builder()->ReThrow(); }

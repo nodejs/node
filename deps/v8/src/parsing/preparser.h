@@ -670,6 +670,10 @@ class PreParserFactory {
                                         int pos) {
     return PreParserStatement::Jump();
   }
+  PreParserStatement NewAsyncReturnStatement(PreParserExpression expression,
+                                             int pos) {
+    return PreParserStatement::Jump();
+  }
   PreParserExpression NewFunctionLiteral(
       PreParserIdentifier name, Scope* scope, PreParserStatementList body,
       int materialized_literal_count, int expected_property_count,

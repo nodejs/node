@@ -419,23 +419,12 @@ class ParserBase {
     FunctionKind kind() const { return scope()->function_kind(); }
     FunctionState* outer() const { return outer_function_state_; }
 
-    void set_generator_object_variable(typename Types::Variable* variable) {
-      DCHECK_NOT_NULL(variable);
-      DCHECK(IsResumableFunction(kind()));
-      DCHECK(scope()->has_forced_context_allocation());
-      generator_object_variable_ = variable;
-    }
     typename Types::Variable* generator_object_variable() const {
-      return generator_object_variable_;
+      return scope()->generator_object_var();
     }
 
-    void set_promise_variable(typename Types::Variable* variable) {
-      DCHECK(variable != NULL);
-      DCHECK(IsAsyncFunction(kind()));
-      promise_variable_ = variable;
-    }
     typename Types::Variable* promise_variable() const {
-      return promise_variable_;
+      return scope()->promise_var();
     }
 
     const ZoneList<DestructuringAssignment>&
@@ -1334,6 +1323,15 @@ class ParserBase {
       return Call::IS_POSSIBLY_EVAL;
     }
     return Call::NOT_EVAL;
+  }
+
+  // Convenience method which determines the type of return statement to emit
+  // depending on the current function type.
+  inline StatementT BuildReturnStatement(ExpressionT expr, int pos) {
+    if (V8_UNLIKELY(is_async_function())) {
+      return factory()->NewAsyncReturnStatement(expr, pos);
+    }
+    return factory()->NewReturnStatement(expr, pos);
   }
 
   // Validation per ES6 object literals.
@@ -4074,9 +4072,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       } else {
         ExpressionT expression = ParseAssignmentExpression(accept_IN, CHECK_OK);
         impl()->RewriteNonPattern(CHECK_OK);
-        body->Add(
-            factory()->NewReturnStatement(expression, expression->position()),
-            zone());
+        body->Add(BuildReturnStatement(expression, expression->position()),
+                  zone());
         if (allow_tailcalls() && !is_sloppy(language_mode())) {
           // ES6 14.6.1 Static Semantics: IsInTailPosition
           impl()->MarkTailPosition(expression);
@@ -4981,7 +4978,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
   }
   ExpectSemicolon(CHECK_OK);
   return_value = impl()->RewriteReturn(return_value, loc.beg_pos);
-  return factory()->NewReturnStatement(return_value, loc.beg_pos);
+  return BuildReturnStatement(return_value, loc.beg_pos);
 }
 
 template <typename Impl>

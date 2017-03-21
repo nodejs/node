@@ -106,6 +106,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                HoleCheckMode hole_check_mode);
 
   void BuildReturn();
+  void BuildAsyncReturn();
   void BuildReThrow();
   void BuildAbort(BailoutReason bailout_reason);
   void BuildThrowIfHole(Handle<String> name);
