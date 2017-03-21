@@ -73,7 +73,7 @@ void LookupIterator::Next() {
   JSReceiver* holder = *holder_;
   Map* map = holder->map();
 
-  if (map->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE) {
+  if (map->IsSpecialReceiverMap()) {
     state_ = IsElement() ? LookupInSpecialHolder<true>(map, holder)
                          : LookupInSpecialHolder<false>(map, holder);
     if (IsFound()) return;
@@ -275,8 +275,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     JSObject::MigrateToMap(holder, new_map);
     ReloadPropertyInformation<false>();
   } else {
-    PropertyDetails details(attributes, v8::internal::DATA, 0,
-                            PropertyCellType::kMutable);
+    PropertyDetails details(kData, attributes, 0, PropertyCellType::kMutable);
     if (holder->IsJSGlobalObject()) {
       Handle<GlobalDictionary> dictionary(holder->global_dictionary());
 
@@ -344,7 +343,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
       // SetNextEnumerationIndex.
       int index = dictionary->NextEnumerationIndex();
       dictionary->SetNextEnumerationIndex(index + 1);
-      property_details_ = PropertyDetails(attributes, i::DATA, index,
+      property_details_ = PropertyDetails(kData, attributes, index,
                                           PropertyCellType::kUninitialized);
       PropertyCellType new_type =
           PropertyCell::UpdatedType(cell, value, property_details_);
@@ -355,7 +354,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
     } else {
       // Don't set enumeration index (it will be set during value store).
       property_details_ =
-          PropertyDetails(attributes, i::DATA, 0, PropertyCellType::kNoCell);
+          PropertyDetails(kData, attributes, 0, PropertyCellType::kNoCell);
       transition_ = map;
     }
     return;
@@ -369,7 +368,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
   if (transition->is_dictionary_map()) {
     // Don't set enumeration index (it will be set during value store).
     property_details_ =
-        PropertyDetails(attributes, i::DATA, 0, PropertyCellType::kNoCell);
+        PropertyDetails(kData, attributes, 0, PropertyCellType::kNoCell);
   } else {
     property_details_ = transition->GetLastDescriptorDetails();
     has_property_ = true;
@@ -518,19 +517,15 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
   Handle<JSObject> receiver = GetStoreTarget();
   holder_ = receiver;
 
-  PropertyDetails details(attributes, ACCESSOR_CONSTANT, 0,
-                          PropertyCellType::kMutable);
+  PropertyDetails details(kAccessor, attributes, 0, PropertyCellType::kMutable);
 
   if (IsElement()) {
     // TODO(verwaest): Move code into the element accessor.
     Handle<SeededNumberDictionary> dictionary =
         JSObject::NormalizeElements(receiver);
 
-    // We unconditionally pass used_as_prototype=false here because the call
-    // to RequireSlowElements takes care of the required IC clearing and
-    // we don't want to walk the heap twice.
-    dictionary =
-        SeededNumberDictionary::Set(dictionary, index_, pair, details, false);
+    dictionary = SeededNumberDictionary::Set(dictionary, index_, pair, details,
+                                             receiver);
     receiver->RequireSlowElements(*dictionary);
 
     if (receiver->HasSlowArgumentsElements()) {
@@ -596,7 +591,8 @@ Handle<Object> LookupIterator::FetchValue() const {
     result = PropertyCell::cast(result)->value();
   } else if (!holder_->HasFastProperties()) {
     result = holder_->property_dictionary()->ValueAt(number_);
-  } else if (property_details_.type() == v8::internal::DATA) {
+  } else if (property_details_.location() == kField) {
+    DCHECK_EQ(kData, property_details_.kind());
     Handle<JSObject> holder = GetHolder<JSObject>();
     FieldIndex field_index = FieldIndex::ForDescriptor(holder->map(), number_);
     return JSObject::FastPropertyAt(holder, property_details_.representation(),
@@ -610,14 +606,16 @@ Handle<Object> LookupIterator::FetchValue() const {
 int LookupIterator::GetFieldDescriptorIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties());
-  DCHECK_EQ(v8::internal::DATA, property_details_.type());
+  DCHECK_EQ(kField, property_details_.location());
+  DCHECK_EQ(kData, property_details_.kind());
   return descriptor_number();
 }
 
 int LookupIterator::GetAccessorIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties());
-  DCHECK_EQ(v8::internal::ACCESSOR_CONSTANT, property_details_.type());
+  DCHECK_EQ(kDescriptor, property_details_.location());
+  DCHECK_EQ(kAccessor, property_details_.kind());
   return descriptor_number();
 }
 
@@ -625,7 +623,8 @@ int LookupIterator::GetAccessorIndex() const {
 int LookupIterator::GetConstantIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties());
-  DCHECK_EQ(v8::internal::DATA_CONSTANT, property_details_.type());
+  DCHECK_EQ(kDescriptor, property_details_.location());
+  DCHECK_EQ(kData, property_details_.kind());
   DCHECK(!IsElement());
   return descriptor_number();
 }
@@ -634,7 +633,7 @@ int LookupIterator::GetConstantIndex() const {
 FieldIndex LookupIterator::GetFieldIndex() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties());
-  DCHECK_EQ(v8::internal::DATA, property_details_.type());
+  DCHECK_EQ(kField, property_details_.location());
   DCHECK(!IsElement());
   Map* holder_map = holder_->map();
   int index =
@@ -646,7 +645,7 @@ FieldIndex LookupIterator::GetFieldIndex() const {
 Handle<FieldType> LookupIterator::GetFieldType() const {
   DCHECK(has_property_);
   DCHECK(holder_->HasFastProperties());
-  DCHECK_EQ(v8::internal::DATA, property_details_.type());
+  DCHECK_EQ(kField, property_details_.location());
   return handle(
       holder_->map()->instance_descriptors()->GetFieldType(descriptor_number()),
       isolate_);
@@ -683,11 +682,11 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
     ElementsAccessor* accessor = object->GetElementsAccessor();
     accessor->Set(object, number_, *value);
   } else if (holder->HasFastProperties()) {
-    if (property_details_.type() == v8::internal::DATA) {
+    if (property_details_.location() == kField) {
       JSObject::cast(*holder)->WriteToField(descriptor_number(),
                                             property_details_, *value);
     } else {
-      DCHECK_EQ(v8::internal::DATA_CONSTANT, property_details_.type());
+      DCHECK_EQ(kDescriptor, property_details_.location());
     }
   } else if (holder->IsJSGlobalObject()) {
     GlobalDictionary* dictionary = JSObject::cast(*holder)->global_dictionary();

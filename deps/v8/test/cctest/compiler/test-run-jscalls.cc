@@ -5,6 +5,7 @@
 #include "src/api.h"
 #include "src/contexts.h"
 #include "src/flags.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "test/cctest/compiler/function-tester.h"
 

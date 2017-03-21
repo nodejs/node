@@ -103,12 +103,12 @@ function handleScriptParsed(messageObject)
   InspectorTest.log('Script nr ' + numScripts + ' parsed!');
   if (numScripts > 1) return;
 
-  var startLine = messageObject.params.startLine;
+  var startLine = messageObject.params.startLine + 3;
   var endLine = messageObject.params.endLine;
   InspectorTest.log('First script; assuming testFunction.');
   InspectorTest.log(
-      'Flooding script with breakpoints for all lines (' + startLine + ' - ' +
-      endLine + ')...');
+      'Flooding script with breakpoints for the lines ' + startLine + ' to ' +
+      endLine + '...');
   var currentLine = startLine;
   function setNextBreakpoint(message) {
     if (message) InspectorTest.logMessage('error: ' + message.error);

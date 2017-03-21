@@ -15,4 +15,4 @@ function __f_100() {
   }
   return {__f_76: __f_76};
 }
-assertTrue(%IsNotAsmWasmCode(__f_100));
+assertFalse(%IsAsmWasmCode(__f_100));

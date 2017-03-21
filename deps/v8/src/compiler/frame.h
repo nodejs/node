@@ -113,9 +113,9 @@ class Frame : public ZoneObject {
 
   int AllocateSpillSlot(int width) {
     int frame_slot_count_before = frame_slot_count_;
-    int slot = AllocateAlignedFrameSlot(width);
-    spill_slot_count_ += (frame_slot_count_ - frame_slot_count_before);
-    return slot;
+    AllocateAlignedFrameSlots(width);
+    spill_slot_count_ += frame_slot_count_ - frame_slot_count_before;
+    return frame_slot_count_ - 1;
   }
 
   int AlignFrame(int alignment = kDoubleSize);
@@ -131,23 +131,15 @@ class Frame : public ZoneObject {
   static const int kJSFunctionSlot = 3 + StandardFrameConstants::kCPSlotCount;
 
  private:
-  int AllocateAlignedFrameSlot(int width) {
-    DCHECK(width == 4 || width == 8 || width == 16);
-    if (kPointerSize == 4) {
-      // Skip one slot if necessary.
-      if (width > kPointerSize) {
-        frame_slot_count_++;
-        frame_slot_count_ |= 1;
-        // 2 extra slots if width == 16.
-        frame_slot_count_ += (width & 16) / 8;
-      }
-    } else {
-      // No alignment when slots are 8 bytes.
-      DCHECK_EQ(8, kPointerSize);
-      // 1 extra slot if width == 16.
-      frame_slot_count_ += (width & 16) / 16;
-    }
-    return frame_slot_count_++;
+  void AllocateAlignedFrameSlots(int width) {
+    DCHECK_LT(0, width);
+    int new_frame_slots = (width + kPointerSize - 1) / kPointerSize;
+    // Align to 8 bytes if width is a multiple of 8 bytes, and to 16 bytes if
+    // multiple of 16.
+    int align_to = (width & 15) == 0 ? 16 : (width & 7) == 0 ? 8 : kPointerSize;
+    frame_slot_count_ =
+        RoundUp(frame_slot_count_ + new_frame_slots, align_to / kPointerSize);
+    DCHECK_LT(0, frame_slot_count_);
   }
 
  private:

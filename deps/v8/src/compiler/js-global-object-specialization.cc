@@ -49,7 +49,8 @@ Reduction JSGlobalObjectSpecialization::Reduce(Node* node) {
 namespace {
 
 FieldAccess ForPropertyCellValue(MachineRepresentation representation,
-                                 Type* type, Handle<Name> name) {
+                                 Type* type, MaybeHandle<Map> map,
+                                 Handle<Name> name) {
   WriteBarrierKind kind = kFullWriteBarrier;
   if (representation == MachineRepresentation::kTaggedSigned) {
     kind = kNoWriteBarrier;
@@ -57,8 +58,8 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
     kind = kPointerWriteBarrier;
   }
   MachineType r = MachineType::TypeForRepresentation(representation);
-  FieldAccess access = {kTaggedBase, PropertyCell::kValueOffset, name, type, r,
-                        kind};
+  FieldAccess access = {
+      kTaggedBase, PropertyCell::kValueOffset, name, map, type, r, kind};
   return access;
 }
 }  // namespace
@@ -76,7 +77,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
     Node* context = jsgraph()->HeapConstant(result.context);
     Node* value = effect = graph()->NewNode(
         javascript()->LoadContext(0, result.index, result.immutable), context,
-        context, effect);
+        effect);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }
@@ -115,6 +116,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
   }
 
   // Load from constant type cell can benefit from type feedback.
+  MaybeHandle<Map> map;
   Type* property_cell_value_type = Type::NonInternal();
   MachineRepresentation representation = MachineRepresentation::kTagged;
   if (property_details.cell_type() == PropertyCellType::kConstantType) {
@@ -126,18 +128,24 @@ Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
       property_cell_value_type = Type::Number();
       representation = MachineRepresentation::kTaggedPointer;
     } else {
-      // TODO(turbofan): Track the property_cell_value_map on the FieldAccess
-      // below and use it in LoadElimination to eliminate map checks.
       Handle<Map> property_cell_value_map(
           Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
       property_cell_value_type = Type::For(property_cell_value_map);
       representation = MachineRepresentation::kTaggedPointer;
+
+      // We can only use the property cell value map for map check elimination
+      // if it's stable, i.e. the HeapObject wasn't mutated without the cell
+      // state being updated.
+      if (property_cell_value_map->is_stable()) {
+        dependencies()->AssumeMapStable(property_cell_value_map);
+        map = property_cell_value_map;
+      }
     }
   }
-  Node* value = effect =
-      graph()->NewNode(simplified()->LoadField(ForPropertyCellValue(
-                           representation, property_cell_value_type, name)),
-                       jsgraph()->HeapConstant(property_cell), effect, control);
+  Node* value = effect = graph()->NewNode(
+      simplified()->LoadField(ForPropertyCellValue(
+          representation, property_cell_value_type, map, name)),
+      jsgraph()->HeapConstant(property_cell), effect, control);
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
@@ -157,7 +165,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
     if (result.immutable) return NoChange();
     Node* context = jsgraph()->HeapConstant(result.context);
     effect = graph()->NewNode(javascript()->StoreContext(0, result.index),
-                              context, value, context, effect, control);
+                              value, context, effect, control);
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
@@ -206,9 +214,11 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
                                           value, effect, control);
 
         // Check {value} map agains the {property_cell} map.
-        effect = graph()->NewNode(
-            simplified()->CheckMaps(1), value,
-            jsgraph()->HeapConstant(property_cell_value_map), effect, control);
+        effect =
+            graph()->NewNode(simplified()->CheckMaps(
+                                 CheckMapsFlag::kNone,
+                                 ZoneHandleSet<Map>(property_cell_value_map)),
+                             value, effect, control);
         property_cell_value_type = Type::OtherInternal();
         representation = MachineRepresentation::kTaggedPointer;
       } else {
@@ -218,24 +228,21 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
         property_cell_value_type = Type::SignedSmall();
         representation = MachineRepresentation::kTaggedSigned;
       }
-      effect = graph()->NewNode(
-          simplified()->StoreField(ForPropertyCellValue(
-              representation, property_cell_value_type, name)),
-          jsgraph()->HeapConstant(property_cell), value, effect, control);
+      effect = graph()->NewNode(simplified()->StoreField(ForPropertyCellValue(
+                                    representation, property_cell_value_type,
+                                    MaybeHandle<Map>(), name)),
+                                jsgraph()->HeapConstant(property_cell), value,
+                                effect, control);
       break;
     }
     case PropertyCellType::kMutable: {
-      // Store to non-configurable, data property on the global can be lowered
-      // to a field store, even without recording a code dependency on the cell,
-      // because the property cannot be deleted or reconfigured to an accessor
-      // or interceptor property.
-      if (property_details.IsConfigurable()) {
-        // Protect lowering by recording a code dependency on the cell.
-        dependencies()->AssumePropertyCell(property_cell);
-      }
+      // Record a code dependency on the cell, and just deoptimize if the
+      // property ever becomes read-only.
+      dependencies()->AssumePropertyCell(property_cell);
       effect = graph()->NewNode(
           simplified()->StoreField(ForPropertyCellValue(
-              MachineRepresentation::kTagged, Type::NonInternal(), name)),
+              MachineRepresentation::kTagged, Type::NonInternal(),
+              MaybeHandle<Map>(), name)),
           jsgraph()->HeapConstant(property_cell), value, effect, control);
       break;
     }

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
-
+#include "src/builtins/builtins.h"
 #include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -65,18 +65,20 @@ void Generate_GeneratorPrototypeResume(
 
   assembler->Bind(&if_receiverisclosed);
   {
+    Callable create_iter_result_object =
+        CodeFactory::CreateIterResultObject(assembler->isolate());
+
     // The {receiver} is closed already.
     Node* result = nullptr;
     switch (resume_mode) {
       case JSGeneratorObject::kNext:
-        result = assembler->CallRuntime(Runtime::kCreateIterResultObject,
-                                        context, assembler->UndefinedConstant(),
-                                        assembler->BooleanConstant(true));
+        result = assembler->CallStub(create_iter_result_object, context,
+                                     assembler->UndefinedConstant(),
+                                     assembler->TrueConstant());
         break;
       case JSGeneratorObject::kReturn:
-        result =
-            assembler->CallRuntime(Runtime::kCreateIterResultObject, context,
-                                   value, assembler->BooleanConstant(true));
+        result = assembler->CallStub(create_iter_result_object, context, value,
+                                     assembler->TrueConstant());
         break;
       case JSGeneratorObject::kThrow:
         result = assembler->CallRuntime(Runtime::kThrow, context, value);
@@ -96,20 +98,26 @@ void Generate_GeneratorPrototypeResume(
 }  // anonymous namespace
 
 // ES6 section 25.3.1.2 Generator.prototype.next ( value )
-void Builtins::Generate_GeneratorPrototypeNext(CodeStubAssembler* assembler) {
-  Generate_GeneratorPrototypeResume(assembler, JSGeneratorObject::kNext,
+void Builtins::Generate_GeneratorPrototypeNext(
+    compiler::CodeAssemblerState* state) {
+  CodeStubAssembler assembler(state);
+  Generate_GeneratorPrototypeResume(&assembler, JSGeneratorObject::kNext,
                                     "[Generator].prototype.next");
 }
 
 // ES6 section 25.3.1.3 Generator.prototype.return ( value )
-void Builtins::Generate_GeneratorPrototypeReturn(CodeStubAssembler* assembler) {
-  Generate_GeneratorPrototypeResume(assembler, JSGeneratorObject::kReturn,
+void Builtins::Generate_GeneratorPrototypeReturn(
+    compiler::CodeAssemblerState* state) {
+  CodeStubAssembler assembler(state);
+  Generate_GeneratorPrototypeResume(&assembler, JSGeneratorObject::kReturn,
                                     "[Generator].prototype.return");
 }
 
 // ES6 section 25.3.1.4 Generator.prototype.throw ( exception )
-void Builtins::Generate_GeneratorPrototypeThrow(CodeStubAssembler* assembler) {
-  Generate_GeneratorPrototypeResume(assembler, JSGeneratorObject::kThrow,
+void Builtins::Generate_GeneratorPrototypeThrow(
+    compiler::CodeAssemblerState* state) {
+  CodeStubAssembler assembler(state);
+  Generate_GeneratorPrototypeResume(&assembler, JSGeneratorObject::kThrow,
                                     "[Generator].prototype.throw");
 }
 

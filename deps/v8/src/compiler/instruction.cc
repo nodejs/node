@@ -433,6 +433,8 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os << "deoptimize";
     case kFlags_set:
       return os << "set";
+    case kFlags_trap:
+      return os << "trap";
   }
   UNREACHABLE();
   return os;
@@ -985,8 +987,18 @@ void InstructionSequence::PrintBlock(int block_id) const {
 }
 
 const RegisterConfiguration*
-InstructionSequence::GetRegisterConfigurationForTesting() {
-  return GetRegConfig();
+    InstructionSequence::registerConfigurationForTesting_ = nullptr;
+
+const RegisterConfiguration*
+InstructionSequence::RegisterConfigurationForTesting() {
+  DCHECK(registerConfigurationForTesting_ != nullptr);
+  return registerConfigurationForTesting_;
+}
+
+void InstructionSequence::SetRegisterConfigurationForTesting(
+    const RegisterConfiguration* regConfig) {
+  registerConfigurationForTesting_ = regConfig;
+  GetRegConfig = InstructionSequence::RegisterConfigurationForTesting;
 }
 
 FrameStateDescriptor::FrameStateDescriptor(

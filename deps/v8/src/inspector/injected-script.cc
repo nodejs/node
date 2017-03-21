@@ -105,9 +105,9 @@ std::unique_ptr<InjectedScript> InjectedScript::create(
   if (inspector->getContext(contextGroupId, contextId) != inspectedContext)
     return nullptr;
   if (!injectedScriptValue->IsObject()) return nullptr;
-  return wrapUnique(new InjectedScript(inspectedContext,
-                                       injectedScriptValue.As<v8::Object>(),
-                                       std::move(injectedScriptNative)));
+  return std::unique_ptr<InjectedScript>(
+      new InjectedScript(inspectedContext, injectedScriptValue.As<v8::Object>(),
+                         std::move(injectedScriptNative)));
 }
 
 InjectedScript::InjectedScript(
@@ -150,7 +150,7 @@ Response InjectedScript::getProperties(
   if (!response.isSuccess()) return response;
   protocol::ErrorSupport errors;
   std::unique_ptr<Array<PropertyDescriptor>> result =
-      Array<PropertyDescriptor>::parse(protocolValue.get(), &errors);
+      Array<PropertyDescriptor>::fromValue(protocolValue.get(), &errors);
   if (errors.hasErrors()) return Response::Error(errors.errors());
   *properties = std::move(result);
   return Response::OK();
@@ -158,7 +158,7 @@ Response InjectedScript::getProperties(
 
 void InjectedScript::releaseObject(const String16& objectId) {
   std::unique_ptr<protocol::Value> parsedObjectId =
-      protocol::parseJSON(objectId);
+      protocol::StringUtil::parseJSON(objectId);
   if (!parsedObjectId) return;
   protocol::DictionaryValue* object =
       protocol::DictionaryValue::cast(parsedObjectId.get());
@@ -184,7 +184,7 @@ Response InjectedScript::wrapObject(
   if (!response.isSuccess()) return response;
 
   *result =
-      protocol::Runtime::RemoteObject::parse(protocolValue.get(), &errors);
+      protocol::Runtime::RemoteObject::fromValue(protocolValue.get(), &errors);
   if (!result->get()) return Response::Error(errors.errors());
   return Response::OK();
 }
@@ -260,7 +260,8 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
   Response response = toProtocolValue(context, r, &protocolValue);
   if (!response.isSuccess()) return nullptr;
   protocol::ErrorSupport errors;
-  return protocol::Runtime::RemoteObject::parse(protocolValue.get(), &errors);
+  return protocol::Runtime::RemoteObject::fromValue(protocolValue.get(),
+                                                    &errors);
 }
 
 Response InjectedScript::findObject(const RemoteObjectId& objectId,
@@ -317,7 +318,7 @@ Response InjectedScript::resolveCallArgument(
   if (callArgument->hasValue() || callArgument->hasUnserializableValue()) {
     String16 value =
         callArgument->hasValue()
-            ? callArgument->getValue(nullptr)->toJSONString()
+            ? callArgument->getValue(nullptr)->serialize()
             : "Number(\"" + callArgument->getUnserializableValue("") + "\")";
     if (!m_context->inspector()
              ->compileAndRunInternalScript(
@@ -418,7 +419,7 @@ InjectedScript::Scope::Scope(V8InspectorImpl* inspector, int contextGroupId)
       m_handleScope(inspector->isolate()),
       m_tryCatch(inspector->isolate()),
       m_ignoreExceptionsAndMuteConsole(false),
-      m_previousPauseOnExceptionsState(v8::DebugInterface::NoBreakOnException),
+      m_previousPauseOnExceptionsState(v8::debug::NoBreakOnException),
       m_userGesture(false) {}
 
 Response InjectedScript::Scope::initialize() {
@@ -448,14 +449,13 @@ void InjectedScript::Scope::ignoreExceptionsAndMuteConsole() {
   m_inspector->client()->muteMetrics(m_contextGroupId);
   m_inspector->muteExceptions(m_contextGroupId);
   m_previousPauseOnExceptionsState =
-      setPauseOnExceptionsState(v8::DebugInterface::NoBreakOnException);
+      setPauseOnExceptionsState(v8::debug::NoBreakOnException);
 }
 
-v8::DebugInterface::ExceptionBreakState
-InjectedScript::Scope::setPauseOnExceptionsState(
-    v8::DebugInterface::ExceptionBreakState newState) {
+v8::debug::ExceptionBreakState InjectedScript::Scope::setPauseOnExceptionsState(
+    v8::debug::ExceptionBreakState newState) {
   if (!m_inspector->debugger()->enabled()) return newState;
-  v8::DebugInterface::ExceptionBreakState presentState =
+  v8::debug::ExceptionBreakState presentState =
       m_inspector->debugger()->getPauseOnExceptionsState();
   if (presentState != newState)
     m_inspector->debugger()->setPauseOnExceptionsState(newState);

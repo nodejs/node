@@ -5,6 +5,8 @@
 #ifndef V8_HANDLES_H_
 #define V8_HANDLES_H_
 
+#include <type_traits>
+
 #include "include/v8.h"
 #include "src/base/functional.h"
 #include "src/base/macros.h"
@@ -91,11 +93,10 @@ class Handle final : public HandleBase {
  public:
   V8_INLINE explicit Handle(T** location = nullptr)
       : HandleBase(reinterpret_cast<Object**>(location)) {
-    Object* a = nullptr;
-    T* b = nullptr;
-    a = b;  // Fake assignment to enforce type checks.
-    USE(a);
+    // Type check:
+    static_assert(std::is_base_of<Object, T>::value, "static type violation");
   }
+
   V8_INLINE explicit Handle(T* object) : Handle(object, object->GetIsolate()) {}
   V8_INLINE Handle(T* object, Isolate* isolate) : HandleBase(object, isolate) {}
 

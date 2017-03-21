@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 var builder = new WasmModuleBuilder();
 
 var last_func_index = builder.addFunction("exec_unreachable", kSig_v_v)
-  .addBody([kExprUnreachable])
+  .addBody([kExprUnreachable]).index
 
 var illegal_func_name = [0xff];
 var func_names = [ "☠", illegal_func_name, "some math: (½)² = ¼", "" ];

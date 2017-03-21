@@ -404,17 +404,11 @@ Node::InputEdges::iterator Node::InputEdges::iterator::operator++(int n) {
 }
 
 
-bool Node::InputEdges::empty() const { return begin() == end(); }
-
-
 Node::Inputs::const_iterator Node::Inputs::const_iterator::operator++(int n) {
   const_iterator result(*this);
   ++(*this);
   return result;
 }
-
-
-bool Node::Inputs::empty() const { return begin() == end(); }
 
 
 Node::UseEdges::iterator Node::UseEdges::iterator::operator++(int n) {

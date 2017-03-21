@@ -66,6 +66,7 @@
       'V8 Linux64 TSAN': 'gn_release_x64_tsan',
       'V8 Linux - arm64 - sim - MSAN': 'gn_release_simulate_arm64_msan',
       # Clusterfuzz.
+      'V8 Linux64 - release builder': 'gn_release_x64_correctness_fuzzer',
       'V8 Linux64 ASAN no inline - release builder':
           'gn_release_x64_asan_symbolized_edge_verify_heap',
       'V8 Linux64 ASAN - debug builder': 'gn_debug_x64_asan_edge',
@@ -116,8 +117,7 @@
       'V8 Linux - s390 - sim': 'gyp_release_simulate_s390',
       'V8 Linux - s390x - sim': 'gyp_release_simulate_s390x',
       # X87.
-      'V8 Linux - x87 - nosnap - debug builder':
-          'gyp_debug_simulate_x87_no_snap',
+      'V8 Linux - x87 - nosnap - debug builder': 'gyp_debug_simulate_x87',
     },
     'client.v8.branches': {
       'V8 Linux - beta branch': 'gn_release_x86',
@@ -286,6 +286,8 @@
       'v8_verify_heap'],
     'gn_release_x64_clang': [
       'gn', 'release_bot', 'x64', 'clang', 'swarming'],
+    'gn_release_x64_correctness_fuzzer' : [
+      'gn', 'release_bot', 'x64', 'v8_correctness_fuzzer'],
     'gn_release_x64_internal': [
       'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
     'gn_release_x64_minimal_symbols': [
@@ -359,9 +361,8 @@
       'gn', 'release_trybot', 'x86', 'swarming'],
 
     # Gyp debug configs for simulators.
-    'gyp_debug_simulate_x87_no_snap': [
-      'gyp', 'debug_bot_static', 'simulate_x87', 'swarming',
-      'v8_snapshot_none'],
+    'gyp_debug_simulate_x87': [
+      'gyp', 'debug_bot_static', 'simulate_x87', 'swarming'],
 
     # Gyp debug configs for x86.
     'gyp_debug_x86': [
@@ -624,6 +625,10 @@
     'v8_no_i18n': {
       'gn_args': 'v8_enable_i18n_support=false icu_use_data_file=false',
       'gyp_defines': 'v8_enable_i18n_support=0 icu_use_data_file_flag=0',
+    },
+
+    'v8_correctness_fuzzer': {
+      'gn_args': 'v8_correctness_fuzzer=true',
     },
 
     'v8_disable_inspector': {

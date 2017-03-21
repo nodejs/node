@@ -69,10 +69,10 @@ class NamedEntriesDetector {
     CheckEntry(root);
     while (!list.is_empty()) {
       i::HeapEntry* entry = list.RemoveLast();
-      i::Vector<i::HeapGraphEdge*> children = entry->children();
-      for (int i = 0; i < children.length(); ++i) {
-        if (children[i]->type() == i::HeapGraphEdge::kShortcut) continue;
-        i::HeapEntry* child = children[i]->to();
+      for (int i = 0; i < entry->children_count(); ++i) {
+        i::HeapGraphEdge* edge = entry->child(i);
+        if (edge->type() == i::HeapGraphEdge::kShortcut) continue;
+        i::HeapEntry* child = edge->to();
         v8::base::HashMap::Entry* entry = visited.LookupOrInsert(
             reinterpret_cast<void*>(child),
             static_cast<uint32_t>(reinterpret_cast<uintptr_t>(child)));
@@ -137,8 +137,8 @@ static bool ValidateSnapshot(const v8::HeapSnapshot* snapshot, int depth = 3) {
       reinterpret_cast<const i::HeapSnapshot*>(snapshot));
 
   v8::base::HashMap visited;
-  i::List<i::HeapGraphEdge>& edges = heap_snapshot->edges();
-  for (int i = 0; i < edges.length(); ++i) {
+  std::deque<i::HeapGraphEdge>& edges = heap_snapshot->edges();
+  for (size_t i = 0; i < edges.size(); ++i) {
     v8::base::HashMap::Entry* entry = visited.LookupOrInsert(
         reinterpret_cast<void*>(edges[i].to()),
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(edges[i].to())));
@@ -1570,88 +1570,6 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   CHECK_EQ(ccc, GetProperty(n_CCC, v8::HeapGraphEdge::kInternal, "native"));
 }
 
-
-class GraphWithImplicitRefs {
- public:
-  static const int kObjectsCount = 4;
-  explicit GraphWithImplicitRefs(LocalContext* env) {
-    CHECK(!instance_);
-    instance_ = this;
-    isolate_ = (*env)->GetIsolate();
-    for (int i = 0; i < kObjectsCount; i++) {
-      objects_[i].Reset(isolate_, v8::Object::New(isolate_));
-    }
-    (*env)
-        ->Global()
-        ->Set(isolate_->GetCurrentContext(), v8_str("root_object"),
-              v8::Local<v8::Value>::New(isolate_, objects_[0]))
-        .FromJust();
-  }
-  ~GraphWithImplicitRefs() {
-    instance_ = NULL;
-  }
-
-  static void gcPrologue(v8::Isolate* isolate, v8::GCType type,
-                         v8::GCCallbackFlags flags) {
-    instance_->AddImplicitReferences();
-  }
-
- private:
-  void AddImplicitReferences() {
-    // 0 -> 1
-    isolate_->SetObjectGroupId(objects_[0],
-                               v8::UniqueId(1));
-    isolate_->SetReferenceFromGroup(
-        v8::UniqueId(1), objects_[1]);
-    // Adding two more references: 1 -> 2, 1 -> 3
-    isolate_->SetReference(objects_[1].As<v8::Object>(),
-                           objects_[2]);
-    isolate_->SetReference(objects_[1].As<v8::Object>(),
-                           objects_[3]);
-  }
-
-  v8::Persistent<v8::Value> objects_[kObjectsCount];
-  static GraphWithImplicitRefs* instance_;
-  v8::Isolate* isolate_;
-};
-
-GraphWithImplicitRefs* GraphWithImplicitRefs::instance_ = NULL;
-
-
-TEST(HeapSnapshotImplicitReferences) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-
-  GraphWithImplicitRefs graph(&env);
-  env->GetIsolate()->AddGCPrologueCallback(&GraphWithImplicitRefs::gcPrologue);
-
-  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
-  CHECK(ValidateSnapshot(snapshot));
-
-  const v8::HeapGraphNode* global_object = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* obj0 = GetProperty(
-      global_object, v8::HeapGraphEdge::kProperty, "root_object");
-  CHECK(obj0);
-  CHECK_EQ(v8::HeapGraphNode::kObject, obj0->GetType());
-  const v8::HeapGraphNode* obj1 = GetProperty(
-      obj0, v8::HeapGraphEdge::kInternal, "native");
-  CHECK(obj1);
-  int implicit_targets_count = 0;
-  for (int i = 0, count = obj1->GetChildrenCount(); i < count; ++i) {
-    const v8::HeapGraphEdge* prop = obj1->GetChild(i);
-    v8::String::Utf8Value prop_name(prop->GetName());
-    if (prop->GetType() == v8::HeapGraphEdge::kInternal &&
-        strcmp("native", *prop_name) == 0) {
-      ++implicit_targets_count;
-    }
-  }
-  CHECK_EQ(2, implicit_targets_count);
-  env->GetIsolate()->RemoveGCPrologueCallback(
-      &GraphWithImplicitRefs::gcPrologue);
-}
-
-
 TEST(DeleteAllHeapSnapshots) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -2568,7 +2486,7 @@ TEST(TrackHeapAllocationsWithInlining) {
   const char* names[] = {"", "start", "f_0_0"};
   AllocationTraceNode* node = FindNode(tracker, ArrayVector(names));
   CHECK(node);
-  CHECK_GE(node->allocation_count(), 12u);
+  CHECK_GE(node->allocation_count(), 10u);
   CHECK_GE(node->allocation_size(), 4 * node->allocation_count());
   heap_profiler->StopTrackingHeapObjects();
 }

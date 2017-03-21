@@ -65,6 +65,10 @@ class V8ConsoleMessage {
   ConsoleAPIType type() const;
   void contextDestroyed(int contextId);
 
+  int estimatedSize() const {
+    return m_v8Size + static_cast<int>(m_message.length() * sizeof(UChar));
+  }
+
  private:
   V8ConsoleMessage(V8MessageOrigin, double timestamp, const String16& message);
 
@@ -89,6 +93,7 @@ class V8ConsoleMessage {
   ConsoleAPIType m_type;
   unsigned m_exceptionId;
   unsigned m_revokedExceptionId;
+  int m_v8Size = 0;
   Arguments m_arguments;
   String16 m_detailedMessage;
 };
@@ -99,7 +104,6 @@ class V8ConsoleMessageStorage {
   ~V8ConsoleMessageStorage();
 
   int contextGroupId() { return m_contextGroupId; }
-  int expiredCount() { return m_expiredCount; }
   const std::deque<std::unique_ptr<V8ConsoleMessage>>& messages() const {
     return m_messages;
   }
@@ -111,7 +115,7 @@ class V8ConsoleMessageStorage {
  private:
   V8InspectorImpl* m_inspector;
   int m_contextGroupId;
-  int m_expiredCount;
+  int m_estimatedSize = 0;
   std::deque<std::unique_ptr<V8ConsoleMessage>> m_messages;
 };
 

@@ -4,8 +4,11 @@
 
 #include "src/ic/keyed-store-generic.h"
 
-#include "src/compiler/code-assembler.h"
+#include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
 #include "src/contexts.h"
+#include "src/ic/accessor-assembler-impl.h"
+#include "src/interface-descriptors.h"
 #include "src/isolate.h"
 
 namespace v8 {
@@ -13,10 +16,12 @@ namespace internal {
 
 using compiler::Node;
 
-class KeyedStoreGenericAssembler : public CodeStubAssembler {
+class KeyedStoreGenericAssembler : public AccessorAssemblerImpl {
  public:
-  void KeyedStoreGeneric(const StoreICParameters* p,
-                         LanguageMode language_mode);
+  explicit KeyedStoreGenericAssembler(compiler::CodeAssemblerState* state)
+      : AccessorAssemblerImpl(state) {}
+
+  void KeyedStoreGeneric(LanguageMode language_mode);
 
  private:
   enum UpdateLength {
@@ -30,7 +35,8 @@ class KeyedStoreGenericAssembler : public CodeStubAssembler {
                                Node* value, Node* context, Label* slow);
 
   void EmitGenericPropertyStore(Node* receiver, Node* receiver_map,
-                                const StoreICParameters* p, Label* slow);
+                                const StoreICParameters* p, Label* slow,
+                                LanguageMode language_mode);
 
   void BranchIfPrototypesHaveNonFastElements(Node* receiver_map,
                                              Label* non_fast_elements,
@@ -60,16 +66,18 @@ class KeyedStoreGenericAssembler : public CodeStubAssembler {
                                 ElementsKind packed_kind,
                                 ElementsKind packed_kind_2, Label* bailout);
 
-  // Do not add fields, so that this is safe to reinterpret_cast to CSA.
+  void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
+  void LookupPropertyOnPrototypeChain(Node* receiver_map, Node* name,
+                                      Label* accessor,
+                                      Variable* var_accessor_pair,
+                                      Variable* var_accessor_holder,
+                                      Label* readonly, Label* bailout);
 };
 
-void KeyedStoreGenericGenerator::Generate(
-    CodeStubAssembler* assembler, const CodeStubAssembler::StoreICParameters* p,
-    LanguageMode language_mode) {
-  STATIC_ASSERT(sizeof(CodeStubAssembler) ==
-                sizeof(KeyedStoreGenericAssembler));
-  auto assm = reinterpret_cast<KeyedStoreGenericAssembler*>(assembler);
-  assm->KeyedStoreGeneric(p, language_mode);
+void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state,
+                                          LanguageMode language_mode) {
+  KeyedStoreGenericAssembler assembler(state);
+  assembler.KeyedStoreGeneric(language_mode);
 }
 
 void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
@@ -94,9 +102,7 @@ void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
            non_fast_elements);
     Node* elements_kind = LoadMapElementsKind(prototype_map);
     STATIC_ASSERT(FIRST_ELEMENTS_KIND == FIRST_FAST_ELEMENTS_KIND);
-    GotoIf(Int32LessThanOrEqual(elements_kind,
-                                Int32Constant(LAST_FAST_ELEMENTS_KIND)),
-           &loop_body);
+    GotoIf(IsFastElementsKind(elements_kind), &loop_body);
     GotoIf(Word32Equal(elements_kind, Int32Constant(NO_ELEMENTS)), &loop_body);
     Goto(non_fast_elements);
   }
@@ -112,7 +118,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
     TrapAllocationMemento(receiver, bailout);
   }
   Label perform_transition(this), check_holey_map(this);
-  Variable var_target_map(this, MachineType::PointerRepresentation());
+  Variable var_target_map(this, MachineRepresentation::kTagged);
   // Check if the receiver has the default |from_kind| map.
   {
     Node* packed_map =
@@ -143,7 +149,7 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
       GrowElementsCapacity(receiver, elements, from_kind, to_kind, capacity,
                            capacity, INTPTR_PARAMETERS, bailout);
     }
-    StoreObjectField(receiver, JSObject::kMapOffset, var_target_map.value());
+    StoreMap(receiver, var_target_map.value());
   }
 }
 
@@ -160,7 +166,7 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapHelper(
   }
   Node* holey_map =
       LoadContextElement(native_context, Context::ArrayMapIndex(holey_kind));
-  StoreObjectField(receiver, JSObject::kMapOffset, holey_map);
+  StoreMap(receiver, holey_map);
   Goto(done);
 }
 
@@ -219,6 +225,15 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
   if (update_length != kDontChangeLength) {
     CSA_ASSERT(this, Word32Equal(LoadMapInstanceType(receiver_map),
                                  Int32Constant(JS_ARRAY_TYPE)));
+    // Check if the length property is writable. The fast check is only
+    // supported for fast properties.
+    GotoIf(IsDictionaryMap(receiver_map), slow);
+    // The length property is non-configurable, so it's guaranteed to always
+    // be the first property.
+    Node* descriptors = LoadMapDescriptors(receiver_map);
+    Node* details =
+        LoadFixedArrayElement(descriptors, DescriptorArray::ToDetailsIndex(0));
+    GotoIf(IsSetSmi(details, PropertyDetails::kAttributesReadOnlyMask), slow);
   }
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
   const int kHeaderSize = FixedArray::kHeaderSize - kHeapObjectTag;
@@ -276,7 +291,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
         TryChangeToHoleyMap(receiver, receiver_map, elements_kind, context,
                             FAST_ELEMENTS, slow);
       }
-      Store(MachineRepresentation::kTagged, elements, offset, value);
+      Store(elements, offset, value);
       MaybeUpdateLengthAndReturn(receiver, intptr_index, value, update_length);
 
       Bind(&must_transition);
@@ -320,7 +335,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
                            FAST_SMI_ELEMENTS, target_kind, slow);
         // The elements backing store didn't change, no reload necessary.
         CSA_ASSERT(this, WordEqual(elements, LoadElements(receiver)));
-        Store(MachineRepresentation::kTagged, elements, offset, value);
+        Store(elements, offset, value);
         MaybeUpdateLengthAndReturn(receiver, intptr_index, value,
                                    update_length);
       }
@@ -356,8 +371,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // Try to store the value as a double.
     {
       Label non_number_value(this);
-      Node* double_value = PrepareValueForWrite(value, Representation::Double(),
-                                                &non_number_value);
+      Node* double_value = TryTaggedToFloat64(value, &non_number_value);
+
       // Make sure we do not store signalling NaNs into double arrays.
       double_value = Float64SilenceNaN(double_value);
       // If we're about to introduce holes, ensure holey elements.
@@ -384,7 +399,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
       Node* fast_elements = LoadElements(receiver);
       Node* fast_offset = ElementOffsetFromIndex(
           intptr_index, FAST_ELEMENTS, INTPTR_PARAMETERS, kHeaderSize);
-      Store(MachineRepresentation::kTagged, fast_elements, fast_offset, value);
+      Store(fast_elements, fast_offset, value);
       MaybeUpdateLengthAndReturn(receiver, intptr_index, value, update_length);
     }
   }
@@ -399,14 +414,13 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
 void KeyedStoreGenericAssembler::EmitGenericElementStore(
     Node* receiver, Node* receiver_map, Node* instance_type, Node* intptr_index,
     Node* value, Node* context, Label* slow) {
-  Label if_in_bounds(this), if_increment_length_by_one(this),
+  Label if_fast(this), if_in_bounds(this), if_increment_length_by_one(this),
       if_bump_length_with_gap(this), if_grow(this), if_nonfast(this),
       if_typed_array(this), if_dictionary(this);
   Node* elements = LoadElements(receiver);
   Node* elements_kind = LoadMapElementsKind(receiver_map);
-  GotoIf(
-      Int32GreaterThan(elements_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
-      &if_nonfast);
+  Branch(IsFastElementsKind(elements_kind), &if_fast, &if_nonfast);
+  Bind(&if_fast);
 
   Label if_array(this);
   GotoIf(Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE)), &if_array);
@@ -482,37 +496,268 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   }
 }
 
-void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
-    Node* receiver, Node* receiver_map, const StoreICParameters* p,
-    Label* slow) {
-  Comment("stub cache probe");
-  // TODO(jkummerow): Don't rely on the stub cache as much.
-  // - existing properties can be overwritten inline (unless readonly).
-  // - for dictionary mode receivers, we can even add properties inline
-  //   (unless the prototype chain prevents it).
-  Variable var_handler(this, MachineRepresentation::kTagged);
-  Label found_handler(this, &var_handler), stub_cache_miss(this);
-  TryProbeStubCache(isolate()->store_stub_cache(), receiver, p->name,
-                    &found_handler, &var_handler, &stub_cache_miss);
-  Bind(&found_handler);
+void KeyedStoreGenericAssembler::JumpIfDataProperty(Node* details,
+                                                    Label* writable,
+                                                    Label* readonly) {
+  // Accessor properties never have the READ_ONLY attribute set.
+  GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
+         readonly);
+  Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
+  GotoIf(Word32Equal(kind, Int32Constant(kData)), writable);
+  // Fall through if it's an accessor property.
+}
+
+void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
+    Node* receiver_map, Node* name, Label* accessor,
+    Variable* var_accessor_pair, Variable* var_accessor_holder, Label* readonly,
+    Label* bailout) {
+  Label ok_to_write(this);
+  Variable var_holder(this, MachineRepresentation::kTagged);
+  var_holder.Bind(LoadMapPrototype(receiver_map));
+  Variable var_holder_map(this, MachineRepresentation::kTagged);
+  var_holder_map.Bind(LoadMap(var_holder.value()));
+
+  Variable* merged_variables[] = {&var_holder, &var_holder_map};
+  Label loop(this, arraysize(merged_variables), merged_variables);
+  Goto(&loop);
+  Bind(&loop);
   {
-    Comment("KeyedStoreGeneric found handler");
-    HandleStoreICHandlerCase(p, var_handler.value(), slow);
+    Node* holder = var_holder.value();
+    Node* holder_map = var_holder_map.value();
+    Node* instance_type = LoadMapInstanceType(holder_map);
+    Label next_proto(this);
+    {
+      Label found(this), found_fast(this), found_dict(this), found_global(this);
+      Variable var_meta_storage(this, MachineRepresentation::kTagged);
+      Variable var_entry(this, MachineType::PointerRepresentation());
+      TryLookupProperty(holder, holder_map, instance_type, name, &found_fast,
+                        &found_dict, &found_global, &var_meta_storage,
+                        &var_entry, &next_proto, bailout);
+      Bind(&found_fast);
+      {
+        Node* descriptors = var_meta_storage.value();
+        Node* name_index = var_entry.value();
+        // TODO(jkummerow): Add helper functions for accessing value and
+        // details by entry.
+        const int kNameToDetailsOffset = (DescriptorArray::kDescriptorDetails -
+                                          DescriptorArray::kDescriptorKey) *
+                                         kPointerSize;
+        Node* details = LoadAndUntagToWord32FixedArrayElement(
+            descriptors, name_index, kNameToDetailsOffset);
+        JumpIfDataProperty(details, &ok_to_write, readonly);
+
+        // Accessor case.
+        Variable var_details(this, MachineRepresentation::kWord32);
+        LoadPropertyFromFastObject(holder, holder_map, descriptors, name_index,
+                                   &var_details, var_accessor_pair);
+        var_accessor_holder->Bind(holder);
+        Goto(accessor);
+      }
+
+      Bind(&found_dict);
+      {
+        Node* dictionary = var_meta_storage.value();
+        Node* entry = var_entry.value();
+        const int kNameToDetailsOffset = (NameDictionary::kEntryDetailsIndex -
+                                          NameDictionary::kEntryKeyIndex) *
+                                         kPointerSize;
+        Node* details = LoadAndUntagToWord32FixedArrayElement(
+            dictionary, entry, kNameToDetailsOffset);
+        JumpIfDataProperty(details, &ok_to_write, readonly);
+
+        // Accessor case.
+        const int kNameToValueOffset = (NameDictionary::kEntryValueIndex -
+                                        NameDictionary::kEntryKeyIndex) *
+                                       kPointerSize;
+        var_accessor_pair->Bind(
+            LoadFixedArrayElement(dictionary, entry, kNameToValueOffset));
+        var_accessor_holder->Bind(holder);
+        Goto(accessor);
+      }
+
+      Bind(&found_global);
+      {
+        Node* dictionary = var_meta_storage.value();
+        Node* entry = var_entry.value();
+        const int kNameToValueOffset = (GlobalDictionary::kEntryValueIndex -
+                                        GlobalDictionary::kEntryKeyIndex) *
+                                       kPointerSize;
+
+        Node* property_cell =
+            LoadFixedArrayElement(dictionary, entry, kNameToValueOffset);
+
+        Node* value =
+            LoadObjectField(property_cell, PropertyCell::kValueOffset);
+        GotoIf(WordEqual(value, TheHoleConstant()), &next_proto);
+        Node* details = LoadAndUntagToWord32ObjectField(
+            property_cell, PropertyCell::kDetailsOffset);
+        JumpIfDataProperty(details, &ok_to_write, readonly);
+
+        // Accessor case.
+        var_accessor_pair->Bind(value);
+        var_accessor_holder->Bind(holder);
+        Goto(accessor);
+      }
+    }
+
+    Bind(&next_proto);
+    // Bailout if it can be an integer indexed exotic case.
+    GotoIf(Word32Equal(instance_type, Int32Constant(JS_TYPED_ARRAY_TYPE)),
+           bailout);
+    Node* proto = LoadMapPrototype(holder_map);
+    GotoIf(WordEqual(proto, NullConstant()), &ok_to_write);
+    var_holder.Bind(proto);
+    var_holder_map.Bind(LoadMap(proto));
+    Goto(&loop);
   }
-  Bind(&stub_cache_miss);
+  Bind(&ok_to_write);
+}
+
+void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
+    Node* receiver, Node* receiver_map, const StoreICParameters* p, Label* slow,
+    LanguageMode language_mode) {
+  Variable var_accessor_pair(this, MachineRepresentation::kTagged);
+  Variable var_accessor_holder(this, MachineRepresentation::kTagged);
+  Label stub_cache(this), fast_properties(this), dictionary_properties(this),
+      accessor(this), readonly(this);
+  Node* properties = LoadProperties(receiver);
+  Node* properties_map = LoadMap(properties);
+  Branch(WordEqual(properties_map, LoadRoot(Heap::kHashTableMapRootIndex)),
+         &dictionary_properties, &fast_properties);
+
+  Bind(&fast_properties);
   {
-    Comment("KeyedStoreGeneric_miss");
-    TailCallRuntime(Runtime::kKeyedStoreIC_Miss, p->context, p->value, p->slot,
-                    p->vector, p->receiver, p->name);
+    // TODO(jkummerow): Does it make sense to support some cases here inline?
+    // Maybe overwrite existing writable properties?
+    // Maybe support map transitions?
+    Goto(&stub_cache);
+  }
+
+  Bind(&dictionary_properties);
+  {
+    Comment("dictionary property store");
+    // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
+    // seeing global objects here (which would need special handling).
+
+    Variable var_name_index(this, MachineType::PointerRepresentation());
+    Label dictionary_found(this, &var_name_index), not_found(this);
+    NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
+                                         &var_name_index, &not_found);
+    Bind(&dictionary_found);
+    {
+      Label overwrite(this);
+      const int kNameToDetailsOffset = (NameDictionary::kEntryDetailsIndex -
+                                        NameDictionary::kEntryKeyIndex) *
+                                       kPointerSize;
+      Node* details = LoadAndUntagToWord32FixedArrayElement(
+          properties, var_name_index.value(), kNameToDetailsOffset);
+      JumpIfDataProperty(details, &overwrite, &readonly);
+
+      // Accessor case.
+      const int kNameToValueOffset =
+          (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
+          kPointerSize;
+      var_accessor_pair.Bind(LoadFixedArrayElement(
+          properties, var_name_index.value(), kNameToValueOffset));
+      var_accessor_holder.Bind(receiver);
+      Goto(&accessor);
+
+      Bind(&overwrite);
+      {
+        StoreFixedArrayElement(properties, var_name_index.value(), p->value,
+                               UPDATE_WRITE_BARRIER, kNameToValueOffset);
+        Return(p->value);
+      }
+    }
+
+    Bind(&not_found);
+    {
+      LookupPropertyOnPrototypeChain(receiver_map, p->name, &accessor,
+                                     &var_accessor_pair, &var_accessor_holder,
+                                     &readonly, slow);
+      Add<NameDictionary>(properties, p->name, p->value, slow);
+      Return(p->value);
+    }
+  }
+
+  Bind(&accessor);
+  {
+    Label not_callable(this);
+    Node* accessor_pair = var_accessor_pair.value();
+    GotoIf(IsAccessorInfoMap(LoadMap(accessor_pair)), slow);
+    CSA_ASSERT(this, HasInstanceType(accessor_pair, ACCESSOR_PAIR_TYPE));
+    Node* setter = LoadObjectField(accessor_pair, AccessorPair::kSetterOffset);
+    Node* setter_map = LoadMap(setter);
+    // FunctionTemplateInfo setters are not supported yet.
+    GotoIf(IsFunctionTemplateInfoMap(setter_map), slow);
+    GotoUnless(IsCallableMap(setter_map), &not_callable);
+
+    Callable callable = CodeFactory::Call(isolate());
+    CallJS(callable, p->context, setter, receiver, p->value);
+    Return(p->value);
+
+    Bind(&not_callable);
+    {
+      if (language_mode == STRICT) {
+        Node* message =
+            SmiConstant(Smi::FromInt(MessageTemplate::kNoSetterInCallback));
+        TailCallRuntime(Runtime::kThrowTypeError, p->context, message, p->name,
+                        var_accessor_holder.value());
+      } else {
+        DCHECK_EQ(SLOPPY, language_mode);
+        Return(p->value);
+      }
+    }
+  }
+
+  Bind(&readonly);
+  {
+    if (language_mode == STRICT) {
+      Node* message =
+          SmiConstant(Smi::FromInt(MessageTemplate::kStrictReadOnlyProperty));
+      Node* type = Typeof(p->receiver, p->context);
+      TailCallRuntime(Runtime::kThrowTypeError, p->context, message, p->name,
+                      type, p->receiver);
+    } else {
+      DCHECK_EQ(SLOPPY, language_mode);
+      Return(p->value);
+    }
+  }
+
+  Bind(&stub_cache);
+  {
+    Comment("stub cache probe");
+    Variable var_handler(this, MachineRepresentation::kTagged);
+    Label found_handler(this, &var_handler), stub_cache_miss(this);
+    TryProbeStubCache(isolate()->store_stub_cache(), receiver, p->name,
+                      &found_handler, &var_handler, &stub_cache_miss);
+    Bind(&found_handler);
+    {
+      Comment("KeyedStoreGeneric found handler");
+      HandleStoreICHandlerCase(p, var_handler.value(), slow);
+    }
+    Bind(&stub_cache_miss);
+    {
+      Comment("KeyedStoreGeneric_miss");
+      TailCallRuntime(Runtime::kKeyedStoreIC_Miss, p->context, p->value,
+                      p->slot, p->vector, p->receiver, p->name);
+    }
   }
 }
 
-void KeyedStoreGenericAssembler::KeyedStoreGeneric(const StoreICParameters* p,
-                                                   LanguageMode language_mode) {
+void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
+  typedef StoreWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
   Variable var_index(this, MachineType::PointerRepresentation());
   Label if_index(this), if_unique_name(this), slow(this);
 
-  Node* receiver = p->receiver;
   GotoIf(TaggedIsSmi(receiver), &slow);
   Node* receiver_map = LoadMap(receiver);
   Node* instance_type = LoadMapInstanceType(receiver_map);
@@ -522,26 +767,28 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(const StoreICParameters* p,
                               Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
          &slow);
 
-  TryToName(p->name, &if_index, &var_index, &if_unique_name, &slow);
+  TryToName(name, &if_index, &var_index, &if_unique_name, &slow);
 
   Bind(&if_index);
   {
     Comment("integer index");
     EmitGenericElementStore(receiver, receiver_map, instance_type,
-                            var_index.value(), p->value, p->context, &slow);
+                            var_index.value(), value, context, &slow);
   }
 
   Bind(&if_unique_name);
   {
     Comment("key is unique name");
-    EmitGenericPropertyStore(receiver, receiver_map, p, &slow);
+    KeyedStoreGenericAssembler::StoreICParameters p(context, receiver, name,
+                                                    value, slot, vector);
+    EmitGenericPropertyStore(receiver, receiver_map, &p, &slow, language_mode);
   }
 
   Bind(&slow);
   {
     Comment("KeyedStoreGeneric_slow");
-    TailCallRuntime(Runtime::kSetProperty, p->context, p->receiver, p->name,
-                    p->value, SmiConstant(language_mode));
+    TailCallRuntime(Runtime::kSetProperty, context, receiver, name, value,
+                    SmiConstant(language_mode));
   }
 }
 

@@ -321,6 +321,7 @@ class Simulator {
 #if V8_TARGET_ARCH_PPC64
   void ExecuteExt5(Instruction* instr);
 #endif
+  void ExecuteExt6(Instruction* instr);
   void ExecuteGeneric(Instruction* instr);
 
   void SetFPSCR(int bit) { fp_condition_reg_ |= (1 << (31 - bit)); }

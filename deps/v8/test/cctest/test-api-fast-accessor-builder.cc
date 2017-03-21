@@ -8,6 +8,7 @@
 #include "include/v8-experimental.h"
 
 #include "src/api.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 namespace {

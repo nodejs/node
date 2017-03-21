@@ -427,7 +427,7 @@ TEST(SignednessInWord32) {
               MachineRepresentation::kFloat64, Type::Number(),
               MachineRepresentation::kWord32);
   CheckChange(IrOpcode::kCheckedTruncateTaggedToWord32,
-              MachineRepresentation::kTagged, Type::NumberOrOddball(),
+              MachineRepresentation::kTagged, Type::NonInternal(),
               MachineRepresentation::kWord32,
               UseInfo::CheckedNumberOrOddballAsWord32());
 

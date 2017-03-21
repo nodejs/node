@@ -86,6 +86,8 @@ class SerializerDeserializer : public ObjectVisitor {
  protected:
   static bool CanBeDeferred(HeapObject* o);
 
+  void RestoreExternalReferenceRedirectors(List<AccessorInfo*>* accessor_infos);
+
   // ---------- byte code range 0x00..0x7f ----------
   // Byte codes in this range represent Where, HowToCode and WhereToPoint.
   // Where the pointed-to object can be found:

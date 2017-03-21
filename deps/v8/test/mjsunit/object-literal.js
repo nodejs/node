@@ -260,3 +260,44 @@ TestNumericNamesSetter(['1.2', '1.3'], {
   set 1.2(_) {; },
   set 1.30(_) {; }
 });
+
+(function TestPrototypeInObjectLiteral() {
+  // The prototype chain should not be used if the definition
+  // happens in the object literal.
+
+  Object.defineProperty(Object.prototype, 'c', {
+    get: function () {
+      return 21;
+    },
+    set: function () {
+    }
+  });
+
+  var o = {};
+  o.c = 7;
+  assertEquals(21, o.c);
+
+  var l = {c: 7};
+  assertEquals(7, l.c);
+
+  delete Object.prototype.c;
+})();
+
+(function TestProxyWithDefinitionInObjectLiteral() {
+  // Trap for set should not be used if the definition
+  // happens in the object literal.
+  var handler = {
+    set: function(target, name, value) {
+    }
+  };
+
+  const prop = 'a';
+
+  var p = new Proxy({}, handler);
+  p[prop] = 'my value';
+  assertEquals(undefined, p[prop]);
+
+
+  var l = new Proxy({[prop]: 'my value'}, handler);
+  assertEquals('my value', l[prop]);
+})();

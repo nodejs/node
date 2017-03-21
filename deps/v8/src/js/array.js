@@ -21,7 +21,6 @@ var MinSimple;
 var ObjectHasOwnProperty;
 var ObjectToString = utils.ImportNow("object_to_string");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var speciesSymbol = utils.ImportNow("species_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
@@ -723,7 +722,7 @@ function InnerArraySort(array, length, comparefn) {
       else return x < y ? -1 : 1;
     };
   }
-  var InsertionSort = function InsertionSort(a, from, to) {
+  function InsertionSort(a, from, to) {
     for (var i = from + 1; i < to; i++) {
       var element = a[i];
       for (var j = i - 1; j >= from; j--) {
@@ -739,7 +738,7 @@ function InnerArraySort(array, length, comparefn) {
     }
   };
 
-  var GetThirdIndex = function(a, from, to) {
+  function GetThirdIndex(a, from, to) {
     var t_array = new InternalArray();
     // Use both 'from' and 'to' to determine the pivot candidates.
     var increment = 200 + ((to - from) & 15);
@@ -757,7 +756,7 @@ function InnerArraySort(array, length, comparefn) {
     return third_index;
   }
 
-  var QuickSort = function QuickSort(a, from, to) {
+  function QuickSort(a, from, to) {
     var third_index = 0;
     while (true) {
       // Insertion sort is faster for short arrays.
@@ -846,7 +845,7 @@ function InnerArraySort(array, length, comparefn) {
   // Copy elements in the range 0..length from obj's prototype chain
   // to obj itself, if obj has holes. Return one more than the maximal index
   // of a prototype property.
-  var CopyFromPrototype = function CopyFromPrototype(obj, length) {
+  function CopyFromPrototype(obj, length) {
     var max = 0;
     for (var proto = %object_get_prototype_of(obj); proto;
          proto = %object_get_prototype_of(proto)) {
@@ -876,7 +875,7 @@ function InnerArraySort(array, length, comparefn) {
   // Set a value of "undefined" on all indices in the range from..to
   // where a prototype of obj has an element. I.e., shadow all prototype
   // elements in that range.
-  var ShadowPrototypeElements = function(obj, from, to) {
+  function ShadowPrototypeElements(obj, from, to) {
     for (var proto = %object_get_prototype_of(obj); proto;
          proto = %object_get_prototype_of(proto)) {
       var indices = IS_PROXY(proto) ? to : %GetArrayKeys(proto, to);
@@ -899,7 +898,7 @@ function InnerArraySort(array, length, comparefn) {
     }
   };
 
-  var SafeRemoveArrayHoles = function SafeRemoveArrayHoles(obj) {
+  function SafeRemoveArrayHoles(obj) {
     // Copy defined elements from the end to fill in all holes and undefineds
     // in the beginning of the array.  Write undefineds and holes at the end
     // after loop is finished.
@@ -1490,12 +1489,6 @@ function ArrayOf(...args) {
   return array;
 }
 
-
-function ArraySpecies() {
-  return this;
-}
-
-
 // -------------------------------------------------------------------
 
 // Set up non-enumerable constructor property on the Array.prototype
@@ -1528,7 +1521,7 @@ utils.InstallFunctions(GlobalArray, DONT_ENUM, [
 
 var specialFunctions = %SpecialArrayFunctions();
 
-var getFunction = function(name, jsBuiltin, len) {
+function getFunction(name, jsBuiltin, len) {
   var f = jsBuiltin;
   if (specialFunctions.hasOwnProperty(name)) {
     f = specialFunctions[name];
@@ -1577,8 +1570,6 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
 ]);
 
 %FunctionSetName(ArrayValues, "values");
-
-utils.InstallGetter(GlobalArray, speciesSymbol, ArraySpecies);
 
 %FinishArrayPrototypeSetup(GlobalArray.prototype);
 

@@ -3,7 +3,31 @@
         "path": "js_protocol.json",
         "package": "src/inspector/protocol",
         "output": "protocol",
-        "namespace": ["v8_inspector", "protocol"]
+        "namespace": ["v8_inspector", "protocol"],
+        "options": [
+            {
+                "domain": "Schema",
+                "exported": ["Domain"]
+            },
+            {
+                "domain": "Runtime",
+                "async": ["evaluate", "awaitPromise", "callFunctionOn", "runScript"],
+                "exported": ["StackTrace", "RemoteObject"]
+            },
+            {
+                "domain": "Debugger",
+                "exported": ["SearchMatch", "paused.reason"]
+            },
+            {
+                "domain": "Console"
+            },
+            {
+                "domain": "Profiler"
+            },
+            {
+                "domain": "HeapProfiler"
+            }
+        ]
     },
 
     "exported": {
@@ -19,7 +43,6 @@
     "lib": {
         "package": "src/inspector/protocol",
         "output": "protocol",
-        "string_header": "src/inspector/string-util.h",
-        "platform_header": "src/inspector/protocol-platform.h"
+        "string_header": "src/inspector/string-util.h"
     }
 }

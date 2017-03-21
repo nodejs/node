@@ -3,6 +3,11 @@
 # found in the LICENSE file.
 
 [
+[ALWAYS, {
+    # BUG(5677): Real timers are flaky
+    'RuntimeCallStatsTest.*': [SKIP],
+}], # ALWAYS
+
 ['arch == x87', {
   'Ieee754.Expm1': [SKIP],
   'Ieee754.Cos': [SKIP],
@@ -16,5 +21,9 @@
 ['variant == asm_wasm', {
   '*': [SKIP],
 }],  # variant == asm_wasm
+
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
 
 ]

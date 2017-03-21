@@ -12,6 +12,7 @@
 // Do not include anything from src/compiler here!
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
+#include "src/code-factory.h"
 #include "src/globals.h"
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
@@ -30,9 +31,16 @@ class Zone;
 namespace compiler {
 
 class CallDescriptor;
+class CodeAssemblerLabel;
+class CodeAssemblerVariable;
+class CodeAssemblerState;
 class Node;
 class RawMachineAssembler;
 class RawMachineLabel;
+
+typedef ZoneList<CodeAssemblerVariable*> CodeAssemblerVariableList;
+
+typedef std::function<void()> CodeAssemblerCallback;
 
 #define CODE_ASSEMBLER_COMPARE_BINARY_OP_LIST(V) \
   V(Float32Equal)                                \
@@ -79,9 +87,7 @@ class RawMachineLabel;
   V(Float64Pow)                            \
   V(Float64InsertLowWord32)                \
   V(Float64InsertHighWord32)               \
-  V(IntPtrAdd)                             \
   V(IntPtrAddWithOverflow)                 \
-  V(IntPtrSub)                             \
   V(IntPtrSubWithOverflow)                 \
   V(IntPtrMul)                             \
   V(Int32Add)                              \
@@ -157,6 +163,7 @@ class RawMachineLabel;
   V(Float64RoundTiesEven)               \
   V(Float64RoundTruncate)               \
   V(Word32Clz)                          \
+  V(Word32Not)                          \
   V(Word32BinaryNot)
 
 // A "public" interface used by components outside of compiler directory to
@@ -175,22 +182,16 @@ class RawMachineLabel;
 // clients, CodeAssembler also provides an abstraction for creating variables
 // and enhanced Label functionality to merge variable values along paths where
 // they have differing values, including loops.
+//
+// The CodeAssembler itself is stateless (and instances are expected to be
+// temporary-scoped and short-lived); all its state is encapsulated into
+// a CodeAssemblerState instance.
 class V8_EXPORT_PRIVATE CodeAssembler {
  public:
-  // Create with CallStub linkage.
-  // |result_size| specifies the number of results returned by the stub.
-  // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
-  CodeAssembler(Isolate* isolate, Zone* zone,
-                const CallInterfaceDescriptor& descriptor, Code::Flags flags,
-                const char* name, size_t result_size = 1);
+  explicit CodeAssembler(CodeAssemblerState* state) : state_(state) {}
+  ~CodeAssembler();
 
-  // Create with JSCall linkage.
-  CodeAssembler(Isolate* isolate, Zone* zone, int parameter_count,
-                Code::Flags flags, const char* name);
-
-  virtual ~CodeAssembler();
-
-  Handle<Code> GenerateCode();
+  static Handle<Code> GenerateCode(CodeAssemblerState* state);
 
   bool Is64() const;
   bool IsFloat64RoundUpSupported() const;
@@ -198,24 +199,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool IsFloat64RoundTiesEvenSupported() const;
   bool IsFloat64RoundTruncateSupported() const;
 
-  class Label;
-  class Variable {
-   public:
-    explicit Variable(CodeAssembler* assembler, MachineRepresentation rep);
-    ~Variable();
-    void Bind(Node* value);
-    Node* value() const;
-    MachineRepresentation rep() const;
-    bool IsBound() const;
-
-   private:
-    friend class CodeAssembler;
-    class Impl;
-    Impl* impl_;
-    CodeAssembler* assembler_;
-  };
-
-  typedef ZoneList<Variable*> VariableList;
+  // Shortened aliases for use in CodeAssembler subclasses.
+  typedef CodeAssemblerLabel Label;
+  typedef CodeAssemblerVariable Variable;
+  typedef CodeAssemblerVariableList VariableList;
 
   // ===========================================================================
   // Base Assembler
@@ -255,9 +242,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Switch(Node* index, Label* default_label, const int32_t* case_values,
               Label** case_labels, size_t case_count);
 
-  Node* Select(Node* condition, Node* true_value, Node* false_value,
-               MachineRepresentation rep = MachineRepresentation::kTagged);
-
   // Access to the frame pointer
   Node* LoadFramePointer();
   Node* LoadParentFramePointer();
@@ -267,19 +251,20 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Load raw memory location.
   Node* Load(MachineType rep, Node* base);
-  Node* Load(MachineType rep, Node* base, Node* index);
-  Node* AtomicLoad(MachineType rep, Node* base, Node* index);
+  Node* Load(MachineType rep, Node* base, Node* offset);
+  Node* AtomicLoad(MachineType rep, Node* base, Node* offset);
 
   // Load a value from the root array.
   Node* LoadRoot(Heap::RootListIndex root_index);
 
   // Store value to raw memory location.
-  Node* Store(MachineRepresentation rep, Node* base, Node* value);
-  Node* Store(MachineRepresentation rep, Node* base, Node* index, Node* value);
+  Node* Store(Node* base, Node* value);
+  Node* Store(Node* base, Node* offset, Node* value);
+  Node* StoreWithMapWriteBarrier(Node* base, Node* offset, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
-  Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* index,
+  Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);
-  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
+  Node* AtomicStore(MachineRepresentation rep, Node* base, Node* offset,
                     Node* value);
 
   // Store a value to the root array.
@@ -289,6 +274,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #define DECLARE_CODE_ASSEMBLER_BINARY_OP(name) Node* name(Node* a, Node* b);
   CODE_ASSEMBLER_BINARY_OP_LIST(DECLARE_CODE_ASSEMBLER_BINARY_OP)
 #undef DECLARE_CODE_ASSEMBLER_BINARY_OP
+
+  Node* IntPtrAdd(Node* left, Node* right);
+  Node* IntPtrSub(Node* left, Node* right);
 
   Node* WordShl(Node* value, int shift);
   Node* WordShr(Node* value, int shift);
@@ -316,148 +304,75 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* Projection(int index, Node* value);
 
   // Calls
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
-                    Node* arg2);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
-                    Node* arg2, Node* arg3);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
-                    Node* arg2, Node* arg3, Node* arg4);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
-                    Node* arg2, Node* arg3, Node* arg4, Node* arg5);
+  template <class... TArgs>
+  Node* CallRuntime(Runtime::FunctionId function, Node* context, TArgs... args);
 
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2, Node* arg3);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2, Node* arg3, Node* arg4);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                        Node* arg5);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                        Node* arg5, Node* arg6);
+  template <class... TArgs>
+  Node* TailCallRuntime(Runtime::FunctionId function, Node* context,
+                        TArgs... args);
 
-  // A pair of a zero-based argument index and a value.
-  // It helps writing arguments order independent code.
-  struct Arg {
-    Arg(int index, Node* value) : index(index), value(value) {}
-
-    int const index;
-    Node* const value;
-  };
-
-  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
-                 size_t result_size = 1);
-  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
-                 Node* arg2, size_t result_size = 1);
-  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
-                 Node* arg2, Node* arg3, size_t result_size = 1);
-  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
-                 Node* arg2, Node* arg3, Node* arg4, size_t result_size = 1);
-  Node* CallStubN(Callable const& callable, Node** args,
-                  size_t result_size = 1);
-
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, Node* arg2, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, Node* arg2, Node* arg3,
-                 size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                 size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                 Node* arg5, size_t result_size = 1);
-
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, const Arg& arg1, const Arg& arg2,
-                 size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, const Arg& arg1, const Arg& arg2,
-                 const Arg& arg3, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, const Arg& arg1, const Arg& arg2,
-                 const Arg& arg3, const Arg& arg4, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, const Arg& arg1, const Arg& arg2,
-                 const Arg& arg3, const Arg& arg4, const Arg& arg5,
-                 size_t result_size = 1);
-
-  Node* CallStubN(const CallInterfaceDescriptor& descriptor,
-                  int js_parameter_count, Node* target, Node** args,
-                  size_t result_size = 1);
-  Node* CallStubN(const CallInterfaceDescriptor& descriptor, Node* target,
-                  Node** args, size_t result_size = 1) {
-    return CallStubN(descriptor, 0, target, args, result_size);
+  template <class... TArgs>
+  Node* CallStub(Callable const& callable, Node* context, TArgs... args) {
+    Node* target = HeapConstant(callable.code());
+    return CallStub(callable.descriptor(), target, context, args...);
   }
 
-  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
-                     size_t result_size = 1);
-  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
-                     Node* arg2, size_t result_size = 1);
-  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
-                     Node* arg2, Node* arg3, size_t result_size = 1);
-  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
-                     Node* arg2, Node* arg3, Node* arg4,
-                     size_t result_size = 1);
-  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
-                     Node* arg2, Node* arg3, Node* arg4, Node* arg5,
-                     size_t result_size = 1);
+  template <class... TArgs>
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, TArgs... args) {
+    return CallStubR(descriptor, 1, target, context, args...);
+  }
 
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, Node* arg1, size_t result_size = 1);
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, Node* arg1, Node* arg2,
-                     size_t result_size = 1);
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, Node* arg1, Node* arg2, Node* arg3,
-                     size_t result_size = 1);
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, Node* arg1, Node* arg2, Node* arg3,
-                     Node* arg4, size_t result_size = 1);
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, Node* arg1, Node* arg2, Node* arg3,
-                     Node* arg4, Node* arg5, size_t result_size = 1);
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, Node* arg1, Node* arg2, Node* arg3,
-                     Node* arg4, Node* arg5, Node* arg6,
-                     size_t result_size = 1);
+  template <class... TArgs>
+  Node* CallStubR(const CallInterfaceDescriptor& descriptor, size_t result_size,
+                  Node* target, Node* context, TArgs... args);
 
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, const Arg& arg1, const Arg& arg2,
-                     const Arg& arg3, const Arg& arg4, size_t result_size = 1);
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, const Arg& arg1, const Arg& arg2,
-                     const Arg& arg3, const Arg& arg4, const Arg& arg5,
-                     size_t result_size = 1);
+  Node* CallStubN(const CallInterfaceDescriptor& descriptor, size_t result_size,
+                  int input_count, Node* const* inputs);
 
+  template <class... TArgs>
+  Node* TailCallStub(Callable const& callable, Node* context, TArgs... args) {
+    Node* target = HeapConstant(callable.code());
+    return TailCallStub(callable.descriptor(), target, context, args...);
+  }
+
+  template <class... TArgs>
+  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                     Node* context, TArgs... args);
+
+  template <class... TArgs>
   Node* TailCallBytecodeDispatch(const CallInterfaceDescriptor& descriptor,
-                                 Node* code_target_address, Node** args);
+                                 Node* target, TArgs... args);
 
+  template <class... TArgs>
   Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, size_t result_size = 1);
-  Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, Node* arg1, size_t result_size = 1);
-  Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, Node* arg1, Node* arg2, size_t result_size = 1);
-  Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, Node* arg1, Node* arg2, Node* arg3,
-               size_t result_size = 1);
+               Node* receiver, TArgs... args) {
+    int argc = static_cast<int>(sizeof...(args));
+    Node* arity = Int32Constant(argc);
+    return CallStub(callable, context, function, arity, receiver, args...);
+  }
+
+  template <class... TArgs>
+  Node* ConstructJS(Callable const& callable, Node* context, Node* new_target,
+                    TArgs... args) {
+    int argc = static_cast<int>(sizeof...(args));
+    Node* arity = Int32Constant(argc);
+    Node* receiver = LoadRoot(Heap::kUndefinedValueRootIndex);
+
+    // Construct(target, new_target, arity, receiver, arguments...)
+    return CallStub(callable, context, new_target, new_target, arity, receiver,
+                    args...);
+  }
 
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, Node* function, Node* arg0,
                        Node* arg1);
+
+  // Call to a C function with three arguments.
+  Node* CallCFunction3(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       Node* function, Node* arg0, Node* arg1, Node* arg2);
 
   // Exception handling support.
   void GotoIfException(Node* node, Label* if_exception,
@@ -468,45 +383,68 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Isolate* isolate() const;
   Zone* zone() const;
 
+  CodeAssemblerState* state() { return state_; }
+
+  void BreakOnNode(int node_id);
+
  protected:
-  // Enables subclasses to perform operations before and after a call.
-  virtual void CallPrologue();
-  virtual void CallEpilogue();
+  void RegisterCallGenerationCallbacks(
+      const CodeAssemblerCallback& call_prologue,
+      const CodeAssemblerCallback& call_epilogue);
+  void UnregisterCallGenerationCallbacks();
 
  private:
-  CodeAssembler(Isolate* isolate, Zone* zone, CallDescriptor* call_descriptor,
-                Code::Flags flags, const char* name);
+  RawMachineAssembler* raw_assembler() const;
 
-  Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
-  Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);
+  // Calls respective callback registered in the state.
+  void CallPrologue();
+  void CallEpilogue();
 
-  std::unique_ptr<RawMachineAssembler> raw_assembler_;
-  Code::Flags flags_;
-  const char* name_;
-  bool code_generated_;
-  ZoneSet<Variable::Impl*> variables_;
+  CodeAssemblerState* state_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssembler);
 };
 
-class CodeAssembler::Label {
+class CodeAssemblerVariable {
+ public:
+  explicit CodeAssemblerVariable(CodeAssembler* assembler,
+                                 MachineRepresentation rep);
+  ~CodeAssemblerVariable();
+  void Bind(Node* value);
+  Node* value() const;
+  MachineRepresentation rep() const;
+  bool IsBound() const;
+
+ private:
+  friend class CodeAssemblerLabel;
+  friend class CodeAssemblerState;
+  class Impl;
+  Impl* impl_;
+  CodeAssemblerState* state_;
+};
+
+class CodeAssemblerLabel {
  public:
   enum Type { kDeferred, kNonDeferred };
 
-  explicit Label(
+  explicit CodeAssemblerLabel(
       CodeAssembler* assembler,
-      CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
-      : CodeAssembler::Label(assembler, 0, nullptr, type) {}
-  Label(CodeAssembler* assembler, const VariableList& merged_variables,
-        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
-      : CodeAssembler::Label(assembler, merged_variables.length(),
-                             &(merged_variables[0]), type) {}
-  Label(CodeAssembler* assembler, size_t count, Variable** vars,
-        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred);
-  Label(CodeAssembler* assembler, CodeAssembler::Variable* merged_variable,
-        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
-      : Label(assembler, 1, &merged_variable, type) {}
-  ~Label() {}
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
+      : CodeAssemblerLabel(assembler, 0, nullptr, type) {}
+  CodeAssemblerLabel(
+      CodeAssembler* assembler,
+      const CodeAssemblerVariableList& merged_variables,
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
+      : CodeAssemblerLabel(assembler, merged_variables.length(),
+                           &(merged_variables[0]), type) {}
+  CodeAssemblerLabel(
+      CodeAssembler* assembler, size_t count, CodeAssemblerVariable** vars,
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred);
+  CodeAssemblerLabel(
+      CodeAssembler* assembler, CodeAssemblerVariable* merged_variable,
+      CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
+      : CodeAssemblerLabel(assembler, 1, &merged_variable, type) {}
+  ~CodeAssemblerLabel() {}
 
  private:
   friend class CodeAssembler;
@@ -516,14 +454,53 @@ class CodeAssembler::Label {
 
   bool bound_;
   size_t merge_count_;
-  CodeAssembler* assembler_;
+  CodeAssemblerState* state_;
   RawMachineLabel* label_;
   // Map of variables that need to be merged to their phi nodes (or placeholders
   // for those phis).
-  std::map<Variable::Impl*, Node*> variable_phis_;
+  std::map<CodeAssemblerVariable::Impl*, Node*> variable_phis_;
   // Map of variables to the list of value nodes that have been added from each
   // merge path in their order of merging.
-  std::map<Variable::Impl*, std::vector<Node*>> variable_merges_;
+  std::map<CodeAssemblerVariable::Impl*, std::vector<Node*>> variable_merges_;
+};
+
+class V8_EXPORT_PRIVATE CodeAssemblerState {
+ public:
+  // Create with CallStub linkage.
+  // |result_size| specifies the number of results returned by the stub.
+  // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
+  CodeAssemblerState(Isolate* isolate, Zone* zone,
+                     const CallInterfaceDescriptor& descriptor,
+                     Code::Flags flags, const char* name,
+                     size_t result_size = 1);
+
+  // Create with JSCall linkage.
+  CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
+                     Code::Flags flags, const char* name);
+
+  ~CodeAssemblerState();
+
+  const char* name() const { return name_; }
+  int parameter_count() const;
+
+ private:
+  friend class CodeAssembler;
+  friend class CodeAssemblerLabel;
+  friend class CodeAssemblerVariable;
+
+  CodeAssemblerState(Isolate* isolate, Zone* zone,
+                     CallDescriptor* call_descriptor, Code::Flags flags,
+                     const char* name);
+
+  std::unique_ptr<RawMachineAssembler> raw_assembler_;
+  Code::Flags flags_;
+  const char* name_;
+  bool code_generated_;
+  ZoneSet<CodeAssemblerVariable::Impl*> variables_;
+  CodeAssemblerCallback call_prologue_;
+  CodeAssemblerCallback call_epilogue_;
+
+  DISALLOW_COPY_AND_ASSIGN(CodeAssemblerState);
 };
 
 }  // namespace compiler

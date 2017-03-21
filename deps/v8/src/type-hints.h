@@ -33,6 +33,8 @@ enum class CompareOperationHint : uint8_t {
   kSignedSmall,
   kNumber,
   kNumberOrOddball,
+  kInternalizedString,
+  kString,
   kAny
 };
 
@@ -61,10 +63,12 @@ enum class ToBooleanHint : uint16_t {
 };
 
 std::ostream& operator<<(std::ostream&, ToBooleanHint);
+std::string ToString(ToBooleanHint);
 
 typedef base::Flags<ToBooleanHint, uint16_t> ToBooleanHints;
 
 std::ostream& operator<<(std::ostream&, ToBooleanHints);
+std::string ToString(ToBooleanHints);
 
 DEFINE_OPERATORS_FOR_FLAGS(ToBooleanHints)
 

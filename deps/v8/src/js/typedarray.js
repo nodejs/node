@@ -41,7 +41,6 @@ var SpeciesConstructor;
 var ToPositiveInteger;
 var ToIndex;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 macro TYPED_ARRAYS(FUNCTION)
@@ -260,7 +259,7 @@ function NAMEConstructor(arg1, arg2, arg3) {
       NAMEConstructByTypedArray(this, arg1);
     } else if (IS_RECEIVER(arg1)) {
       var iteratorFn = arg1[iteratorSymbol];
-      if (IS_UNDEFINED(iteratorFn) || iteratorFn === ArrayValues) {
+      if (IS_UNDEFINED(iteratorFn)) {
         NAMEConstructByArrayLike(this, arg1, arg1.length);
       } else {
         NAMEConstructByIterable(this, arg1, iteratorFn);
@@ -847,10 +846,6 @@ function TypedArrayConstructor() {
   throw %make_type_error(kConstructAbstractClass, "TypedArray");
 }
 
-function TypedArraySpecies() {
-  return this;
-}
-
 // -------------------------------------------------------------------
 
 %SetCode(GlobalTypedArray, TypedArrayConstructor);
@@ -858,7 +853,6 @@ utils.InstallFunctions(GlobalTypedArray, DONT_ENUM, [
   "from", TypedArrayFrom,
   "of", TypedArrayOf
 ]);
-utils.InstallGetter(GlobalTypedArray, speciesSymbol, TypedArraySpecies);
 utils.InstallGetter(GlobalTypedArray.prototype, toStringTagSymbol,
                     TypedArrayGetToStringTag);
 utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [

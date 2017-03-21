@@ -33,7 +33,7 @@ class Vector {
 
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
-  Vector<T> SubVector(int from, int to) {
+  Vector<T> SubVector(int from, int to) const {
     DCHECK(0 <= from);
     SLOW_DCHECK(from < to);
     SLOW_DCHECK(static_cast<unsigned>(to) <= static_cast<unsigned>(length_));
@@ -118,6 +118,9 @@ class Vector {
     DCHECK(offset < length_);
     return Vector<T>(start_ + offset, length_ - offset);
   }
+
+  // Implicit conversion from Vector<T> to Vector<const T>.
+  inline operator Vector<const T>() { return Vector<const T>::cast(*this); }
 
   // Factory method for creating empty vectors.
   static Vector<T> empty() { return Vector<T>(NULL, 0); }

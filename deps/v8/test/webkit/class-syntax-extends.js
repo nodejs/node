@@ -98,7 +98,7 @@ shouldThrow('x = {}; new (class extends undefined { constructor () { return x; }
 shouldThrow('y = 12; new (class extends undefined { constructor () { return y; } })', '"TypeError: Class extends value undefined is not a constructor or null"');
 shouldBeTrue ('class x {}; new (class extends null { constructor () { return new x; } }) instanceof x');
 shouldThrow('new (class extends null { constructor () { this; } })', '"ReferenceError: this is not defined"');
-shouldThrow('new (class extends null { constructor () { super(); } })', '"TypeError: super is not a constructor"');
+shouldThrow('new (class extends null { constructor () { super(); } })', '"TypeError: Super constructor null of anonymous class is not a constructor"');
 shouldBe('x = {}; new (class extends null { constructor () { return x } })', 'x');
 shouldThrow('y = 12; new (class extends null { constructor () { return y; } })', '"TypeError: Derived constructors may only return object or undefined"');
 shouldBeTrue ('class x {}; new (class extends null { constructor () { return new x; } }) instanceof x');

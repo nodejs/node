@@ -8,14 +8,11 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
-#include <iomanip>
 #include <limits>
-#include <locale>
-#include <sstream>
 #include <string>
 
 #include "src/base/platform/platform.h"
-#include "src/inspector/protocol-platform.h"
+#include "src/conversions.h"
 
 namespace v8_inspector {
 
@@ -367,10 +364,9 @@ static inline void putUTF8Triple(char*& buffer, UChar ch) {
 
 // static
 String16 String16::fromInteger(int number) {
-  const size_t kBufferSize = 50;
-  char buffer[kBufferSize];
-  v8::base::OS::SNPrintF(buffer, kBufferSize, "%d", number);
-  return String16(buffer);
+  char arr[50];
+  v8::internal::Vector<char> buffer(arr, arraysize(arr));
+  return String16(IntToCString(number, buffer));
 }
 
 // static
@@ -387,19 +383,16 @@ String16 String16::fromInteger(size_t number) {
 
 // static
 String16 String16::fromDouble(double number) {
-  std::ostringstream s;
-  s.imbue(std::locale("C"));
-  s << std::fixed << std::setprecision(std::numeric_limits<double>::digits10)
-    << number;
-  return String16(s.str().c_str());
+  char arr[50];
+  v8::internal::Vector<char> buffer(arr, arraysize(arr));
+  return String16(DoubleToCString(number, buffer));
 }
 
 // static
 String16 String16::fromDouble(double number, int precision) {
-  std::ostringstream s;
-  s.imbue(std::locale("C"));
-  s << std::fixed << std::setprecision(precision) << number;
-  return String16(s.str().c_str());
+  std::unique_ptr<char[]> str(
+      v8::internal::DoubleToPrecisionCString(number, precision));
+  return String16(str.get());
 }
 
 int String16::toInteger(bool* ok) const {

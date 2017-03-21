@@ -76,25 +76,22 @@ void CheckExceptionInfos(Handle<Object> exc,
 
 // Call from JS to WASM to JS and throw an Error from JS.
 TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
+  WasmRunner<void> r(kExecuteCompiled);
   TestSignatures sigs;
-  TestingModule module;
 
-  // Initialize WasmFunctionCompiler first, since it sets up the HandleScope.
-  WasmFunctionCompiler comp1(sigs.v_v(), &module);
-
-  uint32_t js_throwing_index = module.AddJsFunction(
+  uint32_t js_throwing_index = r.module().AddJsFunction(
       sigs.v_v(),
       "(function js() {\n function a() {\n throw new Error(); };\n a(); })");
 
   // Add a nop such that we don't always get position 1.
-  BUILD(comp1, WASM_NOP, WASM_CALL_FUNCTION0(js_throwing_index));
-  uint32_t wasm_index = comp1.CompileAndAdd();
+  BUILD(r, WASM_NOP, WASM_CALL_FUNCTION0(js_throwing_index));
+  uint32_t wasm_index_1 = r.function()->func_index;
 
-  WasmFunctionCompiler comp2(sigs.v_v(), &module);
-  BUILD(comp2, WASM_CALL_FUNCTION0(wasm_index));
-  uint32_t wasm_index_2 = comp2.CompileAndAdd();
+  WasmFunctionCompiler& f2 = r.NewFunction<void>("call_main");
+  BUILD(f2, WASM_CALL_FUNCTION0(wasm_index_1));
+  uint32_t wasm_index_2 = f2.function_index();
 
-  Handle<JSFunction> js_wasm_wrapper = module.WrapCode(wasm_index_2);
+  Handle<JSFunction> js_wasm_wrapper = r.module().WrapCode(wasm_index_2);
 
   Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -107,16 +104,17 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> returnObjMaybe =
-      Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
+      Execution::TryCall(isolate, js_trampoline, global, 1, args,
+                         Execution::MessageHandling::kReport, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"a", 3, 8},                                                // -
-      {"js", 4, 2},                                               // -
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index) + 1, 3},    // -
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2) + 1, 2},  // -
-      {"callFn", 1, 24}                                           // -
+      {"a", 3, 8},                                           // -
+      {"js", 4, 2},                                          // -
+      {"main", static_cast<int>(wasm_index_1) + 1, 3},       // -
+      {"call_main", static_cast<int>(wasm_index_2) + 1, 2},  // -
+      {"callFn", 1, 24}                                      // -
   };
   CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }
@@ -124,21 +122,18 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
 // Trigger a trap in WASM, stack should be JS -> WASM -> WASM.
 TEST(CollectDetailedWasmStack_WasmError) {
   TestSignatures sigs;
-  TestingModule module;
-
-  WasmFunctionCompiler comp1(sigs.i_v(), &module,
-                             ArrayVector("exec_unreachable"));
+  WasmRunner<int> r(kExecuteCompiled);
   // Set the execution context, such that a runtime error can be thrown.
-  comp1.SetModuleContext();
-  BUILD(comp1, WASM_UNREACHABLE);
-  uint32_t wasm_index = comp1.CompileAndAdd();
+  r.SetModuleContext();
 
-  WasmFunctionCompiler comp2(sigs.i_v(), &module,
-                             ArrayVector("call_exec_unreachable"));
-  BUILD(comp2, WASM_CALL_FUNCTION0(wasm_index));
-  uint32_t wasm_index_2 = comp2.CompileAndAdd();
+  BUILD(r, WASM_UNREACHABLE);
+  uint32_t wasm_index_1 = r.function()->func_index;
 
-  Handle<JSFunction> js_wasm_wrapper = module.WrapCode(wasm_index_2);
+  WasmFunctionCompiler& f2 = r.NewFunction<int>("call_main");
+  BUILD(f2, WASM_CALL_FUNCTION0(0));
+  uint32_t wasm_index_2 = f2.function_index();
+
+  Handle<JSFunction> js_wasm_wrapper = r.module().WrapCode(wasm_index_2);
 
   Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -151,14 +146,15 @@ TEST(CollectDetailedWasmStack_WasmError) {
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> maybe_return_obj =
-      Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
+      Execution::TryCall(isolate, js_trampoline, global, 1, args,
+                         Execution::MessageHandling::kReport, &maybe_exc);
   CHECK(maybe_return_obj.is_null());
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index) + 1, 2},    // -
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2) + 1, 2},  // -
-      {"callFn", 1, 24}                                           //-
+      {"main", static_cast<int>(wasm_index_1) + 1, 2},       // -
+      {"call_main", static_cast<int>(wasm_index_2) + 1, 2},  // -
+      {"callFn", 1, 24}                                      //-
   };
   CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }

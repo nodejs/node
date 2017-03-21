@@ -83,10 +83,11 @@ Reduction TypedOptimization::Reduce(Node* node) {
     case IrOpcode::kLoadField:
       return ReduceLoadField(node);
     case IrOpcode::kNumberCeil:
-    case IrOpcode::kNumberFloor:
     case IrOpcode::kNumberRound:
     case IrOpcode::kNumberTrunc:
       return ReduceNumberRoundop(node);
+    case IrOpcode::kNumberFloor:
+      return ReduceNumberFloor(node);
     case IrOpcode::kNumberToUint8Clamped:
       return ReduceNumberToUint8Clamped(node);
     case IrOpcode::kPhi:
@@ -180,6 +181,40 @@ Reduction TypedOptimization::ReduceLoadField(Node* node) {
       Node* const value = jsgraph()->HeapConstant(object_map);
       ReplaceWithValue(node, value);
       return Replace(value);
+    }
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(type_cache_.kIntegerOrMinusZeroOrNaN)) {
+    return Replace(input);
+  }
+  if (input_type->Is(Type::PlainNumber()) &&
+      input->opcode() == IrOpcode::kNumberDivide) {
+    Node* const lhs = NodeProperties::GetValueInput(input, 0);
+    Type* const lhs_type = NodeProperties::GetType(lhs);
+    Node* const rhs = NodeProperties::GetValueInput(input, 1);
+    Type* const rhs_type = NodeProperties::GetType(rhs);
+    if (lhs_type->Is(Type::Unsigned32()) && rhs_type->Is(Type::Unsigned32())) {
+      // We can replace
+      //
+      //   NumberFloor(NumberDivide(lhs: unsigned32,
+      //                            rhs: unsigned32)): plain-number
+      //
+      // with
+      //
+      //   NumberToUint32(NumberDivide(lhs, rhs))
+      //
+      // and just smash the type of the {lhs} on the {node},
+      // as the truncated result must be in the same range as
+      // {lhs} since {rhs} cannot be less than 1 (due to the
+      // plain-number type constraint on the {node}).
+      NodeProperties::ChangeOp(node, simplified()->NumberToUint32());
+      NodeProperties::SetType(node, lhs_type);
+      return Changed(node);
     }
   }
   return NoChange();

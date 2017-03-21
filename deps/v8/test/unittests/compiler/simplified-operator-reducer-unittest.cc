@@ -336,6 +336,22 @@ TEST_F(SimplifiedOperatorReducerTest, TruncateTaggedToWord32WithConstant) {
 }
 
 // -----------------------------------------------------------------------------
+// CheckedFloat64ToInt32
+
+TEST_F(SimplifiedOperatorReducerTest, CheckedFloat64ToInt32WithConstant) {
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  TRACED_FOREACH(int32_t, n, kInt32Values) {
+    Reduction r = Reduce(
+        graph()->NewNode(simplified()->CheckedFloat64ToInt32(
+                             CheckForMinusZeroMode::kDontCheckForMinusZero),
+                         Float64Constant(n), effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt32Constant(n));
+  }
+}
+
+// -----------------------------------------------------------------------------
 // CheckHeapObject
 
 TEST_F(SimplifiedOperatorReducerTest, CheckHeapObjectWithChangeBitToTagged) {

@@ -1,0 +1,137 @@
+Checks that async stacks works good with different limits
+
+Running test: testZeroLimit
+foo1 (test.js:11:2)
+
+
+Running test: testOneLimit
+foo1 (test.js:11:2)
+-- Promise.resolve --
+promise (test.js:23:2)
+(anonymous) (expr.js:0:0)
+
+
+Running test: testOneLimitTwoPromises
+foo1 (test.js:11:2)
+
+foo2 (test.js:15:2)
+
+
+Running test: testTwoLimitTwoPromises
+foo1 (test.js:11:2)
+-- Promise.resolve --
+twoPromises (test.js:34:2)
+(anonymous) (expr.js:0:0)
+
+foo2 (test.js:15:2)
+-- Promise.resolve --
+twoPromises (test.js:35:2)
+(anonymous) (expr.js:0:0)
+
+
+Running test: testOneLimitTwoSetTimeouts
+foo1 (test.js:11:2)
+
+foo2 (test.js:15:2)
+-- setTimeout --
+twoSetTimeout (test.js:41:2)
+(anonymous) (expr.js:0:0)
+
+
+Running test: testTwoLimitTwoSetTimeouts
+foo1 (test.js:11:2)
+-- setTimeout --
+twoSetTimeout (test.js:40:2)
+(anonymous) (expr.js:0:0)
+
+foo2 (test.js:15:2)
+-- setTimeout --
+twoSetTimeout (test.js:41:2)
+(anonymous) (expr.js:0:0)
+
+
+Running test: testTenLimitTwentySetTimeouts
+foo1 (:0:17)
+(anonymous) (:0:28)
+
+foo2 (:0:17)
+(anonymous) (:0:28)
+
+foo3 (:0:17)
+(anonymous) (:0:28)
+
+foo4 (:0:17)
+(anonymous) (:0:28)
+
+foo5 (:0:17)
+(anonymous) (:0:28)
+
+foo6 (:0:17)
+(anonymous) (:0:28)
+
+foo7 (:0:17)
+(anonymous) (:0:28)
+
+foo8 (:0:17)
+(anonymous) (:0:28)
+
+foo9 (:0:17)
+(anonymous) (:0:28)
+
+foo10 (:0:18)
+(anonymous) (:0:29)
+
+foo11 (:0:18)
+(anonymous) (:0:29)
+-- setTimeout --
+twentySetTimeout (test.js:55:4)
+(anonymous) (expr.js:0:0)
+
+foo12 (:0:18)
+(anonymous) (:0:29)
+-- setTimeout --
+twentySetTimeout (test.js:55:4)
+(anonymous) (expr.js:0:0)
+
+foo13 (:0:18)
+(anonymous) (:0:29)
+-- setTimeout --
+twentySetTimeout (test.js:55:4)
+(anonymous) (expr.js:0:0)
+
+foo14 (:0:18)
+(anonymous) (:0:29)
+-- setTimeout --
+twentySetTimeout (test.js:55:4)
+(anonymous) (expr.js:0:0)
+
+foo15 (:0:18)
+(anonymous) (:0:29)
+-- setTimeout --
+twentySetTimeout (test.js:55:4)
+(anonymous) (expr.js:0:0)
+
+foo16 (:0:18)
+(anonymous) (:0:29)
+-- setTimeout --
+twentySetTimeout (test.js:55:4)
+(anonymous) (expr.js:0:0)
+
+foo17 (:0:18)
+(anonymous) (:0:29)
+-- setTimeout --
+twentySetTimeout (test.js:55:4)
+(anonymous) (expr.js:0:0)
+
+foo18 (:0:18)
+(anonymous) (:0:29)
+-- setTimeout --
+twentySetTimeout (test.js:55:4)
+(anonymous) (expr.js:0:0)
+
+foo19 (:0:18)
+(anonymous) (:0:29)
+-- setTimeout --
+twentySetTimeout (test.js:55:4)
+(anonymous) (expr.js:0:0)
+

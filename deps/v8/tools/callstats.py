@@ -126,25 +126,28 @@ def generate_injection(f, sites, refreshes=0):
   onLoad(window.location.href);
 })();"""
 
-def get_chrome_flags(js_flags, user_data_dir):
+def get_chrome_flags(js_flags, user_data_dir, arg_delimiter=""):
   return [
       "--no-default-browser-check",
       "--no-sandbox",
       "--disable-translate",
       "--enable-benchmarking",
-      "--js-flags={}".format(js_flags),
+      "--enable-stats-table",
+      "--js-flags={}{}{}".format(arg_delimiter, js_flags, arg_delimiter),
       "--no-first-run",
-      "--user-data-dir={}".format(user_data_dir),
+      "--user-data-dir={}{}{}".format(arg_delimiter, user_data_dir,
+                                      arg_delimiter),
     ]
 
-def get_chrome_replay_flags(args):
+def get_chrome_replay_flags(args, arg_delimiter=""):
   http_port = 4080 + args.port_offset
   https_port = 4443 + args.port_offset
   return [
-      "--host-resolver-rules=MAP *:80 localhost:%s, "  \
-                            "MAP *:443 localhost:%s, " \
-                            "EXCLUDE localhost" % (
-                                http_port, https_port),
+      "--host-resolver-rules=%sMAP *:80 localhost:%s, "  \
+                              "MAP *:443 localhost:%s, " \
+                              "EXCLUDE localhost%s" % (
+                               arg_delimiter, http_port, https_port,
+                               arg_delimiter),
       "--ignore-certificate-errors",
       "--disable-seccomp-sandbox",
       "--disable-web-security",
@@ -295,10 +298,10 @@ def do_run_replay_server(args):
     print("    "+site['url'])
   print("- " * 40)
   print("Launch chromium with the following commands for debugging:")
-  flags = get_chrome_flags("'--runtime-call-stats --allow-natives-syntax'",
-                           "/var/tmp/`date +%s`")
-  flags += get_chrome_replay_flags(args)
-  print("    $CHROMIUM_DIR/out/Release/chomium " + (" ".join(flags)) + " <URL>")
+  flags = get_chrome_flags("--runtime-call-stats --allow-natives-syntax",
+                           "/var/tmp/`date +%s`", '"')
+  flags += get_chrome_replay_flags(args, "'")
+  print("    $CHROMIUM_DIR/out/Release/chrome " + (" ".join(flags)) + " <URL>")
   print("- " * 40)
   replay_server = start_replay_server(args, sites, discard_output=False)
   try:
@@ -343,10 +346,12 @@ def read_stats(path, domain, args):
   groups = [];
   if args.aggregate:
     groups = [
-        ('Group-IC', re.compile(".*IC.*")),
+        ('Group-IC', re.compile(".*IC_.*")),
         ('Group-Optimize',
          re.compile("StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*")),
-        ('Group-Compile', re.compile(".*Compile.*")),
+        ('Group-CompileBackground', re.compile("(.*CompileBackground.*)")),
+        ('Group-Compile', re.compile("(^Compile.*)|(.*_Compile.*)")),
+        ('Group-ParseBackground', re.compile(".*ParseBackground.*")),
         ('Group-Parse', re.compile(".*Parse.*")),
         ('Group-Callback', re.compile(".*Callback.*")),
         ('Group-API', re.compile(".*API.*")),
@@ -385,12 +390,26 @@ def read_stats(path, domain, args):
           entries[group_name]['count'] += count
           break
     # Calculate the V8-Total (all groups except Callback)
-    total_v8 = { 'time': 0, 'count': 0 }
+    group_data = { 'time': 0, 'count': 0 }
     for group_name, regexp in groups:
       if group_name == 'Group-Callback': continue
-      total_v8['time'] += entries[group_name]['time']
-      total_v8['count'] += entries[group_name]['count']
-    entries['Group-Total-V8'] = total_v8
+      group_data['time'] += entries[group_name]['time']
+      group_data['count'] += entries[group_name]['count']
+    entries['Group-Total-V8'] = group_data
+    # Calculate the Parse-Total group
+    group_data = { 'time': 0, 'count': 0 }
+    for group_name, regexp in groups:
+      if not group_name.startswith('Group-Parse'): continue
+      group_data['time'] += entries[group_name]['time']
+      group_data['count'] += entries[group_name]['count']
+    entries['Group-Parse-Total'] = group_data
+    # Calculate the Compile-Total group
+    group_data = { 'time': 0, 'count': 0 }
+    for group_name, regexp in groups:
+      if not group_name.startswith('Group-Compile'): continue
+      group_data['time'] += entries[group_name]['time']
+      group_data['count'] += entries[group_name]['count']
+    entries['Group-Compile-Total'] = group_data
     # Append the sums as single entries to domain.
     for key in entries:
       if key not in domain: domain[key] = { 'time_list': [], 'count_list': [] }

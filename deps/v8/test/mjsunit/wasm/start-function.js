@@ -33,7 +33,7 @@ assertVerifies(kSig_v_v, [kExprNop]);
 assertThrows(() => {instantiate(kSig_i_i, [kExprGetLocal, 0]);});
 assertThrows(() => {instantiate(kSig_i_ii, [kExprGetLocal, 0]);});
 assertThrows(() => {instantiate(kSig_i_dd, [kExprGetLocal, 0]);});
-assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
+assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
 
 (function testInvalidIndex() {
   print("testInvalidIndex");
@@ -69,14 +69,14 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
   builder.addMemory(12, 12, true);
 
   var func = builder.addFunction("", kSig_v_v)
-    .addBody([kExprI8Const, 0, kExprI8Const, 66, kExprI32StoreMem, 0, 0]);
+    .addBody([kExprI32Const, 0, kExprI32Const, 55, kExprI32StoreMem, 0, 0]);
 
   builder.addStart(func.index);
 
   var module = builder.instantiate();
   var memory = module.exports.memory.buffer;
   var view = new Int8Array(memory);
-  assertEquals(66, view[0]);
+  assertEquals(55, view[0]);
 })();
 
 (function testRun2() {
@@ -86,7 +86,7 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
   builder.addMemory(12, 12, true);
 
   var func = builder.addFunction("", kSig_v_v)
-    .addBody([kExprI8Const, 0, kExprI8Const, 22, kExprI8Const, 55, kExprI32Add, kExprI32StoreMem, 0, 0]);
+    .addBody([kExprI32Const, 0, kExprI32Const, 22, kExprI32Const, 55, kExprI32Add, kExprI32StoreMem, 0, 0]);
 
   builder.addStart(func.index);
 
@@ -99,15 +99,15 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI8Const, 0]);});
 (function testStartFFI() {
   print("testStartFFI");
   var ranned = false;
-  var ffi = { foo : function() {
+  var ffi = {gak: {foo : function() {
     print("we ranned at stert!");
     ranned = true;
-  }};
+  }}};
 
   var builder = new WasmModuleBuilder();
   var sig_index = builder.addType(kSig_v_v);
 
-  builder.addImport("foo", sig_index);
+  builder.addImport("gak", "foo", sig_index);
   var func = builder.addFunction("", sig_index)
     .addBody([kExprCallFunction, 0]);
 

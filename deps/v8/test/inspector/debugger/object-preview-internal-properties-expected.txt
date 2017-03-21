@@ -164,7 +164,7 @@ expression: (new Map([[1,2]])).entries()
 [
     [0] : {
         value : {
-            description : Array[2]
+            description : Array(2)
             overflow : false
             properties : [
                 [0] : {
@@ -204,20 +204,20 @@ expression: (new Set([[1,2]])).entries()
 [
     [0] : {
         value : {
-            description : Array[2]
+            description : Array(2)
             overflow : false
             properties : [
                 [0] : {
                     name : 0
                     subtype : array
                     type : object
-                    value : Array[2]
+                    value : Array(2)
                 }
                 [1] : {
                     name : 1
                     subtype : array
                     type : object
-                    value : Array[2]
+                    value : Array(2)
                 }
             ]
             subtype : array
@@ -251,3 +251,4 @@ expression: ({})
 
 Running test: overridenArrayGetter
 expression: Promise.resolve(42)
+

@@ -61,13 +61,7 @@ const Register GrowArrayElementsDescriptor::KeyRegister() { return r5; }
 
 void FastNewClosureDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {r4};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void FastNewObjectDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {r3, r5};
+  Register registers[] = {r3, r4, r5};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

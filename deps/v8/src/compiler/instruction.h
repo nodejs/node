@@ -1065,14 +1065,31 @@ class V8_EXPORT_PRIVATE Constant final {
   }
 
   float ToFloat32() const {
+    // TODO(ahaas): We should remove this function. If value_ has the bit
+    // representation of a signalling NaN, then returning it as float can cause
+    // the signalling bit to flip, and value_ is returned as a quiet NaN.
     DCHECK_EQ(kFloat32, type());
     return bit_cast<float>(static_cast<int32_t>(value_));
   }
 
+  uint32_t ToFloat32AsInt() const {
+    DCHECK_EQ(kFloat32, type());
+    return bit_cast<uint32_t>(static_cast<int32_t>(value_));
+  }
+
   double ToFloat64() const {
+    // TODO(ahaas): We should remove this function. If value_ has the bit
+    // representation of a signalling NaN, then returning it as float can cause
+    // the signalling bit to flip, and value_ is returned as a quiet NaN.
     if (type() == kInt32) return ToInt32();
     DCHECK_EQ(kFloat64, type());
     return bit_cast<double>(value_);
+  }
+
+  uint64_t ToFloat64AsInt() const {
+    if (type() == kInt32) return ToInt32();
+    DCHECK_EQ(kFloat64, type());
+    return bit_cast<uint64_t>(value_);
   }
 
   ExternalReference ToExternalReference() const {
@@ -1104,52 +1121,125 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant);
 // Forward declarations.
 class FrameStateDescriptor;
 
-
-enum class StateValueKind { kPlain, kNested, kDuplicate };
-
+enum class StateValueKind : uint8_t {
+  kPlain,
+  kOptimizedOut,
+  kNested,
+  kDuplicate
+};
 
 class StateValueDescriptor {
  public:
-  explicit StateValueDescriptor(Zone* zone)
+  StateValueDescriptor()
       : kind_(StateValueKind::kPlain),
         type_(MachineType::AnyTagged()),
-        id_(0),
-        fields_(zone) {}
+        id_(0) {}
 
-  static StateValueDescriptor Plain(Zone* zone, MachineType type) {
-    return StateValueDescriptor(StateValueKind::kPlain, zone, type, 0);
+  static StateValueDescriptor Plain(MachineType type) {
+    return StateValueDescriptor(StateValueKind::kPlain, type, 0);
   }
-  static StateValueDescriptor Recursive(Zone* zone, size_t id) {
-    return StateValueDescriptor(StateValueKind::kNested, zone,
+  static StateValueDescriptor OptimizedOut() {
+    return StateValueDescriptor(StateValueKind::kOptimizedOut,
+                                MachineType::AnyTagged(), 0);
+  }
+  static StateValueDescriptor Recursive(size_t id) {
+    return StateValueDescriptor(StateValueKind::kNested,
                                 MachineType::AnyTagged(), id);
   }
-  static StateValueDescriptor Duplicate(Zone* zone, size_t id) {
-    return StateValueDescriptor(StateValueKind::kDuplicate, zone,
+  static StateValueDescriptor Duplicate(size_t id) {
+    return StateValueDescriptor(StateValueKind::kDuplicate,
                                 MachineType::AnyTagged(), id);
   }
 
-  size_t size() { return fields_.size(); }
-  ZoneVector<StateValueDescriptor>& fields() { return fields_; }
   int IsPlain() { return kind_ == StateValueKind::kPlain; }
+  int IsOptimizedOut() { return kind_ == StateValueKind::kOptimizedOut; }
   int IsNested() { return kind_ == StateValueKind::kNested; }
   int IsDuplicate() { return kind_ == StateValueKind::kDuplicate; }
   MachineType type() const { return type_; }
-  MachineType GetOperandType(size_t index) const {
-    return fields_[index].type_;
-  }
   size_t id() const { return id_; }
 
  private:
-  StateValueDescriptor(StateValueKind kind, Zone* zone, MachineType type,
-                       size_t id)
-      : kind_(kind), type_(type), id_(id), fields_(zone) {}
+  StateValueDescriptor(StateValueKind kind, MachineType type, size_t id)
+      : kind_(kind), type_(type), id_(id) {}
 
   StateValueKind kind_;
   MachineType type_;
   size_t id_;
-  ZoneVector<StateValueDescriptor> fields_;
 };
 
+class StateValueList {
+ public:
+  explicit StateValueList(Zone* zone) : fields_(zone), nested_(zone) {}
+
+  size_t size() { return fields_.size(); }
+
+  struct Value {
+    StateValueDescriptor* desc;
+    StateValueList* nested;
+
+    Value(StateValueDescriptor* desc, StateValueList* nested)
+        : desc(desc), nested(nested) {}
+  };
+
+  class iterator {
+   public:
+    // Bare minimum of operators needed for range iteration.
+    bool operator!=(const iterator& other) const {
+      return field_iterator != other.field_iterator;
+    }
+    bool operator==(const iterator& other) const {
+      return field_iterator == other.field_iterator;
+    }
+    iterator& operator++() {
+      if (field_iterator->IsNested()) {
+        nested_iterator++;
+      }
+      ++field_iterator;
+      return *this;
+    }
+    Value operator*() {
+      StateValueDescriptor* desc = &(*field_iterator);
+      StateValueList* nested = desc->IsNested() ? *nested_iterator : nullptr;
+      return Value(desc, nested);
+    }
+
+   private:
+    friend class StateValueList;
+
+    iterator(ZoneVector<StateValueDescriptor>::iterator it,
+             ZoneVector<StateValueList*>::iterator nested)
+        : field_iterator(it), nested_iterator(nested) {}
+
+    ZoneVector<StateValueDescriptor>::iterator field_iterator;
+    ZoneVector<StateValueList*>::iterator nested_iterator;
+  };
+
+  void ReserveSize(size_t size) { fields_.reserve(size); }
+
+  StateValueList* PushRecursiveField(Zone* zone, size_t id) {
+    fields_.push_back(StateValueDescriptor::Recursive(id));
+    StateValueList* nested =
+        new (zone->New(sizeof(StateValueList))) StateValueList(zone);
+    nested_.push_back(nested);
+    return nested;
+  }
+  void PushDuplicate(size_t id) {
+    fields_.push_back(StateValueDescriptor::Duplicate(id));
+  }
+  void PushPlain(MachineType type) {
+    fields_.push_back(StateValueDescriptor::Plain(type));
+  }
+  void PushOptimizedOut() {
+    fields_.push_back(StateValueDescriptor::OptimizedOut());
+  }
+
+  iterator begin() { return iterator(fields_.begin(), nested_.begin()); }
+  iterator end() { return iterator(fields_.end(), nested_.end()); }
+
+ private:
+  ZoneVector<StateValueDescriptor> fields_;
+  ZoneVector<StateValueList*> nested_;
+};
 
 class FrameStateDescriptor : public ZoneObject {
  public:
@@ -1178,10 +1268,7 @@ class FrameStateDescriptor : public ZoneObject {
   size_t GetFrameCount() const;
   size_t GetJSFrameCount() const;
 
-  MachineType GetType(size_t index) const {
-    return values_.GetOperandType(index);
-  }
-  StateValueDescriptor* GetStateValueDescriptor() { return &values_; }
+  StateValueList* GetStateValueDescriptors() { return &values_; }
 
   static const int kImpossibleValue = 0xdead;
 
@@ -1192,7 +1279,7 @@ class FrameStateDescriptor : public ZoneObject {
   size_t parameters_count_;
   size_t locals_count_;
   size_t stack_count_;
-  StateValueDescriptor values_;
+  StateValueList values_;
   MaybeHandle<SharedFunctionInfo> const shared_info_;
   FrameStateDescriptor* outer_state_;
 };
@@ -1500,13 +1587,18 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   void ValidateDeferredBlockEntryPaths() const;
   void ValidateSSA() const;
 
-  const RegisterConfiguration* GetRegisterConfigurationForTesting();
+  static void SetRegisterConfigurationForTesting(
+      const RegisterConfiguration* regConfig);
+  static void ClearRegisterConfigurationForTesting();
 
  private:
   friend V8_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os, const PrintableInstructionSequence& code);
 
   typedef ZoneMap<const Instruction*, SourcePosition> SourcePositionMap;
+
+  static const RegisterConfiguration* RegisterConfigurationForTesting();
+  static const RegisterConfiguration* registerConfigurationForTesting_;
 
   Isolate* isolate_;
   Zone* const zone_;

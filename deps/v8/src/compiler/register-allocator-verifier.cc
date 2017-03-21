@@ -300,6 +300,27 @@ void BlockAssessments::DropRegisters() {
   }
 }
 
+void BlockAssessments::Print() const {
+  OFStream os(stdout);
+  for (const auto pair : map()) {
+    const InstructionOperand op = pair.first;
+    const Assessment* assessment = pair.second;
+    // Use operator<< so we can write the assessment on the same
+    // line. Since we need a register configuration, just pick
+    // Turbofan for now.
+    PrintableInstructionOperand wrapper = {RegisterConfiguration::Turbofan(),
+                                           op};
+    os << wrapper << " : ";
+    if (assessment->kind() == AssessmentKind::Final) {
+      os << "v" << FinalAssessment::cast(assessment)->virtual_register();
+    } else {
+      os << "P";
+    }
+    os << std::endl;
+  }
+  os << std::endl;
+}
+
 BlockAssessments* RegisterAllocatorVerifier::CreateForBlock(
     const InstructionBlock* block) {
   RpoNumber current_block_id = block->rpo_number();
@@ -352,8 +373,9 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
   // for the original operand (the one where the assessment was created for
   // first) are also pending. To avoid recursion, we use a work list. To
   // deal with cycles, we keep a set of seen nodes.
-  ZoneQueue<std::pair<const PendingAssessment*, int>> worklist(zone());
-  ZoneSet<RpoNumber> seen(zone());
+  Zone local_zone(zone()->allocator(), ZONE_NAME);
+  ZoneQueue<std::pair<const PendingAssessment*, int>> worklist(&local_zone);
+  ZoneSet<RpoNumber> seen(&local_zone);
   worklist.push(std::make_pair(assessment, virtual_register));
   seen.insert(block_id);
 
@@ -448,7 +470,11 @@ void RegisterAllocatorVerifier::ValidateFinalAssessment(
   // is virtual_register.
   const PendingAssessment* old = assessment->original_pending_assessment();
   CHECK_NOT_NULL(old);
-  ValidatePendingAssessment(block_id, op, current_assessments, old,
+  RpoNumber old_block = old->origin()->rpo_number();
+  DCHECK_LE(old_block, block_id);
+  BlockAssessments* old_block_assessments =
+      old_block == block_id ? current_assessments : assessments_[old_block];
+  ValidatePendingAssessment(old_block, op, old_block_assessments, old,
                             virtual_register);
 }
 

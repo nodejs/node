@@ -162,8 +162,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void setPauseOnExceptionsImpl(int);
 
   std::unique_ptr<protocol::Debugger::Location> resolveBreakpoint(
-      const String16& breakpointId, const String16& scriptId,
-      const ScriptBreakpoint&, BreakpointSource);
+      const String16& breakpointId, const ScriptBreakpoint&, BreakpointSource);
   void removeBreakpointImpl(const String16& breakpointId);
   void clearBreakDetails();
 

@@ -42,6 +42,7 @@ public:
     static DispatchResponse OK();
     static DispatchResponse Error(const String&);
     static DispatchResponse InternalError();
+    static DispatchResponse InvalidParams(const String&);
     static DispatchResponse FallThrough();
 
 private:
@@ -67,16 +68,18 @@ public:
 
     class {{config.lib.export_macro}} Callback {
     public:
-        Callback(std::unique_ptr<WeakPtr> backendImpl, int callId);
+        Callback(std::unique_ptr<WeakPtr> backendImpl, int callId, int callbackId);
         virtual ~Callback();
         void dispose();
 
     protected:
         void sendIfActive(std::unique_ptr<protocol::DictionaryValue> partialMessage, const DispatchResponse& response);
+        void fallThroughIfActive();
 
     private:
         std::unique_ptr<WeakPtr> m_backendImpl;
         int m_callId;
+        int m_callbackId;
     };
 
     explicit DispatcherBase(FrontendChannel*);
@@ -94,9 +97,15 @@ public:
 
     std::unique_ptr<WeakPtr> weakPtr();
 
+    int nextCallbackId();
+    void markFallThrough(int callbackId);
+    bool lastCallbackFallThrough() { return m_lastCallbackFallThrough; }
+
 private:
     FrontendChannel* m_frontendChannel;
     protocol::HashSet<WeakPtr*> m_weakPtrs;
+    int m_lastCallbackId;
+    bool m_lastCallbackFallThrough;
 };
 
 class {{config.lib.export_macro}} UberDispatcher {
@@ -106,11 +115,54 @@ public:
     void registerBackend(const String& name, std::unique_ptr<protocol::DispatcherBase>);
     DispatchResponse::Status dispatch(std::unique_ptr<Value> message);
     FrontendChannel* channel() { return m_frontendChannel; }
+    bool fallThroughForNotFound() { return m_fallThroughForNotFound; }
+    void setFallThroughForNotFound(bool);
     virtual ~UberDispatcher();
 
 private:
     FrontendChannel* m_frontendChannel;
+    bool m_fallThroughForNotFound;
     protocol::HashMap<String, std::unique_ptr<protocol::DispatcherBase>> m_dispatchers;
+};
+
+class InternalResponse : public Serializable {
+    PROTOCOL_DISALLOW_COPY(InternalResponse);
+public:
+    static std::unique_ptr<InternalResponse> createResponse(int callId, std::unique_ptr<Serializable> params);
+    static std::unique_ptr<InternalResponse> createNotification(const String& notification, std::unique_ptr<Serializable> params = nullptr);
+
+    String serialize() override;
+
+    ~InternalResponse() override {}
+
+private:
+    InternalResponse(int callId, const String& notification, std::unique_ptr<Serializable> params);
+
+    int m_callId;
+    String m_notification;
+    std::unique_ptr<Serializable> m_params;
+};
+
+class InternalRawNotification : public Serializable {
+public:
+    static std::unique_ptr<InternalRawNotification> create(const String& notification)
+    {
+        return std::unique_ptr<InternalRawNotification>(new InternalRawNotification(notification));
+    }
+    ~InternalRawNotification() override {}
+
+    String serialize() override
+    {
+        return m_notification;
+    }
+
+private:
+  explicit InternalRawNotification(const String& notification)
+    : m_notification(notification)
+  {
+  }
+
+  String m_notification;
 };
 
 {% for namespace in config.protocol.namespace %}

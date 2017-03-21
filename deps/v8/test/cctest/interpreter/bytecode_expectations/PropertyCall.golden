@@ -67,7 +67,7 @@ bytecodes: [
   /*   27 E> */ B(LdaNamedProperty), R(arg0), U8(0), U8(4),
                 B(Star), R(0),
                 B(Ldar), R(arg1),
-  /*   37 E> */ B(Add), R(arg1), U8(6),
+  /*   35 E> */ B(Add), R(arg1), U8(6),
                 B(Star), R(2),
                 B(Mov), R(arg0), R(1),
                 B(Mov), R(arg1), R(3),

@@ -38,13 +38,17 @@ int HeapEntry::set_children_index(int index) {
   return next_index;
 }
 
-
-HeapGraphEdge** HeapEntry::children_arr() {
+std::deque<HeapGraphEdge*>::iterator HeapEntry::children_begin() {
   DCHECK(children_index_ >= 0);
-  SLOW_DCHECK(children_index_ < snapshot_->children().length() ||
-      (children_index_ == snapshot_->children().length() &&
+  SLOW_DCHECK(
+      children_index_ < static_cast<int>(snapshot_->children().size()) ||
+      (children_index_ == static_cast<int>(snapshot_->children().size()) &&
        children_count_ == 0));
-  return &snapshot_->children().first() + children_index_;
+  return snapshot_->children().begin() + children_index_;
+}
+
+std::deque<HeapGraphEdge*>::iterator HeapEntry::children_end() {
+  return children_begin() + children_count_;
 }
 
 

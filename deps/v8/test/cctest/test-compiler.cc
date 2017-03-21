@@ -35,6 +35,7 @@
 #include "src/disasm.h"
 #include "src/factory.h"
 #include "src/interpreter/interpreter.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -625,7 +626,6 @@ TEST(IgnitionEntryTrampolineSelfHealing) {
   CcTest::InitializeVM();
   FLAG_ignition = true;
   Isolate* isolate = CcTest::i_isolate();
-  isolate->interpreter()->Initialize();
   v8::HandleScope scope(CcTest::isolate());
 
   CompileRun(

@@ -10,6 +10,7 @@
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/source-position-table.h"
 #include "src/utils.h"
 #include "test/unittests/interpreter/bytecode-utils.h"

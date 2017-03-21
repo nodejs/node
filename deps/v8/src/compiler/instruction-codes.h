@@ -152,7 +152,8 @@ enum FlagsMode {
   kFlags_none = 0,
   kFlags_branch = 1,
   kFlags_deoptimize = 2,
-  kFlags_set = 3
+  kFlags_set = 3,
+  kFlags_trap = 4
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -207,9 +208,9 @@ typedef int32_t InstructionCode;
 // the instruction.
 typedef BitField<ArchOpcode, 0, 8> ArchOpcodeField;
 typedef BitField<AddressingMode, 8, 5> AddressingModeField;
-typedef BitField<FlagsMode, 13, 2> FlagsModeField;
-typedef BitField<FlagsCondition, 15, 5> FlagsConditionField;
-typedef BitField<int, 20, 12> MiscField;
+typedef BitField<FlagsMode, 13, 3> FlagsModeField;
+typedef BitField<FlagsCondition, 16, 5> FlagsConditionField;
+typedef BitField<int, 21, 11> MiscField;
 
 }  // namespace compiler
 }  // namespace internal

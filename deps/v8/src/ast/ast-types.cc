@@ -7,6 +7,7 @@
 #include "src/ast/ast-types.h"
 
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -209,7 +210,6 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
-    case JS_FIXED_ARRAY_ITERATOR_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:  // TODO(rossberg): there should be a RegExp type.
@@ -259,6 +259,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
 
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
+    case JS_PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
       DCHECK(!map->is_undetectable());
@@ -304,8 +305,6 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case PROMISE_REACTION_JOB_INFO_TYPE:
     case FUNCTION_TEMPLATE_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
-    case SIGNATURE_INFO_TYPE:
-    case TYPE_SWITCH_INFO_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
     case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
@@ -315,8 +314,10 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:
+    case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case CONTEXT_EXTENSION_TYPE:
+    case CONSTANT_ELEMENTS_PAIR_TYPE:
       UNREACHABLE();
       return kNone;
   }

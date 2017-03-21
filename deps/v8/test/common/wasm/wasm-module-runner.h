@@ -10,6 +10,7 @@
 #include "src/objects.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 #include "src/zone/zone.h"
 
@@ -24,9 +25,9 @@ const WasmModule* DecodeWasmModuleForTesting(
     const byte* module_end, ModuleOrigin origin, bool verify_functions = false);
 
 // Instantiates a module without any imports and exports.
-const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
-                                                   ErrorThrower* thrower,
-                                                   const WasmModule* module);
+const Handle<WasmInstanceObject> InstantiateModuleForTesting(
+    Isolate* isolate, ErrorThrower* thrower, const WasmModule* module,
+    const ModuleWireBytes& wire_bytes);
 
 int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
                                    ErrorThrower* thrower, const char* name,
@@ -42,11 +43,13 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 // {function_index}. The return type of the function has to be int32. The module
 // should not have any imports or exports
 int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
-                            const WasmModule* module, int function_index,
-                            WasmVal* args, bool* may_produced_nan);
+                            const WasmModule* module,
+                            const ModuleWireBytes& wire_bytes,
+                            int function_index, WasmVal* args,
+                            bool* may_produced_nan);
 
 // Compiles WasmModule bytes and return an instance of the compiled module.
-const Handle<JSObject> CompileInstantiateWasmModuleForTesting(
+const Handle<WasmInstanceObject> CompileInstantiateWasmModuleForTesting(
     Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
     const byte* module_end, ModuleOrigin origin);
 

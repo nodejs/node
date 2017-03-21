@@ -128,7 +128,6 @@ namespace compiler {
   V(X64Movzxwq)                    \
   V(X64Movw)                       \
   V(X64Movl)                       \
-  V(X64TrapMovl)                   \
   V(X64Movsxlq)                    \
   V(X64Movq)                       \
   V(X64Movsd)                      \
@@ -148,7 +147,10 @@ namespace compiler {
   V(X64Xchgw)                      \
   V(X64Xchgl)                      \
   V(X64Int32x4Create)              \
-  V(X64Int32x4ExtractLane)
+  V(X64Int32x4ExtractLane)         \
+  V(X64Int32x4ReplaceLane)         \
+  V(X64Int32x4Add)                 \
+  V(X64Int32x4Sub)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
@@ -182,6 +184,8 @@ namespace compiler {
   V(M4I)  /* [      %r2*4 + K] */      \
   V(M8I)  /* [      %r2*8 + K] */      \
   V(Root) /* [%root       + K] */
+
+enum X64MemoryProtection { kUnprotected = 0, kProtected = 1 };
 
 }  // namespace compiler
 }  // namespace internal

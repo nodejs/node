@@ -4,15 +4,15 @@
 
 
 var Debug = debug.Debug;
-var expected =
-    ["debugger;", "var x = y;", "var b = 2;", "Debug.setListener(null);"];
+var expected = ["debugger;", "var x = y;"];
 var log = [];
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
-    log.push(exec_state.frame(0).sourceLineText().trimLeft());
-    exec_state.prepareStep(Debug.StepAction.StepNext);
+    var line = exec_state.frame(0).sourceLineText().trimLeft();
+    log.push(line);
+    if (line == "debugger;") exec_state.prepareStep(Debug.StepAction.StepNext);
   } catch (e) {
     %AbortJS(e + "\n" + e.stack);
   }

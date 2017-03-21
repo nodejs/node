@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/code-assembler.h"
 #include "src/handles.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate.h"
@@ -11,51 +12,43 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class ZoneHolder {
+class CodeAssemblerTester {
  public:
-  explicit ZoneHolder(Isolate* isolate)
-      : held_zone_(isolate->allocator(), ZONE_NAME) {}
-  Zone* held_zone() { return &held_zone_; }
-
- private:
-  Zone held_zone_;
-};
-
-// Inherit from ZoneHolder in order to create a zone that can be passed to
-// CodeAssembler base class constructor.
-template <typename CodeAssemblerT>
-class CodeAssemblerTesterImpl : private ZoneHolder, public CodeAssemblerT {
- public:
-  // Test generating code for a stub.
-  CodeAssemblerTesterImpl(Isolate* isolate,
-                          const CallInterfaceDescriptor& descriptor)
-      : ZoneHolder(isolate),
-        CodeAssemblerT(isolate, ZoneHolder::held_zone(), descriptor,
-                       Code::ComputeFlags(Code::STUB), "test"),
-        scope_(isolate) {}
+  // Test generating code for a stub. Assumes VoidDescriptor call interface.
+  explicit CodeAssemblerTester(Isolate* isolate)
+      : zone_(isolate->allocator(), ZONE_NAME),
+        scope_(isolate),
+        state_(isolate, &zone_, VoidDescriptor(isolate),
+               Code::ComputeFlags(Code::STUB), "test") {}
 
   // Test generating code for a JS function (e.g. builtins).
-  CodeAssemblerTesterImpl(Isolate* isolate, int parameter_count,
-                          Code::Kind kind = Code::BUILTIN)
-      : ZoneHolder(isolate),
-        CodeAssemblerT(isolate, ZoneHolder::held_zone(), parameter_count,
-                       Code::ComputeFlags(kind), "test"),
-        scope_(isolate) {}
+  CodeAssemblerTester(Isolate* isolate, int parameter_count,
+                      Code::Kind kind = Code::BUILTIN)
+      : zone_(isolate->allocator(), ZONE_NAME),
+        scope_(isolate),
+        state_(isolate, &zone_, parameter_count, Code::ComputeFlags(kind),
+               "test") {}
 
   // This constructor is intended to be used for creating code objects with
   // specific flags.
-  CodeAssemblerTesterImpl(Isolate* isolate, Code::Flags flags)
-      : ZoneHolder(isolate),
-        CodeAssemblerT(isolate, ZoneHolder::held_zone(), 0, flags, "test"),
-        scope_(isolate) {}
+  CodeAssemblerTester(Isolate* isolate, Code::Flags flags)
+      : zone_(isolate->allocator(), ZONE_NAME),
+        scope_(isolate),
+        state_(isolate, &zone_, 0, flags, "test") {}
+
+  CodeAssemblerState* state() { return &state_; }
+
+  Handle<Code> GenerateCode() { return CodeAssembler::GenerateCode(&state_); }
 
   Handle<Code> GenerateCodeCloseAndEscape() {
-    return scope_.CloseAndEscape(CodeAssemblerT::GenerateCode());
+    return scope_.CloseAndEscape(GenerateCode());
   }
 
  private:
+  Zone zone_;
   HandleScope scope_;
   LocalContext context_;
+  CodeAssemblerState state_;
 };
 
 }  // namespace compiler

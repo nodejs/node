@@ -13,31 +13,29 @@
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
-#define FOREACH_TYPE(TEST_BODY)         \
-  TEST_BODY(int32_t, I32, WASM_I32_ADD) \
-  TEST_BODY(int64_t, I64, WASM_I64_ADD) \
-  TEST_BODY(float, F32, WASM_F32_ADD)   \
-  TEST_BODY(double, F64, WASM_F64_ADD)
+#define FOREACH_TYPE(TEST_BODY)    \
+  TEST_BODY(int32_t, WASM_I32_ADD) \
+  TEST_BODY(int64_t, WASM_I64_ADD) \
+  TEST_BODY(float, WASM_F32_ADD)   \
+  TEST_BODY(double, WASM_F64_ADD)
 
-#define LOAD_SET_GLOBAL_TEST_BODY(C_TYPE, MACHINE_TYPE, ADD)                 \
-  TEST(WasmRelocateGlobal##MACHINE_TYPE) {                                   \
-    TestingModule module(kExecuteCompiled);                                  \
-    module.AddGlobal<C_TYPE>(kAst##MACHINE_TYPE);                            \
-    module.AddGlobal<C_TYPE>(kAst##MACHINE_TYPE);                            \
+#define LOAD_SET_GLOBAL_TEST_BODY(C_TYPE, ADD)                               \
+  TEST(WasmRelocateGlobal_##C_TYPE) {                                        \
+    WasmRunner<C_TYPE, C_TYPE> r(kExecuteCompiled);                          \
                                                                              \
-    WasmRunner<C_TYPE> r(&module,                                            \
-                         WasmOpcodes::MachineTypeFor(kAst##MACHINE_TYPE));   \
+    r.module().AddGlobal<C_TYPE>();                                          \
+    r.module().AddGlobal<C_TYPE>();                                          \
                                                                              \
     /* global = global + p0 */                                               \
     BUILD(r, WASM_SET_GLOBAL(1, ADD(WASM_GET_GLOBAL(0), WASM_GET_LOCAL(0))), \
           WASM_GET_GLOBAL(0));                                               \
-    CHECK_EQ(1u, module.instance->function_code.size());                     \
+    CHECK_EQ(1, r.module().instance->function_code.size());                  \
                                                                              \
     int filter = 1 << RelocInfo::WASM_GLOBAL_REFERENCE;                      \
                                                                              \
-    Handle<Code> code = module.instance->function_code[0];                   \
+    Handle<Code> code = r.module().instance->function_code[0];               \
                                                                              \
-    Address old_start = module.instance->globals_start;                      \
+    Address old_start = r.module().instance->globals_start;                  \
     Address new_start = old_start + 1;                                       \
                                                                              \
     Address old_addresses[4];                                                \

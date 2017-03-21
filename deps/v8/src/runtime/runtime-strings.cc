@@ -7,6 +7,7 @@
 #include "src/arguments.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/string-builder.h"
+#include "src/string-case.h"
 #include "src/string-search.h"
 
 namespace v8 {
@@ -60,7 +61,7 @@ MaybeHandle<String> StringReplaceOneCharWithString(
 
 RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, search, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, replace, 2);
@@ -86,23 +87,38 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   return isolate->StackOverflow();
 }
 
-
+// ES6 #sec-string.prototype.indexof
+// String.prototype.indexOf(searchString [, position])
 RUNTIME_FUNCTION(Runtime_StringIndexOf) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  return String::IndexOf(isolate, args.at<Object>(0), args.at<Object>(1),
-                         args.at<Object>(2));
+  DCHECK_EQ(3, args.length());
+  return String::IndexOf(isolate, args.at(0), args.at(1), args.at(2));
+}
+
+// ES6 #sec-string.prototype.indexof
+// String.prototype.indexOf(searchString, position)
+// Fast version that assumes that does not perform conversions of the incoming
+// arguments.
+RUNTIME_FUNCTION(Runtime_StringIndexOfUnchecked) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<String> receiver_string = args.at<String>(0);
+  Handle<String> search_string = args.at<String>(1);
+  int index = std::min(std::max(args.smi_at(2), 0), receiver_string->length());
+
+  return Smi::FromInt(String::IndexOf(isolate, receiver_string, search_string,
+                                      static_cast<uint32_t>(index)));
 }
 
 RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
   HandleScope handle_scope(isolate);
-  return String::LastIndexOf(isolate, args.at<Object>(0), args.at<Object>(1),
+  return String::LastIndexOf(isolate, args.at(0), args.at(1),
                              isolate->factory()->undefined_value());
 }
 
 RUNTIME_FUNCTION(Runtime_SubString) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
   int start, end;
@@ -134,7 +150,7 @@ RUNTIME_FUNCTION(Runtime_SubString) {
 
 RUNTIME_FUNCTION(Runtime_StringAdd) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, obj1, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, obj2, 1);
   isolate->counters()->string_add_runtime()->Increment();
@@ -151,7 +167,7 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
 
 RUNTIME_FUNCTION(Runtime_InternalizeString) {
   HandleScope handles(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
   return *isolate->factory()->InternalizeString(string);
 }
@@ -159,7 +175,7 @@ RUNTIME_FUNCTION(Runtime_InternalizeString) {
 
 RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, i, Uint32, args[1]);
@@ -200,7 +216,7 @@ RUNTIME_FUNCTION(Runtime_StringCompare) {
 
 RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   int32_t array_length;
   if (!args[1]->ToInt32(&array_length)) {
@@ -270,7 +286,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
 
 RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   int32_t array_length;
   if (!args[1]->ToInt32(&array_length)) {
@@ -411,7 +427,7 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
 
 RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, elements_array, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, array_length, Uint32, args[1]);
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
@@ -529,7 +545,7 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
 // For example, "foo" => ["f", "o", "o"].
 RUNTIME_FUNCTION(Runtime_StringToArray) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
 
@@ -679,122 +695,6 @@ MUST_USE_RESULT static Object* ConvertCaseHelper(
   }
 }
 
-
-static const uintptr_t kOneInEveryByte = kUintptrAllBitsSet / 0xFF;
-static const uintptr_t kAsciiMask = kOneInEveryByte << 7;
-
-// Given a word and two range boundaries returns a word with high bit
-// set in every byte iff the corresponding input byte was strictly in
-// the range (m, n). All the other bits in the result are cleared.
-// This function is only useful when it can be inlined and the
-// boundaries are statically known.
-// Requires: all bytes in the input word and the boundaries must be
-// ASCII (less than 0x7F).
-static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
-  // Use strict inequalities since in edge cases the function could be
-  // further simplified.
-  DCHECK(0 < m && m < n);
-  // Has high bit set in every w byte less than n.
-  uintptr_t tmp1 = kOneInEveryByte * (0x7F + n) - w;
-  // Has high bit set in every w byte greater than m.
-  uintptr_t tmp2 = w + kOneInEveryByte * (0x7F - m);
-  return (tmp1 & tmp2 & (kOneInEveryByte * 0x80));
-}
-
-
-#ifdef DEBUG
-static bool CheckFastAsciiConvert(char* dst, const char* src, int length,
-                                  bool changed, bool is_to_lower) {
-  bool expected_changed = false;
-  for (int i = 0; i < length; i++) {
-    if (dst[i] == src[i]) continue;
-    expected_changed = true;
-    if (is_to_lower) {
-      DCHECK('A' <= src[i] && src[i] <= 'Z');
-      DCHECK(dst[i] == src[i] + ('a' - 'A'));
-    } else {
-      DCHECK('a' <= src[i] && src[i] <= 'z');
-      DCHECK(dst[i] == src[i] - ('a' - 'A'));
-    }
-  }
-  return (expected_changed == changed);
-}
-#endif
-
-
-template <class Converter>
-static bool FastAsciiConvert(char* dst, const char* src, int length,
-                             bool* changed_out) {
-#ifdef DEBUG
-  char* saved_dst = dst;
-  const char* saved_src = src;
-#endif
-  DisallowHeapAllocation no_gc;
-  // We rely on the distance between upper and lower case letters
-  // being a known power of 2.
-  DCHECK('a' - 'A' == (1 << 5));
-  // Boundaries for the range of input characters than require conversion.
-  static const char lo = Converter::kIsToLower ? 'A' - 1 : 'a' - 1;
-  static const char hi = Converter::kIsToLower ? 'Z' + 1 : 'z' + 1;
-  bool changed = false;
-  uintptr_t or_acc = 0;
-  const char* const limit = src + length;
-
-  // dst is newly allocated and always aligned.
-  DCHECK(IsAligned(reinterpret_cast<intptr_t>(dst), sizeof(uintptr_t)));
-  // Only attempt processing one word at a time if src is also aligned.
-  if (IsAligned(reinterpret_cast<intptr_t>(src), sizeof(uintptr_t))) {
-    // Process the prefix of the input that requires no conversion one aligned
-    // (machine) word at a time.
-    while (src <= limit - sizeof(uintptr_t)) {
-      const uintptr_t w = *reinterpret_cast<const uintptr_t*>(src);
-      or_acc |= w;
-      if (AsciiRangeMask(w, lo, hi) != 0) {
-        changed = true;
-        break;
-      }
-      *reinterpret_cast<uintptr_t*>(dst) = w;
-      src += sizeof(uintptr_t);
-      dst += sizeof(uintptr_t);
-    }
-    // Process the remainder of the input performing conversion when
-    // required one word at a time.
-    while (src <= limit - sizeof(uintptr_t)) {
-      const uintptr_t w = *reinterpret_cast<const uintptr_t*>(src);
-      or_acc |= w;
-      uintptr_t m = AsciiRangeMask(w, lo, hi);
-      // The mask has high (7th) bit set in every byte that needs
-      // conversion and we know that the distance between cases is
-      // 1 << 5.
-      *reinterpret_cast<uintptr_t*>(dst) = w ^ (m >> 2);
-      src += sizeof(uintptr_t);
-      dst += sizeof(uintptr_t);
-    }
-  }
-  // Process the last few bytes of the input (or the whole input if
-  // unaligned access is not supported).
-  while (src < limit) {
-    char c = *src;
-    or_acc |= c;
-    if (lo < c && c < hi) {
-      c ^= (1 << 5);
-      changed = true;
-    }
-    *dst = c;
-    ++src;
-    ++dst;
-  }
-
-  if ((or_acc & kAsciiMask) != 0) return false;
-
-  DCHECK(CheckFastAsciiConvert(saved_dst, saved_src, length, changed,
-                               Converter::kIsToLower));
-
-  *changed_out = changed;
-  return true;
-}
-
-
 template <class Converter>
 MUST_USE_RESULT static Object* ConvertCase(
     Handle<String> s, Isolate* isolate,
@@ -818,12 +718,13 @@ MUST_USE_RESULT static Object* ConvertCase(
     String::FlatContent flat_content = s->GetFlatContent();
     DCHECK(flat_content.IsFlat());
     bool has_changed_character = false;
-    bool is_ascii = FastAsciiConvert<Converter>(
+    int index_to_first_unprocessed = FastAsciiConvert<Converter::kIsToLower>(
         reinterpret_cast<char*>(result->GetChars()),
         reinterpret_cast<const char*>(flat_content.ToOneByteVector().start()),
         length, &has_changed_character);
     // If not ASCII, we discard the result and take the 2 byte path.
-    if (is_ascii) return has_changed_character ? *result : *s;
+    if (index_to_first_unprocessed == length)
+      return has_changed_character ? *result : *s;
   }
 
   Handle<SeqString> result;  // Same length as input.
@@ -856,7 +757,6 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCase) {
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   return ConvertCase(s, isolate, isolate->runtime_state()->to_lower_mapping());
 }
-
 
 RUNTIME_FUNCTION(Runtime_StringToUpperCase) {
   HandleScope scope(isolate);
@@ -955,7 +855,7 @@ RUNTIME_FUNCTION(Runtime_StringNotEqual) {
 
 RUNTIME_FUNCTION(Runtime_FlattenString) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
   return *String::Flatten(str);
 }
@@ -982,7 +882,7 @@ RUNTIME_FUNCTION(Runtime_ExternalStringGetChar) {
 
 RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   if (!args[0]->IsString()) return isolate->heap()->undefined_value();
   if (!args[1]->IsNumber()) return isolate->heap()->undefined_value();
   if (std::isinf(args.number_at(1))) return isolate->heap()->nan_value();

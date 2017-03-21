@@ -5457,12 +5457,14 @@ void helper_madd_msub_maddf_msubf(F func) {
 
     (CALL_GENERATED_CODE(isolate, f, &tc, 0, 0, 0, 0));
 
-    T res_add = tc.fr + (tc.fs * tc.ft);
+    T res_add = 0;
     T res_sub = 0;
     if (IsMipsArchVariant(kMips32r2)) {
+      res_add = (tc.fs * tc.ft) + tc.fr;
       res_sub = (tc.fs * tc.ft) - tc.fr;
     } else if (IsMipsArchVariant(kMips32r6)) {
-      res_sub = tc.fr - (tc.fs * tc.ft);
+      res_add = std::fma(tc.fs, tc.ft, tc.fr);
+      res_sub = std::fma(-tc.fs, tc.ft, tc.fr);
     } else {
       UNREACHABLE();
     }

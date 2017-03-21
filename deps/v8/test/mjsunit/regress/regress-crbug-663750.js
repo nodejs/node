@@ -11,11 +11,11 @@ function foo(a) {
 this.x = 0;
 delete x;
 
-foo(1);
-foo(2);
+foo();
+foo();
 %OptimizeFunctionOnNextCall(foo);
-foo(3);
-assertEquals(3, v);
+foo();
+assertEquals(undefined, v);
 
 Object.freeze(this);
 
@@ -23,4 +23,4 @@ foo(4);
 foo(5);
 %OptimizeFunctionOnNextCall(foo);
 foo(6);
-assertEquals(3, v);
+assertEquals(undefined, v);

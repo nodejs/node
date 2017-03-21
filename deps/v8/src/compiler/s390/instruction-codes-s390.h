@@ -31,7 +31,6 @@ namespace compiler {
   V(S390_RotRight64)               \
   V(S390_Not32)                    \
   V(S390_Not64)                    \
-  V(S390_RotLeftAndMask32)         \
   V(S390_RotLeftAndClear64)        \
   V(S390_RotLeftAndClearLeft64)    \
   V(S390_RotLeftAndClearRight64)   \

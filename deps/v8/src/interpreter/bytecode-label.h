@@ -17,7 +17,7 @@ class BytecodeArrayBuilder;
 // label is bound, it represents a known position in the bytecode
 // array. For labels that are forward references there can be at most
 // one reference whilst it is unbound.
-class BytecodeLabel final {
+class V8_EXPORT_PRIVATE BytecodeLabel final {
  public:
   BytecodeLabel() : bound_(false), offset_(kInvalidOffset) {}
 
@@ -54,7 +54,7 @@ class BytecodeLabel final {
 };
 
 // Class representing a branch target of multiple jumps.
-class BytecodeLabels {
+class V8_EXPORT_PRIVATE BytecodeLabels {
  public:
   explicit BytecodeLabels(Zone* zone) : labels_(zone) {}
 

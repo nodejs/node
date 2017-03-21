@@ -5,9 +5,10 @@
 #include "src/wasm/wasm-interpreter.h"
 
 #include "src/utils.h"
-#include "src/wasm/ast-decoder.h"
 #include "src/wasm/decoder.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-external-refs.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 
 #include "src/zone/accounting-allocator.h"
@@ -62,6 +63,7 @@ namespace wasm {
   V(I64GtS, int64_t, >)         \
   V(I64GeS, int64_t, >=)        \
   V(F32Add, float, +)           \
+  V(F32Sub, float, -)           \
   V(F32Eq, float, ==)           \
   V(F32Ne, float, !=)           \
   V(F32Lt, float, <)            \
@@ -69,6 +71,7 @@ namespace wasm {
   V(F32Gt, float, >)            \
   V(F32Ge, float, >=)           \
   V(F64Add, double, +)          \
+  V(F64Sub, double, -)          \
   V(F64Eq, double, ==)          \
   V(F64Ne, double, !=)          \
   V(F64Lt, double, <)           \
@@ -101,13 +104,11 @@ namespace wasm {
   V(I32Rol, int32_t)           \
   V(I64Ror, int64_t)           \
   V(I64Rol, int64_t)           \
-  V(F32Sub, float)             \
   V(F32Min, float)             \
   V(F32Max, float)             \
   V(F32CopySign, float)        \
   V(F64Min, double)            \
   V(F64Max, double)            \
-  V(F64Sub, double)            \
   V(F64CopySign, double)       \
   V(I32AsmjsDivS, int32_t)     \
   V(I32AsmjsDivU, uint32_t)    \
@@ -158,8 +159,6 @@ namespace wasm {
   V(F64UConvertI64, uint64_t)    \
   V(F64ConvertF32, float)        \
   V(F64ReinterpretI64, int64_t)  \
-  V(I32ReinterpretF32, float)    \
-  V(I64ReinterpretF64, double)   \
   V(I32AsmjsSConvertF32, float)  \
   V(I32AsmjsUConvertF32, float)  \
   V(I32AsmjsSConvertF64, double) \
@@ -293,41 +292,6 @@ static inline uint64_t ExecuteI64Rol(uint64_t a, uint64_t b, TrapReason* trap) {
   return (a << shift) | (a >> (64 - shift));
 }
 
-static float quiet(float a) {
-  static const uint32_t kSignalingBit = 1 << 22;
-  uint32_t q = bit_cast<uint32_t>(std::numeric_limits<float>::quiet_NaN());
-  if ((q & kSignalingBit) != 0) {
-    // On some machines, the signaling bit set indicates it's a quiet NaN.
-    return bit_cast<float>(bit_cast<uint32_t>(a) | kSignalingBit);
-  } else {
-    // On others, the signaling bit set indicates it's a signaling NaN.
-    return bit_cast<float>(bit_cast<uint32_t>(a) & ~kSignalingBit);
-  }
-}
-
-static double quiet(double a) {
-  static const uint64_t kSignalingBit = 1ULL << 51;
-  uint64_t q = bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN());
-  if ((q & kSignalingBit) != 0) {
-    // On some machines, the signaling bit set indicates it's a quiet NaN.
-    return bit_cast<double>(bit_cast<uint64_t>(a) | kSignalingBit);
-  } else {
-    // On others, the signaling bit set indicates it's a signaling NaN.
-    return bit_cast<double>(bit_cast<uint64_t>(a) & ~kSignalingBit);
-  }
-}
-
-static inline float ExecuteF32Sub(float a, float b, TrapReason* trap) {
-  float result = a - b;
-  // Some architectures (e.g. MIPS) need extra checking to preserve the payload
-  // of a NaN operand.
-  if (result - result != 0) {
-    if (std::isnan(a)) return quiet(a);
-    if (std::isnan(b)) return quiet(b);
-  }
-  return result;
-}
-
 static inline float ExecuteF32Min(float a, float b, TrapReason* trap) {
   return JSMin(a, b);
 }
@@ -338,17 +302,6 @@ static inline float ExecuteF32Max(float a, float b, TrapReason* trap) {
 
 static inline float ExecuteF32CopySign(float a, float b, TrapReason* trap) {
   return copysignf(a, b);
-}
-
-static inline double ExecuteF64Sub(double a, double b, TrapReason* trap) {
-  double result = a - b;
-  // Some architectures (e.g. MIPS) need extra checking to preserve the payload
-  // of a NaN operand.
-  if (result - result != 0) {
-    if (std::isnan(a)) return quiet(a);
-    if (std::isnan(b)) return quiet(b);
-  }
-  return result;
 }
 
 static inline double ExecuteF64Min(double a, double b, TrapReason* trap) {
@@ -651,19 +604,20 @@ static inline double ExecuteF64ReinterpretI64(int64_t a, TrapReason* trap) {
   return bit_cast<double>(a);
 }
 
-static inline int32_t ExecuteI32ReinterpretF32(float a, TrapReason* trap) {
-  return bit_cast<int32_t>(a);
+static inline int32_t ExecuteI32ReinterpretF32(WasmVal a) {
+  return a.to_unchecked<int32_t>();
 }
 
-static inline int64_t ExecuteI64ReinterpretF64(double a, TrapReason* trap) {
-  return bit_cast<int64_t>(a);
+static inline int64_t ExecuteI64ReinterpretF64(WasmVal a) {
+  return a.to_unchecked<int64_t>();
 }
 
 static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
                                         WasmInstance* instance) {
   // TODO(ahaas): Move memory allocation to wasm-module.cc for better
   // encapsulation.
-  if (delta_pages > wasm::WasmModule::kV8MaxPages) {
+  if (delta_pages > wasm::kV8MaxWasmMemoryPages ||
+      delta_pages > instance->module->max_mem_pages) {
     return -1;
   }
   uint32_t old_size = instance->mem_size;
@@ -679,8 +633,9 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
   } else {
     DCHECK_NOT_NULL(instance->mem_start);
     new_size = old_size + delta_pages * wasm::WasmModule::kPageSize;
-    if (new_size >
-        wasm::WasmModule::kV8MaxPages * wasm::WasmModule::kPageSize) {
+    if (new_size / wasm::WasmModule::kPageSize > wasm::kV8MaxWasmMemoryPages ||
+        new_size / wasm::WasmModule::kPageSize >
+            instance->module->max_mem_pages) {
       return -1;
     }
     new_mem_start = static_cast<byte*>(realloc(instance->mem_start, new_size));
@@ -721,8 +676,8 @@ class ControlTransfers : public ZoneObject {
  public:
   ControlTransferMap map_;
 
-  ControlTransfers(Zone* zone, ModuleEnv* env, AstLocalDecls* locals,
-                   const byte* start, const byte* end)
+  ControlTransfers(Zone* zone, BodyLocalDecls* locals, const byte* start,
+                   const byte* end)
       : map_(zone) {
     // Represents a control flow label.
     struct CLabel : public ZoneObject {
@@ -872,7 +827,7 @@ class ControlTransfers : public ZoneObject {
 // Code and metadata needed to execute a function.
 struct InterpreterCode {
   const WasmFunction* function;  // wasm function
-  AstLocalDecls locals;          // local declarations
+  BodyLocalDecls locals;         // local declarations
   const byte* orig_start;        // start of original code
   const byte* orig_end;          // end of original code
   byte* start;                   // start of (maybe altered) code
@@ -890,14 +845,13 @@ class CodeMap {
   const WasmModule* module_;
   ZoneVector<InterpreterCode> interpreter_code_;
 
-  CodeMap(const WasmModule* module, Zone* zone)
+  CodeMap(const WasmModule* module, const uint8_t* module_start, Zone* zone)
       : zone_(zone), module_(module), interpreter_code_(zone) {
     if (module == nullptr) return;
     for (size_t i = 0; i < module->functions.size(); ++i) {
       const WasmFunction* function = &module->functions[i];
-      const byte* code_start =
-          module->module_start + function->code_start_offset;
-      const byte* code_end = module->module_start + function->code_end_offset;
+      const byte* code_start = module_start + function->code_start_offset;
+      const byte* code_end = module_start + function->code_end_offset;
       AddFunction(function, code_start, code_end);
     }
   }
@@ -929,10 +883,9 @@ class CodeMap {
   InterpreterCode* Preprocess(InterpreterCode* code) {
     if (code->targets == nullptr && code->start) {
       // Compute the control targets map and the local declarations.
-      CHECK(DecodeLocalDecls(code->locals, code->start, code->end));
-      ModuleEnv env = {module_, nullptr, kWasmOrigin};
+      CHECK(DecodeLocalDecls(&code->locals, code->start, code->end));
       code->targets = new (zone_) ControlTransfers(
-          zone_, &env, &code->locals, code->orig_start, code->orig_end);
+          zone_, &code->locals, code->orig_start, code->orig_end);
     }
     return code;
   }
@@ -940,7 +893,7 @@ class CodeMap {
   int AddFunction(const WasmFunction* function, const byte* code_start,
                   const byte* code_end) {
     InterpreterCode code = {
-        function, AstLocalDecls(zone_),          code_start,
+        function, BodyLocalDecls(zone_),         code_start,
         code_end, const_cast<byte*>(code_start), const_cast<byte*>(code_end),
         nullptr};
 
@@ -1072,7 +1025,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
     // Limit of parameters.
     sp_t plimit() { return sp + code->function->sig->parameter_count(); }
     // Limit of locals.
-    sp_t llimit() { return plimit() + code->locals.total_local_count; }
+    sp_t llimit() { return plimit() + code->locals.type_list.size(); }
   };
 
   struct Block {
@@ -1121,28 +1074,28 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
 
   pc_t InitLocals(InterpreterCode* code) {
-    for (auto p : code->locals.local_types) {
+    for (auto p : code->locals.type_list) {
       WasmVal val;
-      switch (p.first) {
-        case kAstI32:
+      switch (p) {
+        case kWasmI32:
           val = WasmVal(static_cast<int32_t>(0));
           break;
-        case kAstI64:
+        case kWasmI64:
           val = WasmVal(static_cast<int64_t>(0));
           break;
-        case kAstF32:
+        case kWasmF32:
           val = WasmVal(static_cast<float>(0));
           break;
-        case kAstF64:
+        case kWasmF64:
           val = WasmVal(static_cast<double>(0));
           break;
         default:
           UNREACHABLE();
           break;
       }
-      stack_.insert(stack_.end(), p.second, val);
+      stack_.push_back(val);
     }
-    return code->locals.decls_encoded_size;
+    return code->locals.encoded_size;
   }
 
   void CommitPc(pc_t pc) {
@@ -1173,7 +1126,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
 
   bool DoReturn(InterpreterCode** code, pc_t* pc, pc_t* limit, size_t arity) {
-    DCHECK_GT(frames_.size(), 0u);
+    DCHECK_GT(frames_.size(), 0);
     // Pop all blocks for this frame.
     while (!blocks_.empty() && blocks_.back().fp == frames_.size()) {
       blocks_.pop_back();
@@ -1357,12 +1310,6 @@ class ThreadImpl : public WasmInterpreter::Thread {
           blocks_.pop_back();
           break;
         }
-        case kExprI8Const: {
-          ImmI8Operand operand(&decoder, code->at(pc));
-          Push(pc, WasmVal(operand.value));
-          len = 1 + operand.length;
-          break;
-        }
         case kExprI32Const: {
           ImmI32Operand operand(&decoder, code->at(pc));
           Push(pc, WasmVal(operand.value));
@@ -1450,15 +1397,15 @@ class ThreadImpl : public WasmInterpreter::Thread {
           GlobalIndexOperand operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
           byte* ptr = instance()->globals_start + global->offset;
-          LocalType type = global->type;
+          ValueType type = global->type;
           WasmVal val;
-          if (type == kAstI32) {
+          if (type == kWasmI32) {
             val = WasmVal(*reinterpret_cast<int32_t*>(ptr));
-          } else if (type == kAstI64) {
+          } else if (type == kWasmI64) {
             val = WasmVal(*reinterpret_cast<int64_t*>(ptr));
-          } else if (type == kAstF32) {
+          } else if (type == kWasmF32) {
             val = WasmVal(*reinterpret_cast<float*>(ptr));
-          } else if (type == kAstF64) {
+          } else if (type == kWasmF64) {
             val = WasmVal(*reinterpret_cast<double*>(ptr));
           } else {
             UNREACHABLE();
@@ -1471,15 +1418,15 @@ class ThreadImpl : public WasmInterpreter::Thread {
           GlobalIndexOperand operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
           byte* ptr = instance()->globals_start + global->offset;
-          LocalType type = global->type;
+          ValueType type = global->type;
           WasmVal val = Pop();
-          if (type == kAstI32) {
+          if (type == kWasmI32) {
             *reinterpret_cast<int32_t*>(ptr) = val.to<int32_t>();
-          } else if (type == kAstI64) {
+          } else if (type == kWasmI64) {
             *reinterpret_cast<int64_t*>(ptr) = val.to<int64_t>();
-          } else if (type == kAstF32) {
+          } else if (type == kWasmF32) {
             *reinterpret_cast<float*>(ptr) = val.to<float>();
-          } else if (type == kAstF64) {
+          } else if (type == kWasmF64) {
             *reinterpret_cast<double*>(ptr) = val.to<double>();
           } else {
             UNREACHABLE();
@@ -1605,6 +1552,19 @@ class ThreadImpl : public WasmInterpreter::Thread {
           len = 1 + operand.length;
           break;
         }
+        // We need to treat kExprI32ReinterpretF32 and kExprI64ReinterpretF64
+        // specially to guarantee that the quiet bit of a NaN is preserved on
+        // ia32 by the reinterpret casts.
+        case kExprI32ReinterpretF32: {
+          WasmVal result(ExecuteI32ReinterpretF32(Pop()));
+          Push(pc, result);
+          break;
+        }
+        case kExprI64ReinterpretF64: {
+          WasmVal result(ExecuteI64ReinterpretF64(Pop()));
+          Push(pc, result);
+          break;
+        }
 #define EXECUTE_SIMPLE_BINOP(name, ctype, op)             \
   case kExpr##name: {                                     \
     WasmVal rval = Pop();                                 \
@@ -1680,8 +1640,8 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
 
   WasmVal Pop() {
-    DCHECK_GT(stack_.size(), 0u);
-    DCHECK_GT(frames_.size(), 0u);
+    DCHECK_GT(stack_.size(), 0);
+    DCHECK_GT(frames_.size(), 0);
     DCHECK_GT(stack_.size(), frames_.back().llimit());  // can't pop into locals
     WasmVal val = stack_.back();
     stack_.pop_back();
@@ -1689,8 +1649,8 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
 
   void PopN(int n) {
-    DCHECK_GE(stack_.size(), static_cast<size_t>(n));
-    DCHECK_GT(frames_.size(), 0u);
+    DCHECK_GE(stack_.size(), n);
+    DCHECK_GT(frames_.size(), 0);
     size_t nsize = stack_.size() - n;
     DCHECK_GE(nsize, frames_.back().llimit());  // can't pop into locals
     stack_.resize(nsize);
@@ -1698,13 +1658,13 @@ class ThreadImpl : public WasmInterpreter::Thread {
 
   WasmVal PopArity(size_t arity) {
     if (arity == 0) return WasmVal();
-    CHECK_EQ(1u, arity);
+    CHECK_EQ(1, arity);
     return Pop();
   }
 
   void Push(pc_t pc, WasmVal val) {
     // TODO(titzer): store PC as well?
-    if (val.type != kAstStmt) stack_.push_back(val);
+    if (val.type != kWasmStmt) stack_.push_back(val);
   }
 
   void TraceStack(const char* phase, pc_t pc) {
@@ -1730,19 +1690,19 @@ class ThreadImpl : public WasmInterpreter::Thread {
           PrintF(" s%zu:", i);
         WasmVal val = stack_[i];
         switch (val.type) {
-          case kAstI32:
+          case kWasmI32:
             PrintF("i32:%d", val.to<int32_t>());
             break;
-          case kAstI64:
+          case kWasmI64:
             PrintF("i64:%" PRId64 "", val.to<int64_t>());
             break;
-          case kAstF32:
+          case kWasmF32:
             PrintF("f32:%f", val.to<float>());
             break;
-          case kAstF64:
+          case kWasmF64:
             PrintF("f64:%lf", val.to<double>());
             break;
-          case kAstStmt:
+          case kWasmStmt:
             PrintF("void");
             break;
           default:
@@ -1760,14 +1720,19 @@ class ThreadImpl : public WasmInterpreter::Thread {
 class WasmInterpreterInternals : public ZoneObject {
  public:
   WasmInstance* instance_;
+  // Create a copy of the module bytes for the interpreter, since the passed
+  // pointer might be invalidated after constructing the interpreter.
+  const ZoneVector<uint8_t> module_bytes_;
   CodeMap codemap_;
   ZoneVector<ThreadImpl*> threads_;
 
-  WasmInterpreterInternals(Zone* zone, WasmInstance* instance)
-      : instance_(instance),
-        codemap_(instance_ ? instance_->module : nullptr, zone),
+  WasmInterpreterInternals(Zone* zone, const ModuleBytesEnv& env)
+      : instance_(env.instance),
+        module_bytes_(env.module_bytes.start(), env.module_bytes.end(), zone),
+        codemap_(env.instance ? env.instance->module : nullptr,
+                 module_bytes_.data(), zone),
         threads_(zone) {
-    threads_.push_back(new ThreadImpl(zone, &codemap_, instance));
+    threads_.push_back(new ThreadImpl(zone, &codemap_, env.instance));
   }
 
   void Delete() {
@@ -1780,10 +1745,10 @@ class WasmInterpreterInternals : public ZoneObject {
 //============================================================================
 // Implementation of the public interface of the interpreter.
 //============================================================================
-WasmInterpreter::WasmInterpreter(WasmInstance* instance,
+WasmInterpreter::WasmInterpreter(const ModuleBytesEnv& env,
                                  AccountingAllocator* allocator)
     : zone_(allocator, ZONE_NAME),
-      internals_(new (&zone_) WasmInterpreterInternals(&zone_, instance)) {}
+      internals_(new (&zone_) WasmInterpreterInternals(&zone_, env)) {}
 
 WasmInterpreter::~WasmInterpreter() { internals_->Delete(); }
 
@@ -1797,7 +1762,7 @@ bool WasmInterpreter::SetBreakpoint(const WasmFunction* function, pc_t pc,
   if (!code) return false;
   size_t size = static_cast<size_t>(code->end - code->start);
   // Check bounds for {pc}.
-  if (pc < code->locals.decls_encoded_size || pc >= size) return false;
+  if (pc < code->locals.encoded_size || pc >= size) return false;
   // Make a copy of the code before enabling a breakpoint.
   if (enabled && code->orig_start == code->start) {
     code->start = reinterpret_cast<byte*>(zone_.New(size));
@@ -1818,7 +1783,7 @@ bool WasmInterpreter::GetBreakpoint(const WasmFunction* function, pc_t pc) {
   if (!code) return false;
   size_t size = static_cast<size_t>(code->end - code->start);
   // Check bounds for {pc}.
-  if (pc < code->locals.decls_encoded_size || pc >= size) return false;
+  if (pc < code->locals.encoded_size || pc >= size) return false;
   // Check if a breakpoint is present at that place in the code.
   return code->start[pc] == kInternalBreakpoint;
 }
@@ -1841,14 +1806,14 @@ WasmVal WasmInterpreter::GetLocalVal(const WasmFrame* frame, int index) {
   CHECK_GE(index, 0);
   UNIMPLEMENTED();
   WasmVal none;
-  none.type = kAstStmt;
+  none.type = kWasmStmt;
   return none;
 }
 
 WasmVal WasmInterpreter::GetExprVal(const WasmFrame* frame, int pc) {
   UNIMPLEMENTED();
   WasmVal none;
-  none.type = kAstStmt;
+  none.type = kWasmStmt;
   return none;
 }
 
@@ -1885,7 +1850,7 @@ bool WasmInterpreter::SetFunctionCodeForTesting(const WasmFunction* function,
 
 ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
     Zone* zone, const byte* start, const byte* end) {
-  ControlTransfers targets(zone, nullptr, nullptr, start, end);
+  ControlTransfers targets(zone, nullptr, start, end);
   return targets.map_;
 }
 

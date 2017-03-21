@@ -12,8 +12,8 @@
 namespace {{namespace}} {
 {% endfor %}
 
-{{config.lib.export_macro}} std::unique_ptr<Value> parseJSON(const uint8_t*, unsigned);
-{{config.lib.export_macro}} std::unique_ptr<Value> parseJSON(const uint16_t*, unsigned);
+{{config.lib.export_macro}} std::unique_ptr<Value> parseJSONCharacters(const uint8_t*, unsigned);
+{{config.lib.export_macro}} std::unique_ptr<Value> parseJSONCharacters(const uint16_t*, unsigned);
 
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}

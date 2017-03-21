@@ -30,6 +30,12 @@ bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate) {
   return reinterpret_cast<DefaultPlatform*>(platform)->PumpMessageLoop(isolate);
 }
 
+void RunIdleTasks(v8::Platform* platform, v8::Isolate* isolate,
+                  double idle_time_in_seconds) {
+  reinterpret_cast<DefaultPlatform*>(platform)->RunIdleTasks(
+      isolate, idle_time_in_seconds);
+}
+
 void SetTracingController(
     v8::Platform* platform,
     v8::platform::tracing::TracingController* tracing_controller) {
@@ -67,6 +73,12 @@ DefaultPlatform::~DefaultPlatform() {
     while (!i->second.empty()) {
       delete i->second.top().second;
       i->second.pop();
+    }
+  }
+  for (auto& i : main_thread_idle_queue_) {
+    while (!i.second.empty()) {
+      delete i.second.front();
+      i.second.pop();
     }
   }
 }
@@ -118,6 +130,15 @@ Task* DefaultPlatform::PopTaskInMainThreadDelayedQueue(v8::Isolate* isolate) {
   return deadline_and_task.second;
 }
 
+IdleTask* DefaultPlatform::PopTaskInMainThreadIdleQueue(v8::Isolate* isolate) {
+  auto it = main_thread_idle_queue_.find(isolate);
+  if (it == main_thread_idle_queue_.end() || it->second.empty()) {
+    return nullptr;
+  }
+  IdleTask* task = it->second.front();
+  it->second.pop();
+  return task;
+}
 
 bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate) {
   Task* task = NULL;
@@ -142,8 +163,25 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate) {
   return true;
 }
 
+void DefaultPlatform::RunIdleTasks(v8::Isolate* isolate,
+                                   double idle_time_in_seconds) {
+  double deadline_in_seconds =
+      MonotonicallyIncreasingTime() + idle_time_in_seconds;
+  while (deadline_in_seconds > MonotonicallyIncreasingTime()) {
+    {
+      IdleTask* task;
+      {
+        base::LockGuard<base::Mutex> guard(&lock_);
+        task = PopTaskInMainThreadIdleQueue(isolate);
+      }
+      if (task == nullptr) return;
+      task->Run(deadline_in_seconds);
+      delete task;
+    }
+  }
+}
 
-void DefaultPlatform::CallOnBackgroundThread(Task *task,
+void DefaultPlatform::CallOnBackgroundThread(Task* task,
                                              ExpectedRuntime expected_runtime) {
   EnsureInitialized();
   queue_.Append(task);
@@ -164,15 +202,13 @@ void DefaultPlatform::CallDelayedOnForegroundThread(Isolate* isolate,
   main_thread_delayed_queue_[isolate].push(std::make_pair(deadline, task));
 }
 
-
 void DefaultPlatform::CallIdleOnForegroundThread(Isolate* isolate,
                                                  IdleTask* task) {
-  UNREACHABLE();
+  base::LockGuard<base::Mutex> guard(&lock_);
+  main_thread_idle_queue_[isolate].push(task);
 }
 
-
-bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) { return false; }
-
+bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) { return true; }
 
 double DefaultPlatform::MonotonicallyIncreasingTime() {
   return base::TimeTicks::HighResolutionNow().ToInternalValue() /

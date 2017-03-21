@@ -10,18 +10,19 @@
 #include "src/ast/scopes.h"
 #include "src/base/platform/platform.h"
 #include "src/globals.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-CallPrinter::CallPrinter(Isolate* isolate, bool is_builtin)
+CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
     : builder_(isolate) {
   isolate_ = isolate;
   position_ = 0;
   num_prints_ = 0;
   found_ = false;
   done_ = false;
-  is_builtin_ = is_builtin;
+  is_user_js_ = is_user_js;
   InitializeAstVisitor(isolate);
 }
 
@@ -239,11 +240,11 @@ void CallPrinter::VisitArrayLiteral(ArrayLiteral* node) {
 
 
 void CallPrinter::VisitVariableProxy(VariableProxy* node) {
-  if (is_builtin_) {
-    // Variable names of builtins are meaningless due to minification.
-    Print("(var)");
-  } else {
+  if (is_user_js_) {
     PrintLiteral(node->name(), false);
+  } else {
+    // Variable names of non-user code are meaningless due to minification.
+    Print("(var)");
   }
 }
 
@@ -279,9 +280,9 @@ void CallPrinter::VisitProperty(Property* node) {
 void CallPrinter::VisitCall(Call* node) {
   bool was_found = !found_ && node->position() == position_;
   if (was_found) {
-    // Bail out if the error is caused by a direct call to a variable in builtin
-    // code. The variable name is meaningless due to minification.
-    if (is_builtin_ && node->expression()->IsVariableProxy()) {
+    // Bail out if the error is caused by a direct call to a variable in
+    // non-user JS code. The variable name is meaningless due to minification.
+    if (!is_user_js_ && node->expression()->IsVariableProxy()) {
       done_ = true;
       return;
     }
@@ -297,9 +298,9 @@ void CallPrinter::VisitCall(Call* node) {
 void CallPrinter::VisitCallNew(CallNew* node) {
   bool was_found = !found_ && node->position() == position_;
   if (was_found) {
-    // Bail out if the error is caused by a direct call to a variable in builtin
-    // code. The variable name is meaningless due to minification.
-    if (is_builtin_ && node->expression()->IsVariableProxy()) {
+    // Bail out if the error is caused by a direct call to a variable in
+    // non-user JS code. The variable name is meaningless due to minification.
+    if (!is_user_js_ && node->expression()->IsVariableProxy()) {
       done_ = true;
       return;
     }
@@ -370,6 +371,11 @@ void CallPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
   UNREACHABLE();
 }
 
+void CallPrinter::VisitGetIterator(GetIterator* node) {
+  Print("GetIterator(");
+  Find(node->iterable(), true);
+  Print(")");
+}
 
 void CallPrinter::VisitThisFunction(ThisFunction* node) {}
 
@@ -874,15 +880,16 @@ void AstPrinter::PrintTryStatement(TryStatement* node) {
     case HandlerTable::CAUGHT:
       prediction = "CAUGHT";
       break;
-    case HandlerTable::PROMISE:
-      prediction = "PROMISE";
-      break;
     case HandlerTable::DESUGARING:
       prediction = "DESUGARING";
       break;
     case HandlerTable::ASYNC_AWAIT:
       prediction = "ASYNC_AWAIT";
       break;
+    case HandlerTable::PROMISE:
+      // Catch prediction resulting in promise rejections aren't
+      // parsed by the parser.
+      UNREACHABLE();
   }
   Print(" %s\n", prediction);
 }
@@ -1019,6 +1026,9 @@ void AstPrinter::PrintObjectProperties(
       case ObjectLiteral::Property::SETTER:
         prop_kind = "SETTER";
         break;
+      case ObjectLiteral::Property::SPREAD:
+        prop_kind = "SPREAD";
+        break;
     }
     EmbeddedVector<char, 128> buf;
     SNPrintF(buf, "PROPERTY - %s", prop_kind);
@@ -1136,7 +1146,14 @@ void AstPrinter::VisitCallNew(CallNew* node) {
 
 void AstPrinter::VisitCallRuntime(CallRuntime* node) {
   EmbeddedVector<char, 128> buf;
-  SNPrintF(buf, "CALL RUNTIME %s", node->debug_name());
+  if (node->is_jsruntime()) {
+    SNPrintF(
+        buf, "CALL RUNTIME %s code = %p", node->debug_name(),
+        static_cast<void*>(isolate_->context()->get(node->context_index())));
+  } else {
+    SNPrintF(buf, "CALL RUNTIME %s", node->debug_name());
+  }
+
   IndentedScope indent(this, buf.start(), node->position());
   PrintArguments(node->arguments());
 }
@@ -1181,6 +1198,10 @@ void AstPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
   IndentedScope indent(this, "()", node->position());
 }
 
+void AstPrinter::VisitGetIterator(GetIterator* node) {
+  IndentedScope indent(this, "GET-ITERATOR", node->position());
+  Visit(node->iterable());
+}
 
 void AstPrinter::VisitThisFunction(ThisFunction* node) {
   IndentedScope indent(this, "THIS-FUNCTION", node->position());

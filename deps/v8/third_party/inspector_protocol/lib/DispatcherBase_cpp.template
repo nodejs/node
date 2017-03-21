@@ -39,6 +39,16 @@ DispatchResponse DispatchResponse::InternalError()
 }
 
 // static
+DispatchResponse DispatchResponse::InvalidParams(const String& error)
+{
+    DispatchResponse result;
+    result.m_status = kError;
+    result.m_errorCode = kInvalidParams;
+    result.m_errorMessage = error;
+    return result;
+}
+
+// static
 DispatchResponse DispatchResponse::FallThrough()
 {
     DispatchResponse result;
@@ -58,9 +68,10 @@ DispatcherBase::WeakPtr::~WeakPtr()
         m_dispatcher->m_weakPtrs.erase(this);
 }
 
-DispatcherBase::Callback::Callback(std::unique_ptr<DispatcherBase::WeakPtr> backendImpl, int callId)
+DispatcherBase::Callback::Callback(std::unique_ptr<DispatcherBase::WeakPtr> backendImpl, int callId, int callbackId)
     : m_backendImpl(std::move(backendImpl))
-    , m_callId(callId) { }
+    , m_callId(callId)
+    , m_callbackId(callbackId) { }
 
 DispatcherBase::Callback::~Callback() = default;
 
@@ -77,18 +88,40 @@ void DispatcherBase::Callback::sendIfActive(std::unique_ptr<protocol::Dictionary
     m_backendImpl = nullptr;
 }
 
+void DispatcherBase::Callback::fallThroughIfActive()
+{
+    if (!m_backendImpl || !m_backendImpl->get())
+        return;
+    m_backendImpl->get()->markFallThrough(m_callbackId);
+    m_backendImpl = nullptr;
+}
+
 DispatcherBase::DispatcherBase(FrontendChannel* frontendChannel)
-    : m_frontendChannel(frontendChannel) { }
+    : m_frontendChannel(frontendChannel)
+    , m_lastCallbackId(0)
+    , m_lastCallbackFallThrough(false) { }
 
 DispatcherBase::~DispatcherBase()
 {
     clearFrontend();
 }
 
+int DispatcherBase::nextCallbackId()
+{
+    m_lastCallbackFallThrough = false;
+    return ++m_lastCallbackId;
+}
+
+void DispatcherBase::markFallThrough(int callbackId)
+{
+    DCHECK(callbackId == m_lastCallbackId);
+    m_lastCallbackFallThrough = true;
+}
+
 // static
 bool DispatcherBase::getCommandName(const String& message, String* result)
 {
-    std::unique_ptr<protocol::Value> value = parseJSON(message);
+    std::unique_ptr<protocol::Value> value = StringUtil::parseJSON(message);
     if (!value)
         return false;
 
@@ -104,16 +137,13 @@ bool DispatcherBase::getCommandName(const String& message, String* result)
 
 void DispatcherBase::sendResponse(int callId, const DispatchResponse& response, std::unique_ptr<protocol::DictionaryValue> result)
 {
+    if (!m_frontendChannel)
+        return;
     if (response.status() == DispatchResponse::kError) {
         reportProtocolError(callId, response.errorCode(), response.errorMessage(), nullptr);
         return;
     }
-
-    std::unique_ptr<protocol::DictionaryValue> responseMessage = DictionaryValue::create();
-    responseMessage->setInteger("id", callId);
-    responseMessage->setObject("result", std::move(result));
-    if (m_frontendChannel)
-        m_frontendChannel->sendProtocolResponse(callId, responseMessage->toJSONString());
+    m_frontendChannel->sendProtocolResponse(callId, InternalResponse::createResponse(callId, std::move(result)));
 }
 
 void DispatcherBase::sendResponse(int callId, const DispatchResponse& response)
@@ -121,31 +151,67 @@ void DispatcherBase::sendResponse(int callId, const DispatchResponse& response)
     sendResponse(callId, response, DictionaryValue::create());
 }
 
+namespace {
+
+class ProtocolError : public Serializable {
+public:
+    static std::unique_ptr<ProtocolError> createErrorResponse(int callId, DispatchResponse::ErrorCode code, const String& errorMessage, ErrorSupport* errors)
+    {
+        std::unique_ptr<ProtocolError> protocolError(new ProtocolError(code, errorMessage));
+        protocolError->m_callId = callId;
+        protocolError->m_hasCallId = true;
+        if (errors && errors->hasErrors())
+            protocolError->m_data = errors->errors();
+        return protocolError;
+    }
+
+    static std::unique_ptr<ProtocolError> createErrorNotification(DispatchResponse::ErrorCode code, const String& errorMessage)
+    {
+        return std::unique_ptr<ProtocolError>(new ProtocolError(code, errorMessage));
+    }
+
+    String serialize() override
+    {
+        std::unique_ptr<protocol::DictionaryValue> error = DictionaryValue::create();
+        error->setInteger("code", m_code);
+        error->setString("message", m_errorMessage);
+        if (m_data.length())
+            error->setString("data", m_data);
+        std::unique_ptr<protocol::DictionaryValue> message = DictionaryValue::create();
+        message->setObject("error", std::move(error));
+        if (m_hasCallId)
+            message->setInteger("id", m_callId);
+        return message->serialize();
+    }
+
+    ~ProtocolError() override {}
+
+private:
+    ProtocolError(DispatchResponse::ErrorCode code, const String& errorMessage)
+        : m_code(code)
+        , m_errorMessage(errorMessage)
+    {
+    }
+
+    DispatchResponse::ErrorCode m_code;
+    String m_errorMessage;
+    String m_data;
+    int m_callId = 0;
+    bool m_hasCallId = false;
+};
+
+} // namespace
+
 static void reportProtocolErrorTo(FrontendChannel* frontendChannel, int callId, DispatchResponse::ErrorCode code, const String& errorMessage, ErrorSupport* errors)
 {
-    if (!frontendChannel)
-        return;
-    std::unique_ptr<protocol::DictionaryValue> error = DictionaryValue::create();
-    error->setInteger("code", code);
-    error->setString("message", errorMessage);
-    if (errors && errors->hasErrors())
-        error->setString("data", errors->errors());
-    std::unique_ptr<protocol::DictionaryValue> message = DictionaryValue::create();
-    message->setObject("error", std::move(error));
-    message->setInteger("id", callId);
-    frontendChannel->sendProtocolResponse(callId, message->toJSONString());
+    if (frontendChannel)
+        frontendChannel->sendProtocolResponse(callId, ProtocolError::createErrorResponse(callId, code, errorMessage, errors));
 }
 
 static void reportProtocolErrorTo(FrontendChannel* frontendChannel, DispatchResponse::ErrorCode code, const String& errorMessage)
 {
-    if (!frontendChannel)
-        return;
-    std::unique_ptr<protocol::DictionaryValue> error = DictionaryValue::create();
-    error->setInteger("code", code);
-    error->setString("message", errorMessage);
-    std::unique_ptr<protocol::DictionaryValue> message = DictionaryValue::create();
-    message->setObject("error", std::move(error));
-    frontendChannel->sendProtocolNotification(message->toJSONString());
+    if (frontendChannel)
+        frontendChannel->sendProtocolNotification(ProtocolError::createErrorNotification(code, errorMessage));
 }
 
 void DispatcherBase::reportProtocolError(int callId, DispatchResponse::ErrorCode code, const String& errorMessage, ErrorSupport* errors)
@@ -169,7 +235,13 @@ std::unique_ptr<DispatcherBase::WeakPtr> DispatcherBase::weakPtr()
 }
 
 UberDispatcher::UberDispatcher(FrontendChannel* frontendChannel)
-    : m_frontendChannel(frontendChannel) { }
+    : m_frontendChannel(frontendChannel)
+    , m_fallThroughForNotFound(false) { }
+
+void UberDispatcher::setFallThroughForNotFound(bool fallThroughForNotFound)
+{
+    m_fallThroughForNotFound = fallThroughForNotFound;
+}
 
 void UberDispatcher::registerBackend(const String& name, std::unique_ptr<protocol::DispatcherBase> dispatcher)
 {
@@ -206,12 +278,16 @@ DispatchResponse::Status UberDispatcher::dispatch(std::unique_ptr<Value> parsedM
 
     size_t dotIndex = method.find(".");
     if (dotIndex == StringUtil::kNotFound) {
+        if (m_fallThroughForNotFound)
+            return DispatchResponse::kFallThrough;
         reportProtocolErrorTo(m_frontendChannel, callId, DispatchResponse::kMethodNotFound, "'" + method + "' wasn't found", nullptr);
         return DispatchResponse::kError;
     }
     String domain = StringUtil::substring(method, 0, dotIndex);
     auto it = m_dispatchers.find(domain);
     if (it == m_dispatchers.end()) {
+        if (m_fallThroughForNotFound)
+            return DispatchResponse::kFallThrough;
         reportProtocolErrorTo(m_frontendChannel, callId, DispatchResponse::kMethodNotFound, "'" + method + "' wasn't found", nullptr);
         return DispatchResponse::kError;
     }
@@ -219,6 +295,39 @@ DispatchResponse::Status UberDispatcher::dispatch(std::unique_ptr<Value> parsedM
 }
 
 UberDispatcher::~UberDispatcher() = default;
+
+// static
+std::unique_ptr<InternalResponse> InternalResponse::createResponse(int callId, std::unique_ptr<Serializable> params)
+{
+    return std::unique_ptr<InternalResponse>(new InternalResponse(callId, String(), std::move(params)));
+}
+
+// static
+std::unique_ptr<InternalResponse> InternalResponse::createNotification(const String& notification, std::unique_ptr<Serializable> params)
+{
+    return std::unique_ptr<InternalResponse>(new InternalResponse(0, notification, std::move(params)));
+}
+
+String InternalResponse::serialize()
+{
+    std::unique_ptr<DictionaryValue> result = DictionaryValue::create();
+    std::unique_ptr<Serializable> params(m_params ? std::move(m_params) : DictionaryValue::create());
+    if (m_notification.length()) {
+        result->setString("method", m_notification);
+        result->setValue("params", SerializedValue::create(params->serialize()));
+    } else {
+        result->setInteger("id", m_callId);
+        result->setValue("result", SerializedValue::create(params->serialize()));
+    }
+    return result->serialize();
+}
+
+InternalResponse::InternalResponse(int callId, const String& notification, std::unique_ptr<Serializable> params)
+    : m_callId(callId)
+    , m_notification(notification)
+    , m_params(params ? std::move(params) : nullptr)
+{
+}
 
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}

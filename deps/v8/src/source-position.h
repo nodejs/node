@@ -43,10 +43,11 @@ class SourcePosition final {
   }
   bool isInlined() const { return InliningId() != kNotInlined; }
 
+  // Assumes that the code object is optimized
   std::vector<SourcePositionInfo> InliningStack(Handle<Code> code) const;
-  std::vector<SourcePositionInfo> InliningStack(CompilationInfo* code) const;
+  std::vector<SourcePositionInfo> InliningStack(CompilationInfo* cinfo) const;
 
-  void Print(std::ostream& out, Code* function) const;
+  void Print(std::ostream& out, Code* code) const;
 
   int ScriptOffset() const { return ScriptOffsetField::decode(value_) - 1; }
   int InliningId() const { return InliningIdField::decode(value_) - 1; }
@@ -75,7 +76,6 @@ class SourcePosition final {
 
  private:
   void Print(std::ostream& out, SharedFunctionInfo* function) const;
-  SourcePositionInfo Info(Handle<SharedFunctionInfo> script) const;
 
   // InliningId is in the high bits for better compression in
   // SourcePositionTable.
@@ -102,8 +102,7 @@ struct InliningPosition {
 };
 
 struct SourcePositionInfo {
-  explicit SourcePositionInfo(SourcePosition pos, Handle<SharedFunctionInfo> f)
-      : position(pos), function(f) {}
+  SourcePositionInfo(SourcePosition pos, Handle<SharedFunctionInfo> f);
 
   SourcePosition position;
   Handle<SharedFunctionInfo> function;

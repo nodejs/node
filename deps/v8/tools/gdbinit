@@ -11,6 +11,15 @@ Print a v8 JavaScript object
 Usage: job tagged_ptr
 end
 
+# Print v8::Local handle value.
+define jlh
+call _v8_internal_Print_Object(*(v8::internal::Object**)(*$arg0))
+end
+document jlh
+Print content of a v8::Local handle
+Usage: jlh local_handle
+end
+
 # Print Code objects containing given PC.
 define jco
 call _v8_internal_Print_Code((void*)($arg0))
@@ -36,6 +45,15 @@ end
 document jda
 Print a v8 DescriptorArray object
 Usage: jda tagged_ptr
+end
+
+# Print LayoutDescriptor.
+define jld
+call _v8_internal_Print_LayoutDescriptor((void*)($arg0))
+end
+document jld
+Print a v8 LayoutDescriptor object
+Usage: jld tagged_ptr
 end
 
 # Print TransitionArray.

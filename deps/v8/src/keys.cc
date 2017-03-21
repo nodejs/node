@@ -328,12 +328,13 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
     if (key->IsSymbol()) continue;
     storage->set(index, key);
     if (!indices.is_null()) {
-      if (details.type() != DATA) {
-        indices = Handle<FixedArray>();
-      } else {
+      if (details.location() == kField) {
+        DCHECK_EQ(kData, details.kind());
         FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
         int load_by_field_index = field_index.GetLoadByFieldIndex();
         indices->set(index, Smi::FromInt(load_by_field_index));
+      } else {
+        indices = Handle<FixedArray>();
       }
     }
     index++;

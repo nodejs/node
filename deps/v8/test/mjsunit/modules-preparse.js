@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 //
 // MODULE
-// Flags: --min-preparse-length=0
 
 let foo = 42;
 function testFoo(x) { assertEquals(x, foo); }

@@ -15,7 +15,6 @@ var GlobalArrayBuffer = global.ArrayBuffer;
 var MaxSimple;
 var MinSimple;
 var SpeciesConstructor;
-var speciesSymbol = utils.ImportNow("species_symbol");
 
 utils.Import(function(from) {
   MaxSimple = from.MaxSimple;
@@ -74,13 +73,6 @@ function ArrayBufferSlice(start, end) {
   %ArrayBufferSliceImpl(this, result, first, newLen);
   return result;
 }
-
-
-function ArrayBufferSpecies() {
-  return this;
-}
-
-utils.InstallGetter(GlobalArrayBuffer, speciesSymbol, ArrayBufferSpecies);
 
 utils.InstallFunctions(GlobalArrayBuffer.prototype, DONT_ENUM, [
   "slice", ArrayBufferSlice

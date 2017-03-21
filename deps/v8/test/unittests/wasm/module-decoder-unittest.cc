@@ -7,6 +7,7 @@
 #include "src/handles.h"
 #include "src/objects-inl.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -125,13 +126,13 @@ static size_t SizeOfVarInt(size_t value) {
   return size;
 }
 
-struct LocalTypePair {
+struct ValueTypePair {
   uint8_t code;
-  LocalType type;
-} kLocalTypes[] = {{kLocalI32, kAstI32},
-                   {kLocalI64, kAstI64},
-                   {kLocalF32, kAstF32},
-                   {kLocalF64, kAstF64}};
+  ValueType type;
+} kValueTypes[] = {{kLocalI32, kWasmI32},
+                   {kLocalI64, kWasmI64},
+                   {kLocalF32, kWasmF32},
+                   {kLocalF64, kWasmF64}};
 
 class WasmModuleVerifyTest : public TestWithIsolateAndZone {
  public:
@@ -198,7 +199,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
 
     const WasmGlobal* global = &result.val->globals.back();
 
-    EXPECT_EQ(kAstI32, global->type);
+    EXPECT_EQ(kWasmI32, global->type);
     EXPECT_EQ(0u, global->offset);
     EXPECT_FALSE(global->mutability);
     EXPECT_EQ(WasmInitExpr::kI32Const, global->init.kind);
@@ -310,7 +311,7 @@ TEST_F(WasmModuleVerifyTest, NGlobals) {
       WASM_INIT_EXPR_F32(7.7),  // init
   };
 
-  for (uint32_t i = 0; i < 1000000; i = i * 13 + 1) {
+  for (uint32_t i = 0; i < kV8MaxWasmGlobals; i = i * 13 + 1) {
     std::vector<byte> buffer;
     size_t size = SizeOfVarInt(i) + i * sizeof(data);
     const byte globals[] = {kGlobalSectionCode, U32V_5(size)};
@@ -359,14 +360,14 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
 
     const WasmGlobal* g0 = &result.val->globals[0];
 
-    EXPECT_EQ(kAstF32, g0->type);
+    EXPECT_EQ(kWasmF32, g0->type);
     EXPECT_EQ(0u, g0->offset);
     EXPECT_FALSE(g0->mutability);
     EXPECT_EQ(WasmInitExpr::kF32Const, g0->init.kind);
 
     const WasmGlobal* g1 = &result.val->globals[1];
 
-    EXPECT_EQ(kAstF64, g1->type);
+    EXPECT_EQ(kWasmF64, g1->type);
     EXPECT_EQ(8u, g1->offset);
     EXPECT_TRUE(g1->mutability);
     EXPECT_EQ(WasmInitExpr::kF64Const, g1->init.kind);
@@ -783,8 +784,8 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
 }
 
 TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalTypePair ret_type = kLocalTypes[i];
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    ValueTypePair ret_type = kValueTypes[i];
     const byte data[] = {SIG_ENTRY_x(ret_type.code)};
     FunctionSig* sig =
         DecodeWasmSignatureForTesting(zone(), data, data + sizeof(data));
@@ -797,8 +798,8 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
 }
 
 TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalTypePair param_type = kLocalTypes[i];
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    ValueTypePair param_type = kValueTypes[i];
     const byte data[] = {SIG_ENTRY_v_x(param_type.code)};
     FunctionSig* sig =
         DecodeWasmSignatureForTesting(zone(), data, data + sizeof(data));
@@ -811,10 +812,10 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
 }
 
 TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalTypePair ret_type = kLocalTypes[i];
-    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
-      LocalTypePair param_type = kLocalTypes[j];
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    ValueTypePair ret_type = kValueTypes[i];
+    for (size_t j = 0; j < arraysize(kValueTypes); j++) {
+      ValueTypePair param_type = kValueTypes[j];
       const byte data[] = {SIG_ENTRY_x_x(ret_type.code, param_type.code)};
       FunctionSig* sig =
           DecodeWasmSignatureForTesting(zone(), data, data + sizeof(data));
@@ -829,10 +830,10 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
 }
 
 TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalTypePair p0_type = kLocalTypes[i];
-    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
-      LocalTypePair p1_type = kLocalTypes[j];
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    ValueTypePair p0_type = kValueTypes[i];
+    for (size_t j = 0; j < arraysize(kValueTypes); j++) {
+      ValueTypePair p1_type = kValueTypes[j];
       const byte data[] = {
           SIG_ENTRY_x_xx(kLocalI32, p0_type.code, p1_type.code)};
       FunctionSig* sig =
@@ -844,6 +845,31 @@ TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
       EXPECT_EQ(p0_type.type, sig->GetParam(0));
       EXPECT_EQ(p1_type.type, sig->GetParam(1));
     }
+  }
+}
+
+TEST_F(WasmSignatureDecodeTest, TooManyParams) {
+  static const byte data[] = {kWasmFunctionTypeForm,
+                              WASM_I32V_3(kV8MaxWasmFunctionParams + 1),
+                              kLocalI32, 0};
+  FunctionSig* sig =
+      DecodeWasmSignatureForTesting(zone(), data, data + sizeof(data));
+  EXPECT_FALSE(sig != nullptr);
+}
+
+TEST_F(WasmSignatureDecodeTest, TooManyReturns) {
+  bool prev = FLAG_wasm_mv_prototype;
+  for (int i = 0; i < 2; i++) {
+    FLAG_wasm_mv_prototype = i != 0;
+    const int max_return_count =
+        static_cast<int>(FLAG_wasm_mv_prototype ? kV8MaxWasmFunctionMultiReturns
+                                                : kV8MaxWasmFunctionReturns);
+    byte data[] = {kWasmFunctionTypeForm, 0, WASM_I32V_3(max_return_count + 1),
+                   kLocalI32};
+    FunctionSig* sig =
+        DecodeWasmSignatureForTesting(zone(), data, data + sizeof(data));
+    EXPECT_EQ(nullptr, sig);
+    FLAG_wasm_mv_prototype = prev;
   }
 }
 
@@ -907,7 +933,7 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
       kLocalF32,  // --
       6,
       kLocalF64,  // --
-      kExprNop    // body
+      kExprEnd    // body
   };
 
   FunctionResult result =
@@ -1028,7 +1054,7 @@ TEST_F(WasmModuleVerifyTest, UnknownSectionSkipped) {
 
   const WasmGlobal* global = &result.val->globals.back();
 
-  EXPECT_EQ(kAstI32, global->type);
+  EXPECT_EQ(kWasmI32, global->type);
   EXPECT_EQ(0u, global->offset);
 
   if (result.val) delete result.val;
@@ -1073,6 +1099,21 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutable_global) {
     };
     EXPECT_FAILURE(data);
   }
+}
+
+TEST_F(WasmModuleVerifyTest, ImportTable_mutability_malformed) {
+  static const byte data[] = {
+      SECTION(Import, 8),
+      1,                   // --
+      NAME_LENGTH(1),      // --
+      'm',                 // module name
+      NAME_LENGTH(1),      // --
+      'g',                 // global name
+      kExternalGlobal,     // import kind
+      kLocalI32,           // type
+      2,                   // invalid mutability
+  };
+  EXPECT_FAILURE(data);
 }
 
 TEST_F(WasmModuleVerifyTest, ImportTable_nosigs2) {
@@ -1480,6 +1521,83 @@ TEST_F(WasmModuleVerifyTest, Multiple_Named_Sections) {
       SECTION(Unknown, 8), 5, 'o', 't', 'h', 'e', 'r', 7, 8,     // --
   };
   EXPECT_VERIFIES(data);
+}
+
+class WasmModuleCustomSectionTest : public TestWithIsolateAndZone {
+ public:
+  void CheckSections(const byte* module_start, const byte* module_end,
+                     CustomSectionOffset expected[], size_t num_expected) {
+    // Add the WASM magic and version number automatically.
+    size_t size = static_cast<size_t>(module_end - module_start);
+    byte header[] = {WASM_MODULE_HEADER};
+    size_t total = sizeof(header) + size;
+    auto temp = new byte[total];
+    memcpy(temp, header, sizeof(header));
+    memcpy(temp + sizeof(header), module_start, size);
+    std::vector<CustomSectionOffset> custom_sections =
+        DecodeCustomSections(module_start, module_end);
+
+    CHECK_EQ(num_expected, custom_sections.size());
+
+    for (size_t i = 0; i < num_expected; i++) {
+      EXPECT_EQ(expected[i].section_start, custom_sections[i].section_start);
+      EXPECT_EQ(expected[i].name_offset, custom_sections[i].name_offset);
+      EXPECT_EQ(expected[i].name_length, custom_sections[i].name_length);
+      EXPECT_EQ(expected[i].payload_offset, custom_sections[i].payload_offset);
+      EXPECT_EQ(expected[i].payload_length, custom_sections[i].payload_length);
+      EXPECT_EQ(expected[i].section_length, custom_sections[i].section_length);
+    }
+  }
+};
+
+TEST_F(WasmModuleCustomSectionTest, ThreeUnknownSections) {
+  static const byte data[] = {
+      U32_LE(kWasmMagic),                                         // --
+      U32_LE(kWasmVersion),                                       // --
+      SECTION(Unknown, 4),  1, 'X', 17,  18,                      // --
+      SECTION(Unknown, 9),  3, 'f', 'o', 'o', 5,   6,   7, 8, 9,  // --
+      SECTION(Unknown, 8),  5, 'o', 't', 'h', 'e', 'r', 7, 8,     // --
+  };
+
+  static CustomSectionOffset expected[] = {
+      // sec_start, nm_offset, nm_length, py_offset, py_length, sec_length
+      {10, 11, 1, 12, 2, 4},  // --
+      {16, 17, 3, 20, 5, 9},  // --
+      {27, 28, 5, 33, 2, 8},  // --
+  };
+
+  CheckSections(data, data + sizeof(data), expected, arraysize(expected));
+}
+
+TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
+  static const byte data[] = {
+      U32_LE(kWasmMagic),                                   // --
+      U32_LE(kWasmVersion),                                 // --
+      SIGNATURES_SECTION(2, SIG_ENTRY_v_v, SIG_ENTRY_v_v),  // --
+      SECTION(Unknown, 4),
+      1,
+      'X',
+      17,
+      18,  // --
+      ONE_EMPTY_FUNCTION,
+      SECTION(Unknown, 8),
+      5,
+      'o',
+      't',
+      'h',
+      'e',
+      'r',
+      7,
+      8,  // --
+  };
+
+  static CustomSectionOffset expected[] = {
+      // sec_start, nm_offset, nm_length, py_offset, py_length, sec_length
+      {19, 20, 1, 21, 2, 4},  // --
+      {29, 30, 5, 35, 2, 8},  // --
+  };
+
+  CheckSections(data, data + sizeof(data), expected, arraysize(expected));
 }
 
 }  // namespace wasm

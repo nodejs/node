@@ -9,11 +9,17 @@
 namespace {{namespace}} {
 {% endfor %}
 
+class {{config.lib.export_macro}} Serializable {
+public:
+    virtual String serialize() = 0;
+    virtual ~Serializable() = default;
+};
+
 class {{config.lib.export_macro}} FrontendChannel {
 public:
     virtual ~FrontendChannel() { }
-    virtual void sendProtocolResponse(int callId, const String& message) = 0;
-    virtual void sendProtocolNotification(const String& message) = 0;
+    virtual void sendProtocolResponse(int callId, std::unique_ptr<Serializable> message) = 0;
+    virtual void sendProtocolNotification(std::unique_ptr<Serializable> message) = 0;
     virtual void flushProtocolNotifications() = 0;
 };
 

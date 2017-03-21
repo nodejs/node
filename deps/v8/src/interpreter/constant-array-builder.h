@@ -82,7 +82,10 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
     size_t Allocate(Handle<Object> object);
     Handle<Object> At(size_t index) const;
     void InsertAt(size_t index, Handle<Object> object);
-    bool AllElementsAreUnique() const;
+
+#if DEBUG
+    void CheckAllElementsAreUnique() const;
+#endif
 
     inline size_t available() const { return capacity() - reserved() - size(); }
     inline size_t reserved() const { return reserved_; }

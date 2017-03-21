@@ -7,8 +7,6 @@
 
 #include <iterator>
 
-#include "src/base/macros.h"
-
 namespace v8 {
 namespace base {
 

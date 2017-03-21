@@ -23,7 +23,7 @@ PartialSerializer::~PartialSerializer() {
   OutputStatistics("PartialSerializer");
 }
 
-void PartialSerializer::Serialize(Object** o) {
+void PartialSerializer::Serialize(Object** o, bool include_global_proxy) {
   if ((*o)->IsContext()) {
     Context* context = Context::cast(*o);
     reference_map()->AddAttachedReference(context->global_proxy());
@@ -102,7 +102,10 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 
   if (obj->IsJSObject()) {
     JSObject* jsobj = JSObject::cast(obj);
-    if (jsobj->GetInternalFieldCount() > 0) internal_field_holders_.Add(jsobj);
+    if (jsobj->GetInternalFieldCount() > 0) {
+      DCHECK_NOT_NULL(serialize_internal_fields_.callback);
+      internal_field_holders_.Add(jsobj);
+    }
   }
 
   // Object has not yet been serialized.  Serialize it here.
@@ -129,7 +132,7 @@ void PartialSerializer::SerializeInternalFields() {
   DisallowHeapAllocation no_gc;
   DisallowJavascriptExecution no_js(isolate());
   DisallowCompilation no_compile(isolate());
-  DCHECK_NOT_NULL(serialize_internal_fields_);
+  DCHECK_NOT_NULL(serialize_internal_fields_.callback);
   sink_.Put(kInternalFieldsData, "internal fields data");
   while (internal_field_holders_.length() > 0) {
     HandleScope scope(isolate());
@@ -139,7 +142,8 @@ void PartialSerializer::SerializeInternalFields() {
     int internal_fields_count = obj->GetInternalFieldCount();
     for (int i = 0; i < internal_fields_count; i++) {
       if (obj->GetInternalField(i)->IsHeapObject()) continue;
-      StartupData data = serialize_internal_fields_(v8::Utils::ToLocal(obj), i);
+      StartupData data = serialize_internal_fields_.callback(
+          v8::Utils::ToLocal(obj), i, serialize_internal_fields_.data);
       sink_.Put(kNewObject + reference.space(), "internal field holder");
       PutBackReference(*obj, reference);
       sink_.PutInt(i, "internal field index");

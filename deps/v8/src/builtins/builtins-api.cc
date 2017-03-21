@@ -77,6 +77,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
         !isolate->MayAccess(handle(isolate->context()), js_receiver)) {
       isolate->ReportFailedAccessCheck(js_receiver);
       RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+      return isolate->factory()->undefined_value();
     }
 
     raw_holder = GetCompatibleReceiver(isolate, *fun_data, *js_receiver);

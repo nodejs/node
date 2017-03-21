@@ -208,6 +208,19 @@ void float64_pow_wrapper(double* param0, double* param1) {
   double y = ReadDoubleValue(param1);
   WriteDoubleValue(param0, Pow(x, y));
 }
+
+static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;
+
+void set_trap_callback_for_testing(WasmTrapCallbackForTesting callback) {
+  wasm_trap_callback_for_testing = callback;
+}
+
+void call_trap_callback_for_testing() {
+  if (wasm_trap_callback_for_testing) {
+    wasm_trap_callback_for_testing();
+  }
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -66,7 +66,7 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_max_semi_space_size = 1;
   }
 
-  if (FLAG_turbo && strcmp(FLAG_turbo_filter, "~~") == 0) {
+  if (FLAG_opt && FLAG_turbo && strcmp(FLAG_turbo_filter, "~~") == 0) {
     const char* filter_flag = "--turbo-filter=*";
     FlagList::SetFlagsFromString(filter_flag, StrLength(filter_flag));
   }

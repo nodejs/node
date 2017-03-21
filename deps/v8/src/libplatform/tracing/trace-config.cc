@@ -21,8 +21,13 @@ TraceConfig* TraceConfig::CreateDefaultTraceConfig() {
 }
 
 bool TraceConfig::IsCategoryGroupEnabled(const char* category_group) const {
-  for (auto included_category : included_categories_) {
-    if (strcmp(included_category.data(), category_group) == 0) return true;
+  std::stringstream category_stream(category_group);
+  while (category_stream.good()) {
+    std::string category;
+    getline(category_stream, category, ',');
+    for (const auto& included_category : included_categories_) {
+      if (category == included_category) return true;
+    }
   }
   return false;
 }

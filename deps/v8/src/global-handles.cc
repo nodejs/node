@@ -5,6 +5,8 @@
 #include "src/global-handles.h"
 
 #include "src/api.h"
+#include "src/cancelable-task.h"
+#include "src/objects-inl.h"
 #include "src/v8.h"
 #include "src/vm-state-inl.h"
 
@@ -719,7 +721,7 @@ void GlobalHandles::MarkNewSpaceWeakUnmodifiedObjectsPending(
   }
 }
 
-
+template <GlobalHandles::IterationMode mode>
 void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(ObjectVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
@@ -728,18 +730,35 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(ObjectVisitor* v) {
         node->IsWeakRetainer()) {
       // Pending weak phantom handles die immediately. Everything else survives.
       if (node->IsPendingPhantomResetHandle()) {
-        node->ResetPhantomHandle();
-        ++number_of_phantom_handle_resets_;
+        if (mode == IterationMode::HANDLE_PHANTOM_NODES ||
+            mode == IterationMode::HANDLE_PHANTOM_NODES_VISIT_OTHERS) {
+          node->ResetPhantomHandle();
+          ++number_of_phantom_handle_resets_;
+        }
       } else if (node->IsPendingPhantomCallback()) {
-        node->CollectPhantomCallbackData(isolate(),
-                                         &pending_phantom_callbacks_);
+        if (mode == IterationMode::HANDLE_PHANTOM_NODES ||
+            mode == IterationMode::HANDLE_PHANTOM_NODES_VISIT_OTHERS) {
+          node->CollectPhantomCallbackData(isolate(),
+                                           &pending_phantom_callbacks_);
+        }
       } else {
-        v->VisitPointer(node->location());
+        if (mode == IterationMode::VISIT_OTHERS ||
+            mode == IterationMode::HANDLE_PHANTOM_NODES_VISIT_OTHERS) {
+          v->VisitPointer(node->location());
+        }
       }
     }
   }
 }
 
+template void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots<
+    GlobalHandles::HANDLE_PHANTOM_NODES>(ObjectVisitor* v);
+
+template void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots<
+    GlobalHandles::VISIT_OTHERS>(ObjectVisitor* v);
+
+template void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots<
+    GlobalHandles::HANDLE_PHANTOM_NODES_VISIT_OTHERS>(ObjectVisitor* v);
 
 DISABLE_CFI_PERF
 bool GlobalHandles::IterateObjectGroups(ObjectVisitor* v,

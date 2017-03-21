@@ -7,6 +7,8 @@
 #include <memory>
 
 #include "src/handles-inl.h"
+#include "src/log.h"
+#include "src/objects-inl.h"
 #include "src/prototype.h"
 
 namespace v8 {
@@ -204,53 +206,6 @@ void StringStream::PrintObject(Object* o) {
 }
 
 
-void StringStream::Add(const char* format) {
-  Add(CStrVector(format));
-}
-
-
-void StringStream::Add(Vector<const char> format) {
-  Add(format, Vector<FmtElm>::empty());
-}
-
-
-void StringStream::Add(const char* format, FmtElm arg0) {
-  const char argc = 1;
-  FmtElm argv[argc] = { arg0 };
-  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
-}
-
-
-void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1) {
-  const char argc = 2;
-  FmtElm argv[argc] = { arg0, arg1 };
-  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
-}
-
-
-void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
-                       FmtElm arg2) {
-  const char argc = 3;
-  FmtElm argv[argc] = { arg0, arg1, arg2 };
-  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
-}
-
-
-void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
-                       FmtElm arg2, FmtElm arg3) {
-  const char argc = 4;
-  FmtElm argv[argc] = { arg0, arg1, arg2, arg3 };
-  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
-}
-
-
-void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
-                       FmtElm arg2, FmtElm arg3, FmtElm arg4) {
-  const char argc = 5;
-  FmtElm argv[argc] = { arg0, arg1, arg2, arg3, arg4 };
-  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
-}
-
 std::unique_ptr<char[]> StringStream::ToCString() const {
   char* str = NewArray<char>(length_ + 1);
   MemCopy(str, buffer_, length_);
@@ -349,7 +304,8 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
   DescriptorArray* descs = map->instance_descriptors();
   for (int i = 0; i < real_size; i++) {
     PropertyDetails details = descs->GetDetails(i);
-    if (details.type() == DATA) {
+    if (details.location() == kField) {
+      DCHECK_EQ(kData, details.kind());
       Object* key = descs->GetKey(i);
       if (key->IsString() || key->IsNumber()) {
         int len = 3;
@@ -528,8 +484,8 @@ void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
   Object* name = fun->shared()->name();
   bool print_name = false;
   Isolate* isolate = fun->GetIsolate();
-  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate) ||
-      receiver->IsTheHole(isolate) || receiver->IsJSProxy()) {
+  if (receiver->IsNullOrUndefined(isolate) || receiver->IsTheHole(isolate) ||
+      receiver->IsJSProxy()) {
     print_name = true;
   } else if (isolate->context() != nullptr) {
     if (!receiver->IsJSObject()) {

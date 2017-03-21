@@ -105,12 +105,8 @@ Node* IntrinsicsHelper::InvokeIntrinsic(Node* function_id, Node* context,
 
 Node* IntrinsicsHelper::CompareInstanceType(Node* object, int type,
                                             InstanceTypeCompareMode mode) {
-  InterpreterAssembler::Variable return_value(assembler_,
-                                              MachineRepresentation::kTagged);
   Node* instance_type = __ LoadInstanceType(object);
 
-  InterpreterAssembler::Label if_true(assembler_), if_false(assembler_),
-      end(assembler_);
   if (mode == kInstanceTypeEqual) {
     return __ Word32Equal(instance_type, __ Int32Constant(type));
   } else {
@@ -122,6 +118,7 @@ Node* IntrinsicsHelper::CompareInstanceType(Node* object, int type,
 Node* IntrinsicsHelper::IsInstanceType(Node* input, int type) {
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
+  // TODO(ishell): Use Select here.
   InterpreterAssembler::Label if_not_smi(assembler_), return_true(assembler_),
       return_false(assembler_), end(assembler_);
   Node* arg = __ LoadRegister(input);
@@ -148,6 +145,8 @@ Node* IntrinsicsHelper::IsInstanceType(Node* input, int type) {
 
 Node* IntrinsicsHelper::IsJSReceiver(Node* input, Node* arg_count,
                                      Node* context) {
+  // TODO(ishell): Use Select here.
+  // TODO(ishell): Use CSA::IsJSReceiverInstanceType here.
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
   InterpreterAssembler::Label return_true(assembler_), return_false(assembler_),
@@ -185,16 +184,13 @@ Node* IntrinsicsHelper::IsJSProxy(Node* input, Node* arg_count, Node* context) {
   return IsInstanceType(input, JS_PROXY_TYPE);
 }
 
-Node* IntrinsicsHelper::IsRegExp(Node* input, Node* arg_count, Node* context) {
-  return IsInstanceType(input, JS_REGEXP_TYPE);
-}
-
 Node* IntrinsicsHelper::IsTypedArray(Node* input, Node* arg_count,
                                      Node* context) {
   return IsInstanceType(input, JS_TYPED_ARRAY_TYPE);
 }
 
 Node* IntrinsicsHelper::IsSmi(Node* input, Node* arg_count, Node* context) {
+  // TODO(ishell): Use SelectBooleanConstant here.
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
   InterpreterAssembler::Label if_smi(assembler_), if_not_smi(assembler_),
@@ -222,25 +218,28 @@ Node* IntrinsicsHelper::IsSmi(Node* input, Node* arg_count, Node* context) {
 Node* IntrinsicsHelper::IntrinsicAsStubCall(Node* args_reg, Node* context,
                                             Callable const& callable) {
   int param_count = callable.descriptor().GetParameterCount();
-  Node** args = zone()->NewArray<Node*>(param_count + 1);  // 1 for context
+  int input_count = param_count + 2;  // +2 for target and context
+  Node** args = zone()->NewArray<Node*>(input_count);
+  int index = 0;
+  args[index++] = __ HeapConstant(callable.code());
   for (int i = 0; i < param_count; i++) {
-    args[i] = __ LoadRegister(args_reg);
+    args[index++] = __ LoadRegister(args_reg);
     args_reg = __ NextRegister(args_reg);
   }
-  args[param_count] = context;
+  args[index++] = context;
+  return __ CallStubN(callable.descriptor(), 1, input_count, args);
+}
 
-  return __ CallStubN(callable, args);
+Node* IntrinsicsHelper::CreateIterResultObject(Node* input, Node* arg_count,
+                                               Node* context) {
+  return IntrinsicAsStubCall(input, context,
+                             CodeFactory::CreateIterResultObject(isolate()));
 }
 
 Node* IntrinsicsHelper::HasProperty(Node* input, Node* arg_count,
                                     Node* context) {
   return IntrinsicAsStubCall(input, context,
                              CodeFactory::HasProperty(isolate()));
-}
-
-Node* IntrinsicsHelper::NewObject(Node* input, Node* arg_count, Node* context) {
-  return IntrinsicAsStubCall(input, context,
-                             CodeFactory::FastNewObject(isolate()));
 }
 
 Node* IntrinsicsHelper::NumberToString(Node* input, Node* arg_count,

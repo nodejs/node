@@ -67,18 +67,33 @@ class TaskRunner : public v8::base::Thread {
   DISALLOW_COPY_AND_ASSIGN(TaskRunner);
 };
 
-class ExecuteStringTask : public TaskRunner::Task {
+class AsyncTask : public TaskRunner::Task {
+ public:
+  AsyncTask(const char* task_name, v8_inspector::V8Inspector* inspector);
+  virtual ~AsyncTask() = default;
+
+  void Run(v8::Isolate* isolate,
+           const v8::Global<v8::Context>& context) override;
+  virtual void AsyncRun(v8::Isolate* isolate,
+                        const v8::Global<v8::Context>& context) = 0;
+
+ private:
+  v8_inspector::V8Inspector* inspector_;
+};
+
+class ExecuteStringTask : public AsyncTask {
  public:
   ExecuteStringTask(const v8::internal::Vector<uint16_t>& expression,
                     v8::Local<v8::String> name,
                     v8::Local<v8::Integer> line_offset,
-                    v8::Local<v8::Integer> column_offset);
+                    v8::Local<v8::Integer> column_offset, const char* task_name,
+                    v8_inspector::V8Inspector* inspector);
   explicit ExecuteStringTask(
       const v8::internal::Vector<const char>& expression);
   bool is_inspector_task() override { return false; }
 
-  void Run(v8::Isolate* isolate,
-           const v8::Global<v8::Context>& context) override;
+  void AsyncRun(v8::Isolate* isolate,
+                const v8::Global<v8::Context>& context) override;
 
  private:
   v8::internal::Vector<uint16_t> expression_;

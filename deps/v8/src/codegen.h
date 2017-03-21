@@ -104,43 +104,6 @@ V8_EXPORT_PRIVATE double modulo(double x, double y);
 double fast_sqrt(double input, Isolate* isolate);
 void lazily_initialize_fast_sqrt(Isolate* isolate);
 
-
-class ElementsTransitionGenerator : public AllStatic {
- public:
-  // If |mode| is set to DONT_TRACK_ALLOCATION_SITE,
-  // |allocation_memento_found| may be NULL.
-  static void GenerateMapChangeElementsTransition(
-      MacroAssembler* masm,
-      Register receiver,
-      Register key,
-      Register value,
-      Register target_map,
-      AllocationSiteMode mode,
-      Label* allocation_memento_found);
-  static void GenerateSmiToDouble(
-      MacroAssembler* masm,
-      Register receiver,
-      Register key,
-      Register value,
-      Register target_map,
-      AllocationSiteMode mode,
-      Label* fail);
-  static void GenerateDoubleToObject(
-      MacroAssembler* masm,
-      Register receiver,
-      Register key,
-      Register value,
-      Register target_map,
-      AllocationSiteMode mode,
-      Label* fail);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ElementsTransitionGenerator);
-};
-
-static const int kNumberDictionaryProbes = 4;
-
-
 class CodeAgingHelper {
  public:
   explicit CodeAgingHelper(Isolate* isolate);

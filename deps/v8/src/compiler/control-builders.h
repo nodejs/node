@@ -145,59 +145,6 @@ class BlockBuilder final : public ControlBuilder {
   Environment* break_environment_;  // Environment after the block exits.
 };
 
-
-// Tracks control flow for a try-catch statement.
-class TryCatchBuilder final : public ControlBuilder {
- public:
-  explicit TryCatchBuilder(AstGraphBuilder* builder)
-      : ControlBuilder(builder),
-        catch_environment_(nullptr),
-        exit_environment_(nullptr),
-        exception_node_(nullptr) {}
-
-  // Primitive control commands.
-  void BeginTry();
-  void Throw(Node* exception);
-  void EndTry();
-  void EndCatch();
-
-  // Returns the exception value inside the 'catch' body.
-  Node* GetExceptionNode() const { return exception_node_; }
-
- private:
-  Environment* catch_environment_;  // Environment for the 'catch' body.
-  Environment* exit_environment_;   // Environment after the statement.
-  Node* exception_node_;            // Node for exception in 'catch' body.
-};
-
-
-// Tracks control flow for a try-finally statement.
-class TryFinallyBuilder final : public ControlBuilder {
- public:
-  explicit TryFinallyBuilder(AstGraphBuilder* builder)
-      : ControlBuilder(builder),
-        finally_environment_(nullptr),
-        token_node_(nullptr),
-        value_node_(nullptr) {}
-
-  // Primitive control commands.
-  void BeginTry();
-  void LeaveTry(Node* token, Node* value);
-  void EndTry(Node* token, Node* value);
-  void EndFinally();
-
-  // Returns the dispatch token value inside the 'finally' body.
-  Node* GetDispatchTokenNode() const { return token_node_; }
-
-  // Returns the saved result value inside the 'finally' body.
-  Node* GetResultValueNode() const { return value_node_; }
-
- private:
-  Environment* finally_environment_;  // Environment for the 'finally' body.
-  Node* token_node_;                  // Node for token in 'finally' body.
-  Node* value_node_;                  // Node for value in 'finally' body.
-};
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -493,7 +493,7 @@ bytecodes: [
                 B(TestEqualStrict), R(3), U8(6),
                 B(JumpIfTrue), U8(34),
                 B(Jump), U8(36),
-  /*   77 E> */ B(AddSmi), U8(1), R(0), U8(2),
+  /*   79 E> */ B(AddSmi), U8(1), R(0), U8(2),
                 B(Star), R(1),
   /*   70 S> */ B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(1), U8(3),

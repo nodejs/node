@@ -20,11 +20,10 @@ class NodeMarkerBase {
  public:
   NodeMarkerBase(Graph* graph, uint32_t num_states);
 
-  V8_INLINE Mark Get(Node* node) {
+  V8_INLINE Mark Get(const Node* node) {
     Mark mark = node->mark();
     if (mark < mark_min_) {
-      mark = mark_min_;
-      node->set_mark(mark_min_);
+      return 0;
     }
     DCHECK_LT(mark, mark_max_);
     return mark - mark_min_;
@@ -52,9 +51,9 @@ class NodeMarkerBase {
 // set to State(0) in constant time.
 //
 // In its current implementation, in debug mode NodeMarker will try to
-// (efficiently) detect invalid use of an older NodeMarker. Namely, if you get
-// or set a node with a NodeMarker, and then get or set that node
-// with an older NodeMarker you will get a crash.
+// (efficiently) detect invalid use of an older NodeMarker. Namely, if you set a
+// node with a NodeMarker, and then get or set that node with an older
+// NodeMarker you will get a crash.
 //
 // GraphReducer uses a NodeMarker, so individual Reducers cannot use a
 // NodeMarker.
@@ -64,7 +63,7 @@ class NodeMarker : public NodeMarkerBase {
   V8_INLINE NodeMarker(Graph* graph, uint32_t num_states)
       : NodeMarkerBase(graph, num_states) {}
 
-  V8_INLINE State Get(Node* node) {
+  V8_INLINE State Get(const Node* node) {
     return static_cast<State>(NodeMarkerBase::Get(node));
   }
 

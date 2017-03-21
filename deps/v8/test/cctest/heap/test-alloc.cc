@@ -30,6 +30,8 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
+#include "src/objects-inl.h"
+#include "src/property.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -154,8 +156,8 @@ TEST(StressJS) {
   Handle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);
   Map::EnsureDescriptorSlack(map, 1);
 
-  AccessorConstantDescriptor d(Handle<Name>(Name::cast(foreign->name())),
-                               foreign, attrs);
+  Descriptor d = Descriptor::AccessorConstant(
+      Handle<Name>(Name::cast(foreign->name())), foreign, attrs);
   map->AppendDescriptor(&d);
 
   // Add the Foo constructor the global object.

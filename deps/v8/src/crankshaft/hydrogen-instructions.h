@@ -1947,7 +1947,7 @@ class HDeclareGlobals final : public HUnaryOperation {
                                               Handle<TypeFeedbackVector>);
 
   HValue* context() { return OperandAt(0); }
-  Handle<FixedArray> pairs() const { return pairs_; }
+  Handle<FixedArray> declarations() const { return declarations_; }
   int flags() const { return flags_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
@@ -1960,17 +1960,17 @@ class HDeclareGlobals final : public HUnaryOperation {
   }
 
  private:
-  HDeclareGlobals(HValue* context, Handle<FixedArray> pairs, int flags,
+  HDeclareGlobals(HValue* context, Handle<FixedArray> declarations, int flags,
                   Handle<TypeFeedbackVector> feedback_vector)
       : HUnaryOperation(context),
-        pairs_(pairs),
+        declarations_(declarations),
         feedback_vector_(feedback_vector),
         flags_(flags) {
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
 
-  Handle<FixedArray> pairs_;
+  Handle<FixedArray> declarations_;
   Handle<TypeFeedbackVector> feedback_vector_;
   int flags_;
 };

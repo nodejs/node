@@ -5,6 +5,7 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/compiler.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
@@ -24,7 +25,7 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   isolate->debug()->set_return_value(value);
 
@@ -38,7 +39,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreak) {
 
 RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   isolate->debug()->set_return_value(value);
 
@@ -65,7 +66,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
 
 RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   if (isolate->debug()->break_points_active()) {
     isolate->debug()->HandleDebugBreak();
   }
@@ -79,9 +80,8 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
 // args[1]: object supplied during callback
 RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-  CHECK(args[0]->IsJSFunction() || args[0]->IsUndefined(isolate) ||
-        args[0]->IsNull(isolate));
+  DCHECK_EQ(2, args.length());
+  CHECK(args[0]->IsJSFunction() || args[0]->IsNullOrUndefined(isolate));
   CONVERT_ARG_HANDLE_CHECKED(Object, callback, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, data, 1);
   isolate->debug()->SetEventListener(callback, data);
@@ -92,7 +92,7 @@ RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
 
 RUNTIME_FUNCTION(Runtime_ScheduleBreak) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   isolate->stack_guard()->RequestDebugBreak();
   return isolate->heap()->undefined_value();
 }
@@ -135,14 +135,6 @@ static Handle<Object> DebugGetProperty(LookupIterator* it,
 
   return it->isolate()->factory()->undefined_value();
 }
-
-
-static Handle<Object> DebugGetProperty(Handle<Object> object,
-                                       Handle<Name> name) {
-  LookupIterator it(object, name);
-  return DebugGetProperty(&it);
-}
-
 
 template <class IteratorType>
 static MaybeHandle<JSArray> GetIteratorInternalProperties(
@@ -248,24 +240,8 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     result->set(5, generator->receiver());
     return factory->NewJSArrayWithElements(result);
   } else if (object->IsJSPromise()) {
-    Handle<JSObject> promise = Handle<JSObject>::cast(object);
-
-    Handle<Object> status_obj =
-        DebugGetProperty(promise, isolate->factory()->promise_state_symbol());
-    CHECK(status_obj->IsSmi());
-    const char* status = "rejected";
-    int status_val = Handle<Smi>::cast(status_obj)->value();
-    switch (status_val) {
-      case kPromiseFulfilled:
-        status = "resolved";
-        break;
-      case kPromisePending:
-        status = "pending";
-        break;
-      default:
-        DCHECK_EQ(kPromiseRejected, status_val);
-    }
-
+    Handle<JSPromise> promise = Handle<JSPromise>::cast(object);
+    const char* status = JSPromise::Status(promise->status());
     Handle<FixedArray> result = factory->NewFixedArray(2 * 2);
     Handle<String> promise_status =
         factory->NewStringFromAsciiChecked("[[PromiseStatus]]");
@@ -273,8 +249,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     Handle<String> status_str = factory->NewStringFromAsciiChecked(status);
     result->set(1, *status_str);
 
-    Handle<Object> value_obj =
-        DebugGetProperty(promise, isolate->factory()->promise_result_symbol());
+    Handle<Object> value_obj(promise->result(), isolate);
     Handle<String> promise_value =
         factory->NewStringFromAsciiChecked("[[PromiseValue]]");
     result->set(2, *promise_value);
@@ -315,7 +290,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
 
 RUNTIME_FUNCTION(Runtime_DebugGetInternalProperties) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
   RETURN_RESULT_OR_FAILURE(isolate,
                            Runtime::GetInternalProperties(isolate, obj));
@@ -407,7 +382,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
 RUNTIME_FUNCTION(Runtime_DebugGetProperty) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
@@ -416,14 +391,13 @@ RUNTIME_FUNCTION(Runtime_DebugGetProperty) {
   return *DebugGetProperty(&it);
 }
 
-
-// Return the property type calculated from the property details.
+// Return the property kind calculated from the property details.
 // args[0]: smi with property details.
-RUNTIME_FUNCTION(Runtime_DebugPropertyTypeFromDetails) {
+RUNTIME_FUNCTION(Runtime_DebugPropertyKindFromDetails) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_PROPERTY_DETAILS_CHECKED(details, 0);
-  return Smi::FromInt(static_cast<int>(details.type()));
+  return Smi::FromInt(static_cast<int>(details.kind()));
 }
 
 
@@ -431,7 +405,7 @@ RUNTIME_FUNCTION(Runtime_DebugPropertyTypeFromDetails) {
 // args[0]: smi with property details.
 RUNTIME_FUNCTION(Runtime_DebugPropertyAttributesFromDetails) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_PROPERTY_DETAILS_CHECKED(details, 0);
   return Smi::FromInt(static_cast<int>(details.attributes()));
 }
@@ -439,7 +413,7 @@ RUNTIME_FUNCTION(Runtime_DebugPropertyAttributesFromDetails) {
 
 RUNTIME_FUNCTION(Runtime_CheckExecutionState) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
   return isolate->heap()->true_value();
@@ -448,7 +422,7 @@ RUNTIME_FUNCTION(Runtime_CheckExecutionState) {
 
 RUNTIME_FUNCTION(Runtime_GetFrameCount) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
@@ -460,21 +434,17 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
     return Smi::kZero;
   }
 
+  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
   for (StackTraceFrameIterator it(isolate, id); !it.done(); it.Advance()) {
-    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-    if (it.is_wasm()) {
-      n++;
-    } else {
-      it.javascript_frame()->Summarize(&frames);
-      for (int i = frames.length() - 1; i >= 0; i--) {
-        // Omit functions from native and extension scripts.
-        if (frames[i].function()->shared()->IsSubjectToDebugging()) n++;
-      }
+    frames.Clear();
+    it.frame()->Summarize(&frames);
+    for (int i = frames.length() - 1; i >= 0; i--) {
+      // Omit functions from native and extension scripts.
+      if (frames[i].is_subject_to_debugging()) n++;
     }
   }
   return Smi::FromInt(n);
 }
-
 
 static const int kFrameDetailsFrameIdIndex = 0;
 static const int kFrameDetailsReceiverIndex = 1;
@@ -508,7 +478,7 @@ static const int kFrameDetailsFirstDynamicIndex = 10;
 // Return value if any
 RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
@@ -524,11 +494,11 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   StackTraceFrameIterator it(isolate, id);
   // Inlined frame index in optimized frame, starting from outer function.
-  int inlined_jsframe_index =
+  int inlined_frame_index =
       DebugFrameHelper::FindIndexedNonNativeFrame(&it, index);
-  if (inlined_jsframe_index == -1) return heap->undefined_value();
+  if (inlined_frame_index == -1) return heap->undefined_value();
 
-  FrameInspector frame_inspector(it.frame(), inlined_jsframe_index, isolate);
+  FrameInspector frame_inspector(it.frame(), inlined_frame_index, isolate);
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -539,10 +509,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   Handle<Object> frame_id(DebugFrameHelper::WrapFrameId(it.frame()->id()),
                           isolate);
 
-  // Find source position in unoptimized code.
-  int position = frame_inspector.GetSourcePosition();
-
-  if (it.is_wasm()) {
+  if (frame_inspector.summary().IsWasm()) {
     // Create the details array (no dynamic information for wasm).
     Handle<FixedArray> details =
         isolate->factory()->NewFixedArray(kFrameDetailsFirstDynamicIndex);
@@ -551,10 +518,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsFrameIdIndex, *frame_id);
 
     // Add the function name.
-    Handle<Object> wasm_instance(it.wasm_frame()->wasm_instance(), isolate);
-    int func_index = it.wasm_frame()->function_index();
-    Handle<String> func_name =
-        wasm::GetWasmFunctionName(isolate, wasm_instance, func_index);
+    Handle<String> func_name = frame_inspector.summary().FunctionName();
     details->set(kFrameDetailsFunctionIndex, *func_name);
 
     // Add the script wrapper
@@ -569,21 +533,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsLocalCountIndex, Smi::kZero);
 
     // Add the source position.
-    // For wasm, it is function-local, so translate it to a module-relative
-    // position, such that together with the script it uniquely identifies the
-    // position.
-    Handle<Object> positionValue;
-    if (position != kNoSourcePosition) {
-      int translated_position = position;
-      if (!wasm::WasmIsAsmJs(*wasm_instance, isolate)) {
-        Handle<WasmCompiledModule> compiled_module(
-            wasm::GetCompiledModule(JSObject::cast(*wasm_instance)), isolate);
-        translated_position +=
-            wasm::GetFunctionCodeOffset(compiled_module, func_index);
-      }
-      details->set(kFrameDetailsSourcePositionIndex,
-                   Smi::FromInt(translated_position));
-    }
+    int position = frame_inspector.summary().SourcePosition();
+    details->set(kFrameDetailsSourcePositionIndex, Smi::FromInt(position));
 
     // Add the constructor information.
     details->set(kFrameDetailsConstructCallIndex, heap->ToBoolean(false));
@@ -603,6 +554,9 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
     return *isolate->factory()->NewJSArrayWithElements(details);
   }
+
+  // Find source position in unoptimized code.
+  int position = frame_inspector.GetSourcePosition();
 
   // Handle JavaScript frames.
   bool is_optimized = it.frame()->is_optimized();
@@ -685,7 +639,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // the provided parameters whereas the function frame always have the number
   // of arguments matching the functions parameters. The rest of the
   // information (except for what is collected above) is the same.
-  if ((inlined_jsframe_index == 0) &&
+  if ((inlined_frame_index == 0) &&
       it.javascript_frame()->has_adapted_arguments()) {
     it.AdvanceToArgumentsFrame();
     frame_inspector.SetArgumentsFrame(it.frame());
@@ -743,7 +697,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   }
   if (is_optimized) {
     flags |= 1 << 1;
-    flags |= inlined_jsframe_index << 2;
+    flags |= inlined_frame_index << 2;
   }
   details->set(kFrameDetailsFlagsIndex, Smi::FromInt(flags));
 
@@ -778,7 +732,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   // Add the receiver (same as in function frame).
   Handle<Object> receiver(it.frame()->receiver(), isolate);
-  DCHECK(!function->shared()->IsBuiltin());
+  DCHECK(function->shared()->IsUserJavaScript());
   DCHECK_IMPLIES(is_sloppy(shared->language_mode()), receiver->IsJSReceiver());
   details->set(kFrameDetailsReceiverIndex, *receiver);
 
@@ -789,7 +743,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
 RUNTIME_FUNCTION(Runtime_GetScopeCount) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
@@ -822,7 +776,7 @@ RUNTIME_FUNCTION(Runtime_GetScopeCount) {
 // 1: Scope object
 RUNTIME_FUNCTION(Runtime_GetScopeDetails) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
@@ -918,7 +872,7 @@ RUNTIME_FUNCTION(Runtime_GetFunctionScopeCount) {
 
 RUNTIME_FUNCTION(Runtime_GetFunctionScopeDetails) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   // Check arguments.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
@@ -957,7 +911,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
 
 RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   if (!args[0]->IsJSGeneratorObject()) {
     return isolate->heap()->undefined_value();
@@ -1004,7 +958,7 @@ static bool SetScopeVariableValue(ScopeIterator* it, int index,
 // Return true if success and false otherwise
 RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 6);
+  DCHECK_EQ(6, args.length());
 
   // Check arguments.
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[3]);
@@ -1043,7 +997,7 @@ RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
 
 RUNTIME_FUNCTION(Runtime_DebugPrintScopes) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
 
 #ifdef DEBUG
   // Print the scopes for the top frame.
@@ -1063,7 +1017,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrintScopes) {
 // args[0]: disable break state
 RUNTIME_FUNCTION(Runtime_SetBreakPointsActive) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_BOOLEAN_ARG_CHECKED(active, 0);
   isolate->debug()->set_break_points_active(active);
   return isolate->heap()->undefined_value();
@@ -1077,7 +1031,7 @@ static bool IsPositionAlignmentCodeCorrect(int alignment) {
 
 RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   CONVERT_NUMBER_CHECKED(int32_t, statement_aligned_code, Int32, args[1]);
@@ -1107,7 +1061,7 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
 // args[2]: number: break point object
 RUNTIME_FUNCTION(Runtime_SetFunctionBreakPoint) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
@@ -1132,7 +1086,7 @@ RUNTIME_FUNCTION(Runtime_SetFunctionBreakPoint) {
 // args[3]: number: break point object
 RUNTIME_FUNCTION(Runtime_SetScriptBreakPoint) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSValue, wrapper, 0);
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
@@ -1164,7 +1118,7 @@ RUNTIME_FUNCTION(Runtime_SetScriptBreakPoint) {
 // args[0]: number: break point object
 RUNTIME_FUNCTION(Runtime_ClearBreakPoint) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 0);
 
@@ -1180,7 +1134,7 @@ RUNTIME_FUNCTION(Runtime_ClearBreakPoint) {
 // args[1]: Boolean indicating on/off.
 RUNTIME_FUNCTION(Runtime_ChangeBreakOnException) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_NUMBER_CHECKED(uint32_t, type_arg, Uint32, args[0]);
   CONVERT_BOOLEAN_ARG_CHECKED(enable, 1);
 
@@ -1197,7 +1151,7 @@ RUNTIME_FUNCTION(Runtime_ChangeBreakOnException) {
 // args[0]: boolean indicating uncaught exceptions
 RUNTIME_FUNCTION(Runtime_IsBreakOnException) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_NUMBER_CHECKED(uint32_t, type_arg, Uint32, args[0]);
 
   ExceptionBreakType type = static_cast<ExceptionBreakType>(type_arg);
@@ -1213,7 +1167,7 @@ RUNTIME_FUNCTION(Runtime_IsBreakOnException) {
 //          of frames to step down.
 RUNTIME_FUNCTION(Runtime_PrepareStep) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
@@ -1236,11 +1190,23 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_PrepareStepFrame) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  CHECK(isolate->debug()->CheckExecutionState());
+
+  // Clear all current stepping setup.
+  isolate->debug()->ClearStepping();
+
+  // Prepare step.
+  isolate->debug()->PrepareStep(StepFrame);
+  return isolate->heap()->undefined_value();
+}
 
 // Clear all stepping set by PrepareStep.
 RUNTIME_FUNCTION(Runtime_ClearStepping) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   CHECK(isolate->debug()->is_active());
   isolate->debug()->ClearStepping();
   return isolate->heap()->undefined_value();
@@ -1252,21 +1218,19 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  DCHECK(args.length() == 6);
+  DCHECK_EQ(4, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 3);
-  CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 4);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, context_extension, 5);
 
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source,
-                                    disable_break, context_extension));
+      isolate,
+      DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source));
 }
 
 
@@ -1275,23 +1239,19 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(2, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
-  CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 2);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, context_extension, 3);
 
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      DebugEvaluate::Global(isolate, source, disable_break, context_extension));
+  RETURN_RESULT_OR_FAILURE(isolate, DebugEvaluate::Global(isolate, source));
 }
 
 
 RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
 
   // This runtime function is used by the debugger to determine whether the
   // debugger is active or not. Hence we fail gracefully here and don't crash.
@@ -1342,7 +1302,7 @@ static bool HasInPrototypeChainIgnoringProxies(Isolate* isolate,
 // args[2]: the the maximum number of objects to return
 RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, filter, 1);
   CHECK(filter->IsUndefined(isolate) || filter->IsJSObject());
@@ -1399,7 +1359,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
 // args[1]: the the maximum number of objects to return
 RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[1]);
   CHECK(max_references >= 0);
@@ -1432,7 +1392,7 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
 // args[0]: the object to find the prototype for.
 RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
   HandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   // TODO(1543): Come up with a solution for clients to handle potential errors
   // thrown by an intermediate proxy.
@@ -1444,7 +1404,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_DebugSetScriptSource) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSValue, script_wrapper, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
@@ -1497,7 +1457,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetDebugName) {
 // to have a stack with C++ frame in the middle.
 RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
   DebugScope debug_scope(isolate->debug());
@@ -1514,7 +1474,7 @@ RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
 
 RUNTIME_FUNCTION(Runtime_GetDebugContext) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   Handle<Context> context;
   {
     DebugScope debug_scope(isolate->debug());
@@ -1534,7 +1494,7 @@ RUNTIME_FUNCTION(Runtime_GetDebugContext) {
 // Presently, it only does a full GC.
 RUNTIME_FUNCTION(Runtime_CollectGarbage) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags,
                                      GarbageCollectionReason::kRuntime);
   return isolate->heap()->undefined_value();
@@ -1544,7 +1504,7 @@ RUNTIME_FUNCTION(Runtime_CollectGarbage) {
 // Gets the current heap usage.
 RUNTIME_FUNCTION(Runtime_GetHeapUsage) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   int usage = static_cast<int>(isolate->heap()->SizeOfObjects());
   if (!Smi::IsValid(usage)) {
     return *isolate->factory()->NewNumberFromInt(usage);
@@ -1561,7 +1521,7 @@ RUNTIME_FUNCTION(Runtime_GetHeapUsage) {
 // some kind of user interaction the performance is not crucial.
 RUNTIME_FUNCTION(Runtime_GetScript) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, script_name, 0);
 
   Handle<Script> found;
@@ -1585,11 +1545,16 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptLineCount) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSValue, script, 0);
 
   CHECK(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  if (script_handle->type() == Script::TYPE_WASM) {
+    // Return 0 for now; this function will disappear soon anyway.
+    return Smi::FromInt(0);
+  }
 
   Script::InitLineEnds(script_handle);
 
@@ -1597,42 +1562,57 @@ RUNTIME_FUNCTION(Runtime_ScriptLineCount) {
   return Smi::FromInt(line_ends_array->length());
 }
 
+namespace {
+
+int ScriptLinePosition(Handle<Script> script, int line) {
+  if (line < 0) return -1;
+
+  if (script->type() == Script::TYPE_WASM) {
+    return WasmCompiledModule::cast(script->wasm_compiled_module())
+        ->GetFunctionOffset(line);
+  }
+
+  Script::InitLineEnds(script);
+
+  FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
+  const int line_count = line_ends_array->length();
+  DCHECK_LT(0, line_count);
+
+  if (line == 0) return 0;
+  // If line == line_count, we return the first position beyond the last line.
+  if (line > line_count) return -1;
+  return Smi::cast(line_ends_array->get(line - 1))->value() + 1;
+}
+
+}  // namespace
+
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptLineStartPosition) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(JSValue, script, 0);
   CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
 
   CHECK(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
 
-  Script::InitLineEnds(script_handle);
-
-  FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
-  const int line_count = line_ends_array->length();
-
-  // If line == line_count, we return the first position beyond the last line.
-  if (line < 0 || line > line_count) {
-    return Smi::FromInt(-1);
-  } else if (line == 0) {
-    return Smi::kZero;
-  } else {
-    DCHECK(0 < line && line <= line_count);
-    const int pos = Smi::cast(line_ends_array->get(line - 1))->value() + 1;
-    return Smi::FromInt(pos);
-  }
+  return Smi::FromInt(ScriptLinePosition(script_handle, line));
 }
 
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptLineEndPosition) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(JSValue, script, 0);
   CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
 
   CHECK(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  if (script_handle->type() == Script::TYPE_WASM) {
+    // Return zero for now; this function will disappear soon anyway.
+    return Smi::FromInt(0);
+  }
 
   Script::InitLineEnds(script_handle);
 
@@ -1679,6 +1659,20 @@ static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
 
 namespace {
 
+int ScriptLinePositionWithOffset(Handle<Script> script, int line, int offset) {
+  if (line < 0 || offset < 0) return -1;
+
+  if (line == 0) return ScriptLinePosition(script, line) + offset;
+
+  Script::PositionInfo info;
+  if (!Script::GetPositionInfo(script, offset, &info, Script::NO_OFFSET)) {
+    return -1;
+  }
+
+  const int total_line = info.line + line;
+  return ScriptLinePosition(script, total_line);
+}
+
 Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
                                       Handle<Object> opt_line,
                                       Handle<Object> opt_column,
@@ -1686,51 +1680,24 @@ Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
   // Line and column are possibly undefined and we need to handle these cases,
   // additionally subtracting corresponding offsets.
 
-  int32_t line;
-  if (opt_line->IsNull(isolate) || opt_line->IsUndefined(isolate)) {
-    line = 0;
-  } else {
+  int32_t line = 0;
+  if (!opt_line->IsNullOrUndefined(isolate)) {
     CHECK(opt_line->IsNumber());
     line = NumberToInt32(*opt_line) - script->line_offset();
   }
 
-  int32_t column;
-  if (opt_column->IsNull(isolate) || opt_column->IsUndefined(isolate)) {
-    column = 0;
-  } else {
+  int32_t column = 0;
+  if (!opt_column->IsNullOrUndefined(isolate)) {
     CHECK(opt_column->IsNumber());
     column = NumberToInt32(*opt_column);
     if (line == 0) column -= script->column_offset();
   }
 
-  if (line < 0 || column < 0 || offset < 0) {
-    return isolate->factory()->null_value();
-  }
+  int line_position = ScriptLinePositionWithOffset(script, line, offset);
+  if (line_position < 0 || column < 0) return isolate->factory()->null_value();
 
-  Script::InitLineEnds(script);
-
-  FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
-  const int line_count = line_ends_array->length();
-
-  int position;
-  if (line == 0) {
-    position = offset + column;
-  } else {
-    Script::PositionInfo info;
-    if (!Script::GetPositionInfo(script, offset, &info, Script::NO_OFFSET) ||
-        info.line + line >= line_count) {
-      return isolate->factory()->null_value();
-    }
-
-    const int offset_line = info.line + line;
-    const int offset_line_position =
-        (offset_line == 0)
-            ? 0
-            : Smi::cast(line_ends_array->get(offset_line - 1))->value() + 1;
-    position = offset_line_position + column;
-  }
-
-  return GetJSPositionInfo(script, position, Script::NO_OFFSET, isolate);
+  return GetJSPositionInfo(script, line_position + column, Script::NO_OFFSET,
+                           isolate);
 }
 
 // Slow traversal over all scripts on the heap.
@@ -1760,7 +1727,7 @@ bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSValue, script, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, opt_line, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, opt_column, 2);
@@ -1776,7 +1743,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
 // TODO(5530): Rename once conflicting function has been deleted.
 RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine2) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_NUMBER_CHECKED(int32_t, scriptid, Int32, args[0]);
   CONVERT_ARG_HANDLE_CHECKED(Object, opt_line, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, opt_column, 2);
@@ -1791,7 +1758,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine2) {
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptPositionInfo) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_CHECKED(JSValue, script, 0);
   CONVERT_NUMBER_CHECKED(int32_t, position, Int32, args[1]);
   CONVERT_BOOLEAN_ARG_CHECKED(with_offset, 2);
@@ -1804,17 +1771,38 @@ RUNTIME_FUNCTION(Runtime_ScriptPositionInfo) {
   return *GetJSPositionInfo(script_handle, position, offset_flag, isolate);
 }
 
+// TODO(5530): Rename once conflicting function has been deleted.
+RUNTIME_FUNCTION(Runtime_ScriptPositionInfo2) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_NUMBER_CHECKED(int32_t, scriptid, Int32, args[0]);
+  CONVERT_NUMBER_CHECKED(int32_t, position, Int32, args[1]);
+  CONVERT_BOOLEAN_ARG_CHECKED(with_offset, 2);
+
+  Handle<Script> script;
+  CHECK(GetScriptById(isolate, scriptid, &script));
+
+  const Script::OffsetFlag offset_flag =
+      with_offset ? Script::WITH_OFFSET : Script::NO_OFFSET;
+  return *GetJSPositionInfo(script, position, offset_flag, isolate);
+}
+
 // Returns the given line as a string, or null if line is out of bounds.
 // The parameter line is expected to include the script's line offset.
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptSourceLine) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(JSValue, script, 0);
   CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
 
   CHECK(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
+
+  if (script_handle->type() == Script::TYPE_WASM) {
+    // Return null for now; this function will disappear soon anyway.
+    return isolate->heap()->null_value();
+  }
 
   Script::InitLineEnds(script_handle);
 
@@ -1837,14 +1825,19 @@ RUNTIME_FUNCTION(Runtime_ScriptSourceLine) {
   return *str;
 }
 
-// Set one shot breakpoints for the callback function that is passed to a
-// built-in function such as Array.forEach to enable stepping into the callback,
-// if we are indeed stepping and the callback is subject to debugging.
-RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
+// On function call, depending on circumstances, prepare for stepping in,
+// or perform a side effect check.
+RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  isolate->debug()->PrepareStepIn(fun);
+  if (isolate->debug()->last_step_action() >= StepIn) {
+    isolate->debug()->PrepareStepIn(fun);
+  }
+  if (isolate->needs_side_effect_check() &&
+      !isolate->debug()->PerformSideEffectCheck(fun)) {
+    return isolate->heap()->exception();
+  }
   return isolate->heap()->undefined_value();
 }
 
@@ -1856,17 +1849,17 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInSuspendedGenerator) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugRecordAsyncFunction) {
+RUNTIME_FUNCTION(Runtime_DebugRecordGenerator) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
   CHECK(isolate->debug()->last_step_action() >= StepNext);
-  isolate->debug()->RecordAsyncFunction(generator);
+  isolate->debug()->RecordGenerator(generator);
   return isolate->heap()->undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   isolate->PushPromise(promise);
@@ -1875,28 +1868,57 @@ RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
 
 
 RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   SealHandleScope shs(isolate);
   isolate->PopPromise();
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugNextMicrotaskId) {
+RUNTIME_FUNCTION(Runtime_DebugNextAsyncTaskId) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  return Smi::FromInt(isolate->GetNextDebugMicrotaskId());
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  return Smi::FromInt(isolate->debug()->NextAsyncTaskId(promise));
 }
 
-RUNTIME_FUNCTION(Runtime_DebugAsyncTaskEvent) {
-  DCHECK(args.length() == 3);
+RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
+  DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(String, type, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, id, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 2);
-  isolate->debug()->OnAsyncTaskEvent(type, id, name);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  isolate->PushPromise(promise);
+  int id = isolate->debug()->NextAsyncTaskId(promise);
+  Handle<Symbol> async_stack_id_symbol =
+      isolate->factory()->promise_async_stack_id_symbol();
+  JSObject::SetProperty(promise, async_stack_id_symbol,
+                        handle(Smi::FromInt(id), isolate), STRICT)
+      .Assert();
+  isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueAsyncFunction, id);
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DebugPromiseReject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, rejected_promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+
+  isolate->debug()->OnPromiseReject(rejected_promise, value);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugAsyncEventEnqueueRecurring) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  CONVERT_SMI_ARG_CHECKED(status, 1);
+  if (isolate->debug()->is_active()) {
+    isolate->debug()->OnAsyncTaskEvent(
+        status == v8::Promise::kFulfilled ? debug::kDebugEnqueuePromiseResolve
+                                          : debug::kDebugEnqueuePromiseReject,
+        isolate->debug()->NextAsyncTaskId(promise));
+  }
+  return isolate->heap()->undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_DebugIsActive) {
   SealHandleScope shs(isolate);

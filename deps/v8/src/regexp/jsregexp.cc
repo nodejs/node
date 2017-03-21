@@ -27,7 +27,7 @@
 #include "src/unicode-decoder.h"
 
 #ifdef V8_I18N_SUPPORT
-#include "unicode/uset.h"
+#include "unicode/uniset.h"
 #include "unicode/utypes.h"
 #endif  // V8_I18N_SUPPORT
 
@@ -451,7 +451,7 @@ void RegExpImpl::IrregexpInitialize(Handle<JSRegExp> re,
 
 int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
                                 Handle<String> subject) {
-  subject = String::Flatten(subject);
+  DCHECK(subject->IsFlat());
 
   // Check representation of the underlying storage.
   bool is_one_byte = subject->IsOneByteRepresentationUnderneath();
@@ -564,6 +564,8 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(
     Handle<RegExpMatchInfo> last_match_info) {
   Isolate* isolate = regexp->GetIsolate();
   DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
+
+  subject = String::Flatten(subject);
 
   // Prepare space for the return values.
 #if defined(V8_INTERPRETED_REGEXP) && defined(DEBUG)
@@ -5114,30 +5116,22 @@ void AddUnicodeCaseEquivalents(RegExpCompiler* compiler,
   // Use ICU to compute the case fold closure over the ranges.
   DCHECK(compiler->unicode());
   DCHECK(compiler->ignore_case());
-  USet* set = uset_openEmpty();
+  icu::UnicodeSet set;
   for (int i = 0; i < ranges->length(); i++) {
-    uset_addRange(set, ranges->at(i).from(), ranges->at(i).to());
+    set.add(ranges->at(i).from(), ranges->at(i).to());
   }
   ranges->Clear();
-  uset_closeOver(set, USET_CASE_INSENSITIVE);
+  set.closeOver(USET_CASE_INSENSITIVE);
   // Full case mapping map single characters to multiple characters.
   // Those are represented as strings in the set. Remove them so that
   // we end up with only simple and common case mappings.
-  uset_removeAllStrings(set);
-  int item_count = uset_getItemCount(set);
-  int item_result = 0;
-  UErrorCode ec = U_ZERO_ERROR;
+  set.removeAllStrings();
   Zone* zone = compiler->zone();
-  for (int i = 0; i < item_count; i++) {
-    uc32 start = 0;
-    uc32 end = 0;
-    item_result += uset_getItem(set, i, &start, &end, nullptr, 0, &ec);
-    ranges->Add(CharacterRange::Range(start, end), zone);
+  for (int i = 0; i < set.getRangeCount(); i++) {
+    ranges->Add(CharacterRange::Range(set.getRangeStart(i), set.getRangeEnd(i)),
+                zone);
   }
   // No errors and everything we collected have been ranges.
-  DCHECK_EQ(U_ZERO_ERROR, ec);
-  DCHECK_EQ(0, item_result);
-  uset_close(set);
 #else
   // Fallback if ICU is not included.
   CharacterRange::AddCaseEquivalents(compiler->isolate(), compiler->zone(),
@@ -6742,8 +6736,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   // Inserted here, instead of in Assembler, because it depends on information
   // in the AST that isn't replicated in the Node structure.
   static const int kMaxBacksearchLimit = 1024;
-  if (is_end_anchored &&
-      !is_start_anchored &&
+  if (is_end_anchored && !is_start_anchored && !is_sticky &&
       max_length < kMaxBacksearchLimit) {
     macro_assembler.SetCurrentPositionFromEnd(max_length);
   }

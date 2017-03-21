@@ -143,7 +143,8 @@ class OperandHelper {};
   template <>                                      \
   class OperandHelper<OperandType::k##Name>        \
       : public UnsignedOperandHelper<Type> {};
-UNSIGNED_SCALAR_OPERAND_TYPE_LIST(DEFINE_UNSIGNED_OPERAND_HELPER)
+UNSIGNED_FIXED_SCALAR_OPERAND_TYPE_LIST(DEFINE_UNSIGNED_OPERAND_HELPER)
+UNSIGNED_SCALABLE_SCALAR_OPERAND_TYPE_LIST(DEFINE_UNSIGNED_OPERAND_HELPER)
 #undef DEFINE_UNSIGNED_OPERAND_HELPER
 
 template <>
@@ -211,14 +212,15 @@ class OperandHelper<OperandType::kRegOutTriple> {
 
 }  // namespace
 
-template <OperandType... operand_types>
+template <Bytecode bytecode, AccumulatorUse accumulator_use,
+          OperandType... operand_types>
 class BytecodeNodeBuilder {
  public:
   template <typename... Operands>
   INLINE(static BytecodeNode Make(BytecodeArrayBuilder* builder,
                                   BytecodeSourceInfo source_info,
-                                  Bytecode bytecode, Operands... operands)) {
-    builder->PrepareToOutputBytecode(bytecode);
+                                  Operands... operands)) {
+    builder->PrepareToOutputBytecode<bytecode, accumulator_use>();
     // The "OperandHelper<operand_types>::Convert(builder, operands)..." will
     // expand both the OperandType... and Operands... parameter packs e.g. for:
     //   BytecodeNodeBuilder<OperandType::kReg, OperandType::kImm>::Make<
@@ -226,30 +228,34 @@ class BytecodeNodeBuilder {
     // the code will expand into:
     //    OperandHelper<OperandType::kReg>::Convert(builder, reg),
     //    OperandHelper<OperandType::kImm>::Convert(builder, immediate),
-    return BytecodeNode(
-        bytecode, OperandHelper<operand_types>::Convert(builder, operands)...,
-        source_info);
+    return BytecodeNode::Create<bytecode, accumulator_use, operand_types...>(
+        source_info,
+        OperandHelper<operand_types>::Convert(builder, operands)...);
   }
 };
 
-#define DEFINE_BYTECODE_OUTPUT(name, accumulator_use, ...)                 \
-  template <typename... Operands>                                          \
-  void BytecodeArrayBuilder::Output##name(Operands... operands) {          \
-    BytecodeNode node(BytecodeNodeBuilder<__VA_ARGS__>::Make<Operands...>( \
-        this, CurrentSourcePosition(Bytecode::k##name), Bytecode::k##name, \
-        operands...));                                                     \
-    pipeline()->Write(&node);                                              \
-  }                                                                        \
-                                                                           \
-  template <typename... Operands>                                          \
-  void BytecodeArrayBuilder::Output##name(BytecodeLabel* label,            \
-                                          Operands... operands) {          \
-    DCHECK(Bytecodes::IsJump(Bytecode::k##name));                          \
-    BytecodeNode node(BytecodeNodeBuilder<__VA_ARGS__>::Make<Operands...>( \
-        this, CurrentSourcePosition(Bytecode::k##name), Bytecode::k##name, \
-        operands...));                                                     \
-    pipeline()->WriteJump(&node, label);                                   \
-    LeaveBasicBlock();                                                     \
+#define DEFINE_BYTECODE_OUTPUT(name, ...)                                \
+  template <typename... Operands>                                        \
+  void BytecodeArrayBuilder::Output##name(Operands... operands) {        \
+    static_assert(sizeof...(Operands) <= Bytecodes::kMaxOperands,        \
+                  "too many operands for bytecode");                     \
+    BytecodeNode node(                                                   \
+        BytecodeNodeBuilder<Bytecode::k##name, __VA_ARGS__>::Make<       \
+            Operands...>(this, CurrentSourcePosition(Bytecode::k##name), \
+                         operands...));                                  \
+    pipeline()->Write(&node);                                            \
+  }                                                                      \
+                                                                         \
+  template <typename... Operands>                                        \
+  void BytecodeArrayBuilder::Output##name(BytecodeLabel* label,          \
+                                          Operands... operands) {        \
+    DCHECK(Bytecodes::IsJump(Bytecode::k##name));                        \
+    BytecodeNode node(                                                   \
+        BytecodeNodeBuilder<Bytecode::k##name, __VA_ARGS__>::Make<       \
+            Operands...>(this, CurrentSourcePosition(Bytecode::k##name), \
+                         operands...));                                  \
+    pipeline()->WriteJump(&node, label);                                 \
+    LeaveBasicBlock();                                                   \
   }
 BYTECODE_LIST(DEFINE_BYTECODE_OUTPUT)
 #undef DEFINE_BYTECODE_OUTPUT
@@ -315,6 +321,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LogicalNot() {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::TypeOf() {
   OutputTypeOf();
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::GetSuperConstructor(Register out) {
+  OutputGetSuperConstructor(out);
   return *this;
 }
 
@@ -433,13 +444,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(int feedback_slot,
-                                                       TypeofMode typeof_mode) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
+    const Handle<String> name, int feedback_slot, TypeofMode typeof_mode) {
+  size_t name_index = GetConstantPoolEntry(name);
   if (typeof_mode == INSIDE_TYPEOF) {
-    OutputLdaGlobalInsideTypeof(feedback_slot);
+    OutputLdaGlobalInsideTypeof(name_index, feedback_slot);
   } else {
     DCHECK_EQ(typeof_mode, NOT_INSIDE_TYPEOF);
-    OutputLdaGlobal(feedback_slot);
+    OutputLdaGlobal(name_index, feedback_slot);
   }
   return *this;
 }
@@ -541,6 +553,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreDataPropertyInLiteral(
+    Register object, Register name, DataPropertyInLiteralFlags flags,
+    int feedback_slot) {
+  OutputStaDataPropertyInLiteral(object, name, flags, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
     Register object, const Handle<Name> name, int feedback_slot,
     LanguageMode language_mode) {
@@ -566,9 +585,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(size_t entry,
-                                                          int flags) {
-  OutputCreateClosure(entry, flags);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
+    size_t shared_function_info_entry, int slot, int flags) {
+  OutputCreateClosure(shared_function_info_entry, slot, flags);
   return *this;
 }
 
@@ -589,6 +608,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateCatchContext(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(int slots) {
   OutputCreateFunctionContext(slots);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEvalContext(int slots) {
+  OutputCreateEvalContext(slots);
   return *this;
 }
 
@@ -625,16 +649,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
-    Handle<FixedArray> constant_elements, int literal_index, int flags) {
-  size_t constant_elements_entry = GetConstantPoolEntry(constant_elements);
+    size_t constant_elements_entry, int literal_index, int flags) {
   OutputCreateArrayLiteral(constant_elements_entry, literal_index, flags);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
-    Handle<FixedArray> constant_properties, int literal_index, int flags,
+    size_t constant_properties_entry, int literal_index, int flags,
     Register output) {
-  size_t constant_properties_entry = GetConstantPoolEntry(constant_properties);
   OutputCreateObjectLiteral(constant_properties_entry, literal_index, flags,
                             output);
   return *this;
@@ -718,6 +740,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfJSReceiver(
+    BytecodeLabel* label) {
+  OutputJumpIfJSReceiver(label, 0);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(BytecodeLabel* label,
                                                      int loop_depth) {
   OutputJumpLoop(label, 0, loop_depth);
@@ -739,6 +767,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck(int position) {
     latest_source_info_.ForceExpressionPosition(position);
   }
   OutputStackCheck();
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::SetPendingMessage() {
+  OutputSetPendingMessage();
   return *this;
 }
 
@@ -914,6 +947,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::NewWithSpread(RegisterList args) {
+  OutputNewWithSpread(args, args.register_count());
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::Delete(Register object,
                                                    LanguageMode language_mode) {
   if (language_mode == SLOPPY) {
@@ -975,8 +1013,10 @@ bool BytecodeArrayBuilder::RegisterListIsValid(RegisterList reg_list) const {
   }
 }
 
-void BytecodeArrayBuilder::PrepareToOutputBytecode(Bytecode bytecode) {
-  if (register_optimizer_) register_optimizer_->PrepareForBytecode(bytecode);
+template <Bytecode bytecode, AccumulatorUse accumulator_use>
+void BytecodeArrayBuilder::PrepareToOutputBytecode() {
+  if (register_optimizer_)
+    register_optimizer_->PrepareForBytecode<bytecode, accumulator_use>();
 }
 
 uint32_t BytecodeArrayBuilder::GetInputRegisterOperand(Register reg) {

@@ -18,9 +18,6 @@ function test() {
   assertFalse(%_IsSmi(1.1));
   assertFalse(%_IsSmi({}));
 
-  assertTrue(%_IsRegExp(/regexp/));
-  assertFalse(%_IsRegExp({}));
-
   assertTrue(%_IsArray([1]));
   assertFalse(%_IsArray(function() {}));
 

@@ -113,6 +113,12 @@ enum WeaknessType {
 
 class GlobalHandles {
  public:
+  enum IterationMode {
+    HANDLE_PHANTOM_NODES_VISIT_OTHERS,
+    VISIT_OTHERS,
+    HANDLE_PHANTOM_NODES
+  };
+
   ~GlobalHandles();
 
   // Creates a new global handle that is alive until Destroy is called.
@@ -227,6 +233,7 @@ class GlobalHandles {
 
   // Iterates over weak independent or unmodified handles.
   // See the note above.
+  template <IterationMode mode>
   void IterateNewSpaceWeakUnmodifiedRoots(ObjectVisitor* v);
 
   // Identify unmodified objects that are in weak state and marks them
@@ -290,7 +297,7 @@ class GlobalHandles {
 #ifdef DEBUG
   void PrintStats();
   void Print();
-#endif
+#endif  // DEBUG
 
  private:
   explicit GlobalHandles(Isolate* isolate);
@@ -389,8 +396,6 @@ class GlobalHandles::PendingPhantomCallback {
 class EternalHandles {
  public:
   enum SingletonHandle {
-    I18N_TEMPLATE_ONE,
-    I18N_TEMPLATE_TWO,
     DATE_CACHE_VERSION,
 
     NUMBER_OF_SINGLETON_HANDLES

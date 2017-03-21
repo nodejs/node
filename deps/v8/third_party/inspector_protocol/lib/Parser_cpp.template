@@ -538,12 +538,12 @@ std::unique_ptr<Value> parseJSONInternal(const Char* start, unsigned length)
 
 } // anonymous namespace
 
-std::unique_ptr<Value> parseJSON(const uint16_t* characters, unsigned length)
+std::unique_ptr<Value> parseJSONCharacters(const uint16_t* characters, unsigned length)
 {
     return parseJSONInternal<uint16_t>(characters, length);
 }
 
-std::unique_ptr<Value> parseJSON(const uint8_t* characters, unsigned length)
+std::unique_ptr<Value> parseJSONCharacters(const uint8_t* characters, unsigned length)
 {
     return parseJSONInternal<uint8_t>(characters, length);
 }

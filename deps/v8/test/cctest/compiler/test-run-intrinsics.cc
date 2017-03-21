@@ -80,21 +80,6 @@ TEST(IsFunction) {
 }
 
 
-TEST(IsRegExp) {
-  FunctionTester T("(function(a) { return %_IsRegExp(a); })", flags);
-
-  T.CheckFalse(T.NewObject("new Date()"));
-  T.CheckFalse(T.NewObject("(function() {})"));
-  T.CheckFalse(T.NewObject("([1])"));
-  T.CheckFalse(T.NewObject("({})"));
-  T.CheckTrue(T.NewObject("(/x/)"));
-  T.CheckFalse(T.undefined());
-  T.CheckFalse(T.null());
-  T.CheckFalse(T.Val("x"));
-  T.CheckFalse(T.Val(1));
-}
-
-
 TEST(IsSmi) {
   FunctionTester T("(function(a) { return %_IsSmi(a); })", flags);
 

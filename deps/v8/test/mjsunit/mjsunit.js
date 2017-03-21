@@ -376,7 +376,7 @@ var assertMatches;
         failWithMessage("invalid use of assertThrows, maybe you want assertThrowsEquals");
       }
       if (arguments.length >= 3) {
-        assertEquals(e.type, cause_opt);
+        assertEquals(e.message, cause_opt);
       }
       // Success.
       return;

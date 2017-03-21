@@ -41,7 +41,8 @@ class Arguments BASE_EMBEDDED {
                                         index * kPointerSize));
   }
 
-  template <class S> Handle<S> at(int index) {
+  template <class S = Object>
+  Handle<S> at(int index) {
     Object** value = &((*this)[index]);
     // This cast checks that the object we're accessing does indeed have the
     // expected type.

@@ -30,6 +30,7 @@
 #include "src/v8.h"
 
 #include "src/debug/liveedit.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 

@@ -90,7 +90,7 @@ class CodeEventListener {
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                                Name* name) = 0;
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                               SharedFunctionInfo* shared, Name* name) = 0;
+                               SharedFunctionInfo* shared, Name* source) = 0;
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                                SharedFunctionInfo* shared, Name* source,
                                int line, int column) = 0;

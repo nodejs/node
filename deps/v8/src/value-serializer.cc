@@ -110,8 +110,8 @@ enum class SerializationTag : uint8_t {
   // ObjectReference to one) serialized just before it. This is a quirk arising
   // from the previous stack-based implementation.
   kArrayBufferView = 'V',
-  // Shared array buffer (transferred). transferID:uint32_t
-  kSharedArrayBufferTransfer = 'u',
+  // Shared array buffer. transferID:uint32_t
+  kSharedArrayBuffer = 'u',
   // Compiled WebAssembly module. encodingType:(one-byte tag).
   // If encodingType == 'y' (raw bytes):
   //  wasmWireByteLength:uint32_t, then raw data
@@ -269,6 +269,7 @@ std::pair<uint8_t*, size_t> ValueSerializer::Release() {
 void ValueSerializer::TransferArrayBuffer(uint32_t transfer_id,
                                           Handle<JSArrayBuffer> array_buffer) {
   DCHECK(!array_buffer_transfer_map_.Find(array_buffer));
+  DCHECK(!array_buffer->is_shared());
   array_buffer_transfer_map_.Set(array_buffer, transfer_id);
 }
 
@@ -400,7 +401,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
 
   // Eliminate callable and exotic objects, which should not be serialized.
   InstanceType instance_type = receiver->map()->instance_type();
-  if (receiver->IsCallable() || (instance_type <= LAST_SPECIAL_RECEIVER_TYPE &&
+  if (receiver->IsCallable() || (IsSpecialReceiverInstanceType(instance_type) &&
                                  instance_type != JS_SPECIAL_API_OBJECT_TYPE)) {
     ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
     return Nothing<bool>();
@@ -417,7 +418,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_API_OBJECT_TYPE: {
       Handle<JSObject> js_object = Handle<JSObject>::cast(receiver);
       Map* map = js_object->map();
-      if (FLAG_expose_wasm &&
+      if (!FLAG_wasm_disable_structured_cloning &&
           map->GetConstructor() ==
               isolate_->native_context()->wasm_module_constructor()) {
         return WriteWasmModule(js_object);
@@ -442,7 +443,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_SET_TYPE:
       return WriteJSSet(Handle<JSSet>::cast(receiver));
     case JS_ARRAY_BUFFER_TYPE:
-      return WriteJSArrayBuffer(JSArrayBuffer::cast(*receiver));
+      return WriteJSArrayBuffer(Handle<JSArrayBuffer>::cast(receiver));
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
@@ -474,7 +475,8 @@ Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
 
     Handle<Object> value;
     if (V8_LIKELY(!map_changed)) map_changed = *map == object->map();
-    if (V8_LIKELY(!map_changed && details.type() == DATA)) {
+    if (V8_LIKELY(!map_changed && details.location() == kField)) {
+      DCHECK_EQ(kData, details.kind());
       FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
       value = JSObject::FastPropertyAt(object, details.representation(),
                                        field_index);
@@ -724,20 +726,29 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
   return Just(true);
 }
 
-Maybe<bool> ValueSerializer::WriteJSArrayBuffer(JSArrayBuffer* array_buffer) {
-  uint32_t* transfer_entry = array_buffer_transfer_map_.Find(array_buffer);
-  if (transfer_entry) {
-    WriteTag(array_buffer->is_shared()
-                 ? SerializationTag::kSharedArrayBufferTransfer
-                 : SerializationTag::kArrayBufferTransfer);
-    WriteVarint(*transfer_entry);
+Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
+    Handle<JSArrayBuffer> array_buffer) {
+  if (array_buffer->is_shared()) {
+    if (!delegate_) {
+      ThrowDataCloneError(MessageTemplate::kDataCloneError, array_buffer);
+      return Nothing<bool>();
+    }
+
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+    Maybe<uint32_t> index = delegate_->GetSharedArrayBufferId(
+        v8_isolate, Utils::ToLocalShared(array_buffer));
+    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+
+    WriteTag(SerializationTag::kSharedArrayBuffer);
+    WriteVarint(index.FromJust());
     return Just(true);
   }
 
-  if (array_buffer->is_shared()) {
-    ThrowDataCloneError(
-        MessageTemplate::kDataCloneErrorSharedArrayBufferNotTransferred);
-    return Nothing<bool>();
+  uint32_t* transfer_entry = array_buffer_transfer_map_.Find(array_buffer);
+  if (transfer_entry) {
+    WriteTag(SerializationTag::kArrayBufferTransfer);
+    WriteVarint(*transfer_entry);
+    return Just(true);
   }
   if (array_buffer->was_neutered()) {
     ThrowDataCloneError(MessageTemplate::kDataCloneErrorNeuteredArrayBuffer);
@@ -745,7 +756,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(JSArrayBuffer* array_buffer) {
   }
   double byte_length = array_buffer->byte_length()->Number();
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
-    ThrowDataCloneError(MessageTemplate::kDataCloneError, handle(array_buffer));
+    ThrowDataCloneError(MessageTemplate::kDataCloneError, array_buffer);
     return Nothing<bool>();
   }
   WriteTag(SerializationTag::kArrayBuffer);
@@ -783,7 +794,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
   WriteTag(SerializationTag::kWasmModule);
   WriteRawBytes(&encoding_tag, sizeof(encoding_tag));
 
-  Handle<String> wire_bytes = compiled_part->module_bytes();
+  Handle<String> wire_bytes(compiled_part->module_bytes(), isolate_);
   int wire_bytes_length = wire_bytes->length();
   WriteVarint<uint32_t>(wire_bytes_length);
   uint8_t* destination = ReserveRawBytes(wire_bytes_length);
@@ -1006,10 +1017,10 @@ void ValueDeserializer::TransferArrayBuffer(
   }
   Handle<SeededNumberDictionary> dictionary =
       array_buffer_transfer_map_.ToHandleChecked();
-  const bool used_as_prototype = false;
+  Handle<JSObject> not_a_prototype_holder;
   Handle<SeededNumberDictionary> new_dictionary =
       SeededNumberDictionary::AtNumberPut(dictionary, transfer_id, array_buffer,
-                                          used_as_prototype);
+                                          not_a_prototype_holder);
   if (!new_dictionary.is_identical_to(dictionary)) {
     GlobalHandles::Destroy(Handle<Object>::cast(dictionary).location());
     array_buffer_transfer_map_ = Handle<SeededNumberDictionary>::cast(
@@ -1105,7 +1116,7 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
       const bool is_shared = false;
       return ReadTransferredJSArrayBuffer(is_shared);
     }
-    case SerializationTag::kSharedArrayBufferTransfer: {
+    case SerializationTag::kSharedArrayBuffer: {
       const bool is_shared = true;
       return ReadTransferredJSArrayBuffer(is_shared);
     }
@@ -1443,8 +1454,10 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer() {
   const bool should_initialize = false;
   Handle<JSArrayBuffer> array_buffer =
       isolate_->factory()->NewJSArrayBuffer(SharedFlag::kNotShared, pretenure_);
-  JSArrayBuffer::SetupAllocatingData(array_buffer, isolate_, byte_length,
-                                     should_initialize);
+  if (!JSArrayBuffer::SetupAllocatingData(array_buffer, isolate_, byte_length,
+                                          should_initialize)) {
+    return MaybeHandle<JSArrayBuffer>();
+  }
   memcpy(array_buffer->backing_store(), position_, byte_length);
   position_ += byte_length;
   AddObjectWithID(id, array_buffer);
@@ -1514,7 +1527,7 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
-  if (!FLAG_expose_wasm) return MaybeHandle<JSObject>();
+  if (FLAG_wasm_disable_structured_cloning) return MaybeHandle<JSObject>();
 
   Vector<const uint8_t> encoding_tag;
   if (!ReadRawBytes(sizeof(WasmEncodingTag)).To(&encoding_tag) ||
@@ -1554,8 +1567,8 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
   return wasm::CreateModuleObjectFromBytes(
       isolate_, wire_bytes.begin(), wire_bytes.end(), &thrower,
-      wasm::ModuleOrigin::kWasmOrigin, Handle<Script>::null(), nullptr,
-      nullptr);
+      wasm::ModuleOrigin::kWasmOrigin, Handle<Script>::null(),
+      Vector<const byte>::empty());
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
@@ -1584,6 +1597,7 @@ static void CommitProperties(Handle<JSObject> object, Handle<Map> map,
   DisallowHeapAllocation no_gc;
   DescriptorArray* descriptors = object->map()->instance_descriptors();
   for (unsigned i = 0; i < properties.size(); i++) {
+    // Initializing store.
     object->WriteToField(i, descriptors->GetDetails(i), *properties[i]);
   }
 }
@@ -1654,8 +1668,8 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
                    ->NowContains(value)) {
             Handle<FieldType> value_type =
                 value->OptimalType(isolate_, expected_representation);
-            Map::GeneralizeFieldType(target, descriptor,
-                                     expected_representation, value_type);
+            Map::GeneralizeField(target, descriptor, expected_representation,
+                                 value_type);
           }
           DCHECK(target->instance_descriptors()
                      ->GetFieldType(descriptor)

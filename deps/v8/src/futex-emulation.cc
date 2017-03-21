@@ -12,6 +12,7 @@
 #include "src/handles-inl.h"
 #include "src/isolate.h"
 #include "src/list-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

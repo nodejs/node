@@ -48,13 +48,6 @@ class StubCache {
   // Collect all maps that match the name.
   void CollectMatchingMaps(SmallMapList* types, Handle<Name> name,
                            Handle<Context> native_context, Zone* zone);
-  // Generate code for probing the stub cache table.
-  // Arguments extra, extra2 and extra3 may be used to pass additional scratch
-  // registers. Set to no_reg if not needed.
-  // If leave_frame is true, then exit a frame before the tail call.
-  void GenerateProbe(MacroAssembler* masm, Register receiver, Register name,
-                     Register scratch, Register extra, Register extra2 = no_reg,
-                     Register extra3 = no_reg);
 
   enum Table { kPrimary, kSecondary };
 

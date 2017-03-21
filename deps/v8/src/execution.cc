@@ -54,11 +54,10 @@ static void PrintDeserializedCodeInfo(Handle<JSFunction> function) {
 
 namespace {
 
-MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
-                                           Handle<Object> target,
-                                           Handle<Object> receiver, int argc,
-                                           Handle<Object> args[],
-                                           Handle<Object> new_target) {
+MUST_USE_RESULT MaybeHandle<Object> Invoke(
+    Isolate* isolate, bool is_construct, Handle<Object> target,
+    Handle<Object> receiver, int argc, Handle<Object> args[],
+    Handle<Object> new_target, Execution::MessageHandling message_handling) {
   DCHECK(!receiver->IsJSGlobalObject());
 
 #ifdef USE_SIMULATOR
@@ -69,7 +68,9 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) {
     isolate->StackOverflow();
-    isolate->ReportPendingMessages();
+    if (message_handling == Execution::MessageHandling::kReport) {
+      isolate->ReportPendingMessages();
+    }
     return MaybeHandle<Object>();
   }
 #endif
@@ -89,7 +90,9 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
       bool has_exception = value.is_null();
       DCHECK(has_exception == isolate->has_pending_exception());
       if (has_exception) {
-        isolate->ReportPendingMessages();
+        if (message_handling == Execution::MessageHandling::kReport) {
+          isolate->ReportPendingMessages();
+        }
         return MaybeHandle<Object>();
       } else {
         isolate->clear_pending_message();
@@ -103,7 +106,9 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
   CHECK(AllowJavascriptExecution::IsAllowed(isolate));
   if (!ThrowOnJavascriptExecution::IsAllowed(isolate)) {
     isolate->ThrowIllegalOperation();
-    isolate->ReportPendingMessages();
+    if (message_handling == Execution::MessageHandling::kReport) {
+      isolate->ReportPendingMessages();
+    }
     return MaybeHandle<Object>();
   }
 
@@ -150,7 +155,9 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
   bool has_exception = value->IsException(isolate);
   DCHECK(has_exception == isolate->has_pending_exception());
   if (has_exception) {
-    isolate->ReportPendingMessages();
+    if (message_handling == Execution::MessageHandling::kReport) {
+      isolate->ReportPendingMessages();
+    }
     return MaybeHandle<Object>();
   } else {
     isolate->clear_pending_message();
@@ -159,13 +166,10 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
   return Handle<Object>(value, isolate);
 }
 
-}  // namespace
-
-
-// static
-MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
-                                    Handle<Object> receiver, int argc,
-                                    Handle<Object> argv[]) {
+MaybeHandle<Object> CallInternal(Isolate* isolate, Handle<Object> callable,
+                                 Handle<Object> receiver, int argc,
+                                 Handle<Object> argv[],
+                                 Execution::MessageHandling message_handling) {
   // Convert calls on global objects to be calls on the global
   // receiver instead to avoid having a 'this' pointer which refers
   // directly to a global object.
@@ -174,7 +178,17 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
         handle(Handle<JSGlobalObject>::cast(receiver)->global_proxy(), isolate);
   }
   return Invoke(isolate, false, callable, receiver, argc, argv,
-                isolate->factory()->undefined_value());
+                isolate->factory()->undefined_value(), message_handling);
+}
+
+}  // namespace
+
+// static
+MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
+                                    Handle<Object> receiver, int argc,
+                                    Handle<Object> argv[]) {
+  return CallInternal(isolate, callable, receiver, argc, argv,
+                      MessageHandling::kReport);
 }
 
 
@@ -190,18 +204,21 @@ MaybeHandle<Object> Execution::New(Isolate* isolate, Handle<Object> constructor,
                                    Handle<Object> new_target, int argc,
                                    Handle<Object> argv[]) {
   return Invoke(isolate, true, constructor,
-                isolate->factory()->undefined_value(), argc, argv, new_target);
+                isolate->factory()->undefined_value(), argc, argv, new_target,
+                MessageHandling::kReport);
 }
-
 
 MaybeHandle<Object> Execution::TryCall(Isolate* isolate,
                                        Handle<Object> callable,
                                        Handle<Object> receiver, int argc,
                                        Handle<Object> args[],
+                                       MessageHandling message_handling,
                                        MaybeHandle<Object>* exception_out) {
   bool is_termination = false;
   MaybeHandle<Object> maybe_result;
   if (exception_out != NULL) *exception_out = MaybeHandle<Object>();
+  DCHECK_IMPLIES(message_handling == MessageHandling::kKeepPending,
+                 exception_out == nullptr);
   // Enter a try-block while executing the JavaScript code. To avoid
   // duplicate error printing it must be non-verbose.  Also, to avoid
   // creating message objects during stack overflow we shouldn't
@@ -211,24 +228,25 @@ MaybeHandle<Object> Execution::TryCall(Isolate* isolate,
     catcher.SetVerbose(false);
     catcher.SetCaptureMessage(false);
 
-    maybe_result = Call(isolate, callable, receiver, argc, args);
+    maybe_result =
+        CallInternal(isolate, callable, receiver, argc, args, message_handling);
 
     if (maybe_result.is_null()) {
-      DCHECK(catcher.HasCaught());
       DCHECK(isolate->has_pending_exception());
-      DCHECK(isolate->external_caught_exception());
       if (isolate->pending_exception() ==
           isolate->heap()->termination_exception()) {
         is_termination = true;
       } else {
-        if (exception_out != NULL) {
+        if (exception_out != nullptr) {
+          DCHECK(catcher.HasCaught());
+          DCHECK(isolate->external_caught_exception());
           *exception_out = v8::Utils::OpenHandle(*catcher.Exception());
         }
       }
-      isolate->OptionalRescheduleException(true);
+      if (message_handling == MessageHandling::kReport) {
+        isolate->OptionalRescheduleException(true);
+      }
     }
-
-    DCHECK(!isolate->has_pending_exception());
   }
 
   // Re-request terminate execution interrupt to trigger later.

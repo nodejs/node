@@ -19,13 +19,14 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
   virtual ~ChannelImpl() = default;
 
  private:
-  void sendProtocolResponse(int callId,
-                            const v8_inspector::StringView& message) override {
-    frontend_channel_->SendMessageToFrontend(message);
+  void sendResponse(
+      int callId,
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    frontend_channel_->SendMessageToFrontend(message->string());
   }
-  void sendProtocolNotification(
-      const v8_inspector::StringView& message) override {
-    frontend_channel_->SendMessageToFrontend(message);
+  void sendNotification(
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    frontend_channel_->SendMessageToFrontend(message->string());
   }
   void flushProtocolNotifications() override {}
 

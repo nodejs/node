@@ -64,14 +64,9 @@ const Register GrowArrayElementsDescriptor::KeyRegister() { return ebx; }
 
 void FastNewClosureDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {ebx};
+  // SharedFunctionInfo, vector, slot index.
+  Register registers[] = {ebx, ecx, edx};
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
-}
-
-void FastNewObjectDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {edi, edx};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
 void FastNewRestParameterDescriptor::InitializePlatformSpecific(

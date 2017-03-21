@@ -146,6 +146,7 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(double idle_time_in_ms,
   return GCIdleTimeAction::IncrementalStep();
 }
 
+bool GCIdleTimeHandler::Enabled() { return FLAG_incremental_marking; }
 
 }  // namespace internal
 }  // namespace v8

@@ -238,6 +238,7 @@ class RepresentationChanger final {
                              UseInfo use_info);
   const Operator* Int32OperatorFor(IrOpcode::Value opcode);
   const Operator* Int32OverflowOperatorFor(IrOpcode::Value opcode);
+  const Operator* TaggedSignedOperatorFor(IrOpcode::Value opcode);
   const Operator* Uint32OperatorFor(IrOpcode::Value opcode);
   const Operator* Uint32OverflowOperatorFor(IrOpcode::Value opcode);
   const Operator* Float64OperatorFor(IrOpcode::Value opcode);

@@ -1,0 +1,97 @@
+# Copyright 2016 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# TODO(machenbach): Remove this when crbug.com/669910 is resolved.
+{
+  'conditions': [
+    # Copy the VS runtime DLLs into the isolate so that they
+    # don't have to be preinstalled on the target machine.
+    #
+    # VS2013 runtimes
+    ['OS=="win" and msvs_version==2013 and component=="shared_library" and (CONFIGURATION_NAME=="Debug" or CONFIGURATION_NAME=="Debug_x64")', {
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/msvcp120d.dll',
+          '<(PRODUCT_DIR)/msvcr120d.dll',
+        ],
+      },
+    }],
+    ['OS=="win" and msvs_version==2013 and component=="shared_library" and (CONFIGURATION_NAME=="Release" or CONFIGURATION_NAME=="Release_x64")', {
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/msvcp120.dll',
+          '<(PRODUCT_DIR)/msvcr120.dll',
+        ],
+      },
+    }],
+    # VS2015 runtimes
+    ['OS=="win" and msvs_version==2015 and component=="shared_library" and (CONFIGURATION_NAME=="Debug" or CONFIGURATION_NAME=="Debug_x64")', {
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/msvcp140d.dll',
+          '<(PRODUCT_DIR)/vccorlib140d.dll',
+          '<(PRODUCT_DIR)/vcruntime140d.dll',
+          '<(PRODUCT_DIR)/ucrtbased.dll',
+        ],
+      },
+    }],
+    ['OS=="win" and msvs_version==2015 and component=="shared_library" and (CONFIGURATION_NAME=="Release" or CONFIGURATION_NAME=="Release_x64")', {
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/msvcp140.dll',
+          '<(PRODUCT_DIR)/vccorlib140.dll',
+          '<(PRODUCT_DIR)/vcruntime140.dll',
+          '<(PRODUCT_DIR)/ucrtbase.dll',
+        ],
+      },
+    }],
+    ['OS=="win" and msvs_version==2015 and component=="shared_library"', {
+      # Windows 10 Universal C Runtime binaries.
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/api-ms-win-core-console-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-datetime-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-debug-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-errorhandling-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-file-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-file-l1-2-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-file-l2-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-handle-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-heap-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-interlocked-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-libraryloader-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-localization-l1-2-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-memory-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-namedpipe-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-processenvironment-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-processthreads-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-processthreads-l1-1-1.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-profile-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-rtlsupport-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-string-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-synch-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-synch-l1-2-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-sysinfo-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-timezone-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-core-util-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-conio-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-convert-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-environment-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-filesystem-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-heap-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-locale-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-math-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-multibyte-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-private-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-process-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-runtime-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-stdio-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-string-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-time-l1-1-0.dll',
+          '<(PRODUCT_DIR)/api-ms-win-crt-utility-l1-1-0.dll',
+        ],
+      },
+    }],
+  ],
+}

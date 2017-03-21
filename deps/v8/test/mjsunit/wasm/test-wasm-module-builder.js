@@ -17,7 +17,7 @@ function instantiate(buffer, ffi) {
     let builder = new WasmModuleBuilder();
     builder.addMemory(1, 2, false);
     builder.addFunction("foo", kSig_i_v)
-        .addBody([kExprI8Const, 11])
+        .addBody([kExprI32Const, 11])
         .exportAs("blarg");
 
     var buffer = builder.toBuffer(debug);
@@ -27,13 +27,13 @@ function instantiate(buffer, ffi) {
 
 (function ImportTest() {
     let builder = new WasmModuleBuilder();
-    var index = builder.addImport("print", makeSig_v_x(kAstI32));
+  var index = builder.addImport("", "print", makeSig_v_x(kWasmI32));
     builder.addFunction("foo", kSig_v_v)
-        .addBody([kExprI8Const, 13, kExprCallFunction, index])
+        .addBody([kExprI32Const, 13, kExprCallFunction, index])
         .exportAs("main");
 
     var buffer = builder.toBuffer(debug);
-    var instance = instantiate(buffer, {print: print});
+    var instance = instantiate(buffer, {"": {print: print}});
     print("should print 13! ");
     instance.exports.main();
 })();
@@ -54,10 +54,10 @@ function instantiate(buffer, ffi) {
 (function LocalsTest2() {
     // TODO(titzer): i64 only works on 64-bit platforms.
     var types = [
-      {locals: {i32_count: 1}, type: kAstI32},
-//      {locals: {i64_count: 1}, type: kAstI64},
-      {locals: {f32_count: 1}, type: kAstF32},
-      {locals: {f64_count: 1}, type: kAstF64},
+      {locals: {i32_count: 1}, type: kWasmI32},
+//      {locals: {i64_count: 1}, type: kWasmI64},
+      {locals: {f32_count: 1}, type: kWasmF32},
+      {locals: {f64_count: 1}, type: kWasmF64},
     ];
 
     for (p of types) {
@@ -121,7 +121,7 @@ function instantiate(buffer, ffi) {
     let builder = new WasmModuleBuilder();
     builder.addMemory(1, 2, false);
     builder.addFunction("foo", kSig_i_v)
-        .addBody([kExprI8Const, 17])
+        .addBody([kExprI32Const, 17])
         .exportAs("blarg");
 
     var buffer = builder.toBuffer(debug);
@@ -145,9 +145,9 @@ function instantiate(buffer, ffi) {
 
 (function ImportTestTwoLevel() {
     let builder = new WasmModuleBuilder();
-    var index = builder.addImportWithModule("mod", "print", makeSig_v_x(kAstI32));
+    var index = builder.addImport("mod", "print", makeSig_v_x(kWasmI32));
     builder.addFunction("foo", kSig_v_v)
-        .addBody([kExprI8Const, 19, kExprCallFunction, index])
+        .addBody([kExprI32Const, 19, kExprCallFunction, index])
         .exportAs("main");
 
     var buffer = builder.toBuffer(debug);

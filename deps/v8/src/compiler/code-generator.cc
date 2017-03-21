@@ -33,8 +33,10 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   size_t const target_count_;
 };
 
-CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
-                             InstructionSequence* code, CompilationInfo* info)
+CodeGenerator::CodeGenerator(
+    Frame* frame, Linkage* linkage, InstructionSequence* code,
+    CompilationInfo* info,
+    ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions)
     : frame_access_state_(nullptr),
       linkage_(linkage),
       code_(code),
@@ -56,8 +58,10 @@ CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
       jump_tables_(nullptr),
       ools_(nullptr),
       osr_pc_offset_(-1),
+      optimized_out_literal_id_(-1),
       source_position_table_builder_(code->zone(),
-                                     info->SourcePositionRecordingMode()) {
+                                     info->SourcePositionRecordingMode()),
+      protected_instructions_(protected_instructions) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
@@ -71,6 +75,15 @@ void CodeGenerator::CreateFrameAccessState(Frame* frame) {
   frame_access_state_ = new (code()->zone()) FrameAccessState(frame);
 }
 
+void CodeGenerator::AddProtectedInstruction(int instr_offset,
+                                            int landing_offset) {
+  if (protected_instructions_ != nullptr) {
+    trap_handler::ProtectedInstructionData data = {instr_offset,
+                                                   landing_offset};
+    protected_instructions_->emplace_back(data);
+  }
+}
+
 Handle<Code> CodeGenerator::GenerateCode() {
   CompilationInfo* info = this->info();
 
@@ -78,6 +91,11 @@ Handle<Code> CodeGenerator::GenerateCode() {
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done in AssemblePrologue).
   FrameScope frame_scope(masm(), StackFrame::MANUAL);
+
+  if (info->is_source_positions_enabled()) {
+    SourcePosition source_position(info->shared_info()->start_position());
+    AssembleSourcePosition(source_position);
+  }
 
   // Place function entry hook if requested to do so.
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
@@ -392,6 +410,10 @@ void CodeGenerator::GetPushCompatibleMoves(Instruction* instr,
 CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     Instruction* instr, const InstructionBlock* block) {
   int first_unused_stack_slot;
+  FlagsMode mode = FlagsModeField::decode(instr->opcode());
+  if (mode != kFlags_trap) {
+    AssembleSourcePosition(instr);
+  }
   bool adjust_stack =
       GetSlotAboveSPBeforeTailCall(instr, &first_unused_stack_slot);
   if (adjust_stack) AssembleTailCallBeforeGap(instr, first_unused_stack_slot);
@@ -404,12 +426,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
   if (instr->IsJump() && block->must_deconstruct_frame()) {
     AssembleDeconstructFrame();
   }
-  AssembleSourcePosition(instr);
   // Assemble architecture-specific code for the instruction.
   CodeGenResult result = AssembleArchInstruction(instr);
   if (result != kSuccess) return result;
 
-  FlagsMode mode = FlagsModeField::decode(instr->opcode());
   FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
   switch (mode) {
     case kFlags_branch: {
@@ -461,6 +481,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       AssembleArchBoolean(instr, condition);
       break;
     }
+    case kFlags_trap: {
+      AssembleArchTrap(instr, condition);
+      break;
+    }
     case kFlags_none: {
       break;
     }
@@ -468,10 +492,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
   return kSuccess;
 }
 
-
 void CodeGenerator::AssembleSourcePosition(Instruction* instr) {
   SourcePosition source_position = SourcePosition::Unknown();
+  if (instr->IsNop() && instr->AreMovesRedundant()) return;
   if (!code()->GetSourcePosition(instr, &source_position)) return;
+  AssembleSourcePosition(source_position);
+}
+
+void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
   if (source_position == current_source_position_) return;
   current_source_position_ = source_position;
   if (!source_position.IsKnown()) return;
@@ -481,7 +509,13 @@ void CodeGenerator::AssembleSourcePosition(Instruction* instr) {
     CompilationInfo* info = this->info();
     if (!info->parse_info()) return;
     std::ostringstream buffer;
-    buffer << "-- " << source_position.InliningStack(info) << " --";
+    buffer << "-- ";
+    if (FLAG_trace_turbo) {
+      buffer << source_position;
+    } else {
+      buffer << source_position.InliningStack(info);
+    }
+    buffer << " --";
     masm()->RecordComment(StrDup(buffer.str().c_str()));
   }
 }
@@ -628,15 +662,6 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
       deopt_state_id = BuildTranslation(instr, -1, frame_state_offset,
                                         OutputFrameStateCombine::Ignore());
     }
-#if DEBUG
-    // Make sure all the values live in stack slots or they are immediates.
-    // (The values should not live in register because registers are clobbered
-    // by calls.)
-    for (size_t i = 0; i < descriptor->GetSize(); i++) {
-      InstructionOperand* op = instr->InputAt(frame_state_offset + 1 + i);
-      CHECK(op->IsStackSlot() || op->IsFPStackSlot() || op->IsImmediate());
-    }
-#endif
     safepoints()->RecordLazyDeoptimizationIndex(deopt_state_id);
   }
 }
@@ -666,19 +691,37 @@ DeoptimizeReason CodeGenerator::GetDeoptimizationReason(
 }
 
 void CodeGenerator::TranslateStateValueDescriptor(
-    StateValueDescriptor* desc, Translation* translation,
-    InstructionOperandIterator* iter) {
+    StateValueDescriptor* desc, StateValueList* nested,
+    Translation* translation, InstructionOperandIterator* iter) {
+  // Note:
+  // If translation is null, we just skip the relevant instruction operands.
   if (desc->IsNested()) {
-    translation->BeginCapturedObject(static_cast<int>(desc->size()));
-    for (size_t index = 0; index < desc->fields().size(); index++) {
-      TranslateStateValueDescriptor(&desc->fields()[index], translation, iter);
+    if (translation != nullptr) {
+      translation->BeginCapturedObject(static_cast<int>(nested->size()));
+    }
+    for (auto field : *nested) {
+      TranslateStateValueDescriptor(field.desc, field.nested, translation,
+                                    iter);
     }
   } else if (desc->IsDuplicate()) {
-    translation->DuplicateObject(static_cast<int>(desc->id()));
+    if (translation != nullptr) {
+      translation->DuplicateObject(static_cast<int>(desc->id()));
+    }
+  } else if (desc->IsPlain()) {
+    InstructionOperand* op = iter->Advance();
+    if (translation != nullptr) {
+      AddTranslationForOperand(translation, iter->instruction(), op,
+                               desc->type());
+    }
   } else {
-    DCHECK(desc->IsPlain());
-    AddTranslationForOperand(translation, iter->instruction(), iter->Advance(),
-                             desc->type());
+    DCHECK(desc->IsOptimizedOut());
+    if (translation != nullptr) {
+      if (optimized_out_literal_id_ == -1) {
+        optimized_out_literal_id_ =
+            DefineDeoptimizationLiteral(isolate()->factory()->optimized_out());
+      }
+      translation->StoreLiteral(optimized_out_literal_id_);
+    }
   }
 }
 
@@ -686,44 +729,41 @@ void CodeGenerator::TranslateStateValueDescriptor(
 void CodeGenerator::TranslateFrameStateDescriptorOperands(
     FrameStateDescriptor* desc, InstructionOperandIterator* iter,
     OutputFrameStateCombine combine, Translation* translation) {
-  for (size_t index = 0; index < desc->GetSize(combine); index++) {
-    switch (combine.kind()) {
-      case OutputFrameStateCombine::kPushOutput: {
-        DCHECK(combine.GetPushCount() <= iter->instruction()->OutputCount());
-        size_t size_without_output =
-            desc->GetSize(OutputFrameStateCombine::Ignore());
-        // If the index is past the existing stack items in values_.
-        if (index >= size_without_output) {
-          // Materialize the result of the call instruction in this slot.
-          AddTranslationForOperand(
-              translation, iter->instruction(),
-              iter->instruction()->OutputAt(index - size_without_output),
-              MachineType::AnyTagged());
-          continue;
-        }
-        break;
+  size_t index = 0;
+  StateValueList* values = desc->GetStateValueDescriptors();
+  for (StateValueList::iterator it = values->begin(); it != values->end();
+       ++it, ++index) {
+    StateValueDescriptor* value_desc = (*it).desc;
+    if (combine.kind() == OutputFrameStateCombine::kPokeAt) {
+      // The result of the call should be placed at position
+      // [index_from_top] in the stack (overwriting whatever was
+      // previously there).
+      size_t index_from_top =
+          desc->GetSize(combine) - 1 - combine.GetOffsetToPokeAt();
+      if (index >= index_from_top &&
+          index < index_from_top + iter->instruction()->OutputCount()) {
+        DCHECK_NOT_NULL(translation);
+        AddTranslationForOperand(
+            translation, iter->instruction(),
+            iter->instruction()->OutputAt(index - index_from_top),
+            MachineType::AnyTagged());
+        // Skip the instruction operands.
+        TranslateStateValueDescriptor(value_desc, (*it).nested, nullptr, iter);
+        continue;
       }
-      case OutputFrameStateCombine::kPokeAt:
-        // The result of the call should be placed at position
-        // [index_from_top] in the stack (overwriting whatever was
-        // previously there).
-        size_t index_from_top =
-            desc->GetSize(combine) - 1 - combine.GetOffsetToPokeAt();
-        if (index >= index_from_top &&
-            index < index_from_top + iter->instruction()->OutputCount()) {
-          AddTranslationForOperand(
-              translation, iter->instruction(),
-              iter->instruction()->OutputAt(index - index_from_top),
-              MachineType::AnyTagged());
-          iter->Advance();  // We do not use this input, but we need to
-                            // advace, as the input got replaced.
-          continue;
-        }
-        break;
     }
-    StateValueDescriptor* value_desc = desc->GetStateValueDescriptor();
-    TranslateStateValueDescriptor(&value_desc->fields()[index], translation,
-                                  iter);
+    TranslateStateValueDescriptor(value_desc, (*it).nested, translation, iter);
+  }
+  DCHECK_EQ(desc->GetSize(OutputFrameStateCombine::Ignore()), index);
+
+  if (combine.kind() == OutputFrameStateCombine::kPushOutput) {
+    DCHECK(combine.GetPushCount() <= iter->instruction()->OutputCount());
+    for (size_t output = 0; output < combine.GetPushCount(); output++) {
+      // Materialize the result of the call instruction in this slot.
+      AddTranslationForOperand(translation, iter->instruction(),
+                               iter->instruction()->OutputAt(output),
+                               MachineType::AnyTagged());
+    }
   }
 }
 

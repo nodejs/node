@@ -148,6 +148,11 @@ bool Isolate::IsFastArrayIterationIntact() {
   return fast_iteration->value() == Smi::FromInt(kProtectorValid);
 }
 
+bool Isolate::IsArrayBufferNeuteringIntact() {
+  PropertyCell* fast_iteration = heap()->array_buffer_neutering_protector();
+  return fast_iteration->value() == Smi::FromInt(kProtectorValid);
+}
+
 bool Isolate::IsArrayIteratorLookupChainIntact() {
   Cell* array_iterator_cell = heap()->array_iterator_protector();
   return array_iterator_cell->value() == Smi::FromInt(kProtectorValid);

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --min-preparse-length=0
-
 // The test functions in this file will be eagerly compiled. The functions
 // inside will be eagerly parsed but lazily compiled.
 

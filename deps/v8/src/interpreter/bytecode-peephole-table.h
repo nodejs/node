@@ -11,16 +11,17 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-#define PEEPHOLE_NON_JUMP_ACTION_LIST(V)            \
-  V(DefaultAction)                                  \
-  V(UpdateLastAction)                               \
-  V(UpdateLastIfSourceInfoPresentAction)            \
-  V(ElideCurrentAction)                             \
-  V(ElideCurrentIfOperand0MatchesAction)            \
-  V(ElideLastAction)                                \
-  V(ChangeBytecodeAction)                           \
-  V(TransformLdaSmiBinaryOpToBinaryOpWithSmiAction) \
-  V(TransformLdaZeroBinaryOpToBinaryOpWithZeroAction)
+#define PEEPHOLE_NON_JUMP_ACTION_LIST(V)              \
+  V(DefaultAction)                                    \
+  V(UpdateLastAction)                                 \
+  V(UpdateLastIfSourceInfoPresentAction)              \
+  V(ElideCurrentAction)                               \
+  V(ElideCurrentIfOperand0MatchesAction)              \
+  V(ElideLastAction)                                  \
+  V(ChangeBytecodeAction)                             \
+  V(TransformLdaSmiBinaryOpToBinaryOpWithSmiAction)   \
+  V(TransformLdaZeroBinaryOpToBinaryOpWithZeroAction) \
+  V(TransformEqualityWithNullOrUndefinedAction)
 
 #define PEEPHOLE_JUMP_ACTION_LIST(V) \
   V(DefaultJumpAction)               \

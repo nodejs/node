@@ -41,10 +41,12 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
       m_humanReadableName(toString16(info.humanReadableName)),
       m_auxData(toString16(info.auxData)),
       m_reported(false) {
+  v8::Isolate* isolate = m_inspector->isolate();
+  info.context->SetEmbedderData(static_cast<int>(v8::Context::kDebugIdIndex),
+                                v8::Int32::New(isolate, contextId));
   m_context.SetWeak(&m_context, &clearContext,
                     v8::WeakCallbackType::kParameter);
 
-  v8::Isolate* isolate = m_inspector->isolate();
   v8::Local<v8::Object> global = info.context->Global();
   v8::Local<v8::Object> console =
       V8Console::createConsole(this, info.hasMemoryOnConsole);
@@ -63,6 +65,14 @@ InspectedContext::~InspectedContext() {
     V8Console::clearInspectedContextIfNeeded(context(),
                                              m_console.Get(isolate()));
   }
+}
+
+// static
+int InspectedContext::contextId(v8::Local<v8::Context> context) {
+  v8::Local<v8::Value> data =
+      context->GetEmbedderData(static_cast<int>(v8::Context::kDebugIdIndex));
+  if (data.IsEmpty() || !data->IsInt32()) return 0;
+  return static_cast<int>(data.As<v8::Int32>()->Value());
 }
 
 v8::Local<v8::Context> InspectedContext::context() const {

@@ -8,7 +8,7 @@
 #include <algorithm>
 
 #include "src/checks.h"
-#include "src/utils.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -64,8 +64,8 @@ class List {
   // not safe to use after operations that can change the list's
   // backing store (e.g. Add).
   inline T& operator[](int i) const {
-    DCHECK(0 <= i);
-    SLOW_DCHECK(static_cast<unsigned>(i) < static_cast<unsigned>(length_));
+    DCHECK_LE(0, i);
+    DCHECK_GT(static_cast<unsigned>(length_), static_cast<unsigned>(i));
     return data_[i];
   }
   inline T& at(int i) const { return operator[](i); }

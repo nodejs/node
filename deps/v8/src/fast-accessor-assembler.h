@@ -13,18 +13,19 @@
 #include "src/base/macros.h"
 #include "src/handles.h"
 
-// For CodeStubAssembler::Label. (We cannot forward-declare inner classes.)
-#include "src/code-stub-assembler.h"
-
 namespace v8 {
 namespace internal {
 
 class Code;
+class CodeStubAssembler;
 class Isolate;
 class Zone;
 
 namespace compiler {
 class Node;
+class CodeAssemblerLabel;
+class CodeAssemblerState;
+class CodeAssemblerVariable;
 }
 
 // This interface "exports" an aggregated subset of RawMachineAssembler, for
@@ -86,9 +87,9 @@ class FastAccessorAssembler {
 
  private:
   ValueId FromRaw(compiler::Node* node);
-  LabelId FromRaw(CodeStubAssembler::Label* label);
+  LabelId FromRaw(compiler::CodeAssemblerLabel* label);
   compiler::Node* FromId(ValueId value) const;
-  CodeStubAssembler::Label* FromId(LabelId value) const;
+  compiler::CodeAssemblerLabel* FromId(LabelId value) const;
 
   void CheckIsJSObjectOrJump(ValueId value, LabelId label_id);
 
@@ -98,13 +99,14 @@ class FastAccessorAssembler {
 
   Zone zone_;
   Isolate* isolate_;
+  std::unique_ptr<compiler::CodeAssemblerState> assembler_state_;
   std::unique_ptr<CodeStubAssembler> assembler_;
 
   // To prevent exposing the RMA internals to the outside world, we'll map
   // Node + Label pointers integers wrapped in ValueId and LabelId instances.
   // These vectors maintain this mapping.
   std::vector<compiler::Node*> nodes_;
-  std::vector<CodeStubAssembler::Label*> labels_;
+  std::vector<compiler::CodeAssemblerLabel*> labels_;
 
   // Remember the current state for easy error checking. (We prefer to be
   // strict as this class will be exposed at the API.)

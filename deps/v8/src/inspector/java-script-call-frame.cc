@@ -91,7 +91,7 @@ bool JavaScriptCallFrame::isAtReturn() const {
   return result.As<v8::Boolean>()->BooleanValue(context).FromMaybe(false);
 }
 
-v8::Local<v8::Object> JavaScriptCallFrame::details() const {
+v8::MaybeLocal<v8::Object> JavaScriptCallFrame::details() const {
   v8::MicrotasksScope microtasks(m_isolate,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   v8::Local<v8::Context> context =
@@ -101,8 +101,12 @@ v8::Local<v8::Object> JavaScriptCallFrame::details() const {
   v8::Local<v8::Function> func = v8::Local<v8::Function>::Cast(
       callFrame->Get(context, toV8StringInternalized(m_isolate, "details"))
           .ToLocalChecked());
-  return v8::Local<v8::Object>::Cast(
-      func->Call(context, callFrame, 0, nullptr).ToLocalChecked());
+  v8::TryCatch try_catch(m_isolate);
+  v8::Local<v8::Value> details;
+  if (func->Call(context, callFrame, 0, nullptr).ToLocal(&details)) {
+    return v8::Local<v8::Object>::Cast(details);
+  }
+  return v8::MaybeLocal<v8::Object>();
 }
 
 v8::MaybeLocal<v8::Value> JavaScriptCallFrame::evaluate(
@@ -129,10 +133,11 @@ v8::MaybeLocal<v8::Value> JavaScriptCallFrame::restart() {
   v8::Local<v8::Function> restartFunction = v8::Local<v8::Function>::Cast(
       callFrame->Get(context, toV8StringInternalized(m_isolate, "restart"))
           .ToLocalChecked());
-  v8::DebugInterface::SetLiveEditEnabled(m_isolate, true);
+  v8::TryCatch try_catch(m_isolate);
+  v8::debug::SetLiveEditEnabled(m_isolate, true);
   v8::MaybeLocal<v8::Value> result = restartFunction->Call(
       m_debuggerContext.Get(m_isolate), callFrame, 0, nullptr);
-  v8::DebugInterface::SetLiveEditEnabled(m_isolate, false);
+  v8::debug::SetLiveEditEnabled(m_isolate, false);
   return result;
 }
 
@@ -154,6 +159,7 @@ v8::MaybeLocal<v8::Value> JavaScriptCallFrame::setVariableValue(
   v8::Local<v8::Value> argv[] = {
       v8::Local<v8::Value>(v8::Integer::New(m_isolate, scopeNumber)),
       variableName, newValue};
+  v8::TryCatch try_catch(m_isolate);
   return setVariableValueFunction->Call(context, callFrame, arraysize(argv),
                                         argv);
 }

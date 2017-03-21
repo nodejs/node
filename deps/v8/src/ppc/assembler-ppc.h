@@ -837,6 +837,8 @@ class Assembler : public AssemblerBase {
             RCBit r = LeaveRC);
   void divwu(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
+  void modsw(Register rt, Register ra, Register rb);
+  void moduw(Register rt, Register ra, Register rb);
 
   void addi(Register dst, Register src, const Operand& imm);
   void addis(Register dst, Register src, const Operand& imm);
@@ -932,6 +934,8 @@ class Assembler : public AssemblerBase {
             RCBit r = LeaveRC);
   void divdu(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
+  void modsd(Register rt, Register ra, Register rb);
+  void modud(Register rt, Register ra, Register rb);
 #endif
 
   void rlwinm(Register ra, Register rs, int sh, int mb, int me,
@@ -1104,6 +1108,17 @@ class Assembler : public AssemblerBase {
              const DoubleRegister frc, const DoubleRegister frb,
              RCBit rc = LeaveRC);
 
+  // Support for VSX instructions
+
+  void xsadddp(const DoubleRegister frt, const DoubleRegister fra,
+               const DoubleRegister frb);
+  void xssubdp(const DoubleRegister frt, const DoubleRegister fra,
+               const DoubleRegister frb);
+  void xsdivdp(const DoubleRegister frt, const DoubleRegister fra,
+               const DoubleRegister frb);
+  void xsmuldp(const DoubleRegister frt, const DoubleRegister fra,
+               const DoubleRegister frc);
+
   // Pseudo instructions
 
   // Different nop operations are used by the code generator to detect certain
@@ -1187,9 +1202,6 @@ class Assembler : public AssemblerBase {
   };
 
   // Debugging
-
-  // Mark generator continuation.
-  void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
   void RecordDebugBreakSlot(RelocInfo::Mode mode);
@@ -1409,6 +1421,8 @@ class Assembler : public AssemblerBase {
   void x_form(Instr instr, Register ra, Register rs, Register rb, RCBit r);
   void xo_form(Instr instr, Register rt, Register ra, Register rb, OEBit o,
                RCBit r);
+  void xx3_form(Instr instr, DoubleRegister t, DoubleRegister a,
+                DoubleRegister b);
   void md_form(Instr instr, Register ra, Register rs, int shift, int maskbit,
                RCBit r);
   void mds_form(Instr instr, Register ra, Register rs, Register rb, int maskbit,

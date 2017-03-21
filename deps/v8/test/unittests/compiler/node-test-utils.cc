@@ -12,6 +12,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 
 using testing::_;
@@ -803,32 +804,6 @@ class IsTailCallMatcher final : public NodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
-
-class IsReferenceEqualMatcher final : public NodeMatcher {
- public:
-  IsReferenceEqualMatcher(const Matcher<Type*>& type_matcher,
-                          const Matcher<Node*>& lhs_matcher,
-                          const Matcher<Node*>& rhs_matcher)
-      : NodeMatcher(IrOpcode::kReferenceEqual),
-        type_matcher_(type_matcher),
-        lhs_matcher_(lhs_matcher),
-        rhs_matcher_(rhs_matcher) {}
-
-  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    return (NodeMatcher::MatchAndExplain(node, listener) &&
-            // TODO(bmeurer): The type parameter is currently ignored.
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "lhs",
-                                 lhs_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "rhs",
-                                 rhs_matcher_, listener));
-  }
-
- private:
-  const Matcher<Type*> type_matcher_;
-  const Matcher<Node*> lhs_matcher_;
-  const Matcher<Node*> rhs_matcher_;
-};
-
 class IsSpeculativeBinopMatcher final : public NodeMatcher {
  public:
   IsSpeculativeBinopMatcher(IrOpcode::Value opcode,
@@ -1364,24 +1339,24 @@ STORE_MATCHER(UnalignedStore)
 
 class IsStackSlotMatcher final : public NodeMatcher {
  public:
-  explicit IsStackSlotMatcher(const Matcher<MachineRepresentation>& rep_matcher)
-      : NodeMatcher(IrOpcode::kStackSlot), rep_matcher_(rep_matcher) {}
+  explicit IsStackSlotMatcher(const Matcher<int>& size_matcher)
+      : NodeMatcher(IrOpcode::kStackSlot), size_matcher_(size_matcher) {}
 
   void DescribeTo(std::ostream* os) const final {
     NodeMatcher::DescribeTo(os);
-    *os << " whose rep (";
-    rep_matcher_.DescribeTo(os);
+    *os << " whose size (";
+    size_matcher_.DescribeTo(os);
     *os << ")";
   }
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<MachineRepresentation>(node),
-                                 "rep", rep_matcher_, listener));
+            PrintMatchAndExplain(OpParameter<int>(node), "size", size_matcher_,
+                                 listener));
   }
 
  private:
-  const Matcher<MachineRepresentation> rep_matcher_;
+  const Matcher<int> size_matcher_;
 };
 
 class IsToNumberMatcher final : public NodeMatcher {
@@ -2072,13 +2047,6 @@ Matcher<Node*> IsTailCall(
                                            effect_matcher, control_matcher));
 }
 
-Matcher<Node*> IsReferenceEqual(const Matcher<Type*>& type_matcher,
-                                const Matcher<Node*>& lhs_matcher,
-                                const Matcher<Node*>& rhs_matcher) {
-  return MakeMatcher(
-      new IsReferenceEqualMatcher(type_matcher, lhs_matcher, rhs_matcher));
-}
-
 #define DEFINE_SPECULATIVE_BINOP_MATCHER(opcode)                              \
   Matcher<Node*> Is##opcode(const Matcher<NumberOperationHint>& hint_matcher, \
                             const Matcher<Node*>& lhs_matcher,                \
@@ -2207,8 +2175,8 @@ Matcher<Node*> IsUnalignedStore(
       control_matcher));
 }
 
-Matcher<Node*> IsStackSlot(const Matcher<MachineRepresentation>& rep_matcher) {
-  return MakeMatcher(new IsStackSlotMatcher(rep_matcher));
+Matcher<Node*> IsStackSlot(const Matcher<int>& size_matcher) {
+  return MakeMatcher(new IsStackSlotMatcher(size_matcher));
 }
 
 Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
@@ -2281,6 +2249,7 @@ IS_BINOP_MATCHER(NumberAtan2)
 IS_BINOP_MATCHER(NumberMax)
 IS_BINOP_MATCHER(NumberMin)
 IS_BINOP_MATCHER(NumberPow)
+IS_BINOP_MATCHER(ReferenceEqual)
 IS_BINOP_MATCHER(Word32And)
 IS_BINOP_MATCHER(Word32Or)
 IS_BINOP_MATCHER(Word32Xor)
@@ -2305,6 +2274,7 @@ IS_BINOP_MATCHER(Uint32LessThan)
 IS_BINOP_MATCHER(Uint32LessThanOrEqual)
 IS_BINOP_MATCHER(Int64Add)
 IS_BINOP_MATCHER(Int64Sub)
+IS_BINOP_MATCHER(Int64Mul)
 IS_BINOP_MATCHER(JSAdd)
 IS_BINOP_MATCHER(Float32Equal)
 IS_BINOP_MATCHER(Float32LessThan)
@@ -2380,6 +2350,7 @@ IS_UNOP_MATCHER(NumberToUint32)
 IS_UNOP_MATCHER(PlainPrimitiveToNumber)
 IS_UNOP_MATCHER(ObjectIsReceiver)
 IS_UNOP_MATCHER(ObjectIsSmi)
+IS_UNOP_MATCHER(ObjectIsUndetectable)
 IS_UNOP_MATCHER(StringFromCharCode)
 IS_UNOP_MATCHER(Word32Clz)
 IS_UNOP_MATCHER(Word32Ctz)

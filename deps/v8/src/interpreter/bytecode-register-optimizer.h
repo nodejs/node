@@ -46,7 +46,32 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
   void Flush();
 
   // Prepares for |bytecode|.
-  void PrepareForBytecode(Bytecode bytecode);
+  template <Bytecode bytecode, AccumulatorUse accumulator_use>
+  INLINE(void PrepareForBytecode()) {
+    if (Bytecodes::IsJump(bytecode) || bytecode == Bytecode::kDebugger ||
+        bytecode == Bytecode::kSuspendGenerator) {
+      // All state must be flushed before emitting
+      // - a jump bytecode (as the register equivalents at the jump target
+      // aren't
+      //   known.
+      // - a call to the debugger (as it can manipulate locals and parameters),
+      // - a generator suspend (as this involves saving all registers).
+      Flush();
+    }
+
+    // Materialize the accumulator if it is read by the bytecode. The
+    // accumulator is special and no other register can be materialized
+    // in it's place.
+    if (BytecodeOperands::ReadsAccumulator(accumulator_use)) {
+      Materialize(accumulator_info_);
+    }
+
+    // Materialize an equivalent to the accumulator if it will be
+    // clobbered when the bytecode is dispatched.
+    if (BytecodeOperands::WritesAccumulator(accumulator_use)) {
+      PrepareOutputRegister(accumulator_);
+    }
+  }
 
   // Prepares |reg| for being used as an output operand.
   void PrepareOutputRegister(Register reg);

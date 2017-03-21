@@ -29,6 +29,7 @@ def filter_git(tar_info):
 with tarfile.open('data.tar', 'w') as tar:
   tar.add('data', filter=filter_git)
   tar.add('harness', filter=filter_git)
+  tar.add('local-tests')
 
 # Workaround for GN. We can't specify the tarfile as output because it's
 # not in the product directory. Therefore we track running of this script

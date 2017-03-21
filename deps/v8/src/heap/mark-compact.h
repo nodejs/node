@@ -17,6 +17,8 @@
 namespace v8 {
 namespace internal {
 
+enum class MarkCompactMode { FULL, YOUNG_GENERATION };
+
 // Callback function, returns whether an object is alive. The heap size
 // of the object is returned in size. It optionally updates the offset
 // to the first live object in the page (only used for old and map objects).
@@ -29,17 +31,15 @@ typedef void (*MarkObjectFunction)(Heap* heap, HeapObject* object);
 class CodeFlusher;
 class MarkCompactCollector;
 class MarkingVisitor;
+template <MarkCompactMode mode>
 class RootMarkingVisitor;
 
 class ObjectMarking : public AllStatic {
  public:
-  INLINE(static MarkBit MarkBitFrom(Address addr)) {
-    MemoryChunk* p = MemoryChunk::FromAddress(addr);
-    return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr));
-  }
-
-  INLINE(static MarkBit MarkBitFrom(HeapObject* obj)) {
-    return MarkBitFrom(reinterpret_cast<Address>(obj));
+  V8_INLINE static MarkBit MarkBitFrom(HeapObject* obj) {
+    const Address address = obj->address();
+    MemoryChunk* p = MemoryChunk::FromAddress(address);
+    return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(address));
   }
 
   static Marking::ObjectColor Color(HeapObject* obj) {
@@ -416,6 +416,9 @@ class MarkCompactCollector {
 
   static void Initialize();
 
+  static SlotCallbackResult CheckAndMarkObject(Heap* heap,
+                                               Address slot_address);
+
   void SetUp();
 
   void TearDown();
@@ -435,12 +438,6 @@ class MarkCompactCollector {
 
   void AbortCompaction();
 
-#ifdef DEBUG
-  // Checks whether performing mark-compact collection.
-  bool in_use() { return state_ > PREPARE_GC; }
-  bool are_map_pointers_encoded() { return state_ == UPDATE_POINTERS; }
-#endif
-
   // Determine type of object and emit deletion log event.
   static void ReportDeleteIfNeeded(HeapObject* obj, Isolate* isolate);
 
@@ -457,15 +454,6 @@ class MarkCompactCollector {
 
   CodeFlusher* code_flusher() { return code_flusher_; }
   inline bool is_code_flushing_enabled() const { return code_flusher_ != NULL; }
-
-#ifdef VERIFY_HEAP
-  void VerifyValidStoreAndSlotsBufferEntries();
-  void VerifyMarkbitsAreClean();
-  static void VerifyMarkbitsAreClean(PagedSpace* space);
-  static void VerifyMarkbitsAreClean(NewSpace* space);
-  void VerifyWeakEmbeddedObjectsInCode();
-  void VerifyOmittedMapChecks();
-#endif
 
   INLINE(static bool ShouldSkipEvacuationSlotRecording(Object* host)) {
     return Page::FromAddress(reinterpret_cast<Address>(host))
@@ -492,8 +480,6 @@ class MarkCompactCollector {
   void ClearMarkbits();
 
   bool is_compacting() const { return compacting_; }
-
-  MarkingParity marking_parity() { return marking_parity_; }
 
   // Ensures that sweeping is finished.
   //
@@ -524,6 +510,21 @@ class MarkCompactCollector {
   MarkingDeque* marking_deque() { return &marking_deque_; }
 
   Sweeper& sweeper() { return sweeper_; }
+
+#ifdef DEBUG
+  // Checks whether performing mark-compact collection.
+  bool in_use() { return state_ > PREPARE_GC; }
+  bool are_map_pointers_encoded() { return state_ == UPDATE_POINTERS; }
+#endif
+
+#ifdef VERIFY_HEAP
+  void VerifyValidStoreAndSlotsBufferEntries();
+  void VerifyMarkbitsAreClean();
+  static void VerifyMarkbitsAreClean(PagedSpace* space);
+  static void VerifyMarkbitsAreClean(NewSpace* space);
+  void VerifyWeakEmbeddedObjectsInCode();
+  void VerifyOmittedMapChecks();
+#endif
 
  private:
   template <PageEvacuationMode mode>
@@ -564,8 +565,10 @@ class MarkCompactCollector {
   friend class MarkCompactMarkingVisitor;
   friend class MarkingVisitor;
   friend class RecordMigratedSlotVisitor;
+  template <MarkCompactMode mode>
   friend class RootMarkingVisitor;
   friend class SharedFunctionInfoMarkingVisitor;
+  friend class StaticYoungGenerationMarkingVisitor;
 
   // Mark code objects that are active on the stack to prevent them
   // from being flushed.
@@ -575,6 +578,8 @@ class MarkCompactCollector {
 
   // Marking operations for objects reachable from roots.
   void MarkLiveObjects();
+  // Mark the young generation.
+  void MarkLiveObjectsInYoungGeneration();
 
   // Pushes a black object onto the marking stack and accounts for live bytes.
   // Note that this assumes live bytes have not yet been counted.
@@ -593,14 +598,15 @@ class MarkCompactCollector {
   INLINE(void SetMark(HeapObject* obj, MarkBit mark_bit));
 
   // Mark the heap roots and all objects reachable from them.
-  void MarkRoots(RootMarkingVisitor* visitor);
+  void MarkRoots(RootMarkingVisitor<MarkCompactMode::FULL>* visitor);
 
   // Mark the string table specially.  References to internalized strings from
   // the string table are weak.
-  void MarkStringTable(RootMarkingVisitor* visitor);
+  void MarkStringTable(RootMarkingVisitor<MarkCompactMode::FULL>* visitor);
 
   // Mark objects reachable (transitively) from objects in the marking stack
   // or overflowed in the heap.
+  template <MarkCompactMode mode>
   void ProcessMarkingDeque();
 
   // Mark objects reachable (transitively) from objects in the marking stack
@@ -624,11 +630,13 @@ class MarkCompactCollector {
   // stack.  This function empties the marking stack, but may leave
   // overflowed objects in the heap, in which case the marking stack's
   // overflow flag will be set.
+  template <MarkCompactMode mode>
   void EmptyMarkingDeque();
 
   // Refill the marking stack with overflowed objects from the heap.  This
   // function either leaves the marking stack full or clears the overflow
   // flag on the marking stack.
+  template <MarkCompactMode mode>
   void RefillMarkingDeque();
 
   // Helper methods for refilling the marking stack by discovering grey objects
@@ -732,8 +740,6 @@ class MarkCompactCollector {
   // The current stage of the collector.
   CollectorState state_;
 #endif
-
-  MarkingParity marking_parity_;
 
   bool was_marked_incrementally_;
 

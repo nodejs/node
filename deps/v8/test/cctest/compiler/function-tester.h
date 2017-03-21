@@ -26,7 +26,8 @@ class FunctionTester : public InitializedHandleScope {
 
   FunctionTester(Handle<Code> code, int param_count);
 
-  FunctionTester(const CallInterfaceDescriptor& descriptor, Handle<Code> code);
+  // Assumes VoidDescriptor call interface.
+  explicit FunctionTester(Handle<Code> code);
 
   Isolate* isolate;
   Handle<JSFunction> function;

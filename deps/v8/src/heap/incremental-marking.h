@@ -22,7 +22,7 @@ class PagedSpace;
 
 enum class StepOrigin { kV8, kTask };
 
-class IncrementalMarking {
+class V8_EXPORT_PRIVATE IncrementalMarking {
  public:
   enum State { STOPPED, SWEEPING, MARKING, COMPLETE };
 
@@ -151,8 +151,7 @@ class IncrementalMarking {
   INLINE(void RecordWriteOfCodeEntry(JSFunction* host, Object** slot,
                                      Code* value));
 
-  V8_EXPORT_PRIVATE void RecordWriteSlow(HeapObject* obj, Object** slot,
-                                         Object* value);
+  void RecordWriteSlow(HeapObject* obj, Object** slot, Object* value);
   void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* value);
   void RecordWriteOfCodeEntrySlow(JSFunction* host, Object** slot, Code* value);
   void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
@@ -184,7 +183,7 @@ class IncrementalMarking {
 
   static void MarkBlack(HeapObject* object, int size);
 
-  static void TransferMark(Heap* heap, Address old_start, Address new_start);
+  static void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
 
   // Returns true if the color transfer requires live bytes updating.
   INLINE(static bool TransferColor(HeapObject* from, HeapObject* to,
@@ -298,6 +297,7 @@ class IncrementalMarking {
   bool was_activated_;
   bool black_allocation_;
   bool finalize_marking_completed_;
+  bool trace_wrappers_toggle_;
 
   GCRequestType request_type_;
 

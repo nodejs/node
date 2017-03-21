@@ -335,7 +335,7 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public v8::Task {
  private:
   // v8::Task overrides.
   void Run() override {
-    unmapper_->PerformFreeMemoryOnQueuedChunks();
+    unmapper_->PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>();
     unmapper_->pending_unmapping_tasks_semaphore_.Signal();
   }
 
@@ -350,7 +350,7 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
         new UnmapFreeMemoryTask(this), v8::Platform::kShortRunningTask);
     concurrent_unmapping_tasks_active_++;
   } else {
-    PerformFreeMemoryOnQueuedChunks();
+    PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>();
   }
 }
 
@@ -364,6 +364,7 @@ bool MemoryAllocator::Unmapper::WaitUntilCompleted() {
   return waited;
 }
 
+template <MemoryAllocator::Unmapper::FreeMode mode>
 void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks() {
   MemoryChunk* chunk = nullptr;
   // Regular chunks.
@@ -371,6 +372,14 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks() {
     bool pooled = chunk->IsFlagSet(MemoryChunk::POOLED);
     allocator_->PerformFreeMemory(chunk);
     if (pooled) AddMemoryChunkSafe<kPooled>(chunk);
+  }
+  if (mode == MemoryAllocator::Unmapper::FreeMode::kReleasePooled) {
+    // The previous loop uncommitted any pages marked as pooled and added them
+    // to the pooled list. In case of kReleasePooled we need to free them
+    // though.
+    while ((chunk = GetMemoryChunkSafe<kPooled>()) != nullptr) {
+      allocator_->Free<MemoryAllocator::kAlreadyPooled>(chunk);
+    }
   }
   // Non-regular chunks.
   while ((chunk = GetMemoryChunkSafe<kNonRegular>()) != nullptr) {
@@ -382,7 +391,10 @@ void MemoryAllocator::Unmapper::TearDown() {
   WaitUntilCompleted();
   ReconsiderDelayedChunks();
   CHECK(delayed_regular_chunks_.empty());
-  PerformFreeMemoryOnQueuedChunks();
+  PerformFreeMemoryOnQueuedChunks<FreeMode::kReleasePooled>();
+  for (int i = 0; i < kNumberOfChunkQueues; i++) {
+    DCHECK(chunks_[i].empty());
+  }
 }
 
 void MemoryAllocator::Unmapper::ReconsiderDelayedChunks() {
@@ -833,6 +845,16 @@ size_t Page::ShrinkToHighWaterMark() {
   return unused;
 }
 
+void Page::CreateBlackArea(Address start, Address end) {
+  DCHECK(heap()->incremental_marking()->black_allocation());
+  DCHECK_EQ(Page::FromAddress(start), this);
+  DCHECK_NE(start, end);
+  DCHECK_EQ(Page::FromAddress(end - 1), this);
+  markbits()->SetRange(AddressToMarkbitIndex(start),
+                       AddressToMarkbitIndex(end));
+  IncrementLiveBytes(static_cast<int>(end - start));
+}
+
 void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk,
                                         Address start_free) {
   // We do not allow partial shrink for code.
@@ -899,6 +921,11 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
       PreFreeMemory(chunk);
       PerformFreeMemory(chunk);
       break;
+    case kAlreadyPooled:
+      // Pooled pages cannot be touched anymore as their memory is uncommitted.
+      FreeMemory(chunk->address(), static_cast<size_t>(MemoryChunk::kPageSize),
+                 Executability::NOT_EXECUTABLE);
+      break;
     case kPooledAndQueue:
       DCHECK_EQ(chunk->size(), static_cast<size_t>(MemoryChunk::kPageSize));
       DCHECK_EQ(chunk->executable(), NOT_EXECUTABLE);
@@ -909,12 +936,13 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
       // The chunks added to this queue will be freed by a concurrent thread.
       unmapper()->AddMemoryChunkSafe(chunk);
       break;
-    default:
-      UNREACHABLE();
   }
 }
 
 template void MemoryAllocator::Free<MemoryAllocator::kFull>(MemoryChunk* chunk);
+
+template void MemoryAllocator::Free<MemoryAllocator::kAlreadyPooled>(
+    MemoryChunk* chunk);
 
 template void MemoryAllocator::Free<MemoryAllocator::kPreFreeAndQueue>(
     MemoryChunk* chunk);
@@ -1287,25 +1315,6 @@ bool PagedSpace::ContainsSlow(Address addr) {
   return false;
 }
 
-
-Object* PagedSpace::FindObject(Address addr) {
-  // Note: this function can only be called on iterable spaces.
-  DCHECK(!heap()->mark_compact_collector()->in_use());
-
-  if (!Contains(addr)) return Smi::kZero;  // Signaling not found.
-
-  Page* p = Page::FromAddress(addr);
-  HeapObjectIterator it(p);
-  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-    Address cur = obj->address();
-    Address next = cur + obj->Size();
-    if ((cur <= addr) && (addr < next)) return obj;
-  }
-
-  UNREACHABLE();
-  return Smi::kZero;
-}
-
 void PagedSpace::ShrinkImmortalImmovablePages() {
   DCHECK(!heap()->deserialization_complete());
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
@@ -1361,10 +1370,7 @@ void PagedSpace::SetAllocationInfo(Address top, Address limit) {
   SetTopAndLimit(top, limit);
   if (top != nullptr && top != limit &&
       heap()->incremental_marking()->black_allocation()) {
-    Page* page = Page::FromAllocationAreaAddress(top);
-    page->markbits()->SetRange(page->AddressToMarkbitIndex(top),
-                               page->AddressToMarkbitIndex(limit));
-    page->IncrementLiveBytes(static_cast<int>(limit - top));
+    Page::FromAllocationAreaAddress(top)->CreateBlackArea(top, limit);
   }
 }
 
@@ -1373,10 +1379,8 @@ void PagedSpace::MarkAllocationInfoBlack() {
   Address current_top = top();
   Address current_limit = limit();
   if (current_top != nullptr && current_top != current_limit) {
-    Page* page = Page::FromAllocationAreaAddress(current_top);
-    page->markbits()->SetRange(page->AddressToMarkbitIndex(current_top),
-                               page->AddressToMarkbitIndex(current_limit));
-    page->IncrementLiveBytes(static_cast<int>(current_limit - current_top));
+    Page::FromAllocationAreaAddress(current_top)
+        ->CreateBlackArea(current_top, current_limit);
   }
 }
 
@@ -2095,7 +2099,7 @@ void SemiSpace::set_age_mark(Address mark) {
   DCHECK_EQ(Page::FromAllocationAreaAddress(mark)->owner(), this);
   age_mark_ = mark;
   // Mark all pages up to the one containing mark.
-  for (Page* p : NewSpacePageRange(space_start(), mark)) {
+  for (Page* p : PageRange(space_start(), mark)) {
     p->SetFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
   }
 }
@@ -2616,7 +2620,7 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
 
   // Memory in the linear allocation area is counted as allocated.  We may free
   // a little of this again immediately - see below.
-  owner_->Allocate(static_cast<int>(new_node_size));
+  owner_->AccountAllocatedBytes(new_node_size);
 
   if (owner_->heap()->inline_allocation_disabled()) {
     // Keep the linear allocation area empty if requested to do so, just
@@ -2806,7 +2810,6 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
   }
 }
 
-
 HeapObject* PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
@@ -2819,7 +2822,6 @@ HeapObject* PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
   }
   return nullptr;
 }
-
 
 HeapObject* CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
@@ -2877,9 +2879,7 @@ void PagedSpace::ReportStatistics() {
          ", available: %" V8PRIdPTR ", %%%d\n",
          Capacity(), Waste(), Available(), pct);
 
-  if (heap()->mark_compact_collector()->sweeping_in_progress()) {
-    heap()->mark_compact_collector()->EnsureSweepingCompleted();
-  }
+  heap()->mark_compact_collector()->EnsureSweepingCompleted();
   ClearHistograms(heap()->isolate());
   HeapObjectIterator obj_it(this);
   for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next())
@@ -2994,7 +2994,6 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   InsertChunkMapEntries(page);
 
   HeapObject* object = page->GetObject();
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object->address(), object_size);
 
   if (Heap::ShouldZapGarbage()) {
     // Make the object consistent so the heap can be verified in OldSpaceStep.
@@ -3010,7 +3009,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
 
   if (heap()->incremental_marking()->black_allocation()) {
     Marking::MarkBlack(ObjectMarking::MarkBitFrom(object));
-    MemoryChunk::IncrementLiveBytesFromGC(object, object_size);
+    MemoryChunk::IncrementLiveBytes(object, object_size);
   }
   return object;
 }
@@ -3033,6 +3032,10 @@ Object* LargeObjectSpace::FindObject(Address a) {
   return Smi::kZero;  // Signaling not found.
 }
 
+LargePage* LargeObjectSpace::FindPageThreadSafe(Address a) {
+  base::LockGuard<base::Mutex> guard(&chunk_map_mutex_);
+  return FindPage(a);
+}
 
 LargePage* LargeObjectSpace::FindPage(Address a) {
   uintptr_t key = reinterpret_cast<uintptr_t>(a) / MemoryChunk::kAlignment;
@@ -3069,6 +3072,9 @@ void LargeObjectSpace::InsertChunkMapEntries(LargePage* page) {
   uintptr_t start = reinterpret_cast<uintptr_t>(page) / MemoryChunk::kAlignment;
   uintptr_t limit = (reinterpret_cast<uintptr_t>(page) + (page->size() - 1)) /
                     MemoryChunk::kAlignment;
+  // There may be concurrent access on the chunk map. We have to take the lock
+  // here.
+  base::LockGuard<base::Mutex> guard(&chunk_map_mutex_);
   for (uintptr_t key = start; key <= limit; key++) {
     base::HashMap::Entry* entry = chunk_map_.InsertNew(
         reinterpret_cast<void*>(key), static_cast<uint32_t>(key));

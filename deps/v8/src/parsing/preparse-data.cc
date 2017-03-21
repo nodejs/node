@@ -6,6 +6,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/globals.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data-format.h"
 
@@ -16,7 +17,8 @@ void ParserLogger::LogFunction(int start, int end, int num_parameters,
                                int function_length,
                                bool has_duplicate_parameters, int literals,
                                int properties, LanguageMode language_mode,
-                               bool uses_super_property, bool calls_eval) {
+                               bool uses_super_property, bool calls_eval,
+                               int num_inner_functions) {
   function_store_.Add(start);
   function_store_.Add(end);
   function_store_.Add(num_parameters);
@@ -26,6 +28,7 @@ void ParserLogger::LogFunction(int start, int end, int num_parameters,
   function_store_.Add(
       FunctionEntry::EncodeFlags(language_mode, uses_super_property, calls_eval,
                                  has_duplicate_parameters));
+  function_store_.Add(num_inner_functions);
 }
 
 ParserLogger::ParserLogger() {

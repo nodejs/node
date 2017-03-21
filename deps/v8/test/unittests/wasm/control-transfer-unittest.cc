@@ -163,10 +163,10 @@ TEST_F(ControlTransferTest, SimpleIfElse_v1) {
       0,              // @1
       kExprIf,        // @2
       kLocalVoid,     // @3
-      kExprI8Const,   // @4
+      kExprI32Const,  // @4
       0,              // @5
       kExprElse,      // @6
-      kExprI8Const,   // @7
+      kExprI32Const,  // @7
       0,              // @8
       kExprEnd        // @9
   };
@@ -260,39 +260,39 @@ TEST_F(ControlTransferTest, Br1) {
 
 TEST_F(ControlTransferTest, Br_v1a) {
   byte code[] = {
-      kExprBlock,    // @0
-      kLocalVoid,    // @1
-      kExprI8Const,  // @2
-      0,             // @3
-      kExprBr,       // @4
-      0,             // @5
-      kExprEnd       // @6
+      kExprBlock,     // @0
+      kLocalVoid,     // @1
+      kExprI32Const,  // @2
+      0,              // @3
+      kExprBr,        // @4
+      0,              // @5
+      kExprEnd        // @6
   };
   EXPECT_PC_DELTAS({4, 3});
 }
 
 TEST_F(ControlTransferTest, Br_v1b) {
   byte code[] = {
-      kExprBlock,    // @0
-      kLocalVoid,    // @1
-      kExprI8Const,  // @2
-      0,             // @3
-      kExprBr,       // @4
-      0,             // @5
-      kExprEnd       // @6
+      kExprBlock,     // @0
+      kLocalVoid,     // @1
+      kExprI32Const,  // @2
+      0,              // @3
+      kExprBr,        // @4
+      0,              // @5
+      kExprEnd        // @6
   };
   EXPECT_PC_DELTAS({4, 3});
 }
 
 TEST_F(ControlTransferTest, Br_v1c) {
   byte code[] = {
-      kExprI8Const,  // @0
-      0,             // @1
-      kExprBlock,    // @2
-      kLocalVoid,    // @3
-      kExprBr,       // @4
-      0,             // @5
-      kExprEnd       // @6
+      kExprI32Const,  // @0
+      0,              // @1
+      kExprBlock,     // @2
+      kLocalVoid,     // @3
+      kExprBr,        // @4
+      0,              // @5
+      kExprEnd        // @6
   };
   EXPECT_PC_DELTAS({4, 3});
 }
@@ -383,80 +383,80 @@ TEST_F(ControlTransferTest, SimpleLoopExit2) {
 
 TEST_F(ControlTransferTest, BrTable0) {
   byte code[] = {
-      kExprBlock,    // @0
-      kLocalVoid,    // @1
-      kExprI8Const,  // @2
-      0,             // @3
-      kExprBrTable,  // @4
-      0,             // @5
-      U32V_1(0),     // @6
-      kExprEnd       // @7
+      kExprBlock,     // @0
+      kLocalVoid,     // @1
+      kExprI32Const,  // @2
+      0,              // @3
+      kExprBrTable,   // @4
+      0,              // @5
+      U32V_1(0),      // @6
+      kExprEnd        // @7
   };
   EXPECT_PC_DELTAS({4, 4});
 }
 
 TEST_F(ControlTransferTest, BrTable0_v1a) {
   byte code[] = {
-      kExprBlock,    // @0
-      kLocalVoid,    // @1
-      kExprI8Const,  // @2
-      0,             // @3
-      kExprI8Const,  // @4
-      0,             // @5
-      kExprBrTable,  // @6
-      0,             // @7
-      U32V_1(0),     // @8
-      kExprEnd       // @9
+      kExprBlock,     // @0
+      kLocalVoid,     // @1
+      kExprI32Const,  // @2
+      0,              // @3
+      kExprI32Const,  // @4
+      0,              // @5
+      kExprBrTable,   // @6
+      0,              // @7
+      U32V_1(0),      // @8
+      kExprEnd        // @9
   };
   EXPECT_PC_DELTAS({6, 4});
 }
 
 TEST_F(ControlTransferTest, BrTable0_v1b) {
   byte code[] = {
-      kExprBlock,    // @0
-      kLocalVoid,    // @1
-      kExprI8Const,  // @2
-      0,             // @3
-      kExprI8Const,  // @4
-      0,             // @5
-      kExprBrTable,  // @6
-      0,             // @7
-      U32V_1(0),     // @8
-      kExprEnd       // @9
+      kExprBlock,     // @0
+      kLocalVoid,     // @1
+      kExprI32Const,  // @2
+      0,              // @3
+      kExprI32Const,  // @4
+      0,              // @5
+      kExprBrTable,   // @6
+      0,              // @7
+      U32V_1(0),      // @8
+      kExprEnd        // @9
   };
   EXPECT_PC_DELTAS({6, 4});
 }
 
 TEST_F(ControlTransferTest, BrTable1) {
   byte code[] = {
-      kExprBlock,    // @0
-      kLocalVoid,    // @1
-      kExprI8Const,  // @2
-      0,             // @3
-      kExprBrTable,  // @4
-      1,             // @5
-      U32V_1(0),     // @6
-      U32V_1(0),     // @7
-      kExprEnd       // @8
+      kExprBlock,     // @0
+      kLocalVoid,     // @1
+      kExprI32Const,  // @2
+      0,              // @3
+      kExprBrTable,   // @4
+      1,              // @5
+      U32V_1(0),      // @6
+      U32V_1(0),      // @7
+      kExprEnd        // @8
   };
   EXPECT_PC_DELTAS({4, 5}, {5, 4});
 }
 
 TEST_F(ControlTransferTest, BrTable2) {
   byte code[] = {
-      kExprBlock,    // @0
-      kLocalVoid,    // @1
-      kExprBlock,    // @2
-      kLocalVoid,    // @3
-      kExprI8Const,  // @4
-      0,             // @5
-      kExprBrTable,  // @6
-      2,             // @7
-      U32V_1(0),     // @8
-      U32V_1(0),     // @9
-      U32V_1(1),     // @10
-      kExprEnd,      // @11
-      kExprEnd       // @12
+      kExprBlock,     // @0
+      kLocalVoid,     // @1
+      kExprBlock,     // @2
+      kLocalVoid,     // @3
+      kExprI32Const,  // @4
+      0,              // @5
+      kExprBrTable,   // @6
+      2,              // @7
+      U32V_1(0),      // @8
+      U32V_1(0),      // @9
+      U32V_1(1),      // @10
+      kExprEnd,       // @11
+      kExprEnd        // @12
   };
   EXPECT_PC_DELTAS({6, 6}, {7, 5}, {8, 5});
 }

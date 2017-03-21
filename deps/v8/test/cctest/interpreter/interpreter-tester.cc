@@ -4,6 +4,8 @@
 
 #include "test/cctest/interpreter/interpreter-tester.h"
 
+#include "src/objects-inl.h"
+
 namespace v8 {
 namespace internal {
 namespace interpreter {
@@ -23,8 +25,6 @@ InterpreterTester::InterpreterTester(
       feedback_vector_(feedback_vector) {
   i::FLAG_ignition = true;
   i::FLAG_always_opt = false;
-  // Ensure handler table is generated.
-  isolate->interpreter()->Initialize();
 }
 
 InterpreterTester::InterpreterTester(

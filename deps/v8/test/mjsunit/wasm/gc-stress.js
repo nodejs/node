@@ -9,7 +9,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function run(f) {
   var builder = new WasmModuleBuilder();
-  builder.addImport("f", kSig_i_i);
+  builder.addImport("m", "f", kSig_i_i);
   builder.addFunction("main", kSig_i_i)
     .addBody([
       kExprGetLocal, 0,
@@ -21,7 +21,7 @@ function run(f) {
 
   for (var i = 0; i < 10; i++) {
     print("  instance " + i);
-    var instance = new WebAssembly.Instance(module, {f: f});
+    var instance = new WebAssembly.Instance(module, {m: {f: f}});
     var g = instance.exports.main;
     for (var j = 0; j < 10; j++) {
       assertEquals(f(j), g(j));

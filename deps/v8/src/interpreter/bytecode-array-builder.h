@@ -84,7 +84,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& LoadFalse();
 
   // Global loads to the accumulator and stores from the accumulator.
-  BytecodeArrayBuilder& LoadGlobal(int feedback_slot, TypeofMode typeof_mode);
+  BytecodeArrayBuilder& LoadGlobal(const Handle<String> name, int feedback_slot,
+                                   TypeofMode typeof_mode);
   BytecodeArrayBuilder& StoreGlobal(const Handle<String> name,
                                     int feedback_slot,
                                     LanguageMode language_mode);
@@ -121,6 +122,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Keyed load property. The key should be in the accumulator.
   BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot);
 
+  // Store properties. Flag for NeedsSetFunctionName() should
+  // be in the accumulator.
+  BytecodeArrayBuilder& StoreDataPropertyInLiteral(
+      Register object, Register name, DataPropertyInLiteralFlags flags,
+      int feedback_slot);
+
   // Store properties. The value to be stored should be in the accumulator.
   BytecodeArrayBuilder& StoreNamedProperty(Register object,
                                            const Handle<Name> name,
@@ -153,8 +160,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
                                         LanguageMode language_mode);
 
   // Create a new closure for a SharedFunctionInfo which will be inserted at
-  // constant pool index |entry|.
-  BytecodeArrayBuilder& CreateClosure(size_t entry, int flags);
+  // constant pool index |shared_function_info_entry|.
+  BytecodeArrayBuilder& CreateClosure(size_t shared_function_info_entry,
+                                      int slot, int flags);
 
   // Create a new local context for a |scope_info| and a closure which should be
   // in the accumulator.
@@ -169,6 +177,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Create a new context with size |slots|.
   BytecodeArrayBuilder& CreateFunctionContext(int slots);
 
+  // Create a new eval context with size |slots|.
+  BytecodeArrayBuilder& CreateEvalContext(int slots);
+
   // Creates a new context with the given |scope_info| for a with-statement
   // with the |object| in a register and the closure in the accumulator.
   BytecodeArrayBuilder& CreateWithContext(Register object,
@@ -180,11 +191,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Literals creation.  Constant elements should be in the accumulator.
   BytecodeArrayBuilder& CreateRegExpLiteral(Handle<String> pattern,
                                             int literal_index, int flags);
-  BytecodeArrayBuilder& CreateArrayLiteral(Handle<FixedArray> constant_elements,
+  BytecodeArrayBuilder& CreateArrayLiteral(size_t constant_elements_entry,
                                            int literal_index, int flags);
-  BytecodeArrayBuilder& CreateObjectLiteral(
-      Handle<FixedArray> constant_properties, int literal_index, int flags,
-      Register output);
+  BytecodeArrayBuilder& CreateObjectLiteral(size_t constant_properties_entry,
+                                            int literal_index, int flags,
+                                            Register output);
 
   // Push the context in accumulator as the new context, and store in register
   // |context|.
@@ -232,6 +243,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Call the JS runtime function with |context_index| and arguments |args|.
   BytecodeArrayBuilder& CallJSRuntime(int context_index, RegisterList args);
 
+  // Call the constructor in |args[0]| with new_target in |args[1]| and the
+  // arguments starting at |args[2]| onwards. The final argument must be a
+  // spread.
+  BytecodeArrayBuilder& NewWithSpread(RegisterList args);
+
   // Operators (register holds the lhs value, accumulator holds the rhs value).
   // Type feedback will be recorded in the |feedback_slot|
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
@@ -244,6 +260,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Unary Operators.
   BytecodeArrayBuilder& LogicalNot();
   BytecodeArrayBuilder& TypeOf();
+
+  // Expects a heap object in the accumulator. Returns its super constructor in
+  // the register |out| if it passes the IsConstructor test. Otherwise, it
+  // throws a TypeError exception.
+  BytecodeArrayBuilder& GetSuperConstructor(Register out);
 
   // Deletes property from an object. This expects that accumulator contains
   // the key to be deleted and the register contains a reference to the object.
@@ -266,11 +287,16 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& JumpIfTrue(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfFalse(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNotHole(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfJSReceiver(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpLoop(BytecodeLabel* label, int loop_depth);
 
   BytecodeArrayBuilder& StackCheck(int position);
+
+  // Sets the pending message to the value in the accumulator, and returns the
+  // previous pending message in the accumulator.
+  BytecodeArrayBuilder& SetPendingMessage();
 
   BytecodeArrayBuilder& Throw();
   BytecodeArrayBuilder& ReThrow();
@@ -302,6 +328,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // entry, so that it can be referenced by above exception handling support.
   int NewHandlerEntry() { return handler_table_builder()->NewHandlerEntry(); }
 
+  // Gets a constant pool entry for the |object|.
+  size_t GetConstantPoolEntry(Handle<Object> object);
   // Allocates a slot in the constant pool which can later be inserted.
   size_t AllocateConstantPoolEntry();
   // Inserts a entry into an allocated constant pool entry.
@@ -347,7 +375,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
  private:
   friend class BytecodeRegisterAllocator;
-  template <OperandType... operand_types>
+  template <Bytecode bytecode, AccumulatorUse accumulator_use,
+            OperandType... operand_types>
   friend class BytecodeNodeBuilder;
 
   // Returns the current source position for the given |bytecode|.
@@ -367,15 +396,13 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Set position for return.
   void SetReturnPosition();
 
-  // Gets a constant pool entry for the |object|.
-  size_t GetConstantPoolEntry(Handle<Object> object);
-
   // Not implemented as the illegal bytecode is used inside internally
   // to indicate a bytecode field is not valid or an error has occured
   // during bytecode generation.
   BytecodeArrayBuilder& Illegal();
 
-  void PrepareToOutputBytecode(Bytecode bytecode);
+  template <Bytecode bytecode, AccumulatorUse accumulator_use>
+  void PrepareToOutputBytecode();
 
   void LeaveBasicBlock() { return_seen_in_block_ = false; }
 

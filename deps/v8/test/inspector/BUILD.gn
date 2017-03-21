@@ -3,9 +3,8 @@
 # found in the LICENSE file.
 
 import("../../gni/v8.gni")
-import("//build_overrides/v8.gni")
 
-if (v8_enable_inspector_override) {
+if (v8_enable_inspector) {
   v8_executable("inspector-test") {
     testonly = true
 

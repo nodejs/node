@@ -57,7 +57,7 @@ class MockPlatform : public v8::Platform {
     platform_->CallIdleOnForegroundThread(isolate, task);
   }
 
-  bool IdleTasksEnabled(v8::Isolate* isolate) override { return true; }
+  bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }
 
   bool PendingTask() { return task_ != nullptr; }
 
@@ -103,32 +103,6 @@ TEST(IncrementalMarkingUsingTasks) {
   MockPlatform platform(old_platform);
   i::V8::SetPlatformForTesting(&platform);
   i::heap::SimulateFullSpace(CcTest::heap()->old_space());
-  i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  marking->Stop();
-  marking->Start(i::GarbageCollectionReason::kTesting);
-  CHECK(platform.PendingTask());
-  while (platform.PendingTask()) {
-    platform.PerformTask();
-  }
-  CHECK(marking->IsStopped());
-  i::V8::SetPlatformForTesting(old_platform);
-}
-
-
-TEST(IncrementalMarkingUsingIdleTasksAfterGC) {
-  if (!i::FLAG_incremental_marking) return;
-
-  CcTest::InitializeVM();
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
-  i::heap::SimulateFullSpace(CcTest::heap()->old_space());
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-  // Perform any pending idle tasks.
-  while (platform.PendingTask()) {
-    platform.PerformTask();
-  }
-  CHECK(!platform.PendingTask());
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
   marking->Start(i::GarbageCollectionReason::kTesting);

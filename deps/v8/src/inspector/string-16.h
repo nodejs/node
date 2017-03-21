@@ -23,7 +23,7 @@ class String16 {
   String16() {}
   String16(const String16& other)
       : m_impl(other.m_impl), hash_code(other.hash_code) {}
-  String16(const String16&& other)
+  String16(String16&& other)
       : m_impl(std::move(other.m_impl)), hash_code(other.hash_code) {}
   String16(const UChar* characters, size_t size) : m_impl(characters, size) {}
   String16(const UChar* characters)  // NOLINT(runtime/explicit)
