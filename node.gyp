@@ -636,6 +636,7 @@
       ],
 
       'sources': [
+        'test/cctest/test_environment.cc',
         'test/cctest/test_util.cc',
       ],
 

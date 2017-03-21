@@ -63,7 +63,6 @@
 
 #include <string>
 #include <vector>
-#include <list>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/uvernum.h>
@@ -4292,25 +4291,23 @@ void Init(int* argc,
 }
 
 
-struct AtExitCallback {
-  void (*cb_)(void* arg);
-  void* arg_;
-};
-
-static std::list<AtExitCallback> at_exit_functions;
-
-
-// TODO(bnoordhuis) Turn into per-context event.
 void RunAtExit(Environment* env) {
-  for (AtExitCallback at_exit : at_exit_functions) {
-    at_exit.cb_(at_exit.arg_);
-  }
-  at_exit_functions.clear();
+  env->RunAtExitCallbacks();
 }
 
 
+static uv_key_t thread_local_env;
+
+
 void AtExit(void (*cb)(void* arg), void* arg) {
-  at_exit_functions.push_back(AtExitCallback{cb, arg});
+  auto env = static_cast<Environment*>(uv_key_get(&thread_local_env));
+  AtExit(env, cb, arg);
+}
+
+
+void AtExit(Environment* env, void (*cb)(void* arg), void* arg) {
+  CHECK_NE(env, nullptr);
+  env->AtExit(cb, arg);
 }
 
 
@@ -4386,6 +4383,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   Local<Context> context = Context::New(isolate);
   Context::Scope context_scope(context);
   Environment env(isolate_data, context);
+  CHECK_EQ(0, uv_key_create(&thread_local_env));
+  uv_key_set(&thread_local_env, &env);
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
 
   bool debug_enabled =
@@ -4434,6 +4433,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   const int exit_code = EmitExit(&env);
   RunAtExit(&env);
+  uv_key_delete(&thread_local_env);
 
   WaitForInspectorDisconnect(&env);
 #if defined(LEAK_SANITIZER)

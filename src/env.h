@@ -15,6 +15,7 @@
 #include "uv.h"
 #include "v8.h"
 
+#include <list>
 #include <stdint.h>
 #include <vector>
 
@@ -504,6 +505,9 @@ class Environment {
 
   inline v8::Local<v8::Object> NewInternalFieldObject();
 
+  void AtExit(void (*cb)(void* arg), void* arg);
+  void RunAtExitCallbacks();
+
   // Strings and private symbols are shared across shared contexts
   // The getters simply proxy to the per-isolate primitive.
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
@@ -580,6 +584,14 @@ class Environment {
   double* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
+
+  double* fs_stats_field_array_;
+
+  struct AtExitCallback {
+    void (*cb_)(void* arg);
+    void* arg_;
+  };
+  std::list<AtExitCallback> at_exit_functions_;
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;
