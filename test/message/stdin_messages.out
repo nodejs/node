@@ -7,10 +7,12 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at Immediate.<anonymous> (bootstrap_node.js:*:*)
-    at runCallback (timers.js:*:*)
-    at tryOnImmediate (timers.js:*:*)
-    at processImmediate [as _immediateCallback] (timers.js:*:*)
+    at evalScript (bootstrap_node.js:*:*)
+    at Socket.<anonymous> (bootstrap_node.js:*:*)
+    at emitNone (events.js:*:*)
+    at Socket.emit (events.js:*:*)
+    at endReadableNT (_stream_readable.js:*:*)
+    at _combinedTickCallback (internal/process/next_tick.js:*:*)
 42
 42
 [stdin]:1
@@ -23,10 +25,11 @@ Error: hello
     at Object.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at Immediate.<anonymous> (bootstrap_node.js:*:*)
-    at runCallback (timers.js:*:*)
-    at tryOnImmediate (timers.js:*:*)
-    at processImmediate [as _immediateCallback] (timers.js:*:*)
+    at evalScript (bootstrap_node.js:*:*)
+    at Socket.<anonymous> (bootstrap_node.js:*:*)
+    at emitNone (events.js:*:*)
+    at Socket.emit (events.js:*:*)
+    at endReadableNT (_stream_readable.js:*:*)
 [stdin]:1
 throw new Error("hello")
 ^
@@ -37,10 +40,11 @@ Error: hello
     at Object.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at Immediate.<anonymous> (bootstrap_node.js:*:*)
-    at runCallback (timers.js:*:*)
-    at tryOnImmediate (timers.js:*:*)
-    at processImmediate [as _immediateCallback] (timers.js:*:*)
+    at evalScript (bootstrap_node.js:*:*)
+    at Socket.<anonymous> (bootstrap_node.js:*:*)
+    at emitNone (events.js:*:*)
+    at Socket.emit (events.js:*:*)
+    at endReadableNT (_stream_readable.js:*:*)
 100
 [stdin]:1
 var x = 100; y = x;
@@ -52,10 +56,11 @@ ReferenceError: y is not defined
     at Object.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at Immediate.<anonymous> (bootstrap_node.js:*:*)
-    at runCallback (timers.js:*:*)
-    at tryOnImmediate (timers.js:*:*)
-    at processImmediate [as _immediateCallback] (timers.js:*:*)
+    at evalScript (bootstrap_node.js:*:*)
+    at Socket.<anonymous> (bootstrap_node.js:*:*)
+    at emitNone (events.js:*:*)
+    at Socket.emit (events.js:*:*)
+    at endReadableNT (_stream_readable.js:*:*)
 
 [stdin]:1
 var ______________________________________________; throw 10
