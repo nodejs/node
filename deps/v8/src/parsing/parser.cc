@@ -1606,8 +1606,6 @@ Expression* Parser::RewriteReturn(Expression* return_value, int pos) {
   }
   if (is_generator()) {
     return_value = BuildIteratorResult(return_value, true);
-  } else if (is_async_function()) {
-    return_value = BuildResolvePromise(return_value, return_value->position());
   }
   return return_value;
 }
@@ -2426,9 +2424,8 @@ void Parser::PrepareGeneratorVariables() {
   // Calling a generator returns a generator object.  That object is stored
   // in a temporary variable, a definition that is used by "yield"
   // expressions.
-  Variable* temp =
-      NewTemporary(ast_value_factory()->dot_generator_object_string());
-  function_state_->set_generator_object_variable(temp);
+  function_state_->scope()->DeclareGeneratorObjectVar(
+      ast_value_factory()->dot_generator_object_string());
 }
 
 FunctionLiteral* Parser::ParseFunctionLiteral(
@@ -3042,8 +3039,8 @@ Variable* Parser::PromiseVariable() {
   // comes first should create it and stash it in the FunctionState.
   Variable* promise = function_state_->promise_variable();
   if (function_state_->promise_variable() == nullptr) {
-    promise = scope()->NewTemporary(ast_value_factory()->empty_string());
-    function_state_->set_promise_variable(promise);
+    promise = function_state_->scope()->DeclarePromiseVar(
+        ast_value_factory()->empty_string());
   }
   return promise;
 }

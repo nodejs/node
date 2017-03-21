@@ -294,7 +294,7 @@ void DeclarationScope::SetDefaults() {
   new_target_ = nullptr;
   function_ = nullptr;
   arguments_ = nullptr;
-  this_function_ = nullptr;
+  rare_data_ = nullptr;
   should_eager_compile_ = false;
   was_lazily_parsed_ = false;
 #ifdef DEBUG
@@ -672,7 +672,7 @@ void DeclarationScope::DeclareDefaultFunctionVariables(
 
   if (IsConciseMethod(function_kind_) || IsClassConstructor(function_kind_) ||
       IsAccessorFunction(function_kind_)) {
-    this_function_ =
+    EnsureRareData()->this_function =
         Declare(zone(), ast_value_factory->this_function_string(), CONST);
   }
 }
@@ -691,6 +691,24 @@ Variable* DeclarationScope::DeclareFunctionVar(const AstRawString* name) {
     variables_.Add(zone(), function_);
   }
   return function_;
+}
+
+Variable* DeclarationScope::DeclareGeneratorObjectVar(
+    const AstRawString* name) {
+  DCHECK(is_function_scope() || is_module_scope());
+  DCHECK_NULL(generator_object_var());
+
+  Variable* result = EnsureRareData()->generator_object = NewTemporary(name);
+  result->set_is_used();
+  return result;
+}
+
+Variable* DeclarationScope::DeclarePromiseVar(const AstRawString* name) {
+  DCHECK(is_function_scope());
+  DCHECK_NULL(promise_var());
+  Variable* result = EnsureRareData()->promise = NewTemporary(name);
+  result->set_is_used();
+  return result;
 }
 
 bool Scope::HasBeenRemoved() const {
@@ -2053,9 +2071,8 @@ void DeclarationScope::AllocateLocals() {
     new_target_ = nullptr;
   }
 
-  if (this_function_ != nullptr && !MustAllocate(this_function_)) {
-    this_function_ = nullptr;
-  }
+  NullifyRareVariableIf(RareVariable::kThisFunction,
+                        [=](Variable* var) { return !MustAllocate(var); });
 }
 
 void ModuleScope::AllocateModuleVariables() {
