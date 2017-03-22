@@ -368,8 +368,7 @@ namespace url {
     }
 
     // First, we have to percent decode
-    if (PercentDecode(input, length, &decoded) < 0)
-      goto end;
+    PercentDecode(input, length, &decoded);
 
     // Then we have to punycode toASCII
     if (!ToASCII(&decoded, &decoded))

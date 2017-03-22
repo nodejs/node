@@ -376,11 +376,11 @@ static inline unsigned hex2bin(const char ch) {
   return static_cast<unsigned>(-1);
 }
 
-static inline int PercentDecode(const char* input,
-                                size_t len,
-                                std::string* dest) {
+static inline void PercentDecode(const char* input,
+                                 size_t len,
+                                 std::string* dest) {
   if (len == 0)
-    return 0;
+    return;
   dest->reserve(len);
   const char* pointer = input;
   const char* end = input + len;
@@ -399,11 +399,10 @@ static inline int PercentDecode(const char* input,
       unsigned a = hex2bin(pointer[1]);
       unsigned b = hex2bin(pointer[2]);
       char c = static_cast<char>(a * 16 + b);
-      *dest += static_cast<char>(c);
+      *dest += c;
       pointer += 3;
     }
   }
-  return 0;
 }
 
 #define SPECIALS(XX)                                                          \
