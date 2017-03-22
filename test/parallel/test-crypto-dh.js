@@ -24,7 +24,7 @@ assert.strictEqual(dh1.verifyError, 0);
 assert.strictEqual(dh2.verifyError, 0);
 
 const argumentsError =
-  /^TypeError: First argument should be number, string or Buffer$/;
+  /^TypeError: First argument should be number, string, Uint8Array or Buffer$/;
 
 assert.throws(() => {
   crypto.createDiffieHellman([0x1, 0x2]);
@@ -112,45 +112,69 @@ const modp2buf = Buffer.from([
   0x1f, 0xe6, 0x49, 0x28, 0x66, 0x51, 0xec, 0xe6, 0x53, 0x81,
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 ]);
-const exmodp2 = crypto.createDiffieHellman(modp2buf, Buffer.from([2]));
-modp2.generateKeys();
-exmodp2.generateKeys();
-let modp2Secret = modp2.computeSecret(exmodp2.getPublicKey()).toString('hex');
-const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
-                             .toString('hex');
-assert.strictEqual(modp2Secret, exmodp2Secret);
-assert.strictEqual(modp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
-assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
+{
+  const exmodp2 = crypto.createDiffieHellman(modp2buf, Buffer.from([2]));
+  modp2.generateKeys();
+  exmodp2.generateKeys();
+  const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
+      .toString('hex');
+  const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
+                               .toString('hex');
+  assert.strictEqual(modp2Secret, exmodp2Secret);
+  assert.strictEqual(modp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
+  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
+}
 
-// Ensure specific generator (string with encoding) works as expected.
-const exmodp2_2 = crypto.createDiffieHellman(modp2buf, '02', 'hex');
-exmodp2_2.generateKeys();
-modp2Secret = modp2.computeSecret(exmodp2_2.getPublicKey()).toString('hex');
-const exmodp2_2Secret = exmodp2_2.computeSecret(modp2.getPublicKey())
+{
+  // Ensure specific generator (string with encoding) works as expected.
+  const exmodp2 = crypto.createDiffieHellman(modp2buf, '02', 'hex');
+  exmodp2.generateKeys();
+  const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
+      .toString('hex');
+  const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
+                                   .toString('hex');
+  assert.strictEqual(modp2Secret, exmodp2Secret);
+  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
+}
+
+{
+  // Ensure specific generator (string with encoding) works as expected,
+  // with a Uint8Array as the first argument to createDiffieHellman().
+  const exmodp2 = crypto.createDiffieHellman(new Uint8Array([...modp2buf]),
+                                             '02', 'hex');
+  exmodp2.generateKeys();
+  const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
+      .toString('hex');
+  const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
+                                   .toString('hex');
+  assert.strictEqual(modp2Secret, exmodp2Secret);
+  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
+}
+
+{
+  // Ensure specific generator (string without encoding) works as expected.
+  const exmodp2 = crypto.createDiffieHellman(modp2buf, '\x02');
+  exmodp2.generateKeys();
+  const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
+      .toString('hex');
+  const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
                                  .toString('hex');
-assert.strictEqual(modp2Secret, exmodp2_2Secret);
-assert.strictEqual(exmodp2_2.verifyError, DH_NOT_SUITABLE_GENERATOR);
+  assert.strictEqual(modp2Secret, exmodp2Secret);
+  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
+}
 
-
-// Ensure specific generator (string without encoding) works as expected.
-const exmodp2_3 = crypto.createDiffieHellman(modp2buf, '\x02');
-exmodp2_3.generateKeys();
-modp2Secret = modp2.computeSecret(exmodp2_3.getPublicKey()).toString('hex');
-const exmodp2_3Secret = exmodp2_3.computeSecret(modp2.getPublicKey())
-                               .toString('hex');
-assert.strictEqual(modp2Secret, exmodp2_3Secret);
-assert.strictEqual(exmodp2_3.verifyError, DH_NOT_SUITABLE_GENERATOR);
-
-
-// Ensure specific generator (numeric) works as expected.
-const exmodp2_4 = crypto.createDiffieHellman(modp2buf, 2);
-exmodp2_4.generateKeys();
-modp2Secret = modp2.computeSecret(exmodp2_4.getPublicKey()).toString('hex');
-const exmodp2_4Secret = exmodp2_4.computeSecret(modp2.getPublicKey())
-                               .toString('hex');
-assert.strictEqual(modp2Secret, exmodp2_4Secret);
-assert.strictEqual(exmodp2_4.verifyError, DH_NOT_SUITABLE_GENERATOR);
+{
+  // Ensure specific generator (numeric) works as expected.
+  const exmodp2 = crypto.createDiffieHellman(modp2buf, 2);
+  exmodp2.generateKeys();
+  const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
+      .toString('hex');
+  const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
+                                 .toString('hex');
+  assert.strictEqual(modp2Secret, exmodp2Secret);
+  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
+}
 
 
 const p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
