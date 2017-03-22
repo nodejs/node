@@ -144,6 +144,13 @@ added: v6.0.0
 
 Silence all process warnings (including deprecations).
 
+### `--napi-modules`
+<!-- YAML
+added: v8.0.0
+-->
+
+Load N-API modules.
+
 ### `--trace-warnings`
 <!-- YAML
 added: v6.0.0

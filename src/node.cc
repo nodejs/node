@@ -2471,7 +2471,8 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
                sizeof(errmsg),
                "The module '%s'"
                "\nwas compiled against the Node.js API. This feature is "
-               "\nexperimental and must be enabled on the command-line.",
+               "\nexperimental and must be enabled on the command-line by "
+               "\nadding --napi-modules.",
                *filename);
     } else {
       snprintf(errmsg,
@@ -3547,7 +3548,7 @@ static void PrintHelp() {
          "  --trace-deprecation        show stack traces on deprecations\n"
          "  --throw-deprecation        throw an exception on deprecations\n"
          "  --no-warnings              silence all process warnings\n"
-         "  --napi-modules[=yes|no]    load N-API modules (default no)\n"
+         "  --napi-modules             load N-API modules\n"
          "  --trace-warnings           show stack traces on process warnings\n"
          "  --redirect-warnings=path\n"
          "                             write warnings to path instead of\n"
@@ -3720,10 +3721,6 @@ static void ParseArgs(int* argc,
       no_deprecation = true;
     } else if (strcmp(arg, "--napi-modules") == 0) {
       load_napi_modules = true;
-    } else if (strcmp(arg, "--napi-modules=yes") == 0) {
-      load_napi_modules = true;
-    } else if (strcmp(arg, "--napi-modules=no") == 0) {
-      load_napi_modules = false;
     } else if (strcmp(arg, "--no-warnings") == 0) {
       no_process_warnings = true;
     } else if (strcmp(arg, "--trace-warnings") == 0) {
