@@ -2,7 +2,7 @@
   "targets": [
     {
       "target_name": "test_string",
-      "sources": [ "test_string.cc" ]
+      "sources": [ "test_string.c" ]
     }
   ]
 }

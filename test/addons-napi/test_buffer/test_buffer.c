@@ -1,14 +1,13 @@
-﻿#include <string.h>
-#include <string>
+#include <stdlib.h>
+#include <string.h>
 #include <node_api.h>
 
-#define JS_ASSERT(env, assertion, message)                             \
-  if (!(assertion)) {                                                  \
-    napi_throw_error(                                                  \
-        (env),                                                         \
-        (std::string("assertion (" #assertion ") failed: ") + message) \
-            .c_str());                                                 \
-    return;                                                            \
+#define JS_ASSERT(env, assertion, message)              \
+  if (!(assertion)) {                                   \
+    napi_throw_error(                                   \
+        (env),                                          \
+        "assertion (" #assertion ") failed: " message); \
+    return;                                             \
   }
 
 #define NAPI_CALL(env, theCall)                                           \
@@ -23,13 +22,15 @@ static const char theText[] =
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit.";
 
 static int deleterCallCount = 0;
-static void deleteTheText(void *data, void* /*finalize_hint*/) {
-  delete reinterpret_cast<char *>(data);
+static void deleteTheText(void *data, void* finalize_hint) {
+  (void)finalize_hint;
+  free(data);
   deleterCallCount++;
 }
 
-static void noopDeleter(void *data, void* /*finalize_hint*/) {
-    deleterCallCount++;
+static void noopDeleter(void *data, void* finalize_hint) {
+  (void)finalize_hint;
+  deleterCallCount++;
 }
 
 void newBuffer(napi_env env, napi_callback_info info) {
@@ -41,7 +42,7 @@ void newBuffer(napi_env env, napi_callback_info info) {
             napi_create_buffer(
                 env,
                 sizeof(theText),
-                reinterpret_cast<void**>(&theCopy),
+                (void **)(&theCopy),
                 &theBuffer));
   JS_ASSERT(env, theCopy, "Failed to copy static text for newBuffer");
   memcpy(theCopy, theText, kBufferSize);
@@ -58,7 +59,7 @@ void newExternalBuffer(napi_env env, napi_callback_info info) {
                 sizeof(theText),
                 theCopy,
                 deleteTheText,
-                nullptr,  // finalize_hint
+                NULL,  // finalize_hint
                 &theBuffer));
   NAPI_CALL(env, napi_set_return_value(env, info, theBuffer));
 }
@@ -107,7 +108,7 @@ void bufferInfo(napi_env env, napi_callback_info info) {
             napi_get_buffer_info(
                 env,
                 theBuffer,
-                reinterpret_cast<void**>(&bufferData),
+                (void **)(&bufferData),
                 &bufferLength));
   NAPI_CALL(env, napi_create_boolean(env,
     !strcmp(bufferData, theText) && bufferLength == sizeof(theText),
@@ -121,9 +122,9 @@ void staticBuffer(napi_env env, napi_callback_info info) {
       env,
       napi_create_external_buffer(env,
                                   sizeof(theText),
-                                  const_cast<char *>(theText),
+                                  (const char *)(theText),
                                   noopDeleter,
-                                  nullptr,  // finalize_hint
+                                  NULL,  // finalize_hint
                                   &theBuffer));
   NAPI_CALL(env, napi_set_return_value(env, info, theBuffer));
 }

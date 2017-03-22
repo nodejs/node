@@ -20,7 +20,7 @@ typedef struct napi_callback_info__ *napi_callback_info;
 typedef void (*napi_callback)(napi_env, napi_callback_info);
 typedef void (*napi_finalize)(void* finalize_data, void* finalize_hint);
 
-enum napi_property_attributes {
+typedef enum {
   napi_default = 0,
   napi_read_only = 1 << 0,
   napi_dont_enum = 1 << 1,
@@ -29,9 +29,9 @@ enum napi_property_attributes {
   // Used with napi_define_class to distinguish static properties
   // from instance properties. Ignored by napi_define_properties.
   napi_static_property = 1 << 10,
-};
+} napi_property_attributes;
 
-struct napi_property_descriptor {
+typedef struct {
   const char* utf8name;
 
   napi_callback method;
@@ -41,11 +41,11 @@ struct napi_property_descriptor {
 
   napi_property_attributes attributes;
   void* data;
-};
+} napi_property_descriptor;
 
 #define DEFAULT_ATTR 0, 0, 0, napi_default, 0
 
-enum napi_valuetype {
+typedef enum {
   // ES6 types (corresponds to typeof)
   napi_undefined,
   napi_null,
@@ -56,9 +56,9 @@ enum napi_valuetype {
   napi_object,
   napi_function,
   napi_external,
-};
+} napi_valuetype;
 
-enum napi_typedarray_type {
+typedef enum {
   napi_int8,
   napi_uint8,
   napi_uint8_clamped,
@@ -68,9 +68,9 @@ enum napi_typedarray_type {
   napi_uint32,
   napi_float32,
   napi_float64,
-};
+} napi_typedarray_type;
 
-enum napi_status {
+typedef enum {
   napi_ok,
   napi_invalid_arg,
   napi_object_expected,
@@ -81,13 +81,13 @@ enum napi_status {
   napi_generic_failure,
   napi_pending_exception,
   napi_status_last
-};
+} napi_status;
 
-struct napi_extended_error_info {
+typedef struct {
   const char* error_message;
   void* engine_reserved;
   uint32_t engine_error_code;
   napi_status error_code;
-};
+} napi_extended_error_info;
 
 #endif  // SRC_NODE_API_TYPES_H_

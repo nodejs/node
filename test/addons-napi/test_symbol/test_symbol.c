@@ -29,7 +29,7 @@ void Test(napi_env env, napi_callback_info info) {
   int buffer_size = 128;
 
   status =
-      napi_get_value_string_utf8(env, args[0], buffer, buffer_size, nullptr);
+      napi_get_value_string_utf8(env, args[0], buffer, buffer_size, NULL);
   if (status != napi_ok) return;
 
   napi_value output;
@@ -63,7 +63,7 @@ void New(napi_env env, napi_callback_info info) {
     char buffer[128];
     int buffer_size = 128;
     status =
-        napi_get_value_string_utf8(env, args[0], buffer, buffer_size, nullptr);
+        napi_get_value_string_utf8(env, args[0], buffer, buffer_size, NULL);
     if (status != napi_ok) return;
 
     napi_value symbol;

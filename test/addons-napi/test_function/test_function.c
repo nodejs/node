@@ -1,4 +1,4 @@
-﻿#include <node_api.h>
+#include <node_api.h>
 
 void Test(napi_env env, napi_callback_info info) {
   napi_status status;
@@ -45,7 +45,7 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_status status;
 
   napi_value fn;
-  status =  napi_create_function(env, nullptr, Test, nullptr, &fn);
+  status =  napi_create_function(env, NULL, Test, NULL, &fn);
   if (status != napi_ok) return;
 
   status = napi_set_named_property(env, exports, "Test", fn);

@@ -2,7 +2,7 @@
   "targets": [
     {
       "target_name": "test_exception",
-      "sources": [ "test_exception.cc" ]
+      "sources": [ "test_exception.c" ]
     }
   ]
 }

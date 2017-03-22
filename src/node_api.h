@@ -11,6 +11,7 @@
 #define SRC_NODE_API_H_
 
 #include <stddef.h>
+#include <stdbool.h>
 #include "node_api_types.h"
 
 #ifdef _WIN32
@@ -37,23 +38,20 @@
 #endif
 
 
-namespace node {
-
 NAPI_EXTERN typedef void (*napi_addon_register_func)(napi_env env,
                                                      napi_value exports,
                                                      napi_value module,
                                                      void* priv);
-}  // namespace node
 
-struct napi_module {
+typedef struct {
   int nm_version;
   unsigned int nm_flags;
   const char* nm_filename;
-  node::napi_addon_register_func nm_register_func;
+  napi_addon_register_func nm_register_func;
   const char* nm_modname;
   void* nm_priv;
   void* reserved[4];
-};
+} napi_module;
 
 #define NAPI_MODULE_VERSION  1
 
@@ -70,8 +68,16 @@ struct napi_module {
   static void fn(void)
 #endif
 
+#ifdef __cplusplus
+#define EXTERN_C_START extern "C" {
+#define EXTERN_C_END }
+#else /* ndef __cplusplus */
+#define EXTERN_C_START
+#define EXTERN_C_END
+#endif /* def __cplusplus */
+
 #define NAPI_MODULE_X(modname, regfunc, priv, flags)                  \
-  extern "C" {                                                        \
+  EXTERN_C_START                                                      \
     static napi_module _module =                                      \
     {                                                                 \
       NAPI_MODULE_VERSION,                                            \
@@ -85,12 +91,12 @@ struct napi_module {
     NAPI_C_CTOR(_register_ ## modname) {                              \
       napi_module_register(&_module);                                 \
     }                                                                 \
-  }
+  EXTERN_C_END
 
 #define NAPI_MODULE(modname, regfunc) \
   NAPI_MODULE_X(modname, regfunc, NULL, 0)
 
-extern "C" {
+EXTERN_C_START
 
 NAPI_EXTERN void napi_module_register(napi_module* mod);
 
@@ -478,6 +484,6 @@ NAPI_EXTERN napi_status napi_get_typedarray_info(napi_env env,
                                                  void** data,
                                                  napi_value* arraybuffer,
                                                  size_t* byte_offset);
-}  // extern "C"
+EXTERN_C_END
 
 #endif  // SRC_NODE_API_H__

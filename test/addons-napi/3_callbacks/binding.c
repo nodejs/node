@@ -17,7 +17,7 @@ void RunCallback(napi_env env, const napi_callback_info info) {
   status = napi_get_global(env, &global);
   if (status != napi_ok) return;
 
-  status = napi_call_function(env, global, cb, 1, argv, nullptr);
+  status = napi_call_function(env, global, cb, 1, argv, NULL);
   if (status != napi_ok) return;
 }
 
@@ -31,7 +31,7 @@ void RunCallbackWithRecv(napi_env env, const napi_callback_info info) {
   napi_value cb = args[0];
   napi_value recv = args[1];
 
-  status = napi_call_function(env, recv, cb, 0, nullptr, nullptr);
+  status = napi_call_function(env, recv, cb, 0, NULL, NULL);
   if (status != napi_ok) return;
 }
 

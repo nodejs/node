@@ -1,4 +1,4 @@
-﻿#include <node_api.h>
+#include <node_api.h>
 
 void MyFunction(napi_env env, napi_callback_info info) {
   napi_status status;
@@ -15,7 +15,7 @@ void CreateFunction(napi_env env, napi_callback_info info) {
   napi_status status;
 
   napi_value fn;
-  status = napi_create_function(env, "theFunction", MyFunction, nullptr, &fn);
+  status = napi_create_function(env, "theFunction", MyFunction, NULL, &fn);
   if (status != napi_ok) return;
 
   status = napi_set_return_value(env, info, fn);

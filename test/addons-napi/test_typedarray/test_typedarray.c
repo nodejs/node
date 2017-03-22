@@ -57,9 +57,9 @@ void Multiply(napi_env env, napi_callback_info info) {
   napi_typedarray_type type;
   napi_value input_buffer;
   size_t byte_offset;
-  size_t length;
+  size_t i, length;
   status = napi_get_typedarray_info(
-      env, input_array, &type, &length, nullptr, &input_buffer, &byte_offset);
+      env, input_array, &type, &length, NULL, &input_buffer, &byte_offset);
   if (status != napi_ok) return;
 
   void* data;
@@ -68,7 +68,7 @@ void Multiply(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_value output_buffer;
-  void* output_ptr = nullptr;
+  void* output_ptr = NULL;
   status =
       napi_create_arraybuffer(env, byte_length, &output_ptr, &output_buffer);
   if (status != napi_ok) return;
@@ -79,16 +79,15 @@ void Multiply(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   if (type == napi_uint8) {
-    uint8_t* input_bytes = reinterpret_cast<uint8_t*>(data) + byte_offset;
-    uint8_t* output_bytes = reinterpret_cast<uint8_t*>(output_ptr);
-    for (size_t i = 0; i < length; i++) {
-      output_bytes[i] = static_cast<uint8_t>(input_bytes[i] * multiplier);
+    uint8_t* input_bytes = (uint8_t*)(data) + byte_offset;
+    uint8_t* output_bytes = (uint8_t*)(output_ptr);
+    for (i = 0; i < length; i++) {
+      output_bytes[i] = (uint8_t)(input_bytes[i] * multiplier);
     }
   } else if (type == napi_float64) {
-    double* input_doubles = reinterpret_cast<double*>(
-        reinterpret_cast<uint8_t*>(data) + byte_offset);
-    double* output_doubles = reinterpret_cast<double*>(output_ptr);
-    for (size_t i = 0; i < length; i++) {
+    double* input_doubles = (double*)((uint8_t*)(data) + byte_offset);
+    double* output_doubles = (double*)(output_ptr);
+    for (i = 0; i < length; i++) {
       output_doubles[i] = input_doubles[i] * multiplier;
     }
   } else {
@@ -108,8 +107,8 @@ void External(napi_env env, napi_callback_info info) {
       env,
       externalData,
       sizeof(externalData),
-      nullptr,  // finalize_callback
-      nullptr,  // finalize_hint
+      NULL,  // finalize_callback
+      NULL,  // finalize_hint
       &output_buffer);
   if (status != napi_ok) return;
 

@@ -74,8 +74,7 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
       { "accessorValue", 0, GetValue, SetValue, 0, napi_default, 0 },
       { "readwriteValue", 0, 0, 0, number, napi_default, 0 },
       { "readonlyValue", 0, 0, 0, number, napi_read_only, 0 },
-      { "hiddenValue", 0, 0, 0, number, static_cast<napi_property_attributes>(
-          napi_read_only | napi_dont_enum), 0 },
+      { "hiddenValue", 0, 0, 0, number, napi_read_only | napi_dont_enum, 0 },
   };
 
   status = napi_define_properties(
