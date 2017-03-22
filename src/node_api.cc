@@ -2018,7 +2018,6 @@ napi_status napi_instanceof(napi_env env,
   *result = false;
 
   v8::Local<v8::Object> ctor;
-  v8::Local<v8::String> prototype_string;
   v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
@@ -2030,6 +2029,47 @@ napi_status napi_instanceof(napi_env env,
     return napi_set_last_error(napi_function_expected);
   }
 
+  napi_value value, js_result;
+  napi_status status;
+  napi_valuetype value_type;
+
+  // Get "Symbol" from the global object
+  status = napi_get_global(env, &value);
+  if (status != napi_ok) return status;
+  status = napi_get_named_property(env, value, "Symbol", &value);
+  if (status != napi_ok) return status;
+  status = napi_typeof(env, value, &value_type);
+  if (status != napi_ok) return status;
+
+  // Get "hasInstance" from Symbol
+  if (value_type == napi_function) {
+    status = napi_get_named_property(env, value, "hasInstance", &value);
+    if (status != napi_ok) return status;
+    status = napi_typeof(env, value, &value_type);
+    if (status != napi_ok) return status;
+
+    // Retrieve the function at the Symbol(hasInstance) key of the constructor
+    if (value_type == napi_symbol) {
+      status = napi_get_property(env, constructor, value, &value);
+      if (status != napi_ok) return status;
+      status = napi_typeof(env, value, &value_type);
+      if (status != napi_ok) return status;
+
+      // Call the function to determine whether the object is an instance of the
+      // constructor
+      if (value_type == napi_function) {
+        status = napi_call_function(env, constructor, value, 1, &object,
+          &js_result);
+        if (status != napi_ok) return status;
+        return napi_get_value_bool(env, js_result, result);
+      }
+    }
+  }
+
+  // If running constructor[Symbol.hasInstance](object) did not work, we perform
+  // a traditional instanceof (early Node.js 6.x).
+
+  v8::Local<v8::String> prototype_string;
   CHECK_NEW_FROM_UTF8(isolate, prototype_string, "prototype");
 
   auto maybe = ctor->Get(context, prototype_string);

@@ -122,7 +122,7 @@ void staticBuffer(napi_env env, napi_callback_info info) {
       env,
       napi_create_external_buffer(env,
                                   sizeof(theText),
-                                  theText,
+                                  (void *)theText,
                                   noopDeleter,
                                   NULL,  // finalize_hint
                                   &theBuffer));
