@@ -5,7 +5,7 @@ static double value_ = 1;
 void GetValue(napi_env env, napi_callback_info info) {
   napi_status status;
 
-  int argc;
+  size_t argc;
   status = napi_get_cb_args_length(env, info, &argc);
   if (status != napi_ok) return;
 
@@ -25,7 +25,7 @@ void GetValue(napi_env env, napi_callback_info info) {
 void SetValue(napi_env env, napi_callback_info info) {
   napi_status status;
 
-  int argc;
+  size_t argc;
   status = napi_get_cb_args_length(env, info, &argc);
   if (status != napi_ok) return;
 
@@ -45,7 +45,7 @@ void SetValue(napi_env env, napi_callback_info info) {
 void Echo(napi_env env, napi_callback_info info) {
   napi_status status;
 
-  int argc;
+  size_t argc;
   status = napi_get_cb_args_length(env, info, &argc);
   if (status != napi_ok) return;
 

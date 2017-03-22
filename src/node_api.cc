@@ -234,30 +234,30 @@ static const int kAccessorFieldCount = 3;
 // info.
 class CallbackWrapper {
  public:
-  CallbackWrapper(napi_value thisArg, int argsLength, void* data)
+  CallbackWrapper(napi_value thisArg, size_t argsLength, void* data)
       : _this(thisArg), _argsLength(argsLength), _data(data) {}
 
   virtual napi_value Holder() = 0;
   virtual bool IsConstructCall() = 0;
-  virtual void Args(napi_value* buffer, int bufferlength) = 0;
+  virtual void Args(napi_value* buffer, size_t bufferlength) = 0;
   virtual void SetReturnValue(napi_value v) = 0;
 
   napi_value This() { return _this; }
 
-  int ArgsLength() { return _argsLength; }
+  size_t ArgsLength() { return _argsLength; }
 
   void* Data() { return _data; }
 
  protected:
   const napi_value _this;
-  const int _argsLength;
+  const size_t _argsLength;
   void* _data;
 };
 
 template <typename T, int I>
 class CallbackWrapperBase : public CallbackWrapper {
  public:
-  CallbackWrapperBase(const T& cbinfo, const int argsLength)
+  CallbackWrapperBase(const T& cbinfo, const size_t argsLength)
       : CallbackWrapper(JsValueFromV8LocalValue(cbinfo.This()),
                         argsLength,
                         nullptr),
@@ -312,9 +312,9 @@ class FunctionCallbackWrapper
   bool IsConstructCall() override { return _cbinfo.IsConstructCall(); }
 
   /*virtual*/
-  void Args(napi_value* buffer, int bufferlength) override {
-    int i = 0;
-    int min = std::min(bufferlength, _argsLength);
+  void Args(napi_value* buffer, size_t bufferlength) override {
+    size_t i = 0;
+    size_t min = std::min(bufferlength, _argsLength);
 
     for (; i < min; i += 1) {
       buffer[i] = v8impl::JsValueFromV8LocalValue(_cbinfo[i]);
@@ -351,11 +351,11 @@ class GetterCallbackWrapper
       : CallbackWrapperBase(cbinfo, 0) {}
 
   /*virtual*/
-  void Args(napi_value* buffer, int bufferlength) override {
+  void Args(napi_value* buffer, size_t bufferlength) override {
     if (bufferlength > 0) {
       napi_value undefined =
           v8impl::JsValueFromV8LocalValue(v8::Undefined(_cbinfo.GetIsolate()));
-      for (int i = 0; i < bufferlength; i += 1) {
+      for (size_t i = 0; i < bufferlength; i += 1) {
         buffer[i] = undefined;
       }
     }
@@ -383,14 +383,14 @@ class SetterCallbackWrapper
       : CallbackWrapperBase(cbinfo, 1), _value(value) {}
 
   /*virtual*/
-  void Args(napi_value* buffer, int bufferlength) override {
+  void Args(napi_value* buffer, size_t bufferlength) override {
     if (bufferlength > 0) {
       buffer[0] = v8impl::JsValueFromV8LocalValue(_value);
 
       if (bufferlength > 1) {
         napi_value undefined = v8impl::JsValueFromV8LocalValue(
             v8::Undefined(_cbinfo.GetIsolate()));
-        for (int i = 1; i < bufferlength; i += 1) {
+        for (size_t i = 1; i < bufferlength; i += 1) {
           buffer[i] = undefined;
         }
       }
@@ -659,7 +659,7 @@ napi_status napi_define_class(napi_env e,
                               const char* utf8name,
                               napi_callback constructor,
                               void* data,
-                              int property_count,
+                              size_t property_count,
                               const napi_property_descriptor* properties,
                               napi_value* result) {
   NAPI_PREAMBLE(e);
@@ -683,8 +683,8 @@ napi_status napi_define_class(napi_env e,
   CHECK_NEW_FROM_UTF8(isolate, namestring, utf8name);
   tpl->SetClassName(namestring);
 
-  int staticPropertyCount = 0;
-  for (int i = 0; i < property_count; i++) {
+  size_t staticPropertyCount = 0;
+  for (size_t i = 0; i < property_count; i++) {
     const napi_property_descriptor* p = properties + i;
 
     if ((p->attributes & napi_static_property) != 0) {
@@ -738,7 +738,7 @@ napi_status napi_define_class(napi_env e,
     std::vector<napi_property_descriptor> staticDescriptors;
     staticDescriptors.reserve(staticPropertyCount);
 
-    for (int i = 0; i < property_count; i++) {
+    for (size_t i = 0; i < property_count; i++) {
       const napi_property_descriptor* p = properties + i;
       if ((p->attributes & napi_static_property) != 0) {
         staticDescriptors.push_back(*p);
@@ -991,7 +991,7 @@ napi_status napi_get_element(napi_env e,
 
 napi_status napi_define_properties(napi_env e,
                                    napi_value object,
-                                   int property_count,
+                                   size_t property_count,
                                    const napi_property_descriptor* properties) {
   NAPI_PREAMBLE(e);
 
@@ -1000,7 +1000,7 @@ napi_status napi_define_properties(napi_env e,
   v8::Local<v8::Object> obj =
       v8impl::V8LocalValueFromJsValue(object).As<v8::Object>();
 
-  for (int i = 0; i < property_count; i++) {
+  for (size_t i = 0; i < property_count; i++) {
     const napi_property_descriptor* p = &properties[i];
 
     v8::Local<v8::Name> name;
@@ -1138,7 +1138,7 @@ napi_status napi_create_array(napi_env e, napi_value* result) {
 }
 
 napi_status napi_create_array_with_length(napi_env e,
-                                          int length,
+                                          size_t length,
                                           napi_value* result) {
   NAPI_PREAMBLE(e);
   CHECK_ARG(result);
@@ -1151,7 +1151,7 @@ napi_status napi_create_array_with_length(napi_env e,
 
 napi_status napi_create_string_utf8(napi_env e,
                                     const char* s,
-                                    int length,
+                                    size_t length,
                                     napi_value* result) {
   NAPI_PREAMBLE(e);
   CHECK_ARG(result);
@@ -1166,7 +1166,7 @@ napi_status napi_create_string_utf8(napi_env e,
 
 napi_status napi_create_string_utf16(napi_env e,
                                      const char16_t* s,
-                                     int length,
+                                     size_t length,
                                      napi_value* result) {
   NAPI_PREAMBLE(e);
   CHECK_ARG(result);
@@ -1335,7 +1335,7 @@ napi_status napi_get_true(napi_env e, napi_value* result) {
 napi_status napi_get_cb_info(
     napi_env e,                 // [in] NAPI environment handle
     napi_callback_info cbinfo,  // [in] Opaque callback-info handle
-    int* argc,         // [in-out] Specifies the size of the provided argv array
+    size_t* argc,      // [in-out] Specifies the size of the provided argv array
                        // and receives the actual count of args.
     napi_value* argv,  // [out] Array of values
     napi_value* thisArg,  // [out] Receives the JS 'this' arg for the call
@@ -1358,7 +1358,7 @@ napi_status napi_get_cb_info(
 
 napi_status napi_get_cb_args_length(napi_env e,
                                     napi_callback_info cbinfo,
-                                    int* result) {
+                                    size_t* result) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because no V8 APIs are called.
   CHECK_ARG(result);
 
@@ -1387,7 +1387,7 @@ napi_status napi_is_construct_call(napi_env e,
 napi_status napi_get_cb_args(napi_env e,
                              napi_callback_info cbinfo,
                              napi_value* buffer,
-                             int bufferlength) {
+                             size_t bufferlength) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because no V8 APIs are called.
   CHECK_ARG(buffer);
 
@@ -1427,7 +1427,7 @@ napi_status napi_get_cb_data(napi_env e,
 napi_status napi_call_function(napi_env e,
                                napi_value recv,
                                napi_value func,
-                               int argc,
+                               size_t argc,
                                const napi_value* argv,
                                napi_value* result) {
   NAPI_PREAMBLE(e);
@@ -1439,7 +1439,7 @@ napi_status napi_call_function(napi_env e,
 
   v8::Handle<v8::Value> v8recv = v8impl::V8LocalValueFromJsValue(recv);
 
-  for (int i = 0; i < argc; i++) {
+  for (size_t i = 0; i < argc; i++) {
     args[i] = v8impl::V8LocalValueFromJsValue(argv[i]);
   }
 
@@ -1606,7 +1606,7 @@ napi_status napi_get_value_bool(napi_env e, napi_value value, bool* result) {
 // Gets the number of CHARACTERS in the string.
 napi_status napi_get_value_string_length(napi_env e,
                                          napi_value value,
-                                         int* result) {
+                                         size_t* result) {
   NAPI_PREAMBLE(e);
   CHECK_ARG(result);
 
@@ -1621,7 +1621,7 @@ napi_status napi_get_value_string_length(napi_env e,
 // Gets the number of BYTES in the UTF-8 encoded representation of the string.
 napi_status napi_get_value_string_utf8_length(napi_env e,
                                               napi_value value,
-                                              int* result) {
+                                              size_t* result) {
   NAPI_PREAMBLE(e);
   CHECK_ARG(result);
 
@@ -1640,8 +1640,8 @@ napi_status napi_get_value_string_utf8_length(napi_env e,
 napi_status napi_get_value_string_utf8(napi_env e,
                                        napi_value value,
                                        char* buf,
-                                       int bufsize,
-                                       int* result) {
+                                       size_t bufsize,
+                                       size_t* result) {
   NAPI_PREAMBLE(e);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
@@ -1661,7 +1661,7 @@ napi_status napi_get_value_string_utf8(napi_env e,
 // the string.
 napi_status napi_get_value_string_utf16_length(napi_env e,
                                                napi_value value,
-                                               int* result) {
+                                               size_t* result) {
   NAPI_PREAMBLE(e);
   CHECK_ARG(result);
 
@@ -1683,8 +1683,8 @@ napi_status napi_get_value_string_utf16_length(napi_env e,
 napi_status napi_get_value_string_utf16(napi_env e,
                                         napi_value value,
                                         char16_t* buf,
-                                        int bufsize,
-                                        int* result) {
+                                        size_t bufsize,
+                                        size_t* result) {
   NAPI_PREAMBLE(e);
   CHECK_ARG(result);
 
@@ -2008,7 +2008,7 @@ napi_status napi_escape_handle(napi_env e,
 
 napi_status napi_new_instance(napi_env e,
                               napi_value constructor,
-                              int argc,
+                              size_t argc,
                               const napi_value* argv,
                               napi_value* result) {
   NAPI_PREAMBLE(e);
@@ -2018,7 +2018,7 @@ napi_status napi_new_instance(napi_env e,
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
   std::vector<v8::Handle<v8::Value>> args(argc);
-  for (int i = 0; i < argc; i++) {
+  for (size_t i = 0; i < argc; i++) {
     args[i] = v8impl::V8LocalValueFromJsValue(argv[i]);
   }
 
@@ -2091,7 +2091,7 @@ napi_status napi_instanceof(napi_env e,
 napi_status napi_make_callback(napi_env e,
                                napi_value recv,
                                napi_value func,
-                               int argc,
+                               size_t argc,
                                const napi_value* argv,
                                napi_value* result) {
   NAPI_PREAMBLE(e);
@@ -2103,7 +2103,7 @@ napi_status napi_make_callback(napi_env e,
   v8::Local<v8::Function> v8func =
       v8impl::V8LocalValueFromJsValue(func).As<v8::Function>();
   std::vector<v8::Handle<v8::Value>> args(argc);
-  for (int i = 0; i < argc; i++) {
+  for (size_t i = 0; i < argc; i++) {
     args[i] = v8impl::V8LocalValueFromJsValue(argv[i]);
   }
 

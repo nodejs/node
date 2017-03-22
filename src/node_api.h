@@ -113,18 +113,18 @@ NAPI_EXTERN napi_status napi_get_global(napi_env env, napi_value* result);
 NAPI_EXTERN napi_status napi_create_object(napi_env env, napi_value* result);
 NAPI_EXTERN napi_status napi_create_array(napi_env env, napi_value* result);
 NAPI_EXTERN napi_status napi_create_array_with_length(napi_env env,
-                                                      int length,
+                                                      size_t length,
                                                       napi_value* result);
 NAPI_EXTERN napi_status napi_create_number(napi_env env,
                                            double val,
                                            napi_value* result);
 NAPI_EXTERN napi_status napi_create_string_utf8(napi_env env,
                                                 const char* s,
-                                                int length,
+                                                size_t length,
                                                 napi_value* result);
 NAPI_EXTERN napi_status napi_create_string_utf16(napi_env env,
                                                  const char16_t* s,
-                                                 int length,
+                                                 size_t length,
                                                  napi_value* result);
 NAPI_EXTERN napi_status napi_create_boolean(napi_env env,
                                             bool b,
@@ -170,32 +170,32 @@ NAPI_EXTERN napi_status napi_get_value_bool(napi_env env,
 // Gets the number of CHARACTERS in the string.
 NAPI_EXTERN napi_status napi_get_value_string_length(napi_env env,
                                                      napi_value value,
-                                                     int* result);
+                                                     size_t* result);
 
 // Gets the number of BYTES in the UTF-8 encoded representation of the string.
 NAPI_EXTERN napi_status napi_get_value_string_utf8_length(napi_env env,
                                                           napi_value value,
-                                                          int* result);
+                                                          size_t* result);
 
 // Copies UTF-8 encoded bytes from a string into a buffer.
 NAPI_EXTERN napi_status napi_get_value_string_utf8(napi_env env,
                                                    napi_value value,
                                                    char* buf,
-                                                   int bufsize,
-                                                   int* result);
+                                                   size_t bufsize,
+                                                   size_t* result);
 
 // Gets the number of 2-byte code units in the UTF-16 encoded
 // representation of the string.
 NAPI_EXTERN napi_status napi_get_value_string_utf16_length(napi_env env,
                                                            napi_value value,
-                                                           int* result);
+                                                           size_t* result);
 
 // Copies UTF-16 encoded bytes from a string into a buffer.
 NAPI_EXTERN napi_status napi_get_value_string_utf16(napi_env env,
                                                     napi_value value,
                                                     char16_t* buf,
-                                                    int bufsize,
-                                                    int* result);
+                                                    size_t bufsize,
+                                                    size_t* result);
 
 // Methods to coerce values
 // These APIs may execute user script
@@ -258,7 +258,7 @@ NAPI_EXTERN napi_status napi_get_element(napi_env env,
 NAPI_EXTERN napi_status
 napi_define_properties(napi_env env,
                        napi_value object,
-                       int property_count,
+                       size_t property_count,
                        const napi_property_descriptor* properties);
 
 // Methods to work with Arrays
@@ -279,12 +279,12 @@ NAPI_EXTERN napi_status napi_strict_equals(napi_env env,
 NAPI_EXTERN napi_status napi_call_function(napi_env env,
                                            napi_value recv,
                                            napi_value func,
-                                           int argc,
+                                           size_t argc,
                                            const napi_value* argv,
                                            napi_value* result);
 NAPI_EXTERN napi_status napi_new_instance(napi_env env,
                                           napi_value constructor,
-                                          int argc,
+                                          size_t argc,
                                           const napi_value* argv,
                                           napi_value* result);
 NAPI_EXTERN napi_status napi_instanceof(napi_env env,
@@ -296,7 +296,7 @@ NAPI_EXTERN napi_status napi_instanceof(napi_env env,
 NAPI_EXTERN napi_status napi_make_callback(napi_env env,
                                            napi_value recv,
                                            napi_value func,
-                                           int argc,
+                                           size_t argc,
                                            const napi_value* argv,
                                            napi_value* result);
 
@@ -306,7 +306,7 @@ NAPI_EXTERN napi_status napi_make_callback(napi_env env,
 NAPI_EXTERN napi_status napi_get_cb_info(
     napi_env env,               // [in] NAPI environment handle
     napi_callback_info cbinfo,  // [in] Opaque callback-info handle
-    int* argc,         // [in-out] Specifies the size of the provided argv array
+    size_t* argc,      // [in-out] Specifies the size of the provided argv array
                        // and receives the actual count of args.
     napi_value* argv,  // [out] Array of values
     napi_value* thisArg,  // [out] Receives the JS 'this' arg for the call
@@ -314,11 +314,11 @@ NAPI_EXTERN napi_status napi_get_cb_info(
 
 NAPI_EXTERN napi_status napi_get_cb_args_length(napi_env env,
                                                 napi_callback_info cbinfo,
-                                                int* result);
+                                                size_t* result);
 NAPI_EXTERN napi_status napi_get_cb_args(napi_env env,
                                          napi_callback_info cbinfo,
                                          napi_value* buffer,
-                                         int bufferlength);
+                                         size_t bufferlength);
 NAPI_EXTERN napi_status napi_get_cb_this(napi_env env,
                                          napi_callback_info cbinfo,
                                          napi_value* result);
@@ -337,7 +337,7 @@ napi_define_class(napi_env env,
                   const char* utf8name,
                   napi_callback constructor,
                   void* data,
-                  int property_count,
+                  size_t property_count,
                   const napi_property_descriptor* properties,
                   napi_value* result);
 

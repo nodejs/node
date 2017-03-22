@@ -3,7 +3,7 @@
 void Copy(napi_env env, napi_callback_info info) {
   napi_status status;
 
-  int argc;
+  size_t argc;
   status = napi_get_cb_args_length(env, info, &argc);
   if (status != napi_ok) return;
 
@@ -43,7 +43,7 @@ void Copy(napi_env env, napi_callback_info info) {
 void Length(napi_env env, napi_callback_info info) {
   napi_status status;
 
-  int argc;
+  size_t argc;
   status = napi_get_cb_args_length(env, info, &argc);
   if (status != napi_ok) return;
 
@@ -65,7 +65,7 @@ void Length(napi_env env, napi_callback_info info) {
     return;
   }
 
-  int length;
+  size_t length;
   status = napi_get_value_string_length(env, args[0], &length);
   if (status != napi_ok) return;
 
@@ -80,7 +80,7 @@ void Length(napi_env env, napi_callback_info info) {
 void Utf8Length(napi_env env, napi_callback_info info) {
   napi_status status;
 
-  int argc;
+  size_t argc;
   status = napi_get_cb_args_length(env, info, &argc);
   if (status != napi_ok) return;
 
@@ -102,7 +102,7 @@ void Utf8Length(napi_env env, napi_callback_info info) {
     return;
   }
 
-  int length;
+  size_t length;
   status = napi_get_value_string_utf8_length(env, args[0], &length);
   if (status != napi_ok) return;
 

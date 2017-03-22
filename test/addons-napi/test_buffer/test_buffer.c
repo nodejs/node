@@ -78,7 +78,7 @@ void copyBuffer(napi_env env, napi_callback_info info) {
 }
 
 void bufferHasInstance(napi_env env, napi_callback_info info) {
-  int argc;
+  size_t argc;
   NAPI_CALL(env, napi_get_cb_args_length(env, info, &argc));
   JS_ASSERT(env, argc == 1, "Wrong number of arguments");
   napi_value theBuffer;
@@ -97,7 +97,7 @@ void bufferHasInstance(napi_env env, napi_callback_info info) {
 }
 
 void bufferInfo(napi_env env, napi_callback_info info) {
-  int argc;
+  size_t argc;
   NAPI_CALL(env, napi_get_cb_args_length(env, info, &argc));
   JS_ASSERT(env, argc == 1, "Wrong number of arguments");
   napi_value theBuffer, returnValue;

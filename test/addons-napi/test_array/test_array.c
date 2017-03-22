@@ -4,7 +4,7 @@
 void Test(napi_env env, napi_callback_info info) {
   napi_status status;
 
-  int argc;
+  size_t argc;
   status = napi_get_cb_args_length(env, info, &argc);
   if (status != napi_ok) return;
 
@@ -74,7 +74,7 @@ void Test(napi_env env, napi_callback_info info) {
 void New(napi_env env, napi_callback_info info) {
   napi_status status;
 
-  int argc;
+  size_t argc;
   status = napi_get_cb_args_length(env, info, &argc);
   if (status != napi_ok) return;
 
