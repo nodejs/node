@@ -370,7 +370,8 @@ const relativeTests2 = [
    'https://user:password@example.com/foo'],
 
    // No path at all
-   ['#hash1', '#hash2', '#hash1']
+   ['#hash1', '#hash2', '#hash1'],
+   ['#hash', '?query', '?query#hash']
 ];
 relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);
