@@ -21,7 +21,7 @@ if (cluster.isWorker) {
     const socket = net.connect(port, '127.0.0.1', () => {
       // buffer result
       let result = '';
-      socket.on('data', common.mustCall((chunk) => { result += chunk; }));
+      socket.on('data', (chunk) => { result += chunk; });
 
       // check result
       socket.on('end', common.mustCall(() => {
@@ -34,7 +34,7 @@ if (cluster.isWorker) {
   const testCluster = function(cb) {
     let done = 0;
 
-    for (let i = 0, l = servers; i < l; i++) {
+    for (let i = 0; i < servers; i++) {
       testConnection(common.PORT + i, (success) => {
         assert.ok(success);
         done += 1;
@@ -60,40 +60,21 @@ if (cluster.isWorker) {
     }
   };
 
-
-  const results = {
-    start: 0,
-    test: 0,
-    disconnect: 0
-  };
-
   const test = function(again) {
     //1. start cluster
-    startCluster(() => {
-      results.start += 1;
-
+    startCluster(common.mustCall(() => {
       //2. test cluster
-      testCluster(() => {
-        results.test += 1;
-
+      testCluster(common.mustCall(() => {
         //3. disconnect cluster
-        cluster.disconnect(() => {
-          results.disconnect += 1;
-
+        cluster.disconnect(common.mustCall(() => {
           // run test again to confirm cleanup
           if (again) {
             test();
           }
-        });
-      });
-    });
+        }));
+      }));
+    }));
   };
 
   test(true);
-
-  process.once('exit', () => {
-    assert.strictEqual(results.start, 2);
-    assert.strictEqual(results.test, 2);
-    assert.strictEqual(results.disconnect, 2);
-  });
 }
