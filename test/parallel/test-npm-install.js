@@ -6,7 +6,7 @@ if (!common.hasCrypto) {
 }
 
 const path = require('path');
-const spawn = require('child_process').spawn;
+const execFile = require('child_process').execFile;
 const assert = require('assert');
 const fs = require('fs');
 
@@ -47,17 +47,21 @@ env['NPM_CONFIG_PREFIX'] = path.join(npmSandbox, 'npm-prefix');
 env['NPM_CONFIG_TMP'] = path.join(npmSandbox, 'npm-tmp');
 env['HOME'] = path.join(npmSandbox, 'home');
 
-const proc = spawn(process.execPath, args, {
+execFile(process.execPath, args, {
   cwd: installDir,
   env: env
-});
-
-function handleExit(code, signalCode) {
-  assert.strictEqual(code, 0, `npm install got error code ${code}`);
-  assert.strictEqual(signalCode, null, `unexpected signal: ${signalCode}`);
+}, (err, stdout, stderr) => {
+  if (err) {
+    const code = err.code;
+    const signal = err.signal;
+    stderr += '';
+    var msg = `npm install got error code ${code}\nstderr:\n${stderr}`;
+    assert.strictEqual(code, 0, msg);
+    msg = `unexpected signal: ${signal}\nstderr:\n${stderr}`;
+    assert.strictEqual(signal, null, msg);
+    assert.ifError(err);
+  }
   assert.doesNotThrow(function() {
     fs.accessSync(installDir + '/node_modules/package-name');
   });
-}
-
-proc.on('exit', common.mustCall(handleExit));
+});
