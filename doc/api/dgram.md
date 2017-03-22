@@ -245,20 +245,23 @@ chained.
 <!-- YAML
 added: v0.1.99
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11985
+    description: The `msg` parameter can be an Uint8Array now.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10473
+    description: The `address` parameter is always optional now.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5929
     description: On success, `callback` will now be called with an `error`
                  argument of `null` rather than `0`.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/10473
-    description: The `address` parameter is always optional now.
   - version: v5.7.0
     pr-url: https://github.com/nodejs/node/pull/4374
     description: The `msg` parameter can be an array now. Also, the `offset`
                  and `length` parameters are optional now.
 -->
 
-* `msg` {Buffer|string|array} Message to be sent
+* `msg` {Buffer|Uint8Array|string|array} Message to be sent
 * `offset` {number} Integer. Optional. Offset in the buffer where the message starts.
 * `length` {number} Integer. Optional. Number of bytes in the message.
 * `port` {number} Integer. Destination port.
@@ -269,7 +272,8 @@ Broadcasts a datagram on the socket. The destination `port` and `address` must
 be specified.
 
 The `msg` argument contains the message to be sent.
-Depending on its type, different behavior can apply. If `msg` is a `Buffer`,
+Depending on its type, different behavior can apply. If `msg` is a `Buffer`
+or `Uint8Array`,
 the `offset` and `length` specify the offset within the `Buffer` where the
 message begins and the number of bytes in the message, respectively.
 If `msg` is a `String`, then it is automatically converted to a `Buffer`
@@ -299,7 +303,7 @@ the error is emitted as an `'error'` event on the `socket` object.
 
 Offset and length are optional, but if you specify one you would need to
 specify the other. Also, they are supported only when the first
-argument is a `Buffer`.
+argument is a `Buffer` or `Uint8Array`.
 
 Example of sending a UDP packet to a random port on `localhost`;
 

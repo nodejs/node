@@ -16,7 +16,7 @@ const received = [];
 client.on('listening', common.mustCall(() => {
   const port = client.address().port;
   client.send(toSend[0], 0, toSend[0].length, port);
-  client.send(toSend[1], port);
+  client.send(new Uint8Array([...toSend[1]]), port);
   client.send([toSend[2]], port);
   client.send(toSend[3], 0, toSend[3].length, port);
 }));
