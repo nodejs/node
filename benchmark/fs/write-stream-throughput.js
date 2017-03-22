@@ -1,12 +1,11 @@
-// test the throughput of the fs.WriteStream class.
 'use strict';
 
-var path = require('path');
-var common = require('../common.js');
-var filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
-var fs = require('fs');
+const path = require('path');
+const common = require('../common.js');
+const filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
+const fs = require('fs');
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   dur: [5],
   file: [''],
   type: ['buf', 'asc', 'utf'],
@@ -14,10 +13,10 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var dur = +conf.dur;
-  var type = conf.type;
-  var size = +conf.size;
-  var file = (conf.file.length === 0 ? filename : conf.file);
+  const dur = +conf.dur * 1000;
+  const type = conf.type;
+  const size = +conf.size;
+  const file = (conf.file.length === 0 ? filename : conf.file);
   var encoding;
 
   var chunk;
@@ -43,10 +42,11 @@ function main(conf) {
   var ending = false;
   var ended = false;
   var written = 0;
+
   setTimeout(function() {
     ending = true;
     f.end();
-  }, dur * 1000);
+  }, dur);
 
   var f = fs.createWriteStream(file);
   f.on('drain', write);
