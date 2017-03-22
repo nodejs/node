@@ -149,7 +149,7 @@ Silence all process warnings (including deprecations).
 added: v8.0.0
 -->
 
-Load N-API modules.
+Load N-API modules (experimental, opt-in by adding this flag).
 
 ### `--trace-warnings`
 <!-- YAML
