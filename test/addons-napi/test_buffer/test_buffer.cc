@@ -44,7 +44,7 @@ void newBuffer(napi_env env, napi_callback_info info) {
                 reinterpret_cast<void**>(&theCopy),
                 &theBuffer));
   JS_ASSERT(env, theCopy, "Failed to copy static text for newBuffer");
-  snprintf(theCopy, kBufferSize, "%s", theText);
+  memcpy(theCopy, theText, kBufferSize);
   NAPI_CALL(env, napi_set_return_value(env, info, theBuffer));
 }
 
