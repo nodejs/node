@@ -328,6 +328,13 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "getCertificate", SecureContext::GetCertificate<true>);
   env->SetProtoMethod(t, "getIssuer", SecureContext::GetCertificate<false>);
 
+#ifdef OPENSSL_PSK_SUPPORT
+  env->SetProtoMethod(t, "setPskIdentity", SecureContext::SetPskIdentity);
+  env->SetProtoMethod(t,
+                      "enablePskCallback",
+                      SecureContext::EnablePskCallback);
+#endif
+
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyReturnIndex"),
          Integer::NewFromUnsigned(env->isolate(), kTicketKeyReturnIndex));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyHMACIndex"),
@@ -1310,6 +1317,120 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(buff);
 }
+
+
+#ifdef OPENSSL_PSK_SUPPORT
+
+void SecureContext::SetPskIdentity(const FunctionCallbackInfo<Value>& args) {
+  SecureContext* wrap = Unwrap<SecureContext>(args.Holder());
+
+  if (args.Length() != 1 || !args[0]->IsString()) {
+    return wrap->env()->ThrowTypeError("Argument must be a string");
+  }
+
+  String::Utf8Value identity(args[0]);
+  if (!SSL_CTX_use_psk_identity_hint(wrap->ctx_, *identity)) {
+    return wrap->env()->ThrowError("Failed to set PSK identity hint");
+  }
+}
+
+void SecureContext::EnablePskCallback(
+    const FunctionCallbackInfo<Value>& args) {
+  SecureContext* wrap = Unwrap<SecureContext>(args.Holder());
+
+  SSL_CTX_set_psk_server_callback(wrap->ctx_,
+                                  SecureContext::PskServerCallback);
+  SSL_CTX_set_psk_client_callback(wrap->ctx_,
+                                  SecureContext::PskClientCallback);
+}
+
+unsigned int SecureContext::PskServerCallback(SSL *ssl,
+                                              const char *identity,
+                                              unsigned char *psk,
+                                              unsigned int max_psk_len) {
+  SecureContext* sc = static_cast<SecureContext*>(
+      SSL_CTX_get_app_data(ssl->ctx));
+
+  Environment* env = sc->env();
+  Isolate* isolate = env->isolate();
+
+  Local<Value> argv[] = {
+    String::NewFromUtf8(isolate, identity),
+    Integer::NewFromUnsigned(isolate, max_psk_len),
+    Integer::NewFromUnsigned(isolate, 0)
+  };
+  Local<Value> ret = node::MakeCallback(env,
+                                        sc->object(),
+                                        env->onpskexchange_string(),
+                                        arraysize(argv),
+                                        argv);
+
+  // The result is expected to be an object. If it isn't, then return 0,
+  // indicating the identity wasn't found.
+  if (!ret->IsObject()) {
+    return 0;
+  }
+  Local<Object> obj = ret.As<Object>();
+
+  Local<Value> psk_buf = obj->Get(env->psk_string());
+  assert(Buffer::HasInstance(psk_buf));
+  size_t psk_len = Buffer::Length(psk_buf);
+  assert(psk_len <= max_psk_len);
+  memcpy(psk, Buffer::Data(psk_buf), max_psk_len);
+
+  return psk_len;
+}
+
+unsigned int SecureContext::PskClientCallback(SSL *ssl,
+                                              const char *hint,
+                                              char *identity,
+                                              unsigned int max_identity_len,
+                                              unsigned char *psk,
+                                              unsigned int max_psk_len) {
+  SecureContext* sc = static_cast<SecureContext*>(
+      SSL_CTX_get_app_data(ssl->ctx));
+
+  Environment* env = sc->env();
+  Isolate* isolate = env->isolate();
+
+  Local<Value> argv[] = {
+    Null(isolate),
+    Integer::NewFromUnsigned(isolate, max_psk_len),
+    Integer::NewFromUnsigned(isolate, max_identity_len)
+  };
+  if (hint != nullptr) {
+    argv[0] = String::NewFromUtf8(isolate, hint);
+  }
+  Local<Value> ret = node::MakeCallback(env,
+                                        sc->object(),
+                                        env->onpskexchange_string(),
+                                        arraysize(argv),
+                                        argv);
+
+  // The result is expected to be an object. If it isn't, then return 0,
+  // indicating the identity wasn't found.
+  if (!ret->IsObject()) {
+    return 0;
+  }
+  Local<Object> obj = ret.As<Object>();
+
+  Local<Value> psk_buf = obj->Get(env->psk_string());
+  assert(Buffer::HasInstance(psk_buf));
+  size_t psk_len = Buffer::Length(psk_buf);
+  assert(psk_len <= max_psk_len);
+  memcpy(psk, Buffer::Data(psk_buf), psk_len);
+
+  Local<Value> identity_buf = obj->Get(env->identity_string());
+  assert(Buffer::HasInstance(identity_buf));
+  size_t identity_len = Buffer::Length(identity_buf);
+  assert(identity_len <= max_identity_len);
+  memcpy(identity, Buffer::Data(identity_buf), identity_len);
+  assert(identity[identity_len - 1] == '\0');
+
+  return psk_len;
+}
+
+#endif
 
 
 template <class Base>

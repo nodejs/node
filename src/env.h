@@ -104,6 +104,7 @@ namespace node {
   V(emitting_top_level_domain_error_string, "_emittingTopLevelDomainError")   \
   V(exchange_string, "exchange")                                              \
   V(enumerable_string, "enumerable")                                          \
+  V(identity_string, "identity")                                              \
   V(idle_string, "idle")                                                      \
   V(irq_string, "irq")                                                        \
   V(encoding_string, "encoding")                                              \
@@ -168,6 +169,7 @@ namespace node {
   V(onnewsession_string, "onnewsession")                                      \
   V(onnewsessiondone_string, "onnewsessiondone")                              \
   V(onocspresponse_string, "onocspresponse")                                  \
+  V(onpskexchange_string, "onpskexchange")                                    \
   V(onread_string, "onread")                                                  \
   V(onreadstart_string, "onreadstart")                                        \
   V(onreadstop_string, "onreadstop")                                          \
@@ -188,6 +190,7 @@ namespace node {
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
   V(produce_cached_data_string, "produceCachedData")                          \
+  V(psk_string, "psk")                                                        \
   V(raw_string, "raw")                                                        \
   V(readable_string, "readable")                                              \
   V(received_shutdown_string, "receivedShutdown")                             \
