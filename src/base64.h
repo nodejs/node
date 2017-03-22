@@ -60,13 +60,13 @@ size_t base64_decode_slow(char* dst, size_t dstlen,
   size_t k = 0;
   for (;;) {
 #define V(expr)                                                               \
-    while (i < srclen) {                                                      \
+    for (;;) {                                                                \
       const uint8_t c = src[i];                                               \
       lo = unbase64(c);                                                       \
       i += 1;                                                                 \
       if (lo < 64)                                                            \
         break;  /* Legal character. */                                        \
-      if (c == '=')                                                           \
+      if (c == '=' || i >= srclen)                                            \
         return k;                                                             \
     }                                                                         \
     expr;                                                                     \
