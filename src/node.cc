@@ -2470,9 +2470,9 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
       snprintf(errmsg,
                sizeof(errmsg),
                "The module '%s'"
-               "\nwas compiled against the Node.js API. This feature is "
-               "\nexperimental and must be enabled on the command-line by "
-               "\nadding --napi-modules.",
+               "\nwas compiled against the ABI-stable Node.js API (N-API)."
+               "\nThis feature is experimental and must be enabled on the "
+               "\ncommand-line by adding --napi-modules.",
                *filename);
     } else {
       snprintf(errmsg,
