@@ -491,6 +491,7 @@ class Parser : public ParserBase<Parser> {
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
   Block* BuildRejectPromiseOnException(Block* block, bool* ok);
+  Block* BuildRejectPromiseOnExceptionForParameters(Block* block);
 
   // Consumes the ending }.
   ZoneList<Statement*>* ParseEagerFunctionBody(
@@ -576,9 +577,10 @@ class Parser : public ParserBase<Parser> {
 
   Expression* BuildInitialYield(int pos, FunctionKind kind);
   Expression* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
-  Expression* BuildResolvePromise(Expression* value, int pos);
-  Expression* BuildRejectPromise(Expression* value, int pos);
+  Expression* BuildResolvePromise();
+  Expression* BuildRejectPromise(Variable* value);
   Variable* PromiseVariable();
+  Variable* AsyncReturnVariable();
 
   // Generic AST generator for throwing errors from compiled code.
   Expression* NewThrowError(Runtime::FunctionId function_id,
@@ -983,8 +985,7 @@ class Parser : public ParserBase<Parser> {
     auto* init_block = BuildParameterInitializationBlock(parameters, ok);
     if (!*ok) return;
     if (is_async) {
-      init_block = BuildRejectPromiseOnException(init_block, ok);
-      if (!*ok) return;
+      init_block = BuildRejectPromiseOnExceptionForParameters(init_block);
     }
     if (init_block != nullptr) body->Add(init_block, zone());
   }

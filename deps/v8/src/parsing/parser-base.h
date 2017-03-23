@@ -411,12 +411,21 @@ class ParserBase {
     }
 
     void set_promise_variable(typename Types::Variable* variable) {
-      DCHECK(variable != NULL);
+      DCHECK_NOT_NULL(variable);
       DCHECK(IsAsyncFunction(kind()));
       promise_variable_ = variable;
     }
     typename Types::Variable* promise_variable() const {
       return promise_variable_;
+    }
+
+    void set_async_return_variable(typename Types::Variable* variable) {
+      DCHECK_NOT_NULL(variable);
+      DCHECK(IsAsyncFunction(kind()));
+      async_return_variable_ = variable;
+    }
+    typename Types::Variable* async_return_variable() const {
+      return async_return_variable_;
     }
 
     const ZoneList<DestructuringAssignment>&
@@ -488,6 +497,8 @@ class ParserBase {
     // For async functions, this variable holds a temporary for the Promise
     // being created as output of the async function.
     Variable* promise_variable_;
+    Variable* async_return_variable_;
+    Variable* is_rejection_variable_;
 
     FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
@@ -1468,6 +1479,8 @@ ParserBase<Impl>::FunctionState::FunctionState(
       expected_property_count_(0),
       generator_object_variable_(nullptr),
       promise_variable_(nullptr),
+      async_return_variable_(nullptr),
+      is_rejection_variable_(nullptr),
       function_state_stack_(function_state_stack),
       outer_function_state_(*function_state_stack),
       destructuring_assignments_to_rewrite_(16, scope->zone()),

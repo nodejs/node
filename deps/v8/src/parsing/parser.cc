@@ -1701,10 +1701,17 @@ Expression* Parser::RewriteReturn(Expression* return_value, int pos) {
     return_value = factory()->NewConditional(is_undefined, ThisExpression(pos),
                                              is_object_conditional, pos);
   }
+
   if (is_generator()) {
     return_value = BuildIteratorResult(return_value, true);
   } else if (is_async_function()) {
-    return_value = BuildResolvePromise(return_value, return_value->position());
+    // In an async function,
+    //    return expr;
+    // is rewritten as
+    //    return .async_return_value = expr;
+    return_value = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(AsyncReturnVariable()),
+        return_value, kNoSourcePosition);
   }
   return return_value;
 }
@@ -2991,60 +2998,152 @@ Block* Parser::BuildParameterInitializationBlock(
   return init_block;
 }
 
-Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
+Block* Parser::BuildRejectPromiseOnExceptionForParameters(Block* inner_block) {
   // .promise = %AsyncFunctionPromiseCreate();
   // try {
   //   <inner_block>
   // } catch (.catch) {
-  //   %RejectPromise(.promise, .catch);
-  //   return .promise;
-  // } finally {
-  //   %AsyncFunctionPromiseRelease(.promise);
+  //   return %RejectPromise(.promise, .catch), .promise;
   // }
   Block* result = factory()->NewBlock(nullptr, 2, true, kNoSourcePosition);
-
-  // .promise = %AsyncFunctionPromiseCreate();
-  Statement* set_promise;
   {
+    // .promise = %AsyncFunctionPromiseCreate();
     Expression* create_promise = factory()->NewCallRuntime(
         Context::ASYNC_FUNCTION_PROMISE_CREATE_INDEX,
         new (zone()) ZoneList<Expression*>(0, zone()), kNoSourcePosition);
     Assignment* assign_promise = factory()->NewAssignment(
         Token::INIT, factory()->NewVariableProxy(PromiseVariable()),
         create_promise, kNoSourcePosition);
-    set_promise =
+    Statement* set_promise =
         factory()->NewExpressionStatement(assign_promise, kNoSourcePosition);
+    result->statements()->Add(set_promise, zone());
   }
-  result->statements()->Add(set_promise, zone());
-
-  // catch (.catch) { return %RejectPromise(.promise, .catch), .promise }
+  // catch (.catch) {
+  //   return %RejectPromise(.promise, .catch), .promise;
+  // }
   Scope* catch_scope = NewScope(CATCH_SCOPE);
   catch_scope->set_is_hidden();
   Variable* catch_variable =
       catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR,
                                 kCreatedInitialized, NORMAL_VARIABLE);
   Block* catch_block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
+  {
+    // return %RejectPromise(.promise, .catch), .promise;
+    Expression* reject_return_promise = factory()->NewBinaryOperation(
+        Token::COMMA, BuildRejectPromise(catch_variable),
+        factory()->NewVariableProxy(PromiseVariable(), kNoSourcePosition),
+        kNoSourcePosition);
+    catch_block->statements()->Add(
+        factory()->NewReturnStatement(reject_return_promise, kNoSourcePosition),
+        zone());
+  }
+  TryStatement* try_catch_statement =
+      factory()->NewTryCatchStatementForAsyncAwait(inner_block, catch_scope,
+                                                   catch_variable, catch_block,
+                                                   kNoSourcePosition);
+  result->statements()->Add(try_catch_statement, zone());
+  return result;
+}
 
-  Expression* promise_reject = BuildRejectPromise(
-      factory()->NewVariableProxy(catch_variable), kNoSourcePosition);
-  ReturnStatement* return_promise_reject =
-      factory()->NewReturnStatement(promise_reject, kNoSourcePosition);
-  catch_block->statements()->Add(return_promise_reject, zone());
+Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
+  // .is_rejection = false;
+  // .promise = %AsyncFunctionPromiseCreate();
+  // try {
+  //   <inner_block>
+  // } catch (.catch) {
+  //   .is_rejection = true;
+  //   .async_return_value = .catch;
+  // } finally {
+  //   .is_rejection
+  //     ? %RejectPromise(.promise, .async_return_value)
+  //     : %ResolvePromise(.promise, .async_return_value);
+  //   %AsyncFunctionPromiseRelease(.promise);
+  //   return .promise;
+  // }
+  Block* result = factory()->NewBlock(nullptr, 3, true, kNoSourcePosition);
+
+  Variable* is_rejection_var =
+      scope()->NewTemporary(ast_value_factory()->empty_string());
+  {
+    // .is_rejection = false;
+    Assignment* set_is_rejection = factory()->NewAssignment(
+        Token::INIT, factory()->NewVariableProxy(is_rejection_var),
+        factory()->NewBooleanLiteral(false, kNoSourcePosition),
+        kNoSourcePosition);
+    result->statements()->Add(
+        factory()->NewExpressionStatement(set_is_rejection, kNoSourcePosition),
+        zone());
+    // .promise = %AsyncFunctionPromiseCreate();
+    Expression* create_promise = factory()->NewCallRuntime(
+        Context::ASYNC_FUNCTION_PROMISE_CREATE_INDEX,
+        new (zone()) ZoneList<Expression*>(0, zone()), kNoSourcePosition);
+    Assignment* assign_promise = factory()->NewAssignment(
+        Token::INIT, factory()->NewVariableProxy(PromiseVariable()),
+        create_promise, kNoSourcePosition);
+    Statement* set_promise =
+        factory()->NewExpressionStatement(assign_promise, kNoSourcePosition);
+    result->statements()->Add(set_promise, zone());
+  }
+
+  // catch (.catch) {
+  //   .is_rejection = true;
+  //   .async_return_value = .catch;
+  // }
+  Scope* catch_scope = NewScope(CATCH_SCOPE);
+  catch_scope->set_is_hidden();
+  Variable* catch_variable =
+      catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR,
+                                kCreatedInitialized, NORMAL_VARIABLE);
+  Block* catch_block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
+  {
+    // .is_rejection = true;
+    DCHECK_NOT_NULL(is_rejection_var);
+    Assignment* set_is_rejection = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(is_rejection_var),
+        factory()->NewBooleanLiteral(true, kNoSourcePosition),
+        kNoSourcePosition);
+    catch_block->statements()->Add(
+        factory()->NewExpressionStatement(set_is_rejection, kNoSourcePosition),
+        zone());
+    // .async_return_value = .catch;
+    Assignment* set_async_return_var = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(AsyncReturnVariable()),
+        factory()->NewVariableProxy(catch_variable), kNoSourcePosition);
+    catch_block->statements()->Add(factory()->NewExpressionStatement(
+                                       set_async_return_var, kNoSourcePosition),
+                                   zone());
+  }
 
   TryStatement* try_catch_statement =
       factory()->NewTryCatchStatementForAsyncAwait(inner_block, catch_scope,
                                                    catch_variable, catch_block,
                                                    kNoSourcePosition);
-
-  // There is no TryCatchFinally node, so wrap it in an outer try/finally
   Block* outer_try_block =
       factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
   outer_try_block->statements()->Add(try_catch_statement, zone());
 
-  // finally { %AsyncFunctionPromiseRelease(.promise) }
+  // finally {
+  //   .is_rejection
+  //     ? %RejectPromise(.promise, .async_return_value)
+  //     : %ResolvePromise(.promise, .async_return_value);
+  //   %AsyncFunctionPromiseRelease(.promise);
+  //   return .promise;
+  // }
   Block* finally_block =
       factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
   {
+    //  .is_rejection
+    //    ? %RejectPromise(.promise, .async_return_value)
+    //    : %ResolvePromise(.promise, .async_return_value);
+    Expression* resolve_or_reject_promise =
+        factory()->NewConditional(factory()->NewVariableProxy(is_rejection_var),
+                                  BuildRejectPromise(AsyncReturnVariable()),
+                                  BuildResolvePromise(), kNoSourcePosition);
+    finally_block->statements()->Add(
+        factory()->NewExpressionStatement(resolve_or_reject_promise,
+                                          kNoSourcePosition),
+        zone());
+    //  %AsyncFunctionPromiseRelease(.promise);
     ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
     args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
     Expression* call_promise_release = factory()->NewCallRuntime(
@@ -3052,11 +3151,15 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
     Statement* promise_release = factory()->NewExpressionStatement(
         call_promise_release, kNoSourcePosition);
     finally_block->statements()->Add(promise_release, zone());
+
+    // return .promise;
+    Statement* return_promise = factory()->NewReturnStatement(
+        factory()->NewVariableProxy(PromiseVariable()), kNoSourcePosition);
+    finally_block->statements()->Add(return_promise, zone());
   }
 
   Statement* try_finally_statement = factory()->NewTryFinallyStatement(
       outer_try_block, finally_block, kNoSourcePosition);
-
   result->statements()->Add(try_finally_statement, zone());
   return result;
 }
@@ -3072,31 +3175,25 @@ Expression* Parser::BuildCreateJSGeneratorObject(int pos, FunctionKind kind) {
                                    pos);
 }
 
-Expression* Parser::BuildResolvePromise(Expression* value, int pos) {
-  // %ResolvePromise(.promise, value), .promise
+Expression* Parser::BuildResolvePromise() {
+  // %ResolvePromise(.promise, .async_return_variable), .promise
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
   args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
-  args->Add(value, zone());
-  Expression* call_runtime =
-      factory()->NewCallRuntime(Context::PROMISE_RESOLVE_INDEX, args, pos);
-  return factory()->NewBinaryOperation(
-      Token::COMMA, call_runtime,
-      factory()->NewVariableProxy(PromiseVariable()), pos);
+  args->Add(factory()->NewVariableProxy(AsyncReturnVariable()), zone());
+  return factory()->NewCallRuntime(Context::PROMISE_RESOLVE_INDEX, args,
+                                   kNoSourcePosition);
 }
 
-Expression* Parser::BuildRejectPromise(Expression* value, int pos) {
-  // %RejectPromiseNoDebugEvent(.promise, value, true), .promise
+Expression* Parser::BuildRejectPromise(Variable* value) {
+  // %RejectPromiseNoDebugEvent(.promise, .value, true)
   // The NoDebugEvent variant disables the additional debug event for the
   // rejection since a debug event already happened for the exception that got
   // us here.
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
   args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
-  args->Add(value, zone());
-  Expression* call_runtime = factory()->NewCallRuntime(
-      Context::REJECT_PROMISE_NO_DEBUG_EVENT_INDEX, args, pos);
-  return factory()->NewBinaryOperation(
-      Token::COMMA, call_runtime,
-      factory()->NewVariableProxy(PromiseVariable()), pos);
+  args->Add(factory()->NewVariableProxy(value), zone());
+  return factory()->NewCallRuntime(
+      Context::REJECT_PROMISE_NO_DEBUG_EVENT_INDEX, args, kNoSourcePosition);
 }
 
 Variable* Parser::PromiseVariable() {
@@ -3109,6 +3206,19 @@ Variable* Parser::PromiseVariable() {
     function_state_->set_promise_variable(promise);
   }
   return promise;
+}
+
+Variable* Parser::AsyncReturnVariable() {
+  // Based on the various compilation paths, there are many different
+  // code paths which may be the first to access the return value
+  // temporary. Whichever comes first should create it and stash it in
+  // the FunctionState.
+  Variable* async_return = function_state_->async_return_variable();
+  if (async_return == nullptr) {
+    async_return = scope()->NewTemporary(ast_value_factory()->empty_string());
+    function_state_->set_async_return_variable(async_return);
+  }
+  return async_return;
 }
 
 Expression* Parser::BuildInitialYield(int pos, FunctionKind kind) {
@@ -3235,7 +3345,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
     // TODO(littledan): Merge the two rejection blocks into one
     if (IsAsyncFunction(kind)) {
-      init_block = BuildRejectPromiseOnException(init_block, CHECK_OK);
+      init_block = BuildRejectPromiseOnExceptionForParameters(init_block);
     }
 
     DCHECK_NOT_NULL(init_block);
@@ -4176,14 +4286,16 @@ void Parser::RewriteAsyncFunctionBody(ZoneList<Statement*>* body, Block* block,
   //   .generator_object = %CreateGeneratorObject();
   //   BuildRejectPromiseOnException({
   //     ... block ...
-  //     return %ResolvePromise(.promise, expr), .promise;
+  //     .async_return_var = expr;
   //   })
   // }
 
-  return_value = BuildResolvePromise(return_value, return_value->position());
-  block->statements()->Add(
-      factory()->NewReturnStatement(return_value, return_value->position()),
-      zone());
+  Assignment* set_async_return_var = factory()->NewAssignment(
+      Token::ASSIGN, factory()->NewVariableProxy(AsyncReturnVariable()),
+      return_value, kNoSourcePosition);
+  block->statements()->Add(factory()->NewExpressionStatement(
+                               set_async_return_var, kNoSourcePosition),
+                           zone());
   block = BuildRejectPromiseOnException(block, CHECK_OK_VOID);
   body->Add(block, zone());
 }
