@@ -22,8 +22,8 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
+if (!common.hasCryptoEC) {
+  common.skip('missing crypto/elliptic curve support');
   return;
 }
 

@@ -310,7 +310,10 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "addCRL", SecureContext::AddCRL);
   env->SetProtoMethod(t, "addRootCerts", SecureContext::AddRootCerts);
   env->SetProtoMethod(t, "setCiphers", SecureContext::SetCiphers);
+  env->SetProtoMethod(t, "hasEC", SecureContext::HasEC);
+#if !defined(OPENSSL_NO_ECDH)
   env->SetProtoMethod(t, "setECDHCurve", SecureContext::SetECDHCurve);
+#endif
   env->SetProtoMethod(t, "setDHParam", SecureContext::SetDHParam);
   env->SetProtoMethod(t, "setOptions", SecureContext::SetOptions);
   env->SetProtoMethod(t, "setSessionIdContext",
@@ -899,6 +902,16 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void SecureContext::HasEC(const FunctionCallbackInfo<Value>& args) {
+#if defined(OPENSSL_NO_EC)
+  args.GetReturnValue().Set(false);
+#else
+  args.GetReturnValue().Set(true);
+#endif
+}
+
+
+#if !defined(OPENSSL_NO_ECDH)
 void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
@@ -926,6 +939,7 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
 
   EC_KEY_free(ecdh);
 }
+#endif
 
 
 void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
@@ -1975,6 +1989,7 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
         info->Set(env->size_string(),
                   Integer::New(env->isolate(), EVP_PKEY_bits(key)));
         break;
+#if !defined(OPENSSL_NO_EC)
       case EVP_PKEY_EC:
         {
           EC_KEY* ec = EVP_PKEY_get1_EC_KEY(key);
@@ -1987,6 +2002,7 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
           info->Set(env->size_string(),
                     Integer::New(env->isolate(), EVP_PKEY_bits(key)));
         }
+#endif
     }
     EVP_PKEY_free(key);
   }
@@ -5004,6 +5020,7 @@ bool DiffieHellman::VerifyContext() {
 }
 
 
+#if !defined(OPENSSL_NO_ECDH)
 void ECDH::Initialize(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
@@ -5272,6 +5289,7 @@ bool ECDH::IsKeyPairValid() {
   (void) &mark_pop_error_on_return;  // Silence compiler warning.
   return 1 == EC_KEY_check_key(key_);
 }
+#endif
 
 
 class PBKDF2Request : public AsyncWrap {
@@ -5853,6 +5871,7 @@ void GetHashes(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+#if !defined(OPENSSL_NO_EC)
 void GetCurves(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   const size_t num_curves = EC_get_builtin_curves(nullptr, 0);
@@ -5873,6 +5892,7 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(arr);
 }
+#endif
 
 
 bool VerifySpkac(const char* data, unsigned int len) {
@@ -6185,7 +6205,9 @@ void InitCrypto(Local<Object> target,
   Connection::Initialize(env, target);
   CipherBase::Initialize(env, target);
   DiffieHellman::Initialize(env, target);
+#if !defined(OPENSSL_NO_ECDH)
   ECDH::Initialize(env, target);
+#endif
   Hmac::Initialize(env, target);
   Hash::Initialize(env, target);
   Sign::Initialize(env, target);
@@ -6206,7 +6228,10 @@ void InitCrypto(Local<Object> target,
   env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
   env->SetMethod(target, "getCiphers", GetCiphers);
   env->SetMethod(target, "getHashes", GetHashes);
+  env->SetMethod(target, "hasEC", SecureContext::HasEC);
+#if !defined(OPENSSL_NO_EC)
   env->SetMethod(target, "getCurves", GetCurves);
+#endif
   env->SetMethod(target, "publicEncrypt",
                  PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
                                          EVP_PKEY_encrypt_init,

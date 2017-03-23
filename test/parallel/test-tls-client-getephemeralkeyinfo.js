@@ -81,18 +81,23 @@ function testDHE2048() {
 }
 
 function testECDHE256() {
-  test(256, 'ECDH', tls.DEFAULT_ECDH_CURVE, testECDHE512);
-  ntests++;
+  if (common.hasCryptoEC) {
+    console.log(common.hasCryptoEC);
+    test(256, 'ECDH', tls.DEFAULT_ECDH_CURVE, testECDHE512);
+    ntests++;
+  }
 }
 
 function testECDHE512() {
-  test(521, 'ECDH', 'secp521r1', null);
-  ntests++;
+  if (common.hasCryptoEC) {
+    test(521, 'ECDH', 'secp521r1', null);
+    ntests++;
+  }
 }
 
 testNOT_PFS();
 
 process.on('exit', function() {
   assert.strictEqual(ntests, nsuccess);
-  assert.strictEqual(ntests, 5);
+  assert.strictEqual(ntests, common.hasCryptoEC ? 5 : 3);
 });

@@ -39,8 +39,12 @@
 #include "v8.h"
 
 #include <openssl/ssl.h>
+#if !defined(OPENSSL_NO_EC)
 #include <openssl/ec.h>
+#endif
+#if !defined(OPENSSL_NO_ECDH)
 #include <openssl/ecdh.h>
+#endif
 #ifndef OPENSSL_NO_ENGINE
 # include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
@@ -98,6 +102,7 @@ class SecureContext : public BaseObject {
   }
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void HasEC(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SSL_CTX* ctx_;
   X509* cert_;
@@ -123,7 +128,9 @@ class SecureContext : public BaseObject {
   static void AddCRL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddRootCerts(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetCiphers(const v8::FunctionCallbackInfo<v8::Value>& args);
+#if !defined(OPENSSL_NO_EC)
   static void SetECDHCurve(const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif
   static void SetDHParam(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSessionIdContext(
@@ -708,6 +715,7 @@ class DiffieHellman : public BaseObject {
   DH* dh;
 };
 
+#if !defined(OPENSSL_NO_ECDH)
 class ECDH : public BaseObject {
  public:
   ~ECDH() override {
@@ -744,6 +752,7 @@ class ECDH : public BaseObject {
   EC_KEY* key_;
   const EC_GROUP* group_;
 };
+#endif
 
 bool EntropySource(unsigned char* buffer, size_t length);
 #ifndef OPENSSL_NO_ENGINE

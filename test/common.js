@@ -214,6 +214,12 @@ Object.defineProperty(exports, 'hasFipsCrypto', {
   }
 });
 
+Object.defineProperty(exports, 'hasCryptoEC', {
+  get: function() {
+    return exports.hasCrypto && require('crypto').hasEC();
+  }
+});
+
 if (exports.isWindows) {
   exports.PIPE = '\\\\.\\pipe\\libuv-test';
   if (process.env.TEST_THREAD_ID) {

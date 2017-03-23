@@ -37,8 +37,10 @@
 #include <limits>
 
 #if HAVE_OPENSSL
-# include <openssl/ec.h>
 # include <openssl/ssl.h>
+# if !defined(OPENSSL_NO_EC)
+#  include <openssl/ec.h>
+# endif
 # ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
 # endif  // !OPENSSL_NO_ENGINE
@@ -49,7 +51,9 @@ namespace node {
 using v8::Local;
 using v8::Object;
 
-#if HAVE_OPENSSL
+#if defined(OPENSSL_NO_EC)
+const char* default_cipher_list = NO_EC_CIPHER_LIST_CORE;
+#elif HAVE_OPENSSL
 const char* default_cipher_list = DEFAULT_CIPHER_LIST_CORE;
 #endif
 
@@ -1012,12 +1016,14 @@ void DefineOpenSSLConstants(Local<Object> target) {
 #endif
 
 #if HAVE_OPENSSL
+# if !defined(OPENSSL_NO_EC)
   // NOTE: These are not defines
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_COMPRESSED);
 
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_UNCOMPRESSED);
 
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_HYBRID);
+# endif
 #endif
 }
 
@@ -1172,7 +1178,11 @@ void DefineCryptoConstants(Local<Object> target) {
 #if HAVE_OPENSSL
   NODE_DEFINE_STRING_CONSTANT(target,
                               "defaultCoreCipherList",
+# if defined(OPENSSL_NO_EC)
+                              NO_EC_CIPHER_LIST_CORE);
+# else
                               DEFAULT_CIPHER_LIST_CORE);
+#endif
   NODE_DEFINE_STRING_CONSTANT(target,
                               "defaultCipherList",
                               default_cipher_list);
