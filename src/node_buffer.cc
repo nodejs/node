@@ -615,9 +615,6 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
       enc == UTF8 ? str_obj->Utf8Length() :
       enc == UCS2 ? str_obj->Length() * sizeof(uint16_t) : str_obj->Length();
 
-  if (enc == HEX && str_length  % 2 != 0)
-    return env->ThrowTypeError("Invalid hex string");
-
   if (str_length == 0)
     return;
 
@@ -684,9 +681,6 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("Argument must be a string");
 
   Local<String> str = args[0]->ToString(env->isolate());
-
-  if (encoding == HEX && str->Length() % 2 != 0)
-    return env->ThrowTypeError("Invalid hex string");
 
   size_t offset;
   size_t max_length;
