@@ -143,12 +143,12 @@ void FullCodeGenerator::Generate() {
     __ ld(a0, FieldMemOperand(a1, JSFunction::kLiteralsOffset));
     __ ld(a0, FieldMemOperand(a0, LiteralsArray::kFeedbackVectorOffset));
     __ ld(a4, FieldMemOperand(
-                  a0, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
-                          TypeFeedbackVector::kHeaderSize));
+                  a0, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                          FeedbackVector::kHeaderSize));
     __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
     __ sd(a4, FieldMemOperand(
-                  a0, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
-                          TypeFeedbackVector::kHeaderSize));
+                  a0, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                          FeedbackVector::kHeaderSize));
   }
 
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -845,7 +845,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ li(a1, Operand(pairs));
   __ li(a0, Operand(Smi::FromInt(DeclareGlobalsFlags())));
-  __ EmitLoadTypeFeedbackVector(a2);
+  __ EmitLoadFeedbackVector(a2);
   __ Push(a1, a0, a2);
   __ CallRuntime(Runtime::kDeclareGlobals);
   // Return value is ignored.
@@ -1069,8 +1069,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We need to filter the key, record slow-path here.
   int const vector_index = SmiFromSlot(slot)->value();
-  __ EmitLoadTypeFeedbackVector(a3);
-  __ li(a2, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
+  __ EmitLoadFeedbackVector(a3);
+  __ li(a2, Operand(FeedbackVector::MegamorphicSentinel(isolate())));
   __ sd(a2, FieldMemOperand(a3, FixedArray::OffsetOfElementAt(vector_index)));
 
   __ mov(a0, result_register());
@@ -1947,7 +1947,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ ld(a1, MemOperand(sp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
-  __ EmitLoadTypeFeedbackVector(a2);
+  __ EmitLoadFeedbackVector(a2);
   __ li(a3, Operand(SmiFromSlot(expr->CallNewFeedbackSlot())));
 
   CallConstructStub stub(isolate());

@@ -365,7 +365,7 @@ class CodeStub BASE_EMBEDDED {
   static compiler::Node* Generate(                                           \
       CodeStubAssembler* assembler, compiler::Node* left,                    \
       compiler::Node* right, compiler::Node* slot_id,                        \
-      compiler::Node* type_feedback_vector, compiler::Node* context);        \
+      compiler::Node* feedback_vector, compiler::Node* context);             \
   void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
   DEFINE_CODE_STUB(NAME, SUPER)
 
@@ -373,7 +373,7 @@ class CodeStub BASE_EMBEDDED {
  public:                                                                     \
   static compiler::Node* Generate(                                           \
       CodeStubAssembler* assembler, compiler::Node* value,                   \
-      compiler::Node* context, compiler::Node* type_feedback_vector,         \
+      compiler::Node* context, compiler::Node* feedback_vector,              \
       compiler::Node* slot_id);                                              \
   void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
   DEFINE_CODE_STUB(NAME, SUPER)

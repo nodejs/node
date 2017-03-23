@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TYPE_FEEDBACK_VECTOR_INL_H_
-#define V8_TYPE_FEEDBACK_VECTOR_INL_H_
+#ifndef V8_FEEDBACK_VECTOR_INL_H_
+#define V8_FEEDBACK_VECTOR_INL_H_
 
+#include "src/factory.h"
+#include "src/feedback-vector.h"
 #include "src/globals.h"
-#include "src/type-feedback-vector.h"
 
 namespace v8 {
 namespace internal {
-
 
 template <typename Derived>
 FeedbackVectorSlot FeedbackVectorSpecBase<Derived>::AddSlot(
     FeedbackVectorSlotKind kind) {
   int slot = This()->slots();
-  int entries_per_slot = TypeFeedbackMetadata::GetSlotSize(kind);
+  int entries_per_slot = FeedbackMetadata::GetSlotSize(kind);
   This()->append(kind);
   for (int i = 1; i < entries_per_slot; i++) {
     This()->append(FeedbackVectorSlotKind::INVALID);
@@ -24,33 +24,31 @@ FeedbackVectorSlot FeedbackVectorSpecBase<Derived>::AddSlot(
   return FeedbackVectorSlot(slot);
 }
 
-
 // static
-TypeFeedbackMetadata* TypeFeedbackMetadata::cast(Object* obj) {
-  DCHECK(obj->IsTypeFeedbackMetadata());
-  return reinterpret_cast<TypeFeedbackMetadata*>(obj);
+FeedbackMetadata* FeedbackMetadata::cast(Object* obj) {
+  DCHECK(obj->IsFeedbackMetadata());
+  return reinterpret_cast<FeedbackMetadata*>(obj);
 }
 
-bool TypeFeedbackMetadata::is_empty() const {
+bool FeedbackMetadata::is_empty() const {
   if (length() == 0) return true;
   return false;
 }
 
-int TypeFeedbackMetadata::slot_count() const {
+int FeedbackMetadata::slot_count() const {
   if (length() == 0) return 0;
   DCHECK(length() > kReservedIndexCount);
   return Smi::cast(get(kSlotsCountIndex))->value();
 }
 
-
 // static
-TypeFeedbackVector* TypeFeedbackVector::cast(Object* obj) {
-  DCHECK(obj->IsTypeFeedbackVector());
-  return reinterpret_cast<TypeFeedbackVector*>(obj);
+FeedbackVector* FeedbackVector::cast(Object* obj) {
+  DCHECK(obj->IsFeedbackVector());
+  return reinterpret_cast<FeedbackVector*>(obj);
 }
 
 
-int TypeFeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
+int FeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
   DCHECK_NE(FeedbackVectorSlotKind::INVALID, kind);
   DCHECK_NE(FeedbackVectorSlotKind::KINDS_NUMBER, kind);
   if (kind == FeedbackVectorSlotKind::GENERAL ||
@@ -63,7 +61,7 @@ int TypeFeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
   return 2;
 }
 
-bool TypeFeedbackMetadata::SlotRequiresParameter(FeedbackVectorSlotKind kind) {
+bool FeedbackMetadata::SlotRequiresParameter(FeedbackVectorSlotKind kind) {
   switch (kind) {
     case FeedbackVectorSlotKind::CREATE_CLOSURE:
       return true;
@@ -88,38 +86,35 @@ bool TypeFeedbackMetadata::SlotRequiresParameter(FeedbackVectorSlotKind kind) {
   return false;
 }
 
-bool TypeFeedbackVector::is_empty() const {
+bool FeedbackVector::is_empty() const {
   return length() == kReservedIndexCount;
 }
 
-int TypeFeedbackVector::slot_count() const {
+int FeedbackVector::slot_count() const {
   return length() - kReservedIndexCount;
 }
 
-
-TypeFeedbackMetadata* TypeFeedbackVector::metadata() const {
-  return TypeFeedbackMetadata::cast(get(kMetadataIndex));
+FeedbackMetadata* FeedbackVector::metadata() const {
+  return FeedbackMetadata::cast(get(kMetadataIndex));
 }
 
-int TypeFeedbackVector::invocation_count() const {
+int FeedbackVector::invocation_count() const {
   return Smi::cast(get(kInvocationCountIndex))->value();
 }
 
 // Conversion from an integer index to either a slot or an ic slot.
 // static
-FeedbackVectorSlot TypeFeedbackVector::ToSlot(int index) {
+FeedbackVectorSlot FeedbackVector::ToSlot(int index) {
   DCHECK_GE(index, kReservedIndexCount);
   return FeedbackVectorSlot(index - kReservedIndexCount);
 }
 
-
-Object* TypeFeedbackVector::Get(FeedbackVectorSlot slot) const {
+Object* FeedbackVector::Get(FeedbackVectorSlot slot) const {
   return get(GetIndex(slot));
 }
 
-
-void TypeFeedbackVector::Set(FeedbackVectorSlot slot, Object* value,
-                             WriteBarrierMode mode) {
+void FeedbackVector::Set(FeedbackVectorSlot slot, Object* value,
+                         WriteBarrierMode mode) {
   set(GetIndex(slot), value, mode);
 }
 
@@ -165,15 +160,15 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
   return CompareOperationHint::kNone;
 }
 
-void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
-                                       int* vector_ic_count,
-                                       bool code_is_interpreted) {
+void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
+                                   int* vector_ic_count,
+                                   bool code_is_interpreted) {
   Object* megamorphic_sentinel =
-      *TypeFeedbackVector::MegamorphicSentinel(GetIsolate());
+      *FeedbackVector::MegamorphicSentinel(GetIsolate());
   int with = 0;
   int gen = 0;
   int total = 0;
-  TypeFeedbackMetadataIterator iter(metadata());
+  FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
@@ -240,27 +235,27 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
   *vector_ic_count = total;
 }
 
-Handle<Symbol> TypeFeedbackVector::UninitializedSentinel(Isolate* isolate) {
+Handle<Symbol> FeedbackVector::UninitializedSentinel(Isolate* isolate) {
   return isolate->factory()->uninitialized_symbol();
 }
 
-Handle<Symbol> TypeFeedbackVector::MegamorphicSentinel(Isolate* isolate) {
+Handle<Symbol> FeedbackVector::MegamorphicSentinel(Isolate* isolate) {
   return isolate->factory()->megamorphic_symbol();
 }
 
-Handle<Symbol> TypeFeedbackVector::PremonomorphicSentinel(Isolate* isolate) {
+Handle<Symbol> FeedbackVector::PremonomorphicSentinel(Isolate* isolate) {
   return isolate->factory()->premonomorphic_symbol();
 }
 
-Symbol* TypeFeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
+Symbol* FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
   return isolate->heap()->uninitialized_symbol();
 }
 
-bool TypeFeedbackMetadataIterator::HasNext() const {
+bool FeedbackMetadataIterator::HasNext() const {
   return next_slot_.ToInt() < metadata()->slot_count();
 }
 
-FeedbackVectorSlot TypeFeedbackMetadataIterator::Next() {
+FeedbackVectorSlot FeedbackMetadataIterator::Next() {
   DCHECK(HasNext());
   cur_slot_ = next_slot_;
   slot_kind_ = metadata()->GetKind(cur_slot_);
@@ -268,41 +263,37 @@ FeedbackVectorSlot TypeFeedbackMetadataIterator::Next() {
   return cur_slot_;
 }
 
-int TypeFeedbackMetadataIterator::entry_size() const {
-  return TypeFeedbackMetadata::GetSlotSize(kind());
+int FeedbackMetadataIterator::entry_size() const {
+  return FeedbackMetadata::GetSlotSize(kind());
 }
 
 Object* FeedbackNexus::GetFeedback() const { return vector()->Get(slot()); }
 
-
 Object* FeedbackNexus::GetFeedbackExtra() const {
 #ifdef DEBUG
   FeedbackVectorSlotKind kind = vector()->GetKind(slot());
-  DCHECK_LT(1, TypeFeedbackMetadata::GetSlotSize(kind));
+  DCHECK_LT(1, FeedbackMetadata::GetSlotSize(kind));
 #endif
   int extra_index = vector()->GetIndex(slot()) + 1;
   return vector()->get(extra_index);
 }
 
-
 void FeedbackNexus::SetFeedback(Object* feedback, WriteBarrierMode mode) {
   vector()->Set(slot(), feedback, mode);
 }
-
 
 void FeedbackNexus::SetFeedbackExtra(Object* feedback_extra,
                                      WriteBarrierMode mode) {
 #ifdef DEBUG
   FeedbackVectorSlotKind kind = vector()->GetKind(slot());
-  DCHECK_LT(1, TypeFeedbackMetadata::GetSlotSize(kind));
+  DCHECK_LT(1, FeedbackMetadata::GetSlotSize(kind));
 #endif
   int index = vector()->GetIndex(slot()) + 1;
   vector()->set(index, feedback_extra, mode);
 }
 
-
 Isolate* FeedbackNexus::GetIsolate() const { return vector()->GetIsolate(); }
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TYPE_FEEDBACK_VECTOR_INL_H_
+#endif  // V8_FEEDBACK_VECTOR_INL_H_

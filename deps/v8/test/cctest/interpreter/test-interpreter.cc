@@ -22,6 +22,9 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+static int GetIndex(FeedbackVectorSlot slot) {
+  return FeedbackVector::GetIndex(slot);
+}
 
 TEST(InterpreterReturn) {
   HandleAndZoneScope handles;
@@ -272,8 +275,8 @@ TEST(InterpreterShiftOpsSmi) {
 
         FeedbackVectorSpec feedback_spec(&zone);
         FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
-        Handle<i::TypeFeedbackVector> vector =
-            NewTypeFeedbackVector(isolate, &feedback_spec);
+        Handle<i::FeedbackVector> vector =
+            NewFeedbackVector(isolate, &feedback_spec);
 
         Register reg(0);
         int lhs = lhs_inputs[l];
@@ -281,7 +284,7 @@ TEST(InterpreterShiftOpsSmi) {
         builder.LoadLiteral(Smi::FromInt(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(Smi::FromInt(rhs))
-            .BinaryOperation(kShiftOperators[o], reg, vector->GetIndex(slot))
+            .BinaryOperation(kShiftOperators[o], reg, GetIndex(slot))
             .Return();
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -311,8 +314,8 @@ TEST(InterpreterBinaryOpsSmi) {
 
         FeedbackVectorSpec feedback_spec(&zone);
         FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
-        Handle<i::TypeFeedbackVector> vector =
-            NewTypeFeedbackVector(isolate, &feedback_spec);
+        Handle<i::FeedbackVector> vector =
+            NewFeedbackVector(isolate, &feedback_spec);
 
         Register reg(0);
         int lhs = lhs_inputs[l];
@@ -321,7 +324,7 @@ TEST(InterpreterBinaryOpsSmi) {
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(Smi::FromInt(rhs))
             .BinaryOperation(kArithmeticOperators[o], reg,
-                             vector->GetIndex(slot))
+                             GetIndex(slot))
             .Return();
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -352,8 +355,8 @@ TEST(InterpreterBinaryOpsHeapNumber) {
 
         FeedbackVectorSpec feedback_spec(&zone);
         FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
-        Handle<i::TypeFeedbackVector> vector =
-            NewTypeFeedbackVector(isolate, &feedback_spec);
+        Handle<i::FeedbackVector> vector =
+            NewFeedbackVector(isolate, &feedback_spec);
 
         Register reg(0);
         double lhs = lhs_inputs[l];
@@ -361,8 +364,7 @@ TEST(InterpreterBinaryOpsHeapNumber) {
         builder.LoadLiteral(factory->NewNumber(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(factory->NewNumber(rhs))
-            .BinaryOperation(kArithmeticOperators[o], reg,
-                             vector->GetIndex(slot))
+            .BinaryOperation(kArithmeticOperators[o], reg, GetIndex(slot))
             .Return();
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -424,14 +426,14 @@ TEST(InterpreterStringAdd) {
     BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
     FeedbackVectorSpec feedback_spec(&zone);
     FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
-    Handle<i::TypeFeedbackVector> vector =
-        NewTypeFeedbackVector(isolate, &feedback_spec);
+    Handle<i::FeedbackVector> vector =
+        NewFeedbackVector(isolate, &feedback_spec);
 
     Register reg(0);
     builder.LoadLiteral(test_cases[i].lhs)
         .StoreAccumulatorInRegister(reg)
         .LoadLiteral(test_cases[i].rhs)
-        .BinaryOperation(Token::Value::ADD, reg, vector->GetIndex(slot))
+        .BinaryOperation(Token::Value::ADD, reg, GetIndex(slot))
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -486,24 +488,17 @@ TEST(InterpreterParameter8) {
   FeedbackVectorSlot slot5 = feedback_spec.AddInterpreterBinaryOpICSlot();
   FeedbackVectorSlot slot6 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
-  Handle<i::TypeFeedbackVector> vector =
-      NewTypeFeedbackVector(isolate, &feedback_spec);
+  Handle<i::FeedbackVector> vector =
+      NewFeedbackVector(isolate, &feedback_spec);
 
   builder.LoadAccumulatorWithRegister(builder.Parameter(0))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(1),
-                       vector->GetIndex(slot))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(2),
-                       vector->GetIndex(slot1))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(3),
-                       vector->GetIndex(slot2))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(4),
-                       vector->GetIndex(slot3))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(5),
-                       vector->GetIndex(slot4))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(6),
-                       vector->GetIndex(slot5))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(7),
-                       vector->GetIndex(slot6))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(1), GetIndex(slot))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(2), GetIndex(slot1))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(3), GetIndex(slot2))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(4), GetIndex(slot3))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(5), GetIndex(slot4))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(6), GetIndex(slot5))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(7), GetIndex(slot6))
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -653,14 +648,14 @@ TEST(InterpreterBinaryOpTypeFeedback) {
     i::FeedbackVectorSpec feedback_spec(&zone);
     i::FeedbackVectorSlot slot0 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
-    Handle<i::TypeFeedbackVector> vector =
-        i::NewTypeFeedbackVector(isolate, &feedback_spec);
+    Handle<i::FeedbackVector> vector =
+        i::NewFeedbackVector(isolate, &feedback_spec);
 
     Register reg(0);
     builder.LoadLiteral(test_case.arg1)
         .StoreAccumulatorInRegister(reg)
         .LoadLiteral(test_case.arg2)
-        .BinaryOperation(test_case.op, reg, vector->GetIndex(slot0))
+        .BinaryOperation(test_case.op, reg, GetIndex(slot0))
         .Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -757,14 +752,14 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
     i::FeedbackVectorSpec feedback_spec(&zone);
     i::FeedbackVectorSlot slot0 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
-    Handle<i::TypeFeedbackVector> vector =
-        i::NewTypeFeedbackVector(isolate, &feedback_spec);
+    Handle<i::FeedbackVector> vector =
+        i::NewFeedbackVector(isolate, &feedback_spec);
 
     Register reg(0);
     builder.LoadLiteral(test_case.arg1)
         .StoreAccumulatorInRegister(reg)
         .LoadLiteral(Smi::FromInt(test_case.arg2))
-        .BinaryOperation(test_case.op, reg, vector->GetIndex(slot0))
+        .BinaryOperation(test_case.op, reg, GetIndex(slot0))
         .Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -810,17 +805,17 @@ TEST(InterpreterUnaryOpFeedback) {
     i::FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
     i::FeedbackVectorSlot slot3 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
-    Handle<i::TypeFeedbackVector> vector =
-        i::NewTypeFeedbackVector(isolate, &feedback_spec);
+    Handle<i::FeedbackVector> vector =
+        i::NewFeedbackVector(isolate, &feedback_spec);
 
     builder.LoadAccumulatorWithRegister(builder.Parameter(0))
-        .CountOperation(test_case.op, vector->GetIndex(slot0))
+        .CountOperation(test_case.op, GetIndex(slot0))
         .LoadAccumulatorWithRegister(builder.Parameter(1))
-        .CountOperation(test_case.op, vector->GetIndex(slot1))
+        .CountOperation(test_case.op, GetIndex(slot1))
         .LoadAccumulatorWithRegister(builder.Parameter(2))
-        .CountOperation(test_case.op, vector->GetIndex(slot2))
+        .CountOperation(test_case.op, GetIndex(slot2))
         .LoadAccumulatorWithRegister(builder.Parameter(3))
-        .CountOperation(test_case.op, vector->GetIndex(slot3))
+        .CountOperation(test_case.op, GetIndex(slot3))
         .Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -873,13 +868,13 @@ TEST(InterpreterBitwiseTypeFeedback) {
     i::FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
     i::FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
-    Handle<i::TypeFeedbackVector> vector =
-        i::NewTypeFeedbackVector(isolate, &feedback_spec);
+    Handle<i::FeedbackVector> vector =
+        i::NewFeedbackVector(isolate, &feedback_spec);
 
     builder.LoadAccumulatorWithRegister(builder.Parameter(0))
-        .BinaryOperation(op, builder.Parameter(1), vector->GetIndex(slot0))
-        .BinaryOperation(op, builder.Parameter(2), vector->GetIndex(slot1))
-        .BinaryOperation(op, builder.Parameter(3), vector->GetIndex(slot2))
+        .BinaryOperation(op, builder.Parameter(1), GetIndex(slot0))
+        .BinaryOperation(op, builder.Parameter(2), GetIndex(slot1))
+        .BinaryOperation(op, builder.Parameter(3), GetIndex(slot2))
         .Return();
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1041,15 +1036,15 @@ TEST(InterpreterLoadNamedProperty) {
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
 
-  Handle<i::TypeFeedbackVector> vector =
-      NewTypeFeedbackVector(isolate, &feedback_spec);
+  Handle<i::FeedbackVector> vector =
+      NewFeedbackVector(isolate, &feedback_spec);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
   name = factory->string_table()->LookupString(isolate, name);
 
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
 
-  builder.LoadNamedProperty(builder.Parameter(0), name, vector->GetIndex(slot))
+  builder.LoadNamedProperty(builder.Parameter(0), name, GetIndex(slot))
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -1094,8 +1089,8 @@ TEST(InterpreterLoadKeyedProperty) {
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot = feedback_spec.AddKeyedLoadICSlot();
 
-  Handle<i::TypeFeedbackVector> vector =
-      NewTypeFeedbackVector(isolate, &feedback_spec);
+  Handle<i::FeedbackVector> vector =
+      NewFeedbackVector(isolate, &feedback_spec);
 
   Handle<i::String> key = factory->NewStringFromAsciiChecked("key");
   key = factory->string_table()->LookupString(isolate, key);
@@ -1103,7 +1098,7 @@ TEST(InterpreterLoadKeyedProperty) {
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
   builder.LoadLiteral(key)
-      .LoadKeyedProperty(builder.Parameter(0), vector->GetIndex(slot))
+      .LoadKeyedProperty(builder.Parameter(0), GetIndex(slot))
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -1136,8 +1131,8 @@ TEST(InterpreterStoreNamedProperty) {
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot();
 
-  Handle<i::TypeFeedbackVector> vector =
-      NewTypeFeedbackVector(isolate, &feedback_spec);
+  Handle<i::FeedbackVector> vector =
+      NewFeedbackVector(isolate, &feedback_spec);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
   name = factory->string_table()->LookupString(isolate, name);
@@ -1145,8 +1140,7 @@ TEST(InterpreterStoreNamedProperty) {
   BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
 
   builder.LoadLiteral(Smi::FromInt(999))
-      .StoreNamedProperty(builder.Parameter(0), name, vector->GetIndex(slot),
-                          STRICT)
+      .StoreNamedProperty(builder.Parameter(0), name, GetIndex(slot), STRICT)
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -1195,8 +1189,8 @@ TEST(InterpreterStoreKeyedProperty) {
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot = feedback_spec.AddKeyedStoreICSlot();
 
-  Handle<i::TypeFeedbackVector> vector =
-      NewTypeFeedbackVector(isolate, &feedback_spec);
+  Handle<i::FeedbackVector> vector =
+      NewFeedbackVector(isolate, &feedback_spec);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
   name = factory->string_table()->LookupString(isolate, name);
@@ -1206,8 +1200,8 @@ TEST(InterpreterStoreKeyedProperty) {
   builder.LoadLiteral(name)
       .StoreAccumulatorInRegister(Register(0))
       .LoadLiteral(Smi::FromInt(999))
-      .StoreKeyedProperty(builder.Parameter(0), Register(0),
-                          vector->GetIndex(slot), i::SLOPPY)
+      .StoreKeyedProperty(builder.Parameter(0), Register(0), GetIndex(slot),
+                          i::SLOPPY)
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -1243,11 +1237,11 @@ static void TestInterpreterCall(TailCallMode tail_call_mode) {
   FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
   FeedbackVectorSlot call_slot = feedback_spec.AddCallICSlot();
 
-  Handle<i::TypeFeedbackVector> vector =
-      NewTypeFeedbackVector(isolate, &feedback_spec);
-  int slot_index = vector->GetIndex(slot);
+  Handle<i::FeedbackVector> vector =
+      NewFeedbackVector(isolate, &feedback_spec);
+  int slot_index = GetIndex(slot);
   int call_slot_index = -1;
-  call_slot_index = vector->GetIndex(call_slot);
+  call_slot_index = GetIndex(call_slot);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("func");
   name = factory->string_table()->LookupString(isolate, name);
@@ -1421,8 +1415,8 @@ TEST(InterpreterJumps) {
   FeedbackVectorSlot slot1 = feedback_spec.AddInterpreterBinaryOpICSlot();
   FeedbackVectorSlot slot2 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
-  Handle<i::TypeFeedbackVector> vector =
-      NewTypeFeedbackVector(isolate, &feedback_spec);
+  Handle<i::FeedbackVector> vector =
+      NewFeedbackVector(isolate, &feedback_spec);
 
   Register reg(0), scratch(1);
   BytecodeLabel label[3];
@@ -1431,13 +1425,12 @@ TEST(InterpreterJumps) {
       .StoreAccumulatorInRegister(reg)
       .Jump(&label[1]);
   SetRegister(builder, reg, 1024, scratch).Bind(&label[0]);
-  IncrementRegister(builder, reg, 1, scratch, vector->GetIndex(slot))
-      .Jump(&label[2]);
+  IncrementRegister(builder, reg, 1, scratch, GetIndex(slot)).Jump(&label[2]);
   SetRegister(builder, reg, 2048, scratch).Bind(&label[1]);
-  IncrementRegister(builder, reg, 2, scratch, vector->GetIndex(slot1))
+  IncrementRegister(builder, reg, 2, scratch, GetIndex(slot1))
       .JumpLoop(&label[0], 0);
   SetRegister(builder, reg, 4096, scratch).Bind(&label[2]);
-  IncrementRegister(builder, reg, 4, scratch, vector->GetIndex(slot2))
+  IncrementRegister(builder, reg, 4, scratch, GetIndex(slot2))
       .LoadAccumulatorWithRegister(reg)
       .Return();
 
@@ -1462,8 +1455,8 @@ TEST(InterpreterConditionalJumps) {
   FeedbackVectorSlot slot3 = feedback_spec.AddInterpreterBinaryOpICSlot();
   FeedbackVectorSlot slot4 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
-  Handle<i::TypeFeedbackVector> vector =
-      NewTypeFeedbackVector(isolate, &feedback_spec);
+  Handle<i::FeedbackVector> vector =
+      NewFeedbackVector(isolate, &feedback_spec);
 
   Register reg(0), scratch(1);
   BytecodeLabel label[2];
@@ -1473,19 +1466,19 @@ TEST(InterpreterConditionalJumps) {
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(&label[0]);
-  IncrementRegister(builder, reg, 1024, scratch, vector->GetIndex(slot))
+  IncrementRegister(builder, reg, 1024, scratch, GetIndex(slot))
       .Bind(&label[0])
       .LoadTrue()
       .JumpIfFalse(&done);
-  IncrementRegister(builder, reg, 1, scratch, vector->GetIndex(slot1))
+  IncrementRegister(builder, reg, 1, scratch, GetIndex(slot1))
       .LoadTrue()
       .JumpIfTrue(&label[1]);
-  IncrementRegister(builder, reg, 2048, scratch, vector->GetIndex(slot2))
+  IncrementRegister(builder, reg, 2048, scratch, GetIndex(slot2))
       .Bind(&label[1]);
-  IncrementRegister(builder, reg, 2, scratch, vector->GetIndex(slot3))
+  IncrementRegister(builder, reg, 2, scratch, GetIndex(slot3))
       .LoadFalse()
       .JumpIfTrue(&done1);
-  IncrementRegister(builder, reg, 4, scratch, vector->GetIndex(slot4))
+  IncrementRegister(builder, reg, 4, scratch, GetIndex(slot4))
       .LoadAccumulatorWithRegister(reg)
       .Bind(&done)
       .Bind(&done1)
@@ -1512,8 +1505,8 @@ TEST(InterpreterConditionalJumps2) {
   FeedbackVectorSlot slot3 = feedback_spec.AddInterpreterBinaryOpICSlot();
   FeedbackVectorSlot slot4 = feedback_spec.AddInterpreterBinaryOpICSlot();
 
-  Handle<i::TypeFeedbackVector> vector =
-      NewTypeFeedbackVector(isolate, &feedback_spec);
+  Handle<i::FeedbackVector> vector =
+      NewFeedbackVector(isolate, &feedback_spec);
 
   Register reg(0), scratch(1);
   BytecodeLabel label[2];
@@ -1523,19 +1516,19 @@ TEST(InterpreterConditionalJumps2) {
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(&label[0]);
-  IncrementRegister(builder, reg, 1024, scratch, vector->GetIndex(slot))
+  IncrementRegister(builder, reg, 1024, scratch, GetIndex(slot))
       .Bind(&label[0])
       .LoadTrue()
       .JumpIfFalse(&done);
-  IncrementRegister(builder, reg, 1, scratch, vector->GetIndex(slot1))
+  IncrementRegister(builder, reg, 1, scratch, GetIndex(slot1))
       .LoadTrue()
       .JumpIfTrue(&label[1]);
-  IncrementRegister(builder, reg, 2048, scratch, vector->GetIndex(slot2))
+  IncrementRegister(builder, reg, 2048, scratch, GetIndex(slot2))
       .Bind(&label[1]);
-  IncrementRegister(builder, reg, 2, scratch, vector->GetIndex(slot3))
+  IncrementRegister(builder, reg, 2, scratch, GetIndex(slot3))
       .LoadFalse()
       .JumpIfTrue(&done1);
-  IncrementRegister(builder, reg, 4, scratch, vector->GetIndex(slot4))
+  IncrementRegister(builder, reg, 4, scratch, GetIndex(slot4))
       .LoadAccumulatorWithRegister(reg)
       .Bind(&done)
       .Bind(&done1)
@@ -1557,8 +1550,8 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
 
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot = feedback_spec.AddInterpreterBinaryOpICSlot();
-  Handle<i::TypeFeedbackVector> vector =
-      NewTypeFeedbackVector(isolate, &feedback_spec);
+  Handle<i::FeedbackVector> vector =
+      NewFeedbackVector(isolate, &feedback_spec);
 
   Register reg(0), scratch(256);
   BytecodeLabel done, fake;
@@ -1568,7 +1561,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   // Consume all 8-bit operands
   for (int i = 1; i <= 256; i++) {
     builder.LoadLiteral(isolate->factory()->NewNumber(i));
-    builder.BinaryOperation(Token::Value::ADD, reg, vector->GetIndex(slot));
+    builder.BinaryOperation(Token::Value::ADD, reg, GetIndex(slot));
     builder.StoreAccumulatorInRegister(reg);
   }
   builder.Jump(&done);
@@ -1578,7 +1571,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   for (int i = 0; i < 6600; i++) {
     builder.LoadLiteral(Smi::kZero);  // 1-byte
     builder.BinaryOperation(Token::Value::ADD, scratch,
-                            vector->GetIndex(slot));      // 6-bytes
+                            GetIndex(slot));              // 6-bytes
     builder.StoreAccumulatorInRegister(scratch);          // 4-bytes
     builder.MoveRegister(scratch, reg);                   // 6-bytes
   }
@@ -1703,14 +1696,14 @@ TEST(InterpreterSmiComparisons) {
 
         FeedbackVectorSpec feedback_spec(&zone);
         FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();
-        Handle<i::TypeFeedbackVector> vector =
-            NewTypeFeedbackVector(isolate, &feedback_spec);
+        Handle<i::FeedbackVector> vector =
+            NewFeedbackVector(isolate, &feedback_spec);
 
         Register r0(0);
         builder.LoadLiteral(Smi::FromInt(inputs[i]))
             .StoreAccumulatorInRegister(r0)
             .LoadLiteral(Smi::FromInt(inputs[j]))
-            .CompareOperation(comparison, r0, vector->GetIndex(slot))
+            .CompareOperation(comparison, r0, GetIndex(slot))
             .Return();
 
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1750,14 +1743,14 @@ TEST(InterpreterHeapNumberComparisons) {
 
         FeedbackVectorSpec feedback_spec(&zone);
         FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();
-        Handle<i::TypeFeedbackVector> vector =
-            NewTypeFeedbackVector(isolate, &feedback_spec);
+        Handle<i::FeedbackVector> vector =
+            NewFeedbackVector(isolate, &feedback_spec);
 
         Register r0(0);
         builder.LoadLiteral(factory->NewHeapNumber(inputs[i]))
             .StoreAccumulatorInRegister(r0)
             .LoadLiteral(factory->NewHeapNumber(inputs[j]))
-            .CompareOperation(comparison, r0, vector->GetIndex(slot))
+            .CompareOperation(comparison, r0, GetIndex(slot))
             .Return();
 
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1795,15 +1788,15 @@ TEST(InterpreterStringComparisons) {
 
         FeedbackVectorSpec feedback_spec(&zone);
         FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();
-        Handle<i::TypeFeedbackVector> vector =
-            NewTypeFeedbackVector(isolate, &feedback_spec);
+        Handle<i::FeedbackVector> vector =
+            NewFeedbackVector(isolate, &feedback_spec);
 
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
         Register r0(0);
         builder.LoadLiteral(factory->InternalizeUtf8String(lhs))
             .StoreAccumulatorInRegister(r0)
             .LoadLiteral(factory->InternalizeUtf8String(rhs))
-            .CompareOperation(comparison, r0, vector->GetIndex(slot))
+            .CompareOperation(comparison, r0, GetIndex(slot))
             .Return();
 
         Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -1854,8 +1847,8 @@ TEST(InterpreterMixedComparisons) {
 
           FeedbackVectorSpec feedback_spec(&zone);
           FeedbackVectorSlot slot = feedback_spec.AddInterpreterCompareICSlot();
-          Handle<i::TypeFeedbackVector> vector =
-              NewTypeFeedbackVector(isolate, &feedback_spec);
+          Handle<i::FeedbackVector> vector =
+              NewFeedbackVector(isolate, &feedback_spec);
 
           Register r0(0);
           if (pass == 0) {
@@ -1863,14 +1856,14 @@ TEST(InterpreterMixedComparisons) {
             builder.LoadLiteral(factory->NewNumber(lhs))
                 .StoreAccumulatorInRegister(r0)
                 .LoadLiteral(factory->NewStringFromAsciiChecked(rhs_cstr))
-                .CompareOperation(comparison, r0, vector->GetIndex(slot))
+                .CompareOperation(comparison, r0, GetIndex(slot))
                 .Return();
           } else {
             // Comparison with HeapNumber on the rhs and String on the lhs
             builder.LoadLiteral(factory->NewStringFromAsciiChecked(lhs_cstr))
                 .StoreAccumulatorInRegister(r0)
                 .LoadLiteral(factory->NewNumber(rhs))
-                .CompareOperation(comparison, r0, vector->GetIndex(slot))
+                .CompareOperation(comparison, r0, GetIndex(slot))
                 .Return();
           }
 

@@ -469,7 +469,7 @@ class String;
 class Symbol;
 class Name;
 class Struct;
-class TypeFeedbackVector;
+class FeedbackVector;
 class Variable;
 class RelocInfo;
 class Deserializer;

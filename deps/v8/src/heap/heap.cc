@@ -17,6 +17,7 @@
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
+#include "src/feedback-vector.h"
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/code-stats.h"
@@ -41,7 +42,6 @@
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
-#include "src/type-feedback-vector.h"
 #include "src/utils.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
@@ -2269,7 +2269,7 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_info)
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, type_feedback_vector)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, feedback_vector)
     ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
                            Context::NUMBER_FUNCTION_INDEX)
     ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, HeapNumber::kSize,
@@ -2766,23 +2766,23 @@ void Heap::CreateInitialObjects() {
   {
     StaticFeedbackVectorSpec spec;
     FeedbackVectorSlot slot = spec.AddLoadICSlot();
-    DCHECK_EQ(slot, FeedbackVectorSlot(TypeFeedbackVector::kDummyLoadICSlot));
+    DCHECK_EQ(slot, FeedbackVectorSlot(FeedbackVector::kDummyLoadICSlot));
 
     slot = spec.AddKeyedLoadICSlot();
     DCHECK_EQ(slot,
-              FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
+              FeedbackVectorSlot(FeedbackVector::kDummyKeyedLoadICSlot));
 
     slot = spec.AddStoreICSlot();
-    DCHECK_EQ(slot, FeedbackVectorSlot(TypeFeedbackVector::kDummyStoreICSlot));
+    DCHECK_EQ(slot, FeedbackVectorSlot(FeedbackVector::kDummyStoreICSlot));
 
     slot = spec.AddKeyedStoreICSlot();
     DCHECK_EQ(slot,
-              FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
+              FeedbackVectorSlot(FeedbackVector::kDummyKeyedStoreICSlot));
 
-    Handle<TypeFeedbackMetadata> dummy_metadata =
-        TypeFeedbackMetadata::New(isolate(), &spec);
-    Handle<TypeFeedbackVector> dummy_vector =
-        TypeFeedbackVector::New(isolate(), dummy_metadata);
+    Handle<FeedbackMetadata> dummy_metadata =
+        FeedbackMetadata::New(isolate(), &spec);
+    Handle<FeedbackVector> dummy_vector =
+        FeedbackVector::New(isolate(), dummy_metadata);
 
     set_dummy_vector(*dummy_vector);
 
@@ -2794,27 +2794,27 @@ void Heap::CreateInitialObjects() {
   }
 
   {
-    // Create a canonical empty TypeFeedbackVector, which is shared by all
+    // Create a canonical empty FeedbackVector, which is shared by all
     // functions that don't need actual type feedback slots. Note however
     // that all these functions will share the same invocation count, but
     // that shouldn't matter since we only use the invocation count to
     // relativize the absolute call counts, but we can only have call counts
     // if we have actual feedback slots.
-    Handle<FixedArray> empty_type_feedback_vector = factory->NewFixedArray(
-        TypeFeedbackVector::kReservedIndexCount, TENURED);
-    empty_type_feedback_vector->set(TypeFeedbackVector::kMetadataIndex,
+    Handle<FixedArray> empty_feedback_vector = factory->NewFixedArray(
+        FeedbackVector::kReservedIndexCount, TENURED);
+    empty_feedback_vector->set(FeedbackVector::kMetadataIndex,
                                     empty_fixed_array());
-    empty_type_feedback_vector->set(TypeFeedbackVector::kInvocationCountIndex,
+    empty_feedback_vector->set(FeedbackVector::kInvocationCountIndex,
                                     Smi::kZero);
-    empty_type_feedback_vector->set_map(type_feedback_vector_map());
-    set_empty_type_feedback_vector(*empty_type_feedback_vector);
+    empty_feedback_vector->set_map(feedback_vector_map());
+    set_empty_feedback_vector(*empty_feedback_vector);
 
     // We use a canonical empty LiteralsArray for all functions that neither
-    // have literals nor need a TypeFeedbackVector (besides the invocation
+    // have literals nor need a FeedbackVector (besides the invocation
     // count special slot).
     Handle<FixedArray> empty_literals_array =
         factory->NewFixedArray(1, TENURED);
-    empty_literals_array->set(0, *empty_type_feedback_vector);
+    empty_literals_array->set(0, *empty_feedback_vector);
     set_empty_literals_array(*empty_literals_array);
   }
 

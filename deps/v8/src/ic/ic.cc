@@ -2493,7 +2493,7 @@ void CallIC::HandleMiss(Handle<Object> function) {
     // We are going generic.
     nexus->ConfigureMegamorphic();
   } else {
-    DCHECK(feedback == *TypeFeedbackVector::UninitializedSentinel(isolate()));
+    DCHECK(feedback == *FeedbackVector::UninitializedSentinel(isolate()));
     Handle<JSFunction> js_function = Handle<JSFunction>::cast(function);
 
     Handle<JSFunction> array_function =
@@ -2535,7 +2535,7 @@ RUNTIME_FUNCTION(Runtime_CallIC_Miss) {
   DCHECK_EQ(3, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> function = args.at(0);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(1);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(1);
   Handle<Smi> slot = args.at<Smi>(2);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   CallICNexus nexus(vector, vector_slot);
@@ -2553,7 +2553,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   Handle<Object> receiver = args.at(0);
   Handle<Name> key = args.at<Name>(1);
   Handle<Smi> slot = args.at<Smi>(2);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   // A monomorphic or polymorphic KeyedLoadIC with a string key can call the
   // LoadIC miss handler if the handler misses. Since the vector Nexus is
@@ -2589,7 +2589,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   Handle<JSGlobalObject> global = isolate->global_object();
   Handle<String> name = args.at<String>(0);
   Handle<Smi> slot = args.at<Smi>(1);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
 
   LoadGlobalICNexus nexus(vector, vector_slot);
@@ -2650,7 +2650,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   Handle<Object> receiver = args.at(0);
   Handle<Object> key = args.at(1);
   Handle<Smi> slot = args.at<Smi>(2);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   KeyedLoadICNexus nexus(vector, vector_slot);
   KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2666,8 +2666,8 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_MissFromStubFailure) {
   Handle<Object> receiver = args.at(Descriptor::kReceiver);
   Handle<Object> key = args.at(Descriptor::kName);
   Handle<Smi> slot = args.at<Smi>(Descriptor::kSlot);
-  Handle<TypeFeedbackVector> vector =
-      args.at<TypeFeedbackVector>(Descriptor::kVector);
+  Handle<FeedbackVector> vector =
+      args.at<FeedbackVector>(Descriptor::kVector);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   KeyedLoadICNexus nexus(vector, vector_slot);
   KeyedLoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
@@ -2683,7 +2683,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Name> key = args.at<Name>(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
@@ -2710,7 +2710,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Object> key = args.at(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());

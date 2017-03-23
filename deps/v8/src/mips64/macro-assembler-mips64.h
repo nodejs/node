@@ -1802,7 +1802,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void Prologue(bool code_pre_aging);
 
   // Load the type feedback vector from a JavaScript frame.
-  void EmitLoadTypeFeedbackVector(Register vector);
+  void EmitLoadFeedbackVector(Register vector);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);

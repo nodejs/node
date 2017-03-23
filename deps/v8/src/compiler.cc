@@ -301,7 +301,7 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
   // TODO(mvstanton): reintroduce is_empty() predicate to feedback_metadata().
   if (info->shared_info()->feedback_metadata()->length() == 0 ||
       !info->shared_info()->is_compiled()) {
-    Handle<TypeFeedbackMetadata> feedback_metadata = TypeFeedbackMetadata::New(
+    Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
         info->isolate(), info->literal()->feedback_vector_spec());
     info->shared_info()->set_feedback_metadata(*feedback_metadata);
   }

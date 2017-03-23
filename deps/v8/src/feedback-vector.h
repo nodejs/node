@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TYPE_FEEDBACK_VECTOR_H_
-#define V8_TYPE_FEEDBACK_VECTOR_H_
+#ifndef V8_FEEDBACK_VECTOR_H_
+#define V8_FEEDBACK_VECTOR_H_
 
 #include <vector>
 
@@ -41,7 +41,6 @@ enum class FeedbackVectorSlotKind {
 };
 
 std::ostream& operator<<(std::ostream& os, FeedbackVectorSlotKind kind);
-
 
 template <typename Derived>
 class FeedbackVectorSpecBase {
@@ -104,7 +103,6 @@ class FeedbackVectorSpecBase {
   Derived* This() { return static_cast<Derived*>(this); }
 };
 
-
 class StaticFeedbackVectorSpec
     : public FeedbackVectorSpecBase<StaticFeedbackVectorSpec> {
  public:
@@ -145,7 +143,6 @@ class StaticFeedbackVectorSpec
   int parameters_[kMaxLength];
 };
 
-
 class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
  public:
   explicit FeedbackVectorSpec(Zone* zone)
@@ -177,17 +174,16 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
   ZoneVector<int> parameters_;
 };
 
-
-// The shape of the TypeFeedbackMetadata is an array with:
+// The shape of the FeedbackMetadata is an array with:
 // 0: slot_count
 // 1: names table
 // 2: parameters table
 // 3..N: slot kinds packed into a bit vector
 //
-class TypeFeedbackMetadata : public FixedArray {
+class FeedbackMetadata : public FixedArray {
  public:
   // Casting.
-  static inline TypeFeedbackMetadata* cast(Object* obj);
+  static inline FeedbackMetadata* cast(Object* obj);
 
   static const int kSlotsCountIndex = 0;
   static const int kParametersTableIndex = 1;
@@ -201,7 +197,7 @@ class TypeFeedbackMetadata : public FixedArray {
 
   bool SpecDiffersFrom(const FeedbackVectorSpec* other_spec) const;
 
-  bool DiffersFrom(const TypeFeedbackMetadata* other_metadata) const;
+  bool DiffersFrom(const FeedbackMetadata* other_metadata) const;
 
   inline bool is_empty() const;
 
@@ -215,14 +211,14 @@ class TypeFeedbackMetadata : public FixedArray {
   int GetParameter(int parameter_index) const;
 
   template <typename Spec>
-  static Handle<TypeFeedbackMetadata> New(Isolate* isolate, const Spec* spec);
+  static Handle<FeedbackMetadata> New(Isolate* isolate, const Spec* spec);
 
 #ifdef OBJECT_PRINT
   // For gdb debugging.
   void Print();
 #endif  // OBJECT_PRINT
 
-  DECLARE_PRINTER(TypeFeedbackMetadata)
+  DECLARE_PRINTER(FeedbackMetadata)
 
   static const char* Kind2String(FeedbackVectorSlotKind kind);
 
@@ -234,23 +230,23 @@ class TypeFeedbackMetadata : public FixedArray {
   void SetKind(FeedbackVectorSlot slot, FeedbackVectorSlotKind kind);
 
   typedef BitSetComputer<FeedbackVectorSlotKind, kFeedbackVectorSlotKindBits,
-                         kSmiValueSize, uint32_t> VectorICComputer;
+                         kSmiValueSize, uint32_t>
+      VectorICComputer;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackMetadata);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackMetadata);
 };
 
-
-// The shape of the TypeFeedbackVector is an array with:
+// The shape of the FeedbackVector is an array with:
 // 0: feedback metadata
 // 1: invocation count
 // 2: feedback slot #0
 // ...
 // 2 + slot_count - 1: feedback slot #(slot_count-1)
 //
-class TypeFeedbackVector : public FixedArray {
+class FeedbackVector : public FixedArray {
  public:
   // Casting.
-  static inline TypeFeedbackVector* cast(Object* obj);
+  static inline FeedbackVector* cast(Object* obj);
 
   static const int kMetadataIndex = 0;
   static const int kInvocationCountIndex = 1;
@@ -264,7 +260,7 @@ class TypeFeedbackVector : public FixedArray {
   // Returns number of slots in the vector.
   inline int slot_count() const;
 
-  inline TypeFeedbackMetadata* metadata() const;
+  inline FeedbackMetadata* metadata() const;
   inline int invocation_count() const;
 
   // Conversion from a slot to an integer index to the underlying array.
@@ -285,18 +281,18 @@ class TypeFeedbackVector : public FixedArray {
   // Returns parameter corresponding to given slot or -1.
   int GetParameter(FeedbackVectorSlot slot) const;
 
-  static Handle<TypeFeedbackVector> New(Isolate* isolate,
-                                        Handle<TypeFeedbackMetadata> metadata);
+  static Handle<FeedbackVector> New(Isolate* isolate,
+                                    Handle<FeedbackMetadata> metadata);
 
-  static Handle<TypeFeedbackVector> Copy(Isolate* isolate,
-                                         Handle<TypeFeedbackVector> vector);
+  static Handle<FeedbackVector> Copy(Isolate* isolate,
+                                     Handle<FeedbackVector> vector);
 
 #ifdef OBJECT_PRINT
   // For gdb debugging.
   void Print();
 #endif  // OBJECT_PRINT
 
-  DECLARE_PRINTER(TypeFeedbackVector)
+  DECLARE_PRINTER(FeedbackVector)
 
   // Clears the vector slots.
   void ClearSlots(SharedFunctionInfo* shared) { ClearSlotsImpl(shared, true); }
@@ -323,14 +319,13 @@ class TypeFeedbackVector : public FixedArray {
   static const int kDummyStoreICSlot = 4;
   static const int kDummyKeyedStoreICSlot = 6;
 
-  static Handle<TypeFeedbackVector> DummyVector(Isolate* isolate);
+  static Handle<FeedbackVector> DummyVector(Isolate* isolate);
 
  private:
   void ClearSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackVector);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackVector);
 };
-
 
 // The following asserts protect an optimization in type feedback vector
 // code that looks into the contents of a slot assuming to find a String,
@@ -346,15 +341,14 @@ STATIC_ASSERT(Name::kEmptyHashField == 0x3);
 // Verify that a set hash field will not look like a tagged object.
 STATIC_ASSERT(Name::kHashNotComputedMask == kHeapObjectTag);
 
-
-class TypeFeedbackMetadataIterator {
+class FeedbackMetadataIterator {
  public:
-  explicit TypeFeedbackMetadataIterator(Handle<TypeFeedbackMetadata> metadata)
+  explicit FeedbackMetadataIterator(Handle<FeedbackMetadata> metadata)
       : metadata_handle_(metadata),
         next_slot_(FeedbackVectorSlot(0)),
         slot_kind_(FeedbackVectorSlotKind::INVALID) {}
 
-  explicit TypeFeedbackMetadataIterator(TypeFeedbackMetadata* metadata)
+  explicit FeedbackMetadataIterator(FeedbackMetadata* metadata)
       : metadata_(metadata),
         next_slot_(FeedbackVectorSlot(0)),
         slot_kind_(FeedbackVectorSlotKind::INVALID) {}
@@ -374,36 +368,35 @@ class TypeFeedbackMetadataIterator {
   inline int entry_size() const;
 
  private:
-  TypeFeedbackMetadata* metadata() const {
+  FeedbackMetadata* metadata() const {
     return !metadata_handle_.is_null() ? *metadata_handle_ : metadata_;
   }
 
   // The reason for having a handle and a raw pointer to the meta data is
   // to have a single iterator implementation for both "handlified" and raw
   // pointer use cases.
-  Handle<TypeFeedbackMetadata> metadata_handle_;
-  TypeFeedbackMetadata* metadata_;
+  Handle<FeedbackMetadata> metadata_handle_;
+  FeedbackMetadata* metadata_;
   FeedbackVectorSlot cur_slot_;
   FeedbackVectorSlot next_slot_;
   FeedbackVectorSlotKind slot_kind_;
 };
 
-
-// A FeedbackNexus is the combination of a TypeFeedbackVector and a slot.
+// A FeedbackNexus is the combination of a FeedbackVector and a slot.
 // Derived classes customize the update and retrieval of feedback.
 class FeedbackNexus {
  public:
-  FeedbackNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+  FeedbackNexus(Handle<FeedbackVector> vector, FeedbackVectorSlot slot)
       : vector_handle_(vector), vector_(NULL), slot_(slot) {}
-  FeedbackNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
+  FeedbackNexus(FeedbackVector* vector, FeedbackVectorSlot slot)
       : vector_(vector), slot_(slot) {}
   virtual ~FeedbackNexus() {}
 
-  Handle<TypeFeedbackVector> vector_handle() const {
+  Handle<FeedbackVector> vector_handle() const {
     DCHECK(vector_ == NULL);
     return vector_handle_;
   }
-  TypeFeedbackVector* vector() const {
+  FeedbackVector* vector() const {
     return vector_handle_.is_null() ? vector_ : *vector_handle_;
   }
   FeedbackVectorSlot slot() const { return slot_; }
@@ -452,19 +445,18 @@ class FeedbackNexus {
   // should use handles during IC miss, but not during GC when we clear ICs. If
   // you have a handle to the vector that is better because more operations can
   // be done, like allocation.
-  Handle<TypeFeedbackVector> vector_handle_;
-  TypeFeedbackVector* vector_;
+  Handle<FeedbackVector> vector_handle_;
+  FeedbackVector* vector_;
   FeedbackVectorSlot slot_;
 };
 
-
 class CallICNexus final : public FeedbackNexus {
  public:
-  CallICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+  CallICNexus(Handle<FeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::CALL_IC, vector->GetKind(slot));
   }
-  CallICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
+  CallICNexus(FeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::CALL_IC, vector->GetKind(slot));
   }
@@ -498,18 +490,17 @@ class CallICNexus final : public FeedbackNexus {
   float ComputeCallFrequency();
 };
 
-
 class LoadICNexus : public FeedbackNexus {
  public:
-  LoadICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+  LoadICNexus(Handle<FeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::LOAD_IC, vector->GetKind(slot));
   }
   explicit LoadICNexus(Isolate* isolate)
       : FeedbackNexus(
-            TypeFeedbackVector::DummyVector(isolate),
-            FeedbackVectorSlot(TypeFeedbackVector::kDummyLoadICSlot)) {}
-  LoadICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
+            FeedbackVector::DummyVector(isolate),
+            FeedbackVectorSlot(FeedbackVector::kDummyLoadICSlot)) {}
+  LoadICNexus(FeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::LOAD_IC, vector->GetKind(slot));
   }
@@ -526,11 +517,11 @@ class LoadICNexus : public FeedbackNexus {
 
 class LoadGlobalICNexus : public FeedbackNexus {
  public:
-  LoadGlobalICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+  LoadGlobalICNexus(Handle<FeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC, vector->GetKind(slot));
   }
-  LoadGlobalICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
+  LoadGlobalICNexus(FeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC, vector->GetKind(slot));
   }
@@ -559,15 +550,15 @@ class LoadGlobalICNexus : public FeedbackNexus {
 
 class KeyedLoadICNexus : public FeedbackNexus {
  public:
-  KeyedLoadICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+  KeyedLoadICNexus(Handle<FeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC, vector->GetKind(slot));
   }
   explicit KeyedLoadICNexus(Isolate* isolate)
       : FeedbackNexus(
-            TypeFeedbackVector::DummyVector(isolate),
-            FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot)) {}
-  KeyedLoadICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
+            FeedbackVector::DummyVector(isolate),
+            FeedbackVectorSlot(FeedbackVector::kDummyKeyedLoadICSlot)) {}
+  KeyedLoadICNexus(FeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC, vector->GetKind(slot));
   }
@@ -588,18 +579,17 @@ class KeyedLoadICNexus : public FeedbackNexus {
   Name* FindFirstName() const override;
 };
 
-
 class StoreICNexus : public FeedbackNexus {
  public:
-  StoreICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+  StoreICNexus(Handle<FeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::STORE_IC, vector->GetKind(slot));
   }
   explicit StoreICNexus(Isolate* isolate)
       : FeedbackNexus(
-            TypeFeedbackVector::DummyVector(isolate),
-            FeedbackVectorSlot(TypeFeedbackVector::kDummyStoreICSlot)) {}
-  StoreICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
+            FeedbackVector::DummyVector(isolate),
+            FeedbackVectorSlot(FeedbackVector::kDummyStoreICSlot)) {}
+  StoreICNexus(FeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::STORE_IC, vector->GetKind(slot));
   }
@@ -614,18 +604,17 @@ class StoreICNexus : public FeedbackNexus {
   InlineCacheState StateFromFeedback() const override;
 };
 
-
 class KeyedStoreICNexus : public FeedbackNexus {
  public:
-  KeyedStoreICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+  KeyedStoreICNexus(Handle<FeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC, vector->GetKind(slot));
   }
   explicit KeyedStoreICNexus(Isolate* isolate)
       : FeedbackNexus(
-            TypeFeedbackVector::DummyVector(isolate),
-            FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot)) {}
-  KeyedStoreICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
+            FeedbackVector::DummyVector(isolate),
+            FeedbackVectorSlot(FeedbackVector::kDummyKeyedStoreICSlot)) {}
+  KeyedStoreICNexus(FeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC, vector->GetKind(slot));
   }
@@ -652,12 +641,12 @@ class KeyedStoreICNexus : public FeedbackNexus {
 
 class BinaryOpICNexus final : public FeedbackNexus {
  public:
-  BinaryOpICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+  BinaryOpICNexus(Handle<FeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC,
               vector->GetKind(slot));
   }
-  BinaryOpICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
+  BinaryOpICNexus(FeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC,
               vector->GetKind(slot));
@@ -683,12 +672,12 @@ class BinaryOpICNexus final : public FeedbackNexus {
 
 class CompareICNexus final : public FeedbackNexus {
  public:
-  CompareICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+  CompareICNexus(Handle<FeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC,
               vector->GetKind(slot));
   }
-  CompareICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
+  CompareICNexus(FeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC,
               vector->GetKind(slot));
@@ -714,13 +703,13 @@ class CompareICNexus final : public FeedbackNexus {
 
 class StoreDataPropertyInLiteralICNexus : public FeedbackNexus {
  public:
-  StoreDataPropertyInLiteralICNexus(Handle<TypeFeedbackVector> vector,
+  StoreDataPropertyInLiteralICNexus(Handle<FeedbackVector> vector,
                                     FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC,
               vector->GetKind(slot));
   }
-  StoreDataPropertyInLiteralICNexus(TypeFeedbackVector* vector,
+  StoreDataPropertyInLiteralICNexus(FeedbackVector* vector,
                                     FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC,
@@ -740,4 +729,4 @@ inline CompareOperationHint CompareOperationHintFromFeedback(int type_feedback);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TRANSITIONS_H_
+#endif  // V8_FEEDBACK_VECTOR_H_

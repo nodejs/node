@@ -1012,12 +1012,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ ld(a0, FieldMemOperand(a1, JSFunction::kLiteralsOffset));
   __ ld(a0, FieldMemOperand(a0, LiteralsArray::kFeedbackVectorOffset));
   __ ld(a4, FieldMemOperand(
-                a0, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
-                        TypeFeedbackVector::kHeaderSize));
+                a0, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                        FeedbackVector::kHeaderSize));
   __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
   __ sd(a4, FieldMemOperand(
-                a0, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
-                        TypeFeedbackVector::kHeaderSize));
+                a0, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                        FeedbackVector::kHeaderSize));
 
   // Check function data field is actually a BytecodeArray object.
   if (FLAG_debug_code) {

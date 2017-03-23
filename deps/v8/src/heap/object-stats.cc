@@ -540,10 +540,10 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
     SharedFunctionInfo* sfi) {
   FixedArray* scope_info = sfi->scope_info();
   RecordFixedArrayHelper(sfi, scope_info, SCOPE_INFO_SUB_TYPE, 0);
-  TypeFeedbackMetadata* feedback_metadata = sfi->feedback_metadata();
+  FeedbackMetadata* feedback_metadata = sfi->feedback_metadata();
   if (!feedback_metadata->is_empty()) {
-    RecordFixedArrayHelper(sfi, feedback_metadata,
-                           TYPE_FEEDBACK_METADATA_SUB_TYPE, 0);
+    RecordFixedArrayHelper(sfi, feedback_metadata, FEEDBACK_METADATA_SUB_TYPE,
+                           0);
   }
 
   if (!sfi->OptimizedCodeMapIsCleared()) {
@@ -568,7 +568,7 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
       if (literals != nullptr) {
         RecordFixedArrayHelper(sfi, literals, LITERALS_ARRAY_SUB_TYPE, 0);
         RecordFixedArrayHelper(sfi, literals->feedback_vector(),
-                               TYPE_FEEDBACK_VECTOR_SUB_TYPE, 0);
+                               FEEDBACK_VECTOR_SUB_TYPE, 0);
       }
     }
   }
@@ -578,7 +578,7 @@ void ObjectStatsCollector::RecordJSFunctionDetails(JSFunction* function) {
   LiteralsArray* literals = function->literals();
   RecordFixedArrayHelper(function, literals, LITERALS_ARRAY_SUB_TYPE, 0);
   RecordFixedArrayHelper(function, literals->feedback_vector(),
-                         TYPE_FEEDBACK_VECTOR_SUB_TYPE, 0);
+                         FEEDBACK_VECTOR_SUB_TYPE, 0);
 }
 
 void ObjectStatsCollector::RecordFixedArrayDetails(FixedArray* array) {

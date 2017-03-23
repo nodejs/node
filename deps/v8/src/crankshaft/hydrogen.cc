@@ -5054,9 +5054,9 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   // space for nested functions that don't need pretenuring.
   HConstant* shared_info_value = Add<HConstant>(shared_info);
   HInstruction* instr;
-  Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
+  Handle<FeedbackVector> vector(current_feedback_vector(), isolate());
   HValue* vector_value = Add<HConstant>(vector);
-  int index = TypeFeedbackVector::GetIndex(expr->LiteralFeedbackSlot());
+  int index = FeedbackVector::GetIndex(expr->LiteralFeedbackSlot());
   HValue* index_value = Add<HConstant>(index);
   if (!expr->pretenure()) {
     Callable callable = CodeFactory::FastNewClosure(isolate());
@@ -5286,7 +5286,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         InlineGlobalPropertyLoad(&it, expr->id());
         return;
       } else {
-        Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
+        Handle<FeedbackVector> vector(current_feedback_vector(), isolate());
 
         HValue* vector_value = Add<HConstant>(vector);
         HValue* slot_value =
@@ -6518,7 +6518,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     HValue* global_object = Add<HLoadNamedField>(
         BuildGetNativeContext(), nullptr,
         HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX));
-    Handle<TypeFeedbackVector> vector =
+    Handle<FeedbackVector> vector =
         handle(current_feedback_vector(), isolate());
     HValue* name = Add<HConstant>(var->name());
     HValue* vector_value = Add<HConstant>(vector);
@@ -6827,7 +6827,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
         DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess,
         Deoptimizer::SOFT);
   }
-  Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
+  Handle<FeedbackVector> vector(current_feedback_vector(), isolate());
 
   HValue* key = Add<HConstant>(name);
   HValue* vector_value = Add<HConstant>(vector);
@@ -6881,7 +6881,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
 HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     PropertyAccessType access_type, Expression* expr, FeedbackVectorSlot slot,
     HValue* object, HValue* key, HValue* value) {
-  Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
+  Handle<FeedbackVector> vector(current_feedback_vector(), isolate());
   HValue* vector_value = Add<HConstant>(vector);
   HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
 
@@ -7215,8 +7215,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     FeedbackVectorSlot slot, BailoutId ast_id, BailoutId return_id,
     PropertyAccessType access_type, bool* has_side_effects) {
   // A keyed name access with type feedback may contain the name.
-  Handle<TypeFeedbackVector> vector =
-      handle(current_feedback_vector(), isolate());
+  Handle<FeedbackVector> vector = handle(current_feedback_vector(), isolate());
   HValue* expected_key = key;
   if (!key->ActualValue()->IsConstant()) {
     Name* name = nullptr;
@@ -7675,7 +7674,7 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
     DCHECK_EQ(TailCallMode::kDisallow, tail_call_mode);
   }
   int arity = argument_count - 1;
-  Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
+  Handle<FeedbackVector> vector(current_feedback_vector(), isolate());
   HValue* arity_val = Add<HConstant>(arity);
   HValue* index_val = Add<HConstant>(vector->GetIndex(slot));
   HValue* vector_val = Add<HConstant>(vector);
@@ -11832,7 +11831,7 @@ void HOptimizedGraphBuilder::VisitDeclarations(
        isolate()->factory()->NewFixedArray(globals_.length(), TENURED);
     for (int i = 0; i < globals_.length(); ++i) array->set(i, *globals_.at(i));
     int flags = current_info()->GetDeclareGlobalsFlags();
-    Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
+    Handle<FeedbackVector> vector(current_feedback_vector(), isolate());
     Add<HDeclareGlobals>(array, flags, vector);
     globals_.Rewind(0);
   }

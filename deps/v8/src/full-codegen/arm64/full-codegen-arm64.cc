@@ -138,13 +138,13 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ Increment invocation count");
     __ Ldr(x11, FieldMemOperand(x1, JSFunction::kLiteralsOffset));
     __ Ldr(x11, FieldMemOperand(x11, LiteralsArray::kFeedbackVectorOffset));
-    __ Ldr(x10, FieldMemOperand(x11, TypeFeedbackVector::kInvocationCountIndex *
+    __ Ldr(x10, FieldMemOperand(x11, FeedbackVector::kInvocationCountIndex *
                                              kPointerSize +
-                                         TypeFeedbackVector::kHeaderSize));
+                                         FeedbackVector::kHeaderSize));
     __ Add(x10, x10, Operand(Smi::FromInt(1)));
-    __ Str(x10, FieldMemOperand(x11, TypeFeedbackVector::kInvocationCountIndex *
-                                             kPointerSize +
-                                         TypeFeedbackVector::kHeaderSize));
+    __ Str(x10, FieldMemOperand(
+                    x11, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                             FeedbackVector::kHeaderSize));
   }
 
   // Reserve space on the stack for locals.
@@ -845,7 +845,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
     flags = x10;
   __ Mov(flags, Smi::FromInt(DeclareGlobalsFlags()));
   }
-  __ EmitLoadTypeFeedbackVector(x12);
+  __ EmitLoadFeedbackVector(x12);
   __ Push(x11, flags, x12);
   __ CallRuntime(Runtime::kDeclareGlobals);
   // Return value is ignored.
@@ -1058,8 +1058,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We need to filter the key, record slow-path here.
   int const vector_index = SmiFromSlot(slot)->value();
-  __ EmitLoadTypeFeedbackVector(x3);
-  __ Mov(x10, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
+  __ EmitLoadFeedbackVector(x3);
+  __ Mov(x10, Operand(FeedbackVector::MegamorphicSentinel(isolate())));
   __ Str(x10, FieldMemOperand(x3, FixedArray::OffsetOfElementAt(vector_index)));
 
   // x0 contains the key. The receiver in x1 is the second argument to the
@@ -1876,7 +1876,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ Peek(x1, arg_count * kXRegSize);
 
   // Record call targets in unoptimized code.
-  __ EmitLoadTypeFeedbackVector(x2);
+  __ EmitLoadFeedbackVector(x2);
   __ Mov(x3, SmiFromSlot(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(isolate());

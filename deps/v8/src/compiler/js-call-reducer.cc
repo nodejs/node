@@ -10,8 +10,8 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/feedback-vector-inl.h"
 #include "src/objects-inl.h"
-#include "src/type-feedback-vector-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -504,7 +504,7 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* stub_arity = jsgraph()->Constant(arg_count);
     Node* slot_index =
-        jsgraph()->Constant(TypeFeedbackVector::GetIndex(p.feedback().slot()));
+        jsgraph()->Constant(FeedbackVector::GetIndex(p.feedback().slot()));
     Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector());
     node->InsertInput(graph()->zone(), 0, stub_code);
     node->InsertInput(graph()->zone(), 2, stub_arity);

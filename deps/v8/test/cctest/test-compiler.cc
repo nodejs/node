@@ -308,7 +308,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // We shouldn't have deoptimization support. We want to recompile and
   // verify that our feedback vector preserves information.
   CHECK(!f->shared()->has_deoptimization_support());
-  Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector());
 
   // Verify that we gathered feedback.
   CHECK(!feedback_vector->is_empty());

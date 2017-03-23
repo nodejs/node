@@ -10245,7 +10245,7 @@ const int LiteralsArray::kOffsetToFirstLiteral =
 
 // static
 Handle<LiteralsArray> LiteralsArray::New(Isolate* isolate,
-                                         Handle<TypeFeedbackVector> vector,
+                                         Handle<FeedbackVector> vector,
                                          int number_of_literals,
                                          PretenureFlag pretenure) {
   if (vector->is_empty() && number_of_literals == 0) {
@@ -11966,8 +11966,8 @@ Handle<LiteralsArray> SharedFunctionInfo::FindOrCreateLiterals(
     return handle(result.literals, isolate);
   }
 
-  Handle<TypeFeedbackVector> feedback_vector =
-      TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+  Handle<FeedbackVector> feedback_vector =
+      FeedbackVector::New(isolate, handle(shared->feedback_metadata()));
   Handle<LiteralsArray> literals =
       LiteralsArray::New(isolate, feedback_vector, shared->num_literals());
   Handle<Code> code;

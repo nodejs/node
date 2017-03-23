@@ -9,6 +9,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/counters-inl.h"
+#include "src/feedback-vector-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact.h"
@@ -22,7 +23,6 @@
 #include "src/msan.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
-#include "src/type-feedback-vector-inl.h"
 
 namespace v8 {
 namespace internal {
