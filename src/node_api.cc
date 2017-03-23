@@ -1549,8 +1549,9 @@ napi_status napi_get_value_int32(napi_env env,
   CHECK_ARG(result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
-  RETURN_STATUS_IF_FALSE(val->IsNumber(), napi_number_expected);
 
+  // Value.As<Int32> works when the Value is any kind of Number.
+  RETURN_STATUS_IF_FALSE(val->IsNumber(), napi_number_expected);
   *result = val.As<v8::Int32>()->Value();
 
   return napi_ok;
@@ -1564,8 +1565,9 @@ napi_status napi_get_value_uint32(napi_env env,
   CHECK_ARG(result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
-  RETURN_STATUS_IF_FALSE(val->IsNumber(), napi_number_expected);
 
+  // Value.As<Uint32> works when the Value is any kind of Number.
+  RETURN_STATUS_IF_FALSE(val->IsNumber(), napi_number_expected);
   *result = val.As<v8::Uint32>()->Value();
 
   return napi_ok;
@@ -1579,8 +1581,9 @@ napi_status napi_get_value_int64(napi_env env,
   CHECK_ARG(result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
-  RETURN_STATUS_IF_FALSE(val->IsNumber(), napi_number_expected);
 
+  // Value.As<Integer> works when the Value is any kind of Number.
+  RETURN_STATUS_IF_FALSE(val->IsNumber(), napi_number_expected);
   *result = val.As<v8::Integer>()->Value();
 
   return napi_ok;
