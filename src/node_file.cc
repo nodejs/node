@@ -190,7 +190,6 @@ void After(uv_fs_t *req) {
     argc = 2;
 
     switch (req->fs_type) {
-      // These all have no data to pass.
       case UV_FS_ACCESS:
       case UV_FS_CLOSE:
       case UV_FS_RENAME:
@@ -206,7 +205,6 @@ void After(uv_fs_t *req) {
       case UV_FS_FCHMOD:
       case UV_FS_CHOWN:
       case UV_FS_FCHOWN:
-        // These, however, don't.
         argc = 1;
         break;
 
@@ -224,10 +222,8 @@ void After(uv_fs_t *req) {
         break;
 
       case UV_FS_OPEN:
-        argv[1] = Integer::New(env->isolate(), req->result);
-        break;
-
       case UV_FS_WRITE:
+      case UV_FS_READ:  // Buffer interface
         argv[1] = Integer::New(env->isolate(), req->result);
         break;
 
@@ -248,21 +244,6 @@ void After(uv_fs_t *req) {
         break;
 
       case UV_FS_READLINK:
-        link = StringBytes::Encode(env->isolate(),
-                                   static_cast<const char*>(req->ptr),
-                                   req_wrap->encoding_);
-        if (link.IsEmpty()) {
-          argv[0] = UVException(env->isolate(),
-                                UV_EINVAL,
-                                req_wrap->syscall(),
-                                "Invalid character encoding for link",
-                                req->path,
-                                req_wrap->data());
-        } else {
-          argv[1] = link;
-        }
-        break;
-
       case UV_FS_REALPATH:
         link = StringBytes::Encode(env->isolate(),
                                    static_cast<const char*>(req->ptr),
@@ -277,11 +258,6 @@ void After(uv_fs_t *req) {
         } else {
           argv[1] = link;
         }
-        break;
-
-      case UV_FS_READ:
-        // Buffer interface
-        argv[1] = Integer::New(env->isolate(), req->result);
         break;
 
       case UV_FS_SCANDIR:
@@ -403,7 +379,6 @@ class fs_req_wrap {
 
 void Access(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
-  HandleScope scope(env->isolate());
 
   if (args.Length() < 2)
     return TYPE_ERROR("path and mode are required");
