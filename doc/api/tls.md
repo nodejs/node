@@ -712,7 +712,10 @@ added: v0.11.8
 -->
 
 * `options` {Object}
-  * `rejectUnauthorized` {boolean}
+  * `rejectUnauthorized` {boolean} If not `false`, the server certificate is verified
+    against the list of supplied CAs. An `'error'` event is emitted if
+    verification fails; `err.code` contains the OpenSSL error code. Defaults to
+    `true`.
   * `requestCert`
 * `callback` {Function} A function that will be called when the renegotiation
   request has been completed.
@@ -769,7 +772,7 @@ changes:
     connection/disconnection/destruction of `socket` is the user's
     responsibility, calling `tls.connect()` will not cause `net.connect()` to be
     called.
-  * `rejectUnauthorized` {boolean} If `true`, the server certificate is verified
+  * `rejectUnauthorized` {boolean} If not `false`, the server certificate is verified
     against the list of supplied CAs. An `'error'` event is emitted if
     verification fails; `err.code` contains the OpenSSL error code. Defaults to
     `true`.
@@ -1012,7 +1015,7 @@ changes:
   * `requestCert` {boolean} If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. Defaults to
     `false`.
-  * `rejectUnauthorized` {boolean} If `true` the server will reject any
+  * `rejectUnauthorized` {boolean} If not `false` the server will reject any
     connection which is not authorized with the list of supplied CAs. This
     option only has an effect if `requestCert` is `true`. Defaults to `true`.
   * `NPNProtocols` {string[]|Buffer} An array of strings or a `Buffer` naming
@@ -1190,9 +1193,8 @@ changes:
   opened as a server.
 * `requestCert` {boolean} `true` to specify whether a server should request a
   certificate from a connecting client. Only applies when `isServer` is `true`.
-* `rejectUnauthorized` {boolean} `true` to specify whether a server should
-  automatically reject clients with invalid certificates. Only applies when
-  `isServer` is `true`.
+* `rejectUnauthorized` {boolean} If not `false` a server automatically reject clients
+   with invalid certificates. Only applies when `isServer` is `true`.
 * `options`
   * `secureContext`: An optional TLS context object from
      [`tls.createSecureContext()`][]
