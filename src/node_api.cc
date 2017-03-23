@@ -1238,8 +1238,11 @@ napi_status napi_create_error(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(result);
 
+  v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
+  RETURN_STATUS_IF_FALSE(message_value->IsString(), napi_string_expected);
+
   *result = v8impl::JsValueFromV8LocalValue(v8::Exception::Error(
-      v8impl::V8LocalValueFromJsValue(msg).As<v8::String>()));
+      message_value.As<v8::String>()));
 
   return GET_RETURN_STATUS();
 }
@@ -1250,8 +1253,11 @@ napi_status napi_create_type_error(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(result);
 
+  v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
+  RETURN_STATUS_IF_FALSE(message_value->IsString(), napi_string_expected);
+
   *result = v8impl::JsValueFromV8LocalValue(v8::Exception::TypeError(
-      v8impl::V8LocalValueFromJsValue(msg).As<v8::String>()));
+      message_value.As<v8::String>()));
 
   return GET_RETURN_STATUS();
 }
@@ -1262,8 +1268,11 @@ napi_status napi_create_range_error(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(result);
 
+  v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
+  RETURN_STATUS_IF_FALSE(message_value->IsString(), napi_string_expected);
+
   *result = v8impl::JsValueFromV8LocalValue(v8::Exception::RangeError(
-      v8impl::V8LocalValueFromJsValue(msg).As<v8::String>()));
+      message_value.As<v8::String>()));
 
   return GET_RETURN_STATUS();
 }
@@ -1298,7 +1307,8 @@ napi_status napi_typeof(napi_env env,
   } else if (v->IsExternal()) {
     *result = napi_external;
   } else {
-    *result = napi_object;  // Is this correct?
+    // Should not get here unless V8 has added some new kind of value.
+    return napi_set_last_error(napi_invalid_arg);
   }
 
   return napi_ok;
