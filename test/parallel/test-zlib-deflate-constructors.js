@@ -107,5 +107,5 @@ assert.throws(
 // Throws if opts.dictionary is not a Buffer
 assert.throws(
   () => { new zlib.Deflate({dictionary: 'not a buffer'}); },
-  /^TypeError: Invalid dictionary: it should be a Buffer instance$/
+  /^TypeError: Invalid dictionary: it should be a Buffer or an Uint8Array$/
 );

@@ -7,7 +7,8 @@ require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
-const expected = /^TypeError: Not a string or buffer$/;
+const expected =
+  /^TypeError: "buffer" argument must be a string, Buffer, or Uint8Array$/;
 
 assert.throws(() => { zlib.deflateSync(undefined); }, expected);
 assert.throws(() => { zlib.deflateSync(null); }, expected);
