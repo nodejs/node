@@ -646,7 +646,7 @@ namespace url {
             state = kNoScheme;
             continue;
           } else {
-            url->flags |= URL_FLAGS_TERMINATED;
+            url->flags |= URL_FLAGS_FAILED;
             return;
           }
           break;
@@ -656,9 +656,12 @@ namespace url {
             p++;
             continue;
           } else if (ch == ':' || (has_state_override && ch == kEOL)) {
-            buffer += ':';
             if (buffer.size() > 0) {
+              buffer += ':';
               url->scheme = buffer;
+            } else if (has_state_override) {
+              url->flags |= URL_FLAGS_TERMINATED;
+              return;
             }
             if (IsSpecial(url->scheme)) {
               url->flags |= URL_FLAGS_SPECIAL;
@@ -692,7 +695,7 @@ namespace url {
             p = input;
             continue;
           } else {
-            url->flags |= URL_FLAGS_TERMINATED;
+            url->flags |= URL_FLAGS_FAILED;
             return;
           }
           break;
@@ -947,7 +950,6 @@ namespace url {
             buffer.clear();
             state = kPort;
             if (state_override == kHostname) {
-              url->flags |= URL_FLAGS_TERMINATED;
               return;
             }
           } else if (ch == kEOL ||
@@ -968,7 +970,6 @@ namespace url {
             buffer.clear();
             state = kPathStart;
             if (has_state_override) {
-              url->flags |= URL_FLAGS_TERMINATED;
               return;
             }
           } else {
@@ -1005,9 +1006,14 @@ namespace url {
               }
               url->port = NormalizePort(url->scheme, port);
               buffer.clear();
-            }
-            if (has_state_override)
+            } else if (has_state_override) {
+              // TODO(TimothyGu): Similar case as above.
+              if (state_override == kHost)
+                url->port = -1;
+              else
+                url->flags |= URL_FLAGS_TERMINATED;
               return;
+            }
             state = kPathStart;
             continue;
           } else {
@@ -1275,7 +1281,9 @@ namespace url {
       HarvestBase(env, &base, base_obj.As<Object>());
 
     URL::Parse(input, len, state_override, &url, &base, has_base);
-    if (url.flags & URL_FLAGS_INVALID_PARSE_STATE)
+    if ((url.flags & URL_FLAGS_INVALID_PARSE_STATE) ||
+        ((state_override != kUnknownState) &&
+         (url.flags & URL_FLAGS_TERMINATED)))
       return;
 
     // Define the return value placeholders
