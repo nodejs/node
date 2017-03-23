@@ -14,7 +14,7 @@ void doInstanceOf(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_value result;
-  status = napi_create_boolean(env, instanceof, &result);
+  status = napi_get_boolean(env, instanceof, &result);
   if (status != napi_ok) return;
 
   status = napi_set_return_value(env, info, result);

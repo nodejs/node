@@ -72,8 +72,8 @@ void getDeleterCallCount(napi_env env, napi_callback_info info) {
 
 void copyBuffer(napi_env env, napi_callback_info info) {
   napi_value theBuffer;
-  NAPI_CALL(env,
-            napi_create_buffer_copy(env, theText, sizeof(theText), &theBuffer));
+  NAPI_CALL(env, napi_create_buffer_copy(
+    env, sizeof(theText), theText, NULL, &theBuffer));
   NAPI_CALL(env, napi_set_return_value(env, info, theBuffer));
 }
 
@@ -85,14 +85,14 @@ void bufferHasInstance(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_get_cb_args(env, info, &theBuffer, 1));
   bool hasInstance;
   napi_valuetype theType;
-  NAPI_CALL(env, napi_get_type_of_value(env, theBuffer, &theType));
+  NAPI_CALL(env, napi_typeof(env, theBuffer, &theType));
   JS_ASSERT(env,
             theType == napi_object,
             "bufferHasInstance: instance is not an object");
   NAPI_CALL(env, napi_is_buffer(env, theBuffer, &hasInstance));
   JS_ASSERT(env, hasInstance, "bufferHasInstance: instance is not a buffer");
   napi_value returnValue;
-  NAPI_CALL(env, napi_create_boolean(env, hasInstance, &returnValue));
+  NAPI_CALL(env, napi_get_boolean(env, hasInstance, &returnValue));
   NAPI_CALL(env, napi_set_return_value(env, info, returnValue));
 }
 
@@ -110,7 +110,7 @@ void bufferInfo(napi_env env, napi_callback_info info) {
                 theBuffer,
                 (void **)(&bufferData),
                 &bufferLength));
-  NAPI_CALL(env, napi_create_boolean(env,
+  NAPI_CALL(env, napi_get_boolean(env,
     !strcmp(bufferData, theText) && bufferLength == sizeof(theText),
     &returnValue));
   NAPI_CALL(env, napi_set_return_value(env, info, returnValue));
@@ -122,7 +122,7 @@ void staticBuffer(napi_env env, napi_callback_info info) {
       env,
       napi_create_external_buffer(env,
                                   sizeof(theText),
-                                  (const char *)(theText),
+                                  theText,
                                   noopDeleter,
                                   NULL,  // finalize_hint
                                   &theBuffer));

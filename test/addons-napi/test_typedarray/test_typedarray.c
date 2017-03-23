@@ -18,7 +18,7 @@ void Multiply(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_valuetype valuetype0;
-  status = napi_get_type_of_value(env, args[0], &valuetype0);
+  status = napi_typeof(env, args[0], &valuetype0);
   if (status != napi_ok) return;
 
   if (valuetype0 != napi_object) {
@@ -41,7 +41,7 @@ void Multiply(napi_env env, napi_callback_info info) {
   }
 
   napi_valuetype valuetype1;
-  status = napi_get_type_of_value(env, args[1], &valuetype1);
+  status = napi_typeof(env, args[1], &valuetype1);
   if (status != napi_ok) return;
 
   if (valuetype1 != napi_number) {

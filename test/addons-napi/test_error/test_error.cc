@@ -12,11 +12,7 @@ void checkError(napi_env e, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_value result;
-  if (r) {
-      status = napi_get_true(e, &result);
-  } else {
-      status = napi_get_false(e, &result);
-  }
+  status = napi_get_boolean(e, r, &result);
   if (status != napi_ok) return;
 
   status = napi_set_return_value(e, info, result);

@@ -17,7 +17,7 @@ void Copy(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_valuetype valuetype;
-  status = napi_get_type_of_value(env, args[0], &valuetype);
+  status = napi_typeof(env, args[0], &valuetype);
   if (status != napi_ok) return;
 
   if (valuetype != napi_string) {
@@ -57,7 +57,7 @@ void Length(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_valuetype valuetype;
-  status = napi_get_type_of_value(env, args[0], &valuetype);
+  status = napi_typeof(env, args[0], &valuetype);
   if (status != napi_ok) return;
 
   if (valuetype != napi_string) {
@@ -70,7 +70,7 @@ void Length(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_value output;
-  status = napi_create_number(env, length, &output);
+  status = napi_create_number(env, (double)length, &output);
   if (status != napi_ok) return;
 
   status = napi_set_return_value(env, info, output);
@@ -94,7 +94,7 @@ void Utf8Length(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_valuetype valuetype;
-  status = napi_get_type_of_value(env, args[0], &valuetype);
+  status = napi_typeof(env, args[0], &valuetype);
   if (status != napi_ok) return;
 
   if (valuetype != napi_string) {
@@ -103,11 +103,11 @@ void Utf8Length(napi_env env, napi_callback_info info) {
   }
 
   size_t length;
-  status = napi_get_value_string_utf8_length(env, args[0], &length);
+  status = napi_get_value_string_utf8(env, args[0], NULL, 0, &length);
   if (status != napi_ok) return;
 
   napi_value output;
-  status = napi_create_number(env, length, &output);
+  status = napi_create_number(env, (double)length, &output);
   if (status != napi_ok) return;
 
   status = napi_set_return_value(env, info, output);

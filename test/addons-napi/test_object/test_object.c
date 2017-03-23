@@ -17,7 +17,7 @@ void Get(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_valuetype valuetype0;
-  status = napi_get_type_of_value(env, args[0], &valuetype0);
+  status = napi_typeof(env, args[0], &valuetype0);
   if (status != napi_ok) return;
 
   if (valuetype0 != napi_object) {
@@ -27,7 +27,7 @@ void Get(napi_env env, napi_callback_info info) {
   }
 
   napi_valuetype valuetype1;
-  status = napi_get_type_of_value(env, args[1], &valuetype1);
+  status = napi_typeof(env, args[1], &valuetype1);
   if (status != napi_ok) return;
 
   if (valuetype1 != napi_string && valuetype1 != napi_symbol) {
@@ -62,7 +62,7 @@ void Set(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_valuetype valuetype0;
-  status = napi_get_type_of_value(env, args[0], &valuetype0);
+  status = napi_typeof(env, args[0], &valuetype0);
   if (status != napi_ok) return;
 
   if (valuetype0 != napi_object) {
@@ -72,7 +72,7 @@ void Set(napi_env env, napi_callback_info info) {
   }
 
   napi_valuetype valuetype1;
-  status = napi_get_type_of_value(env, args[1], &valuetype1);
+  status = napi_typeof(env, args[1], &valuetype1);
   if (status != napi_ok) return;
 
   if (valuetype1 != napi_string && valuetype1 != napi_symbol) {
@@ -86,7 +86,7 @@ void Set(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_value valuetrue;
-  status = napi_get_true(env, &valuetrue);
+  status = napi_get_boolean(env, true, &valuetrue);
   if (status != napi_ok) return;
 
   status = napi_set_return_value(env, info, valuetrue);
@@ -110,7 +110,7 @@ void Has(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_valuetype valuetype0;
-  status = napi_get_type_of_value(env, args[0], &valuetype0);
+  status = napi_typeof(env, args[0], &valuetype0);
   if (status != napi_ok) return;
 
   if (valuetype0 != napi_object) {
@@ -120,7 +120,7 @@ void Has(napi_env env, napi_callback_info info) {
   }
 
   napi_valuetype valuetype1;
-  status = napi_get_type_of_value(env, args[1], &valuetype1);
+  status = napi_typeof(env, args[1], &valuetype1);
   if (status != napi_ok) return;
 
   if (valuetype1 != napi_string && valuetype1 != napi_symbol) {
@@ -135,7 +135,7 @@ void Has(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_value ret;
-  status = napi_create_boolean(env, has_property, &ret);
+  status = napi_get_boolean(env, has_property, &ret);
   if (status != napi_ok) return;
 
   status = napi_set_return_value(env, info, ret);
@@ -183,7 +183,7 @@ void Inflate(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_valuetype valuetype;
-  status = napi_get_type_of_value(env, args[0], &valuetype);
+  status = napi_typeof(env, args[0], &valuetype);
   if (status != napi_ok) return;
 
   if (valuetype != napi_object) {

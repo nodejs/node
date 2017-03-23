@@ -48,7 +48,7 @@ void wasPending(napi_env env, napi_callback_info info) {
   napi_status status;
 
   napi_value result;
-  status = napi_create_boolean(env, exceptionWasPending, &result);
+  status = napi_get_boolean(env, exceptionWasPending, &result);
   if (status != napi_ok) return;
 
   status = napi_set_return_value(env, info, result);

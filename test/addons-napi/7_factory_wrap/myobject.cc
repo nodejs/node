@@ -38,7 +38,7 @@ void MyObject::New(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_valuetype valuetype;
-  status = napi_get_type_of_value(env, args[0], &valuetype);
+  status = napi_typeof(env, args[0], &valuetype);
   if (status != napi_ok) return;
 
   MyObject* obj = new MyObject();

@@ -78,6 +78,7 @@ typedef enum {
   napi_function_expected,
   napi_number_expected,
   napi_boolean_expected,
+  napi_array_expected,
   napi_generic_failure,
   napi_pending_exception,
   napi_status_last

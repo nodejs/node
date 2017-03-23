@@ -50,7 +50,7 @@ void MyObject::New(napi_env env, napi_callback_info info) {
     double value = 0;
 
     napi_valuetype valuetype;
-    status = napi_get_type_of_value(env, args[0], &valuetype);
+    status = napi_typeof(env, args[0], &valuetype);
     if (status != napi_ok) return;
 
     if (valuetype != napi_undefined) {
@@ -164,7 +164,7 @@ void MyObject::Multiply(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_valuetype valuetype;
-  status = napi_get_type_of_value(env, args[0], &valuetype);
+  status = napi_typeof(env, args[0], &valuetype);
   if (status != napi_ok) return;
 
   double multiple = 1;

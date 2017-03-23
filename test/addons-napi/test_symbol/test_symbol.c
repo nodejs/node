@@ -17,7 +17,7 @@ void Test(napi_env env, napi_callback_info info) {
   if (status != napi_ok) return;
 
   napi_valuetype valuetype;
-  status = napi_get_type_of_value(env, args[0], &valuetype);
+  status = napi_typeof(env, args[0], &valuetype);
   if (status != napi_ok) return;
 
   if (valuetype != napi_symbol) {
@@ -52,7 +52,7 @@ void New(napi_env env, napi_callback_info info) {
     napi_get_cb_args(env, info, args, 1);
 
     napi_valuetype valuetype;
-    status = napi_get_type_of_value(env, args[0], &valuetype);
+    status = napi_typeof(env, args[0], &valuetype);
     if (status != napi_ok) return;
 
     if (valuetype != napi_string) {
@@ -60,14 +60,8 @@ void New(napi_env env, napi_callback_info info) {
       return;
     }
 
-    char buffer[128];
-    int buffer_size = 128;
-    status =
-        napi_get_value_string_utf8(env, args[0], buffer, buffer_size, NULL);
-    if (status != napi_ok) return;
-
     napi_value symbol;
-    status = napi_create_symbol(env, buffer, &symbol);
+    status = napi_create_symbol(env, args[0], &symbol);
     if (status != napi_ok) return;
 
     status = napi_set_return_value(env, info, symbol);
