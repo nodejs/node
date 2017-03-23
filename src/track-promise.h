@@ -14,7 +14,7 @@ class Environment;
 
 struct v8ObjectHash {
   size_t operator() (v8::Persistent<v8::Object>* handle) const;
-  
+
   Environment* env;
 };
 

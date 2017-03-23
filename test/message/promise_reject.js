@@ -19,9 +19,9 @@ process.on('beforeExit', () =>
     common.fail('beforeExit should not be reached'));
 
 process.on('uncaughtException', (err) => {
-    // XXX(Fishrock123): This test is currently broken...
-    console.log(err.stack);
-    common.fail('Should not trigger uncaught exception');
+  // XXX(Fishrock123): This test is currently broken...
+  console.log(err.stack);
+  common.fail('Should not trigger uncaught exception');
 });
 
 process.on('exit', () => process._rawDebug('exit event emitted'));

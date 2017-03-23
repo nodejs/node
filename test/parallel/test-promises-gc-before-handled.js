@@ -3,7 +3,7 @@ const common = require('../common');
 
 // Flags: --expose-gc
 
-var p = new Promise((res, rej) => {
+const p = new Promise((res, rej) => {
   consol.log('oops'); // eslint-disable-line no-undef
 });
 

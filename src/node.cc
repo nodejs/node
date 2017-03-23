@@ -142,7 +142,6 @@ using v8::MaybeLocal;
 using v8::Message;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
-using v8::NativeWeakMap;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -1301,7 +1300,9 @@ void TrackPromise(const FunctionCallbackInfo<Value>& args) {
                Number::New(env->isolate(), env->promise_tracker_index_++))
                   .FromJust();
 
-  if (env->promise_tracker_.Size() > 1000) {
+  // Make some sort of list size check so as to not leak memory.
+  if (env->promise_tracker_.Size() > 10000) {
+    // XXX(Fishrock123): Do some intelligent logic here?
     return;
   }
 
