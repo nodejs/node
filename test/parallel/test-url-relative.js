@@ -4,6 +4,9 @@ const assert = require('assert');
 const inspect = require('util').inspect;
 const url = require('url');
 
+// when source is false
+assert.strictEqual(url.resolveObject('', 'foo'), 'foo');
+
 /*
  [from, path, expected]
 */
