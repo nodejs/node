@@ -41,6 +41,7 @@ const spdyDict = Buffer.from([
   'ation/xhtmltext/plainpublicmax-agecharset=iso-8859-1utf-8gzipdeflateHTTP/1',
   '.1statusversionurl\0'
 ].join(''));
+const spdyDictUint8Array = new Uint8Array(spdyDict);
 
 const input = [
   'HTTP/1.1 200 Ok',
@@ -49,7 +50,7 @@ const input = [
   ''
 ].join('\r\n');
 
-function basicDictionaryTest() {
+function basicDictionaryTest(spdyDict) {
   let output = '';
   const deflate = zlib.createDeflate({ dictionary: spdyDict });
   const inflate = zlib.createInflate({ dictionary: spdyDict });
@@ -75,7 +76,7 @@ function basicDictionaryTest() {
   deflate.end();
 }
 
-function deflateResetDictionaryTest() {
+function deflateResetDictionaryTest(spdyDict) {
   let doneReset = false;
   let output = '';
   const deflate = zlib.createDeflate({ dictionary: spdyDict });
@@ -108,7 +109,7 @@ function deflateResetDictionaryTest() {
   });
 }
 
-function rawDictionaryTest() {
+function rawDictionaryTest(spdyDict) {
   let output = '';
   const deflate = zlib.createDeflateRaw({ dictionary: spdyDict });
   const inflate = zlib.createInflateRaw({ dictionary: spdyDict });
@@ -134,7 +135,7 @@ function rawDictionaryTest() {
   deflate.end();
 }
 
-function deflateRawResetDictionaryTest() {
+function deflateRawResetDictionaryTest(spdyDict) {
   let doneReset = false;
   let output = '';
   const deflate = zlib.createDeflateRaw({ dictionary: spdyDict });
@@ -167,7 +168,9 @@ function deflateRawResetDictionaryTest() {
   });
 }
 
-basicDictionaryTest();
-deflateResetDictionaryTest();
-rawDictionaryTest();
-deflateRawResetDictionaryTest();
+for (const dict of [spdyDict, spdyDictUint8Array]) {
+  basicDictionaryTest(dict);
+  deflateResetDictionaryTest(dict);
+  rawDictionaryTest(dict);
+  deflateRawResetDictionaryTest(dict);
+}

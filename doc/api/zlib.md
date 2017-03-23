@@ -278,6 +278,9 @@ Compression strategy.
 <!-- YAML
 added: v0.11.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `dictionary` option can be an Uint8Array now.
   - version: v5.11.0
     pr-url: https://github.com/nodejs/node/pull/6069
     description: The `finishFlush` option is supported now.
@@ -290,14 +293,15 @@ Each class takes an `options` object.  All options are optional.
 Note that some options are only relevant when compressing, and are
 ignored by the decompression classes.
 
-* `flush` (default: `zlib.constants.Z_NO_FLUSH`)
-* `finishFlush` (default: `zlib.constants.Z_FINISH`)
-* `chunkSize` (default: 16*1024)
-* `windowBits`
-* `level` (compression only)
-* `memLevel` (compression only)
-* `strategy` (compression only)
-* `dictionary` (deflate/inflate only, empty dictionary by default)
+* `flush` {integer} (default: `zlib.constants.Z_NO_FLUSH`)
+* `finishFlush` {integer} (default: `zlib.constants.Z_FINISH`)
+* `chunkSize` {integer} (default: 16\*1024)
+* `windowBits` {integer}
+* `level` {integer} (compression only)
+* `memLevel` {integer} (compression only)
+* `strategy` {integer} (compression only)
+* `dictionary` {Buffer|Uint8Array} (deflate/inflate only, empty dictionary by
+  default)
 
 See the description of `deflateInit2` and `inflateInit2` at
 <http://zlib.net/manual.html#Advanced> for more information on these.
@@ -473,89 +477,159 @@ Returns a new [Unzip][] object with an [options][].
 
 <!--type=misc-->
 
-All of these take a [Buffer][] or string as the first argument, an optional
-second argument to supply options to the `zlib` classes and will call the
-supplied callback with `callback(error, result)`.
+All of these take a [Buffer][], [Uint8Array][], or string as the first
+argument, an optional second argument to supply options to the `zlib` classes
+and will call the supplied callback with `callback(error, result)`.
 
 Every method has a `*Sync` counterpart, which accept the same arguments, but
 without a callback.
 
-### zlib.deflate(buf[, options], callback)
+### zlib.deflate(buffer[, options], callback)
 <!-- YAML
 added: v0.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
-### zlib.deflateSync(buf[, options])
+### zlib.deflateSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-Compress a [Buffer][] or string with [Deflate][].
+- `buffer` {Buffer|Uint8Array|string}
 
-### zlib.deflateRaw(buf[, options], callback)
+Compress a chunk of data with [Deflate][].
+
+### zlib.deflateRaw(buffer[, options], callback)
 <!-- YAML
 added: v0.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
-### zlib.deflateRawSync(buf[, options])
+### zlib.deflateRawSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-Compress a [Buffer][] or string with [DeflateRaw][].
+- `buffer` {Buffer|Uint8Array|string}
 
-### zlib.gunzip(buf[, options], callback)
+Compress a chunk of data with [DeflateRaw][].
+
+### zlib.gunzip(buffer[, options], callback)
 <!-- YAML
 added: v0.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
-### zlib.gunzipSync(buf[, options])
+### zlib.gunzipSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-Decompress a [Buffer][] or string with [Gunzip][].
+- `buffer` {Buffer|Uint8Array|string}
 
-### zlib.gzip(buf[, options], callback)
+Decompress a chunk of data with [Gunzip][].
+
+### zlib.gzip(buffer[, options], callback)
 <!-- YAML
 added: v0.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
-### zlib.gzipSync(buf[, options])
+### zlib.gzipSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-Compress a [Buffer][] or string with [Gzip][].
+- `buffer` {Buffer|Uint8Array|string}
 
-### zlib.inflate(buf[, options], callback)
+Compress a chunk of data with [Gzip][].
+
+### zlib.inflate(buffer[, options], callback)
 <!-- YAML
 added: v0.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
-### zlib.inflateSync(buf[, options])
+### zlib.inflateSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-Decompress a [Buffer][] or string with [Inflate][].
+- `buffer` {Buffer|Uint8Array|string}
 
-### zlib.inflateRaw(buf[, options], callback)
+Decompress a chunk of data with [Inflate][].
+
+### zlib.inflateRaw(buffer[, options], callback)
 <!-- YAML
 added: v0.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
-### zlib.inflateRawSync(buf[, options])
+### zlib.inflateRawSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-Decompress a [Buffer][] or string with [InflateRaw][].
+- `buffer` {Buffer|Uint8Array|string}
 
-### zlib.unzip(buf[, options], callback)
+Decompress a chunk of data with [InflateRaw][].
+
+### zlib.unzip(buffer[, options], callback)
 <!-- YAML
 added: v0.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
-### zlib.unzipSync(buf[, options])
+### zlib.unzipSync(buffer[, options])
 <!-- YAML
 added: v0.11.12
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12001
+    description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-Decompress a [Buffer][] or string with [Unzip][].
+- `buffer` {Buffer|Uint8Array|string}
+
+Decompress a chunk of data with [Unzip][].
 
 [`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
@@ -571,3 +645,4 @@ Decompress a [Buffer][] or string with [Unzip][].
 [Unzip]: #zlib_class_zlib_unzip
 [`.flush()`]: #zlib_zlib_flush_kind_callback
 [Buffer]: buffer.html
+[Uint8Array]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
