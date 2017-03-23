@@ -134,7 +134,23 @@ void OptimizingCompileDispatcher::FlushOutputQueue(bool restore_function_code) {
   }
 }
 
-void OptimizingCompileDispatcher::Flush() {
+void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
+  if (FLAG_block_concurrent_recompilation) Unblock();
+  if (blocking_behavior == BlockingBehavior::kDontBlock) {
+    base::LockGuard<base::Mutex> access_input_queue_(&input_queue_mutex_);
+    while (input_queue_length_ > 0) {
+      CompilationJob* job = input_queue_[InputQueueIndex(0)];
+      DCHECK_NOT_NULL(job);
+      input_queue_shift_ = InputQueueIndex(1);
+      input_queue_length_--;
+      DisposeCompilationJob(job, true);
+    }
+    FlushOutputQueue(true);
+    if (FLAG_trace_concurrent_recompilation) {
+      PrintF("  ** Flushed concurrent recompilation queues (not blocking).\n");
+    }
+    return;
+  }
   base::Release_Store(&mode_, static_cast<base::AtomicWord>(FLUSH));
   if (FLAG_block_concurrent_recompilation) Unblock();
   {
