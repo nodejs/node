@@ -74,41 +74,19 @@ V8EscapableHandleScopeFromJsEscapableHandleScope(
 
 //=== Conversion between V8 Handles and napi_value ========================
 
-// This is assuming v8::Local<> will always be implemented with a single
-// pointer field so that we can pass it around as a void* (maybe we should
-// use intptr_t instead of void*)
+// This asserts v8::Local<> will always be implemented with a single
+// pointer field so that we can pass it around as a void*.
+static_assert(sizeof(v8::Local<v8::Value>) == sizeof(napi_value),
+  "Cannot convert between v8::Local<v8::Value> and napi_value");
 
 napi_value JsValueFromV8LocalValue(v8::Local<v8::Value> local) {
-  // This is awkward, better way? memcpy but don't want that dependency?
-  union U {
-    napi_value v;
-    v8::Local<v8::Value> l;
-    U(v8::Local<v8::Value> _l) : l(_l) {}
-  } u(local);
-  assert(sizeof(u.v) == sizeof(u.l));
-  return u.v;
+  return reinterpret_cast<napi_value>(*local);
 }
 
 v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
-  // Likewise awkward
-  union U {
-    napi_value v;
-    v8::Local<v8::Value> l;
-    U(napi_value _v) : v(_v) {}
-  } u(v);
-  assert(sizeof(u.v) == sizeof(u.l));
-  return u.l;
-}
-
-static v8::Local<v8::Function> V8LocalFunctionFromJsValue(napi_value v) {
-  // Likewise awkward
-  union U {
-    napi_value v;
-    v8::Local<v8::Function> f;
-    U(napi_value _v) : v(_v) {}
-  } u(v);
-  assert(sizeof(u.v) == sizeof(u.f));
-  return u.f;
+  v8::Local<v8::Value> local;
+  memcpy(&local, &v, sizeof(v));
+  return local;
 }
 
 // Wrapper around v8::Persistent that implements reference counting.
@@ -275,10 +253,10 @@ class CallbackWrapper {
   void* _data;
 };
 
-template <typename T, int I>
+template <typename Info, int InternalFieldIndex>
 class CallbackWrapperBase : public CallbackWrapper {
  public:
-  CallbackWrapperBase(const T& cbinfo, const size_t args_length)
+  CallbackWrapperBase(const Info& cbinfo, const size_t args_length)
       : CallbackWrapper(JsValueFromV8LocalValue(cbinfo.This()),
                         args_length,
                         nullptr),
@@ -301,7 +279,8 @@ class CallbackWrapperBase : public CallbackWrapper {
     napi_callback_info cbinfo_wrapper = reinterpret_cast<napi_callback_info>(
         static_cast<CallbackWrapper*>(this));
     napi_callback cb = reinterpret_cast<napi_callback>(
-        v8::Local<v8::External>::Cast(_cbdata->GetInternalField(I))->Value());
+        v8::Local<v8::External>::Cast(
+            _cbdata->GetInternalField(InternalFieldIndex))->Value());
     v8::Isolate* isolate = _cbinfo.GetIsolate();
     cb(v8impl::JsEnvFromV8Isolate(isolate), cbinfo_wrapper);
 
@@ -312,7 +291,7 @@ class CallbackWrapperBase : public CallbackWrapper {
     }
   }
 
-  const T& _cbinfo;
+  const Info& _cbinfo;
   const v8::Local<v8::Object> _cbdata;
 };
 
@@ -420,8 +399,8 @@ class SetterCallbackWrapper
 
   /*virtual*/
   void SetReturnValue(napi_value value) override {
-    // Cannot set the return value of a setter.
-    assert(false);
+    node::FatalError("napi_set_return_value",
+      "Cannot return a value from a setter callback.");
   }
 
  private:
@@ -597,7 +576,7 @@ void napi_module_register(napi_module* mod) {
                          : napi_set_last_error(napi_pending_exception))
 
 // Static last error returned from napi_get_last_error_info
-napi_extended_error_info static_last_error = {};
+napi_extended_error_info static_last_error = { nullptr, nullptr, 0, napi_ok };
 
 // Warning: Keep in-sync with napi_status enum
 const char* error_messages[] = {nullptr,
@@ -620,8 +599,7 @@ void napi_clear_last_error() {
 }
 
 const napi_extended_error_info* napi_get_last_error_info() {
-  static_assert(
-      sizeof(error_messages) / sizeof(*error_messages) == napi_status_last,
+  static_assert(node::arraysize(error_messages) == napi_status_last,
       "Count of error messages must match count of error values");
   assert(static_last_error.error_code < napi_status_last);
 
@@ -651,7 +629,7 @@ napi_status napi_create_function(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(result);
 
-  v8::Isolate *isolate = v8impl::V8IsolateFromJsEnv(env);
+  v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
   v8::Local<v8::Function> return_value;
   v8::EscapableHandleScope scope(isolate);
   v8::Local<v8::Object> cbdata =
@@ -794,7 +772,7 @@ napi_status napi_get_propertynames(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(result);
 
-  v8::Isolate *isolate = v8impl::V8IsolateFromJsEnv(env);
+  v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Object> obj;
   CHECK_TO_OBJECT(context, obj, object);
@@ -814,7 +792,7 @@ napi_status napi_set_property(napi_env env,
                               napi_value value) {
   NAPI_PREAMBLE(env);
 
-  v8::Isolate *isolate = v8impl::V8IsolateFromJsEnv(env);
+  v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Object> obj;
 
@@ -880,7 +858,7 @@ napi_status napi_set_named_property(napi_env env,
                                     napi_value value) {
   NAPI_PREAMBLE(env);
 
-  v8::Isolate *isolate = v8impl::V8IsolateFromJsEnv(env);
+  v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Object> obj;
 
@@ -1448,17 +1426,20 @@ napi_status napi_call_function(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(result);
 
-  std::vector<v8::Handle<v8::Value>> args(argc);
+  std::vector<v8::Local<v8::Value>> args(argc);
   v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-  v8::Handle<v8::Value> v8recv = v8impl::V8LocalValueFromJsValue(recv);
+  v8::Local<v8::Value> v8recv = v8impl::V8LocalValueFromJsValue(recv);
 
   for (size_t i = 0; i < argc; i++) {
     args[i] = v8impl::V8LocalValueFromJsValue(argv[i]);
   }
 
-  v8::Local<v8::Function> v8func = v8impl::V8LocalFunctionFromJsValue(func);
+  v8::Local<v8::Value> v8value = v8impl::V8LocalValueFromJsValue(func);
+  RETURN_STATUS_IF_FALSE(v8value->IsFunction(), napi_invalid_arg);
+
+  v8::Local<v8::Function> v8func = v8value.As<v8::Function>();
   auto maybe = v8func->Call(context, v8recv, argc, args.data());
 
   if (try_catch.HasCaught()) {
@@ -2007,13 +1988,15 @@ napi_status napi_new_instance(napi_env env,
   v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-  std::vector<v8::Handle<v8::Value>> args(argc);
+  std::vector<v8::Local<v8::Value>> args(argc);
   for (size_t i = 0; i < argc; i++) {
     args[i] = v8impl::V8LocalValueFromJsValue(argv[i]);
   }
 
-  v8::Local<v8::Function> ctor =
-    v8impl::V8LocalFunctionFromJsValue(constructor);
+  v8::Local<v8::Value> v8value = v8impl::V8LocalValueFromJsValue(constructor);
+  RETURN_STATUS_IF_FALSE(v8value->IsFunction(), napi_invalid_arg);
+
+  v8::Local<v8::Function> ctor = v8value.As<v8::Function>();
 
   auto maybe = ctor->NewInstance(context, argc, args.data());
   CHECK_MAYBE_EMPTY(maybe, napi_generic_failure);
@@ -2094,7 +2077,7 @@ napi_status napi_make_callback(napi_env env,
       v8impl::V8LocalValueFromJsValue(recv).As<v8::Object>();
   v8::Local<v8::Function> v8func =
       v8impl::V8LocalValueFromJsValue(func).As<v8::Function>();
-  std::vector<v8::Handle<v8::Value>> args(argc);
+  std::vector<v8::Local<v8::Value>> args(argc);
   for (size_t i = 0; i < argc; i++) {
     args[i] = v8impl::V8LocalValueFromJsValue(argv[i]);
   }
