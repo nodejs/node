@@ -510,11 +510,13 @@ assert.strictEqual(Buffer.from('=bad'.repeat(1e4), 'base64').length, 0);
   }
 }
 
-// Test single hex character throws TypeError
-// - https://github.com/nodejs/node/issues/6770
-assert.throws(() => Buffer.from('A', 'hex'), TypeError);
+// Test single hex character is discarded.
+assert.strictEqual(Buffer.from('A', 'hex').length, 0);
 
-// Test single base64 char encodes as 0
+// Test that if a trailing character is discarded, rest of string is processed.
+assert.deepStrictEqual(Buffer.from('Abx', 'hex'), Buffer.from('Ab', 'hex'));
+
+// Test single base64 char encodes as 0.
 assert.strictEqual(Buffer.from('A', 'base64').length, 0);
 
 
