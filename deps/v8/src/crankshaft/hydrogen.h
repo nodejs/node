@@ -2142,7 +2142,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   Handle<SharedFunctionInfo> current_shared_info() const {
     return current_info()->shared_info();
   }
-  TypeFeedbackVector* current_feedback_vector() const {
+  FeedbackVector* current_feedback_vector() const {
     return current_closure()->feedback_vector();
   }
   void ClearInlinedTestContext() {

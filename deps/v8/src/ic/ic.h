@@ -200,7 +200,7 @@ class IC {
     return target_maps_.length() > 0 ? *target_maps_.at(0) : NULL;
   }
 
-  Handle<TypeFeedbackVector> vector() const { return nexus()->vector_handle(); }
+  Handle<FeedbackVector> vector() const { return nexus()->vector_handle(); }
   FeedbackVectorSlot slot() const { return nexus()->slot(); }
   State saved_state() const {
     return state() == RECOMPUTE_HANDLER ? old_state_ : state();

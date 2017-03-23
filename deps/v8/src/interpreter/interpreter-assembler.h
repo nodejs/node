@@ -102,12 +102,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Load and untag constant at |index| in the constant pool.
   compiler::Node* LoadAndUntagConstantPoolEntry(compiler::Node* index);
 
-  // Load the TypeFeedbackVector for the current function.
-  compiler::Node* LoadTypeFeedbackVector();
+  // Load the FeedbackVector for the current function.
+  compiler::Node* LoadFeedbackVector();
 
   // Increment the call count for a CALL_IC or construct call.
   // The call count is located at feedback_vector[slot_id + 1].
-  compiler::Node* IncrementCallCount(compiler::Node* type_feedback_vector,
+  compiler::Node* IncrementCallCount(compiler::Node* feedback_vector,
                                      compiler::Node* slot_id);
 
   // Call JSFunction or Callable |function| with |arg_count|
@@ -119,7 +119,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                      compiler::Node* first_arg,
                                      compiler::Node* arg_count,
                                      compiler::Node* slot_id,
-                                     compiler::Node* type_feedback_vector,
+                                     compiler::Node* feedback_vector,
                                      TailCallMode tail_call_mode);
 
   // Call JSFunction or Callable |function| with |arg_count|
@@ -140,7 +140,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                 compiler::Node* first_arg,
                                 compiler::Node* arg_count,
                                 compiler::Node* slot_id,
-                                compiler::Node* type_feedback_vector);
+                                compiler::Node* feedback_vector);
 
   // Call runtime function with |arg_count| arguments and the first argument
   // located at |first_arg|.

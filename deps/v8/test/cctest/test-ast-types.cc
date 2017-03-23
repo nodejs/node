@@ -13,9 +13,9 @@
 #include "src/ast/ast-types.h"
 #include "src/objects-inl.h"
 // FIXME(mstarzinger, marja): This is weird, but required because of the missing
-// (disallowed) include: src/type-feedback-vector.h ->
-// src/type-feedback-vector-inl.h
-#include "src/type-feedback-vector-inl.h"
+// (disallowed) include: src/feedback-vector.h ->
+// src/feedback-vector-inl.h
+#include "src/feedback-vector-inl.h"
 #include "test/cctest/ast-types-fuzz.h"
 #include "test/cctest/cctest.h"
 

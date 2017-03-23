@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/factory.h"  // for i::Factory::NewExternalStringFrom*Byte
+#include "src/feedback-vector-inl.h"  // for include "src/factory.h"
 #include "src/objects-inl.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
-#include "src/type-feedback-vector-inl.h"  // for include "src/factory.h"
 #include "test/cctest/cctest.h"
 
 namespace {

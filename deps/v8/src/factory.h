@@ -5,10 +5,10 @@
 #ifndef V8_FACTORY_H_
 #define V8_FACTORY_H_
 
+#include "src/feedback-vector.h"
 #include "src/globals.h"
 #include "src/isolate.h"
 #include "src/messages.h"
-#include "src/type-feedback-vector.h"
 
 namespace v8 {
 namespace internal {

@@ -838,13 +838,13 @@ class LiteralFixer {
       // collect all functions and fix their literal arrays.
       Handle<FixedArray> function_instances =
           CollectJSFunctions(shared_info, isolate);
-      Handle<TypeFeedbackMetadata> feedback_metadata(
+      Handle<FeedbackMetadata> feedback_metadata(
           shared_info->feedback_metadata());
 
       for (int i = 0; i < function_instances->length(); i++) {
         Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
-        Handle<TypeFeedbackVector> vector =
-            TypeFeedbackVector::New(isolate, feedback_metadata);
+        Handle<FeedbackVector> vector =
+            FeedbackVector::New(isolate, feedback_metadata);
         Handle<LiteralsArray> new_literals =
             LiteralsArray::New(isolate, vector, new_literal_count);
         fun->set_literals(*new_literals);
@@ -1017,7 +1017,7 @@ void LiveEdit::ReplaceFunctionCode(
     shared_info->set_outer_scope_info(new_shared_info->outer_scope_info());
     shared_info->DisableOptimization(kLiveEdit);
     // Update the type feedback vector, if needed.
-    Handle<TypeFeedbackMetadata> new_feedback_metadata(
+    Handle<FeedbackMetadata> new_feedback_metadata(
         new_shared_info->feedback_metadata());
     feedback_metadata_changed =
         new_feedback_metadata->DiffersFrom(shared_info->feedback_metadata());

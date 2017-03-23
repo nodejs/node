@@ -5461,23 +5461,21 @@ Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
   return IntPtrAdd(IntPtrConstant(base_size), shifted_index);
 }
 
-Node* CodeStubAssembler::LoadTypeFeedbackVectorForStub() {
+Node* CodeStubAssembler::LoadFeedbackVectorForStub() {
   Node* function =
       LoadFromParentFrame(JavaScriptFrameConstants::kFunctionOffset);
   Node* literals = LoadObjectField(function, JSFunction::kLiteralsOffset);
   return LoadObjectField(literals, LiteralsArray::kFeedbackVectorOffset);
 }
 
-void CodeStubAssembler::UpdateFeedback(Node* feedback,
-                                       Node* type_feedback_vector,
+void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
                                        Node* slot_id) {
   // This method is used for binary op and compare feedback. These
   // vector nodes are initialized with a smi 0, so we can simply OR
   // our new feedback in place.
-  Node* previous_feedback =
-      LoadFixedArrayElement(type_feedback_vector, slot_id);
+  Node* previous_feedback = LoadFixedArrayElement(feedback_vector, slot_id);
   Node* combined_feedback = SmiOr(previous_feedback, feedback);
-  StoreFixedArrayElement(type_feedback_vector, slot_id, combined_feedback,
+  StoreFixedArrayElement(feedback_vector, slot_id, combined_feedback,
                          SKIP_WRITE_BARRIER);
 }
 

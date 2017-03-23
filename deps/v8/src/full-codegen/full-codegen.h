@@ -344,7 +344,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // Returns a smi for the index into the FixedArray that backs the feedback
   // vector
   Smi* SmiFromSlot(FeedbackVectorSlot slot) const {
-    return Smi::FromInt(TypeFeedbackVector::GetIndexFromSpec(
+    return Smi::FromInt(FeedbackVector::GetIndexFromSpec(
         literal()->feedback_vector_spec(), slot));
   }
 

@@ -537,10 +537,12 @@ BINARY_OP_STUB(ModulusWithFeedbackStub)
 #undef BINARY_OP_STUB
 
 // static
-compiler::Node* AddWithFeedbackStub::Generate(
-    CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* rhs,
-    compiler::Node* slot_id, compiler::Node* type_feedback_vector,
-    compiler::Node* context) {
+compiler::Node* AddWithFeedbackStub::Generate(CodeStubAssembler* assembler,
+                                              compiler::Node* lhs,
+                                              compiler::Node* rhs,
+                                              compiler::Node* slot_id,
+                                              compiler::Node* feedback_vector,
+                                              compiler::Node* context) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
@@ -738,7 +740,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
   }
 
   assembler->Bind(&end);
-  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+  assembler->UpdateFeedback(var_type_feedback.value(), feedback_vector,
                             slot_id);
   return var_result.value();
 }
@@ -746,7 +748,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
 // static
 compiler::Node* SubtractWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* rhs,
-    compiler::Node* slot_id, compiler::Node* type_feedback_vector,
+    compiler::Node* slot_id, compiler::Node* feedback_vector,
     compiler::Node* context) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
@@ -931,7 +933,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
   }
 
   assembler->Bind(&end);
-  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+  assembler->UpdateFeedback(var_type_feedback.value(), feedback_vector,
                             slot_id);
   return var_result.value();
 }
@@ -940,7 +942,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
 // static
 compiler::Node* MultiplyWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* rhs,
-    compiler::Node* slot_id, compiler::Node* type_feedback_vector,
+    compiler::Node* slot_id, compiler::Node* feedback_vector,
     compiler::Node* context) {
   using compiler::Node;
   typedef CodeStubAssembler::Label Label;
@@ -1092,7 +1094,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
   }
 
   assembler->Bind(&end);
-  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+  assembler->UpdateFeedback(var_type_feedback.value(), feedback_vector,
                             slot_id);
   return var_result.value();
 }
@@ -1102,7 +1104,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
 compiler::Node* DivideWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* dividend,
     compiler::Node* divisor, compiler::Node* slot_id,
-    compiler::Node* type_feedback_vector, compiler::Node* context) {
+    compiler::Node* feedback_vector, compiler::Node* context) {
   using compiler::Node;
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
@@ -1312,7 +1314,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
   }
 
   assembler->Bind(&end);
-  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+  assembler->UpdateFeedback(var_type_feedback.value(), feedback_vector,
                             slot_id);
   return var_result.value();
 }
@@ -1321,7 +1323,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
 compiler::Node* ModulusWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* dividend,
     compiler::Node* divisor, compiler::Node* slot_id,
-    compiler::Node* type_feedback_vector, compiler::Node* context) {
+    compiler::Node* feedback_vector, compiler::Node* context) {
   using compiler::Node;
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
@@ -1473,7 +1475,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
   }
 
   assembler->Bind(&end);
-  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+  assembler->UpdateFeedback(var_type_feedback.value(), feedback_vector,
                             slot_id);
   return var_result.value();
 }

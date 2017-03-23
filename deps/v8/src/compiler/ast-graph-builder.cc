@@ -17,6 +17,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/feedback-vector.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -2202,8 +2203,7 @@ void AstGraphBuilder::VisitDeclarations(Declaration::List* declarations) {
   AstVisitor<AstGraphBuilder>::VisitDeclarations(declarations);
   if (globals()->empty()) return;
   int array_index = 0;
-  Handle<TypeFeedbackVector> feedback_vector(
-      info()->closure()->feedback_vector());
+  Handle<FeedbackVector> feedback_vector(info()->closure()->feedback_vector());
   Handle<FixedArray> data = isolate()->factory()->NewFixedArray(
       static_cast<int>(globals()->size()), TENURED);
   for (Handle<Object> obj : *globals()) data->set(array_index++, *obj);
@@ -2374,8 +2374,8 @@ void AstGraphBuilder::VisitRewritableExpression(RewritableExpression* node) {
 
 float AstGraphBuilder::ComputeCallFrequency(FeedbackVectorSlot slot) const {
   if (slot.IsInvalid()) return 0.0f;
-  Handle<TypeFeedbackVector> feedback_vector(
-      info()->closure()->feedback_vector(), isolate());
+  Handle<FeedbackVector> feedback_vector(info()->closure()->feedback_vector(),
+                                         isolate());
   CallICNexus nexus(feedback_vector, slot);
   return nexus.ComputeCallFrequency() * invocation_frequency_;
 }

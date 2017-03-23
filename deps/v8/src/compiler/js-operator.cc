@@ -9,9 +9,9 @@
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
+#include "src/feedback-vector.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
-#include "src/type-feedback-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +21,7 @@ VectorSlotPair::VectorSlotPair() {}
 
 
 int VectorSlotPair::index() const {
-  return vector_.is_null() ? -1 : TypeFeedbackVector::GetIndex(slot_);
+  return vector_.is_null() ? -1 : FeedbackVector::GetIndex(slot_);
 }
 
 

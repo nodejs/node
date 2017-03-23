@@ -3701,7 +3701,7 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector());
   FeedbackVectorHelper feedback_helper(feedback_vector);
 
   int expected_slots = 2;
@@ -3737,8 +3737,7 @@ static Code* FindFirstIC(Code* code, Code::Kind kind) {
 
 static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
                           InlineCacheState desired_state) {
-  Handle<TypeFeedbackVector> vector =
-      Handle<TypeFeedbackVector>(f->feedback_vector());
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>(f->feedback_vector());
   FeedbackVectorHelper helper(vector);
   FeedbackVectorSlot slot = helper.slot(slot_index);
   if (vector->GetKind(slot) == FeedbackVectorSlotKind::LOAD_IC) {
@@ -3766,7 +3765,7 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  Handle<TypeFeedbackVector> vector(f->feedback_vector());
+  Handle<FeedbackVector> vector(f->feedback_vector());
   CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
@@ -4297,8 +4296,8 @@ TEST(Regress513507) {
     if (!code->is_optimized_code()) return;
   }
 
-  Handle<TypeFeedbackVector> vector =
-      TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+  Handle<FeedbackVector> vector =
+      FeedbackVector::New(isolate, handle(shared->feedback_metadata()));
   Handle<LiteralsArray> lit =
       LiteralsArray::New(isolate, vector, shared->num_literals());
   Handle<Context> context(isolate->context());
@@ -4356,8 +4355,8 @@ TEST(Regress514122) {
     if (!code->is_optimized_code()) return;
   }
 
-  Handle<TypeFeedbackVector> vector =
-      TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+  Handle<FeedbackVector> vector =
+      FeedbackVector::New(isolate, handle(shared->feedback_metadata()));
   Handle<LiteralsArray> lit =
       LiteralsArray::New(isolate, vector, shared->num_literals(), TENURED);
   Handle<Context> context(isolate->context());
@@ -5132,8 +5131,8 @@ TEST(WeakFunctionInConstructor) {
   // We've determined the constructor in createObj has had it's weak cell
   // cleared. Now, verify that one additional call with a new function
   // allows monomorphicity.
-  Handle<TypeFeedbackVector> feedback_vector = Handle<TypeFeedbackVector>(
-      createObj->feedback_vector(), CcTest::i_isolate());
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(createObj->feedback_vector(), CcTest::i_isolate());
   for (int i = 0; i < 20; i++) {
     Object* slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
     CHECK(slot_value->IsWeakCell());
@@ -5337,7 +5336,7 @@ void CheckIC(Handle<JSFunction> function, Code::Kind kind, int slot_index,
              InlineCacheState state) {
   if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
       kind == Code::CALL_IC) {
-    TypeFeedbackVector* vector = function->feedback_vector();
+    FeedbackVector* vector = function->feedback_vector();
     FeedbackVectorSlot slot(slot_index);
     if (kind == Code::LOAD_IC) {
       LoadICNexus nexus(vector, slot);

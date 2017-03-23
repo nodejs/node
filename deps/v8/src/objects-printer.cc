@@ -694,7 +694,7 @@ void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
 
   for (int slot = 0; slot < slot_count;) {
     FeedbackVectorSlotKind kind = This()->GetKind(slot);
-    int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
+    int entry_size = FeedbackMetadata::GetSlotSize(kind);
     DCHECK_LT(0, entry_size);
     os << "\n Slot #" << slot << " " << kind;
     slot += entry_size;
@@ -702,16 +702,14 @@ void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
   os << "\n";
 }
 
-void TypeFeedbackMetadata::Print() {
+void FeedbackMetadata::Print() {
   OFStream os(stdout);
-  TypeFeedbackMetadataPrint(os);
+  FeedbackMetadataPrint(os);
   os << std::flush;
 }
 
-
-void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
-    std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "TypeFeedbackMetadata");
+void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "FeedbackMetadata");
   os << "\n - length: " << length();
   if (length() == 0) {
     os << " (empty)\n";
@@ -719,13 +717,13 @@ void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
   }
   os << "\n - slot_count: " << slot_count();
 
-  TypeFeedbackMetadataIterator iter(this);
+  FeedbackMetadataIterator iter(this);
   int parameter_index = 0;
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
     os << "\n Slot " << slot << " " << kind;
-    if (TypeFeedbackMetadata::SlotRequiresParameter(kind)) {
+    if (FeedbackMetadata::SlotRequiresParameter(kind)) {
       int parameter_value = this->GetParameter(parameter_index++);
       os << " [" << parameter_value << "]";
     }
@@ -733,16 +731,14 @@ void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
   os << "\n";
 }
 
-
-void TypeFeedbackVector::Print() {
+void FeedbackVector::Print() {
   OFStream os(stdout);
-  TypeFeedbackVectorPrint(os);
+  FeedbackVectorPrint(os);
   os << std::flush;
 }
 
-
-void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "TypeFeedbackVector");
+void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "FeedbackVector");
   os << "\n - length: " << length();
   if (length() == 0) {
     os << " (empty)\n";
@@ -750,7 +746,7 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
   }
 
   int parameter_index = 0;
-  TypeFeedbackMetadataIterator iter(metadata());
+  FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
@@ -1098,7 +1094,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - num_literals = " << num_literals();
   os << "\n - optimized_code_map = " << Brief(optimized_code_map());
   os << "\n - feedback_metadata = ";
-  feedback_metadata()->TypeFeedbackMetadataPrint(os);
+  feedback_metadata()->FeedbackMetadataPrint(os);
   if (HasBytecodeArray()) {
     os << "\n - bytecode_array = " << bytecode_array();
   }
@@ -1686,11 +1682,11 @@ extern void _v8_internal_Print_Code(void* object) {
   isolate->FindCodeObject(reinterpret_cast<i::Address>(object))->Print();
 }
 
-extern void _v8_internal_Print_TypeFeedbackVector(void* object) {
+extern void _v8_internal_Print_FeedbackVector(void* object) {
   if (reinterpret_cast<i::Object*>(object)->IsSmi()) {
     printf("Not a type feedback vector\n");
   } else {
-    reinterpret_cast<i::TypeFeedbackVector*>(object)->Print();
+    reinterpret_cast<i::FeedbackVector*>(object)->Print();
   }
 }
 

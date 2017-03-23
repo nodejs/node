@@ -1029,13 +1029,12 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       scope()->is_function_scope()) {
     Callable callable = CodeFactory::FastNewClosure(isolate());
     __ Move(callable.descriptor().GetRegisterParameter(0), info);
-    __ EmitLoadTypeFeedbackVector(
-        callable.descriptor().GetRegisterParameter(1));
+    __ EmitLoadFeedbackVector(callable.descriptor().GetRegisterParameter(1));
     __ Move(callable.descriptor().GetRegisterParameter(2), SmiFromSlot(slot));
     __ Call(callable.code(), RelocInfo::CODE_TARGET);
   } else {
     __ Push(info);
-    __ EmitLoadTypeFeedbackVector(result_register());
+    __ EmitLoadFeedbackVector(result_register());
     __ Push(result_register());
     __ Push(SmiFromSlot(slot));
     __ CallRuntime(pretenure ? Runtime::kNewClosure_Tenured

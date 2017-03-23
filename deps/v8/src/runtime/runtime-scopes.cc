@@ -45,7 +45,7 @@ Object* DeclareGlobal(
     Isolate* isolate, Handle<JSGlobalObject> global, Handle<String> name,
     Handle<Object> value, PropertyAttributes attr, bool is_var,
     bool is_function_declaration, RedeclarationType redeclaration_type,
-    Handle<TypeFeedbackVector> feedback_vector = Handle<TypeFeedbackVector>(),
+    Handle<FeedbackVector> feedback_vector = Handle<FeedbackVector>(),
     FeedbackVectorSlot slot = FeedbackVectorSlot::Invalid()) {
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table());
@@ -130,7 +130,7 @@ Object* DeclareGlobal(
 }
 
 Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
-                       int flags, Handle<TypeFeedbackVector> feedback_vector) {
+                       int flags, Handle<FeedbackVector> feedback_vector) {
   HandleScope scope(isolate);
   Handle<JSGlobalObject> global(isolate->global_object());
   Handle<Context> context(isolate->context());
@@ -187,7 +187,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
 
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, declarations, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
-  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, feedback_vector, 2);
+  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, feedback_vector, 2);
 
   return DeclareGlobals(isolate, declarations, flags, feedback_vector);
 }
@@ -202,8 +202,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobalsForInterpreter) {
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 2);
 
-  Handle<TypeFeedbackVector> feedback_vector(closure->feedback_vector(),
-                                             isolate);
+  Handle<FeedbackVector> feedback_vector(closure->feedback_vector(), isolate);
   return DeclareGlobals(isolate, declarations, flags, feedback_vector);
 }
 

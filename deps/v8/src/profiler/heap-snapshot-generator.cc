@@ -1819,7 +1819,7 @@ bool V8HeapExplorer::IsEssentialObject(Object* object) {
          object != heap_->empty_byte_array() &&
          object != heap_->empty_fixed_array() &&
          object != heap_->empty_descriptor_array() &&
-         object != heap_->empty_type_feedback_vector() &&
+         object != heap_->empty_feedback_vector() &&
          object != heap_->fixed_array_map() && object != heap_->cell_map() &&
          object != heap_->global_property_cell_map() &&
          object != heap_->shared_function_info_map() &&

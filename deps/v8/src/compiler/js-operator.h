@@ -18,24 +18,23 @@ namespace compiler {
 class Operator;
 struct JSOperatorGlobalCache;
 
-
-// Defines a pair of {TypeFeedbackVector} and {TypeFeedbackVectorSlot}, which
+// Defines a pair of {FeedbackVector} and {FeedbackVectorSlot}, which
 // is used to access the type feedback for a certain {Node}.
 class V8_EXPORT_PRIVATE VectorSlotPair {
  public:
   VectorSlotPair();
-  VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+  VectorSlotPair(Handle<FeedbackVector> vector, FeedbackVectorSlot slot)
       : vector_(vector), slot_(slot) {}
 
   bool IsValid() const { return !vector_.is_null() && !slot_.IsInvalid(); }
 
-  Handle<TypeFeedbackVector> vector() const { return vector_; }
+  Handle<FeedbackVector> vector() const { return vector_; }
   FeedbackVectorSlot slot() const { return slot_; }
 
   int index() const;
 
  private:
-  const Handle<TypeFeedbackVector> vector_;
+  const Handle<FeedbackVector> vector_;
   const FeedbackVectorSlot slot_;
 };
 

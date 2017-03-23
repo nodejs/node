@@ -18,6 +18,7 @@
 #include "src/contexts-inl.h"
 #include "src/conversions-inl.h"
 #include "src/factory.h"
+#include "src/feedback-vector-inl.h"
 #include "src/field-index-inl.h"
 #include "src/field-type.h"
 #include "src/handles-inl.h"
@@ -35,7 +36,6 @@
 #include "src/property.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
-#include "src/type-feedback-vector-inl.h"
 #include "src/v8memory.h"
 
 namespace v8 {
@@ -363,11 +363,11 @@ bool Object::IsLayoutDescriptor() const {
   return IsSmi() || IsFixedTypedArrayBase();
 }
 
-bool HeapObject::IsTypeFeedbackVector() const {
-  return map() == GetHeap()->type_feedback_vector_map();
+bool HeapObject::IsFeedbackVector() const {
+  return map() == GetHeap()->feedback_vector_map();
 }
 
-bool HeapObject::IsTypeFeedbackMetadata() const { return IsFixedArray(); }
+bool HeapObject::IsFeedbackMetadata() const { return IsFixedArray(); }
 
 bool HeapObject::IsLiteralsArray() const { return IsFixedArray(); }
 
@@ -3454,16 +3454,16 @@ LiteralsArray* LiteralsArray::cast(Object* object) {
 }
 
 
-TypeFeedbackVector* LiteralsArray::feedback_vector() const {
+FeedbackVector* LiteralsArray::feedback_vector() const {
   if (length() == 0) {
-    return TypeFeedbackVector::cast(
+    return FeedbackVector::cast(
         const_cast<FixedArray*>(FixedArray::cast(this)));
   }
-  return TypeFeedbackVector::cast(get(kVectorIndex));
+  return FeedbackVector::cast(get(kVectorIndex));
 }
 
 
-void LiteralsArray::set_feedback_vector(TypeFeedbackVector* vector) {
+void LiteralsArray::set_feedback_vector(FeedbackVector* vector) {
   if (length() <= kVectorIndex) {
     DCHECK(vector->length() == 0);
     return;
@@ -5983,7 +5983,7 @@ ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, FixedArray,
           kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
-ACCESSORS(SharedFunctionInfo, feedback_metadata, TypeFeedbackMetadata,
+ACCESSORS(SharedFunctionInfo, feedback_metadata, FeedbackMetadata,
           kFeedbackMetadataOffset)
 SMI_ACCESSORS(SharedFunctionInfo, function_literal_id, kFunctionLiteralIdOffset)
 #if TRACE_MAPS
@@ -6670,7 +6670,7 @@ bool JSFunction::is_compiled() {
          code() != builtins->builtin(Builtins::kCompileOptimizedConcurrent);
 }
 
-TypeFeedbackVector* JSFunction::feedback_vector() {
+FeedbackVector* JSFunction::feedback_vector() {
   LiteralsArray* array = literals();
   return array->feedback_vector();
 }

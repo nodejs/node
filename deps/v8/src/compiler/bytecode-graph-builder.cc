@@ -445,7 +445,7 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
     Zone* local_zone, Handle<SharedFunctionInfo> shared_info,
-    Handle<TypeFeedbackVector> feedback_vector, BailoutId osr_ast_id,
+    Handle<FeedbackVector> feedback_vector, BailoutId osr_ast_id,
     JSGraph* jsgraph, float invocation_frequency,
     SourcePositionTable* source_positions, int inlining_id)
     : local_zone_(local_zone),
@@ -522,7 +522,7 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
 
 VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
   FeedbackVectorSlot slot;
-  if (slot_id >= TypeFeedbackVector::kReservedIndexCount) {
+  if (slot_id >= FeedbackVector::kReservedIndexCount) {
     slot = feedback_vector()->ToSlot(slot_id);
   }
   return VectorSlotPair(feedback_vector(), slot);
@@ -1258,7 +1258,7 @@ void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode,
 
   // Slot index of 0 is used indicate no feedback slot is available. Assert
   // the assumption that slot index 0 is never a valid feedback slot.
-  STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
+  STATIC_ASSERT(FeedbackVector::kReservedIndexCount > 0);
   int const slot_id = bytecode_iterator().GetIndexOperand(3);
   VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 
@@ -1384,7 +1384,7 @@ void BytecodeGraphBuilder::VisitNew() {
   size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
   // Slot index of 0 is used indicate no feedback slot is available. Assert
   // the assumption that slot index 0 is never a valid feedback slot.
-  STATIC_ASSERT(TypeFeedbackVector::kReservedIndexCount > 0);
+  STATIC_ASSERT(FeedbackVector::kReservedIndexCount > 0);
   int const slot_id = bytecode_iterator().GetIndexOperand(3);
   VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 

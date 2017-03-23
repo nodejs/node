@@ -124,8 +124,8 @@ void FullCodeGenerator::Generate() {
     __ mov(ecx, FieldOperand(edi, JSFunction::kLiteralsOffset));
     __ mov(ecx, FieldOperand(ecx, LiteralsArray::kFeedbackVectorOffset));
     __ add(FieldOperand(
-               ecx, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
-                        TypeFeedbackVector::kHeaderSize),
+               ecx, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                        FeedbackVector::kHeaderSize),
            Immediate(Smi::FromInt(1)));
   }
 
@@ -784,7 +784,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ Push(pairs);
   __ Push(Smi::FromInt(DeclareGlobalsFlags()));
-  __ EmitLoadTypeFeedbackVector(eax);
+  __ EmitLoadFeedbackVector(eax);
   __ Push(eax);
   __ CallRuntime(Runtime::kDeclareGlobals);
   // Return value is ignored.
@@ -994,9 +994,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We need to filter the key, record slow-path here.
   int const vector_index = SmiFromSlot(slot)->value();
-  __ EmitLoadTypeFeedbackVector(edx);
+  __ EmitLoadFeedbackVector(edx);
   __ mov(FieldOperand(edx, FixedArray::OffsetOfElementAt(vector_index)),
-         Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate())));
+         Immediate(FeedbackVector::MegamorphicSentinel(isolate())));
 
   // eax contains the key.  The receiver in ebx is the second argument to the
   // ForInFilter.  ForInFilter returns undefined if the receiver doesn't
@@ -1840,7 +1840,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ mov(edi, Operand(esp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
-  __ EmitLoadTypeFeedbackVector(ebx);
+  __ EmitLoadFeedbackVector(ebx);
   __ mov(edx, Immediate(SmiFromSlot(expr->CallNewFeedbackSlot())));
 
   CallConstructStub stub(isolate());

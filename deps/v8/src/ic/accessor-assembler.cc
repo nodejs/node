@@ -1730,7 +1730,7 @@ void AccessorAssemblerImpl::GenerateLoadICTrampoline() {
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* context = Parameter(Descriptor::kContext);
-  Node* vector = LoadTypeFeedbackVectorForStub();
+  Node* vector = LoadFeedbackVectorForStub();
 
   LoadICParameters p(context, receiver, name, slot, vector);
   LoadIC(&p);
@@ -1784,7 +1784,7 @@ void AccessorAssemblerImpl::GenerateLoadGlobalICTrampoline(
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* context = Parameter(Descriptor::kContext);
-  Node* vector = LoadTypeFeedbackVectorForStub();
+  Node* vector = LoadFeedbackVectorForStub();
 
   LoadICParameters p(context, nullptr, name, slot, vector);
   LoadGlobalIC(&p, typeof_mode);
@@ -1810,7 +1810,7 @@ void AccessorAssemblerImpl::GenerateKeyedLoadICTrampolineTF() {
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* context = Parameter(Descriptor::kContext);
-  Node* vector = LoadTypeFeedbackVectorForStub();
+  Node* vector = LoadFeedbackVectorForStub();
 
   LoadICParameters p(context, receiver, name, slot, vector);
   KeyedLoadIC(&p);
@@ -1851,7 +1851,7 @@ void AccessorAssemblerImpl::GenerateStoreICTrampoline() {
   Node* value = Parameter(Descriptor::kValue);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* context = Parameter(Descriptor::kContext);
-  Node* vector = LoadTypeFeedbackVectorForStub();
+  Node* vector = LoadFeedbackVectorForStub();
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
   StoreIC(&p);
@@ -1880,7 +1880,7 @@ void AccessorAssemblerImpl::GenerateKeyedStoreICTrampolineTF(
   Node* value = Parameter(Descriptor::kValue);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* context = Parameter(Descriptor::kContext);
-  Node* vector = LoadTypeFeedbackVectorForStub();
+  Node* vector = LoadFeedbackVectorForStub();
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
   KeyedStoreIC(&p, language_mode);

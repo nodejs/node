@@ -18,7 +18,7 @@ MaybeHandle<Object> CallInterpreter(Isolate* isolate,
 
 InterpreterTester::InterpreterTester(
     Isolate* isolate, const char* source, MaybeHandle<BytecodeArray> bytecode,
-    MaybeHandle<TypeFeedbackVector> feedback_vector, const char* filter)
+    MaybeHandle<FeedbackVector> feedback_vector, const char* filter)
     : isolate_(isolate),
       source_(source),
       bytecode_(bytecode),
@@ -29,13 +29,13 @@ InterpreterTester::InterpreterTester(
 
 InterpreterTester::InterpreterTester(
     Isolate* isolate, Handle<BytecodeArray> bytecode,
-    MaybeHandle<TypeFeedbackVector> feedback_vector, const char* filter)
+    MaybeHandle<FeedbackVector> feedback_vector, const char* filter)
     : InterpreterTester(isolate, nullptr, bytecode, feedback_vector, filter) {}
 
 InterpreterTester::InterpreterTester(Isolate* isolate, const char* source,
                                      const char* filter)
     : InterpreterTester(isolate, source, MaybeHandle<BytecodeArray>(),
-                        MaybeHandle<TypeFeedbackVector>(), filter) {}
+                        MaybeHandle<FeedbackVector>(), filter) {}
 
 InterpreterTester::~InterpreterTester() {}
 

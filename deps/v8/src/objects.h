@@ -93,8 +93,8 @@
 //           - OrderedHashSet
 //           - OrderedHashMap
 //         - Context
-//         - TypeFeedbackMetadata
-//         - TypeFeedbackVector
+//         - FeedbackMetadata
+//         - FeedbackVector
 //         - TemplateList
 //         - TransitionArray
 //         - ScopeInfo
@@ -910,8 +910,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(STRING_SPLIT_CACHE_SUB_TYPE)                 \
   V(STRING_TABLE_SUB_TYPE)                       \
   V(TEMPLATE_INFO_SUB_TYPE)                      \
-  V(TYPE_FEEDBACK_VECTOR_SUB_TYPE)               \
-  V(TYPE_FEEDBACK_METADATA_SUB_TYPE)             \
+  V(FEEDBACK_VECTOR_SUB_TYPE)                    \
+  V(FEEDBACK_METADATA_SUB_TYPE)                  \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE)
 
 enum FixedArraySubInstanceType {
@@ -970,8 +970,8 @@ class SafepointEntry;
 class SharedFunctionInfo;
 class StringStream;
 class TypeFeedbackInfo;
-class TypeFeedbackMetadata;
-class TypeFeedbackVector;
+class FeedbackMetadata;
+class FeedbackVector;
 class WeakCell;
 class TransitionArray;
 class TemplateList;
@@ -1044,8 +1044,8 @@ template <class C> inline bool Is(Object* obj);
   V(FrameArray)                  \
   V(TransitionArray)             \
   V(LiteralsArray)               \
-  V(TypeFeedbackMetadata)        \
-  V(TypeFeedbackVector)          \
+  V(FeedbackMetadata)            \
+  V(FeedbackVector)              \
   V(DeoptimizationInputData)     \
   V(DeoptimizationOutputData)    \
   V(DependentCode)               \
@@ -4991,15 +4991,15 @@ class LiteralsArray : public FixedArray {
     return OffsetOfElementAt(index + kFirstLiteralIndex);
   }
 
-  inline TypeFeedbackVector* feedback_vector() const;
-  inline void set_feedback_vector(TypeFeedbackVector* vector);
+  inline FeedbackVector* feedback_vector() const;
+  inline void set_feedback_vector(FeedbackVector* vector);
   inline Object* literal(int literal_index) const;
   inline void set_literal(int literal_index, Object* literal);
   inline void set_literal_undefined(int literal_index);
   inline int literals_count() const;
 
   static Handle<LiteralsArray> New(Isolate* isolate,
-                                   Handle<TypeFeedbackVector> vector,
+                                   Handle<FeedbackVector> vector,
                                    int number_of_literals,
                                    PretenureFlag pretenure = TENURED);
 
@@ -7263,7 +7263,7 @@ class SharedFunctionInfo: public HeapObject {
   // [feedback_metadata] - describes ast node feedback from full-codegen and
   // (increasingly) from crankshafted code where sufficient feedback isn't
   // available.
-  DECL_ACCESSORS(feedback_metadata, TypeFeedbackMetadata)
+  DECL_ACCESSORS(feedback_metadata, FeedbackMetadata)
 
   // [function_literal_id] - uniquely identifies the FunctionLiteral this
   // SharedFunctionInfo represents within its script, or -1 if this
@@ -8173,7 +8173,7 @@ class JSFunction: public JSObject {
   DECL_ACCESSORS(literals, LiteralsArray)
 
   static void EnsureLiterals(Handle<JSFunction> function);
-  inline TypeFeedbackVector* feedback_vector();
+  inline FeedbackVector* feedback_vector();
 
   // Unconditionally clear the type feedback vector (including vector ICs).
   void ClearTypeFeedbackInfo();

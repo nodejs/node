@@ -14,9 +14,9 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/type-cache.h"
+#include "src/feedback-vector.h"
 #include "src/field-index-inl.h"
 #include "src/isolate-inl.h"
-#include "src/type-feedback-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -221,7 +221,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadContext(Node* node) {
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, MapHandleList const& receiver_maps,
     Handle<Name> name, AccessMode access_mode, LanguageMode language_mode,
-    Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot, Node* index) {
+    Handle<FeedbackVector> vector, FeedbackVectorSlot slot, Node* index) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -964,7 +964,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
     Node* control, Handle<Name> name, PropertyAccessInfo const& access_info,
     AccessMode access_mode, LanguageMode language_mode,
-    Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot) {
+    Handle<FeedbackVector> vector, FeedbackVectorSlot slot) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {

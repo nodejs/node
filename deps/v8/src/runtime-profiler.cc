@@ -114,7 +114,7 @@ static void GetICCounts(JSFunction* function, int* ic_with_type_info_count,
   }
 
   // Harvest vector-ics as well
-  TypeFeedbackVector* vector = function->feedback_vector();
+  FeedbackVector* vector = function->feedback_vector();
   int with = 0, gen = 0, type_vector_ic_count = 0;
   const bool is_interpreted = function->shared()->IsInterpreted();
 
