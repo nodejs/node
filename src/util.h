@@ -419,17 +419,29 @@ class MaybeStackBuffer {
 
 class Utf8Value : public MaybeStackBuffer<char> {
  public:
-  explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
+  explicit Utf8Value(v8::Local<v8::Context> context,
+                     v8::Local<v8::Value> value);
+  explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value)
+      : Utf8Value(isolate->GetCurrentContext(), value) {
+  }
 };
 
 class TwoByteValue : public MaybeStackBuffer<uint16_t> {
  public:
-  explicit TwoByteValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+  explicit TwoByteValue(v8::Local<v8::Context> context,
+                        v8::Local<v8::Value> value);
+  explicit TwoByteValue(v8::Isolate* isolate, v8::Local<v8::Value> value)
+      : TwoByteValue(isolate->GetCurrentContext(), value) {
+  }
 };
 
 class BufferValue : public MaybeStackBuffer<char> {
  public:
-  explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+  explicit BufferValue(v8::Local<v8::Context> context,
+                       v8::Local<v8::Value> value);
+  explicit BufferValue(v8::Isolate* isolate, v8::Local<v8::Value> value)
+      : BufferValue(isolate->GetCurrentContext(), value) {
+  }
 };
 
 #define THROW_AND_RETURN_UNLESS_BUFFER(env, obj)                            \

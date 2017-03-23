@@ -1485,6 +1485,8 @@ enum encoding ParseEncoding(Isolate* isolate,
     return default_encoding;
 
   node::Utf8Value encoding(isolate, encoding_v);
+  if (encoding.IsInvalidated())
+    return default_encoding;
 
   return ParseEncoding(*encoding, default_encoding);
 }
@@ -1555,10 +1557,14 @@ void AppendExceptionLine(Environment* env,
 
   // Print (filename):(line number): (message).
   node::Utf8Value filename(env->isolate(), message->GetScriptResourceName());
+  if (filename.IsInvalidated())
+    return;
   const char* filename_string = *filename;
   int linenum = message->GetLineNumber();
   // Print line of source code.
   node::Utf8Value sourceline(env->isolate(), message->GetSourceLine());
+  if (sourceline.IsInvalidated())
+    return;
   const char* sourceline_string = *sourceline;
 
   // Because of how node modules work, all scripts are wrapped with a
@@ -1667,6 +1673,10 @@ static void ReportException(Environment* env,
   }
 
   node::Utf8Value trace(env->isolate(), trace_value);
+  if (trace.IsInvalidated()) {
+    // Something is wrong; abort.
+    return;
+  }
 
   // range errors have a trace member set to undefined
   if (trace.length() > 0 && !trace_value->IsUndefined()) {
@@ -1674,6 +1684,7 @@ static void ReportException(Environment* env,
       PrintErrorString("%s\n", *trace);
     } else {
       node::Utf8Value arrow_string(env->isolate(), arrow);
+      CHECK(!arrow_string.IsInvalidated());
       PrintErrorString("%s\n%s\n", *arrow_string, *trace);
     }
   } else {
@@ -1699,17 +1710,25 @@ static void ReportException(Environment* env,
       PrintErrorString("%s\n", *message ? *message :
                                           "<toString() threw exception>");
     } else {
-      node::Utf8Value name_string(env->isolate(), name);
-      node::Utf8Value message_string(env->isolate(), message);
+      const char* name_string = "<toString() threw exception>";
+      node::Utf8Value name_val(env->isolate(), name);
+      if (!name_val.IsInvalidated())
+        name_string = *name_val;
+
+      const char* message_string = "<toString() threw exception>";
+      node::Utf8Value message_val(env->isolate(), message);
+      if (!message_val.IsInvalidated())
+        message_string = *message_val;
 
       if (arrow.IsEmpty() || !arrow->IsString() || decorated) {
-        PrintErrorString("%s: %s\n", *name_string, *message_string);
+        PrintErrorString("%s: %s\n", name_string, message_string);
       } else {
-        node::Utf8Value arrow_string(env->isolate(), arrow);
+        node::Utf8Value arrow_val(env->isolate(), arrow);
+        CHECK(!arrow_val.IsInvalidated());
         PrintErrorString("%s\n%s: %s\n",
-                         *arrow_string,
-                         *name_string,
-                         *message_string);
+                         *arrow_val,
+                         name_string,
+                         message_string);
       }
     }
   }
@@ -1858,6 +1877,8 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
   }
 
   node::Utf8Value path(args.GetIsolate(), args[0]);
+  CHECK(!path.IsInvalidated());
+
   int err = uv_chdir(*path);
   if (err) {
     return env->ThrowUVException(err, "uv_chdir");
@@ -1904,6 +1925,7 @@ static void Umask(const FunctionCallbackInfo<Value>& args) {
     } else {
       oct = 0;
       node::Utf8Value str(env->isolate(), args[0]);
+      CHECK(!str.IsInvalidated());
 
       // Parse the octal string.
       for (size_t i = 0; i < str.length(); i++) {
@@ -2011,6 +2033,8 @@ static uid_t uid_by_name(Isolate* isolate, Local<Value> value) {
     return static_cast<uid_t>(value->Uint32Value());
   } else {
     node::Utf8Value name(isolate, value);
+    if (name.IsInvalidated())
+      return uid_not_found;
     return uid_by_name(*name);
   }
 }
@@ -2021,6 +2045,8 @@ static gid_t gid_by_name(Isolate* isolate, Local<Value> value) {
     return static_cast<gid_t>(value->Uint32Value());
   } else {
     node::Utf8Value name(isolate, value);
+    if (name.IsInvalidated())
+      return gid_not_found;
     return gid_by_name(*name);
   }
 }
@@ -2206,6 +2232,9 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   }
 
   node::Utf8Value arg0(env->isolate(), args[0]);
+  if (arg0.IsInvalidated())
+    return;
+
   gid_t extra_group;
   bool must_free;
   char* user;
@@ -2437,6 +2466,8 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> module = args[0]->ToObject(env->isolate());  // Cast
   node::Utf8Value filename(env->isolate(), args[1]);  // Cast
+  if (filename.IsInvalidated())
+    return;
   const bool is_dlopen_error = uv_dlopen(*filename, &lib);
 
   // Objects containing v14 or later modules will have registered themselves
@@ -2643,6 +2674,8 @@ static void Binding(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> module = args[0]->ToString(env->isolate());
   node::Utf8Value module_v(env->isolate(), module);
+  if (module_v.IsInvalidated())
+    return;
 
   Local<Object> cache = env->binding_cache_object();
   Local<Object> exports;
@@ -2697,6 +2730,8 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
 
   Local<String> module_name = args[0]->ToString(env->isolate());
+  if (module_name.IsEmpty())
+    return;
 
   Local<Object> cache = env->binding_cache_object();
   Local<Value> exports_v = cache->Get(module_name);
@@ -2705,6 +2740,7 @@ static void LinkedBinding(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(exports_v.As<Object>());
 
   node::Utf8Value module_name_v(env->isolate(), module_name);
+  CHECK(!module_name_v.IsInvalidated());
   node_module* mod = get_linked_module(*module_name_v);
 
   if (mod == nullptr) {
@@ -2750,6 +2786,8 @@ static void ProcessTitleSetter(Local<Name> property,
                                Local<Value> value,
                                const PropertyCallbackInfo<void>& info) {
   node::Utf8Value title(info.GetIsolate(), value);
+  if (title.IsInvalidated())
+    return;
   // TODO(piscisaureus): protect with a lock
   uv_set_process_title(*title);
 }
@@ -2763,12 +2801,14 @@ static void EnvGetter(Local<Name> property,
   }
 #ifdef __POSIX__
   node::Utf8Value key(isolate, property);
+  CHECK(!key.IsInvalidated());
   const char* val = getenv(*key);
   if (val) {
     return info.GetReturnValue().Set(String::NewFromUtf8(isolate, val));
   }
 #else  // _WIN32
   node::TwoByteValue key(isolate, property);
+  CHECK(!key.IsInvalidated());
   WCHAR buffer[32767];  // The maximum size allowed for environment variables.
   DWORD result = GetEnvironmentVariableW(reinterpret_cast<WCHAR*>(*key),
                                          buffer,
@@ -2791,11 +2831,19 @@ static void EnvSetter(Local<Name> property,
                       const PropertyCallbackInfo<Value>& info) {
 #ifdef __POSIX__
   node::Utf8Value key(info.GetIsolate(), property);
+  if (key.IsInvalidated())
+    return;
   node::Utf8Value val(info.GetIsolate(), value);
+  if (val.IsInvalidated())
+    return;
   setenv(*key, *val, 1);
 #else  // _WIN32
   node::TwoByteValue key(info.GetIsolate(), property);
+  if (key.IsInvalidated())
+    return;
   node::TwoByteValue val(info.GetIsolate(), value);
+  if (val.IsInvalidated())
+    return;
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
   // Environment variables that start with '=' are read-only.
   if (key_ptr[0] != L'=') {
@@ -2813,10 +2861,12 @@ static void EnvQuery(Local<Name> property,
   if (property->IsString()) {
 #ifdef __POSIX__
     node::Utf8Value key(info.GetIsolate(), property);
+    CHECK(!key.IsInvalidated());
     if (getenv(*key))
       rc = 0;
 #else  // _WIN32
     node::TwoByteValue key(info.GetIsolate(), property);
+    CHECK(!key.IsInvalidated());
     WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
     if (GetEnvironmentVariableW(key_ptr, nullptr, 0) > 0 ||
         GetLastError() == ERROR_SUCCESS) {
@@ -2840,9 +2890,11 @@ static void EnvDeleter(Local<Name> property,
   if (property->IsString()) {
 #ifdef __POSIX__
     node::Utf8Value key(info.GetIsolate(), property);
+    CHECK(!key.IsInvalidated());
     unsetenv(*key);
 #else
     node::TwoByteValue key(info.GetIsolate(), property);
+    CHECK(!key.IsInvalidated());
     WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
     SetEnvironmentVariableW(key_ptr, nullptr);
 #endif
@@ -3443,6 +3495,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
   node::Utf8Value message(args.GetIsolate(), args[0]);
+  CHECK(!message.IsInvalidated());
   PrintErrorString("%s\n", *message);
   fflush(stderr);
 }

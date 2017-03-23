@@ -401,6 +401,7 @@ static void GetVersion(const FunctionCallbackInfo<Value>& args) {
     CHECK_GE(args.Length(), 1);
     CHECK(args[0]->IsString());
     Utf8Value val(env->isolate(), args[0]);
+    CHECK(!val.IsInvalidated());
     UErrorCode status = U_ZERO_ERROR;
     char buf[U_MAX_VERSION_STRING_LENGTH] = "";  // Possible output buffer.
     const char* versionString = GetVersion(*val, buf, &status);
@@ -513,6 +514,7 @@ static void ToUnicode(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
   Utf8Value val(env->isolate(), args[0]);
+  CHECK(!val.IsInvalidated());
   // optional arg
   bool lenient = args[1]->BooleanValue(env->context()).FromJust();
 
@@ -535,6 +537,7 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
   Utf8Value val(env->isolate(), args[0]);
+  CHECK(!val.IsInvalidated());
   // optional arg
   bool lenient = args[1]->BooleanValue(env->context()).FromJust();
 
@@ -609,6 +612,8 @@ static void GetStringWidth(const FunctionCallbackInfo<Value>& args) {
   }
 
   TwoByteValue value(env->isolate(), args[0]);
+  if (value.IsInvalidated())
+    return;
   // reinterpret_cast is required by windows to compile
   UChar* str = reinterpret_cast<UChar*>(*value);
   static_assert(sizeof(*str) == sizeof(**value),

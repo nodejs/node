@@ -127,7 +127,8 @@ void Environment::PrintSyncTrace() const {
     const int column = stack_frame->GetColumn();
 
     if (stack_frame->IsEval()) {
-      if (stack_frame->GetScriptId() == Message::kNoScriptIdInfo) {
+      if (script_name.IsInvalidated() ||
+          stack_frame->GetScriptId() == Message::kNoScriptIdInfo) {
         fprintf(stderr, "    at [eval]:%i:%i\n", line_number, column);
       } else {
         fprintf(stderr,
@@ -139,13 +140,16 @@ void Environment::PrintSyncTrace() const {
       break;
     }
 
-    if (fn_name_s.length() == 0) {
-      fprintf(stderr, "    at %s:%i:%i\n", *script_name, line_number, column);
+    if (fn_name_s.IsInvalidated() || fn_name_s.length() == 0) {
+      fprintf(stderr,
+              "    at %s:%i:%i\n",
+              script_name.IsInvalidated() ? "<anonymous>" : *script_name,
+              line_number, column);
     } else {
       fprintf(stderr,
               "    at %s (%s:%i:%i)\n",
               *fn_name_s,
-              *script_name,
+              script_name.IsInvalidated() ? "<anonymous>" : *script_name,
               line_number,
               column);
     }
