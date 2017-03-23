@@ -546,8 +546,12 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
     for (int i = 0; i < sk_X509_num(extra_certs); i++) {
       X509* ca = sk_X509_value(extra_certs, i);
 
+#ifdef LIBRESSL_VERSION_NUMBER
+      r = SSL_CTX_add_extra_chain_cert(ctx, ca);
+#else
       // NOTE: Increments reference count on `ca`
       r = SSL_CTX_add1_chain_cert(ctx, ca);
+#endif  // LIBRESSL_VERSION_NUMBER
 
       if (!r) {
         ret = 0;
@@ -703,7 +707,7 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)) || defined(LIBRESSL_VERSION_NUMBER)
 // This section contains OpenSSL 1.1.0 functions reimplemented for OpenSSL
 // 1.0.2 so that the following code can be written without lots of #if lines.
 
@@ -716,7 +720,7 @@ static int X509_up_ref(X509* cert) {
   CRYPTO_add(&cert->references, 1, CRYPTO_LOCK_X509);
   return 1;
 }
-#endif  // OPENSSL_VERSION_NUMBER < 0x10100000L && !OPENSSL_IS_BORINGSSL
+#endif  // (OPENSSL_VERSION_NUMBER < 0x10100000L && !OPENSSL_IS_BORINGSSL) || defined(LIBRESSL_VERSION_NUMBER)
 
 
 static X509_STORE* NewRootCertStore() {
@@ -1178,7 +1182,7 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
 
 void SecureContext::SetFreeListLength(const FunctionCallbackInfo<Value>& args) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L && !defined(OPENSSL_IS_BORINGSSL) && !defined(LIBRESSL_VERSION_NUMBER)
   // |freelist_max_len| was removed in OpenSSL 1.1.0. In that version OpenSSL
   // mallocs and frees buffers directly, without the use of a freelist.
   SecureContext* wrap;
@@ -1955,6 +1959,10 @@ void SSLWrap<Base>::RequestOCSP(
 template <class Base>
 void SSLWrap<Base>::GetEphemeralKeyInfo(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
+#ifdef LIBRESSL_VERSION_NUMBER
+  Environment* env = Environment::GetCurrent(args);
+  env->ThrowError("getEphemeralKeyInfo() not supported when using LibreSSL");
+#else
   Base* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.Holder());
   Environment* env = Environment::GetCurrent(args);
@@ -1993,7 +2001,8 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
     EVP_PKEY_free(key);
   }
 
-  return args.GetReturnValue().Set(info);
+  args.GetReturnValue().Set(info);
+#endif  // LIBRESSL_VERSION_NUMBER
 }
 
 
@@ -2473,8 +2482,9 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
     w->sni_context_.Reset();
     w->sni_context_.Reset(env->isolate(), ctx);
 
-    int rv;
+    int rv = 1;
 
+#ifndef LIBRESSL_VERSION_NUMBER
     // NOTE: reference count is not increased by this API methods
     X509* x509 = SSL_CTX_get0_certificate(sc->ctx_);
     EVP_PKEY* pkey = SSL_CTX_get0_privatekey(sc->ctx_);
@@ -2487,6 +2497,8 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
       rv = SSL_use_PrivateKey(w->ssl_, pkey);
     if (rv && chain != nullptr)
       rv = SSL_set1_chain(w->ssl_, chain);
+#endif  // LIBRESSL_VERSION_NUMBER
+
     if (rv)
       rv = w->SetCACerts(sc);
     if (!rv) {
@@ -2550,9 +2562,11 @@ void SSLWrap<Base>::SetSNIContext(SecureContext* sc) {
 
 template <class Base>
 int SSLWrap<Base>::SetCACerts(SecureContext* sc) {
+#ifndef LIBRESSL_VERSION_NUMBER
   int err = SSL_set1_verify_cert_store(ssl_, SSL_CTX_get_cert_store(sc->ctx_));
   if (err != 1)
     return err;
+#endif  // LIBRESSL_VERSION_NUMBER
 
   STACK_OF(X509_NAME)* list = SSL_dup_CA_list(
       SSL_CTX_get_client_CA_list(sc->ctx_));
@@ -2865,7 +2879,7 @@ inline int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   SSL* ssl = static_cast<SSL*>(
       X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx()));
 
-  if (SSL_is_server(ssl))
+  if (ssl->server)
     return 1;
 
   // Client needs to check if the server cert is listed in the
@@ -2948,7 +2962,9 @@ void Connection::New(const FunctionCallbackInfo<Value>& args) {
 
   InitNPN(sc);
 
+#ifndef LIBRESSL_VERSION_NUMBER
   SSL_set_cert_cb(conn->ssl_, SSLWrap<Connection>::SSLCertCallback, conn);
+#endif  // LIBRESSL_VERSION_NUMBER
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   if (is_server) {
@@ -5996,11 +6012,11 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 #endif  // !OPENSSL_NO_ENGINE
 
 void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
-  if (FIPS_mode()) {
-    args.GetReturnValue().Set(1);
-  } else {
-    args.GetReturnValue().Set(0);
-  }
+#ifdef NODE_FIPS_MODE
+  args.GetReturnValue().Set(FIPS_mode());
+#else
+  args.GetReturnValue().Set(0);
+#endif
 }
 
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {

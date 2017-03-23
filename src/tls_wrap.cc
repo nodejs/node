@@ -163,7 +163,9 @@ void TLSWrap::InitSSL() {
 
   InitNPN(sc_);
 
+#ifndef LIBRESSL_VERSION_NUMBER
   SSL_set_cert_cb(ssl_, SSLWrap<TLSWrap>::SSLCertCallback, this);
+#endif  // LIBRESSL_VERSION_NUMBER
 
   if (is_server()) {
     SSL_set_accept_state(ssl_);

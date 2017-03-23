@@ -6,8 +6,15 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
   process.exit();
 }
-const tls = require('tls');
 
+const isLibreSSL = /LibreSSL$/.test(process.versions.openssl);
+
+if (isLibreSSL) {
+  common.skip('LibreSSL does not support DH key size limiting');
+  process.exit();
+}
+
+const tls = require('tls');
 const fs = require('fs');
 const key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
 const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
