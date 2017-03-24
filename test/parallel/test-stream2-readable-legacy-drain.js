@@ -33,7 +33,7 @@ r._read = function(n) {
   return r.push(++reads === N ? null : Buffer.allocUnsafe(1));
 };
 
-r.on('end', common.mustCall(function() {}));
+r.on('end', common.mustCall());
 
 const w = new Stream();
 w.writable = true;
@@ -50,7 +50,7 @@ function drain() {
   w.emit('drain');
 }
 
-w.end = common.mustCall(function() {});
+w.end = common.mustCall();
 
 // Just for kicks, let's mess with the drain count.
 // This verifies that even if it gets negative in the

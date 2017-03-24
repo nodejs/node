@@ -42,7 +42,7 @@ const server = tls.createServer({
     c._write('world!', null, function() {
       c.destroy();
     });
-    c._write(' gosh', null, function() {});
+    c._write(' gosh', null, common.noop);
   });
 
   server.close();

@@ -25,5 +25,5 @@ server.listen(0, () => {
     // close the connection without returning any data.
     common.fail('no data should be returned by the server');
   });
-  client.on('end', common.mustCall(() => {}));
+  client.on('end', common.mustCall());
 });

@@ -39,8 +39,7 @@ const options = {
   honorCipherOrder: true
 };
 
-const server = tls.createServer(options,
-                                common.mustCall(function(cleartextStream) {}));
+const server = tls.createServer(options, common.mustCall());
 
 server.listen(0, '127.0.0.1', common.mustCall(function() {
   const client = tls.connect({

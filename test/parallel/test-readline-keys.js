@@ -298,7 +298,7 @@ const runKeyIntervalTests = [
     { name: 'escape', sequence: '\x1b', meta: true },
     { name: 'escape', sequence: '\x1b', meta: true }
   ])
-].reverse().reduce((acc, fn) => fn(acc), () => {});
+].reverse().reduce((acc, fn) => fn(acc), common.noop);
 
 // run key interval tests one after another
 runKeyIntervalTests();

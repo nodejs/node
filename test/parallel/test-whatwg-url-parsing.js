@@ -23,7 +23,7 @@ const failureTests = tests.filter((test) => test.failure).concat([
   { input: null },
   { input: new Date() },
   { input: new RegExp() },
-  { input: () => {} }
+  { input: common.noop }
 ]);
 
 for (const test of failureTests) {

@@ -43,11 +43,11 @@ cat.stdout.on('data', function(chunk) {
   response += chunk;
 });
 
-cat.stdout.on('end', common.mustCall(function() {}));
+cat.stdout.on('end', common.mustCall());
 
 cat.stderr.on('data', common.mustNotCall());
 
-cat.stderr.on('end', common.mustCall(function() {}));
+cat.stderr.on('end', common.mustCall());
 
 cat.on('exit', common.mustCall(function(status) {
   assert.strictEqual(0, status);

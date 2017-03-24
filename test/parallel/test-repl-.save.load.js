@@ -98,7 +98,7 @@ putIn.write = function(data) {
   // make sure I get a failed to load message and not some crazy error
   assert.strictEqual(data, 'Failed to load:' + loadFile + '\n');
   // eat me to avoid work
-  putIn.write = function() {};
+  putIn.write = common.noop;
 };
 putIn.run(['.load ' + loadFile]);
 
@@ -107,7 +107,7 @@ loadFile = common.tmpDir;
 putIn.write = function(data) {
   assert.strictEqual(data, 'Failed to load:' + loadFile +
                      ' is not a valid file\n');
-  putIn.write = function() {};
+  putIn.write = common.noop;
 };
 putIn.run(['.load ' + loadFile]);
 
@@ -123,7 +123,7 @@ putIn.write = function(data) {
   // make sure I get a failed to save message and not some other error
   assert.strictEqual(data, 'Failed to save:' + invalidFileName + '\n');
   // reset to no-op
-  putIn.write = function() {};
+  putIn.write = common.noop;
 };
 
 // save it to a file

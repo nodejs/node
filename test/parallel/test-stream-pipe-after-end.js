@@ -63,11 +63,11 @@ const piper = new TestReadable();
 piper.read();
 
 setTimeout(common.mustCall(function() {
-  ender.on('end', common.mustCall(function() {}));
+  ender.on('end', common.mustCall());
   const c = ender.read();
   assert.strictEqual(c, null);
 
   const w = new TestWritable();
-  w.on('finish', common.mustCall(function() {}));
+  w.on('finish', common.mustCall());
   piper.pipe(w);
 }), 1);

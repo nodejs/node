@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const Buffer = require('buffer').Buffer;
@@ -278,7 +278,7 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
 const expectedError =
   /^TypeError: "val" argument must be string, number, Buffer or Uint8Array$/;
 assert.throws(() => {
-  b.includes(() => {});
+  b.includes(common.noop);
 }, expectedError);
 assert.throws(() => {
   b.includes({});

@@ -78,13 +78,13 @@ function parent() {
 
   wrap(s.stderr, process.stderr, 'SERVER 2>');
   wrap(s.stdout, process.stdout, 'SERVER 1>');
-  s.on('exit', common.mustCall(function(c) {}));
+  s.on('exit', common.mustCall(common.noop));
 
   s.stdout.once('data', common.mustCall(function() {
     c = spawn(node, [__filename, 'client']);
     wrap(c.stderr, process.stderr, 'CLIENT 2>');
     wrap(c.stdout, process.stdout, 'CLIENT 1>');
-    c.on('exit', common.mustCall(function(c) {}));
+    c.on('exit', common.mustCall(common.noop));
   }));
 
   function wrap(inp, out, w) {

@@ -19,7 +19,7 @@ assert.strictEqual(got, expected);
 
 function initRepl() {
   const input = new stream();
-  input.write = input.pause = input.resume = () => {};
+  input.write = input.pause = input.resume = common.noop;
   input.readable = true;
 
   const output = new stream();

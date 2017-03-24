@@ -61,7 +61,7 @@ test.read(0);
 function next() {
   // now let's make 'end' happen
   test.removeListener('end', thrower);
-  test.on('end', common.mustCall(function() {}));
+  test.on('end', common.mustCall());
 
   // one to get the last byte
   let r = test.read();

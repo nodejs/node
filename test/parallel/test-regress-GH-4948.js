@@ -1,7 +1,7 @@
 'use strict';
 // https://github.com/joyent/node/issues/4948
 
-require('../common');
+const common = require('../common');
 const http = require('http');
 
 let reqCount = 0;
@@ -22,10 +22,10 @@ const server = http.createServer(function(serverReq, serverRes) {
     serverRes.end();
 
     // required for test to fail
-    res.on('data', function(data) { });
+    res.on('data', common.noop);
 
   });
-  r.on('error', function(e) {});
+  r.on('error', common.noop);
   r.end();
 
   serverRes.write('some data');

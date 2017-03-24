@@ -27,7 +27,7 @@ if (process.argv[2] === 'child') {
   process.stdin.resume();
   process.stdin._handle.close();
   process.stdin._handle.unref();  // Should not segfault.
-  process.stdin.on('error', common.mustCall(function(err) {}));
+  process.stdin.on('error', common.mustCall());
   return;
 }
 

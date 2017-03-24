@@ -4,15 +4,15 @@ const assert = require('assert');
 
 const { Readable, Writable } = require('stream');
 
-const source = Readable({read: () => {}});
-const dest1 = Writable({write: () => {}});
-const dest2 = Writable({write: () => {}});
+const source = Readable({read: common.noop});
+const dest1 = Writable({write: common.noop});
+const dest2 = Writable({write: common.noop});
 
 source.pipe(dest1);
 source.pipe(dest2);
 
-dest1.on('unpipe', common.mustCall(() => {}));
-dest2.on('unpipe', common.mustCall(() => {}));
+dest1.on('unpipe', common.mustCall());
+dest2.on('unpipe', common.mustCall());
 
 assert.strictEqual(source._readableState.pipes[0], dest1);
 assert.strictEqual(source._readableState.pipes[1], dest2);

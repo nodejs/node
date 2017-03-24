@@ -46,7 +46,7 @@ server.on('listening', common.mustCall(() => {
               message_to_send.length,
               port,
               'localhost');
-  client.on('close', common.mustCall(() => {}));
+  client.on('close', common.mustCall());
 }));
-server.on('close', common.mustCall(() => {}));
+server.on('close', common.mustCall());
 server.bind(0);

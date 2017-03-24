@@ -781,9 +781,9 @@ if (typeof Symbol !== 'undefined') {
   const rejected = Promise.reject(3);
   assert.strictEqual(util.inspect(rejected), 'Promise { <rejected> 3 }');
   // squelch UnhandledPromiseRejection
-  rejected.catch(() => {});
+  rejected.catch(common.noop);
 
-  const pending = new Promise(() => {});
+  const pending = new Promise(common.noop);
   assert.strictEqual(util.inspect(pending), 'Promise { <pending> }');
 
   const promiseWithProperty = Promise.resolve('foo');
@@ -880,7 +880,7 @@ if (typeof Symbol !== 'undefined') {
                      'SetSubclass { 1, 2, 3 }');
   assert.strictEqual(util.inspect(new MapSubclass([['foo', 42]])),
                      'MapSubclass { \'foo\' => 42 }');
-  assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
+  assert.strictEqual(util.inspect(new PromiseSubclass(common.noop)),
                      'PromiseSubclass { <pending> }');
 }
 

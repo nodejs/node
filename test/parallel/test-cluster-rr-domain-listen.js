@@ -29,10 +29,10 @@ const domain = require('domain');
 
 if (cluster.isWorker) {
   const d = domain.create();
-  d.run(function() { });
+  d.run(common.noop);
 
   const http = require('http');
-  http.Server(function() { }).listen(common.PORT, '127.0.0.1');
+  http.Server(common.noop).listen(common.PORT, '127.0.0.1');
 
 } else if (cluster.isMaster) {
 

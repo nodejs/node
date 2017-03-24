@@ -38,7 +38,7 @@ if (cluster.isMaster) {
   worker.on('message', common.mustCall((msg) => {
     assert.strictEqual(msg, 'DONE');
   }));
-  worker.on('exit', common.mustCall(() => {}));
+  worker.on('exit', common.mustCall());
   return;
 }
 

@@ -159,7 +159,7 @@ pauseRes.pause();
 pauseRes.resume();
 
 let file7 = fs.createReadStream(rangeFile, {autoClose: false });
-file7.on('data', function() {});
+file7.on('data', common.noop);
 file7.on('end', function() {
   process.nextTick(function() {
     assert(!file7.closed);
@@ -182,13 +182,13 @@ function file7Next() {
 
 // Just to make sure autoClose won't close the stream because of error.
 const file8 = fs.createReadStream(null, {fd: 13337, autoClose: false });
-file8.on('data', function() {});
-file8.on('error', common.mustCall(function() {}));
+file8.on('data', common.noop);
+file8.on('error', common.mustCall());
 
 // Make sure stream is destroyed when file does not exist.
 const file9 = fs.createReadStream('/path/to/file/that/does/not/exist');
-file9.on('data', function() {});
-file9.on('error', common.mustCall(function() {}));
+file9.on('data', common.noop);
+file9.on('error', common.mustCall());
 
 process.on('exit', function() {
   assert(file7.closed);

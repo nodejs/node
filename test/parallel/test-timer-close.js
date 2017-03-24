@@ -7,5 +7,5 @@ const common = require('../common');
 const Timer = process.binding('timer_wrap').Timer;
 const t = new Timer();
 
-t.close(common.mustCall(function() {}));
+t.close(common.mustCall());
 t.close(common.mustNotCall());

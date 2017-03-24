@@ -52,7 +52,7 @@ test(function serverTimeout(cb) {
     // just do nothing, we should get a timeout event.
   });
   server.listen(common.mustCall(function() {
-    http.get({ port: server.address().port }).on('error', function() {});
+    http.get({ port: server.address().port }).on('error', common.noop);
   }));
   const s = server.setTimeout(50, function(socket) {
     caughtTimeout = true;
@@ -81,7 +81,7 @@ test(function serverRequestTimeout(cb) {
   server.listen(common.mustCall(function() {
     const port = server.address().port;
     const req = http.request({ port: port, method: 'POST' });
-    req.on('error', function() {});
+    req.on('error', common.noop);
     req.write('Hello');
     // req is in progress
   }));
@@ -104,7 +104,7 @@ test(function serverResponseTimeout(cb) {
   });
   server.listen(common.mustCall(function() {
     const port = server.address().port;
-    http.get({ port: port }).on('error', function() {});
+    http.get({ port: port }).on('error', common.noop);
   }));
 });
 
@@ -132,7 +132,7 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
   });
   server.listen(common.mustCall(function() {
     const port = server.address().port;
-    http.get({ port: port }).on('error', function() {});
+    http.get({ port: port }).on('error', common.noop);
   }));
 });
 

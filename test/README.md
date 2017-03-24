@@ -324,7 +324,7 @@ Gets IP of localhost
 
 Array of IPV6 hosts.
 
-### mustCall(fn[, expected])
+### mustCall([fn][, expected])
 * fn [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
 * expected [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
 * return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
@@ -333,12 +333,26 @@ Returns a function that calls `fn`. If the returned function has not been called
 exactly `expected` number of times when the test is complete, then the test will
 fail.
 
+If `fn` is not provided, `common.noop` will be used.
+
 ### nodeProcessAborted(exitCode, signal)
 * `exitCode` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type)
 * `signal` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
 
 Returns `true` if the exit code `exitCode` and/or signal name `signal` represent the exit code and/or signal name of a node process that aborted, `false` otherwise.
+
+### noop
+
+A non-op `Function` that can be used for a variety of scenarios.
+
+For instance,
+
+```js
+const common = require('../common');
+
+someAsyncAPI('foo', common.mustCall(common.noop));
+```
 
 ### opensslCli
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)

@@ -43,6 +43,6 @@ server.listen(0, common.mustCall(function() {
       });
     }));
 
-    res.on('end', common.mustCall(function() {}));
+    res.on('end', common.mustCall());
   }));
 }));

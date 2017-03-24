@@ -49,7 +49,7 @@ server.listen(0, common.mustCall(function() {
     path: 'google.com:443'
   }, common.mustNotCall());
 
-  req.on('close', common.mustCall(() => {}));
+  req.on('close', common.mustCall());
 
   req.on('connect', common.mustCall((res, socket, firstBodyChunk) => {
     // Make sure this request got removed from the pool.
