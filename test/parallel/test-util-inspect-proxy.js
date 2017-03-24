@@ -31,7 +31,8 @@ assert.strictEqual(processUtil.getProxyDetails({}), undefined);
 // and the get function on the handler object defined above
 // is actually invoked.
 assert.throws(
-  () => util.inspect(proxyObj)
+  () => util.inspect(proxyObj),
+  /^Error: Getter should not be called$/
 );
 
 // Yo dawg, I heard you liked Proxy so I put a Proxy
