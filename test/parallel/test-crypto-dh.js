@@ -120,7 +120,7 @@ const modp2buf = Buffer.from([
   const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
       .toString('hex');
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
-                               .toString('hex');
+      .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
   assert.strictEqual(modp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
   assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
@@ -133,7 +133,7 @@ const modp2buf = Buffer.from([
   const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
       .toString('hex');
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
-                                   .toString('hex');
+      .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
   assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
@@ -147,7 +147,7 @@ const modp2buf = Buffer.from([
   const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
       .toString('hex');
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
-                                   .toString('hex');
+      .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
   assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
@@ -159,7 +159,7 @@ const modp2buf = Buffer.from([
   const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
       .toString('hex');
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
-                                 .toString('hex');
+      .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
   assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
@@ -171,7 +171,7 @@ const modp2buf = Buffer.from([
   const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
       .toString('hex');
   const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
-                                 .toString('hex');
+      .toString('hex');
   assert.strictEqual(modp2Secret, exmodp2Secret);
   assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
