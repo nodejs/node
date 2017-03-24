@@ -59,6 +59,7 @@ ipch/
 *.VC.opendb
 .vs/
 .vscode/
+/Set_VS*.bat
 
 /config.mk
 /config.gypi

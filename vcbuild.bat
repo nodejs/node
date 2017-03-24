@@ -51,6 +51,7 @@ if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="vc2015"        set target_env=vc2015&goto arg-ok
+if /i "%1"=="vc2017"        set target_env=vc2017&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set "sign="&echo Note: vcbuild no longer signs by default. "nosign" is redundant.&goto arg-ok
@@ -140,7 +141,36 @@ if defined noprojgen if defined nobuild if not defined sign if not defined msi g
 
 @rem Set environment for msbuild
 
+@rem Look for Visual Studio 2017
+:vc-set-2017
+if defined target_env if "%target_env%" NEQ "vc2017" goto vc-set-2015
+echo Looking for Visual Studio 2017
+del /F /Q Set_VS2017.bat > nul 2> nul
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -ExecutionPolicy Unrestricted -Command ^
+  "&{Add-Type -Path .\tools\Find-VS2017.cs; [VisualStudioConfiguration.Main]::Query()}" 2> nul
+if not exist Set_VS2017.bat goto vc-set-2015
+call Set_VS2017.bat
+if not defined VS2017_INSTALL goto vc-set-2015
+if not defined VS2017_SDK goto vc-set-2015
+echo Found Visual Studio 2017
+if defined msi (
+  echo Cannot build the MSI with Visual Studio 2017 - it is not yet supported by WiX
+  goto vc-set-2015
+)
+if "%target_arch%"=="x86" set "VSARCH=-arch=x86"
+if "%target_arch%"=="x64" set "VSARCH=-arch=amd64"
+if "%VCVARS_VER%" NEQ "150" (
+  call "%VS2017_INSTALL%\Common7\Tools\VsDevCmd.bat" %VSARCH% /no_logo
+  set VCVARS_VER=150
+)
+if not defined VCINSTALLDIR goto vc-set-2015
+set GYP_MSVS_VERSION=2017
+set PLATFORM_TOOLSET=v141
+goto msbuild-found
+
 @rem Look for Visual Studio 2015
+:vc-set-2015
+if defined target_env if "%target_env%" NEQ "vc2015" goto msbuild-not-found
 echo Looking for Visual Studio 2015
 if not defined VS140COMNTOOLS goto msbuild-not-found
 if not exist "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
@@ -417,7 +447,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vc2015] [download-all] [enable-vtune]
+echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vc2015/vc2017] [download-all] [enable-vtune]
 echo Examples:
 echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
