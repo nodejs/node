@@ -436,6 +436,7 @@ Local<Object> StreamBase::GetObject() {
   return GetAsyncWrap()->object();
 }
 
+StreamBase::~StreamBase() = default;
 
 int StreamResource::DoTryWrite(uv_buf_t** bufs, size_t* count) {
   // No TryWrite by default
@@ -451,5 +452,7 @@ const char* StreamResource::Error() const {
 void StreamResource::ClearError() {
   // No-op
 }
+
+StreamResource::~StreamResource() = default;
 
 }  // namespace node

@@ -149,7 +149,7 @@ class StreamResource {
 
   StreamResource() : bytes_read_(0) {
   }
-  virtual ~StreamResource() = default;
+  virtual ~StreamResource();
 
   virtual int DoShutdown(ShutdownWrap* req_wrap) = 0;
   virtual int DoTryWrite(uv_buf_t** bufs, size_t* count);
@@ -238,7 +238,7 @@ class StreamBase : public StreamResource {
   explicit StreamBase(Environment* env) : env_(env), consumed_(false) {
   }
 
-  virtual ~StreamBase() = default;
+  virtual ~StreamBase();
 
   // One of these must be implemented
   virtual AsyncWrap* GetAsyncWrap();
