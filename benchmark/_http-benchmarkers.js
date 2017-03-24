@@ -88,9 +88,11 @@ exports.run = function(options, callback) {
     benchmarker: exports.default_http_benchmarker
   }, options);
   if (!options.benchmarker) {
-    callback(new Error('Could not locate any of the required http ' +
-                       'benchmarkers. Check benchmark/README.md for further ' +
-                       'instructions.'));
+    callback(new Error('Could not locate required http benchmarker. See ' +
+                       'https://github.com/nodejs/node/blob/master/doc/' +
+                       'guides/writing-and-running-benchmarks.md##http-' +
+                       'benchmark-requirements ' +
+                       'for further instructions.'));
     return;
   }
   const benchmarker = benchmarkers[options.benchmarker];
