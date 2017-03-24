@@ -1,137 +1,93 @@
 #include <node_api.h>
 #include <string.h>
+#include "../common.h"
 
-void Test(napi_env env, napi_callback_info info) {
-  napi_status status;
-
-  size_t argc;
-  status = napi_get_cb_args_length(env, info, &argc);
-  if (status != napi_ok) return;
-
-  if (argc < 2) {
-    napi_throw_type_error(env, "Wrong number of arguments");
-    return;
-  }
-
+napi_value Test(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
   napi_value args[2];
-  status = napi_get_cb_args(env, info, args, 2);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NAPI_ASSERT(env, argc >= 2, "Wrong number of arguments");
 
   napi_valuetype valuetype0;
-  status = napi_typeof(env, args[0], &valuetype0);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
 
-  if (valuetype0 != napi_object) {
-    napi_throw_type_error(
-        env, "Wrong type of argments. Expects an array as first argument.");
-    return;
-  }
+  NAPI_ASSERT(env, valuetype0 == napi_object,
+    "Wrong type of arguments. Expects an array as first argument.");
 
   napi_valuetype valuetype1;
-  status = napi_typeof(env, args[1], &valuetype1);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_typeof(env, args[1], &valuetype1));
 
-  if (valuetype1 != napi_number) {
-    napi_throw_type_error(
-        env, "Wrong type of argments. Expects an integer as second argument.");
-    return;
-  }
+  NAPI_ASSERT(env, valuetype1 == napi_number,
+    "Wrong type of arguments. Expects an integer as second argument.");
 
   napi_value array = args[0];
-  int index;
-  status = napi_get_value_int32(env, args[1], &index);
-  if (status != napi_ok) return;
+  int32_t index;
+  NAPI_CALL(env, napi_get_value_int32(env, args[1], &index));
+
+  NAPI_ASSERT(env, index >= 0, "Invalid index. Expects a positive integer.");
 
   bool isarray;
-  status = napi_is_array(env, array, &isarray);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_is_array(env, array, &isarray));
 
-  if (isarray) {
-    uint32_t size;
-    status = napi_get_array_length(env, array, &size);
-    if (status != napi_ok) return;
-
-    if (index >= (int)(size)) {
-      napi_value str;
-      status = napi_create_string_utf8(env, "Index out of bound!", -1, &str);
-      if (status != napi_ok) return;
-
-      status = napi_set_return_value(env, info, str);
-      if (status != napi_ok) return;
-    } else if (index < 0) {
-      napi_throw_type_error(env, "Invalid index. Expects a positive integer.");
-    } else {
-      napi_value ret;
-      status = napi_get_element(env, array, index, &ret);
-      if (status != napi_ok) return;
-
-      status = napi_set_return_value(env, info, ret);
-      if (status != napi_ok) return;
-    }
-  }
-}
-
-void New(napi_env env, napi_callback_info info) {
-  napi_status status;
-
-  size_t argc;
-  status = napi_get_cb_args_length(env, info, &argc);
-  if (status != napi_ok) return;
-
-  if (argc < 1) {
-    napi_throw_type_error(env, "Wrong number of arguments");
-    return;
+  if (!isarray) {
+    return NULL;
   }
 
-  napi_value args[1];
-  status = napi_get_cb_args(env, info, args, 1);
-  if (status != napi_ok) return;
+  uint32_t length;
+  NAPI_CALL(env, napi_get_array_length(env, array, &length));
 
-  napi_valuetype valuetype;
-  status = napi_typeof(env, args[0], &valuetype);
-  if (status != napi_ok) return;
+  if ((uint32_t)index >= length) {
+    napi_value str;
+    const char* str_val = "Index out of bound!";
+    size_t str_len = strlen(str_val);
+    NAPI_CALL(env, napi_create_string_utf8(env, str_val, str_len, &str));
 
-  if (valuetype != napi_object) {
-    napi_throw_type_error(
-        env, "Wrong type of argments. Expects an array as first argument.");
-    return;
+    return str;
   }
 
   napi_value ret;
-  status = napi_create_array(env, &ret);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_get_element(env, array, index, &ret));
+
+  return ret;
+}
+
+napi_value New(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value args[1];
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NAPI_ASSERT(env, argc >= 1, "Wrong number of arguments");
+
+  napi_valuetype valuetype0;
+  NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
+
+  NAPI_ASSERT(env, valuetype0 == napi_object,
+    "Wrong type of arguments. Expects an array as first argument.");
+
+  napi_value ret;
+  NAPI_CALL(env, napi_create_array(env, &ret));
 
   uint32_t i, length;
-  status = napi_get_array_length(env, args[0], &length);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_get_array_length(env, args[0], &length));
 
   for (i = 0; i < length; i++) {
     napi_value e;
-    status = napi_get_element(env, args[0], i, &e);
-    if (status != napi_ok) return;
-
-    status = napi_set_element(env, ret, i, e);
-    if (status != napi_ok) return;
+    NAPI_CALL(env, napi_get_element(env, args[0], i, &e));
+    NAPI_CALL(env, napi_set_element(env, ret, i, e));
   }
 
-  status = napi_set_return_value(env, info, ret);
-  if (status != napi_ok) return;
+  return ret;
 }
 
-#define DECLARE_NAPI_METHOD(name, func)                          \
-  { name, func, 0, 0, 0, napi_default, 0 }
-
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
-  napi_status status;
-
   napi_property_descriptor descriptors[] = {
-      DECLARE_NAPI_METHOD("Test", Test),
-      DECLARE_NAPI_METHOD("New", New),
+    DECLARE_NAPI_PROPERTY("Test", Test),
+    DECLARE_NAPI_PROPERTY("New", New),
   };
 
-  status = napi_define_properties(
-      env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors);
-  if (status != napi_ok) return;
+  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
+    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
 }
 
 NAPI_MODULE(addon, Init)

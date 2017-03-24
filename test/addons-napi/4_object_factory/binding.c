@@ -1,31 +1,23 @@
 #include <node_api.h>
+#include "../common.h"
 
-void CreateObject(napi_env env, napi_callback_info info) {
-  napi_status status;
-
+napi_value CreateObject(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
   napi_value args[1];
-  status = napi_get_cb_args(env, info, args, 1);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
 
   napi_value obj;
-  status = napi_create_object(env, &obj);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_create_object(env, &obj));
 
-  status = napi_set_named_property(env, obj, "msg", args[0]);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_set_named_property(env, obj, "msg", args[0]));
 
-  status = napi_set_return_value(env, info, obj);
-  if (status != napi_ok) return;
+  return obj;
 }
 
-#define DECLARE_NAPI_METHOD(name, func)                          \
-  { name, func, 0, 0, 0, napi_default, 0 }
-
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
-  napi_status status;
-  napi_property_descriptor desc = DECLARE_NAPI_METHOD("exports", CreateObject);
-  status = napi_define_properties(env, module, 1, &desc);
-  if (status != napi_ok) return;
+  napi_property_descriptor desc =
+    DECLARE_NAPI_PROPERTY("exports", CreateObject);
+  NAPI_CALL_RETURN_VOID(env, napi_define_properties(env, module, 1, &desc));
 }
 
 NAPI_MODULE(addon, Init)

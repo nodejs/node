@@ -1,47 +1,37 @@
 #include <node_api.h>
+#include "../common.h"
 
-#define DECLARE_NAPI_METHOD(func) \
-  { #func, func, 0, 0, 0, napi_default, 0 }
-
-void createNapiError(napi_env env, napi_callback_info info) {
-  napi_status status;
+napi_value createNapiError(napi_env env, napi_callback_info info) {
   napi_value value;
+  NAPI_CALL(env, napi_create_string_utf8(env, "xyz", 3, &value));
+
   double double_value;
+  napi_status status = napi_get_value_double(env, value, &double_value);
 
-  status = napi_create_string_utf8(env, "xyz", 3, &value);
-  if (status != napi_ok) return;
+  NAPI_ASSERT(env, status != napi_ok, "Failed to produce error condition");
 
-  status = napi_get_value_double(env, value, &double_value);
-  if (status == napi_ok) {
-    napi_throw_error(env, "Failed to produce error condition");
-  }
+  return nullptr;
 }
 
-void testNapiErrorCleanup(napi_env env, napi_callback_info info) {
-  napi_status status;
+napi_value testNapiErrorCleanup(napi_env env, napi_callback_info info) {
   const napi_extended_error_info *error_info = 0;
+  NAPI_CALL(env, napi_get_last_error_info(env, &error_info));
+
   napi_value result;
+  bool is_ok = error_info->error_code == napi_ok;
+  NAPI_CALL(env, napi_get_boolean(env, is_ok, &result));
 
-  status = napi_get_last_error_info(env, &error_info);
-  if (status != napi_ok) return;
-
-  status = napi_get_boolean(env, (error_info->error_code == napi_ok), &result);
-  if (status != napi_ok) return;
-
-  napi_set_return_value(env, info, result);
+  return result;
 }
 
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
-  napi_status status;
-
   napi_property_descriptor descriptors[] = {
-      DECLARE_NAPI_METHOD(createNapiError),
-      DECLARE_NAPI_METHOD(testNapiErrorCleanup)
+    DECLARE_NAPI_PROPERTY("createNapiError", createNapiError),
+    DECLARE_NAPI_PROPERTY("testNapiErrorCleanup", testNapiErrorCleanup),
   };
 
-  status = napi_define_properties(
-    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors);
-  if (status != napi_ok) return;
+  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
+    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
 }
 
 NAPI_MODULE(addon, Init)
