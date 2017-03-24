@@ -298,29 +298,12 @@ NAPI_EXTERN napi_status napi_get_cb_info(
     size_t* argc,      // [in-out] Specifies the size of the provided argv array
                        // and receives the actual count of args.
     napi_value* argv,  // [out] Array of values
-    napi_value* thisArg,  // [out] Receives the JS 'this' arg for the call
-    void** data);         // [out] Receives the data pointer for the callback.
+    napi_value* this_arg,  // [out] Receives the JS 'this' arg for the call
+    void** data);          // [out] Receives the data pointer for the callback.
 
-NAPI_EXTERN napi_status napi_get_cb_args_length(napi_env env,
-                                                napi_callback_info cbinfo,
-                                                size_t* result);
-NAPI_EXTERN napi_status napi_get_cb_args(napi_env env,
-                                         napi_callback_info cbinfo,
-                                         napi_value* buf,
-                                         size_t bufsize);
-NAPI_EXTERN napi_status napi_get_cb_this(napi_env env,
-                                         napi_callback_info cbinfo,
-                                         napi_value* result);
-
-NAPI_EXTERN napi_status napi_get_cb_data(napi_env env,
-                                         napi_callback_info cbinfo,
-                                         void** result);
 NAPI_EXTERN napi_status napi_is_construct_call(napi_env env,
                                                napi_callback_info cbinfo,
                                                bool* result);
-NAPI_EXTERN napi_status napi_set_return_value(napi_env env,
-                                              napi_callback_info cbinfo,
-                                              napi_value value);
 NAPI_EXTERN napi_status
 napi_define_class(napi_env env,
                   const char* utf8name,
