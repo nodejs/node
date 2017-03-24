@@ -141,7 +141,7 @@ const modp2buf = Buffer.from([
 {
   // Ensure specific generator (string with encoding) works as expected,
   // with a Uint8Array as the first argument to createDiffieHellman().
-  const exmodp2 = crypto.createDiffieHellman(new Uint8Array([...modp2buf]),
+  const exmodp2 = crypto.createDiffieHellman(new Uint8Array(modp2buf),
                                              '02', 'hex');
   exmodp2.generateKeys();
   const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
