@@ -310,7 +310,6 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "addCRL", SecureContext::AddCRL);
   env->SetProtoMethod(t, "addRootCerts", SecureContext::AddRootCerts);
   env->SetProtoMethod(t, "setCiphers", SecureContext::SetCiphers);
-  env->SetProtoMethod(t, "hasEC", SecureContext::HasEC);
 #if !defined(OPENSSL_NO_ECDH)
   env->SetProtoMethod(t, "setECDHCurve", SecureContext::SetECDHCurve);
 #endif
@@ -899,15 +898,6 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
 
   const node::Utf8Value ciphers(args.GetIsolate(), args[0]);
   SSL_CTX_set_cipher_list(sc->ctx_, *ciphers);
-}
-
-
-void SecureContext::HasEC(const FunctionCallbackInfo<Value>& args) {
-#if defined(OPENSSL_NO_EC)
-  args.GetReturnValue().Set(false);
-#else
-  args.GetReturnValue().Set(true);
-#endif
 }
 
 
@@ -6228,7 +6218,6 @@ void InitCrypto(Local<Object> target,
   env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
   env->SetMethod(target, "getCiphers", GetCiphers);
   env->SetMethod(target, "getHashes", GetHashes);
-  env->SetMethod(target, "hasEC", SecureContext::HasEC);
 #if !defined(OPENSSL_NO_EC)
   env->SetMethod(target, "getCurves", GetCurves);
 #endif

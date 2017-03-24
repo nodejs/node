@@ -216,7 +216,7 @@ Object.defineProperty(exports, 'hasFipsCrypto', {
 
 Object.defineProperty(exports, 'hasCryptoEC', {
   get: function() {
-    return exports.hasCrypto && require('crypto').hasEC();
+    return process.binding('config').openssl_no_ec ? false : true;
   }
 });
 

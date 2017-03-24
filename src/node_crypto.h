@@ -102,7 +102,6 @@ class SecureContext : public BaseObject {
   }
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
-  static void HasEC(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   SSL_CTX* ctx_;
   X509* cert_;
