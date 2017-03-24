@@ -43,7 +43,7 @@ if (typeof process.argv[2] === 'string') {
   d.on('error', common.mustNotCall());
   d.run(() => {
     // Using randomBytes because timers are not yet supported.
-    crypto.randomBytes(0, () => { });
+    crypto.randomBytes(0, common.noop);
   });
 
 } else {

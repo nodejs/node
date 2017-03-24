@@ -11,7 +11,7 @@ if (cluster.isWorker) {
   const server = net.createServer(function(socket) {
     // Wait for any data, then close connection
     socket.write('.');
-    socket.on('data', function discard() {});
+    socket.on('data', common.noop);
   }).listen(common.PORT, common.localhostIPv4);
 
   server.once('close', function() {
@@ -20,7 +20,7 @@ if (cluster.isWorker) {
 
   // Although not typical, the worker process can exit before the disconnect
   // event fires. Use this to keep the process open until the event has fired.
-  const keepOpen = setInterval(function() {}, 9999);
+  const keepOpen = setInterval(common.noop, 9999);
 
   // Check worker events and properties
   process.once('disconnect', function() {

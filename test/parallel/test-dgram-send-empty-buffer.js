@@ -43,6 +43,6 @@ client.bind(0, common.mustCall(function() {
 
   const buf = Buffer.alloc(0);
   const interval = setInterval(function() {
-    client.send(buf, 0, 0, port, '127.0.0.1', common.mustCall(function() {}));
+    client.send(buf, 0, 0, port, '127.0.0.1', common.mustCall());
   }, 10);
 }));

@@ -103,7 +103,7 @@ if (cluster.isWorker) {
   }));
 
   //Kill process when worker is killed
-  cluster.on('exit', common.mustCall(() => {}));
+  cluster.on('exit', common.mustCall());
 
   //Create worker
   const worker = cluster.fork();

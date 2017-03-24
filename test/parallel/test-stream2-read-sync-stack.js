@@ -41,6 +41,6 @@ r.on('readable', function onReadable() {
   r.read(N * 2);
 });
 
-r.on('end', common.mustCall(function() {}));
+r.on('end', common.mustCall());
 
 r.read(0);

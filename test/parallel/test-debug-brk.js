@@ -3,7 +3,7 @@
 const common = require('../common');
 const spawn = require('child_process').spawn;
 
-let run = () => {};
+let run = common.noop;
 function test(extraArgs, stdoutPattern) {
   const next = run;
   run = () => {

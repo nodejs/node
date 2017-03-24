@@ -69,7 +69,7 @@ test(function serverTimeout(cb) {
     https.get({
       port: this.address().port,
       rejectUnauthorized: false
-    }).on('error', function() {});
+    }).on('error', common.noop);
   }));
 });
 
@@ -90,7 +90,7 @@ test(function serverRequestTimeout(cb) {
       method: 'POST',
       rejectUnauthorized: false
     });
-    req.on('error', function() {});
+    req.on('error', common.noop);
     req.write('Hello');
     // req is in progress
   });
@@ -111,7 +111,7 @@ test(function serverResponseTimeout(cb) {
     https.get({
       port: this.address().port,
       rejectUnauthorized: false
-    }).on('error', function() {});
+    }).on('error', common.noop);
   });
 });
 
@@ -119,7 +119,7 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
   function handler(req, res) {
     // just do nothing, we should get a timeout event.
     req.setTimeout(50, common.mustNotCall());
-    res.on('timeout', common.mustCall(function(socket) {}));
+    res.on('timeout', common.mustCall());
   }
   const server = https.createServer(serverOptions, common.mustCall(handler));
   server.on('timeout', function(socket) {
@@ -131,7 +131,7 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
     https.get({
       port: this.address().port,
       rejectUnauthorized: false
-    }).on('error', function() {});
+    }).on('error', common.noop);
   });
 });
 

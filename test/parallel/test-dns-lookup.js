@@ -24,7 +24,7 @@ assert.throws(() => {
     hints: 100,
     family: 0,
     all: false
-  }, () => {});
+  }, common.noop);
 }, /^TypeError: Invalid argument: hints must use valid flags$/);
 
 assert.throws(() => {
@@ -32,7 +32,7 @@ assert.throws(() => {
     hints: 0,
     family: 20,
     all: false
-  }, () => {});
+  }, common.noop);
 }, /^TypeError: Invalid argument: family must be 4 or 6$/);
 
 assert.doesNotThrow(() => {

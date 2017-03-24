@@ -20,7 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -53,7 +54,7 @@ const server = net.createServer(function(socket) {
   });
 
   for (let i = 0; i < N; ++i) {
-    socket.write(buf, function() { });
+    socket.write(buf, common.noop);
   }
   socket.end();
 

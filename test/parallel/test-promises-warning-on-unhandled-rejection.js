@@ -26,4 +26,4 @@ process.on('warning', common.mustCall((warning) => {
 }, 3));
 
 const p = Promise.reject('This was rejected');
-setImmediate(common.mustCall(() => p.catch(() => {})));
+setImmediate(common.mustCall(() => p.catch(common.noop)));

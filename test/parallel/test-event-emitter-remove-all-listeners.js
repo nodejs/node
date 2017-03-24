@@ -36,28 +36,26 @@ function expect(expected) {
   return common.mustCall(listener, expected.length);
 }
 
-function listener() {}
-
 {
   const ee = new events.EventEmitter();
-  ee.on('foo', listener);
-  ee.on('bar', listener);
-  ee.on('baz', listener);
-  ee.on('baz', listener);
+  ee.on('foo', common.noop);
+  ee.on('bar', common.noop);
+  ee.on('baz', common.noop);
+  ee.on('baz', common.noop);
   const fooListeners = ee.listeners('foo');
   const barListeners = ee.listeners('bar');
   const bazListeners = ee.listeners('baz');
   ee.on('removeListener', expect(['bar', 'baz', 'baz']));
   ee.removeAllListeners('bar');
   ee.removeAllListeners('baz');
-  assert.deepStrictEqual(ee.listeners('foo'), [listener]);
+  assert.deepStrictEqual(ee.listeners('foo'), [common.noop]);
   assert.deepStrictEqual(ee.listeners('bar'), []);
   assert.deepStrictEqual(ee.listeners('baz'), []);
   // After calling removeAllListeners(),
   // the old listeners array should stay unchanged.
-  assert.deepStrictEqual(fooListeners, [listener]);
-  assert.deepStrictEqual(barListeners, [listener]);
-  assert.deepStrictEqual(bazListeners, [listener, listener]);
+  assert.deepStrictEqual(fooListeners, [common.noop]);
+  assert.deepStrictEqual(barListeners, [common.noop]);
+  assert.deepStrictEqual(bazListeners, [common.noop, common.noop]);
   // After calling removeAllListeners(),
   // new listeners arrays is different from the old.
   assert.notStrictEqual(ee.listeners('bar'), barListeners);
@@ -66,8 +64,8 @@ function listener() {}
 
 {
   const ee = new events.EventEmitter();
-  ee.on('foo', listener);
-  ee.on('bar', listener);
+  ee.on('foo', common.noop);
+  ee.on('bar', common.noop);
   // Expect LIFO order
   ee.on('removeListener', expect(['foo', 'bar', 'removeListener']));
   ee.on('removeListener', expect(['foo', 'bar']));
@@ -78,7 +76,7 @@ function listener() {}
 
 {
   const ee = new events.EventEmitter();
-  ee.on('removeListener', listener);
+  ee.on('removeListener', common.noop);
   // Check for regression where removeAllListeners() throws when
   // there exists a 'removeListener' listener, but there exists
   // no listeners for the provided event type.
@@ -88,12 +86,12 @@ function listener() {}
 {
   const ee = new events.EventEmitter();
   let expectLength = 2;
-  ee.on('removeListener', function(name, listener) {
+  ee.on('removeListener', function(name, noop) {
     assert.strictEqual(expectLength--, this.listeners('baz').length);
   });
-  ee.on('baz', function() {});
-  ee.on('baz', function() {});
-  ee.on('baz', function() {});
+  ee.on('baz', common.noop);
+  ee.on('baz', common.noop);
+  ee.on('baz', common.noop);
   assert.strictEqual(ee.listeners('baz').length, expectLength + 1);
   ee.removeAllListeners('baz');
   assert.strictEqual(ee.listeners('baz').length, 0);

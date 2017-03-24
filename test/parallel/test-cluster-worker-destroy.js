@@ -38,8 +38,8 @@ if (cluster.isMaster) {
   worker2 = cluster.fork();
 
   [worker1, worker2].forEach(function(worker) {
-    worker.on('disconnect', common.mustCall(function() {}));
-    worker.on('exit', common.mustCall(function() {}));
+    worker.on('disconnect', common.mustCall());
+    worker.on('exit', common.mustCall());
   });
 } else {
   if (cluster.worker.id === 1) {

@@ -159,7 +159,8 @@ function syncFailToConnect(port, regexp, optOnly) {
 }
 
 function canConnect(port) {
-  const noop = () => common.mustCall(function() {});
+  const noop = () => common.mustCall();
+
   // connect(port, cb) and connect(port)
   const portArgBlocks = doConnect([port], noop);
   for (const block of portArgBlocks) {

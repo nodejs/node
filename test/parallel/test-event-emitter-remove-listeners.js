@@ -112,7 +112,7 @@ function listener2() {}
   const listener3 = common.mustCall(() => {
     ee.removeListener('hello', listener4);
   }, 2);
-  const listener4 = common.mustCall(() => {});
+  const listener4 = common.mustCall();
 
   ee.on('hello', listener3);
   ee.on('hello', listener4);
@@ -140,7 +140,7 @@ function listener2() {}
 {
   const ee = new EventEmitter();
 
-  assert.deepStrictEqual(ee, ee.removeListener('foo', () => {}));
+  assert.deepStrictEqual(ee, ee.removeListener('foo', common.noop));
 }
 
 // Verify that the removed listener must be a function
@@ -152,7 +152,7 @@ assert.throws(() => {
 
 {
   const ee = new EventEmitter();
-  const listener = () => {};
+  const listener = common.noop;
   ee._events = undefined;
   const e = ee.removeListener('foo', listener);
   assert.strictEqual(e, ee);

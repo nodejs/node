@@ -49,4 +49,4 @@ server.listen(0, common.mustCall(() => {
   }
 }));
 
-process.on('uncaughtException', common.mustCall(() => {}, 10));
+process.on('uncaughtException', common.mustCall(10));

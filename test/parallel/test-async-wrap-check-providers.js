@@ -39,35 +39,33 @@ function init(id, provider) {
   keyList = keyList.filter((e) => e !== pkeys[provider]);
 }
 
-function noop() { }
-
 async_wrap.setupHooks({ init });
 
 async_wrap.enable();
 
 
-setTimeout(function() { }, 1);
+setTimeout(common.noop, 1);
 
-fs.stat(__filename, noop);
+fs.stat(__filename, common.noop);
 
 if (!common.isAix) {
   // fs-watch currently needs special configuration on AIX and we
   // want to improve under https://github.com/nodejs/node/issues/5085.
   // strip out fs watch related parts for now
-  fs.watchFile(__filename, noop);
+  fs.watchFile(__filename, common.noop);
   fs.unwatchFile(__filename);
   fs.watch(__filename).close();
 }
 
-dns.lookup('localhost', noop);
-dns.lookupService('::', 0, noop);
-dns.resolve('localhost', noop);
+dns.lookup('localhost', common.noop);
+dns.lookupService('::', 0, common.noop);
+dns.resolve('localhost', common.noop);
 
 new StreamWrap(new net.Socket());
 
 new (process.binding('tty_wrap').TTY)();
 
-crypto.randomBytes(1, noop);
+crypto.randomBytes(1, common.noop);
 
 common.refreshTmpDir();
 
@@ -75,14 +73,14 @@ net.createServer(function(c) {
   c.end();
   this.close();
 }).listen(common.PIPE, function() {
-  net.connect(common.PIPE, noop);
+  net.connect(common.PIPE, common.noop);
 });
 
 net.createServer(function(c) {
   c.end();
   this.close(checkTLS);
 }).listen(0, function() {
-  net.connect(this.address().port, noop);
+  net.connect(this.address().port, common.noop);
 });
 
 dgram.createSocket('udp4').bind(0, function() {
@@ -99,7 +97,7 @@ function checkTLS() {
     key: fs.readFileSync(common.fixturesDir + '/keys/ec-key.pem'),
     cert: fs.readFileSync(common.fixturesDir + '/keys/ec-cert.pem')
   };
-  const server = tls.createServer(options, noop)
+  const server = tls.createServer(options, common.noop)
     .listen(0, function() {
       const connectOpts = { rejectUnauthorized: false };
       tls.connect(this.address().port, connectOpts, function() {

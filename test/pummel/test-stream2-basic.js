@@ -20,7 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+
+const common = require('../common');
 const R = require('_stream_readable');
 const assert = require('assert');
 
@@ -321,10 +322,8 @@ test('multipipe', function(t) {
 });
 
 test('back pressure respected', function(t) {
-  function noop() {}
-
   const r = new R({ objectMode: true });
-  r._read = noop;
+  r._read = common.noop;
   let counter = 0;
   r.push(['one']);
   r.push(['two']);
@@ -342,7 +341,7 @@ test('back pressure respected', function(t) {
       r.pipe(w3);
     });
   };
-  w1.end = noop;
+  w1.end = common.noop;
 
   r.pipe(w1);
 
@@ -368,7 +367,7 @@ test('back pressure respected', function(t) {
 
     return false;
   };
-  w2.end = noop;
+  w2.end = common.noop;
 
   const w3 = new R();
   w3.write = function(chunk) {
@@ -401,7 +400,7 @@ test('read(0) for ended streams', function(t) {
   const r = new R();
   let written = false;
   let ended = false;
-  r._read = function(n) {};
+  r._read = common.noop;
 
   r.push(Buffer.from('foo'));
   r.push(null);
@@ -472,7 +471,7 @@ test('adding readable triggers data flow', function(t) {
 
 test('chainable', function(t) {
   const r = new R();
-  r._read = function() {};
+  r._read = common.noop;
   const r2 = r.setEncoding('utf8').pause().resume().pause();
   t.equal(r, r2);
   t.end();
