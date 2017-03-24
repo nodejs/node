@@ -1,55 +1,35 @@
 #include <node_api.h>
+#include "../common.h"
 
-void Test(napi_env env, napi_callback_info info) {
-  napi_status status;
-
-  size_t argc;
-  status = napi_get_cb_args_length(env, info, &argc);
-  if (status != napi_ok) return;
-
-  if (argc < 1) {
-    napi_throw_type_error(env, "Wrong number of arguments");
-    return;
-  }
-
+napi_value Test(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
   napi_value args[1];
-  status = napi_get_cb_args(env, info, args, 1);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
 
-  napi_valuetype valuetype;
-  status = napi_typeof(env, args[0], &valuetype);
-  if (status != napi_ok) return;
+  NAPI_ASSERT(env, argc >= 1, "Wrong number of arguments");
 
-  if (valuetype != napi_number) {
-    napi_throw_type_error(env, "Wrong type of argments. Expects a number.");
-    return;
-  }
+  napi_valuetype valuetype0;
+  NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
+
+  NAPI_ASSERT(env, valuetype0 == napi_number,
+    "Wrong type of arguments. Expects a number as first argument.");
 
   double input;
-  status = napi_get_value_double(env, args[0], &input);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_get_value_double(env, args[0], &input));
 
   napi_value output;
-  status = napi_create_number(env, input, &output);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_create_number(env, input, &output));
 
-  status = napi_set_return_value(env, info, output);
-  if (status != napi_ok) return;
+  return output;
 }
 
-#define DECLARE_NAPI_METHOD(name, func)                          \
-  { name, func, 0, 0, 0, napi_default, 0 }
-
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
-  napi_status status;
-
   napi_property_descriptor descriptors[] = {
-      DECLARE_NAPI_METHOD("Test", Test),
+    DECLARE_NAPI_PROPERTY("Test", Test),
   };
 
-  status = napi_define_properties(
-    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors);
-  if (status != napi_ok) return;
+  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
+    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
 }
 
 NAPI_MODULE(addon, Init)

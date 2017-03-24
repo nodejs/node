@@ -1,82 +1,56 @@
 #include <node_api.h>
 #include <string.h>
+#include "../common.h"
 
-void Multiply(napi_env env, napi_callback_info info) {
-  napi_status status;
-
-  size_t argc;
-  status = napi_get_cb_args_length(env, info, &argc);
-  if (status != napi_ok) return;
-
-  if (argc != 2) {
-    napi_throw_type_error(env, "Wrong number of arguments");
-    return;
-  }
-
+napi_value Multiply(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
   napi_value args[2];
-  status = napi_get_cb_args(env, info, args, 2);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NAPI_ASSERT(env, argc == 2, "Wrong number of arguments");
 
   napi_valuetype valuetype0;
-  status = napi_typeof(env, args[0], &valuetype0);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
 
-  if (valuetype0 != napi_object) {
-    napi_throw_type_error(
-        env,
-        "Wrong type of argments. Expects a typed array as first argument.");
-    return;
-  }
+  NAPI_ASSERT(env, valuetype0 == napi_object,
+    "Wrong type of argments. Expects a typed array as first argument.");
 
   napi_value input_array = args[0];
-  bool istypedarray;
-  status = napi_is_typedarray(env, input_array, &istypedarray);
-  if (status != napi_ok) return;
+  bool is_typedarray;
+  NAPI_CALL(env, napi_is_typedarray(env, input_array, &is_typedarray));
 
-  if (!istypedarray) {
-    napi_throw_type_error(
-        env,
-        "Wrong type of argments. Expects a typed array as first argument.");
-    return;
-  }
+  NAPI_ASSERT(env, is_typedarray,
+    "Wrong type of argments. Expects a typed array as first argument.");
 
   napi_valuetype valuetype1;
-  status = napi_typeof(env, args[1], &valuetype1);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_typeof(env, args[1], &valuetype1));
 
-  if (valuetype1 != napi_number) {
-    napi_throw_type_error(
-        env, "Wrong type of argments. Expects a number as second argument.");
-    return;
-  }
+  NAPI_ASSERT(env, valuetype1 == napi_number,
+    "Wrong type of argments. Expects a number as second argument.");
 
   double multiplier;
-  status = napi_get_value_double(env, args[1], &multiplier);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_get_value_double(env, args[1], &multiplier));
 
   napi_typedarray_type type;
   napi_value input_buffer;
   size_t byte_offset;
   size_t i, length;
-  status = napi_get_typedarray_info(
-      env, input_array, &type, &length, NULL, &input_buffer, &byte_offset);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_get_typedarray_info(
+    env, input_array, &type, &length, NULL, &input_buffer, &byte_offset));
 
   void* data;
   size_t byte_length;
-  status = napi_get_arraybuffer_info(env, input_buffer, &data, &byte_length);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_get_arraybuffer_info(
+    env, input_buffer, &data, &byte_length));
 
   napi_value output_buffer;
   void* output_ptr = NULL;
-  status =
-      napi_create_arraybuffer(env, byte_length, &output_ptr, &output_buffer);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_create_arraybuffer(
+    env, byte_length, &output_ptr, &output_buffer));
 
   napi_value output_array;
-  status = napi_create_typedarray(
-      env, type, length, output_buffer, byte_offset, &output_array);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_create_typedarray(
+      env, type, length, output_buffer, byte_offset, &output_array));
 
   if (type == napi_uint8_array) {
     uint8_t* input_bytes = (uint8_t*)(data) + byte_offset;
@@ -92,53 +66,43 @@ void Multiply(napi_env env, napi_callback_info info) {
     }
   } else {
     napi_throw_error(env, "Typed array was of a type not expected by test.");
-    return;
+    return NULL;
   }
 
-  status = napi_set_return_value(env, info, output_array);
-  if (status != napi_ok) return;
+  return output_array;
 }
 
-void External(napi_env env, napi_callback_info info) {
+napi_value External(napi_env env, napi_callback_info info) {
   static int8_t externalData[] = {0, 1, 2};
 
   napi_value output_buffer;
-  napi_status status = napi_create_external_arraybuffer(
-      env,
-      externalData,
-      sizeof(externalData),
-      NULL,  // finalize_callback
-      NULL,  // finalize_hint
-      &output_buffer);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_create_external_arraybuffer(
+    env,
+    externalData,
+    sizeof(externalData),
+    NULL,  // finalize_callback
+    NULL,  // finalize_hint
+    &output_buffer));
 
   napi_value output_array;
-  status = napi_create_typedarray(env,
-                                  napi_int8_array,
-                                  sizeof(externalData) / sizeof(uint8_t),
-                                  output_buffer,
-                                  0,
-                                  &output_array);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_create_typedarray(env,
+    napi_int8_array,
+    sizeof(externalData) / sizeof(int8_t),
+    output_buffer,
+    0,
+    &output_array));
 
-  status = napi_set_return_value(env, info, output_array);
-  if (status != napi_ok) return;
+  return output_array;
 }
 
-#define DECLARE_NAPI_METHOD(name, func)                          \
-  { name, func, 0, 0, 0, napi_default, 0 }
-
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
-  napi_status status;
-
   napi_property_descriptor descriptors[] = {
-      DECLARE_NAPI_METHOD("Multiply", Multiply),
-      DECLARE_NAPI_METHOD("External", External),
+    DECLARE_NAPI_PROPERTY("Multiply", Multiply),
+    DECLARE_NAPI_PROPERTY("External", External),
   };
 
-  status = napi_define_properties(
-      env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors);
-  if (status != napi_ok) return;
+  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
+    env, exports, sizeof(descriptors) / sizeof(*descriptors), descriptors));
 }
 
 NAPI_MODULE(addon, Init)
