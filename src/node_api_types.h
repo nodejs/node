@@ -17,8 +17,8 @@ typedef struct napi_handle_scope__ *napi_handle_scope;
 typedef struct napi_escapable_handle_scope__ *napi_escapable_handle_scope;
 typedef struct napi_callback_info__ *napi_callback_info;
 
-typedef void (*napi_callback)(napi_env env,
-                              napi_callback_info info);
+typedef napi_value (*napi_callback)(napi_env env,
+                                    napi_callback_info info);
 typedef void (*napi_finalize)(napi_env env,
                               void* finalize_data,
                               void* finalize_hint);
@@ -35,7 +35,9 @@ typedef enum {
 } napi_property_attributes;
 
 typedef struct {
+  // One of utf8name or name should be NULL.
   const char* utf8name;
+  napi_value name;
 
   napi_callback method;
   napi_callback getter;
@@ -76,6 +78,7 @@ typedef enum {
   napi_invalid_arg,
   napi_object_expected,
   napi_string_expected,
+  napi_name_expected,
   napi_function_expected,
   napi_number_expected,
   napi_boolean_expected,

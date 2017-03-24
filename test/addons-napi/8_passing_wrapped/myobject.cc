@@ -1,4 +1,5 @@
 #include "myobject.h"
+#include "../common.h"
 
 MyObject::MyObject() : env_(nullptr), wrapper_(nullptr) {}
 
@@ -25,41 +26,32 @@ napi_status MyObject::Init(napi_env env) {
   return napi_ok;
 }
 
-void MyObject::New(napi_env env, napi_callback_info info) {
-  napi_status status;
-
+napi_value MyObject::New(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
   napi_value args[1];
-  status = napi_get_cb_args(env, info, args, 1);
-  if (status != napi_ok) return;
+  napi_value _this;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, nullptr));
 
   MyObject* obj = new MyObject();
 
   napi_valuetype valuetype;
-  status = napi_typeof(env, args[0], &valuetype);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_typeof(env, args[0], &valuetype));
 
   if (valuetype == napi_undefined) {
     obj->val_ = 0;
   } else {
-    status = napi_get_value_double(env, args[0], &obj->val_);
-    if (status != napi_ok) return;
+    NAPI_CALL(env, napi_get_value_double(env, args[0], &obj->val_));
   }
 
-  napi_value jsthis;
-  status = napi_get_cb_this(env, info, &jsthis);
-  if (status != napi_ok) return;
-
   obj->env_ = env;
-  status = napi_wrap(env,
-                     jsthis,
-                     obj,
-                     MyObject::Destructor,
-                     nullptr,  // finalize_hint
-                     &obj->wrapper_);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_wrap(env,
+                          _this,
+                          obj,
+                          MyObject::Destructor,
+                          nullptr,  // finalize_hint
+                          &obj->wrapper_));
 
-  status = napi_set_return_value(env, info, jsthis);
-  if (status != napi_ok) return;
+  return _this;
 }
 
 napi_status MyObject::NewInstance(napi_env env,
