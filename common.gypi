@@ -22,6 +22,8 @@
 
     'openssl_fips%': '',
 
+    'v8_embedder_string': '.node.0',
+
     # Default to -O0 for debug builds.
     'v8_optimized_debug%': 0,
 
