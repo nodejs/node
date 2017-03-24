@@ -1,55 +1,35 @@
 #include <node_api.h>
+#include "../common.h"
 
-void Test(napi_env env, napi_callback_info info) {
-  napi_status status;
-
-  size_t argc;
-  status = napi_get_cb_args_length(env, info, &argc);
-  if (status != napi_ok) return;
-
-  if (argc < 1) {
-    napi_throw_type_error(env, "Wrong number of arguments");
-    return;
-  }
-
+napi_value Test(napi_env env, napi_callback_info info) {
+  size_t argc = 10;
   napi_value args[10];
-  status = napi_get_cb_args(env, info, args, 10);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
 
-  napi_valuetype valuetype;
-  status = napi_typeof(env, args[0], &valuetype);
-  if (status != napi_ok) return;
+  NAPI_ASSERT(env, argc > 0, "Wrong number of arguments");
 
-  if (valuetype != napi_function) {
-    napi_throw_type_error(env, "Wrong type of argments. Expects a function.");
-    return;
-  }
+  napi_valuetype valuetype0;
+  NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
 
-  napi_value function = args[0];
+  NAPI_ASSERT(env, valuetype0 == napi_function,
+    "Wrong type of arguments. Expects a number as first argument.");
+
   napi_value* argv = args + 1;
   argc = argc - 1;
 
   napi_value global;
-  status = napi_get_global(env, &global);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_get_global(env, &global));
 
   napi_value result;
-  status = napi_call_function(env, global, function, argc, argv, &result);
-  if (status != napi_ok) return;
+  NAPI_CALL(env, napi_call_function(env, global, args[0], argc, argv, &result));
 
-  status = napi_set_return_value(env, info, result);
-  if (status != napi_ok) return;
+  return result;
 }
 
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
-  napi_status status;
-
   napi_value fn;
-  status =  napi_create_function(env, NULL, Test, NULL, &fn);
-  if (status != napi_ok) return;
-
-  status = napi_set_named_property(env, exports, "Test", fn);
-  if (status != napi_ok) return;
+  NAPI_CALL_RETURN_VOID(env, napi_create_function(env, NULL, Test, NULL, &fn));
+  NAPI_CALL_RETURN_VOID(env, napi_set_named_property(env, exports, "Test", fn));
 }
 
 NAPI_MODULE(addon, Init)
