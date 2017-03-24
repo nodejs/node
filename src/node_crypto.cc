@@ -310,9 +310,7 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "addCRL", SecureContext::AddCRL);
   env->SetProtoMethod(t, "addRootCerts", SecureContext::AddRootCerts);
   env->SetProtoMethod(t, "setCiphers", SecureContext::SetCiphers);
-#if !defined(OPENSSL_NO_ECDH)
   env->SetProtoMethod(t, "setECDHCurve", SecureContext::SetECDHCurve);
-#endif
   env->SetProtoMethod(t, "setDHParam", SecureContext::SetDHParam);
   env->SetProtoMethod(t, "setOptions", SecureContext::SetOptions);
   env->SetProtoMethod(t, "setSessionIdContext",
@@ -901,11 +899,15 @@ void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-#if !defined(OPENSSL_NO_ECDH)
 void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
   Environment* env = sc->env();
+
+#if defined(OPENSSL_NO_ECDH)
+  return env->ThrowError(
+      "Node was built without OpenSSL Elliptic Curve support.");
+#else
 
   if (args.Length() != 1)
     return env->ThrowTypeError("ECDH curve name argument is mandatory");
@@ -928,8 +930,8 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   SSL_CTX_set_tmp_ecdh(sc->ctx_, ecdh);
 
   EC_KEY_free(ecdh);
-}
 #endif
+}
 
 
 void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
@@ -5861,9 +5863,12 @@ void GetHashes(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-#if !defined(OPENSSL_NO_EC)
 void GetCurves(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+#if defined(OPENSSL_NO_EC)
+  return env->ThrowError(
+      "Node was built without OpenSSL Elliptic Curve support");
+#else
   const size_t num_curves = EC_get_builtin_curves(nullptr, 0);
   Local<Array> arr = Array::New(env->isolate(), num_curves);
   EC_builtin_curve* curves;
@@ -5881,8 +5886,8 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(arr);
-}
 #endif
+}
 
 
 bool VerifySpkac(const char* data, unsigned int len) {
@@ -6218,9 +6223,7 @@ void InitCrypto(Local<Object> target,
   env->SetMethod(target, "getSSLCiphers", GetSSLCiphers);
   env->SetMethod(target, "getCiphers", GetCiphers);
   env->SetMethod(target, "getHashes", GetHashes);
-#if !defined(OPENSSL_NO_EC)
   env->SetMethod(target, "getCurves", GetCurves);
-#endif
   env->SetMethod(target, "publicEncrypt",
                  PublicKeyCipher::Cipher<PublicKeyCipher::kPublic,
                                          EVP_PKEY_encrypt_init,
