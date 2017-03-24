@@ -15,7 +15,7 @@ assert.throws(function() {
 }, /"watchFile\(\)" requires a listener function/);
 
 assert.throws(function() {
-  fs.watchFile(new Object(), function() {});
+  fs.watchFile(new Object(), common.noop);
 }, /Path must be a string/);
 
 const enoentFile = path.join(common.tmpDir, 'non-existent-file');

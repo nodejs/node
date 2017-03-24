@@ -1,6 +1,6 @@
 /* eslint-disable max-len */
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const url = require('url');
@@ -1684,7 +1684,7 @@ const throws = [
   true,
   false,
   0,
-  function() {}
+  common.noop
 ];
 for (let i = 0; i < throws.length; i++) {
   assert.throws(function() { url.format(throws[i]); }, TypeError);

@@ -17,5 +17,5 @@ const portGetter = dgram.createSocket('udp4')
     socket.close('bad argument');
     portGetter.close();
 
-    socket.on('close', common.mustCall(function() {}));
+    socket.on('close', common.mustCall());
   }));

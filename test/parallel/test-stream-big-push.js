@@ -28,7 +28,7 @@ function _read() {
 
 r._read = common.mustCall(_read, 3);
 
-r.on('end', common.mustCall(function() {}));
+r.on('end', common.mustCall());
 
 // push some data in to start.
 // we've never gotten any read event at this point.

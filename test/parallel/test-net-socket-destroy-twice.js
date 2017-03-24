@@ -11,5 +11,5 @@ conn.on('error', common.mustCall(() => {
   conn.destroy();
 }));
 
-conn.on('close', common.mustCall(function() {}));
+conn.on('close', common.mustCall());
 server.close();

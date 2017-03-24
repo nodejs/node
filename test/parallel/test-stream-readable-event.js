@@ -19,7 +19,7 @@ const Readable = require('stream').Readable;
   setTimeout(function() {
     // we're testing what we think we are
     assert(!r._readableState.reading);
-    r.on('readable', common.mustCall(function() {}));
+    r.on('readable', common.mustCall());
   }, 1);
 }
 
@@ -39,7 +39,7 @@ const Readable = require('stream').Readable;
   setTimeout(function() {
     // assert we're testing what we think we are
     assert(r._readableState.reading);
-    r.on('readable', common.mustCall(function() {}));
+    r.on('readable', common.mustCall());
   }, 1);
 }
 
@@ -59,6 +59,6 @@ const Readable = require('stream').Readable;
   setTimeout(function() {
     // assert we're testing what we think we are
     assert(!r._readableState.reading);
-    r.on('readable', common.mustCall(function() {}));
+    r.on('readable', common.mustCall());
   }, 1);
 }

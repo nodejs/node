@@ -23,7 +23,7 @@ Readable.prototype._read = function() {
 };
 
 const w = new Writable();
-w.on('pipe', common.mustCall(function() {}));
+w.on('pipe', common.mustCall());
 
 const r = new Readable();
 r.pipe(w);

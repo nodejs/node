@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 
-process.on('uncaughtException', common.mustCall(function() {}, 2));
+process.on('uncaughtException', common.mustCall(common.noop, 2));
 
 setTimeout(function() {
   process.nextTick(function() {

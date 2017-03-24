@@ -7,7 +7,7 @@ const server = net.createServer({
   allowHalfOpen: true
 }, common.mustCall(function(socket) {
   socket.resume();
-  socket.on('end', common.mustCall(function() {}));
+  socket.on('end', common.mustCall());
   socket.end();
 }));
 

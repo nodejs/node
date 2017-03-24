@@ -7,9 +7,9 @@ global.gc = 42;  // Not a valid global unless --expose_gc is set.
 assert.deepStrictEqual(common.leakedGlobals(), ['gc']);
 
 assert.throws(function() {
-  common.mustCall(function() {}, 'foo');
+  common.mustCall(common.noop, 'foo');
 }, /^TypeError: Invalid expected value: foo$/);
 
 assert.throws(function() {
-  common.mustCall(function() {}, /foo/);
+  common.mustCall(common.noop, /foo/);
 }, /^TypeError: Invalid expected value: \/foo\/$/);

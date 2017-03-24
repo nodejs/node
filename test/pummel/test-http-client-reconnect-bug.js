@@ -11,7 +11,7 @@ server.on('listening', common.mustCall(function() {
   const client = http.createClient(common.PORT);
 
   client.on('error', common.mustCall(function(err) {}));
-  client.on('end', common.mustCall(function() {}));
+  client.on('end', common.mustCall());
 
   const request = client.request('GET', '/', {'host': 'localhost'});
   request.end();

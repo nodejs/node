@@ -42,5 +42,5 @@ function test(cert, key, cb) {
 }
 
 test(cert, key, common.mustCall(function() {
-  test(Buffer.from(cert), Buffer.from(key), common.mustCall(function() {}));
+  test(Buffer.from(cert), Buffer.from(key), common.mustCall());
 }));
