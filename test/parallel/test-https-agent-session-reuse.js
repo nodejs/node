@@ -26,9 +26,11 @@ const agent = new https.Agent({
   maxCachedSessions: 1
 });
 
+const ticketSize = common.isOpenSSL10 ? 48 : 80;
+
 const server = https.createServer(options, function(req, res) {
   if (req.url === '/drop-key')
-    server.setTicketKeys(crypto.randomBytes(48));
+    server.setTicketKeys(crypto.randomBytes(ticketSize));
 
   serverRequests++;
   res.end('ok');

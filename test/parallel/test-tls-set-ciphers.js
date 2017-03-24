@@ -40,7 +40,7 @@ const fs = require('fs');
 const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
-  ciphers: 'DES-CBC3-SHA'
+  ciphers: 'AES256-SHA'
 };
 
 const reply = 'I AM THE WALRUS'; // something recognizable
@@ -59,7 +59,7 @@ server.listen(0, '127.0.0.1', function() {
             ` -connect 127.0.0.1:${this.address().port}`;
 
   // for the performance and stability issue in s_client on Windows
-  if (common.isWindows)
+  if (common.needNoRandScreen)
     cmd += ' -no_rand_screen';
 
   exec(cmd, function(err, stdout, stderr) {

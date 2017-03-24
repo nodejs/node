@@ -177,6 +177,10 @@ Object.defineProperty(exports, 'localhostIPv4', {
   }
 });
 
+// check if openssl version is 1.0.x
+exports.isOpenSSL10 = !!process.versions.openssl.match(/^1\.0\./);
+exports.needNoRandScreen = exports.isOpenSSL10 && exports.isWindows;
+
 // opensslCli defined lazily to reduce overhead of spawnSync
 Object.defineProperty(exports, 'opensslCli', {get: function() {
   if (opensslCli !== null) return opensslCli;

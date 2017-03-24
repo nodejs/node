@@ -41,7 +41,7 @@ const fs = require('fs');
 const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
-  ciphers: 'ECDHE-RSA-RC4-SHA',
+  ciphers: 'ECDHE-RSA-AES128-GCM-SHA256',
   ecdhCurve: false
 };
 
@@ -52,7 +52,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
             ` -connect 127.0.0.1:${this.address().port}`;
 
   // for the performance and stability issue in s_client on Windows
-  if (common.isWindows)
+  if (common.needNoRandScreen)
     cmd += ' -no_rand_screen';
 
   exec(cmd, common.mustCall(function(err, stdout, stderr) {

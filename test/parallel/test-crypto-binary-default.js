@@ -659,11 +659,11 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 
   // DSA signatures vary across runs so there is no static string to verify
   // against
-  const sign = crypto.createSign('DSS1');
+  const sign = crypto.createSign('sha1');
   sign.update(input);
   const signature = sign.sign(privateKey, 'hex');
 
-  const verify = crypto.createVerify('DSS1');
+  const verify = crypto.createVerify('sha1');
   verify.update(input);
 
   assert.strictEqual(verify.verify(publicKey, signature, 'hex'), true);

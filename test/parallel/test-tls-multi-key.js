@@ -63,12 +63,14 @@ const server = tls.createServer(options, function(conn) {
   });
 });
 
+const version = common.isOpenSSL10 ? 'TLSv1/SSLv3' : 'TLSv1.2';
+
 process.on('exit', function() {
   assert.deepStrictEqual(ciphers, [{
     name: 'ECDHE-ECDSA-AES256-GCM-SHA384',
-    version: 'TLSv1/SSLv3'
+    version: version
   }, {
     name: 'ECDHE-RSA-AES256-GCM-SHA384',
-    version: 'TLSv1/SSLv3'
+    version: version
   }]);
 });

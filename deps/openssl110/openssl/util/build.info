@@ -1,0 +1,8 @@
+IF[{- $target{build_scheme}->[1] eq "VMS" -}]
+ PROGRAMS_NO_INST=shlib_wrap
+ SOURCE[shlib_wrap]=shareable_image_wrap.c
+ GENERATE[shareable_image_wrap.c]=shareable_image_wrap.c.in
+ELSIF[{- $target{build_scheme}->[1] eq "unix" -}]
+ SCRIPTS_NO_INST=shlib_wrap.sh
+ SOURCE[shlib_wrap.sh]=shlib_wrap.sh.in
+ENDIF

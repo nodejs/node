@@ -1,0 +1,80 @@
+# -*- mode: perl; -*-
+# Copyright 2016-2016 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the OpenSSL license (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+
+## Test version negotiation
+
+use strict;
+use warnings;
+
+package ssltests;
+
+
+our @tests = (
+    # Currently only have tests for certs without SCTs.
+    {
+	name => "ct-permissive",
+	server => { },
+	client => {
+     	    extra => {
+	        "CTValidation" => "Permissive",
+	    },
+	},
+	test => {
+	    "ExpectedResult" => "Success",
+	},
+    }, 
+    {
+	name => "ct-strict",
+	server => { },
+	client => {
+     	    extra => {
+	        "CTValidation" => "Strict",
+	    },
+	},
+	test => {
+	    "ExpectedResult" => "ClientFail",
+	    "ExpectedClientAlert" => "HandshakeFailure",
+	},
+    },
+    {
+	name => "ct-permissive-resumption",
+	server => { },
+	client => {
+     	    extra => {
+	        "CTValidation" => "Permissive",
+	    },
+	},
+	test => {
+	    "HandshakeMode" => "Resume",
+	    "ResumptionExpected" => "Yes",
+	    "ExpectedResult" => "Success",
+	},
+    }, 
+    {
+	name => "ct-strict-resumption",
+	server => { },
+	client => {
+     	    extra => {
+	        "CTValidation" => "Permissive",
+	    },
+	},
+	# SCTs are not present during resumption, so the resumption
+	# should succeed.
+	resume_client => {
+     	    extra => {
+	        "CTValidation" => "Strict",
+	    },
+	},
+	test => {
+	    "HandshakeMode" => "Resume",
+	    "ResumptionExpected" => "Yes",
+	    "ExpectedResult" => "Success",
+	},
+    },
+);

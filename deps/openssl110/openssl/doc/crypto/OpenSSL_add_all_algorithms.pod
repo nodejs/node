@@ -1,0 +1,90 @@
+=pod
+
+=head1 NAME
+
+OpenSSL_add_all_algorithms, OpenSSL_add_all_ciphers, OpenSSL_add_all_digests, EVP_cleanup -
+add algorithms to internal table
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+Deprecated:
+
+ # if OPENSSL_API_COMPAT < 0x10100000L
+ void OpenSSL_add_all_algorithms(void);
+ void OpenSSL_add_all_ciphers(void);
+ void OpenSSL_add_all_digests(void);
+
+ void EVP_cleanup(void)
+# endif
+
+=head1 DESCRIPTION
+
+OpenSSL keeps an internal table of digest algorithms and ciphers. It uses
+this table to lookup ciphers via functions such as EVP_get_cipher_byname(). In
+OpenSSL versions prior to 1.1.0 these functions initialised and de-initialised
+this table. From OpenSSL 1.1.0 they are deprecated. No explicit initialisation
+or de-initialisation is required. See L<OPENSSL_init_crypto(3)> for further
+information.
+
+OpenSSL_add_all_digests() adds all digest algorithms to the table.
+
+OpenSSL_add_all_algorithms() adds all algorithms to the table (digests and
+ciphers).
+
+OpenSSL_add_all_ciphers() adds all encryption algorithms to the table including
+password based encryption algorithms.
+
+In versions prior to 1.1.0 EVP_cleanup() removed all ciphers and digests from
+the table. It no longer has any effect in OpenSSL 1.1.0.
+
+=head1 RETURN VALUES
+
+None of the functions return a value.
+
+=head1 NOTES
+
+A typical application will call OpenSSL_add_all_algorithms() initially and
+EVP_cleanup() before exiting.
+
+An application does not need to add algorithms to use them explicitly, for example
+by EVP_sha1(). It just needs to add them if it (or any of the functions it calls)
+needs to lookup algorithms.
+
+The cipher and digest lookup functions are used in many parts of the library. If
+the table is not initialized several functions will misbehave and complain they
+cannot find algorithms. This includes the PEM, PKCS#12, SSL and S/MIME libraries.
+This is a common query in the OpenSSL mailing lists.
+
+Calling OpenSSL_add_all_algorithms() links in all algorithms: as a result a
+statically linked executable can be quite large. If this is important it is possible
+to just add the required ciphers and digests.
+
+=head1 BUGS
+
+Although the functions do not return error codes it is possible for them to fail.
+This will only happen as a result of a memory allocation failure so this is not
+too much of a problem in practice.
+
+=head1 SEE ALSO
+
+L<evp(3)>, L<EVP_DigestInit(3)>,
+L<EVP_EncryptInit(3)>
+
+=head1 HISTORY
+
+The OpenSSL_add_all_algorithms(), OpenSSL_add_all_ciphers(),
+OpenSSL_add_all_digests(), and EVP_cleanup(), functions
+were deprecated in OpenSSL 1.1.0 by OPENSSL_init_crypto().
+
+=head1 COPYRIGHT
+
+Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the OpenSSL license (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut
