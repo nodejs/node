@@ -32,4 +32,4 @@ immediated.run(function() {
   });
 });
 
-timeout = setTimeout(function() {}, 10 * 1000);
+timeout = setTimeout(common.noop, 10 * 1000);

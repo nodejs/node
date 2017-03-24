@@ -23,7 +23,7 @@ const server = net.createServer(common.mustCall(function(c) {
       secureContext: tls.createSecureContext(options)
     });
 
-    s.on('_tlsError', common.mustCall(function() {}));
+    s.on('_tlsError', common.mustCall());
 
     s.on('close', function() {
       server.close();

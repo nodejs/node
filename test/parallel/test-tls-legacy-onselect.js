@@ -10,7 +10,7 @@ const net = require('net');
 
 const server = net.Server(common.mustCall(function(raw) {
   const pair = tls.createSecurePair(null, true, false, false);
-  pair.on('error', function() {});
+  pair.on('error', common.noop);
   pair.ssl.setSNICallback(common.mustCall(function() {
     raw.destroy();
     server.close();

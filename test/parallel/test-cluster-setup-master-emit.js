@@ -22,5 +22,5 @@ function emitAndCatch2(next) {
 }
 
 emitAndCatch(common.mustCall(function() {
-  emitAndCatch2(common.mustCall(function() {}));
+  emitAndCatch2(common.mustCall());
 }));

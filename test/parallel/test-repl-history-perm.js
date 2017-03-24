@@ -19,7 +19,7 @@ const Duplex = require('stream').Duplex;
 // and mode 600.
 
 const stream = new Duplex();
-stream.pause = stream.resume = function() {};
+stream.pause = stream.resume = common.noop;
 // ends immediately
 stream._read = function() {
   this.push(null);

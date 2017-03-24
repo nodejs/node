@@ -18,8 +18,8 @@ const portGetter = dgram.createSocket('udp4')
                 portGetter.address().port,
                 portGetter.address().address);
 
-    assert.strictEqual(socket.close(common.mustCall(function() {})), socket);
-    socket.on('close', common.mustCall(function() {}));
+    assert.strictEqual(socket.close(common.mustCall()), socket);
+    socket.on('close', common.mustCall());
     socket = null;
 
     // Verify that accessing handle after closure doesn't throw

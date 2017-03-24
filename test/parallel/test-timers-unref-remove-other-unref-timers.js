@@ -29,4 +29,4 @@ timers.enroll(foo, 50);
 timers._unrefActive(foo);
 
 // Keep the process open.
-setTimeout(function() {}, 100);
+setTimeout(common.noop, 100);

@@ -57,7 +57,7 @@ if (process.argv[2] === 'child') {
   }));
 
   // the process should also self terminate without using signals
-  child.on('exit', common.mustCall(function() {}));
+  child.on('exit', common.mustCall());
 
   // when child is listening
   child.on('message', function(obj) {

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const R = require('_stream_readable');
 const assert = require('assert');
 
@@ -451,7 +451,7 @@ test('adding readable triggers data flow', function(t) {
 
 test('chainable', function(t) {
   const r = new R();
-  r._read = function() {};
+  r._read = common.noop;
   const r2 = r.setEncoding('utf8').pause().resume().pause();
   t.equal(r, r2);
   t.end();

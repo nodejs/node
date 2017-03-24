@@ -29,7 +29,7 @@ if (process.argv[2] === 'child') {
   test({ NODE_NO_WARNINGS: false });
   test({ NODE_NO_WARNINGS: {} });
   test({ NODE_NO_WARNINGS: [] });
-  test({ NODE_NO_WARNINGS: function() {} });
+  test({ NODE_NO_WARNINGS: common.noop });
   test({ NODE_NO_WARNINGS: 0 });
   test({ NODE_NO_WARNINGS: -1 });
   test({ NODE_NO_WARNINGS: '0' });

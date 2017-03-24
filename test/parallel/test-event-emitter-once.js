@@ -24,7 +24,7 @@ e.once('e', common.mustCall(function() {
   e.emit('e');
 }));
 
-e.once('e', common.mustCall(function() {}));
+e.once('e', common.mustCall());
 
 e.emit('e');
 
