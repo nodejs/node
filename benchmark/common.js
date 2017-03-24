@@ -193,6 +193,9 @@ Benchmark.prototype.end = function(operations) {
   if (typeof operations !== 'number') {
     throw new Error('called end() without specifying operation count');
   }
+  if (!process.env.NODEJS_BENCHMARK_ZERO_ALLOWED && operations <= 0) {
+    throw new Error('called end() with operation count <= 0');
+  }
 
   const time = elapsed[0] + elapsed[1] / 1e9;
   const rate = operations / time;
