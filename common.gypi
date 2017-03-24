@@ -78,7 +78,7 @@
         'variables': {
           'v8_enable_handle_zapping': 1,
         },
-        'defines': [ 'DEBUG', '_DEBUG' ],
+        'defines': [ 'DEBUG', '_DEBUG', 'V8_ENABLE_CHECKS' ],
         'cflags': [ '-g', '-O0' ],
         'conditions': [
           ['target_arch=="x64"', {
