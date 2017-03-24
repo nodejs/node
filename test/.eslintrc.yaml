@@ -6,6 +6,9 @@ rules:
   no-var: 2
   prefer-const: 2
 
+  # Custom rules in tools/eslint-rules
+  prefer-common-mustnotcall: 2
+
   ## common module is mandatory in tests
   required-modules: [2, common]
   prefer-assert-methods: 2
