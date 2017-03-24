@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
-let run = () => {};
+let run = common.noop;
 function test(args, needle) {
   const next = run;
   run = () => {

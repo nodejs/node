@@ -2,7 +2,6 @@
 const common = require('../common');
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
-const noop = function() {};
 
 function pass(option, value) {
   // Run the command with the specified option. Since it's not a real command,
@@ -31,7 +30,7 @@ function fail(option, value, message) {
   fail('cwd', false, err);
   fail('cwd', [], err);
   fail('cwd', {}, err);
-  fail('cwd', noop, err);
+  fail('cwd', common.noop, err);
 }
 
 {
@@ -47,7 +46,7 @@ function fail(option, value, message) {
   fail('detached', __dirname, err);
   fail('detached', [], err);
   fail('detached', {}, err);
-  fail('detached', noop, err);
+  fail('detached', common.noop, err);
 }
 
 if (!common.isWindows) {
@@ -64,7 +63,7 @@ if (!common.isWindows) {
       fail('uid', false, err);
       fail('uid', [], err);
       fail('uid', {}, err);
-      fail('uid', noop, err);
+      fail('uid', common.noop, err);
       fail('uid', NaN, err);
       fail('uid', Infinity, err);
       fail('uid', 3.1, err);
@@ -85,7 +84,7 @@ if (!common.isWindows) {
       fail('gid', false, err);
       fail('gid', [], err);
       fail('gid', {}, err);
-      fail('gid', noop, err);
+      fail('gid', common.noop, err);
       fail('gid', NaN, err);
       fail('gid', Infinity, err);
       fail('gid', 3.1, err);
@@ -105,7 +104,7 @@ if (!common.isWindows) {
   fail('shell', 1, err);
   fail('shell', [], err);
   fail('shell', {}, err);
-  fail('shell', noop, err);
+  fail('shell', common.noop, err);
 }
 
 {
@@ -121,7 +120,7 @@ if (!common.isWindows) {
   fail('argv0', false, err);
   fail('argv0', [], err);
   fail('argv0', {}, err);
-  fail('argv0', noop, err);
+  fail('argv0', common.noop, err);
 }
 
 {
@@ -137,7 +136,7 @@ if (!common.isWindows) {
   fail('windowsVerbatimArguments', __dirname, err);
   fail('windowsVerbatimArguments', [], err);
   fail('windowsVerbatimArguments', {}, err);
-  fail('windowsVerbatimArguments', noop, err);
+  fail('windowsVerbatimArguments', common.noop, err);
 }
 
 {
@@ -154,7 +153,7 @@ if (!common.isWindows) {
   fail('timeout', __dirname, err);
   fail('timeout', [], err);
   fail('timeout', {}, err);
-  fail('timeout', noop, err);
+  fail('timeout', common.noop, err);
   fail('timeout', NaN, err);
   fail('timeout', Infinity, err);
   fail('timeout', 3.1, err);
@@ -179,7 +178,7 @@ if (!common.isWindows) {
   fail('maxBuffer', __dirname, err);
   fail('maxBuffer', [], err);
   fail('maxBuffer', {}, err);
-  fail('maxBuffer', noop, err);
+  fail('maxBuffer', common.noop, err);
 }
 
 {
@@ -198,5 +197,5 @@ if (!common.isWindows) {
   fail('killSignal', false, typeErr);
   fail('killSignal', [], typeErr);
   fail('killSignal', {}, typeErr);
-  fail('killSignal', noop, typeErr);
+  fail('killSignal', common.noop, typeErr);
 }

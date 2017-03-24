@@ -59,6 +59,6 @@ server.listen(0, common.mustCall(function() {
     });
 
     // it would be nice if this worked:
-    res.on('close', common.mustCall(function() {}));
+    res.on('close', common.mustCall());
   }));
 }));

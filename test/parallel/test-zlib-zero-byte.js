@@ -34,6 +34,6 @@ gz.on('data', function(c) {
 gz.on('end', common.mustCall(function() {
   assert.strictEqual(received, 20);
 }));
-gz.on('finish', common.mustCall(function() {}));
+gz.on('finish', common.mustCall());
 gz.write(emptyBuffer);
 gz.end();

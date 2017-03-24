@@ -31,7 +31,7 @@ common.refreshTmpDir();
   const file = path.join(common.tmpDir, 'write-end-test0.txt');
   const stream = fs.createWriteStream(file);
   stream.end();
-  stream.on('close', common.mustCall(function() { }));
+  stream.on('close', common.mustCall());
 }
 
 {

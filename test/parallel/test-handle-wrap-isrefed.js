@@ -87,7 +87,7 @@ const strictEqual = require('assert').strictEqual;
 // tcp
 {
   const net = require('net');
-  const server = net.createServer(() => {}).listen(0);
+  const server = net.createServer(common.noop).listen(0);
   strictEqual(Object.getPrototypeOf(server._handle).hasOwnProperty('hasRef'),
               true, 'tcp_wrap: hasRef() missing');
   strictEqual(server._handle.hasRef(),
@@ -112,7 +112,7 @@ const strictEqual = require('assert').strictEqual;
 
 // timers
 {
-  const timer = setTimeout(() => {}, 500);
+  const timer = setTimeout(common.noop, 500);
   timer.unref();
   strictEqual(Object.getPrototypeOf(timer._handle).hasOwnProperty('hasRef'),
               true, 'timer_wrap: hasRef() missing');

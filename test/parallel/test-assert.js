@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const a = require('assert');
 
@@ -505,22 +505,22 @@ a.throws(makeBlock(a.deepEqual, args, []));
 // check messages from assert.throws()
 {
   assert.throws(
-    () => { a.throws(() => {}); },
+    () => { a.throws(common.noop); },
     /^AssertionError: Missing expected exception\.$/
   );
 
   assert.throws(
-    () => { a.throws(() => {}, TypeError); },
+    () => { a.throws(common.noop, TypeError); },
     /^AssertionError: Missing expected exception \(TypeError\)\.$/
   );
 
   assert.throws(
-    () => { a.throws(() => {}, 'fhqwhgads'); },
+    () => { a.throws(common.noop, 'fhqwhgads'); },
     /^AssertionError: Missing expected exception: fhqwhgads$/
   );
 
   assert.throws(
-    () => { a.throws(() => {}, TypeError, 'fhqwhgads'); },
+    () => { a.throws(common.noop, TypeError, 'fhqwhgads'); },
     /^AssertionError: Missing expected exception \(TypeError\): fhqwhgads$/
   );
 }

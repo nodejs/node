@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const async_wrap = process.binding('async_wrap');
@@ -28,8 +28,6 @@ function init(uid, type, parentUid, parentHandle) {
   }
 }
 
-function noop() { }
-
 async_wrap.setupHooks({ init });
 async_wrap.enable();
 
@@ -41,7 +39,7 @@ const server = net.createServer(function(c) {
     this.close();
   });
 }).listen(0, function() {
-  net.connect(this.address().port, noop);
+  net.connect(this.address().port, common.noop);
 });
 
 async_wrap.disable();

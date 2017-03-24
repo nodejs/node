@@ -31,7 +31,7 @@ for (let i = 0; i < N; ++i) {
   process.nextTick(common.mustCall(cb));
 }
 
-process.on('uncaughtException', common.mustCall(function() {}, N));
+process.on('uncaughtException', common.mustCall(N));
 
 process.on('exit', function() {
   process.removeAllListeners('uncaughtException');

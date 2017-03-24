@@ -39,8 +39,8 @@ const options = {
 
 const server = tls.Server(options, common.mustCall(function(socket) {
   if (++serverConnected === 2) {
-    server.close(common.mustCall(function() {}));
-    server.on('close', common.mustCall(function() {}));
+    server.close(common.mustCall());
+    server.on('close', common.mustCall());
   }
 }, 2));
 

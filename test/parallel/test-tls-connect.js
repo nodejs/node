@@ -40,7 +40,7 @@ const path = require('path');
   const options = {cert: cert, key: key, port: common.PORT};
   const conn = tls.connect(options, common.mustNotCall());
 
-  conn.on('error', common.mustCall(function() {}));
+  conn.on('error', common.mustCall());
 }
 
 // SSL_accept/SSL_connect error handling
@@ -55,5 +55,5 @@ const path = require('path');
     ciphers: 'rick-128-roll'
   }, common.mustNotCall());
 
-  conn.on('error', common.mustCall(function() {}));
+  conn.on('error', common.mustCall());
 }

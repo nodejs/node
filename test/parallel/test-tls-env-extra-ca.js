@@ -16,7 +16,7 @@ const fs = require('fs');
 if (process.env.CHILD) {
   const copts = {
     port: process.env.PORT,
-    checkServerIdentity: function() {},
+    checkServerIdentity: common.noop,
   };
   const client = tls.connect(copts, function() {
     client.end('hi');

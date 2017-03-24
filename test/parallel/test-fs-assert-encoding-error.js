@@ -1,14 +1,13 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
 const options = 'test';
-const noop = () => {};
 const unknownEncodingMessage = /^Error: Unknown encoding: test$/;
 
 assert.throws(() => {
-  fs.readFile('path', options, noop);
+  fs.readFile('path', options, common.noop);
 }, unknownEncodingMessage);
 
 assert.throws(() => {
@@ -16,7 +15,7 @@ assert.throws(() => {
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.readdir('path', options, noop);
+  fs.readdir('path', options, common.noop);
 }, unknownEncodingMessage);
 
 assert.throws(() => {
@@ -24,7 +23,7 @@ assert.throws(() => {
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.readlink('path', options, noop);
+  fs.readlink('path', options, common.noop);
 }, unknownEncodingMessage);
 
 assert.throws(() => {
@@ -32,7 +31,7 @@ assert.throws(() => {
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.writeFile('path', 'data', options, noop);
+  fs.writeFile('path', 'data', options, common.noop);
 }, unknownEncodingMessage);
 
 assert.throws(() => {
@@ -40,7 +39,7 @@ assert.throws(() => {
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.appendFile('path', 'data', options, noop);
+  fs.appendFile('path', 'data', options, common.noop);
 }, unknownEncodingMessage);
 
 assert.throws(() => {
@@ -48,11 +47,11 @@ assert.throws(() => {
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.watch('path', options, noop);
+  fs.watch('path', options, common.noop);
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.realpath('path', options, noop);
+  fs.realpath('path', options, common.noop);
 }, unknownEncodingMessage);
 
 assert.throws(() => {
@@ -60,7 +59,7 @@ assert.throws(() => {
 }, unknownEncodingMessage);
 
 assert.throws(() => {
-  fs.mkdtemp('path', options, noop);
+  fs.mkdtemp('path', options, common.noop);
 }, unknownEncodingMessage);
 
 assert.throws(() => {

@@ -15,7 +15,7 @@ const writer3 = new stream.Writable();
 // See: https://github.com/nodejs/node/issues/5820
 const buffer = Buffer.allocUnsafe(560000);
 
-reader._read = function(n) {};
+reader._read = common.noop;
 
 writer1._write = common.mustCall(function(chunk, encoding, cb) {
   this.emit('chunk-received');

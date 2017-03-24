@@ -34,7 +34,7 @@ function MyEE(cb) {
   EventEmitter.call(this);
 }
 
-const myee = new MyEE(common.mustCall(function() {}));
+const myee = new MyEE(common.mustCall());
 
 
 util.inherits(ErrorEE, EventEmitter);
@@ -62,6 +62,6 @@ MyEE2.prototype = new EventEmitter();
 const ee1 = new MyEE2();
 const ee2 = new MyEE2();
 
-ee1.on('x', function() {});
+ee1.on('x', common.noop);
 
 assert.strictEqual(ee2.listenerCount('x'), 0);

@@ -39,7 +39,7 @@ let paused = false;
   });
 
 
-  file.on('end', common.mustCall(function() {}));
+  file.on('end', common.mustCall());
 
 
   file.on('close', common.mustCall(function() {
@@ -139,7 +139,7 @@ let paused = false;
   let file7 =
     fs.createReadStream(rangeFile, Object.create({autoClose: false }));
   assert.strictEqual(file7.autoClose, false);
-  file7.on('data', function() {});
+  file7.on('data', common.noop);
   file7.on('end', common.mustCall(function() {
     process.nextTick(common.mustCall(function() {
       assert(!file7.closed);
@@ -169,8 +169,8 @@ let paused = false;
 {
   const options = Object.create({fd: 13337, autoClose: false});
   const file8 = fs.createReadStream(null, options);
-  file8.on('data', function() {});
-  file8.on('error', common.mustCall(function() {}));
+  file8.on('data', common.noop);
+  file8.on('error', common.mustCall());
   process.on('exit', function() {
     assert(!file8.closed);
     assert(!file8.destroyed);
@@ -181,8 +181,8 @@ let paused = false;
 // Make sure stream is destroyed when file does not exist.
 {
   const file9 = fs.createReadStream('/path/to/file/that/does/not/exist');
-  file9.on('data', function() {});
-  file9.on('error', common.mustCall(function() {}));
+  file9.on('data', common.noop);
+  file9.on('error', common.mustCall());
 
   process.on('exit', function() {
     assert(!file9.closed);

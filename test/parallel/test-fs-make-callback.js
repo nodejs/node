@@ -12,7 +12,7 @@ function test(cb) {
 }
 
 // Verify the case where a callback function is provided
-assert.doesNotThrow(test(function() {}));
+assert.doesNotThrow(test(common.noop));
 
 process.once('warning', common.mustCall((warning) => {
   assert.strictEqual(

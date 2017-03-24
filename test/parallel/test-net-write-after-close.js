@@ -33,7 +33,7 @@ const server = net.createServer(common.mustCall(function(socket) {
 
   setTimeout(common.mustCall(function() {
     console.error('about to try to write');
-    socket.write('test', common.mustCall(function(e) {}));
+    socket.write('test', common.mustCall());
   }), 250);
 }));
 

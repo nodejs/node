@@ -129,7 +129,7 @@ fs.watch(__filename, {persistent: false}, function() {
 // https://github.com/joyent/node/issues/6690
 let oldhandle;
 assert.throws(function() {
-  const w = fs.watch(__filename, function(event, filename) { });
+  const w = fs.watch(__filename, common.noop);
   oldhandle = w._handle;
   w._handle = { close: w._handle.close };
   w.close();
@@ -137,7 +137,7 @@ assert.throws(function() {
 oldhandle.close(); // clean up
 
 assert.throws(function() {
-  const w = fs.watchFile(__filename, {persistent: false}, function() {});
+  const w = fs.watchFile(__filename, {persistent: false}, common.noop);
   oldhandle = w._handle;
   w._handle = { stop: w._handle.stop };
   w.stop();

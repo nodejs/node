@@ -18,9 +18,9 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 'use strict';
-require('../common');
+
+const common = require('../common');
 const assert = require('assert');
 const Duplex = require('stream').Transform;
 
@@ -38,7 +38,7 @@ stream._write = (obj, _, cb) => {
   cb();
 };
 
-stream._read = () => {};
+stream._read = common.noop;
 
 stream.on('data', (obj) => {
   read = obj;

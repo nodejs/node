@@ -33,7 +33,7 @@ function runTest(highWaterMark, objectMode, produce) {
                            objectMode: objectMode });
   assert.strictEqual(r, r.wrap(old));
 
-  r.on('end', common.mustCall(function() {}));
+  r.on('end', common.mustCall());
 
   old.pause = function() {
     old.emit('pause');

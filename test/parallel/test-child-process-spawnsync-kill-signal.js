@@ -1,10 +1,10 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 
 if (process.argv[2] === 'child') {
-  setInterval(() => {}, 1000);
+  setInterval(common.noop, 1000);
 } else {
   const { SIGKILL } = process.binding('constants').os.signals;
 

@@ -13,7 +13,7 @@ assert.throws(() => {
           expected.length,
           0,
           'utf-8',
-          () => {});
+          common.noop);
 }, /Second argument needs to be a buffer/);
 
 assert.throws(() => {

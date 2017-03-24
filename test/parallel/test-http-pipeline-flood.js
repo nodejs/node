@@ -46,7 +46,7 @@ function parent() {
     res.end();
   });
 
-  server.on('connection', common.mustCall(function(conn) {}));
+  server.on('connection', common.mustCall());
 
   server.listen(0, function() {
     const spawn = require('child_process').spawn;

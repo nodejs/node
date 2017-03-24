@@ -63,12 +63,14 @@ if (!common.isAix) {
   // https://github.com/nodejs/node/issues/5085 is fixed
   {
     let watch;
-    assert.doesNotThrow(() => watch = fs.watch(__filename, options, () => {}));
+    assert.doesNotThrow(() => {
+      watch = fs.watch(__filename, options, common.noop);
+    });
     watch.close();
   }
 
   {
-    assert.doesNotThrow(() => fs.watchFile(__filename, options, () => {}));
+    assert.doesNotThrow(() => fs.watchFile(__filename, options, common.noop));
     fs.unwatchFile(__filename);
   }
 }

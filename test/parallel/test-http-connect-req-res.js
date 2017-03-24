@@ -33,7 +33,7 @@ server.listen(0, common.mustCall(function() {
     path: 'example.com:443'
   }, common.mustNotCall());
 
-  req.on('close', common.mustCall(function() { }));
+  req.on('close', common.mustCall());
 
   req.on('connect', common.mustCall(function(res, socket, firstBodyChunk) {
     console.error('Client got CONNECT request');

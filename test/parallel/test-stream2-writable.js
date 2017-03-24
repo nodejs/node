@@ -20,7 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+
+const common = require('../common');
 const W = require('_stream_writable');
 const D = require('_stream_duplex');
 const assert = require('assert');
@@ -304,7 +305,7 @@ test('encoding should be ignored for buffers', function(t) {
 
 test('writables are not pipable', function(t) {
   const w = new W();
-  w._write = function() {};
+  w._write = common.noop;
   let gotError = false;
   w.on('error', function() {
     gotError = true;
@@ -316,8 +317,8 @@ test('writables are not pipable', function(t) {
 
 test('duplexes are pipable', function(t) {
   const d = new D();
-  d._read = function() {};
-  d._write = function() {};
+  d._read = common.noop;
+  d._write = common.noop;
   let gotError = false;
   d.on('error', function() {
     gotError = true;
@@ -329,7 +330,7 @@ test('duplexes are pipable', function(t) {
 
 test('end(chunk) two times is an error', function(t) {
   const w = new W();
-  w._write = function() {};
+  w._write = common.noop;
   let gotError = false;
   w.on('error', function(er) {
     gotError = true;

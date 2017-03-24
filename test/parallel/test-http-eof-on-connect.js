@@ -20,7 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+
+const common = require('../common');
 const net = require('net');
 const http = require('http');
 
@@ -28,7 +29,7 @@ const http = require('http');
 // It is separate from test-http-malformed-request.js because it is only
 // reproduceable on the first packet on the first connection to a server.
 
-const server = http.createServer(function(req, res) {});
+const server = http.createServer(common.noop);
 server.listen(0);
 
 server.on('listening', function() {

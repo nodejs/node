@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 let once = 0;
@@ -9,7 +9,7 @@ process.on('beforeExit', () => {
   if (once > 1)
     throw new RangeError('beforeExit should only have been called once!');
 
-  setTimeout(() => {}, 1).unref();
+  setTimeout(common.noop, 1).unref();
   once++;
 });
 

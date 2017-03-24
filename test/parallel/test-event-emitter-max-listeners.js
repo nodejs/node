@@ -25,7 +25,7 @@ const assert = require('assert');
 const events = require('events');
 const e = new events.EventEmitter();
 
-e.on('maxListeners', common.mustCall(function() {}));
+e.on('maxListeners', common.mustCall());
 
 // Should not corrupt the 'maxListeners' queue.
 e.setMaxListeners(42);

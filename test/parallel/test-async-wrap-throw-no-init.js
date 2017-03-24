@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const async_wrap = process.binding('async_wrap');
 
@@ -17,9 +17,9 @@ assert.throws(function() {
 }, /init callback is not assigned to a function/);
 
 // Should not throw
-async_wrap.setupHooks({ init: () => {} });
+async_wrap.setupHooks({ init: common.noop });
 async_wrap.enable();
 
 assert.throws(function() {
-  async_wrap.setupHooks(() => {});
+  async_wrap.setupHooks(common.noop);
 }, /hooks should not be set while also enabled/);

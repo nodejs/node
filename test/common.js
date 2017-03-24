@@ -35,6 +35,9 @@ const execSync = require('child_process').execSync;
 const testRoot = process.env.NODE_TEST_DIR ?
                    fs.realpathSync(process.env.NODE_TEST_DIR) : __dirname;
 
+const noop = () => {};
+
+exports.noop = noop;
 exports.fixturesDir = path.join(__dirname, 'fixtures');
 exports.tmpDirName = 'tmp';
 // PORT should match the definition in test/testpy/__init__.py.
@@ -429,6 +432,13 @@ function runCallChecks(exitCode) {
 
 
 exports.mustCall = function(fn, expected) {
+  if (typeof fn === 'number') {
+    expected = fn;
+    fn = noop;
+  } else if (fn === undefined) {
+    fn = noop;
+  }
+
   if (expected === undefined)
     expected = 1;
   else if (typeof expected !== 'number')
@@ -525,9 +535,9 @@ util.inherits(ArrayStream, stream.Stream);
 exports.ArrayStream = ArrayStream;
 ArrayStream.prototype.readable = true;
 ArrayStream.prototype.writable = true;
-ArrayStream.prototype.pause = function() {};
-ArrayStream.prototype.resume = function() {};
-ArrayStream.prototype.write = function() {};
+ArrayStream.prototype.pause = noop;
+ArrayStream.prototype.resume = noop;
+ArrayStream.prototype.write = noop;
 
 // Returns true if the exit code "exitCode" and/or signal name "signal"
 // represent the exit code and/or signal name of a node process that aborted,

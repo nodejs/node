@@ -44,7 +44,7 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(onceHandlerCalled, 0);
 
   // Keep the process alive for a while so that the second SIGINT can be caught.
-  const timeout = setTimeout(() => {}, 1000);
+  const timeout = setTimeout(common.noop, 1000);
 
   let afterHandlerCalled = 0;
 
