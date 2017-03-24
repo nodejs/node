@@ -90,6 +90,47 @@ TEST(UtilTest, ToLower) {
   EXPECT_EQ('a', ToLower('A'));
 }
 
+TEST(UtilTest, StringToUint64) {
+  using node::NumberBase;
+  using node::StringToUint64;
+  EXPECT_TRUE(StringToUint64("").IsNothing());
+  EXPECT_TRUE(StringToUint64("", 1).IsNothing());
+  EXPECT_TRUE(StringToUint64("+1").IsNothing());
+  EXPECT_TRUE(StringToUint64("-1").IsNothing());
+  EXPECT_TRUE(StringToUint64("bad").IsNothing());
+  EXPECT_TRUE(StringToUint64("8", NumberBase::kOctal).IsNothing());
+  EXPECT_TRUE(StringToUint64("18", NumberBase::kOctal).IsNothing());
+  EXPECT_TRUE(StringToUint64("A", NumberBase::kDecimal).IsNothing());
+  EXPECT_TRUE(StringToUint64("2A", NumberBase::kDecimal).IsNothing());
+  EXPECT_TRUE(StringToUint64("G", NumberBase::kHexadecimal).IsNothing());
+  EXPECT_TRUE(StringToUint64("3G", NumberBase::kHexadecimal).IsNothing());
+  EXPECT_EQ(0ULL, StringToUint64("0").FromMaybe(-1));
+  EXPECT_EQ(0ULL, StringToUint64("0x").FromMaybe(-1));
+  EXPECT_EQ(0ULL, StringToUint64("0X").FromMaybe(-1));
+  EXPECT_EQ(42ULL, StringToUint64("42").FromMaybe(-1));
+  EXPECT_EQ(493ULL, StringToUint64("0755").FromMaybe(-1));
+  EXPECT_EQ(2989ULL, StringToUint64("0xbad").FromMaybe(-1));
+  EXPECT_EQ(2989ULL, StringToUint64("0XBAD").FromMaybe(-1));
+  EXPECT_EQ(2989ULL,
+            StringToUint64("BAD", NumberBase::kHexadecimal).FromMaybe(-1));
+  static const uint64_t kMaxUint64(-1);
+  EXPECT_EQ(kMaxUint64,
+            StringToUint64("01777777777777777777777").FromMaybe(0));
+  EXPECT_EQ(kMaxUint64,
+            StringToUint64("18446744073709551615").FromMaybe(0));
+  EXPECT_EQ(kMaxUint64,
+            StringToUint64("0xFFFFFFFFFFFFFFFF").FromMaybe(0));
+}
+
+TEST(UtilTest, StringToUint64InRange) {
+  using node::NumberBase;
+  using node::StringToUint64InRange;
+  EXPECT_TRUE(StringToUint64InRange("0", 1, 42).IsNothing());
+  EXPECT_TRUE(StringToUint64InRange("43", 7, 42).IsNothing());
+  EXPECT_EQ(1ULL, StringToUint64InRange("1", 1, 42).FromMaybe(-1));
+  EXPECT_EQ(42ULL, StringToUint64InRange("42", 1, 42).FromMaybe(-1));
+}
+
 namespace node {
   void LowMemoryNotification() {}
 }

@@ -341,6 +341,80 @@ bool StringEqualNoCaseN(const char* a, const char* b, size_t length) {
   return true;
 }
 
+inline v8::Maybe<uint64_t> StringToUint64(const char* string, size_t size,
+                                          NumberBase base) {
+  const char* const end = string + size;
+  const char* p = string;
+  uint64_t result = 0;
+
+  if (size == 0)
+    return v8::Nothing<uint64_t>();
+
+  if (size > 1 && p[0] == '0') {
+    // Intentionally accepts "0x" and "0X" as valid aliases for "0".
+    if ((base == NumberBase::kAny || base == NumberBase::kHexadecimal) &&
+        (p[1] | 32) == 'x') {
+      base = NumberBase::kHexadecimal;
+      p += 2;
+    } else if (base == NumberBase::kAny || base == NumberBase::kOctal) {
+      base = NumberBase::kOctal;
+      p += 1;
+    }
+  }
+
+  if (base == NumberBase::kAny)
+    base = NumberBase::kDecimal;
+
+  for (; p < end; p += 1) {
+    // Intentional wraparound for values < '0'.
+    uint8_t ch = static_cast<uint8_t>(p[0]) - '0';
+
+    // Digits 0-7 are always in range.
+    if (ch > 7) {
+      // Adjust for non-digits in hexadecimal numbers.
+      if (ch > 9) {
+        ch = (ch | 32) - '\'';  // Intentional wraparound for values < '\''.
+        if (ch < 10)
+          return v8::Nothing<uint64_t>();
+      }
+
+      if (ch >= base)
+        return v8::Nothing<uint64_t>();
+    }
+
+    // XXX(bnoordhuis) Detect overflow and return nothing?
+    result *= static_cast<uint64_t>(base);
+    result += ch;
+  }
+
+  if (p == end)
+    return v8::Just(result);
+
+  return v8::Nothing<uint64_t>();
+}
+
+inline v8::Maybe<uint64_t> StringToUint64(const char* string, NumberBase base) {
+  return StringToUint64(string, strlen(string), base);
+}
+
+inline v8::Maybe<uint64_t> StringToUint64InRange(const char* string,
+                                                 size_t size,
+                                                 uint64_t lower,
+                                                 uint64_t upper,
+                                                 NumberBase base) {
+  auto result = StringToUint64(string, size, base);
+  if (lower <= result.FromMaybe(lower) && upper >= result.FromMaybe(upper))
+    return result;
+  return v8::Nothing<uint64_t>();
+}
+
+inline v8::Maybe<uint64_t> StringToUint64InRange(const char* string,
+                                                 uint64_t lower,
+                                                 uint64_t upper,
+                                                 NumberBase base) {
+  return StringToUint64InRange(string, strlen(string), lower, upper, base);
+}
+
 inline size_t MultiplyWithOverflowCheck(size_t a, size_t b) {
   size_t ret = a * b;
   if (a != 0)

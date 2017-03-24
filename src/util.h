@@ -290,6 +290,34 @@ inline bool StringEqualNoCase(const char* a, const char* b);
 // strncasecmp() is locale-sensitive.  Use StringEqualNoCaseN() instead.
 inline bool StringEqualNoCaseN(const char* a, const char* b, size_t length);
 
+enum NumberBase : unsigned {
+  kAny = 0,
+  kOctal = 8,
+  kDecimal = 10,
+  kHexadecimal = 16
+};
+
+// Parse a string to uint64_t.
+inline v8::Maybe<uint64_t> StringToUint64(const char* string, size_t size,
+                                          NumberBase base = NumberBase::kAny);
+
+inline v8::Maybe<uint64_t> StringToUint64(const char* string,
+                                          NumberBase base = NumberBase::kAny);
+
+// Parse a string to uint64_t in the range lower:upper inclusive.
+inline v8::Maybe<uint64_t> StringToUint64InRange(const char* string,
+                                                 size_t size,
+                                                 uint64_t lower,
+                                                 uint64_t upper,
+                                                 NumberBase base =
+                                                     NumberBase::kAny);
+
+inline v8::Maybe<uint64_t> StringToUint64InRange(const char* string,
+                                                 uint64_t lower,
+                                                 uint64_t upper,
+                                                 NumberBase base =
+                                                     NumberBase::kAny);
+
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>

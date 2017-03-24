@@ -215,41 +215,6 @@ namespace url {
     return type;
   }
 
-  static inline int64_t ParseNumber(const char* start, const char* end) {
-    unsigned R = 10;
-    if (end - start >= 2 && start[0] == '0' && (start[1] | 0x20) == 'x') {
-      start += 2;
-      R = 16;
-    }
-    if (end - start == 0) {
-      return 0;
-    } else if (R == 10 && end - start > 1 && start[0] == '0') {
-      start++;
-      R = 8;
-    }
-    const char* p = start;
-
-    while (p < end) {
-      const char ch = p[0];
-      switch (R) {
-        case 8:
-          if (ch < '0' || ch > '7')
-            return -1;
-          break;
-        case 10:
-          if (!ASCII_DIGIT(ch))
-            return -1;
-          break;
-        case 16:
-          if (!ASCII_HEX_DIGIT(ch))
-            return -1;
-          break;
-      }
-      p++;
-    }
-    return strtoll(start, NULL, R);
-  }
-
   static url_host_type ParseIPv4Host(url_host* host,
                                      const char* input,
                                      size_t length) {
@@ -270,11 +235,13 @@ namespace url {
       if (ch == '.' || ch == kEOL) {
         if (++parts > 4)
           goto end;
-        if (pointer - mark == 0)
+        const ptrdiff_t size = pointer - mark;
+        if (size == 0)
           break;
-        int64_t n = ParseNumber(mark, pointer);
-        if (n < 0)
+        auto maybe_n = StringToUint64(mark, size);
+        if (maybe_n.IsNothing())
           goto end;
+        uint64_t n = maybe_n.FromJust();
 
         if (n > 255) {
           tooBigNumbers++;
