@@ -155,14 +155,12 @@ assert(mixedByteStringUcs2.includes('bc', 0, 'ucs2'));
 assert(mixedByteStringUcs2.includes('\u03a3', 0, 'ucs2'));
 assert(!mixedByteStringUcs2.includes('\u0396', 0, 'ucs2'));
 
-assert(
-    6, mixedByteStringUcs2.includes(Buffer.from('bc', 'ucs2'), 0, 'ucs2'));
-assert(
-    10, mixedByteStringUcs2.includes(Buffer.from('\u03a3', 'ucs2'),
-                                     0, 'ucs2'));
-assert(
-    -1, mixedByteStringUcs2.includes(Buffer.from('\u0396', 'ucs2'),
-                                     0, 'ucs2'));
+assert.ok(
+    mixedByteStringUcs2.includes(Buffer.from('bc', 'ucs2'), 0, 'ucs2'));
+assert.ok(
+    mixedByteStringUcs2.includes(Buffer.from('\u03a3', 'ucs2'), 0, 'ucs2'));
+assert.ok(
+    !mixedByteStringUcs2.includes(Buffer.from('\u0396', 'ucs2'), 0, 'ucs2'));
 
 twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
@@ -266,12 +264,12 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
 
     const patternBufferUcs2 =
         allCharsBufferUcs2.slice(index, index + length);
-    assert(
-        index, allCharsBufferUcs2.includes(patternBufferUcs2, 0, 'ucs2'));
+    assert.ok(
+        allCharsBufferUcs2.includes(patternBufferUcs2, 0, 'ucs2'));
 
     const patternStringUcs2 = patternBufferUcs2.toString('ucs2');
-    assert(
-        index, allCharsBufferUcs2.includes(patternStringUcs2, 0, 'ucs2'));
+    assert.ok(
+        allCharsBufferUcs2.includes(patternStringUcs2, 0, 'ucs2'));
   }
 }
 
