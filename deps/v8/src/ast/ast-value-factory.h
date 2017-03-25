@@ -257,6 +257,7 @@ class AstValue : public ZoneObject {
   F(eval, "eval")                               \
   F(function, "function")                       \
   F(get_space, "get ")                          \
+  F(length, "length")                           \
   F(let, "let")                                 \
   F(native, "native")                           \
   F(new_target, ".new.target")                  \

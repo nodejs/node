@@ -5582,16 +5582,35 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
     if (spread == nullptr) {
       // If the element is not a spread, we're adding a single:
       // %AppendElement($R, value)
-      ZoneList<Expression*>* append_element_args = NewExpressionList(2, zone());
-      append_element_args->Add(factory()->NewVariableProxy(result), zone());
-      append_element_args->Add(value, zone());
-      do_block->statements()->Add(
-          factory()->NewExpressionStatement(
-              factory()->NewCallRuntime(Runtime::kAppendElement,
-                                        append_element_args,
+      // or, in case of a hole,
+      // ++($R.length)
+      if (!value->IsLiteral() ||
+          !value->AsLiteral()->raw_value()->IsTheHole()) {
+        ZoneList<Expression*>* append_element_args =
+            NewExpressionList(2, zone());
+        append_element_args->Add(factory()->NewVariableProxy(result), zone());
+        append_element_args->Add(value, zone());
+        do_block->statements()->Add(
+            factory()->NewExpressionStatement(
+                factory()->NewCallRuntime(Runtime::kAppendElement,
+                                          append_element_args,
+                                          RelocInfo::kNoPosition),
+                RelocInfo::kNoPosition),
+            zone());
+      } else {
+        Property* length_property = factory()->NewProperty(
+            factory()->NewVariableProxy(result),
+            factory()->NewStringLiteral(ast_value_factory()->length_string(),
                                         RelocInfo::kNoPosition),
-              RelocInfo::kNoPosition),
-          zone());
+            RelocInfo::kNoPosition);
+        CountOperation* count_op = factory()->NewCountOperation(
+            Token::INC, true /* prefix */, length_property,
+            RelocInfo::kNoPosition);
+        do_block->statements()->Add(
+            factory()->NewExpressionStatement(count_op,
+                                              RelocInfo::kNoPosition),
+            zone());
+      }
     } else {
       // If it's a spread, we're adding a for/of loop iterating through it.
       Variable* each =
