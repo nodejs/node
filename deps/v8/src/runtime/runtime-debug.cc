@@ -332,7 +332,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetInternalProperties) {
 RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, name_obj, 1);
 
   // Convert the {name_obj} to a Name.
@@ -1343,6 +1343,7 @@ static bool HasInPrototypeChainIgnoringProxies(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
+  if (!args[0]->IsJSObject()) return *isolate->factory()->NewJSArray(0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, filter, 1);
   CHECK(filter->IsUndefined(isolate) || filter->IsJSObject());
@@ -1433,7 +1434,7 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
 RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
   HandleScope shs(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
   // TODO(1543): Come up with a solution for clients to handle potential errors
   // thrown by an intermediate proxy.
   RETURN_RESULT_OR_FAILURE(isolate, JSReceiver::GetPrototype(isolate, obj));
