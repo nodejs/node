@@ -1307,8 +1307,11 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
                                           MessageTemplate::kUnexpectedToken,
                                           Token::String(Token::ELLIPSIS));
         classifier->RecordNonSimpleParameter();
-        ExpressionT expr =
-            this->ParseAssignmentExpression(true, classifier, CHECK_OK);
+        ExpressionClassifier binding_classifier(this);
+        ExpressionT expr = this->ParseAssignmentExpression(
+            true, &binding_classifier, CHECK_OK);
+        classifier->Accumulate(&binding_classifier,
+                               ExpressionClassifier::AllProductions);
         if (!this->IsIdentifier(expr) && !IsValidPattern(expr)) {
           classifier->RecordArrowFormalParametersError(
               Scanner::Location(ellipsis_pos, scanner()->location().end_pos),
