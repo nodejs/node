@@ -794,14 +794,14 @@ added: v5.7.0
 A Boolean indicating whether or not the server is listening for
 connections.
 
-### server.maxHeadersCount([limit])
+### server.maxHeadersCount
 <!-- YAML
 added: v0.7.0
 -->
 
-* `limit` {number} Defaults to 1000.
+* {number} Defaults to 2000.
 
-Limits maximum incoming headers count, equal to 1000 by default. If set to 0 -
+Limits maximum incoming headers count, equal to 2000 by default. If set to 0 -
 no limit will be applied.
 
 ### server.setTimeout([msecs][, callback])
@@ -825,12 +825,12 @@ to the Server's `'timeout'` event, timeouts must be handled explicitly.
 
 Returns `server`.
 
-### server.timeout([msecs])
+### server.timeout
 <!-- YAML
 added: v0.9.12
 -->
 
-* `msecs` {number} Defaults to 120000 (2 minutes).
+* {number} Defaults to 120000 (2 minutes).
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.
