@@ -157,3 +157,20 @@ assert.throws(() => {
   const e = ee.removeListener('foo', listener);
   assert.strictEqual(e, ee);
 }
+
+{
+  const ee = new EventEmitter();
+
+  ee.on('foo', listener1);
+  ee.on('foo', listener2);
+  assert.deepStrictEqual(ee.listeners('foo'), [listener1, listener2]);
+
+  ee.removeListener('foo', listener1);
+  assert.strictEqual(ee._events.foo, listener2);
+
+  ee.on('foo', listener1);
+  assert.deepStrictEqual(ee.listeners('foo'), [listener2, listener1]);
+
+  ee.removeListener('foo', listener1);
+  assert.strictEqual(ee._events.foo, listener2);
+}
