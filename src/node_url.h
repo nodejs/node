@@ -492,7 +492,7 @@ enum url_error_cb_args {
 #define XX(name) name,
   ERR_ARGS(XX)
 #undef XX
-} url_error_cb_args;
+};
 
 static inline bool IsSpecial(std::string scheme) {
 #define XX(name, _) if (scheme == name) return true;
