@@ -22,21 +22,20 @@ which need to be included in the global Windows `PATH`.
 
 ### HTTP Benchmark Requirements
 
-Most of the HTTP benchmarks require a benchmarker to be installed, this can be
+Most of the HTTP benchmarks require a benchmarker to be installed. This can be
 either [`wrk`][wrk] or [`autocannon`][autocannon].
 
 `Autocannon` is a Node.js script that can be installed using
 `npm install -g autocannon`. It will use the Node.js executable that is in the
-path, hence if you want to compare two HTTP benchmark runs make sure that the
+path. Hence if you want to compare two HTTP benchmark runs, make sure that the
 Node.js version in the path is not altered.
 
 `wrk` may be available through your preferred package manager. If not, you can
 easily build it [from source][wrk] via `make`.
 
-By default `wrk` will be used as benchmarker. If it is not available
-`autocannon` will be used in it its place. When creating a HTTP benchmark you
-can specify which benchmarker should be used. You can force a specific
-benchmarker to be used by providing it as an argument, e. g.:
+By default, `wrk` will be used as the benchmarker. If it is not available,
+`autocannon` will be used in its place. When creating an HTTP benchmark, you can
+specify which benchmarker should be used by providing it as an argument:
 
 `node benchmark/run.js --set benchmarker=autocannon http`
 
@@ -44,7 +43,7 @@ benchmarker to be used by providing it as an argument, e. g.:
 
 ### Benchmark Analysis Requirements
 
-To analyze the results `R` should be installed. Check you package manager or
+To analyze the results, `R` should be installed. Use your package manager or
 download it from https://www.r-project.org/.
 
 The R packages `ggplot2` and `plyr` are also used and can be installed using
@@ -56,9 +55,8 @@ install.packages("ggplot2")
 install.packages("plyr")
 ```
 
-In the event you get a message that you need to select a CRAN mirror first.
-
-You can specify a mirror by adding in the repo parameter.
+In the event you get a message that you need to select a CRAN mirror first, you
+can specify a mirror by adding in the repo parameter.
 
 If we used the "http://cran.us.r-project.org" mirror, it could look something
 like this:
