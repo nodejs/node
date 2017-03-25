@@ -112,14 +112,23 @@ class ObjectWrap {
     if (--refs_ == 0)
       MakeWeak();
   }
+  
+  /* weakCallback should be implemented in the subclass when  
+   * v8 api call is needed before destruction, on garbadge collection.
+   * (Such as: v8::Isolate::AdjustAmountOfExternalAllocatedMemory).
+   * Isolate can be obtained with data.GetIsolate()
+   */
+  virtual void weakCallback(const v8::WeakCallbackInfo<ObjectWrap>& data) {
+  
+  }
 
   int refs_;  // ro
 
  private:
-  static void WeakCallback(
-      const v8::WeakCallbackInfo<ObjectWrap>& data) {
+  static void WeakCallback(const v8::WeakCallbackInfo<ObjectWrap>& data) {
     ObjectWrap* wrap = data.GetParameter();
     assert(wrap->refs_ == 0);
+    wrap->weakCallback(data);
     wrap->handle_.Reset();
     delete wrap;
   }
