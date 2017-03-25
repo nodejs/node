@@ -218,7 +218,7 @@ For a regular file [`util.inspect(stats)`][] would return a string very
 similar to this:
 
 ```js
-{
+Stats {
   dev: 2114,
   ino: 48064969,
   mode: 33188,
@@ -232,8 +232,7 @@ similar to this:
   atime: Mon, 10 Oct 2011 23:24:11 GMT,
   mtime: Mon, 10 Oct 2011 23:24:11 GMT,
   ctime: Mon, 10 Oct 2011 23:24:11 GMT,
-  birthtime: Mon, 10 Oct 2011 23:24:11 GMT
-}
+  birthtime: Mon, 10 Oct 2011 23:24:11 GMT }
 ```
 
 Please note that `atime`, `mtime`, `birthtime`, and `ctime` are
