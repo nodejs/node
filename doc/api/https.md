@@ -30,11 +30,11 @@ added: v0.11.2
 
 See [`http.Server#setTimeout()`][].
 
-### server.timeout([msecs])
+### server.timeout
 <!-- YAML
 added: v0.11.2
 -->
-- `msecs` {number} Defaults to 120000 (2 minutes).
+- {number} Defaults to 120000 (2 minutes).
 
 See [`http.Server#timeout`][].
 
