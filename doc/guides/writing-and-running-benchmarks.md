@@ -34,7 +34,7 @@ Node.js version in the path is not altered.
 easily build it [from source][wrk] via `make`.
 
 By default, `wrk` will be used as the benchmarker. If it is not available,
-`autocannon` will be used in its place. When creating a HTTP benchmark, you can
+`autocannon` will be used in its place. When creating an HTTP benchmark, you can
 specify which benchmarker should be used by providing it as an argument:
 
 `node benchmark/run.js --set benchmarker=autocannon http`
