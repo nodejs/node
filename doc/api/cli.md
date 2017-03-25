@@ -146,10 +146,11 @@ Silence all process warnings (including deprecations).
 
 ### `--napi-modules`
 <!-- YAML
-added: v8.0.0
+added: REPLACEME
 -->
 
-Load N-API modules (experimental, opt-in by adding this flag).
+Enable loading native modules compiled with the ABI-stable Node.js API (N-API)
+(experimental).
 
 ### `--trace-warnings`
 <!-- YAML

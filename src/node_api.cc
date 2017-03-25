@@ -13,8 +13,9 @@
 #include <node_object_wrap.h>
 #include <string.h>
 #include <algorithm>
+#include <cmath>
 #include <vector>
-#include "node_api_internal.h"
+#include "node_api.h"
 
 namespace v8impl {
 
@@ -422,13 +423,9 @@ v8::Local<v8::Object> CreateFunctionCallbackData(napi_env env,
   cbdata->SetInternalField(
       v8impl::kFunctionIndex,
       v8::External::New(isolate, reinterpret_cast<void*>(cb)));
-
-  if (data) {
-    cbdata->SetInternalField(
-        v8impl::kDataIndex,
-        v8::External::New(isolate, reinterpret_cast<void*>(data)));
-  }
-
+  cbdata->SetInternalField(
+      v8impl::kDataIndex,
+      v8::External::New(isolate, reinterpret_cast<void*>(data)));
   return cbdata;
 }
 
@@ -446,24 +443,21 @@ v8::Local<v8::Object> CreateAccessorCallbackData(napi_env env,
   otpl->SetInternalFieldCount(v8impl::kAccessorFieldCount);
   v8::Local<v8::Object> cbdata = otpl->NewInstance(context).ToLocalChecked();
 
-  if (getter) {
+  if (getter != nullptr) {
     cbdata->SetInternalField(
         v8impl::kGetterIndex,
         v8::External::New(isolate, reinterpret_cast<void*>(getter)));
   }
 
-  if (setter) {
+  if (setter != nullptr) {
     cbdata->SetInternalField(
         v8impl::kSetterIndex,
         v8::External::New(isolate, reinterpret_cast<void*>(setter)));
   }
 
-  if (data) {
-    cbdata->SetInternalField(
-        v8impl::kDataIndex,
-        v8::External::New(isolate, reinterpret_cast<void*>(data)));
-  }
-
+  cbdata->SetInternalField(
+      v8impl::kDataIndex,
+      v8::External::New(isolate, reinterpret_cast<void*>(data)));
   return cbdata;
 }
 
@@ -642,7 +636,7 @@ napi_status napi_create_function(napi_env env,
 
   return_value = scope.Escape(tpl->GetFunction());
 
-  if (utf8name) {
+  if (utf8name != nullptr) {
     v8::Local<v8::String> name_string;
     CHECK_NEW_FROM_UTF8(isolate, name_string, utf8name);
     return_value->SetName(name_string);
@@ -1541,6 +1535,8 @@ napi_status napi_get_value_double(napi_env env,
                                   double* result) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
   // JS exceptions.
+  CHECK_ARG(env);
+  CHECK_ARG(value);
   CHECK_ARG(result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
@@ -1556,13 +1552,16 @@ napi_status napi_get_value_int32(napi_env env,
                                  int32_t* result) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
   // JS exceptions.
+  CHECK_ARG(env);
+  CHECK_ARG(value);
   CHECK_ARG(result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
-
-  // Value.As<Int32> works when the Value is any kind of Number.
   RETURN_STATUS_IF_FALSE(val->IsNumber(), napi_number_expected);
-  *result = val.As<v8::Int32>()->Value();
+
+  v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  *result = val->Int32Value(context).ToChecked();
 
   return napi_ok;
 }
@@ -1572,13 +1571,16 @@ napi_status napi_get_value_uint32(napi_env env,
                                   uint32_t* result) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
   // JS exceptions.
+  CHECK_ARG(env);
+  CHECK_ARG(value);
   CHECK_ARG(result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
-
-  // Value.As<Uint32> works when the Value is any kind of Number.
   RETURN_STATUS_IF_FALSE(val->IsNumber(), napi_number_expected);
-  *result = val.As<v8::Uint32>()->Value();
+
+  v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  *result = val->Uint32Value(context).ToChecked();
 
   return napi_ok;
 }
@@ -1588,13 +1590,23 @@ napi_status napi_get_value_int64(napi_env env,
                                  int64_t* result) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
   // JS exceptions.
+  CHECK_ARG(env);
+  CHECK_ARG(value);
   CHECK_ARG(result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
-
-  // Value.As<Integer> works when the Value is any kind of Number.
   RETURN_STATUS_IF_FALSE(val->IsNumber(), napi_number_expected);
-  *result = val.As<v8::Integer>()->Value();
+
+  // v8::Value::IntegerValue() converts NaN to INT64_MIN, inconsistent with
+  // v8::Value::Int32Value() that converts NaN to 0. So special-case NaN here.
+  double doubleValue = val.As<v8::Number>()->Value();
+  if (std::isnan(doubleValue)) {
+    *result = 0;
+  } else {
+    v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    *result = val->IntegerValue(context).ToChecked();
+  }
 
   return napi_ok;
 }
@@ -1602,6 +1614,7 @@ napi_status napi_get_value_int64(napi_env env,
 napi_status napi_get_value_bool(napi_env env, napi_value value, bool* result) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
   // JS exceptions.
+  CHECK_ARG(value);
   CHECK_ARG(result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
@@ -2229,7 +2242,7 @@ napi_status napi_create_buffer_copy(napi_env env,
   v8::Local<v8::Object> buffer = maybe.ToLocalChecked();
   *result = v8impl::JsValueFromV8LocalValue(buffer);
 
-  if (result_data) {
+  if (result_data != nullptr) {
     *result_data = node::Buffer::Data(buffer);
   }
 
@@ -2253,10 +2266,10 @@ napi_status napi_get_buffer_info(napi_env env,
   v8::Local<v8::Object> buffer =
       v8impl::V8LocalValueFromJsValue(value).As<v8::Object>();
 
-  if (data) {
+  if (data != nullptr) {
     *data = node::Buffer::Data(buffer);
   }
-  if (length) {
+  if (length != nullptr) {
     *length = node::Buffer::Length(buffer);
   }
 

@@ -1,4 +1,13 @@
-#include "node_api_async_internal.h"
+#include "node_api_async.h"
+#include "uv.h"
+
+typedef struct napi_work_impl__ {
+  uv_work_t* work;
+  void* data;
+  void (*execute)(void* data);
+  void (*complete)(void* data);
+  void (*destroy)(void* data);
+} napi_work_impl;
 
 napi_work napi_create_async_work() {
   napi_work_impl* worker =

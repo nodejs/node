@@ -32,6 +32,7 @@ assert.throws(() => test.asBool(testSym), boolExpected);
   assert.strictEqual(1, asInt(1.9));
   assert.strictEqual(0, asInt(0.9));
   assert.strictEqual(999, asInt(999.9));
+  assert.strictEqual(0, asInt(Number.NaN));
   assert.throws(() => asInt(undefined), numberExpected);
   assert.throws(() => asInt(null), numberExpected);
   assert.throws(() => asInt(false), numberExpected);
@@ -42,9 +43,6 @@ assert.throws(() => test.asBool(testSym), boolExpected);
   assert.throws(() => asInt(testSym), numberExpected);
 });
 
-assert.strictEqual(-Math.pow(2, 31), test.asInt32(Number.NaN));
-assert.strictEqual(0, test.asUInt32(Number.NaN));
-assert.strictEqual(-Math.pow(2, 63), test.asInt64(Number.NaN));
 assert.strictEqual(-1, test.asInt32(-1));
 assert.strictEqual(-1, test.asInt64(-1));
 assert.strictEqual(Math.pow(2, 32) - 1, test.asUInt32(-1));
