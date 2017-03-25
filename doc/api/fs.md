@@ -377,7 +377,7 @@ fs.access('myfile', (err) => {
 ```js
 fs.open('myfile', 'wx', (err, fd) => {
   if (err) {
-    if (err.code === "EEXIST") {
+    if (err.code === 'EEXIST') {
       console.error('myfile already exists');
       return;
     } else {
@@ -394,7 +394,7 @@ fs.open('myfile', 'wx', (err, fd) => {
 ```js
 fs.access('myfile', (err) => {
   if (err) {
-    if (err.code === "ENOENT") {
+    if (err.code === 'ENOENT') {
       console.error('myfile does not exist');
       return;
     } else {
@@ -414,7 +414,7 @@ fs.access('myfile', (err) => {
 ```js
 fs.open('myfile', 'r', (err, fd) => {
   if (err) {
-    if (err.code === "ENOENT") {
+    if (err.code === 'ENOENT') {
       console.error('myfile does not exist');
       return;
     } else {
@@ -779,7 +779,7 @@ fs.exists('myfile', (exists) => {
 ```js
 fs.open('myfile', 'wx', (err, fd) => {
   if (err) {
-    if (err.code === "EEXIST") {
+    if (err.code === 'EEXIST') {
       console.error('myfile already exists');
       return;
     } else {
@@ -809,7 +809,7 @@ fs.exists('myfile', (exists) => {
 ```js
 fs.open('myfile', 'r', (err, fd) => {
   if (err) {
-    if (err.code === "ENOENT") {
+    if (err.code === 'ENOENT') {
       console.error('myfile does not exist');
       return;
     } else {
