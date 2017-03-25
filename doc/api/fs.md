@@ -1026,7 +1026,7 @@ const fd = fs.openSync('temp.txt', 'r+');
 
 // truncate the file to 10 bytes, whereas the actual size is 7 bytes
 fs.ftruncate(fd, 10, (err) => {
-  assert.ifError(!err);
+  assert.ifError(err);
   console.log(fs.readFileSync('temp.txt'));
 });
 // Prints: <Buffer 4e 6f 64 65 2e 6a 73 00 00 00>
