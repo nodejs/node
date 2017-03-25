@@ -1764,7 +1764,7 @@ argument will automatically be normalized to absolute path.
 Here is an example below:
 
 ```js
-fs.symlink('./foo', './new-port');
+fs.symlink('./foo', './new-port', callback);
 ```
 
 It creates a symbolic link named "new-port" that points to "foo".
