@@ -5,11 +5,9 @@ const assert = require('assert');
 const vm = require('vm');
 const o = vm.createContext({ console: console });
 
-// This triggers the setter callback in node_contextify.cc
+// Function declaration and expression should both be copied to the
+// sandboxed context.
 let code = 'var a = function() {};\n';
-
-// but this does not, since function decls are defineProperties,
-// not simple sets.
 code += 'function b(){}\n';
 
 // Grab the global b function as the completion value, to ensure that
