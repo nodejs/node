@@ -7,6 +7,9 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
+# See https://github.com/nodejs/node/issues/12053, this test may be exposing a
+# genuine bug with kill() on Windows.
+test-child-process-exec-kill-throws : PASS,FLAKY
 
 [$system==linux]
 
