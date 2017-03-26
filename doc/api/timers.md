@@ -75,9 +75,7 @@ added: v0.9.1
 * `...args` {any} Optional arguments to pass when the `callback` is called.
 
 Schedules the "immediate" execution of the `callback` after I/O events'
-callbacks and before timers created using [`setTimeout()`][] and
-[`setInterval()`][] are triggered. Returns an `Immediate` for use with
-[`clearImmediate()`][].
+callbacks. Returns an `Immediate` for use with [`clearImmediate()`][].
 
 When multiple calls to `setImmediate()` are made, the `callback` functions are
 queued for execution in the order in which they are created. The entire callback
