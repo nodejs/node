@@ -41,24 +41,25 @@ server.listen(0, common.mustCall(function() {
     console.log('Got res: ' + res.statusCode);
     console.dir(res.headers);
 
-    res.on('data', function(chunk) {
+    res.on('data', common.mustCall((chunk) => {
       console.log('Read ' + chunk.length + ' bytes');
       console.log(' chunk=%j', chunk.toString());
-    });
+    }));
 
-    res.on('end', function() {
+    res.on('end', common.mustCall(() => {
       console.log('Response ended.');
-    });
+    }));
 
-    res.on('aborted', function() {
+    res.on('aborted', common.mustCall(() => {
       console.log('Response aborted.');
-    });
+    }));
 
-    res.socket.on('close', function() {
+    res.socket.on('close', common.mustCall(() => {
       console.log('socket closed, but not res');
-    });
+    }));
 
-    // it would be nice if this worked:
-    res.on('close', common.mustCall(function() {}));
+    res.on('close', common.mustCall(() => {
+      console.log('Response closed.');
+    }));
   }));
 }));
