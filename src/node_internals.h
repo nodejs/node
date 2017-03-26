@@ -153,6 +153,19 @@ constexpr size_t arraysize(const T(&)[N]) { return N; }
 bool IsExceptionDecorated(Environment* env, v8::Local<v8::Value> er);
 
 enum ErrorHandlingMode { FATAL_ERROR, CONTEXTIFY_ERROR };
+
+v8::Local<v8::Value> GetPromiseReason(Environment* env,
+                                      v8::Local<v8::Value> promise);
+
+void InternalFatalException(v8::Isolate* isolate,
+                            v8::Local<v8::Value> error,
+                            v8::Local<v8::Message> message,
+                            bool from_promise);
+
+void ReportException(Environment* env,
+                     v8::Local<v8::Value> er,
+                     v8::Local<v8::Message> message);
+
 void AppendExceptionLine(Environment* env,
                          v8::Local<v8::Value> er,
                          v8::Local<v8::Message> message,
