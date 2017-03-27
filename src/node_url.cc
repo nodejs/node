@@ -862,8 +862,10 @@ namespace url {
           }
           break;
         case kRelativeSlash:
-          if (ch == '/' || special_back_slash) {
+          if (IsSpecial(url->scheme) && (ch == '/' || ch == '\\')) {
             state = kSpecialAuthorityIgnoreSlashes;
+          } else if (ch == '/') {
+            state = kAuthority;
           } else {
             if (base->flags & URL_FLAGS_HAS_USERNAME) {
               url->flags |= URL_FLAGS_HAS_USERNAME;
@@ -1145,9 +1147,25 @@ namespace url {
           }
           break;
         case kPathStart:
-          state = kPath;
-          if (ch != '/' && !special_back_slash)
-            continue;
+          if (IsSpecial(url->scheme)) {
+            state = kPath;
+            if (ch != '/' && ch != '\\') {
+              continue;
+            }
+          } else if (!has_state_override && ch == '?') {
+            url->flags |= URL_FLAGS_HAS_QUERY;
+            url->query.clear();
+            state = kQuery;
+          } else if (!has_state_override && ch == '#') {
+            url->flags |= URL_FLAGS_HAS_FRAGMENT;
+            url->fragment.clear();
+            state = kFragment;
+          } else if (ch != kEOL) {
+            state = kPath;
+            if (ch != '/') {
+              continue;
+            }
+          }
           break;
         case kPath:
           if (ch == kEOL ||
@@ -1165,7 +1183,7 @@ namespace url {
                 url->flags |= URL_FLAGS_HAS_PATH;
                 url->path.push_back("");
               }
-            } else {
+            } else if (!IsSingleDotSegment(buffer)) {
               if (url->scheme == "file:" &&
                   url->path.empty() &&
                   buffer.size() == 2 &&
