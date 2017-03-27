@@ -103,7 +103,7 @@ lib: make something faster
 
 Switch to using String#repeat to improve performance.
 
-PR-URL: https://github.com/nodejs/node/pull/5678
+PR-URL: https://github.com/nodejs/node/pull/1234
 ```
 
 ### Helpful Hints
@@ -116,7 +116,6 @@ PR-URL: https://github.com/nodejs/node/pull/5678
 
 In the event the backport pull request is different than the original,
 the backport pull request should be reviewed the same way a new pull request
-is reviewed. When each commit is landed, the new reviewers and the new PR-URL
-should be used.
+is reviewed.
 
 [LTS Plan]: https://github.com/nodejs/LTS#lts-plan
