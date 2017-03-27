@@ -100,6 +100,11 @@ const objects = [
 }
 
 {
+  assert.throws(() => v8.serialize(process.stdin._handle),
+                /^Error: Unknown host object type: \[object .*\]$/);
+}
+
+{
   const buf = Buffer.from('ff0d6f2203666f6f5e007b01', 'hex');
 
   const des = new v8.DefaultDeserializer(buf);
