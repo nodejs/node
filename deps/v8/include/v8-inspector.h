@@ -224,8 +224,6 @@ class V8_EXPORT V8Inspector {
   virtual void resetContextGroup(int contextGroupId) = 0;
 
   // Various instrumentation.
-  virtual void willExecuteScript(v8::Local<v8::Context>, int scriptId) = 0;
-  virtual void didExecuteScript(v8::Local<v8::Context>) = 0;
   virtual void idleStarted() = 0;
   virtual void idleFinished() = 0;
 

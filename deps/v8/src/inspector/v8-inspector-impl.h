@@ -85,8 +85,6 @@ class V8InspectorImpl : public V8Inspector {
   void contextCreated(const V8ContextInfo&) override;
   void contextDestroyed(v8::Local<v8::Context>) override;
   void resetContextGroup(int contextGroupId) override;
-  void willExecuteScript(v8::Local<v8::Context>, int scriptId) override;
-  void didExecuteScript(v8::Local<v8::Context>) override;
   void idleStarted() override;
   void idleFinished() override;
   unsigned exceptionThrown(v8::Local<v8::Context>, const StringView& message,
