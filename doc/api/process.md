@@ -1555,7 +1555,7 @@ must call `process.stdin.resume()` to read from it. Note also that calling
 * {Stream}
 
 The `process.stdout` property returns a [Writable][] stream connected to
-`stdout` (fd `2`).
+`stdout` (fd `1`).
 
 For example, to copy process.stdin to process.stdout:
 
