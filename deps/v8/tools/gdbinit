@@ -29,13 +29,13 @@ Print a v8 Code object from an internal code address
 Usage: jco pc
 end
 
-# Print TypeFeedbackVector
+# Print FeedbackVector
 define jfv
-call _v8_internal_Print_TypeFeedbackVector((void*)($arg0))
+call _v8_internal_Print_FeedbackVector((void*)($arg0))
 end
 document jfv
-Print a v8 TypeFeedbackVector object
-Usage: jtv tagged_ptr
+Print a v8 FeedbackVector object
+Usage: jfv tagged_ptr
 end
 
 # Print DescriptorArray.
