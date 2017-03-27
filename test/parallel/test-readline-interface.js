@@ -527,6 +527,142 @@ function isWarned(emitter) {
       assert.strictEqual(cursorPos.cols, expectedLines.slice(-1)[0].length);
       rli.close();
     }
+
+    {
+      // Beginning and end of line
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', 'the quick brown fox');
+      fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 0);
+      fi.emit('keypress', '.', { ctrl: true, name: 'e' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 19);
+      rli.close();
+    }
+
+    {
+      // `wordLeft` and `wordRight`
+      const fi = new FakeInput();
+      const rli = new readline.Interface({
+        input: fi,
+        output: fi,
+        prompt: '',
+        terminal: terminal
+      });
+      fi.emit('data', 'the quick brown fox');
+      fi.emit('keypress', '.', { ctrl: true, name: 'left' });
+      let cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 16);
+      fi.emit('keypress', '.', { meta: true, name: 'b' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 10);
+      fi.emit('keypress', '.', { ctrl: true, name: 'right' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 16);
+      fi.emit('keypress', '.', { meta: true, name: 'f' });
+      cursorPos = rli._getCursorPos();
+      assert.strictEqual(cursorPos.rows, 0);
+      assert.strictEqual(cursorPos.cols, 19);
+      rli.close();
+    }
+
+    {
+      // `deleteWordLeft`
+      [
+        { ctrl: true, name: 'w' },
+        { ctrl: true, name: 'backspace' },
+        { meta: true, name: 'backspace' }
+      ]
+        .forEach((deleteWordLeftKey) => {
+          let fi = new FakeInput();
+          let rli = new readline.Interface({
+            input: fi,
+            output: fi,
+            prompt: '',
+            terminal: terminal
+          });
+          fi.emit('data', 'the quick brown fox');
+          fi.emit('keypress', '.', { ctrl: true, name: 'left' });
+          rli.on('line', common.mustCall((line) => {
+            assert.strictEqual(line, 'the quick fox');
+          }));
+          fi.emit('keypress', '.', deleteWordLeftKey);
+          fi.emit('data', '\n');
+          rli.close();
+
+          // No effect if pressed at beginning of line
+          fi = new FakeInput();
+          rli = new readline.Interface({
+            input: fi,
+            output: fi,
+            prompt: '',
+            terminal: terminal
+          });
+          fi.emit('data', 'the quick brown fox');
+          fi.emit('keypress', '.', { ctrl: true, name: 'a' });
+          rli.on('line', common.mustCall((line) => {
+            assert.strictEqual(line, 'the quick brown fox');
+          }));
+          fi.emit('keypress', '.', deleteWordLeftKey);
+          fi.emit('data', '\n');
+          rli.close();
+        });
+    }
+
+    {
+      // `deleteWordRight`
+      [
+        { ctrl: true, name: 'delete' },
+        { meta: true, name: 'delete' },
+        { meta: true, name: 'd' }
+      ]
+        .forEach((deleteWordRightKey) => {
+          let fi = new FakeInput();
+          let rli = new readline.Interface({
+            input: fi,
+            output: fi,
+            prompt: '',
+            terminal: terminal
+          });
+          fi.emit('data', 'the quick brown fox');
+          fi.emit('keypress', '.', { ctrl: true, name: 'left' });
+          fi.emit('keypress', '.', { ctrl: true, name: 'left' });
+          rli.on('line', common.mustCall((line) => {
+            assert.strictEqual(line, 'the quick fox');
+          }));
+          fi.emit('keypress', '.', deleteWordRightKey);
+          fi.emit('data', '\n');
+          rli.close();
+
+          // No effect if pressed at end of line
+          fi = new FakeInput();
+          rli = new readline.Interface({
+            input: fi,
+            output: fi,
+            prompt: '',
+            terminal: terminal
+          });
+          fi.emit('data', 'the quick brown fox');
+          rli.on('line', common.mustCall((line) => {
+            assert.strictEqual(line, 'the quick brown fox');
+          }));
+          fi.emit('keypress', '.', deleteWordRightKey);
+          fi.emit('data', '\n');
+          rli.close();
+        });
+    }
   }
 
   // isFullWidthCodePoint() should return false for non-numeric values
