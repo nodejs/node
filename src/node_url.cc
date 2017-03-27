@@ -27,6 +27,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Null;
 using v8::Object;
 using v8::String;
@@ -1227,6 +1228,29 @@ namespace url {
     }
   }
 
+  static inline void SetArgs(Environment* env,
+                             Local<Value> argv[],
+                             const struct url_data* url) {
+    Isolate* isolate = env->isolate();
+    argv[ARG_FLAGS] = Integer::NewFromUnsigned(isolate, url->flags);
+    if (url->flags & URL_FLAGS_HAS_SCHEME)
+      argv[ARG_PROTOCOL] = OneByteString(isolate, url->scheme.c_str());
+    if (url->flags & URL_FLAGS_HAS_USERNAME)
+      argv[ARG_USERNAME] = UTF8STRING(isolate, url->username);
+    if (url->flags & URL_FLAGS_HAS_PASSWORD)
+      argv[ARG_PASSWORD] = UTF8STRING(isolate, url->password);
+    if (url->flags & URL_FLAGS_HAS_HOST)
+      argv[ARG_HOST] = UTF8STRING(isolate, url->host);
+    if (url->flags & URL_FLAGS_HAS_QUERY)
+      argv[ARG_QUERY] = UTF8STRING(isolate, url->query);
+    if (url->flags & URL_FLAGS_HAS_FRAGMENT)
+      argv[ARG_FRAGMENT] = UTF8STRING(isolate, url->fragment);
+    if (url->port > -1)
+      argv[ARG_PORT] = Integer::New(isolate, url->port);
+    if (url->flags & URL_FLAGS_HAS_PATH)
+      argv[ARG_PATH] = Copy(env, url->path);
+  }
+
   static void Parse(Environment* env,
                     Local<Value> recv,
                     const char* input,
@@ -1268,23 +1292,7 @@ namespace url {
         undef,
         undef,
       };
-      argv[ARG_FLAGS] = Integer::NewFromUnsigned(isolate, url.flags);
-      if (url.flags & URL_FLAGS_HAS_SCHEME)
-        argv[ARG_PROTOCOL] = OneByteString(isolate, url.scheme.c_str());
-      if (url.flags & URL_FLAGS_HAS_USERNAME)
-        argv[ARG_USERNAME] = UTF8STRING(isolate, url.username);
-      if (url.flags & URL_FLAGS_HAS_PASSWORD)
-        argv[ARG_PASSWORD] = UTF8STRING(isolate, url.password);
-      if (url.flags & URL_FLAGS_HAS_HOST)
-        argv[ARG_HOST] = UTF8STRING(isolate, url.host);
-      if (url.flags & URL_FLAGS_HAS_QUERY)
-        argv[ARG_QUERY] = UTF8STRING(isolate, url.query);
-      if (url.flags & URL_FLAGS_HAS_FRAGMENT)
-        argv[ARG_FRAGMENT] = UTF8STRING(isolate, url.fragment);
-      if (url.port > -1)
-        argv[ARG_PORT] = Integer::New(isolate, url.port);
-      if (url.flags & URL_FLAGS_HAS_PATH)
-        argv[ARG_PATH] = Copy(env, url.path);
+      SetArgs(env, argv, &url);
       (void)cb->Call(context, recv, arraysize(argv), argv);
     } else if (error_cb->IsFunction()) {
       Local<Value> argv[2] = { undef, undef };
@@ -1419,15 +1427,19 @@ namespace url {
                             v8::NewStringType::kNormal).ToLocalChecked());
   }
 
-  MaybeLocal<Value> URL::ToObject(Environment* env) {
+  // This function works by calling out to a JS function that creates and
+  // returns the JS URL object. Be mindful of the JS<->Native boundary
+  // crossing that is required.
+  const Local<Value> URL::ToObject(Environment* env) const {
     Isolate* isolate = env->isolate();
     Local<Context> context = env->context();
     HandleScope handle_scope(isolate);
     Context::Scope context_scope(context);
 
     const Local<Value> undef = Undefined(isolate);
+
     if (context_.flags & URL_FLAGS_FAILED)
-      return undef;
+      return Local<Value>();
 
     Local<Value> argv[9] = {
       undef,
@@ -1440,26 +1452,14 @@ namespace url {
       undef,
       undef,
     };
-    argv[ARG_FLAGS] = Integer::NewFromUnsigned(isolate, context_.flags);
-    if (context_.flags & URL_FLAGS_HAS_SCHEME)
-      argv[ARG_PROTOCOL] = OneByteString(isolate, context_.scheme.c_str());
-    if (context_.flags & URL_FLAGS_HAS_USERNAME)
-      argv[ARG_USERNAME] = UTF8STRING(isolate, context_.username);
-    if (context_.flags & URL_FLAGS_HAS_PASSWORD)
-      argv[ARG_PASSWORD] = UTF8STRING(isolate, context_.password);
-    if (context_.flags & URL_FLAGS_HAS_HOST)
-      argv[ARG_HOST] = UTF8STRING(isolate, context_.host);
-    if (context_.flags & URL_FLAGS_HAS_QUERY)
-      argv[ARG_QUERY] = UTF8STRING(isolate, context_.query);
-    if (context_.flags & URL_FLAGS_HAS_FRAGMENT)
-      argv[ARG_FRAGMENT] = UTF8STRING(isolate, context_.fragment);
-    if (context_.port > -1)
-      argv[ARG_PORT] = Integer::New(isolate, context_.port);
-    if (context_.flags & URL_FLAGS_HAS_PATH)
-      argv[ARG_PATH] = Copy(env, context_.path);
+    SetArgs(env, argv, &context_);
 
     TryCatch try_catch(isolate);
 
+    // The SetURLConstructor method must have been called already to
+    // set the constructor function used below. SetURLConstructor is
+    // called automatically when the internal/url.js module is loaded
+    // during the internal/bootstrap_node.js processing.
     MaybeLocal<Value> ret =
         env->url_constructor_function()
             ->Call(env->context(), undef, 9, argv);
@@ -1469,7 +1469,7 @@ namespace url {
       FatalException(isolate, try_catch);
     }
 
-    return ret;
+    return ret.ToLocalChecked();
   }
 
   static void SetURLConstructor(const FunctionCallbackInfo<Value>& args) {

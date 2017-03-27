@@ -12,7 +12,7 @@
 namespace node {
 namespace url {
 
-using v8::MaybeLocal;
+using v8::Local;
 using v8::Value;
 
 
@@ -626,7 +626,7 @@ class URL {
     return ret;
   }
 
-  MaybeLocal<Value> ToObject(Environment* env);
+  const Local<Value> ToObject(Environment* env) const;
 
  private:
   struct url_data context_;
