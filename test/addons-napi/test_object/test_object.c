@@ -195,7 +195,7 @@ void Inflate(napi_env env, napi_callback_info info) {
   napi_value obj = args[0];
 
   napi_value propertynames;
-  status = napi_get_propertynames(env, obj, &propertynames);
+  status = napi_get_property_names(env, obj, &propertynames);
   if (status != napi_ok) return;
 
   uint32_t i, length;

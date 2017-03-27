@@ -71,10 +71,10 @@ typedef struct {
 #ifdef __cplusplus
 #define EXTERN_C_START extern "C" {
 #define EXTERN_C_END }
-#else /* ndef __cplusplus */
+#else
 #define EXTERN_C_START
 #define EXTERN_C_END
-#endif /* def __cplusplus */
+#endif
 
 #define NAPI_MODULE_X(modname, regfunc, priv, flags)                  \
   EXTERN_C_START                                                      \
@@ -185,7 +185,7 @@ NAPI_EXTERN napi_status napi_get_value_string_utf16(napi_env env,
                                                     size_t* result);
 
 // Methods to coerce values
-// These APIs may execute user script
+// These APIs may execute user scripts
 NAPI_EXTERN napi_status napi_coerce_to_bool(napi_env env,
                                             napi_value value,
                                             napi_value* result);
@@ -203,9 +203,9 @@ NAPI_EXTERN napi_status napi_coerce_to_string(napi_env env,
 NAPI_EXTERN napi_status napi_get_prototype(napi_env env,
                                            napi_value object,
                                            napi_value* result);
-NAPI_EXTERN napi_status napi_get_propertynames(napi_env env,
-                                               napi_value object,
-                                               napi_value* result);
+NAPI_EXTERN napi_status napi_get_property_names(napi_env env,
+                                                napi_value object,
+                                                napi_value* result);
 NAPI_EXTERN napi_status napi_set_property(napi_env env,
                                           napi_value object,
                                           napi_value key,

@@ -43,8 +43,6 @@ typedef struct {
   void* data;
 } napi_property_descriptor;
 
-#define DEFAULT_ATTR 0, 0, 0, napi_default, 0
-
 typedef enum {
   // ES6 types (corresponds to typeof)
   napi_undefined,
