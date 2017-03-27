@@ -517,7 +517,7 @@
                 '<(OBJ_DIR)/node/src/node_dtrace_ustack.o'
               ],
               'conditions': [
-                [ 'target_arch=="ia32"', {
+                [ 'target_arch=="ia32" or target_arch=="arm"', {
                   'action': [
                     'dtrace', '-32', '-I<(SHARED_INTERMEDIATE_DIR)', '-Isrc',
                     '-C', '-G', '-s', 'src/v8ustack.d', '-o', '<@(_outputs)',
