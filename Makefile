@@ -905,13 +905,68 @@ lint:
 lint-ci: lint
 endif
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean \
-	check uninstall install install-includes install-bin all staticlib \
-	dynamiclib test test-all test-addons test-addons-clean build-addons \
-	website-upload pkg blog blogclean tar binary release-only \
-	bench-http-simple bench-idle bench-all bench bench-misc bench-array \
-	bench-buffer bench-net bench-http bench-fs bench-tls cctest run-ci test-v8 \
-	test-v8-intl test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci \
-	doc-only $(TARBALL)-headers test-ci test-ci-native test-ci-js build-ci \
-	clear-stalled coverage-clean coverage-build coverage-test coverage \
-	list-gtests test-addons-napi build-addons-napi
+.PHONY: $(TARBALL)-headers \
+  all \
+  bench \
+  bench \
+  bench-all \
+  bench-array \
+  bench-buffer \
+  bench-ci \
+  bench-fs \
+  bench-http \
+  bench-http-simple \
+  bench-idle \
+  bench-misc \
+  bench-net \
+  bench-tls \
+  binary \
+  blog \
+  blogclean \
+  build-addons \
+  build-addons-napi \
+  build-ci \
+  cctest \
+  check \
+  clean \
+  clear-stalled \
+  coverage \
+  coverage-build \
+  coverage-clean \
+  coverage-test \
+  cpplint \
+  dist \
+  distclean \
+  doc \
+  doc-only \
+  docclean \
+  docopen \
+  dynamiclib \
+  install \
+  install-bin \
+  install-includes \
+  jslint \
+  jslint-ci \
+  lint \
+  lint-ci \
+  list-gtests \
+  pkg \
+  release-only \
+  run-ci \
+  staticlib \
+  tar \
+  test \
+  test-addons \
+  test-addons-clean \
+  test-addons-napi \
+  test-all \
+  test-ci \
+  test-ci-js \
+  test-ci-native \
+  test-v8 \
+  test-v8-all \
+  test-v8-benchmarks \
+  test-v8-intl \
+  uninstall \
+  v8 \
+  website-upload
