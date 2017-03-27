@@ -112,3 +112,25 @@ const key = 'test-key';
     assert.strictEqual(child.listenerCount('disconnect'), 0);
   }));
 }
+
+// Verify that an error will be received in callback when child is
+// disconnected after sending a message and before getting the reply.
+{
+  const count = 1;
+  const child = Object.assign(new EventEmitter(), {
+    connected: true,
+    send: function(msg) {
+      process.nextTick(() => {
+        this.emit('disconnect');
+        this.emit('internalMessage', { key, count, cmd: 'NODE_SOCKET_COUNT' });
+      });
+    }
+  });
+
+  const list = new SocketListSend(child, key);
+
+  list.getConnections(common.mustCall((err, msg) => {
+    assert.strictEqual(err.message, 'child closed before reply');
+    assert.strictEqual(child.listenerCount('internalMessage'), 0);
+  }));
+}
