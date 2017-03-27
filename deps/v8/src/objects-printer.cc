@@ -1684,7 +1684,7 @@ extern void _v8_internal_Print_Code(void* object) {
 
 extern void _v8_internal_Print_FeedbackVector(void* object) {
   if (reinterpret_cast<i::Object*>(object)->IsSmi()) {
-    printf("Not a type feedback vector\n");
+    printf("Not a feedback vector\n");
   } else {
     reinterpret_cast<i::FeedbackVector*>(object)->Print();
   }
