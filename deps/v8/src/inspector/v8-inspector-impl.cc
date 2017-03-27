@@ -285,21 +285,6 @@ void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   m_debugger->wasmTranslation()->Clear();
 }
 
-void V8InspectorImpl::willExecuteScript(v8::Local<v8::Context> context,
-                                        int scriptId) {
-  if (V8DebuggerAgentImpl* agent =
-          enabledDebuggerAgentForGroup(contextGroupId(context))) {
-    agent->willExecuteScript(scriptId);
-  }
-}
-
-void V8InspectorImpl::didExecuteScript(v8::Local<v8::Context> context) {
-  if (V8DebuggerAgentImpl* agent =
-          enabledDebuggerAgentForGroup(contextGroupId(context))) {
-    agent->didExecuteScript();
-  }
-}
-
 void V8InspectorImpl::idleStarted() {
   for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it) {
     if (it->second->profilerAgent()->idleStarted()) return;
