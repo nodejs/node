@@ -4,10 +4,17 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
+#include "env.h"
+#include "env-inl.h"
+
 #include <string>
 
 namespace node {
 namespace url {
+
+using v8::MaybeLocal;
+using v8::Value;
+
 
 #define BIT_AT(a, i)                                                          \
   (!!((unsigned int) (a)[(unsigned int) (i) >> 3] &                           \
@@ -618,6 +625,8 @@ class URL {
     }
     return ret;
   }
+
+  MaybeLocal<Value> ToObject(Environment* env);
 
  private:
   struct url_data context_;

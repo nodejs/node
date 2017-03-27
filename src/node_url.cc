@@ -30,6 +30,7 @@ using v8::Local;
 using v8::Null;
 using v8::Object;
 using v8::String;
+using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 
@@ -1418,6 +1419,66 @@ namespace url {
                             v8::NewStringType::kNormal).ToLocalChecked());
   }
 
+  MaybeLocal<Value> URL::ToObject(Environment* env) {
+    Isolate* isolate = env->isolate();
+    Local<Context> context = env->context();
+    HandleScope handle_scope(isolate);
+    Context::Scope context_scope(context);
+
+    const Local<Value> undef = Undefined(isolate);
+    if (context_.flags & URL_FLAGS_FAILED)
+      return undef;
+
+    Local<Value> argv[9] = {
+      undef,
+      undef,
+      undef,
+      undef,
+      undef,
+      undef,
+      undef,
+      undef,
+      undef,
+    };
+    argv[ARG_FLAGS] = Integer::NewFromUnsigned(isolate, context_.flags);
+    if (context_.flags & URL_FLAGS_HAS_SCHEME)
+      argv[ARG_PROTOCOL] = OneByteString(isolate, context_.scheme.c_str());
+    if (context_.flags & URL_FLAGS_HAS_USERNAME)
+      argv[ARG_USERNAME] = UTF8STRING(isolate, context_.username);
+    if (context_.flags & URL_FLAGS_HAS_PASSWORD)
+      argv[ARG_PASSWORD] = UTF8STRING(isolate, context_.password);
+    if (context_.flags & URL_FLAGS_HAS_HOST)
+      argv[ARG_HOST] = UTF8STRING(isolate, context_.host);
+    if (context_.flags & URL_FLAGS_HAS_QUERY)
+      argv[ARG_QUERY] = UTF8STRING(isolate, context_.query);
+    if (context_.flags & URL_FLAGS_HAS_FRAGMENT)
+      argv[ARG_FRAGMENT] = UTF8STRING(isolate, context_.fragment);
+    if (context_.port > -1)
+      argv[ARG_PORT] = Integer::New(isolate, context_.port);
+    if (context_.flags & URL_FLAGS_HAS_PATH)
+      argv[ARG_PATH] = Copy(env, context_.path);
+
+    TryCatch try_catch(isolate);
+
+    MaybeLocal<Value> ret =
+        env->url_constructor_function()
+            ->Call(env->context(), undef, 9, argv);
+
+    if (ret.IsEmpty()) {
+      ClearFatalExceptionHandlers(env);
+      FatalException(isolate, try_catch);
+    }
+
+    return ret;
+  }
+
+  static void SetURLConstructor(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    CHECK_EQ(args.Length(), 1);
+    CHECK(args[0]->IsFunction());
+    env->set_url_constructor_function(args[0].As<Function>());
+  }
+
   static void Init(Local<Object> target,
                    Local<Value> unused,
                    Local<Context> context,
@@ -1428,6 +1489,7 @@ namespace url {
     env->SetMethod(target, "toUSVString", ToUSVString);
     env->SetMethod(target, "domainToASCII", DomainToASCII);
     env->SetMethod(target, "domainToUnicode", DomainToUnicode);
+    env->SetMethod(target, "setURLConstructor", SetURLConstructor);
 
 #define XX(name, _) NODE_DEFINE_CONSTANT(target, name);
     FLAGS(XX)
