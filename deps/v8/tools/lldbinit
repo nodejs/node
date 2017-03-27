@@ -1,0 +1,26 @@
+# Copyright 2017 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Print HeapObjects.
+command regex -h 'Print a v8 JavaScript object' job 's/(.+)/expr -- '_v8_internal_Print_Object((void*)(%1))/'
+
+# Print v8::Local handle value.
+command regex -h 'Print content of a v8::Local handle' jlh 's/(.+)/expr -- '_v8_internal_Print_Object(*(v8::internal::Object**)(*%1))/'
+
+# Print Code objects containing given PC.
+command regex -h 'Print a v8 Code object from an internal code address' jco 's/(.+)/expr -- '_v8_internal_Print_Code((void*)(*%1))/'
+
+# Print FeedbackVector
+command regex -h 'Print a v8 FeedbackVector object' jfv 's/(.+)/expr -- '_v8_internal_Print_FeedbackVector((void*)(%1))/'
+
+# Print DescriptorArray.
+command regex -h 'Print a v8 DescriptorArray object' jda 's/(.+)/expr -- '_v8_internal_Print_DescriptorArray((void*)(%1))/'
+
+# Print LayoutDescriptor.
+command regex -h 'Print a v8 LayoutDescriptor object' jld 's/(.+)/expr -- '_v8_internal_Print_LayoutDescriptor((void*)(%1))/'
+
+# Print TransitionArray.
+command regex -h 'Print a v8 TransitionArray object' jta 's/(.+)/expr -- '_v8_internal_Print_TransitionArray((void*)(%1))/'
+
+command script import ~/lldb_commands.py
