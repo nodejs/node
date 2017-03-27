@@ -20,12 +20,6 @@ If you need help using or installing Node.js, please use the
 # Table of Contents
 
 * [Resources for Newcomers](#resources-for-newcomers)
-  * [Official Resources](#official-resources)
-    * [Website](https://nodejs.org/en/)
-    * [Node.js Help](https://github.com/nodejs/help)
-    * [Contributing to the project](CONTRIBUTING.md)
-    * [IRC (node core development)](https://webchat.freenode.net/?channels=node-dev&uio=d4)
-  * [Unofficial Resources](#unofficial-resources)
 * [Release Types](#release-types)
   * [Download](#download)
     * [Current and LTS Releases](#current-and-lts-releases)
