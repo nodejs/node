@@ -309,6 +309,9 @@ clear-stalled:
 test-gc: all test/gc/build/Release/binding.node
 	$(PYTHON) tools/test.py --mode=release gc
 
+test-gc-clean:
+	$(RM) -r test/gc/build
+
 test-build: | all build-addons build-addons-napi
 
 test-build-addons-napi: all build-addons-napi
@@ -963,6 +966,8 @@ endif
   test-ci \
   test-ci-js \
   test-ci-native \
+  test-gc \
+  test-gc-clean \
   test-v8 \
   test-v8-all \
   test-v8-benchmarks \
