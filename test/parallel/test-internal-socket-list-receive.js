@@ -17,6 +17,7 @@ const key = 'test-key';
 
   const list = new SocketListReceive(child, key);
   list.child.emit('internalMessage', { key, cmd: 'NODE_SOCKET_NOTIFY_CLOSE' });
+  list.child.emit('internalMessage', { key, cmd: 'NODE_SOCKET_GET_COUNT' });
 }
 
 // Verify that a "NODE_SOCKET_ALL_CLOSED" message will be sent.
