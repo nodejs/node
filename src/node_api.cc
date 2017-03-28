@@ -144,7 +144,7 @@ class Reference : private Finalizer {
  private:
   Reference(v8::Isolate* isolate,
             v8::Local<v8::Value> value,
-            int initial_refcount,
+            uint32_t initial_refcount,
             bool delete_self,
             napi_finalize finalize_callback,
             void* finalize_data,
@@ -173,7 +173,7 @@ class Reference : private Finalizer {
  public:
   static Reference* New(v8::Isolate* isolate,
                         v8::Local<v8::Value> value,
-                        int initial_refcount,
+                        uint32_t initial_refcount,
                         bool delete_self,
                         napi_finalize finalize_callback = nullptr,
                         void* finalize_data = nullptr,
@@ -191,7 +191,7 @@ class Reference : private Finalizer {
     delete reference;
   }
 
-  int Ref() {
+  uint32_t Ref() {
     if (++_refcount == 1) {
       _persistent.ClearWeak();
     }
@@ -199,13 +199,20 @@ class Reference : private Finalizer {
     return _refcount;
   }
 
-  int Unref() {
+  uint32_t Unref() {
+    if (_refcount == 0) {
+        return 0;
+    }
     if (--_refcount == 0) {
       _persistent.SetWeak(
           this, FinalizeCallback, v8::WeakCallbackType::kParameter);
       _persistent.MarkIndependent();
     }
 
+    return _refcount;
+  }
+
+  uint32_t RefCount() {
     return _refcount;
   }
 
@@ -239,7 +246,7 @@ class Reference : private Finalizer {
   }
 
   v8::Persistent<v8::Value> _persistent;
-  int _refcount;
+  uint32_t _refcount;
   bool _delete_self;
 };
 
@@ -1901,11 +1908,10 @@ napi_status napi_get_value_external(napi_env env,
 // Set initial_refcount to 0 for a weak reference, >0 for a strong reference.
 napi_status napi_create_reference(napi_env env,
                                   napi_value value,
-                                  int initial_refcount,
+                                  uint32_t initial_refcount,
                                   napi_ref* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(result);
-  RETURN_STATUS_IF_FALSE(initial_refcount >= 0, napi_invalid_arg);
 
   v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
 
@@ -1933,12 +1939,12 @@ napi_status napi_delete_reference(napi_env env, napi_ref ref) {
 // refcount is >0, and the referenced object is effectively "pinned".
 // Calling this when the refcount is 0 and the object is unavailable
 // results in an error.
-napi_status napi_reference_ref(napi_env env, napi_ref ref, int* result) {
+napi_status napi_reference_ref(napi_env env, napi_ref ref, uint32_t* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(ref);
 
   v8impl::Reference* reference = reinterpret_cast<v8impl::Reference*>(ref);
-  int count = reference->Ref();
+  uint32_t count = reference->Ref();
 
   if (result != nullptr) {
     *result = count;
@@ -1951,15 +1957,17 @@ napi_status napi_reference_ref(napi_env env, napi_ref ref, int* result) {
 // the result is 0 the reference is now weak and the object may be GC'd at any
 // time if there are no other references. Calling this when the refcount is
 // already 0 results in an error.
-napi_status napi_reference_unref(napi_env env, napi_ref ref, int* result) {
+napi_status napi_reference_unref(napi_env env, napi_ref ref, uint32_t* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(ref);
 
   v8impl::Reference* reference = reinterpret_cast<v8impl::Reference*>(ref);
-  int count = reference->Unref();
-  if (count < 0) {
+
+  if (reference->RefCount() == 0) {
     return napi_set_last_error(napi_generic_failure);
   }
+
+  uint32_t count = reference->Unref();
 
   if (result != nullptr) {
     *result = count;

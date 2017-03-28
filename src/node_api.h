@@ -352,7 +352,7 @@ NAPI_EXTERN napi_status napi_get_value_external(napi_env env,
 // Set initial_refcount to 0 for a weak reference, >0 for a strong reference.
 NAPI_EXTERN napi_status napi_create_reference(napi_env env,
                                               napi_value value,
-                                              int initial_refcount,
+                                              uint32_t initial_refcount,
                                               napi_ref* result);
 
 // Deletes a reference. The referenced value is released, and may
@@ -366,7 +366,7 @@ NAPI_EXTERN napi_status napi_delete_reference(napi_env env, napi_ref ref);
 // results in an error.
 NAPI_EXTERN napi_status napi_reference_ref(napi_env env,
                                            napi_ref ref,
-                                           int* result);
+                                           uint32_t* result);
 
 // Decrements the reference count, optionally returning the resulting count.
 // If the result is 0 the reference is now weak and the object may be GC'd
@@ -374,7 +374,7 @@ NAPI_EXTERN napi_status napi_reference_ref(napi_env env,
 // refcount is already 0 results in an error.
 NAPI_EXTERN napi_status napi_reference_unref(napi_env env,
                                              napi_ref ref,
-                                             int* result);
+                                             uint32_t* result);
 
 // Attempts to get a referenced value. If the reference is weak,
 // the value might no longer be available, in that case the call
