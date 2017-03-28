@@ -1209,7 +1209,7 @@ changes:
 * `callback` {Function}
 
 Asynchronous mkdir(2). No arguments other than a possible exception are given
-to the completion callback. `mode` defaults to `0o777`.
+to the completion callback. `mode` defaults to `0777`.
 
 ## fs.mkdirSync(path[, mode])
 <!-- YAML
