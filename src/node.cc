@@ -3887,6 +3887,8 @@ static void ParseArgs(int* argc,
   const char** new_exec_argv = new const char*[nargs];
   const char** new_v8_argv = new const char*[nargs];
   const char** new_argv = new const char*[nargs];
+  bool use_bundled_ca = false;
+  bool use_openssl_ca = false;
 
   for (unsigned int i = 0; i < nargs; ++i) {
     new_exec_argv[i] = nullptr;
@@ -3992,7 +3994,9 @@ static void ParseArgs(int* argc,
       default_cipher_list = arg + 18;
     } else if (strncmp(arg, "--use-openssl-ca", 16) == 0) {
       ssl_openssl_cert_store = true;
+      use_openssl_ca = true;
     } else if (strncmp(arg, "--use-bundled-ca", 16) == 0) {
+      use_bundled_ca = true;
       ssl_openssl_cert_store = false;
 #if NODE_FIPS_MODE
     } else if (strcmp(arg, "--enable-fips") == 0) {
@@ -4026,6 +4030,16 @@ static void ParseArgs(int* argc,
     new_exec_argc += args_consumed;
     index += args_consumed;
   }
+
+#if HAVE_OPENSSL
+  if (use_openssl_ca && use_bundled_ca) {
+    fprintf(stderr,
+            "%s: either --use-openssl-ca or --use-bundled-ca can be used, "
+            "not both\n",
+            argv[0]);
+    exit(9);
+  }
+#endif
 
   // Copy remaining arguments.
   const unsigned int args_left = nargs - index;
