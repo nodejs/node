@@ -982,6 +982,7 @@ object, it must contain one or more of the following properties:
 * `padding`: {integer} - Optional padding value for RSA, one of the following:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
+
   Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
   used to sign the message as specified in section 3.1 of [RFC 4055][].
 * `saltLength`: {integer} - salt length for when padding is
@@ -1084,7 +1085,7 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v0.1.92
 -->
-- `object` {string}
+- `object` {string | Object}
 - `signature` {string | Buffer | Uint8Array}
 - `signature_format` {string}
 
@@ -1097,6 +1098,7 @@ or an object with one or more of the following properties:
 * `padding`: {integer} - Optional padding value for RSA, one of the following:
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
+
   Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
   used to verify the message as specified in section 3.1 of [RFC 4055][].
 * `saltLength`: {integer} - salt length for when padding is
