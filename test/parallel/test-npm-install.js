@@ -55,7 +55,7 @@ execFile(process.execPath, args, {
     const code = err.code;
     const signal = err.signal;
     stderr += '';
-    var msg = `npm install got error code ${code}\nstderr:\n${stderr}`;
+    let msg = `npm install got error code ${code}\nstderr:\n${stderr}`;
     assert.strictEqual(code, 0, msg);
     msg = `unexpected signal: ${signal}\nstderr:\n${stderr}`;
     assert.strictEqual(signal, null, msg);

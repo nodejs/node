@@ -36,23 +36,23 @@ stream.on('error', common.mustCall((err_) => {
   }));
 }));
 
-fs.close = common.mustCall((fd_, cb) => {
-  assert.strictEqual(fd_, stream.fd);
-  process.nextTick(cb);
+process.binding('fs').close = common.mustCall((fd, req) => {
+  assert.strictEqual(fd, stream.fd);
+  process.nextTick(req.oncomplete.bind(req));
 });
 
-const read = fs.read;
-fs.read = function() {
+const read = process.binding('fs').read;
+process.binding('fs').read = function() {
   // first time is ok.
-  read.apply(fs, arguments);
+  read.apply(null, arguments);
   // then it breaks
-  fs.read = common.mustCall(function() {
-    const cb = arguments[arguments.length - 1];
+  process.binding('fs').read = common.mustCall(function() {
+    const req = arguments[arguments.length - 1];
     process.nextTick(() => {
-      cb(err);
+      req.oncomplete(err);
     });
     // and should not be called again!
-    fs.read = () => {
+    process.binding('fs').read = () => {
       throw new Error('BOOM!');
     };
   });

@@ -31,44 +31,35 @@ const stream = fs.createWriteStream(common.tmpDir + '/out', {
 });
 const err = new Error('BAM');
 
-const write = fs.write;
+const writeBuffer = process.binding('fs').writeBuffer;
 let writeCalls = 0;
-fs.write = function() {
+process.binding('fs').writeBuffer = common.mustCall(function() {
   switch (writeCalls++) {
     case 0:
-      console.error('first write');
       // first time is ok.
-      return write.apply(fs, arguments);
+      return writeBuffer.apply(null, arguments);
     case 1:
       // then it breaks
-      console.error('second write');
-      const cb = arguments[arguments.length - 1];
+      const req = arguments[arguments.length - 1];
       return process.nextTick(function() {
-        cb(err);
+        req.oncomplete(err);
       });
-    default:
-      // and should not be called again!
-      throw new Error('BOOM!');
   }
-};
+}, 2);
 
-fs.close = common.mustCall(function(fd_, cb) {
-  console.error('fs.close', fd_, stream.fd);
-  assert.strictEqual(fd_, stream.fd);
-  process.nextTick(cb);
+process.binding('fs').close = common.mustCall(function(fd, req) {
+  assert.strictEqual(fd, stream.fd);
+  process.nextTick(req.oncomplete.bind(req));
 });
 
 stream.on('error', common.mustCall(function(err_) {
-  console.error('error handler');
   assert.strictEqual(stream.fd, null);
   assert.strictEqual(err_, err);
 }));
 
 
 stream.write(Buffer.allocUnsafe(256), function() {
-  console.error('first cb');
   stream.write(Buffer.allocUnsafe(256), common.mustCall(function(err_) {
-    console.error('second cb');
     assert.strictEqual(err_, err);
   }));
 });
