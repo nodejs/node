@@ -4,6 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
 const path = require('path');
+const errors = require('../../lib/internal/errors');
 
 const node = process.execPath;
 
@@ -76,7 +77,8 @@ const syntaxArgs = [
     assert.strictEqual(c.stdout, '', 'stdout produced');
 
     // stderr should have a module not found error message
-    const match = c.stderr.match(/^Error: Cannot find module/m);
+    const expectedError = new errors.Error('MODULE_NOT_FOUND', file);
+    const match = c.stderr.match(expectedError.message);
     assert(match, 'stderr incorrect');
 
     assert.strictEqual(c.status, 1, 'code == ' + c.status);

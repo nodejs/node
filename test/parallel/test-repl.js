@@ -23,6 +23,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const errors = require('../../lib/internal/errors');
 
 common.globalCheck = false;
 common.refreshTmpDir();
@@ -343,8 +344,10 @@ function error_test() {
       expect: 'undefined\n' + prompt_unix },
     // REPL should get a normal require() function, not one that allows
     // access to internal modules without the --expose_internals flag.
-    { client: client_unix, send: 'require("internal/repl")',
-      expect: /^Error: Cannot find module 'internal\/repl'/ },
+    {
+      client: client_unix, send: 'require("internal/repl")',
+      expect: new RegExp(new errors.Error('MODULE_NOT_FOUND', 'internal/repl').message)
+    },
     // REPL should handle quotes within regexp literal in multiline mode
     { client: client_unix,
       send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
