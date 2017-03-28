@@ -1000,7 +1000,7 @@ deprecated: v0.4.7
 Asynchronous lchmod(2). No arguments other than a possible exception
 are given to the completion callback.
 
-Only available on Mac OS X.
+Only available on macOS.
 
 ## fs.lchmodSync(path, mode)
 <!-- YAML
@@ -1247,12 +1247,12 @@ The kernel ignores the position argument and always appends the data to
 the end of the file.
 
 _Note: The behavior of `fs.open()` is platform specific for some flags. As such,
-opening a directory on OS X and Linux with the `'a+'` flag - see example below -
+opening a directory on macOS and Linux with the `'a+'` flag - see example below -
 will return an error. In contrast, on Windows and FreeBSD, a file descriptor
 will be returned._
 
 ```js
-// OS X and Linux
+// macOS and Linux
 fs.open('<directory>', 'a+', (err, fd) => {
   // => [Error: EISDIR: illegal operation on a directory, open <directory>]
 });
@@ -1717,7 +1717,7 @@ Also note the listener callback is attached to the `'change'` event fired by
 The `fs.watch` API is not 100% consistent across platforms, and is
 unavailable in some situations.
 
-The recursive option is only supported on OS X and Windows.
+The recursive option is only supported on macOS and Windows.
 
 #### Availability
 
@@ -1728,7 +1728,7 @@ to be notified of filesystem changes.
 
 * On Linux systems, this uses [`inotify`]
 * On BSD systems, this uses [`kqueue`]
-* On OS X, this uses [`kqueue`] for files and [`FSEvents`] for directories.
+* On macOS, this uses [`kqueue`] for files and [`FSEvents`] for directories.
 * On SunOS systems (including Solaris and SmartOS), this uses [`event ports`].
 * On Windows systems, this feature depends on [`ReadDirectoryChangesW`].
 * On Aix systems, this feature depends on [`AHAFS`], which must be enabled.
@@ -1746,7 +1746,7 @@ less reliable.
 
 <!--type=misc-->
 
-On Linux and OS X systems, `fs.watch()` resolves the path to an [inode][] and
+On Linux and macOS systems, `fs.watch()` resolves the path to an [inode][] and
 watches the inode. If the watched path is deleted and recreated, it is assigned
 a new inode. The watch will emit an event for the delete but will continue
 watching the *original* inode. Events for the new inode will not be emitted.
