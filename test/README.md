@@ -266,7 +266,7 @@ Platform check for Linux on PowerPC.
 ### isOSX
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
 
-Platform check for OS X.
+Platform check for macOS.
 
 ### isSunOS
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)

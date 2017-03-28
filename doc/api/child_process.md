@@ -75,7 +75,7 @@ when the child process terminates.
 
 The importance of the distinction between [`child_process.exec()`][] and
 [`child_process.execFile()`][] can vary based on platform. On Unix-type operating
-systems (Unix, Linux, OSX) [`child_process.execFile()`][] can be more efficient
+systems (Unix, Linux, macOS) [`child_process.execFile()`][] can be more efficient
 because it does not spawn a shell. On Windows, however, `.bat` and `.cmd`
 files are not executable on their own without a terminal, and therefore cannot
 be launched using [`child_process.execFile()`][]. When running on Windows, `.bat`
@@ -417,7 +417,7 @@ child.on('error', (err) => {
 });
 ```
 
-*Note: Certain platforms (OS X, Linux) will use the value of `argv[0]` for the
+*Note: Certain platforms (macOS, Linux) will use the value of `argv[0]` for the
 process title while others (Windows, SunOS) will use `command`.*
 
 *Note: Node.js currently overwrites `argv[0]` with `process.execPath` on
