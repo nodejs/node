@@ -269,8 +269,8 @@ exports.childShouldNotThrowAndAbort = () => {
 
   const child = child_process.exec(testCmd);
   child.on('exit', (code, signal) => {
-    const errorMsg = 'Test should have exited with exit code 0 but instead ' +
-      `exited with ${code} and signal ${signal}`;
+    const errorMsg = `Test should have exited with exit code 0 but instead
+      exited with ${code} and signal ${signal}`;
     assert.strictEqual(code, 0, errorMsg);
   });
 };

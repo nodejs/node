@@ -5,17 +5,11 @@
 // setup, the process _does not_ abort.
 
 const common = require('../common');
-const assert = require('assert');
 const domain = require('domain');
-
-let errorHandlerCalled = false;
 
 const test = () => {
   const d = domain.create();
-
-  d.once('error', (err) => {
-    errorHandlerCalled = true;
-  });
+  d.once('error', common.mustCall(() => { }));
 
   d.run(function() {
     const fs = require('fs');
@@ -28,9 +22,6 @@ const test = () => {
 
 if (process.argv[2] === 'child') {
   test();
-  process.on('exit', function onExit() {
-    assert.strictEqual(errorHandlerCalled, true);
-  });
 } else {
   common.childShouldNotThrowAndAbort();
 }

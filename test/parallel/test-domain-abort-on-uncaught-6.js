@@ -5,19 +5,12 @@
 // setup, the process _does not_ abort.
 
 const common = require('../common');
-const assert = require('assert');
 const domain = require('domain');
-
-
-let errorHandlerCalled = false;
 
 const test = () => {
   const net = require('net');
   const d = domain.create();
-
-  d.on('error', function(err) {
-    errorHandlerCalled = true;
-  });
+  d.on('error', common.mustCall(() => {}));
 
   d.run(function() {
     const server = net.createServer(function(conn) {
@@ -37,9 +30,6 @@ const test = () => {
 
 if (process.argv[2] === 'child') {
   test();
-  process.on('exit', function onExit() {
-    assert.strictEqual(errorHandlerCalled, true);
-  });
 } else {
   common.childShouldNotThrowAndAbort();
 }
