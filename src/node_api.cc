@@ -15,6 +15,7 @@
 #include <cmath>
 #include <vector>
 #include "node_api.h"
+#include "env-inl.h"
 #include "node_api_backport.h"
 
 static
@@ -707,7 +708,8 @@ const char* error_messages[] = {nullptr,
                                 "A boolean was expected",
                                 "An array was expected",
                                 "Unknown failure",
-                                "An exception is pending"};
+                                "An exception is pending",
+                                "The async work item was cancelled"};
 
 void napi_clear_last_error(napi_env env) {
   env->last_error.error_code = napi_ok;
@@ -2575,4 +2577,137 @@ napi_status napi_get_typedarray_info(napi_env env,
   }
 
   return GET_RETURN_STATUS(env);
+}
+
+namespace uvimpl {
+
+napi_status ConvertUVErrorCode(int code) {
+  switch (code) {
+  case 0:
+    return napi_ok;
+  case UV_EINVAL:
+    return napi_invalid_arg;
+  case UV_ECANCELED:
+    return napi_cancelled;
+  }
+
+  return napi_generic_failure;
+}
+
+// Wrapper around uv_work_t which calls user-provided callbacks.
+class Work {
+ private:
+  explicit Work(napi_env env,
+                napi_async_execute_callback execute = nullptr,
+                napi_async_complete_callback complete = nullptr,
+                void* data = nullptr)
+    : _env(env),
+    _data(data),
+    _execute(execute),
+    _complete(complete) {
+    _request.data = this;
+  }
+
+  ~Work() { }
+
+ public:
+  static Work* New(napi_env env,
+                   napi_async_execute_callback execute,
+                   napi_async_complete_callback complete,
+                   void* data) {
+    return new Work(env, execute, complete, data);
+  }
+
+  static void Delete(Work* work) {
+    delete work;
+  }
+
+  static void ExecuteCallback(uv_work_t* req) {
+    Work* work = static_cast<Work*>(req->data);
+    work->_execute(work->_env, work->_data);
+  }
+
+  static void CompleteCallback(uv_work_t* req, int status) {
+    Work* work = static_cast<Work*>(req->data);
+
+    if (work->_complete != nullptr) {
+      work->_complete(work->_env, ConvertUVErrorCode(status), work->_data);
+    }
+  }
+
+  uv_work_t* Request() {
+    return &_request;
+  }
+
+ private:
+  napi_env _env;
+  void* _data;
+  uv_work_t _request;
+  napi_async_execute_callback _execute;
+  napi_async_complete_callback _complete;
+};
+
+}  // end of namespace uvimpl
+
+#define CALL_UV(env, condition)                                         \
+  do {                                                                  \
+    int result = (condition);                                           \
+    napi_status status = uvimpl::ConvertUVErrorCode(result);            \
+    if (status != napi_ok) {                                            \
+      return napi_set_last_error(env, status, result);                  \
+    }                                                                   \
+  } while (0)
+
+napi_status napi_create_async_work(napi_env env,
+                                   napi_async_execute_callback execute,
+                                   napi_async_complete_callback complete,
+                                   void* data,
+                                   napi_async_work* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, execute);
+  CHECK_ARG(env, result);
+
+  uvimpl::Work* work = uvimpl::Work::New(env, execute, complete, data);
+
+  *result = reinterpret_cast<napi_async_work>(work);
+
+  return napi_ok;
+}
+
+napi_status napi_delete_async_work(napi_env env, napi_async_work work) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, work);
+
+  uvimpl::Work::Delete(reinterpret_cast<uvimpl::Work*>(work));
+
+  return napi_ok;
+}
+
+napi_status napi_queue_async_work(napi_env env, napi_async_work work) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, work);
+
+  // Consider: Encapsulate the uv_loop_t into an opaque pointer parameter
+  uv_loop_t* event_loop =
+    node::Environment::GetCurrent(env->isolate)->event_loop();
+
+  uvimpl::Work* w = reinterpret_cast<uvimpl::Work*>(work);
+
+  CALL_UV(env, uv_queue_work(event_loop,
+                             w->Request(),
+                             uvimpl::Work::ExecuteCallback,
+                             uvimpl::Work::CompleteCallback));
+
+  return napi_ok;
+}
+
+napi_status napi_cancel_async_work(napi_env env, napi_async_work work) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, work);
+
+  uvimpl::Work* w = reinterpret_cast<uvimpl::Work*>(work);
+
+  CALL_UV(env, uv_cancel(reinterpret_cast<uv_req_t*>(w->Request())));
+
+  return napi_ok;
 }
