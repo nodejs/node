@@ -25,7 +25,7 @@ sockets on other operating systems.
 On UNIX, the local domain is also known as the UNIX domain. The path is a
 filesystem path name. It gets truncated to `sizeof(sockaddr_un.sun_path) - 1`,
 which varies on different operating system between 91 and 107 bytes.
-The typical values are 107 on Linux and 103 on OS X. The path is
+The typical values are 107 on Linux and 103 on macOS. The path is
 subject to the same naming conventions and permissions checks as would be done
 on file creation. It will be visible in the filesystem, and will *persist until
 unlinked*.
