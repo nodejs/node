@@ -7,14 +7,9 @@ addon.RunCallback(function(msg) {
   assert.strictEqual(msg, 'hello world');
 });
 
-const global = function() { return this; }.apply();
-
 function testRecv(desiredRecv) {
   addon.RunCallbackWithRecv(function() {
-    assert.strictEqual(this,
-                       (desiredRecv === undefined ||
-                        desiredRecv === null) ?
-                       global : desiredRecv);
+    assert.strictEqual(this, desiredRecv);
   }, desiredRecv);
 }
 

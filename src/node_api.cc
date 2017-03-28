@@ -90,23 +90,69 @@ v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
   return local;
 }
 
+// Adapter for napi_finalize callbacks.
+class Finalizer {
+ protected:
+  Finalizer(v8::Isolate* isolate,
+             napi_finalize finalize_callback,
+             void* finalize_data,
+             void* finalize_hint)
+    : _isolate(isolate),
+      _finalize_callback(finalize_callback),
+      _finalize_data(finalize_data),
+      _finalize_hint(finalize_hint) {
+  }
+
+  ~Finalizer() {
+  }
+
+ public:
+  static Finalizer* New(v8::Isolate* isolate,
+                        napi_finalize finalize_callback = nullptr,
+                        void* finalize_data = nullptr,
+                        void* finalize_hint = nullptr) {
+    return new Finalizer(
+      isolate, finalize_callback, finalize_data, finalize_hint);
+  }
+
+  static void Delete(Finalizer* finalizer) {
+    delete finalizer;
+  }
+
+  // node::Buffer::FreeCallback
+  static void FinalizeBufferCallback(char* data, void* hint) {
+    Finalizer* finalizer = static_cast<Finalizer*>(hint);
+    if (finalizer->_finalize_callback != nullptr) {
+      finalizer->_finalize_callback(
+        v8impl::JsEnvFromV8Isolate(finalizer->_isolate),
+        data,
+        finalizer->_finalize_hint);
+    }
+
+    Delete(finalizer);
+  }
+
+ protected:
+  v8::Isolate* _isolate;
+  napi_finalize _finalize_callback;
+  void* _finalize_data;
+  void* _finalize_hint;
+};
+
 // Wrapper around v8::Persistent that implements reference counting.
-class Reference {
+class Reference : private Finalizer {
  private:
   Reference(v8::Isolate* isolate,
             v8::Local<v8::Value> value,
             int initial_refcount,
             bool delete_self,
-            napi_finalize finalize_callback = nullptr,
-            void* finalize_data = nullptr,
-            void* finalize_hint = nullptr)
-       : _isolate(isolate),
+            napi_finalize finalize_callback,
+            void* finalize_data,
+            void* finalize_hint)
+       : Finalizer(isolate, finalize_callback, finalize_data, finalize_hint),
         _persistent(isolate, value),
         _refcount(initial_refcount),
-        _delete_self(delete_self),
-        _finalize_callback(finalize_callback),
-        _finalize_data(finalize_data),
-        _finalize_hint(finalize_hint) {
+        _delete_self(delete_self) {
     if (initial_refcount == 0) {
       _persistent.SetWeak(
           this, FinalizeCallback, v8::WeakCallbackType::kParameter);
@@ -181,7 +227,9 @@ class Reference {
     bool delete_self = reference->_delete_self;
 
     if (reference->_finalize_callback != nullptr) {
-      reference->_finalize_callback(reference->_finalize_data,
+      reference->_finalize_callback(
+          v8impl::JsEnvFromV8Isolate(reference->_isolate),
+          reference->_finalize_data,
           reference->_finalize_hint);
     }
 
@@ -190,13 +238,9 @@ class Reference {
     }
   }
 
-  v8::Isolate* _isolate;
   v8::Persistent<v8::Value> _persistent;
   int _refcount;
   bool _delete_self;
-  napi_finalize _finalize_callback;
-  void* _finalize_data;
-  void* _finalize_hint;
 };
 
 class TryCatch : public v8::TryCatch {
@@ -419,7 +463,7 @@ v8::Local<v8::Object> CreateFunctionCallbackData(napi_env env,
       v8::External::New(isolate, reinterpret_cast<void*>(cb)));
   cbdata->SetInternalField(
       v8impl::kDataIndex,
-      v8::External::New(isolate, reinterpret_cast<void*>(data)));
+      v8::External::New(isolate, data));
   return cbdata;
 }
 
@@ -451,7 +495,7 @@ v8::Local<v8::Object> CreateAccessorCallbackData(napi_env env,
 
   cbdata->SetInternalField(
       v8impl::kDataIndex,
-      v8::External::New(isolate, reinterpret_cast<void*>(data)));
+      v8::External::New(isolate, data));
   return cbdata;
 }
 
@@ -1011,9 +1055,7 @@ napi_status napi_define_properties(napi_env env,
       auto define_maybe =
           obj->DefineOwnProperty(context, name, t->GetFunction(), attributes);
 
-      // IsNothing seems like a serious failure,
-      // should we return a different error code if the define failed?
-      if (define_maybe.IsNothing() || !define_maybe.FromMaybe(false)) {
+      if (!define_maybe.FromMaybe(false)) {
         return napi_set_last_error(napi_generic_failure);
       }
     } else if (p->getter || p->setter) {
@@ -1422,7 +1464,6 @@ napi_status napi_call_function(napi_env env,
                                const napi_value* argv,
                                napi_value* result) {
   NAPI_PREAMBLE(env);
-  CHECK_ARG(result);
 
   v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -1439,8 +1480,10 @@ napi_status napi_call_function(napi_env env,
   if (try_catch.HasCaught()) {
     return napi_set_last_error(napi_pending_exception);
   } else {
-    CHECK_MAYBE_EMPTY(maybe, napi_generic_failure);
-    *result = v8impl::JsValueFromV8LocalValue(maybe.ToLocalChecked());
+    if (result != nullptr) {
+      CHECK_MAYBE_EMPTY(maybe, napi_generic_failure);
+      *result = v8impl::JsValueFromV8LocalValue(maybe.ToLocalChecked());
+    }
     return napi_ok;
   }
 }
@@ -1773,7 +1816,7 @@ napi_status napi_wrap(napi_env env,
   // via napi_define_class() can be (un)wrapped.
   RETURN_STATUS_IF_FALSE(obj->InternalFieldCount() > 0, napi_invalid_arg);
 
-  obj->SetAlignedPointerInInternalField(0, native_object);
+  obj->SetInternalField(0, v8::External::New(isolate, native_object));
 
   if (result != nullptr) {
     // The returned reference should be deleted via napi_delete_reference()
@@ -1807,7 +1850,7 @@ napi_status napi_unwrap(napi_env env, napi_value js_object, void** result) {
   // via napi_define_class() can be (un)wrapped.
   RETURN_STATUS_IF_FALSE(obj->InternalFieldCount() > 0, napi_invalid_arg);
 
-  *result = obj->GetAlignedPointerFromInternalField(0);
+  *result = v8::Local<v8::External>::Cast(obj->GetInternalField(0))->Value();
 
   return napi_ok;
 }
@@ -2124,7 +2167,6 @@ napi_status napi_make_callback(napi_env env,
                                const napi_value* argv,
                                napi_value* result) {
   NAPI_PREAMBLE(env);
-  CHECK_ARG(result);
 
   v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
   v8::Local<v8::Object> v8recv =
@@ -2132,9 +2174,13 @@ napi_status napi_make_callback(napi_env env,
   v8::Local<v8::Function> v8func =
       v8impl::V8LocalValueFromJsValue(func).As<v8::Function>();
 
-  *result = v8impl::JsValueFromV8LocalValue(
-    node::MakeCallback(isolate, v8recv, v8func, argc,
-      reinterpret_cast<v8::Local<v8::Value>*>(const_cast<napi_value*>(argv))));
+  v8::Local<v8::Value> callback_result = node::MakeCallback(
+      isolate, v8recv, v8func, argc,
+      reinterpret_cast<v8::Local<v8::Value>*>(const_cast<napi_value*>(argv)));
+
+  if (result != nullptr) {
+    *result = v8impl::JsValueFromV8LocalValue(callback_result);
+  }
 
   return GET_RETURN_STATUS();
 }
@@ -2199,11 +2245,17 @@ napi_status napi_create_external_buffer(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(result);
 
-  auto maybe = node::Buffer::New(v8impl::V8IsolateFromJsEnv(env),
+  v8::Isolate* isolate = v8impl::V8IsolateFromJsEnv(env);
+
+  // The finalizer object will delete itself after invoking the callback.
+  v8impl::Finalizer* finalizer = v8impl::Finalizer::New(
+    isolate, finalize_cb, nullptr, finalize_hint);
+
+  auto maybe = node::Buffer::New(isolate,
                                  static_cast<char*>(data),
                                  length,
-                                 (node::Buffer::FreeCallback)finalize_cb,
-                                 finalize_hint);
+                                 v8impl::Finalizer::FinalizeBufferCallback,
+                                 finalizer);
 
   CHECK_MAYBE_EMPTY(maybe, napi_generic_failure);
 

@@ -17,14 +17,15 @@ assert.strictEqual(theError, returnedError,
                    'Returned error is strictly equal to the thrown error');
 
 // Test that the native side passes the exception through
-try {
-  test_exception.allowException(throwTheError);
-} catch (anError) {
-  caughtError = anError;
-}
-assert.strictEqual(caughtError, theError,
-                   'Thrown exception was allowed to pass through unhindered');
-caughtError = undefined;
+assert.throws(
+  () => {
+    test_exception.allowException(throwTheError);
+  },
+  function(err) {
+    return err === theError;
+  },
+  'Thrown exception was allowed to pass through unhindered'
+);
 
 // Test that the exception thrown above was marked as pending
 // before it was handled on the JS side

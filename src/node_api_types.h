@@ -17,8 +17,11 @@ typedef struct napi_handle_scope__ *napi_handle_scope;
 typedef struct napi_escapable_handle_scope__ *napi_escapable_handle_scope;
 typedef struct napi_callback_info__ *napi_callback_info;
 
-typedef void (*napi_callback)(napi_env, napi_callback_info);
-typedef void (*napi_finalize)(void* finalize_data, void* finalize_hint);
+typedef void (*napi_callback)(napi_env env,
+                              napi_callback_info info);
+typedef void (*napi_finalize)(napi_env env,
+                              void* finalize_data,
+                              void* finalize_hint);
 
 typedef enum {
   napi_default = 0,

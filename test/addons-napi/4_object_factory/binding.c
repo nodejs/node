@@ -1,6 +1,6 @@
 #include <node_api.h>
 
-void CreateObject(napi_env env, const napi_callback_info info) {
+void CreateObject(napi_env env, napi_callback_info info) {
   napi_status status;
 
   napi_value args[1];

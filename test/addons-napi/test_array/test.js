@@ -22,11 +22,12 @@ const array = [
 assert.strictEqual(test_array.Test(array, array.length + 1),
                    'Index out of bound!');
 
-try {
-  test_array.Test(array, -2);
-} catch (err) {
-  assert.strictEqual(err.message, 'Invalid index. Expects a positive integer.');
-}
+assert.throws(
+  () => {
+    test_array.Test(array, -2);
+  },
+  /Invalid index. Expects a positive integer./
+);
 
 array.forEach(function(element, index) {
   assert.strictEqual(test_array.Test(array, index), element);

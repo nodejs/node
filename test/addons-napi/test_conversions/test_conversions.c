@@ -12,20 +12,20 @@ void AsBool(napi_env env, napi_callback_info info) {
 
   napi_value input;
   status = napi_get_cb_args(env, info, &input, 1);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   bool value;
   status = napi_get_value_bool(env, input, &value);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   napi_value output;
   status = napi_get_boolean(env, value, &output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   status = napi_set_return_value(env, info, output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
-Exit:
+done:
   if (status != napi_ok) ThrowLastError(env);
 }
 
@@ -34,20 +34,20 @@ void AsInt32(napi_env env, napi_callback_info info) {
 
   napi_value input;
   status = napi_get_cb_args(env, info, &input, 1);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   int32_t value;
   status = napi_get_value_int32(env, input, &value);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   napi_value output;
   status = napi_create_number(env, value, &output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   status = napi_set_return_value(env, info, output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
-Exit:
+done:
   if (status != napi_ok) ThrowLastError(env);
 }
 
@@ -56,20 +56,20 @@ void AsUInt32(napi_env env, napi_callback_info info) {
 
   napi_value input;
   status = napi_get_cb_args(env, info, &input, 1);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   uint32_t value;
   status = napi_get_value_uint32(env, input, &value);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   napi_value output;
   status = napi_create_number(env, value, &output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   status = napi_set_return_value(env, info, output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
-Exit:
+done:
   if (status != napi_ok) ThrowLastError(env);
 }
 
@@ -78,20 +78,20 @@ void AsInt64(napi_env env, napi_callback_info info) {
 
   napi_value input;
   status = napi_get_cb_args(env, info, &input, 1);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   int64_t value;
   status = napi_get_value_int64(env, input, &value);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   napi_value output;
   status = napi_create_number(env, (double)value, &output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   status = napi_set_return_value(env, info, output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
-Exit:
+done:
   if (status != napi_ok) ThrowLastError(env);
 }
 
@@ -100,20 +100,20 @@ void AsDouble(napi_env env, napi_callback_info info) {
 
   napi_value input;
   status = napi_get_cb_args(env, info, &input, 1);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   double value;
   status = napi_get_value_double(env, input, &value);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   napi_value output;
   status = napi_create_number(env, value, &output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   status = napi_set_return_value(env, info, output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
-Exit:
+done:
   if (status != napi_ok) ThrowLastError(env);
 }
 
@@ -122,20 +122,20 @@ void AsString(napi_env env, napi_callback_info info) {
 
   napi_value input;
   status = napi_get_cb_args(env, info, &input, 1);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   char value[100];
   status = napi_get_value_string_utf8(env, input, value, sizeof(value), NULL);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   napi_value output;
   status = napi_create_string_utf8(env, value, -1, &output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   status = napi_set_return_value(env, info, output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
-Exit:
+done:
   if (status != napi_ok) ThrowLastError(env);
 }
 
@@ -144,16 +144,16 @@ void ToBool(napi_env env, napi_callback_info info) {
 
   napi_value input;
   status = napi_get_cb_args(env, info, &input, 1);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   napi_value output;
   status = napi_coerce_to_bool(env, input, &output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   status = napi_set_return_value(env, info, output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
-Exit:
+done:
   if (status != napi_ok) ThrowLastError(env);
 }
 
@@ -162,16 +162,16 @@ void ToNumber(napi_env env, napi_callback_info info) {
 
   napi_value input;
   status = napi_get_cb_args(env, info, &input, 1);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   napi_value output;
   status = napi_coerce_to_number(env, input, &output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   status = napi_set_return_value(env, info, output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
-Exit:
+done:
   if (status != napi_ok) ThrowLastError(env);
 }
 
@@ -180,16 +180,16 @@ void ToObject(napi_env env, napi_callback_info info) {
 
   napi_value input;
   status = napi_get_cb_args(env, info, &input, 1);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   napi_value output;
   status = napi_coerce_to_object(env, input, &output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   status = napi_set_return_value(env, info, output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
-Exit:
+done:
   if (status != napi_ok) ThrowLastError(env);
 }
 
@@ -198,16 +198,16 @@ void ToString(napi_env env, napi_callback_info info) {
 
   napi_value input;
   status = napi_get_cb_args(env, info, &input, 1);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   napi_value output;
   status = napi_coerce_to_string(env, input, &output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
   status = napi_set_return_value(env, info, output);
-  if (status != napi_ok) goto Exit;
+  if (status != napi_ok) goto done;
 
-Exit:
+done:
   if (status != napi_ok) ThrowLastError(env);
 }
 

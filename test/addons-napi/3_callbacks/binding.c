@@ -1,38 +1,36 @@
 #include <node_api.h>
 
-void RunCallback(napi_env env, const napi_callback_info info) {
-  napi_status status;
+#define NAPI_CALL(theCall)                                                \
+  if (theCall != napi_ok) {                                               \
+    const char* errorMessage = napi_get_last_error_info()->error_message; \
+    errorMessage = errorMessage ? errorMessage : "empty error message";   \
+    napi_throw_error((env), errorMessage);                                \
+    return;                                                               \
+  }
 
+void RunCallback(napi_env env, napi_callback_info info) {
   napi_value args[1];
-  status = napi_get_cb_args(env, info, args, 1);
-  if (status != napi_ok) return;
+  NAPI_CALL(napi_get_cb_args(env, info, args, 1));
 
   napi_value cb = args[0];
 
   napi_value argv[1];
-  status = napi_create_string_utf8(env, "hello world", -1, argv);
-  if (status != napi_ok) return;
+  NAPI_CALL(napi_create_string_utf8(env, "hello world", -1, argv));
 
   napi_value global;
-  status = napi_get_global(env, &global);
-  if (status != napi_ok) return;
+  NAPI_CALL(napi_get_global(env, &global));
 
-  status = napi_call_function(env, global, cb, 1, argv, NULL);
-  if (status != napi_ok) return;
+  NAPI_CALL(napi_call_function(env, global, cb, 1, argv, NULL));
 }
 
-void RunCallbackWithRecv(napi_env env, const napi_callback_info info) {
-  napi_status status;
-
+void RunCallbackWithRecv(napi_env env, napi_callback_info info) {
   napi_value args[2];
-  status = napi_get_cb_args(env, info, args, 2);
-  if (status != napi_ok) return;
+  NAPI_CALL(napi_get_cb_args(env, info, args, 2));
 
   napi_value cb = args[0];
   napi_value recv = args[1];
 
-  status = napi_call_function(env, recv, cb, 0, NULL, NULL);
-  if (status != napi_ok) return;
+  NAPI_CALL(napi_call_function(env, recv, cb, 0, NULL, NULL));
 }
 
 #define DECLARE_NAPI_METHOD(name, func)                          \

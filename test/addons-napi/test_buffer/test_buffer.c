@@ -12,7 +12,7 @@
 
 #define NAPI_CALL(env, theCall)                                           \
   if (theCall != napi_ok) {                                               \
-    const char *errorMessage = napi_get_last_error_info()->error_message; \
+    const char* errorMessage = napi_get_last_error_info()->error_message; \
     errorMessage = errorMessage ? errorMessage : "empty error message";   \
     napi_throw_error((env), errorMessage);                                \
     return;                                                               \
@@ -22,27 +22,29 @@ static const char theText[] =
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit.";
 
 static int deleterCallCount = 0;
-static void deleteTheText(void *data, void* finalize_hint) {
+static void deleteTheText(napi_env env, void* data, void* finalize_hint) {
+  JS_ASSERT(env, data != NULL && strcmp(data, theText) == 0, "invalid data");
   (void)finalize_hint;
   free(data);
   deleterCallCount++;
 }
 
-static void noopDeleter(void *data, void* finalize_hint) {
+static void noopDeleter(napi_env env, void* data, void* finalize_hint) {
+  JS_ASSERT(env, data != NULL && strcmp(data, theText) == 0, "invalid data");
   (void)finalize_hint;
   deleterCallCount++;
 }
 
 void newBuffer(napi_env env, napi_callback_info info) {
   napi_value theBuffer;
-  char *theCopy;
+  char* theCopy;
   const unsigned int kBufferSize = sizeof(theText);
 
   NAPI_CALL(env,
             napi_create_buffer(
                 env,
                 sizeof(theText),
-                (void **)(&theCopy),
+                (void**)(&theCopy),
                 &theBuffer));
   JS_ASSERT(env, theCopy, "Failed to copy static text for newBuffer");
   memcpy(theCopy, theText, kBufferSize);
@@ -51,7 +53,7 @@ void newBuffer(napi_env env, napi_callback_info info) {
 
 void newExternalBuffer(napi_env env, napi_callback_info info) {
   napi_value theBuffer;
-  char *theCopy = strdup(theText);
+  char* theCopy = strdup(theText);
   JS_ASSERT(env, theCopy, "Failed to copy static text for newExternalBuffer");
   NAPI_CALL(env,
             napi_create_external_buffer(
@@ -102,13 +104,13 @@ void bufferInfo(napi_env env, napi_callback_info info) {
   JS_ASSERT(env, argc == 1, "Wrong number of arguments");
   napi_value theBuffer, returnValue;
   NAPI_CALL(env, napi_get_cb_args(env, info, &theBuffer, 1));
-  char *bufferData;
+  char* bufferData;
   size_t bufferLength;
   NAPI_CALL(env,
             napi_get_buffer_info(
                 env,
                 theBuffer,
-                (void **)(&bufferData),
+                (void**)(&bufferData),
                 &bufferLength));
   NAPI_CALL(env, napi_get_boolean(env,
     !strcmp(bufferData, theText) && bufferLength == sizeof(theText),
@@ -122,7 +124,7 @@ void staticBuffer(napi_env env, napi_callback_info info) {
       env,
       napi_create_external_buffer(env,
                                   sizeof(theText),
-                                  (void *)theText,
+                                  (void*)theText,
                                   noopDeleter,
                                   NULL,  // finalize_hint
                                   &theBuffer));
