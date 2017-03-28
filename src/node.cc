@@ -3541,9 +3541,10 @@ static void PrintHelp() {
          "  -r, --require              module to preload (option can be "
          "repeated)\n"
 #if HAVE_INSPECTOR
-         "  --inspect[=host:port]      activate inspector on host:port\n"
+         "  --inspect[=[host:]port]    activate inspector on host:port\n"
          "                             (default: 127.0.0.1:9229)\n"
-         "  --inspect-brk[=host:port]  activate inspector on host:port\n"
+         "  --inspect-brk[=[host:]port]\n"
+         "                             activate inspector on host:port\n"
          "                             and break at start of user script\n"
 #endif
          "  --no-deprecation           silence deprecation warnings\n"
