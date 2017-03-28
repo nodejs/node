@@ -523,7 +523,7 @@ found [here][online].
   [file descriptors][] allowable on the system has been reached, and
   requests for another descriptor cannot be fulfilled until at least one
   has been closed. This is encountered when opening many files at once in
-  parallel, especially on systems (in particular, OS X) where there is a low
+  parallel, especially on systems (in particular, macOS) where there is a low
   file descriptor limit for processes. To remedy a low limit, run
   `ulimit -n 2048` in the same shell that will run the Node.js process.
 
