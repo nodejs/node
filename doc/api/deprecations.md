@@ -582,6 +582,15 @@ deprecated.
 *Note*: `OutgoingMessage.prototype._renderHeaders` was never documented as
 an officially supported API.
 
+<a id="DEP0062"></a>
+### DEP0062: node --debug
+
+Type: Runtime
+
+`--debug` activates the legacy V8 debugger interface, which has been removed as
+of V8 5.8. It is replaced by Inspector which is activated with `--inspect`
+instead.
+
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
