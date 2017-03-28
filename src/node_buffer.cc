@@ -616,7 +616,8 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
       enc == UCS2 ? str_obj->Length() * sizeof(uint16_t) : str_obj->Length();
 
   if (enc == HEX && str_length  % 2 != 0)
-    return env->ThrowTypeError("Invalid hex string");
+    return env->ThrowTypeError("Hex strings must have an even number of "
+                               "characters");
 
   if (str_length == 0)
     return;
@@ -686,7 +687,8 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
   Local<String> str = args[0]->ToString(env->isolate());
 
   if (encoding == HEX && str->Length() % 2 != 0)
-    return env->ThrowTypeError("Invalid hex string");
+    return env->ThrowTypeError("Hex strings must have an even number of "
+                               "characters");
 
   size_t offset;
   size_t max_length;

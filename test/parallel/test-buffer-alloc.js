@@ -517,6 +517,9 @@ assert.throws(() => Buffer.from('A', 'hex'), TypeError);
 // Test single base64 char encodes as 0
 assert.strictEqual(Buffer.from('A', 'base64').length, 0);
 
+// Creating a buffer from odd-length hex string should fail.
+assert.throws(() => Buffer.from('zzz', 'hex'),
+              /Hex strings must have an even number of characters/);
 
 {
   // test an invalid slice end.

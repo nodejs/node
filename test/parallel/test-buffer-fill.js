@@ -135,7 +135,7 @@ testBufs('61c8b462c8b563c8b6', 12, 1, 'hex');
 // Make sure this operation doesn't go on forever
 buf1.fill('yKJh', 'hex');
 assert.throws(() =>
-      buf1.fill('\u0222', 'hex'), /^TypeError: Invalid hex string$/);
+      buf1.fill('\u0222', 'hex'), /^TypeError:/);
 
 
 // BASE64
