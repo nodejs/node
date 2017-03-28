@@ -94,7 +94,7 @@ Follows `require()`'s module resolution
 rules. `module` may be either a path to a file, or a node module name.
 
 
-### `--inspect[=host:port]`
+### `--inspect[=[host:]port]`
 <!-- YAML
 added: v6.3.0
 -->
@@ -106,7 +106,7 @@ and profile Node.js instances. The tools attach to Node.js instances via a
 tcp port and communicate using the [Chrome Debugging Protocol][].
 
 
-### `--inspect-brk[=host:port]`
+### `--inspect-brk[=[host:]port]`
 <!-- YAML
 added: v7.6.0
 -->
