@@ -16,12 +16,7 @@ typedef struct napi_ref__ *napi_ref;
 typedef struct napi_handle_scope__ *napi_handle_scope;
 typedef struct napi_escapable_handle_scope__ *napi_escapable_handle_scope;
 typedef struct napi_callback_info__ *napi_callback_info;
-
-typedef napi_value (*napi_callback)(napi_env env,
-                                    napi_callback_info info);
-typedef void (*napi_finalize)(napi_env env,
-                              void* finalize_data,
-                              void* finalize_hint);
+typedef struct napi_async_work__ *napi_async_work;
 
 typedef enum {
   napi_default = 0,
@@ -33,20 +28,6 @@ typedef enum {
   // from instance properties. Ignored by napi_define_properties.
   napi_static = 1 << 10,
 } napi_property_attributes;
-
-typedef struct {
-  // One of utf8name or name should be NULL.
-  const char* utf8name;
-  napi_value name;
-
-  napi_callback method;
-  napi_callback getter;
-  napi_callback setter;
-  napi_value value;
-
-  napi_property_attributes attributes;
-  void* data;
-} napi_property_descriptor;
 
 typedef enum {
   // ES6 types (corresponds to typeof)
@@ -85,8 +66,34 @@ typedef enum {
   napi_array_expected,
   napi_generic_failure,
   napi_pending_exception,
+  napi_cancelled,
   napi_status_last
 } napi_status;
+
+typedef napi_value (*napi_callback)(napi_env env,
+                                    napi_callback_info info);
+typedef void (*napi_finalize)(napi_env env,
+                              void* finalize_data,
+                              void* finalize_hint);
+typedef void (*napi_async_execute_callback)(napi_env env,
+                                            void* data);
+typedef void (*napi_async_complete_callback)(napi_env env,
+                                             napi_status status,
+                                             void* data);
+
+typedef struct {
+  // One of utf8name or name should be NULL.
+  const char* utf8name;
+  napi_value name;
+
+  napi_callback method;
+  napi_callback getter;
+  napi_callback setter;
+  napi_value value;
+
+  napi_property_attributes attributes;
+  void* data;
+} napi_property_descriptor;
 
 typedef struct {
   const char* error_message;
