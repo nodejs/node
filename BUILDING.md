@@ -39,23 +39,13 @@ Support is divided into three tiers:
 | GNU/Linux    | Tier 1       | kernel >= 2.6.18, glibc >= 2.5   | x86, x64, arm, arm64 |                  |
 | macOS        | Tier 1       | >= 10.10                         | x64                  |                  |
 | Windows      | Tier 1       | >= Windows 7 or >= Windows2008R2 | x86, x64             |                  |
-| SmartOS      | Tier 2       | >= 14 < 16.4                     | x86, x64             | see note1        |
+| SmartOS      | Tier 2       | >= 14                            | x86, x64             |                  |
 | FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
 | GNU/Linux    | Tier 2       | kernel >= 4.2.0, glibc >= 2.19   | ppc64be              |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le              |                  |
-| AIX          | Tier 2       | >= 6.1 TL09                      | ppc64be              |                  |
-| GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17    | s390x                |                  |
 | macOS        | Experimental | >= 10.8 < 10.10                  | x64                  | no test coverage |
 | Linux (musl) | Experimental | musl >= 1.0                      | x64                  |                  |
 
-note1 - The gcc4.8-libs package needs to be installed, because node
-  binaries have been built with GCC 4.8, for which runtime libraries are not
-  installed by default. For these node versions, the recommended binaries
-  are the ones available in pkgsrc, not the one available from nodejs.org.
-  Note that the binaries downloaded from the pkgsrc repositories are not
-  officially supported by the Node.js project, and instead are supported
-  by Joyent. SmartOS images >= 16.4 are not supported because
-  GCC 4.8 runtime libraries are not available in their pkgsrc repository
 
 ### Supported toolchains
 
@@ -64,12 +54,12 @@ Depending on host platform, the selection of toolchains may vary.
 #### Unix
 
 * GCC 4.8 or newer
-* Clang 3.4 or newer
+* Clang 3.4.1 or newer
 
 #### Windows
 
-* Building Node: Visual Studio 2015 or Visual C++ Build Tools 2015 or newer
-* Building native add-ons: Visual Studio 2013 or Visual C++ Build Tools 2015
+* Building Node: Visual Studio 2013 or Visual C++ Build Tools 2013 or newer
+* Building native add-ons: Visual Studio 2013 or Visual C++ Build Tools 2013
   or newer
 
 ## Building Node.js on supported platforms
@@ -79,7 +69,7 @@ Depending on host platform, the selection of toolchains may vary.
 Prerequisites:
 
 * `gcc` and `g++` 4.8 or newer, or
-* `clang` and `clang++` 3.4 or newer
+* `clang` and `clang++` 3.4.1 or newer
 * Python 2.6 or 2.7
 * GNU Make 3.81 or newer
 
