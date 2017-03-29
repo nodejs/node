@@ -1544,6 +1544,7 @@ added: v0.3.6
 
 * `options` {Object | string} Accepts the same `options` as
   [`http.request()`][], with the `method` always set to `GET`.
+  Properties that are inherited from the prototype are ignored.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
 
