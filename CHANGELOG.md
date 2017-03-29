@@ -1,5 +1,25 @@
 # Node.js ChangeLog
 
+## 2017-04-04, Version 4.8.2 'Argon' (Maintenance), @MylesBorins
+
+This is a maintenance release to fix a memory leak that was introduced in 4.8.1.
+
+It also includes an upgrade to zlib 1.2.11 to fix a [number of low severity CVEs](http://seclists.org/oss-sec/2016/q4/602)
+that were present in zlib 1.2.8.
+
+### Notable Changes
+
+* **crypto**:
+  - fix memory leak if certificate is revoked (Tom Atkinson) [#12089](https://github.com/nodejs/node/pull/12089)
+* **deps**:
+  - upgrade zlib to 1.2.11 (Sam Roberts) [#10980](https://github.com/nodejs/node/pull/10980)
+
+### Commits
+
+* [[`9d7fba4de2`](https://github.com/nodejs/node/commit/9d7fba4de2)] - **crypto**: fix memory leak if certificate is revoked (Tom Atkinson) [#12089](https://github.com/nodejs/node/pull/12089)
+* [[`253980ff38`](https://github.com/nodejs/node/commit/253980ff38)] - **deps**: fix CLEAR_HASH macro to be usable as a single statement (Sam Roberts) [#11616](https://github.com/nodejs/node/pull/11616)
+* [[`2e52a2699b`](https://github.com/nodejs/node/commit/2e52a2699b)] - **deps**: upgrade zlib to 1.2.11 (Sam Roberts) [#10980](https://github.com/nodejs/node/pull/10980)
+
 ## 2017-03-21, Version 4.8.1 'Argon' (LTS), @MylesBorins
 
 This LTS release comes with 147 commits. This includes 55 which are test related, 
