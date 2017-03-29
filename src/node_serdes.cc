@@ -271,7 +271,7 @@ DeserializerContext::DeserializerContext(Environment* env,
     data_(reinterpret_cast<const uint8_t*>(Buffer::Data(buffer))),
     length_(Buffer::Length(buffer)),
     deserializer_(env->isolate(), data_, length_, this) {
-  object()->Set(env->context(), env->buffer_string(), buffer);
+  object()->Set(env->context(), env->buffer_string(), buffer).FromJust();
 
   MakeWeak<DeserializerContext>(this);
 }
@@ -388,8 +388,8 @@ void DeserializerContext::ReadUint64(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = ctx->env()->context();
 
   Local<Array> ret = Array::New(isolate, 2);
-  ret->Set(context, 0, Integer::NewFromUnsigned(isolate, hi));
-  ret->Set(context, 1, Integer::NewFromUnsigned(isolate, lo));
+  ret->Set(context, 0, Integer::NewFromUnsigned(isolate, hi)).FromJust();
+  ret->Set(context, 1, Integer::NewFromUnsigned(isolate, lo)).FromJust();
   return args.GetReturnValue().Set(ret);
 }
 
