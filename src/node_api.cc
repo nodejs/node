@@ -637,7 +637,20 @@ void napi_clear_last_error() {
   static_last_error.engine_reserved = nullptr;
 }
 
-const napi_extended_error_info* napi_get_last_error_info() {
+napi_status napi_set_last_error(napi_status error_code,
+                                uint32_t engine_error_code = 0,
+                                void* engine_reserved = nullptr) {
+  static_last_error.error_code = error_code;
+  static_last_error.engine_error_code = engine_error_code;
+  static_last_error.engine_reserved = engine_reserved;
+
+  return error_code;
+}
+
+napi_status napi_get_last_error_info(napi_env env,
+                                     const napi_extended_error_info** result) {
+  CHECK_ARG(env);
+
   static_assert(node::arraysize(error_messages) == napi_status_last,
       "Count of error messages must match count of error values");
   assert(static_last_error.error_code < napi_status_last);
@@ -647,17 +660,8 @@ const napi_extended_error_info* napi_get_last_error_info() {
   static_last_error.error_message =
       error_messages[static_last_error.error_code];
 
-  return &static_last_error;
-}
-
-napi_status napi_set_last_error(napi_status error_code,
-                                uint32_t engine_error_code = 0,
-                                void* engine_reserved = nullptr) {
-  static_last_error.error_code = error_code;
-  static_last_error.engine_error_code = engine_error_code;
-  static_last_error.engine_reserved = engine_reserved;
-
-  return error_code;
+  *result = &static_last_error;
+  return napi_ok;
 }
 
 napi_status napi_create_function(napi_env env,

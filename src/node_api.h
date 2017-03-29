@@ -100,7 +100,9 @@ EXTERN_C_START
 
 NAPI_EXTERN void napi_module_register(napi_module* mod);
 
-NAPI_EXTERN const napi_extended_error_info* napi_get_last_error_info();
+NAPI_EXTERN napi_status
+napi_get_last_error_info(napi_env env,
+                         const napi_extended_error_info** result);
 
 // Getters for defined singletons
 NAPI_EXTERN napi_status napi_get_undefined(napi_env env, napi_value* result);

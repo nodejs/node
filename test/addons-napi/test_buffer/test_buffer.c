@@ -10,12 +10,14 @@
     return;                                             \
   }
 
-#define NAPI_CALL(env, theCall)                                           \
-  if ((theCall) != napi_ok) {                                             \
-    const char* errorMessage = napi_get_last_error_info()->error_message; \
-    errorMessage = errorMessage ? errorMessage : "empty error message";   \
-    napi_throw_error((env), errorMessage);                                \
-    return;                                                               \
+#define NAPI_CALL(env, theCall)                                                \
+  if ((theCall) != napi_ok) {                                                  \
+    const napi_extended_error_info* error;                                     \
+    napi_get_last_error_info((env), &error);                                   \
+    const char* errorMessage = error->error_message;                           \
+    errorMessage = errorMessage ? errorMessage : "empty error message";        \
+    napi_throw_error((env), errorMessage);                                     \
+    return;                                                                    \
   }
 
 static const char theText[] =

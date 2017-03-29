@@ -1,7 +1,8 @@
 #include <node_api.h>
 
 void ThrowLastError(napi_env env) {
-  const napi_extended_error_info* error_info = napi_get_last_error_info();
+  const napi_extended_error_info* error_info;
+  napi_get_last_error_info(env, &error_info);
   if (error_info->error_code != napi_ok) {
     napi_throw_error(env, error_info->error_message);
   }
