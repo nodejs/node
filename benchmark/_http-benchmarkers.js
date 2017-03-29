@@ -1,74 +1,119 @@
 'use strict';
 
 const child_process = require('child_process');
+const path = require('path');
+const fs = require('fs');
 
 // The port used by servers and wrk
 exports.PORT = process.env.PORT || 12346;
 
-function AutocannonBenchmarker() {
-  this.name = 'autocannon';
-  this.autocannon_exe = process.platform === 'win32' ?
-                        'autocannon.cmd' :
-                        'autocannon';
-  const result = child_process.spawnSync(this.autocannon_exe, ['-h']);
-  this.present = !(result.error && result.error.code === 'ENOENT');
+class AutocannonBenchmarker {
+  constructor() {
+    this.name = 'autocannon';
+    this.executable = process.platform === 'win32' ?
+                      'autocannon.cmd' :
+                      'autocannon';
+    const result = child_process.spawnSync(this.executable, ['-h']);
+    this.present = !(result.error && result.error.code === 'ENOENT');
+  }
+
+  create(options) {
+    const args = [
+      '-d', options.duration,
+      '-c', options.connections,
+      '-j',
+      '-n',
+      `http://127.0.0.1:${options.port}${options.path}`
+    ];
+    const child = child_process.spawn(this.executable, args);
+    return child;
+  }
+
+  processResults(output) {
+    let result;
+    try {
+      result = JSON.parse(output);
+    } catch (err) {
+      return undefined;
+    }
+    if (!result || !result.requests || !result.requests.average) {
+      return undefined;
+    } else {
+      return result.requests.average;
+    }
+  }
 }
 
-AutocannonBenchmarker.prototype.create = function(options) {
-  const args = [
-    '-d', options.duration,
-    '-c', options.connections,
-    '-j',
-    '-n',
-    `http://127.0.0.1:${options.port}${options.path}`
-  ];
-  const child = child_process.spawn(this.autocannon_exe, args);
-  return child;
-};
-
-AutocannonBenchmarker.prototype.processResults = function(output) {
-  let result;
-  try {
-    result = JSON.parse(output);
-  } catch (err) {
-    // Do nothing, let next line handle this
+class WrkBenchmarker {
+  constructor() {
+    this.name = 'wrk';
+    this.executable = 'wrk';
+    const result = child_process.spawnSync(this.executable, ['-h']);
+    this.present = !(result.error && result.error.code === 'ENOENT');
   }
-  if (!result || !result.requests || !result.requests.average) {
-    return undefined;
-  } else {
-    return result.requests.average;
-  }
-};
 
-function WrkBenchmarker() {
-  this.name = 'wrk';
-  this.regexp = /Requests\/sec:[ \t]+([0-9.]+)/;
-  const result = child_process.spawnSync('wrk', ['-h']);
-  this.present = !(result.error && result.error.code === 'ENOENT');
+  create(options) {
+    const args = [
+      '-d', options.duration,
+      '-c', options.connections,
+      '-t', 8,
+      `http://127.0.0.1:${options.port}${options.path}`
+    ];
+    const child = child_process.spawn(this.executable, args);
+    return child;
+  }
+
+  processResults(output) {
+    const throughputRe = /Requests\/sec:[ \t]+([0-9.]+)/;
+    const match = output.match(throughputRe);
+    const throughput = match && +match[1];
+    if (!isFinite(throughput)) {
+      return undefined;
+    } else {
+      return throughput;
+    }
+  }
 }
 
-WrkBenchmarker.prototype.create = function(options) {
-  const args = [
-    '-d', options.duration,
-    '-c', options.connections,
-    '-t', 8,
-    `http://127.0.0.1:${options.port}${options.path}`
-  ];
-  const child = child_process.spawn('wrk', args);
-  return child;
-};
-
-WrkBenchmarker.prototype.processResults = function(output) {
-  const match = output.match(this.regexp);
-  const result = match && +match[1];
-  if (!isFinite(result)) {
-    return undefined;
-  } else {
-    return result;
+/**
+ * Simple, single-threaded benchmarker for testing if the benchmark
+ * works
+ */
+class TestDoubleBenchmarker {
+  constructor() {
+    this.name = 'test-double';
+    this.executable = path.resolve(__dirname, '_test-double-benchmarker.js');
+    this.present = fs.existsSync(this.executable);
   }
-};
 
-const http_benchmarkers = [new WrkBenchmarker(), new AutocannonBenchmarker()];
+  create(options) {
+    const child = child_process.fork(this.executable, {
+      silent: true,
+      env: {
+        duration: options.duration,
+        connections: options.connections,
+        path: `http://127.0.0.1:${options.port}${options.path}`
+      }
+    });
+    return child;
+  }
+
+  processResults(output) {
+    let result;
+    try {
+      result = JSON.parse(output);
+    } catch (err) {
+      return undefined;
+    }
+    return result.throughput;
+  }
+}
+
+const http_benchmarkers = [
+  new WrkBenchmarker(),
+  new AutocannonBenchmarker(),
+  new TestDoubleBenchmarker()
+];
 
 const benchmarkers = {};
 
