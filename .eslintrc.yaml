@@ -62,7 +62,7 @@ rules:
   no-mixed-requires: 2
   no-new-require: 2
   no-path-concat: 2
-  no-restricted-modules: [2, sys, _linklist]
+  no-restricted-modules: [2, sys]
   no-restricted-properties:
     - 2
     - object: assert
