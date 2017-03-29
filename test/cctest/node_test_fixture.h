@@ -34,8 +34,8 @@ struct Argv {
     snprintf(argv_[0], prog_len, "%s", prog);
     snprintf(argv_[0] + prog_len, arg1_len, "%s", arg1);
     snprintf(argv_[0] + prog_len + arg1_len, arg2_len, "%s", arg2);
-    argv_[1] = argv_[0] + prog_len + 1;
-    argv_[2] = argv_[0] + prog_len + arg1_len + 1;
+    argv_[1] = argv_[0] + prog_len;
+    argv_[2] = argv_[0] + prog_len + arg1_len;
   }
 
   ~Argv() {
