@@ -1,7 +1,7 @@
 #include <node_api.h>
 
 #define NAPI_CALL(theCall)                                                \
-  if (theCall != napi_ok) {                                               \
+  if ((theCall) != napi_ok) {                                             \
     const char* errorMessage = napi_get_last_error_info()->error_message; \
     errorMessage = errorMessage ? errorMessage : "empty error message";   \
     napi_throw_error((env), errorMessage);                                \

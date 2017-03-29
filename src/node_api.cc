@@ -1857,7 +1857,10 @@ napi_status napi_unwrap(napi_env env, napi_value js_object, void** result) {
   // via napi_define_class() can be (un)wrapped.
   RETURN_STATUS_IF_FALSE(obj->InternalFieldCount() > 0, napi_invalid_arg);
 
-  *result = v8::Local<v8::External>::Cast(obj->GetInternalField(0))->Value();
+  v8::Local<v8::Value> unwrappedValue = obj->GetInternalField(0);
+  RETURN_STATUS_IF_FALSE(unwrappedValue->IsExternal(), napi_invalid_arg);
+
+  *result = unwrappedValue.As<v8::External>()->Value();
 
   return napi_ok;
 }
