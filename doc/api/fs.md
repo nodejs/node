@@ -1247,9 +1247,9 @@ The kernel ignores the position argument and always appends the data to
 the end of the file.
 
 _Note: The behavior of `fs.open()` is platform specific for some flags. As such,
-opening a directory on macOS and Linux with the `'a+'` flag - see example below -
-will return an error. In contrast, on Windows and FreeBSD, a file descriptor
-will be returned._
+opening a directory on macOS and Linux with the `'a+'` flag - see example
+below - will return an error. In contrast, on Windows and FreeBSD, a file
+descriptor will be returned._
 
 ```js
 // macOS and Linux
