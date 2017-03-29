@@ -277,7 +277,7 @@ test/addons-napi/.buildstamp: config.gypi \
 	$(ADDONS_NAPI_BINDING_GYPS) $(ADDONS_NAPI_BINDING_SOURCES) \
 	deps/uv/include/*.h deps/v8/include/*.h \
 	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
-	src/node_api.h src/node_api_async.h
+	src/node_api.h src/node_api_types.h
 #	Cannot use $(wildcard test/addons-napi/*/) here, it's evaluated before
 #	embedded addons have been generated from the documentation.
 	@for dirname in test/addons-napi/*/; do \
