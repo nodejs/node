@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.10.1">6.10.2</a><br/>
 <a href="#6.10.1">6.10.1</a><br/>
 <a href="#6.10.0">6.10.0</a><br/>
 <a href="#6.9.5">6.9.5</a><br/>
@@ -46,6 +47,40 @@
 **Note:** Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.10.2"></a>
+## 2017-04-04, Version 6.10.2 'Boron' (LTS), @MylesBorins
+
+This is a special LTS to fix a number of regressions that were found on the 6.10.x release line.
+
+This includes:
+
+ * a fix for memory leak in the crypto module that was introduced in 6.10.1
+ * a fix for a regression introduced to the windows repl in 6.10.0
+ * a backported fix for V8 to stop a segfault that could occur when using spread syntax
+
+It also includes an upgrade to zlib 1.2.11 to fix a [number of low severity CVEs](http://seclists.org/oss-sec/2016/q4/602)
+that were present in zlib 1.2.8.
+
+### Notable changes
+
+* **crypto**:
+  - fix memory leak if certificate is revoked (Tom Atkinson) [#12089](https://github.com/nodejs/node/pull/12089)
+* **deps**:
+  - upgrade zlib to 1.2.11 (Sam Roberts) [#10980](https://github.com/nodejs/node/pull/10980)
+  - backport V8 fixes for spread syntax regression causing segfaults (Michaël Zasso) [#12037](https://github.com/nodejs/node/pull/12037)
+* **repl**:
+  - Revert commit that broke REPL display on Windows (Myles Borins) [#12123](https://github.com/nodejs/node/pull/12123)
+
+### Commits
+
+* [[`5f644d2f6f`](https://github.com/nodejs/node/commit/5f644d2f6f)] - **crypto**: fix memory leak if certificate is revoked (Tom Atkinson) [#12089](https://github.com/nodejs/node/pull/12089)
+* [[`912f78a566`](https://github.com/nodejs/node/commit/912f78a566)] - **deps**: fix CLEAR_HASH macro to be usable as a single statement (Sam Roberts) [#11616](https://github.com/nodejs/node/pull/11616)
+* [[`abe9132011`](https://github.com/nodejs/node/commit/abe9132011)] - **deps**: upgrade zlib to 1.2.11 (Sam Roberts) [#10980](https://github.com/nodejs/node/pull/10980)
+* [[`1ff512c185`](https://github.com/nodejs/node/commit/1ff512c185)] - **deps**: backport e427300 from upstream V8 (Michaël Zasso) [#12037](https://github.com/nodejs/node/pull/12037)
+* [[`8dfc710a06`](https://github.com/nodejs/node/commit/8dfc710a06)] - **deps**: cherry-pick b9f682b from upstream V8 (Michaël Zasso) [#12037](https://github.com/nodejs/node/pull/12037)
+* [[`52bdb8f246`](https://github.com/nodejs/node/commit/52bdb8f246)] - **deps**: backport 2cabc86 from upstream V8 (Michaël Zasso) [#12037](https://github.com/nodejs/node/pull/12037)
+* [[`64fc5a4541`](https://github.com/nodejs/node/commit/d60ceb8a02)] - **repl** Revert: "Revert "repl: disable Ctrl+C support..." (Myles Borins) [#12123](https://github.com/nodejs/node/pull/12123)
 
 <a id="6.10.1"></a>
 ## 2017-03-21, Version 6.10.1 'Boron' (LTS), @MylesBorins
