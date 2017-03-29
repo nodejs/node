@@ -7,11 +7,12 @@ if (cluster.isMaster) {
   var bench = common.createBenchmark(main, {
     // unicode confuses ab on os x.
     type: ['bytes', 'buffer'],
-    length: [4, 1024, 102400],
+    len: [4, 1024, 102400],
     c: [50, 500]
   });
 } else {
-  require('./_http_simple.js');
+  var port = parseInt(process.env.PORT || PORT);
+  require('../fixtures/simple-http-server.js').listen(port);
 }
 
 function main(conf) {
@@ -26,7 +27,7 @@ function main(conf) {
       return;
 
     setTimeout(function() {
-      var path = '/' + conf.type + '/' + conf.length;
+      var path = '/' + conf.type + '/' + conf.len;
 
       bench.http({
         path: path,

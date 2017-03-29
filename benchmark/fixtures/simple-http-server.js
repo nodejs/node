@@ -2,8 +2,6 @@
 
 var http = require('http');
 
-var port = parseInt(process.env.PORT || 8000);
-
 var fixed = 'C'.repeat(20 * 1024),
   storedBytes = {},
   storedBuffer = {},
@@ -22,7 +20,7 @@ if (useDomains) {
   gdom.enter();
 }
 
-var server = module.exports = http.createServer(function(req, res) {
+module.exports = http.createServer(function(req, res) {
   if (useDomains) {
     var dom = domain.create();
     dom.add(req);
@@ -113,9 +111,4 @@ var server = module.exports = http.createServer(function(req, res) {
     res.writeHead(status, headers);
     res.end(body);
   }
-});
-
-server.listen(port, function() {
-  if (module === require.main)
-    console.error('Listening at http://127.0.0.1:' + port + '/');
 });
