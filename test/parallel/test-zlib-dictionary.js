@@ -41,7 +41,7 @@ const spdyDict = Buffer.from([
   'ation/xhtmltext/plainpublicmax-agecharset=iso-8859-1utf-8gzipdeflateHTTP/1',
   '.1statusversionurl\0'
 ].join(''));
-const spdyDictUint8Array = new Uint8Array([...spdyDict]);
+const spdyDictUint8Array = new Uint8Array(spdyDict);
 
 const input = [
   'HTTP/1.1 200 Ok',

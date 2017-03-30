@@ -295,7 +295,7 @@ ignored by the decompression classes.
 
 * `flush` {integer} (default: `zlib.constants.Z_NO_FLUSH`)
 * `finishFlush` {integer} (default: `zlib.constants.Z_FINISH`)
-* `chunkSize` {integer} (default: 16 × 1024)
+* `chunkSize` {integer} (default: 16\*1024)
 * `windowBits` {integer}
 * `level` {integer} (compression only)
 * `memLevel` {integer} (compression only)
@@ -627,7 +627,7 @@ changes:
     description: The `buffer` parameter can be an Uint8Array now.
 -->
 
-- `buf` {Buffer|Uint8Array|string}
+- `buffer` {Buffer|Uint8Array|string}
 
 Decompress a chunk of data with [Unzip][].
 

@@ -28,7 +28,7 @@ const zlib = require('zlib');
 
 const expectStr = 'blahblahblahblahblahblah';
 const expectBuf = Buffer.from(expectStr);
-const expectUint8Array = new Uint8Array([...expectBuf]);
+const expectUint8Array = new Uint8Array(expectBuf);
 const opts = {
   level: 9,
   chunkSize: 1024,
