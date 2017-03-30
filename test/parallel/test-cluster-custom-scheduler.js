@@ -68,7 +68,6 @@ if (cluster.isMaster) {
     });
   }
 
-  cluster.schedulingPolicy = cluster.SCHED_CUSTOM;
   cluster.setupMaster({ scheduler });
 
   for (let i = 0; i < numWorkers; i++)

@@ -709,15 +709,10 @@ True if the process is not a master (it is the negation of `cluster.isMaster`).
 ## cluster.schedulingPolicy
 <!-- YAML
 added: v0.11.2
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/11546
-    description: The scheduling policy can now be user defined.
 -->
 
-The scheduling policy, either `cluster.SCHED_RR` for round-robin,
-`cluster.SCHED_NONE` to leave it to the operating system, or
-`cluster.SCHED_CUSTOM` for a user defined scheduling algorightm. This is a
+The scheduling policy, either `cluster.SCHED_RR` for round-robin or
+`cluster.SCHED_NONE` to leave it to the operating system. This is a
 global setting and effectively frozen once you spawn the first worker
 or call `cluster.setupMaster()`, whatever comes first.
 
@@ -727,7 +722,7 @@ distribute IOCP handles without incurring a large performance hit.
 
 `cluster.schedulingPolicy` can also be set through the
 `NODE_CLUSTER_SCHED_POLICY` environment variable. Valid
-values are `"rr"`, `"none"`, and `"custom"`.
+values are `"rr"` and `"none"`.
 
 ## cluster.settings
 <!-- YAML
@@ -873,10 +868,9 @@ socket.on('data', (id) => {
 added: REPLACEME
 -->
 
-The cluster master's scheduling algorithm can be customized by setting
-`cluster.schedulingPolicy` to `cluster.SCHED_CUSTOM` and passing a function
-as the `scheduler` option to `cluster.setupMaster()`. The `scheduler` is a
-synchronous function, whose signature is `scheduler(workers[, socket])`.
+The cluster master's scheduling algorithm can be customized by passing a
+function as the `scheduler` option to `cluster.setupMaster()`. The `scheduler`
+is a synchronous function, whose signature is `scheduler(workers[, socket])`.
 
 * `workers` {Array} an array of cluster workers that the request can be
   distributed to.
@@ -886,10 +880,10 @@ synchronous function, whose signature is `scheduler(workers[, socket])`.
   set `exposeSocket` to `true` on the `scheduler` function.
 
 The scheduling function should return the worker that will handle the
-connection. However, the worker should not be removed from `workers`. If a
-cluster worker is not returned from the scheduler, the connection will not be
-processed at that time. An example that implements round robin scheduling is
-shown below.
+connection. However, the `workers` array should under no condition be
+mutated. If a cluster worker is not returned from the scheduler, the
+connection will not be processed at that time. An example that implements round
+robin scheduling is shown below.
 
 ```javascript
 'use strict';
@@ -909,7 +903,6 @@ if (cluster.isMaster) {
   }
 
   scheduler.exposeSocket = true;  // Expose the socket even though it is unused.
-  cluster.schedulingPolicy = cluster.SCHED_CUSTOM;
   cluster.setupMaster({ scheduler });
 
   cluster.fork();
