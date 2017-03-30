@@ -99,7 +99,7 @@ syntaxArgs.forEach(function(args) {
   assert.strictEqual(c.status, 0, 'code == ' + c.status);
 });
 
-// should should throw if code piped from stdin with --check has bad syntax
+// should throw if code piped from stdin with --check has bad syntax
 // loop each possible option, `-c` or `--check`
 syntaxArgs.forEach(function(args) {
   const stdin = 'var foo bar;';
