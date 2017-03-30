@@ -3318,7 +3318,11 @@ void SetupProcessObject(Environment* env,
 
   // --debug-brk
   if (debug_options.wait_for_connect()) {
-    READONLY_PROPERTY(process, "_debugWaitConnect", True(env->isolate()));
+    if (debug_options.inspector_enabled()) {
+      READONLY_PROPERTY(process, "_inspectorWaitConnect", True(env->isolate()));
+    } else {
+      READONLY_PROPERTY(process, "_debugWaitConnect", True(env->isolate()));
+    }
   }
 
   // --security-revert flags
