@@ -5,23 +5,22 @@ const fs = require('fs');
 const cbTypeError = /^TypeError: "callback" argument must be a function$/;
 const callbackThrowValues = [null, true, false, 0, 1, 'foo', /foo/, [], {}];
 
-const { sep } = require('path');
-
-common.refreshTmpDir();
-
-function testMakeCallback(cb) {
+function testMakeStatsCallback(cb) {
   return function() {
-    // fs.mkdtemp() calls makeCallback() on its third argument
-    fs.mkdtemp(`${common.tmpDir}${sep}`, {}, cb);
+    // fs.stat() calls makeStatsCallback() on its second argument
+    fs.stat(__filename, cb);
   };
 }
 
+// Verify the case where a callback function is provided
+assert.doesNotThrow(testMakeStatsCallback(common.noop));
+
 // Passing undefined/nothing calls rethrow() internally
-assert.doesNotThrow(testMakeCallback());
+assert.doesNotThrow(testMakeStatsCallback());
 
 function invalidCallbackThrowsTests() {
   callbackThrowValues.forEach((value) => {
-    assert.throws(testMakeCallback(value), cbTypeError);
+    assert.throws(testMakeStatsCallback(value), cbTypeError);
   });
 }
 
