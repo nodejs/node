@@ -78,13 +78,13 @@ void Multiply(napi_env env, napi_callback_info info) {
       env, type, length, output_buffer, byte_offset, &output_array);
   if (status != napi_ok) return;
 
-  if (type == napi_uint8) {
+  if (type == napi_uint8_array) {
     uint8_t* input_bytes = (uint8_t*)(data) + byte_offset;
     uint8_t* output_bytes = (uint8_t*)(output_ptr);
     for (i = 0; i < length; i++) {
       output_bytes[i] = (uint8_t)(input_bytes[i] * multiplier);
     }
-  } else if (type == napi_float64) {
+  } else if (type == napi_float64_array) {
     double* input_doubles = (double*)((uint8_t*)(data) + byte_offset);
     double* output_doubles = (double*)(output_ptr);
     for (i = 0; i < length; i++) {
@@ -114,7 +114,7 @@ void External(napi_env env, napi_callback_info info) {
 
   napi_value output_array;
   status = napi_create_typedarray(env,
-                                  napi_int8,
+                                  napi_int8_array,
                                   sizeof(externalData) / sizeof(uint8_t),
                                   output_buffer,
                                   0,

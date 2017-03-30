@@ -60,15 +60,15 @@ typedef enum {
 } napi_valuetype;
 
 typedef enum {
-  napi_int8,
-  napi_uint8,
-  napi_uint8_clamped,
-  napi_int16,
-  napi_uint16,
-  napi_int32,
-  napi_uint32,
-  napi_float32,
-  napi_float64,
+  napi_int8_array,
+  napi_uint8_array,
+  napi_uint8_clamped_array,
+  napi_int16_array,
+  napi_uint16_array,
+  napi_int32_array,
+  napi_uint32_array,
+  napi_float32_array,
+  napi_float64_array,
 } napi_typedarray_type;
 
 typedef enum {

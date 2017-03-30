@@ -2218,8 +2218,6 @@ napi_status napi_get_and_clear_last_exception(napi_env env,
   CHECK_ARG(env);
   CHECK_ARG(result);
 
-  // TODO(boingoing): Is there a chance that an exception will be thrown in
-  // the process of attempting to retrieve the global static exception?
   if (v8impl::TryCatch::LastException().IsEmpty()) {
     return napi_get_undefined(env, result);
   } else {
@@ -2437,31 +2435,31 @@ napi_status napi_create_typedarray(napi_env env,
   v8::Local<v8::TypedArray> typedArray;
 
   switch (type) {
-    case napi_int8:
+    case napi_int8_array:
       typedArray = v8::Int8Array::New(buffer, byte_offset, length);
       break;
-    case napi_uint8:
+    case napi_uint8_array:
       typedArray = v8::Uint8Array::New(buffer, byte_offset, length);
       break;
-    case napi_uint8_clamped:
+    case napi_uint8_clamped_array:
       typedArray = v8::Uint8ClampedArray::New(buffer, byte_offset, length);
       break;
-    case napi_int16:
+    case napi_int16_array:
       typedArray = v8::Int16Array::New(buffer, byte_offset, length);
       break;
-    case napi_uint16:
+    case napi_uint16_array:
       typedArray = v8::Uint16Array::New(buffer, byte_offset, length);
       break;
-    case napi_int32:
+    case napi_int32_array:
       typedArray = v8::Int32Array::New(buffer, byte_offset, length);
       break;
-    case napi_uint32:
+    case napi_uint32_array:
       typedArray = v8::Uint32Array::New(buffer, byte_offset, length);
       break;
-    case napi_float32:
+    case napi_float32_array:
       typedArray = v8::Float32Array::New(buffer, byte_offset, length);
       break;
-    case napi_float64:
+    case napi_float64_array:
       typedArray = v8::Float64Array::New(buffer, byte_offset, length);
       break;
     default:
@@ -2488,23 +2486,23 @@ napi_status napi_get_typedarray_info(napi_env env,
 
   if (type != nullptr) {
     if (value->IsInt8Array()) {
-      *type = napi_int8;
+      *type = napi_int8_array;
     } else if (value->IsUint8Array()) {
-      *type = napi_uint8;
+      *type = napi_uint8_array;
     } else if (value->IsUint8ClampedArray()) {
-      *type = napi_uint8_clamped;
+      *type = napi_uint8_clamped_array;
     } else if (value->IsInt16Array()) {
-      *type = napi_int16;
+      *type = napi_int16_array;
     } else if (value->IsUint16Array()) {
-      *type = napi_uint16;
+      *type = napi_uint16_array;
     } else if (value->IsInt32Array()) {
-      *type = napi_int32;
+      *type = napi_int32_array;
     } else if (value->IsUint32Array()) {
-      *type = napi_uint32;
+      *type = napi_uint32_array;
     } else if (value->IsFloat32Array()) {
-      *type = napi_float32;
+      *type = napi_float32_array;
     } else if (value->IsFloat64Array()) {
-      *type = napi_float64;
+      *type = napi_float64_array;
     }
   }
 
