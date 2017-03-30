@@ -26,7 +26,7 @@ assert.throws(
   () => {
     test_array.Test(array, -2);
   },
-  /Invalid index. Expects a positive integer./
+  /Invalid index\. Expects a positive integer\./
 );
 
 array.forEach(function(element, index) {
