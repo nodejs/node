@@ -15,7 +15,7 @@ assert.throws(function() {
   makeCallback({}, function() {
     throw new Error('hi from domain error');
   });
-});
+}, /^Error: hi from domain error$/);
 
 
 // Check the execution order of the nextTickQueue and MicrotaskQueue in
