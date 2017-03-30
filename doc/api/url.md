@@ -259,6 +259,10 @@ added: v0.1.25
 The `url.parse()` method takes a URL string, parses it, and returns a URL
 object.
 
+A `TypeError` is thrown if `urlString` is not a string.
+
+A `URIError` is thrown if the `auth` property is present but cannot be decoded.
+
 ## url.resolve(from, to)
 <!-- YAML
 added: v0.1.25
