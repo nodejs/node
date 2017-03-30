@@ -117,3 +117,18 @@ syntaxArgs.forEach(function(args) {
 
   assert.strictEqual(c.status, 1, 'code == ' + c.status);
 });
+
+// should throw if -c and -e flags are both passed
+['-c', '--check'].forEach(function(checkFlag) {
+  ['-e', '--eval'].forEach(function(evalFlag) {
+    const args = [checkFlag, evalFlag, 'foo'];
+    const c = spawnSync(node, args, {encoding: 'utf8'});
+
+    assert.strictEqual(
+      c.stderr,
+      '--check and --eval flags are mutually exclusive.\n'
+    );
+
+    assert.strictEqual(c.status, 1, 'code == ' + c.status);
+  });
+});
