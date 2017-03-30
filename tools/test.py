@@ -617,7 +617,6 @@ def RunProcess(context, timeout, args, **rest):
   pty_out = rest.pop('pty_out')
 
   process = subprocess.Popen(
-    shell = utils.IsWindows(),
     args = popen_args,
     **rest
   )
