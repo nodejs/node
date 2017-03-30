@@ -3816,6 +3816,12 @@ static void ParseArgs(int* argc,
   }
 #endif
 
+  if (eval_string != nullptr && syntax_check_only) {
+    fprintf(stderr,
+            "%s: either --check or --eval can be used, not both\n", argv[0]);
+    exit(9);
+  }
+
   // Copy remaining arguments.
   const unsigned int args_left = nargs - index;
   memcpy(new_argv + new_argc, argv + index, args_left * sizeof(*argv));

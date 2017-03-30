@@ -99,7 +99,7 @@ syntaxArgs.forEach(function(args) {
   assert.strictEqual(c.status, 0, 'code === ' + c.status);
 });
 
-// should should throw if code piped from stdin with --check has bad syntax
+// should throw if code piped from stdin with --check has bad syntax
 // loop each possible option, `-c` or `--check`
 syntaxArgs.forEach(function(args) {
   const stdin = 'var foo bar;';
@@ -116,4 +116,19 @@ syntaxArgs.forEach(function(args) {
   assert(match, 'stderr incorrect');
 
   assert.strictEqual(c.status, 1, 'code === ' + c.status);
+});
+
+// should throw if -c and -e flags are both passed
+['-c', '--check'].forEach(function(checkFlag) {
+  ['-e', '--eval'].forEach(function(evalFlag) {
+    const args = [checkFlag, evalFlag, 'foo'];
+    const c = spawnSync(node, args, {encoding: 'utf8'});
+
+    assert.strictEqual(
+      c.stderr,
+      `${node}: either --check or --eval can be used, not both\n`
+    );
+
+    assert.strictEqual(c.status, 9, 'code === ' + c.status);
+  });
 });
