@@ -16,3 +16,5 @@ const url = require('url');
 ].forEach(function(val) {
   assert.throws(function() { url.parse(val); }, TypeError);
 });
+
+assert.throws(function() { url.parse('http://%E0%A4%A@fail'); }, /^URIError: URI malformed$/);
