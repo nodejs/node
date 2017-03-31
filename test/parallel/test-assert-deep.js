@@ -100,7 +100,7 @@ const similar = new Set([
 for (const a of similar) {
   for (const b of similar) {
     if (a !== b) {
-      assert.doesNotThrow(() => assert.deepEqual(a, b));
+      assert.deepEqual(a, b);
       assert.throws(() => assert.deepStrictEqual(a, b),
                     re`${a} deepStrictEqual ${b}`);
     }
@@ -123,16 +123,23 @@ function assertNotDeepOrStrict(a, b) {
   assert.throws(() => assert.deepStrictEqual(b, a));
 }
 
+function assertOnlyDeepEqual(a, b) {
+  assert.doesNotThrow(() => assert.deepEqual(a, b));
+  assert.throws(() => assert.deepStrictEqual(a, b));
+
+  assert.doesNotThrow(() => assert.deepEqual(b, a));
+  assert.throws(() => assert.deepStrictEqual(b, a));
+}
+
 // es6 Maps and Sets
 assertDeepAndStrictEqual(new Set(), new Set());
 assertDeepAndStrictEqual(new Map(), new Map());
 
-// deepEqual only works with primitive key values and reference-equal values in
-// sets and map keys avoid O(n^d) complexity (where d is depth)
 assertDeepAndStrictEqual(new Set([1, 2, 3]), new Set([1, 2, 3]));
 assertNotDeepOrStrict(new Set([1, 2, 3]), new Set([1, 2, 3, 4]));
 assertNotDeepOrStrict(new Set([1, 2, 3, 4]), new Set([1, 2, 3]));
 assertDeepAndStrictEqual(new Set(['1', '2', '3']), new Set(['1', '2', '3']));
+assertDeepAndStrictEqual(new Set([[1, 2], [3, 4]]), new Set([[3, 4], [1, 2]]));
 
 assertDeepAndStrictEqual(new Map([[1, 1], [2, 2]]), new Map([[1, 1], [2, 2]]));
 assertDeepAndStrictEqual(new Map([[1, 1], [2, 2]]), new Map([[2, 2], [1, 1]]));
@@ -146,6 +153,21 @@ assertNotDeepOrStrict(new Map([['a', 1]]), {a: 1});
 assertNotDeepOrStrict(new Map(), []);
 assertNotDeepOrStrict(new Map(), {});
 
+assertOnlyDeepEqual(new Set(['1']), new Set([1]));
+
+assertOnlyDeepEqual(new Map([['1', 'a']]), new Map([[1, 'a']]));
+assertOnlyDeepEqual(new Map([['a', '1']]), new Map([['a', 1]]));
+
+// This is an awful case, where a map contains multiple equivalent keys:
+assertOnlyDeepEqual(
+  new Map([[1, 'a'], ['1', 'b']]),
+  new Map([['1', 'a'], [1, 'b']])
+);
+assertDeepAndStrictEqual(
+  new Map([[{}, 'a'], [{}, 'b']]),
+  new Map([[{}, 'b'], [{}, 'a']])
+);
+
 {
   const values = [
     123,
@@ -155,7 +177,7 @@ assertNotDeepOrStrict(new Map(), {});
     undefined,
     false,
     true,
-    {}, // Objects, lists and functions are ok if they're in by reference.
+    {},
     [],
     () => {},
   ];
@@ -207,5 +229,20 @@ assert.deepEqual(new Map([[1, 1]]), new Map([[1, '1']]));
 assert.throws(() =>
   assert.deepStrictEqual(new Map([[1, 1]]), new Map([[1, '1']]))
 );
+
+{
+  // Two equivalent sets / maps with different key/values applied shouldn't be
+  // the same. This is a terrible idea to do in practice, but deepEqual should
+  // still check for it.
+  const s1 = new Set();
+  const s2 = new Set();
+  s1.x = 5;
+  assertNotDeepOrStrict(s1, s2);
+
+  const m1 = new Map();
+  const m2 = new Map();
+  m1.x = 5;
+  assertNotDeepOrStrict(m1, m2);
+}
 
 /* eslint-enable */
