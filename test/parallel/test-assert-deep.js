@@ -100,11 +100,172 @@ const similar = new Set([
 for (const a of similar) {
   for (const b of similar) {
     if (a !== b) {
-      assert.doesNotThrow(() => assert.deepEqual(a, b));
+      assert.deepEqual(a, b);
       assert.throws(() => assert.deepStrictEqual(a, b),
                     re`${a} deepStrictEqual ${b}`);
     }
   }
+}
+
+function assertDeepAndStrictEqual(a, b) {
+  assert.deepEqual(a, b);
+  assert.deepStrictEqual(a, b);
+
+  assert.deepEqual(b, a);
+  assert.deepStrictEqual(b, a);
+}
+
+function assertNotDeepOrStrict(a, b) {
+  assert.throws(() => assert.deepEqual(a, b));
+  assert.throws(() => assert.deepStrictEqual(a, b));
+
+  assert.throws(() => assert.deepEqual(b, a));
+  assert.throws(() => assert.deepStrictEqual(b, a));
+}
+
+function assertOnlyDeepEqual(a, b) {
+  assert.doesNotThrow(() => assert.deepEqual(a, b));
+  assert.throws(() => assert.deepStrictEqual(a, b));
+
+  assert.doesNotThrow(() => assert.deepEqual(b, a));
+  assert.throws(() => assert.deepStrictEqual(b, a));
+}
+
+// es6 Maps and Sets
+assertDeepAndStrictEqual(new Set(), new Set());
+assertDeepAndStrictEqual(new Map(), new Map());
+
+assertDeepAndStrictEqual(new Set([1, 2, 3]), new Set([1, 2, 3]));
+assertNotDeepOrStrict(new Set([1, 2, 3]), new Set([1, 2, 3, 4]));
+assertNotDeepOrStrict(new Set([1, 2, 3, 4]), new Set([1, 2, 3]));
+assertDeepAndStrictEqual(new Set(['1', '2', '3']), new Set(['1', '2', '3']));
+assertDeepAndStrictEqual(new Set([[1, 2], [3, 4]]), new Set([[3, 4], [1, 2]]));
+
+assertDeepAndStrictEqual(new Map([[1, 1], [2, 2]]), new Map([[1, 1], [2, 2]]));
+assertDeepAndStrictEqual(new Map([[1, 1], [2, 2]]), new Map([[2, 2], [1, 1]]));
+assertNotDeepOrStrict(new Map([[1, 1], [2, 2]]), new Map([[1, 2], [2, 1]]));
+
+assertNotDeepOrStrict(new Set([1]), [1]);
+assertNotDeepOrStrict(new Set(), []);
+assertNotDeepOrStrict(new Set(), {});
+
+assertNotDeepOrStrict(new Map([['a', 1]]), {a: 1});
+assertNotDeepOrStrict(new Map(), []);
+assertNotDeepOrStrict(new Map(), {});
+
+assertOnlyDeepEqual(new Set(['1']), new Set([1]));
+
+assertOnlyDeepEqual(new Map([['1', 'a']]), new Map([[1, 'a']]));
+assertOnlyDeepEqual(new Map([['a', '1']]), new Map([['a', 1]]));
+
+assertDeepAndStrictEqual(new Set([{}]), new Set([{}]));
+
+// This is an awful case, where a map contains multiple equivalent keys:
+assertOnlyDeepEqual(
+  new Map([[1, 'a'], ['1', 'b']]),
+  new Map([['1', 'a'], [1, 'b']])
+);
+assertDeepAndStrictEqual(
+  new Map([[{}, 'a'], [{}, 'b']]),
+  new Map([[{}, 'b'], [{}, 'a']])
+);
+
+{
+  const values = [
+    123,
+    Infinity,
+    0,
+    null,
+    undefined,
+    false,
+    true,
+    {},
+    [],
+    () => {},
+  ];
+  assertDeepAndStrictEqual(new Set(values), new Set(values));
+  assertDeepAndStrictEqual(new Set(values), new Set(values.reverse()));
+
+  const mapValues = values.map((v) => [v, {a: 5}]);
+  assertDeepAndStrictEqual(new Map(mapValues), new Map(mapValues));
+  assertDeepAndStrictEqual(new Map(mapValues), new Map(mapValues.reverse()));
+}
+
+{
+  const s1 = new Set();
+  const s2 = new Set();
+  s1.add(1);
+  s1.add(2);
+  s2.add(2);
+  s2.add(1);
+  assertDeepAndStrictEqual(s1, s2);
+}
+
+{
+  const m1 = new Map();
+  const m2 = new Map();
+  const obj = {a: 5, b: 6};
+  m1.set(1, obj);
+  m1.set(2, 'hi');
+  m1.set(3, [1, 2, 3]);
+
+  m2.set(2, 'hi'); // different order
+  m2.set(1, obj);
+  m2.set(3, [1, 2, 3]); // deep equal, but not reference equal.
+
+  assertDeepAndStrictEqual(m1, m2);
+}
+
+{
+  const m1 = new Map();
+  const m2 = new Map();
+
+  // m1 contains itself.
+  m1.set(1, m1);
+  m2.set(1, new Map());
+
+  assertNotDeepOrStrict(m1, m2);
+}
+
+assert.deepEqual(new Map([[1, 1]]), new Map([[1, '1']]));
+assert.throws(() =>
+  assert.deepStrictEqual(new Map([[1, 1]]), new Map([[1, '1']]))
+);
+
+{
+  // Two equivalent sets / maps with different key/values applied shouldn't be
+  // the same. This is a terrible idea to do in practice, but deepEqual should
+  // still check for it.
+  const s1 = new Set();
+  const s2 = new Set();
+  s1.x = 5;
+  assertNotDeepOrStrict(s1, s2);
+
+  const m1 = new Map();
+  const m2 = new Map();
+  m1.x = 5;
+  assertNotDeepOrStrict(m1, m2);
+}
+
+{
+  // Circular references.
+  const s1 = new Set();
+  s1.add(s1);
+  const s2 = new Set();
+  s2.add(s2);
+  assertDeepAndStrictEqual(s1, s2);
+
+  const m1 = new Map();
+  m1.set(2, m1);
+  const m2 = new Map();
+  m2.set(2, m2);
+  assertDeepAndStrictEqual(m1, m2);
+
+  const m3 = new Map();
+  m3.set(m3, 2);
+  const m4 = new Map();
+  m4.set(m4, 2);
+  assertDeepAndStrictEqual(m3, m4);
 }
 
 /* eslint-enable */
