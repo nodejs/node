@@ -38,10 +38,10 @@
 #endif
 
 
-NAPI_EXTERN typedef void (*napi_addon_register_func)(napi_env env,
-                                                     napi_value exports,
-                                                     napi_value module,
-                                                     void* priv);
+typedef void (*napi_addon_register_func)(napi_env env,
+                                         napi_value exports,
+                                         napi_value module,
+                                         void* priv);
 
 typedef struct {
   int nm_version;
