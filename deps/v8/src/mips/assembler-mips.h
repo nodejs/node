@@ -68,7 +68,7 @@ namespace internal {
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(f0)  V(f2)  V(f4)  V(f6)  V(f8)  V(f10) V(f12) V(f14) \
-  V(f16) V(f18) V(f20) V(f22) V(f24) V(f26)
+  V(f16) V(f18) V(f20) V(f22) V(f24)
 // clang-format on
 
 // CPU Registers.
@@ -282,8 +282,7 @@ const DoubleRegister f31 = {31};
 #define kLithiumScratchDouble f30
 #define kDoubleRegZero f28
 // Used on mips32r6 for compare operations.
-// We use the last non-callee saved odd register for O32 ABI
-#define kDoubleCompareReg f19
+#define kDoubleCompareReg f26
 
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.
@@ -552,6 +551,17 @@ class Assembler : public AssemblerBase {
   static const int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
 
+  // Max offset for instructions with 16-bit offset field
+  static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
+
+  // Max offset for compact branch instructions with 26-bit offset field
+  static const int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
+
+#ifdef _MIPS_ARCH_MIPS32R6
+  static const int kTrampolineSlotsSize = 2 * kInstrSize;
+#else
+  static const int kTrampolineSlotsSize = 4 * kInstrSize;
+#endif
 
   // ---------------------------------------------------------------------------
   // Code generation.
@@ -1029,9 +1039,6 @@ class Assembler : public AssemblerBase {
 
   // Debugging.
 
-  // Mark generator continuation.
-  void RecordGeneratorContinuation();
-
   // Mark address of a debug break slot.
   void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
@@ -1169,6 +1176,9 @@ class Assembler : public AssemblerBase {
   }
 
   bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
+  static bool IsCompactBranchSupported() {
+    return IsMipsArchVariant(kMips32r6);
+  }
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
 
@@ -1443,18 +1453,15 @@ class Assembler : public AssemblerBase {
   // branch instruction generation, where we use jump instructions rather
   // than regular branch instructions.
   bool trampoline_emitted_;
-#ifdef _MIPS_ARCH_MIPS32R6
-  static const int kTrampolineSlotsSize = 2 * kInstrSize;
-#else
-  static const int kTrampolineSlotsSize = 4 * kInstrSize;
-#endif
-  static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
-  static const int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
   static const int kInvalidSlotPos = -1;
 
   // Internal reference positions, required for unbounded internal reference
   // labels.
   std::set<int> internal_reference_positions_;
+  bool is_internal_reference(Label* L) {
+    return internal_reference_positions_.find(L->pos()) !=
+           internal_reference_positions_.end();
+  }
 
   void EmittedCompactBranchInstruction() { prev_instr_compact_branch_ = true; }
   void ClearCompactBranchState() { prev_instr_compact_branch_ = false; }

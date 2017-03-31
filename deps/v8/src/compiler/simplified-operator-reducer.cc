@@ -129,6 +129,15 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kCheckedFloat64ToInt32: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue() && IsInt32Double(m.Value())) {
+        Node* value = jsgraph()->Int32Constant(static_cast<int32_t>(m.Value()));
+        ReplaceWithValue(node, value);
+        return Replace(value);
+      }
+      break;
+    }
     case IrOpcode::kCheckedTaggedToInt32:
     case IrOpcode::kCheckedTaggedSignedToInt32: {
       NodeMatcher m(node->InputAt(0));

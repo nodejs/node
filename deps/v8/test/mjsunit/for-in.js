@@ -114,6 +114,32 @@ function props(x) {
   }
 })();
 
+(function forInShadowingSlowReceiver() {
+  // crbug 688307
+  // Make sure we track all non-enumerable keys on a slow-mode receiver.
+  let receiver = {a:1};
+  delete receiver.a;
+  let proto = Object.create(null);
+  let enumProperties = [];
+  for (let i = 0; i < 10; i++) {
+    let key = "property_"+i;
+    enumProperties.push(key);
+    receiver[key] = i;
+    proto[key] = i;
+  }
+  for (let i = 0; i < 1000; i++) {
+    let nonEnumKey = "nonEnumerableProperty_"+ i;
+    Object.defineProperty(receiver, nonEnumKey, {});
+    // Add both keys as enumerable to the prototype.
+    proto[nonEnumKey] = i;
+  }
+  receiver.__proto__ = proto;
+  // Only the enumerable properties from the receiver should be visible.
+  for (let key in receiver) {
+    assertEquals(key, enumProperties.shift());
+  }
+})();
+
 (function forInCharCodes() {
   var o = {};
   var a = [];

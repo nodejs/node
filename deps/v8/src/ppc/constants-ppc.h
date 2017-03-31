@@ -145,6 +145,7 @@ enum Opcode {
   STFDU = 55 << 26,    // Store Floating-Point Double with Update
   LD = 58 << 26,       // Load Double Word
   EXT3 = 59 << 26,     // Extended code set 3
+  EXT6 = 60 << 26,     // Extended code set 6
   STD = 62 << 26,      // Store Double Word (optionally with Update)
   EXT4 = 63 << 26      // Extended code set 4
 };
@@ -203,24 +204,27 @@ enum OpcodeExt2 {
   STWX = 151 << 1,    // store word w/ x-form
   MTVSRD = 179 << 1,  // Move To VSR Doubleword
   STDUX = 181 << 1,
-  STWUX = 183 << 1,    // store word w/ update x-form
-                       /*
-      MTCRF
-      MTMSR
-      STWCXx
-      SUBFZEX
-    */
-  ADDZEX = 202 << 1,   // Add to Zero Extended
-                       /*
-     MTSR
+  STWUX = 183 << 1,   // store word w/ update x-form
+                      /*
+     MTCRF
+     MTMSR
+     STWCXx
+     SUBFZEX
    */
+  ADDZEX = 202 << 1,  // Add to Zero Extended
+                      /*
+    MTSR
+  */
+
   MTVSRWA = 211 << 1,  // Move To VSR Word Algebraic
   STBX = 215 << 1,     // store byte w/ x-form
   MULLD = 233 << 1,    // Multiply Low Double Word
   MULLW = 235 << 1,    // Multiply Low Word
   MTVSRWZ = 243 << 1,  // Move To VSR Word And Zero
   STBUX = 247 << 1,    // store byte w/ update x-form
+  MODUD = 265 << 1,    // Modulo Unsigned Dword
   ADDX = 266 << 1,     // Add
+  MODUW = 267 << 1,    // Modulo Unsigned Word
   LHZX = 279 << 1,     // load half-word zero w/ x-form
   LHZUX = 311 << 1,    // load half-word zero w/ update x-form
   LWAX = 341 << 1,     // load word algebraic w/ x-form
@@ -254,6 +258,8 @@ enum OpcodeExt2 {
   STFSUX = 695 << 1,  // store float-single w/ update x-form
   STFDX = 727 << 1,   // store float-double w/ x-form
   STFDUX = 759 << 1,  // store float-double w/ update x-form
+  MODSD = 777 << 1,   // Modulo Signed Dword
+  MODSW = 779 << 1,   // Modulo Signed Word
   LHBRX = 790 << 1,   // load half word byte reversed w/ x-form
   SRAW = 792 << 1,    // Shift Right Algebraic Word
   SRAD = 794 << 1,    // Shift Right Algebraic Double Word
@@ -314,10 +320,37 @@ enum OpcodeExt5 {
   RLDCR = 9 << 1   // Rotate Left Double Word then Clear Right
 };
 
+// Bits 10-3
+#define XX3_OPCODE_LIST(V)                                   \
+  V(xsaddsp, XSADDSP, 0 << 3)   /* VSX Scalar Add SP */      \
+  V(xssubsp, XSSUBSP, 8 << 3)   /* VSX Scalar Subtract SP */ \
+  V(xsmulsp, XSMULSP, 16 << 3)  /* VSX Scalar Multiply SP */ \
+  V(xsdivsp, XSDIVSP, 24 << 3)  /* VSX Scalar Divide SP */   \
+  V(xsadddp, XSADDDP, 32 << 3)  /* VSX Scalar Add DP */      \
+  V(xssubdp, XSSUBDP, 40 << 3)  /* VSX Scalar Subtract DP */ \
+  V(xsmuldp, XSMULDP, 48 << 3)  /* VSX Scalar Multiply DP */ \
+  V(xsdivdp, XSDIVDP, 56 << 3)  /* VSX Scalar Divide DP */   \
+  V(xsmaxdp, XSMAXDP, 160 << 3) /* VSX Scalar Maximum DP */  \
+  V(xsmindp, XSMINDP, 168 << 3) /* VSX Scalar Minimum DP */
+
+// Bits 10-2
+#define XX2_OPCODE_LIST(V)                                          \
+  V(XSCVDPSP, XSCVDPSP, 265 << 2) /* VSX Scalar Convert DP to SP */ \
+  V(XSCVSPDP, XSCVSPDP, 329 << 2) /* VSX Scalar Convert SP to DP */
+
+enum OpcodeExt6 {
+#define DECLARE_OPCODES(name, opcode_name, opcode_value) \
+  opcode_name = opcode_value,
+  XX3_OPCODE_LIST(DECLARE_OPCODES) XX2_OPCODE_LIST(DECLARE_OPCODES)
+#undef DECLARE_OPCODES
+};
+
 // Instruction encoding bits and masks.
 enum {
   // Instruction encoding bit
   B1 = 1 << 1,
+  B2 = 1 << 2,
+  B3 = 1 << 3,
   B4 = 1 << 4,
   B5 = 1 << 5,
   B7 = 1 << 7,

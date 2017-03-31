@@ -93,14 +93,6 @@ bool Value::asSerialized(String*) const
     return false;
 }
 
-String Value::toJSONString() const
-{
-    StringBuilder result;
-    StringUtil::builderReserve(result, 512);
-    writeJSON(&result);
-    return result.toString();
-}
-
 void Value::writeJSON(StringBuilder* output) const
 {
     DCHECK(m_type == TypeNull);
@@ -110,6 +102,14 @@ void Value::writeJSON(StringBuilder* output) const
 std::unique_ptr<Value> Value::clone() const
 {
     return Value::null();
+}
+
+String Value::serialize()
+{
+    StringBuilder result;
+    StringUtil::builderReserve(result, 512);
+    writeJSON(&result);
+    return result.toString();
 }
 
 bool FundamentalValue::asBoolean(bool* output) const

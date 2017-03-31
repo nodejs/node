@@ -5,6 +5,7 @@
 #include "src/parsing/scanner-character-streams.h"
 
 #include "include/v8.h"
+#include "src/counters.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects-inl.h"
@@ -194,9 +195,11 @@ size_t ExternalOneByteStringUtf16CharacterStream::FillBuffer(size_t from_pos) {
 class Utf8ExternalStreamingStream : public BufferedUtf16CharacterStream {
  public:
   Utf8ExternalStreamingStream(
-      ScriptCompiler::ExternalSourceStream* source_stream)
+      ScriptCompiler::ExternalSourceStream* source_stream,
+      RuntimeCallStats* stats)
       : current_({0, {0, 0, unibrow::Utf8::Utf8IncrementalBuffer(0)}}),
-        source_stream_(source_stream) {}
+        source_stream_(source_stream),
+        stats_(stats) {}
   ~Utf8ExternalStreamingStream() override {
     for (size_t i = 0; i < chunks_.size(); i++) delete[] chunks_[i].data;
   }
@@ -245,6 +248,7 @@ class Utf8ExternalStreamingStream : public BufferedUtf16CharacterStream {
   std::vector<Chunk> chunks_;
   Position current_;
   ScriptCompiler::ExternalSourceStream* source_stream_;
+  RuntimeCallStats* stats_;
 };
 
 bool Utf8ExternalStreamingStream::SkipToPosition(size_t position) {
@@ -335,6 +339,7 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
 }
 
 bool Utf8ExternalStreamingStream::FetchChunk() {
+  RuntimeCallTimerScope scope(stats_, &RuntimeCallStats::GetMoreDataCallback);
   DCHECK_EQ(current_.chunk_no, chunks_.size());
   DCHECK(chunks_.empty() || chunks_.back().length != 0);
 
@@ -466,20 +471,23 @@ void DeleteChunks(Chunks& chunks) {
 // Return the chunk index for the chunk containing position.
 // If position is behind the end of the stream, the index of the last,
 // zero-length chunk is returned.
-size_t FindChunk(Chunks& chunks, ScriptCompiler::ExternalSourceStream* source_,
-                 size_t position) {
+size_t FindChunk(Chunks& chunks, ScriptCompiler::ExternalSourceStream* source,
+                 size_t position, RuntimeCallStats* stats) {
   size_t end_pos =
       chunks.empty() ? 0 : (chunks.back().byte_pos + chunks.back().byte_length);
 
   // Get more data if needed. We usually won't enter the loop body.
   bool out_of_data = !chunks.empty() && chunks.back().byte_length == 0;
-  while (!out_of_data && end_pos <= position + 1) {
-    const uint8_t* chunk = nullptr;
-    size_t len = source_->GetMoreData(&chunk);
+  {
+    RuntimeCallTimerScope scope(stats, &RuntimeCallStats::GetMoreDataCallback);
+    while (!out_of_data && end_pos <= position + 1) {
+      const uint8_t* chunk = nullptr;
+      size_t len = source->GetMoreData(&chunk);
 
-    chunks.push_back({chunk, len, end_pos});
-    end_pos += len;
-    out_of_data = (len == 0);
+      chunks.push_back({chunk, len, end_pos});
+      end_pos += len;
+      out_of_data = (len == 0);
+    }
   }
 
   // Here, we should always have at least one chunk, and we either have the
@@ -520,8 +528,8 @@ size_t FindChunk(Chunks& chunks, ScriptCompiler::ExternalSourceStream* source_,
 class OneByteExternalStreamingStream : public BufferedUtf16CharacterStream {
  public:
   explicit OneByteExternalStreamingStream(
-      ScriptCompiler::ExternalSourceStream* source)
-      : source_(source) {}
+      ScriptCompiler::ExternalSourceStream* source, RuntimeCallStats* stats)
+      : source_(source), stats_(stats) {}
   ~OneByteExternalStreamingStream() override { DeleteChunks(chunks_); }
 
  protected:
@@ -530,10 +538,11 @@ class OneByteExternalStreamingStream : public BufferedUtf16CharacterStream {
  private:
   Chunks chunks_;
   ScriptCompiler::ExternalSourceStream* source_;
+  RuntimeCallStats* stats_;
 };
 
 size_t OneByteExternalStreamingStream::FillBuffer(size_t position) {
-  const Chunk& chunk = chunks_[FindChunk(chunks_, source_, position)];
+  const Chunk& chunk = chunks_[FindChunk(chunks_, source_, position, stats_)];
   if (chunk.byte_length == 0) return 0;
 
   size_t start_pos = position - chunk.byte_pos;
@@ -554,7 +563,7 @@ size_t OneByteExternalStreamingStream::FillBuffer(size_t position) {
 class TwoByteExternalStreamingStream : public Utf16CharacterStream {
  public:
   explicit TwoByteExternalStreamingStream(
-      ScriptCompiler::ExternalSourceStream* source);
+      ScriptCompiler::ExternalSourceStream* source, RuntimeCallStats* stats);
   ~TwoByteExternalStreamingStream() override;
 
  protected:
@@ -562,14 +571,16 @@ class TwoByteExternalStreamingStream : public Utf16CharacterStream {
 
   Chunks chunks_;
   ScriptCompiler::ExternalSourceStream* source_;
+  RuntimeCallStats* stats_;
   uc16 one_char_buffer_;
 };
 
 TwoByteExternalStreamingStream::TwoByteExternalStreamingStream(
-    ScriptCompiler::ExternalSourceStream* source)
+    ScriptCompiler::ExternalSourceStream* source, RuntimeCallStats* stats)
     : Utf16CharacterStream(&one_char_buffer_, &one_char_buffer_,
                            &one_char_buffer_, 0),
       source_(source),
+      stats_(stats),
       one_char_buffer_(0) {}
 
 TwoByteExternalStreamingStream::~TwoByteExternalStreamingStream() {
@@ -581,7 +592,7 @@ bool TwoByteExternalStreamingStream::ReadBlock() {
 
   // We'll search for the 2nd byte of our character, to make sure we
   // have enough data for at least one character.
-  size_t chunk_no = FindChunk(chunks_, source_, 2 * position + 1);
+  size_t chunk_no = FindChunk(chunks_, source_, 2 * position + 1, stats_);
 
   // Out of data? Return 0.
   if (chunks_[chunk_no].byte_length == 0) {
@@ -649,7 +660,7 @@ bool TwoByteExternalStreamingStream::ReadBlock() {
 class TwoByteExternalBufferedStream : public Utf16CharacterStream {
  public:
   explicit TwoByteExternalBufferedStream(
-      ScriptCompiler::ExternalSourceStream* source);
+      ScriptCompiler::ExternalSourceStream* source, RuntimeCallStats* stats);
   ~TwoByteExternalBufferedStream();
 
  protected:
@@ -667,11 +678,14 @@ class TwoByteExternalBufferedStream : public Utf16CharacterStream {
 
   Chunks chunks_;
   ScriptCompiler::ExternalSourceStream* source_;
+  RuntimeCallStats* stats_;
 };
 
 TwoByteExternalBufferedStream::TwoByteExternalBufferedStream(
-    ScriptCompiler::ExternalSourceStream* source)
-    : Utf16CharacterStream(buffer_, buffer_, buffer_, 0), source_(source) {}
+    ScriptCompiler::ExternalSourceStream* source, RuntimeCallStats* stats)
+    : Utf16CharacterStream(buffer_, buffer_, buffer_, 0),
+      source_(source),
+      stats_(stats) {}
 
 TwoByteExternalBufferedStream::~TwoByteExternalBufferedStream() {
   DeleteChunks(chunks_);
@@ -680,7 +694,7 @@ TwoByteExternalBufferedStream::~TwoByteExternalBufferedStream() {
 bool TwoByteExternalBufferedStream::ReadBlock() {
   size_t position = pos();
   // Find chunk in which the position belongs
-  size_t chunk_no = FindChunk(chunks_, source_, 2 * position + 1);
+  size_t chunk_no = FindChunk(chunks_, source_, 2 * position + 1, stats_);
 
   // Out of data? Return 0.
   if (chunks_[chunk_no].byte_length == 0) {
@@ -726,7 +740,7 @@ size_t TwoByteExternalBufferedStream::FillBuffer(size_t position,
   {
     size_t new_pos = position / kBufferSize * kBufferSize;
     if (new_pos != position) {
-      chunk_no = FindChunk(chunks_, source_, 2 * new_pos + 1);
+      chunk_no = FindChunk(chunks_, source_, 2 * new_pos + 1, stats_);
       buffer_pos_ = new_pos;
       buffer_cursor_ = buffer_start_ + (position - buffer_pos_);
       position = new_pos;
@@ -768,7 +782,7 @@ size_t TwoByteExternalBufferedStream::FillBuffer(size_t position,
   totalLength += bytes_to_move;
   position = (current->byte_pos + current->byte_length) / 2;
   if (position - buffer_pos_ < kBufferSize) {
-    chunk_no = FindChunk(chunks_, source_, 2 * position + 1);
+    chunk_no = FindChunk(chunks_, source_, 2 * position + 1, stats_);
     current = &chunks_[chunk_no];
     odd_start = current->byte_pos % 2;
     bytes_to_move = i::Min(2 * kBufferSize - totalLength, current->byte_length);
@@ -781,7 +795,7 @@ size_t TwoByteExternalBufferedStream::FillBuffer(size_t position,
                  current->data, bytes_to_move);
       totalLength += bytes_to_move;
       position = (current->byte_pos + current->byte_length) / 2;
-      chunk_no = FindChunk(chunks_, source_, 2 * position + 1);
+      chunk_no = FindChunk(chunks_, source_, 2 * position + 1, stats_);
       current = &chunks_[chunk_no];
       odd_start = current->byte_pos % 2;
       bytes_to_move =
@@ -828,18 +842,19 @@ std::unique_ptr<Utf16CharacterStream> ScannerStream::ForTesting(
 
 Utf16CharacterStream* ScannerStream::For(
     ScriptCompiler::ExternalSourceStream* source_stream,
-    v8::ScriptCompiler::StreamedSource::Encoding encoding) {
+    v8::ScriptCompiler::StreamedSource::Encoding encoding,
+    RuntimeCallStats* stats) {
   switch (encoding) {
     case v8::ScriptCompiler::StreamedSource::TWO_BYTE:
 #if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64)
-      return new TwoByteExternalStreamingStream(source_stream);
+      return new TwoByteExternalStreamingStream(source_stream, stats);
 #else
-      return new TwoByteExternalBufferedStream(source_stream);
+      return new TwoByteExternalBufferedStream(source_stream, stats);
 #endif
     case v8::ScriptCompiler::StreamedSource::ONE_BYTE:
-      return new OneByteExternalStreamingStream(source_stream);
+      return new OneByteExternalStreamingStream(source_stream, stats);
     case v8::ScriptCompiler::StreamedSource::UTF8:
-      return new Utf8ExternalStreamingStream(source_stream);
+      return new Utf8ExternalStreamingStream(source_stream, stats);
   }
   UNREACHABLE();
   return nullptr;

@@ -92,6 +92,7 @@ bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
   // really only relevant for eliminating loads and they don't care about the
   // write barrier mode.
   return lhs.base_is_tagged == rhs.base_is_tagged && lhs.offset == rhs.offset &&
+         lhs.map.address() == rhs.map.address() &&
          lhs.machine_type == rhs.machine_type;
 }
 
@@ -117,6 +118,10 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
   if (access.name.ToHandle(&name)) {
     name->Print(os);
     os << ", ";
+  }
+  Handle<Map> map;
+  if (access.map.ToHandle(&map)) {
+    os << Brief(*map) << ", ";
   }
 #endif
   access.type->PrintTo(os);
@@ -229,6 +234,44 @@ std::ostream& operator<<(std::ostream& os, CheckForMinusZeroMode mode) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, CheckMapsFlags flags) {
+  bool empty = true;
+  if (flags & CheckMapsFlag::kTryMigrateInstance) {
+    os << "TryMigrateInstance";
+    empty = false;
+  }
+  if (empty) os << "None";
+  return os;
+}
+
+bool operator==(CheckMapsParameters const& lhs,
+                CheckMapsParameters const& rhs) {
+  return lhs.flags() == rhs.flags() && lhs.maps() == rhs.maps();
+}
+
+bool operator!=(CheckMapsParameters const& lhs,
+                CheckMapsParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CheckMapsParameters const& p) {
+  return base::hash_combine(p.flags(), p.maps());
+}
+
+std::ostream& operator<<(std::ostream& os, CheckMapsParameters const& p) {
+  ZoneHandleSet<Map> const& maps = p.maps();
+  os << p.flags();
+  for (size_t i = 0; i < maps.size(); ++i) {
+    os << ", " << Brief(*maps[i]);
+  }
+  return os;
+}
+
+CheckMapsParameters const& CheckMapsParametersOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kCheckMaps, op->opcode());
+  return OpParameter<CheckMapsParameters>(op);
+}
+
 size_t hash_value(CheckTaggedInputMode mode) {
   return static_cast<size_t>(mode);
 }
@@ -274,22 +317,36 @@ GrowFastElementsFlags GrowFastElementsFlagsOf(const Operator* op) {
   return OpParameter<GrowFastElementsFlags>(op);
 }
 
+bool operator==(ElementsTransition const& lhs, ElementsTransition const& rhs) {
+  return lhs.mode() == rhs.mode() &&
+         lhs.source().address() == rhs.source().address() &&
+         lhs.target().address() == rhs.target().address();
+}
+
+bool operator!=(ElementsTransition const& lhs, ElementsTransition const& rhs) {
+  return !(lhs == rhs);
+}
+
 size_t hash_value(ElementsTransition transition) {
-  return static_cast<uint8_t>(transition);
+  return base::hash_combine(static_cast<uint8_t>(transition.mode()),
+                            transition.source().address(),
+                            transition.target().address());
 }
 
 std::ostream& operator<<(std::ostream& os, ElementsTransition transition) {
-  switch (transition) {
+  switch (transition.mode()) {
     case ElementsTransition::kFastTransition:
-      return os << "fast-transition";
+      return os << "fast-transition from " << Brief(*transition.source())
+                << " to " << Brief(*transition.target());
     case ElementsTransition::kSlowTransition:
-      return os << "slow-transition";
+      return os << "slow-transition from " << Brief(*transition.source())
+                << " to " << Brief(*transition.target());
   }
   UNREACHABLE();
   return os;
 }
 
-ElementsTransition ElementsTransitionOf(const Operator* op) {
+ElementsTransition const& ElementsTransitionOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kTransitionElementsKind, op->opcode());
   return OpParameter<ElementsTransition>(op);
 }
@@ -329,6 +386,12 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeNumberLessThan ||
          op->opcode() == IrOpcode::kSpeculativeNumberLessThanOrEqual);
   return OpParameter<NumberOperationHint>(op);
+}
+
+int ParameterCountOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kNewUnmappedArgumentsElements ||
+         op->opcode() == IrOpcode::kNewRestParameterElements);
+  return OpParameter<int>(op);
 }
 
 PretenureFlag PretenureFlagOf(const Operator* op) {
@@ -395,6 +458,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(NumberToUint32, Operator::kNoProperties, 1, 0)               \
   V(NumberToUint8Clamped, Operator::kNoProperties, 1, 0)         \
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)             \
+  V(StringCharAt, Operator::kNoProperties, 2, 1)                 \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)             \
   V(StringFromCharCode, Operator::kNoProperties, 1, 0)           \
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1, 0)       \
@@ -436,6 +500,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(CheckBounds, 2, 1)                  \
   V(CheckHeapObject, 1, 1)              \
   V(CheckIf, 1, 0)                      \
+  V(CheckInternalizedString, 1, 1)      \
   V(CheckNumber, 1, 1)                  \
   V(CheckSmi, 1, 1)                     \
   V(CheckString, 1, 1)                  \
@@ -689,16 +754,15 @@ const Operator* SimplifiedOperatorBuilder::CheckedTaggedToFloat64(
   return nullptr;
 }
 
-const Operator* SimplifiedOperatorBuilder::CheckMaps(int map_input_count) {
-  // TODO(bmeurer): Cache the most important versions of this operator.
-  DCHECK_LT(0, map_input_count);
-  int const value_input_count = 1 + map_input_count;
-  return new (zone()) Operator1<int>(           // --
-      IrOpcode::kCheckMaps,                     // opcode
-      Operator::kNoThrow | Operator::kNoWrite,  // flags
-      "CheckMaps",                              // name
-      value_input_count, 1, 1, 0, 1, 0,         // counts
-      map_input_count);                         // parameter
+const Operator* SimplifiedOperatorBuilder::CheckMaps(CheckMapsFlags flags,
+                                                     ZoneHandleSet<Map> maps) {
+  CheckMapsParameters const parameters(flags, maps);
+  return new (zone()) Operator1<CheckMapsParameters>(  // --
+      IrOpcode::kCheckMaps,                            // opcode
+      Operator::kNoThrow | Operator::kNoWrite,         // flags
+      "CheckMaps",                                     // name
+      1, 1, 1, 0, 1, 0,                                // counts
+      parameters);                                     // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
@@ -733,8 +797,28 @@ const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(
       IrOpcode::kTransitionElementsKind,              // opcode
       Operator::kNoDeopt | Operator::kNoThrow,        // flags
       "TransitionElementsKind",                       // name
-      3, 1, 1, 0, 1, 0,                               // counts
+      1, 1, 1, 0, 1, 0,                               // counts
       transition);                                    // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::NewUnmappedArgumentsElements(
+    int parameter_count) {
+  return new (zone()) Operator1<int>(           // --
+      IrOpcode::kNewUnmappedArgumentsElements,  // opcode
+      Operator::kEliminatable,                  // flags
+      "NewUnmappedArgumentsElements",           // name
+      0, 1, 0, 1, 1, 0,                         // counts
+      parameter_count);                         // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::NewRestParameterElements(
+    int parameter_count) {
+  return new (zone()) Operator1<int>(       // --
+      IrOpcode::kNewRestParameterElements,  // opcode
+      Operator::kEliminatable,              // flags
+      "NewRestParameterElements",           // name
+      0, 1, 0, 1, 1, 0,                     // counts
+      parameter_count);                     // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::Allocate(PretenureFlag pretenure) {

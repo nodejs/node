@@ -11,18 +11,19 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 35
+bytecode array length: 32
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(1),
   /*   40 S> */ B(LdaSmi), U8(1),
   /*   75 S> */ B(Return),
-                B(Jump), U8(26),
+                B(Jump), U8(23),
                 B(Star), R(2),
                 B(Ldar), R(closure),
                 B(CreateCatchContext), R(2), U8(0), U8(1),
                 B(Star), R(1),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Ldar), R(1),
                 B(PushContext), R(0),
   /*   63 S> */ B(LdaSmi), U8(2),
@@ -47,30 +48,32 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 67
+bytecode array length: 61
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(2),
   /*   47 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
-                B(Jump), U8(23),
+                B(Jump), U8(20),
                 B(Star), R(3),
                 B(Ldar), R(closure),
   /*   49 E> */ B(CreateCatchContext), R(3), U8(0), U8(1),
                 B(Star), R(2),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Ldar), R(2),
                 B(PushContext), R(1),
                 B(PopContext), R(1),
                 B(Mov), R(context), R(2),
   /*   75 S> */ B(LdaSmi), U8(2),
                 B(Star), R(0),
-                B(Jump), U8(27),
+                B(Jump), U8(24),
                 B(Star), R(3),
                 B(Ldar), R(closure),
   /*   77 E> */ B(CreateCatchContext), R(3), U8(2), U8(3),
                 B(Star), R(2),
-                B(CallRuntime), U16(Runtime::kInterpreterClearPendingMessage), R(0), U8(0),
+                B(LdaTheHole),
+                B(SetPendingMessage),
                 B(Ldar), R(2),
                 B(PushContext), R(1),
   /*   95 S> */ B(LdaSmi), U8(3),
@@ -87,6 +90,6 @@ constant pool: [
 ]
 handlers: [
   [4, 8, 10],
-  [34, 38, 40],
+  [31, 35, 37],
 ]
 

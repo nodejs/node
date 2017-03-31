@@ -5,8 +5,6 @@
 #ifndef V8_STRING_STREAM_H_
 #define V8_STRING_STREAM_H_
 
-#include <memory>
-
 #include "src/allocation.h"
 #include "src/handles.h"
 #include "src/vector.h"
@@ -56,48 +54,53 @@ class FixedStringAllocator final : public StringAllocator {
   DISALLOW_COPY_AND_ASSIGN(FixedStringAllocator);
 };
 
-
-class FmtElm final {
- public:
-  FmtElm(int value) : type_(INT) {  // NOLINT
-    data_.u_int_ = value;
-  }
-  explicit FmtElm(double value) : type_(DOUBLE) {
-    data_.u_double_ = value;
-  }
-  FmtElm(const char* value) : type_(C_STR) {  // NOLINT
-    data_.u_c_str_ = value;
-  }
-  FmtElm(const Vector<const uc16>& value) : type_(LC_STR) {  // NOLINT
-    data_.u_lc_str_ = &value;
-  }
-  FmtElm(Object* value) : type_(OBJ) {  // NOLINT
-    data_.u_obj_ = value;
-  }
-  FmtElm(Handle<Object> value) : type_(HANDLE) {  // NOLINT
-    data_.u_handle_ = value.location();
-  }
-  FmtElm(void* value) : type_(POINTER) {  // NOLINT
-    data_.u_pointer_ = value;
-  }
-
- private:
-  friend class StringStream;
-  enum Type { INT, DOUBLE, C_STR, LC_STR, OBJ, HANDLE, POINTER };
-  Type type_;
-  union {
-    int u_int_;
-    double u_double_;
-    const char* u_c_str_;
-    const Vector<const uc16>* u_lc_str_;
-    Object* u_obj_;
-    Object** u_handle_;
-    void* u_pointer_;
-  } data_;
-};
-
-
 class StringStream final {
+  class FmtElm final {
+   public:
+    FmtElm(int value) : FmtElm(INT) {  // NOLINT
+      data_.u_int_ = value;
+    }
+    explicit FmtElm(double value) : FmtElm(DOUBLE) {  // NOLINT
+      data_.u_double_ = value;
+    }
+    FmtElm(const char* value) : FmtElm(C_STR) {  // NOLINT
+      data_.u_c_str_ = value;
+    }
+    FmtElm(const Vector<const uc16>& value) : FmtElm(LC_STR) {  // NOLINT
+      data_.u_lc_str_ = &value;
+    }
+    FmtElm(Object* value) : FmtElm(OBJ) {  // NOLINT
+      data_.u_obj_ = value;
+    }
+    FmtElm(Handle<Object> value) : FmtElm(HANDLE) {  // NOLINT
+      data_.u_handle_ = value.location();
+    }
+    FmtElm(void* value) : FmtElm(POINTER) {  // NOLINT
+      data_.u_pointer_ = value;
+    }
+
+   private:
+    friend class StringStream;
+    enum Type { INT, DOUBLE, C_STR, LC_STR, OBJ, HANDLE, POINTER };
+
+#ifdef DEBUG
+    Type type_;
+    explicit FmtElm(Type type) : type_(type) {}
+#else
+    explicit FmtElm(Type) {}
+#endif
+
+    union {
+      int u_int_;
+      double u_double_;
+      const char* u_c_str_;
+      const Vector<const uc16>* u_lc_str_;
+      Object* u_obj_;
+      Object** u_handle_;
+      void* u_pointer_;
+    } data_;
+  };
+
  public:
   enum ObjectPrintMode { kPrintObjectConcise, kPrintObjectVerbose };
   StringStream(StringAllocator* allocator,
@@ -113,23 +116,19 @@ class StringStream final {
   bool Put(char c);
   bool Put(String* str);
   bool Put(String* str, int start, int end);
-  void Add(Vector<const char> format, Vector<FmtElm> elms);
-  void Add(const char* format);
-  void Add(Vector<const char> format);
-  void Add(const char* format, FmtElm arg0);
-  void Add(const char* format, FmtElm arg0, FmtElm arg1);
-  void Add(const char* format, FmtElm arg0, FmtElm arg1, FmtElm arg2);
-  void Add(const char* format,
-           FmtElm arg0,
-           FmtElm arg1,
-           FmtElm arg2,
-           FmtElm arg3);
-  void Add(const char* format,
-           FmtElm arg0,
-           FmtElm arg1,
-           FmtElm arg2,
-           FmtElm arg3,
-           FmtElm arg4);
+  void Add(const char* format) { Add(CStrVector(format)); }
+  void Add(Vector<const char> format) { Add(format, Vector<FmtElm>()); }
+
+  template <typename... Args>
+  void Add(const char* format, Args... args) {
+    Add(CStrVector(format), args...);
+  }
+
+  template <typename... Args>
+  void Add(Vector<const char> format, Args... args) {
+    FmtElm elems[]{args...};
+    Add(format, ArrayVector(elems));
+  }
 
   // Getting the message out.
   void OutputToFile(FILE* out);
@@ -165,6 +164,7 @@ class StringStream final {
   static const int kInitialCapacity = 16;
 
  private:
+  void Add(Vector<const char> format, Vector<FmtElm> elms);
   void PrintObject(Object* obj);
 
   StringAllocator* allocator_;

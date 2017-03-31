@@ -19,21 +19,6 @@ var Scope;
 var RawLocation;
 
 /** @typedef {{
-        id: number,
-        name: string,
-        sourceURL: (string|undefined),
-        sourceMappingURL: (string|undefined),
-        source: string,
-        startLine: number,
-        endLine: number,
-        startColumn: number,
-        endColumn: number,
-        executionContextId: number,
-        executionContextAuxData: string
-    }} */
-var FormattedScript;
-
-/** @typedef {{
         functionName: string,
         location: !RawLocation,
         this: !Object,
@@ -47,6 +32,7 @@ var JavaScriptCallFrameDetails;
         sourceID: function():(number),
         line: function():number,
         column: function():number,
+        contextId: function():number,
         thisObject: !Object,
         evaluate: function(string):*,
         restart: function():undefined,
@@ -174,13 +160,6 @@ BreakPoint.prototype.number = function() {}
 
 
 /** @interface */
-function CompileEvent() {}
-
-/** @return {!ScriptMirror} */
-CompileEvent.prototype.script = function() {}
-
-
-/** @interface */
 function BreakEvent() {}
 
 /** @return {!Array<!BreakPoint>|undefined} */
@@ -192,10 +171,8 @@ function ExecutionState() {}
 
 /**
  * @param {string} source
- * @param {boolean} disableBreak
- * @param {*=} additionalContext
  */
-ExecutionState.prototype.evaluateGlobal = function(source, disableBreak, additionalContext) {}
+ExecutionState.prototype.evaluateGlobal = function(source) {}
 
 /** @return {number} */
 ExecutionState.prototype.frameCount = function() {}
@@ -220,7 +197,9 @@ var ScopeType = { Global: 0,
                   Closure: 3,
                   Catch: 4,
                   Block: 5,
-                  Script: 6 };
+                  Script: 6,
+                  Eval: 7,
+                  Module: 8};
 
 
 /** @typedef {{
@@ -237,14 +216,6 @@ var SourceLocation;
 /** @typedef{{
  *    id: number,
  *    context_data: (string|undefined),
- *    source_url: (string|undefined),
- *    source_mapping_url: (string|undefined),
- *    is_debugger_script: boolean,
- *    source: string,
- *    line_offset: number,
- *    column_offset: number,
- *    nameOrSourceURL: function():string,
- *    compilationType: function():!ScriptCompilationType,
  *    }}
  */
 var Script;
@@ -421,6 +392,15 @@ GeneratorMirror.prototype.sourceLocation = function() {}
 /** @return {!FunctionMirror} */
 GeneratorMirror.prototype.func = function() {}
 
+/** @return {number} */
+GeneratorMirror.prototype.scopeCount = function() {}
+
+/**
+ * @param {number} index
+ * @return {!ScopeMirror|undefined}
+ */
+GeneratorMirror.prototype.scope = function(index) {}
+
 
 /**
  * @interface
@@ -457,9 +437,8 @@ FrameMirror.prototype.script = function() {}
 
 /**
  * @param {string} source
- * @param {boolean} disableBreak
  */
-FrameMirror.prototype.evaluate = function(source, disableBreak) {}
+FrameMirror.prototype.evaluate = function(source) {}
 
 FrameMirror.prototype.restart = function() {}
 

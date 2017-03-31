@@ -21,7 +21,7 @@ class PartialSerializer : public Serializer {
   ~PartialSerializer() override;
 
   // Serialize the objects reachable from a single object pointer.
-  void Serialize(Object** o);
+  void Serialize(Object** o, bool include_global_proxy);
 
  private:
   void SerializeObject(HeapObject* o, HowToCode how_to_code,

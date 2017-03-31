@@ -43,7 +43,6 @@ class OptionalOperator final {
 
 // A Load needs a MachineType.
 typedef MachineType LoadRepresentation;
-typedef LoadRepresentation ProtectedLoadRepresentation;
 
 LoadRepresentation LoadRepresentationOf(Operator const*);
 
@@ -94,7 +93,7 @@ typedef MachineRepresentation CheckedStoreRepresentation;
 
 CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const*);
 
-MachineRepresentation StackSlotRepresentationOf(Operator const* op);
+int StackSlotSizeOf(Operator const* op);
 
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op);
 
@@ -448,9 +447,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Float32x4LessThanOrEqual();
   const Operator* Float32x4GreaterThan();
   const Operator* Float32x4GreaterThanOrEqual();
-  const Operator* Float32x4Select();
-  const Operator* Float32x4Swizzle();
-  const Operator* Float32x4Shuffle();
   const Operator* Float32x4FromInt32x4();
   const Operator* Float32x4FromUint32x4();
 
@@ -471,9 +467,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Int32x4LessThanOrEqual();
   const Operator* Int32x4GreaterThan();
   const Operator* Int32x4GreaterThanOrEqual();
-  const Operator* Int32x4Select();
-  const Operator* Int32x4Swizzle();
-  const Operator* Int32x4Shuffle();
   const Operator* Int32x4FromFloat32x4();
 
   const Operator* Uint32x4Min();
@@ -608,6 +601,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Simd128Or();
   const Operator* Simd128Xor();
   const Operator* Simd128Not();
+  const Operator* Simd32x4Select();
+  const Operator* Simd32x4Swizzle();
+  const Operator* Simd32x4Shuffle();
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
@@ -615,6 +611,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);
+  const Operator* ProtectedStore(MachineRepresentation rep);
 
   // unaligned load [base + index]
   const Operator* UnalignedLoad(UnalignedLoadRepresentation rep);
@@ -622,6 +619,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // unaligned store [base + index], value
   const Operator* UnalignedStore(UnalignedStoreRepresentation rep);
 
+  const Operator* StackSlot(int size);
   const Operator* StackSlot(MachineRepresentation rep);
 
   // Access to the machine stack.

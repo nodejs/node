@@ -77,15 +77,19 @@
   'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
 
-  # BUG(v8:4358). Hangs flakily.
-  'test-debug/ProcessDebugMessagesThreaded': [SKIP],
-
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
 
   # BUG(4333). Function name inferrer does not work for ES6 clases.
   'test-func-name-inference/UpperCaseClass': [FAIL],
   'test-func-name-inference/LowerCaseClass': [FAIL],
+
+  # Bug(5784). StubCache tests need to be redesigned, as a) they don't work
+  # in the new (ignition + turbofan) pipeline environment, and b) they are
+  # stymied by a move of code stubs into builtins.
+  'test-api/PrimaryStubCache': [SKIP],
+  'test-api/SecondaryStubCache': [SKIP],
+  'test-api/AccessCheckInIC': [SKIP],
 
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
@@ -201,6 +205,9 @@
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
 
+  # BUG(v8:5193): Flaky.
+  'test-cpu-profiler/FunctionApplySample': [SKIP],
+
   # BUG(5193): Flaky timeout.
   'test-sampler/LibSamplerCollectSample': [PASS, ['arch == x64', SKIP]],
 }],  # 'system == windows'
@@ -218,6 +225,10 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+  'test-run-wasm-simd/RunWasmCompiled_F32x4Add': [SKIP],
+  'test-run-wasm-simd/RunWasmCompiled_F32x4Sub': [SKIP],
+  'test-run-wasm-simd/RunWasmInterpreted_F32x4Add': [SKIP],
+  'test-run-wasm-simd/RunWasmInterpreted_F32x4Sub': [SKIP],
 
   ############################################################################
   # Slow tests.
@@ -326,80 +337,47 @@
 
 ##############################################################################
 ['variant == turbofan_opt', {
-  # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
-  # in interpreter.
-  'test-heap/CompilationCacheCachingBehavior': [FAIL],
-
-  # TODO(mstarzinger): Triggers Ignition+TurboFan on everything now and makes
-  # the stack traces within the profilers look different. Needs investigation.
-  'test-api/SetFunctionEntryHook': [SKIP],
-  'test-cpu-profiler/BoundFunctionCall': [FAIL],
-  'test-cpu-profiler/CollectSampleAPI': [FAIL],
-  'test-cpu-profiler/FunctionApplySample': [FAIL],
-  'test-cpu-profiler/FunctionCallSample': [FAIL],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [FAIL],
-  'test-cpu-profiler/JsNativeJsSample': [FAIL],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [FAIL],
-  'test-cpu-profiler/JsNative1JsNative2JsSample': [FAIL],
-  'test-cpu-profiler/NativeMethodUninitializedIC': [FAIL],
-  'test-cpu-profiler/NativeAccessorUninitializedIC': [FAIL],
-  'test-profile-generator/LineNumber': [FAIL],
-  'test-sampler-api/StackFramesConsistent': [FAIL],
-
   # BUG(v8:5457)
   'test-api/SetJitCodeEventHandler': [PASS, ['no_snap', SKIP]],
 }],  # variant == turbofan_opt
 
 ##############################################################################
-['variant == ignition', {
-  # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
-  # in interpreter.
-  'test-heap/CompilationCacheCachingBehavior': [FAIL],
-
-  # BUG(5193): Flaky.
-  'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
-}],  # variant == ignition
-
-##############################################################################
-['variant == ignition_staging', {
-  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
-  'test-cpu-profiler/TickLinesOptimized': [SKIP],
-  'test-heap/CompilationCacheCachingBehavior': [FAIL],
-
-  # BUG(5193): Flaky.
-  'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
-}],  # variant == ignition_staging
-
-##############################################################################
 ['variant == turbofan or variant == ignition_turbofan', {
-  # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
-  # in interpreter.
-  'test-heap/CompilationCacheCachingBehavior': [FAIL],
-
-  # BUG(4680): Missing type feedback makes optimistic optimizations fail.
-  'test-cpu-profiler/CollectDeoptEvents': [FAIL],
-  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
-
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
 
   # TODO(vogelheim,5548): Turbofan does support cached accessors.
   'test-api-accessors/CachedAccessorCrankshaft': [FAIL],
-
-  # BUG(5193): Flaky.
-  'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == turbofan or variant == ignition_turbofan
-
-##############################################################################
-['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
-  # Ongoing implementation of modules.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-  'test-modules/*': [SKIP],
-}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
 
 ##############################################################################
 ['variant == asm_wasm', {
   '*': [SKIP],
 }],  # variant == asm_wasm
+
+##############################################################################
+['variant == wasm_traps', {
+  'test-accessors/*': [SKIP],
+  'test-api-interceptors/*': [SKIP],
+  'test-api/*': [SKIP],
+  'test-bignum-dtoa/*': [SKIP],
+  'test-cpu-profiler/*': [SKIP],
+  'test-debug/*': [SKIP],
+  'test-global-handles/*': [SKIP],
+  'test-heap-profiler/*': [SKIP],
+  'test-heap/*': [SKIP],
+  'test-inobject-slack-tracking/*': [SKIP],
+  'test-lockers/*': [SKIP],
+  'test-run-machops/*': [SKIP],
+  'test-serialize/*': [SKIP],
+  'test-strings/*': [SKIP],
+  'test-field-type-tracking/*': [SKIP],
+  'test-parsing/*': [SKIP],
+  'test-page-promotion/*': [SKIP],
+  'test-decls/*': [SKIP],
+  'test-log/*': [SKIP],
+  'test-gap-resolver/*': [SKIP],
+  'test-dtoa/*': [SKIP],
+}],  # variant == wasm_traps
 
 ]

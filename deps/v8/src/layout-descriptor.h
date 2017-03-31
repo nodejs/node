@@ -83,6 +83,7 @@ class LayoutDescriptor : public FixedTypedArray<Uint32ArrayTraits> {
   // For our gdb macros, we should perhaps change these in the future.
   void Print();
 
+  void ShortPrint(std::ostream& os);
   void Print(std::ostream& os);  // NOLINT
 #endif
 

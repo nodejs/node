@@ -40,7 +40,7 @@ stream.on('data', function() {
 stream.pause();
 
 setTimeout(common.mustCall(function() {
-  stream.on('end', common.mustCall(function() {}));
+  stream.on('end', common.mustCall());
   stream.resume();
 }), 1);
 

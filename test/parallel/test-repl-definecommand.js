@@ -35,8 +35,9 @@ r.defineCommand('say2', function() {
 });
 
 inputStream.write('.help\n');
-assert(/\n.say1     help for say1\n/.test(output), 'help for say1 not present');
-assert(/\n.say2\n/.test(output), 'help for say2 not present');
+assert(/\n\.say1     help for say1\n/.test(output),
+       'help for say1 not present');
+assert(/\n\.say2\n/.test(output), 'help for say2 not present');
 inputStream.write('.say1 node developer\n');
 assert(/> hello node developer/.test(output), 'say1 outputted incorrectly');
 inputStream.write('.say2 node developer\n');

@@ -19,11 +19,12 @@ class BytecodePeepholeOptimizerTest : public BytecodePipelineStage,
                                       public TestWithIsolateAndZone {
  public:
   BytecodePeepholeOptimizerTest()
-      : peephole_optimizer_(this), last_written_(Bytecode::kIllegal) {}
+      : peephole_optimizer_(this),
+        last_written_(BytecodeNode::Illegal(BytecodeSourceInfo())) {}
   ~BytecodePeepholeOptimizerTest() override {}
 
   void Reset() {
-    last_written_.set_bytecode(Bytecode::kIllegal);
+    last_written_ = BytecodeNode::Illegal(BytecodeSourceInfo());
     write_count_ = 0;
   }
 
@@ -399,6 +400,25 @@ TEST_F(BytecodePeepholeOptimizerTest, MergeLdaZeroWithBinaryOp) {
     CHECK_EQ(last_written().operand(0), 0u);
     CHECK_EQ(last_written().operand(1), reg_operand);
     CHECK_EQ(last_written().operand(2), idx_operand);
+    Reset();
+  }
+}
+
+TEST_F(BytecodePeepholeOptimizerTest, MergeLdaNullOrUndefinedWithCompareOp) {
+  Bytecode first_bytecodes[] = {Bytecode::kLdaUndefined, Bytecode::kLdaNull};
+
+  for (auto first_bytecode : first_bytecodes) {
+    uint32_t reg_operand = Register(0).ToOperand();
+    uint32_t idx_operand = 1;
+    BytecodeNode first(first_bytecode);
+    BytecodeNode second(Bytecode::kTestEqual, reg_operand, idx_operand);
+    optimizer()->Write(&first);
+    optimizer()->Write(&second);
+    Flush();
+    CHECK_EQ(write_count(), 1);
+    CHECK_EQ(last_written().bytecode(), Bytecode::kTestUndetectable);
+    CHECK_EQ(last_written().operand_count(), 1);
+    CHECK_EQ(last_written().operand(0), reg_operand);
     Reset();
   }
 }

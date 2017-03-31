@@ -9,6 +9,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/counters-inl.h"
+#include "src/feedback-vector-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact.h"
@@ -21,7 +22,7 @@
 #include "src/log.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
-#include "src/type-feedback-vector-inl.h"
+#include "src/objects/scope-info.h"
 
 namespace v8 {
 namespace internal {
@@ -698,12 +699,15 @@ void Heap::ExternalStringTable::AddString(String* string) {
   }
 }
 
-
-void Heap::ExternalStringTable::Iterate(ObjectVisitor* v) {
+void Heap::ExternalStringTable::IterateNewSpaceStrings(ObjectVisitor* v) {
   if (!new_space_strings_.is_empty()) {
     Object** start = &new_space_strings_[0];
     v->VisitPointers(start, start + new_space_strings_.length());
   }
+}
+
+void Heap::ExternalStringTable::IterateAll(ObjectVisitor* v) {
+  IterateNewSpaceStrings(v);
   if (!old_space_strings_.is_empty()) {
     Object** start = &old_space_strings_[0];
     v->VisitPointers(start, start + old_space_strings_.length());
@@ -809,7 +813,14 @@ int Heap::GetNextTemplateSerialNumber() {
 
 void Heap::SetSerializedTemplates(FixedArray* templates) {
   DCHECK_EQ(empty_fixed_array(), serialized_templates());
+  DCHECK(isolate()->serializer_enabled());
   set_serialized_templates(templates);
+}
+
+void Heap::SetSerializedGlobalProxySizes(FixedArray* sizes) {
+  DCHECK_EQ(empty_fixed_array(), serialized_global_proxy_sizes());
+  DCHECK(isolate()->serializer_enabled());
+  set_serialized_global_proxy_sizes(sizes);
 }
 
 void Heap::CreateObjectStats() {

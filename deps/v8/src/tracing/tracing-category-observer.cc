@@ -21,6 +21,7 @@ void TracingCategoryObserver::SetUp() {
   TRACE_EVENT_WARMUP_CATEGORY(
       TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats_sampling"));
   TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"));
+  TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.ic_stats"));
 }
 
 void TracingCategoryObserver::TearDown() {
@@ -46,12 +47,18 @@ void TracingCategoryObserver::OnTraceEnabled() {
   if (enabled) {
     v8::internal::FLAG_gc_stats |= ENABLED_BY_TRACING;
   }
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.ic_stats"),
+                                     &enabled);
+  if (enabled) {
+    v8::internal::FLAG_ic_stats |= ENABLED_BY_TRACING;
+  }
 }
 
 void TracingCategoryObserver::OnTraceDisabled() {
   v8::internal::FLAG_runtime_stats &=
       ~(ENABLED_BY_TRACING | ENABLED_BY_SAMPLING);
   v8::internal::FLAG_gc_stats &= ~ENABLED_BY_TRACING;
+  v8::internal::FLAG_ic_stats &= ~ENABLED_BY_TRACING;
 }
 
 }  // namespace tracing

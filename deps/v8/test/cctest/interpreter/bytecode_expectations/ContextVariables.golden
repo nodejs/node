@@ -11,12 +11,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 10
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   41 S> */ B(CreateClosure), U8(0), U8(2),
+  /*   41 S> */ B(CreateClosure), U8(0), U8(2), U8(2),
   /*   71 S> */ B(Return),
 ]
 constant pool: [
@@ -31,14 +31,14 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 14
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   45 S> */ B(CreateClosure), U8(0), U8(2),
+  /*   45 S> */ B(CreateClosure), U8(0), U8(2), U8(2),
   /*   75 S> */ B(Return),
 ]
 constant pool: [
@@ -53,7 +53,7 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 18
 bytecodes: [
                 B(CreateFunctionContext), U8(2),
                 B(PushContext), R(0),
@@ -62,7 +62,7 @@ bytecodes: [
   /*   42 E> */ B(StaCurrentContextSlot), U8(4),
   /*   53 S> */ B(LdaSmi), U8(2),
   /*   53 E> */ B(StaCurrentContextSlot), U8(5),
-  /*   56 S> */ B(CreateClosure), U8(0), U8(2),
+  /*   56 S> */ B(CreateClosure), U8(0), U8(2), U8(2),
   /*   92 S> */ B(Return),
 ]
 constant pool: [
@@ -77,14 +77,14 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 21
+bytecode array length: 22
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
   /*   41 S> */ B(LdaUndefined),
                 B(Star), R(2),
-                B(CreateClosure), U8(0), U8(2),
+                B(CreateClosure), U8(0), U8(4), U8(2),
                 B(Star), R(1),
   /*   64 E> */ B(Call), R(1), R(2), U8(1), U8(2),
   /*   68 S> */ B(LdaCurrentContextSlot), U8(4),
@@ -104,7 +104,7 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 31
+bytecode array length: 32
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
@@ -120,7 +120,7 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(4),
   /*   69 S> */ B(LdaSmi), U8(2),
   /*   69 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   72 S> */ B(CreateClosure), U8(1), U8(2),
+  /*   72 S> */ B(CreateClosure), U8(1), U8(2), U8(2),
                 B(PopContext), R(0),
   /*  104 S> */ B(Return),
 ]
@@ -390,7 +390,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 791
+bytecode array length: 792
 bytecodes: [
                 B(CreateFunctionContext), U8(254),
                 B(PushContext), R(0),
@@ -903,7 +903,7 @@ bytecodes: [
   /* 3435 E> */ B(StaCurrentContextSlot), U8(255),
   /* 3438 S> */ B(LdaUndefined),
                 B(Star), R(2),
-                B(LdaGlobal), U8(4),
+                B(LdaGlobal), U8(0), U8(4),
                 B(Star), R(1),
   /* 3438 E> */ B(Call), R(1), R(2), U8(1), U8(2),
   /* 3454 S> */ B(LdaSmi), U8(100),
@@ -912,6 +912,7 @@ bytecodes: [
   /* 3468 S> */ B(Return),
 ]
 constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
 ]
 handlers: [
 ]

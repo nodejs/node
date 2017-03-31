@@ -33,8 +33,8 @@ let socket = dgram.createSocket('udp4');
 const handle = socket._handle;
 
 socket.send(buf, 0, buf.length, common.PORT, 'localhost');
-assert.strictEqual(socket.close(common.mustCall(function() {})), socket);
-socket.on('close', common.mustCall(function() {}));
+assert.strictEqual(socket.close(common.mustCall()), socket);
+socket.on('close', common.mustCall());
 socket = null;
 
 // Verify that accessing handle after closure doesn't throw

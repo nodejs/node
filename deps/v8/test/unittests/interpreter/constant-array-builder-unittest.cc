@@ -8,6 +8,7 @@
 #include "src/handles-inl.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {

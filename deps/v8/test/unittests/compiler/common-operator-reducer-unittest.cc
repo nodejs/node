@@ -374,6 +374,33 @@ TEST_F(CommonOperatorReducerTest, ReturnWithPhiAndEffectPhiAndMerge) {
                                     IsReturn(vfalse, efalse, if_false)));
 }
 
+TEST_F(CommonOperatorReducerTest, MultiReturnWithPhiAndEffectPhiAndMerge) {
+  Node* cond = Parameter(2);
+  Node* branch = graph()->NewNode(common()->Branch(), cond, graph()->start());
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = graph()->start();
+  Node* vtrue1 = Parameter(0);
+  Node* vtrue2 = Parameter(1);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = graph()->start();
+  Node* vfalse1 = Parameter(1);
+  Node* vfalse2 = Parameter(0);
+  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
+  Node* phi1 = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), vtrue1, vfalse1, merge);
+  Node* phi2 = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), vtrue2, vfalse2, merge);
+
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret =
+      graph()->NewNode(common()->Return(2), zero, phi1, phi2, ephi, merge);
+  graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
+  StrictMock<MockAdvancedReducerEditor> editor;
+  Reduction const r = Reduce(&editor, ret);
+  // For now a return with multiple return values should not be reduced.
+  ASSERT_TRUE(!r.Changed());
+}
 
 // -----------------------------------------------------------------------------
 // Select

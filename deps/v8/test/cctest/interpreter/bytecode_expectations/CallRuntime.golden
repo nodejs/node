@@ -79,11 +79,11 @@ bytecodes: [
                 B(Star), R(0),
                 B(CreateArrayLiteral), U8(0), U8(0), U8(9),
                 B(Star), R(1),
-                B(CallJSRuntime), U8(154), R(0), U8(2),
+                B(CallJSRuntime), U8(%spread_iterable), R(0), U8(2),
   /*   44 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  CONSTANT_ELEMENTS_PAIR_TYPE,
 ]
 handlers: [
 ]

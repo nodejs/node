@@ -58,6 +58,9 @@ void SimdScalarLowering::LowerGraph() {
           // that they are processed after all other nodes.
           PreparePhiReplacement(input);
           stack_.push_front({input, 0});
+        } else if (input->opcode() == IrOpcode::kEffectPhi ||
+                   input->opcode() == IrOpcode::kLoop) {
+          stack_.push_front({input, 0});
         } else {
           stack_.push_back({input, 0});
         }
@@ -70,12 +73,14 @@ void SimdScalarLowering::LowerGraph() {
 #define FOREACH_INT32X4_OPCODE(V) \
   V(Int32x4Add)                   \
   V(Int32x4ExtractLane)           \
-  V(CreateInt32x4)
+  V(CreateInt32x4)                \
+  V(Int32x4ReplaceLane)
 
 #define FOREACH_FLOAT32X4_OPCODE(V) \
   V(Float32x4Add)                   \
   V(Float32x4ExtractLane)           \
-  V(CreateFloat32x4)
+  V(CreateFloat32x4)                \
+  V(Float32x4ReplaceLane)
 
 void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
   switch (node->opcode()) {
@@ -102,7 +107,7 @@ static int GetParameterIndexAfterLowering(
   // In function calls, the simd128 types are passed as 4 Int32 types. The
   // parameters are typecast to the types as needed for various operations.
   int result = old_index;
-  for (int i = 0; i < old_index; i++) {
+  for (int i = 0; i < old_index; ++i) {
     if (signature->GetParam(i) == MachineRepresentation::kSimd128) {
       result += 3;
     }
@@ -123,12 +128,106 @@ int SimdScalarLowering::GetParameterCountAfterLowering() {
 static int GetReturnCountAfterLowering(
     Signature<MachineRepresentation>* signature) {
   int result = static_cast<int>(signature->return_count());
-  for (int i = 0; i < static_cast<int>(signature->return_count()); i++) {
+  for (int i = 0; i < static_cast<int>(signature->return_count()); ++i) {
     if (signature->GetReturn(i) == MachineRepresentation::kSimd128) {
       result += 3;
     }
   }
   return result;
+}
+
+void SimdScalarLowering::GetIndexNodes(Node* index, Node** new_indices) {
+  new_indices[0] = index;
+  for (size_t i = 1; i < kMaxLanes; ++i) {
+    new_indices[i] = graph()->NewNode(machine()->Int32Add(), index,
+                                      graph()->NewNode(common()->Int32Constant(
+                                          static_cast<int>(i) * kLaneWidth)));
+  }
+}
+
+void SimdScalarLowering::LowerLoadOp(MachineRepresentation rep, Node* node,
+                                     const Operator* load_op) {
+  if (rep == MachineRepresentation::kSimd128) {
+    Node* base = node->InputAt(0);
+    Node* index = node->InputAt(1);
+    Node* indices[kMaxLanes];
+    GetIndexNodes(index, indices);
+    Node* rep_nodes[kMaxLanes];
+    rep_nodes[0] = node;
+    NodeProperties::ChangeOp(rep_nodes[0], load_op);
+    if (node->InputCount() > 2) {
+      DCHECK(node->InputCount() > 3);
+      Node* effect_input = node->InputAt(2);
+      Node* control_input = node->InputAt(3);
+      rep_nodes[3] = graph()->NewNode(load_op, base, indices[3], effect_input,
+                                      control_input);
+      rep_nodes[2] = graph()->NewNode(load_op, base, indices[2], rep_nodes[3],
+                                      control_input);
+      rep_nodes[1] = graph()->NewNode(load_op, base, indices[1], rep_nodes[2],
+                                      control_input);
+      rep_nodes[0]->ReplaceInput(2, rep_nodes[1]);
+    } else {
+      for (size_t i = 1; i < kMaxLanes; ++i) {
+        rep_nodes[i] = graph()->NewNode(load_op, base, indices[i]);
+      }
+    }
+    ReplaceNode(node, rep_nodes);
+  } else {
+    DefaultLowering(node);
+  }
+}
+
+void SimdScalarLowering::LowerStoreOp(MachineRepresentation rep, Node* node,
+                                      const Operator* store_op,
+                                      SimdType rep_type) {
+  if (rep == MachineRepresentation::kSimd128) {
+    Node* base = node->InputAt(0);
+    Node* index = node->InputAt(1);
+    Node* indices[kMaxLanes];
+    GetIndexNodes(index, indices);
+    DCHECK(node->InputCount() > 2);
+    Node* value = node->InputAt(2);
+    DCHECK(HasReplacement(1, value));
+    Node* rep_nodes[kMaxLanes];
+    rep_nodes[0] = node;
+    Node** rep_inputs = GetReplacementsWithType(value, rep_type);
+    rep_nodes[0]->ReplaceInput(2, rep_inputs[0]);
+    NodeProperties::ChangeOp(node, store_op);
+    if (node->InputCount() > 3) {
+      DCHECK(node->InputCount() > 4);
+      Node* effect_input = node->InputAt(3);
+      Node* control_input = node->InputAt(4);
+      rep_nodes[3] = graph()->NewNode(store_op, base, indices[3], rep_inputs[3],
+                                      effect_input, control_input);
+      rep_nodes[2] = graph()->NewNode(store_op, base, indices[2], rep_inputs[2],
+                                      rep_nodes[3], control_input);
+      rep_nodes[1] = graph()->NewNode(store_op, base, indices[1], rep_inputs[1],
+                                      rep_nodes[2], control_input);
+      rep_nodes[0]->ReplaceInput(3, rep_nodes[1]);
+
+    } else {
+      for (size_t i = 1; i < kMaxLanes; ++i) {
+        rep_nodes[i] =
+            graph()->NewNode(store_op, base, indices[i], rep_inputs[i]);
+      }
+    }
+
+    ReplaceNode(node, rep_nodes);
+  } else {
+    DefaultLowering(node);
+  }
+}
+
+void SimdScalarLowering::LowerBinaryOp(Node* node, SimdType rep_type,
+                                       const Operator* op) {
+  DCHECK(node->InputCount() == 2);
+  Node** rep_left = GetReplacementsWithType(node->InputAt(0), rep_type);
+  Node** rep_right = GetReplacementsWithType(node->InputAt(1), rep_type);
+  Node* rep_node[kMaxLanes];
+  for (int i = 0; i < kMaxLanes; ++i) {
+    rep_node[i] = graph()->NewNode(op, rep_left[i], rep_right[i]);
+  }
+  ReplaceNode(node, rep_node);
 }
 
 void SimdScalarLowering::LowerNode(Node* node) {
@@ -159,13 +258,13 @@ void SimdScalarLowering::LowerNode(Node* node) {
           NodeProperties::ChangeOp(node, common()->Parameter(new_index));
 
           Node* new_node[kMaxLanes];
-          for (int i = 0; i < kMaxLanes; i++) {
+          for (int i = 0; i < kMaxLanes; ++i) {
             new_node[i] = nullptr;
           }
           new_node[0] = node;
           if (signature()->GetParam(old_index) ==
               MachineRepresentation::kSimd128) {
-            for (int i = 1; i < kMaxLanes; i++) {
+            for (int i = 1; i < kMaxLanes; ++i) {
               new_node[i] = graph()->NewNode(common()->Parameter(new_index + i),
                                              graph()->start());
             }
@@ -173,6 +272,57 @@ void SimdScalarLowering::LowerNode(Node* node) {
           ReplaceNode(node, new_node);
         }
       }
+      break;
+    }
+    case IrOpcode::kLoad: {
+      MachineRepresentation rep =
+          LoadRepresentationOf(node->op()).representation();
+      const Operator* load_op;
+      if (rep_type == SimdType::kInt32) {
+        load_op = machine()->Load(MachineType::Int32());
+      } else if (rep_type == SimdType::kFloat32) {
+        load_op = machine()->Load(MachineType::Float32());
+      }
+      LowerLoadOp(rep, node, load_op);
+      break;
+    }
+    case IrOpcode::kUnalignedLoad: {
+      MachineRepresentation rep =
+          UnalignedLoadRepresentationOf(node->op()).representation();
+      const Operator* load_op;
+      if (rep_type == SimdType::kInt32) {
+        load_op = machine()->UnalignedLoad(MachineType::Int32());
+      } else if (rep_type == SimdType::kFloat32) {
+        load_op = machine()->UnalignedLoad(MachineType::Float32());
+      }
+      LowerLoadOp(rep, node, load_op);
+      break;
+    }
+    case IrOpcode::kStore: {
+      MachineRepresentation rep =
+          StoreRepresentationOf(node->op()).representation();
+      WriteBarrierKind write_barrier_kind =
+          StoreRepresentationOf(node->op()).write_barrier_kind();
+      const Operator* store_op;
+      if (rep_type == SimdType::kInt32) {
+        store_op = machine()->Store(StoreRepresentation(
+            MachineRepresentation::kWord32, write_barrier_kind));
+      } else {
+        store_op = machine()->Store(StoreRepresentation(
+            MachineRepresentation::kFloat32, write_barrier_kind));
+      }
+      LowerStoreOp(rep, node, store_op, rep_type);
+      break;
+    }
+    case IrOpcode::kUnalignedStore: {
+      MachineRepresentation rep = UnalignedStoreRepresentationOf(node->op());
+      const Operator* store_op;
+      if (rep_type == SimdType::kInt32) {
+        store_op = machine()->UnalignedStore(MachineRepresentation::kWord32);
+      } else {
+        store_op = machine()->UnalignedStore(MachineRepresentation::kFloat32);
+      }
+      LowerStoreOp(rep, node, store_op, rep_type);
       break;
     }
     case IrOpcode::kReturn: {
@@ -200,7 +350,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
           descriptor->GetReturnType(0) == MachineType::Simd128()) {
         // We access the additional return values through projections.
         Node* rep_node[kMaxLanes];
-        for (int i = 0; i < kMaxLanes; i++) {
+        for (int i = 0; i < kMaxLanes; ++i) {
           rep_node[i] =
               graph()->NewNode(common()->Projection(i), node, graph()->start());
         }
@@ -214,7 +364,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
         // The replacement nodes have already been created, we only have to
         // replace placeholder nodes.
         Node** rep_node = GetReplacements(node);
-        for (int i = 0; i < node->op()->ValueInputCount(); i++) {
+        for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
           Node** rep_input =
               GetReplacementsWithType(node->InputAt(i), rep_type);
           for (int j = 0; j < kMaxLanes; j++) {
@@ -226,75 +376,51 @@ void SimdScalarLowering::LowerNode(Node* node) {
       }
       break;
     }
-
     case IrOpcode::kInt32x4Add: {
-      DCHECK(node->InputCount() == 2);
-      Node** rep_left = GetReplacementsWithType(node->InputAt(0), rep_type);
-      Node** rep_right = GetReplacementsWithType(node->InputAt(1), rep_type);
-      Node* rep_node[kMaxLanes];
-      for (int i = 0; i < kMaxLanes; i++) {
-        rep_node[i] =
-            graph()->NewNode(machine()->Int32Add(), rep_left[i], rep_right[i]);
-      }
-      ReplaceNode(node, rep_node);
+      LowerBinaryOp(node, rep_type, machine()->Int32Add());
       break;
     }
-
-    case IrOpcode::kCreateInt32x4: {
-      Node* rep_node[kMaxLanes];
-      for (int i = 0; i < kMaxLanes; i++) {
-        DCHECK(!HasReplacement(1, node->InputAt(i)));
-        rep_node[i] = node->InputAt(i);
-      }
-      ReplaceNode(node, rep_node);
-      break;
-    }
-
-    case IrOpcode::kInt32x4ExtractLane: {
-      Node* laneNode = node->InputAt(1);
-      DCHECK_EQ(laneNode->opcode(), IrOpcode::kInt32Constant);
-      int32_t lane = OpParameter<int32_t>(laneNode);
-      Node* rep_node[kMaxLanes] = {
-          GetReplacementsWithType(node->InputAt(0), rep_type)[lane], nullptr,
-          nullptr, nullptr};
-      ReplaceNode(node, rep_node);
-      break;
-    }
-
     case IrOpcode::kFloat32x4Add: {
-      DCHECK(node->InputCount() == 2);
-      Node** rep_left = GetReplacementsWithType(node->InputAt(0), rep_type);
-      Node** rep_right = GetReplacementsWithType(node->InputAt(1), rep_type);
-      Node* rep_node[kMaxLanes];
-      for (int i = 0; i < kMaxLanes; i++) {
-        rep_node[i] = graph()->NewNode(machine()->Float32Add(), rep_left[i],
-                                       rep_right[i]);
-      }
-      ReplaceNode(node, rep_node);
+      LowerBinaryOp(node, rep_type, machine()->Float32Add());
       break;
     }
-
+    case IrOpcode::kCreateInt32x4:
     case IrOpcode::kCreateFloat32x4: {
       Node* rep_node[kMaxLanes];
-      for (int i = 0; i < kMaxLanes; i++) {
-        DCHECK(!HasReplacement(1, node->InputAt(i)));
-        rep_node[i] = node->InputAt(i);
+      for (int i = 0; i < kMaxLanes; ++i) {
+        if (HasReplacement(0, node->InputAt(i))) {
+          rep_node[i] = GetReplacements(node->InputAt(i))[0];
+        } else {
+          rep_node[i] = node->InputAt(i);
+        }
       }
       ReplaceNode(node, rep_node);
       break;
     }
-
+    case IrOpcode::kInt32x4ExtractLane:
     case IrOpcode::kFloat32x4ExtractLane: {
-      Node* laneNode = node->InputAt(1);
-      DCHECK_EQ(laneNode->opcode(), IrOpcode::kInt32Constant);
-      int32_t lane = OpParameter<int32_t>(laneNode);
+      int32_t lane = OpParameter<int32_t>(node);
       Node* rep_node[kMaxLanes] = {
           GetReplacementsWithType(node->InputAt(0), rep_type)[lane], nullptr,
           nullptr, nullptr};
       ReplaceNode(node, rep_node);
       break;
     }
-
+    case IrOpcode::kInt32x4ReplaceLane:
+    case IrOpcode::kFloat32x4ReplaceLane: {
+      DCHECK_EQ(2, node->InputCount());
+      Node* repNode = node->InputAt(1);
+      int32_t lane = OpParameter<int32_t>(node);
+      DCHECK(lane >= 0 && lane <= 3);
+      Node** rep_node = GetReplacementsWithType(node->InputAt(0), rep_type);
+      if (HasReplacement(0, repNode)) {
+        rep_node[lane] = GetReplacements(repNode)[0];
+      } else {
+        rep_node[lane] = repNode;
+      }
+      ReplaceNode(node, rep_node);
+      break;
+    }
     default: { DefaultLowering(node); }
   }
 }
@@ -322,7 +448,7 @@ void SimdScalarLowering::ReplaceNode(Node* old, Node** new_node) {
   DCHECK(new_node[0] != nullptr ||
          (new_node[1] == nullptr && new_node[2] == nullptr &&
           new_node[3] == nullptr));
-  for (int i = 0; i < kMaxLanes; i++) {
+  for (int i = 0; i < kMaxLanes; ++i) {
     replacements_[old->id()].node[i] = new_node[i];
   }
 }
@@ -348,7 +474,7 @@ Node** SimdScalarLowering::GetReplacementsWithType(Node* node, SimdType type) {
   }
   Node** result = zone()->NewArray<Node*>(kMaxLanes);
   if (ReplacementType(node) == SimdType::kInt32 && type == SimdType::kFloat32) {
-    for (int i = 0; i < kMaxLanes; i++) {
+    for (int i = 0; i < kMaxLanes; ++i) {
       if (replacements[i] != nullptr) {
         result[i] = graph()->NewNode(machine()->BitcastInt32ToFloat32(),
                                      replacements[i]);
@@ -357,7 +483,7 @@ Node** SimdScalarLowering::GetReplacementsWithType(Node* node, SimdType type) {
       }
     }
   } else {
-    for (int i = 0; i < kMaxLanes; i++) {
+    for (int i = 0; i < kMaxLanes; ++i) {
       if (replacements[i] != nullptr) {
         result[i] = graph()->NewNode(machine()->BitcastFloat32ToInt32(),
                                      replacements[i]);
@@ -379,17 +505,17 @@ void SimdScalarLowering::PreparePhiReplacement(Node* phi) {
     int value_count = phi->op()->ValueInputCount();
     SimdType type = ReplacementType(phi);
     Node** inputs_rep[kMaxLanes];
-    for (int i = 0; i < kMaxLanes; i++) {
+    for (int i = 0; i < kMaxLanes; ++i) {
       inputs_rep[i] = zone()->NewArray<Node*>(value_count + 1);
       inputs_rep[i][value_count] = NodeProperties::GetControlInput(phi, 0);
     }
-    for (int i = 0; i < value_count; i++) {
+    for (int i = 0; i < value_count; ++i) {
       for (int j = 0; j < kMaxLanes; j++) {
         inputs_rep[j][i] = placeholder_;
       }
     }
     Node* rep_nodes[kMaxLanes];
-    for (int i = 0; i < kMaxLanes; i++) {
+    for (int i = 0; i < kMaxLanes; ++i) {
       if (type == SimdType::kInt32) {
         rep_nodes[i] = graph()->NewNode(
             common()->Phi(MachineRepresentation::kWord32, value_count),

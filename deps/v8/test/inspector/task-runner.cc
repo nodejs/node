@@ -4,6 +4,8 @@
 
 #include "test/inspector/task-runner.h"
 
+#include "test/inspector/inspector-impl.h"
+
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #endif               // !defined(_WIN32) && !defined(_WIN64)
@@ -134,21 +136,44 @@ v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
 
 }  // namespace
 
+AsyncTask::AsyncTask(const char* task_name,
+                     v8_inspector::V8Inspector* inspector)
+    : inspector_(task_name ? inspector : nullptr) {
+  if (inspector_) {
+    inspector_->asyncTaskScheduled(
+        v8_inspector::StringView(reinterpret_cast<const uint8_t*>(task_name),
+                                 strlen(task_name)),
+        this, false);
+  }
+}
+
+void AsyncTask::Run(v8::Isolate* isolate,
+                    const v8::Global<v8::Context>& context) {
+  if (inspector_) inspector_->asyncTaskStarted(this);
+  AsyncRun(isolate, context);
+  if (inspector_) inspector_->asyncTaskFinished(this);
+}
+
 ExecuteStringTask::ExecuteStringTask(
     const v8::internal::Vector<uint16_t>& expression,
     v8::Local<v8::String> name, v8::Local<v8::Integer> line_offset,
-    v8::Local<v8::Integer> column_offset)
-    : expression_(expression),
+    v8::Local<v8::Integer> column_offset, const char* task_name,
+    v8_inspector::V8Inspector* inspector)
+    : AsyncTask(task_name, inspector),
+      expression_(expression),
       name_(ToVector(name)),
       line_offset_(line_offset.As<v8::Int32>()->Value()),
       column_offset_(column_offset.As<v8::Int32>()->Value()) {}
 
 ExecuteStringTask::ExecuteStringTask(
     const v8::internal::Vector<const char>& expression)
-    : expression_utf8_(expression), line_offset_(0), column_offset_(0) {}
+    : AsyncTask(nullptr, nullptr),
+      expression_utf8_(expression),
+      line_offset_(0),
+      column_offset_(0) {}
 
-void ExecuteStringTask::Run(v8::Isolate* isolate,
-                            const v8::Global<v8::Context>& context) {
+void ExecuteStringTask::AsyncRun(v8::Isolate* isolate,
+                                 const v8::Global<v8::Context>& context) {
   v8::MicrotasksScope microtasks_scope(isolate,
                                        v8::MicrotasksScope::kRunMicrotasks);
   v8::HandleScope handle_scope(isolate);

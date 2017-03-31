@@ -11,7 +11,7 @@ function testCallFFI(func, check) {
   var builder = new WasmModuleBuilder();
 
   var sig_index = builder.addType(kSig_i_dd);
-  builder.addImport("func", sig_index);
+  builder.addImport("", "func", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
       kExprGetLocal, 0,            // --
@@ -20,7 +20,7 @@ function testCallFFI(func, check) {
     ])        // --
     .exportFunc();
 
-  var main = builder.instantiate({func: func}).exports.main;
+  var main = builder.instantiate({"": {func: func}}).exports.main;
 
   for (var i = 0; i < 100000; i += 10003) {
     var a = 22.5 + i, b = 10.5 + i;
@@ -37,7 +37,7 @@ var was_called = false;
 var length = -1;
 
 function FOREIGN_SUB(a, b) {
-  print("FOREIGN_SUB(" + a + ", " + b + ")");
+//  print("FOREIGN_SUB(" + a + ", " + b + ")");
   was_called = true;
   params[0] = this;
   params[1] = a;
@@ -75,7 +75,7 @@ print("Constructor");
   var builder = new WasmModuleBuilder();
 
   var sig_index = builder.addType(kSig_i_dd);
-  builder.addImport("func", sig_index);
+  builder.addImport("", "func", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
       kExprGetLocal, 0,            // --
@@ -84,7 +84,7 @@ print("Constructor");
     ])        // --
     .exportFunc();
 
-  main_for_constructor_test = builder.instantiate({func: C}).exports.main;
+  main_for_constructor_test = builder.instantiate({"": {func: C}}).exports.main;
 
   assertThrows("main_for_constructor_test(12, 43)", TypeError);
 }) ();
@@ -95,14 +95,14 @@ print("Native function");
   var builder = new WasmModuleBuilder();
 
   var sig_index = builder.addType(kSig_d_v);
-  builder.addImport("func", sig_index);
+  builder.addImport("", "func", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
       kExprCallFunction, 0  // --
     ])        // --
     .exportFunc();
 
-  var main = builder.instantiate({func: Object.prototype.toString}).exports.main;
+  var main = builder.instantiate({"": {func: Object.prototype.toString}}).exports.main;
   // The result of the call to Object.prototype.toString should be
   // [object Undefined]. However, we cannot test for this result because wasm
   // cannot return objects but converts them to float64 in this test.
@@ -113,7 +113,7 @@ print("Callable JSObject");
 testCallFFI(%GetCallable(), function check(r, a, b) {assertEquals(a - b, r);});
 
 function FOREIGN_ABCD(a, b, c, d) {
-  print("FOREIGN_ABCD(" + a + ", " + b + ", " + c + ", " + d + ")");
+//  print("FOREIGN_ABCD(" + a + ", " + b + ", " + c + ", " + d + ")");
   was_called = true;
   params[0] = this;
   params[1] = a;
@@ -224,7 +224,6 @@ var objWithValueOf = {valueOf: function() { return 198; }}
 
 testCallFFI(returnValue(objWithValueOf), checkReturn(198));
 
-
 function testCallBinopVoid(type, func, check) {
   var passed_length = -1;
   var passed_a = -1;
@@ -232,23 +231,23 @@ function testCallBinopVoid(type, func, check) {
   var args_a = -1;
   var args_b = -1;
 
-  ffi = {func: function(a, b) {
+  ffi = {"": {func: function(a, b) {
     passed_length = arguments.length;
     passed_a = a;
     passed_b = b;
     args_a = arguments[0];
     args_b = arguments[1];
-  }};
+  }}};
 
   var builder = new WasmModuleBuilder();
 
-  builder.addImport("func", makeSig_v_xx(type));
-  builder.addFunction("main", makeSig_r_xx(kAstI32, type))
+  builder.addImport("", "func", makeSig_v_xx(type));
+  builder.addFunction("main", makeSig_r_xx(kWasmI32, type))
     .addBody([
       kExprGetLocal, 0,            // --
       kExprGetLocal, 1,            // --
       kExprCallFunction, 0,        // --
-      kExprI8Const, 99             // --
+      kExprI32Const, 33            // --
     ])                             // --
     .exportFunc()
 
@@ -259,21 +258,21 @@ function testCallBinopVoid(type, func, check) {
   for (var i = 0; i < 100000; i += 10003.1) {
     var a = 22.5 + i, b = 10.5 + i;
     var r = main(a, b);
-    assertEquals(99, r);
+    assertEquals(33, r);
     assertEquals(2, passed_length);
     var expected_a, expected_b;
     switch (type) {
-      case kAstI32: {
+      case kWasmI32: {
         expected_a = a | 0;
         expected_b = b | 0;
         break;
       }
-      case kAstF32: {
+      case kWasmF32: {
         expected_a = Math.fround(a);
         expected_b = Math.fround(b);
         break;
       }
-      case kAstF64: {
+      case kWasmF64: {
         expected_a = a;
         expected_b = b;
         break;
@@ -288,30 +287,101 @@ function testCallBinopVoid(type, func, check) {
 }
 
 
-testCallBinopVoid(kAstI32);
-// TODO testCallBinopVoid(kAstI64);
-testCallBinopVoid(kAstF32);
-testCallBinopVoid(kAstF64);
+testCallBinopVoid(kWasmI32);
+// TODO testCallBinopVoid(kWasmI64);
+testCallBinopVoid(kWasmF32);
+testCallBinopVoid(kWasmF64);
 
-
-
-function testCallPrint() {
+(function testCallPrint() {
   var builder = new WasmModuleBuilder();
 
-  builder.addImport("print", makeSig_v_x(kAstI32));
-  builder.addImport("print", makeSig_v_x(kAstF64));
-  builder.addFunction("main", makeSig_v_x(kAstF64))
+  builder.addImport("", "print", makeSig_v_x(kWasmI32));
+  builder.addImport("", "print", makeSig_v_x(kWasmF64));
+  builder.addFunction("main", makeSig_v_x(kWasmF64))
     .addBody([
-      kExprI8Const, 97,      // --
+      kExprI32Const, 37,     // --
       kExprCallFunction, 0,  // --
       kExprGetLocal, 0,      // --
       kExprCallFunction, 1   // --
     ])                       // --
     .exportFunc()
 
-  var main = builder.instantiate({print: print}).exports.main;
+  var main = builder.instantiate({"": {print: print}}).exports.main;
   for (var i = -9; i < 900; i += 6.125) main(i);
-}
+})();
 
-testCallPrint();
-testCallPrint();
+
+(function testImportNumbers() {
+  print("TestImportNumbers...");
+  var builder = new WasmModuleBuilder();
+
+  builder.addImport("", '0', kSig_v_i);
+
+  builder.instantiate({"": {0: print}});
+})();
+
+(function testImportNumbers2() {
+  print("TestImportNumbers2...");
+  var builder = new WasmModuleBuilder();
+
+  builder.addImport('foo', '0', kSig_v_i);
+  builder.addImport('0', 'foo', kSig_v_i);
+  builder.addImport('0', '0', kSig_v_i);
+  builder.addImport('18', '-3', kSig_v_i);
+  builder.addImport('-3', '18', kSig_v_i);
+
+  builder.instantiate({
+    foo: {0: print},
+    0: {0: print, foo: print},
+    18: {'-3': print},
+    '-3': {18: print}
+  });
+})();
+
+(function ImportSymbolAsVoidDoesNotThrow() {
+  print("ImportSymbolAsVoidDoesNotThrow...");
+  var builder = new WasmModuleBuilder();
+  // Return type is void, so there should be no ToNumber conversion.
+  var index = builder.addImport("", "func", kSig_v_v);
+  builder.addFunction("main", kSig_v_v)
+      .addBody([kExprCallFunction, 0])
+      .exportFunc();
+  var func = () => Symbol();
+  var main = builder.instantiate({"": {func: func}}).exports.main;
+  main();
+})();
+
+(function ToNumberCalledOnImport() {
+  var builder = new WasmModuleBuilder();
+  // Return type is int, so there should be a ToNumber conversion.
+  var index = builder.addImport("", "func", kSig_i_v);
+  builder.addFunction("main", kSig_i_v)
+      .addBody([kExprCallFunction, 0])
+      .exportFunc();
+  var num_valueOf = 0;
+  function Foo() {}
+  Foo.prototype.valueOf = () => ++num_valueOf;
+  var func = () => new Foo();
+  var main = builder.instantiate({"": {func: func}}).exports.main;
+  main();
+  assertEquals(1, num_valueOf);
+  main();
+  assertEquals(2, num_valueOf);
+})();
+
+(function ToNumberNotCalledOnVoidImport() {
+  var builder = new WasmModuleBuilder();
+  // Return type is void, so there should be no ToNumber conversion.
+  var index = builder.addImport("", "func", kSig_v_v);
+  builder.addFunction("main", kSig_v_v)
+      .addBody([kExprCallFunction, 0])
+      .exportFunc();
+  var num_valueOf = 0;
+  function Foo() {}
+  Foo.prototype.valueOf = () => ++num_valueOf;
+  var func = () => new Foo();
+  var main = builder.instantiate({"": {func: func}}).exports.main;
+  main();
+  main();
+  assertEquals(0, num_valueOf);
+})();

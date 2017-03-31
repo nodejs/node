@@ -26,24 +26,9 @@ class V8_EXPORT_PRIVATE Malloced {
   static void Delete(void* p);
 };
 
-
-// A macro is used for defining the base class used for embedded instances.
-// The reason is some compilers allocate a minimum of one word for the
-// superclass. The macro prevents the use of new & delete in debug mode.
-// In release mode we are not willing to pay this overhead.
-
-#ifdef DEBUG
-// Superclass for classes with instances allocated inside stack
-// activations or inside other objects.
-class Embedded {
- public:
-  void* operator new(size_t size);
-  void  operator delete(void* p);
-};
-#define BASE_EMBEDDED : public NON_EXPORTED_BASE(Embedded)
-#else
+// DEPRECATED
+// TODO(leszeks): Delete this during a quiet period
 #define BASE_EMBEDDED
-#endif
 
 
 // Superclass for classes only using static method functions.

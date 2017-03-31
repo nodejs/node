@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-Handle<Code> PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
+Handle<Object> PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
     Handle<Map> receiver_map, KeyedAccessStoreMode store_mode) {
   Isolate* isolate = receiver_map->GetIsolate();
 
@@ -20,14 +20,14 @@ Handle<Code> PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
 
   PropertyICCompiler compiler(isolate);
-  Handle<Code> code =
+  Handle<Object> handler =
       compiler.CompileKeyedStoreMonomorphicHandler(receiver_map, store_mode);
-  return code;
+  return handler;
 }
 
 void PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(
     MapHandleList* receiver_maps, MapHandleList* transitioned_maps,
-    CodeHandleList* handlers, KeyedAccessStoreMode store_mode) {
+    List<Handle<Object>>* handlers, KeyedAccessStoreMode store_mode) {
   Isolate* isolate = receiver_maps->at(0)->GetIsolate();
   DCHECK(store_mode == STANDARD_STORE ||
          store_mode == STORE_AND_GROW_NO_TRANSITION ||
@@ -38,13 +38,12 @@ void PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(
       receiver_maps, transitioned_maps, handlers, store_mode);
 }
 
-
 void PropertyICCompiler::CompileKeyedStorePolymorphicHandlers(
     MapHandleList* receiver_maps, MapHandleList* transitioned_maps,
-    CodeHandleList* handlers, KeyedAccessStoreMode store_mode) {
+    List<Handle<Object>>* handlers, KeyedAccessStoreMode store_mode) {
   for (int i = 0; i < receiver_maps->length(); ++i) {
     Handle<Map> receiver_map(receiver_maps->at(i));
-    Handle<Code> cached_stub;
+    Handle<Object> handler;
     Handle<Map> transitioned_map;
     {
       Map* tmap = receiver_map->FindElementsKindTransitionedMap(receiver_maps);
@@ -61,21 +60,29 @@ void PropertyICCompiler::CompileKeyedStorePolymorphicHandlers(
       ElementsKind elements_kind = receiver_map->elements_kind();
       TRACE_HANDLER_STATS(isolate(),
                           KeyedStoreIC_ElementsTransitionAndStoreStub);
-      cached_stub =
+      Handle<Code> stub =
           ElementsTransitionAndStoreStub(isolate(), elements_kind,
                                          transitioned_map->elements_kind(),
-                                         is_js_array, store_mode).GetCode();
+                                         is_js_array, store_mode)
+              .GetCode();
+      Handle<Object> validity_cell =
+          Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
+      if (validity_cell.is_null()) {
+        handler = stub;
+      } else {
+        handler = isolate()->factory()->NewTuple2(validity_cell, stub);
+      }
+
     } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
       // TODO(mvstanton): Consider embedding store_mode in the state of the slow
       // keyed store ic for uniformity.
       TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
-      cached_stub = isolate()->builtins()->KeyedStoreIC_Slow();
+      handler = isolate()->builtins()->KeyedStoreIC_Slow();
     } else {
-      cached_stub =
-          CompileKeyedStoreMonomorphicHandler(receiver_map, store_mode);
+      handler = CompileKeyedStoreMonomorphicHandler(receiver_map, store_mode);
     }
-    DCHECK(!cached_stub.is_null());
-    handlers->Add(cached_stub);
+    DCHECK(!handler.is_null());
+    handlers->Add(handler);
     transitioned_maps->Add(transitioned_map);
   }
 }
@@ -83,8 +90,7 @@ void PropertyICCompiler::CompileKeyedStorePolymorphicHandlers(
 
 #define __ ACCESS_MASM(masm())
 
-
-Handle<Code> PropertyICCompiler::CompileKeyedStoreMonomorphicHandler(
+Handle<Object> PropertyICCompiler::CompileKeyedStoreMonomorphicHandler(
     Handle<Map> receiver_map, KeyedAccessStoreMode store_mode) {
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
@@ -101,7 +107,12 @@ Handle<Code> PropertyICCompiler::CompileKeyedStoreMonomorphicHandler(
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
     stub = StoreElementStub(isolate(), elements_kind, store_mode).GetCode();
   }
-  return stub;
+  Handle<Object> validity_cell =
+      Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
+  if (validity_cell.is_null()) {
+    return stub;
+  }
+  return isolate()->factory()->NewTuple2(validity_cell, stub);
 }
 
 

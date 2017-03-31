@@ -604,12 +604,9 @@ static int GetArrayLength(Handle<JSArray> array) {
   return Smi::cast(length)->value();
 }
 
-
-void FunctionInfoWrapper::SetInitialProperties(Handle<String> name,
-                                               int start_position,
-                                               int end_position, int param_num,
-                                               int literal_count,
-                                               int parent_index) {
+void FunctionInfoWrapper::SetInitialProperties(
+    Handle<String> name, int start_position, int end_position, int param_num,
+    int literal_count, int parent_index, int function_literal_id) {
   HandleScope scope(isolate());
   this->SetField(kFunctionNameOffset_, name);
   this->SetSmiValueField(kStartPositionOffset_, start_position);
@@ -617,6 +614,7 @@ void FunctionInfoWrapper::SetInitialProperties(Handle<String> name,
   this->SetSmiValueField(kParamNumOffset_, param_num);
   this->SetSmiValueField(kLiteralNumOffset_, literal_count);
   this->SetSmiValueField(kParentIndexOffset_, parent_index);
+  this->SetSmiValueField(kFunctionLiteralIdOffset_, function_literal_id);
 }
 
 void FunctionInfoWrapper::SetSharedFunctionInfo(
@@ -840,13 +838,13 @@ class LiteralFixer {
       // collect all functions and fix their literal arrays.
       Handle<FixedArray> function_instances =
           CollectJSFunctions(shared_info, isolate);
-      Handle<TypeFeedbackMetadata> feedback_metadata(
+      Handle<FeedbackMetadata> feedback_metadata(
           shared_info->feedback_metadata());
 
       for (int i = 0; i < function_instances->length(); i++) {
         Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
-        Handle<TypeFeedbackVector> vector =
-            TypeFeedbackVector::New(isolate, feedback_metadata);
+        Handle<FeedbackVector> vector =
+            FeedbackVector::New(isolate, feedback_metadata);
         Handle<LiteralsArray> new_literals =
             LiteralsArray::New(isolate, vector, new_literal_count);
         fun->set_literals(*new_literals);
@@ -1019,7 +1017,7 @@ void LiveEdit::ReplaceFunctionCode(
     shared_info->set_outer_scope_info(new_shared_info->outer_scope_info());
     shared_info->DisableOptimization(kLiveEdit);
     // Update the type feedback vector, if needed.
-    Handle<TypeFeedbackMetadata> new_feedback_metadata(
+    Handle<FeedbackMetadata> new_feedback_metadata(
         new_shared_info->feedback_metadata());
     feedback_metadata_changed =
         new_feedback_metadata->DiffersFrom(shared_info->feedback_metadata());
@@ -1038,15 +1036,36 @@ void LiveEdit::ReplaceFunctionCode(
   isolate->compilation_cache()->Remove(shared_info);
 }
 
-
-void LiveEdit::FunctionSourceUpdated(Handle<JSArray> shared_info_array) {
+void LiveEdit::FunctionSourceUpdated(Handle<JSArray> shared_info_array,
+                                     int new_function_literal_id) {
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
+  shared_info->set_function_literal_id(new_function_literal_id);
   DeoptimizeDependentFunctions(*shared_info);
   shared_info_array->GetIsolate()->compilation_cache()->Remove(shared_info);
 }
 
+void LiveEdit::FixupScript(Handle<Script> script, int max_function_literal_id) {
+  Isolate* isolate = script->GetIsolate();
+  Handle<FixedArray> old_infos(script->shared_function_infos(), isolate);
+  Handle<FixedArray> new_infos(
+      isolate->factory()->NewFixedArray(max_function_literal_id + 1));
+  script->set_shared_function_infos(*new_infos);
+  SharedFunctionInfo::ScriptIterator iterator(isolate, old_infos);
+  while (SharedFunctionInfo* shared = iterator.Next()) {
+    // We can't use SharedFunctionInfo::SetScript(info, undefined_value()) here,
+    // as we severed the link from the Script to the SharedFunctionInfo above.
+    Handle<SharedFunctionInfo> info(shared, isolate);
+    info->set_script(isolate->heap()->undefined_value());
+    Handle<Object> new_noscript_list = WeakFixedArray::Add(
+        isolate->factory()->noscript_shared_function_infos(), info);
+    isolate->heap()->SetRootNoScriptSharedFunctionInfos(*new_noscript_list);
+
+    // Put the SharedFunctionInfo at its new, correct location.
+    SharedFunctionInfo::SetScript(info, script);
+  }
+}
 
 void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
                                  Handle<Object> script_handle) {
@@ -1173,13 +1192,16 @@ static Handle<Script> CreateScriptCopy(Handle<Script> original) {
   copy->set_eval_from_shared(original->eval_from_shared());
   copy->set_eval_from_position(original->eval_from_position());
 
+  Handle<FixedArray> infos(isolate->factory()->NewFixedArray(
+      original->shared_function_infos()->length()));
+  copy->set_shared_function_infos(*infos);
+
   // Copy all the flags, but clear compilation state.
   copy->set_flags(original->flags());
   copy->set_compilation_state(Script::COMPILATION_STATE_INITIAL);
 
   return copy;
 }
-
 
 Handle<Object> LiveEdit::ChangeScriptSource(Handle<Script> original_script,
                                             Handle<String> new_source,
@@ -1856,10 +1878,8 @@ void LiveEditFunctionTracker::VisitFunctionLiteral(FunctionLiteral* node) {
   // Recurse using the regular traversal.
   AstTraversalVisitor::VisitFunctionLiteral(node);
   // FunctionDone are called in post-order.
-  // TODO(jgruber): If required, replace the (linear cost)
-  // FindSharedFunctionInfo call with a more efficient implementation.
   Handle<SharedFunctionInfo> info =
-      script_->FindSharedFunctionInfo(node).ToHandleChecked();
+      script_->FindSharedFunctionInfo(isolate_, node).ToHandleChecked();
   FunctionDone(info, node->scope());
 }
 
@@ -1869,7 +1889,7 @@ void LiveEditFunctionTracker::FunctionStarted(FunctionLiteral* fun) {
   info.SetInitialProperties(fun->name(), fun->start_position(),
                             fun->end_position(), fun->parameter_count(),
                             fun->materialized_literal_count(),
-                            current_parent_index_);
+                            current_parent_index_, fun->function_literal_id());
   current_parent_index_ = len_;
   SetElementSloppy(result_, len_, info.GetJSArray());
   len_++;

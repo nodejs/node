@@ -17,7 +17,6 @@ var hashCodeSymbol = utils.ImportNow("hash_code_symbol");
 var MathRandom = global.Math.random;
 var MapIterator;
 var SetIterator;
-var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
@@ -251,12 +250,6 @@ function SetForEach(f, receiver) {
   }
 }
 
-
-function SetSpecies() {
-  return this;
-}
-
-
 // -------------------------------------------------------------------
 
 %SetCode(GlobalSet, SetConstructor);
@@ -267,8 +260,6 @@ function SetSpecies() {
                   DONT_ENUM | READ_ONLY);
 
 %FunctionSetLength(SetForEach, 1);
-
-utils.InstallGetter(GlobalSet, speciesSymbol, SetSpecies);
 
 // Set up the non-enumerable functions on the Set prototype object.
 utils.InstallGetter(GlobalSet.prototype, "size", SetGetSize);
@@ -439,11 +430,6 @@ function MapForEach(f, receiver) {
   }
 }
 
-
-function MapSpecies() {
-  return this;
-}
-
 // -------------------------------------------------------------------
 
 %SetCode(GlobalMap, MapConstructor);
@@ -454,8 +440,6 @@ function MapSpecies() {
     GlobalMap.prototype, toStringTagSymbol, "Map", DONT_ENUM | READ_ONLY);
 
 %FunctionSetLength(MapForEach, 1);
-
-utils.InstallGetter(GlobalMap, speciesSymbol, MapSpecies);
 
 // Set up the non-enumerable functions on the Map prototype object.
 utils.InstallGetter(GlobalMap.prototype, "size", MapGetSize);

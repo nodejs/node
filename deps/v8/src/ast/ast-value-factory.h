@@ -30,6 +30,7 @@
 
 #include "src/api.h"
 #include "src/base/hashmap.h"
+#include "src/conversions.h"
 #include "src/globals.h"
 #include "src/utils.h"
 
@@ -110,8 +111,9 @@ class AstRawString final : public AstString {
   }
 
  private:
-  friend class AstValueFactory;
   friend class AstRawStringInternalizationKey;
+  friend class AstStringConstants;
+  friend class AstValueFactory;
 
   AstRawString(bool is_one_byte, const Vector<const byte>& literal_bytes,
                uint32_t hash)
@@ -158,10 +160,7 @@ class AstValue : public ZoneObject {
     return type_ == STRING;
   }
 
-  bool IsNumber() const {
-    return type_ == NUMBER || type_ == NUMBER_WITH_DOT || type_ == SMI ||
-           type_ == SMI_WITH_DOT;
-  }
+  bool IsNumber() const { return IsSmi() || IsHeapNumber(); }
 
   bool ContainsDot() const {
     return type_ == NUMBER_WITH_DOT || type_ == SMI_WITH_DOT;
@@ -173,17 +172,28 @@ class AstValue : public ZoneObject {
   }
 
   double AsNumber() const {
-    if (type_ == NUMBER || type_ == NUMBER_WITH_DOT)
-      return number_;
-    if (type_ == SMI || type_ == SMI_WITH_DOT)
-      return smi_;
+    if (IsHeapNumber()) return number_;
+    if (IsSmi()) return smi_;
     UNREACHABLE();
     return 0;
   }
 
   Smi* AsSmi() const {
-    CHECK(type_ == SMI || type_ == SMI_WITH_DOT);
+    CHECK(IsSmi());
     return Smi::FromInt(smi_);
+  }
+
+  bool ToUint32(uint32_t* value) const {
+    if (IsSmi()) {
+      int num = smi_;
+      if (num < 0) return false;
+      *value = static_cast<uint32_t>(num);
+      return true;
+    }
+    if (IsHeapNumber()) {
+      return DoubleToUint32IfEqualToSelf(number_, value);
+    }
+    return false;
   }
 
   bool EqualsString(const AstRawString* string) const {
@@ -195,6 +205,9 @@ class AstValue : public ZoneObject {
   bool BooleanValue() const;
 
   bool IsSmi() const { return type_ == SMI || type_ == SMI_WITH_DOT; }
+  bool IsHeapNumber() const {
+    return type_ == NUMBER || type_ == NUMBER_WITH_DOT;
+  }
   bool IsFalse() const { return type_ == BOOLEAN && !bool_; }
   bool IsTrue() const { return type_ == BOOLEAN && bool_; }
   bool IsUndefined() const { return type_ == UNDEFINED; }
@@ -280,7 +293,6 @@ class AstValue : public ZoneObject {
   };
 };
 
-
 // For generating constants.
 #define STRING_CONSTANTS(F)                     \
   F(anonymous_function, "(anonymous function)") \
@@ -291,7 +303,6 @@ class AstValue : public ZoneObject {
   F(default, "default")                         \
   F(done, "done")                               \
   F(dot, ".")                                   \
-  F(dot_class_field_init, ".class-field-init")  \
   F(dot_for, ".for")                            \
   F(dot_generator_object, ".generator_object")  \
   F(dot_iterator, ".iterator")                  \
@@ -304,6 +315,7 @@ class AstValue : public ZoneObject {
   F(get_space, "get ")                          \
   F(length, "length")                           \
   F(let, "let")                                 \
+  F(name, "name")                               \
   F(native, "native")                           \
   F(new_target, ".new.target")                  \
   F(next, "next")                               \
@@ -320,6 +332,45 @@ class AstValue : public ZoneObject {
   F(use_strict, "use strict")                   \
   F(value, "value")
 
+class AstStringConstants final {
+ public:
+  AstStringConstants(Isolate* isolate, uint32_t hash_seed)
+      : zone_(isolate->allocator(), ZONE_NAME), hash_seed_(hash_seed) {
+    DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+#define F(name, str)                                                      \
+  {                                                                       \
+    const char* data = str;                                               \
+    Vector<const uint8_t> literal(reinterpret_cast<const uint8_t*>(data), \
+                                  static_cast<int>(strlen(data)));        \
+    uint32_t hash = StringHasher::HashSequentialString<uint8_t>(          \
+        literal.start(), literal.length(), hash_seed_);                   \
+    name##_string_ = new (&zone_) AstRawString(true, literal, hash);      \
+    /* The Handle returned by the factory is located on the roots */      \
+    /* array, not on the temporary HandleScope, so this is safe.  */      \
+    name##_string_->set_string(isolate->factory()->name##_string());      \
+  }
+    STRING_CONSTANTS(F)
+#undef F
+  }
+
+#define F(name, str) \
+  AstRawString* name##_string() { return name##_string_; }
+  STRING_CONSTANTS(F)
+#undef F
+
+  uint32_t hash_seed() const { return hash_seed_; }
+
+ private:
+  Zone zone_;
+  uint32_t hash_seed_;
+
+#define F(name, str) AstRawString* name##_string_;
+  STRING_CONSTANTS(F)
+#undef F
+
+  DISALLOW_COPY_AND_ASSIGN(AstStringConstants);
+};
+
 #define OTHER_CONSTANTS(F) \
   F(true_value)            \
   F(false_value)           \
@@ -329,21 +380,24 @@ class AstValue : public ZoneObject {
 
 class AstValueFactory {
  public:
-  AstValueFactory(Zone* zone, uint32_t hash_seed)
+  AstValueFactory(Zone* zone, AstStringConstants* string_constants,
+                  uint32_t hash_seed)
       : string_table_(AstRawStringCompare),
         values_(nullptr),
-        smis_(),
         strings_(nullptr),
         strings_end_(&strings_),
+        string_constants_(string_constants),
         zone_(zone),
         hash_seed_(hash_seed) {
-#define F(name, str) name##_string_ = NULL;
-    STRING_CONSTANTS(F)
-#undef F
-#define F(name) name##_ = NULL;
+#define F(name) name##_ = nullptr;
     OTHER_CONSTANTS(F)
 #undef F
+    DCHECK_EQ(hash_seed, string_constants->hash_seed());
     std::fill(smis_, smis_ + arraysize(smis_), nullptr);
+    std::fill(one_character_strings_,
+              one_character_strings_ + arraysize(one_character_strings_),
+              nullptr);
+    InitializeStringConstants();
   }
 
   Zone* zone() const { return zone_; }
@@ -361,20 +415,12 @@ class AstValueFactory {
   const AstRawString* GetString(Handle<String> literal);
   const AstConsString* NewConsString(const AstString* left,
                                      const AstString* right);
-  const AstRawString* ConcatStrings(const AstRawString* left,
-                                    const AstRawString* right);
 
   void Internalize(Isolate* isolate);
 
-#define F(name, str)                                                    \
-  const AstRawString* name##_string() {                                 \
-    if (name##_string_ == NULL) {                                       \
-      const char* data = str;                                           \
-      name##_string_ = GetOneByteString(                                \
-          Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(data), \
-                                static_cast<int>(strlen(data))));       \
-    }                                                                   \
-    return name##_string_;                                              \
+#define F(name, str)                           \
+  const AstRawString* name##_string() {        \
+    return string_constants_->name##_string(); \
   }
   STRING_CONSTANTS(F)
 #undef F
@@ -415,6 +461,17 @@ class AstValueFactory {
   AstRawString* GetString(uint32_t hash, bool is_one_byte,
                           Vector<const byte> literal_bytes);
 
+  void InitializeStringConstants() {
+#define F(name, str)                                                    \
+  AstRawString* raw_string_##name = string_constants_->name##_string(); \
+  base::HashMap::Entry* entry_##name = string_table_.LookupOrInsert(    \
+      raw_string_##name, raw_string_##name->hash());                    \
+  DCHECK(entry_##name->value == nullptr);                               \
+  entry_##name->value = reinterpret_cast<void*>(1);
+    STRING_CONSTANTS(F)
+#undef F
+  }
+
   static bool AstRawStringCompare(void* a, void* b);
 
   // All strings are copied here, one after another (no NULLs inbetween).
@@ -423,18 +480,22 @@ class AstValueFactory {
   // they can be internalized later).
   AstValue* values_;
 
-  AstValue* smis_[kMaxCachedSmi + 1];
   // We need to keep track of strings_ in order since cons strings require their
   // members to be internalized first.
   AstString* strings_;
   AstString** strings_end_;
+
+  // Holds constant string values which are shared across the isolate.
+  AstStringConstants* string_constants_;
+
+  // Caches for faster access: small numbers, one character lowercase strings
+  // (for minified code).
+  AstValue* smis_[kMaxCachedSmi + 1];
+  AstRawString* one_character_strings_[26];
+
   Zone* zone_;
 
   uint32_t hash_seed_;
-
-#define F(name, str) const AstRawString* name##_string_;
-  STRING_CONSTANTS(F)
-#undef F
 
 #define F(name) AstValue* name##_;
   OTHER_CONSTANTS(F)

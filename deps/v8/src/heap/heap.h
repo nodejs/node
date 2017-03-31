@@ -14,6 +14,7 @@
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/base/atomic-utils.h"
+#include "src/debug/debug-interface.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/list.h"
@@ -58,7 +59,7 @@ using v8::MemoryPressureLevel;
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, transition_array_map, TransitionArrayMap)                             \
   V(FixedArray, empty_literals_array, EmptyLiteralsArray)                      \
-  V(FixedArray, empty_type_feedback_vector, EmptyTypeFeedbackVector)           \
+  V(FixedArray, empty_feedback_vector, EmptyFeedbackVector)                    \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   /* Entries beyond the first 32                                            */ \
@@ -77,6 +78,7 @@ using v8::MemoryPressureLevel;
   /* Context maps */                                                           \
   V(Map, native_context_map, NativeContextMap)                                 \
   V(Map, module_context_map, ModuleContextMap)                                 \
+  V(Map, eval_context_map, EvalContextMap)                                     \
   V(Map, script_context_map, ScriptContextMap)                                 \
   V(Map, block_context_map, BlockContextMap)                                   \
   V(Map, catch_context_map, CatchContextMap)                                   \
@@ -93,6 +95,7 @@ using v8::MemoryPressureLevel;
   V(Map, external_map, ExternalMap)                                            \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(Map, module_info_map, ModuleInfoMap)                                       \
+  V(Map, feedback_vector_map, FeedbackVectorMap)                               \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -157,7 +160,7 @@ using v8::MemoryPressureLevel;
   V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
     EmptySlowElementDictionary)                                                \
-  V(TypeFeedbackVector, dummy_vector, DummyVector)                             \
+  V(FeedbackVector, dummy_vector, DummyVector)                                 \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
   /* Protectors */                                                             \
@@ -168,6 +171,8 @@ using v8::MemoryPressureLevel;
   V(PropertyCell, string_length_protector, StringLengthProtector)              \
   V(Cell, fast_array_iteration_protector, FastArrayIterationProtector)         \
   V(Cell, array_iterator_protector, ArrayIteratorProtector)                    \
+  V(PropertyCell, array_buffer_neutering_protector,                            \
+    ArrayBufferNeuteringProtector)                                             \
   /* Special numbers */                                                        \
   V(HeapNumber, nan_value, NanValue)                                           \
   V(HeapNumber, hole_nan_value, HoleNanValue)                                  \
@@ -190,7 +195,9 @@ using v8::MemoryPressureLevel;
     ExperimentalExtraNativesSourceCache)                                       \
   /* Lists and dictionaries */                                                 \
   V(NameDictionary, empty_properties_dictionary, EmptyPropertiesDictionary)    \
-  V(Object, symbol_registry, SymbolRegistry)                                   \
+  V(NameDictionary, public_symbol_table, PublicSymbolTable)                    \
+  V(NameDictionary, api_symbol_table, ApiSymbolTable)                          \
+  V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)           \
   V(Object, script_list, ScriptList)                                           \
   V(UnseededNumberDictionary, code_stubs, CodeStubs)                           \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
@@ -206,8 +213,10 @@ using v8::MemoryPressureLevel;
   V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(FixedArray, serialized_templates, SerializedTemplates)                     \
+  V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)     \
   /* Configured values */                                                      \
   V(TemplateList, message_listeners, MessageListeners)                         \
+  V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   /* Oddball maps */                                                           \
@@ -221,7 +230,10 @@ using v8::MemoryPressureLevel;
   V(Map, exception_map, ExceptionMap)                                          \
   V(Map, termination_exception_map, TerminationExceptionMap)                   \
   V(Map, optimized_out_map, OptimizedOutMap)                                   \
-  V(Map, stale_register_map, StaleRegisterMap)
+  V(Map, stale_register_map, StaleRegisterMap)                                 \
+  /* per-Isolate map for JSPromiseCapability. */                               \
+  /* TODO(caitp): Make this a Struct */                                        \
+  V(Map, js_promise_capability_map, JSPromiseCapabilityMap)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
@@ -297,6 +309,7 @@ using v8::MemoryPressureLevel;
   V(WithContextMap)                     \
   V(BlockContextMap)                    \
   V(ModuleContextMap)                   \
+  V(EvalContextMap)                     \
   V(ScriptContextMap)                   \
   V(UndefinedMap)                       \
   V(TheHoleMap)                         \
@@ -325,6 +338,7 @@ class HeapObjectsFilter;
 class HeapStats;
 class HistogramTimer;
 class Isolate;
+class LocalEmbedderHeapTracer;
 class MemoryAllocator;
 class MemoryReducer;
 class ObjectIterator;
@@ -346,8 +360,6 @@ enum ArrayStorageAllocationMode {
 };
 
 enum class ClearRecordedSlots { kYes, kNo };
-
-enum class ClearBlackArea { kYes, kNo };
 
 enum class GarbageCollectionReason {
   kUnknown = 0,
@@ -554,12 +566,6 @@ class Heap {
 
   enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
 
-  // Indicates whether live bytes adjustment is triggered
-  // - from within the GC code before sweeping started (SEQUENTIAL_TO_SWEEPER),
-  // - or from within GC (CONCURRENT_TO_SWEEPER),
-  // - or mutator code (CONCURRENT_TO_SWEEPER).
-  enum InvocationMode { SEQUENTIAL_TO_SWEEPER, CONCURRENT_TO_SWEEPER };
-
   enum UpdateAllocationSiteMode { kGlobal, kCached };
 
   // Taking this lock prevents the GC from entering a phase that relocates
@@ -607,7 +613,7 @@ class Heap {
   static const int kMaxOldSpaceSizeMediumMemoryDevice =
       256 * kPointerMultiplier;
   static const int kMaxOldSpaceSizeHighMemoryDevice = 512 * kPointerMultiplier;
-  static const int kMaxOldSpaceSizeHugeMemoryDevice = 700 * kPointerMultiplier;
+  static const int kMaxOldSpaceSizeHugeMemoryDevice = 1024 * kPointerMultiplier;
 
   // The executable size has to be a multiple of Page::kPageSize.
   // Sizes are in MB.
@@ -672,6 +678,8 @@ class Heap {
   // Generated code can embed direct references to non-writable roots if
   // they are in new space.
   static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
+
+  static bool IsUnmodifiedHeapObject(Object** p);
 
   // Zapping is needed for verify heap, and always done in debug builds.
   static inline bool ShouldZapGarbage() {
@@ -739,24 +747,22 @@ class Heap {
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages. If slots could have been recorded in
   // the freed area, then pass ClearRecordedSlots::kYes as the mode. Otherwise,
-  // pass ClearRecordedSlots::kNo. If the filler was created in a black area
-  // we may want to clear the corresponding mark bits with ClearBlackArea::kYes,
-  // which is the default. ClearBlackArea::kNo does not clear the mark bits.
-  void CreateFillerObjectAt(
-      Address addr, int size, ClearRecordedSlots mode,
-      ClearBlackArea black_area_mode = ClearBlackArea::kYes);
+  // pass ClearRecordedSlots::kNo.
+  HeapObject* CreateFillerObjectAt(Address addr, int size,
+                                   ClearRecordedSlots mode);
 
   bool CanMoveObjectStart(HeapObject* object);
 
+  static bool IsImmovable(HeapObject* object);
+
   // Maintain consistency of live bytes during incremental marking.
-  void AdjustLiveBytes(HeapObject* object, int by, InvocationMode mode);
+  void AdjustLiveBytes(HeapObject* object, int by);
 
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
   FixedArrayBase* LeftTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
 
   // Trim the given array from the right.
-  template<Heap::InvocationMode mode>
   void RightTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
 
   // Converts the given boolean condition to JavaScript boolean value.
@@ -787,6 +793,9 @@ class Heap {
   Object* encountered_weak_collections() const {
     return encountered_weak_collections_;
   }
+  void VisitEncounteredWeakCollections(ObjectVisitor* visitor) {
+    visitor->VisitPointer(&encountered_weak_collections_);
+  }
 
   void set_encountered_weak_cells(Object* weak_cell) {
     encountered_weak_cells_ = weak_cell;
@@ -816,6 +825,7 @@ class Heap {
   void PrintShortHeapStatistics();
 
   inline HeapState gc_state() { return gc_state_; }
+  void SetGCState(HeapState state);
 
   inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
 
@@ -831,7 +841,7 @@ class Heap {
   // Support for the API.
   //
 
-  void CreateApiObjects();
+  bool CreateApiObjects();
 
   // Implements the corresponding V8 API function.
   bool IdleNotification(double deadline_in_seconds);
@@ -840,6 +850,9 @@ class Heap {
   void MemoryPressureNotification(MemoryPressureLevel level,
                                   bool is_isolate_locked);
   void CheckMemoryPressure();
+
+  void SetOutOfMemoryCallback(v8::debug::OutOfMemoryCallback callback,
+                              void* data);
 
   double MonotonicallyIncreasingTimeInMs();
 
@@ -874,6 +887,7 @@ class Heap {
   inline int GetNextTemplateSerialNumber();
 
   inline void SetSerializedTemplates(FixedArray* templates);
+  inline void SetSerializedGlobalProxySizes(FixedArray* sizes);
 
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
@@ -946,6 +960,30 @@ class Heap {
 
   bool HighMemoryPressure() {
     return memory_pressure_level_.Value() != MemoryPressureLevel::kNone;
+  }
+
+  size_t HeapLimitForDebugging() {
+    const size_t kDebugHeapSizeFactor = 4;
+    size_t max_limit = std::numeric_limits<size_t>::max() / 4;
+    return Min(max_limit,
+               initial_max_old_generation_size_ * kDebugHeapSizeFactor);
+  }
+
+  void IncreaseHeapLimitForDebugging() {
+    max_old_generation_size_ =
+        Max(max_old_generation_size_, HeapLimitForDebugging());
+  }
+
+  void RestoreOriginalHeapLimit() {
+    // Do not set the limit lower than the live size + some slack.
+    size_t min_limit = SizeOfObjects() + SizeOfObjects() / 4;
+    max_old_generation_size_ =
+        Min(max_old_generation_size_,
+            Max(initial_max_old_generation_size_, min_limit));
+  }
+
+  bool IsHeapLimitIncreasedForDebugging() {
+    return max_old_generation_size_ == HeapLimitForDebugging();
   }
 
   // ===========================================================================
@@ -1172,6 +1210,8 @@ class Heap {
   void ClearRecordedSlot(HeapObject* object, Object** slot);
   void ClearRecordedSlotRange(Address start, Address end);
 
+  bool HasRecordedSlot(HeapObject* object, Object** slot);
+
   // ===========================================================================
   // Incremental marking API. ==================================================
   // ===========================================================================
@@ -1203,23 +1243,12 @@ class Heap {
   // Embedder heap tracer support. =============================================
   // ===========================================================================
 
+  LocalEmbedderHeapTracer* local_embedder_heap_tracer() {
+    return local_embedder_heap_tracer_;
+  }
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
-
-  bool UsingEmbedderHeapTracer() { return embedder_heap_tracer() != nullptr; }
-
   void TracePossibleWrapper(JSObject* js_object);
-
   void RegisterExternallyReferencedObject(Object** object);
-
-  void RegisterWrappersWithEmbedderHeapTracer();
-
-  // In order to avoid running out of memory we force tracing wrappers if there
-  // are too many of them.
-  bool RequiresImmediateWrapperProcessing();
-
-  EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
-
-  size_t wrappers_to_trace() { return wrappers_to_trace_.size(); }
 
   // ===========================================================================
   // External string table API. ================================================
@@ -1501,6 +1530,7 @@ class Heap {
       GarbageCollectionReason gc_reason);
 
  private:
+  class SkipStoreBufferScope;
   class PretenuringScope;
 
   // External strings table is a place where all external strings are
@@ -1511,11 +1541,13 @@ class Heap {
     // Registers an external string.
     inline void AddString(String* string);
 
-    inline void Iterate(ObjectVisitor* v);
+    inline void IterateAll(ObjectVisitor* v);
+    inline void IterateNewSpaceStrings(ObjectVisitor* v);
 
-    // Restores internal invariant and gets rid of collected strings.
-    // Must be called after each Iterate() that modified the strings.
-    void CleanUp();
+    // Restores internal invariant and gets rid of collected strings. Must be
+    // called after each Iterate*() that modified the strings.
+    void CleanUpAll();
+    void CleanUpNewSpaceStrings();
 
     // Destroys all allocated memory.
     void TearDown();
@@ -1632,10 +1664,6 @@ class Heap {
     return current_gc_flags_ & kFinalizeIncrementalMarkingMask;
   }
 
-  // Checks whether both, the internal marking deque, and the embedder provided
-  // one are empty. Avoid in fast path as it potentially calls through the API.
-  bool MarkingDequesAreEmpty();
-
   void PreprocessStackTraces();
 
   // Checks whether a global GC is necessary
@@ -1747,6 +1775,8 @@ class Heap {
 
   void CollectGarbageOnMemoryPressure();
 
+  void InvokeOutOfMemoryCallback();
+
   // Attempt to over-approximate the weak closure by marking object groups and
   // implicit references from global handles, but don't atomically complete
   // marking. If we continue to mark incrementally, we might have marked
@@ -1839,6 +1869,14 @@ class Heap {
   // ===========================================================================
   // Growing strategy. =========================================================
   // ===========================================================================
+
+  // For some webpages RAIL mode does not switch from PERFORMANCE_LOAD.
+  // This constant limits the effect of load RAIL mode on GC.
+  // The value is arbitrary and chosen as the largest load time observed in
+  // v8 browsing benchmarks.
+  static const int kMaxLoadTimeMs = 7000;
+
+  bool ShouldOptimizeForLoadTime();
 
   // Decrease the allocation limit if the new limit based on the given
   // parameters is lower than the current limit.
@@ -2128,6 +2166,7 @@ class Heap {
   size_t max_semi_space_size_;
   size_t initial_semispace_size_;
   size_t max_old_generation_size_;
+  size_t initial_max_old_generation_size_;
   size_t initial_old_generation_size_;
   bool old_generation_size_configured_;
   size_t max_executable_size_;
@@ -2147,6 +2186,9 @@ class Heap {
   // Stores the memory pressure level that set by MemoryPressureNotification
   // and reset by a mark-compact garbage collection.
   base::AtomicValue<MemoryPressureLevel> memory_pressure_level_;
+
+  v8::debug::OutOfMemoryCallback out_of_memory_callback_;
+  void* out_of_memory_callback_data_;
 
   // For keeping track of context disposals.
   int contexts_disposed_;
@@ -2338,8 +2380,7 @@ class Heap {
   // The depth of HeapIterator nestings.
   int heap_iterator_depth_;
 
-  EmbedderHeapTracer* embedder_heap_tracer_;
-  std::vector<std::pair<void*, void*>> wrappers_to_trace_;
+  LocalEmbedderHeapTracer* local_embedder_heap_tracer_;
 
   // Used for testing purposes.
   bool force_oom_;

@@ -8,7 +8,6 @@
 {% if config.lib.export_header %}
 #include {{format_include(config.lib.export_header)}}
 {% endif %}
-#include {{format_include(config.lib.platform_header)}}
 #include {{format_include(config.lib.string_header)}}
 
 #include <vector>

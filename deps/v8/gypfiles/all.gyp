@@ -27,8 +27,12 @@
         }],
         ['v8_enable_inspector==1', {
           'dependencies': [
-            '../test/debugger/debugger.gyp:*',
             '../test/inspector/inspector.gyp:*',
+          ],
+        }],
+        ['v8_enable_inspector==1 and test_isolation_mode != "noop"', {
+          'dependencies': [
+            '../test/debugger/debugger.gyp:*',
           ],
         }],
         ['test_isolation_mode != "noop"', {

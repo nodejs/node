@@ -18,5 +18,5 @@ process.on('warning', common.mustCall((warning) => {
   assert.ok(warning.message.includes('2 event-type listeners added.'));
 }));
 
-e.on('event-type', function() {});
-e.on('event-type', function() {});
+e.on('event-type', common.noop);
+e.on('event-type', common.noop);

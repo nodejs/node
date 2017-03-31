@@ -49,7 +49,7 @@ const web = http.Server(common.mustCall((req, res) => {
   const socket = net.Stream();
   socket.connect(tcpPort);
 
-  socket.on('connect', common.mustCall(() => {}));
+  socket.on('connect', common.mustCall());
 
   req.pipe(socket);
 

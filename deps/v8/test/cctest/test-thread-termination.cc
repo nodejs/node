@@ -27,6 +27,7 @@
 
 #include "src/api.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -529,9 +530,11 @@ void InnerTryCallTerminate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Local<v8::Function> loop = v8::Local<v8::Function>::Cast(
       global->Get(CcTest::isolate()->GetCurrentContext(), v8_str("loop"))
           .ToLocalChecked());
+  i::MaybeHandle<i::Object> exception;
   i::MaybeHandle<i::Object> result =
       i::Execution::TryCall(CcTest::i_isolate(), v8::Utils::OpenHandle((*loop)),
-                            v8::Utils::OpenHandle((*global)), 0, NULL, NULL);
+                            v8::Utils::OpenHandle((*global)), 0, nullptr,
+                            i::Execution::MessageHandling::kReport, &exception);
   CHECK(result.is_null());
   // TryCall ignores terminate execution, but rerequests the interrupt.
   CHECK(!args.GetIsolate()->IsExecutionTerminating());

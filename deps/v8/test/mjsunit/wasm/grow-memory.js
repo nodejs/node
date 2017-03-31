@@ -184,6 +184,7 @@ testGrowMemoryReadWrite8();
 
 function testGrowMemoryZeroInitialSize() {
   var builder = genGrowMemoryBuilder();
+  builder.addMemory(0, kV8MaxPages, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load(offset); }
@@ -217,6 +218,7 @@ testGrowMemoryZeroInitialSize();
 
 function testGrowMemoryZeroInitialSize32() {
   var builder = genGrowMemoryBuilder();
+  builder.addMemory(0, kV8MaxPages, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load(offset); }
@@ -242,6 +244,7 @@ testGrowMemoryZeroInitialSize32();
 
 function testGrowMemoryZeroInitialSize16() {
   var builder = genGrowMemoryBuilder();
+  builder.addMemory(0, kV8MaxPages, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load16(offset); }
@@ -267,6 +270,7 @@ testGrowMemoryZeroInitialSize16();
 
 function testGrowMemoryZeroInitialSize8() {
   var builder = genGrowMemoryBuilder();
+  builder.addMemory(0, kV8MaxPages, false);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load8(offset); }
@@ -292,6 +296,7 @@ testGrowMemoryZeroInitialSize8();
 
 function testGrowMemoryTrapMaxPagesZeroInitialMemory() {
   var builder = genGrowMemoryBuilder();
+  builder.addMemory(0, kV8MaxPages, false);
   var module = builder.instantiate();
   var maxPages = 16385;
   function growMem(pages) { return module.exports.grow_memory(pages); }
@@ -313,6 +318,7 @@ testGrowMemoryTrapMaxPages();
 
 function testGrowMemoryTrapsWithNonSmiInput() {
   var builder = genGrowMemoryBuilder();
+  builder.addMemory(0, kV8MaxPages, false);
   var module = builder.instantiate();
   function growMem(pages) { return module.exports.grow_memory(pages); }
   // The parameter of grow_memory is unsigned. Therefore -1 stands for

@@ -48,8 +48,8 @@ CompileTimeValue::LiteralType CompileTimeValue::GetLiteralType(
   return static_cast<LiteralType>(literal_type->value());
 }
 
-Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
-  return Handle<FixedArray>(FixedArray::cast(value->get(kElementsSlot)));
+Handle<HeapObject> CompileTimeValue::GetElements(Handle<FixedArray> value) {
+  return Handle<HeapObject>(HeapObject::cast(value->get(kElementsSlot)));
 }
 
 }  // namespace internal

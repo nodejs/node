@@ -212,7 +212,7 @@ function error_test() {
     {
       client: client_unix,
       send: '(function() { "use strict"; if (true) function f() { } })()',
-      expect: /\bSyntaxError: In strict mode code, functions can only be declared at top level or inside a block./ // eslint-disable-line max-len
+      expect: /\bSyntaxError: In strict mode code, functions can only be declared at top level or inside a block\./ // eslint-disable-line max-len
     },
     // Named functions can be used:
     { client: client_unix, send: 'function blah() { return 1; }',

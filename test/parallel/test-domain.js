@@ -22,7 +22,7 @@
 'use strict';
 // Simple tests of most basic domain functionality.
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const domain = require('domain');
 const events = require('events');
@@ -261,7 +261,7 @@ const fst = fs.createReadStream('stream for nonexistent file');
 d.add(fst);
 expectCaught++;
 
-[42, null, , false, function() {}, 'string'].forEach(function(something) {
+[42, null, , false, common.noop, 'string'].forEach(function(something) {
   const d = new domain.Domain();
   d.run(function() {
     process.nextTick(function() {

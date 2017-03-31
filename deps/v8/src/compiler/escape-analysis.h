@@ -35,6 +35,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysis {
   Node* GetOrCreateObjectState(Node* effect, Node* node);
   bool IsCyclicObjectState(Node* effect, Node* node);
   bool ExistsVirtualAllocate();
+  bool SetReplacement(Node* node, Node* rep);
 
  private:
   void RunObjectAnalysis();
@@ -59,7 +60,6 @@ class V8_EXPORT_PRIVATE EscapeAnalysis {
 
   Node* replacement(Node* node);
   Node* ResolveReplacement(Node* node);
-  bool SetReplacement(Node* node, Node* rep);
   bool UpdateReplacement(VirtualState* state, Node* node, Node* rep);
 
   VirtualObject* GetVirtualObject(VirtualState* state, Node* node);

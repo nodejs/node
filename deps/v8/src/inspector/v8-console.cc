@@ -714,6 +714,29 @@ v8::Local<v8::Object> V8Console::createConsole(
   createBoundFunctionProperty(context, console, "timeStamp",
                               V8Console::timeStampCallback);
 
+  const char* jsConsoleAssert =
+      "(function(){\n"
+      "  var originAssert = this.assert;\n"
+      "  originAssert.apply = Function.prototype.apply;\n"
+      "  this.assert = assertWrapper;\n"
+      "  assertWrapper.toString = () => originAssert.toString();\n"
+      "  function assertWrapper(){\n"
+      "    if (!!arguments[0]) return;\n"
+      "    originAssert.apply(null, arguments);\n"
+      "  }\n"
+      "})";
+
+  v8::Local<v8::String> assertSource = toV8String(isolate, jsConsoleAssert);
+  V8InspectorImpl* inspector = inspectedContext->inspector();
+  v8::Local<v8::Value> setupFunction;
+  if (inspector->compileAndRunInternalScript(context, assertSource)
+          .ToLocal(&setupFunction) &&
+      setupFunction->IsFunction()) {
+    inspector->callInternalFunction(
+        v8::Local<v8::Function>::Cast(setupFunction), context, console, 0,
+        nullptr);
+  }
+
   if (hasMemoryAttribute)
     console->SetAccessorProperty(
         toV8StringInternalized(isolate, "memory"),

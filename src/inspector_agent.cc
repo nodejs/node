@@ -94,7 +94,6 @@ std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string& message) {
                   utf16.length());
   return StringBuffer::create(view);
 }
-
 }  // namespace
 
 class V8NodeInspector;
@@ -145,6 +144,8 @@ class AgentImpl {
   void FatalException(v8::Local<v8::Value> error,
                       v8::Local<v8::Message> message);
 
+  void SchedulePauseOnNextStatement(const std::string& reason);
+
   void PostIncomingMessage(InspectorAction action, int session_id,
                            const std::string& message);
   void ResumeStartup() {
@@ -160,6 +161,8 @@ class AgentImpl {
   static void ThreadCbIO(void* agent);
   static void WriteCbIO(uv_async_t* async);
   static void MainThreadAsyncCb(uv_async_t* req);
+  static void CallAndPauseOnStart(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   void InstallInspectorOnProcess();
 
@@ -234,12 +237,15 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
   explicit ChannelImpl(AgentImpl* agent): agent_(agent) {}
   virtual ~ChannelImpl() {}
  private:
-  void sendProtocolResponse(int callId, const StringView& message) override {
-    sendMessageToFrontend(message);
+  void sendResponse(
+      int callId,
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    sendMessageToFrontend(message->string());
   }
 
-  void sendProtocolNotification(const StringView& message) override {
-    sendMessageToFrontend(message);
+  void sendNotification(
+      std::unique_ptr<v8_inspector::StringBuffer> message) override {
+    sendMessageToFrontend(message->string());
   }
 
   void flushProtocolNotifications() override { }
@@ -305,6 +311,14 @@ class V8NodeInspector : public v8_inspector::V8InspectorClient {
   void dispatchMessageFromFrontend(const StringView& message) {
     CHECK(session_);
     session_->dispatchProtocolMessage(message);
+  }
+
+  void schedulePauseOnNextStatement(const std::string& reason) {
+    if (session_ != nullptr) {
+      std::unique_ptr<StringBuffer> buffer = Utf8ToStringView(reason);
+      session_->schedulePauseOnNextStatement(buffer->string(),
+                                             buffer->string());
+    }
   }
 
   v8::Local<v8::Context> ensureDefaultContextInGroup(int contextGroupId)
@@ -474,6 +488,28 @@ void AgentImpl::InstallInspectorOnProcess() {
   v8::Local<v8::Object> inspector = v8::Object::New(env->isolate());
   READONLY_PROPERTY(process, "inspector", inspector);
   env->SetMethod(inspector, "wrapConsoleCall", InspectorWrapConsoleCall);
+  if (options_.wait_for_connect()) {
+    env->SetMethod(inspector, "callAndPauseOnStart", CallAndPauseOnStart);
+  }
+}
+
+// static
+void AgentImpl::CallAndPauseOnStart(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GT(args.Length(), 1);
+  CHECK(args[0]->IsFunction());
+  std::vector<v8::Local<v8::Value>> call_args;
+  for (int i = 2; i < args.Length(); i++) {
+    call_args.push_back(args[i]);
+  }
+
+  env->inspector_agent()->SchedulePauseOnNextStatement("Break on start");
+
+  v8::MaybeLocal<v8::Value> retval =
+      args[0].As<v8::Function>()->Call(env->context(), args[1],
+                                       call_args.size(), call_args.data());
+  args.GetReturnValue().Set(retval.ToLocalChecked());
 }
 
 std::unique_ptr<StringBuffer> ToProtocolString(v8::Local<v8::Value> value) {
@@ -679,6 +715,10 @@ void AgentImpl::Write(TransportAction action, int session_id,
   CHECK_EQ(0, err);
 }
 
+void AgentImpl::SchedulePauseOnNextStatement(const std::string& reason) {
+  inspector_->schedulePauseOnNextStatement(reason);
+}
+
 // Exported class Agent
 Agent::Agent(node::Environment* env) : impl(new AgentImpl(env)) {}
 
@@ -710,6 +750,10 @@ void Agent::WaitForDisconnect() {
 void Agent::FatalException(v8::Local<v8::Value> error,
                            v8::Local<v8::Message> message) {
   impl->FatalException(error, message);
+}
+
+void Agent::SchedulePauseOnNextStatement(const std::string& reason) {
+  impl->SchedulePauseOnNextStatement(reason);
 }
 
 InspectorAgentDelegate::InspectorAgentDelegate(AgentImpl* agent,

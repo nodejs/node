@@ -25,15 +25,15 @@ const assert = require('assert');
 
 process.nextTick(common.mustCall(function() {
   process.nextTick(common.mustCall(function() {
-    process.nextTick(common.mustCall(function() {}));
+    process.nextTick(common.mustCall());
   }));
 }));
 
 setTimeout(common.mustCall(function() {
-  process.nextTick(common.mustCall(function() {}));
+  process.nextTick(common.mustCall());
 }), 50);
 
-process.nextTick(common.mustCall(function() {}));
+process.nextTick(common.mustCall());
 
 const obj = {};
 

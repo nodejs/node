@@ -11,7 +11,6 @@
 #include "src/factory.h"
 #include "src/isolate.h"
 #include "src/list.h"
-#include "src/objects-inl.h"
 
 namespace v8 {
 
@@ -110,7 +109,7 @@ class RegisteredExtension {
   V(StackFrame, JSObject)                    \
   V(Proxy, JSProxy)                          \
   V(NativeWeakMap, JSWeakMap)                \
-  V(DebugInterface::Script, Script)
+  V(debug::Script, Script)
 
 class Utils {
  public:

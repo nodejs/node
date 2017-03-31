@@ -32,23 +32,6 @@ void Malloced::Delete(void* p) {
 }
 
 
-#ifdef DEBUG
-
-static void* invalid = static_cast<void*>(NULL);
-
-void* Embedded::operator new(size_t size) {
-  UNREACHABLE();
-  return invalid;
-}
-
-
-void Embedded::operator delete(void* p) {
-  UNREACHABLE();
-}
-
-#endif
-
-
 char* StrDup(const char* str) {
   int length = StrLength(str);
   char* result = NewArray<char>(length + 1);

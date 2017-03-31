@@ -5,7 +5,7 @@ const assert = require('assert');
 const cp = require('child_process');
 
 if (process.argv[2] === 'child') {
-  setTimeout(() => {}, common.platformTimeout(100));
+  setTimeout(common.noop, common.platformTimeout(100));
   return;
 }
 

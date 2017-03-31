@@ -95,6 +95,7 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   PRINTF_FORMAT(2, 3) void TypeError(const char* fmt, ...);
   PRINTF_FORMAT(2, 3) void RangeError(const char* fmt, ...);
   PRINTF_FORMAT(2, 3) void CompileError(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void LinkError(const char* fmt, ...);
   PRINTF_FORMAT(2, 3) void RuntimeError(const char* fmt, ...);
 
   template <typename T>
@@ -111,6 +112,7 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   }
 
   bool error() const { return !exception_.is_null(); }
+  bool wasm_error() { return wasm_error_; }
 
  private:
   void Format(i::Handle<i::JSFunction> constructor, const char* fmt, va_list);
@@ -118,6 +120,7 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   i::Isolate* isolate_;
   const char* context_;
   i::Handle<i::Object> exception_;
+  bool wasm_error_ = false;
 };
 }  // namespace wasm
 }  // namespace internal

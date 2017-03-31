@@ -4,10 +4,40 @@
 
 [
 [ALWAYS, {
+  # All tests in the bug directory are expected to fail.
+  'bugs/*': [FAIL],
+
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
   'debug/debug-step-turbofan': [PASS, FAIL],
+
+  # Issue 5587: The eval'ed code is piped through Ignition and fails when being
+  # live edited. This needs investigation.
+  'debug/debug-liveedit-double-call': [SKIP],
+
+  # Issue 3641: The new 'then' semantics suppress some exceptions.
+  # These tests may be changed or removed when 'chain' is deprecated.
+  'debug/es6/debug-promises/reject-with-throw-in-reject': [FAIL],
+  'debug/es6/debug-promises/reject-with-undefined-reject': [FAIL],
+  'debug/es6/debug-promises/reject-with-invalid-reject': [FAIL],
+
+  # Issue 5651: Context mismatch in ScopeIterator::Type() for eval default
+  # parameter value
+  'debug/es6/debug-scope-default-param-with-eval': [FAIL],
+
+  # Slow test
+  'debug/debug-scopes': [PASS, SLOW],
+
+  # Too slow in debug mode and on slow platforms.
+  'regress/regress-2318': [PASS, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
 }],  # ALWAYS
+
+##############################################################################
+['variant == stress', {
+  # TODO(jarin/mstarzinger): Functions with eval or debugger now get optimized
+  # with Turbofan, which has issues with the debugger issues.
+  'debug/debug-evaluate-locals': [FAIL],
+}],  # 'stress == True'
 
 ##############################################################################
 ['gc_stress == True', {
@@ -21,6 +51,17 @@
   'debug/debug-stepout-scope-part6': [SKIP],
   'debug/debug-stepout-scope-part7': [SKIP],
   'debug/debug-stepout-scope-part8': [SKIP],
+
+  # BUG(chromium:664490)
+  'debug/debug-scopes': [SKIP],
+
+  # Async function tests taking too long
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5411
+  'debug/es8/async-debug-caught-exception-cases0': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases1': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases2': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases3': [SKIP],
+  'debug/es8/async-function-debug-scopes': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -30,15 +71,40 @@
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
   'debug/debug-evaluate-closure': [FAIL],
+  'debug/debug-evaluate-locals': [FAIL],
+  'debug/debug-liveedit-double-call': [FAIL],
+  'debug/debug-set-variable-value': [FAIL],
+  'debug/es6/debug-evaluate-blockscopes': [FAIL],
 }],  # variant == turbofan_opt
 
 ##############################################################################
-['gc_stress == True', {
-  # Async function tests taking too long
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5411
-  'debug/harmony/async-debug-caught-exception-cases0': [SKIP],
-  'debug/harmony/async-debug-caught-exception-cases1': [SKIP],
-  'debug/harmony/async-debug-caught-exception-cases2': [SKIP],
-  'debug/harmony/async-debug-caught-exception-cases3': [SKIP],
-}],  # 'gc_stress == True'
+['variant == ignition or variant == ignition_staging', {
+  # TODO(5587): fails to liveedit evaled code.
+  'debug/debug-liveedit-double-call': [FAIL],
+}],  # variant == ignition
+
+##############################################################################
+['variant == ignition_turbofan', {
+  # TODO(5587): fails to liveedit evaled code.
+  'debug/debug-liveedit-double-call': [FAIL],
+}],  # variant == ignition_turbofan
+
+##############################################################################
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
+
+##############################################################################
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
+
+['arch == s390 or arch == s390x', {
+
+  # Stack manipulations in LiveEdit is not implemented for this arch.
+  'debug/debug-liveedit-check-stack': [SKIP],
+  'debug/debug-liveedit-double-call': [SKIP],
+  'debug/debug-liveedit-stack-padding': [SKIP],
+  'debug/debug-liveedit-restart-frame': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
 ]

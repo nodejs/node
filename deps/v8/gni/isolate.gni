@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 import("//build/config/sanitizers/sanitizers.gni")
-import("//build_overrides/v8.gni")
 import("//third_party/icu/config.gni")
 import("v8.gni")
 
@@ -97,7 +96,7 @@ template("v8_isolate_run") {
       } else {
         icu_use_data_file_flag = "0"
       }
-      if (v8_enable_inspector_override) {
+      if (v8_enable_inspector) {
         enable_inspector = "1"
       } else {
         enable_inspector = "0"
@@ -181,7 +180,7 @@ template("v8_isolate_run") {
       if (is_win) {
         args += [
           "--config-variable",
-          "msvs_version=2013",
+          "msvs_version=2015",
         ]
       } else {
         args += [

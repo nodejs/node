@@ -119,7 +119,28 @@ namespace compiler {
   V(ArmLdr)                        \
   V(ArmStr)                        \
   V(ArmPush)                       \
-  V(ArmPoke)
+  V(ArmPoke)                       \
+  V(ArmFloat32x4Splat)             \
+  V(ArmFloat32x4ExtractLane)       \
+  V(ArmFloat32x4ReplaceLane)       \
+  V(ArmFloat32x4FromInt32x4)       \
+  V(ArmFloat32x4FromUint32x4)      \
+  V(ArmFloat32x4Abs)               \
+  V(ArmFloat32x4Neg)               \
+  V(ArmFloat32x4Add)               \
+  V(ArmFloat32x4Sub)               \
+  V(ArmFloat32x4Eq)                \
+  V(ArmFloat32x4Ne)                \
+  V(ArmInt32x4Splat)               \
+  V(ArmInt32x4ExtractLane)         \
+  V(ArmInt32x4ReplaceLane)         \
+  V(ArmInt32x4FromFloat32x4)       \
+  V(ArmUint32x4FromFloat32x4)      \
+  V(ArmInt32x4Add)                 \
+  V(ArmInt32x4Sub)                 \
+  V(ArmInt32x4Eq)                  \
+  V(ArmInt32x4Ne)                  \
+  V(ArmSimd32x4Select)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

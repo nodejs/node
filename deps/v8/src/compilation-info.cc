@@ -7,6 +7,7 @@
 #include "src/api.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/debug/debug.h"
 #include "src/isolate.h"
 #include "src/parsing/parse-info.h"
 #include "src/source-position.h"
@@ -68,8 +69,10 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
 
-  if (FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
-      FLAG_turbo_profiling || isolate_->is_profiling()) {
+  // Collect source positions for optimized code when profiling or if debugger
+  // is active, to be able to get more precise source positions at the price of
+  // more memory consumption.
+  if (isolate_->NeedsSourcePositionsForProfiling()) {
     MarkAsSourcePositionsEnabled();
   }
 }
@@ -121,7 +124,7 @@ bool CompilationInfo::is_this_defined() const { return !IsStub(); }
 // profiler, so they trigger their own optimization when they're called
 // for the SharedFunctionInfo::kCallsUntilPrimitiveOptimization-th time.
 bool CompilationInfo::ShouldSelfOptimize() {
-  return FLAG_crankshaft &&
+  return FLAG_opt && FLAG_crankshaft &&
          !(literal()->flags() & AstProperties::kDontSelfOptimize) &&
          !literal()->dont_optimize() &&
          literal()->scope()->AllowsLazyCompilation() &&
@@ -163,11 +166,13 @@ StackFrame::Type CompilationInfo::GetOutputStackFrameType() const {
 #undef CASE_KIND
       return StackFrame::STUB;
     case Code::WASM_FUNCTION:
-      return StackFrame::WASM;
+      return StackFrame::WASM_COMPILED;
     case Code::JS_TO_WASM_FUNCTION:
       return StackFrame::JS_TO_WASM;
     case Code::WASM_TO_JS_FUNCTION:
       return StackFrame::WASM_TO_JS;
+    case Code::WASM_INTERPRETER_ENTRY:
+      return StackFrame::WASM_INTERPRETER_ENTRY;
     default:
       UNIMPLEMENTED();
       return StackFrame::NONE;

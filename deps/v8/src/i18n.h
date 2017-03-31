@@ -7,6 +7,7 @@
 #define V8_I18N_H_
 
 #include "src/handles.h"
+#include "src/objects.h"
 #include "unicode/uversion.h"
 
 namespace U_ICU_NAMESPACE {
@@ -18,22 +19,6 @@ class SimpleDateFormat;
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class ObjectTemplateInfo;
-
-class I18N {
- public:
-  // Creates an ObjectTemplate with one internal field.
-  static Handle<ObjectTemplateInfo> GetTemplate(Isolate* isolate);
-
-  // Creates an ObjectTemplate with two internal fields.
-  static Handle<ObjectTemplateInfo> GetTemplate2(Isolate* isolate);
-
- private:
-  I18N();
-};
-
 
 class DateFormat {
  public:
@@ -52,6 +37,10 @@ class DateFormat {
   // Release memory we allocated for the DateFormat once the JS object that
   // holds the pointer gets garbage collected.
   static void DeleteDateFormat(const v8::WeakCallbackInfo<void>& data);
+
+  // Layout description.
+  static const int kSimpleDateFormat = JSObject::kHeaderSize;
+  static const int kSize = kSimpleDateFormat + kPointerSize;
 
  private:
   DateFormat();
@@ -76,6 +65,10 @@ class NumberFormat {
   // holds the pointer gets garbage collected.
   static void DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data);
 
+  // Layout description.
+  static const int kDecimalFormat = JSObject::kHeaderSize;
+  static const int kSize = kDecimalFormat + kPointerSize;
+
  private:
   NumberFormat();
 };
@@ -98,11 +91,15 @@ class Collator {
   // the pointer gets garbage collected.
   static void DeleteCollator(const v8::WeakCallbackInfo<void>& data);
 
+  // Layout description.
+  static const int kCollator = JSObject::kHeaderSize;
+  static const int kSize = kCollator + kPointerSize;
+
  private:
   Collator();
 };
 
-class BreakIterator {
+class V8BreakIterator {
  public:
   // Create a BreakIterator for the specificied locale and options. Returns the
   // resolved settings for the locale / options.
@@ -120,8 +117,13 @@ class BreakIterator {
   // holds the pointer gets garbage collected.
   static void DeleteBreakIterator(const v8::WeakCallbackInfo<void>& data);
 
+  // Layout description.
+  static const int kBreakIterator = JSObject::kHeaderSize;
+  static const int kUnicodeString = kBreakIterator + kPointerSize;
+  static const int kSize = kUnicodeString + kPointerSize;
+
  private:
-  BreakIterator();
+  V8BreakIterator();
 };
 
 }  // namespace internal

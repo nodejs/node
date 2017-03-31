@@ -60,7 +60,6 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                         int>::Visit);
 
   table_.Register(kVisitByteArray, &VisitByteArray);
-  table_.Register(kVisitBytecodeArray, &VisitBytecodeArray);
 
   table_.Register(
       kVisitSharedFunctionInfo,
@@ -103,18 +102,10 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.template RegisterSpecializations<StructVisitor, kVisitStruct,
                                           kVisitStructGeneric>();
-}
 
-template <typename StaticVisitor>
-int StaticNewSpaceVisitor<StaticVisitor>::VisitBytecodeArray(
-    Map* map, HeapObject* object) {
-  VisitPointers(
-      map->GetHeap(), object,
-      HeapObject::RawField(object, BytecodeArray::kConstantPoolOffset),
-      HeapObject::RawField(object, BytecodeArray::kFrameSizeOffset));
-  return reinterpret_cast<BytecodeArray*>(object)->BytecodeArraySize();
+  table_.Register(kVisitBytecodeArray, &UnreachableVisitor);
+  table_.Register(kVisitSharedFunctionInfo, &UnreachableVisitor);
 }
-
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::Initialize() {
@@ -157,10 +148,7 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
 
-  table_.Register(
-      kVisitBytecodeArray,
-      &FixedBodyVisitor<StaticVisitor, BytecodeArray::MarkingBodyDescriptor,
-                        void>::Visit);
+  table_.Register(kVisitBytecodeArray, &VisitBytecodeArray);
 
   table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
 
@@ -286,7 +274,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(Heap* heap,
   StaticVisitor::MarkObject(heap, target);
 }
 
-
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitCodeAgeSequence(
     Heap* heap, RelocInfo* rinfo) {
@@ -298,6 +285,13 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeAgeSequence(
   StaticVisitor::MarkObject(heap, target);
 }
 
+template <typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitBytecodeArray(
+    Map* map, HeapObject* object) {
+  FixedBodyVisitor<StaticVisitor, BytecodeArray::MarkingBodyDescriptor,
+                   void>::Visit(map, object);
+  BytecodeArray::cast(object)->MakeOlder();
+}
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(
@@ -421,7 +415,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCode(Map* map,
   Heap* heap = map->GetHeap();
   Code* code = Code::cast(object);
   if (FLAG_age_code && !heap->isolate()->serializer_enabled()) {
-    code->MakeOlder(heap->mark_compact_collector()->marking_parity());
+    code->MakeOlder();
   }
   CodeBodyVisitor::Visit(map, object);
 }
@@ -434,12 +428,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
   SharedFunctionInfo* shared = SharedFunctionInfo::cast(object);
   if (shared->ic_age() != heap->global_ic_age()) {
     shared->ResetForNewContext(heap->global_ic_age());
-  }
-  if (FLAG_flush_optimized_code_cache) {
-    if (!shared->OptimizedCodeMapIsCleared()) {
-      // Always flush the optimized code map if requested by flag.
-      shared->ClearOptimizedCodeMap();
-    }
   }
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->is_code_flushing_enabled()) {
@@ -600,8 +588,8 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     return false;
   }
 
-  // The function must not be a builtin.
-  if (shared_info->IsBuiltin()) {
+  // The function must be user code.
+  if (!shared_info->IsUserJavaScript()) {
     return false;
   }
 

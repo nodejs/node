@@ -4,9 +4,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "{{config.protocol.package}}/{{domain.domain}}.h"
+#include {{format_include(config.protocol.package, domain.domain)}}
 
-#include "{{config.protocol.package}}/Protocol.h"
+#include {{format_include(config.protocol.package, "Protocol")}}
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
@@ -26,7 +26,7 @@ namespace {{type.id}}Enum {
 const char* {{ literal | dash_to_camelcase}} = "{{literal}}";
       {% endfor %}
 } // namespace {{type.id}}Enum
-      {% if type.exported %}
+      {% if protocol.is_exported(domain.domain, type.id) %}
 
 namespace API {
 namespace {{type.id}}Enum {
@@ -47,7 +47,7 @@ const char* {{type.id}}::{{property.name | to_title_case}}Enum::{{literal | dash
     {% endfor %}
     {% if not (type.type == "object") or not ("properties" in type) %}{% continue %}{% endif %}
 
-std::unique_ptr<{{type.id}}> {{type.id}}::parse(protocol::Value* value, ErrorSupport* errors)
+std::unique_ptr<{{type.id}}> {{type.id}}::fromValue(protocol::Value* value, ErrorSupport* errors)
 {
     if (!value || value->type() != protocol::Value::TypeObject) {
         errors->addError("object expected");
@@ -62,11 +62,11 @@ std::unique_ptr<{{type.id}}> {{type.id}}::parse(protocol::Value* value, ErrorSup
       {% if property.optional %}
     if ({{property.name}}Value) {
         errors->setName("{{property.name}}");
-        result->m_{{property.name}} = ValueConversions<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
+        result->m_{{property.name}} = ValueConversions<{{protocol.resolve_type(property).raw_type}}>::fromValue({{property.name}}Value, errors);
     }
       {% else %}
     errors->setName("{{property.name}}");
-    result->m_{{property.name}} = ValueConversions<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
+    result->m_{{property.name}} = ValueConversions<{{protocol.resolve_type(property).raw_type}}>::fromValue({{property.name}}Value, errors);
       {% endif %}
     {% endfor %}
     errors->pop();
@@ -75,15 +75,17 @@ std::unique_ptr<{{type.id}}> {{type.id}}::parse(protocol::Value* value, ErrorSup
     return result;
 }
 
-std::unique_ptr<protocol::DictionaryValue> {{type.id}}::serialize() const
+std::unique_ptr<protocol::DictionaryValue> {{type.id}}::toValue() const
 {
     std::unique_ptr<protocol::DictionaryValue> result = DictionaryValue::create();
     {% for property in type.properties %}
+      {% set property_type = protocol.resolve_type(property) %}
+      {% set property_field = "m_" + property.name %}
       {% if property.optional %}
-    if (m_{{property.name}}.isJust())
-        result->setValue("{{property.name}}", ValueConversions<{{resolve_type(property).raw_type}}>::serialize(m_{{property.name}}.fromJust()));
+    if ({{property_field}}.isJust())
+        result->setValue("{{property.name}}", ValueConversions<{{property_type.raw_type}}>::toValue({{property_field}}.fromJust()));
       {% else %}
-    result->setValue("{{property.name}}", ValueConversions<{{resolve_type(property).raw_type}}>::serialize({{resolve_type(property).to_raw_type % ("m_" + property.name)}}));
+    result->setValue("{{property.name}}", ValueConversions<{{property_type.raw_type}}>::toValue({{property_type.to_raw_type % property_field}}));
       {% endif %}
     {% endfor %}
     return result;
@@ -92,13 +94,13 @@ std::unique_ptr<protocol::DictionaryValue> {{type.id}}::serialize() const
 std::unique_ptr<{{type.id}}> {{type.id}}::clone() const
 {
     ErrorSupport errors;
-    return parse(serialize().get(), &errors);
+    return fromValue(toValue().get(), &errors);
 }
-    {% if type.exported %}
+    {% if protocol.is_exported(domain.domain, type.id) %}
 
 {{config.exported.string_out}} {{type.id}}::toJSONString() const
 {
-    String json = serialize()->toJSONString();
+    String json = toValue()->serialize();
     return {{config.exported.to_string_out % "json"}};
 }
 
@@ -106,10 +108,10 @@ std::unique_ptr<{{type.id}}> {{type.id}}::clone() const
 std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromJSONString(const {{config.exported.string_in}}& json)
 {
     ErrorSupport errors;
-    std::unique_ptr<Value> value = parseJSON(json);
+    std::unique_ptr<Value> value = StringUtil::parseJSON(json);
     if (!value)
         return nullptr;
-    return protocol::{{domain.domain}}::{{type.id}}::parse(value.get(), &errors);
+    return protocol::{{domain.domain}}::{{type.id}}::fromValue(value.get(), &errors);
 }
     {% endif %}
   {% endfor %}
@@ -127,7 +129,7 @@ const char* {{ literal | to_title_case}} = "{{literal}}";
         {% endfor %}
 } // namespace {{param.name | to_title_case}}Enum
 } // namespace {{command.name | to_title_case }}
-        {% if param.exported %}
+        {% if protocol.is_exported(domain.domain, command.name + "." + param.name) %}
 
 namespace API {
 namespace {{command.name | to_title_case}} {
@@ -145,31 +147,37 @@ const char* {{ literal | to_title_case}} = "{{literal}}";
 
 // ------------- Frontend notifications.
   {% for event in domain.events %}
-    {% if "handlers" in event and not ("renderer" in event["handlers"]) %}{% continue %}{% endif %}
+    {% if not protocol.generate_event(domain.domain, event.name) %}{% continue %}{% endif %}
 
-void Frontend::{{event.name}}(
+void Frontend::{{event.name | to_method_case}}(
     {%- for parameter in event.parameters %}
       {% if "optional" in parameter -%}
-        Maybe<{{resolve_type(parameter).raw_type}}>
+        Maybe<{{protocol.resolve_type(parameter).raw_type}}>
       {%- else -%}
-        {{resolve_type(parameter).pass_type}}
+        {{protocol.resolve_type(parameter).pass_type}}
       {%- endif %} {{parameter.name}}{%- if not loop.last -%}, {% endif -%}
     {% endfor -%})
 {
-    std::unique_ptr<protocol::DictionaryValue> jsonMessage = DictionaryValue::create();
-    jsonMessage->setString("method", "{{domain.domain}}.{{event.name}}");
-    std::unique_ptr<protocol::DictionaryValue> paramsObject = DictionaryValue::create();
-    {% for parameter in event.parameters %}
-      {% if "optional" in parameter %}
+    if (!m_frontendChannel)
+        return;
+      {% if event.parameters %}
+    std::unique_ptr<{{event.name | to_title_case}}Notification> messageData = {{event.name | to_title_case}}Notification::{{"create" | to_method_case}}()
+        {% for parameter in event.parameters %}
+          {% if not "optional" in parameter %}
+        .{{"set" | to_method_case}}{{parameter.name | to_title_case}}({{protocol.resolve_type(parameter).to_pass_type % parameter.name}})
+          {% endif %}
+        {% endfor %}
+        .{{ "build" | to_method_case }}();
+        {% for parameter in event.parameters %}
+          {% if "optional" in parameter %}
     if ({{parameter.name}}.isJust())
-        paramsObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{parameter.name}}.fromJust()));
+        messageData->{{"set" | to_method_case}}{{parameter.name | to_title_case}}(std::move({{parameter.name}}).takeJust());
+          {% endif %}
+        {% endfor %}
+    m_frontendChannel->sendProtocolNotification(InternalResponse::createNotification("{{domain.domain}}.{{event.name}}", std::move(messageData)));
       {% else %}
-    paramsObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{resolve_type(parameter).to_raw_type % parameter.name}}));
+    m_frontendChannel->sendProtocolNotification(InternalResponse::createNotification("{{domain.domain}}.{{event.name}}"));
       {% endif %}
-    {% endfor %}
-    jsonMessage->setObject("params", std::move(paramsObject));
-    if (m_frontendChannel)
-        m_frontendChannel->sendProtocolNotification(jsonMessage->toJSONString());
 }
   {% endfor %}
 
@@ -178,16 +186,22 @@ void Frontend::flush()
     m_frontendChannel->flushProtocolNotifications();
 }
 
+void Frontend::sendRawNotification(const String& notification)
+{
+    m_frontendChannel->sendProtocolNotification(InternalRawNotification::create(notification));
+}
+
 // --------------------- Dispatcher.
 
 class DispatcherImpl : public protocol::DispatcherBase {
 public:
-    DispatcherImpl(FrontendChannel* frontendChannel, Backend* backend)
+    DispatcherImpl(FrontendChannel* frontendChannel, Backend* backend, bool fallThroughForNotFound)
         : DispatcherBase(frontendChannel)
-        , m_backend(backend) {
+        , m_backend(backend)
+        , m_fallThroughForNotFound(fallThroughForNotFound) {
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
-    {% if "handlers" in command and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
+    {% if not protocol.generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
         m_dispatchMap["{{domain.domain}}.{{command.name}}"] = &DispatcherImpl::{{command.name}};
   {% endfor %}
     }
@@ -201,17 +215,20 @@ protected:
 
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
-    {% if "handlers" in command and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
+    {% if not protocol.generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
     DispatchResponse::Status {{command.name}}(int callId, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport*);
   {% endfor %}
 
     Backend* m_backend;
+    bool m_fallThroughForNotFound;
 };
 
 DispatchResponse::Status DispatcherImpl::dispatch(int callId, const String& method, std::unique_ptr<protocol::DictionaryValue> messageObject)
 {
     protocol::HashMap<String, CallHandler>::iterator it = m_dispatchMap.find(method);
     if (it == m_dispatchMap.end()) {
+        if (m_fallThroughForNotFound)
+            return DispatchResponse::kFallThrough;
         reportProtocolError(callId, DispatchResponse::kMethodNotFound, "'" + method + "' wasn't found", nullptr);
         return DispatchResponse::kError;
     }
@@ -221,21 +238,22 @@ DispatchResponse::Status DispatcherImpl::dispatch(int callId, const String& meth
 }
 
   {% for command in domain.commands %}
+    {% set command_name_title = command.name | to_title_case %}
     {% if "redirect" in command %}{% continue %}{% endif %}
-    {% if "handlers" in command and not ("renderer" in command["handlers"]) %}{% continue %}{% endif %}
-    {% if "async" in command %}
+    {% if not protocol.generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
+    {% if protocol.is_async_command(domain.domain, command.name) %}
 
-class {{command.name | to_title_case}}CallbackImpl : public Backend::{{command.name | to_title_case}}Callback, public DispatcherBase::Callback {
+class {{command_name_title}}CallbackImpl : public Backend::{{command_name_title}}Callback, public DispatcherBase::Callback {
 public:
-    {{command.name | to_title_case}}CallbackImpl(std::unique_ptr<DispatcherBase::WeakPtr> backendImpl, int callId)
-        : DispatcherBase::Callback(std::move(backendImpl), callId) { }
+    {{command_name_title}}CallbackImpl(std::unique_ptr<DispatcherBase::WeakPtr> backendImpl, int callId, int callbackId)
+        : DispatcherBase::Callback(std::move(backendImpl), callId, callbackId) { }
 
     void sendSuccess(
       {%- for parameter in command.returns -%}
         {%- if "optional" in parameter -%}
-        Maybe<{{resolve_type(parameter).raw_type}}> {{parameter.name}}
+        Maybe<{{protocol.resolve_type(parameter).raw_type}}> {{parameter.name}}
         {%- else -%}
-        {{resolve_type(parameter).pass_type}} {{parameter.name}}
+        {{protocol.resolve_type(parameter).pass_type}} {{parameter.name}}
         {%- endif -%}
         {%- if not loop.last -%}, {% endif -%}
       {%- endfor -%}) override
@@ -244,12 +262,17 @@ public:
           {% for parameter in command.returns %}
             {% if "optional" in parameter %}
         if ({{parameter.name}}.isJust())
-            resultObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{parameter.name}}.fromJust()));
+            resultObject->setValue("{{parameter.name}}", ValueConversions<{{protocol.resolve_type(parameter).raw_type}}>::toValue({{parameter.name}}.fromJust()));
            {% else %}
-        resultObject->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{resolve_type(parameter).to_raw_type % parameter.name}}));
+        resultObject->setValue("{{parameter.name}}", ValueConversions<{{protocol.resolve_type(parameter).raw_type}}>::toValue({{protocol.resolve_type(parameter).to_raw_type % parameter.name}}));
             {% endif %}
           {% endfor %}
         sendIfActive(std::move(resultObject), DispatchResponse::OK());
+    }
+
+    void fallThrough() override
+    {
+        fallThroughIfActive();
     }
 
     void sendFailure(const DispatchResponse& response) override
@@ -266,17 +289,18 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
     // Prepare input parameters.
     protocol::DictionaryValue* object = DictionaryValue::cast(requestMessageObject->get("params"));
     errors->push();
-      {% for property in command.parameters %}
-    protocol::Value* {{property.name}}Value = object ? object->get("{{property.name}}") : nullptr;
-        {% if property.optional %}
-    Maybe<{{resolve_type(property).raw_type}}> in_{{property.name}};
-    if ({{property.name}}Value) {
-        errors->setName("{{property.name}}");
-        in_{{property.name}} = ValueConversions<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
+      {% for parameter in command.parameters %}
+        {% set parameter_type = protocol.resolve_type(parameter) %}
+    protocol::Value* {{parameter.name}}Value = object ? object->get("{{parameter.name}}") : nullptr;
+        {% if parameter.optional %}
+    Maybe<{{parameter_type.raw_type}}> in_{{parameter.name}};
+    if ({{parameter.name}}Value) {
+        errors->setName("{{parameter.name}}");
+        in_{{parameter.name}} = ValueConversions<{{parameter_type.raw_type}}>::fromValue({{parameter.name}}Value, errors);
     }
         {% else %}
-    errors->setName("{{property.name}}");
-    {{resolve_type(property).type}} in_{{property.name}} = ValueConversions<{{resolve_type(property).raw_type}}>::parse({{property.name}}Value, errors);
+    errors->setName("{{parameter.name}}");
+    {{parameter_type.type}} in_{{parameter.name}} = ValueConversions<{{parameter_type.raw_type}}>::fromValue({{parameter.name}}Value, errors);
         {% endif %}
       {% endfor %}
     errors->pop();
@@ -285,32 +309,32 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
         return DispatchResponse::kError;
     }
     {% endif %}
-    {% if "returns" in command and not ("async" in command) %}
+    {% if "returns" in command and not protocol.is_async_command(domain.domain, command.name) %}
     // Declare output parameters.
-      {% for property in command.returns %}
-        {% if "optional" in property %}
-    Maybe<{{resolve_type(property).raw_type}}> out_{{property.name}};
+      {% for parameter in command.returns %}
+        {% if "optional" in parameter %}
+    Maybe<{{protocol.resolve_type(parameter).raw_type}}> out_{{parameter.name}};
         {% else %}
-    {{resolve_type(property).type}} out_{{property.name}};
+    {{protocol.resolve_type(parameter).type}} out_{{parameter.name}};
         {% endif %}
       {% endfor %}
     {% endif %}
 
-    {% if not("async" in command) %}
+    {% if not protocol.is_async_command(domain.domain, command.name) %}
     std::unique_ptr<DispatcherBase::WeakPtr> weak = weakPtr();
-    DispatchResponse response = m_backend->{{command.name}}(
-      {%- for property in command.parameters -%}
+    DispatchResponse response = m_backend->{{command.name | to_method_case}}(
+      {%- for parameter in command.parameters -%}
         {%- if not loop.first -%}, {% endif -%}
-        {%- if "optional" in property -%}
-        std::move(in_{{property.name}})
+        {%- if "optional" in parameter -%}
+        std::move(in_{{parameter.name}})
         {%- else -%}
-        {{resolve_type(property).to_pass_type % ("in_" + property.name)}}
+        {{protocol.resolve_type(parameter).to_pass_type % ("in_" + parameter.name)}}
         {%- endif -%}
       {%- endfor %}
       {%- if "returns" in command %}
-        {%- for property in command.returns -%}
+        {%- for parameter in command.returns -%}
           {%- if not loop.first or command.parameters -%}, {% endif -%}
-          &out_{{property.name}}
+          &out_{{parameter.name}}
         {%- endfor %}
       {% endif %});
       {% if "returns" in command %}
@@ -321,9 +345,9 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
         {% for parameter in command.returns %}
           {% if "optional" in parameter %}
         if (out_{{parameter.name}}.isJust())
-            result->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize(out_{{parameter.name}}.fromJust()));
+            result->setValue("{{parameter.name}}", ValueConversions<{{protocol.resolve_type(parameter).raw_type}}>::toValue(out_{{parameter.name}}.fromJust()));
           {% else %}
-        result->setValue("{{parameter.name}}", ValueConversions<{{resolve_type(parameter).raw_type}}>::serialize({{resolve_type(parameter).to_raw_type % ("out_" + parameter.name)}}));
+        result->setValue("{{parameter.name}}", ValueConversions<{{protocol.resolve_type(parameter).raw_type}}>::toValue({{protocol.resolve_type(parameter).to_raw_type % ("out_" + parameter.name)}}));
           {% endif %}
         {% endfor %}
     }
@@ -335,19 +359,20 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
       {% endif %}
     return response.status();
     {% else %}
-    std::unique_ptr<{{command.name | to_title_case}}CallbackImpl> callback(new {{command.name | to_title_case}}CallbackImpl(weakPtr(), callId));
-    m_backend->{{command.name}}(
+    std::unique_ptr<DispatcherBase::WeakPtr> weak = weakPtr();
+    std::unique_ptr<{{command_name_title}}CallbackImpl> callback(new {{command.name | to_title_case}}CallbackImpl(weakPtr(), callId, nextCallbackId()));
+    m_backend->{{command.name | to_method_case}}(
       {%- for property in command.parameters -%}
         {%- if not loop.first -%}, {% endif -%}
         {%- if "optional" in property -%}
         std::move(in_{{property.name}})
         {%- else -%}
-        {{resolve_type(property).to_pass_type % ("in_" + property.name)}}
+        {{protocol.resolve_type(property).to_pass_type % ("in_" + property.name)}}
         {%- endif -%}
       {%- endfor -%}
         {%- if command.parameters -%}, {% endif -%}
         std::move(callback));
-    return DispatchResponse::kAsync;
+    return (weak->get() && weak->get()->lastCallbackFallThrough()) ? DispatchResponse::kFallThrough : DispatchResponse::kAsync;
     {% endif %}
 }
   {% endfor %}
@@ -355,7 +380,7 @@ DispatchResponse::Status DispatcherImpl::{{command.name}}(int callId, std::uniqu
 // static
 void Dispatcher::wire(UberDispatcher* dispatcher, Backend* backend)
 {
-    dispatcher->registerBackend("{{domain.domain}}", wrapUnique(new DispatcherImpl(dispatcher->channel(), backend)));
+    dispatcher->registerBackend("{{domain.domain}}", std::unique_ptr<protocol::DispatcherBase>(new DispatcherImpl(dispatcher->channel(), backend, dispatcher->fallThroughForNotFound())));
 }
 
 } // {{domain.domain}}

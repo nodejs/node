@@ -26,6 +26,12 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to a double field identified by an external reference.
   static FieldAccess ForExternalDoubleValue();
 
+  // Provides access to a tagged field identified by an external reference.
+  static FieldAccess ForExternalTaggedValue();
+
+  // Provides access to an uint8 field identified by an external reference.
+  static FieldAccess ForExternalUint8Value();
+
   // ===========================================================================
   // Access to heap object fields and elements (based on tagged pointer).
 
@@ -43,6 +49,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to JSObject inobject property fields.
   static FieldAccess ForJSObjectInObjectProperty(Handle<Map> map, int index);
+  static FieldAccess ForJSObjectOffset(
+      int offset, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 
   // Provides access to JSFunction::prototype_or_initial_map() field.
   static FieldAccess ForJSFunctionPrototypeOrInitialMap();
@@ -71,8 +79,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSGeneratorObject::input_or_debug_pos() field.
   static FieldAccess ForJSGeneratorObjectInputOrDebugPos();
 
-  // Provides access to JSGeneratorObject::operand_stack() field.
-  static FieldAccess ForJSGeneratorObjectOperandStack();
+  // Provides access to JSGeneratorObject::register_file() field.
+  static FieldAccess ForJSGeneratorObjectRegisterFile();
 
   // Provides access to JSGeneratorObject::resume_mode() field.
   static FieldAccess ForJSGeneratorObjectResumeMode();
@@ -218,7 +226,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForArgumentsCallee();
 
   // Provides access to FixedArray slots.
-  static FieldAccess ForFixedArraySlot(size_t index);
+  static FieldAccess ForFixedArraySlot(
+      size_t index, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 
   // Provides access to Context slots.
   static FieldAccess ForContextSlot(size_t index);
@@ -237,6 +246,15 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
                                             bool is_external);
+
+  // Provides access to HashTable fields.
+  static FieldAccess ForHashTableBaseNumberOfElements();
+  static FieldAccess ForHashTableBaseNumberOfDeletedElement();
+  static FieldAccess ForHashTableBaseCapacity();
+
+  // Provides access to Dictionary fields.
+  static FieldAccess ForDictionaryMaxNumberKey();
+  static FieldAccess ForDictionaryNextEnumerationIndex();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);

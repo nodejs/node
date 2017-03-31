@@ -40,16 +40,16 @@ TEST(VectorStructure) {
 
   // Empty vectors are the empty fixed array.
   StaticFeedbackVectorSpec empty;
-  Handle<TypeFeedbackVector> vector = NewTypeFeedbackVector(isolate, &empty);
+  Handle<FeedbackVector> vector = NewFeedbackVector(isolate, &empty);
   CHECK(Handle<FixedArray>::cast(vector).is_identical_to(
-      factory->empty_type_feedback_vector()));
+      factory->empty_feedback_vector()));
   // Which can nonetheless be queried.
   CHECK(vector->is_empty());
 
   {
     FeedbackVectorSpec one_slot(&zone);
     one_slot.AddGeneralSlot();
-    vector = NewTypeFeedbackVector(isolate, &one_slot);
+    vector = NewFeedbackVector(isolate, &one_slot);
     FeedbackVectorHelper helper(vector);
     CHECK_EQ(1, helper.slot_count());
   }
@@ -57,7 +57,7 @@ TEST(VectorStructure) {
   {
     FeedbackVectorSpec one_icslot(&zone);
     one_icslot.AddCallICSlot();
-    vector = NewTypeFeedbackVector(isolate, &one_icslot);
+    vector = NewFeedbackVector(isolate, &one_icslot);
     FeedbackVectorHelper helper(vector);
     CHECK_EQ(1, helper.slot_count());
   }
@@ -70,30 +70,44 @@ TEST(VectorStructure) {
     for (int i = 0; i < 5; i++) {
       spec.AddCallICSlot();
     }
-    vector = NewTypeFeedbackVector(isolate, &spec);
+    vector = NewFeedbackVector(isolate, &spec);
     FeedbackVectorHelper helper(vector);
     CHECK_EQ(8, helper.slot_count());
 
     int index = vector->GetIndex(helper.slot(0));
 
-    CHECK_EQ(TypeFeedbackVector::kReservedIndexCount, index);
+    CHECK_EQ(FeedbackVector::kReservedIndexCount, index);
     CHECK_EQ(helper.slot(0), vector->ToSlot(index));
 
     index = vector->GetIndex(helper.slot(3));
-    CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + 3, index);
+    CHECK_EQ(FeedbackVector::kReservedIndexCount + 3, index);
     CHECK_EQ(helper.slot(3), vector->ToSlot(index));
 
     index = vector->GetIndex(helper.slot(7));
-    CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + 3 +
-                 4 * TypeFeedbackMetadata::GetSlotSize(
-                         FeedbackVectorSlotKind::CALL_IC),
-             index);
+    CHECK_EQ(
+        FeedbackVector::kReservedIndexCount + 3 +
+            4 * FeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind::CALL_IC),
+        index);
     CHECK_EQ(helper.slot(7), vector->ToSlot(index));
 
-    CHECK_EQ(TypeFeedbackVector::kReservedIndexCount + 3 +
-                 5 * TypeFeedbackMetadata::GetSlotSize(
-                         FeedbackVectorSlotKind::CALL_IC),
-             vector->length());
+    CHECK_EQ(
+        FeedbackVector::kReservedIndexCount + 3 +
+            5 * FeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind::CALL_IC),
+        vector->length());
+  }
+
+  {
+    FeedbackVectorSpec spec(&zone);
+    spec.AddGeneralSlot();
+    spec.AddCreateClosureSlot(5);
+    spec.AddGeneralSlot();
+    vector = NewFeedbackVector(isolate, &spec);
+    FeedbackVectorHelper helper(vector);
+    CHECK_EQ(1, FeedbackMetadata::GetSlotSize(
+                    FeedbackVectorSlotKind::CREATE_CLOSURE));
+    FeedbackVectorSlot slot = helper.slot(1);
+    FixedArray* array = FixedArray::cast(vector->Get(slot));
+    CHECK_EQ(array, *factory->empty_literals_array());
   }
 }
 
@@ -124,7 +138,7 @@ TEST(VectorICMetadata) {
     }
   }
 
-  Handle<TypeFeedbackVector> vector = NewTypeFeedbackVector(isolate, &spec);
+  Handle<FeedbackVector> vector = NewFeedbackVector(isolate, &spec);
   FeedbackVectorHelper helper(vector);
   CHECK_EQ(40, helper.slot_count());
 
@@ -167,7 +181,7 @@ TEST(VectorSlotClearing) {
   for (int i = 0; i < 5; i++) {
     spec.AddGeneralSlot();
   }
-  Handle<TypeFeedbackVector> vector = NewTypeFeedbackVector(isolate, &spec);
+  Handle<FeedbackVector> vector = NewFeedbackVector(isolate, &spec);
   FeedbackVectorHelper helper(vector);
 
   // Fill with information
@@ -187,7 +201,7 @@ TEST(VectorSlotClearing) {
   // The feedback vector slots are cleared. AllocationSites are still granted
   // an exemption from clearing, as are smis.
   CHECK_EQ(Smi::FromInt(1), vector->Get(helper.slot(0)));
-  CHECK_EQ(*TypeFeedbackVector::UninitializedSentinel(isolate),
+  CHECK_EQ(*FeedbackVector::UninitializedSentinel(isolate),
            vector->Get(helper.slot(1)));
   CHECK(vector->Get(helper.slot(2))->IsAllocationSite());
 }
@@ -205,8 +219,8 @@ TEST(VectorCallICStates) {
       "function f(a) { a(); } f(foo);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
-  Handle<TypeFeedbackVector> feedback_vector =
-      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorSlot slot(0);
   CallICNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
@@ -233,8 +247,8 @@ TEST(VectorCallFeedbackForArray) {
       "function f(a) { a(); } f(Array);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
-  Handle<TypeFeedbackVector> feedback_vector =
-      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorSlot slot(0);
   CallICNexus nexus(feedback_vector, slot);
 
@@ -260,8 +274,8 @@ TEST(VectorCallCounts) {
       "function f(a) { a(); } f(foo);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
-  Handle<TypeFeedbackVector> feedback_vector =
-      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorSlot slot(0);
   CallICNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
@@ -288,8 +302,8 @@ TEST(VectorConstructCounts) {
       "function Foo() {}"
       "function f(a) { new a(); } f(Foo);");
   Handle<JSFunction> f = GetFunction("f");
-  Handle<TypeFeedbackVector> feedback_vector =
-      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(f->feedback_vector(), isolate);
 
   FeedbackVectorSlot slot(0);
   CallICNexus nexus(feedback_vector, slot);
@@ -320,8 +334,8 @@ TEST(VectorLoadICStates) {
       "function f(a) { return a.foo; } f(o);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
-  Handle<TypeFeedbackVector> feedback_vector =
-      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorSlot slot(0);
   LoadICNexus nexus(feedback_vector, slot);
   CHECK_EQ(PREMONOMORPHIC, nexus.StateFromFeedback());
@@ -379,8 +393,8 @@ TEST(VectorLoadICSlotSharing) {
       "f();");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC slot.
-  Handle<TypeFeedbackVector> feedback_vector =
-      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorHelper helper(feedback_vector);
   CHECK_EQ(1, helper.slot_count());
   FeedbackVectorSlot slot(0);
@@ -403,8 +417,8 @@ TEST(VectorLoadICOnSmi) {
       "function f(a) { return a.foo; } f(o);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
-  Handle<TypeFeedbackVector> feedback_vector =
-      Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorSlot slot(0);
   LoadICNexus nexus(feedback_vector, slot);
   CHECK_EQ(PREMONOMORPHIC, nexus.StateFromFeedback());
@@ -468,7 +482,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     Handle<JSFunction> f = GetFunction("testvar");
 
     // There should be two LOAD_ICs, one for a and one for y at the end.
-    Handle<TypeFeedbackVector> feedback_vector =
+    Handle<FeedbackVector> feedback_vector =
         handle(f->feedback_vector(), isolate);
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(4, helper.slot_count());
@@ -488,7 +502,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     Handle<JSFunction> f = GetFunction("testprop");
 
     // There should be one LOAD_IC, for the load of a.
-    Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
+    Handle<FeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(2, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
@@ -508,7 +522,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
     // There should be 1 LOAD_GLOBAL_IC to load x (in both cases), 2 CALL_ICs
     // to call x and a LOAD_IC to load blue.
-    Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
+    Handle<FeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(5, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::CALL_IC);
@@ -530,7 +544,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
     // There should be 1 LOAD_GLOBAL_ICs for the load of a, and one
     // KEYED_LOAD_IC for the load of x[0] in the return statement.
-    Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
+    Handle<FeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(3, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
@@ -550,7 +564,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 
     // There should be 1 LOAD_GLOBAL_IC for load of a and 2 LOAD_ICs, for load
     // of x.old and x.young.
-    Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
+    Handle<FeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(7, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
@@ -581,7 +595,7 @@ TEST(VectorStoreICBasic) {
       "f(a);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC slot.
-  Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector());
   FeedbackVectorHelper helper(feedback_vector);
   CHECK_EQ(1, helper.slot_count());
   FeedbackVectorSlot slot(0);

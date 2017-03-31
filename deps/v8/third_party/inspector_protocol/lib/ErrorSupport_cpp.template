@@ -42,7 +42,7 @@ void ErrorSupport::addError(const String& error)
 
 bool ErrorSupport::hasErrors()
 {
-    return m_errors.size();
+    return !!m_errors.size();
 }
 
 String ErrorSupport::errors()

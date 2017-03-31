@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-const watch = fs.watchFile(__filename, () => {});
+const watch = fs.watchFile(__filename, common.noop);
 let triggered;
 const listener = common.mustCall(() => {
   triggered = true;

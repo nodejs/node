@@ -129,7 +129,7 @@ void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ pop(ebp);
 
   ParameterCount dummy(0);
-  __ FloodFunctionIfStepping(edi, no_reg, dummy, dummy);
+  __ CheckDebugHook(edi, no_reg, dummy, dummy);
 
   // Load context from the function.
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));

@@ -191,6 +191,15 @@ class V8_EXPORT_PRIVATE BytecodeNode final : NON_EXPORTED_BASE(ZoneObject) {
     SetOperand(3, operand3);
   }
 
+#define DEFINE_BYTECODE_NODE_CREATOR(Name, ...)                              \
+  template <typename... Operands>                                            \
+  INLINE(static BytecodeNode Name(BytecodeSourceInfo source_info,            \
+                                  Operands... operands)) {                   \
+    return Create<Bytecode::k##Name, __VA_ARGS__>(source_info, operands...); \
+  }
+  BYTECODE_LIST(DEFINE_BYTECODE_NODE_CREATOR)
+#undef DEFINE_BYTECODE_NODE_CREATOR
+
   // Replace the bytecode of this node with |bytecode| and keep the operands.
   void replace_bytecode(Bytecode bytecode) {
     DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode_),
@@ -198,40 +207,7 @@ class V8_EXPORT_PRIVATE BytecodeNode final : NON_EXPORTED_BASE(ZoneObject) {
     bytecode_ = bytecode;
   }
 
-  void set_bytecode(Bytecode bytecode) {
-    DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
-    bytecode_ = bytecode;
-    operand_count_ = 0;
-    operand_scale_ = OperandScale::kSingle;
-  }
-
-  void set_bytecode(Bytecode bytecode, uint32_t operand0) {
-    DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 1);
-    bytecode_ = bytecode;
-    operand_count_ = 1;
-    operand_scale_ = OperandScale::kSingle;
-    SetOperand(0, operand0);
-  }
-
-  void set_bytecode(Bytecode bytecode, uint32_t operand0, uint32_t operand1) {
-    DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 2);
-    bytecode_ = bytecode;
-    operand_count_ = 2;
-    operand_scale_ = OperandScale::kSingle;
-    SetOperand(0, operand0);
-    SetOperand(1, operand1);
-  }
-
-  void set_bytecode(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
-                    uint32_t operand2) {
-    DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 3);
-    bytecode_ = bytecode;
-    operand_count_ = 3;
-    operand_scale_ = OperandScale::kSingle;
-    SetOperand(0, operand0);
-    SetOperand(1, operand1);
-    SetOperand(2, operand2);
-  }
+  void update_operand0(uint32_t operand0) { SetOperand(0, operand0); }
 
   // Print to stream |os|.
   void Print(std::ostream& os) const;
@@ -277,6 +253,100 @@ class V8_EXPORT_PRIVATE BytecodeNode final : NON_EXPORTED_BASE(ZoneObject) {
   bool operator!=(const BytecodeNode& other) const { return !(*this == other); }
 
  private:
+  template <Bytecode bytecode, AccumulatorUse accumulator_use,
+            OperandType... operand_types>
+  friend class BytecodeNodeBuilder;
+
+  INLINE(BytecodeNode(Bytecode bytecode, int operand_count,
+                      OperandScale operand_scale,
+                      BytecodeSourceInfo source_info, uint32_t operand0 = 0,
+                      uint32_t operand1 = 0, uint32_t operand2 = 0,
+                      uint32_t operand3 = 0))
+      : bytecode_(bytecode),
+        operand_count_(operand_count),
+        operand_scale_(operand_scale),
+        source_info_(source_info) {
+    DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), operand_count);
+    operands_[0] = operand0;
+    operands_[1] = operand1;
+    operands_[2] = operand2;
+    operands_[3] = operand3;
+  }
+
+  template <Bytecode bytecode, AccumulatorUse accum_use>
+  INLINE(static BytecodeNode Create(BytecodeSourceInfo source_info)) {
+    return BytecodeNode(bytecode, 0, OperandScale::kSingle, source_info);
+  }
+
+  template <Bytecode bytecode, AccumulatorUse accum_use,
+            OperandType operand0_type>
+  INLINE(static BytecodeNode Create(BytecodeSourceInfo source_info,
+                                    uint32_t operand0)) {
+    DCHECK_EQ(Bytecodes::GetOperandType(bytecode, 0), operand0_type);
+    OperandScale scale = OperandScale::kSingle;
+    scale = std::max(scale, ScaleForOperand<operand0_type>(operand0));
+    return BytecodeNode(bytecode, 1, scale, source_info, operand0);
+  }
+
+  template <Bytecode bytecode, AccumulatorUse accum_use,
+            OperandType operand0_type, OperandType operand1_type>
+  INLINE(static BytecodeNode Create(BytecodeSourceInfo source_info,
+                                    uint32_t operand0, uint32_t operand1)) {
+    DCHECK_EQ(Bytecodes::GetOperandType(bytecode, 0), operand0_type);
+    DCHECK_EQ(Bytecodes::GetOperandType(bytecode, 1), operand1_type);
+    OperandScale scale = OperandScale::kSingle;
+    scale = std::max(scale, ScaleForOperand<operand0_type>(operand0));
+    scale = std::max(scale, ScaleForOperand<operand1_type>(operand1));
+    return BytecodeNode(bytecode, 2, scale, source_info, operand0, operand1);
+  }
+
+  template <Bytecode bytecode, AccumulatorUse accum_use,
+            OperandType operand0_type, OperandType operand1_type,
+            OperandType operand2_type>
+  INLINE(static BytecodeNode Create(BytecodeSourceInfo source_info,
+                                    uint32_t operand0, uint32_t operand1,
+                                    uint32_t operand2)) {
+    DCHECK_EQ(Bytecodes::GetOperandType(bytecode, 0), operand0_type);
+    DCHECK_EQ(Bytecodes::GetOperandType(bytecode, 1), operand1_type);
+    DCHECK_EQ(Bytecodes::GetOperandType(bytecode, 2), operand2_type);
+    OperandScale scale = OperandScale::kSingle;
+    scale = std::max(scale, ScaleForOperand<operand0_type>(operand0));
+    scale = std::max(scale, ScaleForOperand<operand1_type>(operand1));
+    scale = std::max(scale, ScaleForOperand<operand2_type>(operand2));
+    return BytecodeNode(bytecode, 3, scale, source_info, operand0, operand1,
+                        operand2);
+  }
+
+  template <Bytecode bytecode, AccumulatorUse accum_use,
+            OperandType operand0_type, OperandType operand1_type,
+            OperandType operand2_type, OperandType operand3_type>
+  INLINE(static BytecodeNode Create(BytecodeSourceInfo source_info,
+                                    uint32_t operand0, uint32_t operand1,
+                                    uint32_t operand2, uint32_t operand3)) {
+    DCHECK_EQ(Bytecodes::GetOperandType(bytecode, 0), operand0_type);
+    DCHECK_EQ(Bytecodes::GetOperandType(bytecode, 1), operand1_type);
+    DCHECK_EQ(Bytecodes::GetOperandType(bytecode, 2), operand2_type);
+    DCHECK_EQ(Bytecodes::GetOperandType(bytecode, 3), operand3_type);
+    OperandScale scale = OperandScale::kSingle;
+    scale = std::max(scale, ScaleForOperand<operand0_type>(operand0));
+    scale = std::max(scale, ScaleForOperand<operand1_type>(operand1));
+    scale = std::max(scale, ScaleForOperand<operand2_type>(operand2));
+    scale = std::max(scale, ScaleForOperand<operand3_type>(operand3));
+    return BytecodeNode(bytecode, 4, scale, source_info, operand0, operand1,
+                        operand2, operand3);
+  }
+
+  template <OperandType operand_type>
+  INLINE(static OperandScale ScaleForOperand(uint32_t operand)) {
+    if (BytecodeOperands::IsScalableUnsignedByte(operand_type)) {
+      return Bytecodes::ScaleForUnsignedOperand(operand);
+    } else if (BytecodeOperands::IsScalableSignedByte(operand_type)) {
+      return Bytecodes::ScaleForSignedOperand(operand);
+    } else {
+      return OperandScale::kSingle;
+    }
+  }
+
   INLINE(void UpdateScaleForOperand(int operand_index, uint32_t operand)) {
     if (Bytecodes::OperandIsScalableSignedByte(bytecode(), operand_index)) {
       operand_scale_ =

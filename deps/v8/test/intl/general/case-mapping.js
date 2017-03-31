@@ -16,13 +16,32 @@ assertEquals("σς", "\u03A3\u03A3".toLowerCase());
 // Expand sharp s in latin1 fastpath
 assertEquals("ASSB", "A\u00DFB".toUpperCase());
 assertEquals("AB", "Ab".toUpperCase());
-// Find first upper case in fastpath
+// Find first uppercase in fastpath
+// Input length < a machine word size
+assertEquals("ab", "ab".toLowerCase());
 assertEquals("ab", "aB".toLowerCase());
 assertEquals("AÜ", "aü".toUpperCase());
 assertEquals("AÜ", "AÜ".toUpperCase());
 assertEquals("aü", "aü".toLowerCase());
+assertEquals("aü", "aÜ".toLowerCase());
 assertEquals("aü", "AÜ".toLowerCase());
 assertEquals("aü", "AÜ".toLowerCase());
+
+// Input length >= a machine word size
+assertEquals("abcdefghij", "abcdefghij".toLowerCase());
+assertEquals("abcdefghij", "abcdefghiJ".toLowerCase());
+assertEquals("abçdefghij", "abçdefghiJ".toLowerCase());
+assertEquals("abçdefghij", "abÇdefghiJ".toLowerCase());
+assertEquals("abcdefghiá", "abcdeFghiá".toLowerCase());
+assertEquals("abcdefghiá", "abcdeFghiÁ".toLowerCase());
+
+assertEquals("ABCDEFGHIJ", "ABCDEFGHIJ".toUpperCase());
+assertEquals("ABCDEFGHIJ", "ABCDEFGHIj".toUpperCase());
+assertEquals("ABÇDEFGHIJ", "ABÇDEFGHIj".toUpperCase());
+assertEquals("ABÇDEFGHIJ", "ABçDEFGHIj".toUpperCase());
+assertEquals("ABCDEFGHIÁ", "ABCDEfGHIÁ".toUpperCase());
+assertEquals("ABCDEFGHIÁ", "ABCDEfGHIá".toUpperCase());
+
 
 // Starts with fastpath, but switches to full Unicode path
 // U+00FF is uppercased to U+0178.
@@ -33,6 +52,10 @@ assertEquals("AΜ", "aµ".toUpperCase());
 // Buffer size increase
 assertEquals("CSSBẶ", "cßbặ".toUpperCase());
 assertEquals("FIFLFFIFFL", "\uFB01\uFB02\uFB03\uFB04".toUpperCase());
+assertEquals("ABCÀCSSA", "abcàcßa".toUpperCase());
+assertEquals("ABCDEFGHIÀCSSA", "ABCDEFGHIàcßa".toUpperCase());
+assertEquals("ABCDEFGHIÀCSSA", "abcdeFghiàcßa".toUpperCase());
+
 // OneByte input with buffer size increase: non-fast path
 assertEquals("ABCSS", "abCß".toLocaleUpperCase("tr"));
 
@@ -52,9 +75,26 @@ assertEquals("abcijkl",
 assertEquals("abci\u0307jkl", ("aBcI" + "\u0307jkl").toLocaleLowerCase("en"));
 assertEquals("abci\u0307jkl",
              ("aB" + "cI" + "\u0307j" + "kl").toLocaleLowerCase("en"));
+assertEquals("abci\u0307jkl",
+             ("aB" + "cI" + "\u0307j" + "kl").toLocaleLowerCase("fil"));
 assertEquals("abci\u0307jkl", ("aBcI" + "\u0307jkl").toLowerCase());
 assertEquals("abci\u0307jkl",
              ("aB" + "cI" + "\u0307j" + "kl").toLowerCase());
+assertEquals("[object arraybuffer]",
+    (new String(new ArrayBuffer())).toLocaleLowerCase("fil"));
+assertEquals("[OBJECT ARRAYBUFFER]",
+    (new String(new ArrayBuffer())).toLocaleUpperCase("fil"));
+
+assertEquals("abcde", ("a" + "b" + "cde").toLowerCase());
+assertEquals("ABCDE", ("a" + "b" + "cde").toUpperCase());
+assertEquals("abcde", ("a" + "b" + "cde").toLocaleLowerCase());
+assertEquals("ABCDE", ("a" + "b" + "cde").toLocaleUpperCase());
+assertEquals("abcde", ("a" + "b" + "cde").toLocaleLowerCase("en"));
+assertEquals("ABCDE", ("a" + "b" + "cde").toLocaleUpperCase("en"));
+assertEquals("abcde", ("a" + "b" + "cde").toLocaleLowerCase("fil"));
+assertEquals("ABCDE", ("a" + "b" + "cde").toLocaleUpperCase("fil"));
+assertEquals("abcde", ("a" + "b" + "cde").toLocaleLowerCase("longlang"));
+assertEquals("ABCDE", ("a" + "b" + "cde").toLocaleUpperCase("longlang"));
 
 // "tr" and "az" should behave identically.
 assertEquals("aBcI\u0307".toLocaleLowerCase("tr"),
@@ -80,8 +120,24 @@ assertEquals("άόύώ".toLocaleUpperCase([]),
 
 // English/root locale keeps U+0307 (combining dot above).
 assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase("en"));
+assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase("en-GB"));
 assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase(["en", "tr"]));
 assertEquals("abci\u0307", "aBcI\u0307".toLowerCase());
+
+// Anything other than 'tr' and 'az' behave like root for U+0307.
+assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase("fil"));
+assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase("zh-Hant-TW"));
+assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase("i-klingon"));
+
+// Up to 8 chars are allowed for the primary language tag in BCP 47.
+assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase("longlang"));
+assertEquals("ABCI\u0307", "aBcI\u0307".toLocaleUpperCase("longlang"));
+assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase(["longlang", "tr"]));
+assertEquals("ABCI\u0307", "aBcI\u0307".toLocaleUpperCase(["longlang", "tr"]));
+assertThrows(() => "abc".toLocaleLowerCase("longlang2"), RangeError);
+assertThrows(() => "abc".toLocaleUpperCase("longlang2"), RangeError);
+assertThrows(() => "abc".toLocaleLowerCase(["longlang2", "en"]), RangeError);
+assertThrows(() => "abc".toLocaleUpperCase(["longlang2", "en"]), RangeError);
 
 // Greek uppercasing: not covered by intl402/String/*, yet. Tonos (U+0301) and
 // other diacritic marks are dropped.  See

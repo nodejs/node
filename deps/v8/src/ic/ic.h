@@ -120,7 +120,7 @@ class IC {
   // keyed stores).
   void ConfigureVectorState(MapHandleList* maps,
                             MapHandleList* transitioned_maps,
-                            CodeHandleList* handlers);
+                            List<Handle<Object>>* handlers);
 
   char TransitionMarkFromState(IC::State state);
   void TraceIC(const char* type, Handle<Object> name);
@@ -200,7 +200,7 @@ class IC {
     return target_maps_.length() > 0 ? *target_maps_.at(0) : NULL;
   }
 
-  Handle<TypeFeedbackVector> vector() const { return nexus()->vector_handle(); }
+  Handle<FeedbackVector> vector() const { return nexus()->vector_handle(); }
   FeedbackVectorSlot slot() const { return nexus()->slot(); }
   State saved_state() const {
     return state() == RECOMPUTE_HANDLER ? old_state_ : state();
@@ -285,12 +285,6 @@ class LoadIC : public IC {
                NOT_INSIDE_TYPEOF;
   }
 
-  // Code generator routines.
-
-  static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
-  static void GenerateNormal(MacroAssembler* masm);
-
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);
 
@@ -312,7 +306,7 @@ class LoadIC : public IC {
 
  private:
   // Creates a data handler that represents a load of a field by given index.
-  Handle<Object> SimpleFieldLoad(FieldIndex index);
+  static Handle<Object> SimpleFieldLoad(Isolate* isolate, FieldIndex index);
 
   // Creates a data handler that represents a prototype chain check followed
   // by given Smi-handler that encoded a load from the holder.
@@ -325,6 +319,7 @@ class LoadIC : public IC {
   Handle<Object> LoadNonExistent(Handle<Map> receiver_map, Handle<Name> name);
 
   friend class IC;
+  friend class NamedLoadHandlerCompiler;
 };
 
 class LoadGlobalIC : public LoadIC {
@@ -353,10 +348,6 @@ class KeyedLoadIC : public LoadIC {
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Object> key);
 
-  // Code generator routines.
-  static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
-
   static void Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus);
 
  protected:
@@ -378,11 +369,6 @@ class StoreIC : public IC {
   LanguageMode language_mode() const {
     return StoreICState::GetLanguageMode(extra_ic_state());
   }
-
-  // Code generators for stub routines. Only called once at startup.
-  static void GenerateSlow(MacroAssembler* masm);
-  static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateNormal(MacroAssembler* masm);
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
@@ -450,9 +436,6 @@ class KeyedStoreIC : public StoreIC {
   static void GenerateSlow(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   LanguageMode language_mode);
-
-  static Handle<Code> ChooseMegamorphicStub(Isolate* isolate,
-                                            ExtraICState extra_state);
 
   static void Clear(Isolate* isolate, Code* host, KeyedStoreICNexus* nexus);
 

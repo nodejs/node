@@ -16,13 +16,19 @@ namespace v8 {
 namespace internal {
 
 StoreBuffer::StoreBuffer(Heap* heap)
-    : heap_(heap), top_(nullptr), current_(0), virtual_memory_(nullptr) {
+    : heap_(heap),
+      top_(nullptr),
+      current_(0),
+      mode_(NOT_IN_GC),
+      virtual_memory_(nullptr) {
   for (int i = 0; i < kStoreBuffers; i++) {
     start_[i] = nullptr;
     limit_[i] = nullptr;
     lazy_top_[i] = nullptr;
   }
   task_running_ = false;
+  insertion_callback = &InsertDuringRuntime;
+  deletion_callback = &DeleteDuringRuntime;
 }
 
 void StoreBuffer::SetUp() {
@@ -85,7 +91,7 @@ void StoreBuffer::FlipStoreBuffers() {
   current_ = other;
   top_ = start_[current_];
 
-  if (!task_running_) {
+  if (!task_running_ && FLAG_concurrent_sweeping) {
     task_running_ = true;
     Task* task = new Task(heap_->isolate(), this);
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
@@ -137,29 +143,5 @@ void StoreBuffer::ConcurrentlyProcessStoreBuffer() {
   task_running_ = false;
 }
 
-void StoreBuffer::DeleteEntry(Address start, Address end) {
-  // Deletions coming from the GC are directly deleted from the remembered
-  // set. Deletions coming from the runtime are added to the store buffer
-  // to allow concurrent processing.
-  if (heap_->gc_state() == Heap::NOT_IN_GC) {
-    if (top_ + sizeof(Address) * 2 > limit_[current_]) {
-      StoreBufferOverflow(heap_->isolate());
-    }
-    *top_ = MarkDeletionAddress(start);
-    top_++;
-    *top_ = end;
-    top_++;
-  } else {
-    // In GC the store buffer has to be empty at any time.
-    DCHECK(Empty());
-    Page* page = Page::FromAddress(start);
-    if (end) {
-      RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
-                                             SlotSet::PREFREE_EMPTY_BUCKETS);
-    } else {
-      RememberedSet<OLD_TO_NEW>::Remove(page, start);
-    }
-  }
-}
 }  // namespace internal
 }  // namespace v8

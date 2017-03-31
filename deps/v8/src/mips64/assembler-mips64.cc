@@ -183,13 +183,19 @@ uint32_t RelocInfo::wasm_memory_size_reference() {
       reinterpret_cast<intptr_t>((Assembler::target_address_at(pc_, host_))));
 }
 
+uint32_t RelocInfo::wasm_function_table_size_reference() {
+  DCHECK(IsWasmFunctionTableSizeReference(rmode_));
+  return static_cast<uint32_t>(
+      reinterpret_cast<intptr_t>((Assembler::target_address_at(pc_, host_))));
+}
+
 void RelocInfo::unchecked_update_wasm_memory_reference(
     Address address, ICacheFlushMode flush_mode) {
   Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
 }
 
-void RelocInfo::unchecked_update_wasm_memory_size(uint32_t size,
-                                                  ICacheFlushMode flush_mode) {
+void RelocInfo::unchecked_update_wasm_size(uint32_t size,
+                                           ICacheFlushMode flush_mode) {
   Assembler::set_target_address_at(isolate_, pc_, host_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
@@ -859,8 +865,7 @@ void Assembler::print(Label* L) {
       } else {
         PrintF("%d\n", instr);
       }
-      next(&l, internal_reference_positions_.find(l.pos()) !=
-                   internal_reference_positions_.end());
+      next(&l, is_internal_reference(&l));
     }
   } else {
     PrintF("label in inconsistent state (pos = %d)\n", L->pos_);
@@ -874,14 +879,15 @@ void Assembler::bind_to(Label* L, int pos) {
   bool is_internal = false;
   if (L->is_linked() && !trampoline_emitted_) {
     unbound_labels_count_--;
-    next_buffer_check_ += kTrampolineSlotsSize;
+    if (!is_internal_reference(L)) {
+      next_buffer_check_ += kTrampolineSlotsSize;
+    }
   }
 
   while (L->is_linked()) {
     int fixup_pos = L->pos();
     int dist = pos - fixup_pos;
-    is_internal = internal_reference_positions_.find(fixup_pos) !=
-                  internal_reference_positions_.end();
+    is_internal = is_internal_reference(L);
     next(L, is_internal);  // Call next before overwriting link with target at
                            // fixup_pos.
     Instr instr = instr_at(fixup_pos);
@@ -898,7 +904,6 @@ void Assembler::bind_to(Label* L, int pos) {
           CHECK((trampoline_pos - fixup_pos) <= branch_offset);
           target_at_put(fixup_pos, trampoline_pos, false);
           fixup_pos = trampoline_pos;
-          dist = pos - fixup_pos;
         }
         target_at_put(fixup_pos, pos, false);
       } else {
@@ -1940,19 +1945,64 @@ void Assembler::dlsa(Register rd, Register rt, Register rs, uint8_t sa) {
 void Assembler::LoadRegPlusOffsetToAt(const MemOperand& src) {
   DCHECK(!src.rm().is(at));
   DCHECK(is_int32(src.offset_));
-  daddiu(at, zero_reg, (src.offset_ >> kLuiShift) & kImm16Mask);
-  dsll(at, at, kLuiShift);
-  ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
-  daddu(at, at, src.rm());  // Add base register.
+
+  if (kArchVariant == kMips64r6) {
+    int32_t hi = (src.offset_ >> kLuiShift) & kImm16Mask;
+    if (src.offset_ & kNegOffset) {
+      if ((hi & kNegOffset) != ((hi + 1) & kNegOffset)) {
+        lui(at, (src.offset_ >> kLuiShift) & kImm16Mask);
+        ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
+        daddu(at, at, src.rm());                // Add base register.
+        return;
+      }
+
+      hi += 1;
+    }
+
+    daui(at, src.rm(), hi);
+    daddiu(at, at, src.offset_ & kImm16Mask);
+  } else {
+    lui(at, (src.offset_ >> kLuiShift) & kImm16Mask);
+    ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
+    daddu(at, at, src.rm());                // Add base register.
+  }
 }
 
+// Helper for base-reg + upper part of offset, when offset is larger than int16.
+// Loads higher part of the offset to AT register.
+// Returns lower part of the offset to be used as offset
+// in Load/Store instructions
+int32_t Assembler::LoadRegPlusUpperOffsetPartToAt(const MemOperand& src) {
+  DCHECK(!src.rm().is(at));
+  DCHECK(is_int32(src.offset_));
+  int32_t hi = (src.offset_ >> kLuiShift) & kImm16Mask;
+  // If the highest bit of the lower part of the offset is 1, this would make
+  // the offset in the load/store instruction negative. We need to compensate
+  // for this by adding 1 to the upper part of the offset.
+  if (src.offset_ & kNegOffset) {
+    if ((hi & kNegOffset) != ((hi + 1) & kNegOffset)) {
+      LoadRegPlusOffsetToAt(src);
+      return 0;
+    }
+
+    hi += 1;
+  }
+
+  if (kArchVariant == kMips64r6) {
+    daui(at, src.rm(), hi);
+  } else {
+    lui(at, hi);
+    daddu(at, at, src.rm());
+  }
+  return (src.offset_ & kImm16Mask);
+}
 
 void Assembler::lb(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LB, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LB, at, rd, 0);  // Equiv to lb(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LB, at, rd, off16);
   }
 }
 
@@ -1961,8 +2011,8 @@ void Assembler::lbu(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LBU, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LBU, at, rd, 0);  // Equiv to lbu(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LBU, at, rd, off16);
   }
 }
 
@@ -1971,8 +2021,8 @@ void Assembler::lh(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LH, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LH, at, rd, 0);  // Equiv to lh(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LH, at, rd, off16);
   }
 }
 
@@ -1981,8 +2031,8 @@ void Assembler::lhu(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LHU, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LHU, at, rd, 0);  // Equiv to lhu(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LHU, at, rd, off16);
   }
 }
 
@@ -1991,8 +2041,8 @@ void Assembler::lw(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LW, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LW, at, rd, 0);  // Equiv to lw(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LW, at, rd, off16);
   }
 }
 
@@ -2001,8 +2051,8 @@ void Assembler::lwu(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LWU, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LWU, at, rd, 0);  // Equiv to lwu(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LWU, at, rd, off16);
   }
 }
 
@@ -2025,8 +2075,8 @@ void Assembler::sb(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(SB, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to store.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(SB, at, rd, 0);  // Equiv to sb(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(SB, at, rd, off16);
   }
 }
 
@@ -2035,8 +2085,8 @@ void Assembler::sh(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(SH, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to store.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(SH, at, rd, 0);  // Equiv to sh(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(SH, at, rd, off16);
   }
 }
 
@@ -2045,8 +2095,8 @@ void Assembler::sw(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(SW, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to store.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(SW, at, rd, 0);  // Equiv to sw(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(SW, at, rd, off16);
   }
 }
 
@@ -2130,8 +2180,8 @@ void Assembler::ld(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LD, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LD, at, rd, 0);  // Equiv to lw(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LD, at, rd, off16);
   }
 }
 
@@ -2140,8 +2190,8 @@ void Assembler::sd(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(SD, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to store.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(SD, at, rd, 0);  // Equiv to sw(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(SD, at, rd, off16);
   }
 }
 
@@ -2551,8 +2601,8 @@ void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
   if (is_int16(src.offset_)) {
     GenInstrImmediate(LWC1, src.rm(), fd, src.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(src);
-    GenInstrImmediate(LWC1, at, fd, 0);
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
+    GenInstrImmediate(LWC1, at, fd, off16);
   }
 }
 
@@ -2561,8 +2611,8 @@ void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
   if (is_int16(src.offset_)) {
     GenInstrImmediate(LDC1, src.rm(), fd, src.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(src);
-    GenInstrImmediate(LDC1, at, fd, 0);
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
+    GenInstrImmediate(LDC1, at, fd, off16);
   }
 }
 
@@ -2571,8 +2621,8 @@ void Assembler::swc1(FPURegister fd, const MemOperand& src) {
   if (is_int16(src.offset_)) {
     GenInstrImmediate(SWC1, src.rm(), fd, src.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(src);
-    GenInstrImmediate(SWC1, at, fd, 0);
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
+    GenInstrImmediate(SWC1, at, fd, off16);
   }
 }
 
@@ -2582,8 +2632,8 @@ void Assembler::sdc1(FPURegister fd, const MemOperand& src) {
   if (is_int16(src.offset_)) {
     GenInstrImmediate(SDC1, src.rm(), fd, src.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(src);
-    GenInstrImmediate(SDC1, at, fd, 0);
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
+    GenInstrImmediate(SDC1, at, fd, off16);
   }
 }
 

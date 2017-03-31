@@ -20,7 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+
+const common = require('../common');
 const assert = require('assert');
 
 let interval_fired = false;
@@ -34,11 +35,11 @@ const LONG_TIME = 10 * 1000;
 const SHORT_TIME = 100;
 
 assert.doesNotThrow(function() {
-  setTimeout(function() {}, 10).unref().ref().unref();
+  setTimeout(common.noop, 10).unref().ref().unref();
 }, 'ref and unref are chainable');
 
 assert.doesNotThrow(function() {
-  setInterval(function() {}, 10).unref().ref().unref();
+  setInterval(common.noop, 10).unref().ref().unref();
 }, 'ref and unref are chainable');
 
 setInterval(function() {
@@ -77,7 +78,7 @@ setInterval(function() {
 
 // Should not assert on args.Holder()->InternalFieldCount() > 0. See #4261.
 {
-  const t = setInterval(function() {}, 1);
+  const t = setInterval(common.noop, 1);
   process.nextTick(t.unref.bind({}));
   process.nextTick(t.unref.bind(t));
 }

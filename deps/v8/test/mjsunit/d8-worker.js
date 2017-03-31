@@ -61,8 +61,8 @@ var workerScript =
          }
          break;
        case 7:
-         if (JSON.stringify(m) !== \"{'a':1,'b':2.5,'c':'three'}\")
-           throw new Error('Object');
+         if (JSON.stringify(m) !== '{"a":1,"b":2.5,"c":"three"}')
+           throw new Error('Object' + JSON.stringify(m));
          break;
        case 8:
          var ab = m;
@@ -88,7 +88,6 @@ var workerScript =
      }
    };`;
 
-
 if (this.Worker) {
   function createArrayBuffer(byteLength) {
     var ab = new ArrayBuffer(byteLength);
@@ -110,6 +109,17 @@ if (this.Worker) {
   w.postMessage("hi");
   w.postMessage([4, true, "bye"]);
   w.postMessage({a: 1, b: 2.5, c: "three"});
+
+  // Test bad get in transfer list.
+  var transferList = [undefined];
+  Object.defineProperty(transferList, '0', {
+    get: function() {
+      throw 'unexpected!';
+    }
+  });
+  assertThrows(function() {
+    w.postMessage([], transferList);
+  });
 
   // Clone ArrayBuffer
   var ab1 = createArrayBuffer(16);

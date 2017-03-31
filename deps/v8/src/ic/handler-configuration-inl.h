@@ -104,7 +104,8 @@ Handle<Object> StoreHandler::StoreField(Isolate* isolate, Kind kind,
   int value_index = DescriptorArray::ToValueIndex(descriptor);
 
   DCHECK(kind == kStoreField || kind == kTransitionToField);
-  DCHECK_IMPLIES(kind == kStoreField, !extend_storage);
+  DCHECK_IMPLIES(extend_storage, kind == kTransitionToField);
+  DCHECK_IMPLIES(field_index.is_inobject(), !extend_storage);
 
   int config = StoreHandler::KindBits::encode(kind) |
                StoreHandler::ExtendStorageBits::encode(extend_storage) |

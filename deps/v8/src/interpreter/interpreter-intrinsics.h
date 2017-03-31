@@ -23,25 +23,24 @@ namespace interpreter {
 
 // List of supported intrisics, with upper case name, lower case name and
 // expected number of arguments (-1 denoting argument count is variable).
-#define INTRINSICS_LIST(V)                              \
-  V(Call, call, -1)                                     \
-  V(ClassOf, class_of, 1)                               \
-  V(HasProperty, has_property, 2)                       \
-  V(IsArray, is_array, 1)                               \
-  V(IsJSProxy, is_js_proxy, 1)                          \
-  V(IsJSReceiver, is_js_receiver, 1)                    \
-  V(IsRegExp, is_regexp, 1)                             \
-  V(IsSmi, is_smi, 1)                                   \
-  V(IsTypedArray, is_typed_array, 1)                    \
-  V(NewObject, new_object, 2)                           \
-  V(NumberToString, number_to_string, 1)                \
-  V(RegExpExec, reg_exp_exec, 4)                        \
-  V(SubString, sub_string, 3)                           \
-  V(ToString, to_string, 1)                             \
-  V(ToLength, to_length, 1)                             \
-  V(ToInteger, to_integer, 1)                           \
-  V(ToNumber, to_number, 1)                             \
-  V(ToObject, to_object, 1)                             \
+#define INTRINSICS_LIST(V)                                \
+  V(Call, call, -1)                                       \
+  V(ClassOf, class_of, 1)                                 \
+  V(CreateIterResultObject, create_iter_result_object, 2) \
+  V(HasProperty, has_property, 2)                         \
+  V(IsArray, is_array, 1)                                 \
+  V(IsJSProxy, is_js_proxy, 1)                            \
+  V(IsJSReceiver, is_js_receiver, 1)                      \
+  V(IsSmi, is_smi, 1)                                     \
+  V(IsTypedArray, is_typed_array, 1)                      \
+  V(NumberToString, number_to_string, 1)                  \
+  V(RegExpExec, reg_exp_exec, 4)                          \
+  V(SubString, sub_string, 3)                             \
+  V(ToString, to_string, 1)                               \
+  V(ToLength, to_length, 1)                               \
+  V(ToInteger, to_integer, 1)                             \
+  V(ToNumber, to_number, 1)                               \
+  V(ToObject, to_object, 1)                               \
   V(ValueOf, value_of, 1)
 
 class IntrinsicsHelper {

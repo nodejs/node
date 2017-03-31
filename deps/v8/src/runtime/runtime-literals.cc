@@ -113,7 +113,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
 
 static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
     Isolate* isolate, Handle<LiteralsArray> literals,
-    Handle<FixedArray> elements) {
+    Handle<ConstantElementsPair> elements) {
   // Create the JSArray.
   Handle<JSFunction> constructor = isolate->array_function();
 
@@ -124,9 +124,8 @@ static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
       isolate->factory()->NewJSObject(constructor, pretenure_flag));
 
   ElementsKind constant_elements_kind =
-      static_cast<ElementsKind>(Smi::cast(elements->get(0))->value());
-  Handle<FixedArrayBase> constant_elements_values(
-      FixedArrayBase::cast(elements->get(1)));
+      static_cast<ElementsKind>(elements->elements_kind());
+  Handle<FixedArrayBase> constant_elements_values(elements->constant_values());
 
   {
     DisallowHeapAllocation no_gc;
@@ -186,14 +185,21 @@ static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
 MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
     Isolate* isolate, Handle<LiteralsArray> literals,
     Handle<FixedArray> array) {
-  Handle<FixedArray> elements = CompileTimeValue::GetElements(array);
+  Handle<HeapObject> elements = CompileTimeValue::GetElements(array);
   switch (CompileTimeValue::GetLiteralType(array)) {
-    case CompileTimeValue::OBJECT_LITERAL_FAST_ELEMENTS:
-      return CreateObjectLiteralBoilerplate(isolate, literals, elements, true);
-    case CompileTimeValue::OBJECT_LITERAL_SLOW_ELEMENTS:
-      return CreateObjectLiteralBoilerplate(isolate, literals, elements, false);
-    case CompileTimeValue::ARRAY_LITERAL:
-      return CreateArrayLiteralBoilerplate(isolate, literals, elements);
+    case CompileTimeValue::OBJECT_LITERAL_FAST_ELEMENTS: {
+      Handle<FixedArray> props = Handle<FixedArray>::cast(elements);
+      return CreateObjectLiteralBoilerplate(isolate, literals, props, true);
+    }
+    case CompileTimeValue::OBJECT_LITERAL_SLOW_ELEMENTS: {
+      Handle<FixedArray> props = Handle<FixedArray>::cast(elements);
+      return CreateObjectLiteralBoilerplate(isolate, literals, props, false);
+    }
+    case CompileTimeValue::ARRAY_LITERAL: {
+      Handle<ConstantElementsPair> elems =
+          Handle<ConstantElementsPair>::cast(elements);
+      return CreateArrayLiteralBoilerplate(isolate, literals, elems);
+    }
     default:
       UNREACHABLE();
       return MaybeHandle<Object>();
@@ -270,12 +276,11 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
 
 MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
     Isolate* isolate, Handle<LiteralsArray> literals, int literals_index,
-    Handle<FixedArray> elements) {
+    Handle<ConstantElementsPair> elements) {
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> literal_site(literals->literal(literals_index), isolate);
   Handle<AllocationSite> site;
   if (literal_site->IsUndefined(isolate)) {
-    DCHECK(*elements != isolate->heap()->empty_fixed_array());
     Handle<Object> boilerplate;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, boilerplate,
@@ -298,10 +303,9 @@ MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
   return site;
 }
 
-
 static MaybeHandle<JSObject> CreateArrayLiteralImpl(
     Isolate* isolate, Handle<LiteralsArray> literals, int literals_index,
-    Handle<FixedArray> elements, int flags) {
+    Handle<ConstantElementsPair> elements, int flags) {
   CHECK(literals_index >= 0 && literals_index < literals->literals_count());
   Handle<AllocationSite> site;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -328,7 +332,7 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
+  CONVERT_ARG_HANDLE_CHECKED(ConstantElementsPair, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
 
   Handle<LiteralsArray> literals(closure->literals(), isolate);
@@ -343,7 +347,7 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteralStubBailout) {
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
+  CONVERT_ARG_HANDLE_CHECKED(ConstantElementsPair, elements, 2);
 
   Handle<LiteralsArray> literals(closure->literals(), isolate);
   RETURN_RESULT_OR_FAILURE(

@@ -179,7 +179,7 @@ class Measurement(object):
   gathered by repeated calls to ConsumeOutput.
   """
   def __init__(self, graphs, units, results_regexp, stddev_regexp):
-    self.name = graphs[-1]
+    self.name = '/'.join(graphs)
     self.graphs = graphs
     self.units = units
     self.results_regexp = results_regexp

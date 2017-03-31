@@ -31,8 +31,8 @@ class CompileTimeValue : public AllStatic {
   // Get the type of a compile time value returned by GetValue().
   static LiteralType GetLiteralType(Handle<FixedArray> value);
 
-  // Get the elements array of a compile time value returned by GetValue().
-  static Handle<FixedArray> GetElements(Handle<FixedArray> value);
+  // Get the elements of a compile time value returned by GetValue().
+  static Handle<HeapObject> GetElements(Handle<FixedArray> value);
 
  private:
   static const int kLiteralTypeSlot = 0;

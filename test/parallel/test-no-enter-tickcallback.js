@@ -27,6 +27,6 @@ setImmediate(common.mustCall(() => {
   require('domain');
   setImmediate(common.mustCall(() => setImmediate(common.mustCall(() => {
     allsGood = true;
-    process.nextTick(() => {});
+    process.nextTick(common.noop);
   }))));
 }));

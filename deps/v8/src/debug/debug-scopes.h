@@ -50,12 +50,7 @@ class ScopeIterator {
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeScopeDetails();
 
   // More scopes?
-  bool Done() {
-    DCHECK(!failed_);
-    return context_.is_null();
-  }
-
-  bool Failed() { return failed_; }
+  bool Done() { return context_.is_null(); }
 
   // Move to the next scope.
   void Next();
@@ -103,7 +98,6 @@ class ScopeIterator {
   List<ExtendedScopeInfo> nested_scope_chain_;
   Handle<StringSet> non_locals_;
   bool seen_script_scope_;
-  bool failed_;
 
   inline JavaScriptFrame* GetFrame() {
     return frame_inspector_->GetArgumentsFrame();

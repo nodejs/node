@@ -20,7 +20,7 @@ namespace API {
 
 // ------------- Enums.
   {% for type in domain.types %}
-    {% if ("enum" in type) and type.exported %}
+    {% if ("enum" in type) and protocol.is_exported(domain.domain, type.id) %}
 
 namespace {{type.id}}Enum {
       {% for literal in type.enum %}
@@ -31,7 +31,7 @@ namespace {{type.id}}Enum {
   {% endfor %}
   {% for command in join_arrays(domain, ["commands", "events"]) %}
     {% for param in join_arrays(command, ["parameters", "returns"]) %}
-      {% if ("enum" in param) and (param.exported) %}
+      {% if ("enum" in param) and protocol.is_exported(domain.domain, command.name + "." + param.name) %}
 
 namespace {{command.name | to_title_case}} {
 namespace {{param.name | to_title_case}}Enum {
@@ -46,7 +46,7 @@ namespace {{param.name | to_title_case}}Enum {
 
 // ------------- Types.
   {% for type in domain.types %}
-    {% if not (type.type == "object") or not ("properties" in type) or not (type.exported) %}{% continue %}{% endif %}
+    {% if not (type.type == "object") or not ("properties" in type) or not protocol.is_exported(domain.domain, type.id) %}{% continue %}{% endif %}
 
 class {{config.exported.export_macro}} {{type.id}} {
 public:

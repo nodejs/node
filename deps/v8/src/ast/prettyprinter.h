@@ -15,7 +15,7 @@ namespace internal {
 
 class CallPrinter final : public AstVisitor<CallPrinter> {
  public:
-  explicit CallPrinter(Isolate* isolate, bool is_builtin);
+  explicit CallPrinter(Isolate* isolate, bool is_user_js);
 
   // The following routine prints the node with position |position| into a
   // string.
@@ -38,7 +38,7 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
   int position_;  // position of ast node to print
   bool found_;
   bool done_;
-  bool is_builtin_;
+  bool is_user_js_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 

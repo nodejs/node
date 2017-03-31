@@ -14,13 +14,14 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 5
 bytecodes: [
   /*   21 E> */ B(StackCheck),
-  /*   26 S> */ B(LdaGlobal), U8(2),
+  /*   26 S> */ B(LdaGlobal), U8(0), U8(2),
   /*   36 S> */ B(Return),
 ]
 constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]
@@ -33,13 +34,14 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 5
 bytecodes: [
   /*   27 E> */ B(StackCheck),
-  /*   32 S> */ B(LdaGlobal), U8(2),
+  /*   32 S> */ B(LdaGlobal), U8(0), U8(2),
   /*   42 S> */ B(Return),
 ]
 constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["t"],
 ]
 handlers: [
 ]
@@ -52,13 +54,14 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 5
 bytecodes: [
   /*   17 E> */ B(StackCheck),
-  /*   22 S> */ B(LdaGlobal), U8(2),
+  /*   22 S> */ B(LdaGlobal), U8(0), U8(2),
   /*   32 S> */ B(Return),
 ]
 constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]
@@ -201,7 +204,7 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 650
+bytecode array length: 652
 bytecodes: [
   /*   17 E> */ B(StackCheck),
   /*   25 S> */ B(Nop),
@@ -460,11 +463,12 @@ bytecodes: [
   /* 1286 E> */ B(LdaNamedProperty), R(arg0), U8(0), U8(254),
   /* 1295 S> */ B(Nop),
   /* 1296 E> */ B(Wide), B(LdaNamedProperty), R16(arg0), U16(0), U16(256),
-  /* 1305 S> */ B(Wide), B(LdaGlobal), U16(258),
+  /* 1305 S> */ B(Wide), B(LdaGlobal), U16(1), U16(258),
   /* 1315 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["name"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]

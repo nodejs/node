@@ -84,9 +84,9 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = abstract_code->address();
-  Script* script = Script::cast(shared->script());
   JITLineInfoTable* line_table = NULL;
-  if (script) {
+  if (shared->script()->IsScript()) {
+    Script* script = Script::cast(shared->script());
     line_table = new JITLineInfoTable();
     int offset = abstract_code->IsCode() ? Code::kHeaderSize
                                          : BytecodeArray::kHeaderSize;
@@ -269,8 +269,9 @@ void ProfilerListener::RecordDeoptInlinedFrames(CodeEntry* entry,
       std::vector<CpuProfileDeoptFrame> inlined_frames;
       for (SourcePositionInfo& pos_info : last_position.InliningStack(code)) {
         DCHECK(pos_info.position.ScriptOffset() != kNoSourcePosition);
-        size_t offset = static_cast<size_t>(pos_info.position.ScriptOffset());
+        if (!pos_info.function->script()->IsScript()) continue;
         int script_id = Script::cast(pos_info.function->script())->id();
+        size_t offset = static_cast<size_t>(pos_info.position.ScriptOffset());
         inlined_frames.push_back(CpuProfileDeoptFrame({script_id, offset}));
       }
       if (!inlined_frames.empty() &&

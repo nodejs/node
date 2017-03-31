@@ -232,11 +232,22 @@ def _ReadSection(section, rules, wildcards, variables):
     else:
       _ParseOutcomeList(rule, section[rule], rules, variables)
 
+JS_TEST_PATHS = {
+  'debugger': [[]],
+  'inspector': [[]],
+  'intl': [[]],
+  'message': [[]],
+  'mjsunit': [[]],
+  'mozilla': [['data']],
+  'test262': [['data', 'test'], ['local-tests', 'test']],
+  'webkit': [[]],
+}
 
 def PresubmitCheck(path):
   with open(path) as f:
     contents = ReadContent(f.read())
-  root_prefix = os.path.basename(os.path.dirname(path)) + "/"
+  basename = os.path.basename(os.path.dirname(path))
+  root_prefix = basename + "/"
   status = {"success": True}
   def _assert(check, message):  # Like "assert", but doesn't throw.
     if not check:
@@ -255,6 +266,11 @@ def PresubmitCheck(path):
                 "Suite name prefix must not be used in rule keys")
         _assert(not rule.endswith('.js'),
                 ".js extension must not be used in rule keys.")
+        if basename in JS_TEST_PATHS  and '*' not in rule:
+          _assert(any(os.path.exists(os.path.join(os.path.dirname(path),
+                                                  *(paths + [rule + ".js"])))
+                      for paths in JS_TEST_PATHS[basename]),
+                  "missing file for %s test %s" % (basename, rule))
     return status["success"]
   except Exception as e:
     print e

@@ -8,7 +8,7 @@
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/deoptimize-reason.h"
-#include "src/type-feedback-vector.h"
+#include "src/feedback-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -54,11 +54,13 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
  private:
   Reduction ReduceJSInstanceOf(Node* node);
+  Reduction ReduceJSOrdinaryHasInstance(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
   Reduction ReduceJSStoreProperty(Node* node);
+  Reduction ReduceJSStoreDataPropertyInLiteral(Node* node);
 
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
                                 MapHandleList const& receiver_maps,
@@ -79,7 +81,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                               MapHandleList const& receiver_maps,
                               Handle<Name> name, AccessMode access_mode,
                               LanguageMode language_mode,
-                              Handle<TypeFeedbackVector> vector,
+                              Handle<FeedbackVector> vector,
                               FeedbackVectorSlot slot, Node* index = nullptr);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
@@ -105,7 +107,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
       Node* receiver, Node* value, Node* context, Node* frame_state,
       Node* effect, Node* control, Handle<Name> name,
       PropertyAccessInfo const& access_info, AccessMode access_mode,
-      LanguageMode language_mode, Handle<TypeFeedbackVector> vector,
+      LanguageMode language_mode, Handle<FeedbackVector> vector,
       FeedbackVectorSlot slot);
 
   // Construct the appropriate subgraph for element access.
@@ -115,6 +117,9 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                         ElementAccessInfo const& access_info,
                                         AccessMode access_mode,
                                         KeyedAccessStoreMode store_mode);
+
+  // Construct an appropriate heap object check.
+  Node* BuildCheckHeapObject(Node* receiver, Node** effect, Node* control);
 
   // Construct an appropriate map check.
   Node* BuildCheckMaps(Node* receiver, Node* effect, Node* control,
@@ -146,7 +151,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
 
   ValueEffectControl InlineApiCall(
       Node* receiver, Node* context, Node* target, Node* frame_state,
-      ZoneVector<Node*>* stack_parameters, Node* effect, Node* control,
+      Node* parameter, Node* effect, Node* control,
       Handle<SharedFunctionInfo> shared_info,
       Handle<FunctionTemplateInfo> function_template_info);
 

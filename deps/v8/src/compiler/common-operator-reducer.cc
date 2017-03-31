@@ -36,7 +36,6 @@ Decision DecideCondition(Node* const cond) {
 
 }  // namespace
 
-
 CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
                                              CommonOperatorBuilder* common,
                                              MachineOperatorBuilder* machine)
@@ -44,8 +43,9 @@ CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
       graph_(graph),
       common_(common),
       machine_(machine),
-      dead_(graph->NewNode(common->Dead())) {}
-
+      dead_(graph->NewNode(common->Dead())) {
+  NodeProperties::SetType(dead_, Type::None());
+}
 
 Reduction CommonOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -195,15 +195,16 @@ Reduction CommonOperatorReducer::ReduceMerge(Node* node) {
 
 Reduction CommonOperatorReducer::ReduceEffectPhi(Node* node) {
   DCHECK_EQ(IrOpcode::kEffectPhi, node->opcode());
-  int const input_count = node->InputCount() - 1;
-  DCHECK_LE(1, input_count);
-  Node* const merge = node->InputAt(input_count);
+  Node::Inputs inputs = node->inputs();
+  int const effect_input_count = inputs.count() - 1;
+  DCHECK_LE(1, effect_input_count);
+  Node* const merge = inputs[effect_input_count];
   DCHECK(IrOpcode::IsMergeOpcode(merge->opcode()));
-  DCHECK_EQ(input_count, merge->InputCount());
-  Node* const effect = node->InputAt(0);
+  DCHECK_EQ(effect_input_count, merge->InputCount());
+  Node* const effect = inputs[0];
   DCHECK_NE(node, effect);
-  for (int i = 1; i < input_count; ++i) {
-    Node* const input = node->InputAt(i);
+  for (int i = 1; i < effect_input_count; ++i) {
+    Node* const input = inputs[i];
     if (input == node) {
       // Ignore redundant inputs.
       DCHECK_EQ(IrOpcode::kLoop, merge->opcode());
@@ -219,16 +220,18 @@ Reduction CommonOperatorReducer::ReduceEffectPhi(Node* node) {
 
 Reduction CommonOperatorReducer::ReducePhi(Node* node) {
   DCHECK_EQ(IrOpcode::kPhi, node->opcode());
-  int const input_count = node->InputCount() - 1;
-  DCHECK_LE(1, input_count);
-  Node* const merge = node->InputAt(input_count);
+  Node::Inputs inputs = node->inputs();
+  int const value_input_count = inputs.count() - 1;
+  DCHECK_LE(1, value_input_count);
+  Node* const merge = inputs[value_input_count];
   DCHECK(IrOpcode::IsMergeOpcode(merge->opcode()));
-  DCHECK_EQ(input_count, merge->InputCount());
-  if (input_count == 2) {
-    Node* vtrue = node->InputAt(0);
-    Node* vfalse = node->InputAt(1);
-    Node* if_true = merge->InputAt(0);
-    Node* if_false = merge->InputAt(1);
+  DCHECK_EQ(value_input_count, merge->InputCount());
+  if (value_input_count == 2) {
+    Node* vtrue = inputs[0];
+    Node* vfalse = inputs[1];
+    Node::Inputs merge_inputs = merge->inputs();
+    Node* if_true = merge_inputs[0];
+    Node* if_false = merge_inputs[1];
     if (if_true->opcode() != IrOpcode::kIfTrue) {
       std::swap(if_true, if_false);
       std::swap(vtrue, vfalse);
@@ -265,10 +268,10 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
       }
     }
   }
-  Node* const value = node->InputAt(0);
+  Node* const value = inputs[0];
   DCHECK_NE(node, value);
-  for (int i = 1; i < input_count; ++i) {
-    Node* const input = node->InputAt(i);
+  for (int i = 1; i < value_input_count; ++i) {
+    Node* const input = inputs[i];
     if (input == node) {
       // Ignore redundant inputs.
       DCHECK_EQ(IrOpcode::kLoop, merge->opcode());
@@ -284,7 +287,6 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
 
 Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
   DCHECK_EQ(IrOpcode::kReturn, node->opcode());
-  Node* const value = node->InputAt(1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
   bool changed = false;
@@ -295,25 +297,32 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
     NodeProperties::ReplaceEffectInput(node, effect);
     changed = true;
   }
+  // TODO(ahaas): Extend the reduction below to multiple return values.
+  if (ValueInputCountOfReturn(node->op()) != 1) {
+    return NoChange();
+  }
+  Node* const value = node->InputAt(1);
   if (value->opcode() == IrOpcode::kPhi &&
       NodeProperties::GetControlInput(value) == control &&
       effect->opcode() == IrOpcode::kEffectPhi &&
       NodeProperties::GetControlInput(effect) == control &&
       control->opcode() == IrOpcode::kMerge) {
-    int const control_input_count = control->InputCount();
-    DCHECK_NE(0, control_input_count);
-    DCHECK_EQ(control_input_count, value->InputCount() - 1);
-    DCHECK_EQ(control_input_count, effect->InputCount() - 1);
+    Node::Inputs control_inputs = control->inputs();
+    Node::Inputs value_inputs = value->inputs();
+    Node::Inputs effect_inputs = effect->inputs();
+    DCHECK_NE(0, control_inputs.count());
+    DCHECK_EQ(control_inputs.count(), value_inputs.count() - 1);
+    DCHECK_EQ(control_inputs.count(), effect_inputs.count() - 1);
     DCHECK_EQ(IrOpcode::kEnd, graph()->end()->opcode());
     DCHECK_NE(0, graph()->end()->InputCount());
-    for (int i = 0; i < control_input_count; ++i) {
+    for (int i = 0; i < control_inputs.count(); ++i) {
       // Create a new {Return} and connect it to {end}. We don't need to mark
       // {end} as revisit, because we mark {node} as {Dead} below, which was
       // previously connected to {end}, so we know for sure that at some point
       // the reducer logic will visit {end} again.
       Node* ret = graph()->NewNode(common()->Return(), node->InputAt(0),
-                                   value->InputAt(i), effect->InputAt(i),
-                                   control->InputAt(i));
+                                   value_inputs[i], effect_inputs[i],
+                                   control_inputs[i]);
       NodeProperties::MergeControlToEnd(graph(), common(), ret);
     }
     // Mark the merge {control} and return {node} as {dead}.

@@ -945,10 +945,7 @@ Performance and stability improvements on all platforms."""
           change_log)
 
     expectations = [
-      Cmd("git fetch origin "
-          "+refs/heads/*:refs/heads/* "
-          "+refs/pending/*:refs/pending/* "
-          "+refs/pending-tags/*:refs/pending-tags/*", ""),
+      Cmd("git fetch origin +refs/heads/*:refs/heads/*", ""),
       Cmd("git checkout -f origin/master", ""),
       Cmd("git branch", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
@@ -962,8 +959,9 @@ Performance and stability improvements on all platforms."""
       Cmd("git log -1 --format=%s rev1", "Log text 1.\n"),
       Cmd("git log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"),
       Cmd("git log -1 --format=%an rev1", "author1@chromium.org\n"),
+      Cmd("git push origin push_hash:refs/heads/3.22.5", ""),
       Cmd("git reset --hard origin/master", ""),
-      Cmd("git checkout -b work-branch push_hash", ""),
+      Cmd("git new-branch work-branch --upstream origin/3.22.5", ""),
       Cmd("git checkout -f 3.22.4 -- ChangeLog", "", cb=ResetChangeLog),
       Cmd("git checkout -f 3.22.4 -- include/v8-version.h", "",
           cb=self.WriteFakeVersionFile),
@@ -971,12 +969,7 @@ Performance and stability improvements on all platforms."""
           cb=self.WriteFakeWatchlistsFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], "",
           cb=CheckVersionCommit),
-      Cmd("git log -1 --format=%H --grep=\"Version 3.22.5\" origin/3.22.5",
-          ""),
-      Cmd("git push origin "
-          "refs/heads/work-branch:refs/pending/heads/3.22.5 "
-          "push_hash:refs/pending-tags/heads/3.22.5 "
-          "push_hash:refs/heads/3.22.5", ""),
+      Cmd("git cl land --bypass-hooks -f", ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep="
           "\"Version 3.22.5\" origin/3.22.5", "hsh_to_tag"),

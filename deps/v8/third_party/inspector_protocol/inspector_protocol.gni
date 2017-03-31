@@ -67,6 +67,15 @@ template("inspector_protocol_generate") {
       rebase_path(invoker.config_file, root_build_dir),
     ]
 
+    if (defined(invoker.config_values)) {
+      foreach(value, invoker.config_values) {
+        args += [
+          "--config_value",
+          value,
+        ]
+      }
+    }
+
     outputs = get_path_info(rebase_path(invoker.outputs, ".", invoker.out_dir),
                             "abspath")
 

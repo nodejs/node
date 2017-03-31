@@ -13,6 +13,6 @@ server.listen(0, common.mustCall(function() {
     headers: { connection: 'keep-alive' }
   }, common.mustCall(function(res) {
     server.close();
-    res.on('aborted', common.mustCall(function() {}));
+    res.on('aborted', common.mustCall());
   }));
 }));

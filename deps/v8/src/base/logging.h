@@ -55,13 +55,14 @@ namespace base {
 
 // Helper macro for binary operators.
 // Don't use this macro directly in your code, use CHECK_EQ et al below.
-#define CHECK_OP(name, op, lhs, rhs)                                    \
-  do {                                                                  \
-    if (std::string* _msg = ::v8::base::Check##name##Impl(              \
-            (lhs), (rhs), #lhs " " #op " " #rhs)) {                     \
-      V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", _msg->c_str()); \
-      delete _msg;                                                      \
-    }                                                                   \
+#define CHECK_OP(name, op, lhs, rhs)                                     \
+  do {                                                                   \
+    if (std::string* _msg =                                              \
+            ::v8::base::Check##name##Impl<decltype(lhs), decltype(rhs)>( \
+                (lhs), (rhs), #lhs " " #op " " #rhs)) {                  \
+      V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", _msg->c_str());  \
+      delete _msg;                                                       \
+    }                                                                    \
   } while (0)
 
 #else
@@ -73,13 +74,22 @@ namespace base {
 
 #endif
 
+// Helper to determine how to pass values: Pass scalars and arrays by value,
+// others by const reference. std::decay<T> provides the type which should be
+// used to pass T by value, e.g. converts array to pointer and removes const,
+// volatile and reference.
+template <typename T>
+struct PassType : public std::conditional<
+                      std::is_scalar<typename std::decay<T>::type>::value,
+                      typename std::decay<T>::type, T const&> {};
 
 // Build the error message string.  This is separate from the "Impl"
 // function template because it is not performance critical and so can
 // be out of line, while the "Impl" code should be inline. Caller
 // takes ownership of the returned string.
 template <typename Lhs, typename Rhs>
-std::string* MakeCheckOpString(Lhs const& lhs, Rhs const& rhs,
+std::string* MakeCheckOpString(typename PassType<Lhs>::type lhs,
+                               typename PassType<Rhs>::type rhs,
                                char const* msg) {
   std::ostringstream ss;
   ss << msg << " (" << lhs << " vs. " << rhs << ")";
@@ -90,7 +100,7 @@ std::string* MakeCheckOpString(Lhs const& lhs, Rhs const& rhs,
 // in logging.cc.
 #define DEFINE_MAKE_CHECK_OP_STRING(type)                                    \
   extern template V8_BASE_EXPORT std::string* MakeCheckOpString<type, type>( \
-      type const&, type const&, char const*);
+      type, type, char const*);
 DEFINE_MAKE_CHECK_OP_STRING(int)
 DEFINE_MAKE_CHECK_OP_STRING(long)       // NOLINT(runtime/int)
 DEFINE_MAKE_CHECK_OP_STRING(long long)  // NOLINT(runtime/int)
@@ -101,27 +111,77 @@ DEFINE_MAKE_CHECK_OP_STRING(char const*)
 DEFINE_MAKE_CHECK_OP_STRING(void const*)
 #undef DEFINE_MAKE_CHECK_OP_STRING
 
+// is_signed_vs_unsigned::value is true if both types are integral, Lhs is
+// signed, and Rhs is unsigned. False in all other cases.
+template <typename Lhs, typename Rhs>
+struct is_signed_vs_unsigned {
+  enum : bool {
+    value = std::is_integral<Lhs>::value && std::is_integral<Rhs>::value &&
+            std::is_signed<Lhs>::value && std::is_unsigned<Rhs>::value
+  };
+};
+// Same thing, other way around: Lhs is unsigned, Rhs signed.
+template <typename Lhs, typename Rhs>
+struct is_unsigned_vs_signed : public is_signed_vs_unsigned<Rhs, Lhs> {};
+
+// Specialize the compare functions for signed vs. unsigned comparisons.
+// std::enable_if ensures that this template is only instantiable if both Lhs
+// and Rhs are integral types, and their signedness does not match.
+#define MAKE_UNSIGNED(Type, value) \
+  static_cast<typename std::make_unsigned<Type>::type>(value)
+#define DEFINE_SIGNED_MISMATCH_COMP(CHECK, NAME, IMPL)                  \
+  template <typename Lhs, typename Rhs>                                 \
+  V8_INLINE typename std::enable_if<CHECK<Lhs, Rhs>::value, bool>::type \
+      Cmp##NAME##Impl(Lhs const& lhs, Rhs const& rhs) {                 \
+    return IMPL;                                                        \
+  }
+DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, EQ,
+                            lhs >= 0 && MAKE_UNSIGNED(Lhs, lhs) == rhs)
+DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, LT,
+                            lhs < 0 || MAKE_UNSIGNED(Lhs, lhs) < rhs)
+DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, LE,
+                            lhs <= 0 || MAKE_UNSIGNED(Lhs, lhs) <= rhs)
+DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, NE, !CmpEQImpl(lhs, rhs))
+DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, GT, !CmpLEImpl(lhs, rhs))
+DEFINE_SIGNED_MISMATCH_COMP(is_signed_vs_unsigned, GE, !CmpLTImpl(lhs, rhs))
+DEFINE_SIGNED_MISMATCH_COMP(is_unsigned_vs_signed, EQ, CmpEQImpl(rhs, lhs))
+DEFINE_SIGNED_MISMATCH_COMP(is_unsigned_vs_signed, NE, CmpNEImpl(rhs, lhs))
+DEFINE_SIGNED_MISMATCH_COMP(is_unsigned_vs_signed, LT, CmpGTImpl(rhs, lhs))
+DEFINE_SIGNED_MISMATCH_COMP(is_unsigned_vs_signed, LE, CmpGEImpl(rhs, lhs))
+DEFINE_SIGNED_MISMATCH_COMP(is_unsigned_vs_signed, GT, CmpLTImpl(rhs, lhs))
+DEFINE_SIGNED_MISMATCH_COMP(is_unsigned_vs_signed, GE, CmpLEImpl(rhs, lhs))
+#undef MAKE_UNSIGNED
+#undef DEFINE_SIGNED_MISMATCH_COMP
 
 // Helper functions for CHECK_OP macro.
-// The (int, int) specialization works around the issue that the compiler
-// will not instantiate the template version of the function on values of
-// unnamed enum type - see comment below.
 // The (float, float) and (double, double) instantiations are explicitly
-// externialized to ensure proper 32/64-bit comparisons on x86.
+// externalized to ensure proper 32/64-bit comparisons on x86.
+// The Cmp##NAME##Impl function is only instantiable if one of the two types is
+// not integral or their signedness matches (i.e. whenever no specialization is
+// required, see above). Otherwise it is disabled by the enable_if construct,
+// and the compiler will pick a specialization from above.
 #define DEFINE_CHECK_OP_IMPL(NAME, op)                                         \
   template <typename Lhs, typename Rhs>                                        \
-  V8_INLINE std::string* Check##NAME##Impl(Lhs const& lhs, Rhs const& rhs,     \
-                                           char const* msg) {                  \
-    return V8_LIKELY(lhs op rhs) ? nullptr : MakeCheckOpString(lhs, rhs, msg); \
+  V8_INLINE                                                                    \
+      typename std::enable_if<!is_signed_vs_unsigned<Lhs, Rhs>::value &&       \
+                                  !is_unsigned_vs_signed<Lhs, Rhs>::value,     \
+                              bool>::type                                      \
+          Cmp##NAME##Impl(typename PassType<Lhs>::type lhs,                    \
+                          typename PassType<Rhs>::type rhs) {                  \
+    return lhs op rhs;                                                         \
   }                                                                            \
-  V8_INLINE std::string* Check##NAME##Impl(int lhs, int rhs,                   \
+  template <typename Lhs, typename Rhs>                                        \
+  V8_INLINE std::string* Check##NAME##Impl(typename PassType<Lhs>::type lhs,   \
+                                           typename PassType<Rhs>::type rhs,   \
                                            char const* msg) {                  \
-    return V8_LIKELY(lhs op rhs) ? nullptr : MakeCheckOpString(lhs, rhs, msg); \
+    bool cmp = Cmp##NAME##Impl<Lhs, Rhs>(lhs, rhs);                            \
+    return V8_LIKELY(cmp) ? nullptr                                            \
+                          : MakeCheckOpString<Lhs, Rhs>(lhs, rhs, msg);        \
   }                                                                            \
   extern template V8_BASE_EXPORT std::string* Check##NAME##Impl<float, float>( \
-      float const& lhs, float const& rhs, char const* msg);                    \
+      float lhs, float rhs, char const* msg);                                  \
   extern template V8_BASE_EXPORT std::string*                                  \
-      Check##NAME##Impl<double, double>(double const& lhs, double const& rhs,  \
+      Check##NAME##Impl<double, double>(double lhs, double rhs,                \
                                         char const* msg);
 DEFINE_CHECK_OP_IMPL(EQ, ==)
 DEFINE_CHECK_OP_IMPL(NE, !=)
@@ -140,11 +200,6 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define CHECK_NULL(val) CHECK((val) == nullptr)
 #define CHECK_NOT_NULL(val) CHECK((val) != nullptr)
 #define CHECK_IMPLIES(lhs, rhs) CHECK(!(lhs) || (rhs))
-
-
-// Exposed for making debugging easier (to see where your function is being
-// called, just add a call to DumpBacktrace).
-void DumpBacktrace();
 
 }  // namespace base
 }  // namespace v8

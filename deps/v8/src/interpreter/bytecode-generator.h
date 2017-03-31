@@ -53,7 +53,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   enum class TestFallthrough { kThen, kElse, kNone };
 
   void GenerateBytecodeBody();
-  void AllocateDeferredConstants();
+  void AllocateDeferredConstants(Isolate* isolate);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
@@ -106,10 +106,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                HoleCheckMode hole_check_mode);
 
   void BuildReturn();
+  void BuildAsyncReturn();
   void BuildReThrow();
   void BuildAbort(BailoutReason bailout_reason);
   void BuildThrowIfHole(Handle<String> name);
-  void BuildThrowIfNotHole(Handle<String> name);
   void BuildThrowReferenceError(Handle<String> name);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 
@@ -129,9 +129,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
-  void VisitClassLiteralForRuntimeDefinition(ClassLiteral* expr);
-  void VisitClassLiteralProperties(ClassLiteral* expr, Register literal,
+  void VisitClassLiteralProperties(ClassLiteral* expr, Register constructor,
                                    Register prototype);
+  void BuildClassLiteralNameProperty(ClassLiteral* expr, Register constructor);
   void VisitThisFunctionVariable(Variable* variable);
   void VisitNewTargetVariable(Variable* variable);
   void VisitBlockDeclarationsAndStatements(Block* stmt);
@@ -196,8 +196,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   int feedback_index(FeedbackVectorSlot slot) const;
 
   Handle<Name> home_object_symbol() const { return home_object_symbol_; }
+  Handle<Name> iterator_symbol() const { return iterator_symbol_; }
   Handle<Name> prototype_string() const { return prototype_string_; }
   Handle<FixedArray> empty_fixed_array() const { return empty_fixed_array_; }
+  const AstRawString* undefined_string() const { return undefined_string_; }
 
   Zone* zone_;
   BytecodeArrayBuilder* builder_;
@@ -209,6 +211,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ZoneVector<std::pair<FunctionLiteral*, size_t>> function_literals_;
   ZoneVector<std::pair<NativeFunctionLiteral*, size_t>>
       native_function_literals_;
+  ZoneVector<std::pair<ObjectLiteral*, size_t>> object_literals_;
+  ZoneVector<std::pair<ArrayLiteral*, size_t>> array_literals_;
 
   ControlScope* execution_control_;
   ContextScope* execution_context_;
@@ -219,8 +223,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   int loop_depth_;
 
   Handle<Name> home_object_symbol_;
+  Handle<Name> iterator_symbol_;
   Handle<Name> prototype_string_;
   Handle<FixedArray> empty_fixed_array_;
+  const AstRawString* undefined_string_;
 };
 
 }  // namespace interpreter

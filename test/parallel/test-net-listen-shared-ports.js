@@ -25,8 +25,6 @@ const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
-function noop() {}
-
 if (cluster.isMaster) {
   const worker1 = cluster.fork();
 
@@ -41,8 +39,8 @@ if (cluster.isMaster) {
     });
   });
 } else {
-  const server1 = net.createServer(noop);
-  const server2 = net.createServer(noop);
+  const server1 = net.createServer(common.noop);
+  const server2 = net.createServer(common.noop);
 
   server1.on('error', function(err) {
     // no errors expected

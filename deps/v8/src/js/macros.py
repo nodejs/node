@@ -60,7 +60,6 @@ macro IS_NULL_OR_UNDEFINED(arg) = (arg == null);
 macro IS_NUMBER(arg)            = (typeof(arg) === 'number');
 macro IS_OBJECT(arg)            = (typeof(arg) === 'object');
 macro IS_PROXY(arg)             = (%_IsJSProxy(arg));
-macro IS_REGEXP(arg)            = (%_IsRegExp(arg));
 macro IS_SCRIPT(arg)            = (%_ClassOf(arg) === 'Script');
 macro IS_SET(arg)               = (%_ClassOf(arg) === 'Set');
 macro IS_SET_ITERATOR(arg)      = (%_ClassOf(arg) === 'Set Iterator');

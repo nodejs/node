@@ -61,6 +61,7 @@ bool Context::is_declaration_context() {
       IsModuleContext()) {
     return true;
   }
+  if (IsEvalContext()) return closure()->shared()->language_mode() == STRICT;
   if (!IsBlockContext()) return false;
   Object* ext = extension();
   // If we have the special extension, we immediately know it must be a
@@ -74,7 +75,6 @@ Context* Context::declaration_context() {
   Context* current = this;
   while (!current->is_declaration_context()) {
     current = current->previous();
-    DCHECK(current->closure() == closure());
   }
   return current;
 }
@@ -82,7 +82,8 @@ Context* Context::declaration_context() {
 Context* Context::closure_context() {
   Context* current = this;
   while (!current->IsFunctionContext() && !current->IsScriptContext() &&
-         !current->IsModuleContext() && !current->IsNativeContext()) {
+         !current->IsModuleContext() && !current->IsNativeContext() &&
+         !current->IsEvalContext()) {
     current = current->previous();
     DCHECK(current->closure() == closure());
   }
@@ -90,7 +91,8 @@ Context* Context::closure_context() {
 }
 
 JSObject* Context::extension_object() {
-  DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext());
+  DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
+         IsEvalContext());
   HeapObject* object = extension();
   if (object->IsTheHole(GetIsolate())) return nullptr;
   if (IsBlockContext()) {
@@ -103,7 +105,7 @@ JSObject* Context::extension_object() {
 }
 
 JSReceiver* Context::extension_receiver() {
-  DCHECK(IsNativeContext() || IsWithContext() ||
+  DCHECK(IsNativeContext() || IsWithContext() || IsEvalContext() ||
          IsFunctionContext() || IsBlockContext());
   return IsWithContext() ? JSReceiver::cast(
                                ContextExtension::cast(extension())->extension())
@@ -112,7 +114,7 @@ JSReceiver* Context::extension_receiver() {
 
 ScopeInfo* Context::scope_info() {
   DCHECK(!IsNativeContext());
-  if (IsFunctionContext() || IsModuleContext()) {
+  if (IsFunctionContext() || IsModuleContext() || IsEvalContext()) {
     return closure()->shared()->scope_info();
   }
   HeapObject* object = extension();
@@ -223,6 +225,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     }
 
     // 1. Check global objects, subjects of with, and extension objects.
+    DCHECK_IMPLIES(context->IsEvalContext(),
+                   context->extension()->IsTheHole(isolate));
     if ((context->IsNativeContext() ||
          (context->IsWithContext() && ((flags & SKIP_WITH_CONTEXT) == 0)) ||
          context->IsFunctionContext() || context->IsBlockContext()) &&
@@ -301,12 +305,10 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
     // 2. Check the context proper if it has slots.
     if (context->IsFunctionContext() || context->IsBlockContext() ||
-        context->IsScriptContext()) {
+        context->IsScriptContext() || context->IsEvalContext()) {
       // Use serialized scope information of functions and blocks to search
       // for the context index.
-      Handle<ScopeInfo> scope_info(context->IsFunctionContext()
-          ? context->closure()->shared()->scope_info()
-          : context->scope_info());
+      Handle<ScopeInfo> scope_info(context->scope_info());
       VariableMode mode;
       InitializationFlag flag;
       MaybeAssignedFlag maybe_assigned_flag;
@@ -408,6 +410,182 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
   return Handle<Object>::null();
 }
 
+static const int kSharedOffset = 0;
+static const int kCachedCodeOffset = 1;
+static const int kLiteralsOffset = 2;
+static const int kOsrAstIdOffset = 3;
+static const int kEntryLength = 4;
+static const int kInitialLength = kEntryLength;
+
+int Context::SearchOptimizedCodeMapEntry(SharedFunctionInfo* shared,
+                                         BailoutId osr_ast_id) {
+  DisallowHeapAllocation no_gc;
+  DCHECK(this->IsNativeContext());
+  if (!OptimizedCodeMapIsCleared()) {
+    FixedArray* optimized_code_map = this->osr_code_table();
+    int length = optimized_code_map->length();
+    Smi* osr_ast_id_smi = Smi::FromInt(osr_ast_id.ToInt());
+    for (int i = 0; i < length; i += kEntryLength) {
+      if (WeakCell::cast(optimized_code_map->get(i + kSharedOffset))->value() ==
+              shared &&
+          optimized_code_map->get(i + kOsrAstIdOffset) == osr_ast_id_smi) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+void Context::SearchOptimizedCodeMap(SharedFunctionInfo* shared,
+                                     BailoutId osr_ast_id, Code** pcode,
+                                     LiteralsArray** pliterals) {
+  DCHECK(this->IsNativeContext());
+  int entry = SearchOptimizedCodeMapEntry(shared, osr_ast_id);
+  if (entry != -1) {
+    FixedArray* code_map = osr_code_table();
+    DCHECK_LE(entry + kEntryLength, code_map->length());
+    WeakCell* cell = WeakCell::cast(code_map->get(entry + kCachedCodeOffset));
+    WeakCell* literals_cell =
+        WeakCell::cast(code_map->get(entry + kLiteralsOffset));
+
+    *pcode = cell->cleared() ? nullptr : Code::cast(cell->value());
+    *pliterals = literals_cell->cleared()
+                     ? nullptr
+                     : LiteralsArray::cast(literals_cell->value());
+  } else {
+    *pcode = nullptr;
+    *pliterals = nullptr;
+  }
+}
+
+void Context::AddToOptimizedCodeMap(Handle<Context> native_context,
+                                    Handle<SharedFunctionInfo> shared,
+                                    Handle<Code> code,
+                                    Handle<LiteralsArray> literals,
+                                    BailoutId osr_ast_id) {
+  DCHECK(native_context->IsNativeContext());
+  Isolate* isolate = native_context->GetIsolate();
+  if (isolate->serializer_enabled()) return;
+
+  STATIC_ASSERT(kEntryLength == 4);
+  Handle<FixedArray> new_code_map;
+  int entry;
+
+  if (native_context->OptimizedCodeMapIsCleared()) {
+    new_code_map = isolate->factory()->NewFixedArray(kInitialLength, TENURED);
+    entry = 0;
+  } else {
+    Handle<FixedArray> old_code_map(native_context->osr_code_table(), isolate);
+    entry = native_context->SearchOptimizedCodeMapEntry(*shared, osr_ast_id);
+    if (entry >= 0) {
+      // Just set the code and literals of the entry.
+      Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
+      old_code_map->set(entry + kCachedCodeOffset, *code_cell);
+      Handle<WeakCell> literals_cell =
+          isolate->factory()->NewWeakCell(literals);
+      old_code_map->set(entry + kLiteralsOffset, *literals_cell);
+      return;
+    }
+
+    // Can we reuse an entry?
+    DCHECK(entry < 0);
+    int length = old_code_map->length();
+    for (int i = 0; i < length; i += kEntryLength) {
+      if (WeakCell::cast(old_code_map->get(i + kSharedOffset))->cleared()) {
+        new_code_map = old_code_map;
+        entry = i;
+        break;
+      }
+    }
+
+    if (entry < 0) {
+      // Copy old optimized code map and append one new entry.
+      new_code_map = isolate->factory()->CopyFixedArrayAndGrow(
+          old_code_map, kEntryLength, TENURED);
+      entry = old_code_map->length();
+    }
+  }
+
+  Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
+  Handle<WeakCell> literals_cell = isolate->factory()->NewWeakCell(literals);
+  Handle<WeakCell> shared_cell = isolate->factory()->NewWeakCell(shared);
+
+  new_code_map->set(entry + kSharedOffset, *shared_cell);
+  new_code_map->set(entry + kCachedCodeOffset, *code_cell);
+  new_code_map->set(entry + kLiteralsOffset, *literals_cell);
+  new_code_map->set(entry + kOsrAstIdOffset, Smi::FromInt(osr_ast_id.ToInt()));
+
+#ifdef DEBUG
+  for (int i = 0; i < new_code_map->length(); i += kEntryLength) {
+    WeakCell* cell = WeakCell::cast(new_code_map->get(i + kSharedOffset));
+    DCHECK(cell->cleared() || cell->value()->IsSharedFunctionInfo());
+    cell = WeakCell::cast(new_code_map->get(i + kCachedCodeOffset));
+    DCHECK(cell->cleared() ||
+           (cell->value()->IsCode() &&
+            Code::cast(cell->value())->kind() == Code::OPTIMIZED_FUNCTION));
+    cell = WeakCell::cast(new_code_map->get(i + kLiteralsOffset));
+    DCHECK(cell->cleared() || cell->value()->IsFixedArray());
+    DCHECK(new_code_map->get(i + kOsrAstIdOffset)->IsSmi());
+  }
+#endif
+
+  FixedArray* old_code_map = native_context->osr_code_table();
+  if (old_code_map != *new_code_map) {
+    native_context->set_osr_code_table(*new_code_map);
+  }
+}
+
+void Context::EvictFromOptimizedCodeMap(Code* optimized_code,
+                                        const char* reason) {
+  DCHECK(IsNativeContext());
+  DisallowHeapAllocation no_gc;
+  if (OptimizedCodeMapIsCleared()) return;
+
+  Heap* heap = GetHeap();
+  FixedArray* code_map = osr_code_table();
+  int dst = 0;
+  int length = code_map->length();
+  for (int src = 0; src < length; src += kEntryLength) {
+    if (WeakCell::cast(code_map->get(src + kCachedCodeOffset))->value() ==
+        optimized_code) {
+      BailoutId osr(Smi::cast(code_map->get(src + kOsrAstIdOffset))->value());
+      if (FLAG_trace_opt) {
+        PrintF(
+            "[evicting entry from native context optimizing code map (%s) for ",
+            reason);
+        ShortPrint();
+        DCHECK(!osr.IsNone());
+        PrintF(" (osr ast id %d)]\n", osr.ToInt());
+      }
+      // Evict the src entry by not copying it to the dst entry.
+      continue;
+    }
+    // Keep the src entry by copying it to the dst entry.
+    if (dst != src) {
+      code_map->set(dst + kSharedOffset, code_map->get(src + kSharedOffset));
+      code_map->set(dst + kCachedCodeOffset,
+                    code_map->get(src + kCachedCodeOffset));
+      code_map->set(dst + kLiteralsOffset,
+                    code_map->get(src + kLiteralsOffset));
+      code_map->set(dst + kOsrAstIdOffset,
+                    code_map->get(src + kOsrAstIdOffset));
+    }
+    dst += kEntryLength;
+  }
+  if (dst != length) {
+    // Always trim even when array is cleared because of heap verifier.
+    heap->RightTrimFixedArray(code_map, length - dst);
+    if (code_map->length() == 0) {
+      ClearOptimizedCodeMap();
+    }
+  }
+}
+
+void Context::ClearOptimizedCodeMap() {
+  DCHECK(IsNativeContext());
+  FixedArray* empty_fixed_array = GetHeap()->empty_fixed_array();
+  set_osr_code_table(empty_fixed_array);
+}
 
 void Context::AddOptimizedFunction(JSFunction* function) {
   DCHECK(IsNativeContext());
@@ -582,6 +760,10 @@ bool Context::IsBootstrappingOrValidParentContext(
 
 #endif
 
+void Context::ResetErrorsThrown() {
+  DCHECK(IsNativeContext());
+  set_errors_thrown(Smi::FromInt(0));
+}
 
 void Context::IncrementErrorsThrown() {
   DCHECK(IsNativeContext());

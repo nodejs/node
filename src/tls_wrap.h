@@ -75,6 +75,8 @@ class TLSWrap : public AsyncWrap,
 
   size_t self_size() const override { return sizeof(*this); }
 
+  void clear_stream() { stream_ = nullptr; }
+
  protected:
   static const int kClearOutChunkSize = 16384;
 
@@ -142,6 +144,7 @@ class TLSWrap : public AsyncWrap,
                          const uv_buf_t* buf,
                          uv_handle_type pending,
                          void* ctx);
+  static void OnDestructImpl(void* ctx);
 
   void DoRead(ssize_t nread, const uv_buf_t* buf, uv_handle_type pending);
 
@@ -158,7 +161,6 @@ class TLSWrap : public AsyncWrap,
   static void EnableCertCb(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DestroySSL(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void OnStreamClose(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
   static void GetServername(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -5,6 +5,8 @@
 #ifndef V8_AST_AST_NUMBERING_H_
 #define V8_AST_AST_NUMBERING_H_
 
+#include <stdint.h>
+
 namespace v8 {
 namespace internal {
 
@@ -12,11 +14,20 @@ namespace internal {
 class FunctionLiteral;
 class Isolate;
 class Zone;
+template <typename T>
+class ThreadedList;
+template <typename T>
+class ThreadedListZoneEntry;
+template <typename T>
+class ZoneVector;
 
 namespace AstNumbering {
 // Assign type feedback IDs, bailout IDs, and generator yield IDs to an AST node
-// tree; perform catch prediction for TryStatements.
-bool Renumber(Isolate* isolate, Zone* zone, FunctionLiteral* function);
+// tree; perform catch prediction for TryStatements. If |eager_literals| is
+// non-null, adds any eager inner literal functions into it.
+bool Renumber(
+    uintptr_t stack_limit, Zone* zone, FunctionLiteral* function,
+    ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* eager_literals);
 }
 
 // Some details on yield IDs

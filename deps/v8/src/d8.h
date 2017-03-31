@@ -5,12 +5,17 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
+#include <memory>
 #include <string>
+#include <unordered_set>
+#include <vector>
 
 #include "src/allocation.h"
+#include "src/base/functional.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/time.h"
 #include "src/list.h"
+#include "src/utils.h"
 
 #include "src/base/once.h"
 
@@ -142,68 +147,51 @@ class SourceGroup {
   int end_offset_;
 };
 
-enum SerializationTag {
-  kSerializationTagUndefined,
-  kSerializationTagNull,
-  kSerializationTagTrue,
-  kSerializationTagFalse,
-  kSerializationTagNumber,
-  kSerializationTagString,
-  kSerializationTagArray,
-  kSerializationTagObject,
-  kSerializationTagArrayBuffer,
-  kSerializationTagTransferredArrayBuffer,
-  kSerializationTagTransferredSharedArrayBuffer,
-};
-
 
 class SerializationData {
  public:
-  SerializationData() {}
+  SerializationData() : data_(nullptr), size_(0) {}
   ~SerializationData();
 
-  void WriteTag(SerializationTag tag);
-  void WriteMemory(const void* p, int length);
-  void WriteArrayBufferContents(const ArrayBuffer::Contents& contents);
-  void WriteSharedArrayBufferContents(
-      const SharedArrayBuffer::Contents& contents);
-
-  template <typename T>
-  void Write(const T& data) {
-    WriteMemory(&data, sizeof(data));
+  uint8_t* data() { return data_.get(); }
+  size_t size() { return size_; }
+  const std::vector<ArrayBuffer::Contents>& array_buffer_contents() {
+    return array_buffer_contents_;
+  }
+  const std::vector<SharedArrayBuffer::Contents>&
+  shared_array_buffer_contents() {
+    return shared_array_buffer_contents_;
   }
 
-  SerializationTag ReadTag(int* offset) const;
-  void ReadMemory(void* p, int length, int* offset) const;
-  void ReadArrayBufferContents(ArrayBuffer::Contents* contents,
-                               int* offset) const;
-  void ReadSharedArrayBufferContents(SharedArrayBuffer::Contents* contents,
-                                     int* offset) const;
-
-  template <typename T>
-  T Read(int* offset) const {
-    T value;
-    ReadMemory(&value, sizeof(value), offset);
-    return value;
-  }
+  void ClearTransferredArrayBuffers();
 
  private:
-  i::List<uint8_t> data_;
-  i::List<ArrayBuffer::Contents> array_buffer_contents_;
-  i::List<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
+  struct DataDeleter {
+    void operator()(uint8_t* p) const { free(p); }
+  };
+
+  std::unique_ptr<uint8_t, DataDeleter> data_;
+  size_t size_;
+  std::vector<ArrayBuffer::Contents> array_buffer_contents_;
+  std::vector<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
+
+ private:
+  friend class Serializer;
+
+  DISALLOW_COPY_AND_ASSIGN(SerializationData);
 };
 
 
 class SerializationDataQueue {
  public:
-  void Enqueue(SerializationData* data);
-  bool Dequeue(SerializationData** data);
+  void Enqueue(std::unique_ptr<SerializationData> data);
+  bool Dequeue(std::unique_ptr<SerializationData>* data);
   bool IsEmpty();
   void Clear();
 
  private:
   base::Mutex mutex_;
-  i::List<SerializationData*> data_;
+  std::vector<std::unique_ptr<SerializationData>> data_;
 };
 
 
@@ -218,13 +206,13 @@ class Worker {
   // Post a message to the worker's incoming message queue. The worker will
   // take ownership of the SerializationData.
   // This function should only be called by the thread that created the Worker.
-  void PostMessage(SerializationData* data);
+  void PostMessage(std::unique_ptr<SerializationData> data);
   // Synchronously retrieve messages from the worker's outgoing message queue.
   // If there is no message in the queue, block until a message is available.
   // If there are no messages in the queue and the worker is no longer running,
   // return nullptr.
   // This function should only be called by the thread that created the Worker.
-  SerializationData* GetMessage();
+  std::unique_ptr<SerializationData> GetMessage();
   // Terminate the worker's event loop. Messages from the worker that have been
   // queued can still be read via GetMessage().
   // This function can be called by any thread.
@@ -324,7 +312,6 @@ class Shell : public i::AllStatic {
                             Local<Value> name, bool print_result,
                             bool report_exceptions);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
-  static const char* ToCString(const v8::String::Utf8Value& value);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Local<String> ReadFile(Isolate* isolate, const char* name);
   static Local<Context> CreateEvaluationContext(Isolate* isolate);
@@ -335,16 +322,10 @@ class Shell : public i::AllStatic {
   static void CollectGarbage(Isolate* isolate);
   static void EmptyMessageQueues(Isolate* isolate);
 
-  // TODO(binji): stupid implementation for now. Is there an easy way to hash an
-  // object for use in base::HashMap? By pointer?
-  typedef i::List<Local<Object>> ObjectList;
-  static bool SerializeValue(Isolate* isolate, Local<Value> value,
-                             const ObjectList& to_transfer,
-                             ObjectList* seen_objects,
-                             SerializationData* out_data);
-  static MaybeLocal<Value> DeserializeValue(Isolate* isolate,
-                                            const SerializationData& data,
-                                            int* offset);
+  static std::unique_ptr<SerializationData> SerializeValue(
+      Isolate* isolate, Local<Value> value, Local<Value> transfer);
+  static MaybeLocal<Value> DeserializeValue(
+      Isolate* isolate, std::unique_ptr<SerializationData> data);
   static void CleanupWorkers();
   static int* LookupCounter(const char* name);
   static void* CreateHistogram(const char* name,
@@ -360,6 +341,7 @@ class Shell : public i::AllStatic {
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmCreateAllowCrossRealmAccess(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -443,10 +425,26 @@ class Shell : public i::AllStatic {
   static base::LazyMutex context_mutex_;
   static const base::TimeTicks kInitialTicks;
 
+  struct SharedArrayBufferContentsHash {
+    size_t operator()(const v8::SharedArrayBuffer::Contents& contents) const {
+      return base::hash_combine(contents.Data(), contents.ByteLength());
+    }
+  };
+
+  struct SharedArrayBufferContentsIsEqual {
+    bool operator()(const SharedArrayBuffer::Contents& a,
+                    const SharedArrayBuffer::Contents& b) const {
+      return a.Data() == b.Data() && a.ByteLength() == b.ByteLength();
+    }
+  };
+
   static base::LazyMutex workers_mutex_;
   static bool allow_new_workers_;
   static i::List<Worker*> workers_;
-  static i::List<SharedArrayBuffer::Contents> externalized_shared_contents_;
+  static std::unordered_set<SharedArrayBuffer::Contents,
+                            SharedArrayBufferContentsHash,
+                            SharedArrayBufferContentsIsEqual>
+      externalized_shared_contents_;
 
   static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
   static Counter* GetCounter(const char* name, bool is_histogram);
@@ -456,7 +454,10 @@ class Shell : public i::AllStatic {
   static bool SetOptions(int argc, char* argv[]);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static MaybeLocal<Context> CreateRealm(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+      const v8::FunctionCallbackInfo<v8::Value>& args, int index,
+      v8::MaybeLocal<Value> global_object);
+  static void DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& args,
+                           int index);
   static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Context> context,
                                             const std::string& file_name);
 };

@@ -305,9 +305,6 @@ testOmittedBuiltin(function(){ [thrower, 2].sort(function (a,b) {
                                                      (b < a) - (a < b); });
                    }, "QuickSort");
 
-// Omitted because ADD from runtime.js is non-native builtin.
-testOmittedBuiltin(function(){ thrower + 2; }, "ADD");
-
 var reached = false;
 var error = new Error();
 error.toString = function() { reached = true; };

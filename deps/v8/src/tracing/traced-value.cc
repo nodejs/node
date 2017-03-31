@@ -24,40 +24,36 @@ const bool kStackTypeArray = true;
 #define DEBUG_POP_CONTAINER() ((void)0)
 #endif
 
-std::string EscapeString(const std::string& value) {
-  std::string result;
-  result.reserve(value.length() + 2);
-  result += '"';
-  size_t length = value.length();
+void EscapeAndAppendString(const char* value, std::string* result) {
+  *result += '"';
   char number_buffer[10];
-  for (size_t src = 0; src < length; ++src) {
-    char c = value[src];
+  while (*value) {
+    char c = *value++;
     switch (c) {
       case '\t':
-        result += "\\t";
+        *result += "\\t";
         break;
       case '\n':
-        result += "\\n";
+        *result += "\\n";
         break;
       case '\"':
-        result += "\\\"";
+        *result += "\\\"";
         break;
       case '\\':
-        result += "\\\\";
+        *result += "\\\\";
         break;
       default:
         if (c < '\040') {
           base::OS::SNPrintF(
               number_buffer, arraysize(number_buffer), "\\u%04X",
               static_cast<unsigned>(static_cast<unsigned char>(c)));
-          result += number_buffer;
+          *result += number_buffer;
         } else {
-          result += c;
+          *result += c;
         }
     }
   }
-  result += '"';
-  return result;
+  *result += '"';
 }
 
 }  // namespace
@@ -95,10 +91,10 @@ void TracedValue::SetBoolean(const char* name, bool value) {
   data_ += value ? "true" : "false";
 }
 
-void TracedValue::SetString(const char* name, const std::string& value) {
+void TracedValue::SetString(const char* name, const char* value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
   WriteName(name);
-  data_ += EscapeString(value);
+  EscapeAndAppendString(value, &data_);
 }
 
 void TracedValue::BeginDictionary(const char* name) {
@@ -123,12 +119,6 @@ void TracedValue::AppendInteger(int value) {
   data_ += std::to_string(value);
 }
 
-void TracedValue::AppendLongInteger(int64_t value) {
-  DCHECK_CURRENT_CONTAINER_IS(kStackTypeArray);
-  WriteComma();
-  data_ += std::to_string(value);
-}
-
 void TracedValue::AppendDouble(double value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeArray);
   WriteComma();
@@ -142,10 +132,10 @@ void TracedValue::AppendBoolean(bool value) {
   data_ += value ? "true" : "false";
 }
 
-void TracedValue::AppendString(const std::string& value) {
+void TracedValue::AppendString(const char* value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeArray);
   WriteComma();
-  data_ += EscapeString(value);
+  EscapeAndAppendString(value, &data_);
 }
 
 void TracedValue::BeginDictionary() {

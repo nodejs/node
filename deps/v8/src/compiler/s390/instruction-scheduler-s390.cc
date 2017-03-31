@@ -32,7 +32,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_RotRight64:
     case kS390_Not32:
     case kS390_Not64:
-    case kS390_RotLeftAndMask32:
     case kS390_RotLeftAndClear64:
     case kS390_RotLeftAndClearLeft64:
     case kS390_RotLeftAndClearRight64:

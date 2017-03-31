@@ -9,15 +9,17 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 
-var imported_idx = builder.addImport("func", kSig_v_v);
+var imported_idx = builder.addImport("mode", "func", kSig_v_v);
 
-var call_imported_idx = builder.addFunction("call_func", kSig_v_v)
+var call_imported_idx = builder.addFunction('call_func', kSig_v_v)
   .addBody([kExprCallFunction, imported_idx])
   .index;
 
-builder.addFunction("main", kSig_v_v)
-  .addBody([kExprCallFunction, call_imported_idx])
-  .exportAs("main");
+// Open a block in order to make the positions more interesting...
+builder.addFunction('main', kSig_v_v)
+  .addBody(
+    [kExprBlock, kWasmStmt, kExprCallFunction, call_imported_idx, kExprEnd])
+  .exportAs('main');
 
 var module_bytes = builder.toArray();
 
@@ -33,7 +35,7 @@ function testFunction(bytes) {
   }
 
   var module = new WebAssembly.Module(buffer);
-  var instance = new WebAssembly.Instance(module, {func: call_debugger});
+  var instance = new WebAssembly.Instance(module, {mode: {func: call_debugger}});
 
   instance.exports.main();
 }

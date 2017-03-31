@@ -20,32 +20,41 @@ namespace interpreter {
 
 class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
  public:
-  InterpreterAssembler(Isolate* isolate, Zone* zone, Bytecode bytecode,
+  InterpreterAssembler(compiler::CodeAssemblerState* state, Bytecode bytecode,
                        OperandScale operand_scale);
-  virtual ~InterpreterAssembler();
+  ~InterpreterAssembler();
 
-  // Returns the count immediate for bytecode operand |operand_index| in the
-  // current bytecode.
+  // Returns the 32-bit unsigned count immediate for bytecode operand
+  // |operand_index| in the current bytecode.
   compiler::Node* BytecodeOperandCount(int operand_index);
-  // Returns the 8-bit flag for bytecode operand |operand_index| in the
-  // current bytecode.
+  // Returns the 32-bit unsigned flag for bytecode operand |operand_index|
+  // in the current bytecode.
   compiler::Node* BytecodeOperandFlag(int operand_index);
-  // Returns the index immediate for bytecode operand |operand_index| in the
-  // current bytecode.
+  // Returns the 32-bit zero-extended index immediate for bytecode operand
+  // |operand_index| in the current bytecode.
   compiler::Node* BytecodeOperandIdx(int operand_index);
-  // Returns the UImm8 immediate for bytecode operand |operand_index| in the
-  // current bytecode.
+  // Returns the smi index immediate for bytecode operand |operand_index|
+  // in the current bytecode.
+  compiler::Node* BytecodeOperandIdxSmi(int operand_index);
+  // Returns the 32-bit unsigned immediate for bytecode operand |operand_index|
+  // in the current bytecode.
   compiler::Node* BytecodeOperandUImm(int operand_index);
-  // Returns the Imm8 immediate for bytecode operand |operand_index| in the
-  // current bytecode.
+  // Returns the 32-bit signed immediate for bytecode operand |operand_index|
+  // in the current bytecode.
   compiler::Node* BytecodeOperandImm(int operand_index);
-  // Returns the register index for bytecode operand |operand_index| in the
+  // Returns the word-size signed immediate for bytecode operand |operand_index|
+  // in the current bytecode.
+  compiler::Node* BytecodeOperandImmIntPtr(int operand_index);
+  // Returns the smi immediate for bytecode operand |operand_index| in the
   // current bytecode.
+  compiler::Node* BytecodeOperandImmSmi(int operand_index);
+  // Returns the word-size sign-extended register index for bytecode operand
+  // |operand_index| in the current bytecode.
   compiler::Node* BytecodeOperandReg(int operand_index);
-  // Returns the runtime id immediate for bytecode operand
+  // Returns the 32-bit unsigned runtime id immediate for bytecode operand
   // |operand_index| in the current bytecode.
   compiler::Node* BytecodeOperandRuntimeId(int operand_index);
-  // Returns the intrinsic id immediate for bytecode operand
+  // Returns the 32-bit unsigned intrinsic id immediate for bytecode operand
   // |operand_index| in the current bytecode.
   compiler::Node* BytecodeOperandIntrinsicId(int operand_index);
 
@@ -93,12 +102,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Load and untag constant at |index| in the constant pool.
   compiler::Node* LoadAndUntagConstantPoolEntry(compiler::Node* index);
 
-  // Load the TypeFeedbackVector for the current function.
-  compiler::Node* LoadTypeFeedbackVector();
+  // Load the FeedbackVector for the current function.
+  compiler::Node* LoadFeedbackVector();
 
   // Increment the call count for a CALL_IC or construct call.
   // The call count is located at feedback_vector[slot_id + 1].
-  compiler::Node* IncrementCallCount(compiler::Node* type_feedback_vector,
+  compiler::Node* IncrementCallCount(compiler::Node* feedback_vector,
                                      compiler::Node* slot_id);
 
   // Call JSFunction or Callable |function| with |arg_count|
@@ -110,7 +119,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                      compiler::Node* first_arg,
                                      compiler::Node* arg_count,
                                      compiler::Node* slot_id,
-                                     compiler::Node* type_feedback_vector,
+                                     compiler::Node* feedback_vector,
                                      TailCallMode tail_call_mode);
 
   // Call JSFunction or Callable |function| with |arg_count|
@@ -131,7 +140,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                 compiler::Node* first_arg,
                                 compiler::Node* arg_count,
                                 compiler::Node* slot_id,
-                                compiler::Node* type_feedback_vector);
+                                compiler::Node* feedback_vector);
 
   // Call runtime function with |arg_count| arguments and the first argument
   // located at |first_arg|.
@@ -209,8 +218,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Saves and restores interpreter bytecode offset to the interpreter stack
   // frame when performing a call.
-  void CallPrologue() override;
-  void CallEpilogue() override;
+  void CallPrologue();
+  void CallEpilogue();
 
   // Increment the dispatch counter for the (current, next) bytecode pair.
   void TraceBytecodeDispatch(compiler::Node* target_index);
@@ -218,8 +227,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Traces the current bytecode by calling |function_id|.
   void TraceBytecode(Runtime::FunctionId function_id);
 
-  // Updates the bytecode array's interrupt budget by |weight| and calls
-  // Runtime::kInterrupt if counter reaches zero.
+  // Updates the bytecode array's interrupt budget by a 32-bit signed |weight|
+  // and calls Runtime::kInterrupt if counter reaches zero.
   void UpdateInterruptBudget(compiler::Node* weight);
 
   // Returns the offset of register |index| relative to RegisterFilePointer().
@@ -236,6 +245,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* BytecodeOperandReadUnaligned(int relative_offset,
                                                MachineType result_type);
 
+  // Returns zero- or sign-extended to word32 value of the operand.
   compiler::Node* BytecodeOperandUnsignedByte(int operand_index);
   compiler::Node* BytecodeOperandSignedByte(int operand_index);
   compiler::Node* BytecodeOperandUnsignedShort(int operand_index);
@@ -243,6 +253,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* BytecodeOperandUnsignedQuad(int operand_index);
   compiler::Node* BytecodeOperandSignedQuad(int operand_index);
 
+  // Returns zero- or sign-extended to word32 value of the operand of
+  // given size.
   compiler::Node* BytecodeSignedOperand(int operand_index,
                                         OperandSize operand_size);
   compiler::Node* BytecodeUnsignedOperand(int operand_index,

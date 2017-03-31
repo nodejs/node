@@ -33,6 +33,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
   bool compilation_failed() const { return compilation_failed_; }
 
  private:
+  Reduction ReduceNode(Node* node);
   Reduction ReduceLoad(Node* node);
   Reduction ReduceStore(Node* node);
   Reduction ReduceAllocate(Node* node);

@@ -83,14 +83,20 @@ PerThreadAssertScope<kType, kAllow>::PerThreadAssertScope()
 
 template <PerThreadAssertType kType, bool kAllow>
 PerThreadAssertScope<kType, kAllow>::~PerThreadAssertScope() {
+  if (data_ == nullptr) return;
+  Release();
+}
+
+template <PerThreadAssertType kType, bool kAllow>
+void PerThreadAssertScope<kType, kAllow>::Release() {
   DCHECK_NOT_NULL(data_);
   data_->Set(kType, old_state_);
   if (data_->DecrementLevel()) {
     PerThreadAssertData::SetCurrent(NULL);
     delete data_;
   }
+  data_ = nullptr;
 }
-
 
 // static
 template <PerThreadAssertType kType, bool kAllow>
@@ -149,6 +155,8 @@ template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, false>;
 template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, true>;
 template class PerIsolateAssertScope<COMPILATION_ASSERT, false>;
 template class PerIsolateAssertScope<COMPILATION_ASSERT, true>;
+template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, false>;
+template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, true>;
 
 }  // namespace internal
 }  // namespace v8

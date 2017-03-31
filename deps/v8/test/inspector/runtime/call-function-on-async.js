@@ -102,7 +102,7 @@ function callFunctionOn(objectExpression, functionDeclaration, argumentExpressio
   var objectId;
   var callArguments = [];
   var promise = Protocol.Runtime.evaluate({ expression: objectExpression })
-    .then((result) => objectId = result.result.result.objectId)
+    .then((result) => objectId = result.result.result.objectId);
   for (let argumentExpression of argumentExpressions) {
     promise = promise
       .then(() => Protocol.Runtime.evaluate({ expression: argumentExpression }))

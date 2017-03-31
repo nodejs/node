@@ -66,6 +66,18 @@ class SlotSet : public Malloced {
   }
 
   // The slot offset specifies a slot at address page_start_ + slot_offset.
+  // Returns true if the set contains the slot.
+  bool Contains(int slot_offset) {
+    int bucket_index, cell_index, bit_index;
+    SlotToIndices(slot_offset, &bucket_index, &cell_index, &bit_index);
+    base::AtomicValue<uint32_t>* current_bucket = bucket[bucket_index].Value();
+    if (current_bucket == nullptr) {
+      return false;
+    }
+    return (current_bucket[cell_index].Value() & (1u << bit_index)) != 0;
+  }
+
+  // The slot offset specifies a slot at address page_start_ + slot_offset.
   void Remove(int slot_offset) {
     int bucket_index, cell_index, bit_index;
     SlotToIndices(slot_offset, &bucket_index, &cell_index, &bit_index);

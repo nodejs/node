@@ -4,9 +4,10 @@
 
 #include "src/parsing/parameter-initializer-rewriter.h"
 
-#include "src/ast/ast.h"
 #include "src/ast/ast-traversal-visitor.h"
+#include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

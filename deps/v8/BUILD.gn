@@ -14,8 +14,6 @@ if (is_android) {
 
 import("gni/v8.gni")
 import("gni/isolate.gni")
-import("//build_overrides/v8.gni")
-
 import("snapshot_toolchain.gni")
 
 declare_args() {
@@ -23,7 +21,10 @@ declare_args() {
   v8_android_log_stdout = false
 
   # Sets -DVERIFY_HEAP.
-  v8_enable_verify_heap = false
+  v8_enable_verify_heap = ""
+
+  # Sets -DVERIFY_PREDICTABLE
+  v8_enable_verify_predictable = false
 
   # Enable compiler warnings when using V8_DEPRECATED apis.
   v8_deprecation_warnings = false
@@ -51,7 +52,13 @@ declare_args() {
   v8_interpreted_regexp = false
 
   # Sets -dOBJECT_PRINT.
-  v8_object_print = ""
+  v8_enable_object_print = ""
+
+  # Sets -dTRACE_MAPS.
+  v8_enable_trace_maps = ""
+
+  # Sets -dV8_ENABLE_CHECKS.
+  v8_enable_v8_checks = ""
 
   # With post mortem support enabled, metadata is embedded into libv8 that
   # describes various parameters of the VM for use by debuggers. See
@@ -89,11 +96,20 @@ if (v8_enable_gdbjit == "") {
 }
 
 # Derived defaults.
-if (v8_object_print == "") {
-  v8_object_print = is_debug && !v8_optimized_debug
+if (v8_enable_verify_heap == "") {
+  v8_enable_verify_heap = is_debug
+}
+if (v8_enable_object_print == "") {
+  v8_enable_object_print = is_debug
 }
 if (v8_enable_disassembler == "") {
-  v8_enable_disassembler = is_debug && !v8_optimized_debug
+  v8_enable_disassembler = is_debug
+}
+if (v8_enable_trace_maps == "") {
+  v8_enable_trace_maps = is_debug
+}
+if (v8_enable_v8_checks == "") {
+  v8_enable_v8_checks = is_debug
 }
 
 # Specifies if the target build is a simulator build. Comparing target cpu
@@ -155,7 +171,7 @@ config("external_config") {
     defines = [ "USING_V8_SHARED" ]
   }
   include_dirs = [ "include" ]
-  if (v8_enable_inspector_override) {
+  if (v8_enable_inspector) {
     include_dirs += [ "$target_gen_dir/include" ]
   }
 }
@@ -179,11 +195,20 @@ config("features") {
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
   }
-  if (v8_object_print) {
+  if (v8_enable_object_print) {
     defines += [ "OBJECT_PRINT" ]
   }
   if (v8_enable_verify_heap) {
     defines += [ "VERIFY_HEAP" ]
+  }
+  if (v8_enable_verify_predictable) {
+    defines += [ "VERIFY_PREDICTABLE" ]
+  }
+  if (v8_enable_trace_maps) {
+    defines += [ "TRACE_MAPS" ]
+  }
+  if (v8_enable_v8_checks) {
+    defines += [ "V8_ENABLE_CHECKS" ]
   }
   if (v8_interpreted_regexp) {
     defines += [ "V8_INTERPRETED_REGEXP" ]
@@ -348,15 +373,7 @@ config("toolchain") {
       ldflags += [ "-rdynamic" ]
     }
 
-    # TODO(jochen): Add support for different debug optimization levels.
-    defines += [
-      "ENABLE_DISASSEMBLER",
-      "V8_ENABLE_CHECKS",
-      "OBJECT_PRINT",
-      "VERIFY_HEAP",
-      "DEBUG",
-      "TRACE_MAPS",
-    ]
+    defines += [ "DEBUG" ]
     if (v8_enable_slow_dchecks) {
       defines += [ "ENABLE_SLOW_DCHECKS" ]
     }
@@ -408,7 +425,6 @@ action("js2c") {
     "src/js/prologue.js",
     "src/js/runtime.js",
     "src/js/v8natives.js",
-    "src/js/symbol.js",
     "src/js/array.js",
     "src/js/string.js",
     "src/js/arraybuffer.js",
@@ -422,6 +438,7 @@ action("js2c") {
     "src/js/spread.js",
     "src/js/proxy.js",
     "src/js/async-await.js",
+    "src/js/harmony-string-padding.js",
     "src/debug/mirrors.js",
     "src/debug/debug.js",
     "src/debug/liveedit.js",
@@ -466,7 +483,6 @@ action("js2c_experimental") {
     "src/messages.h",
     "src/js/harmony-atomics.js",
     "src/js/harmony-simd.js",
-    "src/js/harmony-string-padding.js",
   ]
 
   outputs = [
@@ -742,7 +758,7 @@ action("v8_dump_build_config") {
     "is_tsan=$is_tsan",
     "target_cpu=\"$target_cpu\"",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
-    "v8_enable_inspector=$v8_enable_inspector_override",
+    "v8_enable_inspector=$v8_enable_inspector",
     "v8_target_cpu=\"$v8_target_cpu\"",
     "v8_use_snapshot=$v8_use_snapshot",
   ]
@@ -848,6 +864,17 @@ if (v8_use_external_startup_data) {
   }
 }
 
+# This is split out to be a non-code containing target that the Chromium browser
+# DLL can depend upon to get only a version string.
+v8_source_set("v8_version") {
+  configs = [ ":internal_config" ]
+
+  sources = [
+    "include/v8-version-string.h",
+    "include/v8-version.h",
+  ]
+}
+
 v8_source_set("v8_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -861,7 +888,6 @@ v8_source_set("v8_base") {
     "include/v8-profiler.h",
     "include/v8-testing.h",
     "include/v8-util.h",
-    "include/v8-version.h",
     "include/v8.h",
     "include/v8config.h",
     "src/accessors.cc",
@@ -893,12 +919,15 @@ v8_source_set("v8_base") {
     "src/asmjs/asm-wasm-builder.h",
     "src/asmjs/switch-logic.cc",
     "src/asmjs/switch-logic.h",
+    "src/assembler-inl.h",
     "src/assembler.cc",
     "src/assembler.h",
     "src/assert-scope.cc",
     "src/assert-scope.h",
     "src/ast/ast-expression-rewriter.cc",
     "src/ast/ast-expression-rewriter.h",
+    "src/ast/ast-function-literal-id-reindexer.cc",
+    "src/ast/ast-function-literal-id-reindexer.h",
     "src/ast/ast-literal-reindexer.cc",
     "src/ast/ast-literal-reindexer.h",
     "src/ast/ast-numbering.cc",
@@ -919,7 +948,6 @@ v8_source_set("v8_base") {
     "src/ast/modules.h",
     "src/ast/prettyprinter.cc",
     "src/ast/prettyprinter.h",
-    "src/ast/scopeinfo.cc",
     "src/ast/scopes.cc",
     "src/ast/scopes.h",
     "src/ast/variables.cc",
@@ -944,6 +972,8 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-boolean.cc",
     "src/builtins/builtins-call.cc",
     "src/builtins/builtins-callsite.cc",
+    "src/builtins/builtins-constructor.cc",
+    "src/builtins/builtins-constructor.h",
     "src/builtins/builtins-conversion.cc",
     "src/builtins/builtins-dataview.cc",
     "src/builtins/builtins-date.cc",
@@ -953,14 +983,15 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-generator.cc",
     "src/builtins/builtins-global.cc",
     "src/builtins/builtins-handler.cc",
+    "src/builtins/builtins-ic.cc",
     "src/builtins/builtins-internal.cc",
     "src/builtins/builtins-interpreter.cc",
-    "src/builtins/builtins-iterator.cc",
     "src/builtins/builtins-json.cc",
     "src/builtins/builtins-math.cc",
     "src/builtins/builtins-number.cc",
     "src/builtins/builtins-object.cc",
     "src/builtins/builtins-promise.cc",
+    "src/builtins/builtins-promise.h",
     "src/builtins/builtins-proxy.cc",
     "src/builtins/builtins-reflect.cc",
     "src/builtins/builtins-regexp.cc",
@@ -1002,6 +1033,8 @@ v8_source_set("v8_base") {
     "src/compiler-dispatcher/compiler-dispatcher-job.h",
     "src/compiler-dispatcher/compiler-dispatcher-tracer.cc",
     "src/compiler-dispatcher/compiler-dispatcher-tracer.h",
+    "src/compiler-dispatcher/compiler-dispatcher.cc",
+    "src/compiler-dispatcher/compiler-dispatcher.h",
     "src/compiler-dispatcher/optimizing-compile-dispatcher.cc",
     "src/compiler-dispatcher/optimizing-compile-dispatcher.h",
     "src/compiler.cc",
@@ -1020,12 +1053,12 @@ v8_source_set("v8_base") {
     "src/compiler/basic-block-instrumentor.h",
     "src/compiler/branch-elimination.cc",
     "src/compiler/branch-elimination.h",
-    "src/compiler/bytecode-branch-analysis.cc",
-    "src/compiler/bytecode-branch-analysis.h",
+    "src/compiler/bytecode-analysis.cc",
+    "src/compiler/bytecode-analysis.h",
     "src/compiler/bytecode-graph-builder.cc",
     "src/compiler/bytecode-graph-builder.h",
-    "src/compiler/bytecode-loop-analysis.cc",
-    "src/compiler/bytecode-loop-analysis.h",
+    "src/compiler/bytecode-liveness-map.cc",
+    "src/compiler/bytecode-liveness-map.h",
     "src/compiler/c-linkage.cc",
     "src/compiler/checkpoint-elimination.cc",
     "src/compiler/checkpoint-elimination.h",
@@ -1065,6 +1098,8 @@ v8_source_set("v8_base") {
     "src/compiler/frame.h",
     "src/compiler/gap-resolver.cc",
     "src/compiler/gap-resolver.h",
+    "src/compiler/graph-assembler.cc",
+    "src/compiler/graph-assembler.h",
     "src/compiler/graph-reducer.cc",
     "src/compiler/graph-reducer.h",
     "src/compiler/graph-replay.cc",
@@ -1196,8 +1231,6 @@ v8_source_set("v8_base") {
     "src/compiler/tail-call-optimization.h",
     "src/compiler/type-cache.cc",
     "src/compiler/type-cache.h",
-    "src/compiler/type-hint-analyzer.cc",
-    "src/compiler/type-hint-analyzer.h",
     "src/compiler/typed-optimization.cc",
     "src/compiler/typed-optimization.h",
     "src/compiler/typer.cc",
@@ -1300,6 +1333,7 @@ v8_source_set("v8_base") {
     "src/debug/debug-scopes.h",
     "src/debug/debug.cc",
     "src/debug/debug.h",
+    "src/debug/interface-types.h",
     "src/debug/liveedit.cc",
     "src/debug/liveedit.h",
     "src/deoptimize-reason.cc",
@@ -1343,6 +1377,9 @@ v8_source_set("v8_base") {
     "src/fast-accessor-assembler.h",
     "src/fast-dtoa.cc",
     "src/fast-dtoa.h",
+    "src/feedback-vector-inl.h",
+    "src/feedback-vector.cc",
+    "src/feedback-vector.h",
     "src/field-index-inl.h",
     "src/field-index.h",
     "src/field-type.cc",
@@ -1373,6 +1410,8 @@ v8_source_set("v8_base") {
     "src/heap/array-buffer-tracker.h",
     "src/heap/code-stats.cc",
     "src/heap/code-stats.h",
+    "src/heap/embedder-tracing.cc",
+    "src/heap/embedder-tracing.h",
     "src/heap/gc-idle-time-handler.cc",
     "src/heap/gc-idle-time-handler.h",
     "src/heap/gc-tracer.cc",
@@ -1414,6 +1453,9 @@ v8_source_set("v8_base") {
     "src/ic/access-compiler-data.h",
     "src/ic/access-compiler.cc",
     "src/ic/access-compiler.h",
+    "src/ic/accessor-assembler-impl.h",
+    "src/ic/accessor-assembler.cc",
+    "src/ic/accessor-assembler.h",
     "src/ic/call-optimization.cc",
     "src/ic/call-optimization.h",
     "src/ic/handler-compiler.cc",
@@ -1425,6 +1467,8 @@ v8_source_set("v8_base") {
     "src/ic/ic-inl.h",
     "src/ic/ic-state.cc",
     "src/ic/ic-state.h",
+    "src/ic/ic-stats.cc",
+    "src/ic/ic-stats.h",
     "src/ic/ic.cc",
     "src/ic/ic.h",
     "src/ic/keyed-store-generic.cc",
@@ -1437,10 +1481,14 @@ v8_source_set("v8_base") {
     "src/identity-map.h",
     "src/interface-descriptors.cc",
     "src/interface-descriptors.h",
+    "src/interpreter/bytecode-array-accessor.cc",
+    "src/interpreter/bytecode-array-accessor.h",
     "src/interpreter/bytecode-array-builder.cc",
     "src/interpreter/bytecode-array-builder.h",
     "src/interpreter/bytecode-array-iterator.cc",
     "src/interpreter/bytecode-array-iterator.h",
+    "src/interpreter/bytecode-array-random-iterator.cc",
+    "src/interpreter/bytecode-array-random-iterator.h",
     "src/interpreter/bytecode-array-writer.cc",
     "src/interpreter/bytecode-array-writer.h",
     "src/interpreter/bytecode-dead-code-optimizer.cc",
@@ -1509,6 +1557,8 @@ v8_source_set("v8_base") {
     "src/machine-type.cc",
     "src/machine-type.h",
     "src/macro-assembler.h",
+    "src/map-updater.cc",
+    "src/map-updater.h",
     "src/messages.cc",
     "src/messages.h",
     "src/msan.h",
@@ -1519,6 +1569,11 @@ v8_source_set("v8_base") {
     "src/objects-printer.cc",
     "src/objects.cc",
     "src/objects.h",
+    "src/objects/module-info.h",
+    "src/objects/object-macros-undef.h",
+    "src/objects/object-macros.h",
+    "src/objects/scope-info.cc",
+    "src/objects/scope-info.h",
     "src/ostreams.cc",
     "src/ostreams.h",
     "src/parsing/duplicate-finder.cc",
@@ -1533,6 +1588,8 @@ v8_source_set("v8_base") {
     "src/parsing/parser-base.h",
     "src/parsing/parser.cc",
     "src/parsing/parser.h",
+    "src/parsing/parsing.cc",
+    "src/parsing/parsing.h",
     "src/parsing/pattern-rewriter.cc",
     "src/parsing/preparse-data-format.h",
     "src/parsing/preparse-data.cc",
@@ -1578,8 +1635,6 @@ v8_source_set("v8_base") {
     "src/profiler/tracing-cpu-profiler.h",
     "src/profiler/unbound-queue-inl.h",
     "src/profiler/unbound-queue.h",
-    "src/promise-utils.cc",
-    "src/promise-utils.h",
     "src/property-descriptor.cc",
     "src/property-descriptor.h",
     "src/property-details.h",
@@ -1679,6 +1734,8 @@ v8_source_set("v8_base") {
     "src/startup-data-util.h",
     "src/string-builder.cc",
     "src/string-builder.h",
+    "src/string-case.cc",
+    "src/string-case.h",
     "src/string-search.h",
     "src/string-stream.cc",
     "src/string-stream.h",
@@ -1693,9 +1750,7 @@ v8_source_set("v8_base") {
     "src/transitions-inl.h",
     "src/transitions.cc",
     "src/transitions.h",
-    "src/type-feedback-vector-inl.h",
-    "src/type-feedback-vector.cc",
-    "src/type-feedback-vector.h",
+    "src/trap-handler/trap-handler.h",
     "src/type-hints.cc",
     "src/type-hints.h",
     "src/type-info.cc",
@@ -1724,9 +1779,9 @@ v8_source_set("v8_base") {
     "src/version.h",
     "src/vm-state-inl.h",
     "src/vm-state.h",
-    "src/wasm/ast-decoder.cc",
-    "src/wasm/ast-decoder.h",
     "src/wasm/decoder.h",
+    "src/wasm/function-body-decoder.cc",
+    "src/wasm/function-body-decoder.h",
     "src/wasm/leb-helper.h",
     "src/wasm/managed.h",
     "src/wasm/module-decoder.cc",
@@ -1740,6 +1795,7 @@ v8_source_set("v8_base") {
     "src/wasm/wasm-interpreter.h",
     "src/wasm/wasm-js.cc",
     "src/wasm/wasm-js.h",
+    "src/wasm/wasm-limits.h",
     "src/wasm/wasm-macro-gen.h",
     "src/wasm/wasm-module-builder.cc",
     "src/wasm/wasm-module-builder.h",
@@ -1751,12 +1807,15 @@ v8_source_set("v8_base") {
     "src/wasm/wasm-opcodes.h",
     "src/wasm/wasm-result.cc",
     "src/wasm/wasm-result.h",
+    "src/wasm/wasm-text.cc",
+    "src/wasm/wasm-text.h",
     "src/zone/accounting-allocator.cc",
     "src/zone/accounting-allocator.h",
     "src/zone/zone-allocator.h",
     "src/zone/zone-allocator.h",
     "src/zone/zone-chunk-list.h",
     "src/zone/zone-containers.h",
+    "src/zone/zone-handle-set.h",
     "src/zone/zone-segment.cc",
     "src/zone/zone-segment.h",
     "src/zone/zone.cc",
@@ -1797,9 +1856,7 @@ v8_source_set("v8_base") {
       "src/ia32/simulator-ia32.h",
       "src/ic/ia32/access-compiler-ia32.cc",
       "src/ic/ia32/handler-compiler-ia32.cc",
-      "src/ic/ia32/ic-compiler-ia32.cc",
       "src/ic/ia32/ic-ia32.cc",
-      "src/ic/ia32/stub-cache-ia32.cc",
       "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
       "src/regexp/ia32/regexp-macro-assembler-ia32.h",
     ]
@@ -1822,9 +1879,7 @@ v8_source_set("v8_base") {
       "src/full-codegen/x64/full-codegen-x64.cc",
       "src/ic/x64/access-compiler-x64.cc",
       "src/ic/x64/handler-compiler-x64.cc",
-      "src/ic/x64/ic-compiler-x64.cc",
       "src/ic/x64/ic-x64.cc",
-      "src/ic/x64/stub-cache-x64.cc",
       "src/regexp/x64/regexp-macro-assembler-x64.cc",
       "src/regexp/x64/regexp-macro-assembler-x64.h",
       "src/third_party/valgrind/valgrind.h",
@@ -1889,8 +1944,6 @@ v8_source_set("v8_base") {
       "src/ic/arm/access-compiler-arm.cc",
       "src/ic/arm/handler-compiler-arm.cc",
       "src/ic/arm/ic-arm.cc",
-      "src/ic/arm/ic-compiler-arm.cc",
-      "src/ic/arm/stub-cache-arm.cc",
       "src/regexp/arm/regexp-macro-assembler-arm.cc",
       "src/regexp/arm/regexp-macro-assembler-arm.h",
     ]
@@ -1948,8 +2001,6 @@ v8_source_set("v8_base") {
       "src/ic/arm64/access-compiler-arm64.cc",
       "src/ic/arm64/handler-compiler-arm64.cc",
       "src/ic/arm64/ic-arm64.cc",
-      "src/ic/arm64/ic-compiler-arm64.cc",
-      "src/ic/arm64/stub-cache-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
     ]
@@ -1970,9 +2021,7 @@ v8_source_set("v8_base") {
       "src/full-codegen/mips/full-codegen-mips.cc",
       "src/ic/mips/access-compiler-mips.cc",
       "src/ic/mips/handler-compiler-mips.cc",
-      "src/ic/mips/ic-compiler-mips.cc",
       "src/ic/mips/ic-mips.cc",
-      "src/ic/mips/stub-cache-mips.cc",
       "src/mips/assembler-mips-inl.h",
       "src/mips/assembler-mips.cc",
       "src/mips/assembler-mips.h",
@@ -2012,9 +2061,7 @@ v8_source_set("v8_base") {
       "src/full-codegen/mips64/full-codegen-mips64.cc",
       "src/ic/mips64/access-compiler-mips64.cc",
       "src/ic/mips64/handler-compiler-mips64.cc",
-      "src/ic/mips64/ic-compiler-mips64.cc",
       "src/ic/mips64/ic-mips64.cc",
-      "src/ic/mips64/stub-cache-mips64.cc",
       "src/mips64/assembler-mips64-inl.h",
       "src/mips64/assembler-mips64.cc",
       "src/mips64/assembler-mips64.h",
@@ -2054,9 +2101,7 @@ v8_source_set("v8_base") {
       "src/full-codegen/ppc/full-codegen-ppc.cc",
       "src/ic/ppc/access-compiler-ppc.cc",
       "src/ic/ppc/handler-compiler-ppc.cc",
-      "src/ic/ppc/ic-compiler-ppc.cc",
       "src/ic/ppc/ic-ppc.cc",
-      "src/ic/ppc/stub-cache-ppc.cc",
       "src/ppc/assembler-ppc-inl.h",
       "src/ppc/assembler-ppc.cc",
       "src/ppc/assembler-ppc.h",
@@ -2096,9 +2141,7 @@ v8_source_set("v8_base") {
       "src/full-codegen/s390/full-codegen-s390.cc",
       "src/ic/s390/access-compiler-s390.cc",
       "src/ic/s390/handler-compiler-s390.cc",
-      "src/ic/s390/ic-compiler-s390.cc",
       "src/ic/s390/ic-s390.cc",
-      "src/ic/s390/stub-cache-s390.cc",
       "src/regexp/s390/regexp-macro-assembler-s390.cc",
       "src/regexp/s390/regexp-macro-assembler-s390.h",
       "src/s390/assembler-s390-inl.h",
@@ -2138,9 +2181,7 @@ v8_source_set("v8_base") {
       "src/full-codegen/x87/full-codegen-x87.cc",
       "src/ic/x87/access-compiler-x87.cc",
       "src/ic/x87/handler-compiler-x87.cc",
-      "src/ic/x87/ic-compiler-x87.cc",
       "src/ic/x87/ic-x87.cc",
-      "src/ic/x87/stub-cache-x87.cc",
       "src/regexp/x87/regexp-macro-assembler-x87.cc",
       "src/regexp/x87/regexp-macro-assembler-x87.h",
       "src/x87/assembler-x87-inl.h",
@@ -2169,6 +2210,7 @@ v8_source_set("v8_base") {
   deps = [
     ":v8_libbase",
     ":v8_libsampler",
+    ":v8_version",
   ]
 
   sources += [ v8_generated_peephole_source ]
@@ -2196,7 +2238,7 @@ v8_source_set("v8_base") {
     deps += [ ":postmortem-metadata" ]
   }
 
-  if (v8_enable_inspector_override) {
+  if (v8_enable_inspector) {
     deps += [ "src/inspector:inspector" ]
   }
 }
@@ -2399,14 +2441,10 @@ v8_source_set("fuzzer_support") {
     ":v8_libbase",
     ":v8_libplatform",
   ]
-}
 
-v8_source_set("simple_fuzzer") {
-  sources = [
-    "test/fuzzer/fuzzer.cc",
-  ]
-
-  configs = [ ":internal_config_base" ]
+  if (v8_enable_i18n_support) {
+    deps += [ "//third_party/icu" ]
+  }
 }
 
 ###############################################################################
@@ -2477,14 +2515,10 @@ group("gn_all") {
 
   deps = [
     ":d8",
+    ":v8_fuzzers",
     ":v8_hello_world",
     ":v8_parser_shell",
     ":v8_sample_process",
-    ":v8_simple_json_fuzzer",
-    ":v8_simple_parser_fuzzer",
-    ":v8_simple_regexp_fuzzer",
-    ":v8_simple_wasm_asmjs_fuzzer",
-    ":v8_simple_wasm_fuzzer",
     "test:gn_all",
     "tools:gn_all",
   ]
@@ -2496,6 +2530,26 @@ group("gn_all") {
   if (v8_test_isolation_mode != "noop") {
     deps += [ ":d8_run" ]
   }
+}
+
+group("v8_fuzzers") {
+  testonly = true
+  deps = [
+    ":v8_simple_json_fuzzer",
+    ":v8_simple_parser_fuzzer",
+    ":v8_simple_regexp_fuzzer",
+    ":v8_simple_wasm_asmjs_fuzzer",
+    ":v8_simple_wasm_call_fuzzer",
+    ":v8_simple_wasm_code_fuzzer",
+    ":v8_simple_wasm_data_section_fuzzer",
+    ":v8_simple_wasm_function_sigs_section_fuzzer",
+    ":v8_simple_wasm_fuzzer",
+    ":v8_simple_wasm_globals_section_fuzzer",
+    ":v8_simple_wasm_imports_section_fuzzer",
+    ":v8_simple_wasm_memory_section_fuzzer",
+    ":v8_simple_wasm_names_section_fuzzer",
+    ":v8_simple_wasm_types_section_fuzzer",
+  ]
 }
 
 if (is_component_build) {
@@ -2527,6 +2581,7 @@ if (is_component_build) {
       ":v8_base",
       ":v8_maybe_snapshot",
     ]
+
     public_configs = [ ":external_config" ]
   }
 }
@@ -2566,8 +2621,12 @@ v8_executable("d8") {
     deps += [ "//third_party/icu" ]
   }
 
+  if (v8_correctness_fuzzer) {
+    deps += [ "tools/foozzie:v8_correctness_fuzzer_resources" ]
+  }
+
   defines = []
-  if (v8_enable_inspector_override) {
+  if (v8_enable_inspector) {
     defines += [ "V8_INSPECTOR_ENABLED" ]
   }
 }
@@ -2687,8 +2746,12 @@ template("v8_fuzzer") {
   v8_executable("v8_simple_" + name) {
     deps = [
       ":" + name,
-      ":simple_fuzzer",
+      "//build/config/sanitizers:deps",
       "//build/win:default_exe_manifest",
+    ]
+
+    sources = [
+      "test/fuzzer/fuzzer.cc",
     ]
 
     configs = [ ":external_config" ]

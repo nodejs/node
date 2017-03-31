@@ -18,7 +18,7 @@ const server = tls.createServer({
 }).listen(0, common.mustCall(function() {
   const c = tls.connect(this.address().port, common.mustNotCall());
 
-  c.on('error', common.mustCall(function(err) {}));
+  c.on('error', common.mustCall());
 
   c.on('close', common.mustCall(function(err) {
     assert.ok(err);

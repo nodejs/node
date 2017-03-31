@@ -20,8 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
 
+const common = require('../common');
 const util = require('util');
 const stream = require('stream');
 
@@ -50,7 +50,7 @@ Write.prototype._write = function(buffer, encoding, cb) {
 const read = new Read();
 const write = new Write();
 
-write.once('error', function(err) {});
+write.once('error', common.noop);
 write.once('alldone', function(err) {
   console.log('ok');
 });

@@ -18,24 +18,23 @@ namespace compiler {
 class Operator;
 struct JSOperatorGlobalCache;
 
-
-// Defines a pair of {TypeFeedbackVector} and {TypeFeedbackVectorSlot}, which
+// Defines a pair of {FeedbackVector} and {FeedbackVectorSlot}, which
 // is used to access the type feedback for a certain {Node}.
 class V8_EXPORT_PRIVATE VectorSlotPair {
  public:
   VectorSlotPair();
-  VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+  VectorSlotPair(Handle<FeedbackVector> vector, FeedbackVectorSlot slot)
       : vector_(vector), slot_(slot) {}
 
   bool IsValid() const { return !vector_.is_null() && !slot_.IsInvalid(); }
 
-  Handle<TypeFeedbackVector> vector() const { return vector_; }
+  Handle<FeedbackVector> vector() const { return vector_; }
   FeedbackVectorSlot slot() const { return slot_; }
 
   int index() const;
 
  private:
-  const Handle<TypeFeedbackVector> vector_;
+  const Handle<FeedbackVector> vector_;
   const FeedbackVectorSlot slot_;
 };
 
@@ -80,6 +79,31 @@ std::ostream& operator<<(std::ostream&, CallConstructParameters const&);
 
 CallConstructParameters const& CallConstructParametersOf(Operator const*);
 
+// Defines the arity for a JavaScript constructor call with a spread as the last
+// parameters. This is used as a parameter by JSCallConstructWithSpread
+// operators.
+class CallConstructWithSpreadParameters final {
+ public:
+  explicit CallConstructWithSpreadParameters(uint32_t arity) : arity_(arity) {}
+
+  uint32_t arity() const { return arity_; }
+
+ private:
+  uint32_t const arity_;
+};
+
+bool operator==(CallConstructWithSpreadParameters const&,
+                CallConstructWithSpreadParameters const&);
+bool operator!=(CallConstructWithSpreadParameters const&,
+                CallConstructWithSpreadParameters const&);
+
+size_t hash_value(CallConstructWithSpreadParameters const&);
+
+std::ostream& operator<<(std::ostream&,
+                         CallConstructWithSpreadParameters const&);
+
+CallConstructWithSpreadParameters const& CallConstructWithSpreadParametersOf(
+    Operator const*);
 
 // Defines the arity and the call flags for a JavaScript function call. This is
 // used as a parameter by JSCallFunction operators.
@@ -215,6 +239,56 @@ std::ostream& operator<<(std::ostream& os,
 
 CreateCatchContextParameters const& CreateCatchContextParametersOf(
     Operator const*);
+
+// Defines the slot count and ScopeType for a new function or eval context. This
+// is used as a parameter by the JSCreateFunctionContext operator.
+class CreateFunctionContextParameters final {
+ public:
+  CreateFunctionContextParameters(int slot_count, ScopeType scope_type);
+
+  int slot_count() const { return slot_count_; }
+  ScopeType scope_type() const { return scope_type_; }
+
+ private:
+  int const slot_count_;
+  ScopeType const scope_type_;
+};
+
+bool operator==(CreateFunctionContextParameters const& lhs,
+                CreateFunctionContextParameters const& rhs);
+bool operator!=(CreateFunctionContextParameters const& lhs,
+                CreateFunctionContextParameters const& rhs);
+
+size_t hash_value(CreateFunctionContextParameters const& parameters);
+
+std::ostream& operator<<(std::ostream& os,
+                         CreateFunctionContextParameters const& parameters);
+
+CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
+    Operator const*);
+
+// Defines the feedback, i.e., vector and index, for storing a data property in
+// an object literal. This is
+// used as a parameter by the JSStoreDataPropertyInLiteral operator.
+class DataPropertyParameters final {
+ public:
+  explicit DataPropertyParameters(VectorSlotPair const& feedback)
+      : feedback_(feedback) {}
+
+  VectorSlotPair const& feedback() const { return feedback_; }
+
+ private:
+  VectorSlotPair const feedback_;
+};
+
+bool operator==(DataPropertyParameters const&, DataPropertyParameters const&);
+bool operator!=(DataPropertyParameters const&, DataPropertyParameters const&);
+
+size_t hash_value(DataPropertyParameters const&);
+
+std::ostream& operator<<(std::ostream&, DataPropertyParameters const&);
+
+const DataPropertyParameters& DataPropertyParametersOf(const Operator* op);
 
 // Defines the property of an object for a named access. This is
 // used as a parameter by the JSLoadNamed and JSStoreNamed operators.
@@ -361,14 +435,17 @@ const CreateArrayParameters& CreateArrayParametersOf(const Operator* op);
 class CreateClosureParameters final {
  public:
   CreateClosureParameters(Handle<SharedFunctionInfo> shared_info,
+                          VectorSlotPair const& feedback,
                           PretenureFlag pretenure)
-      : shared_info_(shared_info), pretenure_(pretenure) {}
+      : shared_info_(shared_info), feedback_(feedback), pretenure_(pretenure) {}
 
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+  VectorSlotPair const& feedback() const { return feedback_; }
   PretenureFlag pretenure() const { return pretenure_; }
 
  private:
   const Handle<SharedFunctionInfo> shared_info_;
+  VectorSlotPair const feedback_;
   const PretenureFlag pretenure_;
 };
 
@@ -456,10 +533,11 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateArguments(CreateArgumentsType type);
   const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
+                                VectorSlotPair const& feedback,
                                 PretenureFlag pretenure);
   const Operator* CreateIterResultObject();
   const Operator* CreateKeyValueArray();
-  const Operator* CreateLiteralArray(Handle<FixedArray> constant_elements,
+  const Operator* CreateLiteralArray(Handle<ConstantElementsPair> constant,
                                      int literal_flags, int literal_index,
                                      int number_of_elements);
   const Operator* CreateLiteralObject(Handle<FixedArray> constant_properties,
@@ -478,6 +556,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
   const Operator* CallConstruct(uint32_t arity, float frequency,
                                 VectorSlotPair const& feedback);
+  const Operator* CallConstructWithSpread(uint32_t arity);
 
   const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);
 
@@ -489,9 +568,13 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* StoreNamed(LanguageMode language_mode, Handle<Name> name,
                              VectorSlotPair const& feedback);
 
+  const Operator* StoreDataPropertyInLiteral(const VectorSlotPair& feedback);
+
   const Operator* DeleteProperty(LanguageMode language_mode);
 
   const Operator* HasProperty();
+
+  const Operator* GetSuperConstructor();
 
   const Operator* LoadGlobal(const Handle<Name>& name,
                              const VectorSlotPair& feedback,
@@ -525,7 +608,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* StackCheck();
 
-  const Operator* CreateFunctionContext(int slot_count);
+  const Operator* CreateFunctionContext(int slot_count, ScopeType scope_type);
   const Operator* CreateCatchContext(const Handle<String>& name,
                                      const Handle<ScopeInfo>& scope_info);
   const Operator* CreateWithContext(const Handle<ScopeInfo>& scope_info);

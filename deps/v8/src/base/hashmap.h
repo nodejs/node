@@ -70,6 +70,14 @@ class TemplateHashMapImpl {
   // Empties the hash map (occupancy() == 0).
   void Clear();
 
+  // Empties the map and makes it unusable for allocation.
+  void Invalidate() {
+    AllocationPolicy::Delete(map_);
+    map_ = nullptr;
+    occupancy_ = 0;
+    capacity_ = 0;
+  }
+
   // The number of (non-empty) entries in the table.
   uint32_t occupancy() const { return occupancy_; }
 
@@ -89,6 +97,14 @@ class TemplateHashMapImpl {
   Entry* Start() const;
   Entry* Next(Entry* entry) const;
 
+  void Reset(AllocationPolicy allocator) {
+    Initialize(capacity_, allocator);
+    occupancy_ = 0;
+  }
+
+ protected:
+  void Initialize(uint32_t capacity, AllocationPolicy allocator);
+
  private:
   Entry* map_;
   uint32_t capacity_;
@@ -102,7 +118,6 @@ class TemplateHashMapImpl {
   Entry* FillEmptyEntry(Entry* entry, const Key& key, const Value& value,
                         uint32_t hash,
                         AllocationPolicy allocator = AllocationPolicy());
-  void Initialize(uint32_t capacity, AllocationPolicy allocator);
   void Resize(AllocationPolicy allocator);
 };
 template <typename Key, typename Value, typename MatchFun,

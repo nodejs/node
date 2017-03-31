@@ -13,6 +13,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
+#include "src/inspector/test-interface.h"
 #include "src/utils.h"
 #include "src/vector.h"
 
@@ -177,22 +178,23 @@ class UtilsExtension : public v8::Extension {
 
     backend_runner_->Append(new ExecuteStringTask(
         ToVector(args[0].As<v8::String>()), args[1].As<v8::String>(),
-        args[2].As<v8::Int32>(), args[3].As<v8::Int32>()));
+        args[2].As<v8::Int32>(), args[3].As<v8::Int32>(), nullptr, nullptr));
   }
 };
 
 TaskRunner* UtilsExtension::backend_runner_ = nullptr;
 
-class SetTimeoutTask : public TaskRunner::Task {
+class SetTimeoutTask : public AsyncTask {
  public:
-  SetTimeoutTask(v8::Isolate* isolate, v8::Local<v8::Function> function)
-      : function_(isolate, function) {}
+  SetTimeoutTask(v8::Isolate* isolate, v8::Local<v8::Function> function,
+                 const char* task_name, v8_inspector::V8Inspector* inspector)
+      : AsyncTask(task_name, inspector), function_(isolate, function) {}
   virtual ~SetTimeoutTask() {}
 
   bool is_inspector_task() final { return false; }
 
-  void Run(v8::Isolate* isolate,
-           const v8::Global<v8::Context>& global_context) override {
+  void AsyncRun(v8::Isolate* isolate,
+                const v8::Global<v8::Context>& global_context) override {
     v8::MicrotasksScope microtasks_scope(isolate,
                                          v8::MicrotasksScope::kRunMicrotasks);
     v8::HandleScope handle_scope(isolate);
@@ -234,14 +236,20 @@ class SetTimeoutExtension : public v8::Extension {
     }
     v8::Isolate* isolate = args.GetIsolate();
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    std::unique_ptr<TaskRunner::Task> task;
+    v8_inspector::V8Inspector* inspector =
+        InspectorClientImpl::InspectorFromContext(context);
     if (args[0]->IsFunction()) {
-      TaskRunner::FromContext(context)->Append(
-          new SetTimeoutTask(isolate, v8::Local<v8::Function>::Cast(args[0])));
+      task.reset(new SetTimeoutTask(isolate,
+                                    v8::Local<v8::Function>::Cast(args[0]),
+                                    "setTimeout", inspector));
     } else {
-      TaskRunner::FromContext(context)->Append(new ExecuteStringTask(
+      task.reset(new ExecuteStringTask(
           ToVector(args[0].As<v8::String>()), v8::String::Empty(isolate),
-          v8::Integer::New(isolate, 0), v8::Integer::New(isolate, 0)));
+          v8::Integer::New(isolate, 0), v8::Integer::New(isolate, 0),
+          "setTimeout", inspector));
     }
+    TaskRunner::FromContext(context)->Append(task.release());
   }
 };
 
@@ -250,7 +258,8 @@ class InspectorExtension : public v8::Extension {
   InspectorExtension()
       : v8::Extension("v8_inspector/inspector",
                       "native function attachInspector();"
-                      "native function detachInspector();") {}
+                      "native function detachInspector();"
+                      "native function setMaxAsyncTaskStacks();") {}
 
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
@@ -267,6 +276,13 @@ class InspectorExtension : public v8::Extension {
                                 .ToLocalChecked())
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate, InspectorExtension::Detach);
+    } else if (name->Equals(context, v8::String::NewFromUtf8(
+                                         isolate, "setMaxAsyncTaskStacks",
+                                         v8::NewStringType::kNormal)
+                                         .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(
+          isolate, InspectorExtension::SetMaxAsyncTaskStacks);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -295,6 +311,20 @@ class InspectorExtension : public v8::Extension {
       Exit();
     }
     inspector->contextDestroyed(context);
+  }
+
+  static void SetMaxAsyncTaskStacks(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsInt32()) {
+      fprintf(stderr, "Internal error: setMaxAsyncTaskStacks(max).");
+      Exit();
+    }
+    v8_inspector::V8Inspector* inspector =
+        InspectorClientImpl::InspectorFromContext(
+            args.GetIsolate()->GetCurrentContext());
+    CHECK(inspector);
+    v8_inspector::SetMaxAsyncTaskStacksForTest(
+        inspector, args[0].As<v8::Int32>()->Value());
   }
 };
 
@@ -334,9 +364,10 @@ class FrontendChannelImpl : public InspectorClientImpl::FrontendChannel {
     v8::Local<v8::String> result = v8::String::Concat(prefix, message_string);
     result = v8::String::Concat(result, suffix);
 
-    frontend_task_runner_->Append(new ExecuteStringTask(
-        ToVector(result), v8::String::Empty(isolate),
-        v8::Integer::New(isolate, 0), v8::Integer::New(isolate, 0)));
+    frontend_task_runner_->Append(
+        new ExecuteStringTask(ToVector(result), v8::String::Empty(isolate),
+                              v8::Integer::New(isolate, 0),
+                              v8::Integer::New(isolate, 0), nullptr, nullptr));
   }
 
  private:

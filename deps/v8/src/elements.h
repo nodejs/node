@@ -175,6 +175,9 @@ class ElementsAccessor {
                             ElementsKind source_kind,
                             Handle<FixedArrayBase> destination, int size) = 0;
 
+  virtual Handle<FixedArray> CreateListFromArray(Isolate* isolate,
+                                                 Handle<JSArray> array) = 0;
+
  protected:
   friend class LookupIterator;
 

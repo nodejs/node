@@ -64,14 +64,10 @@ const Register GrowArrayElementsDescriptor::KeyRegister() { return x3; }
 
 void FastNewClosureDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  // x2: function info
-  Register registers[] = {x2};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void FastNewObjectDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {x1, x3};
+  // x1: function info
+  // x2: feedback vector
+  // x3: slot
+  Register registers[] = {x1, x2, x3};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

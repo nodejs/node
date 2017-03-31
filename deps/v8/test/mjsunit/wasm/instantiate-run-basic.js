@@ -8,11 +8,11 @@ load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function BasicTest() {
-  var kReturnValue = 107;
+  var kReturnValue = 15;
   var builder = new WasmModuleBuilder();
 
   builder.addFunction("main", kSig_i_i)
-    .addBody([kExprI8Const, kReturnValue])
+    .addBody([kExprI32Const, kReturnValue])
     .exportFunc();
 
   var main = builder.instantiate().exports.main;

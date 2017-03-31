@@ -35,15 +35,18 @@
 namespace v8_inspector {
 
 struct ScriptBreakpoint {
-  ScriptBreakpoint() : ScriptBreakpoint(0, 0, String16()) {}
+  ScriptBreakpoint() {}
 
-  ScriptBreakpoint(int lineNumber, int columnNumber, const String16& condition)
-      : lineNumber(lineNumber),
-        columnNumber(columnNumber),
-        condition(condition) {}
+  ScriptBreakpoint(String16 script_id, int line_number, int column_number,
+                   String16 condition)
+      : script_id(std::move(script_id)),
+        line_number(line_number),
+        column_number(column_number),
+        condition(std::move(condition)) {}
 
-  int lineNumber;
-  int columnNumber;
+  String16 script_id;
+  int line_number = 0;
+  int column_number = 0;
   String16 condition;
 };
 

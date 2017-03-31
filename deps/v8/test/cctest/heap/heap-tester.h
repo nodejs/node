@@ -34,6 +34,7 @@
   V(Regress589413)                                        \
   V(Regress658718)                                        \
   V(Regress670675)                                        \
+  V(Regress5831)                                          \
   V(WriteBarriersInCopyJSObject)
 
 #define HEAP_TEST(Name)                                                       \

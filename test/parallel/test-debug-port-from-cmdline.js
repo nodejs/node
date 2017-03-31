@@ -11,8 +11,8 @@ const child = spawn(process.execPath, args, childOptions);
 
 const reDeprecationWarning = new RegExp(
   /^\(node:\d+\) \[DEP0062\] DeprecationWarning: /.source +
-  /node --debug is deprecated. /.source +
-  /Please use node --inspect instead.$/.source
+  /node --debug is deprecated\. /.source +
+  /Please use node --inspect instead\.$/.source
 );
 
 child.stdin.write("process.send({ msg: 'childready' });\n");
@@ -47,9 +47,9 @@ function assertOutputLines() {
   // need a var so can swap the first two lines in following
   // eslint-disable-next-line no-var
   var expectedLines = [
-    /^Starting debugger agent.$/,
+    /^Starting debugger agent\.$/,
     reDeprecationWarning,
-    new RegExp(`^Debugger listening on 127.0.0.1:${debugPort}$`)
+    new RegExp(`^Debugger listening on 127\\.0\\.0\\.1:${debugPort}$`)
   ];
 
   if (os.platform() === 'win32') {

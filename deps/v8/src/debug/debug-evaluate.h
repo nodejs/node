@@ -13,9 +13,7 @@ namespace internal {
 
 class DebugEvaluate : public AllStatic {
  public:
-  static MaybeHandle<Object> Global(Isolate* isolate, Handle<String> source,
-                                    bool disable_break,
-                                    Handle<HeapObject> context_extension);
+  static MaybeHandle<Object> Global(Isolate* isolate, Handle<String> source);
 
   // Evaluate a piece of JavaScript in the context of a stack frame for
   // debugging.  Things that need special attention are:
@@ -24,8 +22,10 @@ class DebugEvaluate : public AllStatic {
   // - The arguments object needs to materialized.
   static MaybeHandle<Object> Local(Isolate* isolate, StackFrame::Id frame_id,
                                    int inlined_jsframe_index,
-                                   Handle<String> source, bool disable_break,
-                                   Handle<HeapObject> context_extension);
+                                   Handle<String> source);
+
+  static bool FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info);
+  static bool CallbackHasNoSideEffect(Address function_addr);
 
  private:
   // This class builds a context chain for evaluation of expressions
@@ -85,7 +85,6 @@ class DebugEvaluate : public AllStatic {
   static MaybeHandle<Object> Evaluate(Isolate* isolate,
                                       Handle<SharedFunctionInfo> outer_info,
                                       Handle<Context> context,
-                                      Handle<HeapObject> context_extension,
                                       Handle<Object> receiver,
                                       Handle<String> source);
 };

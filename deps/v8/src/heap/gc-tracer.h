@@ -79,6 +79,12 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_SWEEP_CODE)                            \
   F(MC_SWEEP_MAP)                             \
   F(MC_SWEEP_OLD)                             \
+  F(MINOR_MC_MARK)                            \
+  F(MINOR_MC_MARK_CODE_FLUSH_CANDIDATES)      \
+  F(MINOR_MC_MARK_GLOBAL_HANDLES)             \
+  F(MINOR_MC_MARK_OLD_TO_NEW_POINTERS)        \
+  F(MINOR_MC_MARK_ROOTS)                      \
+  F(MINOR_MC_MARK_WEAK)                       \
   F(SCAVENGER_CODE_FLUSH_CANDIDATES)          \
   F(SCAVENGER_OLD_TO_NEW_POINTERS)            \
   F(SCAVENGER_ROOTS)                          \

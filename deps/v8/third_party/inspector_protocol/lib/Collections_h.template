@@ -5,7 +5,7 @@
 #ifndef {{"_".join(config.protocol.namespace)}}_Collections_h
 #define {{"_".join(config.protocol.namespace)}}_Collections_h
 
-#include "{{config.protocol.package}}/Forward.h"
+#include {{format_include(config.protocol.package, "Forward")}}
 #include <cstddef>
 
 #if defined(__APPLE__) && !defined(_LIBCPP_VERSION)

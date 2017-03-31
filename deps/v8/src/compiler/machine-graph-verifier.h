@@ -21,7 +21,8 @@ class Schedule;
 class MachineGraphVerifier {
  public:
   static void Run(Graph* graph, Schedule const* const schedule,
-                  Linkage* linkage, Zone* temp_zone);
+                  Linkage* linkage, bool is_stub, const char* name,
+                  Zone* temp_zone);
 };
 
 }  // namespace compiler

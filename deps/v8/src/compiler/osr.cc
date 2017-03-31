@@ -268,28 +268,7 @@ void SetTypeForOsrValue(Node* osr_value, Node* loop,
     }
   }
 
-  OsrGuardType guard_type = OsrGuardType::kAny;
-  // Find the phi that uses the OsrGuard node and get the type from
-  // there. Skip the search if the OsrGuard does not have value use
-  // (i.e., if there is other use beyond the effect use).
-  if (OsrGuardTypeOf(osr_guard->op()) == OsrGuardType::kUninitialized &&
-      osr_guard->UseCount() > 1) {
-    Type* type = nullptr;
-    for (Node* use : osr_guard->uses()) {
-      if (use->opcode() == IrOpcode::kPhi) {
-        if (NodeProperties::GetControlInput(use) != loop) continue;
-        CHECK_NULL(type);
-        type = NodeProperties::GetType(use);
-      }
-    }
-    CHECK_NOT_NULL(type);
-
-    if (type->Is(Type::SignedSmall())) {
-      guard_type = OsrGuardType::kSignedSmall;
-    }
-  }
-
-  NodeProperties::ChangeOp(osr_guard, common->OsrGuard(guard_type));
+  NodeProperties::ChangeOp(osr_guard, common->OsrGuard(OsrGuardType::kAny));
 }
 
 }  // namespace

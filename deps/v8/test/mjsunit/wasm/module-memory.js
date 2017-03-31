@@ -12,31 +12,32 @@ var kMemSize = 65536;
 function genModule(memory) {
   var builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, 1, true);
+  builder.addImportedMemory("", "memory", 1);
+  builder.exportMemoryAs("memory");
   builder.addFunction("main", kSig_i_i)
     .addBody([
       // main body: while(i) { if(mem[i]) return -1; i -= 4; } return 0;
       // TODO(titzer): this manual bytecode has a copy of test-run-wasm.cc
-      /**/ kExprLoop, kAstStmt,            // --
+      /**/ kExprLoop, kWasmStmt,           // --
       /*  */ kExprGetLocal, 0,             // --
-      /*  */ kExprIf, kAstStmt,            // --
+      /*  */ kExprIf, kWasmStmt,           // --
       /*    */ kExprGetLocal, 0,           // --
       /*    */ kExprI32LoadMem, 0, 0,      // --
-      /*    */ kExprIf, kAstStmt,          // --
-      /*      */ kExprI8Const, 255,        // --
+      /*    */ kExprIf, kWasmStmt,         // --
+      /*      */ kExprI32Const, 127,       // --
       /*      */ kExprReturn,              // --
       /*      */ kExprEnd,                 // --
       /*    */ kExprGetLocal, 0,           // --
-      /*    */ kExprI8Const, 4,            // --
+      /*    */ kExprI32Const, 4,           // --
       /*    */ kExprI32Sub,                // --
       /*    */ kExprSetLocal, 0,           // --
       /*    */ kExprBr, 1,                 // --
       /*    */ kExprEnd,                   // --
       /*  */ kExprEnd,                     // --
-      /**/ kExprI8Const, 0                 // --
+      /**/ kExprI32Const, 0                // --
     ])
     .exportFunc();
-  var module = builder.instantiate(null, memory);
+  var module = builder.instantiate({"": {memory:memory}});
   assertTrue(module.exports.memory instanceof WebAssembly.Memory);
   if (memory != null) assertEquals(memory.buffer, module.exports.memory.buffer);
   return module;
@@ -44,7 +45,7 @@ function genModule(memory) {
 
 function testPokeMemory() {
   print("testPokeMemory");
-  var module = genModule(null);
+  var module = genModule(new WebAssembly.Memory({initial: 1}));
   var buffer = module.exports.memory.buffer;
   var main = module.exports.main;
   assertEquals(kMemSize, buffer.byteLength);
@@ -75,7 +76,7 @@ function genAndGetMain(buffer) {
 }
 
 function testSurvivalAcrossGc() {
-  var checker = genAndGetMain(null);
+  var checker = genAndGetMain(new WebAssembly.Memory({initial: 1}));
   for (var i = 0; i < 3; i++) {
     print("gc run ", i);
     assertEquals(0, checker(kMemSize - 4));

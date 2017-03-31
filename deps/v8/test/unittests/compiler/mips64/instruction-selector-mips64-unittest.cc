@@ -1360,14 +1360,13 @@ const MemoryAccessImm kMemoryAccessesImm[] = {
       -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
       115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}}};
 
-
 const MemoryAccessImm1 kMemoryAccessImmMoreThan16bit[] = {
     {MachineType::Int8(),
      kMips64Lb,
      kMips64Sb,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}},
-    {MachineType::Int8(),
+    {MachineType::Uint8(),
      kMips64Lbu,
      kMips64Sb,
      &InstructionSelectorTest::Stream::IsInteger,
@@ -1377,7 +1376,7 @@ const MemoryAccessImm1 kMemoryAccessImmMoreThan16bit[] = {
      kMips64Sh,
      &InstructionSelectorTest::Stream::IsInteger,
      {-65000, -55000, 32777, 55000, 65000}},
-    {MachineType::Int16(),
+    {MachineType::Uint16(),
      kMips64Lhu,
      kMips64Sh,
      &InstructionSelectorTest::Stream::IsInteger,
@@ -1601,11 +1600,9 @@ TEST_P(InstructionSelectorMemoryAccessImmMoreThan16bitTest,
     StreamBuilder m(this, memacc.type, MachineType::Pointer());
     m.Return(m.Load(memacc.type, m.Parameter(0), m.Int32Constant(index)));
     Stream s = m.Build();
-    ASSERT_EQ(2U, s.size());
-    // kMips64Dadd is expected opcode
-    // size more than 16 bits wide
-    EXPECT_EQ(kMips64Dadd, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(memacc.load_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -1621,13 +1618,11 @@ TEST_P(InstructionSelectorMemoryAccessImmMoreThan16bitTest,
             m.Int32Constant(index), m.Parameter(1), kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
-    ASSERT_EQ(2U, s.size());
-    // kMips64Add is expected opcode
-    // size more than 16 bits wide
-    EXPECT_EQ(kMips64Dadd, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
-    EXPECT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(1U, s[0]->OutputCount());
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(memacc.store_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MRI, s[0]->addressing_mode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(0U, s[0]->OutputCount());
   }
 }
 
@@ -1757,6 +1752,9 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
 }
 
 TEST_F(InstructionSelectorTest, Float32AddWithFloat32Mul) {
+  if (kArchVariant != kMips64r2) {
+    return;
+  }
   {
     StreamBuilder m(this, MachineType::Float32(), MachineType::Float32(),
                     MachineType::Float32(), MachineType::Float32());
@@ -1767,23 +1765,14 @@ TEST_F(InstructionSelectorTest, Float32AddWithFloat32Mul) {
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    if (kArchVariant == kMips64r2) {
-      EXPECT_EQ(kMips64MaddS, s[0]->arch_opcode());
-    } else if (kArchVariant == kMips64r6) {
-      EXPECT_EQ(kMips64MaddfS, s[0]->arch_opcode());
-    }
+    EXPECT_EQ(kMips64MaddS, s[0]->arch_opcode());
     ASSERT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
     EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(2)));
     ASSERT_EQ(1U, s[0]->OutputCount());
-    if (kArchVariant == kMips64r2) {
-      EXPECT_FALSE(
-          UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
-    } else if (kArchVariant == kMips64r6) {
-      EXPECT_TRUE(
-          UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
-    }
+    EXPECT_FALSE(
+        UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
     EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
     EXPECT_EQ(kFlags_none, s[0]->flags_mode());
   }
@@ -1797,29 +1786,23 @@ TEST_F(InstructionSelectorTest, Float32AddWithFloat32Mul) {
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    if (kArchVariant == kMips64r2) {
-      EXPECT_EQ(kMips64MaddS, s[0]->arch_opcode());
-    } else if (kArchVariant == kMips64r6) {
-      EXPECT_EQ(kMips64MaddfS, s[0]->arch_opcode());
-    }
+    EXPECT_EQ(kMips64MaddS, s[0]->arch_opcode());
     ASSERT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
     EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(2)));
     ASSERT_EQ(1U, s[0]->OutputCount());
-    if (kArchVariant == kMips64r2) {
-      EXPECT_FALSE(
-          UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
-    } else if (kArchVariant == kMips64r6) {
-      EXPECT_TRUE(
-          UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
-    }
+    EXPECT_FALSE(
+        UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
     EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
     EXPECT_EQ(kFlags_none, s[0]->flags_mode());
   }
 }
 
 TEST_F(InstructionSelectorTest, Float64AddWithFloat64Mul) {
+  if (kArchVariant != kMips64r2) {
+    return;
+  }
   {
     StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
                     MachineType::Float64(), MachineType::Float64());
@@ -1830,23 +1813,14 @@ TEST_F(InstructionSelectorTest, Float64AddWithFloat64Mul) {
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    if (kArchVariant == kMips64r2) {
-      EXPECT_EQ(kMips64MaddD, s[0]->arch_opcode());
-    } else if (kArchVariant == kMips64r6) {
-      EXPECT_EQ(kMips64MaddfD, s[0]->arch_opcode());
-    }
+    EXPECT_EQ(kMips64MaddD, s[0]->arch_opcode());
     ASSERT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(1)));
     EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(2)));
     ASSERT_EQ(1U, s[0]->OutputCount());
-    if (kArchVariant == kMips64r2) {
-      EXPECT_FALSE(
-          UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
-    } else if (kArchVariant == kMips64r6) {
-      EXPECT_TRUE(
-          UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
-    }
+    EXPECT_FALSE(
+        UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
     EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
     EXPECT_EQ(kFlags_none, s[0]->flags_mode());
   }
@@ -1860,23 +1834,14 @@ TEST_F(InstructionSelectorTest, Float64AddWithFloat64Mul) {
     m.Return(n);
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    if (kArchVariant == kMips64r2) {
-      EXPECT_EQ(kMips64MaddD, s[0]->arch_opcode());
-    } else if (kArchVariant == kMips64r6) {
-      EXPECT_EQ(kMips64MaddfD, s[0]->arch_opcode());
-    }
+    EXPECT_EQ(kMips64MaddD, s[0]->arch_opcode());
     ASSERT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
     EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
     EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(2)));
     ASSERT_EQ(1U, s[0]->OutputCount());
-    if (kArchVariant == kMips64r2) {
-      EXPECT_FALSE(
-          UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
-    } else if (kArchVariant == kMips64r6) {
-      EXPECT_TRUE(
-          UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
-    }
+    EXPECT_FALSE(
+        UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
     EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
     EXPECT_EQ(kFlags_none, s[0]->flags_mode());
   }
@@ -1885,73 +1850,57 @@ TEST_F(InstructionSelectorTest, Float64AddWithFloat64Mul) {
 TEST_F(InstructionSelectorTest, Float32SubWithFloat32Mul) {
   StreamBuilder m(this, MachineType::Float32(), MachineType::Float32(),
                   MachineType::Float32(), MachineType::Float32());
-  Node* const p0 = m.Parameter(0);
-  Node* const p1 = m.Parameter(1);
-  Node* const p2 = m.Parameter(2);
-  Node* n;
-  if (kArchVariant == kMips64r2) {
+  if (kArchVariant != kMips64r2) {
+    return;
+  }
+  {
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const p2 = m.Parameter(2);
+    Node* n;
     n = m.Float32Sub(m.Float32Mul(p1, p2), p0);
-  } else if (kArchVariant == kMips64r6) {
-    n = m.Float32Sub(p0, m.Float32Mul(p1, p2));
-  }
-  m.Return(n);
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  if (kArchVariant == kMips64r2) {
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kMips64MsubS, s[0]->arch_opcode());
-  } else if (kArchVariant == kMips64r6) {
-    EXPECT_EQ(kMips64MsubfS, s[0]->arch_opcode());
-  }
-  ASSERT_EQ(3U, s[0]->InputCount());
-  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
-  EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(2)));
-  ASSERT_EQ(1U, s[0]->OutputCount());
-  if (kArchVariant == kMips64r2) {
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
     EXPECT_FALSE(
         UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
-  } else if (kArchVariant == kMips64r6) {
-    EXPECT_TRUE(
-        UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
   }
-  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-  EXPECT_EQ(kFlags_none, s[0]->flags_mode());
 }
 
 TEST_F(InstructionSelectorTest, Float64SubWithFloat64Mul) {
   StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
                   MachineType::Float64(), MachineType::Float64());
-  Node* const p0 = m.Parameter(0);
-  Node* const p1 = m.Parameter(1);
-  Node* const p2 = m.Parameter(2);
-  Node* n;
-  if (kArchVariant == kMips64r2) {
+  if (kArchVariant != kMips64r2) {
+    return;
+  }
+  {
+    Node* const p0 = m.Parameter(0);
+    Node* const p1 = m.Parameter(1);
+    Node* const p2 = m.Parameter(2);
+    Node* n;
     n = m.Float64Sub(m.Float64Mul(p1, p2), p0);
-  } else if (kArchVariant == kMips64r6) {
-    n = m.Float64Sub(p0, m.Float64Mul(p1, p2));
-  }
-  m.Return(n);
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  if (kArchVariant == kMips64r2) {
+    m.Return(n);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kMips64MsubD, s[0]->arch_opcode());
-  } else if (kArchVariant == kMips64r6) {
-    EXPECT_EQ(kMips64MsubfD, s[0]->arch_opcode());
-  }
-  ASSERT_EQ(3U, s[0]->InputCount());
-  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
-  EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(2)));
-  ASSERT_EQ(1U, s[0]->OutputCount());
-  if (kArchVariant == kMips64r2) {
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(p2), s.ToVreg(s[0]->InputAt(2)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
     EXPECT_FALSE(
         UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
-  } else if (kArchVariant == kMips64r6) {
-    EXPECT_TRUE(
-        UnallocatedOperand::cast(s[0]->Output())->HasSameAsInputPolicy());
+    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
   }
-  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-  EXPECT_EQ(kFlags_none, s[0]->flags_mode());
 }
 
 TEST_F(InstructionSelectorTest, Float64Max) {
@@ -2012,6 +1961,30 @@ TEST_F(InstructionSelectorTest, LoadAndShiftRight) {
 
       ASSERT_EQ(1U, s[0]->OutputCount());
     }
+  }
+}
+
+TEST_F(InstructionSelectorTest, Word32ReverseBytes) {
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    m.Return(m.Word32ReverseBytes(m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMips64ByteSwap32, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+TEST_F(InstructionSelectorTest, Word64ReverseBytes) {
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    m.Return(m.Word64ReverseBytes(m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMips64ByteSwap64, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
   }
 }
 

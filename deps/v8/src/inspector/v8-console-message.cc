@@ -4,6 +4,7 @@
 
 #include "src/inspector/v8-console-message.h"
 
+#include "src/debug/debug-interface.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/string-util.h"
@@ -58,6 +59,7 @@ String16 consoleAPITypeValue(ConsoleAPIType type) {
 }
 
 const unsigned maxConsoleMessageCount = 1000;
+const int maxConsoleMessageV8Size = 10 * 1024 * 1024;
 const unsigned maxArrayItemsLimit = 10000;
 const unsigned maxStackDepthLimit = 32;
 
@@ -361,7 +363,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
   V8InspectorImpl* inspector = inspectedContext->inspector();
   v8::Local<v8::Context> context = inspectedContext->context();
 
-  std::unique_ptr<V8ConsoleMessage> message = wrapUnique(
+  std::unique_ptr<V8ConsoleMessage> message(
       new V8ConsoleMessage(V8MessageOrigin::kConsole, timestamp, String16()));
   if (stackTrace && !stackTrace->isEmpty()) {
     message->m_url = toString16(stackTrace->topSourceURL());
@@ -371,9 +373,12 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
   message->m_stackTrace = std::move(stackTrace);
   message->m_type = type;
   message->m_contextId = contextId;
-  for (size_t i = 0; i < arguments.size(); ++i)
-    message->m_arguments.push_back(
-        wrapUnique(new v8::Global<v8::Value>(isolate, arguments.at(i))));
+  for (size_t i = 0; i < arguments.size(); ++i) {
+    message->m_arguments.push_back(std::unique_ptr<v8::Global<v8::Value>>(
+        new v8::Global<v8::Value>(isolate, arguments.at(i))));
+    message->m_v8Size +=
+        v8::debug::EstimatedValueSize(isolate, arguments.at(i));
+  }
   if (arguments.size())
     message->m_message = V8ValueStringBuilder::toString(arguments[0], context);
 
@@ -404,7 +409,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForException(
     std::unique_ptr<V8StackTraceImpl> stackTrace, int scriptId,
     v8::Isolate* isolate, const String16& message, int contextId,
     v8::Local<v8::Value> exception, unsigned exceptionId) {
-  std::unique_ptr<V8ConsoleMessage> consoleMessage = wrapUnique(
+  std::unique_ptr<V8ConsoleMessage> consoleMessage(
       new V8ConsoleMessage(V8MessageOrigin::kException, timestamp, message));
   consoleMessage->setLocation(url, lineNumber, columnNumber,
                               std::move(stackTrace), scriptId);
@@ -413,7 +418,10 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForException(
   if (contextId && !exception.IsEmpty()) {
     consoleMessage->m_contextId = contextId;
     consoleMessage->m_arguments.push_back(
-        wrapUnique(new v8::Global<v8::Value>(isolate, exception)));
+        std::unique_ptr<v8::Global<v8::Value>>(
+            new v8::Global<v8::Value>(isolate, exception)));
+    consoleMessage->m_v8Size +=
+        v8::debug::EstimatedValueSize(isolate, exception);
   }
   return consoleMessage;
 }
@@ -422,7 +430,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForException(
 std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForRevokedException(
     double timestamp, const String16& messageText,
     unsigned revokedExceptionId) {
-  std::unique_ptr<V8ConsoleMessage> message = wrapUnique(new V8ConsoleMessage(
+  std::unique_ptr<V8ConsoleMessage> message(new V8ConsoleMessage(
       V8MessageOrigin::kRevokedException, timestamp, messageText));
   message->m_revokedExceptionId = revokedExceptionId;
   return message;
@@ -434,15 +442,14 @@ void V8ConsoleMessage::contextDestroyed(int contextId) {
   if (m_message.isEmpty()) m_message = "<message collected>";
   Arguments empty;
   m_arguments.swap(empty);
+  m_v8Size = 0;
 }
 
 // ------------------------ V8ConsoleMessageStorage ----------------------------
 
 V8ConsoleMessageStorage::V8ConsoleMessageStorage(V8InspectorImpl* inspector,
                                                  int contextGroupId)
-    : m_inspector(inspector),
-      m_contextGroupId(contextGroupId),
-      m_expiredCount(0) {}
+    : m_inspector(inspector), m_contextGroupId(contextGroupId) {}
 
 V8ConsoleMessageStorage::~V8ConsoleMessageStorage() { clear(); }
 
@@ -463,23 +470,33 @@ void V8ConsoleMessageStorage::addMessage(
 
   DCHECK(m_messages.size() <= maxConsoleMessageCount);
   if (m_messages.size() == maxConsoleMessageCount) {
-    ++m_expiredCount;
+    m_estimatedSize -= m_messages.front()->estimatedSize();
     m_messages.pop_front();
   }
+  while (m_estimatedSize + message->estimatedSize() > maxConsoleMessageV8Size &&
+         !m_messages.empty()) {
+    m_estimatedSize -= m_messages.front()->estimatedSize();
+    m_messages.pop_front();
+  }
+
   m_messages.push_back(std::move(message));
+  m_estimatedSize += m_messages.back()->estimatedSize();
 }
 
 void V8ConsoleMessageStorage::clear() {
   m_messages.clear();
-  m_expiredCount = 0;
+  m_estimatedSize = 0;
   if (V8InspectorSessionImpl* session =
           m_inspector->sessionForContextGroup(m_contextGroupId))
     session->releaseObjectGroup("console");
 }
 
 void V8ConsoleMessageStorage::contextDestroyed(int contextId) {
-  for (size_t i = 0; i < m_messages.size(); ++i)
+  m_estimatedSize = 0;
+  for (size_t i = 0; i < m_messages.size(); ++i) {
     m_messages[i]->contextDestroyed(contextId);
+    m_estimatedSize += m_messages[i]->estimatedSize();
+  }
 }
 
 }  // namespace v8_inspector

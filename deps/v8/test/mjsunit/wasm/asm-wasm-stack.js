@@ -16,8 +16,7 @@ function checkPreformattedStack(e, expected_lines) {
   }
 }
 
-function checkFunctionsOnCallsites(e, locations) {
-  var stack = e.stack;
+function printCallsites(stack) {
   print('callsite objects (size ' + stack.length + '):');
   for (var i = 0; i < stack.length; ++i) {
     var s = stack[i];
@@ -25,33 +24,47 @@ function checkFunctionsOnCallsites(e, locations) {
         ' [' + i + '] ' + s.getFunctionName() + ' (' + s.getFileName() + ':' +
         s.getLineNumber() + ':' + s.getColumnNumber() + ')');
   }
-  assertEquals(locations.length, stack.length, 'stack size');
-  for (var i = 0; i < locations.length; ++i) {
+}
+
+function checkCallsiteArray(stack, expected) {
+  assertEquals(expected.length, stack.length, 'stack size');
+  for (var i = 0; i < expected.length; ++i) {
     var cs = stack[i];
     assertMatches('^' + filename + '$', cs.getFileName(), 'file name at ' + i);
-    assertEquals(
-        locations[i][0], cs.getFunctionName(), 'function name at ' + i);
-    assertEquals(locations[i][1], cs.getLineNumber(), 'line number at ' + i);
-    assertEquals(
-        locations[i][2], cs.getColumnNumber(), 'column number at ' + i);
+    assertEquals(expected[i][0], cs.getFunctionName(), 'function name at ' + i);
+    assertEquals(expected[i][1], cs.getLineNumber(), 'line number at ' + i);
+    assertEquals(expected[i][2], cs.getColumnNumber(), 'column number at ' + i);
     assertNotNull(cs.getThis(), 'receiver should be global');
     assertEquals(stack[0].getThis(), cs.getThis(), 'receiver should be global');
   }
+}
+
+function checkFunctionsOnCallsites(e, expected) {
+  printCallsites(e.stack);
+  checkCallsiteArray(e.stack, expected);
+}
+
+function checkTopFunctionsOnCallsites(e, expected) {
+  printCallsites(e.stack);
+  assertTrue(
+      e.stack.length >= expected.length, 'expected at least ' +
+          expected.length + ' callsites, got ' + e.stack.length);
+  checkCallsiteArray(e.stack.slice(0, expected.length), expected);
 }
 
 function throwException() {
   throw new Error('exception from JS');
 }
 
-function generateWasmFromAsmJs(stdlib, foreign, heap) {
+function generateWasmFromAsmJs(stdlib, foreign) {
   'use asm';
   var throwFunc = foreign.throwFunc;
   function callThrow() {
     throwFunc();
   }
   function redirectFun(i) {
-    i = i|0;
-    switch (i|0) {
+    i = i | 0;
+    switch (i | 0) {
       case 0: callThrow(); break;
       case 1: redirectFun(0); break;
       case 2: redirectFun(1); break;
@@ -61,7 +74,8 @@ function generateWasmFromAsmJs(stdlib, foreign, heap) {
 }
 
 (function PreformattedStackTraceFromJS() {
-  var fun = generateWasmFromAsmJs(this, {throwFunc: throwException}, undefined);
+  var fun = generateWasmFromAsmJs(this, {throwFunc: throwException});
+  assertTrue(%IsWasmCode(fun));
   var e = null;
   try {
     fun(0);
@@ -71,11 +85,11 @@ function generateWasmFromAsmJs(stdlib, foreign, heap) {
   assertInstanceof(e, Error, 'exception should have been thrown');
   checkPreformattedStack(e, [
     '^Error: exception from JS$',
-    '^ *at throwException \\(' + filename + ':43:9\\)$',
-    '^ *at callThrow \\(' + filename + ':50:5\\)$',
-    '^ *at redirectFun \\(' + filename + ':55:15\\)$',
-    '^ *at PreformattedStackTraceFromJS \\(' + filename + ':67:5\\)$',
-    '^ *at ' + filename + ':80:3$'
+    '^ *at throwException \\(' + filename + ':56:9\\)$',
+    '^ *at callThrow \\(' + filename + ':63:5\\)$',
+    '^ *at redirectFun \\(' + filename + ':68:15\\)$',
+    '^ *at PreformattedStackTraceFromJS \\(' + filename + ':81:5\\)$',
+    '^ *at ' + filename + ':94:3$'
   ]);
 })();
 
@@ -85,7 +99,8 @@ Error.prepareStackTrace = function(error, frames) {
 };
 
 (function CallsiteObjectsFromJS() {
-  var fun = generateWasmFromAsmJs(this, {throwFunc: throwException}, undefined);
+  var fun = generateWasmFromAsmJs(this, {throwFunc: throwException});
+  assertTrue(%IsWasmCode(fun));
   var e = null;
   try {
     fun(2);
@@ -94,12 +109,39 @@ Error.prepareStackTrace = function(error, frames) {
   }
   assertInstanceof(e, Error, 'exception should have been thrown');
   checkFunctionsOnCallsites(e, [
-    ['throwException', 43, 9],         // --
-    ['callThrow', 50, 5],              // --
-    ['redirectFun', 55, 15],            // --
-    ['redirectFun', 56, 15],            // --
-    ['redirectFun', 57, 15],            // --
-    ['CallsiteObjectsFromJS', 91, 5],  // --
-    [null, 105, 3]
+    ['throwException', 56, 9],          // --
+    ['callThrow', 63, 5],               // --
+    ['redirectFun', 68, 15],            // --
+    ['redirectFun', 69, 15],            // --
+    ['redirectFun', 70, 15],            // --
+    ['CallsiteObjectsFromJS', 106, 5],  // --
+    [null, 120, 3]
+  ]);
+})();
+
+function generateOverflowWasmFromAsmJs() {
+  'use asm';
+  function f(a) {
+    a = a | 0;
+    return f(a) | 0;
+  }
+  return f;
+}
+
+(function StackOverflowPosition() {
+  var fun = generateOverflowWasmFromAsmJs();
+  assertTrue(%IsWasmCode(fun));
+  var e = null;
+  try {
+    fun(2);
+  } catch (ex) {
+    e = ex;
+  }
+  assertInstanceof(e, RangeError, 'RangeError should have been thrown');
+  checkTopFunctionsOnCallsites(e, [
+    ['f', 124, 13],  // --
+    ['f', 126, 12],  // --
+    ['f', 126, 12],  // --
+    ['f', 126, 12]   // --
   ]);
 })();

@@ -10,6 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function testMemorySizeZero() {
   print("testMemorySizeZero()");
   var builder = new WasmModuleBuilder();
+  builder.addMemory(0, 0, false);
   builder.addFunction("memory_size", kSig_i_v)
          .addBody([kExprMemorySize, kMemoryZero])
          .exportFunc();

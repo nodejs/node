@@ -15,10 +15,10 @@ namespace {{namespace}} {
 
 class {{config.lib.export_macro}} Object {
 public:
-    static std::unique_ptr<Object> parse(protocol::Value*, ErrorSupport*);
+    static std::unique_ptr<Object> fromValue(protocol::Value*, ErrorSupport*);
     ~Object();
 
-    std::unique_ptr<protocol::DictionaryValue> serialize() const;
+    std::unique_ptr<protocol::DictionaryValue> toValue() const;
     std::unique_ptr<Object> clone() const;
 private:
     explicit Object(std::unique_ptr<protocol::DictionaryValue>);

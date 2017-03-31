@@ -7,6 +7,7 @@
 #include "src/compiler/types.h"
 
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -196,7 +197,17 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
-      if (map->is_undetectable()) return kOtherUndetectable;
+      if (map->is_undetectable()) {
+        // Currently we assume that every undetectable receiver is also
+        // callable, which is what we need to support document.all.  We
+        // could add another Type bit to support other use cases in the
+        // future if necessary.
+        DCHECK(map->is_callable());
+        return kOtherUndetectable;
+      }
+      if (map->is_callable()) {
+        return kOtherCallable;
+      }
       return kOtherObject;
     case JS_VALUE_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
@@ -204,7 +215,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
-    case JS_FIXED_ARRAY_ITERATOR_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:  // TODO(rossberg): there should be a RegExp type.
@@ -254,16 +264,21 @@ Type::bitset BitsetType::Lub(i::Map* map) {
 
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
+    case JS_PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
-    case JS_BOUND_FUNCTION_TYPE:
+      DCHECK(!map->is_callable());
       DCHECK(!map->is_undetectable());
       return kOtherObject;
+    case JS_BOUND_FUNCTION_TYPE:
+      DCHECK(!map->is_undetectable());
+      return kBoundFunction;
     case JS_FUNCTION_TYPE:
       DCHECK(!map->is_undetectable());
       return kFunction;
     case JS_PROXY_TYPE:
       DCHECK(!map->is_undetectable());
-      return kProxy;
+      if (map->is_callable()) return kCallableProxy;
+      return kOtherProxy;
     case MAP_TYPE:
     case ALLOCATION_SITE_TYPE:
     case ACCESSOR_INFO_TYPE:
@@ -297,8 +312,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case INTERCEPTOR_INFO_TYPE:
     case CALL_HANDLER_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
-    case SIGNATURE_INFO_TYPE:
-    case TYPE_SWITCH_INFO_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
     case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
@@ -310,8 +323,10 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:
+    case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case CONTEXT_EXTENSION_TYPE:
+    case CONSTANT_ELEMENTS_PAIR_TYPE:
       UNREACHABLE();
       return kNone;
   }

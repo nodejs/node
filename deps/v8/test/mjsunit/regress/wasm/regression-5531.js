@@ -13,8 +13,8 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("foo", kSig_i_v)
     .addBody([
               kExprI32Const, 0x00,
-      kExprI8Const, 0xcb,
-      kExprI8Const, 0xff,
+      kExprI32Const, 0x0b,
+      kExprI32Const, 0x0f,
       kExprBrTable, 0xcb, 0xcb, 0xcb, 0x00, 0x00, 0xcb, 0x00 // entries=1238475
               ])
               .exportFunc();

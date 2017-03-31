@@ -28,6 +28,8 @@
 #include "src/ast/ast-value-factory.h"
 
 #include "src/api.h"
+#include "src/char-predicates-inl.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/utils.h"
 
@@ -219,9 +221,17 @@ void AstValue::Internalize(Isolate* isolate) {
   }
 }
 
-
 AstRawString* AstValueFactory::GetOneByteStringInternal(
     Vector<const uint8_t> literal) {
+  if (literal.length() == 1 && IsInRange(literal[0], 'a', 'z')) {
+    int key = literal[0] - 'a';
+    if (one_character_strings_[key] == nullptr) {
+      uint32_t hash = StringHasher::HashSequentialString<uint8_t>(
+          literal.start(), literal.length(), hash_seed_);
+      one_character_strings_[key] = GetString(hash, true, literal);
+    }
+    return one_character_strings_[key];
+  }
   uint32_t hash = StringHasher::HashSequentialString<uint8_t>(
       literal.start(), literal.length(), hash_seed_);
   return GetString(hash, true, literal);
@@ -258,39 +268,6 @@ const AstConsString* AstValueFactory::NewConsString(
   CHECK(new_string != nullptr);
   AddString(new_string);
   return new_string;
-}
-
-const AstRawString* AstValueFactory::ConcatStrings(const AstRawString* left,
-                                                   const AstRawString* right) {
-  int left_length = left->length();
-  int right_length = right->length();
-  const unsigned char* left_data = left->raw_data();
-  const unsigned char* right_data = right->raw_data();
-  if (left->is_one_byte() && right->is_one_byte()) {
-    uint8_t* buffer = zone_->NewArray<uint8_t>(left_length + right_length);
-    memcpy(buffer, left_data, left_length);
-    memcpy(buffer + left_length, right_data, right_length);
-    Vector<const uint8_t> literal(buffer, left_length + right_length);
-    return GetOneByteStringInternal(literal);
-  } else {
-    uint16_t* buffer = zone_->NewArray<uint16_t>(left_length + right_length);
-    if (left->is_one_byte()) {
-      for (int i = 0; i < left_length; ++i) {
-        buffer[i] = left_data[i];
-      }
-    } else {
-      memcpy(buffer, left_data, 2 * left_length);
-    }
-    if (right->is_one_byte()) {
-      for (int i = 0; i < right_length; ++i) {
-        buffer[i + left_length] = right_data[i];
-      }
-    } else {
-      memcpy(buffer + left_length, right_data, 2 * right_length);
-    }
-    Vector<const uint16_t> literal(buffer, left_length + right_length);
-    return GetTwoByteStringInternal(literal);
-  }
 }
 
 void AstValueFactory::Internalize(Isolate* isolate) {

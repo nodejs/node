@@ -136,6 +136,8 @@ class PropertyCallbackArguments
   inline JSObject* holder() {
     return JSObject::cast(this->begin()[T::kHolderIndex]);
   }
+
+  bool PerformSideEffectCheck(Isolate* isolate, Address function);
 };
 
 class FunctionCallbackArguments

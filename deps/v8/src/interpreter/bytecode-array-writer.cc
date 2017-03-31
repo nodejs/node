@@ -9,6 +9,7 @@
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/log.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -163,6 +164,8 @@ Bytecode GetJumpWithConstantOperand(Bytecode jump_bytecode) {
       return Bytecode::kJumpIfNullConstant;
     case Bytecode::kJumpIfUndefined:
       return Bytecode::kJumpIfUndefinedConstant;
+    case Bytecode::kJumpIfJSReceiver:
+      return Bytecode::kJumpIfJSReceiverConstant;
     default:
       UNREACHABLE();
       return Bytecode::kIllegal;
@@ -290,7 +293,7 @@ void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
       delta -= 1;
     }
     DCHECK_EQ(Bytecode::kJumpLoop, node->bytecode());
-    node->set_bytecode(node->bytecode(), delta, node->operand(1));
+    node->update_operand0(delta);
   } else {
     // The label has not yet been bound so this is a forward reference
     // that will be patched when the label is bound. We create a
@@ -308,13 +311,13 @@ void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
         UNREACHABLE();
         break;
       case OperandSize::kByte:
-        node->set_bytecode(node->bytecode(), k8BitJumpPlaceholder);
+        node->update_operand0(k8BitJumpPlaceholder);
         break;
       case OperandSize::kShort:
-        node->set_bytecode(node->bytecode(), k16BitJumpPlaceholder);
+        node->update_operand0(k16BitJumpPlaceholder);
         break;
       case OperandSize::kQuad:
-        node->set_bytecode(node->bytecode(), k32BitJumpPlaceholder);
+        node->update_operand0(k32BitJumpPlaceholder);
         break;
     }
   }

@@ -33,7 +33,8 @@ namespace compiler {
   V(PPC_RotLeftAndClear64)         \
   V(PPC_RotLeftAndClearLeft64)     \
   V(PPC_RotLeftAndClearRight64)    \
-  V(PPC_Add)                       \
+  V(PPC_Add32)                     \
+  V(PPC_Add64)                     \
   V(PPC_AddWithOverflow32)         \
   V(PPC_AddPair)                   \
   V(PPC_AddDouble)                 \
@@ -42,7 +43,7 @@ namespace compiler {
   V(PPC_SubPair)                   \
   V(PPC_SubDouble)                 \
   V(PPC_Mul32)                     \
-  V(PPC_Mul32WithHigh32)          \
+  V(PPC_Mul32WithHigh32)           \
   V(PPC_Mul64)                     \
   V(PPC_MulHigh32)                 \
   V(PPC_MulHighU32)                \

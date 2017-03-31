@@ -19,7 +19,7 @@
 // executable. Otherwise, OS raises an exception when executing code
 // in that page.
 #include <errno.h>
-#include <fcntl.h>      // open
+#include <fcntl.h>  // open
 #include <stdarg.h>
 #include <strings.h>    // index
 #include <sys/mman.h>   // mmap & munmap
@@ -30,7 +30,7 @@
 // GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
 // Old versions of the C library <signal.h> didn't define the type.
 #if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
-    (defined(__arm__) || defined(__aarch64__)) && \
+    (defined(__arm__) || defined(__aarch64__)) &&                 \
     !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
 #include <asm/sigcontext.h>  // NOLINT
 #endif
@@ -49,21 +49,19 @@
 namespace v8 {
 namespace base {
 
-
 #ifdef __arm__
 
 bool OS::ArmUsingHardFloat() {
-  // GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
-  // the Floating Point ABI used (PCS stands for Procedure Call Standard).
-  // We use these as well as a couple of other defines to statically determine
-  // what FP ABI used.
-  // GCC versions 4.4 and below don't support hard-fp.
-  // GCC versions 4.5 may support hard-fp without defining __ARM_PCS or
-  // __ARM_PCS_VFP.
+// GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
+// the Floating Point ABI used (PCS stands for Procedure Call Standard).
+// We use these as well as a couple of other defines to statically determine
+// what FP ABI used.
+// GCC versions 4.4 and below don't support hard-fp.
+// GCC versions 4.5 may support hard-fp without defining __ARM_PCS or
+// __ARM_PCS_VFP.
 
-#define GCC_VERSION (__GNUC__ * 10000                                          \
-                     + __GNUC_MINOR__ * 100                                    \
-                     + __GNUC_PATCHLEVEL__)
+#define GCC_VERSION \
+  (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 #if GCC_VERSION >= 40600 && !defined(__clang__)
 #if defined(__ARM_PCS_VFP)
   return true;
@@ -78,10 +76,11 @@ bool OS::ArmUsingHardFloat() {
 #if defined(__ARM_PCS_VFP)
   return true;
 #elif defined(__ARM_PCS) || defined(__SOFTFP__) || defined(__SOFTFP) || \
-      !defined(__VFP_FP__)
+    !defined(__VFP_FP__)
   return false;
 #else
-#error "Your version of compiler does not report the FP ABI compiled for."     \
+#error \
+    "Your version of compiler does not report the FP ABI compiled for."     \
        "Please report it on this issue"                                        \
        "http://code.google.com/p/v8/issues/detail?id=2140"
 
@@ -92,16 +91,14 @@ bool OS::ArmUsingHardFloat() {
 
 #endif  // def __arm__
 
-
 const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
   if (std::isnan(time)) return "";
-  time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
+  time_t tv = static_cast<time_t>(std::floor(time / msPerSecond));
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
   if (!t || !t->tm_zone) return "";
   return t->tm_zone;
 }
-
 
 double OS::LocalTimeOffset(TimezoneCache* cache) {
   time_t tv = time(NULL);
@@ -112,9 +109,7 @@ double OS::LocalTimeOffset(TimezoneCache* cache) {
                              (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
 
-
-void* OS::Allocate(const size_t requested,
-                   size_t* allocated,
+void* OS::Allocate(const size_t requested, size_t* allocated,
                    bool is_executable) {
   const size_t msize = RoundUp(requested, AllocateAlignment());
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
@@ -124,7 +119,6 @@ void* OS::Allocate(const size_t requested,
   *allocated = msize;
   return mbase;
 }
-
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   std::vector<SharedLibraryAddress> result;
@@ -169,8 +163,8 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
         lib_name[strlen(lib_name) - 1] = '\0';
       } else {
         // No library name found, just record the raw address range.
-        snprintf(lib_name, kLibNameLen,
-                 "%08" V8PRIxPTR "-%08" V8PRIxPTR, start, end);
+        snprintf(lib_name, kLibNameLen, "%08" V8PRIxPTR "-%08" V8PRIxPTR, start,
+                 end);
       }
       result.push_back(SharedLibraryAddress(lib_name, start, end));
     } else {
@@ -187,7 +181,6 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return result;
 }
 
-
 void OS::SignalCodeMovingGC() {
   // Support for ll_prof.py.
   //
@@ -203,38 +196,30 @@ void OS::SignalCodeMovingGC() {
     OS::PrintError("Failed to open %s\n", OS::GetGCFakeMMapFile());
     OS::Abort();
   }
-  void* addr = mmap(OS::GetRandomMmapAddr(), size,
-                    PROT_READ | PROT_EXEC,
+  void* addr = mmap(OS::GetRandomMmapAddr(), size, PROT_READ | PROT_EXEC,
                     MAP_PRIVATE, fileno(f), 0);
   DCHECK_NE(MAP_FAILED, addr);
   OS::Free(addr, size);
   fclose(f);
 }
 
-
 // Constants used for mmap.
 static const int kMmapFd = -1;
 static const int kMmapFdOffset = 0;
 
-
-VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
-
+VirtualMemory::VirtualMemory() : address_(NULL), size_(0) {}
 
 VirtualMemory::VirtualMemory(size_t size)
-    : address_(ReserveRegion(size)), size_(size) { }
-
+    : address_(ReserveRegion(size)), size_(size) {}
 
 VirtualMemory::VirtualMemory(size_t size, size_t alignment)
     : address_(NULL), size_(0) {
   DCHECK((alignment % OS::AllocateAlignment()) == 0);
-  size_t request_size = RoundUp(size + alignment,
-                                static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* reservation = mmap(OS::GetRandomMmapAddr(),
-                           request_size,
-                           PROT_NONE,
-                           MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
-                           kMmapFd,
-                           kMmapFdOffset);
+  size_t request_size =
+      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
+  void* reservation =
+      mmap(OS::GetRandomMmapAddr(), request_size, PROT_NONE,
+           MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, kMmapFd, kMmapFdOffset);
   if (reservation == MAP_FAILED) return;
 
   uint8_t* base = static_cast<uint8_t*>(reservation);
@@ -266,7 +251,6 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
 #endif
 }
 
-
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
     bool result = ReleaseRegion(address(), size());
@@ -275,29 +259,22 @@ VirtualMemory::~VirtualMemory() {
   }
 }
 
-
-bool VirtualMemory::IsReserved() {
-  return address_ != NULL;
-}
-
+bool VirtualMemory::IsReserved() { return address_ != NULL; }
 
 void VirtualMemory::Reset() {
   address_ = NULL;
   size_ = 0;
 }
 
-
 bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
   CHECK(InVM(address, size));
   return CommitRegion(address, size, is_executable);
 }
 
-
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   CHECK(InVM(address, size));
   return UncommitRegion(address, size);
 }
-
 
 bool VirtualMemory::Guard(void* address) {
   CHECK(InVM(address, OS::CommitPageSize()));
@@ -305,14 +282,10 @@ bool VirtualMemory::Guard(void* address) {
   return true;
 }
 
-
 void* VirtualMemory::ReserveRegion(size_t size) {
-  void* result = mmap(OS::GetRandomMmapAddr(),
-                      size,
-                      PROT_NONE,
-                      MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
-                      kMmapFd,
-                      kMmapFdOffset);
+  void* result =
+      mmap(OS::GetRandomMmapAddr(), size, PROT_NONE,
+           MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, kMmapFd, kMmapFdOffset);
 
   if (result == MAP_FAILED) return NULL;
 
@@ -322,14 +295,10 @@ void* VirtualMemory::ReserveRegion(size_t size) {
   return result;
 }
 
-
 bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  if (MAP_FAILED == mmap(base,
-                         size,
-                         prot,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-                         kMmapFd,
+  if (MAP_FAILED == mmap(base, size, prot,
+                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, kMmapFd,
                          kMmapFdOffset)) {
     return false;
   }
@@ -337,13 +306,9 @@ bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
   return true;
 }
 
-
 bool VirtualMemory::UncommitRegion(void* base, size_t size) {
-  return mmap(base,
-              size,
-              PROT_NONE,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED,
-              kMmapFd,
+  return mmap(base, size, PROT_NONE,
+              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED, kMmapFd,
               kMmapFdOffset) != MAP_FAILED;
 }
 
@@ -363,10 +328,7 @@ bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
   return munmap(base, size) == 0;
 }
 
-
-bool VirtualMemory::HasLazyCommits() {
-  return true;
-}
+bool VirtualMemory::HasLazyCommits() { return true; }
 
 }  // namespace base
 }  // namespace v8

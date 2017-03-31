@@ -82,6 +82,7 @@ class BinaryOpICState final BASE_EMBEDDED {
   }
 
   ExtraICState GetExtraICState() const;
+  std::string ToString() const;
 
   static void GenerateAheadOfTime(Isolate*,
                                   void (*Generate)(Isolate*,
@@ -234,6 +235,13 @@ class LoadGlobalICState final BASE_EMBEDDED {
   static TypeofMode GetTypeofMode(ExtraICState state) {
     return LoadGlobalICState(state).typeof_mode();
   }
+
+  // For convenience, a statically declared encoding of typeof mode
+  // IC state.
+  static const ExtraICState kInsideTypeOfState = INSIDE_TYPEOF
+                                                 << TypeofModeBits::kShift;
+  static const ExtraICState kNotInsideTypeOfState = NOT_INSIDE_TYPEOF
+                                                    << TypeofModeBits::kShift;
 };
 
 

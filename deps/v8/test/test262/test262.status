@@ -28,20 +28,7 @@
 [
 
 [ALWAYS, {
-  ###################### NEEDS INVESTIGATION #######################
-
-  # Date tests that fail in CE(S)T timezone.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5449
-  'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
-  'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
-
   ###################### MISSING ES6 FEATURES #######################
-
-  # The order of adding the name property is wrong
-  # https://code.google.com/p/v8/issues/detail?id=4199
-  'language/computed-property-names/class/static/method-number': [FAIL, FAIL_SLOPPY],
-  'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
-  'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
 
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
@@ -79,7 +66,6 @@
   'built-ins/Proxy/revocable/revocation-function-name': [FAIL],
   'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
   'language/expressions/assignment/fn-name-lhs-member': [FAIL],
-  'language/expressions/class/name': [FAIL],
   'language/expressions/function/name': [FAIL],
   'language/expressions/generators/name': [FAIL],
   'intl402/NumberFormat/prototype/format/format-function-name': [FAIL],
@@ -107,17 +93,17 @@
 
   ###### END REGEXP SUBCLASSING SECTION ######
 
-  # https://code.google.com/p/v8/issues/detail?id=4360
-  'intl402/Collator/10.1.1_1': [FAIL],
-  'intl402/DateTimeFormat/12.1.1_1': [FAIL],
-  'intl402/NumberFormat/11.1.1_1': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
-  'built-ins/TypedArrays/internals/HasProperty/detached-buffer': [FAIL],
-  'built-ins/TypedArrays/internals/Set/detached-buffer': [FAIL],
-  'built-ins/TypedArrays/internals/GetOwnProperty/detached-buffer': [FAIL],
-  'built-ins/TypedArrays/internals/Get/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/Get/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/Get/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/GetOwnProperty/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/GetOwnProperty/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/HasProperty/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/HasProperty/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/Set/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/Set/detached-buffer-realm': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/filter/callbackfn-detachbuffer': [FAIL],
@@ -201,17 +187,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4034
   'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5535
-  'built-ins/ThrowTypeError/unique-per-realm-non-simple': [FAIL],
-  'built-ins/ThrowTypeError/unique-per-realm-unmapped-args': [FAIL],
-  'language/arguments-object/10.6-13-b-1-s': [FAIL],
-  'language/arguments-object/10.6-13-b-2-s': [FAIL],
-  'language/arguments-object/10.6-13-b-3-s': [FAIL],
-  'language/arguments-object/10.6-14-1-s': [FAIL],
-  'language/arguments-object/10.6-14-b-1-s': [FAIL],
-  'language/arguments-object/10.6-14-b-4-s': [FAIL],
-  'language/statements/class/strict-mode/arguments-caller': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4231
   'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
@@ -302,9 +277,6 @@
   'built-ins/Function/prototype/toString/setter-object': [FAIL],
   'built-ins/Function/prototype/toString/unicode': [FAIL],
 
-  # https://github.com/tc39/test262/issues/743
-  'intl402/Intl/getCanonicalLocales/main': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5115
   'language/statements/class/subclass/class-definition-null-proto-missing-return-override': [FAIL],
   'language/statements/class/subclass/class-definition-null-proto-this': [FAIL],
@@ -324,23 +296,6 @@
   'annexB/built-ins/Object/prototype/__defineSetter__/this-non-obj': [FAIL],
   'annexB/built-ins/Object/prototype/__lookupGetter__/this-non-obj': [FAIL],
   'annexB/built-ins/Object/prototype/__lookupSetter__/this-non-obj': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4973
-  'language/literals/numeric/non-octal-decimal-integer-strict': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5130
-  'annexB/built-ins/Object/prototype/__lookupGetter__/lookup-own-data': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupGetter__/lookup-own-get-err': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupGetter__/lookup-own-proto-err': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupGetter__/lookup-proto-data': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupGetter__/lookup-proto-get-err': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupGetter__/lookup-proto-proto-err': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupSetter__/lookup-own-data': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupSetter__/lookup-own-get-err': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupSetter__/lookup-own-proto-err': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupSetter__/lookup-proto-data': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupSetter__/lookup-proto-get-err': [FAIL],
-  'annexB/built-ins/Object/prototype/__lookupSetter__/lookup-proto-proto-err': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4451
   'annexB/language/eval-code/direct/global-block-decl-eval-global-exsting-global-init': [FAIL],
@@ -370,12 +325,6 @@
   'annexB/language/eval-code/direct/func-switch-case-eval-func-block-scoping': [FAIL],
   'annexB/language/eval-code/direct/func-switch-dflt-eval-func-block-scoping': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5137
-  'annexB/built-ins/RegExp/prototype/compile/flags-undefined': [FAIL],
-  'annexB/built-ins/RegExp/prototype/compile/pattern-regexp-distinct': [FAIL],
-  'annexB/built-ins/RegExp/prototype/compile/pattern-regexp-same': [FAIL],
-  'annexB/built-ins/RegExp/prototype/compile/pattern-undefined': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5139
   'annexB/built-ins/Date/prototype/setYear/time-clip': [FAIL],
   'annexB/built-ins/Date/prototype/setYear/year-number-relative': [FAIL],
@@ -393,16 +342,56 @@
   'built-ins/Number/S9.3.1_A2_U180E': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5051
-  'language/expressions/call/trailing-comma': [FAIL],
-  'language/statements/class/definition/params-trailing-comma': [FAIL],
-  'language/statements/class/definition/params-trailing-comma-arguments': [FAIL],
+  'language/expressions/arrow-function/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/expressions/arrow-function/params-trailing-comma-length': ['--harmony-trailing-commas'],
+  'language/expressions/call/trailing-comma': ['--harmony-trailing-commas'],
+  'language/expressions/function/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/expressions/function/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
+  'language/expressions/function/params-trailing-comma-length': ['--harmony-trailing-commas'],
+  'language/expressions/generators/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/expressions/generators/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
+  'language/expressions/generators/params-trailing-comma-length': ['--harmony-trailing-commas'],
+  'language/expressions/object/method-definition/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/expressions/object/method-definition/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
+  'language/expressions/object/method-definition/params-trailing-comma-length': ['--harmony-trailing-commas'],
+  'language/statements/class/definition/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/statements/class/definition/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
+  'language/statements/class/definition/params-trailing-comma-length': ['--harmony-trailing-commas'],
+  'language/statements/function/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/statements/function/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
+  'language/statements/function/params-trailing-comma-length': ['--harmony-trailing-commas'],
+  'language/statements/generators/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/statements/generators/params-trailing-comma-length': ['--harmony-trailing-commas'],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5326
-  'language/expressions/super/call-new-target-undef': [FAIL],
-  'language/eval-code/direct/super-call-fn': [FAIL],
-  'language/expressions/super/prop-dot-fn-no-super-bndng': [FAIL],
-  'language/expressions/super/prop-expr-fn-no-super-bndng': [FAIL],
-  'language/expressions/super/prop-expr-fn-eval-before-has-super': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4698
+  'language/expressions/call/tco-call-args': ['--harmony-tailcalls'],
+  'language/expressions/call/tco-member-args': ['--harmony-tailcalls'],
+  'language/expressions/comma/tco-final': ['--harmony-tailcalls'],
+  'language/expressions/conditional/tco-cond': ['--harmony-tailcalls'],
+  'language/expressions/conditional/tco-pos': ['--harmony-tailcalls'],
+  'language/expressions/logical-and/tco-right': ['--harmony-tailcalls'],
+  'language/expressions/logical-or/tco-right': ['--harmony-tailcalls'],
+  'language/expressions/tagged-template/tco-call': ['--harmony-tailcalls'],
+  'language/expressions/tagged-template/tco-member': ['--harmony-tailcalls'],
+  'language/expressions/tco-pos': ['--harmony-tailcalls'],
+  'language/statements/block/tco-stmt': ['--harmony-tailcalls'],
+  'language/statements/block/tco-stmt-list': ['--harmony-tailcalls'],
+  'language/statements/do-while/tco-body': ['--harmony-tailcalls'],
+  'language/statements/for/tco-const-body': ['--harmony-tailcalls'],
+  'language/statements/for/tco-let-body': ['--harmony-tailcalls'],
+  'language/statements/for/tco-lhs-body': ['--harmony-tailcalls'],
+  'language/statements/for/tco-var-body': ['--harmony-tailcalls'],
+  'language/statements/if/tco-else-body': ['--harmony-tailcalls'],
+  'language/statements/if/tco-if-body': ['--harmony-tailcalls'],
+  'language/statements/labeled/tco': ['--harmony-tailcalls'],
+  'language/statements/return/tco': ['--harmony-tailcalls'],
+  'language/statements/switch/tco-case-body': ['--harmony-tailcalls'],
+  'language/statements/switch/tco-case-body-dflt': ['--harmony-tailcalls'],
+  'language/statements/switch/tco-dftl-body': ['--harmony-tailcalls'],
+  'language/statements/try/tco-catch': ['--harmony-tailcalls'],
+  'language/statements/try/tco-catch-finally': ['--harmony-tailcalls'],
+  'language/statements/try/tco-finally': ['--harmony-tailcalls'],
+  'language/statements/while/tco-body': ['--harmony-tailcalls'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5064
   'language/expressions/arrow-function/params-dflt-duplicates': [FAIL],
@@ -418,13 +407,6 @@
   'built-ins/TypedArrays/internals/Set/key-is-out-of-bounds': [FAIL],
   'built-ins/TypedArrays/internals/Set/tonumber-value-throws': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5328
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-numericindex-desc-not-writable': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-not-integer': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-minus-zero': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-lower-than-zero': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-greater-than-last-index': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5329
   'built-ins/RegExp/prototype/source/value-line-terminator': [FAIL],
 
@@ -438,34 +420,87 @@
   'annexB/language/eval-code/direct/func-switch-case-eval-func-no-skip-try': [FAIL],
   'annexB/language/eval-code/direct/func-switch-dflt-eval-func-no-skip-try': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5336
-  'language/expressions/super/call-proto-not-ctor': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5546
   'language/expressions/tagged-template/invalid-escape-sequences': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5537
   'built-ins/global/*': [SKIP],
 
-  ######################## NEEDS INVESTIGATION ###########################
+  # PreParser doesn't produce early errors
+  # https://bugs.chromium.org/p/v8/issues/detail?id=2728
+  'language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate': [FAIL],
+  'language/expressions/async-function/early-errors-expression-formals-body-duplicate': [FAIL],
+  'language/expressions/object/method-definition/generator-param-redecl-const': [FAIL],
+  'language/expressions/object/method-definition/generator-param-redecl-let': [FAIL],
+  'language/expressions/object/method-definition/name-param-redecl': [FAIL],
+  'language/statements/async-function/early-errors-declaration-formals-body-duplicate': [FAIL],
+
+  # Module-related tests
+  # v8:5485
+  'language/module-code/comment-multi-line-html*': [FAIL],
+  'language/module-code/comment-single-line-html*': [FAIL],
+
+  # v8:5486
+  'language/module-code/instn-iee-star-cycle': [FAIL],
+  'language/module-code/instn-named-star-cycle': [FAIL],
+  'language/module-code/instn-star-star-cycle': [FAIL],
+
+  # v8:5487
+  'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
+
+  # v8:5401
+  'language/module-code/namespace/internals/set': [FAIL],
+  'language/module-code/namespace/internals/define-own-property': [FAIL],
+
+  # Symbol.iterator on namespace objects was removed, tests need to be updated.
+  'language/module-code/namespace/Symbol.iterator/*': [SKIP],
+  'language/module-code/namespace/internals/get-own-property-sym': [SKIP],
+  'language/module-code/namespace/internals/get-sym-found': [SKIP],
+  'language/module-code/namespace/internals/has-property-sym-found': [SKIP],
+  'language/module-code/namespace/internals/own-property-keys-binding-types': [SKIP],
+  'language/module-code/namespace/internals/own-property-keys-sort': [SKIP],
+
+  # Symbol.toString on namespace objects was made non-configurable, tests need
+  # to be updated.
+  'language/module-code/namespace/Symbol.toStringTag': [SKIP],
+
+  # Possible spec bug, see comment in https://github.com/tc39/ecma262/pull/747.
+  'language/module-code/namespace/internals/delete-non-exported': [SKIP],
+
+  # https://code.google.com/p/v8/issues/detail?id=4476
+  'built-ins/String/prototype/toLowerCase/special_casing_conditional': ['--icu-case-mapping'],
+  'built-ins/String/prototype/toLowerCase/supplementary_plane': ['--icu-case-mapping'],
+  'built-ins/String/prototype/toUpperCase/supplementary_plane': ['--icu-case-mapping'],
+  'built-ins/String/prototype/toLocaleLowerCase/Final_Sigma_U180E': ['--icu-case-mapping'],
+  'built-ins/String/prototype/toLowerCase/Final_Sigma_U180E': ['--icu-case-mapping'],
+
+  # https://code.google.com/p/v8/issues/detail?id=4477
+  'built-ins/String/prototype/toLocaleUpperCase/supplementary_plane': ['--icu-case-mapping'],
+  'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': ['--icu-case-mapping'],
+  'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': ['--icu-case-mapping'],
+  'intl402/String/prototype/toLocaleLowerCase/special_casing_Azeri': ['--icu-case-mapping'],
+  'intl402/String/prototype/toLocaleLowerCase/special_casing_Lithuanian': ['--icu-case-mapping'],
+  'intl402/String/prototype/toLocaleLowerCase/special_casing_Turkish': ['--icu-case-mapping'],
+  'intl402/String/prototype/toLocaleUpperCase/special_casing_Azeri': ['--icu-case-mapping'],
+  'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': ['--icu-case-mapping'],
+  'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': ['--icu-case-mapping'],
+
+######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
   # to be either marked as bugs with issues filed for them or as deliberate
   # incompatibilities if the test cases turn out to be broken or ambiguous.
   # Some of these are related to v8:4361 in being visible side effects from Intl.
   'intl402/6.2.3': [FAIL],
-  'intl402/Collator/10.1.2.1_4': [FAIL],
   'intl402/Collator/10.1.2_a': [PASS, FAIL],
   'intl402/Collator/10.2.3_b': [PASS, FAIL],
   'intl402/Collator/prototype/10.3_a': [FAIL],
   'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
-  'intl402/DateTimeFormat/12.1.2.1_4': [FAIL],
   'intl402/DateTimeFormat/12.2.3_b': [FAIL],
   'intl402/DateTimeFormat/prototype/12.3_a': [FAIL],
   'intl402/Number/prototype/toLocaleString/13.2.1_5': [PASS, FAIL],
   'intl402/NumberFormat/11.1.1_20_c': [FAIL],
   'intl402/NumberFormat/11.1.2': [PASS, FAIL],
-  'intl402/NumberFormat/11.1.2.1_4': [FAIL],
   'intl402/NumberFormat/11.2.3_b': [FAIL],
   'intl402/NumberFormat/prototype/11.3_a': [FAIL],
   'intl402/String/prototype/localeCompare/13.1.1_7': [PASS, FAIL],
@@ -506,6 +541,21 @@
   # Test makes unjustified assumptions about the number of calls to SortCompare.
   # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=596
   'built-ins/Array/prototype/sort/bug_596_1': [PASS, FAIL_OK],
+
+  # https://github.com/tc39/test262/pull/688#pullrequestreview-14025354
+  'built-ins/Function/internals/Construct/derived-this-uninitialized-realm': [FAIL],
+
+  # https://github.com/tc39/test262/pull/688/files#r93657665
+  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-custom-species-proto-from-ctor-realm': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-custom-proto-from-ctor-realm': [FAIL],
+
+  # https://github.com/tc39/test262/commit/c779cba592fcb39051fd1d467e472ea71aa2b1d6#commitcomment-20276482
+  'language/statements/class/strict-mode/arguments-caller': [FAIL],
+
+  # Date tests that fail in CE(S)T timezone.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5449
+  'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
+  'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
 
   ############################ SKIPPED TESTS #############################
 
@@ -592,34 +642,8 @@
   '*': [SKIP],
 }],  # variant == asm_wasm
 
-
-# Module-related tests
-# https://bugs.chromium.org/p/v8/issues/detail?id=1569
-
-['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
-  'language/eval-code/direct/export': [SKIP],
-  'language/eval-code/direct/import': [SKIP],
-  'language/eval-code/indirect/export': [SKIP],
-  'language/eval-code/indirect/import': [SKIP],
-  'language/module-code/*': [SKIP],
-}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
-
-['variant == ignition or variant == ignition_staging or variant == ignition_turbofan', {
-  # v8:5485
-  'language/module-code/comment-multi-line-html*': [FAIL],
-  'language/module-code/comment-single-line-html*': [FAIL],
-
-  # v8:5486
-  'language/module-code/instn-iee-star-cycle': [FAIL],
-  'language/module-code/instn-named-star-cycle': [FAIL],
-  'language/module-code/instn-star-star-cycle': [FAIL],
-
-  # v8:5487
-  'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
-
-  # v8:5401
-  'language/module-code/namespace/internals/set': [FAIL],
-  'language/module-code/namespace/internals/define-own-property': [FAIL],
-}],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
+['variant == wasm_traps', {
+  '*': [SKIP],
+}],  # variant == wasm_traps
 
 ]

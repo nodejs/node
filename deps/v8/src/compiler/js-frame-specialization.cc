@@ -27,6 +27,9 @@ Reduction JSFrameSpecialization::Reduce(Node* node) {
 }
 
 Reduction JSFrameSpecialization::ReduceOsrValue(Node* node) {
+  // JSFrameSpecialization should never run on interpreted frames, since the
+  // code below assumes standard stack frame layouts.
+  DCHECK(!frame()->is_interpreted());
   DCHECK_EQ(IrOpcode::kOsrValue, node->opcode());
   Handle<Object> value;
   int index = OsrValueIndexOf(node->op());

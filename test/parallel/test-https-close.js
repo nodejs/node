@@ -31,7 +31,7 @@ server.on('connection', function(connection) {
 });
 
 function shutdown() {
-  server.close(common.mustCall(function() {}));
+  server.close(common.mustCall());
 
   for (const key in connections) {
     connections[key].destroy();
@@ -49,7 +49,7 @@ server.listen(0, function() {
   };
 
   const req = https.request(requestOptions, function(res) {
-    res.on('data', function(d) {});
+    res.on('data', common.noop);
     setImmediate(shutdown);
   });
   req.end();

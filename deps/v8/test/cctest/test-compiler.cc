@@ -35,6 +35,7 @@
 #include "src/disasm.h"
 #include "src/factory.h"
 #include "src/interpreter/interpreter.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -307,7 +308,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // We shouldn't have deoptimization support. We want to recompile and
   // verify that our feedback vector preserves information.
   CHECK(!f->shared()->has_deoptimization_support());
-  Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector());
 
   // Verify that we gathered feedback.
   CHECK(!feedback_vector->is_empty());
@@ -625,7 +626,6 @@ TEST(IgnitionEntryTrampolineSelfHealing) {
   CcTest::InitializeVM();
   FLAG_ignition = true;
   Isolate* isolate = CcTest::i_isolate();
-  isolate->interpreter()->Initialize();
   v8::HandleScope scope(CcTest::isolate());
 
   CompileRun(

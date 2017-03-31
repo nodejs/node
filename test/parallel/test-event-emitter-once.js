@@ -26,7 +26,7 @@ const EventEmitter = require('events');
 
 const e = new EventEmitter();
 
-e.once('hello', common.mustCall(function(a, b) {}));
+e.once('hello', common.mustCall());
 
 e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
@@ -45,7 +45,7 @@ e.once('e', common.mustCall(function() {
   e.emit('e');
 }));
 
-e.once('e', common.mustCall(function() {}));
+e.once('e', common.mustCall());
 
 e.emit('e');
 

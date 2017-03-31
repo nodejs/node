@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/state-values-utils.h"
+#include "src/bit-vector.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "test/unittests/test-utils.h"
@@ -18,8 +19,9 @@ class StateValuesIteratorTest : public GraphTest {
 
   Node* StateValuesFromVector(NodeVector* nodes) {
     int count = static_cast<int>(nodes->size());
-    return graph()->NewNode(common()->StateValues(count), count,
-                            count == 0 ? nullptr : &(nodes->front()));
+    return graph()->NewNode(
+        common()->StateValues(count, SparseInputMask::Dense()), count,
+        count == 0 ? nullptr : &(nodes->front()));
   }
 };
 
@@ -107,7 +109,8 @@ TEST_F(StateValuesIteratorTest, TreeFromVector) {
     // Build the tree.
     StateValuesCache builder(&jsgraph);
     Node* values_node = builder.GetNodeForValues(
-        inputs.size() == 0 ? nullptr : &(inputs.front()), inputs.size());
+        inputs.size() == 0 ? nullptr : &(inputs.front()), inputs.size(),
+        nullptr);
 
     // Check the tree contents with vector.
     int i = 0;
@@ -119,6 +122,46 @@ TEST_F(StateValuesIteratorTest, TreeFromVector) {
   }
 }
 
+TEST_F(StateValuesIteratorTest, TreeFromVectorWithLiveness) {
+  int sizes[] = {0, 1, 2, 100, 5000, 30000};
+  TRACED_FOREACH(int, count, sizes) {
+    JSOperatorBuilder javascript(zone());
+    MachineOperatorBuilder machine(zone());
+    JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
+                    &machine);
+
+    // Generate the input vector.
+    NodeVector inputs(zone());
+    for (int i = 0; i < count; i++) {
+      inputs.push_back(Int32Constant(i));
+    }
+    // Generate the input liveness.
+    BitVector liveness(count, zone());
+    for (int i = 0; i < count; i++) {
+      if (i % 3 == 0) {
+        liveness.Add(i);
+      }
+    }
+
+    // Build the tree.
+    StateValuesCache builder(&jsgraph);
+    Node* values_node = builder.GetNodeForValues(
+        inputs.size() == 0 ? nullptr : &(inputs.front()), inputs.size(),
+        &liveness);
+
+    // Check the tree contents with vector.
+    int i = 0;
+    for (StateValuesAccess::TypedNode node : StateValuesAccess(values_node)) {
+      if (liveness.Contains(i)) {
+        EXPECT_THAT(node.node, IsInt32Constant(i));
+      } else {
+        EXPECT_EQ(node.node, nullptr);
+      }
+      i++;
+    }
+    EXPECT_EQ(inputs.size(), static_cast<size_t>(i));
+  }
+}
 
 TEST_F(StateValuesIteratorTest, BuildTreeIdentical) {
   int sizes[] = {0, 1, 2, 100, 5000, 30000};
@@ -137,9 +180,46 @@ TEST_F(StateValuesIteratorTest, BuildTreeIdentical) {
     // Build two trees from the same data.
     StateValuesCache builder(&jsgraph);
     Node* node1 = builder.GetNodeForValues(
-        inputs.size() == 0 ? nullptr : &(inputs.front()), inputs.size());
+        inputs.size() == 0 ? nullptr : &(inputs.front()), inputs.size(),
+        nullptr);
     Node* node2 = builder.GetNodeForValues(
-        inputs.size() == 0 ? nullptr : &(inputs.front()), inputs.size());
+        inputs.size() == 0 ? nullptr : &(inputs.front()), inputs.size(),
+        nullptr);
+
+    // The trees should be equal since the data was the same.
+    EXPECT_EQ(node1, node2);
+  }
+}
+
+TEST_F(StateValuesIteratorTest, BuildTreeWithLivenessIdentical) {
+  int sizes[] = {0, 1, 2, 100, 5000, 30000};
+  TRACED_FOREACH(int, count, sizes) {
+    JSOperatorBuilder javascript(zone());
+    MachineOperatorBuilder machine(zone());
+    JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
+                    &machine);
+
+    // Generate the input vector.
+    NodeVector inputs(zone());
+    for (int i = 0; i < count; i++) {
+      inputs.push_back(Int32Constant(i));
+    }
+    // Generate the input liveness.
+    BitVector liveness(count, zone());
+    for (int i = 0; i < count; i++) {
+      if (i % 3 == 0) {
+        liveness.Add(i);
+      }
+    }
+
+    // Build two trees from the same data.
+    StateValuesCache builder(&jsgraph);
+    Node* node1 = builder.GetNodeForValues(
+        inputs.size() == 0 ? nullptr : &(inputs.front()), inputs.size(),
+        &liveness);
+    Node* node2 = builder.GetNodeForValues(
+        inputs.size() == 0 ? nullptr : &(inputs.front()), inputs.size(),
+        &liveness);
 
     // The trees should be equal since the data was the same.
     EXPECT_EQ(node1, node2);

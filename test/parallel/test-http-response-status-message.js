@@ -51,7 +51,7 @@ testCases.findByPath = function(path) {
 
 const server = net.createServer(function(connection) {
   connection.on('data', function(data) {
-    const path = data.toString().match(/GET (.*) HTTP.1.1/)[1];
+    const path = data.toString().match(/GET (.*) HTTP\/1\.1/)[1];
     const testCase = testCases.findByPath(path);
 
     connection.write(testCase.response);

@@ -24,3 +24,9 @@ linux_use_bundled_binutils_override = true
 asan_suppressions_file = "//build/sanitizers/asan_suppressions.cc"
 lsan_suppressions_file = "//build/sanitizers/lsan_suppressions.cc"
 tsan_suppressions_file = "//build/sanitizers/tsan_suppressions.cc"
+
+# Skip assertions about 4GiB file size limit.
+ignore_elf32_limitations = true
+
+# Use the system install of Xcode for tools like ibtool, libtool, etc.
+use_system_xcode = true

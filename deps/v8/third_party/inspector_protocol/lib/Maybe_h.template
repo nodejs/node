@@ -21,7 +21,7 @@ public:
     T* fromJust() const { DCHECK(m_value); return m_value.get(); }
     T* fromMaybe(T* defaultValue) const { return m_value ? m_value.get() : defaultValue; }
     bool isJust() const { return !!m_value; }
-    std::unique_ptr<T> takeJust() { DCHECK(m_value); return m_value.release(); }
+    std::unique_ptr<T> takeJust() { DCHECK(m_value); return std::move(m_value); }
 private:
     std::unique_ptr<T> m_value;
 };

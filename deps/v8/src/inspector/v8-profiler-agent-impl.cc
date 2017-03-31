@@ -309,8 +309,4 @@ bool V8ProfilerAgentImpl::idleFinished() {
   return m_profiler;
 }
 
-void V8ProfilerAgentImpl::collectSample() {
-  if (m_profiler) m_profiler->CollectSample();
-}
-
 }  // namespace v8_inspector

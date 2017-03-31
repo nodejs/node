@@ -4,8 +4,12 @@
 
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
+import("//build_overrides/v8.gni")
 
 declare_args() {
+  # Includes files needed for correctness fuzzing.
+  v8_correctness_fuzzer = false
+
   # Indicate if valgrind was fetched as a custom deps to make it available on
   # swarming.
   v8_has_valgrind = false
@@ -30,6 +34,9 @@ declare_args() {
   # Enable ECMAScript Internationalization API. Enabling this feature will
   # add a dependency on the ICU library.
   v8_enable_i18n_support = true
+
+  # Enable inspector. See include/v8-inspector.h.
+  v8_enable_inspector = v8_enable_inspector_override
 }
 
 if (v8_use_external_startup_data == "") {
@@ -83,11 +90,20 @@ if (is_posix && v8_enable_backtrace) {
 
 # All templates should be kept in sync.
 template("v8_source_set") {
-  source_set(target_name) {
-    forward_variables_from(invoker, "*", [ "configs" ])
-    configs += invoker.configs
-    configs -= v8_remove_configs
-    configs += v8_add_configs
+  if (defined(v8_static_library) && v8_static_library) {
+    static_library(target_name) {
+      forward_variables_from(invoker, "*", [ "configs" ])
+      configs += invoker.configs
+      configs -= v8_remove_configs
+      configs += v8_add_configs
+    }
+  } else {
+    source_set(target_name) {
+      forward_variables_from(invoker, "*", [ "configs" ])
+      configs += invoker.configs
+      configs -= v8_remove_configs
+      configs += v8_add_configs
+    }
   }
 }
 

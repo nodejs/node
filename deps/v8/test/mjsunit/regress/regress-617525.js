@@ -11,4 +11,4 @@ function __f_14() {
   return {};
 }
 __f_14();
-assertTrue(%IsNotAsmWasmCode(__f_14));
+assertFalse(%IsAsmWasmCode(__f_14));

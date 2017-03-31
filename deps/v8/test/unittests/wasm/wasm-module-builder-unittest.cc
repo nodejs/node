@@ -6,7 +6,7 @@
 
 #include "src/v8.h"
 
-#include "src/wasm/ast-decoder.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
 
 #include "test/common/wasm/test-signatures.h"
@@ -17,7 +17,7 @@ namespace wasm {
 
 class WasmModuleBuilderTest : public TestWithZone {
  protected:
-  void AddLocal(WasmFunctionBuilder* f, LocalType type) {
+  void AddLocal(WasmFunctionBuilder* f, ValueType type) {
     uint16_t index = f->AddLocal(type);
     f->EmitGetLocal(index);
   }

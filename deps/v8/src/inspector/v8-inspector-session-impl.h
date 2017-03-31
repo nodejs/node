@@ -96,8 +96,10 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   protocol::DictionaryValue* agentState(const String16& name);
 
   // protocol::FrontendChannel implementation.
-  void sendProtocolResponse(int callId, const String16& message) override;
-  void sendProtocolNotification(const String16& message) override;
+  void sendProtocolResponse(
+      int callId, std::unique_ptr<protocol::Serializable> message) override;
+  void sendProtocolNotification(
+      std::unique_ptr<protocol::Serializable> message) override;
   void flushProtocolNotifications() override;
 
   int m_contextGroupId;

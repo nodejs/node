@@ -43,6 +43,7 @@ class Agent {
   void WaitForDisconnect();
   void FatalException(v8::Local<v8::Value> error,
                       v8::Local<v8::Message> message);
+  void SchedulePauseOnNextStatement(const std::string& reason);
  private:
   AgentImpl* impl;
 };

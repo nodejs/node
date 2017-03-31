@@ -77,4 +77,4 @@ common.refreshTmpDir();
 
 // Keep the event loop alive so the async mkdir() requests
 // have a chance to run (since they don't ref the event loop).
-process.nextTick(function() {});
+process.nextTick(common.noop);

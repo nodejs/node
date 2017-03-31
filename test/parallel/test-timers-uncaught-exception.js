@@ -30,7 +30,7 @@ setTimeout(common.mustCall(function() {
 }), 1);
 
 // ...but the second one should still run
-setTimeout(common.mustCall(function() {}), 1);
+setTimeout(common.mustCall(), 1);
 
 function uncaughtException(err) {
   assert.strictEqual(err.message, errorMsg);

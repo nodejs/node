@@ -200,6 +200,126 @@ TEST(Bytecodes, SizesForUnsignedOperands) {
         OperandSize::kQuad);
 }
 
+// Helper macros to generate a check for if a bytecode is in a macro list of
+// bytecodes. We can use these to exhaustively test a check over all bytecodes,
+// both those that should pass and those that should fail the check.
+#define OR_IS_BYTECODE(Name, ...) || bytecode == Bytecode::k##Name
+#define IN_BYTECODE_LIST(BYTECODE, LIST) \
+  ([](Bytecode bytecode) { return false LIST(OR_IS_BYTECODE); }(BYTECODE))
+
+TEST(Bytecodes, IsJump) {
+#define TEST_BYTECODE(Name, ...)                                 \
+  if (IN_BYTECODE_LIST(Bytecode::k##Name, JUMP_BYTECODE_LIST)) { \
+    EXPECT_TRUE(Bytecodes::IsJump(Bytecode::k##Name));           \
+  } else {                                                       \
+    EXPECT_FALSE(Bytecodes::IsJump(Bytecode::k##Name));          \
+  }
+
+  BYTECODE_LIST(TEST_BYTECODE)
+#undef TEST_BYTECODE
+}
+
+TEST(Bytecodes, IsForwardJump) {
+#define TEST_BYTECODE(Name, ...)                                         \
+  if (IN_BYTECODE_LIST(Bytecode::k##Name, JUMP_FORWARD_BYTECODE_LIST)) { \
+    EXPECT_TRUE(Bytecodes::IsForwardJump(Bytecode::k##Name));            \
+  } else {                                                               \
+    EXPECT_FALSE(Bytecodes::IsForwardJump(Bytecode::k##Name));           \
+  }
+
+  BYTECODE_LIST(TEST_BYTECODE)
+#undef TEST_BYTECODE
+}
+
+TEST(Bytecodes, IsConditionalJump) {
+#define TEST_BYTECODE(Name, ...)                                             \
+  if (IN_BYTECODE_LIST(Bytecode::k##Name, JUMP_CONDITIONAL_BYTECODE_LIST)) { \
+    EXPECT_TRUE(Bytecodes::IsConditionalJump(Bytecode::k##Name));            \
+  } else {                                                                   \
+    EXPECT_FALSE(Bytecodes::IsConditionalJump(Bytecode::k##Name));           \
+  }
+
+  BYTECODE_LIST(TEST_BYTECODE)
+#undef TEST_BYTECODE
+}
+
+TEST(Bytecodes, IsUnconditionalJump) {
+#define TEST_BYTECODE(Name, ...)                                               \
+  if (IN_BYTECODE_LIST(Bytecode::k##Name, JUMP_UNCONDITIONAL_BYTECODE_LIST)) { \
+    EXPECT_TRUE(Bytecodes::IsUnconditionalJump(Bytecode::k##Name));            \
+  } else {                                                                     \
+    EXPECT_FALSE(Bytecodes::IsUnconditionalJump(Bytecode::k##Name));           \
+  }
+
+  BYTECODE_LIST(TEST_BYTECODE)
+#undef TEST_BYTECODE
+}
+
+TEST(Bytecodes, IsJumpImmediate) {
+#define TEST_BYTECODE(Name, ...)                                           \
+  if (IN_BYTECODE_LIST(Bytecode::k##Name, JUMP_IMMEDIATE_BYTECODE_LIST)) { \
+    EXPECT_TRUE(Bytecodes::IsJumpImmediate(Bytecode::k##Name));            \
+  } else {                                                                 \
+    EXPECT_FALSE(Bytecodes::IsJumpImmediate(Bytecode::k##Name));           \
+  }
+
+  BYTECODE_LIST(TEST_BYTECODE)
+#undef TEST_BYTECODE
+}
+
+TEST(Bytecodes, IsJumpConstant) {
+#define TEST_BYTECODE(Name, ...)                                          \
+  if (IN_BYTECODE_LIST(Bytecode::k##Name, JUMP_CONSTANT_BYTECODE_LIST)) { \
+    EXPECT_TRUE(Bytecodes::IsJumpConstant(Bytecode::k##Name));            \
+  } else {                                                                \
+    EXPECT_FALSE(Bytecodes::IsJumpConstant(Bytecode::k##Name));           \
+  }
+
+  BYTECODE_LIST(TEST_BYTECODE)
+#undef TEST_BYTECODE
+}
+
+TEST(Bytecodes, IsConditionalJumpImmediate) {
+#define TEST_BYTECODE(Name, ...)                                             \
+  if (IN_BYTECODE_LIST(Bytecode::k##Name, JUMP_CONDITIONAL_BYTECODE_LIST) && \
+      IN_BYTECODE_LIST(Bytecode::k##Name, JUMP_IMMEDIATE_BYTECODE_LIST)) {   \
+    EXPECT_TRUE(Bytecodes::IsConditionalJumpImmediate(Bytecode::k##Name));   \
+  } else {                                                                   \
+    EXPECT_FALSE(Bytecodes::IsConditionalJumpImmediate(Bytecode::k##Name));  \
+  }
+
+  BYTECODE_LIST(TEST_BYTECODE)
+#undef TEST_BYTECODE
+}
+
+TEST(Bytecodes, IsConditionalJumpConstant) {
+#define TEST_BYTECODE(Name, ...)                                             \
+  if (IN_BYTECODE_LIST(Bytecode::k##Name, JUMP_CONDITIONAL_BYTECODE_LIST) && \
+      IN_BYTECODE_LIST(Bytecode::k##Name, JUMP_CONSTANT_BYTECODE_LIST)) {    \
+    EXPECT_TRUE(Bytecodes::IsConditionalJumpConstant(Bytecode::k##Name));    \
+  } else {                                                                   \
+    EXPECT_FALSE(Bytecodes::IsConditionalJumpConstant(Bytecode::k##Name));   \
+  }
+
+  BYTECODE_LIST(TEST_BYTECODE)
+#undef TEST_BYTECODE
+}
+
+TEST(Bytecodes, IsJumpIfToBoolean) {
+#define TEST_BYTECODE(Name, ...)                                            \
+  if (IN_BYTECODE_LIST(Bytecode::k##Name, JUMP_TO_BOOLEAN_BYTECODE_LIST)) { \
+    EXPECT_TRUE(Bytecodes::IsJumpIfToBoolean(Bytecode::k##Name));           \
+  } else {                                                                  \
+    EXPECT_FALSE(Bytecodes::IsJumpIfToBoolean(Bytecode::k##Name));          \
+  }
+
+  BYTECODE_LIST(TEST_BYTECODE)
+#undef TEST_BYTECODE
+}
+
+#undef OR_IS_BYTECODE
+#undef IN_BYTECODE_LIST
+
 TEST(OperandScale, PrefixesRequired) {
   CHECK(!Bytecodes::OperandScaleRequiresPrefixBytecode(OperandScale::kSingle));
   CHECK(Bytecodes::OperandScaleRequiresPrefixBytecode(OperandScale::kDouble));

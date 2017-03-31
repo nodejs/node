@@ -100,11 +100,11 @@ const Stream = require('stream').Stream;
     }), 1);
   });
 
-  w.on('error', common.mustCall(function() {}));
-  w._write = function() {};
+  w.on('error', common.mustCall());
+  w._write = common.noop;
 
   r.pipe(w);
   // Removing some OTHER random listener should not do anything
-  w.removeListener('error', function() {});
+  w.removeListener('error', common.noop);
   removed = true;
 }

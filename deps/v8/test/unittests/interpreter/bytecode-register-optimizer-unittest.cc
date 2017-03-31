@@ -78,7 +78,7 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForJump) {
   Register temp = NewTemporary();
   optimizer()->DoStar(temp, BytecodeSourceInfo());
   CHECK_EQ(write_count(), 0u);
-  optimizer()->PrepareForBytecode(Bytecode::kJump);
+  optimizer()->PrepareForBytecode<Bytecode::kJump, AccumulatorUse::kNone>();
   CHECK_EQ(write_count(), 1u);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
   CHECK_EQ(output()->at(0).operand(0), static_cast<uint32_t>(temp.ToOperand()));
@@ -96,7 +96,7 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryNotEmitted) {
   BytecodeNode node1(Bytecode::kStar, NewTemporary().ToOperand());
   ReleaseTemporaries(temp);
   CHECK_EQ(write_count(), 0u);
-  optimizer()->PrepareForBytecode(Bytecode::kReturn);
+  optimizer()->PrepareForBytecode<Bytecode::kReturn, AccumulatorUse::kRead>();
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kLdar);
   CHECK_EQ(output()->at(0).operand(0),
            static_cast<uint32_t>(parameter.ToOperand()));
@@ -104,12 +104,12 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryNotEmitted) {
 
 TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterUsed) {
   Initialize(3, 1);
-  optimizer()->PrepareForBytecode(Bytecode::kLdaSmi);
+  optimizer()->PrepareForBytecode<Bytecode::kLdaSmi, AccumulatorUse::kWrite>();
   Register temp0 = NewTemporary();
   Register temp1 = NewTemporary();
   optimizer()->DoStar(temp1, BytecodeSourceInfo());
   CHECK_EQ(write_count(), 0u);
-  optimizer()->PrepareForBytecode(Bytecode::kLdaSmi);
+  optimizer()->PrepareForBytecode<Bytecode::kLdaSmi, AccumulatorUse::kWrite>();
   CHECK_EQ(write_count(), 1u);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
   CHECK_EQ(output()->at(0).operand(0),
@@ -120,7 +120,7 @@ TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterUsed) {
   CHECK_EQ(write_count(), 1u);
   optimizer()->DoLdar(temp0, BytecodeSourceInfo());
   CHECK_EQ(write_count(), 1u);
-  optimizer()->PrepareForBytecode(Bytecode::kReturn);
+  optimizer()->PrepareForBytecode<Bytecode::kReturn, AccumulatorUse::kRead>();
   CHECK_EQ(write_count(), 2u);
   CHECK_EQ(output()->at(1).bytecode(), Bytecode::kLdar);
   CHECK_EQ(output()->at(1).operand(0),
@@ -129,7 +129,7 @@ TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterUsed) {
 
 TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterNotFlushed) {
   Initialize(3, 1);
-  optimizer()->PrepareForBytecode(Bytecode::kLdaSmi);
+  optimizer()->PrepareForBytecode<Bytecode::kLdaSmi, AccumulatorUse::kWrite>();
   Register temp0 = NewTemporary();
   Register temp1 = NewTemporary();
   optimizer()->DoStar(temp0, BytecodeSourceInfo());
@@ -158,7 +158,7 @@ TEST_F(BytecodeRegisterOptimizerTest, StoresToLocalsImmediate) {
   CHECK_EQ(output()->at(0).operand(1),
            static_cast<uint32_t>(local.ToOperand()));
 
-  optimizer()->PrepareForBytecode(Bytecode::kReturn);
+  optimizer()->PrepareForBytecode<Bytecode::kReturn, AccumulatorUse::kRead>();
   CHECK_EQ(write_count(), 2u);
   CHECK_EQ(output()->at(1).bytecode(), Bytecode::kLdar);
   CHECK_EQ(output()->at(1).operand(0),
@@ -188,12 +188,13 @@ TEST_F(BytecodeRegisterOptimizerTest, RangeOfTemporariesMaterializedForInput) {
   Register parameter = Register::FromParameterIndex(1, 3);
   Register temp0 = NewTemporary();
   Register temp1 = NewTemporary();
-  optimizer()->PrepareForBytecode(Bytecode::kLdaSmi);
+  optimizer()->PrepareForBytecode<Bytecode::kLdaSmi, AccumulatorUse::kWrite>();
   optimizer()->DoStar(temp0, BytecodeSourceInfo());
   optimizer()->DoMov(parameter, temp1, BytecodeSourceInfo());
   CHECK_EQ(write_count(), 0u);
 
-  optimizer()->PrepareForBytecode(Bytecode::kCallJSRuntime);
+  optimizer()
+      ->PrepareForBytecode<Bytecode::kCallJSRuntime, AccumulatorUse::kWrite>();
   RegisterList reg_list =
       optimizer()->GetInputRegisterList(RegisterList(temp0.index(), 2));
   CHECK_EQ(temp0.index(), reg_list.first_register().index());

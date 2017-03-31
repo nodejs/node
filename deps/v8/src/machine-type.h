@@ -79,27 +79,15 @@ class MachineType {
     return semantic() == MachineSemantic::kUint32 ||
            semantic() == MachineSemantic::kUint64;
   }
-
   static MachineRepresentation PointerRepresentation() {
     return (kPointerSize == 4) ? MachineRepresentation::kWord32
                                : MachineRepresentation::kWord64;
   }
-  static MachineType Pointer() {
-    return MachineType(PointerRepresentation(), MachineSemantic::kNone);
+  static MachineType UintPtr() {
+    return (kPointerSize == 4) ? Uint32() : Uint64();
   }
   static MachineType IntPtr() {
     return (kPointerSize == 4) ? Int32() : Int64();
-  }
-  static MachineType Float32() {
-    return MachineType(MachineRepresentation::kFloat32,
-                       MachineSemantic::kNumber);
-  }
-  static MachineType Float64() {
-    return MachineType(MachineRepresentation::kFloat64,
-                       MachineSemantic::kNumber);
-  }
-  static MachineType Simd128() {
-    return MachineType(MachineRepresentation::kSimd128, MachineSemantic::kNone);
   }
   static MachineType Int8() {
     return MachineType(MachineRepresentation::kWord8, MachineSemantic::kInt32);
@@ -127,6 +115,20 @@ class MachineType {
   static MachineType Uint64() {
     return MachineType(MachineRepresentation::kWord64,
                        MachineSemantic::kUint64);
+  }
+  static MachineType Float32() {
+    return MachineType(MachineRepresentation::kFloat32,
+                       MachineSemantic::kNumber);
+  }
+  static MachineType Float64() {
+    return MachineType(MachineRepresentation::kFloat64,
+                       MachineSemantic::kNumber);
+  }
+  static MachineType Simd128() {
+    return MachineType(MachineRepresentation::kSimd128, MachineSemantic::kNone);
+  }
+  static MachineType Pointer() {
+    return MachineType(PointerRepresentation(), MachineSemantic::kNone);
   }
   static MachineType TaggedPointer() {
     return MachineType(MachineRepresentation::kTaggedPointer,

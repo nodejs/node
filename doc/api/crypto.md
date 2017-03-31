@@ -1237,12 +1237,15 @@ The `key` is the raw key used by the `algorithm` and `iv` is an
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11983
+    description: The `prime` argument can be a `Uint8Array` now.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5522
     description: The default for the encoding parameters changed
                  from `binary` to `utf8`.
 -->
-- `prime` {string | Buffer}
+- `prime` {string | Buffer | Uint8Array}
 - `prime_encoding` {string}
 - `generator` {number | string | Buffer | Uint8Array} Defaults to `2`.
 - `generator_encoding` {string}
@@ -1257,7 +1260,7 @@ The `prime_encoding` and `generator_encoding` arguments can be `'latin1'`,
 `'hex'`, or `'base64'`.
 
 If `prime_encoding` is specified, `prime` is expected to be a string; otherwise
-a [`Buffer`][] is expected.
+a [`Buffer`][] or `Uint8Array` is expected.
 
 If `generator_encoding` is specified, `generator` is expected to be a string;
 otherwise either a number or [`Buffer`][] or `Uint8Array` is expected.

@@ -29,6 +29,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/api.h"
+#include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/v8.h"

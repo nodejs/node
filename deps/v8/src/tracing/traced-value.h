@@ -29,15 +29,18 @@ class TracedValue : public ConvertableToTraceFormat {
   void SetInteger(const char* name, int value);
   void SetDouble(const char* name, double value);
   void SetBoolean(const char* name, bool value);
-  void SetString(const char* name, const std::string& value);
+  void SetString(const char* name, const char* value);
+  void SetString(const char* name, const std::string& value) {
+    SetString(name, value.c_str());
+  }
   void BeginDictionary(const char* name);
   void BeginArray(const char* name);
 
   void AppendInteger(int);
-  void AppendLongInteger(int64_t);
   void AppendDouble(double);
   void AppendBoolean(bool);
-  void AppendString(const std::string&);
+  void AppendString(const char*);
+  void AppendString(const std::string& value) { AppendString(value.c_str()); }
   void BeginArray();
   void BeginDictionary();
 

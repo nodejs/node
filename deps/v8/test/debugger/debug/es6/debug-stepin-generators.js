@@ -14,7 +14,11 @@ function listener(event, exec_state, event_data, data) {
     print(source);
     if (/stop stepping/.test(source)) return;
     if (/yield/.test(source)) yields++;
-    exec_state.prepareStep(Debug.StepAction.StepIn);
+    if (yields == 4) {
+      exec_state.prepareStep(Debug.StepAction.StepOut);
+    } else {
+      exec_state.prepareStep(Debug.StepAction.StepIn);
+    }
   } catch (e) {
     print(e, e.stack);
     exception = e;

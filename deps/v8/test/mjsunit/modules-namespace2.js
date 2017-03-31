@@ -5,10 +5,8 @@
 // MODULE
 
 assertEquals(
-    ["b", "c", "get_a", "ns2", "set_a", "zzz",
-     Symbol.toStringTag, Symbol.iterator],
+    ["b", "c", "get_a", "ns2", "set_a", "zzz", Symbol.toStringTag],
     Reflect.ownKeys(ns));
-assertEquals(["b", "c", "get_a", "ns2", "set_a", "zzz"], [...ns]);
 
 import * as foo from "modules-skip-1.js";
 assertSame(foo.a, ns.b);

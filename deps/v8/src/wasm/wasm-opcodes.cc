@@ -4,13 +4,14 @@
 
 #include "src/wasm/wasm-opcodes.h"
 #include "src/messages.h"
+#include "src/runtime/runtime.h"
 #include "src/signature.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
 
-typedef Signature<LocalType> FunctionSig;
+typedef Signature<ValueType> FunctionSig;
 
 const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
   switch (opcode) {
@@ -69,7 +70,7 @@ enum WasmOpcodeSig { FOREACH_SIGNATURE(DECLARE_SIG_ENUM) };
 
 // TODO(titzer): not static-initializer safe. Wrap in LazyInstance.
 #define DECLARE_SIG(name, ...)                      \
-  static LocalType kTypes_##name[] = {__VA_ARGS__}; \
+  static ValueType kTypes_##name[] = {__VA_ARGS__}; \
   static const FunctionSig kSig_##name(             \
       1, static_cast<int>(arraysize(kTypes_##name)) - 1, kTypes_##name);
 

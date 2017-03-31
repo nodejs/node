@@ -63,7 +63,7 @@ void HeapEntry::SetNamedReference(HeapGraphEdge::Type type,
                                   const char* name,
                                   HeapEntry* entry) {
   HeapGraphEdge edge(type, name, this->index(), entry->index());
-  snapshot_->edges().Add(edge);
+  snapshot_->edges().push_back(edge);
   ++children_count_;
 }
 
@@ -72,7 +72,7 @@ void HeapEntry::SetIndexedReference(HeapGraphEdge::Type type,
                                     int index,
                                     HeapEntry* entry) {
   HeapGraphEdge edge(type, index, this->index(), entry->index());
-  snapshot_->edges().Add(edge);
+  snapshot_->edges().push_back(edge);
   ++children_count_;
 }
 
@@ -97,9 +97,8 @@ void HeapEntry::Print(
     base::OS::Print("\"\n");
   }
   if (--max_depth == 0) return;
-  Vector<HeapGraphEdge*> ch = children();
-  for (int i = 0; i < ch.length(); ++i) {
-    HeapGraphEdge& edge = *ch[i];
+  for (auto i = children_begin(); i != children_end(); ++i) {
+    HeapGraphEdge& edge = **i;
     const char* edge_prefix = "";
     EmbeddedVector<char, 64> index;
     const char* edge_name = index.start();
@@ -270,15 +269,15 @@ HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
 
 
 void HeapSnapshot::FillChildren() {
-  DCHECK(children().is_empty());
-  children().Allocate(edges().length());
+  DCHECK(children().empty());
+  children().resize(edges().size());
   int children_index = 0;
   for (int i = 0; i < entries().length(); ++i) {
     HeapEntry* entry = &entries()[i];
     children_index = entry->set_children_index(children_index);
   }
-  DCHECK(edges().length() == children_index);
-  for (int i = 0; i < edges().length(); ++i) {
+  DCHECK_EQ(edges().size(), static_cast<size_t>(children_index));
+  for (size_t i = 0; i < edges().size(); ++i) {
     HeapGraphEdge* edge = &edges()[i];
     edge->ReplaceToIndexWithEntry(this);
     edge->from()->add_child(edge);
@@ -335,12 +334,10 @@ void HeapSnapshot::Print(int max_depth) {
 
 
 size_t HeapSnapshot::RawSnapshotSize() const {
-  return
-      sizeof(*this) +
-      GetMemoryUsedByList(entries_) +
-      GetMemoryUsedByList(edges_) +
-      GetMemoryUsedByList(children_) +
-      GetMemoryUsedByList(sorted_entries_);
+  return sizeof(*this) + GetMemoryUsedByList(entries_) +
+         edges_.size() * sizeof(decltype(edges_)::value_type) +
+         children_.size() * sizeof(decltype(children_)::value_type) +
+         GetMemoryUsedByList(sorted_entries_);
 }
 
 
@@ -1822,7 +1819,7 @@ bool V8HeapExplorer::IsEssentialObject(Object* object) {
          object != heap_->empty_byte_array() &&
          object != heap_->empty_fixed_array() &&
          object != heap_->empty_descriptor_array() &&
-         object != heap_->empty_type_feedback_vector() &&
+         object != heap_->empty_feedback_vector() &&
          object != heap_->fixed_array_map() && object != heap_->cell_map() &&
          object != heap_->global_property_cell_map() &&
          object != heap_->shared_function_info_map() &&
@@ -2797,8 +2794,8 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge,
 
 
 void HeapSnapshotJSONSerializer::SerializeEdges() {
-  List<HeapGraphEdge*>& edges = snapshot_->children();
-  for (int i = 0; i < edges.length(); ++i) {
+  std::deque<HeapGraphEdge*>& edges = snapshot_->children();
+  for (size_t i = 0; i < edges.size(); ++i) {
     DCHECK(i == 0 ||
            edges[i - 1]->from()->index() <= edges[i]->from()->index());
     SerializeEdge(edges[i], i == 0);
@@ -2916,7 +2913,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   writer_->AddString(",\"node_count\":");
   writer_->AddNumber(snapshot_->entries().length());
   writer_->AddString(",\"edge_count\":");
-  writer_->AddNumber(snapshot_->edges().length());
+  writer_->AddNumber(static_cast<double>(snapshot_->edges().size()));
   writer_->AddString(",\"trace_function_count\":");
   uint32_t count = 0;
   AllocationTracker* tracker = snapshot_->profiler()->allocation_tracker();

@@ -57,23 +57,23 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       factory->NewStringFromTwoByte(i::Vector<const i::uc16>(two_byte_array, 6))
           .ToHandleChecked();
 
-  for (int flags = 0; flags <= kAllFlags; flags++) {
-    i::Handle<i::JSRegExp> regexp;
-    {
-      v8::TryCatch try_catch(isolate);
-      i::MaybeHandle<i::JSRegExp> maybe_regexp =
-          i::JSRegExp::New(source, static_cast<i::JSRegExp::Flags>(flags));
-      if (!maybe_regexp.ToHandle(&regexp)) {
-        i_isolate->clear_pending_exception();
-        continue;
-      }
+  i::Handle<i::JSRegExp> regexp;
+  {
+    v8::TryCatch try_catch(isolate);
+    // Create a string so that we can calculate a hash from the input data.
+    std::string str = std::string(reinterpret_cast<const char*>(data), size);
+    i::JSRegExp::Flags flag = static_cast<i::JSRegExp::Flags>(
+        std::hash<std::string>()(str) % (kAllFlags + 1));
+    i::MaybeHandle<i::JSRegExp> maybe_regexp = i::JSRegExp::New(source, flag);
+    if (!maybe_regexp.ToHandle(&regexp)) {
+      i_isolate->clear_pending_exception();
+      return 0;
     }
-    Test(isolate, regexp, one_byte, results_array);
-    Test(isolate, regexp, two_byte, results_array);
-    Test(isolate, regexp, factory->empty_string(), results_array);
-    Test(isolate, regexp, source, results_array);
   }
-
+  Test(isolate, regexp, one_byte, results_array);
+  Test(isolate, regexp, two_byte, results_array);
+  Test(isolate, regexp, factory->empty_string(), results_array);
+  Test(isolate, regexp, source, results_array);
   isolate->RequestGarbageCollectionForTesting(
       v8::Isolate::kFullGarbageCollection);
   return 0;

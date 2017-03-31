@@ -102,6 +102,100 @@
   }
 })();
 
+(function TestInnerFunctionDestructuredParameter_1() {
+  var a = 1;
+  var b = 2;
+  var c = 3;
+  function inner([d, a]) {
+    a; b; c;
+  }
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    assertEquals(1, a);
+    assertEquals(2, b);
+    assertEquals(3, c);
+  }
+})();
+
+(function TestInnerFunctionDestructuredParameter_2() {
+  var a = 1;
+  var b = 2;
+  var c = 3;
+  function inner({d, a}) {
+    a; b; c;
+  }
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    assertEquals(1, a);
+    assertEquals(2, b);
+    assertEquals(3, c);
+  }
+})();
+
+(function TestInnerArrowFunctionParameter() {
+  var a = 1;
+  var b = 2;
+  var c = 3;
+  (a) => { a; b; c; }
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    assertEquals(1, a);
+    assertEquals(2, b);
+    assertEquals(3, c);
+  }
+})();
+
+(function TestInnerArrowFunctionRestParameter() {
+  var a = 1;
+  var b = 2;
+  var c = 3;
+  (...a) => { a; b; c; }
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    assertEquals(1, a);
+    assertEquals(2, b);
+    assertEquals(3, c);
+  }
+})();
+
+(function TestInnerArrowFunctionDestructuredParameter_1() {
+  var a = 1;
+  var b = 2;
+  var c = 3;
+  ([d, a]) => { a; b; c; }
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    assertEquals(1, a);
+    assertEquals(2, b);
+    assertEquals(3, c);
+  }
+})();
+
+(function TestInnerArrowFunctionDestructuredParameter_2() {
+  var a = 1;
+  var b = 2;
+  var c = 3;
+  ({d, a}) => { a; b; c;  }
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    assertEquals(1, a);
+    assertEquals(2, b);
+    assertEquals(3, c);
+  }
+})();
+
 (function TestInnerInnerFunctionParameter() {
   var a = 1;
   var b = 2;
@@ -136,7 +230,41 @@
   }
 })();
 
-(function TestInnerArrowFunctionParameter() {
+(function TestInnerInnerFunctionDestructuredParameter_1() {
+  var a = 1;
+  var b = 2;
+  var c = 3;
+  function inner() {
+    function innerinner({d, a}) { a; b; c; }
+  }
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    assertEquals(1, a);
+    assertEquals(2, b);
+    assertEquals(3, c);
+  }
+})();
+
+(function TestInnerInnerFunctionDestructuredParameter_2() {
+  var a = 1;
+  var b = 2;
+  var c = 3;
+  function inner() {
+    function innerinner([d, a]) { a; b; c; }
+  }
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    assertEquals(1, a);
+    assertEquals(2, b);
+    assertEquals(3, c);
+  }
+})();
+
+(function TestInnerInnerArrowFunctionParameter() {
   var a = 1;
   var b = 2;
   var c = 3;
@@ -153,12 +281,46 @@
   }
 })();
 
-(function TestInnerArrowFunctionRestParameter() {
+(function TestInnerInnerArrowFunctionRestParameter() {
   var a = 1;
   var b = 2;
   var c = 3;
   function inner() {
     var f = (...a) => a + b + c;
+  }
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    assertEquals(1, a);
+    assertEquals(2, b);
+    assertEquals(3, c);
+  }
+})();
+
+(function TestInnerInnerArrowFunctionDestructuredParameter_1() {
+  var a = 1;
+  var b = 2;
+  var c = 3;
+  function inner() {
+    var f = ([d, a]) => a + b + c;
+  }
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    assertEquals(1, a);
+    assertEquals(2, b);
+    assertEquals(3, c);
+  }
+})();
+
+(function TestInnerInnerArrowFunctionDestructuredParameter_2() {
+  var a = 1;
+  var b = 2;
+  var c = 3;
+  function inner() {
+    var f = ({d, a}) => a + b + c;
   }
   for (var i = 0; i < 3; ++i) {
     if (i == 1) {
@@ -605,24 +767,90 @@
   }
 })();
 
-(function TestRegress650969_9() {
+(function TestRegress650969_9_parameter() {
   for (var i = 0; i < 3; ++i) {
     if (i == 1) {
       %OptimizeOsr();
     }
     var a;
-    function inner(a) {
+    function inner(a) {}
+  }
+})();
+
+(function TestRegress650969_9_restParameter() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner(...a) {}
+  }
+})();
+
+(function TestRegress650969_9_destructuredParameter_1() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner([d, a]) {}
+  }
+})();
+
+(function TestRegress650969_9_destructuredParameter_2() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner({d, a}) {}
+  }
+})();
+
+(function TestRegress650969_10_parameter() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      function innerinner(a) {}
     }
   }
 })();
 
-(function TestRegress650969_10() {
+(function TestRegress650969_10_restParameter() {
   for (var i = 0; i < 3; ++i) {
     if (i == 1) {
       %OptimizeOsr();
     }
     var a;
-    function inner(...a) {
+    function inner() {
+      function innerinner(...a) {}
+    }
+  }
+})();
+
+(function TestRegress650969_10_destructuredParameter_1() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      function innerinner([d, a]) {}
+    }
+  }
+})();
+
+(function TestRegress650969_10_destructuredParameter_2() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      function innerinner({d, a}) {}
     }
   }
 })();
@@ -875,6 +1103,30 @@
     var a;
     function inner() {
       for (const a = 0; 0 == 1; ) { }
+    }
+  }
+})();
+
+(function TestRegress650969_18() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      function innerinner([a, b]) {}
+    }
+  }
+})();
+
+(function TestRegress650969_18() {
+  for (var i = 0; i < 3; ++i) {
+    if (i == 1) {
+      %OptimizeOsr();
+    }
+    var a;
+    function inner() {
+      function innerinner(a) {}
     }
   }
 })();

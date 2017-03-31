@@ -31,6 +31,7 @@ class SimdScalarLowering {
   enum class SimdType : uint8_t { kInt32, kFloat32 };
 
   static const int kMaxLanes = 4;
+  static const int kLaneWidth = 16 / kMaxLanes;
 
   struct Replacement {
     Node* node[kMaxLanes];
@@ -53,6 +54,12 @@ class SimdScalarLowering {
   SimdType ReplacementType(Node* node);
   void PreparePhiReplacement(Node* phi);
   void SetLoweredType(Node* node, Node* output);
+  void GetIndexNodes(Node* index, Node** new_indices);
+  void LowerLoadOp(MachineRepresentation rep, Node* node,
+                   const Operator* load_op);
+  void LowerStoreOp(MachineRepresentation rep, Node* node,
+                    const Operator* store_op, SimdType rep_type);
+  void LowerBinaryOp(Node* node, SimdType rep_type, const Operator* op);
 
   struct NodeState {
     Node* node;

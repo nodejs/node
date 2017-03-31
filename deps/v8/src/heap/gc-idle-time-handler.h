@@ -125,6 +125,8 @@ class V8_EXPORT_PRIVATE GCIdleTimeHandler {
   GCIdleTimeAction Compute(double idle_time_in_ms,
                            GCIdleTimeHeapState heap_state);
 
+  bool Enabled();
+
   void ResetNoProgressCounter() { idle_times_which_made_no_progress_ = 0; }
 
   static size_t EstimateMarkingStepSize(double idle_time_in_ms,

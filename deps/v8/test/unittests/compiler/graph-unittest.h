@@ -53,6 +53,7 @@ class GraphTest : public virtual TestWithNativeContext,
   }
   Matcher<Node*> IsFalseConstant();
   Matcher<Node*> IsTrueConstant();
+  Matcher<Node*> IsNullConstant();
   Matcher<Node*> IsUndefinedConstant();
 
   CommonOperatorBuilder* common() { return &common_; }

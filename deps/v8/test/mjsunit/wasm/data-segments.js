@@ -37,11 +37,11 @@ function GlobalImportedInitTest(pad) {
   var builder = new WasmModuleBuilder();
   builder.addMemory(1, 1, false);
 
-  while (pad-- > 0) builder.addGlobal(kAstI32);  // pad
+  while (pad-- > 0) builder.addGlobal(kWasmI32);  // pad
 
-  var g = builder.addImportedGlobal("offset", undefined, kAstI32);
+  var g = builder.addImportedGlobal("mod", "offset", kWasmI32);
 
-  while (pad-- > 0) builder.addGlobal(kAstI32);  // pad
+  while (pad-- > 0) builder.addGlobal(kWasmI32);  // pad
 
   builder.addFunction("load", kSig_i_i)
     .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])
@@ -52,7 +52,7 @@ function GlobalImportedInitTest(pad) {
   var module = new WebAssembly.Module(buffer);
 
   for (var offset of [0, 12, 192, 1024]) {
-    var instance = new WebAssembly.Instance(module, {offset: offset});
+    var instance = new WebAssembly.Instance(module, {mod: {offset: offset}});
     for (var i = offset - 20; i < offset + 20; i += 4) {
       if (i < 0) continue;
       var expected = i == offset ? 84215045 : 0;

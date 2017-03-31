@@ -5,6 +5,7 @@
 #include "src/inspector/v8-heap-profiler-agent-impl.h"
 
 #include "src/inspector/injected-script.h"
+#include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger.h"
@@ -55,7 +56,7 @@ class GlobalObjectNameResolver final
   const char* GetName(v8::Local<v8::Object> object) override {
     InspectedContext* context = m_session->inspector()->getContext(
         m_session->contextGroupId(),
-        V8Debugger::contextId(object->CreationContext()));
+        InspectedContext::contextId(object->CreationContext()));
     if (!context) return "";
     String16 name = context->origin();
     size_t length = name.length();
@@ -216,7 +217,7 @@ Response V8HeapProfilerAgentImpl::takeHeapSnapshot(Maybe<bool> reportProgress) {
   if (!profiler) return Response::Error("Cannot access v8 heap profiler");
   std::unique_ptr<HeapSnapshotProgress> progress;
   if (reportProgress.fromMaybe(false))
-    progress = wrapUnique(new HeapSnapshotProgress(&m_frontend));
+    progress.reset(new HeapSnapshotProgress(&m_frontend));
 
   GlobalObjectNameResolver resolver(m_session);
   const v8::HeapSnapshot* snapshot =
@@ -244,7 +245,7 @@ Response V8HeapProfilerAgentImpl::getObjectByHeapObjectId(
 
   *result = m_session->wrapObject(heapObject->CreationContext(), heapObject,
                                   objectGroup.fromMaybe(""), false);
-  if (!result) return Response::Error("Object is not available");
+  if (!*result) return Response::Error("Object is not available");
   return Response::OK();
 }
 
@@ -260,7 +261,8 @@ Response V8HeapProfilerAgentImpl::addInspectedHeapObject(
 
   if (!m_session->inspector()->client()->isInspectableHeapObject(heapObject))
     return Response::Error("Object is not available");
-  m_session->addInspectedObject(wrapUnique(new InspectableHeapObject(id)));
+  m_session->addInspectedObject(
+      std::unique_ptr<InspectableHeapObject>(new InspectableHeapObject(id)));
   return Response::OK();
 }
 

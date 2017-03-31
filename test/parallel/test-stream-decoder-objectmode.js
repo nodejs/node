@@ -1,10 +1,11 @@
 'use strict';
-require('../common');
+
+const common = require('../common');
 const stream = require('stream');
 const assert = require('assert');
 
 const readable = new stream.Readable({
-  read: () => {},
+  read: common.noop,
   encoding: 'utf16le',
   objectMode: true
 });

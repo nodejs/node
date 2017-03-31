@@ -87,12 +87,8 @@ namespace compiler {
   V(Mips64MinD)                     \
   V(Mips64MaddS)                    \
   V(Mips64MaddD)                    \
-  V(Mips64MaddfS)                   \
-  V(Mips64MaddfD)                   \
   V(Mips64MsubS)                    \
   V(Mips64MsubD)                    \
-  V(Mips64MsubfS)                   \
-  V(Mips64MsubfD)                   \
   V(Mips64Float64RoundDown)         \
   V(Mips64Float64RoundTruncate)     \
   V(Mips64Float64RoundUp)           \

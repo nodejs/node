@@ -36,6 +36,13 @@ class ZoneVector : public std::vector<T, zone_allocator<T>> {
   // having the value {def}.
   ZoneVector(size_t size, T def, Zone* zone)
       : std::vector<T, zone_allocator<T>>(size, def, zone_allocator<T>(zone)) {}
+
+  // Constructs a new vector and fills it with the contents of the range
+  // [first, last).
+  template <class InputIt>
+  ZoneVector(InputIt first, InputIt last, Zone* zone)
+      : std::vector<T, zone_allocator<T>>(first, last,
+                                          zone_allocator<T>(zone)) {}
 };
 
 // A wrapper subclass std::deque to make it easy to construct one

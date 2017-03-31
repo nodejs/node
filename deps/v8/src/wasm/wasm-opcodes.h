@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/machine-type.h"
+#include "src/runtime/runtime.h"
 #include "src/signature.h"
 
 namespace v8 {
@@ -14,7 +15,7 @@ namespace internal {
 namespace wasm {
 
 // Binary encoding of local types.
-enum LocalTypeCode {
+enum ValueTypeCode {
   kLocalVoid = 0x40,
   kLocalI32 = 0x7f,
   kLocalI64 = 0x7e,
@@ -26,19 +27,18 @@ enum LocalTypeCode {
 // Type code for multi-value block types.
 static const uint8_t kMultivalBlock = 0x41;
 
-// We reuse the internal machine type to represent WebAssembly AST types.
+// We reuse the internal machine type to represent WebAssembly types.
 // A typedef improves readability without adding a whole new type system.
-typedef MachineRepresentation LocalType;
-const LocalType kAstStmt = MachineRepresentation::kNone;
-const LocalType kAstI32 = MachineRepresentation::kWord32;
-const LocalType kAstI64 = MachineRepresentation::kWord64;
-const LocalType kAstF32 = MachineRepresentation::kFloat32;
-const LocalType kAstF64 = MachineRepresentation::kFloat64;
-const LocalType kAstS128 = MachineRepresentation::kSimd128;
-// We use kTagged here because kNone is already used by kAstStmt.
-const LocalType kAstEnd = MachineRepresentation::kTagged;
+typedef MachineRepresentation ValueType;
+const ValueType kWasmStmt = MachineRepresentation::kNone;
+const ValueType kWasmI32 = MachineRepresentation::kWord32;
+const ValueType kWasmI64 = MachineRepresentation::kWord64;
+const ValueType kWasmF32 = MachineRepresentation::kFloat32;
+const ValueType kWasmF64 = MachineRepresentation::kFloat64;
+const ValueType kWasmS128 = MachineRepresentation::kSimd128;
+const ValueType kWasmVar = MachineRepresentation::kTagged;
 
-typedef Signature<LocalType> FunctionSig;
+typedef Signature<ValueType> FunctionSig;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 
 typedef Vector<const char> WasmName;
@@ -77,8 +77,7 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I32Const, 0x41, _)         \
   V(I64Const, 0x42, _)         \
   V(F32Const, 0x43, _)         \
-  V(F64Const, 0x44, _)         \
-  V(I8Const, 0xcb, _ /* TODO(titzer): V8 specific, remove */)
+  V(F64Const, 0x44, _)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \
@@ -276,7 +275,6 @@ const WasmCodePosition kNoCodePosition = -1;
 
 #define FOREACH_SIMD_0_OPERAND_OPCODE(V) \
   V(F32x4Splat, 0xe500, s_f)             \
-  V(F32x4ReplaceLane, 0xe502, s_sif)     \
   V(F32x4Abs, 0xe503, s_s)               \
   V(F32x4Neg, 0xe504, s_s)               \
   V(F32x4Sqrt, 0xe505, s_s)              \
@@ -296,13 +294,9 @@ const WasmCodePosition kNoCodePosition = -1;
   V(F32x4Le, 0xe513, s_ss)               \
   V(F32x4Gt, 0xe514, s_ss)               \
   V(F32x4Ge, 0xe515, s_ss)               \
-  V(F32x4Select, 0xe516, s_sss)          \
-  V(F32x4Swizzle, 0xe517, s_s)           \
-  V(F32x4Shuffle, 0xe518, s_ss)          \
   V(F32x4FromInt32x4, 0xe519, s_s)       \
   V(F32x4FromUint32x4, 0xe51a, s_s)      \
   V(I32x4Splat, 0xe51b, s_i)             \
-  V(I32x4ReplaceLane, 0xe51d, s_sii)     \
   V(I32x4Neg, 0xe51e, s_s)               \
   V(I32x4Add, 0xe51f, s_ss)              \
   V(I32x4Sub, 0xe520, s_ss)              \
@@ -330,7 +324,6 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I32x4Ge_u, 0xe536, s_ss)             \
   V(Ui32x4FromFloat32x4, 0xe537, s_s)    \
   V(I16x8Splat, 0xe538, s_i)             \
-  V(I16x8ReplaceLane, 0xe53a, s_sii)     \
   V(I16x8Neg, 0xe53b, s_s)               \
   V(I16x8Add, 0xe53c, s_ss)              \
   V(I16x8AddSaturate_s, 0xe53d, s_ss)    \
@@ -360,7 +353,6 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I16x8Gt_u, 0xe555, s_ss)             \
   V(I16x8Ge_u, 0xe556, s_ss)             \
   V(I8x16Splat, 0xe557, s_i)             \
-  V(I8x16ReplaceLane, 0xe559, s_sii)     \
   V(I8x16Neg, 0xe55a, s_s)               \
   V(I8x16Add, 0xe55b, s_ss)              \
   V(I8x16AddSaturate_s, 0xe55c, s_ss)    \
@@ -392,13 +384,20 @@ const WasmCodePosition kNoCodePosition = -1;
   V(S128And, 0xe576, s_ss)               \
   V(S128Ior, 0xe577, s_ss)               \
   V(S128Xor, 0xe578, s_ss)               \
-  V(S128Not, 0xe579, s_s)
+  V(S128Not, 0xe579, s_s)                \
+  V(S32x4Select, 0xe580, s_sss)          \
+  V(S32x4Swizzle, 0xe581, s_s)           \
+  V(S32x4Shuffle, 0xe582, s_ss)
 
 #define FOREACH_SIMD_1_OPERAND_OPCODE(V) \
   V(F32x4ExtractLane, 0xe501, _)         \
+  V(F32x4ReplaceLane, 0xe502, _)         \
   V(I32x4ExtractLane, 0xe51c, _)         \
+  V(I32x4ReplaceLane, 0xe51d, _)         \
   V(I16x8ExtractLane, 0xe539, _)         \
-  V(I8x16ExtractLane, 0xe558, _)
+  V(I16x8ReplaceLane, 0xe53a, _)         \
+  V(I8x16ExtractLane, 0xe558, _)         \
+  V(I8x16ReplaceLane, 0xe559, _)
 
 #define FOREACH_ATOMIC_OPCODE(V)               \
   V(I32AtomicAdd8S, 0xe601, i_ii)              \
@@ -451,45 +450,43 @@ const WasmCodePosition kNoCodePosition = -1;
   FOREACH_ATOMIC_OPCODE(V)
 
 // All signatures.
-#define FOREACH_SIGNATURE(V)         \
-  FOREACH_SIMD_SIGNATURE(V)          \
-  V(i_ii, kAstI32, kAstI32, kAstI32) \
-  V(i_i, kAstI32, kAstI32)           \
-  V(i_v, kAstI32)                    \
-  V(i_ff, kAstI32, kAstF32, kAstF32) \
-  V(i_f, kAstI32, kAstF32)           \
-  V(i_dd, kAstI32, kAstF64, kAstF64) \
-  V(i_d, kAstI32, kAstF64)           \
-  V(i_l, kAstI32, kAstI64)           \
-  V(l_ll, kAstI64, kAstI64, kAstI64) \
-  V(i_ll, kAstI32, kAstI64, kAstI64) \
-  V(l_l, kAstI64, kAstI64)           \
-  V(l_i, kAstI64, kAstI32)           \
-  V(l_f, kAstI64, kAstF32)           \
-  V(l_d, kAstI64, kAstF64)           \
-  V(f_ff, kAstF32, kAstF32, kAstF32) \
-  V(f_f, kAstF32, kAstF32)           \
-  V(f_d, kAstF32, kAstF64)           \
-  V(f_i, kAstF32, kAstI32)           \
-  V(f_l, kAstF32, kAstI64)           \
-  V(d_dd, kAstF64, kAstF64, kAstF64) \
-  V(d_d, kAstF64, kAstF64)           \
-  V(d_f, kAstF64, kAstF32)           \
-  V(d_i, kAstF64, kAstI32)           \
-  V(d_l, kAstF64, kAstI64)           \
-  V(d_id, kAstF64, kAstI32, kAstF64) \
-  V(f_if, kAstF32, kAstI32, kAstF32) \
-  V(l_il, kAstI64, kAstI32, kAstI64)
+#define FOREACH_SIGNATURE(V)            \
+  FOREACH_SIMD_SIGNATURE(V)             \
+  V(i_ii, kWasmI32, kWasmI32, kWasmI32) \
+  V(i_i, kWasmI32, kWasmI32)            \
+  V(i_v, kWasmI32)                      \
+  V(i_ff, kWasmI32, kWasmF32, kWasmF32) \
+  V(i_f, kWasmI32, kWasmF32)            \
+  V(i_dd, kWasmI32, kWasmF64, kWasmF64) \
+  V(i_d, kWasmI32, kWasmF64)            \
+  V(i_l, kWasmI32, kWasmI64)            \
+  V(l_ll, kWasmI64, kWasmI64, kWasmI64) \
+  V(i_ll, kWasmI32, kWasmI64, kWasmI64) \
+  V(l_l, kWasmI64, kWasmI64)            \
+  V(l_i, kWasmI64, kWasmI32)            \
+  V(l_f, kWasmI64, kWasmF32)            \
+  V(l_d, kWasmI64, kWasmF64)            \
+  V(f_ff, kWasmF32, kWasmF32, kWasmF32) \
+  V(f_f, kWasmF32, kWasmF32)            \
+  V(f_d, kWasmF32, kWasmF64)            \
+  V(f_i, kWasmF32, kWasmI32)            \
+  V(f_l, kWasmF32, kWasmI64)            \
+  V(d_dd, kWasmF64, kWasmF64, kWasmF64) \
+  V(d_d, kWasmF64, kWasmF64)            \
+  V(d_f, kWasmF64, kWasmF32)            \
+  V(d_i, kWasmF64, kWasmI32)            \
+  V(d_l, kWasmF64, kWasmI64)            \
+  V(d_id, kWasmF64, kWasmI32, kWasmF64) \
+  V(f_if, kWasmF32, kWasmI32, kWasmF32) \
+  V(l_il, kWasmI64, kWasmI32, kWasmI64)
 
-#define FOREACH_SIMD_SIGNATURE(V)                  \
-  V(s_s, kAstS128, kAstS128)                       \
-  V(s_f, kAstS128, kAstF32)                        \
-  V(s_sif, kAstS128, kAstS128, kAstI32, kAstF32)   \
-  V(s_ss, kAstS128, kAstS128, kAstS128)            \
-  V(s_sss, kAstS128, kAstS128, kAstS128, kAstS128) \
-  V(s_i, kAstS128, kAstI32)                        \
-  V(s_sii, kAstS128, kAstS128, kAstI32, kAstI32)   \
-  V(s_si, kAstS128, kAstS128, kAstI32)
+#define FOREACH_SIMD_SIGNATURE(V)                      \
+  V(s_s, kWasmS128, kWasmS128)                         \
+  V(s_f, kWasmS128, kWasmF32)                          \
+  V(s_ss, kWasmS128, kWasmS128, kWasmS128)             \
+  V(s_sss, kWasmS128, kWasmS128, kWasmS128, kWasmS128) \
+  V(s_i, kWasmS128, kWasmI32)                          \
+  V(s_si, kWasmS128, kWasmS128, kWasmI32)
 
 #define FOREACH_PREFIX(V) \
   V(Simd, 0xe5)           \
@@ -514,8 +511,7 @@ enum WasmOpcode {
   V(TrapRemByZero)                 \
   V(TrapFloatUnrepresentable)      \
   V(TrapFuncInvalid)               \
-  V(TrapFuncSigMismatch)           \
-  V(TrapInvalidIndex)
+  V(TrapFuncSigMismatch)
 
 enum TrapReason {
 #define DECLARE_ENUM(name) k##name,
@@ -541,21 +537,21 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
     return 1 << ElementSizeLog2Of(type.representation());
   }
 
-  static byte MemSize(LocalType type) { return 1 << ElementSizeLog2Of(type); }
+  static byte MemSize(ValueType type) { return 1 << ElementSizeLog2Of(type); }
 
-  static LocalTypeCode LocalTypeCodeFor(LocalType type) {
+  static ValueTypeCode ValueTypeCodeFor(ValueType type) {
     switch (type) {
-      case kAstI32:
+      case kWasmI32:
         return kLocalI32;
-      case kAstI64:
+      case kWasmI64:
         return kLocalI64;
-      case kAstF32:
+      case kWasmF32:
         return kLocalF32;
-      case kAstF64:
+      case kWasmF64:
         return kLocalF64;
-      case kAstS128:
+      case kWasmS128:
         return kLocalS128;
-      case kAstStmt:
+      case kWasmStmt:
         return kLocalVoid;
       default:
         UNREACHABLE();
@@ -563,19 +559,19 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
     }
   }
 
-  static MachineType MachineTypeFor(LocalType type) {
+  static MachineType MachineTypeFor(ValueType type) {
     switch (type) {
-      case kAstI32:
+      case kWasmI32:
         return MachineType::Int32();
-      case kAstI64:
+      case kWasmI64:
         return MachineType::Int64();
-      case kAstF32:
+      case kWasmF32:
         return MachineType::Float32();
-      case kAstF64:
+      case kWasmF64:
         return MachineType::Float64();
-      case kAstS128:
+      case kWasmS128:
         return MachineType::Simd128();
-      case kAstStmt:
+      case kWasmStmt:
         return MachineType::None();
       default:
         UNREACHABLE();
@@ -583,32 +579,32 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
     }
   }
 
-  static LocalType LocalTypeFor(MachineType type) {
+  static ValueType ValueTypeFor(MachineType type) {
     if (type == MachineType::Int8()) {
-      return kAstI32;
+      return kWasmI32;
     } else if (type == MachineType::Uint8()) {
-      return kAstI32;
+      return kWasmI32;
     } else if (type == MachineType::Int16()) {
-      return kAstI32;
+      return kWasmI32;
     } else if (type == MachineType::Uint16()) {
-      return kAstI32;
+      return kWasmI32;
     } else if (type == MachineType::Int32()) {
-      return kAstI32;
+      return kWasmI32;
     } else if (type == MachineType::Uint32()) {
-      return kAstI32;
+      return kWasmI32;
     } else if (type == MachineType::Int64()) {
-      return kAstI64;
+      return kWasmI64;
     } else if (type == MachineType::Uint64()) {
-      return kAstI64;
+      return kWasmI64;
     } else if (type == MachineType::Float32()) {
-      return kAstF32;
+      return kWasmF32;
     } else if (type == MachineType::Float64()) {
-      return kAstF64;
+      return kWasmF64;
     } else if (type == MachineType::Simd128()) {
-      return kAstS128;
+      return kWasmS128;
     } else {
       UNREACHABLE();
-      return kAstI32;
+      return kWasmI32;
     }
   }
 
@@ -639,44 +635,43 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
     }
   }
 
-  static char ShortNameOf(LocalType type) {
+  static char ShortNameOf(ValueType type) {
     switch (type) {
-      case kAstI32:
+      case kWasmI32:
         return 'i';
-      case kAstI64:
+      case kWasmI64:
         return 'l';
-      case kAstF32:
+      case kWasmF32:
         return 'f';
-      case kAstF64:
+      case kWasmF64:
         return 'd';
-      case kAstS128:
+      case kWasmS128:
         return 's';
-      case kAstStmt:
+      case kWasmStmt:
         return 'v';
-      case kAstEnd:
-        return 'x';
+      case kWasmVar:
+        return '*';
       default:
-        UNREACHABLE();
         return '?';
     }
   }
 
-  static const char* TypeName(LocalType type) {
+  static const char* TypeName(ValueType type) {
     switch (type) {
-      case kAstI32:
+      case kWasmI32:
         return "i32";
-      case kAstI64:
+      case kWasmI64:
         return "i64";
-      case kAstF32:
+      case kWasmF32:
         return "f32";
-      case kAstF64:
+      case kWasmF64:
         return "f64";
-      case kAstS128:
+      case kWasmS128:
         return "s128";
-      case kAstStmt:
+      case kWasmStmt:
         return "<stmt>";
-      case kAstEnd:
-        return "<end>";
+      case kWasmVar:
+        return "<var>";
       default:
         return "<unknown>";
     }

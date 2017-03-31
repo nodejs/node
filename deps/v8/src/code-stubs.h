@@ -7,7 +7,6 @@
 
 #include "src/allocation.h"
 #include "src/assembler.h"
-#include "src/code-stub-assembler.h"
 #include "src/codegen.h"
 #include "src/globals.h"
 #include "src/ic/ic-state.h"
@@ -19,7 +18,13 @@
 namespace v8 {
 namespace internal {
 
-class ObjectLiteral;
+// Forward declarations.
+class CodeStubAssembler;
+namespace compiler {
+class CodeAssemblerLabel;
+class CodeAssemblerState;
+class Node;
+}
 
 // List of code stubs used on all platforms.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)       \
@@ -44,9 +49,6 @@ class ObjectLiteral;
   V(StoreBufferOverflow)                      \
   V(StoreElement)                             \
   V(SubString)                                \
-  V(KeyedStoreIC)                             \
-  V(LoadGlobalIC)                             \
-  V(FastNewObject)                            \
   V(FastNewRestParameter)                     \
   V(FastNewSloppyArguments)                   \
   V(FastNewStrictArguments)                   \
@@ -59,20 +61,7 @@ class ObjectLiteral;
   /* version of the corresponding stub is  */ \
   /* used universally */                      \
   V(CallICTrampoline)                         \
-  V(KeyedStoreICTrampoline)                   \
   /* --- HydrogenCodeStubs --- */             \
-  /* These builtins w/ JS linkage are */      \
-  /* just fast-cases of C++ builtins. They */ \
-  /* require varg support from TF */          \
-  V(FastArrayPush)                            \
-  V(FastFunctionBind)                         \
-  /* These will be ported/eliminated */       \
-  /* as part of the new IC system, ask */     \
-  /* ishell before doing anything  */         \
-  V(LoadConstant)                             \
-  V(LoadDictionaryElement)                    \
-  V(LoadFastElement)                          \
-  V(LoadField)                                \
   /* These should never be ported to TF */    \
   /* because they are either used only by */  \
   /* FCG/Crankshaft or are deprecated */      \
@@ -103,16 +92,9 @@ class ObjectLiteral;
   V(MultiplyWithFeedback)                     \
   V(DivideWithFeedback)                       \
   V(ModulusWithFeedback)                      \
-  V(Inc)                                      \
   V(InternalArrayNoArgumentConstructor)       \
   V(InternalArraySingleArgumentConstructor)   \
-  V(Dec)                                      \
   V(ElementsTransitionAndStore)               \
-  V(FastCloneRegExp)                          \
-  V(FastCloneShallowArray)                    \
-  V(FastCloneShallowObject)                   \
-  V(FastNewClosure)                           \
-  V(FastNewFunctionContext)                   \
   V(KeyedLoadSloppyArguments)                 \
   V(KeyedStoreSloppyArguments)                \
   V(LoadScriptContextField)                   \
@@ -120,28 +102,14 @@ class ObjectLiteral;
   V(NumberToString)                           \
   V(StringAdd)                                \
   V(GetProperty)                              \
-  V(LoadIC)                                   \
   V(LoadICProtoArray)                         \
-  V(KeyedLoadICTF)                            \
   V(StoreFastElement)                         \
-  V(StoreField)                               \
   V(StoreGlobal)                              \
-  V(StoreIC)                                  \
-  V(KeyedStoreICTF)                           \
   V(StoreInterceptor)                         \
-  V(StoreMap)                                 \
-  V(StoreTransition)                          \
   V(LoadApiGetter)                            \
   V(LoadIndexedInterceptor)                   \
-  V(GrowArrayElements)                        \
-  /* These are only called from FGC and */    \
-  /* can be removed when we use ignition */   \
-  /* only */                                  \
-  V(LoadICTrampoline)                         \
-  V(LoadGlobalICTrampoline)                   \
-  V(KeyedLoadICTrampolineTF)                  \
-  V(StoreICTrampoline)                        \
-  V(KeyedStoreICTrampolineTF)
+  V(LoadField)                                \
+  V(GrowArrayElements)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -291,6 +259,8 @@ class CodeStub BASE_EMBEDDED {
 
   Isolate* isolate() const { return isolate_; }
 
+  void DeleteStubFromCacheForTesting();
+
  protected:
   CodeStub(uint32_t key, Isolate* isolate)
       : minor_key_(MinorKeyFromKey(key)), isolate_(isolate) {}
@@ -370,7 +340,6 @@ class CodeStub BASE_EMBEDDED {
  public:                                                   \
   inline Major MajorKey() const override { return NAME; }; \
                                                            \
- protected:                                                \
   DEFINE_CODE_STUB_BASE(NAME##Stub, SUPER)
 
 
@@ -386,59 +355,27 @@ class CodeStub BASE_EMBEDDED {
   Handle<Code> GenerateCode() override;                               \
   DEFINE_CODE_STUB(NAME, SUPER)
 
-#define DEFINE_TURBOFAN_CODE_STUB(NAME, SUPER)                        \
- public:                                                              \
-  void GenerateAssembly(CodeStubAssembler* assembler) const override; \
+#define DEFINE_TURBOFAN_CODE_STUB(NAME, SUPER)                               \
+ public:                                                                     \
+  void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
   DEFINE_CODE_STUB(NAME, SUPER)
 
-#define DEFINE_TURBOFAN_BINARY_OP_CODE_STUB(NAME, SUPER)                       \
- public:                                                                       \
-  static compiler::Node* Generate(CodeStubAssembler* assembler,                \
-                                  compiler::Node* left, compiler::Node* right, \
-                                  compiler::Node* context);                    \
-  void GenerateAssembly(CodeStubAssembler* assembler) const override {         \
-    assembler->Return(Generate(assembler, assembler->Parameter(0),             \
-                               assembler->Parameter(1),                        \
-                               assembler->Parameter(2)));                      \
-  }                                                                            \
+#define DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(NAME, SUPER)       \
+ public:                                                                     \
+  static compiler::Node* Generate(                                           \
+      CodeStubAssembler* assembler, compiler::Node* left,                    \
+      compiler::Node* right, compiler::Node* slot_id,                        \
+      compiler::Node* feedback_vector, compiler::Node* context);             \
+  void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
   DEFINE_CODE_STUB(NAME, SUPER)
 
-#define DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(NAME, SUPER)        \
- public:                                                                      \
-  static compiler::Node* Generate(                                            \
-      CodeStubAssembler* assembler, compiler::Node* left,                     \
-      compiler::Node* right, compiler::Node* slot_id,                         \
-      compiler::Node* type_feedback_vector, compiler::Node* context);         \
-  void GenerateAssembly(CodeStubAssembler* assembler) const override {        \
-    assembler->Return(                                                        \
-        Generate(assembler, assembler->Parameter(0), assembler->Parameter(1), \
-                 assembler->Parameter(2), assembler->Parameter(3),            \
-                 assembler->Parameter(4)));                                   \
-  }                                                                           \
-  DEFINE_CODE_STUB(NAME, SUPER)
-
-#define DEFINE_TURBOFAN_UNARY_OP_CODE_STUB(NAME, SUPER)                \
- public:                                                               \
-  static compiler::Node* Generate(CodeStubAssembler* assembler,        \
-                                  compiler::Node* value,               \
-                                  compiler::Node* context);            \
-  void GenerateAssembly(CodeStubAssembler* assembler) const override { \
-    assembler->Return(Generate(assembler, assembler->Parameter(0),     \
-                               assembler->Parameter(1)));              \
-  }                                                                    \
-  DEFINE_CODE_STUB(NAME, SUPER)
-
-#define DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(NAME, SUPER)         \
- public:                                                                      \
-  static compiler::Node* Generate(                                            \
-      CodeStubAssembler* assembler, compiler::Node* value,                    \
-      compiler::Node* context, compiler::Node* type_feedback_vector,          \
-      compiler::Node* slot_id);                                               \
-  void GenerateAssembly(CodeStubAssembler* assembler) const override {        \
-    assembler->Return(                                                        \
-        Generate(assembler, assembler->Parameter(0), assembler->Parameter(1), \
-                 assembler->Parameter(2), assembler->Parameter(3)));          \
-  }                                                                           \
+#define DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(NAME, SUPER)        \
+ public:                                                                     \
+  static compiler::Node* Generate(                                           \
+      CodeStubAssembler* assembler, compiler::Node* value,                   \
+      compiler::Node* context, compiler::Node* feedback_vector,              \
+      compiler::Node* slot_id);                                              \
+  void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
   DEFINE_CODE_STUB(NAME, SUPER)
 
 #define DEFINE_HANDLER_CODE_STUB(NAME, SUPER) \
@@ -638,7 +575,7 @@ class TurboFanCodeStub : public CodeStub {
  protected:
   explicit TurboFanCodeStub(Isolate* isolate) : CodeStub(isolate) {}
 
-  virtual void GenerateAssembly(CodeStubAssembler* assembler) const = 0;
+  virtual void GenerateAssembly(compiler::CodeAssemblerState* state) const = 0;
 
  private:
   DEFINE_CODE_STUB_BASE(TurboFanCodeStub, CodeStub);
@@ -774,33 +711,15 @@ class ModulusWithFeedbackStub final : public TurboFanCodeStub {
                                                     TurboFanCodeStub);
 };
 
-class IncStub final : public TurboFanCodeStub {
- public:
-  explicit IncStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CountOp);
-  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(Inc, TurboFanCodeStub);
-};
-
-class DecStub final : public TurboFanCodeStub {
- public:
-  explicit DecStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CountOp);
-  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(Dec, TurboFanCodeStub);
-};
-
 class StoreInterceptorStub : public TurboFanCodeStub {
  public:
   explicit StoreInterceptorStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  void GenerateAssembly(CodeStubAssembler* assember) const override;
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
   ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
 };
 
 class LoadIndexedInterceptorStub : public TurboFanCodeStub {
@@ -831,50 +750,6 @@ class NumberToStringStub final : public TurboFanCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_TURBOFAN_CODE_STUB(NumberToString, TurboFanCodeStub);
 };
-
-class FastNewClosureStub : public TurboFanCodeStub {
- public:
-  explicit FastNewClosureStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  static compiler::Node* Generate(CodeStubAssembler* assembler,
-                                  compiler::Node* shared_info,
-                                  compiler::Node* context);
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);
-  DEFINE_TURBOFAN_CODE_STUB(FastNewClosure, TurboFanCodeStub);
-};
-
-class FastNewFunctionContextStub final : public TurboFanCodeStub {
- public:
-  static const int kMaximumSlots = 0x8000;
-
-  explicit FastNewFunctionContextStub(Isolate* isolate)
-      : TurboFanCodeStub(isolate) {}
-
-  static compiler::Node* Generate(CodeStubAssembler* assembler,
-                                  compiler::Node* function,
-                                  compiler::Node* slots,
-                                  compiler::Node* context);
-
- private:
-  // FastNewFunctionContextStub can only allocate closures which fit in the
-  // new space.
-  STATIC_ASSERT(((kMaximumSlots + Context::MIN_CONTEXT_SLOTS) * kPointerSize +
-                 FixedArray::kHeaderSize) < kMaxRegularHeapObjectSize);
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewFunctionContext);
-  DEFINE_TURBOFAN_CODE_STUB(FastNewFunctionContext, TurboFanCodeStub);
-};
-
-
-class FastNewObjectStub final : public PlatformCodeStub {
- public:
-  explicit FastNewObjectStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewObject);
-  DEFINE_PLATFORM_CODE_STUB(FastNewObject, PlatformCodeStub);
-};
-
 
 // TODO(turbofan): This stub should be possible to write in TurboFan
 // using the CodeStubAssembler very soon in a way that is as efficient
@@ -939,77 +814,6 @@ class FastNewStrictArgumentsStub final : public PlatformCodeStub {
   class SkipStubFrameBits : public BitField<bool, 0, 1> {};
 };
 
-class FastCloneRegExpStub final : public TurboFanCodeStub {
- public:
-  explicit FastCloneRegExpStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  static compiler::Node* Generate(CodeStubAssembler* assembler,
-                                  compiler::Node* closure,
-                                  compiler::Node* literal_index,
-                                  compiler::Node* pattern,
-                                  compiler::Node* flags,
-                                  compiler::Node* context);
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneRegExp);
-  DEFINE_TURBOFAN_CODE_STUB(FastCloneRegExp, TurboFanCodeStub);
-};
-
-class FastCloneShallowArrayStub : public TurboFanCodeStub {
- public:
-  FastCloneShallowArrayStub(Isolate* isolate,
-                            AllocationSiteMode allocation_site_mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = AllocationSiteModeBits::encode(allocation_site_mode);
-  }
-
-  static compiler::Node* Generate(CodeStubAssembler* assembler,
-                                  compiler::Node* closure,
-                                  compiler::Node* literal_index,
-                                  compiler::Node* context,
-                                  CodeStubAssembler::Label* call_runtime,
-                                  AllocationSiteMode allocation_site_mode);
-
-  AllocationSiteMode allocation_site_mode() const {
-    return AllocationSiteModeBits::decode(minor_key_);
-  }
-
- private:
-  class AllocationSiteModeBits: public BitField<AllocationSiteMode, 0, 1> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneShallowArray);
-  DEFINE_TURBOFAN_CODE_STUB(FastCloneShallowArray, TurboFanCodeStub);
-};
-
-class FastCloneShallowObjectStub : public TurboFanCodeStub {
- public:
-  // Maximum number of properties in copied object.
-  static const int kMaximumClonedProperties = 6;
-
-  FastCloneShallowObjectStub(Isolate* isolate, int length)
-      : TurboFanCodeStub(isolate) {
-    DCHECK_GE(length, 0);
-    DCHECK_LE(length, kMaximumClonedProperties);
-    minor_key_ = LengthBits::encode(LengthBits::encode(length));
-  }
-
-  static compiler::Node* GenerateFastPath(
-      CodeStubAssembler* assembler,
-      compiler::CodeAssembler::Label* call_runtime, compiler::Node* closure,
-      compiler::Node* literals_index, compiler::Node* properties_count);
-
-  static bool IsSupported(ObjectLiteral* expr);
-  static int PropertiesCount(int literal_length);
-
-  int length() const { return LengthBits::decode(minor_key_); }
-
- private:
-  class LengthBits : public BitField<int, 0, 4> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneShallowObject);
-  DEFINE_TURBOFAN_CODE_STUB(FastCloneShallowObject, TurboFanCodeStub);
-};
-
 class CreateAllocationSiteStub : public TurboFanCodeStub {
  public:
   explicit CreateAllocationSiteStub(Isolate* isolate)
@@ -1046,24 +850,6 @@ class GrowArrayElementsStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(GrowArrayElements);
   DEFINE_TURBOFAN_CODE_STUB(GrowArrayElements, TurboFanCodeStub);
-};
-
-class FastArrayPushStub : public HydrogenCodeStub {
- public:
-  explicit FastArrayPushStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(VarArgFunction);
-  DEFINE_HYDROGEN_CODE_STUB(FastArrayPush, HydrogenCodeStub);
-};
-
-class FastFunctionBindStub : public HydrogenCodeStub {
- public:
-  explicit FastFunctionBindStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(VarArgFunction);
-  DEFINE_HYDROGEN_CODE_STUB(FastFunctionBind, HydrogenCodeStub);
 };
 
 enum AllocationSiteOverrideMode {
@@ -1211,28 +997,16 @@ class HandlerStub : public HydrogenCodeStub {
   DEFINE_CODE_STUB_BASE(HandlerStub, HydrogenCodeStub);
 };
 
-
-class LoadFieldStub: public HandlerStub {
+class LoadFieldStub : public TurboFanCodeStub {
  public:
-  LoadFieldStub(Isolate* isolate, FieldIndex index) : HandlerStub(isolate) {
-    int property_index_key = index.GetFieldAccessStubKey();
-    set_sub_minor_key(LoadFieldByIndexBits::encode(property_index_key));
-  }
+  explicit LoadFieldStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
-  FieldIndex index() const {
-    int property_index_key = LoadFieldByIndexBits::decode(sub_minor_key());
-    return FieldIndex::FromFieldAccessStubKey(property_index_key);
-  }
-
- protected:
-  Code::Kind kind() const override { return Code::LOAD_IC; }
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return GetCodeKind(); }
 
  private:
-  class LoadFieldByIndexBits : public BitField<int, 0, 13> {};
-
-  // TODO(ishell): The stub uses only kReceiver parameter.
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_HANDLER_CODE_STUB(LoadField, HandlerStub);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadField);
+  DEFINE_TURBOFAN_CODE_STUB(LoadField, TurboFanCodeStub);
 };
 
 class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {
@@ -1267,29 +1041,6 @@ class KeyedStoreSloppyArgumentsStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(KeyedStoreSloppyArguments, TurboFanCodeStub);
 };
 
-
-class LoadConstantStub : public HandlerStub {
- public:
-  LoadConstantStub(Isolate* isolate, int constant_index)
-      : HandlerStub(isolate) {
-    set_sub_minor_key(ConstantIndexBits::encode(constant_index));
-  }
-
-  int constant_index() const {
-    return ConstantIndexBits::decode(sub_minor_key());
-  }
-
- protected:
-  Code::Kind kind() const override { return Code::LOAD_IC; }
-
- private:
-  class ConstantIndexBits : public BitField<int, 0, kSubMinorKeyBits> {};
-
-  // TODO(ishell): The stub uses only kReceiver parameter.
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_HANDLER_CODE_STUB(LoadConstant, HandlerStub);
-};
-
 class LoadApiGetterStub : public TurboFanCodeStub {
  public:
   LoadApiGetterStub(Isolate* isolate, bool receiver_is_holder, int index)
@@ -1315,91 +1066,6 @@ class LoadApiGetterStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_TURBOFAN_CODE_STUB(LoadApiGetter, TurboFanCodeStub);
-};
-
-class StoreFieldStub : public TurboFanCodeStub {
- public:
-  StoreFieldStub(Isolate* isolate, FieldIndex index,
-                 Representation representation)
-      : TurboFanCodeStub(isolate) {
-    int property_index_key = index.GetFieldAccessStubKey();
-    minor_key_ = StoreFieldByIndexBits::encode(property_index_key) |
-                 RepresentationBits::encode(representation.kind());
-  }
-
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
-
-  FieldIndex index() const {
-    int property_index_key = StoreFieldByIndexBits::decode(minor_key_);
-    return FieldIndex::FromFieldAccessStubKey(property_index_key);
-  }
-
-  Representation representation() const {
-    return Representation::FromKind(RepresentationBits::decode(minor_key_));
-  }
-
- private:
-  class StoreFieldByIndexBits : public BitField<int, 0, 13> {};
-  class RepresentationBits
-      : public BitField<Representation::Kind, StoreFieldByIndexBits::kNext, 4> {
-  };
-  STATIC_ASSERT(Representation::kNumRepresentations - 1 <
-                RepresentationBits::kMax);
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StoreField, TurboFanCodeStub);
-};
-
-class StoreMapStub : public TurboFanCodeStub {
- public:
-  explicit StoreMapStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreTransition);
-  DEFINE_TURBOFAN_CODE_STUB(StoreMap, TurboFanCodeStub);
-};
-
-class StoreTransitionStub : public TurboFanCodeStub {
- public:
-  enum StoreMode {
-    StoreMapAndValue,
-    ExtendStorageAndStoreMapAndValue
-  };
-
-  StoreTransitionStub(Isolate* isolate, bool is_inobject,
-                      Representation representation, StoreMode store_mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = IsInobjectBits::encode(is_inobject) |
-                 RepresentationBits::encode(representation.kind()) |
-                 StoreModeBits::encode(store_mode);
-  }
-
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
-
-  bool is_inobject() const { return IsInobjectBits::decode(minor_key_); }
-
-  Representation representation() const {
-    return Representation::FromKind(RepresentationBits::decode(minor_key_));
-  }
-
-  StoreMode store_mode() const { return StoreModeBits::decode(minor_key_); }
-
- private:
-  class IsInobjectBits : public BitField<bool, 0, 1> {};
-  class RepresentationBits
-      : public BitField<Representation::Kind, IsInobjectBits::kNext, 4> {};
-  STATIC_ASSERT(Representation::kNumRepresentations - 1 <
-                RepresentationBits::kMax);
-  class StoreModeBits
-      : public BitField<StoreMode, RepresentationBits::kNext, 1> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreNamedTransition);
-  DEFINE_TURBOFAN_CODE_STUB(StoreTransition, TurboFanCodeStub);
 };
 
 class StoreGlobalStub : public TurboFanCodeStub {
@@ -1961,115 +1627,6 @@ class StringCharAtGenerator {
   DISALLOW_COPY_AND_ASSIGN(StringCharAtGenerator);
 };
 
-
-class LoadDictionaryElementStub : public HydrogenCodeStub {
- public:
-  explicit LoadDictionaryElementStub(Isolate* isolate)
-      : HydrogenCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_HYDROGEN_CODE_STUB(LoadDictionaryElement, HydrogenCodeStub);
-};
-
-class LoadICTrampolineStub : public TurboFanCodeStub {
- public:
-  explicit LoadICTrampolineStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
-  Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
-  DEFINE_CODE_STUB(LoadICTrampoline, TurboFanCodeStub);
-};
-
-class LoadGlobalICTrampolineStub : public TurboFanCodeStub {
- public:
-  explicit LoadGlobalICTrampolineStub(Isolate* isolate,
-                                      const LoadGlobalICState& state)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
-
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
-  Code::Kind GetCodeKind() const override { return Code::LOAD_GLOBAL_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobal);
-  DEFINE_CODE_STUB(LoadGlobalICTrampoline, TurboFanCodeStub);
-};
-
-class KeyedLoadICTrampolineTFStub : public LoadICTrampolineStub {
- public:
-  explicit KeyedLoadICTrampolineTFStub(Isolate* isolate)
-      : LoadICTrampolineStub(isolate) {}
-
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
-  Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-
-  DEFINE_CODE_STUB(KeyedLoadICTrampolineTF, LoadICTrampolineStub);
-};
-
-class StoreICTrampolineStub : public TurboFanCodeStub {
- public:
-  StoreICTrampolineStub(Isolate* isolate, const StoreICState& state)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
-
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
-  Code::Kind GetCodeKind() const override { return Code::STORE_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
- protected:
-  StoreICState state() const { return StoreICState(GetExtraICState()); }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
-  DEFINE_CODE_STUB(StoreICTrampoline, TurboFanCodeStub);
-};
-
-class KeyedStoreICTrampolineStub : public PlatformCodeStub {
- public:
-  KeyedStoreICTrampolineStub(Isolate* isolate, const StoreICState& state)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
-
-  Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
- protected:
-  StoreICState state() const { return StoreICState(GetExtraICState()); }
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
-  DEFINE_PLATFORM_CODE_STUB(KeyedStoreICTrampoline, PlatformCodeStub);
-};
-
-class KeyedStoreICTrampolineTFStub : public StoreICTrampolineStub {
- public:
-  KeyedStoreICTrampolineTFStub(Isolate* isolate, const StoreICState& state)
-      : StoreICTrampolineStub(isolate, state) {}
-
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
-  Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
-
-  DEFINE_CODE_STUB(KeyedStoreICTrampolineTF, StoreICTrampolineStub);
-};
-
 class CallICTrampolineStub : public PlatformCodeStub {
  public:
   CallICTrampolineStub(Isolate* isolate, const CallICState& state)
@@ -2092,108 +1649,28 @@ class CallICTrampolineStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(CallICTrampoline, PlatformCodeStub);
 };
 
-class LoadICStub : public TurboFanCodeStub {
- public:
-  explicit LoadICStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
-  Code::Kind GetCodeKind() const override { return Code::LOAD_IC; }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_CODE_STUB(LoadIC, TurboFanCodeStub);
-};
-
 class LoadICProtoArrayStub : public TurboFanCodeStub {
  public:
-  explicit LoadICProtoArrayStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+  explicit LoadICProtoArrayStub(Isolate* isolate,
+                                bool throw_reference_error_if_nonexistent)
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = ThrowReferenceErrorIfNonexistentBits::encode(
+        throw_reference_error_if_nonexistent);
+  }
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
+  bool throw_reference_error_if_nonexistent() const {
+    return ThrowReferenceErrorIfNonexistentBits::decode(minor_key_);
+  }
+
+  ExtraICState GetExtraICState() const final {
+    return static_cast<ExtraICState>(minor_key_);
+  }
+
+ private:
+  class ThrowReferenceErrorIfNonexistentBits : public BitField<bool, 0, 1> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadICProtoArray);
-  DEFINE_CODE_STUB(LoadICProtoArray, TurboFanCodeStub);
-};
-
-class LoadGlobalICStub : public TurboFanCodeStub {
- public:
-  explicit LoadGlobalICStub(Isolate* isolate, const LoadGlobalICState& state)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
-
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
-  Code::Kind GetCodeKind() const override { return Code::LOAD_GLOBAL_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadGlobalWithVector);
-  DEFINE_CODE_STUB(LoadGlobalIC, TurboFanCodeStub);
-};
-
-class KeyedLoadICTFStub : public LoadICStub {
- public:
-  explicit KeyedLoadICTFStub(Isolate* isolate) : LoadICStub(isolate) {}
-
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
-  Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
-
-  DEFINE_CODE_STUB(KeyedLoadICTF, LoadICStub);
-};
-
-class StoreICStub : public TurboFanCodeStub {
- public:
-  StoreICStub(Isolate* isolate, const StoreICState& state)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
-
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
-  Code::Kind GetCodeKind() const override { return Code::STORE_IC; }
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_CODE_STUB(StoreIC, TurboFanCodeStub);
-};
-
-class KeyedStoreICStub : public PlatformCodeStub {
- public:
-  KeyedStoreICStub(Isolate* isolate, const StoreICState& state)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
-  }
-
-  void GenerateForTrampoline(MacroAssembler* masm);
-
-  Code::Kind GetCodeKind() const final { return Code::KEYED_STORE_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_PLATFORM_CODE_STUB(KeyedStoreIC, PlatformCodeStub);
-
- protected:
-  void GenerateImpl(MacroAssembler* masm, bool in_frame);
-};
-
-class KeyedStoreICTFStub : public StoreICStub {
- public:
-  KeyedStoreICTFStub(Isolate* isolate, const StoreICState& state)
-      : StoreICStub(isolate, state) {}
-
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
-
-  Code::Kind GetCodeKind() const override { return Code::KEYED_STORE_IC; }
-
-  DEFINE_CODE_STUB(KeyedStoreICTF, StoreICStub);
+  DEFINE_TURBOFAN_CODE_STUB(LoadICProtoArray, TurboFanCodeStub);
 };
 
 class DoubleToIStub : public PlatformCodeStub {
@@ -2301,39 +1778,6 @@ class StoreScriptContextFieldStub : public ScriptContextFieldStub {
   DEFINE_TURBOFAN_CODE_STUB(StoreScriptContextField, ScriptContextFieldStub);
 };
 
-
-class LoadFastElementStub : public HandlerStub {
- public:
-  LoadFastElementStub(Isolate* isolate, bool is_js_array,
-                      ElementsKind elements_kind,
-                      bool convert_hole_to_undefined = false)
-      : HandlerStub(isolate) {
-    set_sub_minor_key(
-        ElementsKindBits::encode(elements_kind) |
-        IsJSArrayBits::encode(is_js_array) |
-        CanConvertHoleToUndefined::encode(convert_hole_to_undefined));
-  }
-
-  Code::Kind kind() const override { return Code::KEYED_LOAD_IC; }
-
-  bool is_js_array() const { return IsJSArrayBits::decode(sub_minor_key()); }
-  bool convert_hole_to_undefined() const {
-    return CanConvertHoleToUndefined::decode(sub_minor_key());
-  }
-
-  ElementsKind elements_kind() const {
-    return ElementsKindBits::decode(sub_minor_key());
-  }
-
- private:
-  class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
-  class IsJSArrayBits: public BitField<bool, 8, 1> {};
-  class CanConvertHoleToUndefined : public BitField<bool, 9, 1> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_HANDLER_CODE_STUB(LoadFastElement, HandlerStub);
-};
-
 class StoreFastElementStub : public TurboFanCodeStub {
  public:
   StoreFastElementStub(Isolate* isolate, bool is_js_array,
@@ -2398,23 +1842,22 @@ class AllocateHeapNumberStub : public TurboFanCodeStub {
       : TurboFanCodeStub(isolate) {}
 
   void InitializeDescriptor(CodeStubDescriptor* descriptor) override;
-  void GenerateAssembly(CodeStubAssembler* assembler) const override;
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(AllocateHeapNumber);
-  DEFINE_CODE_STUB(AllocateHeapNumber, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(AllocateHeapNumber, TurboFanCodeStub);
 };
 
-#define SIMD128_ALLOC_STUB(TYPE, Type, type, lane_count, lane_type)     \
-  class Allocate##Type##Stub : public TurboFanCodeStub {                \
-   public:                                                              \
-    explicit Allocate##Type##Stub(Isolate* isolate)                     \
-        : TurboFanCodeStub(isolate) {}                                  \
-                                                                        \
-    void InitializeDescriptor(CodeStubDescriptor* descriptor) override; \
-    void GenerateAssembly(CodeStubAssembler* assembler) const override; \
-                                                                        \
-    DEFINE_CALL_INTERFACE_DESCRIPTOR(Allocate##Type);                   \
-    DEFINE_CODE_STUB(Allocate##Type, TurboFanCodeStub);                 \
+#define SIMD128_ALLOC_STUB(TYPE, Type, type, lane_count, lane_type)            \
+  class Allocate##Type##Stub : public TurboFanCodeStub {                       \
+   public:                                                                     \
+    explicit Allocate##Type##Stub(Isolate* isolate)                            \
+        : TurboFanCodeStub(isolate) {}                                         \
+                                                                               \
+    void InitializeDescriptor(CodeStubDescriptor* descriptor) override;        \
+    void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
+                                                                               \
+    DEFINE_CALL_INTERFACE_DESCRIPTOR(Allocate##Type);                          \
+    DEFINE_CODE_STUB(Allocate##Type, TurboFanCodeStub);                        \
   };
 SIMD128_TYPES(SIMD128_ALLOC_STUB)
 #undef SIMD128_ALLOC_STUB
@@ -2713,16 +2156,8 @@ class SubStringStub : public TurboFanCodeStub {
                                   compiler::Node* string, compiler::Node* from,
                                   compiler::Node* to, compiler::Node* context);
 
-  void GenerateAssembly(CodeStubAssembler* assembler) const override {
-    assembler->Return(Generate(assembler,
-                               assembler->Parameter(Descriptor::kString),
-                               assembler->Parameter(Descriptor::kFrom),
-                               assembler->Parameter(Descriptor::kTo),
-                               assembler->Parameter(Descriptor::kContext)));
-  }
-
   DEFINE_CALL_INTERFACE_DESCRIPTOR(SubString);
-  DEFINE_CODE_STUB(SubString, TurboFanCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(SubString, TurboFanCodeStub);
 };
 
 

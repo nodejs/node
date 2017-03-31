@@ -35,10 +35,10 @@ if (cluster.isMaster) {
   const worker = cluster.fork();
 
   // makes sure master is able to fork the worker
-  cluster.on('fork', common.mustCall(function() {}));
+  cluster.on('fork', common.mustCall());
 
   // makes sure the worker is ready
-  worker.on('online', common.mustCall(function() {}));
+  worker.on('online', common.mustCall());
 
   worker.on('message', common.mustCall(function(err) {
     // disconnect first, so that we will not leave zombies

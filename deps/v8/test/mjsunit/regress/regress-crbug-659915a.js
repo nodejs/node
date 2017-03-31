@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --min-preparse-length=10
+// Flags: --allow-natives-syntax
 
 let x;
 function f(a) {

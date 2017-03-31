@@ -71,12 +71,8 @@ namespace compiler {
   V(MipsMulPair)                   \
   V(MipsMaddS)                     \
   V(MipsMaddD)                     \
-  V(MipsMaddfS)                    \
-  V(MipsMaddfD)                    \
   V(MipsMsubS)                     \
   V(MipsMsubD)                     \
-  V(MipsMsubfS)                    \
-  V(MipsMsubfD)                    \
   V(MipsFloat32RoundDown)          \
   V(MipsFloat32RoundTruncate)      \
   V(MipsFloat32RoundUp)            \

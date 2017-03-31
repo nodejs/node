@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api.h"
+#include "src/objects-inl.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {

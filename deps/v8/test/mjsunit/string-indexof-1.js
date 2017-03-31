@@ -30,14 +30,25 @@ var s = "test test test";
 assertEquals(0, s.indexOf("t"));
 assertEquals(3, s.indexOf("t", 1));
 assertEquals(5, s.indexOf("t", 4));
+assertEquals(5, s.indexOf("t", 4.1));
+assertEquals(0, s.indexOf("t", 0));
+assertEquals(0, s.indexOf("t", -1));
+assertEquals(0, s.indexOf("t", -1));
+assertEquals(0, s.indexOf("t", -1.1));
+assertEquals(0, s.indexOf("t", -1073741825));
 assertEquals(1, s.indexOf("e"));
 assertEquals(2, s.indexOf("s"));
 
 assertEquals(5, s.indexOf("test", 4));
 assertEquals(5, s.indexOf("test", 5));
 assertEquals(10, s.indexOf("test", 6));
+assertEquals(10, s.indexOf("test", 6.0));
 assertEquals(0, s.indexOf("test", 0));
+assertEquals(0, s.indexOf("test", 0.0));
 assertEquals(0, s.indexOf("test", -1));
+assertEquals(-1, s.indexOf("not found", -1));
+assertEquals(0, s.indexOf("test", -1.0));
+assertEquals(0, s.indexOf("test", -1073741825));
 assertEquals(0, s.indexOf("test"));
 assertEquals(-1, s.indexOf("notpresent"));
 assertEquals(-1, s.indexOf());
@@ -137,3 +148,60 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
     assertEquals(index, allCharsString.indexOf(pattern));
   }
 }
+
+(function nonStringReceivers() {
+  let indexOf = String.prototype.indexOf;
+  assertThrows(() => indexOf.call(null), TypeError);
+  assertThrows(() => indexOf.call(undefined), TypeError);
+
+  assertEquals(-1, indexOf.call(1));
+  assertEquals(0, indexOf.call(1, "1"));
+
+  assertEquals(-1, indexOf.call(1.2));
+  assertEquals(0, indexOf.call(1.2, "1"));
+  assertEquals(1, indexOf.call(1.2, "."));
+  assertEquals(2, indexOf.call(1.2, "2"));
+  assertEquals(-1, indexOf.call(1.2, "1", 2));
+
+  assertEquals(-1, indexOf.call({}));
+  assertEquals(0, indexOf.call({}, "[object Object]"));
+  assertEquals(-1, indexOf.call({}, "[object", 1));
+
+  assertEquals(-1, indexOf.call([]));
+  assertEquals(0, indexOf.call([1,2], "1,2"));
+
+  assertEquals(-1, indexOf.call(this));
+})();
+
+(function nonStringSearchString() {
+
+  assertEquals(-1, "".indexOf(1));
+  assertEquals(2, "_0123".indexOf(1));
+
+  assertEquals(-1, "".indexOf(1.2));
+  assertEquals(1, "01.2".indexOf(1.2));
+  assertEquals(1, "01.2".indexOf(1.2, 1));
+  assertEquals(-1, "01.2".indexOf(1.2, 2));
+
+  assertEquals(-1, "".indexOf(null));
+  assertEquals(0, "null".indexOf(null));
+
+  assertEquals(-1, "".indexOf(undefined));
+  assertEquals(1, "_undefined_".indexOf(undefined));
+
+  assertEquals(0, "".indexOf([]));
+  assertEquals(0, "123".indexOf([]));
+  assertEquals(2, "1,2,3".indexOf([2,3]));
+
+  assertEquals(-1, "".indexOf({}));
+  assertEquals(-1, "".indexOf(this));
+})();
+
+(function nonStringPosition() {
+  assertEquals(0, "aba".indexOf("a", false));
+  assertEquals(2, "aba".indexOf("a", true));
+  assertEquals(2, "aba".indexOf("a", "1"));
+  assertEquals(2, "aba".indexOf("a", "1.00000"));
+  assertEquals(2, "aba".indexOf("a", "2.00000"));
+  assertEquals(-1, "aba".indexOf("a", "3.00000"));
+})();

@@ -349,7 +349,7 @@ RUNTIME_FUNCTION(Runtime_ThrowInvalidAtomicAccessIndexError) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(oldobj, 2);
@@ -383,7 +383,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsCompareExchange) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
@@ -415,7 +415,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsAdd) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsSub) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
@@ -447,7 +447,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsSub) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
@@ -479,7 +479,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsAnd) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsOr) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
@@ -511,7 +511,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsOr) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsXor) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
@@ -543,7 +543,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);
@@ -575,7 +575,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchange) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsIsLockFree) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(size, 0);
   uint32_t usize = NumberToUint32(*size);
   return isolate->heap()->ToBoolean(AtomicIsLockFree(usize));

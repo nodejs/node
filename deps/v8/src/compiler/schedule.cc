@@ -407,7 +407,7 @@ void Schedule::PropagateDeferredMark() {
       if (!block->deferred()) {
         bool deferred = block->PredecessorCount() > 0;
         for (auto pred : block->predecessors()) {
-          if (!pred->deferred()) {
+          if (!pred->deferred() && (pred->rpo_number() < block->rpo_number())) {
             deferred = false;
           }
         }

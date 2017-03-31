@@ -6,6 +6,7 @@
 
 #include <cstring>
 
+#include "src/utils.h"
 #include "src/v8.h"
 
 #ifdef V8_USE_ADDRESS_SANITIZER

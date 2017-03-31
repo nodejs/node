@@ -9,8 +9,9 @@
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
+#include "src/feedback-vector.h"
 #include "src/handles-inl.h"
-#include "src/type-feedback-vector.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -20,7 +21,7 @@ VectorSlotPair::VectorSlotPair() {}
 
 
 int VectorSlotPair::index() const {
-  return vector_.is_null() ? -1 : vector_->GetIndex(slot_);
+  return vector_.is_null() ? -1 : FeedbackVector::GetIndex(slot_);
 }
 
 
@@ -80,6 +81,30 @@ CallConstructParameters const& CallConstructParametersOf(Operator const* op) {
   return OpParameter<CallConstructParameters>(op);
 }
 
+bool operator==(CallConstructWithSpreadParameters const& lhs,
+                CallConstructWithSpreadParameters const& rhs) {
+  return lhs.arity() == rhs.arity();
+}
+
+bool operator!=(CallConstructWithSpreadParameters const& lhs,
+                CallConstructWithSpreadParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CallConstructWithSpreadParameters const& p) {
+  return base::hash_combine(p.arity());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CallConstructWithSpreadParameters const& p) {
+  return os << p.arity();
+}
+
+CallConstructWithSpreadParameters const& CallConstructWithSpreadParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSCallConstructWithSpread, op->opcode());
+  return OpParameter<CallConstructWithSpreadParameters>(op);
+}
 
 std::ostream& operator<<(std::ostream& os, CallFunctionParameters const& p) {
   os << p.arity() << ", " << p.frequency() << ", " << p.convert_mode() << ", "
@@ -189,6 +214,60 @@ CreateCatchContextParameters const& CreateCatchContextParametersOf(
     Operator const* op) {
   DCHECK_EQ(IrOpcode::kJSCreateCatchContext, op->opcode());
   return OpParameter<CreateCatchContextParameters>(op);
+}
+
+CreateFunctionContextParameters::CreateFunctionContextParameters(
+    int slot_count, ScopeType scope_type)
+    : slot_count_(slot_count), scope_type_(scope_type) {}
+
+bool operator==(CreateFunctionContextParameters const& lhs,
+                CreateFunctionContextParameters const& rhs) {
+  return lhs.slot_count() == rhs.slot_count() &&
+         lhs.scope_type() == rhs.scope_type();
+}
+
+bool operator!=(CreateFunctionContextParameters const& lhs,
+                CreateFunctionContextParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CreateFunctionContextParameters const& parameters) {
+  return base::hash_combine(parameters.slot_count(),
+                            static_cast<int>(parameters.scope_type()));
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CreateFunctionContextParameters const& parameters) {
+  return os << parameters.slot_count() << ", " << parameters.scope_type();
+}
+
+CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateFunctionContext, op->opcode());
+  return OpParameter<CreateFunctionContextParameters>(op);
+}
+
+bool operator==(DataPropertyParameters const& lhs,
+                DataPropertyParameters const& rhs) {
+  return lhs.feedback() == rhs.feedback();
+}
+
+bool operator!=(DataPropertyParameters const& lhs,
+                DataPropertyParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(DataPropertyParameters const& p) {
+  return base::hash_combine(p.feedback());
+}
+
+std::ostream& operator<<(std::ostream& os, DataPropertyParameters const& p) {
+  return os;
+}
+
+DataPropertyParameters const& DataPropertyParametersOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral);
+  return OpParameter<DataPropertyParameters>(op);
 }
 
 bool operator==(NamedAccess const& lhs, NamedAccess const& rhs) {
@@ -350,6 +429,7 @@ const CreateArrayParameters& CreateArrayParametersOf(const Operator* op) {
 bool operator==(CreateClosureParameters const& lhs,
                 CreateClosureParameters const& rhs) {
   return lhs.pretenure() == rhs.pretenure() &&
+         lhs.feedback() == rhs.feedback() &&
          lhs.shared_info().location() == rhs.shared_info().location();
 }
 
@@ -361,7 +441,8 @@ bool operator!=(CreateClosureParameters const& lhs,
 
 
 size_t hash_value(CreateClosureParameters const& p) {
-  return base::hash_combine(p.pretenure(), p.shared_info().location());
+  return base::hash_combine(p.pretenure(), p.shared_info().location(),
+                            p.feedback());
 }
 
 
@@ -436,26 +517,27 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   return OpParameter<CompareOperationHint>(op);
 }
 
-#define CACHED_OP_LIST(V)                                   \
-  V(ToInteger, Operator::kNoProperties, 1, 1)               \
-  V(ToLength, Operator::kNoProperties, 1, 1)                \
-  V(ToName, Operator::kNoProperties, 1, 1)                  \
-  V(ToNumber, Operator::kNoProperties, 1, 1)                \
-  V(ToObject, Operator::kFoldable, 1, 1)                    \
-  V(ToString, Operator::kNoProperties, 1, 1)                \
-  V(Create, Operator::kEliminatable, 2, 1)                  \
-  V(CreateIterResultObject, Operator::kEliminatable, 2, 1)  \
-  V(CreateKeyValueArray, Operator::kEliminatable, 2, 1)     \
-  V(HasProperty, Operator::kNoProperties, 2, 1)             \
-  V(TypeOf, Operator::kPure, 1, 1)                          \
-  V(InstanceOf, Operator::kNoProperties, 2, 1)              \
-  V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)     \
-  V(ForInNext, Operator::kNoProperties, 4, 1)               \
-  V(ForInPrepare, Operator::kNoProperties, 1, 3)            \
-  V(LoadMessage, Operator::kNoThrow, 0, 1)                  \
-  V(StoreMessage, Operator::kNoThrow, 1, 0)                 \
-  V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1) \
-  V(StackCheck, Operator::kNoWrite, 0, 0)
+#define CACHED_OP_LIST(V)                                       \
+  V(ToInteger, Operator::kNoProperties, 1, 1)                   \
+  V(ToLength, Operator::kNoProperties, 1, 1)                    \
+  V(ToName, Operator::kNoProperties, 1, 1)                      \
+  V(ToNumber, Operator::kNoProperties, 1, 1)                    \
+  V(ToObject, Operator::kFoldable, 1, 1)                        \
+  V(ToString, Operator::kNoProperties, 1, 1)                    \
+  V(Create, Operator::kEliminatable, 2, 1)                      \
+  V(CreateIterResultObject, Operator::kEliminatable, 2, 1)      \
+  V(CreateKeyValueArray, Operator::kEliminatable, 2, 1)         \
+  V(HasProperty, Operator::kNoProperties, 2, 1)                 \
+  V(TypeOf, Operator::kPure, 1, 1)                              \
+  V(InstanceOf, Operator::kNoProperties, 2, 1)                  \
+  V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)         \
+  V(ForInNext, Operator::kNoProperties, 4, 1)                   \
+  V(ForInPrepare, Operator::kNoProperties, 1, 3)                \
+  V(LoadMessage, Operator::kNoThrow | Operator::kNoWrite, 0, 1) \
+  V(StoreMessage, Operator::kNoRead | Operator::kNoThrow, 1, 0) \
+  V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1)     \
+  V(StackCheck, Operator::kNoWrite, 0, 0)                       \
+  V(GetSuperConstructor, Operator::kNoWrite, 1, 1)
 
 #define BINARY_OP_LIST(V) \
   V(BitwiseOr)            \
@@ -527,6 +609,9 @@ struct JSOperatorGlobalCache final {
   Name##Operator<CompareOperationHint::kNumber> k##Name##NumberOperator;  \
   Name##Operator<CompareOperationHint::kNumberOrOddball>                  \
       k##Name##NumberOrOddballOperator;                                   \
+  Name##Operator<CompareOperationHint::kString> k##Name##StringOperator;  \
+  Name##Operator<CompareOperationHint::kInternalizedString>               \
+      k##Name##InternalizedStringOperator;                                \
   Name##Operator<CompareOperationHint::kAny> k##Name##AnyOperator;
   COMPARE_OP_LIST(COMPARE_OP)
 #undef COMPARE_OP
@@ -578,6 +663,10 @@ BINARY_OP_LIST(BINARY_OP)
         return &cache_.k##Name##NumberOperator;                        \
       case CompareOperationHint::kNumberOrOddball:                     \
         return &cache_.k##Name##NumberOrOddballOperator;               \
+      case CompareOperationHint::kInternalizedString:                  \
+        return &cache_.k##Name##InternalizedStringOperator;            \
+      case CompareOperationHint::kString:                              \
+        return &cache_.k##Name##StringOperator;                        \
       case CompareOperationHint::kAny:                                 \
         return &cache_.k##Name##AnyOperator;                           \
     }                                                                  \
@@ -586,6 +675,17 @@ BINARY_OP_LIST(BINARY_OP)
   }
 COMPARE_OP_LIST(COMPARE_OP)
 #undef COMPARE_OP
+
+const Operator* JSOperatorBuilder::StoreDataPropertyInLiteral(
+    const VectorSlotPair& feedback) {
+  DataPropertyParameters parameters(feedback);
+  return new (zone()) Operator1<DataPropertyParameters>(  // --
+      IrOpcode::kJSStoreDataPropertyInLiteral,
+      Operator::kNoThrow,              // opcode
+      "JSStoreDataPropertyInLiteral",  // name
+      4, 1, 1, 0, 1, 0,                // counts
+      parameters);                     // parameter
+}
 
 const Operator* JSOperatorBuilder::ToBoolean(ToBooleanHints hints) {
   // TODO(turbofan): Cache most important versions of this operator.
@@ -643,6 +743,14 @@ const Operator* JSOperatorBuilder::CallConstruct(
       parameters);                                          // parameter
 }
 
+const Operator* JSOperatorBuilder::CallConstructWithSpread(uint32_t arity) {
+  CallConstructWithSpreadParameters parameters(arity);
+  return new (zone()) Operator1<CallConstructWithSpreadParameters>(   // --
+      IrOpcode::kJSCallConstructWithSpread, Operator::kNoProperties,  // opcode
+      "JSCallConstructWithSpread",                                    // name
+      parameters.arity(), 1, 1, 1, 1, 2,                              // counts
+      parameters);  // parameter
+}
 
 const Operator* JSOperatorBuilder::ConvertReceiver(
     ConvertReceiverMode convert_mode) {
@@ -659,7 +767,7 @@ const Operator* JSOperatorBuilder::LoadNamed(Handle<Name> name,
   return new (zone()) Operator1<NamedAccess>(           // --
       IrOpcode::kJSLoadNamed, Operator::kNoProperties,  // opcode
       "JSLoadNamed",                                    // name
-      2, 1, 1, 1, 1, 2,                                 // counts
+      1, 1, 1, 1, 1, 2,                                 // counts
       access);                                          // parameter
 }
 
@@ -669,7 +777,7 @@ const Operator* JSOperatorBuilder::LoadProperty(
   return new (zone()) Operator1<PropertyAccess>(           // --
       IrOpcode::kJSLoadProperty, Operator::kNoProperties,  // opcode
       "JSLoadProperty",                                    // name
-      3, 1, 1, 1, 1, 2,                                    // counts
+      2, 1, 1, 1, 1, 2,                                    // counts
       access);                                             // parameter
 }
 
@@ -696,7 +804,7 @@ const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
   return new (zone()) Operator1<NamedAccess>(            // --
       IrOpcode::kJSStoreNamed, Operator::kNoProperties,  // opcode
       "JSStoreNamed",                                    // name
-      3, 1, 1, 0, 1, 2,                                  // counts
+      2, 1, 1, 0, 1, 2,                                  // counts
       access);                                           // parameter
 }
 
@@ -707,7 +815,7 @@ const Operator* JSOperatorBuilder::StoreProperty(
   return new (zone()) Operator1<PropertyAccess>(            // --
       IrOpcode::kJSStoreProperty, Operator::kNoProperties,  // opcode
       "JSStoreProperty",                                    // name
-      4, 1, 1, 0, 1, 2,                                     // counts
+      3, 1, 1, 0, 1, 2,                                     // counts
       access);                                              // parameter
 }
 
@@ -728,7 +836,7 @@ const Operator* JSOperatorBuilder::LoadGlobal(const Handle<Name>& name,
   return new (zone()) Operator1<LoadGlobalParameters>(   // --
       IrOpcode::kJSLoadGlobal, Operator::kNoProperties,  // opcode
       "JSLoadGlobal",                                    // name
-      1, 1, 1, 1, 1, 2,                                  // counts
+      0, 1, 1, 1, 1, 2,                                  // counts
       parameters);                                       // parameter
 }
 
@@ -740,7 +848,7 @@ const Operator* JSOperatorBuilder::StoreGlobal(LanguageMode language_mode,
   return new (zone()) Operator1<StoreGlobalParameters>(   // --
       IrOpcode::kJSStoreGlobal, Operator::kNoProperties,  // opcode
       "JSStoreGlobal",                                    // name
-      2, 1, 1, 0, 1, 2,                                   // counts
+      1, 1, 1, 0, 1, 2,                                   // counts
       parameters);                                        // parameter
 }
 
@@ -752,7 +860,7 @@ const Operator* JSOperatorBuilder::LoadContext(size_t depth, size_t index,
       IrOpcode::kJSLoadContext,                  // opcode
       Operator::kNoWrite | Operator::kNoThrow,   // flags
       "JSLoadContext",                           // name
-      1, 1, 0, 1, 1, 0,                          // counts
+      0, 1, 0, 1, 1, 0,                          // counts
       access);                                   // parameter
 }
 
@@ -763,7 +871,7 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
       IrOpcode::kJSStoreContext,                 // opcode
       Operator::kNoRead | Operator::kNoThrow,    // flags
       "JSStoreContext",                          // name
-      2, 1, 1, 0, 1, 0,                          // counts
+      1, 1, 1, 0, 1, 0,                          // counts
       access);                                   // parameter
 }
 
@@ -806,10 +914,10 @@ const Operator* JSOperatorBuilder::CreateArray(size_t arity,
       parameters);                                        // parameter
 }
 
-
 const Operator* JSOperatorBuilder::CreateClosure(
-    Handle<SharedFunctionInfo> shared_info, PretenureFlag pretenure) {
-  CreateClosureParameters parameters(shared_info, pretenure);
+    Handle<SharedFunctionInfo> shared_info, VectorSlotPair const& feedback,
+    PretenureFlag pretenure) {
+  CreateClosureParameters parameters(shared_info, feedback, pretenure);
   return new (zone()) Operator1<CreateClosureParameters>(  // --
       IrOpcode::kJSCreateClosure, Operator::kNoThrow,      // opcode
       "JSCreateClosure",                                   // name
@@ -818,8 +926,8 @@ const Operator* JSOperatorBuilder::CreateClosure(
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralArray(
-    Handle<FixedArray> constant_elements, int literal_flags, int literal_index,
-    int number_of_elements) {
+    Handle<ConstantElementsPair> constant_elements, int literal_flags,
+    int literal_index, int number_of_elements) {
   CreateLiteralParameters parameters(constant_elements, number_of_elements,
                                      literal_flags, literal_index);
   return new (zone()) Operator1<CreateLiteralParameters>(        // --
@@ -853,13 +961,14 @@ const Operator* JSOperatorBuilder::CreateLiteralRegExp(
       parameters);                                                // parameter
 }
 
-
-const Operator* JSOperatorBuilder::CreateFunctionContext(int slot_count) {
-  return new (zone()) Operator1<int>(                               // --
+const Operator* JSOperatorBuilder::CreateFunctionContext(int slot_count,
+                                                         ScopeType scope_type) {
+  CreateFunctionContextParameters parameters(slot_count, scope_type);
+  return new (zone()) Operator1<CreateFunctionContextParameters>(   // --
       IrOpcode::kJSCreateFunctionContext, Operator::kNoProperties,  // opcode
       "JSCreateFunctionContext",                                    // name
       1, 1, 1, 1, 1, 2,                                             // counts
-      slot_count);                                                  // parameter
+      parameters);                                                  // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateCatchContext(
@@ -882,22 +991,21 @@ const Operator* JSOperatorBuilder::CreateWithContext(
 }
 
 const Operator* JSOperatorBuilder::CreateBlockContext(
-    const Handle<ScopeInfo>& scpope_info) {
+    const Handle<ScopeInfo>& scope_info) {
   return new (zone()) Operator1<Handle<ScopeInfo>>(              // --
       IrOpcode::kJSCreateBlockContext, Operator::kNoProperties,  // opcode
       "JSCreateBlockContext",                                    // name
       1, 1, 1, 1, 1, 2,                                          // counts
-      scpope_info);                                              // parameter
+      scope_info);                                               // parameter
 }
 
-
 const Operator* JSOperatorBuilder::CreateScriptContext(
-    const Handle<ScopeInfo>& scpope_info) {
+    const Handle<ScopeInfo>& scope_info) {
   return new (zone()) Operator1<Handle<ScopeInfo>>(               // --
       IrOpcode::kJSCreateScriptContext, Operator::kNoProperties,  // opcode
       "JSCreateScriptContext",                                    // name
       1, 1, 1, 1, 1, 2,                                           // counts
-      scpope_info);                                               // parameter
+      scope_info);                                                // parameter
 }
 
 }  // namespace compiler

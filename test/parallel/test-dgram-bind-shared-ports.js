@@ -25,8 +25,6 @@ const assert = require('assert');
 const cluster = require('cluster');
 const dgram = require('dgram');
 
-function noop() { }
-
 if (cluster.isMaster) {
   const worker1 = cluster.fork();
 
@@ -51,8 +49,8 @@ if (cluster.isMaster) {
     });
   });
 } else {
-  const socket1 = dgram.createSocket('udp4', noop);
-  const socket2 = dgram.createSocket('udp4', noop);
+  const socket1 = dgram.createSocket('udp4', common.noop);
+  const socket2 = dgram.createSocket('udp4', common.noop);
 
   socket1.on('error', (err) => {
     // no errors expected

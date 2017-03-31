@@ -23,7 +23,7 @@ class StubCache;
 class TypeFeedbackOracle: public ZoneObject {
  public:
   TypeFeedbackOracle(Isolate* isolate, Zone* zone, Handle<Code> code,
-                     Handle<TypeFeedbackVector> feedback_vector,
+                     Handle<FeedbackVector> feedback_vector,
                      Handle<Context> native_context);
 
   InlineCacheState LoadInlineCacheState(FeedbackVectorSlot slot);
@@ -124,7 +124,7 @@ class TypeFeedbackOracle: public ZoneObject {
   Isolate* isolate_;
   Zone* zone_;
   Handle<UnseededNumberDictionary> dictionary_;
-  Handle<TypeFeedbackVector> feedback_vector_;
+  Handle<FeedbackVector> feedback_vector_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };

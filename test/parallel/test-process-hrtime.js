@@ -35,16 +35,16 @@ validateTuple(process.hrtime(tuple));
 // test that only an Array may be passed to process.hrtime()
 assert.throws(() => {
   process.hrtime(1);
-}, /^TypeError: process.hrtime\(\) only accepts an Array tuple$/);
+}, /^TypeError: process\.hrtime\(\) only accepts an Array tuple$/);
 assert.throws(() => {
   process.hrtime([]);
-}, /^TypeError: process.hrtime\(\) only accepts an Array tuple$/);
+}, /^TypeError: process\.hrtime\(\) only accepts an Array tuple$/);
 assert.throws(() => {
   process.hrtime([1]);
-}, /^TypeError: process.hrtime\(\) only accepts an Array tuple$/);
+}, /^TypeError: process\.hrtime\(\) only accepts an Array tuple$/);
 assert.throws(() => {
   process.hrtime([1, 2, 3]);
-}, /^TypeError: process.hrtime\(\) only accepts an Array tuple$/);
+}, /^TypeError: process\.hrtime\(\) only accepts an Array tuple$/);
 
 function validateTuple(tuple) {
   assert(Array.isArray(tuple));

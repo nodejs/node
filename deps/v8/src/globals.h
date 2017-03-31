@@ -11,6 +11,7 @@
 #include <ostream>
 
 #include "src/base/build_config.h"
+#include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
@@ -314,25 +315,23 @@ inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
   return os;
 }
 
-
 inline bool is_sloppy(LanguageMode language_mode) {
   return language_mode == SLOPPY;
 }
-
 
 inline bool is_strict(LanguageMode language_mode) {
   return language_mode != SLOPPY;
 }
 
-
 inline bool is_valid_language_mode(int language_mode) {
   return language_mode == SLOPPY || language_mode == STRICT;
 }
 
-
 inline LanguageMode construct_language_mode(bool strict_bit) {
   return static_cast<LanguageMode>(strict_bit);
 }
+
+enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 // This constant is used as an undefined value when passing source positions.
 const int kNoSourcePosition = -1;
@@ -470,7 +469,7 @@ class String;
 class Symbol;
 class Name;
 class Struct;
-class TypeFeedbackVector;
+class FeedbackVector;
 class Variable;
 class RelocInfo;
 class Deserializer;
@@ -591,7 +590,12 @@ enum VisitMode {
 };
 
 // Flag indicating whether code is built into the VM (one of the natives files).
-enum NativesFlag { NOT_NATIVES_CODE, EXTENSION_CODE, NATIVES_CODE };
+enum NativesFlag {
+  NOT_NATIVES_CODE,
+  EXTENSION_CODE,
+  NATIVES_CODE,
+  INSPECTOR_CODE
+};
 
 // JavaScript defines two kinds of 'nil'.
 enum NilValue { kNullValue, kUndefinedValue };
@@ -601,14 +605,6 @@ enum NilValue { kNullValue, kUndefinedValue };
 enum ParseRestriction {
   NO_PARSE_RESTRICTION,         // All expressions are allowed.
   ONLY_SINGLE_FUNCTION_LITERAL  // Only a single FunctionLiteral expression.
-};
-
-// TODO(gsathya): Move this to JSPromise once we create it.
-// This should be in sync with the constants in promise.js
-enum PromiseStatus {
-  kPromisePending,
-  kPromiseFulfilled,
-  kPromiseRejected,
 };
 
 // A CodeDesc describes a buffer holding instructions and relocation
@@ -788,10 +784,14 @@ enum CpuFeature {
   FPR_GPR_MOV,
   LWSYNC,
   ISELECT,
+  VSX,
+  MODULO,
   // S390
   DISTINCT_OPS,
   GENERAL_INSTR_EXT,
   FLOATING_POINT_EXT,
+  VECTOR_FACILITY,
+  MISC_INSTR_EXT2,
 
   NUMBER_OF_CPU_FEATURES,
 
@@ -889,6 +889,14 @@ enum ScopeType : uint8_t {
   CATCH_SCOPE,     // The scope introduced by catch.
   BLOCK_SCOPE,     // The scope introduced by a new block.
   WITH_SCOPE       // The scope introduced by with.
+};
+
+// AllocationSiteMode controls whether allocations are tracked by an allocation
+// site.
+enum AllocationSiteMode {
+  DONT_TRACK_ALLOCATION_SITE,
+  TRACK_ALLOCATION_SITE,
+  LAST_ALLOCATION_SITE_MODE = TRACK_ALLOCATION_SITE
 };
 
 // The mips architecture prior to revision 5 has inverted encoding for sNaN.
@@ -1080,7 +1088,7 @@ enum FunctionKind : uint16_t {
   kConciseMethod = 1 << 2,
   kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
   kDefaultConstructor = 1 << 3,
-  kSubclassConstructor = 1 << 4,
+  kDerivedConstructor = 1 << 4,
   kBaseConstructor = 1 << 5,
   kGetterFunction = 1 << 6,
   kSetterFunction = 1 << 7,
@@ -1088,9 +1096,9 @@ enum FunctionKind : uint16_t {
   kModule = 1 << 9,
   kAccessorFunction = kGetterFunction | kSetterFunction,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
-  kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor,
+  kDefaultDerivedConstructor = kDefaultConstructor | kDerivedConstructor,
   kClassConstructor =
-      kBaseConstructor | kSubclassConstructor | kDefaultConstructor,
+      kBaseConstructor | kDerivedConstructor | kDefaultConstructor,
   kAsyncArrowFunction = kArrowFunction | kAsyncFunction,
   kAsyncConciseMethod = kAsyncFunction | kConciseMethod
 };
@@ -1106,9 +1114,9 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kSetterFunction ||
          kind == FunctionKind::kAccessorFunction ||
          kind == FunctionKind::kDefaultBaseConstructor ||
-         kind == FunctionKind::kDefaultSubclassConstructor ||
+         kind == FunctionKind::kDefaultDerivedConstructor ||
          kind == FunctionKind::kBaseConstructor ||
-         kind == FunctionKind::kSubclassConstructor ||
+         kind == FunctionKind::kDerivedConstructor ||
          kind == FunctionKind::kAsyncFunction ||
          kind == FunctionKind::kAsyncArrowFunction ||
          kind == FunctionKind::kAsyncConciseMethod;
@@ -1172,10 +1180,9 @@ inline bool IsBaseConstructor(FunctionKind kind) {
   return kind & FunctionKind::kBaseConstructor;
 }
 
-
-inline bool IsSubclassConstructor(FunctionKind kind) {
+inline bool IsDerivedConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kSubclassConstructor;
+  return kind & FunctionKind::kDerivedConstructor;
 }
 
 
@@ -1238,10 +1245,23 @@ class BinaryOperationFeedback {
   };
 };
 
+// Type feedback is encoded in such a way that, we can combine the feedback
+// at different points by performing an 'OR' operation. Type feedback moves
+// to a more generic type when we combine feedback.
+// kSignedSmall        -> kNumber -> kAny
+// kInternalizedString -> kString -> kAny
 // TODO(epertoso): consider unifying this with BinaryOperationFeedback.
 class CompareOperationFeedback {
  public:
-  enum { kNone = 0x00, kSignedSmall = 0x01, kNumber = 0x3, kAny = 0x7 };
+  enum {
+    kNone = 0x00,
+    kSignedSmall = 0x01,
+    kNumber = 0x3,
+    kNumberOrOddball = 0x7,
+    kInternalizedString = 0x8,
+    kString = 0x18,
+    kAny = 0x3F
+  };
 };
 
 // Describes how exactly a frame has been dropped from stack.
@@ -1293,6 +1313,17 @@ inline std::ostream& operator<<(std::ostream& os, IterationKind kind) {
   UNREACHABLE();
   return os;
 }
+
+// Flags for the runtime function kDefineDataPropertyInLiteral. A property can
+// be enumerable or not, and, in case of functions, the function name
+// can be set or not.
+enum class DataPropertyInLiteralFlag {
+  kNoFlags = 0,
+  kDontEnum = 1 << 0,
+  kSetFunctionName = 1 << 1
+};
+typedef base::Flags<DataPropertyInLiteralFlag> DataPropertyInLiteralFlags;
+DEFINE_OPERATORS_FOR_FLAGS(DataPropertyInLiteralFlags)
 
 }  // namespace internal
 }  // namespace v8

@@ -2,13 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --min-preparse-length=1
+// Flags: --lazy-inner-functions
 
 (function TestLazyInnerFunctionCallsEval() {
   var i = (function eager_outer() {
-    var a = 41; // Should be context-allocated
+    var outer_var = 41; // Should be context-allocated
     function lazy_inner() {
-      return eval("a");
+      return eval("outer_var");
+    }
+    return lazy_inner;
+  })();
+  assertEquals(41, i());
+})();
+
+(function TestLazyInnerFunctionDestructuring() {
+  var i = (function eager_outer() {
+    var outer_var = 41; // Should be context-allocated
+    function lazy_inner() {
+      // This introduces b and refers to outer_var.
+      var {outer_var : b} = {outer_var};
+      return b;
     }
     return lazy_inner;
   })();

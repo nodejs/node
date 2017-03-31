@@ -4,9 +4,10 @@
 
 #include "src/parsing/func-name-inferrer.h"
 
-#include "src/ast/ast.h"
 #include "src/ast/ast-value-factory.h"
+#include "src/ast/ast.h"
 #include "src/list-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -46,8 +47,8 @@ void FuncNameInferrer::PushVariableName(const AstRawString* name) {
 
 void FuncNameInferrer::RemoveAsyncKeywordFromEnd() {
   if (IsOpen()) {
-    DCHECK(names_stack_.length() > 0);
-    DCHECK(names_stack_.last().name->IsOneByteEqualTo("async"));
+    CHECK(names_stack_.length() > 0);
+    CHECK(names_stack_.last().name->IsOneByteEqualTo("async"));
     names_stack_.RemoveLast();
   }
 }

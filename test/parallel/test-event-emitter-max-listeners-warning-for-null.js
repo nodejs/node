@@ -18,5 +18,5 @@ process.on('warning', common.mustCall((warning) => {
   assert.ok(warning.message.includes('2 null listeners added.'));
 }));
 
-e.on(null, function() {});
-e.on(null, function() {});
+e.on(null, common.noop);
+e.on(null, common.noop);

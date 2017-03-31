@@ -14,4 +14,4 @@ function __f_71(stdlib, buffer) {
 }
 
 __f_71(this);
-assertTrue(%IsNotAsmWasmCode(__f_71));
+assertFalse(%IsAsmWasmCode(__f_71));

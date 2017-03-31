@@ -26,13 +26,13 @@ const Readable = require('_stream_readable');
 const EE = require('events').EventEmitter;
 
 const oldStream = new EE();
-oldStream.pause = function() {};
-oldStream.resume = function() {};
+oldStream.pause = common.noop;
+oldStream.resume = common.noop;
 
 const newStream = new Readable().wrap(oldStream);
 
 newStream
-  .on('readable', function() {})
-  .on('end', common.mustCall(function() {}));
+  .on('readable', common.noop)
+  .on('end', common.mustCall());
 
 oldStream.emit('end');

@@ -8,10 +8,11 @@
 
 #include "src/api-experimental.h"
 
-#include "include/v8.h"
 #include "include/v8-experimental.h"
+#include "include/v8.h"
 #include "src/api.h"
 #include "src/fast-accessor-assembler.h"
+#include "src/objects-inl.h"
 
 namespace {
 

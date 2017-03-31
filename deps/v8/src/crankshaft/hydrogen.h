@@ -463,12 +463,6 @@ class HGraph final : public ZoneObject {
   void DecrementInNoSideEffectsScope() { no_side_effects_scope_count_--; }
   bool IsInsideNoSideEffectsScope() { return no_side_effects_scope_count_ > 0; }
 
-  // If we are tracking source positions then this function assigns a unique
-  // identifier to each inlining and dumps function source if it was inlined
-  // for the first time during the current optimization.
-  int TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                           SourcePosition position);
-
  private:
   HConstant* ReinsertConstantIfNecessary(HConstant* constant);
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
@@ -1807,9 +1801,11 @@ class HGraphBuilder {
                                     HValue* previous_object_size,
                                     HValue* payload);
 
-  HInstruction* BuildConstantMapCheck(Handle<JSObject> constant);
+  HInstruction* BuildConstantMapCheck(Handle<JSObject> constant,
+                                      bool ensure_no_elements = false);
   HInstruction* BuildCheckPrototypeMaps(Handle<JSObject> prototype,
-                                        Handle<JSObject> holder);
+                                        Handle<JSObject> holder,
+                                        bool ensure_no_elements = false);
 
   HInstruction* BuildGetNativeContext(HValue* closure);
   HInstruction* BuildGetNativeContext();
@@ -1852,9 +1848,6 @@ class HGraphBuilder {
   void set_source_position(SourcePosition position) { position_ = position; }
 
   bool is_tracking_positions() { return track_positions_; }
-
-  void TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                            SourcePosition position, int inlining_id);
 
   HValue* BuildAllocateEmptyArrayBuffer(HValue* byte_length);
   template <typename ViewClass>
@@ -2149,7 +2142,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   Handle<SharedFunctionInfo> current_shared_info() const {
     return current_info()->shared_info();
   }
-  TypeFeedbackVector* current_feedback_vector() const {
+  FeedbackVector* current_feedback_vector() const {
     return current_closure()->feedback_vector();
   }
   void ClearInlinedTestContext() {
@@ -2163,10 +2156,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   F(IsSmi)                             \
   F(IsArray)                           \
   F(IsTypedArray)                      \
-  F(IsRegExp)                          \
   F(IsJSProxy)                         \
   F(Call)                              \
-  F(NewObject)                         \
   F(ToInteger)                         \
   F(ToObject)                          \
   F(ToString)                          \
@@ -2386,6 +2377,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
                         TailCallMode syntactic_tail_call_mode);
   static bool IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map);
   static bool CanInlineArrayResizeOperation(Handle<Map> receiver_map);
+  static bool NoElementsInPrototypeChain(Handle<Map> receiver_map);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a
@@ -2464,7 +2456,19 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
           field_type_(HType::Tagged()),
           access_(HObjectAccess::ForMap()),
           lookup_type_(NOT_FOUND),
-          details_(NONE, DATA, Representation::None()) {}
+          details_(PropertyDetails::Empty()),
+          store_mode_(STORE_TO_INITIALIZED_ENTRY) {}
+
+    // Ensure the full store is performed.
+    void MarkAsInitializingStore() {
+      DCHECK_EQ(STORE, access_type_);
+      store_mode_ = INITIALIZING_STORE;
+    }
+
+    StoreFieldOrKeyedMode StoreMode() {
+      DCHECK_EQ(STORE, access_type_);
+      return store_mode_;
+    }
 
     // Checkes whether this PropertyAccessInfo can be handled as a monomorphic
     // load named. It additionally fills in the fields necessary to generate the
@@ -2522,14 +2526,16 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
     bool IsProperty() const { return IsFound() && !IsTransition(); }
     bool IsTransition() const { return lookup_type_ == TRANSITION_TYPE; }
     bool IsData() const {
-      return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == DATA;
+      return lookup_type_ == DESCRIPTOR_TYPE && details_.kind() == kData &&
+             details_.location() == kField;
     }
     bool IsDataConstant() const {
-      return lookup_type_ == DESCRIPTOR_TYPE &&
-             details_.type() == DATA_CONSTANT;
+      return lookup_type_ == DESCRIPTOR_TYPE && details_.kind() == kData &&
+             details_.location() == kDescriptor;
     }
     bool IsAccessorConstant() const {
-      return !IsTransition() && details_.type() == ACCESSOR_CONSTANT;
+      return !IsTransition() && details_.kind() == kAccessor &&
+             details_.location() == kDescriptor;
     }
     bool IsConfigurable() const { return details_.IsConfigurable(); }
     bool IsReadOnly() const { return details_.IsReadOnly(); }
@@ -2578,6 +2584,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
       transition_ = handle(target);
       number_ = transition_->LastAdded();
       details_ = transition_->instance_descriptors()->GetDetails(number_);
+      MarkAsInitializingStore();
     }
     void NotFound() {
       lookup_type_ = NOT_FOUND;
@@ -2588,7 +2595,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
       return details_.representation();
     }
     bool IsTransitionToData() const {
-      return IsTransition() && details_.type() == DATA;
+      return IsTransition() && details_.kind() == kData &&
+             details_.location() == kField;
     }
 
     Zone* zone() { return builder_->zone(); }
@@ -2623,6 +2631,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
     Handle<Map> transition_;
     int number_;
     PropertyDetails details_;
+    StoreFieldOrKeyedMode store_mode_;
   };
 
   HValue* BuildMonomorphicAccess(PropertyAccessInfo* info, HValue* object,
@@ -2804,7 +2813,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
 
   friend class FunctionState;  // Pushes and pops the state stack.
   friend class AstContext;  // Pushes and pops the AST context stack.
-  friend class KeyedLoadFastElementStub;
   friend class HOsrBuilder;
 
   DISALLOW_COPY_AND_ASSIGN(HOptimizedGraphBuilder);

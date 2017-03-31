@@ -219,7 +219,6 @@ invalid("do g; while ((4)");
 valid  ("{ { do do do ; while(0) while(0) while(0) } }");
 valid  ("do while (0) if (a) {} else y; while(0)");
 valid  ("if (a) while (b) if (c) with(d) {} else e; else f");
-invalid("break ; break your_limits ; continue ; continue living ; debugger");
 invalid("debugger X");
 invalid("break 0.2");
 invalid("continue a++");
@@ -320,7 +319,6 @@ valid  ("for (var a = 7, b = c < d >= d ; f()[6]++ ; --i()[1]++ ) {}");
 
 debug  ("try statement");
 
-invalid("try { break } catch(e) {}");
 valid  ("try {} finally { c++ }");
 valid  ("try { with (x) { } } catch(e) {} finally { if (a) ; }");
 invalid("try {}");
@@ -362,10 +360,6 @@ invalid("switch (l) { case b ? c : }");
 valid  ("switch (l) { case 1: a: with(g) switch (g) { case 2: default: } default: }");
 invalid("switch (4 - ) { }");
 invalid("switch (l) { default case: 5; }");
-
-invalid("L: L: ;");
-invalid("L: L1: L: ;");
-invalid("L: L1: L2: L3: L4: L: ;");
 
 invalid("for(var a,b 'this shouldn\'t be allowed' false ; ) ;");
 invalid("for(var a,b '");

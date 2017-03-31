@@ -31,7 +31,8 @@ assert.strictEqual(processUtil.getProxyDetails({}), undefined);
 // and the get function on the handler object defined above
 // is actually invoked.
 assert.throws(
-  () => util.inspect(proxyObj)
+  () => util.inspect(proxyObj),
+  /^Error: Getter should not be called$/
 );
 
 // Yo dawg, I heard you liked Proxy so I put a Proxy
@@ -47,13 +48,13 @@ const expected1 = 'Proxy [ {}, {} ]';
 const expected2 = 'Proxy [ Proxy [ {}, {} ], {} ]';
 const expected3 = 'Proxy [ Proxy [ Proxy [ {}, {} ], {} ], Proxy [ {}, {} ] ]';
 const expected4 = 'Proxy [ Proxy [ {}, {} ], Proxy [ Proxy [ {}, {} ], {} ] ]';
-const expected5 = 'Proxy [ Proxy [ Proxy [ Proxy [Object], {} ],' +
+const expected5 = 'Proxy [ Proxy [ Proxy [ Proxy [Array], {} ],' +
                   ' Proxy [ {}, {} ] ],\n  Proxy [ Proxy [ {}, {} ]' +
-                  ', Proxy [ Proxy [Object], {} ] ] ]';
-const expected6 = 'Proxy [ Proxy [ Proxy [ Proxy [Object], Proxy [Object]' +
-                  ' ],\n    Proxy [ Proxy [Object], Proxy [Object] ] ],\n' +
-                  '  Proxy [ Proxy [ Proxy [Object], Proxy [Object] ],\n' +
-                  '    Proxy [ Proxy [Object], Proxy [Object] ] ] ]';
+                  ', Proxy [ Proxy [Array], {} ] ] ]';
+const expected6 = 'Proxy [ Proxy [ Proxy [ Proxy [Array], Proxy [Array]' +
+                  ' ],\n    Proxy [ Proxy [Array], Proxy [Array] ] ],\n' +
+                  '  Proxy [ Proxy [ Proxy [Array], Proxy [Array] ],\n' +
+                  '    Proxy [ Proxy [Array], Proxy [Array] ] ] ]';
 assert.strictEqual(util.inspect(proxy1, opts), expected1);
 assert.strictEqual(util.inspect(proxy2, opts), expected2);
 assert.strictEqual(util.inspect(proxy3, opts), expected3);

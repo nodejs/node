@@ -43,7 +43,8 @@ LoadRepresentation LoadRepresentationOf(Operator const* op) {
 
 
 StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kStore, op->opcode());
+  DCHECK(IrOpcode::kStore == op->opcode() ||
+         IrOpcode::kProtectedStore == op->opcode());
   return OpParameter<StoreRepresentation>(op);
 }
 
@@ -69,9 +70,9 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   return OpParameter<CheckedStoreRepresentation>(op);
 }
 
-MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
+int StackSlotSizeOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kStackSlot, op->opcode());
-  return OpParameter<MachineRepresentation>(op);
+  return OpParameter<int>(op);
 }
 
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
@@ -241,9 +242,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float32x4LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)            \
   V(Float32x4GreaterThan, Operator::kNoProperties, 2, 0, 1)                \
   V(Float32x4GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)         \
-  V(Float32x4Select, Operator::kNoProperties, 3, 0, 1)                     \
-  V(Float32x4Swizzle, Operator::kNoProperties, 5, 0, 1)                    \
-  V(Float32x4Shuffle, Operator::kNoProperties, 6, 0, 1)                    \
   V(Float32x4FromInt32x4, Operator::kNoProperties, 1, 0, 1)                \
   V(Float32x4FromUint32x4, Operator::kNoProperties, 1, 0, 1)               \
   V(CreateInt32x4, Operator::kNoProperties, 4, 0, 1)                       \
@@ -263,9 +261,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Int32x4LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)              \
   V(Int32x4GreaterThan, Operator::kNoProperties, 2, 0, 1)                  \
   V(Int32x4GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)           \
-  V(Int32x4Select, Operator::kNoProperties, 3, 0, 1)                       \
-  V(Int32x4Swizzle, Operator::kNoProperties, 5, 0, 1)                      \
-  V(Int32x4Shuffle, Operator::kNoProperties, 6, 0, 1)                      \
   V(Int32x4FromFloat32x4, Operator::kNoProperties, 1, 0, 1)                \
   V(Uint32x4Min, Operator::kCommutative, 2, 0, 1)                          \
   V(Uint32x4Max, Operator::kCommutative, 2, 0, 1)                          \
@@ -390,7 +385,10 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Simd128And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
   V(Simd128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)   \
   V(Simd128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
-  V(Simd128Not, Operator::kNoProperties, 1, 0, 1)
+  V(Simd128Not, Operator::kNoProperties, 1, 0, 1)                          \
+  V(Simd32x4Select, Operator::kNoProperties, 3, 0, 1)                      \
+  V(Simd32x4Swizzle, Operator::kNoProperties, 5, 0, 1)                     \
+  V(Simd32x4Shuffle, Operator::kNoProperties, 6, 0, 1)
 
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
@@ -460,6 +458,15 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(kWord16)                          \
   V(kWord32)
 
+#define STACK_SLOT_CACHED_SIZES_LIST(V) V(4) V(8) V(16)
+
+struct StackSlotOperator : public Operator1<int> {
+  explicit StackSlotOperator(int size)
+      : Operator1<int>(IrOpcode::kStackSlot,
+                       Operator::kNoDeopt | Operator::kNoThrow, "StackSlot", 0,
+                       0, 0, 1, 0, 0, size) {}
+};
+
 struct MachineOperatorGlobalCache {
 #define PURE(Name, properties, value_input_count, control_input_count,         \
              output_count)                                                     \
@@ -485,56 +492,51 @@ struct MachineOperatorGlobalCache {
   OVERFLOW_OP_LIST(OVERFLOW_OP)
 #undef OVERFLOW_OP
 
-#define LOAD(Type)                                                           \
-  struct Load##Type##Operator final : public Operator1<LoadRepresentation> { \
-    Load##Type##Operator()                                                   \
-        : Operator1<LoadRepresentation>(                                     \
-              IrOpcode::kLoad,                                               \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
-              "Load", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}              \
-  };                                                                         \
-  struct UnalignedLoad##Type##Operator final                                 \
-      : public Operator1<UnalignedLoadRepresentation> {                      \
-    UnalignedLoad##Type##Operator()                                          \
-        : Operator1<UnalignedLoadRepresentation>(                            \
-              IrOpcode::kUnalignedLoad,                                      \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
-              "UnalignedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}     \
-  };                                                                         \
-  struct CheckedLoad##Type##Operator final                                   \
-      : public Operator1<CheckedLoadRepresentation> {                        \
-    CheckedLoad##Type##Operator()                                            \
-        : Operator1<CheckedLoadRepresentation>(                              \
-              IrOpcode::kCheckedLoad,                                        \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
-              "CheckedLoad", 3, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
-  };                                                                         \
-  struct ProtectedLoad##Type##Operator final                                 \
-      : public Operator1<ProtectedLoadRepresentation> {                      \
-    ProtectedLoad##Type##Operator()                                          \
-        : Operator1<ProtectedLoadRepresentation>(                            \
-              IrOpcode::kProtectedLoad,                                      \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
-              "ProtectedLoad", 4, 1, 1, 1, 1, 0, MachineType::Type()) {}     \
-  };                                                                         \
-  Load##Type##Operator kLoad##Type;                                          \
-  UnalignedLoad##Type##Operator kUnalignedLoad##Type;                        \
-  CheckedLoad##Type##Operator kCheckedLoad##Type;                            \
+#define LOAD(Type)                                                            \
+  struct Load##Type##Operator final : public Operator1<LoadRepresentation> {  \
+    Load##Type##Operator()                                                    \
+        : Operator1<LoadRepresentation>(                                      \
+              IrOpcode::kLoad,                                                \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
+              "Load", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}               \
+  };                                                                          \
+  struct UnalignedLoad##Type##Operator final                                  \
+      : public Operator1<UnalignedLoadRepresentation> {                       \
+    UnalignedLoad##Type##Operator()                                           \
+        : Operator1<UnalignedLoadRepresentation>(                             \
+              IrOpcode::kUnalignedLoad,                                       \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
+              "UnalignedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}      \
+  };                                                                          \
+  struct CheckedLoad##Type##Operator final                                    \
+      : public Operator1<CheckedLoadRepresentation> {                         \
+    CheckedLoad##Type##Operator()                                             \
+        : Operator1<CheckedLoadRepresentation>(                               \
+              IrOpcode::kCheckedLoad,                                         \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
+              "CheckedLoad", 3, 1, 1, 1, 1, 0, MachineType::Type()) {}        \
+  };                                                                          \
+  struct ProtectedLoad##Type##Operator final                                  \
+      : public Operator1<LoadRepresentation> {                                \
+    ProtectedLoad##Type##Operator()                                           \
+        : Operator1<LoadRepresentation>(                                      \
+              IrOpcode::kProtectedLoad,                                       \
+              Operator::kNoDeopt | Operator::kNoThrow, "ProtectedLoad", 3, 1, \
+              1, 1, 1, 0, MachineType::Type()) {}                             \
+  };                                                                          \
+  Load##Type##Operator kLoad##Type;                                           \
+  UnalignedLoad##Type##Operator kUnalignedLoad##Type;                         \
+  CheckedLoad##Type##Operator kCheckedLoad##Type;                             \
   ProtectedLoad##Type##Operator kProtectedLoad##Type;
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
 
-#define STACKSLOT(Type)                                                      \
-  struct StackSlot##Type##Operator final                                     \
-      : public Operator1<MachineRepresentation> {                            \
-    StackSlot##Type##Operator()                                              \
-        : Operator1<MachineRepresentation>(                                  \
-              IrOpcode::kStackSlot, Operator::kNoDeopt | Operator::kNoThrow, \
-              "StackSlot", 0, 0, 0, 1, 0, 0,                                 \
-              MachineType::Type().representation()) {}                       \
-  };                                                                         \
-  StackSlot##Type##Operator kStackSlot##Type;
-  MACHINE_TYPE_LIST(STACKSLOT)
+#define STACKSLOT(Size)                                                     \
+  struct StackSlotOfSize##Size##Operator final : public StackSlotOperator { \
+    StackSlotOfSize##Size##Operator() : StackSlotOperator(Size) {}          \
+  };                                                                        \
+  StackSlotOfSize##Size##Operator kStackSlotSize##Size;
+  STACK_SLOT_CACHED_SIZES_LIST(STACKSLOT)
 #undef STACKSLOT
 
 #define STORE(Type)                                                            \
@@ -585,13 +587,24 @@ struct MachineOperatorGlobalCache {
               "CheckedStore", 4, 1, 1, 0, 1, 0, MachineRepresentation::Type) { \
     }                                                                          \
   };                                                                           \
+  struct ProtectedStore##Type##Operator                                        \
+      : public Operator1<StoreRepresentation> {                                \
+    explicit ProtectedStore##Type##Operator()                                  \
+        : Operator1<StoreRepresentation>(                                      \
+              IrOpcode::kProtectedStore,                                       \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
+              "Store", 4, 1, 1, 0, 1, 0,                                       \
+              StoreRepresentation(MachineRepresentation::Type,                 \
+                                  kNoWriteBarrier)) {}                         \
+  };                                                                           \
   Store##Type##NoWriteBarrier##Operator kStore##Type##NoWriteBarrier;          \
   Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;        \
   Store##Type##PointerWriteBarrier##Operator                                   \
       kStore##Type##PointerWriteBarrier;                                       \
   Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;      \
   UnalignedStore##Type##Operator kUnalignedStore##Type;                        \
-  CheckedStore##Type##Operator kCheckedStore##Type;
+  CheckedStore##Type##Operator kCheckedStore##Type;                            \
+  ProtectedStore##Type##Operator kProtectedStore##Type;
   MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
 
@@ -726,15 +739,21 @@ const Operator* MachineOperatorBuilder::ProtectedLoad(LoadRepresentation rep) {
   return nullptr;
 }
 
-const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep) {
-#define STACKSLOT(Type)                              \
-  if (rep == MachineType::Type().representation()) { \
-    return &cache_.kStackSlot##Type;                 \
+const Operator* MachineOperatorBuilder::StackSlot(int size) {
+  DCHECK_LE(0, size);
+#define CASE_CACHED_SIZE(Size) \
+  case Size:                   \
+    return &cache_.kStackSlotSize##Size;
+  switch (size) {
+    STACK_SLOT_CACHED_SIZES_LIST(CASE_CACHED_SIZE);
+    default:
+      return new (zone_) StackSlotOperator(size);
   }
-  MACHINE_TYPE_LIST(STACKSLOT)
-#undef STACKSLOT
-  UNREACHABLE();
-  return nullptr;
+#undef CASE_CACHED_SIZE
+}
+
+const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep) {
+  return StackSlot(1 << ElementSizeLog2Of(rep));
 }
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
@@ -751,6 +770,23 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
       case kFullWriteBarrier:                               \
         return &cache_.k##Store##kRep##FullWriteBarrier;    \
     }                                                       \
+    break;
+    MACHINE_REPRESENTATION_LIST(STORE)
+#undef STORE
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kNone:
+      break;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* MachineOperatorBuilder::ProtectedStore(
+    MachineRepresentation rep) {
+  switch (rep) {
+#define STORE(kRep)                       \
+  case MachineRepresentation::kRep:       \
+    return &cache_.kProtectedStore##kRep; \
     break;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE

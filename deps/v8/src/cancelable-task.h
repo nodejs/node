@@ -45,6 +45,17 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   // already running. This disallows subsequent Register calls.
   void CancelAndWait();
 
+  // Tries to cancel all remaining registered tasks. The return value indicates
+  // whether
+  //
+  // 1) No tasks were registered (kTaskRemoved), or
+  //
+  // 2) There is at least one remaining task that couldn't be cancelled
+  // (kTaskRunning), or
+  //
+  // 3) All registered tasks were cancelled (kTaskAborted).
+  TryAbortResult TryAbortAll();
+
  private:
   // Only called by {Cancelable} destructor. The task is done with executing,
   // but needs to be removed.
@@ -123,9 +134,11 @@ class V8_EXPORT_PRIVATE Cancelable {
 
 
 // Multiple inheritance can be used because Task is a pure interface.
-class CancelableTask : public Cancelable, public Task {
+class V8_EXPORT_PRIVATE CancelableTask : public Cancelable,
+                                         NON_EXPORTED_BASE(public Task) {
  public:
   explicit CancelableTask(Isolate* isolate);
+  CancelableTask(Isolate* isolate, CancelableTaskManager* manager);
 
   // Task overrides.
   void Run() final {
@@ -148,6 +161,7 @@ class CancelableTask : public Cancelable, public Task {
 class CancelableIdleTask : public Cancelable, public IdleTask {
  public:
   explicit CancelableIdleTask(Isolate* isolate);
+  CancelableIdleTask(Isolate* isolate, CancelableTaskManager* manager);
 
   // IdleTask overrides.
   void Run(double deadline_in_seconds) final {

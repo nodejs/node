@@ -380,11 +380,8 @@ void InterceptorHasOwnPropertyGetterGC(
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 }
 
-}  // namespace
-
 int query_counter_int = 0;
 
-namespace {
 void QueryCallback(Local<Name> property,
                    const v8::PropertyCallbackInfo<v8::Integer>& info) {
   query_counter_int++;
@@ -479,12 +476,13 @@ THREADED_TEST(QueryInterceptor) {
   CHECK_EQ(query_counter_int, 8);
 }
 
+namespace {
+
 bool get_was_called = false;
 bool set_was_called = false;
 
 int set_was_called_counter = 0;
 
-namespace {
 void GetterCallback(Local<Name> property,
                     const v8::PropertyCallbackInfo<v8::Value>& info) {
   get_was_called = true;
@@ -654,10 +652,11 @@ THREADED_TEST(DescriptorCallbackOnGlobalObject) {
     CHECK_EQ(1, descriptor_was_called);
 }
 
-bool get_was_called_in_order = false;
-bool define_was_called_in_order = false;
 
 namespace {
+
+bool get_was_called_in_order = false;
+bool define_was_called_in_order = false;
 
 void GetterCallbackOrder(Local<Name> property,
                          const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -698,6 +697,68 @@ THREADED_TEST(DefinerCallbackGetAndDefine) {
       .ToLocalChecked();
   CHECK_EQ(get_was_called_in_order, true);
   CHECK_EQ(define_was_called_in_order, true);
+}
+
+namespace {  //  namespace for InObjectLiteralDefinitionWithInterceptor
+
+// Workaround for no-snapshot builds: only intercept once Context::New() is
+// done, otherwise we'll intercept
+// bootstrapping like defining array on the global object.
+bool context_is_done = false;
+bool getter_callback_was_called = false;
+
+void ReturnUndefinedGetterCallback(
+    Local<Name> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  if (context_is_done) {
+    getter_callback_was_called = true;
+    info.GetReturnValue().SetUndefined();
+  }
+}
+
+}  // namespace
+
+// Check that an interceptor is not invoked during ES6 style definitions inside
+// an object literal.
+THREADED_TEST(InObjectLiteralDefinitionWithInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+
+  // Set up a context in which all global object definitions are intercepted.
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+  v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
+  object_template->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(ReturnUndefinedGetterCallback));
+  v8::Local<v8::Context> ctx =
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
+
+  context_is_done = true;
+
+  // The interceptor returns undefined for any global object,
+  // so setting a property on an object should throw.
+  v8::Local<v8::String> code = v8_str("var o = {}; o.x = 5");
+  {
+    getter_callback_was_called = false;
+    v8::TryCatch try_catch(CcTest::isolate());
+    CHECK(v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).IsEmpty());
+    CHECK(try_catch.HasCaught());
+    CHECK(getter_callback_was_called);
+  }
+
+  // Defining a property in the object literal should not throw
+  // because the interceptor is not invoked.
+  {
+    getter_callback_was_called = false;
+    v8::TryCatch try_catch(CcTest::isolate());
+    code = v8_str("var l = {x: 5};");
+    CHECK(v8::Script::Compile(ctx, code)
+              .ToLocalChecked()
+              ->Run(ctx)
+              .ToLocalChecked()
+              ->IsUndefined());
+    CHECK(!try_catch.HasCaught());
+    CHECK(!getter_callback_was_called);
+  }
 }
 
 THREADED_TEST(InterceptorHasOwnProperty) {
@@ -1954,8 +2015,9 @@ THREADED_TEST(PropertyDescriptorCallback) {
   }
 }
 
+namespace {
 int echo_indexed_call_count = 0;
-
+}  // namespace
 
 static void EchoIndexedProperty(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {

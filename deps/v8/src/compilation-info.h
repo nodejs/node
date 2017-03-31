@@ -49,7 +49,7 @@ class CompilationInfo final {
     kSourcePositionsEnabled = 1 << 13,
     kBailoutOnUninitialized = 1 << 14,
     kOptimizeFromBytecode = 1 << 15,
-    kTypeFeedbackEnabled = 1 << 16,
+    kLoopPeelingEnabled = 1 << 16,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -141,12 +141,6 @@ class CompilationInfo final {
     return GetFlag(kDeoptimizationEnabled);
   }
 
-  void MarkAsTypeFeedbackEnabled() { SetFlag(kTypeFeedbackEnabled); }
-
-  bool is_type_feedback_enabled() const {
-    return GetFlag(kTypeFeedbackEnabled);
-  }
-
   void MarkAsAccessorInliningEnabled() { SetFlag(kAccessorInliningEnabled); }
 
   bool is_accessor_inlining_enabled() const {
@@ -178,6 +172,10 @@ class CompilationInfo final {
   bool is_optimizing_from_bytecode() const {
     return GetFlag(kOptimizeFromBytecode);
   }
+
+  void MarkAsLoopPeelingEnabled() { SetFlag(kLoopPeelingEnabled); }
+
+  bool is_loop_peeling_enabled() const { return GetFlag(kLoopPeelingEnabled); }
 
   bool GeneratePreagedPrologue() const {
     // Generate a pre-aged prologue if we are optimizing for size, which

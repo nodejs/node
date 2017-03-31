@@ -53,19 +53,8 @@
   # Issue 3784: setters-on-elements is flaky
   'setters-on-elements': [PASS, FAIL],
 
-  # Issue 3641: The new 'then' semantics suppress some exceptions.
-  # These tests may be changed or removed when 'chain' is deprecated.
-  'es6/debug-promises/reject-with-throw-in-reject': [FAIL],
-  'es6/debug-promises/reject-with-undefined-reject': [FAIL],
-  'es6/debug-promises/reject-with-invalid-reject': [FAIL],
-
-  # Issue 5587: The eval'ed code is piped through Ignition and fails when being
-  # live edited. This needs investigation.
-  'debug-liveedit-double-call': [SKIP],
-
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
-  'regress/regress-2318': [PASS, ['mode == debug', SKIP]],
   'regress/regress-create-exception': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
@@ -154,7 +143,6 @@
 
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
-  'debug-scopes': [PASS, SLOW],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
@@ -174,6 +162,13 @@
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
+
+  # TODO(vogelheim): big-object-literal exceeds the stack in debug builds,
+  #                  which makes the test useless.
+  'big-object-literal': [PASS, ['mode == debug', SKIP]],
+
+  # BUG(v8:5807): Flaky data race.
+  'wasm/embenchen/fannkuch': [PASS, ['tsan', SKIP]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -200,12 +195,12 @@
   'opt-elements-kind': [SKIP],
   'osr-elements-kind': [SKIP],
   'regress/regress-crbug-137689': [SKIP],
+  'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
   'regress/regress-4121': [SKIP],
   'compare-known-objects-slow': [SKIP],
   # Tests taking too long
-  'mirror-object': [SKIP],
   'packed-elements': [SKIP],
   'regress/regress-1122': [SKIP],
   'regress/regress-331444': [SKIP],
@@ -215,10 +210,6 @@
   'stack-traces-overflow': [SKIP],
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
-
-  # Async function tests taking too long
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5411
-  'harmony/async-function-debug-scopes': [SKIP],
 
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
@@ -244,14 +235,14 @@
   'regress/regress-446389': [PASS, SLOW],
   'regress/regress-inline-getter-near-stack-limit': [PASS, SLOW],
 
-  # BUG(v8:3097)
-  'debug-references': [SKIP],
-
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
 
-  # BUG(chromium:664490)
-  'debug-scopes': [SKIP],
+  #BUG(v8:5683)
+  'wasm/import-memory': [SKIP],
+
+  # Crashes with WASM turned on by default on arm64 gc-stress
+  'regress/regress-500831': [PASS, ['arch == arm64', SKIP]],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -311,12 +302,10 @@
   'compiler/alloc-number': [PASS, SLOW],
   'compiler/osr-assert': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
-  'debug-scopes': [PASS, SLOW],
   'generated-transition-stub': [PASS, SLOW],
   'json2': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
-  'mirror-object': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
   'regress/regress-1122': [PASS, SLOW],
   'regress/regress-2185-2': [PASS, SLOW],
@@ -371,6 +360,9 @@
 
   # Too slow.
   'harmony/regexp-property-lu-ui': [SKIP],
+
+  # Flaky with baseline?
+  'regress/regress-2185-2': [SKIP],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -378,7 +370,6 @@
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
-  'debug-scripts-request': [PASS, ['mode == debug', SKIP]],
   'array-constructor': [PASS, ['mode == debug', SKIP]],
   'regress/regress-1122': [PASS, SLOW, ['mode == debug and arch == android_arm', SKIP]],
 
@@ -408,7 +399,6 @@
   # Slow tests.
   'array-sort': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
-  'mirror-object': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
   'regress/regress-2185-2': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
@@ -422,7 +412,6 @@
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
-  'debug-scripts-request': [PASS, ['mode == debug', SKIP]],
   'array-constructor': [PASS, ['mode == debug', SKIP]],
 
   # Times out often in release mode on MIPS.
@@ -430,7 +419,6 @@
   'array-splice': [PASS, TIMEOUT],
 
   # Long running test.
-  'mirror-object': [PASS, TIMEOUT],
   'string-indexof-2': [PASS, TIMEOUT],
 
   # Long running tests. Skipping because having them timeout takes too long on
@@ -450,17 +438,10 @@
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
-['arch == mips', {
-  # Flaky with TF.
-  'mirror-script': [PASS, NO_VARIANTS],
-}],  # 'arch == mips'
-
-##############################################################################
 ['arch == mips64el or arch == mips64', {
 
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
-  'debug-scripts-request': [PASS, ['mode == debug', SKIP]],
   'array-constructor': [PASS, ['mode == debug', SKIP]],
 
   # Times out often in release mode on MIPS.
@@ -468,7 +449,6 @@
   'array-splice': [PASS, TIMEOUT],
 
   # Long running test.
-  'mirror-object': [PASS, TIMEOUT],
   'string-indexof-2': [PASS, TIMEOUT],
 
   # BUG(3251035): Timeouts in long looping crankshaft optimization
@@ -505,6 +485,12 @@
   'math-floor-of-div-minus-zero': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
+['arch == x87', {
+   # The result produced by Gcc on linux platform is extended 80-bit double
+   # precision and not the expected standard 64-bit double precision.
+   'number-tostring-big-integer': [SKIP],
+}],  # 'arch == x87'
+
 ##############################################################################
 ['system == windows', {
   # TODO(mstarzinger): Too slow with turbo fan.
@@ -512,9 +498,6 @@
   'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
   'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
   'unicodelctest': [PASS, ['mode == debug', SKIP]],
-
-  # BUG(v8:3435)
-  'debug-script-breakpoints': [PASS, FAIL],
 
   # BUG(v8:4495).
   'es6/collections': [PASS, ['arch == ia32', FAST_VARIANTS]],
@@ -525,16 +508,6 @@
   # BUG(v8:5333)
   'big-object-literal': [SKIP],
 }],  # 'system == macos'
-
-##############################################################################
-['arch == s390 or arch == s390x', {
-
-  # Stack manipulations in LiveEdit is not implemented for this arch.
-  'debug-liveedit-check-stack': [SKIP],
-  'debug-liveedit-stack-padding': [SKIP],
-  'debug-liveedit-restart-frame': [SKIP],
-  'debug-liveedit-double-call': [SKIP],
-}],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
 ['deopt_fuzzer == True', {
@@ -563,13 +536,6 @@
   'shared-function-tier-up-ignition': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 
-  # Ongoing implementation of modules.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-  # The deopt fuzzer currently does not respect the 'variant != ignition' rule
-  # further down in this file, so we have to duplicate this here.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5374
-  'modules-*': [SKIP],
-
   # Fails deopt_fuzzer due to --deopt_every_n_times or
   # deopt_every_n_garbage_collections
   'es6/array-iterator-turbo': [SKIP]
@@ -581,6 +547,9 @@
   # Skip tests that are known to be non-deterministic.
   'd8-worker-sharedarraybuffer': [SKIP],
   'd8-os': [SKIP],
+
+  # crbug.com/v8/5803
+  'wasm/gc-frame': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
@@ -615,12 +584,6 @@
 ['variant == turbofan_opt', {
   'es6/array-iterator-turbo': [SKIP],
 
-  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
-  'debug-evaluate-locals': [FAIL],
-  'debug-set-variable-value': [FAIL],
-  'debug-liveedit-double-call': [FAIL],
-  'es6/debug-evaluate-blockscopes': [FAIL],
-
   # TODO(jgruber): Fails in --turbo --always-opt mode.
   'regress/regress-105': [FAIL],
 
@@ -630,35 +593,6 @@
   'unicode-test': [SKIP],
 
 }],  # variant == turbofan_opt
-
-##############################################################################
-['variant == ignition or variant == ignition_staging', {
-  # TODO(5587): fails to liveedit evaled code.
-  'debug-liveedit-double-call': [FAIL],
-}],  # variant == ignition
-
-##############################################################################
-['variant == ignition_turbofan', {
-  # TODO(5587): fails to liveedit evaled code.
-  'debug-liveedit-double-call': [FAIL],
-
-  # TODO(rmcilroy,titzer): Times out after
-  # https://codereview.chromium.org/1951013002 .
-  'regress/regress-599717': [PASS, ['tsan', SKIP]],
-
-  # TODO(jarin): No truncations on CheckFloat64Hole.
-  'getters-on-elements': [SKIP],
-
-  # TODO(rmcilroy): Flaky OOM.
-  'unicodelctest-no-optimization': [SKIP],
-}],  # variant == ignition_turbofan
-
-##############################################################################
-['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
-  # Ongoing implementation of modules.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-  'modules-*': [SKIP],
-}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
 
 ##############################################################################
 ['gcov_coverage', {
@@ -693,6 +627,24 @@
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
 }],  # variant == asm_wasm
+
+['variant == wasm_traps', {
+  # Skip stuff uninteresting for wasm traps
+  'bugs/*': [SKIP],
+  'compiler/*': [SKIP],
+  'es6/*': [SKIP],
+  'es7/*': [SKIP],
+  'es8/*': [SKIP],
+  'harmony/*': [SKIP],
+  'ignition/*': [SKIP],
+  'lithium/*': [SKIP],
+  'third_party/*': [SKIP],
+  'tools/*': [SKIP],
+  'apply': [SKIP],
+  'math-*': [SKIP],
+  'unicode-test': [SKIP],
+  'whitespaces': [SKIP],
+}],  # variant == wasm_traps
 
 ##############################################################################
 # This test allocates a 2G block of memory and if there are multiple

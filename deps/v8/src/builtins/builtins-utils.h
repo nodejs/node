@@ -8,10 +8,13 @@
 #include "src/arguments.h"
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
 
 namespace v8 {
 namespace internal {
+
+namespace compiler {
+class CodeAssemblerState;
+}
 
 // Arguments object passed to C++ builtins.
 class BuiltinArguments : public Arguments {
@@ -27,7 +30,7 @@ class BuiltinArguments : public Arguments {
     return Arguments::operator[](index);
   }
 
-  template <class S>
+  template <class S = Object>
   Handle<S> at(int index) {
     DCHECK_LT(index, length());
     return Arguments::at<S>(index);
@@ -102,6 +105,31 @@ class BuiltinArguments : public Arguments {
                                                      Isolate* isolate)
 
 // ----------------------------------------------------------------------------
+// Support macro for defining builtins with Turbofan.
+// ----------------------------------------------------------------------------
+//
+// A builtin function is defined by writing:
+//
+//   TF_BUILTIN(name, code_assember_base_class) {
+//     ...
+//   }
+//
+// In the body of the builtin function the arguments can be accessed
+// as "Parameter(n)".
+#define TF_BUILTIN(Name, AssemblerBase)                                 \
+  class Name##Assembler : public AssemblerBase {                        \
+   public:                                                              \
+    explicit Name##Assembler(compiler::CodeAssemblerState* state)       \
+        : AssemblerBase(state) {}                                       \
+    void Generate##NameImpl();                                          \
+  };                                                                    \
+  void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) { \
+    Name##Assembler assembler(state);                                   \
+    assembler.Generate##NameImpl();                                     \
+  }                                                                     \
+  void Name##Assembler::Generate##NameImpl()
+
+// ----------------------------------------------------------------------------
 
 #define CHECK_RECEIVER(Type, name, method)                                  \
   if (!args.receiver()->Is##Type()) {                                       \
@@ -117,8 +145,7 @@ class BuiltinArguments : public Arguments {
 // or converts the receiver to a String otherwise and assigns it to a new var
 // with the given {name}.
 #define TO_THIS_STRING(name, method)                                          \
-  if (args.receiver()->IsNull(isolate) ||                                     \
-      args.receiver()->IsUndefined(isolate)) {                                \
+  if (args.receiver()->IsNullOrUndefined(isolate)) {                          \
     THROW_NEW_ERROR_RETURN_FAILURE(                                           \
         isolate,                                                              \
         NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,               \

@@ -10,6 +10,7 @@ from testrunner.objects import testcase
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
+MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 
 class DebuggerTestSuite(testsuite.TestSuite):
 
@@ -54,6 +55,8 @@ class DebuggerTestSuite(testsuite.TestSuite):
     files.append(os.path.join(self.root, "test-api.js"))
     files.extend([ os.path.normpath(os.path.join(self.root, '..', '..', f))
                   for f in files_list ])
+    if MODULE_PATTERN.search(source):
+      files.append("--module")
     files.append(os.path.join(self.root, testcase.path + self.suffix()))
 
     flags += files
