@@ -19,26 +19,28 @@ proc.stdout.setEncoding('utf8');
 
 let stdout = '';
 
-let sentCommand = false;
+let hasPrompt = false;
 let sentList = false;
 let sentExit = false;
 
 proc.stdout.on('data', (data) => {
-  stdout += data;
-  if (!sentCommand && stdout.includes('> 1')) {
-    sentCommand = true;
-    return;
+  if (!hasPrompt && data.startsWith('> 1')) {
+    hasPrompt = true;
   }
 
-  if (!sentList) {
-    setImmediate(() => { proc.stdin.write('list(10)\n'); });
-    sentList = true;
-    return;
-  }
-  if (!sentExit && sentCommand && sentList) {
-    setImmediate(() => { proc.stdin.write('\n\n\n.exit\n\n\n'); });
-    sentExit = true;
-    return;
+  if (hasPrompt) {
+    stdout += data;
+    if (!sentList) {
+      setImmediate(() => { proc.stdin.write('list(10)\n'); });
+      sentList = true;
+      return;
+    }
+
+    if (!sentExit && sentList) {
+      setImmediate(() => { proc.stdin.write('\n\n\n.exit\n\n\n'); });
+      sentExit = true;
+      return;
+    }
   }
 });
 
