@@ -82,6 +82,9 @@ assert.strictEqual(util.inspect(Object.assign(new String('hello'),
                    { [Symbol('foo')]: 123 }), { showHidden: true }),
                    '{ [String: \'hello\'] [length]: 5, [Symbol(foo)]: 123 }');
 
+assert.strictEqual(util.inspect(process.stdin._handle._externalStream),
+                   '[External]');
+
 {
   const regexp = /regexp/;
   regexp.aprop = 42;
