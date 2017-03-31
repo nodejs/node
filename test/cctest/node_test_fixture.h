@@ -32,17 +32,27 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 struct Argv {
  public:
-  Argv(const char* prog, const char* arg1, const char* arg2) {
-    int prog_len = strlen(prog) + 1;
-    int arg1_len = strlen(arg1) + 1;
-    int arg2_len = strlen(arg2) + 1;
-    argv_ = static_cast<char**>(malloc(3 * sizeof(char*)));
-    argv_[0] = static_cast<char*>(malloc(prog_len + arg1_len + arg2_len));
-    snprintf(argv_[0], prog_len, "%s", prog);
-    snprintf(argv_[0] + prog_len, arg1_len, "%s", arg1);
-    snprintf(argv_[0] + prog_len + arg1_len, arg2_len, "%s", arg2);
-    argv_[1] = argv_[0] + prog_len;
-    argv_[2] = argv_[0] + prog_len + arg1_len;
+  Argv() : Argv({"node", "-p", "process.version"}) {}
+
+  Argv(const std::initializer_list<const char*> &args) {
+    int nrArgs = args.size();
+    int totalLen = 0;
+    for (auto it = args.begin(); it != args.end(); ++it) {
+      totalLen += strlen(*it) + 1;
+    }
+    argv_ = static_cast<char**>(malloc(nrArgs * sizeof(char*)));
+    argv_[0] = static_cast<char*>(malloc(totalLen));
+    int i = 0;
+    int offset = 0;
+    for (auto it = args.begin(); it != args.end(); ++it, ++i) {
+      int len = strlen(*it) + 1;
+      snprintf(argv_[0] + offset, len, "%s", *it);
+      // Skip argv_[0] as it points the correct location already
+      if (i > 0) {
+        argv_[i] = argv_[0] + offset;
+      }
+      offset += len;
+    }
   }
 
   ~Argv() {
