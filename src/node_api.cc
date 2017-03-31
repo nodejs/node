@@ -25,12 +25,16 @@ void napi_clear_last_error(napi_env env);
 
 class napi_env__ {
  public:
-  explicit napi_env__(v8::Isolate* _isolate): isolate(_isolate), last_error() {}
+  explicit napi_env__(v8::Isolate* _isolate): isolate(_isolate),
+      has_instance_available(true), last_error() {}
   ~napi_env__() {
     last_exception.Reset();
+    has_instance.Reset();
   }
   v8::Isolate* isolate;
   v8::Persistent<v8::Value> last_exception;
+  v8::Persistent<v8::Value> has_instance;
+  bool has_instance_available;
   napi_extended_error_info last_error;
 };
 
@@ -2158,28 +2162,43 @@ napi_status napi_instanceof(napi_env env,
     return napi_set_last_error(env, napi_function_expected);
   }
 
-  napi_value value, js_result;
-  napi_status status;
-  napi_valuetype value_type;
+  if (env->has_instance_available) {
+    napi_value value, js_result, has_instance = nullptr;
+    napi_status status;
+    napi_valuetype value_type;
 
-  // Get "Symbol" from the global object
-  status = napi_get_global(env, &value);
-  if (status != napi_ok) return status;
-  status = napi_get_named_property(env, value, "Symbol", &value);
-  if (status != napi_ok) return status;
-  status = napi_typeof(env, value, &value_type);
-  if (status != napi_ok) return status;
+    // Get "Symbol" from the global object
+    if (env->has_instance.IsEmpty()) {
+      status = napi_get_global(env, &value);
+      if (status != napi_ok) return status;
+      status = napi_get_named_property(env, value, "Symbol", &value);
+      if (status != napi_ok) return status;
+      status = napi_typeof(env, value, &value_type);
+      if (status != napi_ok) return status;
 
-  // Get "hasInstance" from Symbol
-  if (value_type == napi_function) {
-    status = napi_get_named_property(env, value, "hasInstance", &value);
-    if (status != napi_ok) return status;
-    status = napi_typeof(env, value, &value_type);
-    if (status != napi_ok) return status;
+      // Get "hasInstance" from Symbol
+      if (value_type == napi_function) {
+        status = napi_get_named_property(env, value, "hasInstance", &value);
+        if (status != napi_ok) return status;
+        status = napi_typeof(env, value, &value_type);
+        if (status != napi_ok) return status;
 
-    // Retrieve the function at the Symbol(hasInstance) key of the constructor
-    if (value_type == napi_symbol) {
-      status = napi_get_property(env, constructor, value, &value);
+        // Store Symbol.hasInstance in a global persistent reference
+        if (value_type == napi_symbol) {
+          env->has_instance.Reset(env->isolate,
+              v8impl::V8LocalValueFromJsValue(value));
+          if (status != napi_ok) return status;
+          has_instance = value;
+        }
+      }
+    } else {
+      has_instance = v8impl::JsValueFromV8LocalValue(
+          v8::Local<v8::Value>::New(env->isolate, env->has_instance));
+      if (status != napi_ok) return status;
+    }
+
+    if (has_instance) {
+      status = napi_get_property(env, constructor, has_instance, &value);
       if (status != napi_ok) return status;
       status = napi_typeof(env, value, &value_type);
       if (status != napi_ok) return status;
@@ -2193,6 +2212,8 @@ napi_status napi_instanceof(napi_env env,
         return napi_get_value_bool(env, js_result, result);
       }
     }
+
+    env->has_instance_available = false;
   }
 
   // If running constructor[Symbol.hasInstance](object) did not work, we perform
