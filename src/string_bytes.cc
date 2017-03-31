@@ -197,7 +197,7 @@ size_t hex_decode(char* buf,
     unsigned b = unhex(src[i * 2 + 1]);
     if (!~a || !~b)
       return i;
-    buf[i] = (a << 4) | b;
+    buf[i] = static_cast<char>((a << 4) | b);
   }
 
   return i;
@@ -515,7 +515,7 @@ static bool contains_non_ascii(const char* src, size_t len) {
 
 
 #if defined(_WIN64) || defined(_LP64)
-  const uintptr_t mask = 0x8080808080808080ll;
+  const uintptr_t mask = static_cast<uintptr_t>(0x8080808080808080ll);
 #else
   const uintptr_t mask = 0x80808080l;
 #endif

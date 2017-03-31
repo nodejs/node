@@ -393,7 +393,7 @@ void StreamBase::EmitData(ssize_t nread,
   Environment* env = env_;
 
   Local<Value> argv[] = {
-    Integer::New(env->isolate(), nread),
+    Integer::New(env->isolate(), static_cast<int32_t>(nread)),
     buf,
     handle
   };

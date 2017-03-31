@@ -1150,7 +1150,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value hostname(env->isolate(), args[1]);
 
   int32_t flags = (args[3]->IsInt32()) ? args[3]->Int32Value() : 0;
-  int family;
+  int family = 0;
 
   switch (args[2]->Int32Value()) {
   case 0:
@@ -1263,7 +1263,7 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
   ares_addr_node* servers = new ares_addr_node[len];
   ares_addr_node* last = nullptr;
 
-  int err;
+  int err = 0;
 
   for (uint32_t i = 0; i < len; i++) {
     CHECK(arr->Get(i)->IsArray());

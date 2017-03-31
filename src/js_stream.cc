@@ -115,7 +115,7 @@ void JSStream::New(const FunctionCallbackInfo<Value>& args) {
   // normal function.
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
-  JSStream* wrap;
+  JSStream* wrap = NULL;
 
   if (args.Length() == 0) {
     wrap = new JSStream(env, args.This(), nullptr);

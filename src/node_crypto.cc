@@ -3371,7 +3371,7 @@ void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
   const node::Utf8Value cipher_type(args.GetIsolate(), args[0]);
   const char* key_buf = Buffer::Data(args[1]);
   ssize_t key_buf_len = Buffer::Length(args[1]);
-  cipher->Init(*cipher_type, key_buf, key_buf_len);
+  cipher->Init(*cipher_type, key_buf, static_cast<int>(key_buf_len));
 }
 
 
@@ -3437,7 +3437,7 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
   const char* key_buf = Buffer::Data(args[1]);
   ssize_t iv_len = Buffer::Length(args[2]);
   const char* iv_buf = Buffer::Data(args[2]);
-  cipher->InitIv(*cipher_type, key_buf, key_len, iv_buf, iv_len);
+  cipher->InitIv(*cipher_type, key_buf, static_cast<int>(key_len), iv_buf, static_cast<int>(iv_len));
 }
 
 
@@ -4378,7 +4378,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   }
 
   bool verify_result;
-  Error err = verify->VerifyFinal(kbuf, klen, hbuf, hlen, &verify_result);
+  Error err = verify->VerifyFinal(kbuf, klen, hbuf, static_cast<int>(hlen), &verify_result);
   if (args[1]->IsString())
     delete[] hbuf;
   if (err != kSignOk)
@@ -4508,7 +4508,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
       reinterpret_cast<const unsigned char*>(buf),
       len,
       &out_value,
-      &out_len);
+      static_cast<int>(&out_len));
 
   if (out_len == 0 || !r) {
     delete[] out_value;

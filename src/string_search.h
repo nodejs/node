@@ -403,7 +403,7 @@ size_t StringSearch<Char>::BoyerMooreSearch(
                               static_cast<Char>(last_char));
     } else {
       int gs_shift = good_suffix_shift[j + 1];
-      int bc_occ = CharOccurrence(bad_char_occurrence, c);
+      int bc_occ = CharOccurrence(bad_char_occurrence, static_cast<uint8_t>(c));
       int shift = j - bc_occ;
       if (gs_shift > shift) {
         shift = gs_shift;

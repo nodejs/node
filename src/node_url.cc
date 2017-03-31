@@ -167,7 +167,7 @@ namespace url {
             }
             if (dots < 3 && ch != '.')
               goto end;
-            *piece_pointer = *piece_pointer * 0x100 + value;
+            *piece_pointer = static_cast<uint16_t>(*piece_pointer * 0x100 + value); //aitbenmouh possible loss data
             if (dots & 0x1)
               piece_pointer++;
             if (ch != kEOL) {
@@ -190,12 +190,12 @@ namespace url {
         default:
           goto end;
       }
-      *piece_pointer = value;
+      *piece_pointer = static_cast<uint16_t>(value);
       piece_pointer++;
     }
 
     if (compress_pointer != nullptr) {
-      swaps = piece_pointer - compress_pointer;
+      swaps = static_cast<int>(piece_pointer - compress_pointer);
       piece_pointer = last_piece - 1;
       while (piece_pointer != &host->value.ipv6[0] && swaps > 0) {
         uint16_t temp = *piece_pointer;
@@ -266,7 +266,7 @@ namespace url {
 
     while (pointer <= end) {
       const char ch = pointer < end ? pointer[0] : kEOL;
-      const int remaining = end - pointer - 1;
+      const int remaining = static_cast<const int>(end - pointer - 1);
       if (ch == '.' || ch == kEOL) {
         if (++parts > 4)
           goto end;
@@ -299,10 +299,10 @@ namespace url {
     }
 
     type = HOST_TYPE_IPV4;
-    val = numbers[parts - 1];
+    val = static_cast<uint32_t>(numbers[parts - 1]);
     for (int n = 0; n < parts - 1; n++) {
       double b = 3 - n;
-      val += numbers[n] * pow(256, b);
+      val += static_cast<uint32_t>(numbers[n] * pow(256, b));
     }
 
     host->value.ipv4 = val;

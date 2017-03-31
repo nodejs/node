@@ -2303,10 +2303,10 @@ void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   Local<ArrayBuffer> ab = array->Buffer();
   double* fields = static_cast<double*>(ab->GetContents().Data());
 
-  fields[0] = rss;
-  fields[1] = v8_heap_stats.total_heap_size();
-  fields[2] = v8_heap_stats.used_heap_size();
-  fields[3] = isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  fields[0] = static_cast<double>(rss);
+  fields[1] = static_cast<double>(v8_heap_stats.total_heap_size());
+  fields[2] = static_cast<double>(v8_heap_stats.used_heap_size());
+  fields[3] = static_cast<double>(isolate->AdjustAmountOfExternalAllocatedMemory(0)); //possible loss data
 }
 
 

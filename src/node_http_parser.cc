@@ -315,7 +315,7 @@ class Parser : public AsyncWrap {
       return -1;
     }
 
-    return head_response->IntegerValue();
+    return static_cast<int>(head_response->IntegerValue());
   }
 
 
@@ -339,7 +339,7 @@ class Parser : public AsyncWrap {
 
     Local<Value> argv[3] = {
       current_buffer_,
-      Integer::NewFromUnsigned(env()->isolate(), at - current_buffer_data_),
+      Integer::NewFromUnsigned(env()->isolate(), static_cast<uint32_t>(at - current_buffer_data_)),
       Integer::NewFromUnsigned(env()->isolate(), length)
     };
 

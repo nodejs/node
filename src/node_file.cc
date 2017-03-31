@@ -224,11 +224,11 @@ static void After(uv_fs_t *req) {
         break;
 
       case UV_FS_OPEN:
-        argv[1] = Integer::New(env->isolate(), req->result);
+        argv[1] = Integer::New(env->isolate(), static_cast<int32_t>(req->result)); //possible los of data
         break;
 
       case UV_FS_WRITE:
-        argv[1] = Integer::New(env->isolate(), req->result);
+        argv[1] = Integer::New(env->isolate(), static_cast<int32_t>(req->result));
         break;
 
       case UV_FS_MKDTEMP:
@@ -281,7 +281,7 @@ static void After(uv_fs_t *req) {
 
       case UV_FS_READ:
         // Buffer interface
-        argv[1] = Integer::New(env->isolate(), req->result);
+        argv[1] = Integer::New(env->isolate(), static_cast<int32_t>(req->result));
         break;
 
       case UV_FS_SCANDIR:
@@ -442,19 +442,19 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
 
 
 void FillStatsArray(double* fields, const uv_stat_t* s) {
-  fields[0] = s->st_dev;
-  fields[1] = s->st_mode;
-  fields[2] = s->st_nlink;
-  fields[3] = s->st_uid;
-  fields[4] = s->st_gid;
-  fields[5] = s->st_rdev;
+  fields[0] = static_cast<double>(s->st_dev);
+  fields[1] = static_cast<double>(s->st_mode);
+  fields[2] = static_cast<double>(s->st_nlink);
+  fields[3] = static_cast<double>(s->st_uid);
+  fields[4] = static_cast<double>(s->st_gid);
+  fields[5] = static_cast<double>(s->st_rdev);
 #if defined(__POSIX__)
   fields[6] = s->st_blksize;
 #else
   fields[6] = -1;
 #endif
-  fields[7] = s->st_ino;
-  fields[8] = s->st_size;
+  fields[7] = static_cast<double>(s->st_ino);
+  fields[8] = static_cast<double>(s->st_size);
 #if defined(__POSIX__)
   fields[9] = s->st_blocks;
 #else

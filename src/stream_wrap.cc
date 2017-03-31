@@ -251,9 +251,9 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle,
 
   if (nread > 0) {
     if (wrap->is_tcp()) {
-      NODE_COUNT_NET_BYTES_RECV(nread);
+      NODE_COUNT_NET_BYTES_RECV(static_cast<int>(nread));
     } else if (wrap->is_named_pipe()) {
-      NODE_COUNT_PIPE_BYTES_RECV(nread);
+      NODE_COUNT_PIPE_BYTES_RECV(static_cast<int>(nread));
     }
   }
 
