@@ -22,6 +22,7 @@ using v8::Value;
   V(isArrayBuffer, IsArrayBuffer)                                             \
   V(isDataView, IsDataView)                                                   \
   V(isDate, IsDate)                                                           \
+  V(isExternal, IsExternal)                                                   \
   V(isMap, IsMap)                                                             \
   V(isMapIterator, IsMapIterator)                                             \
   V(isPromise, IsPromise)                                                     \
