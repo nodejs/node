@@ -14,8 +14,9 @@ open source libraries in the world.
 The Node.js project is supported by the
 [Node.js Foundation](https://nodejs.org/en/foundation/). Contributions,
 policies, and releases are managed under an
-[open governance model](./GOVERNANCE.md). We are also bound by a
-[Code of Conduct](./CODE_OF_CONDUCT.md).
+[open governance model](./GOVERNANCE.md).
+
+**This project is bound by a [Code of Conduct][].**
 
 If you need help using or installing Node.js, please use the
 [nodejs/help](https://github.com/nodejs/help) issue tracker.
@@ -447,3 +448,4 @@ Information on the current Node.js Working Groups can be found in the
 [Node.js Moderation Policy]: https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md
 [#node.js on chat.freenode.net]: https://webchat.freenode.net?channels=node.js&uio=d4
 [#node-dev on chat.freenode.net]: https://webchat.freenode.net?channels=node-dev&uio=d4
+[Code of Conduct]: https://github.com/nodejs/TSC/blob/master/CODE_OF_CONDUCT.md
