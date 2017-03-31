@@ -118,3 +118,12 @@ const objects = [
   assert.deepStrictEqual(buf, ser.releaseBuffer());
   assert.strictEqual(des.getWireFormatVersion(), 0x0d);
 }
+
+{
+  // Unaligned Uint16Array read, with padding in the underlying array buffer.
+  let buf = Buffer.alloc(32 + 9);
+  buf.write('ff0d5c0404addeefbe', 32, 'hex');
+  buf = buf.slice(32);
+  assert.deepStrictEqual(v8.deserialize(buf),
+                         new Uint16Array([0xdead, 0xbeef]));
+}
