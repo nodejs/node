@@ -245,4 +245,25 @@ assert.throws(() =>
   assertNotDeepOrStrict(m1, m2);
 }
 
+{
+  // Circular references.
+  const s1 = new Set();
+  s1.add(s1);
+  const s2 = new Set();
+  s2.add(s2);
+  assertDeepAndStrictEqual(s1, s2);
+
+  const m1 = new Map();
+  m1.set(2, m1);
+  const m2 = new Map();
+  m2.set(2, m2);
+  assertDeepAndStrictEqual(m1, m2);
+
+  const m3 = new Map();
+  m3.set(m3, 2);
+  const m4 = new Map();
+  m4.set(m4, 2);
+  assertDeepAndStrictEqual(m3, m4);
+}
+
 /* eslint-enable */
