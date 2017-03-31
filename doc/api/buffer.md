@@ -54,8 +54,8 @@ differently based on what arguments are provided:
 * Passing a number as the first argument to `Buffer()` (e.g. `new Buffer(10)`),
   allocates a new `Buffer` object of the specified size. Prior to Node.js 8.0.0,
   the memory allocated for such `Buffer` instances is *not* initialized and
-  *can contain sensitive data*. Such `Buffer` instances *must* be initialized
-  *manually* by using either [`buf.fill(0)`][`buf.fill()`] or by writing to the
+  *can contain sensitive data*. Such `Buffer` instances *must* be subsequently
+  initialized by using either [`buf.fill(0)`][`buf.fill()`] or by writing to the
   `Buffer` completely. While this behavior is *intentional* to improve
   performance, development experience has demonstrated that a more explicit
   distinction is required between creating a fast-but-uninitialized `Buffer`
@@ -452,7 +452,7 @@ A zero-length `Buffer` will be created if `size` is 0.
 
 Prior to Node.js 8.0.0, the underlying memory for `Buffer` instances
 created in this way is *not initialized*. The contents of a newly created
-`Buffer` are unknown and *could contain sensitive data*. Use
+`Buffer` are unknown and *may contain sensitive data*. Use
 [`Buffer.alloc(size)`][`Buffer.alloc()`] instead to initialize a `Buffer`
 to zeroes.
 
@@ -461,7 +461,7 @@ Example:
 ```js
 const buf = new Buffer(10);
 
-// Prints: (contents may vary): <Buffer 00 00 00 00 00 00 00 00 00 00>
+// Prints: <Buffer 00 00 00 00 00 00 00 00 00 00>
 console.log(buf);
 ```
 
@@ -2597,7 +2597,7 @@ Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
 A zero-length `Buffer` will be created if `size` is 0.
 
 The underlying memory for `SlowBuffer` instances is *not initialized*. The
-contents of a newly created `SlowBuffer` are unknown and could contain
+contents of a newly created `SlowBuffer` are unknown and may contain
 sensitive data. Use [`buf.fill(0)`][`buf.fill()`] to initialize a `SlowBuffer` to zeroes.
 
 Example:
