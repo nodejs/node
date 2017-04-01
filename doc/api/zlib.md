@@ -86,31 +86,57 @@ request.on('response', (response) => {
 });
 
 // server example
-// Running a gzip operation on every request is quite expensive.
-// It would be much more efficient to cache the compressed buffer.
+// read file, compress to buffers, cache buffers, start server when ready
 const zlib = require('zlib');
 const http = require('http');
 const fs = require('fs');
-http.createServer((request, response) => {
-  var raw = fs.createReadStream('index.html');
-  var acceptEncoding = request.headers['accept-encoding'];
-  if (!acceptEncoding) {
-    acceptEncoding = '';
-  }
+const path = require('path');
+const EventEmitter = require('events');
+const ee = new EventEmitter();
 
-  // Note: this is not a conformant accept-encoding parser.
-  // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
-  if (acceptEncoding.match(/\bdeflate\b/)) {
-    response.writeHead(200, { 'Content-Encoding': 'deflate' });
-    raw.pipe(zlib.createDeflate()).pipe(response);
-  } else if (acceptEncoding.match(/\bgzip\b/)) {
-    response.writeHead(200, { 'Content-Encoding': 'gzip' });
-    raw.pipe(zlib.createGzip()).pipe(response);
-  } else {
-    response.writeHead(200, {});
-    raw.pipe(response);
-  }
-}).listen(1337);
+let deflated = null;
+let gzipped = null;
+let raw = null;
+
+fs.readFile(path.resolve(__dirname, './index.html'), (err, buf) => {
+  if (err) throw err;
+
+  raw = buf;
+
+  zlib.deflate(buf, (err, result) => {
+    if (err) throw err;
+    deflated = result
+
+    zlib.gzip(buf, (err, result) => {
+      if (err) throw err;
+      gzipped = result;
+
+      ee.emit('ready');
+    })
+  })
+});
+
+ee.on('ready', () => {
+  http.createServer((request, response) => {
+    var acceptEncoding = request.headers['accept-encoding'];
+    if (!acceptEncoding) {
+      acceptEncoding = '';
+    }
+    // Note: this is not a conformant accept-encoding parser.
+    // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
+    if (acceptEncoding.match(/\bdeflate\b/)) {
+      response.writeHead(200, { 'Content-Encoding': 'deflate' });
+      response.write(deflated);
+    } else if (acceptEncoding.match(/\bgzip\b/)) {
+      response.writeHead(200, { 'Content-Encoding': 'gzip' });
+      response.write(gzipped);
+    } else {
+      response.writeHead(200, {});
+      response.write(raw);
+    }
+    return response.end();
+  }).listen(1337);
+});
 ```
 
 By default, the `zlib` methods will throw an error when decompressing
