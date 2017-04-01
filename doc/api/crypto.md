@@ -964,6 +964,10 @@ console.log(sign.sign(privateKey).toString('hex'));
 ### sign.sign(private_key[, output_format])
 <!-- YAML
 added: v0.1.92
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11705
+	description: Support for RSASSA-PSS and additional options was added.
 -->
 - `private_key` {string | Object}
   - `key` {string}
@@ -975,10 +979,21 @@ Calculates the signature on all the data passed through using either
 
 The `private_key` argument can be an object or a string. If `private_key` is a
 string, it is treated as a raw key with no passphrase. If `private_key` is an
-object, it is interpreted as a hash containing two properties:
+object, it must contain one or more of the following properties:
 
-* `key`: {string} - PEM encoded private key
+* `key`: {string} - PEM encoded private key (required)
 * `passphrase`: {string} - passphrase for the private key
+* `padding`: {integer} - Optional padding value for RSA, one of the following:
+  * `crypto.constants.RSA_PKCS1_PADDING` (default)
+  * `crypto.constants.RSA_PKCS1_PSS_PADDING`
+
+  Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
+  used to sign the message as specified in section 3.1 of [RFC 4055][].
+* `saltLength`: {integer} - salt length for when padding is
+  `RSA_PKCS1_PSS_PADDING`. The special value
+  `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
+  size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
+  maximum permissible value.
 
 The `output_format` can specify one of `'latin1'`, `'hex'` or `'base64'`. If
 `output_format` is provided a string is returned; otherwise a [`Buffer`][] is
@@ -1073,14 +1088,33 @@ This can be called many times with new data as it is streamed.
 ### verifier.verify(object, signature[, signature_format])
 <!-- YAML
 added: v0.1.92
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11705
+	description: Support for RSASSA-PSS and additional options was added.
 -->
-- `object` {string}
+- `object` {string | Object}
 - `signature` {string | Buffer | Uint8Array}
 - `signature_format` {string}
 
 Verifies the provided data using the given `object` and `signature`.
-The `object` argument is a string containing a PEM encoded object, which can be
-an RSA public key, a DSA public key, or an X.509 certificate.
+The `object` argument can be either a string containing a PEM encoded object,
+which can be an RSA public key, a DSA public key, or an X.509 certificate,
+or an object with one or more of the following properties:
+
+* `key`: {string} - PEM encoded private key (required)
+* `padding`: {integer} - Optional padding value for RSA, one of the following:
+  * `crypto.constants.RSA_PKCS1_PADDING` (default)
+  * `crypto.constants.RSA_PKCS1_PSS_PADDING`
+
+  Note that `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
+  used to verify the message as specified in section 3.1 of [RFC 4055][].
+* `saltLength`: {integer} - salt length for when padding is
+  `RSA_PKCS1_PSS_PADDING`. The special value
+  `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
+  size, `crypto.constants.RSA_PSS_SALTLEN_AUTO` (default) causes it to be
+  determined automatically.
+
 The `signature` argument is the previously calculated signature for the data, in
 the `signature_format` which can be `'latin1'`, `'hex'` or `'base64'`.
 If a `signature_format` is specified, the `signature` is expected to be a
@@ -2048,6 +2082,21 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
     <td></td>
   </tr>
   <tr>
+    <td><code>RSA_PSS_SALTLEN_DIGEST</code></td>
+    <td>Sets the salt length for `RSA_PKCS1_PSS_PADDING` to the digest size
+        when signing or verifying.</td>
+  </tr>
+  <tr>
+    <td><code>RSA_PSS_SALTLEN_MAX_SIGN</code></td>
+    <td>Sets the salt length for `RSA_PKCS1_PSS_PADDING` to the maximum
+        permissible value when signing data.</td>
+  </tr>
+  <tr>
+    <td><code>RSA_PSS_SALTLEN_AUTO</code></td>
+    <td>Causes the salt length for `RSA_PKCS1_PSS_PADDING` to be determined
+        automatically when verifying a signature.</td>
+  </tr>
+  <tr>
     <td><code>POINT_CONVERSION_COMPRESSED</code></td>
     <td></td>
   </tr>
@@ -2122,6 +2171,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
+[RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
 [stream]: stream.html
 [stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
 [Crypto Constants]: #crypto_crypto_constants_1
