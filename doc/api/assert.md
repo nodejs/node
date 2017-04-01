@@ -123,7 +123,7 @@ Generally identical to `assert.deepEqual()` with three exceptions:
 
 1. Primitive values are compared using the [Strict Equality Comparison][]
   ( `===` ). Set values and Map keys are compared using the [SameValueZero][]
-  comparison. (Which means they are free of the [Caveats][]).
+  comparison. (Which means they are free of the [caveats][]).
 2. [`[[Prototype]]`][prototype-spec] of objects are compared using
   the [Strict Equality Comparison][] too.
 3. [Type tags][Object.prototype.toString()] of objects should be the same.
@@ -586,6 +586,7 @@ For more information, see
 [`assert.ok()`]: #assert_assert_ok_value_message
 [`assert.throws()`]: #assert_assert_throws_block_error_message
 [`Error`]: errors.html#errors_class_error
+[caveats]: #assert_caveats
 [`RegExp`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions
 [`TypeError`]: errors.html#errors_class_typeerror
 [Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
