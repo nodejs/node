@@ -80,7 +80,7 @@ function client() {
       chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
-      chunk = new Array(len / 2 + 1).join('ü');
+      chunk = new Array(len >> 1 + 1).join('ü');
       break;
     case 'asc':
       chunk = new Array(len + 1).join('x');
