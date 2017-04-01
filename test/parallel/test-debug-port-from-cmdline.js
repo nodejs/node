@@ -24,7 +24,18 @@ child.stderr.on('data', function(data) {
 
 child.on('message', function onChildMsg(message) {
   if (message.msg === 'childready') {
-    process._debugProcess(child.pid);
+    try {
+      process._debugProcess(child.pid);
+    } catch (e) {
+      if (common.isWindows && (e.message ===
+            'Not enough storage is available to process this command.' ||
+            e.message === 'Access is denied.')) {
+        child.kill();
+        console.log('Encountered IRPStackSize bug on win32, ignoring test');
+        return process.exit();
+      }
+      throw e;
+    }
   }
 });
 
