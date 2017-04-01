@@ -129,6 +129,6 @@ syntaxArgs.forEach(function(args) {
       '--check and --eval flags are mutually exclusive.\n'
     );
 
-    assert.strictEqual(c.status, 9, 'code == ' + c.status);
+    assert.strictEqual(c.status, 9, 'code === ' + c.status);
   });
 });
