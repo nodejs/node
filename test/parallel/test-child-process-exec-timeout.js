@@ -18,7 +18,13 @@ const cmd = `${process.execPath} ${__filename} child`;
 cp.exec(cmd, { timeout: 1 }, common.mustCall((err, stdout, stderr) => {
   assert.strictEqual(err.killed, true);
   assert.strictEqual(err.code, null);
-  assert.strictEqual(err.signal, 'SIGTERM');
+  // At least starting with Darwin Kernel Version 16.4.0, sending a SIGTERM to a
+  // process that is still starting up kills it with SIGKILL instead of SIGTERM.
+  // See: https://github.com/libuv/libuv/issues/1226
+  if (common.isOSX)
+    assert.ok(err.signal === 'SIGTERM' || err.signal === 'SIGKILL');
+  else
+    assert.strictEqual(err.signal, 'SIGTERM');
   assert.strictEqual(err.cmd, cmd);
   assert.strictEqual(stdout.trim(), '');
   assert.strictEqual(stderr.trim(), '');
