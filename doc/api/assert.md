@@ -40,7 +40,7 @@ Only [enumerable "own" properties][] are considered. The
 [`assert.deepEqual()`][] implementation does not test the
 [`[[Prototype]]`][prototype-spec] of objects, attached symbols, or
 non-enumerable properties — for such checks, consider using
-[assert.deepStrictEqual()][] instead. This can lead to some
+[`assert.deepStrictEqual()`][] instead. This can lead to some
 potentially surprising results. For example, the following example does not
 throw an `AssertionError` because the properties on the [`Error`][] object are
 not enumerable:
@@ -49,6 +49,9 @@ not enumerable:
 // WARNING: This does not throw an AssertionError!
 assert.deepEqual(Error('a'), Error('b'));
 ```
+
+An exception is made for [`Map`][] and [`Set`][]. Maps and Sets have their
+contained items compared too, as expected.
 
 "Deep" equality means that the enumerable "own" properties of child objects
 are evaluated also:
@@ -146,6 +149,21 @@ assert.deepEqual(date, fakeDate);
 assert.deepStrictEqual(date, fakeDate);
 // AssertionError: 2017-03-11T14:25:31.849Z deepStrictEqual Date {}
 // Different type tags
+```
+
+An exception is made to the strict equality comparison rule for [`Map`][] keys
+and [`Set`][] items. These tests also inherit the rules of `Set.prototype.has`
+and `Map.prototype.has`, which differs from strict equality comparison in
+also allowing NaN to be considered equal to itself:
+
+```js
+assert.deepStrictEqual(NaN, NaN);
+// AssertionError: NaN deepStrictEqual NaN
+// because NaN !== NaN
+
+// But this is ok:
+assert.deepStrictEqual(new Set([NaN]), new Set([NaN]));
+assert.deepStrictEqual(new Map([[NaN, 1]]), new Map([[NaN, 1]]));
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
@@ -580,6 +598,8 @@ For more information, see
 [`TypeError`]: errors.html#errors_class_typeerror
 [Abstract Equality Comparison]: https://tc39.github.io/ecma262/#sec-abstract-equality-comparison
 [Strict Equality Comparison]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
+[`Map`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map
+[`Set`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Set
 [`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
 [SameValueZero]: https://tc39.github.io/ecma262/#sec-samevaluezero
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
