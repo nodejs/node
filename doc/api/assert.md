@@ -20,7 +20,7 @@ added: v0.1.21
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: Sets and Maps are handled correctly.
+    description: Set and Map content is also compared
   - version: v6.4.0, v4.7.1
     pr-url: https://github.com/nodejs/node/pull/8002
     description: Typed array slices are handled correctly now.
@@ -104,7 +104,7 @@ added: v1.2.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/12142
-    description: Sets and Maps are handled correctly.
+    description: Set and Map content is also compared
   - version: v6.4.0, v4.7.1
     pr-url: https://github.com/nodejs/node/pull/8002
     description: Typed array slices are handled correctly now.
@@ -122,7 +122,8 @@ changes:
 Generally identical to `assert.deepEqual()` with three exceptions:
 
 1. Primitive values are compared using the [Strict Equality Comparison][]
-  ( `===` ).
+  ( `===` ). Set values and Map keys are compared using the [SameValueZero][]
+  comparison. (Which means they are free of the [Caveats][]).
 2. [`[[Prototype]]`][prototype-spec] of objects are compared using
   the [Strict Equality Comparison][] too.
 3. [Type tags][Object.prototype.toString()] of objects should be the same.
@@ -155,21 +156,6 @@ assert.deepEqual(date, fakeDate);
 assert.deepStrictEqual(date, fakeDate);
 // AssertionError: 2017-03-11T14:25:31.849Z deepStrictEqual Date {}
 // Different type tags
-```
-
-An exception is made to the strict equality comparison rule for [`Map`][] keys
-and [`Set`][] items. These tests also inherit the rules of `Set.prototype.has`
-and `Map.prototype.has`, which differs from strict equality comparison in
-also allowing NaN to be considered equal to itself:
-
-```js
-assert.deepStrictEqual(NaN, NaN);
-// AssertionError: NaN deepStrictEqual NaN
-// because NaN !== NaN
-
-// But this is ok:
-assert.deepStrictEqual(new Set([NaN]), new Set([NaN]));
-assert.deepStrictEqual(new Map([[NaN, 1]]), new Map([[NaN, 1]]));
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
