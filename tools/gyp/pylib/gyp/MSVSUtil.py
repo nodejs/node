@@ -14,6 +14,7 @@ TARGET_TYPE_EXT = {
   'loadable_module': 'dll',
   'shared_library': 'dll',
   'static_library': 'lib',
+  'windows_driver': 'sys',
 }
 
 
@@ -110,7 +111,7 @@ def ShardTargets(target_list, target_dicts):
     else:
       new_target_dicts[t] = target_dicts[t]
   # Shard dependencies.
-  for t in new_target_dicts:
+  for t in sorted(new_target_dicts):
     for deptype in ('dependencies', 'dependencies_original'):
       dependencies = copy.copy(new_target_dicts[t].get(deptype, []))
       new_dependencies = []

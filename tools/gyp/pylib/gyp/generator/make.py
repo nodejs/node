@@ -1587,7 +1587,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       for link_dep in link_deps:
         assert ' ' not in link_dep, (
             "Spaces in alink input filenames not supported (%s)"  % link_dep)
-      if (self.flavor not in ('mac', 'openbsd', 'win') and not
+      if (self.flavor not in ('mac', 'openbsd', 'netbsd', 'win') and not
           self.is_standalone_static_library):
         self.WriteDoCmd([self.output_binary], link_deps, 'alink_thin',
                         part_of_all, postbuilds=postbuilds)
@@ -2054,6 +2054,11 @@ def GenerateOutput(target_list, target_dicts, data, params):
     # Note: OpenBSD has sysutils/flock. lockf seems to be FreeBSD specific.
     header_params.update({
         'flock': 'lockf',
+    })
+  elif flavor == 'openbsd':
+    copy_archive_arguments = '-pPRf'
+    header_params.update({
+        'copy_archive_args': copy_archive_arguments,
     })
   elif flavor == 'aix':
     copy_archive_arguments = '-pPRf'

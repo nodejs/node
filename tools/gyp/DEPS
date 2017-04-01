@@ -3,8 +3,7 @@
 # (You don't need to use gclient for normal GYP development work.)
 
 vars = {
-  "chrome_trunk": "http://src.chromium.org/svn/trunk",
-  "googlecode_url": "http://%s.googlecode.com/svn",
+  "chromium_git": "https://chromium.googlesource.com/",
 }
 
 deps = {
@@ -13,12 +12,12 @@ deps = {
 deps_os = {
   "win": {
     "third_party/cygwin":
-      Var("chrome_trunk") + "/deps/third_party/cygwin@66844",
+      Var("chromium_git") + "chromium/deps/cygwin@4fbd5b9",
 
     "third_party/python_26":
-      Var("chrome_trunk") + "/tools/third_party/python_26@89111",
+      Var("chromium_git") + "chromium/deps/python_26@5bb4080",
 
     "src/third_party/pefile":
-      (Var("googlecode_url") % "pefile") + "/trunk@63",
+       Var("chromium_git") + "external/pefile@72c6ae4",
   },
 }

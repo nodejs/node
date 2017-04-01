@@ -7,23 +7,59 @@ This script is intended for use as a GYP_GENERATOR. It takes as input (by way of
 the generator flag config_path) the path of a json file that dictates the files
 and targets to search for. The following keys are supported:
 files: list of paths (relative) of the files to search for.
-targets: list of targets to search for. The target names are unqualified.
+test_targets: unqualified target names to search for. Any target in this list
+that depends upon a file in |files| is output regardless of the type of target
+or chain of dependencies.
+additional_compile_targets: Unqualified targets to search for in addition to
+test_targets. Targets in the combined list that depend upon a file in |files|
+are not necessarily output. For example, if the target is of type none then the
+target is not output (but one of the descendants of the target will be).
 
 The following is output:
 error: only supplied if there is an error.
-targets: the set of targets passed in via targets that either directly or
-  indirectly depend upon the set of paths supplied in files.
-build_targets: minimal set of targets that directly depend on the changed
-  files and need to be built. The expectation is this set of targets is passed
-  into a build step.
+compile_targets: minimal set of targets that directly or indirectly (for
+  targets of type none) depend on the files in |files| and is one of the
+  supplied targets or a target that one of the supplied targets depends on.
+  The expectation is this set of targets is passed into a build step. This list
+  always contains the output of test_targets as well.
+test_targets: set of targets from the supplied |test_targets| that either
+  directly or indirectly depend upon a file in |files|. This list if useful
+  if additional processing needs to be done for certain targets after the
+  build, such as running tests.
 status: outputs one of three values: none of the supplied files were found,
   one of the include files changed so that it should be assumed everything
-  changed (in this case targets and build_targets are not output) or at
+  changed (in this case test_targets and compile_targets are not output) or at
   least one file was found.
-invalid_targets: list of supplied targets thare were not found.
+invalid_targets: list of supplied targets that were not found.
+
+Example:
+Consider a graph like the following:
+  A     D
+ / \
+B   C
+A depends upon both B and C, A is of type none and B and C are executables.
+D is an executable, has no dependencies and nothing depends on it.
+If |additional_compile_targets| = ["A"], |test_targets| = ["B", "C"] and
+files = ["b.cc", "d.cc"] (B depends upon b.cc and D depends upon d.cc), then
+the following is output:
+|compile_targets| = ["B"] B must built as it depends upon the changed file b.cc
+and the supplied target A depends upon it. A is not output as a build_target
+as it is of type none with no rules and actions.
+|test_targets| = ["B"] B directly depends upon the change file b.cc.
+
+Even though the file d.cc, which D depends upon, has changed D is not output
+as it was not supplied by way of |additional_compile_targets| or |test_targets|.
 
 If the generator flag analyzer_output_path is specified, output is written
 there. Otherwise output is written to stdout.
+
+In Gyp the "all" target is shorthand for the root targets in the files passed
+to gyp. For example, if file "a.gyp" contains targets "a1" and
+"a2", and file "b.gyp" contains targets "b1" and "b2" and "a2" has a dependency
+on "b2" and gyp is supplied "a.gyp" then "all" consists of "a1" and "a2".
+Notice that "b1" and "b2" are not in the "all" target as "b.gyp" was not
+directly supplied to gyp. OTOH if both "a.gyp" and "b.gyp" are supplied to gyp
+then the "all" target includes "b1" and "b2".
 """
 
 import gyp.common
@@ -210,6 +246,8 @@ class Config(object):
   def __init__(self):
     self.files = []
     self.targets = set()
+    self.additional_compile_target_names = set()
+    self.test_target_names = set()
 
   def Init(self, params):
     """Initializes Config. This is a separate method as it raises an exception
@@ -229,7 +267,9 @@ class Config(object):
     if not isinstance(config, dict):
       raise Exception('config_path must be a JSON file containing a dictionary')
     self.files = config.get('files', [])
-    self.targets = set(config.get('targets', []))
+    self.additional_compile_target_names = set(
+      config.get('additional_compile_targets', []))
+    self.test_target_names = set(config.get('test_targets', []))
 
 
 def _WasBuildFileModified(build_file, data, files, toplevel_dir):
@@ -280,12 +320,13 @@ def _GenerateTargets(data, target_list, target_dicts, toplevel_dir, files,
   """Returns a tuple of the following:
   . A dictionary mapping from fully qualified name to Target.
   . A list of the targets that have a source file in |files|.
-  . Set of root Targets reachable from the the files |build_files|.
+  . Targets that constitute the 'all' target. See description at top of file
+    for details on the 'all' target.
   This sets the |match_status| of the targets that contain any of the source
   files in |files| to MATCH_STATUS_MATCHES.
   |toplevel_dir| is the root of the source tree."""
   # Maps from target name to Target.
-  targets = {}
+  name_to_target = {}
 
   # Targets that matched.
   matching_targets = []
@@ -305,7 +346,8 @@ def _GenerateTargets(data, target_list, target_dicts, toplevel_dir, files,
 
   while len(targets_to_visit) > 0:
     target_name = targets_to_visit.pop()
-    created_target, target = _GetOrCreateTargetByName(targets, target_name)
+    created_target, target = _GetOrCreateTargetByName(name_to_target,
+                                                      target_name)
     if created_target:
       roots.add(target)
     elif target.visited:
@@ -348,22 +390,25 @@ def _GenerateTargets(data, target_list, target_dicts, toplevel_dir, files,
     for dep in target_dicts[target_name].get('dependencies', []):
       targets_to_visit.append(dep)
 
-      created_dep_target, dep_target = _GetOrCreateTargetByName(targets, dep)
+      created_dep_target, dep_target = _GetOrCreateTargetByName(name_to_target,
+                                                                dep)
       if not created_dep_target:
         roots.discard(dep_target)
 
       target.deps.add(dep_target)
       dep_target.back_deps.add(target)
 
-  return targets, matching_targets, roots & build_file_targets
+  return name_to_target, matching_targets, roots & build_file_targets
 
 
 def _GetUnqualifiedToTargetMapping(all_targets, to_find):
-  """Returns a mapping (dictionary) from unqualified name to Target for all the
-  Targets in |to_find|."""
+  """Returns a tuple of the following:
+  . mapping (dictionary) from unqualified name to Target for all the
+    Targets in |to_find|.
+  . any target names not found. If this is empty all targets were found."""
   result = {}
   if not to_find:
-    return result
+    return {}, []
   to_find = set(to_find)
   for target_name in all_targets.keys():
     extracted = gyp.common.ParseQualifiedTarget(target_name)
@@ -371,13 +416,14 @@ def _GetUnqualifiedToTargetMapping(all_targets, to_find):
       to_find.remove(extracted[1])
       result[extracted[1]] = all_targets[target_name]
       if not to_find:
-        return result
-  return result
+        return result, []
+  return result, [x for x in to_find]
 
 
-def _DoesTargetDependOn(target):
-  """Returns true if |target| or any of its dependencies matches the supplied
-  set of paths. This updates |matches| of the Targets as it recurses.
+def _DoesTargetDependOnMatchingTargets(target):
+  """Returns true if |target| or any of its dependencies is one of the
+  targets containing the files supplied as input to analyzer. This updates
+  |matches| of the Targets as it recurses.
   target: the Target to look for."""
   if target.match_status == MATCH_STATUS_DOESNT_MATCH:
     return False
@@ -385,7 +431,7 @@ def _DoesTargetDependOn(target):
       target.match_status == MATCH_STATUS_MATCHES_BY_DEPENDENCY:
     return True
   for dep in target.deps:
-    if _DoesTargetDependOn(dep):
+    if _DoesTargetDependOnMatchingTargets(dep):
       target.match_status = MATCH_STATUS_MATCHES_BY_DEPENDENCY
       print '\t', target.name, 'matches by dep', dep.name
       return True
@@ -393,19 +439,20 @@ def _DoesTargetDependOn(target):
   return False
 
 
-def _GetTargetsDependingOn(possible_targets):
+def _GetTargetsDependingOnMatchingTargets(possible_targets):
   """Returns the list of Targets in |possible_targets| that depend (either
-  directly on indirectly) on the matched targets.
+  directly on indirectly) on at least one of the targets containing the files
+  supplied as input to analyzer.
   possible_targets: targets to search from."""
   found = []
   print 'Targets that matched by dependency:'
   for target in possible_targets:
-    if _DoesTargetDependOn(target):
+    if _DoesTargetDependOnMatchingTargets(target):
       found.append(target)
   return found
 
 
-def _AddBuildTargets(target, roots, add_if_no_ancestor, result):
+def _AddCompileTargets(target, roots, add_if_no_ancestor, result):
   """Recurses through all targets that depend on |target|, adding all targets
   that need to be built (and are in |roots|) to |result|.
   roots: set of root targets.
@@ -416,10 +463,10 @@ def _AddBuildTargets(target, roots, add_if_no_ancestor, result):
     return
 
   target.visited = True
-  target.in_roots = not target.back_deps and target in roots
+  target.in_roots = target in roots
 
   for back_dep_target in target.back_deps:
-    _AddBuildTargets(back_dep_target, roots, False, result)
+    _AddCompileTargets(back_dep_target, roots, False, result)
     target.added_to_compile_targets |= back_dep_target.added_to_compile_targets
     target.in_roots |= back_dep_target.in_roots
     target.is_or_has_linked_ancestor |= (
@@ -437,7 +484,7 @@ def _AddBuildTargets(target, roots, add_if_no_ancestor, result):
           (add_if_no_ancestor or target.requires_build)) or
          (target.is_static_library and add_if_no_ancestor and
           not target.is_or_has_linked_ancestor)):
-    print '\t\tadding to build targets', target.name, 'executable', \
+    print '\t\tadding to compile targets', target.name, 'executable', \
            target.is_executable, 'added_to_compile_targets', \
            target.added_to_compile_targets, 'add_if_no_ancestor', \
            add_if_no_ancestor, 'requires_build', target.requires_build, \
@@ -447,14 +494,14 @@ def _AddBuildTargets(target, roots, add_if_no_ancestor, result):
     target.added_to_compile_targets = True
 
 
-def _GetBuildTargets(matching_targets, roots):
+def _GetCompileTargets(matching_targets, supplied_targets):
   """Returns the set of Targets that require a build.
   matching_targets: targets that changed and need to be built.
-  roots: set of root targets in the build files to search from."""
+  supplied_targets: set of targets supplied to analyzer to search from."""
   result = set()
   for target in matching_targets:
-    print '\tfinding build targets for match', target.name
-    _AddBuildTargets(target, roots, True, result)
+    print 'finding compile targets for match', target.name
+    _AddCompileTargets(target, supplied_targets, True, result)
   return result
 
 
@@ -478,6 +525,16 @@ def _WriteOutput(params, **values):
     values['build_targets'].sort()
     print 'Targets that require a build:'
     for target in values['build_targets']:
+      print '\t', target
+  if 'compile_targets' in values:
+    values['compile_targets'].sort()
+    print 'Targets that need to be built:'
+    for target in values['compile_targets']:
+      print '\t', target
+  if 'test_targets' in values:
+    values['test_targets'].sort()
+    print 'Test targets:'
+    for target in values['test_targets']:
       print '\t', target
 
   output_path = params.get('generator_flags', {}).get(
@@ -538,11 +595,104 @@ def CalculateVariables(default_variables, params):
     default_variables.setdefault('OS', operating_system)
 
 
+class TargetCalculator(object):
+  """Calculates the matching test_targets and matching compile_targets."""
+  def __init__(self, files, additional_compile_target_names, test_target_names,
+               data, target_list, target_dicts, toplevel_dir, build_files):
+    self._additional_compile_target_names = set(additional_compile_target_names)
+    self._test_target_names = set(test_target_names)
+    self._name_to_target, self._changed_targets, self._root_targets = (
+      _GenerateTargets(data, target_list, target_dicts, toplevel_dir,
+                       frozenset(files), build_files))
+    self._unqualified_mapping, self.invalid_targets = (
+      _GetUnqualifiedToTargetMapping(self._name_to_target,
+                                     self._supplied_target_names_no_all()))
+
+  def _supplied_target_names(self):
+    return self._additional_compile_target_names | self._test_target_names
+
+  def _supplied_target_names_no_all(self):
+    """Returns the supplied test targets without 'all'."""
+    result = self._supplied_target_names();
+    result.discard('all')
+    return result
+
+  def is_build_impacted(self):
+    """Returns true if the supplied files impact the build at all."""
+    return self._changed_targets
+
+  def find_matching_test_target_names(self):
+    """Returns the set of output test targets."""
+    assert self.is_build_impacted()
+    # Find the test targets first. 'all' is special cased to mean all the
+    # root targets. To deal with all the supplied |test_targets| are expanded
+    # to include the root targets during lookup. If any of the root targets
+    # match, we remove it and replace it with 'all'.
+    test_target_names_no_all = set(self._test_target_names)
+    test_target_names_no_all.discard('all')
+    test_targets_no_all = _LookupTargets(test_target_names_no_all,
+                                         self._unqualified_mapping)
+    test_target_names_contains_all = 'all' in self._test_target_names
+    if test_target_names_contains_all:
+      test_targets = [x for x in (set(test_targets_no_all) |
+                                  set(self._root_targets))]
+    else:
+      test_targets = [x for x in test_targets_no_all]
+    print 'supplied test_targets'
+    for target_name in self._test_target_names:
+      print '\t', target_name
+    print 'found test_targets'
+    for target in test_targets:
+      print '\t', target.name
+    print 'searching for matching test targets'
+    matching_test_targets = _GetTargetsDependingOnMatchingTargets(test_targets)
+    matching_test_targets_contains_all = (test_target_names_contains_all and
+                                          set(matching_test_targets) &
+                                          set(self._root_targets))
+    if matching_test_targets_contains_all:
+      # Remove any of the targets for all that were not explicitly supplied,
+      # 'all' is subsequentely added to the matching names below.
+      matching_test_targets = [x for x in (set(matching_test_targets) &
+                                           set(test_targets_no_all))]
+    print 'matched test_targets'
+    for target in matching_test_targets:
+      print '\t', target.name
+    matching_target_names = [gyp.common.ParseQualifiedTarget(target.name)[1]
+                             for target in matching_test_targets]
+    if matching_test_targets_contains_all:
+      matching_target_names.append('all')
+      print '\tall'
+    return matching_target_names
+
+  def find_matching_compile_target_names(self):
+    """Returns the set of output compile targets."""
+    assert self.is_build_impacted();
+    # Compile targets are found by searching up from changed targets.
+    # Reset the visited status for _GetBuildTargets.
+    for target in self._name_to_target.itervalues():
+      target.visited = False
+
+    supplied_targets = _LookupTargets(self._supplied_target_names_no_all(),
+                                      self._unqualified_mapping)
+    if 'all' in self._supplied_target_names():
+      supplied_targets = [x for x in (set(supplied_targets) |
+                                      set(self._root_targets))]
+    print 'Supplied test_targets & compile_targets'
+    for target in supplied_targets:
+      print '\t', target.name
+    print 'Finding compile targets'
+    compile_targets = _GetCompileTargets(self._changed_targets,
+                                         supplied_targets)
+    return [gyp.common.ParseQualifiedTarget(target.name)[1]
+            for target in compile_targets]
+
+
 def GenerateOutput(target_list, target_dicts, data, params):
   """Called by gyp as the final stage. Outputs results."""
   config = Config()
   try:
     config.Init(params)
+
     if not config.files:
       raise Exception('Must specify files to analyze via config_path generator '
                       'flag')
@@ -553,55 +703,38 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
     if _WasGypIncludeFileModified(params, config.files):
       result_dict = { 'status': all_changed_string,
-                      'targets': list(config.targets) }
+                      'test_targets': list(config.test_target_names),
+                      'compile_targets': list(
+                        config.additional_compile_target_names |
+                        config.test_target_names) }
       _WriteOutput(params, **result_dict)
       return
 
-    all_targets, matching_targets, roots = _GenerateTargets(
-      data, target_list, target_dicts, toplevel_dir, frozenset(config.files),
-      params['build_files'])
+    calculator = TargetCalculator(config.files,
+                                  config.additional_compile_target_names,
+                                  config.test_target_names, data,
+                                  target_list, target_dicts, toplevel_dir,
+                                  params['build_files'])
+    if not calculator.is_build_impacted():
+      result_dict = { 'status': no_dependency_string,
+                      'test_targets': [],
+                      'compile_targets': [] }
+      if calculator.invalid_targets:
+        result_dict['invalid_targets'] = calculator.invalid_targets
+      _WriteOutput(params, **result_dict)
+      return
 
-    print 'roots:'
-    for root in roots:
-      print '\t', root.name
-
-    unqualified_mapping = _GetUnqualifiedToTargetMapping(all_targets,
-                                                         config.targets)
-    invalid_targets = None
-    if len(unqualified_mapping) != len(config.targets):
-      invalid_targets = _NamesNotIn(config.targets, unqualified_mapping)
-
-    if matching_targets:
-      search_targets = _LookupTargets(config.targets, unqualified_mapping)
-      print 'supplied targets'
-      for target in config.targets:
-        print '\t', target
-      print 'expanded supplied targets'
-      for target in search_targets:
-        print '\t', target.name
-      matched_search_targets = _GetTargetsDependingOn(search_targets)
-      print 'raw matched search targets:'
-      for target in matched_search_targets:
-        print '\t', target.name
-      # Reset the visited status for _GetBuildTargets.
-      for target in all_targets.itervalues():
-        target.visited = False
-      print 'Finding build targets'
-      build_targets = _GetBuildTargets(matching_targets, roots)
-      matched_search_targets = [gyp.common.ParseQualifiedTarget(target.name)[1]
-                                for target in matched_search_targets]
-      build_targets = [gyp.common.ParseQualifiedTarget(target.name)[1]
-                       for target in build_targets]
-    else:
-      matched_search_targets = []
-      build_targets = []
-
-    result_dict = { 'targets': matched_search_targets,
-                    'status': found_dependency_string if matching_targets else
-                              no_dependency_string,
-                    'build_targets': build_targets}
-    if invalid_targets:
-      result_dict['invalid_targets'] = invalid_targets
+    test_target_names = calculator.find_matching_test_target_names()
+    compile_target_names = calculator.find_matching_compile_target_names()
+    found_at_least_one_target = compile_target_names or test_target_names
+    result_dict = { 'test_targets': test_target_names,
+                    'status': found_dependency_string if
+                        found_at_least_one_target else no_dependency_string,
+                    'compile_targets': list(
+                        set(compile_target_names) |
+                        set(test_target_names)) }
+    if calculator.invalid_targets:
+      result_dict['invalid_targets'] = calculator.invalid_targets
     _WriteOutput(params, **result_dict)
 
   except Exception as e:
