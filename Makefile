@@ -196,6 +196,7 @@ test: all
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
 		addons doctool inspector known_issues message pseudo-tty parallel sequential
+	$(MAKE) doclint
 	$(MAKE) lint
 
 test-parallel: all
@@ -815,6 +816,9 @@ jslint:
 jslint-ci:
 	$(NODE) tools/jslint.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
 		benchmark lib test tools
+
+doclint:
+	$(NODE) tools/remark-cli/cli.js -qf *.md doc src lib benchmark tools/doc/*.md tools/icu/*.md
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_root_certs.h
