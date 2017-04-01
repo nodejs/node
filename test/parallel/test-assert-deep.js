@@ -108,11 +108,11 @@ for (const a of similar) {
 }
 
 function assertDeepAndStrictEqual(a, b) {
-  assert.doesNotThrow(() => assert.deepEqual(a, b));
-  assert.doesNotThrow(() => assert.deepStrictEqual(a, b));
+  assert.deepEqual(a, b);
+  assert.deepStrictEqual(a, b);
 
-  assert.doesNotThrow(() => assert.deepEqual(b, a));
-  assert.doesNotThrow(() => assert.deepStrictEqual(b, a));
+  assert.deepEqual(b, a);
+  assert.deepStrictEqual(b, a);
 }
 
 function assertNotDeepOrStrict(a, b) {
