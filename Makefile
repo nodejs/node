@@ -298,14 +298,13 @@ test/addons-napi/.buildstamp: config.gypi \
 # TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
 build-addons-napi: $(NODE_EXE) test/addons-napi/.buildstamp
 
-ifeq ($(OSTYPE),$(filter $(OSTYPE),darwin aix))
-  XARGS = xargs
-else
-  XARGS = xargs -r
-endif
 clear-stalled:
+	# Clean up any leftover processes but don't error if found.
 	ps awwx | grep Release/node | grep -v grep | cat
-	ps awwx | grep Release/node | grep -v grep | awk '{print $$1}' | $(XARGS) kill
+	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
+	if [ "$${PS_OUT}" ]; then \
+		echo $${PS_OUT} | xargs kill; \
+	fi
 
 test-gc: all test/gc/build/Release/binding.node
 	$(PYTHON) tools/test.py --mode=release gc
@@ -335,10 +334,11 @@ test-ci-js: | clear-stalled
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
-	# Clean up any leftover processes
-	PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
+	# Clean up any leftover processes, error if found.
+	ps awwx | grep Release/node | grep -v grep | cat
+	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
-		echo $${PS_OUT} | $(XARGS) kill; exit 1; \
+		echo $${PS_OUT} | xargs kill; exit 1; \
 	fi
 
 test-ci: LOGLEVEL := info
@@ -347,10 +347,11 @@ test-ci: | clear-stalled build-addons build-addons-napi
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES) addons-napi $(CI_JS_SUITES)
-	# Clean up any leftover processes
-	PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
+	# Clean up any leftover processes, error if found.
+	ps awwx | grep Release/node | grep -v grep | cat
+	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
 	if [ "$${PS_OUT}" ]; then \
-		echo $${PS_OUT} | $(XARGS) kill; exit 1; \
+		echo $${PS_OUT} | xargs kill; exit 1; \
 	fi
 
 test-release: test-build
