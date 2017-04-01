@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
+#include "print.h"
 
 #ifdef _WIN32
 #include <VersionHelpers.h>
@@ -27,7 +28,7 @@
 
 int wmain(int argc, wchar_t *wargv[]) {
   if (!IsWindows7OrGreater()) {
-    fprintf(stderr, "This application is only supported on Windows 7, "
+    FPrintF(stderr, "This application is only supported on Windows 7, "
                     "Windows Server 2008 R2, or higher.");
     exit(ERROR_EXE_MACHINE_TYPE_MISMATCH);
   }
@@ -46,7 +47,7 @@ int wmain(int argc, wchar_t *wargv[]) {
                                      nullptr);
     if (size == 0) {
       // This should never happen.
-      fprintf(stderr, "Could not convert arguments to utf8.");
+      FPrintF(stderr, "Could not convert arguments to utf8.");
       exit(1);
     }
     // Do the actual conversion
@@ -61,7 +62,7 @@ int wmain(int argc, wchar_t *wargv[]) {
                                        nullptr);
     if (result == 0) {
       // This should never happen.
-      fprintf(stderr, "Could not convert arguments to utf8.");
+      FPrintF(stderr, "Could not convert arguments to utf8.");
       exit(1);
     }
   }

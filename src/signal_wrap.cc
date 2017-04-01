@@ -24,6 +24,7 @@
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
+#include "print.h"
 #include "util.h"
 #include "util-inl.h"
 #include "v8.h"
@@ -89,7 +90,7 @@ class SignalWrap : public HandleWrap {
     if (signum == SIGPROF) {
       Environment* env = Environment::GetCurrent(args);
       if (env->inspector_agent()->IsStarted()) {
-        fprintf(stderr, "process.on(SIGPROF) is reserved while debugging\n");
+        FPrintF(stderr, "process.on(SIGPROF) is reserved while debugging\n");
         return;
       }
     }

@@ -1,4 +1,5 @@
 #include "node_debug_options.h"
+#include "print.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -23,7 +24,7 @@ int parse_and_validate_port(const std::string& port) {
   errno = 0;
   const long result = strtol(port.c_str(), &endptr, 10);  // NOLINT(runtime/int)
   if (errno != 0 || *endptr != '\0'|| result < 1024 || result > 65535) {
-    fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
+    FPrintF(stderr, "Debug port must be in range 1024 to 65535.\n");
     exit(12);
   }
   return static_cast<int>(result);
@@ -117,7 +118,7 @@ bool DebugOptions::ParseOption(const std::string& option) {
 #if HAVE_INSPECTOR
     inspector_enabled_ = true;
 #else
-    fprintf(stderr,
+    FPrintF(stderr,
             "Inspector support is not available with this Node.js build\n");
     return false;
 #endif

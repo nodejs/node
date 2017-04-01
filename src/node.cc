@@ -29,6 +29,7 @@
 #include "node_internals.h"
 #include "node_revert.h"
 #include "node_debug_options.h"
+#include "print.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -271,7 +272,7 @@ static struct {
   }
 
   void StartTracingAgent() {
-    fprintf(stderr, "Node compiled with NODE_USE_V8_PLATFORM=0, "
+    FPrintF(stderr, "Node compiled with NODE_USE_V8_PLATFORM=0, "
                     "so event tracing is not available.\n");
   }
   void StopTracingAgent() {}
@@ -293,7 +294,7 @@ static void PrintErrorString(const char* format, ...) {
   if (stderr_handle == INVALID_HANDLE_VALUE ||
       stderr_handle == nullptr ||
       uv_guess_handle(_fileno(stderr)) != UV_TTY) {
-    vfprintf(stderr, format, ap);
+    VFPrintF(stderr, format, ap);
     va_end(ap);
     return;
   }
@@ -313,7 +314,7 @@ static void PrintErrorString(const char* format, ...) {
   CHECK_GT(n, 0);
   WriteConsoleW(stderr_handle, wbuf.data(), n - 1, nullptr, nullptr);
 #else
-  vfprintf(stderr, format, ap);
+  VFPrintF(stderr, format, ap);
 #endif
   va_end(ap);
 }
@@ -1118,7 +1119,7 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
       process_object->Get(tick_callback_function_key).As<Function>();
 
   if (!tick_callback_function->IsFunction()) {
-    fprintf(stderr, "process._tickDomainCallback assigned to non-function\n");
+    FPrintF(stderr, "process._tickDomainCallback assigned to non-function\n");
     ABORT();
   }
 
@@ -1714,7 +1715,7 @@ static void ReportException(Environment* env,
     }
   }
 
-  fflush(stderr);
+  FFlush(stderr);
 }
 
 
@@ -1815,7 +1816,7 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
 
 NO_RETURN void Abort() {
   DumpBacktrace(stderr);
-  fflush(stderr);
+  FFlush(stderr);
   ABORT_NO_BACKTRACE();
 }
 
@@ -1836,10 +1837,10 @@ NO_RETURN void Assert(const char* const (*args)[4]) {
   snprintf(pid, sizeof(pid), "[%u]", getpid());
 #endif
 
-  fprintf(stderr, "%s%s: %s:%s:%s%s Assertion `%s' failed.\n",
+  FPrintF(stderr, "%s%s: %s:%s:%s%s Assertion `%s' failed.\n",
           exepath, pid, filename, linenum,
           function, *function ? ":" : "", message);
-  fflush(stderr);
+  FFlush(stderr);
 
   Abort();
 }
@@ -2513,7 +2514,7 @@ static void OnFatalError(const char* location, const char* message) {
   } else {
     PrintErrorString("FATAL ERROR: %s\n", message);
   }
-  fflush(stderr);
+  FFlush(stderr);
   ABORT();
 }
 
@@ -3444,7 +3445,7 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
         "must be called with a single string");
   node::Utf8Value message(args.GetIsolate(), args[0]);
   PrintErrorString("%s\n", *message);
-  fflush(stderr);
+  FFlush(stderr);
 }
 
 
@@ -3515,7 +3516,7 @@ void LoadEnvironment(Environment* env) {
 static void PrintHelp() {
   // XXX: If you add an option here, please also add it to doc/node.1 and
   // doc/api/cli.md
-  printf("Usage: node [options] [ -e script | script.js ] [arguments]\n"
+  PrintF("Usage: node [options] [ -e script | script.js ] [arguments]\n"
          "       node debug script.js [arguments]\n"
          "\n"
          "Options:\n"
@@ -3663,7 +3664,7 @@ static void ParseArgs(int* argc,
     if (debug_options.ParseOption(arg)) {
       // Done, consumed by DebugOptions::ParseOption().
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
-      printf("%s\n", NODE_VERSION);
+      PrintF("%s\n", NODE_VERSION);
       exit(0);
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
@@ -3681,7 +3682,7 @@ static void ParseArgs(int* argc,
         args_consumed += 1;
         eval_string = argv[index + 1];
         if (eval_string == nullptr) {
-          fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+          FPrintF(stderr, "%s: %s requires an argument\n", argv[0], arg);
           exit(9);
         }
       } else if ((index + 1 < nargs) &&
@@ -3698,7 +3699,7 @@ static void ParseArgs(int* argc,
                strcmp(arg, "-r") == 0) {
       const char* module = argv[index + 1];
       if (module == nullptr) {
-        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        FPrintF(stderr, "%s: %s requires an argument\n", argv[0], arg);
         exit(9);
       }
       args_consumed += 1;
@@ -3724,7 +3725,7 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--trace-event-categories") == 0) {
       const char* categories = argv[index + 1];
       if (categories == nullptr) {
-        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        FPrintF(stderr, "%s: %s requires an argument\n", argv[0], arg);
         exit(9);
       }
       args_consumed += 1;
@@ -3792,7 +3793,7 @@ static void ParseArgs(int* argc,
 
 #if HAVE_OPENSSL
   if (use_openssl_ca && use_bundled_ca) {
-    fprintf(stderr,
+    FPrintF(stderr,
             "%s: either --use-openssl-ca or --use-bundled-ca can be used, "
             "not both\n",
             argv[0]);
@@ -3846,9 +3847,9 @@ static void StartDebug(Environment* env, const char* path,
           DispatchMessagesDebugAgentCallback);
     debugger_running = env->debugger_agent()->Start(debug_options);
     if (debugger_running == false) {
-      fprintf(stderr, "Starting debugger on %s:%d failed\n",
+      FPrintF(stderr, "Starting debugger on %s:%d failed\n",
               debug_options.host_name().c_str(), debug_options.port());
-      fflush(stderr);
+      FFlush(stderr);
     }
   }
 }
@@ -3894,7 +3895,7 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
   Mutex::ScopedLock scoped_lock(node_isolate_mutex);
   if (auto isolate = node_isolate) {
     if (debugger_running == false) {
-      fprintf(stderr, "Starting debugger agent.\n");
+      FPrintF(stderr, "Starting debugger agent.\n");
 
       HandleScope scope(isolate);
       Environment* env = Environment::GetCurrent(isolate);
@@ -3983,8 +3984,8 @@ static int RegisterDebugSignalHandler() {
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
   CHECK_EQ(0, pthread_attr_destroy(&attr));
   if (err != 0) {
-    fprintf(stderr, "node[%d]: pthread_create: %s\n", getpid(), strerror(err));
-    fflush(stderr);
+    FPrintF(stderr, "node[%d]: pthread_create: %s\n", getpid(), strerror(err));
+    FFlush(stderr);
     // Leave SIGUSR1 blocked.  We don't install a signal handler,
     // receiving the signal would terminate the process.
     return -err;
@@ -4335,7 +4336,7 @@ void Init(int* argc,
 
   // Anything that's still in v8_argv is not a V8 or a node option.
   for (int i = 1; i < v8_argc; i++) {
-    fprintf(stderr, "%s: bad option: %s\n", argv[0], v8_argv[i]);
+    FPrintF(stderr, "%s: bad option: %s\n", argv[0], v8_argv[i]);
   }
   delete[] v8_argv;
   v8_argv = nullptr;
@@ -4605,7 +4606,7 @@ int Start(int argc, char** argv) {
   v8_platform.Initialize(v8_thread_pool_size);
   // Enable tracing when argv has --trace-events-enabled.
   if (trace_enabled) {
-    fprintf(stderr, "Warning: Trace event is an experimental feature "
+    FPrintF(stderr, "Warning: Trace event is an experimental feature "
             "and could change at any time.\n");
     v8_platform.StartTracingAgent();
   }

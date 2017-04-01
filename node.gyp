@@ -231,6 +231,7 @@
         'src/node_revert.h',
         'src/node_i18n.h',
         'src/pipe_wrap.h',
+        'src/print.h',
         'src/tty_wrap.h',
         'src/tcp_wrap.h',
         'src/udp_wrap.h',

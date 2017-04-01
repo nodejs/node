@@ -1,4 +1,5 @@
 #include "node_revert.h"
+#include "print.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -18,7 +19,7 @@ const char* RevertMessage(const unsigned int cve) {
 
 void Revert(const unsigned int cve) {
   reverted |= 1 << cve;
-  printf("SECURITY WARNING: Reverting %s\n", RevertMessage(cve));
+  PrintF("SECURITY WARNING: Reverting %s\n", RevertMessage(cve));
 }
 
 void Revert(const char* cve) {
@@ -31,7 +32,7 @@ void Revert(const char* cve) {
   } while (0);
   REVERSIONS(V)
 #undef V
-  printf("Error: Attempt to revert an unknown CVE [%s]\n", cve);
+  PrintF("Error: Attempt to revert an unknown CVE [%s]\n", cve);
   exit(12);
 }
 

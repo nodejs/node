@@ -1,4 +1,5 @@
 #include "node.h"
+#include "print.h"
 
 #if defined(__linux__)
 #include <features.h>
@@ -30,21 +31,21 @@ void DumpBacktrace(FILE* fp) {
   }
   for (int i = 1; i < size; i += 1) {
     void* frame = frames[i];
-    fprintf(fp, "%2d: ", i);
+    FPrintF(fp, "%2d: ", i);
     Dl_info info;
     const bool have_info = dladdr(frame, &info);
     if (!have_info || info.dli_sname == nullptr) {
-      fprintf(fp, "%p", frame);
+      FPrintF(fp, "%p", frame);
     } else if (char* demangled = abi::__cxa_demangle(info.dli_sname, 0, 0, 0)) {
-      fprintf(fp, "%s", demangled);
+      FPrintF(fp, "%s", demangled);
       free(demangled);
     } else {
-      fprintf(fp, "%s", info.dli_sname);
+      FPrintF(fp, "%s", info.dli_sname);
     }
     if (have_info && info.dli_fname != nullptr) {
-      fprintf(fp, " [%s]", info.dli_fname);
+      FPrintF(fp, " [%s]", info.dli_fname);
     }
-    fprintf(fp, "\n");
+    FPrintF(fp, "\n");
   }
 #endif  // HAVE_EXECINFO_H
 }

@@ -7,6 +7,7 @@
 #include "node_crypto.h"
 #include "node_mutex.h"
 #include "node_version.h"
+#include "print.h"
 #include "v8-inspector.h"
 #include "v8-platform.h"
 #include "util.h"
@@ -468,8 +469,8 @@ void AgentImpl::WaitForDisconnect() {
   if (state_ == State::kConnected) {
     shutting_down_ = true;
     Write(TransportAction::kStop, 0, StringView());
-    fprintf(stderr, "Waiting for the debugger to disconnect...\n");
-    fflush(stderr);
+    FPrintF(stderr, "Waiting for the debugger to disconnect...\n");
+    FFlush(stderr);
     inspector_->runMessageLoopOnPause(0);
   }
 }
@@ -679,7 +680,7 @@ void AgentImpl::DispatchMessages() {
         CHECK_EQ(State::kAccepting, state_);
         session_id_ = std::get<1>(task);
         state_ = State::kConnected;
-        fprintf(stderr, "Debugger attached.\n");
+        FPrintF(stderr, "Debugger attached.\n");
         inspector_->connectFrontend();
         break;
       case InspectorAction::kEndSession:

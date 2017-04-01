@@ -1,4 +1,5 @@
 #include "inspector_socket.h"
+#include "print.h"
 #include "util.h"
 #include "util-inl.h"
 
@@ -36,18 +37,18 @@ static void dump_hex(const char* buf, size_t len) {
   while (ptr < end) {
     cptr = ptr;
     for (i = 0; i < 16 && ptr < end; i++) {
-      printf("%2.2X  ", static_cast<unsigned char>(*(ptr++)));
+      PrintF("%2.2X  ", static_cast<unsigned char>(*(ptr++)));
     }
     for (i = 72 - (i * 4); i > 0; i--) {
-      printf(" ");
+      PrintF(" ");
     }
     for (i = 0; i < 16 && cptr < end; i++) {
       c = *(cptr++);
-      printf("%c", (c > 0x19) ? c : '.');
+      PrintF("%c", (c > 0x19) ? c : '.');
     }
-    printf("\n");
+    PrintF("\n");
   }
-  printf("\n\n");
+  PrintF("\n\n");
 }
 #endif
 
@@ -101,7 +102,7 @@ static int write_to_client(InspectorSocket* inspector,
                            size_t len,
                            uv_write_cb write_cb = write_request_cleanup) {
 #if DUMP_WRITES
-  printf("%s (%ld bytes):\n", __FUNCTION__, len);
+  PrintF("%s (%ld bytes):\n", __FUNCTION__, len);
   dump_hex(msg, len);
 #endif
 
@@ -337,7 +338,7 @@ static void websockets_data_cb(uv_stream_t* stream, ssize_t nread,
     }
   } else {
     #if DUMP_READS
-      printf("%s read %ld bytes\n", __FUNCTION__, nread);
+      PrintF("%s read %ld bytes\n", __FUNCTION__, nread);
       if (nread > 0) {
         dump_hex(inspector->buffer.data() + inspector->buffer.size() - nread,
                  nread);
@@ -513,10 +514,10 @@ static void data_received_cb(uv_stream_s* client, ssize_t nread,
                              const uv_buf_t* buf) {
 #if DUMP_READS
   if (nread >= 0) {
-    printf("%s (%ld bytes)\n", __FUNCTION__, nread);
+    PrintF("%s (%ld bytes)\n", __FUNCTION__, nread);
     dump_hex(buf->base, nread);
   } else {
-    printf("[%s:%d] %s\n", __FUNCTION__, __LINE__, uv_err_name(nread));
+    PrintF("[%s:%d] %s\n", __FUNCTION__, __LINE__, uv_err_name(nread));
   }
 #endif
   InspectorSocket* inspector = inspector_from_stream(client);

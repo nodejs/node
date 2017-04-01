@@ -1,6 +1,7 @@
 #include "env.h"
 #include "env-inl.h"
 #include "async-wrap.h"
+#include "print.h"
 #include "v8.h"
 #include "v8-profiler.h"
 
@@ -117,7 +118,7 @@ void Environment::PrintSyncTrace() const {
   Local<v8::StackTrace> stack =
       StackTrace::CurrentStackTrace(isolate(), 10, StackTrace::kDetailed);
 
-  fprintf(stderr, "(node:%d) WARNING: Detected use of sync API\n", getpid());
+  FPrintF(stderr, "(node:%d) WARNING: Detected use of sync API\n", getpid());
 
   for (int i = 0; i < stack->GetFrameCount() - 1; i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(i);
@@ -128,9 +129,9 @@ void Environment::PrintSyncTrace() const {
 
     if (stack_frame->IsEval()) {
       if (stack_frame->GetScriptId() == Message::kNoScriptIdInfo) {
-        fprintf(stderr, "    at [eval]:%i:%i\n", line_number, column);
+        FPrintF(stderr, "    at [eval]:%i:%i\n", line_number, column);
       } else {
-        fprintf(stderr,
+        FPrintF(stderr,
                 "    at [eval] (%s:%i:%i)\n",
                 *script_name,
                 line_number,
@@ -140,9 +141,9 @@ void Environment::PrintSyncTrace() const {
     }
 
     if (fn_name_s.length() == 0) {
-      fprintf(stderr, "    at %s:%i:%i\n", *script_name, line_number, column);
+      FPrintF(stderr, "    at %s:%i:%i\n", *script_name, line_number, column);
     } else {
-      fprintf(stderr,
+      FPrintF(stderr,
               "    at %s (%s:%i:%i)\n",
               *fn_name_s,
               *script_name,
@@ -150,7 +151,7 @@ void Environment::PrintSyncTrace() const {
               column);
     }
   }
-  fflush(stderr);
+  FFlush(stderr);
 }
 
 }  // namespace node
