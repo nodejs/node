@@ -18,7 +18,7 @@ var bench = common.createBenchmark(main, {
 
 function main(conf) {
   const http = require('http');
-  var chunk = Buffer.alloc(conf.size, '8');
+  var chunk = Buffer.alloc(+conf.size, '8');
 
   var server = http.createServer(function(req, res) {
     function send(left) {
