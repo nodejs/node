@@ -79,10 +79,10 @@ class WrkBenchmarker {
  * Simple, single-threaded benchmarker for testing if the benchmark
  * works
  */
-class TestTroubleBenchmarker {
+class TestDoubleBenchmarker {
   constructor() {
-    this.name = 'test-trouble';
-    this.executable = path.resolve(__dirname, '_test-trouble-benchmarker.js');
+    this.name = 'test-double';
+    this.executable = path.resolve(__dirname, '_test-double-benchmarker.js');
     this.present = fs.existsSync(this.executable);
   }
 
@@ -112,7 +112,7 @@ class TestTroubleBenchmarker {
 const http_benchmarkers = [
   new WrkBenchmarker(),
   new AutocannonBenchmarker(),
-  new TestTroubleBenchmarker()
+  new TestDoubleBenchmarker()
 ];
 
 const benchmarkers = {};

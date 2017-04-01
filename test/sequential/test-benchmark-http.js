@@ -25,7 +25,7 @@ const child = fork(runjs, ['--set', 'dur=0.1',
                            '--set', 'len=1',
                            '--set', 'c=1',
                            '--set', 'chunks=0',
-                           '--set', 'benchmarker=test-trouble',
+                           '--set', 'benchmarker=test-double',
                            'http'],
                    {env: {NODEJS_BENCHMARK_ZERO_ALLOWED: 1}});
 child.on('exit', (code, signal) => {
