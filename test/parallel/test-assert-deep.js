@@ -158,6 +158,8 @@ assertOnlyDeepEqual(new Set(['1']), new Set([1]));
 assertOnlyDeepEqual(new Map([['1', 'a']]), new Map([[1, 'a']]));
 assertOnlyDeepEqual(new Map([['a', '1']]), new Map([['a', 1]]));
 
+assertDeepAndStrictEqual(new Set([{}]), new Set([{}]));
+
 // This is an awful case, where a map contains multiple equivalent keys:
 assertOnlyDeepEqual(
   new Map([[1, 'a'], ['1', 'b']]),
