@@ -26,34 +26,34 @@ const spawn = require('child_process').spawn;
 const path = require('path');
 const net = require('net');
 
-var isDone = false;
-var targetPath = path.resolve(common.fixturesDir, 'debug-target.js');
+let isDone = false;
+const targetPath = path.resolve(common.fixturesDir, 'debug-target.js');
 
-var child = spawn(process.execPath, ['--debug-brk=' + common.PORT, targetPath]);
+const child = spawn(process.execPath, ['--debug-brk=' + common.PORT, targetPath]);
 child.stderr.on('data', function() {
   child.emit('debug_start');
 });
 
-child.on('exit', function() {
+child.on('exit', () => {
   assert(isDone);
   console.log('ok');
 });
 
-child.once('debug_start', function() {
+child.once('debug_start', () => {
   // delayed for some time until debug agent is ready
-  setTimeout(function() {
+  setTimeout(() => {
     debug_client_connect();
   }, 200);
 });
 
 
 function debug_client_connect() {
-  var msg = null;
-  var tmpBuf = '';
+  let msg = null;
+  let tmpBuf = '';
 
-  var conn = net.connect({port: common.PORT});
+  const conn = net.connect({port: common.PORT});
   conn.setEncoding('utf8');
-  conn.on('data', function(data) {
+  conn.on('data', (data) => {
     tmpBuf += data;
     parse();
   });
@@ -66,19 +66,19 @@ function debug_client_connect() {
       };
     }
     if (!msg.headers) {
-      var offset = tmpBuf.indexOf('\r\n\r\n');
+      const offset = tmpBuf.indexOf('\r\n\r\n');
       if (offset < 0) return;
       msg.headers = tmpBuf.substring(0, offset);
       tmpBuf = tmpBuf.slice(offset + 4);
-      var matches = /Content-Length: (\d+)/.exec(msg.headers);
+      const matches = /Content-Length: (\d+)/.exec(msg.headers);
       if (matches[1]) {
         msg.contentLength = +(matches[1]);
       }
     }
     if (msg.headers && Buffer.byteLength(tmpBuf) >= msg.contentLength) {
       try {
-        var b = Buffer.from(tmpBuf);
-        var body = b.toString('utf8', 0, msg.contentLength);
+        const b = Buffer.from(tmpBuf);
+        const body = b.toString('utf8', 0, msg.contentLength);
         tmpBuf = b.toString('utf8', msg.contentLength, b.length);
 
         // get breakpoint list and check if it exists on line 0
@@ -89,15 +89,15 @@ function debug_client_connect() {
           return;
         }
 
-        var obj = JSON.parse(body);
+        const obj = JSON.parse(body);
         if (obj.type === 'response' && obj.command === 'listbreakpoints' &&
             !obj.running) {
-          obj.body.breakpoints.forEach(function(bpoint) {
+          obj.body.breakpoints.forEach((bpoint) => {
             if (bpoint.line === 0) isDone = true;
           });
         }
 
-        var req = JSON.stringify({'seq': 100, 'type': 'request',
+        const req = JSON.stringify({'seq': 100, 'type': 'request',
                                   'command': 'disconnect'});
         conn.write('Content-Length: ' + req.length + '\r\n\r\n' + req);
       } finally {
