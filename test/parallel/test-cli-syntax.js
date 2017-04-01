@@ -126,7 +126,7 @@ syntaxArgs.forEach(function(args) {
 
     assert.strictEqual(
       c.stderr,
-      '--check and --eval flags are mutually exclusive.\n'
+      `${node}: either --check or --eval can be used, not both\n`
     );
 
     assert.strictEqual(c.status, 9, 'code === ' + c.status);
