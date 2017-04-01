@@ -90,24 +90,24 @@ uninstall:
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
 
 clean:
-	-rm -rf out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE) \
+	$(RM) -r out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE) \
                 out/$(BUILDTYPE)/node.exp
-	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs rm -rf; fi
-	-rm -rf node_modules
-	@if [ -d deps/icu ]; then echo deleting deps/icu; rm -rf deps/icu; fi
-	-rm -f test.tap
+	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs $(RM) -r; fi
+	$(RM) -r node_modules
+	@if [ -d deps/icu ]; then echo deleting deps/icu; $(RM) -r deps/icu; fi
+	$(RM) test.tap
 
 distclean:
-	-rm -rf out
-	-rm -f config.gypi icu_config.gypi config_fips.gypi
-	-rm -f config.mk
-	-rm -rf $(NODE_EXE) $(NODE_G_EXE)
-	-rm -rf node_modules
-	-rm -rf deps/icu
-	-rm -rf deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
-	-rm -f $(BINARYTAR).* $(TARBALL).*
-	-rm -rf deps/v8/testing/gmock
-	-rm -rf deps/v8/testing/gtest
+	$(RM) -r out
+	$(RM) config.gypi icu_config.gypi config_fips.gypi
+	$(RM) config.mk
+	$(RM) -r $(NODE_EXE) $(NODE_G_EXE)
+	$(RM) -r node_modules
+	$(RM) -r deps/icu
+	$(RM) -r deps/icu4c*.tgz deps/icu4c*.zip deps/icu-tmp
+	$(RM) $(BINARYTAR).* $(TARBALL).*
+	$(RM) -r deps/v8/testing/gmock
+	$(RM) -r deps/v8/testing/gtest
 
 check: test
 
@@ -367,7 +367,7 @@ docopen: $(apidocs_html)
 	@$(PYTHON) -mwebbrowser file://$(PWD)/out/doc/api/all.html
 
 docclean:
-	-rm -rf out/doc
+	$(RM) -r out/doc
 
 build-ci:
 	$(PYTHON) ./configure $(CONFIG_FLAGS)
@@ -542,8 +542,8 @@ release-only:
 	fi
 
 $(PKG): release-only
-	rm -rf $(PKGDIR)
-	rm -rf out/deps out/Release
+	$(RM) -r $(PKGDIR)
+	$(RM) -r out/deps out/Release
 	$(PYTHON) ./configure \
 		--dest-cpu=x64 \
 		--tag=$(TAG) \
@@ -574,24 +574,24 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r out/doc/api/* $(TARNAME)/doc/api/
-	rm -rf $(TARNAME)/deps/v8/{test,samples,tools/profviz,tools/run-tests.py}
-	rm -rf $(TARNAME)/doc/images # too big
-	rm -rf $(TARNAME)/deps/uv/{docs,samples,test}
-	rm -rf $(TARNAME)/deps/openssl/openssl/{doc,demos,test}
-	rm -rf $(TARNAME)/deps/zlib/contrib # too big, unused
-	rm -rf $(TARNAME)/.{editorconfig,git*,mailmap}
-	rm -rf $(TARNAME)/tools/{eslint,eslint-rules,osx-pkg.pmdoc,pkgsrc}
-	rm -rf $(TARNAME)/tools/{osx-*,license-builder.sh,cpplint.py}
-	rm -rf $(TARNAME)/test*.tap
-	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs rm
-	find $(TARNAME)/ -type l | xargs rm # annoying on windows
+	$(RM) -r $(TARNAME)/deps/v8/{test,samples,tools/profviz,tools/run-tests.py}
+	$(RM) -r $(TARNAME)/doc/images # too big
+	$(RM) -r $(TARNAME)/deps/uv/{docs,samples,test}
+	$(RM) -r $(TARNAME)/deps/openssl/openssl/{doc,demos,test}
+	$(RM) -r $(TARNAME)/deps/zlib/contrib # too big, unused
+	$(RM) -r $(TARNAME)/.{editorconfig,git*,mailmap}
+	$(RM) -r $(TARNAME)/tools/{eslint,eslint-rules,osx-pkg.pmdoc,pkgsrc}
+	$(RM) -r $(TARNAME)/tools/{osx-*,license-builder.sh,cpplint.py}
+	$(RM) -r $(TARNAME)/test*.tap
+	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs $(RM)
+	find $(TARNAME)/ -type l | xargs $(RM) # annoying on windows
 	tar -cf $(TARNAME).tar $(TARNAME)
-	rm -rf $(TARNAME)
+	$(RM) -r $(TARNAME)
 	gzip -c -f -9 $(TARNAME).tar > $(TARNAME).tar.gz
 ifeq ($(XZ), 0)
 	xz -c -f -$(XZ_COMPRESSION) $(TARNAME).tar > $(TARNAME).tar.xz
 endif
-	rm $(TARNAME).tar
+	$(RM) $(TARNAME).tar
 
 tar: $(TARBALL)
 
@@ -620,14 +620,14 @@ $(TARBALL)-headers: release-only
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
 	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
-	find $(TARNAME)/ -type l | xargs rm -f
+	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
-	rm -rf $(TARNAME)
+	$(RM) -r $(TARNAME)
 	gzip -c -f -9 $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.gz
 ifeq ($(XZ), 0)
 	xz -c -f -$(XZ_COMPRESSION) $(TARNAME)-headers.tar > $(TARNAME)-headers.tar.xz
 endif
-	rm $(TARNAME)-headers.tar
+	$(RM) $(TARNAME)-headers.tar
 
 tar-headers: $(TARBALL)-headers
 
@@ -643,8 +643,8 @@ ifeq ($(XZ), 0)
 endif
 
 $(BINARYTAR): release-only
-	rm -rf $(BINARYNAME)
-	rm -rf out/deps out/Release
+	$(RM) -r $(BINARYNAME)
+	$(RM) -r out/deps out/Release
 	$(PYTHON) ./configure \
 		--prefix=/ \
 		--dest-cpu=$(DESTCPU) \
@@ -656,12 +656,12 @@ $(BINARYTAR): release-only
 	cp LICENSE $(BINARYNAME)
 	cp CHANGELOG.md $(BINARYNAME)
 	tar -cf $(BINARYNAME).tar $(BINARYNAME)
-	rm -rf $(BINARYNAME)
+	$(RM) -r $(BINARYNAME)
 	gzip -c -f -9 $(BINARYNAME).tar > $(BINARYNAME).tar.gz
 ifeq ($(XZ), 0)
 	xz -c -f -$(XZ_COMPRESSION) $(BINARYNAME).tar > $(BINARYNAME).tar.xz
 endif
-	rm $(BINARYNAME).tar
+	$(RM) $(BINARYNAME).tar
 
 binary: $(BINARYTAR)
 
