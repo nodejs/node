@@ -219,6 +219,10 @@ static double prog_start_time;
 static bool debugger_running;
 static uv_async_t dispatch_debug_messages_async;
 
+#if HAVE_INSPECTOR
+static bool inspector_running;
+static uv_async_t dispatch_inspect_messages_async;
+#endif  // HAVE_INSPECTOR
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
 
@@ -3895,11 +3899,51 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
   }
 }
 
+#if HAVE_INSPECTOR
+static void StartInspect(Environment* env, const char* path,
+                         DebugOptions debug_options) {
+  CHECK(!inspector_running);
+  if (debug_options.inspector_enabled())
+    inspector_running = v8_platform.StartInspector(env, path, debug_options);
+}
+
+// Called from main thread
+static void TryStartInspector() {
+  Mutex::ScopedLock scoped_lock(node_isolate_mutex);
+  if (auto isolate = node_isolate) {
+    // v8::Debug::DebugBreak(isolate);
+    uv_async_send(&dispatch_inspect_messages_async);
+  }
+}
+
+// Called from the main thread.
+static void DispatchInspectMessagesAsyncCallback(uv_async_t* handle) {
+  Mutex::ScopedLock scoped_lock(node_isolate_mutex);
+  if (auto isolate = node_isolate) {
+    if (inspector_running == false) {
+      fprintf(stderr, "Starting inspector agent.\n");
+      HandleScope scope(isolate);
+      Environment* env = Environment::GetCurrent(isolate);
+      Context::Scope context_scope(env->context());
+      debug_options.EnableDebugAgent(DebugAgentType::kInspector);
+      StartInspect(env, nullptr, debug_options);
+    }
+    Isolate::Scope isolate_scope(isolate);
+    v8::Debug::ProcessDebugMessages(isolate);
+  }
+}
+#endif  // HAVE_INSPECTOR
 
 #ifdef __POSIX__
 static void EnableDebugSignalHandler(int signo) {
   uv_sem_post(&debug_semaphore);
 }
+
+#ifdef HAVE_INSPECTOR
+static void EnableInspectSignalHandler(int signo) {
+  TryStartInspector();
+}
+#endif  // HAVE_INSPECTOR
 
 
 void RegisterSignalHandler(int signal,
@@ -3976,9 +4020,16 @@ static int RegisterDebugSignalHandler() {
     return -err;
   }
   RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
-  // Unblock SIGUSR1.  A pending SIGUSR1 signal will now be delivered.
+#if HAVE_INSPECTOR
+  RegisterSignalHandler(SIGUSR2, EnableInspectSignalHandler);
+#endif  // HAVE_INSPECTOR
+  // Unblock SIGUSR1 and SIGUSR1.
+  // A pending SIGUSR1 and SIGUSR2 signal will now be delivered.
   sigemptyset(&sigmask);
   sigaddset(&sigmask, SIGUSR1);
+#if HAVE_INSPECTOR
+  sigaddset(&sigmask, SIGUSR2);
+#endif  // HAVE_INSPECTOR
   CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sigmask, nullptr));
   return 0;
 }
@@ -4248,6 +4299,14 @@ void Init(int* argc,
                             DispatchDebugMessagesAsyncCallback));
   uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_debug_messages_async));
 
+#if HAVE_INSPECTOR
+  // init async debug messages dispatching
+  // Main thread uses uv_default_loop
+  CHECK_EQ(0, uv_async_init(uv_default_loop(),
+                            &dispatch_inspect_messages_async,
+                            DispatchInspectMessagesAsyncCallback));
+  uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_inspect_messages_async));
+#endif  // HAVE_INSPECTOR
 #if defined(NODE_HAVE_I18N_SUPPORT)
   // Set the ICU casing flag early
   // so the user can disable a flag --foo at run-time by passing
