@@ -100,6 +100,9 @@ class Agent {
   static void ParentSignalCb(uv_async_t* signal);
   static void ChildSignalCb(uv_async_t* signal);
   static void MessageHandler(const v8::Debug::Message& message);
+  static void WalkCloseCb(uv_handle_t* handle, void* arg) {
+    uv_close(handle, NULL);
+  }
 
   // V8 API
   static Agent* Unwrap(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -2275,10 +2275,10 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   double uptime;
 
-  uv_update_time(env->event_loop());
-  uptime = uv_now(env->event_loop()) - prog_start_time;
+  uv_uptime(&uptime);
+  uptime -= prog_start_time;
 
-  args.GetReturnValue().Set(Number::New(env->isolate(), uptime / 1000));
+  args.GetReturnValue().Set(Number::New(env->isolate(), uptime));
 }
 
 
@@ -4250,7 +4250,7 @@ void Init(int* argc,
           int* exec_argc,
           const char*** exec_argv) {
   // Initialize prog_start_time to get relative uptime.
-  prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
+  uv_uptime(&prog_start_time);
 
   // Make inherited handles noninheritable.
   uv_disable_stdio_inheritance();

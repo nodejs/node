@@ -140,7 +140,8 @@ void Agent::Stop() {
   err = uv_thread_join(&thread_);
   CHECK_EQ(err, 0);
 
-  uv_close(reinterpret_cast<uv_handle_t*>(&child_signal_), nullptr);
+  uv_walk(&child_loop_, WalkCloseCb, nullptr);
+
   uv_run(&child_loop_, UV_RUN_NOWAIT);
 
   err = uv_loop_close(&child_loop_);
