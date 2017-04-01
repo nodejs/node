@@ -964,6 +964,10 @@ console.log(sign.sign(privateKey).toString('hex'));
 ### sign.sign(private_key[, output_format])
 <!-- YAML
 added: v0.1.92
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11705
+	description: Support for RSASSA-PSS and additional options was added.
 -->
 - `private_key` {string | Object}
   - `key` {string}
@@ -1084,6 +1088,10 @@ This can be called many times with new data as it is streamed.
 ### verifier.verify(object, signature[, signature_format])
 <!-- YAML
 added: v0.1.92
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11705
+	description: Support for RSASSA-PSS and additional options was added.
 -->
 - `object` {string | Object}
 - `signature` {string | Buffer | Uint8Array}
@@ -1110,7 +1118,8 @@ or an object with one or more of the following properties:
 The `signature` argument is the previously calculated signature for the data, in
 the `signature_format` which can be `'latin1'`, `'hex'` or `'base64'`.
 If a `signature_format` is specified, the `signature` is expected to be a
-string; otherwise `signature` is expected to be a [`Buffer`][].
+string; otherwise `signature` is expected to be a [`Buffer`][] or
+`Uint8Array`.
 
 Returns `true` or `false` depending on the validity of the signature for
 the data and public key.
