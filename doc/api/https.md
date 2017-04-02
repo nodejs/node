@@ -202,7 +202,7 @@ const options = {
 options.agent = new https.Agent(options);
 
 const req = https.request(options, (res) => {
-  ...
+  // ...
 });
 ```
 
@@ -222,7 +222,7 @@ const options = {
 };
 
 const req = https.request(options, (res) => {
-  ...
+  // ...
 });
 ```
 
