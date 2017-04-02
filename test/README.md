@@ -417,8 +417,7 @@ The realpath of the 'tmp' directory.
 Name of the temp directory used by tests.
 
 ### childShouldNotThrowAndAbort()
- This test makes sure that when using `--abort-on-uncaught-exception` and when throwing an error
- from within a domain that has an error handler setup, the process _does not_ abort.
+ This test makes sure that when using `--abort-on-uncaught-exception` and when throwing an error from within a domain that has an error handler setup, the process _does not_ abort.
 
 ### WPT
 
