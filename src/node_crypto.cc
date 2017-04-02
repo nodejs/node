@@ -3797,9 +3797,7 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding encoding = BUFFER;
   if (args.Length() >= 1) {
-    encoding = ParseEncoding(env->isolate(),
-                             args[0]->ToString(env->isolate()),
-                             BUFFER);
+    encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
   }
 
   unsigned char* md_value = nullptr;
@@ -3921,9 +3919,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding encoding = BUFFER;
   if (args.Length() >= 1) {
-    encoding = ParseEncoding(env->isolate(),
-                             args[0]->ToString(env->isolate()),
-                             BUFFER);
+    encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
   }
 
   unsigned char md_value[EVP_MAX_MD_SIZE];
@@ -4201,10 +4197,8 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
 
   unsigned int len = args.Length();
   enum encoding encoding = BUFFER;
-  if (len >= 2 && args[1]->IsString()) {
-    encoding = ParseEncoding(env->isolate(),
-                             args[1]->ToString(env->isolate()),
-                             BUFFER);
+  if (len >= 2) {
+    encoding = ParseEncoding(env->isolate(), args[1], BUFFER);
   }
 
   node::Utf8Value passphrase(env->isolate(), args[2]);
@@ -4452,9 +4446,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding encoding = UTF8;
   if (args.Length() >= 3) {
-    encoding = ParseEncoding(env->isolate(),
-                             args[2]->ToString(env->isolate()),
-                             UTF8);
+    encoding = ParseEncoding(env->isolate(), args[2], UTF8);
   }
 
   ssize_t hlen = StringBytes::Size(env->isolate(), args[1], encoding);
