@@ -147,6 +147,12 @@ function RuleTester(testerConfig) {
         lodash.cloneDeep(defaultConfig),
         testerConfig
     );
+
+    /**
+     * Rule definitions to define before tests.
+     * @type {Object}
+     */
+    this.rules = {};
 }
 
 /**
@@ -213,7 +219,7 @@ Object.defineProperties(RuleTester, {
             RuleTester[DESCRIBE] = value;
         },
         configurable: true,
-        enumerable: true,
+        enumerable: true
     },
     it: {
         get() {
@@ -226,8 +232,8 @@ Object.defineProperties(RuleTester, {
             RuleTester[IT] = value;
         },
         configurable: true,
-        enumerable: true,
-    },
+        enumerable: true
+    }
 });
 
 RuleTester.prototype = {
@@ -239,7 +245,7 @@ RuleTester.prototype = {
      * @returns {void}
      */
     defineRule(name, rule) {
-        eslint.defineRule(name, rule);
+        this.rules[name] = rule;
     },
 
     /**
@@ -337,12 +343,13 @@ RuleTester.prototype = {
              * running the rule under test.
              */
             eslint.reset();
+
             eslint.on("Program", node => {
                 beforeAST = cloneDeeplyExcludesParent(node);
+            });
 
-                eslint.on("Program:exit", node => {
-                    afterAST = cloneDeeplyExcludesParent(node);
-                });
+            eslint.on("Program:exit", node => {
+                afterAST = node;
             });
 
             // Freezes rule-context properties.
@@ -361,25 +368,25 @@ RuleTester.prototype = {
 
                             return rule(context);
                         };
-                    } else {
-                        return {
-                            meta: rule.meta,
-                            create(context) {
-                                Object.freeze(context);
-                                freezeDeeply(context.options);
-                                freezeDeeply(context.settings);
-                                freezeDeeply(context.parserOptions);
-
-                                return rule.create(context);
-                            }
-                        };
                     }
+                    return {
+                        meta: rule.meta,
+                        create(context) {
+                            Object.freeze(context);
+                            freezeDeeply(context.options);
+                            freezeDeeply(context.settings);
+                            freezeDeeply(context.parserOptions);
+
+                            return rule.create(context);
+                        }
+                    };
+
                 };
 
                 return {
                     messages: eslint.verify(code, config, filename, true),
                     beforeAST,
-                    afterAST
+                    afterAST: cloneDeeplyExcludesParent(afterAST)
                 };
             } finally {
                 rules.get = originalGet;
@@ -420,6 +427,28 @@ RuleTester.prototype = {
         }
 
         /**
+         * Asserts that the message matches its expected value. If the expected
+         * value is a regular expression, it is checked against the actual
+         * value.
+         * @param {string} actual Actual value
+         * @param {string|RegExp} expected Expected value
+         * @returns {void}
+         * @private
+         */
+        function assertMessageMatches(actual, expected) {
+            if (expected instanceof RegExp) {
+
+                // assert.js doesn't have a built-in RegExp match function
+                assert.ok(
+                    expected.test(actual),
+                    `Expected '${actual}' to match ${expected}`
+                );
+            } else {
+                assert.equal(actual, expected);
+            }
+        }
+
+        /**
          * Check if the template is invalid or not
          * all invalid cases go through this.
          * @param {string} ruleName name of the rule
@@ -448,10 +477,10 @@ RuleTester.prototype = {
                     assert.ok(!("fatal" in messages[i]), `A fatal parsing error occurred: ${messages[i].message}`);
                     assert.equal(messages[i].ruleId, ruleName, "Error rule name should be the same as the name of the rule being tested");
 
-                    if (typeof item.errors[i] === "string") {
+                    if (typeof item.errors[i] === "string" || item.errors[i] instanceof RegExp) {
 
                         // Just an error message.
-                        assert.equal(messages[i].message, item.errors[i]);
+                        assertMessageMatches(messages[i].message, item.errors[i]);
                     } else if (typeof item.errors[i] === "object") {
 
                         /*
@@ -460,7 +489,7 @@ RuleTester.prototype = {
                          * column.
                          */
                         if (item.errors[i].message) {
-                            assert.equal(messages[i].message, item.errors[i].message);
+                            assertMessageMatches(messages[i].message, item.errors[i].message);
                         }
 
                         if (item.errors[i].type) {
@@ -484,17 +513,24 @@ RuleTester.prototype = {
                         }
                     } else {
 
-                        // Only string or object errors are valid.
-                        assert.fail(messages[i], null, "Error should be a string or object.");
+                        // Message was an unexpected type
+                        assert.fail(messages[i], null, "Error should be a string, object, or RegExp.");
                     }
                 }
+            }
 
-                if (item.hasOwnProperty("output")) {
+            if (item.hasOwnProperty("output")) {
+                if (item.output === null) {
+                    assert.strictEqual(
+                        messages.filter(message => message.fix).length,
+                        0,
+                        "Expected no autofixes to be suggested"
+                    );
+                } else {
                     const fixResult = SourceCodeFixer.applyFixes(eslint.getSourceCode(), messages);
 
                     assert.equal(fixResult.output, item.output, "Output is incorrect.");
                 }
-
             }
 
             assertASTDidntChange(result.beforeAST, result.afterAST);
@@ -507,7 +543,8 @@ RuleTester.prototype = {
         RuleTester.describe(ruleName, () => {
             RuleTester.describe("valid", () => {
                 test.valid.forEach(valid => {
-                    RuleTester.it(valid.code || valid, () => {
+                    RuleTester.it(typeof valid === "object" ? valid.code : valid, () => {
+                        eslint.defineRules(this.rules);
                         testValidTemplate(ruleName, valid);
                     });
                 });
@@ -516,6 +553,7 @@ RuleTester.prototype = {
             RuleTester.describe("invalid", () => {
                 test.invalid.forEach(invalid => {
                     RuleTester.it(invalid.code, () => {
+                        eslint.defineRules(this.rules);
                         testInvalidTemplate(ruleName, invalid);
                     });
                 });

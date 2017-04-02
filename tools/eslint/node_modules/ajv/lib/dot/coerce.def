@@ -53,15 +53,9 @@
   if ({{=$coerced}} === undefined) {
     {{# def.error:'type' }}
   } else {
-    {{? $dataLvl }}
-      {{
-        var $parentData = 'data' + (($dataLvl-1)||'')
-          , $dataProperty = it.dataPathArr[$dataLvl];
-      }}
-      {{=$data}} = {{=$parentData}}[{{=$dataProperty}}] = {{=$coerced}};
-    {{??}}
-      data = {{=$coerced}};
-      if (parentData !== undefined) parentData[parentDataProperty] = {{=$coerced}};
-    {{?}}
+    {{# def.setParentData }}
+    {{=$data}} = {{=$coerced}};
+    {{? !$dataLvl }}if ({{=$parentData}} !== undefined){{?}}
+      {{=$parentData}}[{{=$parentDataProperty}}] = {{=$coerced}};
   }
 #}}

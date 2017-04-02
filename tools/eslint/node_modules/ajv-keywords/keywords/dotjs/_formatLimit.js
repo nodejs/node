@@ -4,7 +4,7 @@ module.exports = function generate__formatLimit(it, $keyword) {
   var $lvl = it.level;
   var $dataLvl = it.dataLevel;
   var $schema = it.schema[$keyword];
-  var $schemaPath = it.schemaPath + '.' + $keyword;
+  var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
   var $errorKeyword;
@@ -37,7 +37,7 @@ module.exports = function generate__formatLimit(it, $keyword) {
     $isDataExcl = it.opts.v5 && $schemaExcl && $schemaExcl.$data,
     $op = $isMax ? '<' : '>',
     $result = 'result' + $lvl;
-  var $isData = it.opts.v5 && $schema && $schema.$data,
+  var $isData = it.opts.$data && $schema && $schema.$data,
     $schemaValue;
   if ($isData) {
     out += ' var schema' + ($lvl) + ' = ' + (it.util.getData($schema.$data, $dataLvl, it.dataPathArr)) + '; ';

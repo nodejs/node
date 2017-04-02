@@ -235,12 +235,7 @@ module.exports = {
              *                    paren token.
              */
             function isParenWrapped() {
-                let tokenBefore, tokenAfter;
-
-                return ((tokenBefore = sourceCode.getTokenBefore(node)) &&
-                    tokenBefore.value === "(" &&
-                    (tokenAfter = sourceCode.getTokenAfter(node)) &&
-                    tokenAfter.value === ")");
+                return astUtils.isParenthesised(sourceCode, node);
             }
 
             return (node.type === "LogicalExpression" &&
@@ -269,11 +264,11 @@ module.exports = {
         * @returns {string} A string representation of the node with the sides and operator flipped
         */
         function getFlippedString(node) {
-            const operatorToken = sourceCode.getTokensBetween(node.left, node.right).find(token => token.value === node.operator);
+            const operatorToken = sourceCode.getFirstTokenBetween(node.left, node.right, token => token.value === node.operator);
             const textBeforeOperator = sourceCode.getText().slice(sourceCode.getTokenBefore(operatorToken).range[1], operatorToken.range[0]);
             const textAfterOperator = sourceCode.getText().slice(operatorToken.range[1], sourceCode.getTokenAfter(operatorToken).range[0]);
-            const leftText = sourceCode.getText().slice(sourceCode.getFirstToken(node).range[0], sourceCode.getTokenBefore(operatorToken).range[1]);
-            const rightText = sourceCode.getText().slice(sourceCode.getTokenAfter(operatorToken).range[0], sourceCode.getLastToken(node).range[1]);
+            const leftText = sourceCode.getText().slice(node.range[0], sourceCode.getTokenBefore(operatorToken).range[1]);
+            const rightText = sourceCode.getText().slice(sourceCode.getTokenAfter(operatorToken).range[0], node.range[1]);
 
             return rightText + textBeforeOperator + OPERATOR_FLIP_MAP[operatorToken.value] + textAfterOperator + leftText;
         }

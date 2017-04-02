@@ -70,46 +70,47 @@ function emitCommentsExit(generator, comments) {
  * This is the decorator pattern.
  * This generates events of comments before/after events which are generated the original generator.
  *
- * @param {EventGenerator} originalEventGenerator - An event generator which is the decoration target.
- * @param {SourceCode} sourceCode - A source code which has comments.
- * @returns {CommentEventGenerator} new instance.
+ * Comment event generator class
  */
-function CommentEventGenerator(originalEventGenerator, sourceCode) {
-    this.original = originalEventGenerator;
-    this.emitter = originalEventGenerator.emitter;
-    this.sourceCode = sourceCode;
-    this.commentLocsEnter = [];
-    this.commentLocsExit = [];
-}
+class CommentEventGenerator {
 
-CommentEventGenerator.prototype = {
-    constructor: CommentEventGenerator,
+    /**
+     * @param {EventGenerator} originalEventGenerator - An event generator which is the decoration target.
+     * @param {SourceCode} sourceCode - A source code which has comments.
+     */
+    constructor(originalEventGenerator, sourceCode) {
+        this.original = originalEventGenerator;
+        this.emitter = originalEventGenerator.emitter;
+        this.sourceCode = sourceCode;
+        this.commentLocsEnter = [];
+        this.commentLocsExit = [];
+    }
 
     /**
      * Emits an event of entering comments.
      * @param {ASTNode} node - A node which was entered.
      * @returns {void}
      */
-    enterNode: function enterNode(node) {
+    enterNode(node) {
         const comments = this.sourceCode.getComments(node);
 
         emitCommentsEnter(this, comments.leading);
         this.original.enterNode(node);
         emitCommentsEnter(this, comments.trailing);
-    },
+    }
 
     /**
      * Emits an event of leaving comments.
      * @param {ASTNode} node - A node which was left.
      * @returns {void}
      */
-    leaveNode: function leaveNode(node) {
+    leaveNode(node) {
         const comments = this.sourceCode.getComments(node);
 
         emitCommentsExit(this, comments.trailing);
         this.original.leaveNode(node);
         emitCommentsExit(this, comments.leading);
     }
-};
+}
 
 module.exports = CommentEventGenerator;
