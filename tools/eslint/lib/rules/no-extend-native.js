@@ -60,9 +60,9 @@ module.exports = {
                     return;
                 }
 
-                const affectsProto = lhs.object.computed ?
-                    lhs.object.property.type === "Literal" && lhs.object.property.value === "prototype" :
-                    lhs.object.property.name === "prototype";
+                const affectsProto = lhs.object.computed
+                    ? lhs.object.property.type === "Literal" && lhs.object.property.value === "prototype"
+                    : lhs.object.property.name === "prototype";
 
                 if (!affectsProto) {
                     return;

@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -34,7 +40,7 @@ module.exports = {
     create(context) {
         const sourceCode = context.getSourceCode();
 
-        const BLANK_CLASS = "[ \t\u00a0\u2000-\u200b\u2028\u2029\u3000]",
+        const BLANK_CLASS = "[ \t\u00a0\u2000-\u200b\u3000]",
             SKIP_BLANK = `^${BLANK_CLASS}*$`,
             NONBLANK = `${BLANK_CLASS}+$`;
 
@@ -81,7 +87,7 @@ module.exports = {
                 const re = new RegExp(NONBLANK),
                     skipMatch = new RegExp(SKIP_BLANK),
                     lines = sourceCode.lines,
-                    linebreaks = sourceCode.getText().match(/\r\n|\r|\n|\u2028|\u2029/g);
+                    linebreaks = sourceCode.getText().match(astUtils.createGlobalLinebreakMatcher());
                 let totalLength = 0,
                     fixRange = [];
 

@@ -8,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const RuleFixer = require("./util/rule-fixer");
+const ruleFixer = require("./util/rule-fixer");
 
 //------------------------------------------------------------------------------
 // Constants
@@ -124,7 +124,7 @@ class RuleContext {
 
             // if there's a fix specified, get it
             if (typeof descriptor.fix === "function") {
-                fix = descriptor.fix(new RuleFixer());
+                fix = descriptor.fix(ruleFixer);
             }
 
             this.eslint.report(

@@ -39,7 +39,8 @@
   },
   "_requiredBy": [
     "/escope",
-    "/eslint"
+    "/eslint",
+    "/esquery"
   ],
   "_resolved": "https://registry.npmjs.org/estraverse/-/estraverse-4.2.0.tgz",
   "_shasum": "0dee3fed31fcd469618ce7342099fc1afa0bdb13",

@@ -1,10 +1,10 @@
-var current = process.versions.node.split('.');
+var current = process.versions && process.versions.node && process.versions.node.split('.') || [];
 
 function versionIncluded(version) {
     if (version === '*') return true;
     var versionParts = version.split('.');
     for (var i = 0; i < 3; ++i) {
-      if ((current[i] || 0) >= (versionParts[i] || 0)) return true;
+        if ((current[i] || 0) >= (versionParts[i] || 0)) return true;
     }
     return false;
 }

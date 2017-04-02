@@ -60,9 +60,9 @@ module.exports = {
                 return isPrecededByTokens(node, ["do"]);
             } else if (parentType === "SwitchCase") {
                 return isPrecededByTokens(node, [":"]);
-            } else {
-                return isPrecededByTokens(node, [")"]);
             }
+            return isPrecededByTokens(node, [")"]);
+
         }
 
         /**
