@@ -1077,7 +1077,7 @@ any headers passed to [`response.writeHead()`][], with the headers passed to
 
 ```js
 // returns content-type = text/plain
-const server = http.createServer((req,res) => {
+const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
   res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -1227,7 +1227,7 @@ any headers passed to [`response.writeHead()`][], with the headers passed to
 
 ```js
 // returns content-type = text/plain
-const server = http.createServer((req,res) => {
+const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
   res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -1648,7 +1648,7 @@ Example:
 
 ```js
 const postData = querystring.stringify({
-  'msg' : 'Hello World!'
+  'msg': 'Hello World!'
 });
 
 const options = {
