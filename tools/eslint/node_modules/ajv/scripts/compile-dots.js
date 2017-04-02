@@ -1,4 +1,5 @@
 //compile doT templates to js functions
+'use strict';
 
 var glob = require('glob')
   , fs = require('fs')
@@ -26,8 +27,10 @@ console.log('\n\nCompiling:');
 var FUNCTION_NAME = /function\s+anonymous\s*\(it[^)]*\)\s*{/;
 var OUT_EMPTY_STRING = /out\s*\+=\s*'\s*';/g;
 var ISTANBUL = /\'(istanbul[^']+)\';/g;
-var VARS = ['$errs', '$valid', '$lvl', '$data', '$dataLvl',
-            '$errorKeyword', '$closingBraces', '$schemaPath'];
+var VARS = [
+  '$errs', '$valid', '$lvl', '$data', '$dataLvl',
+  '$errorKeyword', '$closingBraces', '$schemaPath'
+];
 
 files.forEach(function (f) {
   var keyword = path.basename(f, '.jst');

@@ -31,9 +31,9 @@ module.exports = {
 
     create(context) {
         const options = context.options[0] || {};
-        const commentPattern = options.commentPattern ?
-            new RegExp(options.commentPattern) :
-            DEFAULT_COMMENT_PATTERN;
+        const commentPattern = options.commentPattern
+            ? new RegExp(options.commentPattern)
+            : DEFAULT_COMMENT_PATTERN;
 
         const sourceCode = context.getSourceCode();
 

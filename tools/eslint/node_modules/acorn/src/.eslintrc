@@ -1,0 +1,33 @@
+{
+    "extends": [
+        "eslint:recommended",
+        "standard",
+        "plugin:import/errors",
+        "plugin:import/warnings"
+    ],
+    "rules": {
+        "curly": "off",
+        "eqeqeq": "off",
+        "indent": ["error", 2, { "SwitchCase": 0, "VariableDeclarator": 2 }],
+        "new-parens": "off",
+        "no-case-declarations": "off",
+        "no-cond-assign": "off",
+        "no-fallthrough": "off",
+        "no-labels": "off",
+        "no-mixed-operators": "off",
+        "no-return-assign": "off",
+        "no-unused-labels": "error",
+        "no-var": "error",
+        "object-curly-spacing": ["error", "never"],
+        "one-var": "off",
+        "quotes": ["error", "double"],
+        "semi-spacing": "off",
+        "space-before-function-paren": ["error", "never"]
+    },
+    "globals": {
+        "Packages": false
+    },
+    "plugins": [
+        "import"
+    ]
+}

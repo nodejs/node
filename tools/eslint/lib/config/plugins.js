@@ -127,14 +127,25 @@ module.exports = {
         if (!plugins[shortName]) {
             try {
                 plugin = require(longName);
-            } catch (err) {
-                debug(`Failed to load plugin ${longName}.`);
-                err.message = `Failed to load plugin ${pluginName}: ${err.message}`;
-                err.messageTemplate = "plugin-missing";
-                err.messageData = {
-                    pluginName: longName
-                };
-                throw err;
+            } catch (pluginLoadErr) {
+                try {
+
+                    // Check whether the plugin exists
+                    require.resolve(longName);
+                } catch (missingPluginErr) {
+
+                    // If the plugin can't be resolved, display the missing plugin error (usually a config or install error)
+                    debug(`Failed to load plugin ${longName}.`);
+                    missingPluginErr.message = `Failed to load plugin ${pluginName}: ${missingPluginErr.message}`;
+                    missingPluginErr.messageTemplate = "plugin-missing";
+                    missingPluginErr.messageData = {
+                        pluginName: longName
+                    };
+                    throw missingPluginErr;
+                }
+
+                // Otherwise, the plugin exists and is throwing on module load for some reason, so print the stack trace.
+                throw pluginLoadErr;
             }
 
             this.define(pluginName, plugin);

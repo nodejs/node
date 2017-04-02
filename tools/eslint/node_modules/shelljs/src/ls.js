@@ -3,12 +3,13 @@ var fs = require('fs');
 var common = require('./common');
 var glob = require('glob');
 
-var globPatternRecursive = path.sep + '**' + path.sep + '*';
+var globPatternRecursive = path.sep + '**';
 
 common.register('ls', _ls, {
   cmdOptions: {
     'R': 'recursive',
     'A': 'all',
+    'L': 'link',
     'a': 'all_deprecated',
     'd': 'directory',
     'l': 'long',
@@ -22,6 +23,7 @@ common.register('ls', _ls, {
 //@
 //@ + `-R`: recursive
 //@ + `-A`: all files (include files beginning with `.`, except for `.` and `..`)
+//@ + `-L`: follow symlinks
 //@ + `-d`: list directories themselves, not their contents
 //@ + `-l`: list objects representing each file, each with fields containing `ls
 //@         -l` output fields. See
@@ -60,7 +62,7 @@ function _ls(options, paths) {
       relName = relName.replace(/\\/g, '/');
     }
     if (options.long) {
-      stat = stat || fs.lstatSync(abs);
+      stat = stat || (options.link ? fs.statSync(abs) : fs.lstatSync(abs));
       list.push(addLsAttributes(relName, stat));
     } else {
       // list.push(path.relative(rel || '.', file));
@@ -72,7 +74,7 @@ function _ls(options, paths) {
     var stat;
 
     try {
-      stat = fs.lstatSync(p);
+      stat = options.link ? fs.statSync(p) : fs.lstatSync(p);
     } catch (e) {
       common.error('no such file or directory: ' + p, 2, { continue: true });
       return;
@@ -82,9 +84,12 @@ function _ls(options, paths) {
     if (stat.isDirectory() && !options.directory) {
       if (options.recursive) {
         // use glob, because it's simple
-        glob.sync(p + globPatternRecursive, { dot: options.all })
+        glob.sync(p + globPatternRecursive, { dot: options.all, follow: options.link })
           .forEach(function (item) {
-            pushFile(item, path.relative(p, item));
+            // Glob pattern returns the directory itself and needs to be filtered out.
+            if (path.relative(p, item)) {
+              pushFile(item, path.relative(p, item));
+            }
           });
       } else if (options.all) {
         // use fs.readdirSync, because it's fast

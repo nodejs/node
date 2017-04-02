@@ -5,6 +5,8 @@
 
 "use strict";
 
+const astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -93,7 +95,8 @@ module.exports = {
                 const sourceCode = context.getSourceCode(),
                     source = sourceCode.getText(),
                     allComments = sourceCode.getAllComments(),
-                    pattern = /[^\n\r\u2028\u2029\t ].? {2,}/g;  // note: repeating space
+                    JOINED_LINEBEAKS = Array.from(astUtils.LINEBREAKS).join(""),
+                    pattern = new RegExp(String.raw`[^ \t${JOINED_LINEBEAKS}].? {2,}`, "g");  // note: repeating space
                 let parent;
 
 

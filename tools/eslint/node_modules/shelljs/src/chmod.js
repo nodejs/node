@@ -21,20 +21,20 @@ var PERMS = (function (base) {
     SETGID: parseInt('02000', 8),
     SETUID: parseInt('04000', 8),
 
-    TYPE_MASK: parseInt('0770000', 8)
+    TYPE_MASK: parseInt('0770000', 8),
   };
 }({
   EXEC: 1,
   WRITE: 2,
-  READ: 4
+  READ: 4,
 }));
 
 common.register('chmod', _chmod, {
 });
 
 //@
-//@ ### chmod(octal_mode || octal_string, file)
-//@ ### chmod(symbolic_mode, file)
+//@ ### chmod([options,] octal_mode || octal_string, file)
+//@ ### chmod([options,] symbolic_mode, file)
 //@
 //@ Available options:
 //@
@@ -48,6 +48,7 @@ common.register('chmod', _chmod, {
 //@ chmod(755, '/Users/brandon');
 //@ chmod('755', '/Users/brandon'); // same as above
 //@ chmod('u+x', '/Users/brandon');
+//@ chmod('-R', 'a-w', '/Users/brandon');
 //@ ```
 //@
 //@ Alters the permissions of a file or directory by either specifying the
@@ -73,7 +74,7 @@ function _chmod(options, mode, filePattern) {
   options = common.parseOptions(options, {
     'R': 'recursive',
     'c': 'changes',
-    'v': 'verbose'
+    'v': 'verbose',
   });
 
   filePattern = [].slice.call(arguments, 2);

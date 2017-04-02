@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
@@ -15,7 +21,7 @@
  * @returns {boolean} True if str contains a line terminator.
  */
 function containsLineTerminator(str) {
-    return /[\n\r\u2028\u2029]/.test(str);
+    return astUtils.LINEBREAK_MATCHER.test(str);
 }
 
 /**
@@ -364,14 +370,9 @@ module.exports = {
          * @returns {ASTNode} The last token before a colon punctuator.
          */
         function getLastTokenBeforeColon(node) {
-            let prevNode;
+            const colonToken = sourceCode.getTokenAfter(node, astUtils.isColonToken);
 
-            while (node && (node.type !== "Punctuator" || node.value !== ":")) {
-                prevNode = node;
-                node = sourceCode.getTokenAfter(node);
-            }
-
-            return prevNode;
+            return sourceCode.getTokenBefore(colonToken);
         }
 
         /**
@@ -381,12 +382,7 @@ module.exports = {
          * @returns {ASTNode} The colon punctuator.
          */
         function getNextColon(node) {
-
-            while (node && (node.type !== "Punctuator" || node.value !== ":")) {
-                node = sourceCode.getTokenAfter(node);
-            }
-
-            return node;
+            return sourceCode.getTokenAfter(node, astUtils.isColonToken);
         }
 
         /**
@@ -417,8 +413,8 @@ module.exports = {
         function report(property, side, whitespace, expected, mode) {
             const diff = whitespace.length - expected,
                 nextColon = getNextColon(property.key),
-                tokenBeforeColon = sourceCode.getTokenOrCommentBefore(nextColon),
-                tokenAfterColon = sourceCode.getTokenOrCommentAfter(nextColon),
+                tokenBeforeColon = sourceCode.getTokenBefore(nextColon, { includeComments: true }),
+                tokenAfterColon = sourceCode.getTokenAfter(nextColon, { includeComments: true }),
                 isKeySide = side === "key",
                 locStart = isKeySide ? tokenBeforeColon.loc.start : tokenAfterColon.loc.start,
                 isExtra = diff > 0,
@@ -628,15 +624,16 @@ module.exports = {
                 }
             };
 
-        } else { // Obey beforeColon and afterColon in each property as configured
-
-            return {
-                Property(node) {
-                    verifySpacing(node, isSingleLine(node.parent) ? singleLineOptions : multiLineOptions);
-                }
-            };
-
         }
+
+        // Obey beforeColon and afterColon in each property as configured
+        return {
+            Property(node) {
+                verifySpacing(node, isSingleLine(node.parent) ? singleLineOptions : multiLineOptions);
+            }
+        };
+
+
 
     }
 };

@@ -40,9 +40,16 @@ function _find(options, paths) {
   // to get the base dir in the output, we need instead ls('-R', 'dir/*') for every directory
 
   paths.forEach(function (file) {
+    var stat;
+    try {
+      stat = fs.statSync(file);
+    } catch (e) {
+      common.error('no such file or directory: ' + file);
+    }
+
     pushFile(file);
 
-    if (fs.statSync(file).isDirectory()) {
+    if (stat.isDirectory()) {
       _ls({ recursive: true, all: true }, file).forEach(function (subfile) {
         pushFile(path.join(file, subfile));
       });

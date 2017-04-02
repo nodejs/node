@@ -234,8 +234,9 @@ class Config {
     }
 
     /**
-     * Build a config object merging the base config (conf/eslint.json), the
-     * environments config (conf/environments.js) and eventually the user config.
+     * Build a config object merging the base config (conf/eslint-recommended),
+     * the environments config (conf/environments.js) and eventually the user
+     * config.
      * @param {string} filePath a file in whose directory we start looking for a local config
      * @returns {Object} config object
      */

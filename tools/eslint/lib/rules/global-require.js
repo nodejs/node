@@ -29,9 +29,9 @@ function findReference(scope, node) {
     /* istanbul ignore else: correctly returns null */
     if (references.length === 1) {
         return references[0];
-    } else {
-        return null;
     }
+    return null;
+
 }
 
 /**

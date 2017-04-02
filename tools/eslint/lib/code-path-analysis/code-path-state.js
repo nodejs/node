@@ -467,8 +467,8 @@ class CodePathState {
              * Creates the next path from own true/false fork context.
              */
             const prevForkContext =
-                context.kind === "&&" ? context.trueForkContext :
-                /* kind === "||" */ context.falseForkContext;
+                context.kind === "&&" ? context.trueForkContext
+                /* kind === "||" */ : context.falseForkContext;
 
             forkContext.replaceHead(prevForkContext.makeNext(0, -1));
             prevForkContext.clear();

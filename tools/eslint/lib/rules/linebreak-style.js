@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -60,7 +66,7 @@ module.exports = {
                     expectedLF = linebreakStyle === "unix",
                     expectedLFChars = expectedLF ? "\n" : "\r\n",
                     source = sourceCode.getText(),
-                    pattern = /\r\n|\r|\n|\u2028|\u2029/g;
+                    pattern = astUtils.createGlobalLinebreakMatcher();
                 let match;
 
                 let i = 0;

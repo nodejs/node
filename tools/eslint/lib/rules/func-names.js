@@ -5,6 +5,12 @@
 
 "use strict";
 
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
 /**
  * Checks whether or not a given variable is a function name.
  * @param {escope.Variable} variable - A variable to check.
@@ -82,15 +88,24 @@ module.exports = {
                     return;
                 }
 
-                const name = node.id && node.id.name;
+                const hasName = Boolean(node.id && node.id.name);
+                const name = astUtils.getFunctionNameWithKind(node);
 
                 if (never) {
-                    if (name) {
-                        context.report({ node, message: "Unexpected function expression name." });
+                    if (hasName) {
+                        context.report({
+                            node,
+                            message: "Unexpected named {{name}}.",
+                            data: { name }
+                        });
                     }
                 } else {
-                    if (!name && (asNeeded ? !hasInferredName(node) : !isObjectOrClassMethod(node))) {
-                        context.report({ node, message: "Missing function expression name." });
+                    if (!hasName && (asNeeded ? !hasInferredName(node) : !isObjectOrClassMethod(node))) {
+                        context.report({
+                            node,
+                            message: "Unexpected unnamed {{name}}.",
+                            data: { name }
+                        });
                     }
                 }
             }

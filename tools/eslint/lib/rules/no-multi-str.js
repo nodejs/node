@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -39,9 +45,7 @@ module.exports = {
         return {
 
             Literal(node) {
-                const lineBreak = /\n/;
-
-                if (lineBreak.test(node.raw) && !isJSXElement(node.parent)) {
+                if (astUtils.LINEBREAK_MATCHER.test(node.raw) && !isJSXElement(node.parent)) {
                     context.report({ node, message: "Multiline support is limited to browsers supporting ES5 only." });
                 }
             }
