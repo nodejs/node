@@ -308,6 +308,8 @@ function demoDecode(str) {
 }
 check(qs.parse('a=a&b=b&c=c', null, null, { decodeURIComponent: demoDecode }),
       { aa: 'aa', bb: 'bb', cc: 'cc' });
+check(qs.parse('a=a&b=b&c=c', null, '==', { decodeURIComponent: (str) => str }),
+      { 'a=a': '', 'b=b': '', 'c=c': '' });
 
 // Test QueryString.unescape
 function errDecode(str) {
