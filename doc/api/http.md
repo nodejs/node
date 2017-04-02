@@ -130,7 +130,7 @@ To configure any of them, a custom [`http.Agent`][] instance must be created.
 
 ```js
 const http = require('http');
-var keepAliveAgent = new http.Agent({ keepAlive: true });
+const keepAliveAgent = new http.Agent({ keepAlive: true });
 options.agent = keepAliveAgent;
 http.request(options, onResponseCallback);
 ```
@@ -309,14 +309,14 @@ const net = require('net');
 const url = require('url');
 
 // Create an HTTP tunneling proxy
-var proxy = http.createServer( (req, res) => {
+const proxy = http.createServer( (req, res) => {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('okay');
 });
 proxy.on('connect', (req, cltSocket, head) => {
   // connect to an origin server
-  var srvUrl = url.parse(`http://${req.url}`);
-  var srvSocket = net.connect(srvUrl.port, srvUrl.hostname, () => {
+  const srvUrl = url.parse(`http://${req.url}`);
+  const srvSocket = net.connect(srvUrl.port, srvUrl.hostname, () => {
     cltSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                     'Proxy-agent: Node.js-Proxy\r\n' +
                     '\r\n');
@@ -330,14 +330,14 @@ proxy.on('connect', (req, cltSocket, head) => {
 proxy.listen(1337, '127.0.0.1', () => {
 
   // make a request to a tunneling proxy
-  var options = {
+  const options = {
     port: 1337,
     hostname: '127.0.0.1',
     method: 'CONNECT',
     path: 'www.google.com:80'
   };
 
-  var req = http.request(options);
+  const req = http.request(options);
   req.end();
 
   req.on('connect', (res, socket, head) => {
@@ -405,7 +405,7 @@ A client server pair demonstrating how to listen for the `'upgrade'` event.
 const http = require('http');
 
 // Create an HTTP server
-var srv = http.createServer( (req, res) => {
+const srv = http.createServer( (req, res) => {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('okay');
 });
@@ -422,7 +422,7 @@ srv.on('upgrade', (req, socket, head) => {
 srv.listen(1337, '127.0.0.1', () => {
 
   // make a request
-  var options = {
+  const options = {
     port: 1337,
     hostname: '127.0.0.1',
     headers: {
@@ -431,7 +431,7 @@ srv.listen(1337, '127.0.0.1', () => {
     }
   };
 
-  var req = http.request(options);
+  const req = http.request(options);
   req.end();
 
   req.on('upgrade', (res, socket, upgradeHead) => {
@@ -944,7 +944,7 @@ Note that the name is case insensitive.
 Example:
 
 ```js
-var contentType = response.getHeader('content-type');
+const contentType = response.getHeader('content-type');
 ```
 
 ### response.getHeaderNames()
@@ -963,7 +963,7 @@ Example:
 response.setHeader('Foo', 'bar');
 response.setHeader('Set-Cookie', ['foo=bar', 'bar=baz']);
 
-var headerNames = response.getHeaderNames();
+const headerNames = response.getHeaderNames();
 // headerNames === ['foo', 'set-cookie']
 ```
 
@@ -986,7 +986,7 @@ Example:
 response.setHeader('Foo', 'bar');
 response.setHeader('Set-Cookie', ['foo=bar', 'bar=baz']);
 
-var headers = response.getHeaders();
+const headers = response.getHeaders();
 // headers === { foo: 'bar', 'set-cookie': ['foo=bar', 'bar=baz'] }
 ```
 
@@ -1004,7 +1004,7 @@ outgoing headers. Note that the header name matching is case-insensitive.
 Example:
 
 ```js
-var hasContentType = response.hasHeader('content-type');
+const hasContentType = response.hasHeader('content-type');
 ```
 
 ### response.headersSent
@@ -1077,7 +1077,7 @@ any headers passed to [`response.writeHead()`][], with the headers passed to
 
 ```js
 // returns content-type = text/plain
-const server = http.createServer((req,res) => {
+const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
   res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -1209,7 +1209,7 @@ argument.
 Example:
 
 ```js
-var body = 'hello world';
+const body = 'hello world';
 response.writeHead(200, {
   'Content-Length': Buffer.byteLength(body),
   'Content-Type': 'text/plain' });
@@ -1227,7 +1227,7 @@ any headers passed to [`response.writeHead()`][], with the headers passed to
 
 ```js
 // returns content-type = text/plain
-const server = http.createServer((req,res) => {
+const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
   res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -1466,12 +1466,19 @@ can be used.  Example:
 ```txt
 $ node
 > require('url').parse('/status?name=ryan')
-{
-  href: '/status?name=ryan',
+Url {
+  protocol: null,
+  slashes: null,
+  auth: null,
+  host: null,
+  port: null,
+  hostname: null,
+  hash: null,
   search: '?name=ryan',
   query: 'name=ryan',
-  pathname: '/status'
-}
+  pathname: '/status',
+  path: '/status?name=ryan',
+  href: '/status?name=ryan' }
 ```
 
 To extract the parameters from the query string, the
@@ -1482,12 +1489,19 @@ Example:
 ```txt
 $ node
 > require('url').parse('/status?name=ryan', true)
-{
-  href: '/status?name=ryan',
+Url {
+  protocol: null,
+  slashes: null,
+  auth: null,
+  host: null,
+  port: null,
+  hostname: null,
+  hash: null,
   search: '?name=ryan',
-  query: {name: 'ryan'},
-  pathname: '/status'
-}
+  query: { name: 'ryan' },
+  pathname: '/status',
+  path: '/status?name=ryan',
+  href: '/status?name=ryan' }
 ```
 
 ## http.METHODS
@@ -1546,7 +1560,7 @@ JSON Fetching Example:
 
 ```js
 http.get('http://nodejs.org/dist/index.json', (res) => {
-  const statusCode = res.statusCode;
+  const { statusCode } = res;
   const contentType = res.headers['content-type'];
 
   let error;
@@ -1558,7 +1572,7 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
                       `Expected application/json but received ${contentType}`);
   }
   if (error) {
-    console.log(error.message);
+    console.error(error.message);
     // consume response data to free up memory
     res.resume();
     return;
@@ -1566,17 +1580,17 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
 
   res.setEncoding('utf8');
   let rawData = '';
-  res.on('data', (chunk) => rawData += chunk);
+  res.on('data', (chunk) => { rawData += chunk; });
   res.on('end', () => {
     try {
-      let parsedData = JSON.parse(rawData);
+      const parsedData = JSON.parse(rawData);
       console.log(parsedData);
     } catch (e) {
-      console.log(e.message);
+      console.error(e.message);
     }
   });
 }).on('error', (e) => {
-  console.log(`Got error: ${e.message}`);
+  console.error(`Got error: ${e.message}`);
 });
 ```
 
@@ -1647,11 +1661,11 @@ upload a file with a POST request, then write to the `ClientRequest` object.
 Example:
 
 ```js
-var postData = querystring.stringify({
-  'msg' : 'Hello World!'
+const postData = querystring.stringify({
+  'msg': 'Hello World!'
 });
 
-var options = {
+const options = {
   hostname: 'www.google.com',
   port: 80,
   path: '/upload',
@@ -1662,7 +1676,7 @@ var options = {
   }
 };
 
-var req = http.request(options, (res) => {
+const req = http.request(options, (res) => {
   console.log(`STATUS: ${res.statusCode}`);
   console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
   res.setEncoding('utf8');
@@ -1675,7 +1689,7 @@ var req = http.request(options, (res) => {
 });
 
 req.on('error', (e) => {
-  console.log(`problem with request: ${e.message}`);
+  console.error(`problem with request: ${e.message}`);
 });
 
 // write data to request body
