@@ -1569,7 +1569,7 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
   res.on('data', (chunk) => rawData += chunk);
   res.on('end', () => {
     try {
-      let parsedData = JSON.parse(rawData);
+      const parsedData = JSON.parse(rawData);
       console.log(parsedData);
     } catch (e) {
       console.log(e.message);
