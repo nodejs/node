@@ -31,7 +31,7 @@ module.exports = {
                         },
                         after: {
                             enum: ["always", "never"]
-                        },
+                        }
                     },
                     additionalProperties: false,
                     minProperties: 2
@@ -57,7 +57,7 @@ module.exports = {
          * @returns {boolean} Whether or not the passed in node is preceded by a blank newline.
          */
         function hasNewlineBefore(node) {
-            const tokenBefore = sourceCode.getTokenOrCommentBefore(node);
+            const tokenBefore = sourceCode.getTokenBefore(node, { includeComments: true });
             const tokenLineBefore = tokenBefore ? tokenBefore.loc.end.line : 0;
 
             return node.loc.start.line - tokenLineBefore >= 2;
@@ -74,7 +74,7 @@ module.exports = {
             const lastToken = sourceCode.getLastToken(node);
             const secondToLastToken = sourceCode.getTokenBefore(lastToken);
 
-            return lastToken.type === "Punctuator" && lastToken.value === ";" && lastToken.loc.start.line > secondToLastToken.loc.end.line
+            return astUtils.isSemicolonToken(lastToken) && lastToken.loc.start.line > secondToLastToken.loc.end.line
                 ? secondToLastToken
                 : lastToken;
         }
@@ -86,7 +86,7 @@ module.exports = {
          */
         function hasNewlineAfter(node) {
             const lastToken = getLastTokenOnLine(node);
-            const tokenAfter = sourceCode.getTokenOrCommentAfter(lastToken);
+            const tokenAfter = sourceCode.getTokenAfter(lastToken, { includeComments: true });
 
             return tokenAfter.loc.start.line - lastToken.loc.end.line >= 2;
         }
@@ -131,7 +131,7 @@ module.exports = {
             }
 
             const firstDirective = directives[0];
-            const hasTokenOrCommentBefore = !!sourceCode.getTokenOrCommentBefore(firstDirective);
+            const hasTokenOrCommentBefore = !!sourceCode.getTokenBefore(firstDirective, { includeComments: true });
 
             // Only check before the first directive if it is preceded by a comment or if it is at the top of
             // the file and expectLineBefore is set to "never". This is to not force a newline at the top of

@@ -1,4 +1,4 @@
-// ES2015 Symbol polyfill for environments that do not support it (or partially support it)
+// ES2015 Symbol polyfill for environments that do not (or partially) support it
 
 'use strict';
 
@@ -43,7 +43,7 @@ var generateName = (function () {
 // Internal constructor (not one exposed) for creating Symbol instances.
 // This one is used to ensure that `someSymbol instanceof Symbol` always return false
 HiddenSymbol = function Symbol(description) {
-	if (this instanceof HiddenSymbol) throw new TypeError('TypeError: Symbol is not a constructor');
+	if (this instanceof HiddenSymbol) throw new TypeError('Symbol is not a constructor');
 	return SymbolPolyfill(description);
 };
 
@@ -51,7 +51,7 @@ HiddenSymbol = function Symbol(description) {
 // (returns instances of HiddenSymbol)
 module.exports = SymbolPolyfill = function Symbol(description) {
 	var symbol;
-	if (this instanceof Symbol) throw new TypeError('TypeError: Symbol is not a constructor');
+	if (this instanceof Symbol) throw new TypeError('Symbol is not a constructor');
 	if (isNativeSafe) return NativeSymbol(description);
 	symbol = create(HiddenSymbol.prototype);
 	description = (description === undefined ? '' : String(description));
@@ -71,8 +71,8 @@ defineProperties(SymbolPolyfill, {
 		for (key in globalSymbols) if (globalSymbols[key] === s) return key;
 	}),
 
-	// If there's native implementation of given symbol, let's fallback to it
-	// to ensure proper interoperability with other native functions e.g. Array.from
+	// To ensure proper interoperability with other native functions (e.g. Array.from)
+	// fallback to eventual native implementation of given symbol
 	hasInstance: d('', (NativeSymbol && NativeSymbol.hasInstance) || SymbolPolyfill('hasInstance')),
 	isConcatSpreadable: d('', (NativeSymbol && NativeSymbol.isConcatSpreadable) ||
 		SymbolPolyfill('isConcatSpreadable')),

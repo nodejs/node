@@ -64,10 +64,10 @@ module.exports = {
 
             if (!valid) {
                 context.report({ node, message: "Move {{type}} declaration to {{body}} root.", data: {
-                    type: (node.type === "FunctionDeclaration" ?
-                            "function" : "variable"),
-                    body: (body.type === "Program" ?
-                            "program" : "function body")
+                    type: (node.type === "FunctionDeclaration"
+                            ? "function" : "variable"),
+                    body: (body.type === "Program"
+                            ? "program" : "function body")
                 } });
             }
         }

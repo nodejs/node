@@ -1,7 +1,8 @@
 var path = require('path');
+var parse = path.parse || require('path-parse');
 
-module.exports = function (start, opts) {
-    var modules = opts.moduleDirectory
+module.exports = function nodeModulesPaths(start, opts) {
+    var modules = opts && opts.moduleDirectory
         ? [].concat(opts.moduleDirectory)
         : ['node_modules']
     ;
@@ -17,22 +18,18 @@ module.exports = function (start, opts) {
         prefix = '\\\\';
     }
 
-    var splitRe = process.platform === 'win32' ? /[\/\\]/ : /\/+/;
+    var paths = [start];
+    var parsed = parse(start);
+    while (parsed.dir !== paths[paths.length - 1]) {
+        paths.push(parsed.dir);
+        parsed = parse(parsed.dir);
+    }
 
-    var parts = start.split(splitRe);
-
-    var dirs = [];
-    for (var i = parts.length - 1; i >= 0; i--) {
-        if (modules.indexOf(parts[i]) !== -1) continue;
-        dirs = dirs.concat(modules.map(function(module_dir) {
-            return prefix + path.join(
-                path.join.apply(path, parts.slice(0, i + 1)),
-                module_dir
-            );
+    var dirs = paths.reduce(function (dirs, aPath) {
+        return dirs.concat(modules.map(function (moduleDir) {
+            return path.join(prefix, aPath, moduleDir);
         }));
-    }
-    if (process.platform === 'win32'){
-        dirs[dirs.length-1] = dirs[dirs.length-1].replace(":", ":\\");
-    }
-    return dirs.concat(opts.paths);
-}
+    }, []);
+
+    return opts && opts.paths ? dirs.concat(opts.paths) : dirs;
+};

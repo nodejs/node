@@ -131,15 +131,14 @@ module.exports = function generate_validate(it, $keyword) {
       } else {
         out += ' var err = ' + (__err) + ';  if (vErrors === null) vErrors = [err]; else vErrors.push(err); errors++; ';
       }
-      out += ' } else { ';
-      if ($dataLvl) {
-        var $parentData = 'data' + (($dataLvl - 1) || ''),
-          $dataProperty = it.dataPathArr[$dataLvl];
-        out += ' ' + ($data) + ' = ' + ($parentData) + '[' + ($dataProperty) + '] = ' + ($coerced) + '; ';
-      } else {
-        out += ' data = ' + ($coerced) + '; if (parentData !== undefined) parentData[parentDataProperty] = ' + ($coerced) + '; ';
+      out += ' } else {  ';
+      var $parentData = $dataLvl ? 'data' + (($dataLvl - 1) || '') : 'parentData',
+        $parentDataProperty = $dataLvl ? it.dataPathArr[$dataLvl] : 'parentDataProperty';
+      out += ' ' + ($data) + ' = ' + ($coerced) + '; ';
+      if (!$dataLvl) {
+        out += 'if (' + ($parentData) + ' !== undefined)';
       }
-      out += ' } } ';
+      out += ' ' + ($parentData) + '[' + ($parentDataProperty) + '] = ' + ($coerced) + '; } } ';
     }
   }
   var $refKeywords;

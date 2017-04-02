@@ -28,7 +28,6 @@ function pluralize(word, count) {
 module.exports = function(results) {
 
     let output = "\n",
-        total = 0,
         errors = 0,
         warnings = 0,
         summaryColor = "yellow";
@@ -40,7 +39,9 @@ module.exports = function(results) {
             return;
         }
 
-        total += messages.length;
+        errors += result.errorCount;
+        warnings += result.warningCount;
+
         output += `${chalk.underline(result.filePath)}\n`;
 
         output += `${table(
@@ -50,10 +51,8 @@ module.exports = function(results) {
                 if (message.fatal || message.severity === 2) {
                     messageType = chalk.red("error");
                     summaryColor = "red";
-                    errors++;
                 } else {
                     messageType = chalk.yellow("warning");
-                    warnings++;
                 }
 
                 return [
@@ -73,6 +72,8 @@ module.exports = function(results) {
             }
         ).split("\n").map(el => el.replace(/(\d+)\s+(\d+)/, (m, p1, p2) => chalk.dim(`${p1}:${p2}`))).join("\n")}\n\n`;
     });
+
+    const total = errors + warnings;
 
     if (total > 0) {
         output += chalk[summaryColor].bold([

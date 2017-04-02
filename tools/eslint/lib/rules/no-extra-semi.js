@@ -6,6 +6,13 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const FixTracker = require("../util/fix-tracker");
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -34,7 +41,13 @@ module.exports = {
                 node: nodeOrToken,
                 message: "Unnecessary semicolon.",
                 fix(fixer) {
-                    return fixer.remove(nodeOrToken);
+
+                    // Expand the replacement range to include the surrounding
+                    // tokens to avoid conflicting with semi.
+                    // https://github.com/eslint/eslint/issues/7928
+                    return new FixTracker(fixer, context.getSourceCode())
+                        .retainSurroundingTokens(nodeOrToken)
+                        .remove(nodeOrToken);
                 }
             });
         }
@@ -48,10 +61,10 @@ module.exports = {
          */
         function checkForPartOfClassBody(firstToken) {
             for (let token = firstToken;
-                token.type === "Punctuator" && token.value !== "}";
+                token.type === "Punctuator" && !astUtils.isClosingBraceToken(token);
                 token = sourceCode.getTokenAfter(token)
             ) {
-                if (token.value === ";") {
+                if (astUtils.isSemicolonToken(token)) {
                     report(token);
                 }
             }
