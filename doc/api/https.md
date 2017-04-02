@@ -167,14 +167,14 @@ Example:
 ```js
 const https = require('https');
 
-var options = {
+const options = {
   hostname: 'encrypted.google.com',
   port: 443,
   path: '/',
   method: 'GET'
 };
 
-var req = https.request(options, (res) => {
+const req = https.request(options, (res) => {
   console.log('statusCode:', res.statusCode);
   console.log('headers:', res.headers);
 
@@ -191,7 +191,7 @@ req.end();
 Example using options from [`tls.connect()`][]:
 
 ```js
-var options = {
+const options = {
   hostname: 'encrypted.google.com',
   port: 443,
   path: '/',
@@ -201,7 +201,7 @@ var options = {
 };
 options.agent = new https.Agent(options);
 
-var req = https.request(options, (res) => {
+const req = https.request(options, (res) => {
   ...
 });
 ```
@@ -211,7 +211,7 @@ Alternatively, opt out of connection pooling by not using an `Agent`.
 Example:
 
 ```js
-var options = {
+const options = {
   hostname: 'encrypted.google.com',
   port: 443,
   path: '/',
@@ -221,7 +221,7 @@ var options = {
   agent: false
 };
 
-var req = https.request(options, (res) => {
+const req = https.request(options, (res) => {
   ...
 });
 ```
