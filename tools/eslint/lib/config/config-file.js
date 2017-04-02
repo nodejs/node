@@ -23,7 +23,7 @@ const fs = require("fs"),
     stripBom = require("strip-bom"),
     stripComments = require("strip-json-comments"),
     stringify = require("json-stable-stringify"),
-    defaultOptions = require("../../conf/eslint.json"),
+    defaultOptions = require("../../conf/eslint-recommended"),
     requireUncached = require("require-uncached");
 
 const debug = require("debug")("eslint:config-file");
@@ -184,6 +184,22 @@ function loadPackageJSONConfigFile(filePath) {
 }
 
 /**
+ * Creates an error to notify about a missing config to extend from.
+ * @param {string} configName The name of the missing config.
+ * @returns {Error} The error object to throw
+ * @private
+ */
+function configMissingError(configName) {
+    const error = new Error(`Failed to load config "${configName}" to extend from.`);
+
+    error.messageTemplate = "extend-config-missing";
+    error.messageData = {
+        configName
+    };
+    return error;
+}
+
+/**
  * Loads a configuration file regardless of the source. Inspects the file path
  * to determine the correctly way to load the config file.
  * @param {Object} file The path to the configuration.
@@ -199,6 +215,9 @@ function loadConfigFile(file) {
             config = loadJSConfigFile(filePath);
             if (file.configName) {
                 config = config.configs[file.configName];
+                if (!config) {
+                    throw configMissingError(file.configFullName);
+                }
             }
             break;
 
@@ -341,6 +360,33 @@ function getLookupPath(configFilePath) {
 }
 
 /**
+ * Resolves a eslint core config path
+ * @param {string} name The eslint config name.
+ * @returns {string} The resolved path of the config.
+ * @private
+ */
+function getEslintCoreConfigPath(name) {
+    if (name === "eslint:recommended") {
+
+       /*
+        * Add an explicit substitution for eslint:recommended to
+        * conf/eslint-recommended.js.
+        */
+        return path.resolve(__dirname, "../../conf/eslint-recommended.js");
+    }
+
+    if (name === "eslint:all") {
+
+       /*
+        * Add an explicit substitution for eslint:all to conf/eslint-all.js
+        */
+        return path.resolve(__dirname, "../../conf/eslint-all.js");
+    }
+
+    throw configMissingError(name);
+}
+
+/**
  * Applies values from the "extends" field in a configuration file.
  * @param {Object} config The configuration information.
  * @param {string} filePath The file path from which the configuration information
@@ -360,33 +406,20 @@ function applyExtends(config, filePath, relativeTo) {
 
     // Make the last element in an array take the highest precedence
     config = configExtends.reduceRight((previousValue, parentPath) => {
-
-        if (parentPath === "eslint:recommended") {
-
-            /*
-             * Add an explicit substitution for eslint:recommended to conf/eslint.json
-             * this lets us use the eslint.json file as the recommended rules
-             */
-            parentPath = path.resolve(__dirname, "../../conf/eslint.json");
-        } else if (parentPath === "eslint:all") {
-
-            /*
-             * Add an explicit substitution for eslint:all to conf/eslint-all.js
-             */
-            parentPath = path.resolve(__dirname, "../../conf/eslint-all.js");
-        } else if (isFilePath(parentPath)) {
-
-            /*
-             * If the `extends` path is relative, use the directory of the current configuration
-             * file as the reference point. Otherwise, use as-is.
-             */
-            parentPath = (!path.isAbsolute(parentPath) ?
-                path.join(relativeTo || path.dirname(filePath), parentPath) :
-                parentPath
-            );
-        }
-
         try {
+            if (parentPath.startsWith("eslint:")) {
+                parentPath = getEslintCoreConfigPath(parentPath);
+            } else if (isFilePath(parentPath)) {
+
+                /*
+                 * If the `extends` path is relative, use the directory of the current configuration
+                 * file as the reference point. Otherwise, use as-is.
+                 */
+                parentPath = (path.isAbsolute(parentPath)
+                    ? parentPath
+                    : path.join(relativeTo || path.dirname(filePath), parentPath)
+                );
+            }
             debug(`Loading ${parentPath}`);
             return ConfigOps.merge(load(parentPath, false, relativeTo), previousValue);
         } catch (e) {
@@ -455,30 +488,34 @@ function normalizePackageName(name, prefix) {
  * or package name.
  * @param {string} filePath The filepath to resolve.
  * @param {string} [relativeTo] The path to resolve relative to.
- * @returns {Object} A path that can be used directly to load the configuration.
+ * @returns {Object} An object containing 3 properties:
+ * - 'filePath' (required) the resolved path that can be used directly to load the configuration.
+ * - 'configName' the name of the configuration inside the plugin.
+ * - 'configFullName' the name of the configuration as used in the eslint config (e.g. 'plugin:node/recommended').
  * @private
  */
 function resolve(filePath, relativeTo) {
     if (isFilePath(filePath)) {
         return { filePath: path.resolve(relativeTo || "", filePath) };
-    } else {
-        let normalizedPackageName;
-
-        if (filePath.indexOf("plugin:") === 0) {
-            const packagePath = filePath.substr(7, filePath.lastIndexOf("/") - 7);
-            const configName = filePath.substr(filePath.lastIndexOf("/") + 1, filePath.length - filePath.lastIndexOf("/") - 1);
-
-            normalizedPackageName = normalizePackageName(packagePath, "eslint-plugin");
-            debug(`Attempting to resolve ${normalizedPackageName}`);
-            filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
-            return { filePath, configName };
-        } else {
-            normalizedPackageName = normalizePackageName(filePath, "eslint-config");
-            debug(`Attempting to resolve ${normalizedPackageName}`);
-            filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
-            return { filePath };
-        }
     }
+    let normalizedPackageName;
+
+    if (filePath.startsWith("plugin:")) {
+        const configFullName = filePath;
+        const pluginName = filePath.substr(7, filePath.lastIndexOf("/") - 7);
+        const configName = filePath.substr(filePath.lastIndexOf("/") + 1, filePath.length - filePath.lastIndexOf("/") - 1);
+
+        normalizedPackageName = normalizePackageName(pluginName, "eslint-plugin");
+        debug(`Attempting to resolve ${normalizedPackageName}`);
+        filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
+        return { filePath, configName, configFullName };
+    }
+    normalizedPackageName = normalizePackageName(filePath, "eslint-config");
+    debug(`Attempting to resolve ${normalizedPackageName}`);
+    filePath = resolver.resolve(normalizedPackageName, getLookupPath(relativeTo));
+    return { filePath };
+
+
 
 }
 

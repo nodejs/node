@@ -25,18 +25,19 @@ import "./statement"
 import "./lval"
 import "./expression"
 import "./location"
+import "./scope"
 
 export {Parser, plugins} from "./state"
 export {defaultOptions} from "./options"
 export {Position, SourceLocation, getLineInfo} from "./locutil"
 export {Node} from "./node"
-export {TokenType, types as tokTypes} from "./tokentype"
+export {TokenType, types as tokTypes, keywords as keywordTypes} from "./tokentype"
 export {TokContext, types as tokContexts} from "./tokencontext"
 export {isIdentifierChar, isIdentifierStart} from "./identifier"
 export {Token} from "./tokenize"
-export {isNewLine, lineBreak, lineBreakG} from "./whitespace"
+export {isNewLine, lineBreak, lineBreakG, nonASCIIwhitespace} from "./whitespace"
 
-export const version = "4.0.4"
+export const version = "5.0.3"
 
 // The main exported interface (under `self.acorn` when in the
 // browser) is a `parse` function that takes a code string and
@@ -69,9 +70,9 @@ export function tokenizer(input, options) {
 // This is a terrible kludge to support the existing, pre-ES6
 // interface where the loose parser module retroactively adds exports
 // to this module.
-export let parse_dammit, LooseParser, pluginsLoose
+export let parse_dammit, LooseParser, pluginsLoose // eslint-disable-line camelcase
 export function addLooseExports(parse, Parser, plugins) {
-  parse_dammit = parse
+  parse_dammit = parse // eslint-disable-line camelcase
   LooseParser = Parser
   pluginsLoose = plugins
 }

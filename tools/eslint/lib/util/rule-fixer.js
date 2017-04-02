@@ -34,14 +34,9 @@ function insertTextAt(index, text) {
 
 /**
  * Creates code fixing commands for rules.
- * @constructor
  */
-function RuleFixer() {
-    Object.freeze(this);
-}
 
-RuleFixer.prototype = {
-    constructor: RuleFixer,
+const ruleFixer = Object.freeze({
 
     /**
      * Creates a fix command that inserts text after the given node or token.
@@ -139,7 +134,7 @@ RuleFixer.prototype = {
         };
     }
 
-};
+});
 
 
-module.exports = RuleFixer;
+module.exports = ruleFixer;

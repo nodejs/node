@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 const LETTER_PATTERN = require("../util/patterns/letters");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -16,7 +17,7 @@ const LETTER_PATTERN = require("../util/patterns/letters");
 
 const ALWAYS_MESSAGE = "Comments should not begin with a lowercase character",
     NEVER_MESSAGE = "Comments should not begin with an uppercase character",
-    DEFAULT_IGNORE_PATTERN = /^\s*(?:eslint|istanbul|jscs|jshint|globals?|exported)\b/,
+    DEFAULT_IGNORE_PATTERN = astUtils.COMMENTS_IGNORE_PATTERN,
     WHITESPACE = /\s/g,
     MAYBE_URL = /^\s*[^:/?#\s]+:\/\/[^?#]/,    // TODO: Combine w/ max-len pattern?
     DEFAULTS = {
@@ -163,8 +164,8 @@ module.exports = {
          * otherwise.
          */
         function isInlineComment(comment) {
-            const previousToken = sourceCode.getTokenOrCommentBefore(comment),
-                nextToken = sourceCode.getTokenOrCommentAfter(comment);
+            const previousToken = sourceCode.getTokenBefore(comment, { includeComments: true }),
+                nextToken = sourceCode.getTokenAfter(comment, { includeComments: true });
 
             return Boolean(
                 previousToken &&
@@ -181,7 +182,7 @@ module.exports = {
          * @returns {boolean} True if the comment follows a valid comment.
          */
         function isConsecutiveComment(comment) {
-            const previousTokenOrComment = sourceCode.getTokenOrCommentBefore(comment);
+            const previousTokenOrComment = sourceCode.getTokenBefore(comment, { includeComments: true });
 
             return Boolean(
                 previousTokenOrComment &&
@@ -264,9 +265,9 @@ module.exports = {
                 commentValid = isCommentValid(comment, options);
 
             if (!commentValid) {
-                const message = capitalize === "always" ?
-                    ALWAYS_MESSAGE :
-                    NEVER_MESSAGE;
+                const message = capitalize === "always"
+                    ? ALWAYS_MESSAGE
+                    : NEVER_MESSAGE;
 
                 context.report({
                     node: null,         // Intentionally using loc instead

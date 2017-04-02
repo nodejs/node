@@ -148,13 +148,7 @@ module.exports = {
          * @returns {Token} The operator token of the node.
          */
         function getOperatorToken(node) {
-            let token = sourceCode.getTokenAfter(node.left);
-
-            while (token.value === ")") {
-                token = sourceCode.getTokenAfter(token);
-            }
-
-            return token;
+            return sourceCode.getTokenAfter(node.left, astUtils.isNotClosingParenToken);
         }
 
         /**

@@ -89,7 +89,7 @@ module.exports = {
          * @returns {void}
          */
         function report(reportNode, type) {
-            context.report({ node: reportNode, message: `Use ${type} destructuring` });
+            context.report({ node: reportNode, message: "Use {{type}} destructuring.", data: { type } });
         }
 
         /**
@@ -158,7 +158,9 @@ module.exports = {
          * @returns {void}
          */
         function checkAssigmentExpression(node) {
-            performCheck(node.left, node.right, node);
+            if (node.operator === "=") {
+                performCheck(node.left, node.right, node);
+            }
         }
 
         //--------------------------------------------------------------------------

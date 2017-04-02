@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -94,7 +100,7 @@ module.exports = {
                             const firstValueToken = sourceCode.getTokenAfter(returnKeyword);
                             let lastValueToken = sourceCode.getLastToken(blockBody[0]);
 
-                            if (lastValueToken.type === "Punctuator" && lastValueToken.value === ";") {
+                            if (astUtils.isSemicolonToken(lastValueToken)) {
 
                                 /* The last token of the returned value is the last token of the ReturnExpression (if
                                  * the ReturnExpression has no semicolon), or the second-to-last token (if the ReturnExpression
@@ -114,7 +120,7 @@ module.exports = {
                             const textBeforeReturn = sourceText.slice(arrowBody.range[0] + 1, returnKeyword.range[0]);
                             const textBetweenReturnAndValue = sourceText.slice(returnKeyword.range[1], firstValueToken.range[0]);
                             const rawReturnValueText = sourceText.slice(firstValueToken.range[0], lastValueToken.range[1]);
-                            const returnValueText = firstValueToken.value === "{" ? `(${rawReturnValueText})` : rawReturnValueText;
+                            const returnValueText = astUtils.isOpeningBraceToken(firstValueToken) ? `(${rawReturnValueText})` : rawReturnValueText;
                             const textAfterValue = sourceText.slice(lastValueToken.range[1], blockBody[0].range[1] - 1);
                             const textAfterReturnStatement = sourceText.slice(blockBody[0].range[1], arrowBody.range[1] - 1);
 
@@ -136,10 +142,7 @@ module.exports = {
                         loc: arrowBody.loc.start,
                         message: "Expected block statement surrounding arrow body.",
                         fix(fixer) {
-                            const lastTokenBeforeBody = sourceCode.getTokensBetween(sourceCode.getFirstToken(node), arrowBody)
-                                .reverse()
-                                .find(token => token.value !== "(");
-
+                            const lastTokenBeforeBody = sourceCode.getLastTokenBetween(sourceCode.getFirstToken(node), arrowBody, astUtils.isNotOpeningParenToken);
                             const firstBodyToken = sourceCode.getTokenAfter(lastTokenBeforeBody);
 
                             return fixer.replaceTextRange(

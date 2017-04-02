@@ -40,13 +40,13 @@ function getRuleOptionsSchema(id) {
                 minItems: 0,
                 maxItems: schema.length
             };
-        } else {
-            return {
-                type: "array",
-                minItems: 0,
-                maxItems: 0
-            };
         }
+        return {
+            type: "array",
+            minItems: 0,
+            maxItems: 0
+        };
+
     }
 
     // Given a full schema, leave it alone

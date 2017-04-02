@@ -48,7 +48,7 @@ module.exports = {
             FunctionDeclaration: true,
             FunctionExpression: true,
             ImportDeclaration: true,
-            ObjectPattern: true,
+            ObjectPattern: true
         };
 
         if (context.options.length === 2 && context.options[1].hasOwnProperty("exceptions")) {
@@ -62,16 +62,6 @@ module.exports = {
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
-
-        /**
-         * Determines if a given token is a comma operator.
-         * @param {ASTNode} token The token to check.
-         * @returns {boolean} True if the token is a comma, false if not.
-         * @private
-         */
-        function isComma(token) {
-            return !!token && (token.type === "Punctuator") && (token.value === ",");
-        }
 
         /**
          * Modified text based on the style
@@ -192,7 +182,7 @@ module.exports = {
                         tokenBeforeComma = sourceCode.getTokenBefore(commaToken);
 
                     // Check if previous token is wrapped in parentheses
-                    if (tokenBeforeComma && tokenBeforeComma.value === ")") {
+                    if (tokenBeforeComma && astUtils.isClosingParenToken(tokenBeforeComma)) {
                         previousItemToken = tokenBeforeComma;
                     }
 
@@ -210,12 +200,16 @@ module.exports = {
                      * All comparisons are done based on these tokens directly, so
                      * they are always valid regardless of an undefined item.
                      */
-                    if (isComma(commaToken)) {
+                    if (astUtils.isCommaToken(commaToken)) {
                         validateCommaItemSpacing(previousItemToken, commaToken,
                                 currentItemToken, reportItem);
                     }
 
-                    previousItemToken = item ? sourceCode.getLastToken(item) : previousItemToken;
+                    if (item) {
+                        const tokenAfterItem = sourceCode.getTokenAfter(item, astUtils.isNotClosingParenToken);
+
+                        previousItemToken = tokenAfterItem ? sourceCode.getTokenBefore(tokenAfterItem) : sourceCode.ast.tokens[sourceCode.ast.tokens.length - 1];
+                    }
                 });
 
                 /*
@@ -229,7 +223,7 @@ module.exports = {
                     const lastToken = sourceCode.getLastToken(node),
                         nextToLastToken = sourceCode.getTokenBefore(lastToken);
 
-                    if (isComma(nextToLastToken)) {
+                    if (astUtils.isCommaToken(nextToLastToken)) {
                         validateCommaItemSpacing(
                             sourceCode.getTokenBefore(nextToLastToken),
                             nextToLastToken,
