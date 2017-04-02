@@ -1558,7 +1558,7 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
                       `Expected application/json but received ${contentType}`);
   }
   if (error) {
-    console.log(error.message);
+    console.error(error.message);
     // consume response data to free up memory
     res.resume();
     return;
@@ -1572,11 +1572,11 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
       const parsedData = JSON.parse(rawData);
       console.log(parsedData);
     } catch (e) {
-      console.log(e.message);
+      console.error(e.message);
     }
   });
 }).on('error', (e) => {
-  console.log(`Got error: ${e.message}`);
+  console.error(`Got error: ${e.message}`);
 });
 ```
 
@@ -1675,7 +1675,7 @@ const req = http.request(options, (res) => {
 });
 
 req.on('error', (e) => {
-  console.log(`problem with request: ${e.message}`);
+  console.error(`problem with request: ${e.message}`);
 });
 
 // write data to request body
