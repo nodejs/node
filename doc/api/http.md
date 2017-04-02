@@ -1466,12 +1466,19 @@ can be used.  Example:
 ```txt
 $ node
 > require('url').parse('/status?name=ryan')
-{
-  href: '/status?name=ryan',
+Url {
+  protocol: null,
+  slashes: null,
+  auth: null,
+  host: null,
+  port: null,
+  hostname: null,
+  hash: null,
   search: '?name=ryan',
   query: 'name=ryan',
-  pathname: '/status'
-}
+  pathname: '/status',
+  path: '/status?name=ryan',
+  href: '/status?name=ryan' }
 ```
 
 To extract the parameters from the query string, the
@@ -1482,12 +1489,19 @@ Example:
 ```txt
 $ node
 > require('url').parse('/status?name=ryan', true)
-{
-  href: '/status?name=ryan',
+Url {
+  protocol: null,
+  slashes: null,
+  auth: null,
+  host: null,
+  port: null,
+  hostname: null,
+  hash: null,
   search: '?name=ryan',
-  query: {name: 'ryan'},
-  pathname: '/status'
-}
+  query: { name: 'ryan' },
+  pathname: '/status',
+  path: '/status?name=ryan',
+  href: '/status?name=ryan' }
 ```
 
 ## http.METHODS
