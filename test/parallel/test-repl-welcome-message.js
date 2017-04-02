@@ -13,7 +13,7 @@ const jsEngine = process.jsEngine || 'v8';
 const jsEngineVersion = process.versions[jsEngine];
 const docURL = `https://nodejs.org/dist/${version}/docs/api/repl.html`;
 const welcomeMessage =
-  `Welcome to Node.js ${version} (${jsEngine} VM,` +
+  `Welcome to Node.js ${version} (${jsEngine},` +
   ` ${jsEngineVersion})\nType ^M or enter to execute,` +
   ' ^J to continue, ^C to exit\n' +
   `Or try .help for help, more at ${docURL}\n\n`;
