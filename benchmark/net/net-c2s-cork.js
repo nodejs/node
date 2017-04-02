@@ -27,11 +27,11 @@ function main(conf) {
       break;
     case 'utf':
       encoding = 'utf8';
-      chunk = new Array(len / 2 + 1).join('ü');
+      chunk = 'ü'.repeat(len / 2);
       break;
     case 'asc':
       encoding = 'ascii';
-      chunk = new Array(len + 1).join('x');
+      chunk = 'x'.repeat(len);
       break;
     default:
       throw new Error('invalid type: ' + type);

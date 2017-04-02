@@ -26,10 +26,10 @@ function main(conf) {
       chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
-      chunk = new Array(len / 2 + 1).join('ü');
+      chunk = 'ü'.repeat(len / 2);
       break;
     case 'asc':
-      chunk = new Array(len + 1).join('a');
+      chunk = 'a'.repeat(len);
       break;
   }
 

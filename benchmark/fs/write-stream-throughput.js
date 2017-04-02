@@ -24,11 +24,11 @@ function main(conf) {
       chunk = Buffer.alloc(size, 'b');
       break;
     case 'asc':
-      chunk = new Array(size + 1).join('a');
+      chunk = 'a'.repeat(size);
       encoding = 'ascii';
       break;
     case 'utf':
-      chunk = new Array(Math.ceil(size / 2) + 1).join('ü');
+      chunk = 'ü'.repeat(Math.ceil(size / 2));
       encoding = 'utf8';
       break;
     default:

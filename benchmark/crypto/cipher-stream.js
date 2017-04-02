@@ -40,11 +40,11 @@ function main(conf) {
   var encoding;
   switch (conf.type) {
     case 'asc':
-      message = new Array(conf.len + 1).join('a');
+      message = 'a'.repeat(conf.len);
       encoding = 'ascii';
       break;
     case 'utf':
-      message = new Array(conf.len / 2 + 1).join('ü');
+      message = 'ü'.repeat(conf.len / 2);
       encoding = 'utf8';
       break;
     case 'buf':
