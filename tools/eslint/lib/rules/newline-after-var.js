@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -201,8 +207,7 @@ module.exports = {
                     message: NEVER_MESSAGE,
                     data: { identifier: node.name },
                     fix(fixer) {
-                        const NEWLINE_REGEX = /\r\n|\r|\n|\u2028|\u2029/;
-                        const linesBetween = sourceCode.getText().slice(lastToken.range[1], nextToken.range[0]).split(NEWLINE_REGEX);
+                        const linesBetween = sourceCode.getText().slice(lastToken.range[1], nextToken.range[0]).split(astUtils.LINEBREAK_MATCHER);
 
                         return fixer.replaceTextRange([lastToken.range[1], nextToken.range[0]], `${linesBetween.slice(0, -1).join("")}\n${linesBetween[linesBetween.length - 1]}`);
                     }

@@ -1,6 +1,37 @@
-[![Build Status](https://travis-ci.org/kaelzhang/node-ignore.svg?branch=master)](https://travis-ci.org/kaelzhang/node-ignore)
-[![Windows Build Status](https://ci.appveyor.com/api/projects/status/github/kaelzhang/node-ignore?branch=master&svg=true)](https://ci.appveyor.com/project/kaelzhang/node-ignore)
-[![npm module downloads per month](http://img.shields.io/npm/dm/ignore.svg)](https://www.npmjs.org/package/ignore)
+<table><thead>
+  <tr>
+    <th>Linux</th>
+    <th>OS X</th>
+    <th>Windows</th>
+    <th>Coverage</th>
+    <th>Downloads</th>
+  </tr>
+</thead><tbody><tr>
+  <td colspan="2" align="center">
+    <a href="https://travis-ci.org/kaelzhang/node-ignore">
+    <img
+      src="https://travis-ci.org/kaelzhang/node-ignore.svg?branch=master"
+      alt="Build Status" /></a>
+  </td>
+  <td align="center">
+    <a href="https://ci.appveyor.com/project/kaelzhang/node-ignore">
+    <img
+      src="https://ci.appveyor.com/api/projects/status/github/kaelzhang/node-ignore?branch=master&svg=true"
+      alt="Windows Build Status" /></a>
+  </td>
+  <td align="center">
+    <a href="https://codecov.io/gh/kaelzhang/node-ignore">
+    <img
+      src="https://codecov.io/gh/kaelzhang/node-ignore/branch/master/graph/badge.svg"
+      alt="Coverage Status" /></a>
+  </td>
+  <td align="center">
+    <a href="https://www.npmjs.org/package/ignore">
+    <img
+      src="http://img.shields.io/npm/dm/ignore.svg"
+      alt="npm module downloads per month" /></a>
+  </td>
+</tr></tbody></table>
 
 # ignore
 
@@ -10,8 +41,10 @@ Pay attention that [`minimatch`](https://www.npmjs.org/package/minimatch) does n
 
 ##### Tested on
 
-- Linux + Node: `0.8` - `5.x`
-- Windows + Node: `0.10` - `5.x`, node < `0.10` is not tested due to the lack of support of appveyor.
+- Linux + Node: `0.8` - `7.x`
+- Windows + Node: `0.10` - `7.x`, node < `0.10` is not tested due to the lack of support of appveyor.
+
+Actually, `ignore` does not rely on any versions of node specially.
 
 ## Table Of Main Contents
 
@@ -34,7 +67,8 @@ const paths = [
   '.abc/d/e.js'   // included
 ]
 
-ig.filter(paths)  // ['.abc/d/e.js']
+ig.filter(paths)        // ['.abc/d/e.js']
+ig.ignores('.abc/a.js') // true
 ```
 
 ### As the filter function

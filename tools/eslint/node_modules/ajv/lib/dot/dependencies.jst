@@ -47,7 +47,7 @@ var missing{{=$lvl}};
   {{? {{# def.nonEmptySchema:$sch }} }}
     {{=$nextValid}} = true;
 
-    if ({{=$data}}['{{= $property }}'] !== undefined) {
+    if ({{=$data}}{{= it.util.getProperty($property) }} !== undefined) {
       {{ 
         $it.schema = $sch;
         $it.schemaPath = $schemaPath + it.util.getProperty($property);

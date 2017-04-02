@@ -67,7 +67,11 @@ module.exports = {
          */
         function invertExpression(node) {
             if (node.type === "BinaryExpression" && Object.prototype.hasOwnProperty.call(OPERATOR_INVERSES, node.operator)) {
-                const operatorToken = sourceCode.getTokensBetween(node.left, node.right).find(token => token.value === node.operator);
+                const operatorToken = sourceCode.getFirstTokenBetween(
+                    node.left,
+                    node.right,
+                    token => token.value === node.operator
+                );
 
                 return sourceCode.getText().slice(node.range[0], operatorToken.range[0]) + OPERATOR_INVERSES[node.operator] + sourceCode.getText().slice(operatorToken.range[1], node.range[1]);
             }

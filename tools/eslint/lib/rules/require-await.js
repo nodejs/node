@@ -51,7 +51,7 @@ module.exports = {
         function enterFunction() {
             scopeInfo = {
                 upper: scopeInfo,
-                hasAwait: false,
+                hasAwait: false
             };
         }
 

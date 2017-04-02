@@ -94,12 +94,9 @@ module.exports = function generate_ref(it, $keyword) {
     if (it.errorPath != '""') {
       out += ' + ' + (it.errorPath);
     }
-    if ($dataLvl) {
-      out += ' , data' + (($dataLvl - 1) || '') + ' , ' + (it.dataPathArr[$dataLvl]) + ' ';
-    } else {
-      out += ' , parentData , parentDataProperty ';
-    }
-    out += ', rootData)  ';
+    var $parentData = $dataLvl ? 'data' + (($dataLvl - 1) || '') : 'parentData',
+      $parentDataProperty = $dataLvl ? it.dataPathArr[$dataLvl] : 'parentDataProperty';
+    out += ' , ' + ($parentData) + ' , ' + ($parentDataProperty) + ', rootData)  ';
     var __callValidate = out;
     out = $$outStack.pop();
     if ($async) {

@@ -201,6 +201,12 @@ class IgnoredPaths {
 
         const ig = ignore().add(DEFAULT_IGNORE_DIRS);
 
+        if (this.options.dotfiles !== true) {
+
+            // Ignore hidden folders.  (This cannot be ".*", or else it's not possible to unignore hidden files)
+            ig.add([".*/*", "!../"]);
+        }
+
         if (this.options.ignore) {
             ig.add(this.ig.custom);
         }

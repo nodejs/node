@@ -17,7 +17,7 @@ const util = require("util"),
     ConfigOps = require("./config-ops"),
     getSourceCodeOfFiles = require("../util/source-code-util").getSourceCodeOfFiles,
     npmUtil = require("../util/npm-util"),
-    recConfig = require("../../conf/eslint.json"),
+    recConfig = require("../../conf/eslint-recommended"),
     log = require("../logging");
 
 const debug = require("debug")("eslint:config-initializer");
@@ -317,7 +317,7 @@ function promptUser(callback) {
             default: false,
             when(answers) {
                 return answers.styleguide === "airbnb";
-            },
+            }
         },
         {
             type: "input",

@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -64,20 +70,20 @@ module.exports = {
                                 propertyValue: JSON.stringify(node.property.value)
                             },
                             fix(fixer) {
-                                const leftBracket = sourceCode.getTokenBefore(node.property);
-                                const rightBracket = sourceCode.getTokenAfter(node.property);
-                                const textBeforeProperty = sourceCode.text.slice(leftBracket.range[1], node.property.range[0]);
-                                const textAfterProperty = sourceCode.text.slice(node.property.range[1], rightBracket.range[0]);
+                                const leftBracket = sourceCode.getTokenAfter(node.object, astUtils.isOpeningBracketToken);
+                                const rightBracket = sourceCode.getLastToken(node);
 
-                                if (textBeforeProperty.trim() || textAfterProperty.trim()) {
+                                if (sourceCode.getFirstTokenBetween(leftBracket, rightBracket, { includeComments: true, filter: astUtils.isCommentToken })) {
 
                                     // Don't perform any fixes if there are comments inside the brackets.
                                     return null;
                                 }
 
+                                const textBeforeDot = astUtils.isDecimalInteger(node.object) ? " " : "";
+
                                 return fixer.replaceTextRange(
                                     [leftBracket.range[0], rightBracket.range[1]],
-                                    `.${node.property.value}`
+                                    `${textBeforeDot}.${node.property.value}`
                                 );
                             }
                         });

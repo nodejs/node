@@ -111,9 +111,9 @@ export function getOptions(opts) {
 }
 
 function pushComment(options, array) {
-  return function (block, text, start, end, startLoc, endLoc) {
+  return function(block, text, start, end, startLoc, endLoc) {
     let comment = {
-      type: block ? 'Block' : 'Line',
+      type: block ? "Block" : "Line",
       value: text,
       start: start,
       end: end
@@ -125,4 +125,3 @@ function pushComment(options, array) {
     array.push(comment)
   }
 }
-

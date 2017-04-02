@@ -9,7 +9,7 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-const PATTERN_TYPE = /^(?:.+?Pattern|RestElement|Property)$/;
+const PATTERN_TYPE = /^(?:.+?Pattern|RestElement|SpreadProperty|ExperimentalRestProperty|Property)$/;
 const DECLARATION_HOST_TYPE = /^(?:Program|BlockStatement|SwitchCase)$/;
 const DESTRUCTURING_HOST_TYPE = /^(?:VariableDeclarator|AssignmentExpression)$/;
 

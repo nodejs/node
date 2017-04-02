@@ -42,6 +42,9 @@ module.exports = {
                             args: {
                                 enum: ["all", "after-used", "none"]
                             },
+                            ignoreRestSiblings: {
+                                type: "boolean"
+                            },
                             argsIgnorePattern: {
                                 type: "string"
                             },
@@ -59,13 +62,16 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
 
         const DEFINED_MESSAGE = "'{{name}}' is defined but never used.";
         const ASSIGNED_MESSAGE = "'{{name}}' is assigned a value but never used.";
+        const REST_PROPERTY_TYPE = /^(?:Experimental)?RestProperty$/;
 
         const config = {
             vars: "all",
             args: "after-used",
+            ignoreRestSiblings: false,
             caughtErrors: "none"
         };
 
@@ -77,6 +83,7 @@ module.exports = {
             } else {
                 config.vars = firstOption.vars || config.vars;
                 config.args = firstOption.args || config.args;
+                config.ignoreRestSiblings = firstOption.ignoreRestSiblings || config.ignoreRestSiblings;
                 config.caughtErrors = firstOption.caughtErrors || config.caughtErrors;
 
                 if (firstOption.varsIgnorePattern) {
@@ -120,9 +127,32 @@ module.exports = {
                 }
 
                 return node.parent.type.indexOf("Export") === 0;
-            } else {
-                return false;
             }
+            return false;
+
+        }
+
+        /**
+         * Determines if a variable has a sibling rest property
+         * @param {Variable} variable - EScope variable object.
+         * @returns {boolean} True if the variable is exported, false if not.
+         * @private
+         */
+        function hasRestSpreadSibling(variable) {
+            if (config.ignoreRestSiblings) {
+                return variable.defs.some(def => {
+                    const propertyNode = def.name.parent;
+                    const patternNode = propertyNode.parent;
+
+                    return (
+                        propertyNode.type === "Property" &&
+                        patternNode.type === "ObjectPattern" &&
+                        REST_PROPERTY_TYPE.test(patternNode.properties[patternNode.properties.length - 1].type)
+                    );
+                });
+            }
+
+            return false;
         }
 
         /**
@@ -495,7 +525,7 @@ module.exports = {
                         }
                     }
 
-                    if (!isUsedVariable(variable) && !isExported(variable)) {
+                    if (!isUsedVariable(variable) && !isExported(variable) && !hasRestSpreadSibling(variable)) {
                         unusedVars.push(variable);
                     }
                 }
@@ -537,23 +567,8 @@ module.exports = {
          */
         function getLocation(variable) {
             const comment = variable.eslintExplicitGlobalComment;
-            const baseLoc = comment.loc.start;
-            let column = getColumnInComment(variable, comment);
-            const prefix = comment.value.slice(0, column);
-            const lineInComment = (prefix.match(/\n/g) || []).length;
 
-            if (lineInComment > 0) {
-                column -= 1 + prefix.lastIndexOf("\n");
-            } else {
-
-                // 2 is for `/*`
-                column += baseLoc.column + 2;
-            }
-
-            return {
-                line: baseLoc.line + lineInComment,
-                column
-            };
+            return sourceCode.getLocFromIndex(comment.range[0] + 2 + getColumnInComment(variable, comment));
         }
 
         //--------------------------------------------------------------------------

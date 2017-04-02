@@ -1,10 +1,10 @@
-Overview [![Build Status](https://travis-ci.org/lydell/js-tokens.png?branch=master)](https://travis-ci.org/lydell/js-tokens)
+Overview [![Build Status](https://travis-ci.org/lydell/js-tokens.svg?branch=master)](https://travis-ci.org/lydell/js-tokens)
 ========
 
 A regex that tokenizes JavaScript.
 
 ```js
-var jsTokens = require("js-tokens")
+var jsTokens = require("js-tokens").default
 
 var jsString = "var foo=opts.foo;\n..."
 
@@ -19,7 +19,9 @@ Installation
 `npm install js-tokens`
 
 ```js
-var jsTokens = require("js-tokens")
+import jsTokens from "js-tokens"
+// or:
+var jsTokens = require("js-tokens").default
 ```
 
 
@@ -34,7 +36,13 @@ The regex _always_ matches, even invalid JavaScript and the empty string.
 
 The next match is always directly after the previous.
 
-### `var token = jsTokens.matchToToken(match)` ###
+### `var token = matchToToken(match)` ###
+
+```js
+import {matchToToken} from "js-tokens"
+// or:
+var matchToToken = require("js-tokens").matchToToken
+```
 
 Takes a `match` returned by `jsTokens.exec(string)`, and returns a `{type:
 String, value: String}` object. The following types are available:
@@ -59,10 +67,7 @@ keywords. You may use [is-keyword-js] to tell them apart.
 
 Whitespace includes both line terminators and other whitespace.
 
-For example usage, please see this [gist].
-
 [is-keyword-js]: https://github.com/crissdev/is-keyword-js
-[gist]: https://gist.github.com/lydell/be49dbf80c382c473004
 
 
 ECMAScript support
@@ -214,4 +219,4 @@ code).
 License
 =======
 
-[The X11 (“MIT”) License](LICENSE).
+[MIT](LICENSE).

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
-  Copyright (c) jQuery Foundation, Inc. and Contributors, All Rights Reserved.
+  Copyright JS Foundation and other contributors, https://js.foundation/
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
@@ -25,11 +25,15 @@
 
 /*jslint sloppy:true node:true rhino:true */
 
-var fs, esprima, fname, content, options, syntax;
+var fs, esprima, fname, forceFile, content, options, syntax;
 
 if (typeof require === 'function') {
     fs = require('fs');
-    esprima = require('esprima');
+    try {
+        esprima = require('esprima');
+    } catch (e) {
+        esprima = require('../');
+    }
 } else if (typeof load === 'function') {
     try {
         load('esprima.js');
@@ -49,7 +53,7 @@ if (typeof console === 'undefined' && typeof process === 'undefined') {
 
 function showUsage() {
     console.log('Usage:');
-    console.log('   esparse [options] file.js');
+    console.log('   esparse [options] [file.js]');
     console.log();
     console.log('Available options:');
     console.log();
@@ -64,15 +68,18 @@ function showUsage() {
     process.exit(1);
 }
 
-if (process.argv.length <= 2) {
-    showUsage();
-}
-
 options = {};
 
 process.argv.splice(2).forEach(function (entry) {
 
-    if (entry === '-h' || entry === '--help') {
+    if (forceFile || entry === '-' || entry.slice(0, 1) !== '-') {
+        if (typeof fname === 'string') {
+            console.log('Error: more than one input file.');
+            process.exit(1);
+        } else {
+            fname = entry;
+        }
+    } else if (entry === '-h' || entry === '--help') {
         showUsage();
     } else if (entry === '-v' || entry === '--version') {
         console.log('ECMAScript Parser (using Esprima version', esprima.version, ')');
@@ -90,21 +97,13 @@ process.argv.splice(2).forEach(function (entry) {
         options.tokens = true;
     } else if (entry === '--tolerant') {
         options.tolerant = true;
-    } else if (entry.slice(0, 2) === '--') {
+    } else if (entry === '--') {
+        forceFile = true;
+    } else {
         console.log('Error: unknown option ' + entry + '.');
         process.exit(1);
-    } else if (typeof fname === 'string') {
-        console.log('Error: more than one input file.');
-        process.exit(1);
-    } else {
-        fname = entry;
     }
 });
-
-if (typeof fname !== 'string') {
-    console.log('Error: no input file.');
-    process.exit(1);
-}
 
 // Special handling for regular expression literal since we need to
 // convert it to a string literal, otherwise it will be decoded
@@ -116,10 +115,24 @@ function adjustRegexLiteral(key, value) {
     return value;
 }
 
-try {
-    content = fs.readFileSync(fname, 'utf-8');
+function run(content) {
     syntax = esprima.parse(content, options);
     console.log(JSON.stringify(syntax, adjustRegexLiteral, 4));
+}
+
+try {
+    if (fname && (fname !== '-' || forceFile)) {
+        run(fs.readFileSync(fname, 'utf-8'));
+    } else {
+        var content = '';
+        process.stdin.resume();
+        process.stdin.on('data', function(chunk) {
+            content += chunk;
+        });
+        process.stdin.on('end', function() {
+            run(content);
+        });
+    }
 } catch (e) {
     console.log('Error: ' + e.message);
     process.exit(1);

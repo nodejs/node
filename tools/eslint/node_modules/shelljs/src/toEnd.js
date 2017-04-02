@@ -29,6 +29,7 @@ function _toEnd(options, file) {
     fs.appendFileSync(file, this.stdout || this.toString(), 'utf8');
     return this;
   } catch (e) {
+    /* istanbul ignore next */
     common.error('could not append to file (code ' + e.code + '): ' + file, { continue: true });
   }
 }

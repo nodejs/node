@@ -20,17 +20,40 @@ module.exports = {
 
         schema: [
             {
-                type: "object",
-                properties: {
-                    props: { type: "boolean" }
-                },
-                additionalProperties: false
+                oneOf: [
+                    {
+                        type: "object",
+                        properties: {
+                            props: {
+                                enum: [false]
+                            }
+                        },
+                        additionalProperties: false
+                    },
+                    {
+                        type: "object",
+                        properties: {
+                            props: {
+                                enum: [true]
+                            },
+                            ignorePropertyModificationsFor: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                },
+                                uniqueItems: true
+                            }
+                        },
+                        additionalProperties: false
+                    }
+                ]
             }
         ]
     },
 
     create(context) {
         const props = context.options[0] && Boolean(context.options[0].props);
+        const ignoredPropertyAssignmentsFor = context.options[0] && context.options[0].ignorePropertyModificationsFor || [];
 
         /**
          * Checks whether or not the reference modifies properties of its variable.
@@ -73,8 +96,15 @@ module.exports = {
                         }
                         break;
 
-                    default:
+                    // EXCLUDES: e.g. ({ [foo]: a }) = bar;
+                    case "Property":
+                        if (parent.key === node) {
+                            return false;
+                        }
+
                         break;
+
+                    // no default
                 }
 
                 node = parent;
@@ -103,7 +133,7 @@ module.exports = {
             ) {
                 if (reference.isWrite()) {
                     context.report({ node: identifier, message: "Assignment to function parameter '{{name}}'.", data: { name: identifier.name } });
-                } else if (props && isModifyingProp(reference)) {
+                } else if (props && isModifyingProp(reference) && ignoredPropertyAssignmentsFor.indexOf(identifier.name) === -1) {
                     context.report({ node: identifier, message: "Assignment to property of function parameter '{{name}}'.", data: { name: identifier.name } });
                 }
             }

@@ -205,7 +205,7 @@ lp.readToken = function() {
         this$1.toks.type = tokTypes.ellipsis
       }
       return new Token(this$1.toks)
-    } catch(e) {
+    } catch (e) {
       if (!(e instanceof SyntaxError)) throw e
 
       // Try to skip some text, based on the error message, and then continue
@@ -216,12 +216,15 @@ lp.readToken = function() {
           replace = {start: e.pos, end: pos, type: tokTypes.string, value: this$1.input.slice(e.pos + 1, pos)}
         } else if (/regular expr/i.test(msg)) {
           var re = this$1.input.slice(e.pos, pos)
-          try { re = new RegExp(re) } catch(e) {}
+          try { re = new RegExp(re) } catch (e) { /* ignore compilation error due to new syntax */ }
           replace = {start: e.pos, end: pos, type: tokTypes.regexp, value: re}
         } else if (/template/.test(msg)) {
-          replace = {start: e.pos, end: pos,
-                     type: tokTypes.template,
-                     value: this$1.input.slice(e.pos, pos)}
+          replace = {
+            start: e.pos,
+            end: pos,
+            type: tokTypes.template,
+            value: this$1.input.slice(e.pos, pos)
+          }
         } else {
           replace = false
         }
@@ -259,7 +262,7 @@ lp.resetTo = function(pos) {
 
   this.toks.pos = pos
   var ch = this.input.charAt(pos - 1)
-  this.toks.exprAllowed = !ch || /[\[\{\(,;:?\/*=+\-~!|&%^<>]/.test(ch) ||
+  this.toks.exprAllowed = !ch || /[[{(,;:?/*=+\-~!|&%^<>]/.test(ch) ||
     /[enwfd]/.test(ch) &&
     /\b(keywords|case|else|return|throw|new|in|(instance|type)of|delete|void)$/.test(this.input.slice(pos - 10, pos))
 
@@ -544,7 +547,7 @@ lp$1.parseClass = function(isStatement) {
   var node = this.startNode()
   this.next()
   if (this.tok.type === tokTypes.name) node.id = this.parseIdent()
-  else if (isStatement) node.id = this.dummyIdent()
+  else if (isStatement === true) node.id = this.dummyIdent()
   else node.id = null
   node.superClass = this.eat(tokTypes._extends) ? this.parseExpression() : null
   node.body = this.startNode()
@@ -590,7 +593,7 @@ lp$1.parseClass = function(isStatement) {
           method.key.type === "Literal" && method.key.value === "constructor")) {
         method.kind = "constructor"
       } else {
-        method.kind =  "method"
+        method.kind = "method"
       }
       method.value = this$1.parseMethod(isGenerator, isAsync)
     }
@@ -618,7 +621,7 @@ lp$1.parseFunction = function(node, isStatement, isAsync) {
     node.async = !!isAsync
   }
   if (this.tok.type === tokTypes.name) node.id = this.parseIdent()
-  else if (isStatement) node.id = this.dummyIdent()
+  else if (isStatement === true) node.id = this.dummyIdent()
   this.inAsync = node.async
   node.params = this.parseFunctionParams()
   node.body = this.parseBlock()
@@ -635,16 +638,18 @@ lp$1.parseExport = function() {
   }
   if (this.eat(tokTypes._default)) {
     // export default (function foo() {}) // This is FunctionExpression.
-    var isParenL = this.tok.type === tokTypes.parenL
-    var expr = this.parseMaybeAssign()
-    if (!isParenL && expr.id) {
-      switch (expr.type) {
-      case "FunctionExpression": expr.type = "FunctionDeclaration"; break
-      case "ClassExpression": expr.type = "ClassDeclaration"; break
-      }
+    var isAsync
+    if (this.tok.type === tokTypes._function || (isAsync = this.toks.isAsyncFunction())) {
+      var fNode = this.startNode()
+      this.next()
+      if (isAsync) this.next()
+      node.declaration = this.parseFunction(fNode, "nullableID", isAsync)
+    } else if (this.tok.type === tokTypes._class) {
+      node.declaration = this.parseClass("nullableID")
+    } else {
+      node.declaration = this.parseMaybeAssign()
+      this.semicolon()
     }
-    node.declaration = expr
-    this.semicolon()
     return this.finishNode(node, "ExportDefaultDeclaration")
   }
   if (this.tok.type.keyword || this.toks.isLet() || this.toks.isAsyncFunction()) {
@@ -666,7 +671,7 @@ lp$1.parseImport = function() {
   if (this.tok.type === tokTypes.string) {
     node.specifiers = []
     node.source = this.parseExprAtom()
-    node.kind = ''
+    node.kind = ""
   } else {
     var elt
     if (this.tok.type === tokTypes.name && this.tok.value !== "from") {
@@ -1025,7 +1030,7 @@ lp$2.parseExprAtom = function() {
     return this.parseObj()
 
   case tokTypes._class:
-    return this.parseClass()
+    return this.parseClass(false)
 
   case tokTypes._function:
     node = this.startNode()
@@ -1064,7 +1069,7 @@ lp$2.parseNew = function() {
 lp$2.parseTemplateElement = function() {
   var elem = this.startNode()
   elem.value = {
-    raw: this.input.slice(this.tok.start, this.tok.end).replace(/\r\n?/g, '\n'),
+    raw: this.input.slice(this.tok.start, this.tok.end).replace(/\r\n?/g, "\n"),
     cooked: this.tok.value
   }
   this.next()
@@ -1087,7 +1092,7 @@ lp$2.parseTemplate = function() {
       curElt = this$1.parseTemplateElement()
     } else {
       curElt = this$1.startNode()
-      curElt.value = {cooked: '', raw: ''}
+      curElt.value = {cooked: "", raw: ""}
       curElt.tail = true
       this$1.finishNode(curElt, "TemplateElement")
     }
@@ -1349,6 +1354,7 @@ lp$2.parseAwait = function() {
 
 defaultOptions.tabSize = 4
 
+// eslint-disable-next-line camelcase
 function parse_dammit(input, options) {
   var p = new LooseParser(input, options)
   p.next()

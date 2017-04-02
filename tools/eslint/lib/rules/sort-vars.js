@@ -37,11 +37,9 @@ module.exports = {
 
         return {
             VariableDeclaration(node) {
-                node.declarations.reduce((memo, decl) => {
-                    if (decl.id.type === "ObjectPattern" || decl.id.type === "ArrayPattern") {
-                        return memo;
-                    }
+                const idDeclarations = node.declarations.filter(decl => decl.id.type === "Identifier");
 
+                idDeclarations.slice(1).reduce((memo, decl) => {
                     let lastVariableName = memo.id.name,
                         currenVariableName = decl.id.name;
 
@@ -53,10 +51,10 @@ module.exports = {
                     if (currenVariableName < lastVariableName) {
                         context.report({ node: decl, message: "Variables within the same declaration block should be sorted alphabetically." });
                         return memo;
-                    } else {
-                        return decl;
                     }
-                }, node.declarations[0]);
+                    return decl;
+
+                }, idDeclarations[0]);
             }
         };
     }

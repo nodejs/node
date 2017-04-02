@@ -72,10 +72,13 @@ function _test(options, path) {
 
   if (options.file) return stats.isFile();
 
+  /* istanbul ignore next */
   if (options.pipe) return stats.isFIFO();
 
+  /* istanbul ignore next */
   if (options.socket) return stats.isSocket();
 
+  /* istanbul ignore next */
   return false; // fallback
 } // test
 module.exports = _test;

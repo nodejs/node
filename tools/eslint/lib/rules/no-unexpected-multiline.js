@@ -5,8 +5,15 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
+
 module.exports = {
     meta: {
         docs: {
@@ -35,14 +42,8 @@ module.exports = {
          * @private
          */
         function checkForBreakAfter(node, msg) {
-            let nodeExpressionEnd = node;
-            let openParen = sourceCode.getTokenAfter(node);
-
-            // Move along until the end of the wrapped expression
-            while (openParen.value === ")") {
-                nodeExpressionEnd = openParen;
-                openParen = sourceCode.getTokenAfter(nodeExpressionEnd);
-            }
+            const openParen = sourceCode.getTokenAfter(node, astUtils.isNotClosingParenToken);
+            const nodeExpressionEnd = sourceCode.getTokenBefore(openParen);
 
             if (openParen.loc.start.line !== nodeExpressionEnd.loc.end.line) {
                 context.report({ node, loc: openParen.loc.start, message: msg, data: { char: openParen.value } });

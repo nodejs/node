@@ -34,7 +34,7 @@ lp.readToken = function() {
         this.toks.type = tt.ellipsis
       }
       return new Token(this.toks)
-    } catch(e) {
+    } catch (e) {
       if (!(e instanceof SyntaxError)) throw e
 
       // Try to skip some text, based on the error message, and then continue
@@ -45,12 +45,15 @@ lp.readToken = function() {
           replace = {start: e.pos, end: pos, type: tt.string, value: this.input.slice(e.pos + 1, pos)}
         } else if (/regular expr/i.test(msg)) {
           let re = this.input.slice(e.pos, pos)
-          try { re = new RegExp(re) } catch(e) {}
+          try { re = new RegExp(re) } catch (e) { /* ignore compilation error due to new syntax */ }
           replace = {start: e.pos, end: pos, type: tt.regexp, value: re}
         } else if (/template/.test(msg)) {
-          replace = {start: e.pos, end: pos,
-                     type: tt.template,
-                     value: this.input.slice(e.pos, pos)}
+          replace = {
+            start: e.pos,
+            end: pos,
+            type: tt.template,
+            value: this.input.slice(e.pos, pos)
+          }
         } else {
           replace = false
         }
@@ -86,7 +89,7 @@ lp.readToken = function() {
 lp.resetTo = function(pos) {
   this.toks.pos = pos
   let ch = this.input.charAt(pos - 1)
-  this.toks.exprAllowed = !ch || /[\[\{\(,;:?\/*=+\-~!|&%^<>]/.test(ch) ||
+  this.toks.exprAllowed = !ch || /[[{(,;:?/*=+\-~!|&%^<>]/.test(ch) ||
     /[enwfd]/.test(ch) &&
     /\b(keywords|case|else|return|throw|new|in|(instance|type)of|delete|void)$/.test(this.input.slice(pos - 10, pos))
 

@@ -71,9 +71,9 @@ module.exports = {
                 return "all";
             } else if (node.specifiers.length === 1) {
                 return "single";
-            } else {
-                return "multiple";
             }
+            return "multiple";
+
         }
 
         /**
@@ -93,9 +93,9 @@ module.exports = {
         function getFirstLocalMemberName(node) {
             if (node.specifiers[0]) {
                 return node.specifiers[0].local.name;
-            } else {
-                return null;
             }
+            return null;
+
         }
 
         return {

@@ -188,9 +188,9 @@ const cli = {
                 }
 
                 return (report.errorCount || tooManyWarnings) ? 1 : 0;
-            } else {
-                return 1;
             }
+            return 1;
+
 
         }
 

@@ -34,7 +34,7 @@ function _set(options) {
   options = common.parseOptions(options, {
     'e': 'fatal',
     'v': 'verbose',
-    'f': 'noglob'
+    'f': 'noglob',
   });
 
   if (negate) {

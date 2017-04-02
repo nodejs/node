@@ -9,6 +9,7 @@ module.exports = {
 	error:    require('./error'),
 	function: require('./function'),
 	iterable: require('./iterable'),
+	json:     require('./json'),
 	math:     require('./math'),
 	number:   require('./number'),
 	object:   require('./object'),

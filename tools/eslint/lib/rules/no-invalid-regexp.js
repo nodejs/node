@@ -74,7 +74,8 @@ module.exports = {
                 } catch (e) {
                     context.report({
                         node,
-                        message: `${e.message}.`
+                        message: "{{message}}.",
+                        data: e
                     });
                 }
 

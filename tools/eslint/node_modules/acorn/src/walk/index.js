@@ -73,7 +73,7 @@ export function findNodeAt(node, start, end, test, base, state) {
   test = makeTest(test)
   if (!base) base = exports.base
   try {
-    ;(function c(node, st, override) {
+    (function c(node, st, override) {
       let type = override || node.type
       if ((start == null || node.start <= start) &&
           (end == null || node.end >= end))
@@ -95,7 +95,7 @@ export function findNodeAround(node, pos, test, base, state) {
   test = makeTest(test)
   if (!base) base = exports.base
   try {
-    ;(function c(node, st, override) {
+    (function c(node, st, override) {
       let type = override || node.type
       if (node.start > pos || node.end < pos) return
       base[type](node, st, c)
@@ -112,7 +112,7 @@ export function findNodeAfter(node, pos, test, base, state) {
   test = makeTest(test)
   if (!base) base = exports.base
   try {
-    ;(function c(node, st, override) {
+    (function c(node, st, override) {
       if (node.end < pos) return
       let type = override || node.type
       if (node.start >= pos && test(type, node)) throw new Found(node, st)
@@ -151,7 +151,7 @@ const create = Object.create || function(proto) {
 export function make(funcs, base) {
   if (!base) base = exports.base
   let visitor = create(base)
-  for (var type in funcs) visitor[type] = funcs[type]
+  for (let type in funcs) visitor[type] = funcs[type]
   return visitor
 }
 
@@ -257,7 +257,7 @@ base.Pattern = (node, st, c) => {
 base.VariablePattern = ignore
 base.MemberPattern = skipThrough
 base.RestElement = (node, st, c) => c(node.argument, st, "Pattern")
-base.ArrayPattern =  (node, st, c) => {
+base.ArrayPattern = (node, st, c) => {
   for (let i = 0; i < node.elements.length; ++i) {
     let elt = node.elements[i]
     if (elt) c(elt, st, "Pattern")

@@ -27,6 +27,9 @@ function addKeyword(keyword, definition) {
     throw new Error('Keyword ' + keyword + ' is not a valid identifier');
 
   if (definition) {
+    if (definition.macro && definition.valid !== undefined)
+      throw new Error('"valid" option cannot be used with macro keywords');
+
     var dataType = definition.type;
     if (Array.isArray(dataType)) {
       var i, len = dataType.length;

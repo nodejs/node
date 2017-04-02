@@ -10,7 +10,6 @@
 //------------------------------------------------------------------------------
 
 const esutils = require("esutils");
-const lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -23,6 +22,14 @@ const arrayMethodPattern = /^(?:every|filter|find|findIndex|forEach|map|some)$/;
 const bindOrCallOrApplyPattern = /^(?:bind|call|apply)$/;
 const breakableTypePattern = /^(?:(?:Do)?While|For(?:In|Of)?|Switch)Statement$/;
 const thisTagPattern = /^[\s*]*@this/m;
+
+
+const COMMENTS_IGNORE_PATTERN = /^\s*(?:eslint|jshint\s+|jslint\s+|istanbul\s+|globals?\s+|exported\s+|jscs)/;
+const LINEBREAKS = new Set(["\r\n", "\r", "\n", "\u2028", "\u2029"]);
+const LINEBREAK_MATCHER = /\r\n|[\r\n\u2028\u2029]/;
+
+// A set of node types that can contain a list of statements
+const STATEMENT_LIST_PARENTS = new Set(["Program", "BlockStatement", "SwitchCase"]);
 
 /**
  * Checks reference if is non initializer and writable.
@@ -142,7 +149,7 @@ function isInLoop(node) {
  */
 function isNullOrUndefined(node) {
     return (
-        (node.type === "Literal" && node.value === null) ||
+        module.exports.isNullLiteral(node) ||
         (node.type === "Identifier" && node.name === "undefined") ||
         (node.type === "UnaryExpression" && node.operator === "void")
     );
@@ -158,9 +165,9 @@ function isCallee(node) {
 }
 
 /**
- * Checks whether or not a node is `Reclect.apply`.
+ * Checks whether or not a node is `Reflect.apply`.
  * @param {ASTNode} node - A node to check.
- * @returns {boolean} Whether or not the node is a `Reclect.apply`.
+ * @returns {boolean} Whether or not the node is a `Reflect.apply`.
  */
 function isReflectApply(node) {
     return (
@@ -211,6 +218,15 @@ function isMethodWhichHasThisArg(node) {
 }
 
 /**
+ * Creates the negate function of the given function.
+ * @param {Function} f - The function to negate.
+ * @returns {Function} Negated function.
+ */
+function negate(f) {
+    return token => !f(token);
+}
+
+/**
  * Checks whether or not a node has a `@this` tag in its comments.
  * @param {ASTNode} node - A node to check.
  * @param {SourceCode} sourceCode - A SourceCode instance to get comments.
@@ -247,20 +263,123 @@ function isParenthesised(sourceCode, node) {
 }
 
 /**
- * Gets the `=>` token of the given arrow function node.
+ * Checks if the given token is an arrow token or not.
  *
- * @param {ASTNode} node - The arrow function node to get.
- * @param {SourceCode} sourceCode - The source code object to get tokens.
- * @returns {Token} `=>` token.
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is an arrow token.
  */
-function getArrowToken(node, sourceCode) {
-    let token = sourceCode.getTokenBefore(node.body);
+function isArrowToken(token) {
+    return token.value === "=>" && token.type === "Punctuator";
+}
 
-    while (token.value !== "=>") {
-        token = sourceCode.getTokenBefore(token);
-    }
+/**
+ * Checks if the given token is a comma token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a comma token.
+ */
+function isCommaToken(token) {
+    return token.value === "," && token.type === "Punctuator";
+}
 
-    return token;
+/**
+ * Checks if the given token is a semicolon token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a semicolon token.
+ */
+function isSemicolonToken(token) {
+    return token.value === ";" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a colon token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a colon token.
+ */
+function isColonToken(token) {
+    return token.value === ":" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is an opening parenthesis token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is an opening parenthesis token.
+ */
+function isOpeningParenToken(token) {
+    return token.value === "(" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a closing parenthesis token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a closing parenthesis token.
+ */
+function isClosingParenToken(token) {
+    return token.value === ")" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is an opening square bracket token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is an opening square bracket token.
+ */
+function isOpeningBracketToken(token) {
+    return token.value === "[" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a closing square bracket token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a closing square bracket token.
+ */
+function isClosingBracketToken(token) {
+    return token.value === "]" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is an opening brace token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is an opening brace token.
+ */
+function isOpeningBraceToken(token) {
+    return token.value === "{" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a closing brace token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a closing brace token.
+ */
+function isClosingBraceToken(token) {
+    return token.value === "}" && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a comment token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a comment token.
+ */
+function isCommentToken(token) {
+    return token.type === "Line" || token.type === "Block" || token.type === "Shebang";
+}
+
+/**
+ * Checks if the given token is a keyword token or not.
+ *
+ * @param {Token} token - The token to check.
+ * @returns {boolean} `true` if the token is a keyword token.
+ */
+function isKeywordToken(token) {
+    return token.type === "Keyword";
 }
 
 /**
@@ -271,32 +390,18 @@ function getArrowToken(node, sourceCode) {
  * @returns {Token} `(` token.
  */
 function getOpeningParenOfParams(node, sourceCode) {
-    let token = node.id ? sourceCode.getTokenAfter(node.id) : sourceCode.getFirstToken(node);
-
-    while (token.value !== "(") {
-        token = sourceCode.getTokenAfter(token);
-    }
-
-    return token;
+    return node.id
+        ? sourceCode.getTokenAfter(node.id, isOpeningParenToken)
+        : sourceCode.getFirstToken(node, isOpeningParenToken);
 }
 
-const lineIndexCache = new WeakMap();
-
 /**
- * Gets the range index for the first character in each of the lines of `sourceCode`.
- * @param {SourceCode} sourceCode A sourceCode object
- * @returns {number[]} The indices of the first characters in the each of the lines of the code
+ * Creates a version of the LINEBREAK_MATCHER regex with the global flag.
+ * Global regexes are mutable, so this needs to be a function instead of a constant.
+ * @returns {RegExp} A global regular expression that matches line terminators
  */
-function getLineIndices(sourceCode) {
-
-    if (!lineIndexCache.has(sourceCode)) {
-        const lineIndices = (sourceCode.text.match(/[^\r\n\u2028\u2029]*(\r\n|\r|\n|\u2028|\u2029)/g) || [])
-            .reduce((indices, line) => indices.concat(indices[indices.length - 1] + line.length), [0]);
-
-        // Store the sourceCode object in a WeakMap to avoid iterating over all of the lines every time a sourceCode object is passed in.
-        lineIndexCache.set(sourceCode, lineIndices);
-    }
-    return lineIndexCache.get(sourceCode);
+function createGlobalLinebreakMatcher() {
+    return new RegExp(LINEBREAK_MATCHER.source, "g");
 }
 
 //------------------------------------------------------------------------------
@@ -304,6 +409,10 @@ function getLineIndices(sourceCode) {
 //------------------------------------------------------------------------------
 
 module.exports = {
+    COMMENTS_IGNORE_PATTERN,
+    LINEBREAKS,
+    LINEBREAK_MATCHER,
+    STATEMENT_LIST_PARENTS,
 
     /**
      * Determines whether two adjacent tokens are on the same line.
@@ -325,6 +434,29 @@ module.exports = {
     isInLoop,
     isArrayFromMethod,
     isParenthesised,
+    createGlobalLinebreakMatcher,
+
+    isArrowToken,
+    isClosingBraceToken,
+    isClosingBracketToken,
+    isClosingParenToken,
+    isColonToken,
+    isCommaToken,
+    isCommentToken,
+    isKeywordToken,
+    isNotClosingBraceToken: negate(isClosingBraceToken),
+    isNotClosingBracketToken: negate(isClosingBracketToken),
+    isNotClosingParenToken: negate(isClosingParenToken),
+    isNotColonToken: negate(isColonToken),
+    isNotCommaToken: negate(isCommaToken),
+    isNotOpeningBraceToken: negate(isOpeningBraceToken),
+    isNotOpeningBracketToken: negate(isOpeningBracketToken),
+    isNotOpeningParenToken: negate(isOpeningParenToken),
+    isNotSemicolonToken: negate(isSemicolonToken),
+    isOpeningBraceToken,
+    isOpeningBracketToken,
+    isOpeningParenToken,
+    isSemicolonToken,
 
     /**
      * Checks whether or not a given node is a string literal.
@@ -658,6 +790,8 @@ module.exports = {
                     case "/":
                     case "%":
                         return 13;
+                    case "**":
+                        return 15;
 
                     // no default
                 }
@@ -666,10 +800,10 @@ module.exports = {
 
             case "UnaryExpression":
             case "AwaitExpression":
-                return 14;
+                return 16;
 
             case "UpdateExpression":
-                return 15;
+                return 17;
 
             case "CallExpression":
 
@@ -677,14 +811,14 @@ module.exports = {
                 if (node.callee.type === "FunctionExpression") {
                     return -1;
                 }
-                return 16;
+                return 18;
 
             case "NewExpression":
-                return 17;
+                return 19;
 
             // no default
         }
-        return 18;
+        return 20;
     },
 
     /**
@@ -1023,7 +1157,7 @@ module.exports = {
         let end = null;
 
         if (node.type === "ArrowFunctionExpression") {
-            const arrowToken = getArrowToken(node, sourceCode);
+            const arrowToken = sourceCode.getTokenBefore(node.body, isArrowToken);
 
             start = arrowToken.loc.start;
             end = arrowToken.loc.end;
@@ -1037,40 +1171,8 @@ module.exports = {
 
         return {
             start: Object.assign({}, start),
-            end: Object.assign({}, end),
+            end: Object.assign({}, end)
         };
-    },
-
-    /*
-    * Converts a range index into a (line, column) pair.
-    * @param {SourceCode} sourceCode A SourceCode object
-    * @param {number} rangeIndex The range index of a character in a file
-    * @returns {Object} A {line, column} location object with a 0-indexed column
-    */
-    getLocationFromRangeIndex(sourceCode, rangeIndex) {
-        const lineIndices = getLineIndices(sourceCode);
-
-        /*
-         * lineIndices is a sorted list of indices of the first character of each line.
-         * To figure out which line rangeIndex is on, determine the last index at which rangeIndex could
-         * be inserted into lineIndices to keep the list sorted.
-         */
-        const lineNumber = lodash.sortedLastIndex(lineIndices, rangeIndex);
-
-        return { line: lineNumber, column: rangeIndex - lineIndices[lineNumber - 1] };
-
-    },
-
-    /**
-    * Converts a (line, column) pair into a range index.
-    * @param {SourceCode} sourceCode A SourceCode object
-    * @param {Object} loc A line/column location
-    * @param {number} loc.line The line number of the location (1-indexed)
-    * @param {number} loc.column The column number of the location (0-indexed)
-    * @returns {number} The range index of the location in the file.
-    */
-    getRangeIndexFromLocation(sourceCode, loc) {
-        return getLineIndices(sourceCode)[loc.line - 1] + loc.column;
     },
 
     /**
@@ -1097,5 +1199,58 @@ module.exports = {
         }
 
         return sourceCode.getText().slice(leftToken.range[0], rightToken.range[1]);
+    },
+
+    /*
+     * Determine if a node has a possiblity to be an Error object
+     * @param  {ASTNode} node  ASTNode to check
+     * @returns {boolean} True if there is a chance it contains an Error obj
+     */
+    couldBeError(node) {
+        switch (node.type) {
+            case "Identifier":
+            case "CallExpression":
+            case "NewExpression":
+            case "MemberExpression":
+            case "TaggedTemplateExpression":
+            case "YieldExpression":
+            case "AwaitExpression":
+                return true; // possibly an error object.
+
+            case "AssignmentExpression":
+                return module.exports.couldBeError(node.right);
+
+            case "SequenceExpression": {
+                const exprs = node.expressions;
+
+                return exprs.length !== 0 && module.exports.couldBeError(exprs[exprs.length - 1]);
+            }
+
+            case "LogicalExpression":
+                return module.exports.couldBeError(node.left) || module.exports.couldBeError(node.right);
+
+            case "ConditionalExpression":
+                return module.exports.couldBeError(node.consequent) || module.exports.couldBeError(node.alternate);
+
+            default:
+                return false;
+        }
+    },
+
+    /**
+     * Determines whether the given node is a `null` literal.
+     * @param {ASTNode} node The node to check
+     * @returns {boolean} `true` if the node is a `null` literal
+     */
+    isNullLiteral(node) {
+
+        /*
+         * Checking `node.value === null` does not guarantee that a literal is a null literal.
+         * When parsing values that cannot be represented in the current environment (e.g. unicode
+         * regexes in Node 4), `node.value` is set to `null` because it wouldn't be possible to
+         * set `node.value` to a unicode regex. To make sure a literal is actually `null`, check
+         * `node.regex` instead. Also see: https://github.com/eslint/eslint/issues/8020
+         */
+        return node.type === "Literal" && node.value === null && !node.regex;
     }
 };

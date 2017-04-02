@@ -180,9 +180,9 @@ module.exports = {
                 return "non-alpha";
             } else if (firstChar === firstCharLower) {
                 return "lower";
-            } else {
-                return "upper";
             }
+            return "upper";
+
         }
 
         /**

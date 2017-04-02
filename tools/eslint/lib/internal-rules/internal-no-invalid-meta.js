@@ -95,16 +95,6 @@ function hasMetaSchema(metaPropertyNode) {
 }
 
 /**
- * Whether this `meta` ObjectExpression has a `fixable` property defined or not.
- *
- * @param {ASTNode} metaPropertyNode The `meta` ObjectExpression for this rule.
- * @returns {boolean} `true` if a `fixable` property exists.
- */
-function hasMetaFixable(metaPropertyNode) {
-    return getPropertyFromObject("fixable", metaPropertyNode.value);
-}
-
-/**
  * Checks the validity of the meta definition of this rule and reports any errors found.
  *
  * @param {RuleContext} context The ESLint rule context.
@@ -112,7 +102,7 @@ function hasMetaFixable(metaPropertyNode) {
  * @param {boolean} ruleIsFixable whether the rule is fixable or not.
  * @returns {void}
  */
-function checkMetaValidity(context, exportsNode, ruleIsFixable) {
+function checkMetaValidity(context, exportsNode) {
     const metaProperty = getMetaPropertyFromExportsNode(exportsNode);
 
     if (!metaProperty) {
@@ -142,11 +132,6 @@ function checkMetaValidity(context, exportsNode, ruleIsFixable) {
 
     if (!hasMetaSchema(metaProperty)) {
         context.report(metaProperty, "Rule is missing a meta.schema property.");
-        return;
-    }
-
-    if (ruleIsFixable && !hasMetaFixable(metaProperty)) {
-        context.report(metaProperty, "Rule is fixable, but is missing a meta.fixable property.");
     }
 }
 
@@ -177,7 +162,6 @@ module.exports = {
 
     create(context) {
         let exportsNode;
-        let ruleIsFixable = false;
 
         return {
             AssignmentExpression(node) {
@@ -191,35 +175,13 @@ module.exports = {
                 }
             },
 
-            CallExpression(node) {
-
-                // If the rule has a call for `context.report` and a property `fix`
-                // is being passed in, then we consider that the rule is fixable.
-                //
-                // Note that we only look for context.report() calls in the new
-                // style (with single MessageDescriptor argument), because only
-                // calls in the new style can specify a fix.
-                if (node.callee.type === "MemberExpression" &&
-                    node.callee.object.type === "Identifier" &&
-                    node.callee.object.name === "context" &&
-                    node.callee.property.type === "Identifier" &&
-                    node.callee.property.name === "report" &&
-                    node.arguments.length === 1 &&
-                    node.arguments[0].type === "ObjectExpression") {
-
-                    if (getPropertyFromObject("fix", node.arguments[0])) {
-                        ruleIsFixable = true;
-                    }
-                }
-            },
-
             "Program:exit"() {
                 if (!isCorrectExportsFormat(exportsNode)) {
                     context.report({ node: exportsNode, message: "Rule does not export an Object. Make sure the rule follows the new rule format." });
                     return;
                 }
 
-                checkMetaValidity(context, exportsNode, ruleIsFixable);
+                checkMetaValidity(context, exportsNode);
             }
         };
     }

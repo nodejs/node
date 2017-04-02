@@ -30,6 +30,7 @@ function _to(options, file) {
     fs.writeFileSync(file, this.stdout || this.toString(), 'utf8');
     return this;
   } catch (e) {
+    /* istanbul ignore next */
     common.error('could not write to file (code ' + e.code + '): ' + file, { continue: true });
   }
 }

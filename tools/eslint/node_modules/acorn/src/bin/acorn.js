@@ -22,7 +22,7 @@ for (let i = 2; i < process.argv.length; ++i) {
   else if (arg == "--compact") compact = true
   else if (arg == "--help") help(0)
   else if (arg == "--tokenize") tokenize = true
-  else if (arg == "--module") options.sourceType = 'module'
+  else if (arg == "--module") options.sourceType = "module"
   else {
     let match = arg.match(/^--ecma(\d+)$/)
     if (match)
@@ -34,18 +34,20 @@ for (let i = 2; i < process.argv.length; ++i) {
 
 function run(code) {
   let result
-  if (!tokenize) {
-    try { result = acorn.parse(code, options) }
-    catch(e) { console.error(e.message); process.exit(1) }
-  } else {
-    result = []
-    let tokenizer = acorn.tokenizer(code, options), token
-    while (true) {
-      try { token = tokenizer.getToken() }
-      catch(e) { console.error(e.message); process.exit(1) }
-      result.push(token)
-      if (token.type == acorn.tokTypes.eof) break
+  try {
+    if (!tokenize) {
+      result = acorn.parse(code, options)
+    } else {
+      result = []
+      let tokenizer = acorn.tokenizer(code, options), token
+      do {
+        token = tokenizer.getToken()
+        result.push(token)
+      } while (token.type != acorn.tokTypes.eof)
     }
+  } catch (e) {
+    console.error(e.message)
+    process.exit(1)
   }
   if (!silent) console.log(JSON.stringify(result, null, compact ? null : 2))
 }

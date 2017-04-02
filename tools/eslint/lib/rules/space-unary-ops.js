@@ -69,6 +69,21 @@ module.exports = {
         }
 
         /**
+         * Check if it is safe to remove the spaces between the two tokens in
+         * the context of a non-word prefix unary operator. For example, `+ +1`
+         * cannot safely be changed to `++1`.
+         * @param {Token} firstToken The operator for a non-word prefix unary operator
+         * @param {Token} secondToken The first token of its operand
+         * @returns {boolean} Whether or not the spacing between the tokens can be removed
+         */
+        function canRemoveSpacesBetween(firstToken, secondToken) {
+            return !(
+                (firstToken.value === "+" && secondToken.value[0] === "+") ||
+                (firstToken.value === "-" && secondToken.value[0] === "-")
+            );
+        }
+
+        /**
         * Checks if an override exists for a given operator.
         * @param {ASTnode} node AST node
         * @param {string} operator Operator
@@ -244,7 +259,10 @@ module.exports = {
                             operator: firstToken.value
                         },
                         fix(fixer) {
-                            return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
+                            if (canRemoveSpacesBetween(firstToken, secondToken)) {
+                                return fixer.removeRange([firstToken.range[1], secondToken.range[0]]);
+                            }
+                            return null;
                         }
                     });
                 }

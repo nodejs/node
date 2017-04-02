@@ -127,7 +127,7 @@ module.exports = function generate_dependencies(it, $keyword) {
   for (var $property in $schemaDeps) {
     var $sch = $schemaDeps[$property];
     if (it.util.schemaHasRules($sch, it.RULES.all)) {
-      out += ' ' + ($nextValid) + ' = true; if (' + ($data) + '[\'' + ($property) + '\'] !== undefined) { ';
+      out += ' ' + ($nextValid) + ' = true; if (' + ($data) + (it.util.getProperty($property)) + ' !== undefined) { ';
       $it.schema = $sch;
       $it.schemaPath = $schemaPath + it.util.getProperty($property);
       $it.errSchemaPath = $errSchemaPath + '/' + it.util.escapeFragment($property);

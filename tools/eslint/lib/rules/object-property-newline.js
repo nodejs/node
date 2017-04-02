@@ -34,9 +34,9 @@ module.exports = {
 
     create(context) {
         const allowSameLine = context.options[0] && Boolean(context.options[0].allowMultiplePropertiesPerLine);
-        const errorMessage = allowSameLine ?
-            "Object properties must go on a new line if they aren't all on the same line." :
-            "Object properties must go on a new line.";
+        const errorMessage = allowSameLine
+            ? "Object properties must go on a new line if they aren't all on the same line."
+            : "Object properties must go on a new line.";
 
         const sourceCode = context.getSourceCode();
 

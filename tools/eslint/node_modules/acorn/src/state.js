@@ -69,7 +69,8 @@ export class Parser {
     this.exprAllowed = true
 
     // Figure out if it's a module code.
-    this.strict = this.inModule = options.sourceType === "module"
+    this.inModule = options.sourceType === "module"
+    this.strict = this.inModule || this.strictDirective(this.pos)
 
     // Used to signify the start of a potential arrow function
     this.potentialArrowAt = -1
@@ -82,8 +83,12 @@ export class Parser {
     this.labels = []
 
     // If enabled, skip leading hashbang line.
-    if (this.pos === 0 && options.allowHashBang && this.input.slice(0, 2) === '#!')
+    if (this.pos === 0 && options.allowHashBang && this.input.slice(0, 2) === "#!")
       this.skipLineComment(2)
+
+    // Scope tracking for duplicate variable names (see scope.js)
+    this.scopeStack = []
+    this.enterFunctionScope()
   }
 
   // DEPRECATED Kept for backwards compatibility until 3.0 in case a plugin uses them

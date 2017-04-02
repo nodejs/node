@@ -14,7 +14,7 @@ const assert = require("assert"),
     escope = require("escope"),
     levn = require("levn"),
     blankScriptAST = require("../conf/blank-script.json"),
-    DEFAULT_PARSER = require("../conf/eslint.json").parser,
+    DEFAULT_PARSER = require("../conf/eslint-recommended").parser,
     replacements = require("../conf/replacements.json"),
     CodePathAnalyzer = require("./code-path-analysis/code-path-analyzer"),
     ConfigOps = require("./config/config-ops"),
@@ -528,9 +528,9 @@ function createStubRule(message) {
 
     if (message) {
         return createRuleModule;
-    } else {
-        throw new Error("No message passed to stub rule");
     }
+    throw new Error("No message passed to stub rule");
+
 }
 
 /**
@@ -660,9 +660,9 @@ module.exports = (function() {
         try {
             if (typeof parser.parseForESLint === "function") {
                 return parser.parseForESLint(text, parserOptions);
-            } else {
-                return parser.parse(text, parserOptions);
             }
+            return parser.parse(text, parserOptions);
+
         } catch (ex) {
 
             // If the message includes a leading line number, strip it:
@@ -695,9 +695,9 @@ module.exports = (function() {
             return ruleConfig;
         } else if (Array.isArray(ruleConfig)) {
             return ruleConfig[0];
-        } else {
-            return 0;
         }
+        return 0;
+
     }
 
     /**
@@ -708,9 +708,9 @@ module.exports = (function() {
     function getRuleOptions(ruleConfig) {
         if (Array.isArray(ruleConfig)) {
             return ruleConfig.slice(1);
-        } else {
-            return [];
         }
+        return [];
+
     }
 
     // set unlimited listeners (see https://github.com/eslint/eslint/issues/524)
@@ -778,17 +778,18 @@ module.exports = (function() {
         // search and apply "eslint-env *".
         const envInFile = findEslintEnv(text || textOrSourceCode.text);
 
+        config = Object.assign({}, config);
+
         if (envInFile) {
-            if (!config || !config.env) {
-                config = Object.assign({}, config || {}, { env: envInFile });
-            } else {
-                config = Object.assign({}, config);
+            if (config.env) {
                 config.env = Object.assign({}, config.env, envInFile);
+            } else {
+                config.env = envInFile;
             }
         }
 
         // process initial config to make it safe to extend
-        config = prepareConfig(config || {});
+        config = prepareConfig(config);
 
         // only do this for text
         if (text !== null) {
@@ -864,14 +865,14 @@ module.exports = (function() {
                         (parseResult && parseResult.services ? parseResult.services : {})
                     );
 
-                    const rule = ruleCreator.create ? ruleCreator.create(ruleContext) :
-                        ruleCreator(ruleContext);
+                    const rule = ruleCreator.create ? ruleCreator.create(ruleContext)
+                        : ruleCreator(ruleContext);
 
-                    // add all the node types as listeners
-                    Object.keys(rule).forEach(nodeType => {
-                        api.on(nodeType, timing.enabled
-                            ? timing.time(key, rule[nodeType])
-                            : rule[nodeType]
+                    // add all the selectors from the rule as listeners
+                    Object.keys(rule).forEach(selector => {
+                        api.on(selector, timing.enabled
+                            ? timing.time(key, rule[selector])
+                            : rule[selector]
                         );
                     });
                 } catch (ex) {
@@ -939,9 +940,9 @@ module.exports = (function() {
 
             if (lineDiff === 0) {
                 return a.column - b.column;
-            } else {
-                return lineDiff;
             }
+            return lineDiff;
+
         });
 
         return messages;
@@ -1109,9 +1110,9 @@ module.exports = (function() {
                 if (scope) {
                     if (scope.type === "function-expression-name") {
                         return scope.childScopes[0];
-                    } else {
-                        return scope;
                     }
+                    return scope;
+
                 }
 
             }
@@ -1161,9 +1162,9 @@ module.exports = (function() {
     api.getFilename = function() {
         if (typeof currentFilename === "string") {
             return currentFilename;
-        } else {
-            return "<input>";
         }
+        return "<input>";
+
     };
 
     /**
@@ -1192,7 +1193,7 @@ module.exports = (function() {
      * @returns {Object} Object mapping rule IDs to their default configurations
      */
     api.defaults = function() {
-        return require("../conf/eslint.json");
+        return require("../conf/eslint-recommended");
     };
 
     /**

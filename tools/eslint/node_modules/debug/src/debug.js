@@ -6,7 +6,7 @@
  * Expose `debug()` as the module.
  */
 
-exports = module.exports = createDebug.debug = createDebug.default = createDebug;
+exports = module.exports = createDebug.debug = createDebug['default'] = createDebug;
 exports.coerce = coerce;
 exports.disable = disable;
 exports.enable = enable;
@@ -137,6 +137,9 @@ function createDebug(namespace) {
 
 function enable(namespaces) {
   exports.save(namespaces);
+
+  exports.names = [];
+  exports.skips = [];
 
   var split = (namespaces || '').split(/[\s,]+/);
   var len = split.length;

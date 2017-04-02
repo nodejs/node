@@ -10,6 +10,7 @@
 //------------------------------------------------------------------------------
 
 const lodash = require("lodash");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -20,7 +21,7 @@ const DEFAULT_OPTIONS = Object.freeze({
     objects: "never",
     imports: "never",
     exports: "never",
-    functions: "ignore",
+    functions: "ignore"
 });
 
 /**
@@ -53,7 +54,7 @@ function normalizeOptions(optionValue) {
             exports: optionValue,
 
             // For backward compatibility, always ignore functions.
-            functions: "ignore",
+            functions: "ignore"
         };
     }
     if (typeof optionValue === "object" && optionValue !== null) {
@@ -62,7 +63,7 @@ function normalizeOptions(optionValue) {
             objects: optionValue.objects || DEFAULT_OPTIONS.objects,
             imports: optionValue.imports || DEFAULT_OPTIONS.imports,
             exports: optionValue.exports || DEFAULT_OPTIONS.exports,
-            functions: optionValue.functions || DEFAULT_OPTIONS.functions,
+            functions: optionValue.functions || DEFAULT_OPTIONS.functions
         };
     }
 
@@ -121,7 +122,7 @@ module.exports = {
                         additionalProperties: false
                     }
                 ]
-            },
+            }
         ]
     },
 
@@ -178,7 +179,7 @@ module.exports = {
                 default: {
                     const nextToken = sourceCode.getTokenAfter(lastItem);
 
-                    if (nextToken.value === ",") {
+                    if (astUtils.isCommaToken(nextToken)) {
                         return nextToken;
                     }
                     return sourceCode.getLastToken(lastItem);
@@ -224,7 +225,7 @@ module.exports = {
 
             const trailingToken = getTrailingToken(node, lastItem);
 
-            if (trailingToken.value === ",") {
+            if (astUtils.isCommaToken(trailingToken)) {
                 context.report({
                     node: lastItem,
                     loc: trailingToken.loc.start,
@@ -312,7 +313,7 @@ module.exports = {
             "always-multiline": forceTrailingCommaIfMultiline,
             "only-multiline": allowTrailingCommaIfMultiline,
             never: forbidTrailingComma,
-            ignore: lodash.noop,
+            ignore: lodash.noop
         };
 
         return {
@@ -330,7 +331,7 @@ module.exports = {
             FunctionExpression: predicate[options.functions],
             ArrowFunctionExpression: predicate[options.functions],
             CallExpression: predicate[options.functions],
-            NewExpression: predicate[options.functions],
+            NewExpression: predicate[options.functions]
         };
     }
 };

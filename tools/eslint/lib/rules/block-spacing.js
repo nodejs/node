@@ -74,8 +74,8 @@ module.exports = {
             // Gets braces and the first/last token of content.
             const openBrace = getOpenBrace(node);
             const closeBrace = sourceCode.getLastToken(node);
-            const firstToken = sourceCode.getTokenOrCommentAfter(openBrace);
-            const lastToken = sourceCode.getTokenOrCommentBefore(closeBrace);
+            const firstToken = sourceCode.getTokenAfter(openBrace, { includeComments: true });
+            const lastToken = sourceCode.getTokenBefore(closeBrace, { includeComments: true });
 
             // Skip if the node is invalid or empty.
             if (openBrace.type !== "Punctuator" ||

@@ -29,6 +29,7 @@ module.exports = {
 	isNumberValue:              require('./is-number-value'),
 	isObject:                   require('./is-object'),
 	isPlainObject:              require('./is-plain-object'),
+	isValue:                    require('./is-value'),
 	keyOf:                      require('./key-of'),
 	keys:                       require('./keys'),
 	map:                        require('./map'),

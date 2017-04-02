@@ -9,6 +9,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -435,15 +441,10 @@ module.exports = {
          * @returns {void}
          */
         function checkLastReturnStatementLineIndent(node, firstLineIndent) {
-            const nodeLastToken = sourceCode.getLastToken(node);
-            let lastToken = nodeLastToken;
 
             // in case if return statement ends with ');' we have traverse back to ')'
             // otherwise we'll measure indent for ';' and replace ')'
-            while (lastToken.value !== ")") {
-                lastToken = sourceCode.getTokenBefore(lastToken);
-            }
-
+            const lastToken = sourceCode.getLastToken(node, astUtils.isClosingParenToken);
             const textBeforeClosingParenthesis = sourceCode.getText(lastToken, lastToken.loc.start.column).slice(0, -1);
 
             if (textBeforeClosingParenthesis.trim()) {
@@ -691,9 +692,9 @@ module.exports = {
         function isFirstArrayElementOnSameLine(node) {
             if (node.type === "ArrayExpression" && node.elements[0]) {
                 return node.elements[0].loc.start.line === node.loc.start.line && node.elements[0].type === "ObjectExpression";
-            } else {
-                return false;
             }
+            return false;
+
         }
 
         /**
@@ -729,7 +730,7 @@ module.exports = {
                         } else if (parent.type === "ObjectExpression" || parent.type === "ArrayExpression") {
                             const parentElements = node.parent.type === "ObjectExpression" ? node.parent.properties : node.parent.elements;
 
-                            if (parentElements[0].loc.start.line === parent.loc.start.line && parentElements[0].loc.end.line !== parent.loc.start.line) {
+                            if (parentElements[0] && parentElements[0].loc.start.line === parent.loc.start.line && parentElements[0].loc.end.line !== parent.loc.start.line) {
 
                                 /*
                                  * If the first element of the array spans multiple lines, don't increase the expected indentation of the rest.
@@ -936,20 +937,20 @@ module.exports = {
 
             if (caseIndentStore[switchNode.loc.start.line]) {
                 return caseIndentStore[switchNode.loc.start.line];
-            } else {
-                if (typeof switchIndent === "undefined") {
-                    switchIndent = getNodeIndent(switchNode).goodChar;
-                }
-
-                if (switchNode.cases.length > 0 && options.SwitchCase === 0) {
-                    caseIndent = switchIndent;
-                } else {
-                    caseIndent = switchIndent + (indentSize * options.SwitchCase);
-                }
-
-                caseIndentStore[switchNode.loc.start.line] = caseIndent;
-                return caseIndent;
             }
+            if (typeof switchIndent === "undefined") {
+                switchIndent = getNodeIndent(switchNode).goodChar;
+            }
+
+            if (switchNode.cases.length > 0 && options.SwitchCase === 0) {
+                caseIndent = switchIndent;
+            } else {
+                caseIndent = switchIndent + (indentSize * options.SwitchCase);
+            }
+
+            caseIndentStore[switchNode.loc.start.line] = caseIndent;
+            return caseIndent;
+
         }
 
         /**

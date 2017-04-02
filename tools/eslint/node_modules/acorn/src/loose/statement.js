@@ -252,7 +252,7 @@ lp.parseClass = function(isStatement) {
   let node = this.startNode()
   this.next()
   if (this.tok.type === tt.name) node.id = this.parseIdent()
-  else if (isStatement) node.id = this.dummyIdent()
+  else if (isStatement === true) node.id = this.dummyIdent()
   else node.id = null
   node.superClass = this.eat(tt._extends) ? this.parseExpression() : null
   node.body = this.startNode()
@@ -298,7 +298,7 @@ lp.parseClass = function(isStatement) {
           method.key.type === "Literal" && method.key.value === "constructor")) {
         method.kind = "constructor"
       } else {
-        method.kind =  "method"
+        method.kind = "method"
       }
       method.value = this.parseMethod(isGenerator, isAsync)
     }
@@ -326,7 +326,7 @@ lp.parseFunction = function(node, isStatement, isAsync) {
     node.async = !!isAsync
   }
   if (this.tok.type === tt.name) node.id = this.parseIdent()
-  else if (isStatement) node.id = this.dummyIdent()
+  else if (isStatement === true) node.id = this.dummyIdent()
   this.inAsync = node.async
   node.params = this.parseFunctionParams()
   node.body = this.parseBlock()
@@ -343,16 +343,18 @@ lp.parseExport = function() {
   }
   if (this.eat(tt._default)) {
     // export default (function foo() {}) // This is FunctionExpression.
-    let isParenL = this.tok.type === tt.parenL
-    let expr = this.parseMaybeAssign()
-    if (!isParenL && expr.id) {
-      switch (expr.type) {
-      case "FunctionExpression": expr.type = "FunctionDeclaration"; break
-      case "ClassExpression": expr.type = "ClassDeclaration"; break
-      }
+    let isAsync
+    if (this.tok.type === tt._function || (isAsync = this.toks.isAsyncFunction())) {
+      let fNode = this.startNode()
+      this.next()
+      if (isAsync) this.next()
+      node.declaration = this.parseFunction(fNode, "nullableID", isAsync)
+    } else if (this.tok.type === tt._class) {
+      node.declaration = this.parseClass("nullableID")
+    } else {
+      node.declaration = this.parseMaybeAssign()
+      this.semicolon()
     }
-    node.declaration = expr
-    this.semicolon()
     return this.finishNode(node, "ExportDefaultDeclaration")
   }
   if (this.tok.type.keyword || this.toks.isLet() || this.toks.isAsyncFunction()) {
@@ -374,7 +376,7 @@ lp.parseImport = function() {
   if (this.tok.type === tt.string) {
     node.specifiers = []
     node.source = this.parseExprAtom()
-    node.kind = ''
+    node.kind = ""
   } else {
     let elt
     if (this.tok.type === tt.name && this.tok.value !== "from") {

@@ -63,7 +63,7 @@ function _pushd(options, dir) {
   }
 
   options = common.parseOptions(options, {
-    'n': 'no-cd'
+    'n': 'no-cd',
   });
 
   var dirs = _actualDirStack();
@@ -129,7 +129,7 @@ function _popd(options, index) {
   }
 
   options = common.parseOptions(options, {
-    'n': 'no-cd'
+    'n': 'no-cd',
   });
 
   if (!_dirStack.length) {
@@ -172,7 +172,7 @@ function _dirs(options, index) {
   }
 
   options = common.parseOptions(options, {
-    'c': 'clear'
+    'c': 'clear',
   });
 
   if (options.clear) {

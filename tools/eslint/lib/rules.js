@@ -70,9 +70,9 @@ function importPlugin(plugin, pluginName) {
 function getHandler(ruleId) {
     if (typeof rules[ruleId] === "string") {
         return require(rules[ruleId]);
-    } else {
-        return rules[ruleId];
     }
+    return rules[ruleId];
+
 }
 
 /**

@@ -161,15 +161,17 @@
 
 {{## def.dataPath:(dataPath || ''){{? it.errorPath != '""'}} + {{= it.errorPath }}{{?}}#}}
 
+{{## def.setParentData:
+  {{
+    var $parentData = $dataLvl ? 'data' + (($dataLvl-1)||'') : 'parentData'
+      , $parentDataProperty = $dataLvl ? it.dataPathArr[$dataLvl] : 'parentDataProperty';
+  }}
+#}}
 
 {{## def.passParentData:
-  {{? $dataLvl }}
-    , data{{= ($dataLvl-1)||'' }}
-    , {{= it.dataPathArr[$dataLvl] }}
-  {{??}}
-    , parentData
-    , parentDataProperty
-  {{?}}
+  {{# def.setParentData }}
+  , {{= $parentData }}
+  , {{= $parentDataProperty }}
 #}}
 
 

@@ -24,7 +24,7 @@ function union(setA, setB) {
     }());
 }
 
-const VALID_STRING_ESCAPES = new Set("\\nrvtbfux\n\r\u2028\u2029");
+const VALID_STRING_ESCAPES = union(new Set("\\nrvtbfux"), astUtils.LINEBREAKS);
 const REGEX_GENERAL_ESCAPES = new Set("\\bcdDfnrsStvwWxu0123456789]");
 const REGEX_NON_CHARCLASS_ESCAPES = union(REGEX_GENERAL_ESCAPES, new Set("^/.$*+?[{}|()B"));
 
@@ -94,7 +94,7 @@ module.exports = {
         function report(node, startOffset, character) {
             context.report({
                 node,
-                loc: astUtils.getLocationFromRangeIndex(sourceCode, astUtils.getRangeIndexFromLocation(sourceCode, node.loc.start) + startOffset),
+                loc: sourceCode.getLocFromIndex(sourceCode.getIndexFromLoc(node.loc.start) + startOffset),
                 message: "Unnecessary escape character: \\{{character}}.",
                 data: { character }
             });
@@ -147,7 +147,13 @@ module.exports = {
         function check(node) {
             const isTemplateElement = node.type === "TemplateElement";
 
-            if (isTemplateElement && node.parent && node.parent.parent && node.parent.parent.type === "TaggedTemplateExpression") {
+            if (
+                isTemplateElement &&
+                node.parent &&
+                node.parent.parent &&
+                node.parent.parent.type === "TaggedTemplateExpression" &&
+                node.parent === node.parent.parent.quasi
+            ) {
 
                 // Don't report tagged template literals, because the backslash character is accessible to the tag function.
                 return;

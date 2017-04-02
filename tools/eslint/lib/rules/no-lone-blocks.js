@@ -32,22 +32,22 @@ module.exports = {
          * @returns {void}
         */
         function report(node) {
-            const parent = context.getAncestors().pop();
+            const message = node.parent.type === "BlockStatement" ? "Nested block is redundant." : "Block is redundant.";
 
-            context.report({ node, message: parent.type === "Program" ?
-                "Block is redundant." :
-                "Nested block is redundant."
-            });
+            context.report({ node, message });
         }
 
         /**
-         * Checks for any ocurrence of BlockStatement > BlockStatement or Program > BlockStatement
-         * @returns {boolean} True if the current node is a lone block.
+         * Checks for any ocurrence of a BlockStatement in a place where lists of statements can appear
+         * @param {ASTNode} node The node to check
+         * @returns {boolean} True if the node is a lone block.
         */
-        function isLoneBlock() {
-            const parent = context.getAncestors().pop();
+        function isLoneBlock(node) {
+            return node.parent.type === "BlockStatement" ||
+                node.parent.type === "Program" ||
 
-            return parent.type === "BlockStatement" || parent.type === "Program";
+                // Don't report blocks in switch cases if the block is the only statement of the case.
+                node.parent.type === "SwitchCase" && !(node.parent.consequent[0] === node && node.parent.consequent.length === 1);
         }
 
         /**

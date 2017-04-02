@@ -281,7 +281,7 @@ function mergeMappings(state, destination, source, overridableKeys) {
   }
 }
 
-function storeMappingPair(state, _result, overridableKeys, keyTag, keyNode, valueNode) {
+function storeMappingPair(state, _result, overridableKeys, keyTag, keyNode, valueNode, startLine, startPos) {
   var index, quantity;
 
   keyNode = String(keyNode);
@@ -302,6 +302,8 @@ function storeMappingPair(state, _result, overridableKeys, keyTag, keyNode, valu
     if (!state.json &&
         !_hasOwnProperty.call(overridableKeys, keyNode) &&
         _hasOwnProperty.call(_result, keyNode)) {
+      state.line = startLine || state.line;
+      state.position = startPos || state.position;
       throwError(state, 'duplicated mapping key');
     }
     _result[keyNode] = valueNode;
@@ -949,6 +951,7 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
   var following,
       allowCompact,
       _line,
+      _pos,
       _tag          = state.tag,
       _anchor       = state.anchor,
       _result       = {},
@@ -969,6 +972,7 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
   while (ch !== 0) {
     following = state.input.charCodeAt(state.position + 1);
     _line = state.line; // Save the current line.
+    _pos = state.position;
 
     //
     // Explicit notation case. There are two separate blocks:
@@ -1063,7 +1067,7 @@ function readBlockMapping(state, nodeIndent, flowIndent) {
       }
 
       if (!atExplicitKey) {
-        storeMappingPair(state, _result, overridableKeys, keyTag, keyNode, valueNode);
+        storeMappingPair(state, _result, overridableKeys, keyTag, keyNode, valueNode, _line, _pos);
         keyTag = keyNode = valueNode = null;
       }
 

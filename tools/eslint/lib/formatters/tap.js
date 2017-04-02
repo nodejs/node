@@ -18,9 +18,9 @@ const yaml = require("js-yaml");
 function getMessageType(message) {
     if (message.fatal || message.severity === 2) {
         return "error";
-    } else {
-        return "warning";
     }
+    return "warning";
+
 }
 
 /**

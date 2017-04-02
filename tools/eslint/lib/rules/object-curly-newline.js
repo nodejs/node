@@ -128,8 +128,8 @@ module.exports = {
             const options = normalizedOptions[node.type];
             const openBrace = sourceCode.getFirstToken(node);
             const closeBrace = sourceCode.getLastToken(node);
-            let first = sourceCode.getTokenOrCommentAfter(openBrace);
-            let last = sourceCode.getTokenOrCommentBefore(closeBrace);
+            let first = sourceCode.getTokenAfter(openBrace, { includeComments: true });
+            let last = sourceCode.getTokenBefore(closeBrace, { includeComments: true });
             const needsLinebreaks = (
                 node.properties.length >= options.minProperties ||
                 (

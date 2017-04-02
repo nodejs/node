@@ -7,11 +7,12 @@ import {types as tt} from "./tokentype"
 import {lineBreak} from "./whitespace"
 
 export class TokContext {
-  constructor(token, isExpr, preserveSpace, override) {
+  constructor(token, isExpr, preserveSpace, override, generator) {
     this.token = token
     this.isExpr = !!isExpr
     this.preserveSpace = !!preserveSpace
     this.override = override
+    this.generator = !!generator
   }
 }
 
@@ -22,7 +23,9 @@ export const types = {
   p_stat: new TokContext("(", false),
   p_expr: new TokContext("(", true),
   q_tmpl: new TokContext("`", true, true, p => p.readTmplToken()),
-  f_expr: new TokContext("function", true)
+  f_expr: new TokContext("function", true),
+  f_expr_gen: new TokContext("function", true, false, null, true),
+  f_gen: new TokContext("function", false, false, null, true)
 }
 
 const pp = Parser.prototype
@@ -39,11 +42,17 @@ pp.braceIsBlock = function(prevType) {
   }
   if (prevType === tt._return)
     return lineBreak.test(this.input.slice(this.lastTokEnd, this.start))
-  if (prevType === tt._else || prevType === tt.semi || prevType === tt.eof || prevType === tt.parenR)
+  if (prevType === tt._else || prevType === tt.semi || prevType === tt.eof || prevType === tt.parenR || prevType == tt.arrow)
     return true
   if (prevType == tt.braceL)
     return this.curContext() === types.b_stat
   return !this.exprAllowed
+}
+
+pp.inGeneratorContext = function() {
+  for (let i = this.context.length - 1; i >= 0; i--)
+    if (this.context[i].generator) return true
+  return false
 }
 
 pp.updateContext = function(prevType) {
@@ -63,8 +72,8 @@ tt.parenR.updateContext = tt.braceR.updateContext = function() {
     this.exprAllowed = true
     return
   }
-  let out = this.context.pop()
-  if (out === types.b_stat && this.curContext() === types.f_expr) {
+  let out = this.context.pop(), cur
+  if (out === types.b_stat && (cur = this.curContext()) && cur.token === "function") {
     this.context.pop()
     this.exprAllowed = false
   } else if (out === types.b_tmpl) {
@@ -107,4 +116,24 @@ tt.backQuote.updateContext = function() {
   else
     this.context.push(types.q_tmpl)
   this.exprAllowed = false
+}
+
+tt.star.updateContext = function(prevType) {
+  if (prevType == tt._function) {
+    if (this.curContext() === types.f_expr)
+      this.context[this.context.length - 1] = types.f_expr_gen
+    else
+      this.context.push(types.f_gen)
+  }
+  this.exprAllowed = true
+}
+
+tt.name.updateContext = function(prevType) {
+  let allowed = false
+  if (this.options.ecmaVersion >= 6) {
+    if (this.value == "of" && !this.exprAllowed ||
+        this.value == "yield" && this.inGeneratorContext())
+      allowed = true
+  }
+  this.exprAllowed = allowed
 }

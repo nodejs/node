@@ -104,9 +104,9 @@ module.exports = {
                 if (isValidExpression && (isValidExpression === true || isValidExpression(parent, node))) {
                     context.report({
                         node,
-                        message: isShort ?
-                            "Identifier name '{{name}}' is too short (< {{min}})." :
-                            "Identifier name '{{name}}' is too long (> {{max}}).",
+                        message: isShort
+                            ? "Identifier name '{{name}}' is too short (< {{min}})."
+                            : "Identifier name '{{name}}' is too long (> {{max}}).",
                         data: { name, min: minLength, max: maxLength }
                     });
                 }

@@ -44,11 +44,14 @@ define = function (name, options) {
 				ownDesc = getOwnPropertyDescriptor(this, name);
 				// It happens in Safari, that getter is still called after property
 				// was defined with a value, following workarounds that
-				if (ownDesc.hasOwnProperty('value')) return ownDesc.value;
-				if ((typeof ownDesc.get === 'function') && (ownDesc.get !== self)) {
-					return ownDesc.get.call(this);
+				// While in IE11 it may happen that here ownDesc is undefined (go figure)
+				if (ownDesc) {
+					if (ownDesc.hasOwnProperty('value')) return ownDesc.value;
+					if ((typeof ownDesc.get === 'function') && (ownDesc.get !== self)) {
+						return ownDesc.get.call(this);
+					}
+					return value;
 				}
-				return value;
 			}
 			desc.value = resolvable ? call.call(value, this, options) : value;
 			defineProperty(this, name, desc);
@@ -75,6 +78,9 @@ define = function (name, options) {
 		};
 	}
 	dgs.set = function (value) {
+		if (hasOwnProperty.call(this, name)) {
+			throw new TypeError("Cannot assign to lazy defined '" + name + "' property of " + this);
+		}
 		dgs.get.call(this);
 		this[cacheName] = value;
 	};
