@@ -1483,6 +1483,8 @@ enum encoding ParseEncoding(const char* encoding,
 enum encoding ParseEncoding(Isolate* isolate,
                             Local<Value> encoding_v,
                             enum encoding default_encoding) {
+  CHECK(!encoding_v.IsEmpty());
+
   if (!encoding_v->IsString())
     return default_encoding;
 
