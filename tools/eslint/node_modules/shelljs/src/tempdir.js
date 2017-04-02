@@ -19,6 +19,7 @@ function writeableDir(dir) {
     common.unlinkSync(testFile);
     return dir;
   } catch (e) {
+    /* istanbul ignore next */
     return false;
   }
 }

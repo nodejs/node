@@ -2,7 +2,4 @@
 
 'use strict';
 
-module.exports = (function () {
-	if (typeof Symbol !== 'function') return false;
-	return (typeof Symbol() === 'symbol');
-}());
+module.exports = typeof Symbol === 'function' && typeof Symbol() === 'symbol';

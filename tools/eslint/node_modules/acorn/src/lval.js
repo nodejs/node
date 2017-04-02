@@ -10,7 +10,7 @@ const pp = Parser.prototype
 pp.toAssignable = function(node, isBinding) {
   if (this.options.ecmaVersion >= 6 && node) {
     switch (node.type) {
-      case "Identifier":
+    case "Identifier":
       if (this.inAsync && node.name === "await")
         this.raise(node.start, "Can not use 'await' as identifier inside an async function")
       break
@@ -172,48 +172,65 @@ pp.parseMaybeDefault = function(startPos, startLoc, left) {
 
 // Verify that a node is an lval — something that can be assigned
 // to.
+// bindingType can be either:
+// 'var' indicating that the lval creates a 'var' binding
+// 'let' indicating that the lval creates a lexical ('let' or 'const') binding
+// 'none' indicating that the binding should be checked for illegal identifiers, but not for duplicate references
 
-pp.checkLVal = function(expr, isBinding, checkClashes) {
+pp.checkLVal = function(expr, bindingType, checkClashes) {
   switch (expr.type) {
   case "Identifier":
     if (this.strict && this.reservedWordsStrictBind.test(expr.name))
-      this.raiseRecoverable(expr.start, (isBinding ? "Binding " : "Assigning to ") + expr.name + " in strict mode")
+      this.raiseRecoverable(expr.start, (bindingType ? "Binding " : "Assigning to ") + expr.name + " in strict mode")
     if (checkClashes) {
       if (has(checkClashes, expr.name))
         this.raiseRecoverable(expr.start, "Argument name clash")
       checkClashes[expr.name] = true
     }
+    if (bindingType && bindingType !== "none") {
+      if (
+        bindingType === "var" && !this.canDeclareVarName(expr.name) ||
+        bindingType !== "var" && !this.canDeclareLexicalName(expr.name)
+      ) {
+        this.raiseRecoverable(expr.start, `Identifier '${expr.name}' has already been declared`)
+      }
+      if (bindingType === "var") {
+        this.declareVarName(expr.name)
+      } else {
+        this.declareLexicalName(expr.name)
+      }
+    }
     break
 
   case "MemberExpression":
-    if (isBinding) this.raiseRecoverable(expr.start, (isBinding ? "Binding" : "Assigning to") + " member expression")
+    if (bindingType) this.raiseRecoverable(expr.start, (bindingType ? "Binding" : "Assigning to") + " member expression")
     break
 
   case "ObjectPattern":
     for (let i = 0; i < expr.properties.length; i++)
-      this.checkLVal(expr.properties[i].value, isBinding, checkClashes)
+      this.checkLVal(expr.properties[i].value, bindingType, checkClashes)
     break
 
   case "ArrayPattern":
     for (let i = 0; i < expr.elements.length; i++) {
       let elem = expr.elements[i]
-      if (elem) this.checkLVal(elem, isBinding, checkClashes)
+      if (elem) this.checkLVal(elem, bindingType, checkClashes)
     }
     break
 
   case "AssignmentPattern":
-    this.checkLVal(expr.left, isBinding, checkClashes)
+    this.checkLVal(expr.left, bindingType, checkClashes)
     break
 
   case "RestElement":
-    this.checkLVal(expr.argument, isBinding, checkClashes)
+    this.checkLVal(expr.argument, bindingType, checkClashes)
     break
 
   case "ParenthesizedExpression":
-    this.checkLVal(expr.expression, isBinding, checkClashes)
+    this.checkLVal(expr.expression, bindingType, checkClashes)
     break
 
   default:
-    this.raise(expr.start, (isBinding ? "Binding" : "Assigning to") + " rvalue")
+    this.raise(expr.start, (bindingType ? "Binding" : "Assigning to") + " rvalue")
   }
 }

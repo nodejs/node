@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -62,7 +68,7 @@ module.exports = {
                 node.body.type !== "BlockStatement" &&
                 !node.returnType
             ) {
-                if (token.type === "Punctuator" && token.value === "(") {
+                if (astUtils.isOpeningParenToken(token)) {
                     context.report({
                         node,
                         message: requireForBlockBodyMessage,
@@ -84,7 +90,7 @@ module.exports = {
                 requireForBlockBody &&
                 node.body.type === "BlockStatement"
             ) {
-                if (token.type !== "Punctuator" || token.value !== "(") {
+                if (!astUtils.isOpeningParenToken(token)) {
                     context.report({
                         node,
                         message: requireForBlockBodyNoParensMessage,
@@ -103,7 +109,7 @@ module.exports = {
                 !node.params[0].typeAnnotation &&
                 !node.returnType
             ) {
-                if (token.type === "Punctuator" && token.value === "(") {
+                if (astUtils.isOpeningParenToken(token)) {
                     context.report({
                         node,
                         message: asNeededMessage,

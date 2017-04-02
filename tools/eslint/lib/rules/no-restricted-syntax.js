@@ -8,8 +8,6 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const nodeTypes = require("espree").Syntax;
-
 module.exports = {
     meta: {
         docs: {
@@ -20,31 +18,44 @@ module.exports = {
 
         schema: {
             type: "array",
-            items: [
-                {
-                    enum: Object.keys(nodeTypes).map(k => nodeTypes[k])
-                }
-            ],
+            items: [{
+                oneOf: [
+                    {
+                        type: "string"
+                    },
+                    {
+                        type: "object",
+                        properties: {
+                            selector: { type: "string" },
+                            message: { type: "string" }
+                        },
+                        required: ["selector"],
+                        additionalProperties: false
+                    }
+                ]
+            }],
             uniqueItems: true,
             minItems: 0
         }
     },
 
     create(context) {
+        return context.options.reduce((result, selectorOrObject) => {
+            const isStringFormat = (typeof selectorOrObject === "string");
+            const hasCustomMessage = !isStringFormat && Boolean(selectorOrObject.message);
 
-        /**
-         * Generates a warning from the provided node, saying that node type is not allowed.
-         * @param {ASTNode} node The node to warn on
-         * @returns {void}
-         */
-        function warn(node) {
-            context.report({ node, message: "Using '{{type}}' is not allowed.", data: node });
-        }
+            const selector = isStringFormat ? selectorOrObject : selectorOrObject.selector;
+            const message = hasCustomMessage ? selectorOrObject.message : "Using '{{selector}}' is not allowed.";
 
-        return context.options.reduce((result, nodeType) => {
-            result[nodeType] = warn;
-
-            return result;
+            return Object.assign(result, {
+                [selector](node) {
+                    context.report({
+                        node,
+                        message,
+                        data: hasCustomMessage ? {} : { selector }
+                    });
+                }
+            });
         }, {});
 
     }

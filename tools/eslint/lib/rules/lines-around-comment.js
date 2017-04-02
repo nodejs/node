@@ -93,6 +93,12 @@ module.exports = {
                     },
                     allowArrayEnd: {
                         type: "boolean"
+                    },
+                    ignorePattern: {
+                        type: "string"
+                    },
+                    applyDefaultIgnorePatterns: {
+                        type: "boolean"
                     }
                 },
                 additionalProperties: false
@@ -103,6 +109,11 @@ module.exports = {
     create(context) {
 
         const options = context.options[0] ? Object.assign({}, context.options[0]) : {};
+        const ignorePattern = options.ignorePattern;
+        const defaultIgnoreRegExp = astUtils.COMMENTS_IGNORE_PATTERN;
+        const customIgnoreRegExp = new RegExp(ignorePattern);
+        const applyDefaultIgnorePatterns = options.applyDefaultIgnorePatterns !== false;
+
 
         options.beforeLineComment = options.beforeLineComment || false;
         options.afterLineComment = options.afterLineComment || false;
@@ -139,7 +150,7 @@ module.exports = {
 
             token = node;
             do {
-                token = sourceCode.getTokenOrCommentBefore(token);
+                token = sourceCode.getTokenBefore(token, { includeComments: true });
             } while (isCommentNodeType(token));
 
             if (token && astUtils.isTokenOnSameLine(token, node)) {
@@ -148,7 +159,7 @@ module.exports = {
 
             token = node;
             do {
-                token = sourceCode.getTokenOrCommentAfter(token);
+                token = sourceCode.getTokenAfter(token, { includeComments: true });
             } while (isCommentNodeType(token));
 
             if (token && astUtils.isTokenOnSameLine(node, token)) {
@@ -270,6 +281,14 @@ module.exports = {
          * @returns {void}
          */
         function checkForEmptyLine(node, opts) {
+            if (applyDefaultIgnorePatterns && defaultIgnoreRegExp.test(node.value)) {
+                return;
+            }
+
+            if (ignorePattern && customIgnoreRegExp.test(node.value)) {
+                return;
+            }
+
             let after = opts.after,
                 before = opts.before;
 
@@ -300,8 +319,8 @@ module.exports = {
                 return;
             }
 
-            const previousTokenOrComment = sourceCode.getTokenOrCommentBefore(node);
-            const nextTokenOrComment = sourceCode.getTokenOrCommentAfter(node);
+            const previousTokenOrComment = sourceCode.getTokenBefore(node, { includeComments: true });
+            const nextTokenOrComment = sourceCode.getTokenAfter(node, { includeComments: true });
 
             // check for newline before
             if (!exceptionStartAllowed && before && !lodash.includes(commentAndEmptyLines, prevLineNum) &&
