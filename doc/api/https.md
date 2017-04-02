@@ -70,7 +70,8 @@ const https = require('https');
 const fs = require('fs');
 
 const options = {
-  pfx: fs.readFileSync('server.pfx')
+  pfx: fs.readFileSync('test/fixtures/test_cert.pfx'),
+  passphrase: 'sample'
 };
 
 https.createServer(options, (req, res) => {
