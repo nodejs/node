@@ -1546,7 +1546,7 @@ JSON Fetching Example:
 
 ```js
 http.get('http://nodejs.org/dist/index.json', (res) => {
-  const statusCode = res.statusCode;
+  const { statusCode } = res;
   const contentType = res.headers['content-type'];
 
   let error;
