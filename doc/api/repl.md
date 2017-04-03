@@ -56,6 +56,8 @@ The following key combinations in the REPL have these special effects:
   When pressed twice on a blank line, has the same effect as the `.exit`
   command.
 * `<ctrl>-D` - Has the same effect as the `.exit` command.
+* `<ctrl>-M` - Execute the current command.
+* `<ctrl>-J` - Continue the current command in the next line.
 * `<tab>` - When pressed on a blank line, displays global and local(scope)
   variables. When pressed while entering other input, displays relevant
   autocompletion options.
@@ -395,7 +397,7 @@ changes:
     displayed. Defaults to `false`.
 ```js
 > node
-Welcome to Node.js <<version>> (<<vm name>> VM, <<vm version>>)
+Welcome to Node.js <<version>> (<<vm name>>, <<vm version>>)
 Type ^M or enter to execute, ^J to continue, ^C to exit
 Or try .help for help, more at https://nodejs.org/dist/<<version>>/docs/api/repl.html
 >
@@ -420,7 +422,7 @@ without passing any arguments (or by passing the `-i` argument):
 
 ```js
 $ node
-Welcome to Node.js v6.5.0 (v8 VM, 5.1.281.81)
+Welcome to Node.js v6.5.0 (v8, 5.1.281.81)
 Type ^M or enter to execute, ^J to continue, ^C to exit
 Or try .help for help, more at https://nodejs.org/dist/v6.5.0/docs/api/repl.html
 
