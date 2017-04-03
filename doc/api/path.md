@@ -68,7 +68,8 @@ changes:
 * Returns: {string}
 
 The `path.basename()` methods returns the last portion of a `path`, similar to
-the Unix `basename` command.
+the Unix `basename` command. Trailing directory separators are ignored, see
+[`path.sep`][].
 
 For example:
 
@@ -128,7 +129,8 @@ changes:
 * Returns: {string}
 
 The `path.dirname()` method returns the directory name of a `path`, similar to
-the Unix `dirname` command.
+the Unix `dirname` command. Trailing directory separators are ignored, see
+[`path.sep`][].
 
 For example:
 
@@ -347,7 +349,8 @@ added: v0.11.15
 * Returns: {Object}
 
 The `path.parse()` method returns an object whose properties represent
-significant elements of the `path`.
+significant elements of the `path`. Trailing directory separators are ignored,
+see [`path.sep`][].
 
 The returned object will have the following properties:
 
@@ -519,6 +522,10 @@ On Windows:
 // Returns: ['foo', 'bar', 'baz']
 ```
 
+*Note*: On Windows, both the forward slash (`/`) and backward slash (`\`) are
+accepted as path segment separators; however, the `path` methods only add
+backward slashes (`\`).
+
 ## path.win32
 <!-- YAML
 added: v0.11.15
@@ -529,11 +536,8 @@ added: v0.11.15
 The `path.win32` property provides access to Windows-specific implementations
 of the `path` methods.
 
-*Note*: On Windows, both the forward slash (`/`) and backward slash (`\`)
-characters are accepted as path delimiters; however, only the backward slash
-(`\`) will be used in return values.
-
 [`path.posix`]: #path_path_posix
+[`path.sep`]: #path_path_sep
 [`path.win32`]: #path_path_win32
 [`path.parse()`]: #path_path_parse_path
 [`TypeError`]: errors.html#errors_class_typeerror
