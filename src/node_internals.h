@@ -70,6 +70,10 @@ extern bool config_preserve_symlinks;
 // it to stderr.
 extern std::string config_warning_file;  // NOLINT(runtime/string)
 
+// Set in node.cc by ParseArgs when --pending-deprecation or
+// NODE_PENDING_DEPRECATION is used
+extern bool config_pending_deprecation;
+
 // Tells whether it is safe to call v8::Isolate::GetCurrent().
 extern bool v8_initialized;
 
@@ -196,6 +200,11 @@ inline bool IsBigEndian() {
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
+  ArrayBufferAllocator() {
+    unsigned int seed = time(NULL);
+    random_fill_value_ = rand_r(&seed) % 256;
+  }
+
   inline uint32_t* zero_fill_field() { return &zero_fill_field_; }
 
   virtual void* Allocate(size_t size);  // Defined in src/node.cc
@@ -205,6 +214,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
  private:
   uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
+  uint8_t random_fill_value_;
 };
 
 // Clear any domain and/or uncaughtException handlers to force the error's
