@@ -990,7 +990,6 @@ def configure_openssl(o):
   configure_library('openssl', o)
 
 
-
 def configure_static(o):
   if options.fully_static or options.partly_static:
     if flavor == 'mac':
