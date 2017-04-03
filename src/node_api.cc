@@ -26,6 +26,22 @@ napi_env JsEnvFromV8Isolate(v8::Isolate* isolate) {
   return reinterpret_cast<napi_env>(isolate);
 }
 
+// convert from n-api property attributes to v8::PropertyAttribute
+static inline v8::PropertyAttribute V8PropertyAttributesFromAttributes(
+    napi_property_attributes attributes) {
+  unsigned int attribute_flags = v8::None;
+  if (attributes & napi_read_only) {
+    attribute_flags |= v8::ReadOnly;
+  }
+  if (attributes & napi_dont_enum) {
+    attribute_flags |= v8::DontEnum;
+  }
+  if (attributes & napi_dont_delete) {
+    attribute_flags |= v8::DontDelete;
+  }
+  return static_cast<v8::PropertyAttribute>(attribute_flags);
+}
+
 v8::Isolate* V8IsolateFromJsEnv(napi_env e) {
   return reinterpret_cast<v8::Isolate*>(e);
 }
@@ -741,9 +757,8 @@ napi_status napi_define_class(napi_env env,
 
     v8::Local<v8::String> property_name;
     CHECK_NEW_FROM_UTF8(isolate, property_name, p->utf8name);
-
     v8::PropertyAttribute attributes =
-        static_cast<v8::PropertyAttribute>(p->attributes);
+        v8impl::V8PropertyAttributesFromAttributes(p->attributes);
 
     // This code is similar to that in napi_define_property(); the
     // difference is it applies to a template instead of an object.
@@ -1052,8 +1067,9 @@ napi_status napi_define_properties(napi_env env,
     v8::Local<v8::Name> name;
     CHECK_NEW_FROM_UTF8(isolate, name, p->utf8name);
 
-    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
-        p->attributes & ~napi_static_property);
+    v8::PropertyAttribute attributes =
+        v8impl::V8PropertyAttributesFromAttributes(
+            (napi_property_attributes)(p->attributes & ~napi_static_property));
 
     if (p->method) {
       v8::Local<v8::Object> cbdata =
