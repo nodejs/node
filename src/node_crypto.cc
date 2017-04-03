@@ -3797,6 +3797,7 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding encoding = BUFFER;
   if (args.Length() >= 1) {
+    CHECK(args[0]->IsString());
     encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
   }
 
@@ -3919,6 +3920,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding encoding = BUFFER;
   if (args.Length() >= 1) {
+    CHECK(args[0]->IsString());
     encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
   }
 
