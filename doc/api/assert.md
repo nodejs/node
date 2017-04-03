@@ -301,6 +301,38 @@ assert.ifError(new Error());
 // Throws Error
 ```
 
+## assert.isInstanceOf(obj, constructor, message)
+<!-- YAML
+added: v7.8.1
+-->
+* `obj` {any}
+* `constructor` {function}
+* `message` {string}
+
+Throws an `AssertionError` if `obj` is not instance of constructor.
+
+```js
+const assert = require('assert');
+
+assert.isInstanceOf([ ], Array);
+// OK
+assert.isInstanceOf(new Array(), Array);
+// OK
+assert.isInstanceOf(new Constructor1(), Constructor1);
+// OK
+
+assert.isInstanceOf(null, Constructor1);
+// Throws AssertionError
+assert.isInstanceOf(undefined, Constructor1);
+// Throws AssertionError
+assert.isInstanceOf(1, Constructor1);
+// Throws AssertionError
+assert.isInstanceOf(true, Constructor1);
+// Throws AssertionError
+assert.isInstanceOf('hello', Constructor1);
+// Throws AssertionError
+```
+
 ## assert.notDeepEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
