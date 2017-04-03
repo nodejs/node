@@ -1033,15 +1033,15 @@ def configure_intl(o):
         if nodedownload.candownload(auto_downloads, "icu"):
           nodedownload.retrievefile(url, targetfile)
       else:
-        print(' Re-using existing %s' % targetfile)
+        print('Re-using existing %s' % targetfile)
       if os.path.isfile(targetfile):
-        sys.stdout.write(' Checking file integrity with MD5:\r')
+        print('Checking file integrity with MD5:\r')
         gotmd5 = nodedownload.md5sum(targetfile)
-        print(' MD5:      %s  %s' % (gotmd5, targetfile))
+        print('MD5:      %s  %s' % (gotmd5, targetfile))
         if (md5 == gotmd5):
           return targetfile
         else:
-          print(' Expected: %s      *MISMATCH*' % md5)
+          print('Expected: %s      *MISMATCH*' % md5)
           print('\n ** Corrupted ZIP? Delete %s to retry download.\n' % targetfile)
     return None
   icu_config = {
@@ -1179,7 +1179,7 @@ def configure_intl(o):
         os.rename(tmp_icu, icu_full_path)
         shutil.rmtree(icu_tmp_path)
       else:
-        print(' Error: --with-icu-source=%s did not result in an "icu" dir.' % \
+        print('Error: --with-icu-source=%s did not result in an "icu" dir.' % \
                with_icu_source)
         shutil.rmtree(icu_tmp_path)
         sys.exit(1)
@@ -1195,8 +1195,8 @@ def configure_intl(o):
     if localzip:
       nodedownload.unpack(localzip, icu_parent_path)
   if not os.path.isdir(icu_full_path):
-    print(' Cannot build Intl without ICU in %s.' % icu_full_path)
-    print(' (Fix, or disable with "--with-intl=none" )')
+    print('Cannot build Intl without ICU in %s.' % icu_full_path)
+    print('(Fix, or disable with "--with-intl=none" )')
     sys.exit(1)
   else:
     print('* Using ICU in %s' % icu_full_path)
@@ -1204,7 +1204,7 @@ def configure_intl(o):
   # uvernum.h contains it as a #define.
   uvernum_h = os.path.join(icu_full_path, 'source/common/unicode/uvernum.h')
   if not os.path.isfile(uvernum_h):
-    print(' Error: could not load %s - is ICU installed?' % uvernum_h)
+    print('Error: could not load %s - is ICU installed?' % uvernum_h)
     sys.exit(1)
   icu_ver_major = None
   matchVerExp = r'^\s*#define\s+U_ICU_VERSION_SHORT\s+"([^"]*)".*'
@@ -1214,7 +1214,7 @@ def configure_intl(o):
     if m:
       icu_ver_major = m.group(1)
   if not icu_ver_major:
-    print(' Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
+    print('Could not read U_ICU_VERSION_SHORT version from %s' % uvernum_h)
     sys.exit(1)
   icu_endianness = sys.byteorder[0];
   o['variables']['icu_ver_major'] = icu_ver_major
@@ -1241,8 +1241,8 @@ def configure_intl(o):
   # this is the icudt*.dat file which node will be using (platform endianness)
   o['variables']['icu_data_file'] = icu_data_file
   if not os.path.isfile(icu_data_path):
-    print(' Error: ICU prebuilt data file %s does not exist.' % icu_data_path)
-    print(' See the README.md.')
+    print('Error: ICU prebuilt data file %s does not exist.' % icu_data_path)
+    print('See the README.md.')
     # .. and we're not about to build it from .gyp!
     sys.exit(1)
   # map from variable name to subdirs
