@@ -40,6 +40,7 @@ set enable_vtune_arg=
 set configure_flags=
 set build_addons=
 set dll=
+set build_addons_napi=
 set test_node_inspect=
 
 :next-arg
@@ -59,9 +60,10 @@ if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
-if /i "%1"=="test"          set test_args=%test_args% addons doctool known_issues message parallel sequential -J&set cpplint=1&set jslint=1&set build_addons=1&goto arg-ok
-if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap addons doctool inspector known_issues message sequential parallel&set cctest_args=%cctest_args% --gtest_output=tap:cctest.tap&set build_addons=1&goto arg-ok
+if /i "%1"=="test"          set test_args=%test_args% addons addons-napi doctool known_issues message parallel sequential -J&set cpplint=1&set jslint=1&set build_addons=1&set build_addons_napi=1&goto arg-ok
+if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap addons addons-napi doctool inspector known_issues message sequential parallel&set cctest_args=%cctest_args% --gtest_output=tap:cctest.tap&set build_addons=1&set build_addons_napi=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
+if /i "%1"=="test-addons-napi"   set test_args=%test_args% addons-napi&set build_addons_napi=1&goto arg-ok
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
 if /i "%1"=="test-message"  set test_args=%test_args% message&goto arg-ok
 if /i "%1"=="test-gc"       set test_args=%test_args% gc&set build_testgc_addon=1&goto arg-ok
@@ -312,12 +314,12 @@ echo Failed to build test/gc add-on."
 goto exit
 
 :build-addons
-if not defined build_addons goto run-tests
+if not defined build_addons goto build-addons-napi
 if not exist "%node_exe%" (
   echo Failed to find node.exe
-  goto run-tests
+  goto build-addons-napi
 )
-echo Building add-ons
+echo Building addons
 :: clear
 for /d %%F in (test\addons\??_*) do (
   rd /s /q %%F
@@ -332,6 +334,24 @@ for /d %%F in (test\addons\*) do (
     --directory="%%F" ^
     --nodedir="%cd%"
   if !errorlevel! neq 0 exit /b !errorlevel!
+)
+
+:build-addons-napi
+if not defined build_addons_napi goto run-tests
+if not exist "%node_exe%" (
+  echo Failed to find node.exe
+  goto run-tests
+)
+echo Building addons-napi
+:: clear
+for /d %%F in (test\addons-napi\??_*) do (
+  rd /s /q %%F
+)
+:: building addons-napi
+for /d %%F in (test\addons-napi\*) do (
+  "%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild ^
+    --directory="%%F" ^
+    --nodedir="%cd%"
 )
 endlocal
 goto run-tests
