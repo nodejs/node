@@ -4514,11 +4514,9 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     SealHandleScope seal(isolate);
     bool more;
     do {
-      v8_platform.PumpMessageLoop(isolate);
       more = uv_run(env.event_loop(), UV_RUN_ONCE);
 
       if (more == false) {
-        v8_platform.PumpMessageLoop(isolate);
         EmitBeforeExit(&env);
 
         // Emit `beforeExit` if the loop became alive either after emitting
