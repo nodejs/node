@@ -167,7 +167,7 @@ namespace url {
             }
             if (dots < 3 && ch != '.')
               goto end;
-            *piece_pointer = static_cast<uint16_t>(*piece_pointer * 0x100 + value); //aitbenmouh possible loss data
+            *piece_pointer = static_cast<uint16_t>(*piece_pointer * 0x100 + value); // possible loss data
             if (dots & 0x1)
               piece_pointer++;
             if (ch != kEOL) {
