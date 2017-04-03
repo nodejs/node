@@ -167,6 +167,9 @@
         'src/handle_wrap.cc',
         'src/js_stream.cc',
         'src/node.cc',
+        'src/node_api.cc',
+        'src/node_api.h',
+        'src/node_api_types.h',
         'src/node_buffer.cc',
         'src/node_config.cc',
         'src/node_constants.cc',
@@ -177,6 +180,7 @@
         'src/node_main.cc',
         'src/node_os.cc',
         'src/node_revert.cc',
+        'src/node_serdes.cc',
         'src/node_url.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
@@ -611,6 +615,7 @@
         '<(OBJ_PATH)/node.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/node_buffer.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/node_i18n.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)/node_url.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/debug-agent.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/util.<(OBJ_SUFFIX)',
         '<(OBJ_PATH)/string_bytes.<(OBJ_SUFFIX)',
@@ -637,6 +642,7 @@
 
       'sources': [
         'test/cctest/test_util.cc',
+        'test/cctest/test_url.cc'
       ],
 
       'sources!': [

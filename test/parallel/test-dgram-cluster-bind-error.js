@@ -17,7 +17,7 @@ if (cluster.isMaster) {
   const socket = dgram.createSocket('udp4');
 
   socket.on('error', common.mustCall((err) => {
-    assert(/^Error: bind UNKNOWN 0.0.0.0$/.test(err.toString()));
+    assert(/^Error: bind UNKNOWN 0\.0\.0\.0$/.test(err.toString()));
     process.nextTick(common.mustCall(() => {
       assert.strictEqual(socket._bindState, 0); // BIND_STATE_UNBOUND
       socket.close();

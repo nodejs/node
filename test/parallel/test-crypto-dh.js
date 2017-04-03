@@ -301,7 +301,7 @@ ecdh5.setPrivateKey(cafebabeKey, 'hex');
 ].forEach((element) => {
   assert.throws(() => {
     ecdh5.setPrivateKey(element, 'hex');
-  }, /^Error: Private key is not valid for specified curve.$/);
+  }, /^Error: Private key is not valid for specified curve\.$/);
   // Verify object state did not change.
   assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
 });

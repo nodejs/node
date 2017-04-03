@@ -72,6 +72,8 @@ assert.strictEqual(util.inspect({'a': {'b': { 'c': 2}}}, false, 0),
                    '{ a: [Object] }');
 assert.strictEqual(util.inspect({'a': {'b': { 'c': 2}}}, false, 1),
                    '{ a: { b: [Object] } }');
+assert.strictEqual(util.inspect({'a': {'b': ['c']}}, false, 1),
+                   '{ a: { b: [Array] } }');
 assert.strictEqual(util.inspect(Object.create({},
   {visible: {value: 1, enumerable: true}, hidden: {value: 2}})),
                    '{ visible: 1 }'
@@ -79,6 +81,9 @@ assert.strictEqual(util.inspect(Object.create({},
 assert.strictEqual(util.inspect(Object.assign(new String('hello'),
                    { [Symbol('foo')]: 123 }), { showHidden: true }),
                    '{ [String: \'hello\'] [length]: 5, [Symbol(foo)]: 123 }');
+
+assert.strictEqual(util.inspect(process.stdin._handle._externalStream),
+                   '[External]');
 
 {
   const regexp = /regexp/;

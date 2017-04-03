@@ -54,7 +54,7 @@ repl.addTest('restart', [].concat(
   ],
   repl.handshakeLines,
   [
-    /Restoring breakpoint mod.js:2/,
+    /Restoring breakpoint mod\.js:2/,
     /Warning: script 'mod\.js' was not loaded yet\./,
     /Restoring breakpoint \).*:\d+/,
     /Warning: script '\)[^']*' was not loaded yet\./
