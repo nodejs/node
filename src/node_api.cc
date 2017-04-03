@@ -2291,6 +2291,10 @@ napi_status napi_create_external_buffer(napi_env env,
 
   *result = v8impl::JsValueFromV8LocalValue(maybe.ToLocalChecked());
   return GET_RETURN_STATUS();
+  // Tell coverity that 'finalizer' should not be freed when we return
+  // as it will be deleted when the buffer to which it is associated
+  // is finalized.
+  // coverity[leaked_storage]
 }
 
 napi_status napi_create_buffer_copy(napi_env env,
