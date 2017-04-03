@@ -741,8 +741,19 @@ napi_status napi_define_class(napi_env env,
     v8::Local<v8::String> property_name;
     CHECK_NEW_FROM_UTF8(isolate, property_name, p->utf8name);
 
+    // convert the properties from NAPI to v8 format
+    unsigned int attribute_flags = v8::None;
+    if ((p->attributes & napi_read_only)) {
+      attribute_flags |= v8::ReadOnly;
+    }
+    if ((p->attributes & napi_dont_enum)) {
+      attribute_flags |= v8::DontEnum;
+    }
+    if ((p->attributes & napi_dont_delete)) {
+      attribute_flags |= v8::DontDelete;
+    }
     v8::PropertyAttribute attributes =
-        static_cast<v8::PropertyAttribute>(p->attributes);
+        static_cast<v8::PropertyAttribute>(attribute_flags);
 
     // This code is similar to that in napi_define_property(); the
     // difference is it applies to a template instead of an object.
