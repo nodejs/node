@@ -68,7 +68,8 @@ changes:
 * Returns: {string}
 
 The `path.basename()` methods returns the last portion of a `path`, similar to
-the Unix `basename` command.
+the Unix `basename` command. Conforming to Posix standards, trailing `/`
+characters are not counted as part of the pathname.
 
 For example:
 
@@ -128,7 +129,8 @@ changes:
 * Returns: {string}
 
 The `path.dirname()` method returns the directory name of a `path`, similar to
-the Unix `dirname` command.
+the Unix `dirname` command. Conforming to Posix standards, trailing `/`
+characters are not counted as part of the pathname.
 
 For example:
 
@@ -347,7 +349,8 @@ added: v0.11.15
 * Returns: {Object}
 
 The `path.parse()` method returns an object whose properties represent
-significant elements of the `path`.
+significant elements of the `path`. Note that trailing `/` characters are not
+counted as part of the pathname and therefore ignored.
 
 The returned object will have the following properties:
 
