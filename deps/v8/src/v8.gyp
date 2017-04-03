@@ -1708,7 +1708,7 @@
           # When building Official, the .lib is too large and exceeds the 2G
           # limit. This breaks it into multiple pieces to avoid the limit.
           # See http://crbug.com/485155.
-          'msvs_shard': 4,
+          'msvs_shard': 10,
         }],
         ['component=="shared_library"', {
           'defines': [
