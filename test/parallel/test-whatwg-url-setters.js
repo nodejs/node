@@ -15,7 +15,7 @@ if (!common.hasIntl) {
 }
 
 const request = {
-  response: require(path.join(common.fixturesDir, 'url-setter-tests.json'))
+  response: require(path.join(common.fixturesDir, 'url-setter-tests'))
 };
 
 /* eslint-disable */
