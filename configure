@@ -977,8 +977,18 @@ def configure_openssl(o):
 
 
   if options.without_ssl:
+    if options.shared_openssl:
+      withoutSSLError('--shared-openssl')
+    if options.openssl_no_asm:
+      withoutSSLError('--openssl-no-asm')
+    if options.openssl_fips:
+      withoutSSLError('--openssl-fips')
     return
   configure_library('openssl', o)
+
+def withoutSSLError(option):
+  print('Error: --without-ssl is incompatible with %s' % option)
+  exit(1);
 
 
 def configure_static(o):
