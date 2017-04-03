@@ -3,6 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const v8 = require('v8');
+const os = require('os');
 
 const circular = {};
 circular.circular = circular;
@@ -124,6 +125,9 @@ const objects = [
   let buf = Buffer.alloc(32 + 9);
   buf.write('ff0d5c0404addeefbe', 32, 'hex');
   buf = buf.slice(32);
-  assert.deepStrictEqual(v8.deserialize(buf),
-                         new Uint16Array([0xdead, 0xbeef]));
+
+  const expectedResult = os.endianness() === 'LE' ?
+      new Uint16Array([0xdead, 0xbeef]) : new Uint16Array([0xadde, 0xefbe]);
+
+  assert.deepStrictEqual(v8.deserialize(buf), expectedResult);
 }
