@@ -34,7 +34,7 @@ module.exports =
             "href": "a://example.net",
             "new_value": "",
             "expected": {
-                "href": "a://example.net/",
+                "href": "a://example.net",
                 "protocol": "a:"
             }
         },
@@ -42,7 +42,7 @@ module.exports =
             "href": "a://example.net",
             "new_value": "b",
             "expected": {
-                "href": "b://example.net/",
+                "href": "b://example.net",
                 "protocol": "b:"
             }
         },
@@ -59,7 +59,7 @@ module.exports =
             "href": "a://example.net",
             "new_value": "B",
             "expected": {
-                "href": "b://example.net/",
+                "href": "b://example.net",
                 "protocol": "b:"
             }
         },
@@ -68,7 +68,7 @@ module.exports =
             "href": "a://example.net",
             "new_value": "é",
             "expected": {
-                "href": "a://example.net/",
+                "href": "a://example.net",
                 "protocol": "a:"
             }
         },
@@ -77,7 +77,7 @@ module.exports =
             "href": "a://example.net",
             "new_value": "0b",
             "expected": {
-                "href": "a://example.net/",
+                "href": "a://example.net",
                 "protocol": "a:"
             }
         },
@@ -86,7 +86,7 @@ module.exports =
             "href": "a://example.net",
             "new_value": "+b",
             "expected": {
-                "href": "a://example.net/",
+                "href": "a://example.net",
                 "protocol": "a:"
             }
         },
@@ -94,7 +94,7 @@ module.exports =
             "href": "a://example.net",
             "new_value": "bC0+-.",
             "expected": {
-                "href": "bc0+-.://example.net/",
+                "href": "bc0+-.://example.net",
                 "protocol": "bc0+-.:"
             }
         },
@@ -103,7 +103,7 @@ module.exports =
             "href": "a://example.net",
             "new_value": "b,c",
             "expected": {
-                "href": "a://example.net/",
+                "href": "a://example.net",
                 "protocol": "a:"
             }
         },
@@ -112,7 +112,7 @@ module.exports =
             "href": "a://example.net",
             "new_value": "bé",
             "expected": {
-                "href": "a://example.net/",
+                "href": "a://example.net",
                 "protocol": "a:"
             }
         },
@@ -213,7 +213,7 @@ module.exports =
             "href": "ssh://me@example.net",
             "new_value": "http",
             "expected": {
-                "href": "ssh://me@example.net/",
+                "href": "ssh://me@example.net",
                 "protocol": "ssh:"
             }
         },
@@ -221,7 +221,7 @@ module.exports =
             "href": "ssh://me@example.net",
             "new_value": "gopher",
             "expected": {
-                "href": "ssh://me@example.net/",
+                "href": "ssh://me@example.net",
                 "protocol": "ssh:"
             }
         },
@@ -229,7 +229,15 @@ module.exports =
             "href": "ssh://me@example.net",
             "new_value": "file",
             "expected": {
-                "href": "ssh://me@example.net/",
+                "href": "ssh://me@example.net",
+                "protocol": "ssh:"
+            }
+        },
+        {
+            "href": "ssh://example.net",
+            "new_value": "file",
+            "expected": {
+                "href": "ssh://example.net",
                 "protocol": "ssh:"
             }
         },
@@ -1584,6 +1592,33 @@ module.exports =
             "expected": {
                 "href": "http://example.net/%3F",
                 "pathname": "/%3F"
+            }
+        },
+        {
+            "comment": "# needs to be encoded",
+            "href": "http://example.net",
+            "new_value": "#",
+            "expected": {
+                "href": "http://example.net/%23",
+                "pathname": "/%23"
+            }
+        },
+        {
+            "comment": "? needs to be encoded, non-special scheme",
+            "href": "sc://example.net",
+            "new_value": "?",
+            "expected": {
+                "href": "sc://example.net/%3F",
+                "pathname": "/%3F"
+            }
+        },
+        {
+            "comment": "# needs to be encoded, non-special scheme",
+            "href": "sc://example.net",
+            "new_value": "#",
+            "expected": {
+                "href": "sc://example.net/%23",
+                "pathname": "/%23"
             }
         }
     ],
