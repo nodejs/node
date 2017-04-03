@@ -40,7 +40,7 @@ function runTest() {
   assert(fs.statSync(filename).size === filesize);
   var rs = fs.createReadStream(filename, {
     highWaterMark: size,
-    encoding: encoding
+    encoding
   });
 
   rs.on('open', function() {
