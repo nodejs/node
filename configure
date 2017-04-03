@@ -988,7 +988,7 @@ def configure_openssl(o):
 
 def withoutSSLError(option):
   print('Error: --without-ssl is incompatible with %s' % option)
-  exit(1);
+  exit(1)
 
 
 def configure_static(o):
