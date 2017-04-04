@@ -439,8 +439,8 @@ class BufferValue : public MaybeStackBuffer<char> {
   } while (0)
 
 #define SPREAD_BUFFER_ARG(val, name)                                          \
-  CHECK((val)->IsUint8Array());                                               \
-  v8::Local<v8::Uint8Array> name = (val).As<v8::Uint8Array>();                \
+  CHECK((val)->IsArrayBufferView());                                          \
+  v8::Local<v8::ArrayBufferView> name = (val).As<v8::ArrayBufferView>();      \
   v8::ArrayBuffer::Contents name##_c = name->Buffer()->GetContents();         \
   const size_t name##_offset = name->ByteOffset();                            \
   const size_t name##_length = name->ByteLength();                            \
