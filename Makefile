@@ -192,8 +192,7 @@ v8:
 	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 test: all
-	$(MAKE) build-addons
-	$(MAKE) build-addons-napi
+	$(MAKE) build-addons build-addons-napi
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
 		addons addons-napi doctool inspector known_issues message pseudo-tty parallel sequential
