@@ -124,9 +124,10 @@ syntaxArgs.forEach(function(args) {
     const args = [checkFlag, evalFlag, 'foo'];
     const c = spawnSync(node, args, {encoding: 'utf8'});
 
-    assert.strictEqual(
-      c.stderr,
-      `${node}: either --check or --eval can be used, not both\n`
+    assert(
+      c.stderr.startsWith(
+        `${node}: either --check or --eval can be used, not both`
+      )
     );
 
     assert.strictEqual(c.status, 9, 'code === ' + c.status);
