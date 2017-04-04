@@ -52,8 +52,8 @@ extern const int8_t unbase64_table[256];
 
 
 template <typename TypeName>
-size_t base64_decode_slow(char* dst, size_t dstlen,
-                          const TypeName* src, size_t srclen) {
+size_t base64_decode_slow(char* const dst, const size_t dstlen,
+                          const TypeName* const src, const size_t srclen) {
   uint8_t hi;
   uint8_t lo;
   size_t i = 0;
