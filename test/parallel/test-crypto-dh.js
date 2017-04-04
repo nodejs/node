@@ -23,8 +23,9 @@ assert.strictEqual(secret2.toString('base64'), secret1);
 assert.strictEqual(dh1.verifyError, 0);
 assert.strictEqual(dh2.verifyError, 0);
 
-const argumentsError =
-  /^TypeError: First argument should be number, string, Uint8Array or Buffer$/;
+const argumentsError = new RegExp('^TypeError: First argument should be ' +
+                                  'number, string, Buffer, TypedArray, or ' +
+                                  'DataView$');
 
 assert.throws(() => {
   crypto.createDiffieHellman([0x1, 0x2]);
@@ -126,23 +127,10 @@ const modp2buf = Buffer.from([
   assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 }
 
-{
-  // Ensure specific generator (string with encoding) works as expected.
-  const exmodp2 = crypto.createDiffieHellman(modp2buf, '02', 'hex');
-  exmodp2.generateKeys();
-  const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
-      .toString('hex');
-  const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
-      .toString('hex');
-  assert.strictEqual(modp2Secret, exmodp2Secret);
-  assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
-}
-
-{
-  // Ensure specific generator (string with encoding) works as expected,
-  // with a Uint8Array as the first argument to createDiffieHellman().
-  const exmodp2 = crypto.createDiffieHellman(new Uint8Array(modp2buf),
-                                             '02', 'hex');
+for (const buf of [modp2buf, ...common.getArrayBufferViews(modp2buf)]) {
+  // Ensure specific generator (string with encoding) works as expected with
+  // any ArrayBufferViews as the first argument to createDiffieHellman().
+  const exmodp2 = crypto.createDiffieHellman(buf, '02', 'hex');
   exmodp2.generateKeys();
   const modp2Secret = modp2.computeSecret(exmodp2.getPublicKey())
       .toString('hex');
