@@ -1047,7 +1047,7 @@ def configure_intl(o):
       else:
         print('Re-using existing %s' % targetfile)
       if os.path.isfile(targetfile):
-        sys.stdout.write(' Checking file integrity with MD5:\r')
+        sys.stdout.write('Checking file integrity with MD5:\r')
         gotmd5 = nodedownload.md5sum(targetfile)
         print('MD5:      %s  %s' % (gotmd5, targetfile))
         if (md5 == gotmd5):
