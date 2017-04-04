@@ -169,7 +169,7 @@ Prerequisites:
 * One of:
   * [Visual C++ Build Tools](http://landinghub.visualstudio.com/visual-cpp-build-tools)
   * [Visual Studio](https://www.visualstudio.com/) 2013 / 2015, all editions including the Community edition
-  * [Visual Studio](https://www.visualstudio.com/) Express 2013 /2015 for Desktop
+  * [Visual Studio](https://www.visualstudio.com/) Express 2013 / 2015 for Desktop
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
