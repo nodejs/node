@@ -107,22 +107,23 @@ module.exports = {
                 text += "style=\"rounded,dashed,filled\",fillcolor=\"#FF9800\",label=\"<<unreachable>>\\n";
             }
 
-            if (segment.internal.nodes.length > 0) {
-                text += segment.internal.nodes.map(node => {
-                    switch (node.type) {
-                        case "Identifier": return `${node.type} (${node.name})`;
-                        case "Literal": return `${node.type} (${node.value})`;
-                        default: return node.type;
-                    }
-                }).join("\\n");
-            } else if (segment.internal.exitNodes.length > 0) {
-                text += segment.internal.exitNodes.map(node => {
-                    switch (node.type) {
-                        case "Identifier": return `${node.type}:exit (${node.name})`;
-                        case "Literal": return `${node.type}:exit (${node.value})`;
-                        default: return `${node.type}:exit`;
-                    }
-                }).join("\\n");
+            if (segment.internal.nodes.length > 0 || segment.internal.exitNodes.length > 0) {
+                text += [].concat(
+                    segment.internal.nodes.map(node => {
+                        switch (node.type) {
+                            case "Identifier": return `${node.type} (${node.name})`;
+                            case "Literal": return `${node.type} (${node.value})`;
+                            default: return node.type;
+                        }
+                    }),
+                    segment.internal.exitNodes.map(node => {
+                        switch (node.type) {
+                            case "Identifier": return `${node.type}:exit (${node.name})`;
+                            case "Literal": return `${node.type}:exit (${node.value})`;
+                            default: return `${node.type}:exit`;
+                        }
+                    })
+                ).join("\\n");
             } else {
                 text += "????";
             }

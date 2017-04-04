@@ -1,9 +1,13 @@
 # es6-map
 ## Map collection as specified in ECMAScript6
 
+__Warning:  
+v0.1 version does not ensure O(1) algorithm complexity (but O(n)). This shortcoming will be addressed in v1.0__
+
+
 ### Usage
 
-It’s safest to use *es6-map* as a [ponyfill](http://kikobeats.com/polyfill-ponyfill-and-prollyfill/) – a polyfill which doesn’t touch global objects:
+It’s safest to use *es6-map* as a [ponyfill](https://ponyfill.com) – a polyfill which doesn’t touch global objects:
 
 ```javascript
 var Map = require('es6-map');
@@ -24,7 +28,7 @@ var Map = require('es6-map/polyfill');
 ### Installation
 
 	$ npm install es6-map
-	
+
 To port it to Browser or any other (non CJS) environment, use your favorite CJS bundler. No favorite yet? Try: [Browserify](http://browserify.org/), [Webmake](https://github.com/medikoo/modules-webmake) or [Webpack](http://webpack.github.io/)
 
 #### API

@@ -12,6 +12,7 @@ forin
 nomen
 plusplus
 vars
+sub
 
 ./global.js
 ./function/_define-length.js

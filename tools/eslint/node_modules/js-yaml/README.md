@@ -183,27 +183,44 @@ options:
 - `noCompatMode` _(default: `false`)_ - if `true` don't try to be compatible with older
   yaml versions. Currently: don't quote "yes", "no" and so on, as required for YAML 1.1
 
-styles:
+The following table show availlable styles (e.g. "canonical",
+"binary"...) available for each tag (.e.g. !!null, !!int ...). Yaml
+ouput is shown on the right side after `=>` (default setting) or `->`:
 
 ``` none
 !!null
-  "canonical"   => "~"
+  "canonical"   -> "~"
+  "lowercase"   => "null"
+  "uppercase"   -> "NULL"
+  "camelcase"   -> "Null"
 
 !!int
-  "binary"      => "0b1", "0b101010", "0b1110001111010"
-  "octal"       => "01", "052", "016172"
+  "binary"      -> "0b1", "0b101010", "0b1110001111010"
+  "octal"       -> "01", "052", "016172"
   "decimal"     => "1", "42", "7290"
-  "hexadecimal" => "0x1", "0x2A", "0x1C7A"
+  "hexadecimal" -> "0x1", "0x2A", "0x1C7A"
 
-!!null, !!bool, !!float
-  "lowercase"   => "null", "true", "false", ".nan", '.inf'
-  "uppercase"   => "NULL", "TRUE", "FALSE", ".NAN", '.INF'
-  "camelcase"   => "Null", "True", "False", ".NaN", '.Inf'
+!!bool
+  "lowercase"   => "true", "false"
+  "uppercase"   -> "TRUE", "FALSE"
+  "camelcase"   -> "True", "False"
+  
+!!float
+  "lowercase"   => ".nan", '.inf'
+  "uppercase"   -> ".NAN", '.INF'
+  "camelcase"   -> ".NaN", '.Inf'
 ```
 
-By default, !!int uses `decimal`, and !!null, !!bool, !!float use `lowercase`.
+Example:
 
-
+``` javascript
+safeDump (object, {
+  'styles': {
+    '!!null': 'canonical' // dump null as ~
+  },
+  'sortKeys': true        // sort object keys
+}
+```
 
 ### dump (object [ , options ])
 

@@ -86,7 +86,7 @@ function resolveFileGlobPatterns(patterns, options) {
 
     const processPathExtensions = processPath(options);
 
-    return patterns.map(processPathExtensions);
+    return patterns.filter(p => p.length).map(processPathExtensions);
 }
 
 /**
@@ -165,7 +165,7 @@ function listFilesToProcess(globPatterns, options) {
             const globOptions = {
                 nodir: true,
                 dot: true,
-                cwd,
+                cwd
             };
 
             new GlobSync(pattern, globOptions, shouldIgnore).found.forEach(globMatch => {

@@ -5,6 +5,8 @@
 
 "use strict";
 
+const astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -52,215 +54,86 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         /**
-         * Determines if a given node is a block statement.
-         * @param {ASTNode} node The node to check.
-         * @returns {boolean} True if the node is a block statement, false if not.
-         * @private
-         */
-        function isBlock(node) {
-            return node && node.type === "BlockStatement";
-        }
-
-        /**
-         * Check if the token is an punctuator with a value of curly brace
-         * @param {Object} token - Token to check
-         * @returns {boolean} true if its a curly punctuator
-         * @private
-         */
-        function isCurlyPunctuator(token) {
-            return token.value === "{" || token.value === "}";
-        }
-
-        /**
-        * Reports a place where a newline unexpectedly appears
-        * @param {ASTNode} node The node to report
-        * @param {string} message The message to report
+        * Fixes a place where a newline unexpectedly appears
         * @param {Token} firstToken The token before the unexpected newline
+        * @param {Token} secondToken The token after the unexpected newline
+        * @returns {Function} A fixer function to remove the newlines between the tokens
+        */
+        function removeNewlineBetween(firstToken, secondToken) {
+            const textRange = [firstToken.range[1], secondToken.range[0]];
+            const textBetween = sourceCode.text.slice(textRange[0], textRange[1]);
+            const NEWLINE_REGEX = astUtils.createGlobalLinebreakMatcher();
+
+            // Don't do a fix if there is a comment between the tokens
+            return fixer => fixer.replaceTextRange(textRange, textBetween.trim() ? null : textBetween.replace(NEWLINE_REGEX, ""));
+        }
+
+        /**
+        * Validates a pair of curly brackets based on the user's config
+        * @param {Token} openingCurly The opening curly bracket
+        * @param {Token} closingCurly The closing curly bracket
         * @returns {void}
         */
-        function reportExtraNewline(node, message, firstToken) {
-            context.report({
-                node,
-                message,
-                fix(fixer) {
-                    const secondToken = sourceCode.getTokenAfter(firstToken);
-                    const textBetween = sourceCode.getText().slice(firstToken.range[1], secondToken.range[0]);
-                    const NEWLINE_REGEX = /\r\n|\r|\n|\u2028|\u2029/g;
+        function validateCurlyPair(openingCurly, closingCurly) {
+            const tokenBeforeOpeningCurly = sourceCode.getTokenBefore(openingCurly);
+            const tokenAfterOpeningCurly = sourceCode.getTokenAfter(openingCurly);
+            const tokenBeforeClosingCurly = sourceCode.getTokenBefore(closingCurly);
+            const singleLineException = params.allowSingleLine && astUtils.isTokenOnSameLine(openingCurly, closingCurly);
 
-                    // Don't do a fix if there is a comment between the tokens.
-                    return textBetween.trim() ? null : fixer.replaceTextRange([firstToken.range[1], secondToken.range[0]], textBetween.replace(NEWLINE_REGEX, ""));
-                }
-            });
-        }
-
-        /**
-         * Binds a list of properties to a function that verifies that the opening
-         * curly brace is on the same line as its controlling statement of a given
-         * node.
-         * @param {...string} The properties to check on the node.
-         * @returns {Function} A function that will perform the check on a node
-         * @private
-         */
-        function checkBlock() {
-            const blockProperties = arguments;
-
-            return function(node) {
-                Array.prototype.forEach.call(blockProperties, blockProp => {
-                    const block = node[blockProp];
-
-                    if (!isBlock(block)) {
-                        return;
-                    }
-
-                    const previousToken = sourceCode.getTokenBefore(block);
-                    const curlyToken = sourceCode.getFirstToken(block);
-                    const curlyTokenEnd = sourceCode.getLastToken(block);
-                    const allOnSameLine = previousToken.loc.start.line === curlyTokenEnd.loc.start.line;
-
-                    if (allOnSameLine && params.allowSingleLine) {
-                        return;
-                    }
-
-                    if (style !== "allman" && previousToken.loc.start.line !== curlyToken.loc.start.line) {
-                        reportExtraNewline(node, OPEN_MESSAGE, previousToken);
-                    } else if (style === "allman" && previousToken.loc.start.line === curlyToken.loc.start.line) {
-                        context.report({
-                            node,
-                            message: OPEN_MESSAGE_ALLMAN,
-                            fix: fixer => fixer.insertTextBefore(curlyToken, "\n")
-                        });
-                    }
-
-                    if (!block.body.length) {
-                        return;
-                    }
-
-                    if (curlyToken.loc.start.line === block.body[0].loc.start.line) {
-                        context.report({
-                            node: block.body[0],
-                            message: BODY_MESSAGE,
-                            fix: fixer => fixer.insertTextAfter(curlyToken, "\n")
-                        });
-                    }
-
-                    if (curlyTokenEnd.loc.start.line === block.body[block.body.length - 1].loc.end.line) {
-                        context.report({
-                            node: block.body[block.body.length - 1],
-                            message: CLOSE_MESSAGE_SINGLE,
-                            fix: fixer => fixer.insertTextBefore(curlyTokenEnd, "\n")
-                        });
-                    }
-                });
-            };
-        }
-
-        /**
-         * Enforces the configured brace style on IfStatements
-         * @param {ASTNode} node An IfStatement node.
-         * @returns {void}
-         * @private
-         */
-        function checkIfStatement(node) {
-            checkBlock("consequent", "alternate")(node);
-
-            if (node.alternate) {
-
-                const tokens = sourceCode.getTokensBefore(node.alternate, 2);
-
-                if (style === "1tbs") {
-                    if (tokens[0].loc.start.line !== tokens[1].loc.start.line &&
-                        node.consequent.type === "BlockStatement" &&
-                        isCurlyPunctuator(tokens[0])) {
-                        reportExtraNewline(node.alternate, CLOSE_MESSAGE, tokens[0]);
-                    }
-                } else if (tokens[0].loc.start.line === tokens[1].loc.start.line) {
-                    context.report({
-                        node: node.alternate,
-                        message: CLOSE_MESSAGE_STROUSTRUP_ALLMAN,
-                        fix: fixer => fixer.insertTextAfter(tokens[0], "\n")
-                    });
-                }
-
-            }
-        }
-
-        /**
-         * Enforces the configured brace style on TryStatements
-         * @param {ASTNode} node A TryStatement node.
-         * @returns {void}
-         * @private
-         */
-        function checkTryStatement(node) {
-            checkBlock("block", "finalizer")(node);
-
-            if (isBlock(node.finalizer)) {
-                const tokens = sourceCode.getTokensBefore(node.finalizer, 2);
-
-                if (style === "1tbs") {
-                    if (tokens[0].loc.start.line !== tokens[1].loc.start.line) {
-                        reportExtraNewline(node.finalizer, CLOSE_MESSAGE, tokens[0]);
-                    }
-                } else if (tokens[0].loc.start.line === tokens[1].loc.start.line) {
-                    context.report({
-                        node: node.finalizer,
-                        message: CLOSE_MESSAGE_STROUSTRUP_ALLMAN,
-                        fix: fixer => fixer.insertTextAfter(tokens[0], "\n")
-                    });
-                }
-            }
-        }
-
-        /**
-         * Enforces the configured brace style on CatchClauses
-         * @param {ASTNode} node A CatchClause node.
-         * @returns {void}
-         * @private
-         */
-        function checkCatchClause(node) {
-            const previousToken = sourceCode.getTokenBefore(node),
-                firstToken = sourceCode.getFirstToken(node);
-
-            checkBlock("body")(node);
-
-            if (isBlock(node.body)) {
-                if (style === "1tbs") {
-                    if (previousToken.loc.start.line !== firstToken.loc.start.line) {
-                        reportExtraNewline(node, CLOSE_MESSAGE, previousToken);
-                    }
-                } else {
-                    if (previousToken.loc.start.line === firstToken.loc.start.line) {
-                        context.report({
-                            node,
-                            message: CLOSE_MESSAGE_STROUSTRUP_ALLMAN,
-                            fix: fixer => fixer.insertTextAfter(previousToken, "\n")
-                        });
-                    }
-                }
-            }
-        }
-
-        /**
-         * Enforces the configured brace style on SwitchStatements
-         * @param {ASTNode} node A SwitchStatement node.
-         * @returns {void}
-         * @private
-         */
-        function checkSwitchStatement(node) {
-            let tokens;
-
-            if (node.cases && node.cases.length) {
-                tokens = sourceCode.getTokensBefore(node.cases[0], 2);
-            } else {
-                tokens = sourceCode.getLastTokens(node, 3);
-            }
-
-            if (style !== "allman" && tokens[0].loc.start.line !== tokens[1].loc.start.line) {
-                reportExtraNewline(node, OPEN_MESSAGE, tokens[0]);
-            } else if (style === "allman" && tokens[0].loc.start.line === tokens[1].loc.start.line) {
+            if (style !== "allman" && !astUtils.isTokenOnSameLine(tokenBeforeOpeningCurly, openingCurly)) {
                 context.report({
-                    node,
+                    node: openingCurly,
+                    message: OPEN_MESSAGE,
+                    fix: removeNewlineBetween(tokenBeforeOpeningCurly, openingCurly)
+                });
+            }
+
+            if (style === "allman" && astUtils.isTokenOnSameLine(tokenBeforeOpeningCurly, openingCurly) && !singleLineException) {
+                context.report({
+                    node: openingCurly,
                     message: OPEN_MESSAGE_ALLMAN,
-                    fix: fixer => fixer.insertTextBefore(tokens[1], "\n")
+                    fix: fixer => fixer.insertTextBefore(openingCurly, "\n")
+                });
+            }
+
+            if (astUtils.isTokenOnSameLine(openingCurly, tokenAfterOpeningCurly) && tokenAfterOpeningCurly !== closingCurly && !singleLineException) {
+                context.report({
+                    node: openingCurly,
+                    message: BODY_MESSAGE,
+                    fix: fixer => fixer.insertTextAfter(openingCurly, "\n")
+                });
+            }
+
+            if (tokenBeforeClosingCurly !== openingCurly && !singleLineException && astUtils.isTokenOnSameLine(tokenBeforeClosingCurly, closingCurly)) {
+                context.report({
+                    node: closingCurly,
+                    message: CLOSE_MESSAGE_SINGLE,
+                    fix: fixer => fixer.insertTextBefore(closingCurly, "\n")
+                });
+            }
+        }
+
+        /**
+        * Validates the location of a token that appears before a keyword (e.g. a newline before `else`)
+        * @param {Token} curlyToken The closing curly token. This is assumed to precede a keyword token (such as `else` or `finally`).
+        * @returns {void}
+        */
+        function validateCurlyBeforeKeyword(curlyToken) {
+            const keywordToken = sourceCode.getTokenAfter(curlyToken);
+
+            if (style === "1tbs" && !astUtils.isTokenOnSameLine(curlyToken, keywordToken)) {
+                context.report({
+                    node: curlyToken,
+                    message: CLOSE_MESSAGE,
+                    fix: removeNewlineBetween(curlyToken, keywordToken)
+                });
+            }
+
+            if (style !== "1tbs" && astUtils.isTokenOnSameLine(curlyToken, keywordToken)) {
+                context.report({
+                    node: curlyToken,
+                    message: CLOSE_MESSAGE_STROUSTRUP_ALLMAN,
+                    fix: fixer => fixer.insertTextAfter(curlyToken, "\n")
                 });
             }
         }
@@ -270,20 +143,38 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            FunctionDeclaration: checkBlock("body"),
-            FunctionExpression: checkBlock("body"),
-            ArrowFunctionExpression: checkBlock("body"),
-            IfStatement: checkIfStatement,
-            TryStatement: checkTryStatement,
-            CatchClause: checkCatchClause,
-            DoWhileStatement: checkBlock("body"),
-            WhileStatement: checkBlock("body"),
-            WithStatement: checkBlock("body"),
-            ForStatement: checkBlock("body"),
-            ForInStatement: checkBlock("body"),
-            ForOfStatement: checkBlock("body"),
-            SwitchStatement: checkSwitchStatement
-        };
+            BlockStatement(node) {
+                if (!astUtils.STATEMENT_LIST_PARENTS.has(node.parent.type)) {
+                    validateCurlyPair(sourceCode.getFirstToken(node), sourceCode.getLastToken(node));
+                }
+            },
+            ClassBody(node) {
+                validateCurlyPair(sourceCode.getFirstToken(node), sourceCode.getLastToken(node));
+            },
+            SwitchStatement(node) {
+                const closingCurly = sourceCode.getLastToken(node);
+                const openingCurly = sourceCode.getTokenBefore(node.cases.length ? node.cases[0] : closingCurly);
 
+                validateCurlyPair(openingCurly, closingCurly);
+            },
+            IfStatement(node) {
+                if (node.consequent.type === "BlockStatement" && node.alternate) {
+
+                    // Handle the keyword after the `if` block (before `else`)
+                    validateCurlyBeforeKeyword(sourceCode.getLastToken(node.consequent));
+                }
+            },
+            TryStatement(node) {
+
+                // Handle the keyword after the `try` block (before `catch` or `finally`)
+                validateCurlyBeforeKeyword(sourceCode.getLastToken(node.block));
+
+                if (node.handler && node.finalizer) {
+
+                    // Handle the keyword after the `catch` block (before `finally`)
+                    validateCurlyBeforeKeyword(sourceCode.getLastToken(node.handler.body));
+                }
+            }
+        };
     }
 };

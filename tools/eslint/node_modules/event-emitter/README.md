@@ -4,7 +4,7 @@
 ### Installation
 
 	$ npm install event-emitter
-	
+
 To port it to Browser or any other (non CJS) environment, use your favorite CJS bundler. No favorite yet? Try: [Browserify](http://browserify.org/), [Webmake](https://github.com/medikoo/modules-webmake) or [Webpack](http://webpack.github.io/)
 
 ### Usage
@@ -12,14 +12,17 @@ To port it to Browser or any other (non CJS) environment, use your favorite CJS 
 ```javascript
 var ee = require('event-emitter');
 
-var emitter = ee({}), listener;
+var MyClass = function () { /* .. */ };
+ee(MyClass.prototype); // All instances of MyClass will expose event-emitter interface
+
+var emitter = new MyClass(), listener;
 
 emitter.on('test', listener = function (args) {
-  // …emitter logic
+  // … react to 'test' event
 });
 
 emitter.once('test', function (args) {
-  // …invoked only once(!)
+  // … react to first 'test' event (invoked only once!)
 });
 
 emitter.emit('test', arg1, arg2/*…args*/); // Two above listeners invoked
@@ -63,7 +66,7 @@ It works internally by redefinition of `emit` method, if in your interface this 
 
 #### unify(emitter1, emitter2) _(event-emitter/unify)_
 
-Unifies event handling for two objects. Events emitted on _emitter1_ would be also emitter on _emitter2_, and other way back.  
+Unifies event handling for two objects. Events emitted on _emitter1_ would be also emitted on _emitter2_, and other way back.  
 Non reversible.
 
 ```javascript

@@ -1,4 +1,5 @@
-# D - Property descriptor factory
+# D
+## Property descriptor factory
 
 _Originally derived from [es5-ext](https://github.com/medikoo/es5-ext) package._
 
@@ -10,7 +11,7 @@ Object.defineProperties(Account.prototype, {
   deposit: { value: function () {
       /* ... */
     }, configurable: true, enumerable: false, writable: true },
-  whithdraw: { value: function () {
+  withdraw: { value: function () {
       /* ... */
     }, configurable: true, enumerable: false, writable: true },
   balance: { get: function () {
@@ -29,7 +30,7 @@ Object.defineProperties(Account.prototype, {
   deposit: d(function () {
     /* ... */
   }),
-  whithdraw: d(function () {
+  withdraw: d(function () {
     /* ... */
   }),
   balance: d.gs(function () {
@@ -54,6 +55,12 @@ d('e', value); // { configurable: false, enumerable: true, writable: false }
 d.gs('e', value); // { configurable: false, enumerable: true }
 ```
 
+### Installation
+
+	$ npm install d
+	
+To port it to Browser or any other (non CJS) environment, use your favorite CJS bundler. No favorite yet? Try: [Browserify](http://browserify.org/), [Webmake](https://github.com/medikoo/modules-webmake) or [Webpack](http://webpack.github.io/)
+
 ### Other utilities
 
 #### autoBind(obj, props) _(d/auto-bind)_
@@ -65,9 +72,9 @@ var d = require('d');
 var autoBind = require('d/auto-bind');
 
 var Foo = function () { this._count = 0; };
-autoBind(Foo.prototype, {
+Object.defineProperties(Foo.prototype, autoBind({
   increment: d(function () { ++this._count; });
-});
+}));
 
 var foo = new Foo();
 
@@ -84,24 +91,13 @@ var d = require('d');
 var lazy = require('d/lazy');
 
 var Foo = function () {};
-lazy(Foo.prototype, {
+Object.defineProperties(Foo.prototype, lazy({
   items: d(function () { return []; })
-});
+}));
 
 var foo = new Foo();
-foo.items.push(1, 2); // foo.items array created
+foo.items.push(1, 2); // foo.items array created and defined directly on foo
 ```
-
-## Installation
-### NPM
-
-In your project path:
-
-	$ npm install d
-
-### Browser
-
-You can easily bundle _D_ for browser with [modules-webmake](https://github.com/medikoo/modules-webmake)
 
 ## Tests [![Build Status](https://travis-ci.org/medikoo/d.png)](https://travis-ci.org/medikoo/d)
 
