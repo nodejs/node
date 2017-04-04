@@ -26,24 +26,28 @@ const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
-const expectStr = 'blahblahblahblahblahblah';
+// Must be a multiple of 4 characters in total to test all ArrayBufferView
+// types.
+const expectStr = 'blah'.repeat(8);
 const expectBuf = Buffer.from(expectStr);
-const expectUint8Array = new Uint8Array(expectBuf);
+
 const opts = {
   level: 9,
   chunkSize: 1024,
 };
 
-for (const method of [
-  ['gzip', 'gunzip'],
-  ['gzip', 'unzip'],
-  ['deflate', 'inflate'],
-  ['deflateRaw', 'inflateRaw'],
+for (const [type, expect] of [
+  ['string', expectStr],
+  ['Buffer', expectBuf],
+  ...common.getArrayBufferViews(expectBuf).map((obj) =>
+    [obj[Symbol.toStringTag], obj]
+  )
 ]) {
-  for (const [type, expect] of [
-    ['string', expectStr],
-    ['Buffer', expectBuf],
-    ['Uint8Array', expectUint8Array]
+  for (const method of [
+    ['gzip', 'gunzip'],
+    ['gzip', 'unzip'],
+    ['deflate', 'inflate'],
+    ['deflateRaw', 'inflateRaw'],
   ]) {
     zlib[method[0]](expect, opts, common.mustCall((err, result) => {
       zlib[method[1]](result, opts, common.mustCall((err, result) => {
