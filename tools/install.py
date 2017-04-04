@@ -180,8 +180,10 @@ def headers(action):
   # but not when --with-intl= is set to none or system-icu.
   icu_path = variables.get('icu_path')
   if icu_path:
-    icu_headers_path = icu_path + '/source/common/unicode'
-    subdir_files(icu_headers_path, 'include/node/unicode/', action)
+    target_path = 'include/node/unicode/'
+    # Note: merges both directories into one.
+    subdir_files(icu_path + '/source/common/unicode', target_path, action)
+    subdir_files(icu_path + '/source/i18n/unicode', target_path, action)
 
 def run(args):
   global node_prefix, install_path, target_defaults, variables
