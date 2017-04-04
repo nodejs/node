@@ -14,7 +14,7 @@ test('display and navigate backtrace', (t) => {
     throw error;
   }
 
-  return cli.waitFor(/break/)
+  return cli.waitForInitialBreak()
     .then(() => cli.waitForPrompt())
     .then(() => cli.stepCommand('c'))
     .then(() => cli.command('bt'))
