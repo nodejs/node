@@ -894,7 +894,6 @@ def configure_node(o):
     o['variables']['library_files'] = options.linked_module
 
   o['variables']['asan'] = int(options.enable_asan or 0)
-  o['variables']['v8_inspector'] = b(not options.without_inspector)
   o['variables']['debug_devtools'] = 'node'
 
   if options.use_xcode and options.use_ninja:
@@ -1268,6 +1267,12 @@ def configure_intl(o):
         pprint.pformat(icu_config, indent=2) + '\n')
   return  # end of configure_intl
 
+def configure_inspector(o):
+  disable_inspector = (options.without_inspector or
+                       options.with_intl in (None, 'none') or
+                       options.without_ssl)
+  o['variables']['v8_inspector'] = b(not disable_inspector)
+
 output = {
   'variables': {},
   'include_dirs': [],
@@ -1298,6 +1303,7 @@ configure_v8(output)
 configure_openssl(output)
 configure_intl(output)
 configure_static(output)
+configure_inspector(output)
 
 # variables should be a root level element,
 # move everything else to target_defaults
