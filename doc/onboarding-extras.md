@@ -27,6 +27,7 @@
 | `test/*` | @nodejs/testing |
 | `tools/eslint`, `.eslintrc` | @not-an-aardvark, @silverwind, @trott |
 | async_hooks | @nodejs/diagnostics |
+| performance | @nodejs/performance |
 | upgrading V8 | @nodejs/v8, @nodejs/post-mortem |
 | upgrading npm | @fishrock123, @MylesBorins |
 | upgrading c-ares | @jbergstroem |
