@@ -212,6 +212,15 @@ testHelper(
   'require("crypto").fips = false',
   process.env);
 
+// --force-fips makes setFipsCrypto enable a no-op (FIPS stays on)
+testHelper(
+  compiledWithFips() ? 'stdout' : 'stderr',
+  ['--force-fips'],
+  compiledWithFips() ? FIPS_ENABLED : OPTION_ERROR_STRING,
+  '(require("crypto").fips = true,' +
+  'require("crypto").fips)',
+  process.env);
+
 // --force-fips and --enable-fips order does not matter
 testHelper(
   'stderr',
