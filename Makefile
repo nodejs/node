@@ -749,7 +749,7 @@ $(TARBALL)-headers: release-only
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
+	$(PYTHON) tools/install.py --components headers install '$(TARNAME)' '/'
 	find $(TARNAME)/ -type l | xargs rm -f
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	rm -rf $(TARNAME)

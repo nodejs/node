@@ -2,6 +2,7 @@
 
 import errno
 import json
+import optparse
 import os
 import re
 import shutil
@@ -32,6 +33,7 @@ def try_unlink(path):
 
 def try_symlink(source_path, link_path):
   print 'symlinking %s -> %s' % (source_path, link_path)
+  try_mkdir_r(os.path.dirname(link_path))
   try_unlink(link_path)
   os.symlink(source_path, link_path)
 
@@ -106,7 +108,12 @@ def subdir_files(path, dest, action):
   for subdir, files in ret.items():
     action(files, subdir + '/')
 
-def files(action):
+def files(components, action):
+  funcs = {'headers': header_files, 'node': node_files, 'npm': npm_files}
+  for component in components:
+    funcs[component](action)
+
+def node_files(action):
   is_windows = sys.platform == 'win32'
   output_file = 'node'
   output_prefix = 'out/Release/'
@@ -139,11 +146,7 @@ def files(action):
   else:
     action(['doc/node.1'], 'share/man/man1/')
 
-  if 'true' == variables.get('node_install_npm'): npm_files(action)
-
-  headers(action)
-
-def headers(action):
+def header_files(action):
   action([
     'common.gypi',
     'config.gypi',
@@ -176,8 +179,9 @@ def headers(action):
       'deps/zlib/zlib.h',
     ], 'include/node/')
 
-def run(args):
+def run(opts, args):
   global node_prefix, install_path, target_defaults, variables
+  valid_components = set(['node', 'npm', 'headers'])
 
   # chdir to the project's top-level directory
   os.chdir(abspath(os.path.dirname(__file__), '..'))
@@ -186,27 +190,38 @@ def run(args):
   variables = conf['variables']
   target_defaults = conf['target_defaults']
 
-  # argv[2] is a custom install prefix for packagers (think DESTDIR)
-  # argv[3] is a custom install prefix (think PREFIX)
+  # args[1] is a custom install prefix for packagers (think DESTDIR)
+  # args[2] is a custom install prefix (think PREFIX)
   # Difference is that dst_dir won't be included in shebang lines etc.
-  dst_dir = args[2] if len(args) > 2 else ''
+  dst_dir = args[1] if len(args) > 1 else ''
 
-  if len(args) > 3:
-    node_prefix = args[3]
+  if len(args) > 2:
+    node_prefix = args[2]
 
   # install_path thus becomes the base target directory.
   install_path = dst_dir + node_prefix + '/'
 
-  cmd = args[1] if len(args) > 1 else 'install'
+  cmd = args[0].lower() if len(args) else 'install'
 
-  if os.environ.get('HEADERS_ONLY'):
-    if cmd == 'install': return headers(install)
-    if cmd == 'uninstall': return headers(uninstall)
-  else:
-    if cmd == 'install': return files(install)
-    if cmd == 'uninstall': return files(uninstall)
+  if cmd not in ('install', 'uninstall'):
+    raise RuntimeError('Bad command: %s\n' % cmd)
 
-  raise RuntimeError('Bad command: %s\n' % cmd)
+  components = valid_components & set(opts.components.split(','))
+
+  # Even if NPM is not asked to install, if "node_install_npm" is set, then
+  # install npm files anyway, unless 'headers' is also installed.
+  if 'headers' not in components and \
+     'true' == variables.get('node_install_npm'):
+    components.update(['npm'])
+
+  files(components, install if cmd == 'install' else uninstall)
+
 
 if __name__ == '__main__':
-  run(sys.argv[:])
+
+  usage = 'usage: %prog [-c components] COMMAND DESTDIR PREFIX'
+  parser = optparse.OptionParser(usage)
+  parser.add_option('-c', '--components', dest='components',
+                    help='Comma separated list of components. Valid values '
+                    'are node, npm, and headers.', default='node,headers')
+  run(*parser.parse_args())
