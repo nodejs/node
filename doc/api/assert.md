@@ -303,13 +303,15 @@ assert.ifError(new Error());
 
 ## assert.isInstanceOf(obj, constructor, message)
 <!-- YAML
-added: v7.8.1
+added: REPLACEME
 -->
 * `obj` {any}
 * `constructor` {function}
 * `message` {string}
 
-Throws an `AssertionError` if `obj` is not instance of constructor.
+Throws an `AssertionError` if `obj` is not instance of constructor. Tests
+whether an object has in its prototype chain the prototype property of a
+constructor.
 
 ```js
 const assert = require('assert');
