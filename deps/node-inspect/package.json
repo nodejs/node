@@ -1,6 +1,6 @@
 {
   "name": "node-inspect",
-  "version": "1.10.6",
+  "version": "1.11.2",
   "description": "Node Inspect",
   "license": "MIT",
   "main": "lib/_inspect.js",
@@ -15,7 +15,7 @@
   },
   "scripts": {
     "pretest": "eslint --rulesdir=tools/eslint-rules lib test",
-    "test": "tap \"test/**/*.test.js\"",
+    "test": "tap test",
     "posttest": "nlm verify"
   },
   "nlm": {
