@@ -220,6 +220,12 @@ The expected error should be [subclassed by the `internal/errors` module](https:
 
 Tests whether `name` and `expected` are part of a raised warning.
 
+## getArrayBufferViews(buf)
+* `buf` [&lt;Buffer>](https://nodejs.org/api/buffer.html#buffer_class_buffer)
+* return [&lt;ArrayBufferView&#91;&#93;>](https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView)
+
+Returns an instance of all possible `ArrayBufferView`s of the provided Buffer.
+
 ### hasCrypto
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
 
