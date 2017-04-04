@@ -6,7 +6,7 @@ const { test } = require('tap');
 const startCLI = require('./start-cli');
 
 test('list scripts', (t) => {
-  const script = Path.join('examples', 'empty.js');
+  const script = Path.join('examples', 'three-lines.js');
   const cli = startCLI([script]);
 
   function onFatal(error) {
@@ -14,13 +14,13 @@ test('list scripts', (t) => {
     throw error;
   }
 
-  return cli.waitFor(/break/)
+  return cli.waitForInitialBreak()
     .then(() => cli.waitForPrompt())
     .then(() => cli.command('scripts'))
     .then(() => {
       t.match(
         cli.output,
-        /^\* \d+: examples(?:\/|\\)empty\.js/,
+        /^\* \d+: examples(?:\/|\\)three-lines\.js/,
         'lists the user script');
       t.notMatch(
         cli.output,
@@ -31,7 +31,7 @@ test('list scripts', (t) => {
     .then(() => {
       t.match(
         cli.output,
-        /\* \d+: examples(?:\/|\\)empty\.js/,
+        /\* \d+: examples(?:\/|\\)three-lines\.js/,
         'lists the user script');
       t.match(
         cli.output,

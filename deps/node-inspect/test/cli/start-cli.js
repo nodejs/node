@@ -1,10 +1,20 @@
 'use strict';
 const spawn = require('child_process').spawn;
 
+// This allows us to keep the helper inside of `test/` without tap warning
+// about "pending" test files.
+const tap = require('tap');
+tap.test('startCLI', (t) => t.end());
+
 const CLI =
   process.env.USE_EMBEDDED_NODE_INSPECT === '1' ?
   'inspect' :
   require.resolve('../../cli.js');
+
+const BREAK_MESSAGE = new RegExp('(?:' + [
+  'assert', 'break', 'break on start', 'debugCommand',
+  'exception', 'other', 'promiseRejection',
+].join('|') + ') in', 'i');
 
 function startCLI(args) {
   const child = spawn(process.execPath, [CLI, ...args]);
@@ -88,6 +98,16 @@ function startCLI(args) {
       return this.waitFor(/>\s+$/, timeout);
     },
 
+    waitForInitialBreak(timeout = 2000) {
+      return this.waitFor(/break (?:on start )?in/i, timeout)
+        .then(() => {
+          if (/Break on start/.test(this.output)) {
+            return this.command('next', false)
+              .then(() => this.waitFor(/break in/, timeout));
+          }
+        });
+    },
+
     ctrlC() {
       return this.command('.interrupt');
     },
@@ -107,8 +127,10 @@ function startCLI(args) {
         .map((match) => +match[1]);
     },
 
-    command(input) {
-      this.flushOutput();
+    command(input, flush = true) {
+      if (flush) {
+        this.flushOutput();
+      }
       child.stdin.write(input);
       child.stdin.write('\n');
       return this.waitForPrompt();
@@ -119,9 +141,7 @@ function startCLI(args) {
       child.stdin.write(input);
       child.stdin.write('\n');
       return this
-        .waitFor(
-          /(?:assert|break|debugCommand|exception|other|promiseRejection) in/
-        )
+        .waitFor(BREAK_MESSAGE)
         .then(() => this.waitForPrompt());
     },
 

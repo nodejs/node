@@ -11,7 +11,7 @@ test('examples/alive.js', (t) => {
     throw error;
   }
 
-  return cli.waitFor(/break/)
+  return cli.waitForInitialBreak()
     .then(() => cli.waitForPrompt())
     .then(() => cli.command('exec [typeof heartbeat, typeof process.exit]'))
     .then(() => {
@@ -60,7 +60,7 @@ test('exec .scope', (t) => {
     throw error;
   }
 
-  return cli.waitFor(/break/)
+  return cli.waitForInitialBreak()
     .then(() => cli.waitForPrompt())
     .then(() => cli.stepCommand('c'))
     .then(() => cli.command('exec .scope'))
