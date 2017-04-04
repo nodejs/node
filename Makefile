@@ -234,6 +234,18 @@ ADDONS_BINDING_SOURCES := \
 	$(filter-out test/addons/??_*/*.cc, $(wildcard test/addons/*/*.cc)) \
 	$(filter-out test/addons/??_*/*.h, $(wildcard test/addons/*/*.h))
 
+define test_addons
+	@for dirname in $(1)/*/; do \
+		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
+		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
+		        --loglevel=$(LOGLEVEL) rebuild \
+			--python="$(PYTHON)" \
+			--directory="$$PWD/$$dirname" \
+			--nodedir="$$PWD" || exit 1 ; \
+	done
+	touch $(2)
+endef
+
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
 # Depends on node-gyp package.json so that build-addons is (re)executed when
 # node-gyp is updated as part of an npm update.
@@ -243,17 +255,7 @@ test/addons/.buildstamp: config.gypi \
 	deps/uv/include/*.h deps/v8/include/*.h \
 	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
 	test/addons/.docbuildstamp
-#	Cannot use $(wildcard test/addons/*/) here, it's evaluated before
-#	embedded addons have been generated from the documentation.
-	@for dirname in test/addons/*/; do \
-		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
-		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
-		        --loglevel=$(LOGLEVEL) rebuild \
-			--python="$(PYTHON)" \
-			--directory="$$PWD/$$dirname" \
-			--nodedir="$$PWD" || exit 1 ; \
-	done
-	touch $@
+	$(call test_addons, $(@D), $@)
 
 # .buildstamp and .docbuildstamp need $(NODE_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
@@ -278,17 +280,7 @@ test/addons-napi/.buildstamp: config.gypi \
 	deps/uv/include/*.h deps/v8/include/*.h \
 	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
 	src/node_api.h src/node_api_types.h
-#	Cannot use $(wildcard test/addons-napi/*/) here, it's evaluated before
-#	embedded addons have been generated from the documentation.
-	@for dirname in test/addons-napi/*/; do \
-		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
-		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
-		        --loglevel=$(LOGLEVEL) rebuild \
-			--python="$(PYTHON)" \
-			--directory="$$PWD/$$dirname" \
-			--nodedir="$$PWD" || exit 1 ; \
-	done
-	touch $@
+	$(call test_addons, $(@D), $@)
 
 # .buildstamp and .docbuildstamp need $(NODE_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
