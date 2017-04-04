@@ -6021,11 +6021,14 @@ void GetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
 void SetFipsCrypto(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 #ifdef NODE_FIPS_MODE
-  bool mode = args[0]->BooleanValue();
+  const bool enabled = FIPS_mode();
+  const bool enable = args[0]->BooleanValue();
+  if (enable == enabled)
+    return;  // No action needed.
   if (force_fips_crypto) {
     return env->ThrowError(
         "Cannot set FIPS mode, it was forced with --force-fips at startup.");
-  } else if (!FIPS_mode_set(mode)) {
+  } else if (!FIPS_mode_set(enable)) {
     unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
     return ThrowCryptoError(env, err);
   }
