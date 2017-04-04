@@ -62,7 +62,7 @@ const cert2 = crypto.Certificate();
 <!-- YAML
 added: v0.11.8
 -->
-- `spkac` {string | Buffer | Uint8Array}
+- `spkac` {string | Buffer | TypedArray | DataView}
 - Returns {Buffer} The challenge component of the `spkac` data structure, which
 includes a public key and a challenge.
 
@@ -78,7 +78,7 @@ console.log(challenge.toString('utf8'));
 <!-- YAML
 added: v0.11.8
 -->
-- `spkac` {string | Buffer | Uint8Array}
+- `spkac` {string | Buffer | TypedArray | DataView}
 - Returns {Buffer} The public key component of the `spkac` data structure,
 which includes a public key and a challenge.
 
@@ -94,7 +94,7 @@ console.log(publicKey);
 <!-- YAML
 added: v0.11.8
 -->
-- `spkac` {Buffer | Uint8Array}
+- `spkac` {Buffer | TypedArray | DataView}
 - Returns {boolean} `true` if the given `spkac` data structure is valid, `false`
 otherwise.
 
@@ -234,15 +234,16 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/5522
     description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
-- `data` {string | Buffer | Uint8Array}
+- `data` {string | Buffer | TypedArray | DataView}
 - `input_encoding` {string}
 - `output_encoding` {string}
 
 Updates the cipher with `data`. If the `input_encoding` argument is given,
 its value must be one of `'utf8'`, `'ascii'`, or `'latin1'` and the `data`
 argument is a string using the specified encoding. If the `input_encoding`
-argument is not given, `data` must be a [`Buffer`][] or `Uint8Array`.
-If `data` is a [`Buffer`][] or `Uint8Array`, then `input_encoding` is ignored.
+argument is not given, `data` must be a [`Buffer`][], `TypedArray`, or
+`DataView`.  If `data` is a [`Buffer`][], `TypedArray`, or `DataView`, then
+`input_encoding` is ignored.
 
 The `output_encoding` specifies the output format of the enciphered
 data, and can be `'latin1'`, `'base64'` or `'hex'`. If the `output_encoding`
@@ -340,7 +341,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/9398
     description: This method now returns a reference to `decipher`.
 -->
-- `buffer` {Buffer | Uint8Array}
+- `buffer` {Buffer | TypedArray | DataView}
 - Returns the {Cipher} for method chaining.
 
 When using an authenticated encryption mode (only `GCM` is currently
@@ -357,7 +358,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/9398
     description: This method now returns a reference to `decipher`.
 -->
-- `buffer` {Buffer | Uint8Array}
+- `buffer` {Buffer | TypedArray | DataView}
 - Returns the {Cipher} for method chaining.
 
 When using an authenticated encryption mode (only `GCM` is currently
@@ -394,7 +395,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/5522
     description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
-- `data` {string | Buffer | Uint8Array}
+- `data` {string | Buffer | TypedArray | DataView}
 - `input_encoding` {string}
 - `output_encoding` {string}
 
@@ -448,7 +449,7 @@ assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 <!-- YAML
 added: v0.5.0
 -->
-- `other_public_key` {string | Buffer | Uint8Array}
+- `other_public_key` {string | Buffer | TypedArray | DataView}
 - `input_encoding` {string}
 - `output_encoding` {string}
 
@@ -457,7 +458,8 @@ party's public key and returns the computed shared secret. The supplied
 key is interpreted using the specified `input_encoding`, and secret is
 encoded using specified `output_encoding`. Encodings can be
 `'latin1'`, `'hex'`, or `'base64'`. If the `input_encoding` is not
-provided, `other_public_key` is expected to be a [`Buffer`][] or `Uint8Array`.
+provided, `other_public_key` is expected to be a [`Buffer`][],
+`TypedArray`, or `DataView`.
 
 If `output_encoding` is given a string is returned; otherwise, a
 [`Buffer`][] is returned.
@@ -518,25 +520,25 @@ string is returned; otherwise a [`Buffer`][] is returned.
 <!-- YAML
 added: v0.5.0
 -->
-- `private_key` {string | Buffer | Uint8Array}
+- `private_key` {string | Buffer | TypedArray | DataView}
 - `encoding` {string}
 
 Sets the Diffie-Hellman private key. If the `encoding` argument is provided
 and is either `'latin1'`, `'hex'`, or `'base64'`, `private_key` is expected
 to be a string. If no `encoding` is provided, `private_key` is expected
-to be a [`Buffer`][] or `Uint8Array`.
+to be a [`Buffer`][], `TypedArray`, or `DataView`.
 
 ### diffieHellman.setPublicKey(public_key[, encoding])
 <!-- YAML
 added: v0.5.0
 -->
-- `public_key` {string | Buffer | Uint8Array}
+- `public_key` {string | Buffer | TypedArray | DataView}
 - `encoding` {string}
 
 Sets the Diffie-Hellman public key. If the `encoding` argument is provided
 and is either `'latin1'`, `'hex'` or `'base64'`, `public_key` is expected
 to be a string. If no `encoding` is provided, `public_key` is expected
-to be a [`Buffer`][] or `Uint8Array`.
+to be a [`Buffer`][], `TypedArray`, or `DataView`.
 
 ### diffieHellman.verifyError
 <!-- YAML
@@ -593,7 +595,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/5522
     description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
-- `other_public_key` {string | Buffer | Uint8Array}
+- `other_public_key` {string | Buffer | TypedArray | DataView}
 - `input_encoding` {string}
 - `output_encoding` {string}
 
@@ -602,7 +604,8 @@ party's public key and returns the computed shared secret. The supplied
 key is interpreted using specified `input_encoding`, and the returned secret
 is encoded using the specified `output_encoding`. Encodings can be
 `'latin1'`, `'hex'`, or `'base64'`. If the `input_encoding` is not
-provided, `other_public_key` is expected to be a [`Buffer`][] or `Uint8Array`.
+provided, `other_public_key` is expected to be a [`Buffer`][], `TypedArray`, or
+`DataView`.
 
 If `output_encoding` is given a string will be returned; otherwise a
 [`Buffer`][] is returned.
@@ -658,13 +661,14 @@ returned.
 <!-- YAML
 added: v0.11.14
 -->
-- `private_key` {string | Buffer | Uint8Array}
+- `private_key` {string | Buffer | TypedArray | DataView}
 - `encoding` {string}
 
 Sets the EC Diffie-Hellman private key. The `encoding` can be `'latin1'`,
 `'hex'` or `'base64'`. If `encoding` is provided, `private_key` is expected
-to be a string; otherwise `private_key` is expected to be a [`Buffer`][]
-or `Uint8Array`.
+to be a string; otherwise `private_key` is expected to be a [`Buffer`][],
+`TypedArray`, or `DataView`.
+
 If `private_key` is not valid for the curve specified when the `ECDH` object was
 created, an error is thrown. Upon setting the private key, the associated
 public point (key) is also generated and set in the ECDH object.
@@ -677,12 +681,12 @@ deprecated: v5.2.0
 
 > Stability: 0 - Deprecated
 
-- `public_key` {string | Buffer | Uint8Array}
+- `public_key` {string | Buffer | TypedArray | DataView}
 - `encoding` {string}
 
 Sets the EC Diffie-Hellman public key. Key encoding can be `'latin1'`,
 `'hex'` or `'base64'`. If `encoding` is provided `public_key` is expected to
-be a string; otherwise a [`Buffer`][] or `Uint8Array` is expected.
+be a string; otherwise a [`Buffer`][], `TypedArray`, or `DataView` is expected.
 
 Note that there is not normally a reason to call this method because `ECDH`
 only requires a private key and the other party's public key to compute the
@@ -795,14 +799,14 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/5522
     description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
-- `data` {string | Buffer | Uint8Array}
+- `data` {string | Buffer | TypedArray | DataView}
 - `input_encoding` {string}
 
 Updates the hash content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
 `'latin1'`. If `encoding` is not provided, and the `data` is a string, an
-encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] or `Uint8Array`
-then `input_encoding` is ignored.
+encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][], `TypedArray`, or
+`DataView`, then `input_encoding` is ignored.
 
 This can be called many times with new data as it is streamed.
 
@@ -884,14 +888,14 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/5522
     description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
-- `data` {string | Buffer | Uint8Array}
+- `data` {string | Buffer | TypedArray | DataView}
 - `input_encoding` {string}
 
 Updates the `Hmac` content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
 `'latin1'`. If `encoding` is not provided, and the `data` is a string, an
-encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] or `Uint8Array`
-then `input_encoding` is ignored.
+encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][], `TypedArray`, or
+`DataView`, then `input_encoding` is ignored.
 
 This can be called many times with new data as it is streamed.
 
@@ -1010,14 +1014,14 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/5522
     description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
-- `data` {string | Buffer | Uint8Array}
+- `data` {string | Buffer | TypedArray | DataView}
 - `input_encoding` {string}
 
 Updates the `Sign` content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
 `'latin1'`. If `encoding` is not provided, and the `data` is a string, an
-encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] or `Uint8Array`
-then `input_encoding` is ignored.
+encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][], `TypedArray`, or
+`DataView`, then `input_encoding` is ignored.
 
 This can be called many times with new data as it is streamed.
 
@@ -1074,14 +1078,14 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/5522
     description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
-- `data` {string | Buffer | Uint8Array}
+- `data` {string | Buffer | TypedArray | DataView}
 - `input_encoding` {string}
 
 Updates the `Verify` content with the given `data`, the encoding of which
 is given in `input_encoding` and can be `'utf8'`, `'ascii'` or
 `'latin1'`. If `encoding` is not provided, and the `data` is a string, an
-encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][] or `Uint8Array`
-then `input_encoding` is ignored.
+encoding of `'utf8'` is enforced. If `data` is a [`Buffer`][], `TypedArray`, or
+`DataView`, then `input_encoding` is ignored.
 
 This can be called many times with new data as it is streamed.
 
@@ -1094,7 +1098,7 @@ changes:
     description: Support for RSASSA-PSS and additional options was added.
 -->
 - `object` {string | Object}
-- `signature` {string | Buffer | Uint8Array}
+- `signature` {string | Buffer | TypedArray | DataView}
 - `signature_format` {string}
 
 Verifies the provided data using the given `object` and `signature`.
@@ -1118,8 +1122,8 @@ or an object with one or more of the following properties:
 The `signature` argument is the previously calculated signature for the data, in
 the `signature_format` which can be `'latin1'`, `'hex'` or `'base64'`.
 If a `signature_format` is specified, the `signature` is expected to be a
-string; otherwise `signature` is expected to be a [`Buffer`][] or
-`Uint8Array`.
+string; otherwise `signature` is expected to be a [`Buffer`][],
+`TypedArray`, or `DataView`.
 
 Returns `true` or `false` depending on the validity of the signature for
 the data and public key.
@@ -1167,7 +1171,7 @@ currently in use. Setting to true requires a FIPS build of Node.js.
 added: v0.1.94
 -->
 - `algorithm` {string}
-- `password` {string | Buffer | Uint8Array}
+- `password` {string | Buffer | TypedArray | DataView}
 
 Creates and returns a `Cipher` object that uses the given `algorithm` and
 `password`.
@@ -1177,8 +1181,8 @@ recent OpenSSL releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 
 The `password` is used to derive the cipher key and initialization vector (IV).
-The value must be either a `'latin1'` encoded string, a [`Buffer`][] or a
-`Uint8Array`.
+The value must be either a `'latin1'` encoded string, a [`Buffer`][], a
+`TypedArray`, or a `DataView`.
 
 The implementation of `crypto.createCipher()` derives keys using the OpenSSL
 function [`EVP_BytesToKey`][] with the digest algorithm set to MD5, one
@@ -1194,8 +1198,8 @@ to create the `Cipher` object.
 
 ### crypto.createCipheriv(algorithm, key, iv)
 - `algorithm` {string}
-- `key` {string | Buffer | Uint8Array}
-- `iv` {string | Buffer | Uint8Array}
+- `key` {string | Buffer | TypedArray | DataView}
+- `iv` {string | Buffer | TypedArray | DataView}
 
 Creates and returns a `Cipher` object, with the given `algorithm`, `key` and
 initialization vector (`iv`).
@@ -1206,7 +1210,7 @@ available cipher algorithms.
 
 The `key` is the raw key used by the `algorithm` and `iv` is an
 [initialization vector][]. Both arguments must be `'utf8'` encoded strings,
-[Buffers][`Buffer`] or `Uint8Array`s.
+[Buffers][`Buffer`], `TypedArray`, or `DataView`s.
 
 ### crypto.createCredentials(details)
 <!-- YAML
@@ -1231,7 +1235,7 @@ called.
 added: v0.1.94
 -->
 - `algorithm` {string}
-- `password` {string | Buffer | Uint8Array}
+- `password` {string | Buffer | TypedArray | DataView}
 
 Creates and returns a `Decipher` object that uses the given `algorithm` and
 `password` (key).
@@ -1253,8 +1257,8 @@ to create the `Decipher` object.
 added: v0.1.94
 -->
 - `algorithm` {string}
-- `key` {string | Buffer | Uint8Array}
-- `iv` {string | Buffer | Uint8Array}
+- `key` {string | Buffer | TypedArray | DataView}
+- `iv` {string | Buffer | TypedArray | DataView}
 
 Creates and returns a `Decipher` object that uses the given `algorithm`, `key`
 and initialization vector (`iv`).
@@ -1272,6 +1276,9 @@ The `key` is the raw key used by the `algorithm` and `iv` is an
 added: v0.11.12
 changes:
   - version: REPLACEME
+    pr-url: REPLACEME
+    description: The `prime` argument can be any `TypedArray` or `DataView` now.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/11983
     description: The `prime` argument can be a `Uint8Array` now.
   - version: v6.0.0
@@ -1279,9 +1286,9 @@ changes:
     description: The default for the encoding parameters changed
                  from `binary` to `utf8`.
 -->
-- `prime` {string | Buffer | Uint8Array}
+- `prime` {string | Buffer | TypedArray | DataView}
 - `prime_encoding` {string}
-- `generator` {number | string | Buffer | Uint8Array} Defaults to `2`.
+- `generator` {number | string | Buffer | TypedArray | DataView} Defaults to `2`.
 - `generator_encoding` {string}
 
 Creates a `DiffieHellman` key exchange object using the supplied `prime` and an
@@ -1294,17 +1301,17 @@ The `prime_encoding` and `generator_encoding` arguments can be `'latin1'`,
 `'hex'`, or `'base64'`.
 
 If `prime_encoding` is specified, `prime` is expected to be a string; otherwise
-a [`Buffer`][] or `Uint8Array` is expected.
+a [`Buffer`][], `TypedArray`, or `DataView` is expected.
 
 If `generator_encoding` is specified, `generator` is expected to be a string;
-otherwise either a number or [`Buffer`][] or `Uint8Array` is expected.
+otherwise a number, [`Buffer`][], `TypedArray`, or `DataView` is expected.
 
 ### crypto.createDiffieHellman(prime_length[, generator])
 <!-- YAML
 added: v0.5.0
 -->
 - `prime_length` {number}
-- `generator` {number | string | Buffer | Uint8Array} Defaults to `2`.
+- `generator` {number | string | Buffer | TypedArray | DataView} Defaults to `2`.
 
 Creates a `DiffieHellman` key exchange object and generates a prime of
 `prime_length` bits using an optional specific numeric `generator`.
@@ -1361,7 +1368,7 @@ input.on('readable', () => {
 added: v0.1.94
 -->
 - `algorithm` {string}
-- `key` {string | Buffer | Uint8Array}
+- `key` {string | Buffer | TypedArray | DataView}
 
 Creates and returns an `Hmac` object that uses the given `algorithm` and `key`.
 
@@ -1600,7 +1607,7 @@ added: v0.11.14
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
-- `buffer` {Buffer | Uint8Array}
+- `buffer` {Buffer | TypedArray | DataView}
 
 Decrypts `buffer` with `private_key`.
 
@@ -1617,7 +1624,7 @@ added: v1.1.0
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING` or
     `RSA_PKCS1_PADDING`.
-- `buffer` {Buffer | Uint8Array}
+- `buffer` {Buffer | TypedArray | DataView}
 
 Encrypts `buffer` with `private_key`.
 
@@ -1634,7 +1641,7 @@ added: v1.1.0
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
-- `buffer` {Buffer | Uint8Array}
+- `buffer` {Buffer | TypedArray | DataView}
 
 Decrypts `buffer` with `public_key`.
 
@@ -1654,7 +1661,7 @@ added: v0.11.14
   - `padding` {crypto.constants} An optional padding value defined in
     `crypto.constants`, which may be: `crypto.constants.RSA_NO_PADDING`,
     `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
-- `buffer` {Buffer | Uint8Array}
+- `buffer` {Buffer | TypedArray | DataView}
 
 Encrypts `buffer` with `public_key`.
 
@@ -1739,16 +1746,16 @@ is a bit field taking one of or a mix of the following flags (defined in
 <!-- YAML
 added: v6.6.0
 -->
-- `a` {Buffer | Uint8Array}
-- `b` {Buffer | Uint8Array}
+- `a` {Buffer | TypedArray | DataView}
+- `b` {Buffer | TypedArray | DataView}
 
 Returns true if `a` is equal to `b`, without leaking timing information that
 would allow an attacker to guess one of the values. This is suitable for
 comparing HMAC digests or secret values like authentication cookies or
 [capability urls](https://www.w3.org/TR/capability-urls/).
 
-`a` and `b` must both be `Buffer`s or `Uint8Array`s, and they must have the
-same length.
+`a` and `b` must both be `Buffer`s, `TypedArray`s, or `DataView`s, and they
+must have the same length.
 
 **Note**: Use of `crypto.timingSafeEqual` does not guarantee that the
 *surrounding* code is timing-safe. Care should be taken to ensure that the
