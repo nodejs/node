@@ -10,10 +10,11 @@ namespace node {
 namespace tracing {
 
 using v8::platform::tracing::TraceConfig;
+using std::string;
 
 Agent::Agent() {}
 
-void Agent::Start(v8::Platform* platform, const char* enabled_categories) {
+void Agent::Start(v8::Platform* platform, const string& enabled_categories) {
   platform_ = platform;
 
   int err = uv_loop_init(&tracing_loop_);
@@ -26,7 +27,7 @@ void Agent::Start(v8::Platform* platform, const char* enabled_categories) {
   tracing_controller_ = new TracingController();
 
   TraceConfig* trace_config = new TraceConfig();
-  if (enabled_categories) {
+  if (!enabled_categories.empty()) {
     std::stringstream category_list(enabled_categories);
     while (category_list.good()) {
       std::string category;
