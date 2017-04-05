@@ -12,7 +12,7 @@ namespace tracing {
 class Agent {
  public:
   explicit Agent();
-  void Start(v8::Platform* platform, const char* enabled_categories);
+  void Start(v8::Platform* platform, const std::string& enabled_categories);
   void Stop();
 
  private:
