@@ -59,7 +59,7 @@ module.exports = (width) => {
 };
 ```
 
-The module system is implemented in the `require("module")` module.
+The module system is implemented in the `require('module')` module.
 
 ## Accessing the main module
 
