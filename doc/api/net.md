@@ -874,7 +874,8 @@ Additional options:
   [`socket.setTimeout(timeout)`][] after the socket is created, but before
   it starts the connection.
 
-Here is an example of a client of the previously described echo server:
+Following is an example of a client of the echo server described
+in the [`net.createServer()`][] section:
 
 ```js
 const net = require('net');
