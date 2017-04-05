@@ -7,5 +7,5 @@ if (!common.hasIntl) {
 }
 const assert = require('assert');
 const binding = require(`./build/${common.buildType}/binding`);
-assert.strictEqual(binding.cldrVersion, process.versions.cldr);
 assert.strictEqual(binding.icuVersion, process.versions.icu);
+assert.strictEqual(binding.tzdataVersion, process.versions.tz);

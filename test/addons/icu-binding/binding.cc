@@ -1,5 +1,5 @@
 #include <node.h>
-#include <unicode/ulocdata.h>
+#include <unicode/timezone.h>
 #include <unicode/utypes.h>
 #include <unicode/uversion.h>
 
@@ -15,15 +15,13 @@ inline void Initialize(v8::Local<v8::Object> exports,
     exports->Set(context, key, value).FromJust();
   }
   {
-    UVersionInfo cldr_versions;
-    UErrorCode cldr_status = U_ZERO_ERROR;
-    ulocdata_getCLDRVersion(cldr_versions, &cldr_status);
-    assert(U_SUCCESS(cldr_status));
-    char cldr_version[U_MAX_VERSION_STRING_LENGTH];
-    u_versionToString(cldr_versions, cldr_version);
-    auto key = v8::String::NewFromUtf8(isolate, "cldrVersion");
-    auto value = v8::String::NewFromUtf8(isolate, cldr_version);
-    exports->Set(context, key, value).FromJust();
+    UErrorCode tzdata_status = U_ZERO_ERROR;
+    const char* tzdata_version = TimeZone::getTZDataVersion(tzdata_status);
+    if (U_SUCCESS(tzdata_status) && tzdata_version != nullptr) {
+      auto key = v8::String::NewFromUtf8(isolate, "tzdataVersion");
+      auto value = v8::String::NewFromUtf8(isolate, tzdata_version);
+      exports->Set(context, key, value).FromJust();
+    }
   }
 }
 
