@@ -603,6 +603,7 @@
       ],
 
       'sources': [
+        'test/cctest/test_base64.cc',
         'test/cctest/test_util.cc',
       ],
 
