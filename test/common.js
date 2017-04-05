@@ -674,7 +674,7 @@ exports.getArrayBufferViews = function getArrayBufferViews(buf) {
   const out = [];
   for (const type of arrayBufferViews) {
     const { BYTES_PER_ELEMENT = 1 } = type;
-    if (Number.isInteger(byteLength % BYTES_PER_ELEMENT)) {
+    if (byteLength % BYTES_PER_ELEMENT === 0) {
       out.push(new type(buffer, byteOffset, byteLength / BYTES_PER_ELEMENT));
     }
   }
