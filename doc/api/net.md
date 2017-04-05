@@ -774,7 +774,8 @@ Passing `timeout` as an option will call [`socket.setTimeout()`][] after the soc
 The `connectListener` parameter will be added as a listener for the
 [`'connect'`][] event once.
 
-Here is an example of a client of the previously described echo server:
+Following is an example of a client of the echo server described
+in the [`net.createServer()`][] section:
 
 ```js
 const net = require('net');
