@@ -20,7 +20,7 @@ directory as `foo.js`.
 Here are the contents of `circle.js`:
 
 ```js
-const PI = Math.PI;
+const { PI } = Math;
 
 exports.area = (r) => PI * r * r;
 
