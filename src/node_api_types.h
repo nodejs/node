@@ -25,13 +25,13 @@ typedef void (*napi_finalize)(napi_env env,
 
 typedef enum {
   napi_default = 0,
-  napi_read_only = 1 << 0,
-  napi_dont_enum = 1 << 1,
-  napi_dont_delete = 1 << 2,
+  napi_writable = 1 << 0,
+  napi_enumerable = 1 << 1,
+  napi_configurable = 1 << 2,
 
   // Used with napi_define_class to distinguish static properties
   // from instance properties. Ignored by napi_define_properties.
-  napi_static_property = 1 << 10,
+  napi_static = 1 << 10,
 } napi_property_attributes;
 
 typedef struct {
