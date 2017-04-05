@@ -82,11 +82,14 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   if (status != napi_ok) return;
 
   napi_property_descriptor properties[] = {
-      { "echo", Echo, 0, 0, 0, napi_default, 0 },
-      { "accessorValue", 0, GetValue, SetValue, 0, napi_default, 0},
-      { "readwriteValue", 0, 0, 0, number, napi_default, 0 },
-      { "readonlyValue", 0, 0, 0, number, napi_read_only, 0},
-      { "hiddenValue", 0, 0, 0, number, napi_read_only | napi_dont_enum, 0},
+      { "echo", Echo, 0, 0, 0, napi_enumerable, 0 },
+      { "readwriteValue", 0, 0, 0, number, napi_enumerable | napi_writable, 0 },
+      { "readonlyValue", 0, 0, 0, number, napi_enumerable, 0},
+      { "hiddenValue", 0, 0, 0, number, napi_default, 0},
+      { "readwriteAccessor1", 0, GetValue, SetValue, 0, napi_default, 0},
+      { "readwriteAccessor2", 0, GetValue, SetValue, 0, napi_writable, 0},
+      { "readonlyAccessor1", 0, GetValue, NULL, 0, napi_default, 0},
+      { "readonlyAccessor2", 0, GetValue, NULL, 0, napi_writable, 0},
   };
 
   napi_value cons;
