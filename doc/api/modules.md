@@ -142,7 +142,7 @@ To get the exact filename that will be loaded when `require()` is called, use
 the `require.resolve()` function.
 
 Putting together all of the above, here is the high-level algorithm
-in pseudocode of what require.resolve does:
+in pseudocode of what `require.resolve()` does:
 
 ```txt
 require(X) from module at path Y
