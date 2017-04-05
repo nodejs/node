@@ -38,13 +38,13 @@ namespace v8impl {
 static inline v8::PropertyAttribute V8PropertyAttributesFromAttributes(
     napi_property_attributes attributes) {
   unsigned int attribute_flags = v8::None;
-  if (attributes & napi_read_only) {
+  if ((attributes & napi_writable) == 0) {
     attribute_flags |= v8::ReadOnly;
   }
-  if (attributes & napi_dont_enum) {
+  if ((attributes & napi_enumerable) == 0) {
     attribute_flags |= v8::DontEnum;
   }
-  if (attributes & napi_dont_delete) {
+  if ((attributes & napi_configurable) == 0) {
     attribute_flags |= v8::DontDelete;
   }
   return static_cast<v8::PropertyAttribute>(attribute_flags);
@@ -775,7 +775,7 @@ napi_status napi_define_class(napi_env env,
   for (size_t i = 0; i < property_count; i++) {
     const napi_property_descriptor* p = properties + i;
 
-    if ((p->attributes & napi_static_property) != 0) {
+    if ((p->attributes & napi_static) != 0) {
       // Static properties are handled separately below.
       static_property_count++;
       continue;
@@ -788,7 +788,7 @@ napi_status napi_define_class(napi_env env,
 
     // This code is similar to that in napi_define_property(); the
     // difference is it applies to a template instead of an object.
-    if (p->method) {
+    if (p->method != nullptr) {
       v8::Local<v8::Object> cbdata =
           v8impl::CreateFunctionCallbackData(env, p->method, p->data);
 
@@ -802,9 +802,15 @@ napi_status napi_define_class(napi_env env,
       t->SetClassName(property_name);
 
       tpl->PrototypeTemplate()->Set(property_name, t, attributes);
-    } else if (p->getter || p->setter) {
+    } else if (p->getter != nullptr || p->setter != nullptr) {
       v8::Local<v8::Object> cbdata = v8impl::CreateAccessorCallbackData(
         env, p->getter, p->setter, p->data);
+
+      // The napi_writable attribute is ignored for accessor descriptors,
+      // but V8 requires the ReadOnly attribute to match existence of a setter.
+      attributes = static_cast<v8::PropertyAttribute>(p->setter != nullptr
+        ? attributes & ~v8::PropertyAttribute::ReadOnly
+        : attributes | v8::PropertyAttribute::ReadOnly);
 
       tpl->PrototypeTemplate()->SetAccessor(
         property_name,
@@ -827,7 +833,7 @@ napi_status napi_define_class(napi_env env,
 
     for (size_t i = 0; i < property_count; i++) {
       const napi_property_descriptor* p = properties + i;
-      if ((p->attributes & napi_static_property) != 0) {
+      if ((p->attributes & napi_static) != 0) {
         static_descriptors.push_back(*p);
       }
     }
@@ -1094,10 +1100,9 @@ napi_status napi_define_properties(napi_env env,
     CHECK_NEW_FROM_UTF8(env, name, p->utf8name);
 
     v8::PropertyAttribute attributes =
-        v8impl::V8PropertyAttributesFromAttributes(
-            (napi_property_attributes)(p->attributes & ~napi_static_property));
+        v8impl::V8PropertyAttributesFromAttributes(p->attributes);
 
-    if (p->method) {
+    if (p->method != nullptr) {
       v8::Local<v8::Object> cbdata =
           v8impl::CreateFunctionCallbackData(env, p->method, p->data);
 
@@ -1112,12 +1117,18 @@ napi_status napi_define_properties(napi_env env,
       if (!define_maybe.FromMaybe(false)) {
         return napi_set_last_error(env, napi_generic_failure);
       }
-    } else if (p->getter || p->setter) {
+    } else if (p->getter != nullptr || p->setter != nullptr) {
       v8::Local<v8::Object> cbdata = v8impl::CreateAccessorCallbackData(
         env,
         p->getter,
         p->setter,
         p->data);
+
+      // The napi_writable attribute is ignored for accessor descriptors,
+      // but V8 requires the ReadOnly attribute to match existence of a setter.
+      attributes = static_cast<v8::PropertyAttribute>(p->setter != nullptr
+        ? attributes & ~v8::PropertyAttribute::ReadOnly
+        : attributes | v8::PropertyAttribute::ReadOnly);
 
       auto set_maybe = obj->SetAccessor(
           context,
