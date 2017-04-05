@@ -16,21 +16,21 @@ When parsed, a URL object is returned containing properties for each of these
 components.
 
 The following details each of the components of a parsed URL. The example
-`'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'` is used to
+`'http://user:pass@sub.host.com:8080/p/a/t/h?query=string#hash'` is used to
 illustrate each.
 
 ```txt
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                    href                                     │
-├──────────┬┬───────────┬─────────────────┬───────────────────────────┬───────┤
-│ protocol ││   auth    │      host       │           path            │ hash  │
-│          ││           ├──────────┬──────┼──────────┬────────────────┤       │
-│          ││           │ hostname │ port │ pathname │     search     │       │
-│          ││           │          │      │          ├─┬──────────────┤       │
-│          ││           │          │      │          │ │    query     │       │
-"  http:   // user:pass @ host.com : 8080   /p/a/t/h  ?  query=string   #hash "
-│          ││           │          │      │          │ │              │       │
-└──────────┴┴───────────┴──────────┴──────┴──────────┴─┴──────────────┴───────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                      href                                       │
+├──────────┬┬───────────┬─────────────────────┬───────────────────────────┬───────┤
+│ protocol ││   auth    │        host         │           path            │ hash  │
+│          ││           ├──────────────┬──────┼──────────┬────────────────┤       │
+│          ││           │   hostname   │ port │ pathname │     search     │       │
+│          ││           │              │      │          ├─┬──────────────┤       │
+│          ││           │              │      │          │ │    query     │       │
+"  http:   // user:pass @ sub.host.com : 8080   /p/a/t/h  ?  query=string   #hash "
+│          ││           │              │      │          │ │              │       │
+└──────────┴┴───────────┴──────────────┴──────┴──────────┴─┴──────────────┴───────┘
 (all spaces in the "" line should be ignored -- they are purely for formatting)
 ```
 
@@ -56,21 +56,21 @@ For example: `'#hash'`
 The `host` property is the full lower-cased host portion of the URL, including
 the `port` if specified.
 
-For example: `'host.com:8080'`
+For example: `'sub.host.com:8080'`
 
 ### urlObject.hostname
 
 The `hostname` property is the lower-cased host name portion of the `host`
 component *without* the `port` included.
 
-For example: `'host.com'`
+For example: `'sub.host.com'`
 
 ### urlObject.href
 
 The `href` property is the full URL string that was parsed with both the
 `protocol` and `host` components converted to lower-case.
 
-For example: `'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`
+For example: `'http://user:pass@sub.host.com:8080/p/a/t/h?query=string#hash'`
 
 ### urlObject.path
 
@@ -328,7 +328,7 @@ console.log(myURL.pathname); // /foo
 `delete myURL.pathname`, etc) has no effect but will still return `true`.
 
 A comparison between this API and `url.parse()` is given below. Above the URL
-`'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`, properties of an
+`'http://user:pass@sub.host.com:8080/p/a/t/h?query=string#hash'`, properties of an
 object returned by `url.parse()` are shown. Below it are properties of a WHATWG
 `URL` object.
 
@@ -336,23 +336,23 @@ object returned by `url.parse()` are shown. Below it are properties of a WHATWG
 `username` or `password`.
 
 ```txt
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                                          href                                           │
-├──────────┬──┬─────────────────────┬─────────────────┬───────────────────────────┬───────┤
-│ protocol │  │        auth         │      host       │           path            │ hash  │
-│          │  │                     ├──────────┬──────┼──────────┬────────────────┤       │
-│          │  │                     │ hostname │ port │ pathname │     search     │       │
-│          │  │                     │          │      │          ├─┬──────────────┤       │
-│          │  │                     │          │      │          │ │    query     │       │
-"  http:    //    user   :   pass   @ host.com : 8080   /p/a/t/h  ?  query=string   #hash "
-│          │  │          │          │ hostname │ port │          │                │       │
-│          │  │          │          ├──────────┴──────┤          │                │       │
-│ protocol │  │ username │ password │      host       │          │                │       │
-├──────────┴──┼──────────┴──────────┼─────────────────┤          │                │       │
-│   origin    │                     │     origin      │ pathname │     search     │ hash  │
-├─────────────┴─────────────────────┴─────────────────┴──────────┴────────────────┴───────┤
-│                                          href                                           │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                            href                                             │
+├──────────┬──┬─────────────────────┬─────────────────────┬───────────────────────────┬───────┤
+│ protocol │  │        auth         │        host         │           path            │ hash  │
+│          │  │                     ├──────────────┬──────┼──────────┬────────────────┤       │
+│          │  │                     │   hostname   │ port │ pathname │     search     │       │
+│          │  │                     │              │      │          ├─┬──────────────┤       │
+│          │  │                     │              │      │          │ │    query     │       │
+"  http:    //    user   :   pass   @ sub.host.com : 8080   /p/a/t/h  ?  query=string   #hash "
+│          │  │          │          │   hostname   │ port │          │                │       │
+│          │  │          │          ├──────────────┴──────┤          │                │       │
+│ protocol │  │ username │ password │        host         │          │                │       │
+├──────────┴──┼──────────┴──────────┼─────────────────────┤          │                │       │
+│   origin    │                     │       origin        │ pathname │     search     │ hash  │
+├─────────────┴─────────────────────┴─────────────────────┴──────────┴────────────────┴───────┤
+│                                            href                                             │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
 (all spaces in the "" line should be ignored -- they are purely for formatting)
 ```
 
