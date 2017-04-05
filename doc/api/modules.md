@@ -565,7 +565,7 @@ To illustrate the behavior, imagine this hypothetical implementation of
 `require()`, which is quite similar to what is actually done by `require()`:
 
 ```js
-function require(...) {
+function require(/* ... */) {
   const module = { exports: {} };
   ((module, exports) => {
     // Your module code here. In this example, define a function.
