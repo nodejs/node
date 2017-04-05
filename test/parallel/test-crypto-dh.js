@@ -24,7 +24,8 @@ assert.strictEqual(dh1.verifyError, 0);
 assert.strictEqual(dh2.verifyError, 0);
 
 const argumentsError = new RegExp('^TypeError: First argument should be ' +
-                                  'number, string, ArrayBufferView or Buffer$');
+                                  'number, string, Buffer, TypedArray, or ' +
+                                  'DataView$');
 
 assert.throws(() => {
   crypto.createDiffieHellman([0x1, 0x2]);
