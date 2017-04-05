@@ -65,6 +65,12 @@ extern std::string openssl_config;
 // that is used by lib/module.js
 extern bool config_preserve_symlinks;
 
+// Set in node.cc by ParseArgs when --expose-internals or --expose_internals is
+// used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/internal/bootstrap_node.js
+extern bool config_expose_internals;
+
 // Set in node.cc by ParseArgs when --redirect-warnings= is used.
 // Used to redirect warning output to a file rather than sending
 // it to stderr.
