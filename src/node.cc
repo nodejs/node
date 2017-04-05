@@ -153,7 +153,7 @@ static node_module* modlist_builtin;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
 static bool trace_enabled = false;
-static const char* trace_enabled_categories = nullptr;
+static std::string trace_enabled_categories;  // NOLINT(runtime/string)
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 // Path to ICU data (for i18n / Intl)
