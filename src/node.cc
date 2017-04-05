@@ -214,6 +214,12 @@ bool config_preserve_symlinks = false;
 // Set in node.cc by ParseArgs when --redirect-warnings= is used.
 std::string config_warning_file;  // NOLINT(runtime/string)
 
+// Set in node.cc by ParseArgs when --expose-internals or --expose_internals is
+// used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/internal/bootstrap_node.js
+bool config_expose_internals = false;
+
 bool v8_initialized = false;
 
 // process-relative uptime base, initialized at start-up
@@ -3787,7 +3793,7 @@ static void ParseArgs(int* argc,
 #endif
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
-      // consumed in js
+      config_expose_internals = true;
     } else if (strcmp(arg, "--") == 0) {
       index += 1;
       break;

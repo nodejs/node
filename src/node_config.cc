@@ -58,6 +58,9 @@ void InitConfig(Local<Object> target,
                                                 .ToLocalChecked();
     target->DefineOwnProperty(env->context(), name, value).FromJust();
   }
+
+  if (config_expose_internals)
+    READONLY_BOOLEAN_PROPERTY("exposeInternals");
 }  // InitConfig
 
 }  // namespace node
