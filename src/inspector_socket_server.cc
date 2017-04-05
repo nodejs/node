@@ -81,19 +81,12 @@ void PrintDebuggerReadyMessage(const std::string& host,
   if (out == NULL) {
     return;
   }
-  fprintf(out,
-          "Debugger listening on %s:%d.\n",
-          host.c_str(), port);
-  if (ids.size() == 1)
-    fprintf(out, "To start debugging, open the following URL in Chrome:\n");
-  if (ids.size() > 1)
-    fprintf(out, "To start debugging, open the following URLs in Chrome:\n");
   for (const std::string& id : ids) {
-    fprintf(out,
-            "    chrome-devtools://devtools/bundled/inspector.html?"
-            "experiments=true&v8only=true&ws=%s\n",
+    fprintf(out, "Debugger listening on ws://%s\n",
             GetWsUrl(host, port, id).c_str());
   }
+  fprintf(out, "For help see %s\n",
+          "https://nodejs.org/en/docs/inspector");
   fflush(out);
 }
 
