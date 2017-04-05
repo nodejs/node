@@ -44,7 +44,7 @@ Below, `bar.js` makes use of the `square` module, which exports a constructor:
 
 ```js
 const square = require('./square.js');
-var mySquare = square(2);
+const mySquare = square(2);
 console.log(`The area of my square is ${mySquare.area()}`);
 ```
 
@@ -566,7 +566,7 @@ To illustrate the behavior, imagine this hypothetical implementation of
 
 ```js
 function require(...) {
-  var module = { exports: {} };
+  const module = { exports: {} };
   ((module, exports) => {
     // Your module code here. In this example, define a function.
     function some_func() {};
