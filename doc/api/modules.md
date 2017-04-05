@@ -20,7 +20,7 @@ directory as `foo.js`.
 Here are the contents of `circle.js`:
 
 ```js
-const PI = Math.PI;
+const { PI } = Math;
 
 exports.area = (r) => PI * r * r;
 
@@ -44,7 +44,7 @@ Below, `bar.js` makes use of the `square` module, which exports a constructor:
 
 ```js
 const square = require('./square.js');
-var mySquare = square(2);
+const mySquare = square(2);
 console.log(`The area of my square is ${mySquare.area()}`);
 ```
 
@@ -56,10 +56,10 @@ module.exports = (width) => {
   return {
     area: () => width * width
   };
-}
+};
 ```
 
-The module system is implemented in the `require("module")` module.
+The module system is implemented in the `require('module')` module.
 
 ## Accessing the main module
 
@@ -142,7 +142,7 @@ To get the exact filename that will be loaded when `require()` is called, use
 the `require.resolve()` function.
 
 Putting together all of the above, here is the high-level algorithm
-in pseudocode of what require.resolve does:
+in pseudocode of what `require.resolve()` does:
 
 ```txt
 require(X) from module at path Y
@@ -565,16 +565,16 @@ To illustrate the behavior, imagine this hypothetical implementation of
 `require()`, which is quite similar to what is actually done by `require()`:
 
 ```js
-function require(...) {
-  var module = { exports: {} };
+function require(/* ... */) {
+  const module = { exports: {} };
   ((module, exports) => {
     // Your module code here. In this example, define a function.
-    function some_func() {};
-    exports = some_func;
+    function someFunc() {}
+    exports = someFunc;
     // At this point, exports is no longer a shortcut to module.exports, and
     // this module will still export an empty default object.
-    module.exports = some_func;
-    // At this point, the module will now export some_func, instead of the
+    module.exports = someFunc;
+    // At this point, the module will now export someFunc, instead of the
     // default object.
   })(module, module.exports);
   return module.exports;
