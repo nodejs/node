@@ -56,7 +56,7 @@ module.exports = (width) => {
   return {
     area: () => width * width
   };
-}
+};
 ```
 
 The module system is implemented in the `require("module")` module.
@@ -569,7 +569,7 @@ function require(...) {
   const module = { exports: {} };
   ((module, exports) => {
     // Your module code here. In this example, define a function.
-    function some_func() {};
+    function some_func() {}
     exports = some_func;
     // At this point, exports is no longer a shortcut to module.exports, and
     // this module will still export an empty default object.
