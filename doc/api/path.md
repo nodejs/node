@@ -527,9 +527,8 @@ On Windows:
 ```
 
 *Note*: On Windows, both the forward slash (`/`) and backward slash (`\`) are
-accepted as path segment separators; however, if separators are to be added by
-Windows-specific implementations of the `path` methods, only the backward slash
-(`\`) will be used.
+accepted as path segment separators; however, the `path` methods only add
+backward slashes (`\`).
 
 ## path.win32
 <!-- YAML
