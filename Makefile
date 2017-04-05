@@ -415,6 +415,9 @@ test-timers:
 test-timers-clean:
 	$(MAKE) --directory=tools clean
 
+test-async-hooks:
+	$(PYTHON) tools/test.py --mode=release async-hooks
+
 
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
 test-v8: v8
