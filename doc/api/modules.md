@@ -22,7 +22,7 @@ Here are the contents of `circle.js`:
 ```js
 const { PI } = Math;
 
-exports.area = (r) => PI * r * r;
+exports.area = (r) => PI * r ** 2;
 
 exports.circumference = (r) => 2 * PI * r;
 ```
@@ -54,7 +54,7 @@ The `square` module is defined in `square.js`:
 // assigning to exports will not modify module, must use module.exports
 module.exports = (width) => {
   return {
-    area: () => width * width
+    area: () => width ** 2
   };
 };
 ```
