@@ -26,7 +26,7 @@ napi_env JsEnvFromV8Isolate(v8::Isolate* isolate) {
 }
 
 // convert from n-api property attributes to v8::PropertyAttribute
-v8::PropertyAttribute V8PropertyAttributesFromAttributes(
+static inline v8::PropertyAttribute V8PropertyAttributesFromAttributes(
     napi_property_attributes attributes) {
   unsigned int attribute_flags = v8::None;
   if (attributes & napi_read_only) {
