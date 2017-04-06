@@ -2016,7 +2016,6 @@ static void Init(Local<Object> target,
 #undef XX
 
 #define XX(name) NODE_DEFINE_CONSTANT(target, name);
-  ARGS(XX)
   PARSESTATES(XX)
 #undef XX
 }
