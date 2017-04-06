@@ -109,8 +109,11 @@ rules:
     message: "setTimeout() must be invoked with at least two arguments."
   }, {
     selector: "CallExpression[callee.name='setInterval'][arguments.length<2]",
-    message: "setInterval() must be invoked with at least 2 arguments"
-  }]
+    message: "setInterval() must be invoked with at least 2 arguments."
+  }, {
+    selector: "ThrowStatement > CallExpression[callee.name=/Error$/]",
+    message: "Use new keyword when throwing an Error."
+    }]
   no-tabs: 2
   no-trailing-spaces: 2
   operator-linebreak: [2, after, {overrides: {'?': ignore, ':': ignore}}]
@@ -142,7 +145,6 @@ rules:
   align-multiline-assignment: 2
   assert-fail-single-argument: 2
   assert-throws-arguments: [2, { requireTwo: false }]
-  new-with-error: [2, Error, RangeError, TypeError, SyntaxError, ReferenceError]
   no-useless-regex-char-class-escape: [2, { override: ['[', ']'] }]
 
 # Global scoped method and vars
