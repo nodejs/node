@@ -15,8 +15,6 @@
 #include <stdio.h>
 #include <cmath>
 
-#define UNICODE_REPLACEMENT_CHARACTER 0xFFFD
-
 namespace node {
 
 using v8::Array;
@@ -34,30 +32,6 @@ using v8::String;
 using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
-
-#define BIT_AT(a, i)                                                          \
-  (!!((unsigned int) (a)[(unsigned int) (i) >> 3] &                           \
-  (1 << ((unsigned int) (i) & 7))))
-#define TAB_AND_NEWLINE(ch)                                                   \
-  (ch == 0x09 || ch == 0x0a || ch == 0x0d)
-#define ASCII_DIGIT(ch)                                                       \
-  (ch >= 0x30 && ch <= 0x39)
-#define ASCII_HEX_DIGIT(ch)                                                   \
-  (ASCII_DIGIT(ch) || (ch >= 0x41 && ch <= 0x46) || (ch >= 0x61 && ch <= 0x66))
-#define ASCII_ALPHA(ch)                                                       \
-  ((ch >= 0x41 && ch <= 0x5a) || (ch >= 0x61 && ch <= 0x7a))
-#define ASCII_ALPHANUMERIC(ch)                                                \
-  (ASCII_DIGIT(ch) || ASCII_ALPHA(ch))
-#define TO_LOWER(ch)                                                          \
-  (ASCII_ALPHA(ch) ? (ch | 0x20) : ch)
-#define SCHEME_CHAR(ch)                                                       \
-  (ASCII_ALPHANUMERIC(ch) || ch == '+' || ch == '-' || ch == '.')
-#define WINDOWS_DRIVE_LETTER(ch, next)                                        \
-  (ASCII_ALPHA(ch) && (next == ':' || next == '|'))
-#define NORMALIZED_WINDOWS_DRIVE_LETTER(str)                                  \
-  (str.length() == 2 &&                                                       \
-  ASCII_ALPHA(str[0]) &&                                                      \
-  str[1] == ':')
 
 #define GET(env, obj, name)                                                   \
   obj->Get(env->context(),                                                    \
@@ -78,6 +52,12 @@ using v8::Value;
     .ToLocalChecked()
 
 namespace url {
+
+// https://url.spec.whatwg.org/#eof-code-point
+static const char kEOL = -1;
+
+// Used in ToUSVString().
+static const char16_t kUnicodeReplacementCharacter = 0xFFFD;
 
 union url_host_value {
   std::string domain;
@@ -124,6 +104,72 @@ enum url_error_cb_args {
   ERR_ARGS(XX)
 #undef XX
 };
+
+#define CHAR_TEST(bits, name, expr)                                           \
+  template <typename T>                                                       \
+  static inline bool name(const T ch) {                                       \
+    static_assert(sizeof(ch) >= (bits) / 8,                                   \
+                  "Character must be wider than " #bits " bits");             \
+    return (expr);                                                            \
+  }
+
+#define TWO_CHAR_STRING_TEST(bits, name, expr)                                \
+  template <typename T>                                                       \
+  static inline bool name(const T ch1, const T ch2) {                         \
+    static_assert(sizeof(ch1) >= (bits) / 8,                                  \
+                  "Character must be wider than " #bits " bits");             \
+    return (expr);                                                            \
+  }                                                                           \
+  template <typename T>                                                       \
+  static inline bool name(const std::basic_string<T>& str) {                  \
+    static_assert(sizeof(str[0]) >= (bits) / 8,                               \
+                  "Character must be wider than " #bits " bits");             \
+    return str.length() >= 2 && name(str[0], str[1]);                         \
+  }
+
+// https://infra.spec.whatwg.org/#ascii-tab-or-newline
+CHAR_TEST(8, IsASCIITabOrNewline, (ch == '\t' || ch == '\n' || ch == '\r'))
+
+// https://infra.spec.whatwg.org/#ascii-digit
+CHAR_TEST(8, IsASCIIDigit, (ch >= '0' && ch <= '9'))
+
+// https://infra.spec.whatwg.org/#ascii-hex-digit
+CHAR_TEST(8, IsASCIIHexDigit, (IsASCIIDigit(ch) ||
+                               (ch >= 'A' && ch <= 'F') ||
+                               (ch >= 'a' && ch <= 'f')))
+
+// https://infra.spec.whatwg.org/#ascii-alpha
+CHAR_TEST(8, IsASCIIAlpha, ((ch >= 'A' && ch <= 'Z') ||
+                            (ch >= 'a' && ch <= 'z')))
+
+// https://infra.spec.whatwg.org/#ascii-alphanumeric
+CHAR_TEST(8, IsASCIIAlphanumeric, (IsASCIIDigit(ch) || IsASCIIAlpha(ch)))
+
+// https://infra.spec.whatwg.org/#ascii-lowercase
+template <typename T>
+static inline T ASCIILowercase(T ch) {
+  return IsASCIIAlpha(ch) ? (ch | 0x20) : ch;
+}
+
+// https://url.spec.whatwg.org/#windows-drive-letter
+TWO_CHAR_STRING_TEST(8, IsWindowsDriveLetter,
+                     (IsASCIIAlpha(ch1) && (ch2 == ':' || ch2 == '|')))
+
+// https://url.spec.whatwg.org/#normalized-windows-drive-letter
+TWO_CHAR_STRING_TEST(8, IsNormalizedWindowsDriveLetter,
+                     (IsASCIIAlpha(ch1) && ch2 == ':'))
+
+// If a UTF-16 character is a low/trailing surrogate.
+CHAR_TEST(16, IsUnicodeTrail, (ch & 0xFC00) == 0xDC00)
+
+// If a UTF-16 character is a surrogate.
+CHAR_TEST(16, IsUnicodeSurrogate, (ch & 0xF800) == 0xD800)
+
+// If a UTF-16 surrogate is a low/trailing one.
+CHAR_TEST(16, IsUnicodeSurrogateTrail, (ch & 0x400) != 0)
+
+#undef CHAR_TEST
+#undef TWO_CHAR_STRING_TEST
 
 static const char* hex[256] = {
   "%00", "%01", "%02", "%03", "%04", "%05", "%06", "%07",
@@ -428,37 +474,23 @@ static const uint8_t QUERY_ENCODE_SET[32] = {
     0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
 };
 
-// Must return true if the character is to be percent-encoded
-typedef bool (*must_escape_cb)(const unsigned char ch);
+static inline bool BitAt(const uint8_t a[], const uint8_t i) {
+  return !!(a[i >> 3] & (1 << (i & 7)));
+}
 
-// Appends ch to str. If test(ch) returns true, the ch will
+// Appends ch to str. If ch position in encode_set is set, the ch will
 // be percent-encoded then appended.
 static inline void AppendOrEscape(std::string* str,
                                   const unsigned char ch,
-                                  must_escape_cb test) {
-  if (test(ch))
+                                  const uint8_t encode_set[]) {
+  if (BitAt(encode_set, ch))
     *str += hex[ch];
   else
     *str += ch;
 }
 
-static inline bool SimpleEncodeSet(const unsigned char ch) {
-  return BIT_AT(SIMPLE_ENCODE_SET, ch);
-}
-
-static inline bool DefaultEncodeSet(const unsigned char ch) {
-  return BIT_AT(DEFAULT_ENCODE_SET, ch);
-}
-
-static inline bool UserinfoEncodeSet(const unsigned char ch) {
-  return BIT_AT(USERINFO_ENCODE_SET, ch);
-}
-
-static inline bool QueryEncodeSet(const unsigned char ch) {
-  return BIT_AT(QUERY_ENCODE_SET, ch);
-}
-
-static inline unsigned hex2bin(const char ch) {
+template <typename T>
+static inline unsigned hex2bin(const T ch) {
   if (ch >= '0' && ch <= '9')
     return ch - '0';
   if (ch >= 'A' && ch <= 'F')
@@ -482,8 +514,8 @@ static inline void PercentDecode(const char* input,
     remaining = (end - pointer) + 1;
     if (ch != '%' || remaining < 2 ||
         (ch == '%' &&
-         (!ASCII_HEX_DIGIT(pointer[1]) ||
-          !ASCII_HEX_DIGIT(pointer[2])))) {
+         (!IsASCIIHexDigit(pointer[1]) ||
+          !IsASCIIHexDigit(pointer[2])))) {
       *dest += ch;
       pointer++;
       continue;
@@ -520,8 +552,6 @@ static inline int NormalizePort(std::string scheme, int p) {
   return p;
 }
 
-static const char kEOL = -1;
-
 #if defined(NODE_HAVE_I18N_SUPPORT)
 static inline bool ToUnicode(std::string* input, std::string* output) {
   MaybeStackBuffer<char> buf;
@@ -550,21 +580,6 @@ static inline bool ToASCII(std::string* input, std::string* output) {
   return true;
 }
 #endif
-
-// If a UTF-16 character is a low/trailing surrogate.
-static inline bool IsUnicodeTrail(uint16_t c) {
-  return (c & 0xFC00) == 0xDC00;
-}
-
-// If a UTF-16 character is a surrogate.
-static inline bool IsUnicodeSurrogate(uint16_t c) {
-  return (c & 0xF800) == 0xD800;
-}
-
-// If a UTF-16 surrogate is a low/trailing one.
-static inline bool IsUnicodeSurrogateTrail(uint16_t c) {
-  return (c & 0x400) != 0;
-}
 
 static url_host_type ParseIPv6Host(url_host* host,
                                    const char* input,
@@ -601,7 +616,7 @@ static url_host_type ParseIPv6Host(url_host* host,
     }
     value = 0;
     len = 0;
-    while (len < 4 && ASCII_HEX_DIGIT(ch)) {
+    while (len < 4 && IsASCIIHexDigit(ch)) {
       value = value * 0x10 + hex2bin(ch);
       pointer++;
       ch = pointer < end ? pointer[0] : kEOL;
@@ -626,9 +641,9 @@ static url_host_type ParseIPv6Host(url_host* host,
               goto end;
             }
           }
-          if (!ASCII_DIGIT(ch))
+          if (!IsASCIIDigit(ch))
             goto end;
-          while (ASCII_DIGIT(ch)) {
+          while (IsASCIIDigit(ch)) {
             unsigned number = ch - '0';
             if (value == 0xffffffff) {
               value = number;
@@ -708,11 +723,11 @@ static inline int64_t ParseNumber(const char* start, const char* end) {
           return -1;
         break;
       case 10:
-        if (!ASCII_DIGIT(ch))
+        if (!IsASCIIDigit(ch))
           return -1;
         break;
       case 16:
-        if (!ASCII_HEX_DIGIT(ch))
+        if (!IsASCIIHexDigit(ch))
           return -1;
         break;
     }
@@ -1010,7 +1025,7 @@ static inline bool IsSingleDotSegment(std::string str) {
     case 3:
       return str[0] == '%' &&
              str[1] == '2' &&
-             TO_LOWER(str[2]) == 'e';
+             ASCIILowercase(str[2]) == 'e';
     default:
       return false;
   }
@@ -1029,18 +1044,18 @@ static inline bool IsDoubleDotSegment(std::string str) {
       return ((str[0] == '.' &&
                str[1] == '%' &&
                str[2] == '2' &&
-               TO_LOWER(str[3]) == 'e') ||
+               ASCIILowercase(str[3]) == 'e') ||
               (str[0] == '%' &&
                str[1] == '2' &&
-               TO_LOWER(str[2]) == 'e' &&
+               ASCIILowercase(str[2]) == 'e' &&
                str[3] == '.'));
     case 6:
       return (str[0] == '%' &&
               str[1] == '2' &&
-              TO_LOWER(str[2]) == 'e' &&
+              ASCIILowercase(str[2]) == 'e' &&
               str[3] == '%' &&
               str[4] == '2' &&
-              TO_LOWER(str[5]) == 'e');
+              ASCIILowercase(str[5]) == 'e');
     default:
       return false;
   }
@@ -1049,7 +1064,7 @@ static inline bool IsDoubleDotSegment(std::string str) {
 static inline void ShortenUrlPath(struct url_data* url) {
   if (url->path.empty()) return;
   if (url->path.size() == 1 && url->scheme == "file:" &&
-      NORMALIZED_WINDOWS_DRIVE_LETTER(url->path[0])) return;
+      IsNormalizedWindowsDriveLetter(url->path[0])) return;
   url->path.pop_back();
 }
 
@@ -1091,7 +1106,7 @@ void URL::Parse(const char* input,
   while (p <= end) {
     const char ch = p < end ? p[0] : kEOL;
 
-    if (TAB_AND_NEWLINE(ch)) {
+    if (IsASCIITabOrNewline(ch)) {
       if (state == kAuthority) {
         // It's necessary to keep track of how much whitespace
         // is being ignored when in kAuthority state because of
@@ -1108,8 +1123,8 @@ void URL::Parse(const char* input,
     const bool special_back_slash = (special && ch == '\\');
     switch (state) {
       case kSchemeStart:
-        if (ASCII_ALPHA(ch)) {
-          buffer += TO_LOWER(ch);
+        if (IsASCIIAlpha(ch)) {
+          buffer += ASCIILowercase(ch);
           state = kScheme;
         } else if (!has_state_override) {
           state = kNoScheme;
@@ -1120,8 +1135,8 @@ void URL::Parse(const char* input,
         }
         break;
       case kScheme:
-        if (SCHEME_CHAR(ch)) {
-          buffer += TO_LOWER(ch);
+        if (IsASCIIAlphanumeric(ch) || ch == '+' || ch == '-' || ch == '.') {
+          buffer += ASCIILowercase(ch);
           p++;
           continue;
         } else if (ch == ':' || (has_state_override && ch == kEOL)) {
@@ -1388,9 +1403,9 @@ void URL::Parse(const char* input,
               }
             }
             if (uflag) {
-              AppendOrEscape(&url->password, bch, UserinfoEncodeSet);
+              AppendOrEscape(&url->password, bch, USERINFO_ENCODE_SET);
             } else {
-              AppendOrEscape(&url->username, bch, UserinfoEncodeSet);
+              AppendOrEscape(&url->username, bch, USERINFO_ENCODE_SET);
             }
           }
           buffer.clear();
@@ -1448,11 +1463,11 @@ void URL::Parse(const char* input,
             sbflag = true;
           if (ch == ']')
             sbflag = false;
-          buffer += TO_LOWER(ch);
+          buffer += ASCIILowercase(ch);
         }
         break;
       case kPort:
-        if (ASCII_DIGIT(ch)) {
+        if (IsASCIIDigit(ch)) {
           buffer += ch;
         } else if (has_state_override ||
                    ch == kEOL ||
@@ -1552,7 +1567,7 @@ void URL::Parse(const char* input,
             }
           default:
             if (base_is_file &&
-                (!WINDOWS_DRIVE_LETTER(ch, p[1]) ||
+                (!IsWindowsDriveLetter(ch, p[1]) ||
                  end - p == 1 ||
                  (p[2] != '/' &&
                   p[2] != '\\' &&
@@ -1578,7 +1593,7 @@ void URL::Parse(const char* input,
         } else {
           if (has_base &&
               base->scheme == "file:") {
-            if (NORMALIZED_WINDOWS_DRIVE_LETTER(base->path[0])) {
+            if (IsNormalizedWindowsDriveLetter(base->path[0])) {
               url->flags |= URL_FLAGS_HAS_PATH;
               url->path.push_back(base->path[0]);
             } else {
@@ -1597,7 +1612,7 @@ void URL::Parse(const char* input,
             ch == '?' ||
             ch == '#') {
           if (buffer.size() == 2 &&
-              WINDOWS_DRIVE_LETTER(buffer[0], buffer[1])) {
+              IsWindowsDriveLetter(buffer)) {
             state = kPath;
           } else if (buffer.size() == 0) {
             state = kPathStart;
@@ -1658,7 +1673,7 @@ void URL::Parse(const char* input,
             if (url->scheme == "file:" &&
                 url->path.empty() &&
                 buffer.size() == 2 &&
-                WINDOWS_DRIVE_LETTER(buffer[0], buffer[1])) {
+                IsWindowsDriveLetter(buffer)) {
               url->flags &= ~URL_FLAGS_HAS_HOST;
               buffer[1] = ':';
             }
@@ -1682,7 +1697,7 @@ void URL::Parse(const char* input,
             state = kFragment;
           }
         } else {
-          AppendOrEscape(&buffer, ch, DefaultEncodeSet);
+          AppendOrEscape(&buffer, ch, DEFAULT_ENCODE_SET);
         }
         break;
       case kCannotBeBase:
@@ -1697,7 +1712,7 @@ void URL::Parse(const char* input,
             if (url->path.size() == 0)
               url->path.push_back("");
             if (url->path.size() > 0 && ch != kEOL)
-              AppendOrEscape(&url->path[0], ch, SimpleEncodeSet);
+              AppendOrEscape(&url->path[0], ch, SIMPLE_ENCODE_SET);
         }
         break;
       case kQuery:
@@ -1708,7 +1723,7 @@ void URL::Parse(const char* input,
           if (ch == '#')
             state = kFragment;
         } else {
-          AppendOrEscape(&buffer, ch, QueryEncodeSet);
+          AppendOrEscape(&buffer, ch, QUERY_ENCODE_SET);
         }
         break;
       case kFragment:
@@ -1720,7 +1735,7 @@ void URL::Parse(const char* input,
           case 0:
             break;
           default:
-            AppendOrEscape(&buffer, ch, SimpleEncodeSet);
+            AppendOrEscape(&buffer, ch, SIMPLE_ENCODE_SET);
         }
         break;
       default:
@@ -1849,7 +1864,7 @@ static void EncodeAuthSet(const FunctionCallbackInfo<Value>& args) {
   output.reserve(len);
   for (size_t n = 0; n < len; n++) {
     const char ch = (*value)[n];
-    AppendOrEscape(&output, ch, UserinfoEncodeSet);
+    AppendOrEscape(&output, ch, USERINFO_ENCODE_SET);
   }
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
@@ -1870,17 +1885,17 @@ static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(start, 0);
 
   for (size_t i = start; i < n; i++) {
-    uint16_t c = value[i];
+    char16_t c = value[i];
     if (!IsUnicodeSurrogate(c)) {
       continue;
     } else if (IsUnicodeSurrogateTrail(c) || i == n - 1) {
-      value[i] = UNICODE_REPLACEMENT_CHARACTER;
+      value[i] = kUnicodeReplacementCharacter;
     } else {
-      uint16_t d = value[i + 1];
+      char16_t d = value[i + 1];
       if (IsUnicodeTrail(d)) {
         i++;
       } else {
-        value[i] = UNICODE_REPLACEMENT_CHARACTER;
+        value[i] = kUnicodeReplacementCharacter;
       }
     }
   }
