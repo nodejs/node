@@ -97,8 +97,6 @@ function client() {
   if (err)
     fail(err, 'connect');
 
-  clientHandle.readStart();
-
   clientHandle.onread = function(nread, buffer) {
     if (nread < 0)
       fail(nread, 'read');
@@ -111,6 +109,8 @@ function client() {
       fail(err, 'connect');
 
     bench.start();
+
+    clientHandle.readStart();
 
     setTimeout(function() {
       // multiply by 2 since we're sending it first one way
