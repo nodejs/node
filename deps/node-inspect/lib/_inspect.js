@@ -55,10 +55,11 @@ function getDefaultPort() {
 
 function runScript(script, scriptArgs, inspectPort, childPrint) {
   return new Promise((resolve) => {
-    const args = [
-      '--inspect',
-      `--debug-brk=${inspectPort}`,
-    ].concat([script], scriptArgs);
+    const needDebugBrk = process.version.match(/^v(6|7)\./);
+    const args = (needDebugBrk ?
+                      ['--inspect', `--debug-brk=${inspectPort}`] :
+                      [`--inspect-brk=${inspectPort}`])
+                     .concat([script], scriptArgs);
     const child = spawn(process.execPath, args);
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
