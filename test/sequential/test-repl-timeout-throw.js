@@ -28,11 +28,11 @@ child.stdout.once('data', function() {
   child.stdin.write('function thrower(){console.log("THROW",throws++);XXX};');
   child.stdin.write('setTimeout(thrower);""\n');
 
-  setTimeout(fsTest, 50);
+  setTimeout(fsTest, 150);
   function fsTest() {
     const f = JSON.stringify(__filename);
     child.stdin.write('fs.readFile(' + f + ', thrower);\n');
-    setTimeout(eeTest, 50);
+    setTimeout(eeTest, 150);
   }
 
   function eeTest() {

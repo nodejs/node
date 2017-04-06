@@ -7,9 +7,26 @@ const child = cp.spawn(process.execPath, ['--interactive']);
 const fixture = path.join(common.fixturesDir, 'is-object.js').replace(/\\/g,
                                                                       '/');
 let output = '';
+let cmds = [
+  'const isObject = (obj) => obj.constructor === Object;',
+  'isObject({});',
+  `require('${fixture}').isObject({});`
+];
+
+const run = ([cmd, ...rest]) => {
+  if (!cmd) {
+    setTimeout(() => child.stdin.end(), 100);
+    return;
+  }
+  cmds = rest;
+  child.stdin.write(`${cmd}\n`);
+};
 
 child.stdout.setEncoding('utf8');
 child.stdout.on('data', (data) => {
+  if (data !== '> ') {
+    setTimeout(() => run(cmds), 100);
+  }
   output += data;
 });
 
@@ -18,8 +35,4 @@ child.on('exit', common.mustCall(() => {
   assert.deepStrictEqual(results, ['undefined', 'true', 'true', '']);
 }));
 
-child.stdin.write('const isObject = (obj) => obj.constructor === Object;\n');
-child.stdin.write('isObject({});\n');
-child.stdin.write(`require('${fixture}').isObject({});\n`);
-child.stdin.write('.exit');
-child.stdin.end();
+run(cmds);

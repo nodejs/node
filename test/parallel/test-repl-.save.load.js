@@ -41,44 +41,32 @@ const testFile = [
 ];
 const saveFileName = join(common.tmpDir, 'test.save.js');
 
-// input some data
+// // input some data
 putIn.run(testFile);
+testMe.forceExecute();
 
 // save it to a file
 putIn.run(['.save ' + saveFileName]);
+testMe.forceExecute();
 
 // the file should have what I wrote
-assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'), testFile.join('\n') +
-                   '\n');
-
-{
-  // save .editor mode code
-  const cmds = [
-    'function testSave() {',
-    'return "saved";',
-    '}'
-  ];
-  const putIn = new common.ArrayStream();
-  const replServer = repl.start('', putIn);
-
-  putIn.run(['.editor']);
-  putIn.run(cmds);
-  replServer.write('', {ctrl: true, name: 'd'});
-
-  putIn.run([`.save ${saveFileName}`]);
-  replServer.close();
-  assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
-                     `${cmds.join('\n')}\n`);
-}
+assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
+                   testFile.join('\n') + '\n\n');
 
 // make sure that the REPL data is "correct"
 // so when I load it back I know I'm good
+putIn.run(['.clear']);
+testMe.forceExecute();
+putIn.run(testFile);
+
 testMe.complete('inner.o', function(error, data) {
   assert.deepStrictEqual(data, works);
 });
 
 // clear the REPL
+testMe.forceExecute();
 putIn.run(['.clear']);
+testMe.forceExecute();
 
 // Load the file back in
 putIn.run(['.load ' + saveFileName]);
@@ -90,6 +78,7 @@ testMe.complete('inner.o', function(error, data) {
 
 // clear the REPL
 putIn.run(['.clear']);
+testMe.forceExecute();
 
 let loadFile = join(common.tmpDir, 'file.does.not.exist');
 
@@ -101,6 +90,7 @@ putIn.write = function(data) {
   putIn.write = common.noop;
 };
 putIn.run(['.load ' + loadFile]);
+testMe.forceExecute();
 
 // throw error on loading directory
 loadFile = common.tmpDir;
@@ -110,9 +100,11 @@ putIn.write = function(data) {
   putIn.write = common.noop;
 };
 putIn.run(['.load ' + loadFile]);
+testMe.forceExecute();
 
 // clear the REPL
 putIn.run(['.clear']);
+testMe.forceExecute();
 
 // NUL (\0) is disallowed in filenames in UNIX-like operating systems and
 // Windows so we can use that to test failed saves
@@ -128,3 +120,31 @@ putIn.write = function(data) {
 
 // save it to a file
 putIn.run(['.save ' + invalidFileName]);
+testMe.forceExecute();
+
+{
+  // save .editor mode code
+  const cmds = [
+    'function testSave() {',
+    'return "saved";',
+    '}'
+  ];
+  const putIn = new common.ArrayStream();
+  const replServer = repl.start({
+    prompt: '',
+    input: putIn,
+    output: putIn,
+    terminal: true,
+  });
+
+  putIn.run(['.editor']);
+  replServer.forceExecute();
+  putIn.run(cmds);
+  replServer.write('', {ctrl: true, name: 'd'});
+
+  putIn.run([`.save ${saveFileName}`]);
+  replServer.forceExecute();
+  replServer.close();
+  assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
+                     `${cmds.join('\n')}\n\n`);
+}

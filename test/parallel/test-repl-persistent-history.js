@@ -19,11 +19,12 @@ os.homedir = function() {
 
 // Create an input stream specialized for testing an array of actions
 class ActionStream extends stream.Stream {
-  run(data) {
+  run(data, repl) {
     const _iter = data[Symbol.iterator]();
     const doAction = () => {
       const next = _iter.next();
       if (next.done) {
+        repl.forceExecute();
         // Close the repl. Note that it must have a clean prompt to do so.
         setImmediate(() => {
           this.emit('keypress', '', { ctrl: true, name: 'd' });
@@ -31,7 +32,6 @@ class ActionStream extends stream.Stream {
         return;
       }
       const action = next.value;
-
       if (typeof action === 'object') {
         this.emit('keypress', '', action);
       } else {
@@ -49,7 +49,7 @@ ActionStream.prototype.readable = true;
 
 // Mock keys
 const UP = { name: 'up' };
-const ENTER = { name: 'enter' };
+const RETURN = { name: 'return' };
 const CLEAR = { ctrl: true, name: 'u' };
 // Common message bits
 const prompt = '> ';
@@ -134,14 +134,14 @@ const tests = [
   },
   {
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath },
-    test: [UP, CLEAR, '\'42\'', ENTER],
+    test: [UP, CLEAR, '\'42\'', RETURN],
     expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt, '\'',
-               '4', '2', '\'', '\'42\'\n', prompt, prompt],
+               '4', '2', '\'', '\'42\'\n', prompt],
     clean: false
   },
   { // Requires the above testcase
     env: {},
-    test: [UP, UP, ENTER],
+    test: [UP, UP, RETURN],
     expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
                prompt]
   },
@@ -197,7 +197,7 @@ function cleanupTmpFile() {
 
 // Copy our fixture to the tmp directory
 fs.createReadStream(historyFixturePath)
-  .pipe(fs.createWriteStream(historyPath)).on('unpipe', () => runTest());
+  .pipe(fs.createWriteStream(historyPath)).on('unpipe', runTest);
 
 function runTest(assertCleaned) {
   const opts = tests.shift();
@@ -227,9 +227,8 @@ function runTest(assertCleaned) {
     output: new stream.Writable({
       write(chunk, _, next) {
         const output = chunk.toString();
-
         // Ignore escapes and blank lines
-        if (output.charCodeAt(0) === 27 || /^[\r\n]+$/.test(output))
+        if (output.charCodeAt(0) === 27 || /^\s+$/.test(output))
           return next();
 
         try {
@@ -243,7 +242,8 @@ function runTest(assertCleaned) {
     }),
     prompt: prompt,
     useColors: false,
-    terminal: true
+    terminal: true,
+    displayWelcomeMessage: false
   }, function(err, repl) {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
@@ -275,7 +275,6 @@ function runTest(assertCleaned) {
         throw err;
       }
     }
-
-    repl.inputStream.run(test);
+    repl.inputStream.run(test, repl);
   });
 }

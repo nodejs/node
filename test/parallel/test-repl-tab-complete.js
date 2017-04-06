@@ -40,7 +40,25 @@ function getNoResultsFunction() {
 
 const works = [['inner.one'], 'inner.o'];
 const putIn = new common.ArrayStream();
-const testMe = repl.start('', putIn);
+const testMe = repl.start({
+  input: putIn,
+  output: putIn,
+  terminal: true
+});
+// Test cases for default tab completion
+testMe.complete = testMe.defaultComplete;
+
+const runAsHuman = (cmd, repl) => {
+  const cmds = Array.isArray(cmd) ? cmd : [cmd];
+  repl.input.run(cmds);
+  repl._sawKeyPress = true;
+  repl.input.emit('keypress', null, { name: 'return' });
+};
+
+const clear = (repl) => {
+  repl.input.emit('keypress', null, { name: 'c', ctrl: true});
+  runAsHuman('.clear', repl);
+};
 
 // Some errors are passed to the domain, but do not callback
 testMe._domain.on('error', function(err) {
@@ -48,7 +66,7 @@ testMe._domain.on('error', function(err) {
 });
 
 // Tab Complete will not break in an object literal
-putIn.run(['.clear']);
+clear(testMe);
 putIn.run([
   'var inner = {',
   'one:1'
@@ -60,12 +78,12 @@ testMe.complete('console.lo', common.mustCall(function(error, data) {
 }));
 
 // Tab Complete will return globally scoped variables
-putIn.run(['};']);
+runAsHuman(['};'], testMe);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
 }));
 
-putIn.run(['.clear']);
+clear(testMe);
 
 // Tab Complete will not break in an ternary operator with ()
 putIn.run([
@@ -75,7 +93,7 @@ putIn.run([
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
-putIn.run(['.clear']);
+clear(testMe);
 
 // Tab Complete will return a simple local variable
 putIn.run([
@@ -88,10 +106,10 @@ testMe.complete('inner.o', common.mustCall(function(error, data) {
 
 // When you close the function scope tab complete will not return the
 // locally scoped variable
-putIn.run(['};']);
+runAsHuman(['};'], testMe);
 testMe.complete('inner.o', getNoResultsFunction());
 
-putIn.run(['.clear']);
+clear(testMe);
 
 // Tab Complete will return a complex local variable
 putIn.run([
@@ -104,7 +122,7 @@ testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
 }));
 
-putIn.run(['.clear']);
+clear(testMe);
 
 // Tab Complete will return a complex local variable even if the function
 // has parameters
@@ -118,7 +136,7 @@ testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
 }));
 
-putIn.run(['.clear']);
+clear(testMe);
 
 // Tab Complete will return a complex local variable even if the
 // scope is nested inside an immediately executed function
@@ -133,7 +151,7 @@ testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
 }));
 
-putIn.run(['.clear']);
+clear(testMe);
 
 // def has the params and { on a separate line
 putIn.run([
@@ -146,8 +164,7 @@ putIn.run([
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
-putIn.run(['.clear']);
-
+clear(testMe);
 // currently does not work, but should not break, not the {
 putIn.run([
   'var top = function() {',
@@ -159,7 +176,7 @@ putIn.run([
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
-putIn.run(['.clear']);
+clear(testMe);
 
 // currently does not work, but should not break
 putIn.run([
@@ -173,7 +190,7 @@ putIn.run([
 ]);
 testMe.complete('inner.o', getNoResultsFunction());
 
-putIn.run(['.clear']);
+clear(testMe);
 
 // make sure tab completion works on non-Objects
 putIn.run([
@@ -183,7 +200,7 @@ testMe.complete('str.len', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['str.length'], 'str.len']);
 }));
 
-putIn.run(['.clear']);
+clear(testMe);
 
 // tab completion should not break on spaces
 const spaceTimeout = setTimeout(function() {
@@ -202,7 +219,7 @@ testMe.complete('toSt', common.mustCall(function(error, data) {
 }));
 
 // Tab complete provides built in libs for require()
-putIn.run(['.clear']);
+clear(testMe);
 
 testMe.complete('require(\'', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
@@ -233,7 +250,7 @@ testMe.complete('require(\'n', common.mustCall(function(error, data) {
 }
 
 // Make sure tab completion works on context properties
-putIn.run(['.clear']);
+clear(testMe);
 
 putIn.run([
   'var custom = "test";'
@@ -244,7 +261,7 @@ testMe.complete('cus', common.mustCall(function(error, data) {
 
 // Make sure tab completion doesn't crash REPL with half-baked proxy objects.
 // See: https://github.com/nodejs/node/issues/2119
-putIn.run(['.clear']);
+clear(testMe);
 
 putIn.run([
   'var proxy = new Proxy({}, {ownKeys: () => { throw new Error(); }});'
@@ -256,7 +273,7 @@ testMe.complete('proxy.', common.mustCall(function(error, data) {
 }));
 
 // Make sure tab completion does not include integer members of an Array
-putIn.run(['.clear']);
+clear(testMe);
 
 putIn.run(['var ary = [1,2,3];']);
 testMe.complete('ary.', common.mustCall(function(error, data) {
@@ -266,7 +283,7 @@ testMe.complete('ary.', common.mustCall(function(error, data) {
 }));
 
 // Make sure tab completion does not include integer keys in an object
-putIn.run(['.clear']);
+clear(testMe);
 putIn.run(['var obj = {1:"a","1a":"b",a:"b"};']);
 
 testMe.complete('obj.', common.mustCall(function(error, data) {
@@ -276,13 +293,13 @@ testMe.complete('obj.', common.mustCall(function(error, data) {
 }));
 
 // Don't try to complete results of non-simple expressions
-putIn.run(['.clear']);
+clear(testMe);
 putIn.run(['function a() {}']);
 
 testMe.complete('a().b.', getNoResultsFunction());
 
 // Works when prefixed with spaces
-putIn.run(['.clear']);
+clear(testMe);
 putIn.run(['var obj = {1:"a","1a":"b",a:"b"};']);
 
 testMe.complete(' obj.', common.mustCall((error, data) => {
@@ -292,17 +309,17 @@ testMe.complete(' obj.', common.mustCall((error, data) => {
 }));
 
 // Works inside assignments
-putIn.run(['.clear']);
+clear(testMe);
 
 testMe.complete('var log = console.lo', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
 }));
 
 // tab completion for defined commands
-putIn.run(['.clear']);
+clear(testMe);
 
-testMe.complete('.b', common.mustCall((error, data) => {
-  assert.deepStrictEqual(data, [['break'], 'b']);
+testMe.complete('.h', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['help'], 'h']);
 }));
 
 const testNonGlobal = repl.start({
@@ -390,16 +407,55 @@ const editor = repl.start({
   useColors: false
 });
 
-editorStream.run(['.clear']);
-editorStream.run(['.editor']);
+clear(editor);
+runAsHuman('.editor', editor);
 
 editor.completer('co', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['con'], 'co']);
 }));
 
-editorStream.run(['.clear']);
-editorStream.run(['.editor']);
+clear(editor);
+runAsHuman('.editor', editor);
 
 editor.completer('var log = console.l', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['console.log'], 'console.l']);
+}));
+
+// tab completion in continuous mode
+const contStream = new common.ArrayStream();
+const contEditor = repl.start({
+  stream: contStream,
+  terminal: true,
+  useColors: false
+});
+
+clear(contEditor);
+contStream.run(['{']);
+
+contEditor.completer('co', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['con'], 'co']);
+}));
+
+contEditor.completer('var log = console.l', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['console.log'], 'console.l']);
+}));
+
+clear(contEditor);
+contStream.run([
+  'var top = function() {',
+  'var inner = {one:1, only: true};'
+]);
+
+contEditor.completer('inner.o', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [[ 'inner.on' ], 'inner.o']);
+}));
+
+clear(contEditor);
+contStream.run([
+  'var top = function() {',
+  'var inner = {one:1, ok: true};'
+]);
+
+contEditor.completer('inner.o', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [[ 'inner.o' ], 'inner.o']);
 }));

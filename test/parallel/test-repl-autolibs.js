@@ -29,7 +29,7 @@ const repl = require('repl');
 common.globalCheck = false;
 
 const putIn = new common.ArrayStream();
-repl.start('', putIn, null, true);
+const cli = repl.start('', putIn, null, true);
 
 test1();
 
@@ -49,6 +49,7 @@ function test1() {
   };
   assert(!gotWrite);
   putIn.run(['fs']);
+  cli.forceExecute();
   assert(gotWrite);
 }
 
@@ -67,5 +68,6 @@ function test2() {
   global.url = val;
   assert(!gotWrite);
   putIn.run(['url']);
+  cli.forceExecute();
   assert(gotWrite);
 }
