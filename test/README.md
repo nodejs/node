@@ -90,8 +90,12 @@ On how to run tests in this direcotry, see
     </tr>
     <tr>
       <td>known_issues</td>
-      <td>No</td>
-      <td>Tests reproducing known issues within the system.</td>
+      <td>Yes</td>
+      <td>
+        Tests reproducing known issues within the system. All tests inside of
+        this directory are expected to fail consistently. If a test doesn't fail
+        on certain platforms, those should be skipped via `known_issues.status`.
+      </td>
     </tr>
     <tr>
       <td>message</td>
