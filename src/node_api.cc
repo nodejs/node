@@ -1,4 +1,4 @@
-﻿/******************************************************************************
+/******************************************************************************
  * Experimental prototype for demonstrating VM agnostic and ABI stable API
  * for native modules to use instead of using Nan and V8 APIs directly.
  *
@@ -44,8 +44,7 @@ static inline v8::PropertyAttribute V8PropertyAttributesFromDescriptor(
     // V8 requires the ReadOnly attribute to match nonexistence of a setter.
     attribute_flags |= (descriptor->setter == nullptr ?
       v8::PropertyAttribute::ReadOnly : v8::PropertyAttribute::None);
-  }
-  else if ((descriptor->attributes & napi_writable) == 0) {
+  } else if ((descriptor->attributes & napi_writable) == 0) {
     attribute_flags |= v8::PropertyAttribute::ReadOnly;
   }
 
