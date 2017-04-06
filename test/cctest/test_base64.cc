@@ -11,7 +11,7 @@ using node::base64_decode;
 TEST(Base64Test, Encode) {
   auto test = [](const char* string, const char* base64_string) {
     const size_t len = strlen(base64_string);
-    char* buffer = new char[len + 1];
+    char* const buffer = new char[len + 1];
     buffer[len] = 0;
     base64_encode(string, strlen(string), buffer, len);
     EXPECT_STREQ(base64_string, buffer);
@@ -47,7 +47,7 @@ TEST(Base64Test, Encode) {
 TEST(Base64Test, Decode) {
   auto test = [](const char* base64_string, const char* string) {
     const size_t len = strlen(string);
-    char* buffer = new char[len + 1];
+    char* const buffer = new char[len + 1];
     buffer[len] = 0;
     base64_decode(buffer, len, base64_string, strlen(base64_string));
     EXPECT_STREQ(string, buffer);
