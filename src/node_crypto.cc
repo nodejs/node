@@ -25,6 +25,7 @@
 #include "node_crypto.h"
 #include "node_crypto_bio.h"
 #include "node_crypto_groups.h"
+#include "print.h"
 #include "tls_wrap.h"  // TLSWrap
 
 #include "async-wrap.h"
@@ -6020,7 +6021,7 @@ void InitCryptoOnce() {
         CONF_MFLAGS_DEFAULT_SECTION);
     int err = ERR_get_error();
     if (0 != err) {
-      fprintf(stderr,
+      FPrintF(stderr,
               "openssl config failed: %s\n",
               ERR_error_string(err, NULL));
       CHECK_NE(err, 0);
@@ -6043,7 +6044,7 @@ void InitCryptoOnce() {
     }
   }
   if (0 != err) {
-    fprintf(stderr, "openssl fips failed: %s\n", ERR_error_string(err, NULL));
+    FPrintF(stderr, "openssl fips failed: %s\n", ERR_error_string(err, NULL));
     UNREACHABLE();
   }
 #endif  // NODE_FIPS_MODE

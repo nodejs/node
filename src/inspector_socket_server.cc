@@ -1,6 +1,7 @@
 #include "inspector_socket_server.h"
 
 #include "node.h"
+#include "print.h"
 #include "uv.h"
 #include "zlib.h"
 
@@ -81,22 +82,22 @@ void PrintDebuggerReadyMessage(const std::string& host,
   if (out == NULL) {
     return;
   }
-  fprintf(out,
+  FPrintF(out,
           "Debugger listening on port %d.\n"
           "Warning: This is an experimental feature "
           "and could change at any time.\n",
           port);
   if (ids.size() == 1)
-    fprintf(out, "To start debugging, open the following URL in Chrome:\n");
+    FPrintF(out, "To start debugging, open the following URL in Chrome:\n");
   if (ids.size() > 1)
-    fprintf(out, "To start debugging, open the following URLs in Chrome:\n");
+    FPrintF(out, "To start debugging, open the following URLs in Chrome:\n");
   for (const std::string& id : ids) {
-    fprintf(out,
+    FPrintF(out,
             "    chrome-devtools://devtools/bundled/inspector.html?"
             "experiments=true&v8only=true&ws=%s\n",
             GetWsUrl(host, port, id).c_str());
   }
-  fflush(out);
+  FFlush(out);
 }
 
 void SendHttpResponse(InspectorSocket* socket, const std::string& response) {
@@ -395,9 +396,9 @@ bool InspectorSocketServer::Start(uv_loop_t* loop) {
   }
   if (err != 0 && connected_sessions_.empty()) {
     if (out_ != NULL) {
-      fprintf(out_, "Starting inspector on %s:%d failed: %s\n",
+      FPrintF(out_, "Starting inspector on %s:%d failed: %s\n",
               host_.c_str(), port_, uv_strerror(err));
-      fflush(out_);
+      FFlush(out_);
     }
     uv_close(reinterpret_cast<uv_handle_t*>(&server_), nullptr);
     return false;
