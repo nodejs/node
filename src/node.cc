@@ -84,6 +84,7 @@
 
 #include <string>
 #include <vector>
+#include <list>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/uvernum.h>
@@ -4267,34 +4268,24 @@ void Init(int* argc,
 
 
 struct AtExitCallback {
-  AtExitCallback* next_;
   void (*cb_)(void* arg);
   void* arg_;
 };
 
-static AtExitCallback* at_exit_functions_;
+static std::list<AtExitCallback> at_exit_functions;
 
 
 // TODO(bnoordhuis) Turn into per-context event.
 void RunAtExit(Environment* env) {
-  AtExitCallback* p = at_exit_functions_;
-  at_exit_functions_ = nullptr;
-
-  while (p) {
-    AtExitCallback* q = p->next_;
-    p->cb_(p->arg_);
-    delete p;
-    p = q;
+  for (AtExitCallback at_exit : at_exit_functions) {
+    at_exit.cb_(at_exit.arg_);
   }
+  at_exit_functions.clear();
 }
 
 
 void AtExit(void (*cb)(void* arg), void* arg) {
-  AtExitCallback* p = new AtExitCallback;
-  p->cb_ = cb;
-  p->arg_ = arg;
-  p->next_ = at_exit_functions_;
-  at_exit_functions_ = p;
+  at_exit_functions.push_back(AtExitCallback{cb, arg});
 }
 
 
