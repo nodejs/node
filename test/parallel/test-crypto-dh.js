@@ -185,126 +185,141 @@ const bad_dh = crypto.createDiffieHellman(p, 'hex');
 assert.strictEqual(bad_dh.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
-// Test ECDH
-const ecdh1 = crypto.createECDH('prime256v1');
-const ecdh2 = crypto.createECDH('prime256v1');
-key1 = ecdh1.generateKeys();
-key2 = ecdh2.generateKeys('hex');
-secret1 = ecdh1.computeSecret(key2, 'hex', 'base64');
-secret2 = ecdh2.computeSecret(key1, 'latin1', 'buffer');
-
-assert.strictEqual(secret1, secret2.toString('base64'));
+const availableCurves = new Set(crypto.getCurves());
 
 // Oakley curves do not clean up ERR stack, it was causing unexpected failure
 // when accessing other OpenSSL APIs afterwards.
-crypto.createECDH('Oakley-EC2N-3');
-crypto.createHash('sha256');
+if (availableCurves.has('Oakley-EC2N-3')) {
+  crypto.createECDH('Oakley-EC2N-3');
+  crypto.createHash('sha256');
+}
 
-// Point formats
-assert.strictEqual(ecdh1.getPublicKey('buffer', 'uncompressed')[0], 4);
-let firstByte = ecdh1.getPublicKey('buffer', 'compressed')[0];
-assert(firstByte === 2 || firstByte === 3);
-firstByte = ecdh1.getPublicKey('buffer', 'hybrid')[0];
-assert(firstByte === 6 || firstByte === 7);
-// format value should be string
-assert.throws(() => {
-  ecdh1.getPublicKey('buffer', 10);
-}, /^TypeError: Bad format: 10$/);
+// Test ECDH
+if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
+  const ecdh1 = crypto.createECDH('prime256v1');
+  const ecdh2 = crypto.createECDH('prime256v1');
+  key1 = ecdh1.generateKeys();
+  key2 = ecdh2.generateKeys('hex');
+  secret1 = ecdh1.computeSecret(key2, 'hex', 'base64');
+  secret2 = ecdh2.computeSecret(key1, 'latin1', 'buffer');
 
-// ECDH should check that point is on curve
-const ecdh3 = crypto.createECDH('secp256k1');
-const key3 = ecdh3.generateKeys();
+  assert.strictEqual(secret1, secret2.toString('base64'));
 
-assert.throws(() => {
-  ecdh2.computeSecret(key3, 'latin1', 'buffer');
-}, /^Error: Failed to translate Buffer to a EC_POINT$/);
-
-// ECDH should allow .setPrivateKey()/.setPublicKey()
-const ecdh4 = crypto.createECDH('prime256v1');
-
-ecdh4.setPrivateKey(ecdh1.getPrivateKey());
-ecdh4.setPublicKey(ecdh1.getPublicKey());
-
-assert.throws(() => {
-  ecdh4.setPublicKey(ecdh3.getPublicKey());
-}, /^Error: Failed to convert Buffer to EC_POINT$/);
-
-// Verify that we can use ECDH without having to use newly generated keys.
-const ecdh5 = crypto.createECDH('secp256k1');
-
-// Verify errors are thrown when retrieving keys from an uninitialized object.
-assert.throws(() => {
-  ecdh5.getPublicKey();
-}, /^Error: Failed to get ECDH public key$/);
-
-assert.throws(() => {
-  ecdh5.getPrivateKey();
-}, /^Error: Failed to get ECDH private key$/);
-
-// A valid private key for the secp256k1 curve.
-const cafebabeKey = 'cafebabe'.repeat(8);
-// Associated compressed and uncompressed public keys (points).
-const cafebabePubPtComp =
-'03672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3';
-const cafebabePubPtUnComp =
-'04672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3' +
-'2e02c7f93d13dc2732b760ca377a5897b9dd41a1c1b29dc0442fdce6d0a04d1d';
-ecdh5.setPrivateKey(cafebabeKey, 'hex');
-assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
-// Show that the public point (key) is generated while setting the private key.
-assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
-
-// Compressed and uncompressed public points/keys for other party's private key
-// 0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF
-const peerPubPtComp =
-'02c6b754b20826eb925e052ee2c25285b162b51fdca732bcf67e39d647fb6830ae';
-const peerPubPtUnComp =
-'04c6b754b20826eb925e052ee2c25285b162b51fdca732bcf67e39d647fb6830ae' +
-'b651944a574a362082a77e3f2b5d9223eb54d7f2f76846522bf75f3bedb8178e';
-
-const sharedSecret =
-'1da220b5329bbe8bfd19ceef5a5898593f411a6f12ea40f2a8eead9a5cf59970';
-
-assert.strictEqual(ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex'),
-                   sharedSecret);
-assert.strictEqual(ecdh5.computeSecret(peerPubPtUnComp, 'hex', 'hex'),
-                   sharedSecret);
-
-// Verify that we still have the same key pair as before the computation.
-assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
-assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
-
-// Verify setting and getting compressed and non-compressed serializations.
-ecdh5.setPublicKey(cafebabePubPtComp, 'hex');
-assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
-assert.strictEqual(ecdh5.getPublicKey('hex', 'compressed'), cafebabePubPtComp);
-ecdh5.setPublicKey(cafebabePubPtUnComp, 'hex');
-assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
-assert.strictEqual(ecdh5.getPublicKey('hex', 'compressed'), cafebabePubPtComp);
-
-// Show why allowing the public key to be set on this type does not make sense.
-ecdh5.setPublicKey(peerPubPtComp, 'hex');
-assert.strictEqual(ecdh5.getPublicKey('hex'), peerPubPtUnComp);
-assert.throws(() => {
-  // Error because the public key does not match the private key anymore.
-  ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex');
-}, /^Error: Invalid key pair$/);
-
-// Set to a valid key to show that later attempts to set an invalid key are
-// rejected.
-ecdh5.setPrivateKey(cafebabeKey, 'hex');
-
-[ // Some invalid private keys for the secp256k1 curve.
-  '0000000000000000000000000000000000000000000000000000000000000000',
-  'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141',
-  'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
-].forEach((element) => {
+  // Point formats
+  assert.strictEqual(ecdh1.getPublicKey('buffer', 'uncompressed')[0], 4);
+  let firstByte = ecdh1.getPublicKey('buffer', 'compressed')[0];
+  assert(firstByte === 2 || firstByte === 3);
+  firstByte = ecdh1.getPublicKey('buffer', 'hybrid')[0];
+  assert(firstByte === 6 || firstByte === 7);
+  // format value should be string
   assert.throws(() => {
-    ecdh5.setPrivateKey(element, 'hex');
-  }, /^Error: Private key is not valid for specified curve\.$/);
-  // Verify object state did not change.
+    ecdh1.getPublicKey('buffer', 10);
+  }, /^TypeError: Bad format: 10$/);
+
+  // ECDH should check that point is on curve
+  const ecdh3 = crypto.createECDH('secp256k1');
+  const key3 = ecdh3.generateKeys();
+
+  assert.throws(() => {
+    ecdh2.computeSecret(key3, 'latin1', 'buffer');
+  }, /^Error: Failed to translate Buffer to a EC_POINT$/);
+
+  // ECDH should allow .setPrivateKey()/.setPublicKey()
+  const ecdh4 = crypto.createECDH('prime256v1');
+
+  ecdh4.setPrivateKey(ecdh1.getPrivateKey());
+  ecdh4.setPublicKey(ecdh1.getPublicKey());
+
+  assert.throws(() => {
+    ecdh4.setPublicKey(ecdh3.getPublicKey());
+  }, /^Error: Failed to convert Buffer to EC_POINT$/);
+
+  // Verify that we can use ECDH without having to use newly generated keys.
+  const ecdh5 = crypto.createECDH('secp256k1');
+
+  // Verify errors are thrown when retrieving keys from an uninitialized object.
+  assert.throws(() => {
+    ecdh5.getPublicKey();
+  }, /^Error: Failed to get ECDH public key$/);
+
+  assert.throws(() => {
+    ecdh5.getPrivateKey();
+  }, /^Error: Failed to get ECDH private key$/);
+
+  // A valid private key for the secp256k1 curve.
+  const cafebabeKey = 'cafebabe'.repeat(8);
+  // Associated compressed and uncompressed public keys (points).
+  const cafebabePubPtComp =
+  '03672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3';
+  const cafebabePubPtUnComp =
+  '04672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3' +
+  '2e02c7f93d13dc2732b760ca377a5897b9dd41a1c1b29dc0442fdce6d0a04d1d';
+  ecdh5.setPrivateKey(cafebabeKey, 'hex');
   assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
-});
+  // Show that the public point (key) is generated while setting the
+  // private key.
+  assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
+
+  // Compressed and uncompressed public points/keys for other party's
+  // private key.
+  // 0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF
+  const peerPubPtComp =
+  '02c6b754b20826eb925e052ee2c25285b162b51fdca732bcf67e39d647fb6830ae';
+  const peerPubPtUnComp =
+  '04c6b754b20826eb925e052ee2c25285b162b51fdca732bcf67e39d647fb6830ae' +
+  'b651944a574a362082a77e3f2b5d9223eb54d7f2f76846522bf75f3bedb8178e';
+
+  const sharedSecret =
+  '1da220b5329bbe8bfd19ceef5a5898593f411a6f12ea40f2a8eead9a5cf59970';
+
+  assert.strictEqual(ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex'),
+                     sharedSecret);
+  assert.strictEqual(ecdh5.computeSecret(peerPubPtUnComp, 'hex', 'hex'),
+                     sharedSecret);
+
+  // Verify that we still have the same key pair as before the computation.
+  assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
+  assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
+
+  // Verify setting and getting compressed and non-compressed serializations.
+  ecdh5.setPublicKey(cafebabePubPtComp, 'hex');
+  assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
+  assert.strictEqual(
+    ecdh5.getPublicKey('hex', 'compressed'),
+    cafebabePubPtComp
+  );
+  ecdh5.setPublicKey(cafebabePubPtUnComp, 'hex');
+  assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
+  assert.strictEqual(
+    ecdh5.getPublicKey('hex', 'compressed'),
+    cafebabePubPtComp
+  );
+
+  // Show why allowing the public key to be set on this type
+  // does not make sense.
+  ecdh5.setPublicKey(peerPubPtComp, 'hex');
+  assert.strictEqual(ecdh5.getPublicKey('hex'), peerPubPtUnComp);
+  assert.throws(() => {
+    // Error because the public key does not match the private key anymore.
+    ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex');
+  }, /^Error: Invalid key pair$/);
+
+  // Set to a valid key to show that later attempts to set an invalid key are
+  // rejected.
+  ecdh5.setPrivateKey(cafebabeKey, 'hex');
+
+  [ // Some invalid private keys for the secp256k1 curve.
+    '0000000000000000000000000000000000000000000000000000000000000000',
+    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141',
+    'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
+  ].forEach((element) => {
+    assert.throws(() => {
+      ecdh5.setPrivateKey(element, 'hex');
+    }, /^Error: Private key is not valid for specified curve\.$/);
+    // Verify object state did not change.
+    assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
+  });
+}
 
 // invalid test: curve argument is undefined
 assert.throws(() => {
