@@ -45,7 +45,8 @@ function re(literals, ...values) {
   }
   assert.doesNotThrow(() => assert.deepEqual(fakeGlobal, global));
   // Message will be truncated anyway, don't validate
-  assert.throws(() => assert.deepStrictEqual(fakeGlobal, global));
+  assert.throws(() => assert.deepStrictEqual(fakeGlobal, global),
+                assert.AssertionError);
 }
 
 { // At the moment process has its own type tag
@@ -56,6 +57,7 @@ function re(literals, ...values) {
   }
   assert.doesNotThrow(() => assert.deepEqual(fakeProcess, process));
   // Message will be truncated anyway, don't validate
-  assert.throws(() => assert.deepStrictEqual(fakeProcess, process));
+  assert.throws(() => assert.deepStrictEqual(fakeProcess, process),
+                assert.AssertionError);
 }
 /* eslint-enable */

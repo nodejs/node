@@ -35,7 +35,7 @@ console.error('thrown error');
 script = new Script('throw new Error(\'test\');');
 assert.throws(function() {
   script.runInThisContext(script);
-});
+}, /^Error: test$/);
 
 global.hello = 5;
 script = new Script('hello = 2');
