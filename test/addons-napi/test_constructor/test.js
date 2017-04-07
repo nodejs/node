@@ -13,7 +13,7 @@ assert.strictEqual(test_object.readwriteValue, 1);
 test_object.readwriteValue = 2;
 assert.strictEqual(test_object.readwriteValue, 2);
 
-assert.throws(() => { test_object.readonlyValue = 3; });
+assert.throws(() => { test_object.readonlyValue = 3; }, TypeError);
 
 assert.ok(test_object.hiddenValue);
 
@@ -35,8 +35,8 @@ assert.ok(propertyNames.indexOf('readonlyAccessor2') < 0);
 test_object.readwriteAccessor1 = 1;
 assert.strictEqual(test_object.readwriteAccessor1, 1);
 assert.strictEqual(test_object.readonlyAccessor1, 1);
-assert.throws(() => { test_object.readonlyAccessor1 = 3; });
+assert.throws(() => { test_object.readonlyAccessor1 = 3; }, TypeError);
 test_object.readwriteAccessor2 = 2;
 assert.strictEqual(test_object.readwriteAccessor2, 2);
 assert.strictEqual(test_object.readonlyAccessor2, 2);
-assert.throws(() => { test_object.readonlyAccessor2 = 3; });
+assert.throws(() => { test_object.readonlyAccessor2 = 3; }, TypeError);
