@@ -3,7 +3,6 @@
 const common = require('../common');
 const util = require('util');
 const URL = require('url').URL;
-const path = require('path');
 const assert = require('assert');
 
 if (!common.hasIntl) {
@@ -63,3 +62,6 @@ assert.strictEqual(
 assert.strictEqual(
   util.inspect({ a: url }, { depth: 0 }),
   '{ a: [Object] }');
+
+class MyURL extends URL {}
+assert(util.inspect(new MyURL(url.href)).startsWith('MyURL {'));
