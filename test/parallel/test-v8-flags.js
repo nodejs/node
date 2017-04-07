@@ -1,8 +1,9 @@
 'use strict';
-require('../common');
-var assert = require('assert');
-var v8 = require('v8');
-var vm = require('vm');
+const common = require('../common');
+const assert = require('assert');
+const exec = require('child_process').execSync;
+const v8 = require('v8');
+const vm = require('vm');
 
 // Note: changing V8 flags after an isolate started is not guaranteed to work.
 // Specifically here, V8 may cache compiled scripts between the flip of the
@@ -14,3 +15,15 @@ assert(vm.runInThisContext('%_IsSmi(43)'));
 v8.setFlagsFromString('--noallow_natives_syntax');
 assert.throws(function() { eval('%_IsSmi(44)'); }, SyntaxError);
 assert.throws(function() { vm.runInThisContext('%_IsSmi(45)'); }, SyntaxError);
+
+// Verify that the --harmony-proxies flag doesn't error
+const flags = ['--harmony-proxies',
+               '--harmony_proxies',
+               '-harmony-proxies',
+               '-harmony_proxies'];
+
+for (const flag of flags) {
+  assert.doesNotThrow(common.mustCall(() => {
+    exec(`${process.execPath} ${flag}`)
+  }));
+}
