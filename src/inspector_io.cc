@@ -155,7 +155,7 @@ class DispatchOnInspectorBackendTask : public v8::Task {
 
 InspectorIo::InspectorIo(Environment* env, v8::Platform* platform,
                          const std::string& path, const DebugOptions& options)
-                         : options_(options), delegate_(nullptr),
+                         : options_(options), thread_(), delegate_(nullptr),
                            shutting_down_(false), state_(State::kNew),
                            parent_env_(env), io_thread_req_(),
                            platform_(platform), dispatching_messages_(false),
@@ -236,6 +236,7 @@ void InspectorIo::WriteCbIO(uv_async_t* async) {
 template<typename Transport>
 void InspectorIo::WorkerRunIO() {
   uv_loop_t loop;
+  loop.data = nullptr;
   int err = uv_loop_init(&loop);
   CHECK_EQ(err, 0);
   io_thread_req_.data = nullptr;
@@ -244,8 +245,11 @@ void InspectorIo::WorkerRunIO() {
   std::string script_path;
   if (!script_name_.empty()) {
     uv_fs_t req;
-    if (0 == uv_fs_realpath(&loop, &req, script_name_.c_str(), nullptr))
+    req.ptr = nullptr;
+    if (0 == uv_fs_realpath(&loop, &req, script_name_.c_str(), nullptr)) {
+      CHECK_NE(req.ptr, nullptr);
       script_path = std::string(static_cast<char*>(req.ptr));
+    }
     uv_fs_req_cleanup(&req);
   }
   InspectorIoDelegate delegate(this, script_path, script_name_,
