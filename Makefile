@@ -765,7 +765,11 @@ cpplint:
 	@$(PYTHON) tools/check-imports.py
 
 ifneq ("","$(wildcard tools/eslint/lib/eslint.js)")
-lint: jslint cpplint
+lint:
+	EXIT_STATUS=0 ; \
+	$(MAKE) jslint || EXIT_STATUS=$$? ; \
+	$(MAKE) cpplint || EXIT_STATUS=$$? ; \
+	exit $$EXIT_STATUS
 CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
 lint-ci: jslint-ci cpplint
 	@if ! ( grep -IEqrs "$(CONFLICT_RE)" benchmark deps doc lib src test tools ) \
