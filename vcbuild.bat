@@ -376,55 +376,63 @@ goto cpplint
 if not defined cpplint goto jslint
 echo running cpplint
 set cppfilelist=
-setlocal enabledelayedexpansion
-for /f "tokens=*" %%G in ('dir /b /s /a src\*.c src\*.cc src\*.h ^
-test\addons\*.cc test\addons\*.h test\cctest\*.cc test\cctest\*.h ^
-test\gc\binding.cc tools\icu\*.cc tools\icu\*.h') do (
-  set relpath=%%G
-  set relpath=!relpath:*%~dp0=!
-  call :add-to-list !relpath!
-)
-( endlocal
-  set cppfilelist=%localcppfilelist%
-)
+set cpp_locs=src\*.c
+set cpp_locs=%cpp_locs% src\*.cc
+set cpp_locs=%cpp_locs% src\*.h
+set cpp_locs=%cpp_locs% test\addons\*.cc
+set cpp_locs=%cpp_locs% test\addons\*.h
+set cpp_locs=%cpp_locs% test\cctest\*.cc
+set cpp_locs=%cpp_locs% test\cctest\*.h
+set cpp_locs=%cpp_locs% test\gc\binding.cc
+set cpp_locs=%cpp_locs% tools\icu\*.cc
+set cpp_locs=%cpp_locs% tools\icu\*.h
+for /f "tokens=*" %%G in ('dir /b /s /a:, %cpp_locs%') do call :add-to-list %%G
 python tools/cpplint.py %cppfilelist%
 python tools/check-imports.py
 goto jslint
 
 :add-to-list
-echo %1 | findstr /c:"src\node_root_certs.h"
-if %errorlevel% equ 0 goto exit
+setlocal enabledelayedexpansion
+set base_path=
+set relpath=%1
+set relpath=!relpath:%~dp0=!
+endlocal&set relpath=%relpath%
+@rem findstr can do multiple searches, but only for regexes
+set find_arg=/r
+set find_arg=%find_arg% /c:"src\\node_root_certs\.h"
+set find_arg=%find_arg% /c:"src\\queue\.h"
+set find_arg=%find_arg% /c:"src\\tree\.h"
+set find_arg=%find_arg% /c:"src\\.*\\.*"
+set find_arg=%find_arg% /c:"test\\addons\\[0-9].*_.*\.h"
+set find_arg=%find_arg% /c:"test\\addons\\[0-9].*_.*\.cc"
+echo %relpath% | findstr %find_arg% > nul
+if not errorlevel 1 exit /b
+set "cppfilelist=%cppfilelist% %relpath%"
+exit /b
 
-echo %1 | findstr /c:"src\queue.h"
-if %errorlevel% equ 0 goto exit
-
-echo %1 | findstr /c:"src\tree.h"
-if %errorlevel% equ 0 goto exit
-
-@rem skip subfolders under /src
-echo %1 | findstr /r /c:"src\\.*\\.*"
-if %errorlevel% equ 0 goto exit
-
-echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.h"
-if %errorlevel% equ 0 goto exit
-
-echo %1 | findstr /r /c:"test\\addons\\[0-9].*_.*\.cc"
-if %errorlevel% equ 0 goto exit
-
-set "localcppfilelist=%localcppfilelist% %1"
+:find_node
+if exist %config%\node set nodeexe=%config%\node&exit /b
+where node > nul 2> nul
+if not errorlevel 1 set nodeexe=node&exit /b
+echo Could not file node.exe
 goto exit
+exit /b
 
 :jslint
 if defined jslint_ci goto jslint-ci
 if not defined jslint goto exit
 if not exist tools\eslint\lib\eslint.js goto no-lint
+call :find_node
 echo running jslint
-%config%\node tools\eslint\bin\eslint.js --cache --rule "linebreak-style: 0" --rulesdir=tools\eslint-rules benchmark lib test tools
+%nodeexe% tools\eslint\bin\eslint.js --cache --rule "linebreak-style: 0" --rulesdir=tools\eslint-rules benchmark lib test tools
+if not errorlevel 1 echo jslint finished with no errors
 goto exit
 
 :jslint-ci
+call :find_node
 echo running jslint-ci
-%config%\node tools\jslint.js -J -f tap -o test-eslint.tap benchmark lib test tools
+%nodeexe% tools\jslint.js -J -f tap -o test-eslint.tap benchmark lib test tools
+if not errorlevel 1 echo jslint-ci finished with no errors
 goto exit
 
 :no-lint
@@ -437,7 +445,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vc2015] [download-all] [enable-vtune] [lint/lint-ci]
+echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vc2015] [download-all] [enable-vtune] [lint/lint-ci/jslint/jslint-ci]
 echo Examples:
 echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
