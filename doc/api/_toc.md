@@ -14,6 +14,7 @@
 * [Console](console.html)
 * [Crypto](crypto.html)
 * [Debugger](debugger.html)
+* [Deprecated APIs](deprecations.html)
 * [DNS](dns.html)
 * [Domain](domain.html)
 * [Errors](errors.html)
