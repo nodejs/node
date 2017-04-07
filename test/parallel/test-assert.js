@@ -522,15 +522,19 @@ testAssertionMessage({a: undefined, b: null}, '{ a: undefined, b: null }');
 testAssertionMessage({a: NaN, b: Infinity, c: -Infinity},
                      '{ a: NaN, b: Infinity, c: -Infinity }');
 
-// https://github.com/nodejs/node-v0.x-archive/issues/2893
-try {
-  // eslint-disable-next-line no-restricted-syntax
-  assert.throws(function() {
-    assert.ifError(null);
-  });
-} catch (e) {
-  threw = true;
-  assert.strictEqual(e.message, 'Missing expected exception..');
+// #2893
+{
+  let threw = false;
+  try {
+    // eslint-disable-next-line no-restricted-syntax
+    assert.throws(function() {
+      assert.ifError(null);
+    });
+  } catch (e) {
+    threw = true;
+    assert.strictEqual(e.message, 'Missing expected exception..');
+  }
+  assert.ok(threw);
 }
 assert.ok(threw);
 
