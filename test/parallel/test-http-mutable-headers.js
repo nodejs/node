@@ -22,10 +22,18 @@ const cookies = [
 const s = http.createServer(function(req, res) {
   switch (test) {
     case 'headers':
-      assert.throws(function() { res.setHeader(); });
-      assert.throws(function() { res.setHeader('someHeader'); });
-      assert.throws(function() { res.getHeader(); });
-      assert.throws(function() { res.removeHeader(); });
+      assert.throws(() => {
+        res.setHeader();
+      }, /^TypeError: Header name must be a valid HTTP Token \["undefined"\]$/);
+      assert.throws(() => {
+        res.setHeader('someHeader');
+      }, /^Error: "value" required in setHeader\("someHeader", value\)$/);
+      assert.throws(() => {
+        res.getHeader();
+      }, /^Error: "name" argument is required for getHeader\(name\)$/);
+      assert.throws(() => {
+        res.removeHeader();
+      }, /^Error: "name" argument is required for removeHeader\(name\)$/);
 
       res.setHeader('x-test-header', 'testing');
       res.setHeader('X-TEST-HEADER2', 'testing');
