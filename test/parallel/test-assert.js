@@ -240,7 +240,8 @@ assert.throws(
 {
   const re1 = /a/;
   re1.lastIndex = 3;
-  assert.throws(makeBlock(a.deepStrictEqual, re1, /a/));
+  assert.throws(makeBlock(a.deepStrictEqual, re1, /a/),
+                /^AssertionError: \/a\/ deepStrictEqual \/a\/$/);
 }
 
 // 7.4 - strict
@@ -262,10 +263,12 @@ assert.doesNotThrow(makeBlock(a.deepStrictEqual, {a: 4}, {a: 4}));
 assert.doesNotThrow(makeBlock(a.deepStrictEqual,
                               {a: 4, b: '2'},
                               {a: 4, b: '2'}));
-assert.throws(makeBlock(a.deepStrictEqual, [4], ['4']));
+assert.throws(makeBlock(a.deepStrictEqual, [4], ['4']),
+              /^AssertionError: \[ 4 ] deepStrictEqual \[ '4' ]$/);
 assert.throws(makeBlock(a.deepStrictEqual, {a: 4}, {a: 4, b: true}),
-              a.AssertionError);
-assert.throws(makeBlock(a.deepStrictEqual, ['a'], {0: 'a'}));
+              /^AssertionError: { a: 4 } deepStrictEqual { a: 4, b: true }$/);
+assert.throws(makeBlock(a.deepStrictEqual, ['a'], {0: 'a'}),
+              /^AssertionError: \[ 'a' ] deepStrictEqual { '0': 'a' }$/);
 //(although not necessarily the same order),
 assert.doesNotThrow(makeBlock(a.deepStrictEqual,
                               {a: 4, b: '1'},
@@ -342,9 +345,11 @@ function thrower(errorConstructor) {
 assert.throws(makeBlock(thrower, a.AssertionError),
               a.AssertionError, 'message');
 assert.throws(makeBlock(thrower, a.AssertionError), a.AssertionError);
+// eslint-disable-next-line assert-throws-arguments
 assert.throws(makeBlock(thrower, a.AssertionError));
 
 // if not passing an error, catch all.
+// eslint-disable-next-line assert-throws-arguments
 assert.throws(makeBlock(thrower, TypeError));
 
 // when passing a type, only catch errors of the appropriate type
@@ -517,6 +522,7 @@ testAssertionMessage({a: NaN, b: Infinity, c: -Infinity},
 
 // #2893
 try {
+  // eslint-disable-next-line assert-throws-arguments
   assert.throws(function() {
     assert.ifError(null);
   });

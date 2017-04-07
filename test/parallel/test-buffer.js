@@ -41,11 +41,11 @@ for (const [key, value] of e.entries()) {
 
 assert.throws(function() {
   Buffer(8).fill('a', -1);
-});
+}, /^RangeError: Out of range index$/);
 
 assert.throws(function() {
   Buffer(8).fill('a', 0, 9);
-});
+}, /^RangeError: Out of range index$/);
 
 // Make sure this doesn't hang indefinitely.
 Buffer(8).fill('');
@@ -1433,17 +1433,17 @@ if (common.hasCrypto) {
 assert.throws(function() {
   const b = Buffer(1);
   Buffer.compare(b, 'abc');
-});
+}, /^TypeError: Arguments must be Buffers$/);
 
 assert.throws(function() {
   const b = Buffer(1);
   Buffer.compare('abc', b);
-});
+}, /^TypeError: Arguments must be Buffers$/);
 
 assert.throws(function() {
   const b = Buffer(1);
   b.compare('abc');
-});
+}, /^TypeError: Argument must be a Buffer$/);
 
 // Test Equals
 {
@@ -1461,10 +1461,12 @@ assert.throws(function() {
 assert.throws(function() {
   const b = Buffer(1);
   b.equals('abc');
-});
+}, /^TypeError: Argument must be a Buffer$/);
 
 // Regression test for https://github.com/nodejs/node/issues/649.
-assert.throws(function() { Buffer(1422561062959).toString('utf8'); });
+assert.throws(function() {
+  Buffer(1422561062959).toString('utf8');
+}, /^RangeError: Invalid typed array length$/);
 
 const ps = Buffer.poolSize;
 Buffer.poolSize = 0;
@@ -1474,7 +1476,7 @@ Buffer.poolSize = ps;
 // Test Buffer.copy() segfault
 assert.throws(function() {
   Buffer(10).copy();
-});
+}, /^TypeError: argument should be a Buffer$/);
 
 const regErrorMsg = new RegExp('First argument must be a string, Buffer, ' +
                                'ArrayBuffer, Array, or array-like object.');
