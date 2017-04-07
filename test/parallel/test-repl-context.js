@@ -22,5 +22,5 @@ function testContext(repl) {
   assert.strictEqual(context.global, context);
 
   // ensure that the repl console instance does not have a setter
-  assert.throws(() => context.console = 'foo');
+  assert.throws(() => context.console = 'foo', TypeError);
 }

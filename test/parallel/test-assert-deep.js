@@ -26,18 +26,21 @@ function re(literals, ...values) {
 const arr = new Uint8Array([120, 121, 122, 10]);
 const buf = Buffer.from(arr);
 // They have different [[Prototype]]
-assert.throws(() => assert.deepStrictEqual(arr, buf));
+assert.throws(() => assert.deepStrictEqual(arr, buf),
+              re`${arr} deepStrictEqual ${buf}`);
 assert.doesNotThrow(() => assert.deepEqual(arr, buf));
 
 const buf2 = Buffer.from(arr);
 buf2.prop = 1;
 
-assert.throws(() => assert.deepStrictEqual(buf2, buf));
+assert.throws(() => assert.deepStrictEqual(buf2, buf),
+              re`${buf2} deepStrictEqual ${buf}`);
 assert.doesNotThrow(() => assert.deepEqual(buf2, buf));
 
 const arr2 = new Uint8Array([120, 121, 122, 10]);
 arr2.prop = 5;
-assert.throws(() => assert.deepStrictEqual(arr, arr2));
+assert.throws(() => assert.deepStrictEqual(arr, arr2),
+              re`${arr} deepStrictEqual ${arr2}`);
 assert.doesNotThrow(() => assert.deepEqual(arr, arr2));
 
 const date = new Date('2016');
@@ -121,19 +124,23 @@ function assertDeepAndStrictEqual(a, b) {
 }
 
 function assertNotDeepOrStrict(a, b) {
-  assert.throws(() => assert.deepEqual(a, b));
-  assert.throws(() => assert.deepStrictEqual(a, b));
+  assert.throws(() => assert.deepEqual(a, b), re`${a} deepEqual ${b}`);
+  assert.throws(() => assert.deepStrictEqual(a, b),
+                re`${a} deepStrictEqual ${b}`);
 
-  assert.throws(() => assert.deepEqual(b, a));
-  assert.throws(() => assert.deepStrictEqual(b, a));
+  assert.throws(() => assert.deepEqual(b, a), re`${b} deepEqual ${a}`);
+  assert.throws(() => assert.deepStrictEqual(b, a),
+                re`${b} deepStrictEqual ${a}`);
 }
 
 function assertOnlyDeepEqual(a, b) {
   assert.doesNotThrow(() => assert.deepEqual(a, b));
-  assert.throws(() => assert.deepStrictEqual(a, b));
+  assert.throws(() => assert.deepStrictEqual(a, b),
+                re`${a} deepStrictEqual ${b}`);
 
   assert.doesNotThrow(() => assert.deepEqual(b, a));
-  assert.throws(() => assert.deepStrictEqual(b, a));
+  assert.throws(() => assert.deepStrictEqual(b, a),
+                re`${b} deepStrictEqual ${a}`);
 }
 
 // es6 Maps and Sets
@@ -232,10 +239,13 @@ assertDeepAndStrictEqual(
   assertNotDeepOrStrict(m1, m2);
 }
 
-assert.deepEqual(new Map([[1, 1]]), new Map([[1, '1']]));
-assert.throws(() =>
-  assert.deepStrictEqual(new Map([[1, 1]]), new Map([[1, '1']]))
-);
+{
+  const map1 = new Map([[1, 1]]);
+  const map2 = new Map([[1, '1']]);
+  assert.deepEqual(map1, map2);
+  assert.throws(() => assert.deepStrictEqual(map1, map2),
+                re`${map1} deepStrictEqual ${map2}`);
+}
 
 {
   // Two equivalent sets / maps with different key/values applied shouldn't be
