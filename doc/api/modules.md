@@ -569,12 +569,12 @@ function require(/* ... */) {
   const module = { exports: {} };
   ((module, exports) => {
     // Your module code here. In this example, define a function.
-    function some_func() {}
-    exports = some_func;
+    function someFunc() {}
+    exports = someFunc;
     // At this point, exports is no longer a shortcut to module.exports, and
     // this module will still export an empty default object.
-    module.exports = some_func;
-    // At this point, the module will now export some_func, instead of the
+    module.exports = someFunc;
+    // At this point, the module will now export someFunc, instead of the
     // default object.
   })(module, module.exports);
   return module.exports;
