@@ -201,12 +201,6 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
     __ mov(data, FieldOperand(data, CallHandlerInfo::kDataOffset));
   }
 
-  if (api_call_info->fast_handler()->IsCode()) {
-    // Just tail call into the code.
-    __ Jump(handle(Code::cast(api_call_info->fast_handler())),
-            RelocInfo::CODE_TARGET);
-    return;
-  }
   // Put api_function_address in place.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
   __ mov(api_function_address, Immediate(function_address));

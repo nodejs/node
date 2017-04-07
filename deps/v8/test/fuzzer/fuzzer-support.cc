@@ -75,7 +75,7 @@ FuzzerSupport::~FuzzerSupport() {
 // static
 FuzzerSupport* FuzzerSupport::Get() { return g_fuzzer_support; }
 
-v8::Isolate* FuzzerSupport::GetIsolate() { return isolate_; }
+v8::Isolate* FuzzerSupport::GetIsolate() const { return isolate_; }
 
 v8::Local<v8::Context> FuzzerSupport::GetContext() {
   v8::Isolate::Scope isolate_scope(isolate_);

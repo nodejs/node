@@ -64,7 +64,6 @@ class HeapProfiler {
 
   v8::RetainedObjectInfo* ExecuteWrapperClassCallback(uint16_t class_id,
                                                       Object** wrapper);
-  void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
 
   void SetGetRetainerInfosCallback(
       v8::HeapProfiler::GetRetainerInfosCallback callback);

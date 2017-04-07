@@ -724,7 +724,8 @@ enum InstanceType {
   JS_MESSAGE_OBJECT_TYPE,
   JS_DATE_TYPE,
   // Like JS_OBJECT_TYPE, but created from API function.
-  JS_API_OBJECT_TYPE,
+  // We add 3 here for ABI compatibility.
+  JS_API_OBJECT_TYPE = JS_DATE_TYPE + 3,
   JS_OBJECT_TYPE,
   JS_ARGUMENTS_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
@@ -2768,7 +2769,7 @@ class FixedArray: public FixedArrayBase {
   void Shrink(int length);
 
   // Copy a sub array from the receiver to dest.
-  void CopyTo(int pos, FixedArray* dest, int dest_pos, int len);
+  void CopyTo(int pos, FixedArray* dest, int dest_pos, int len) const;
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {
@@ -2941,9 +2942,15 @@ class ArrayList : public FixedArray {
   static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj1,
                                Handle<Object> obj2, AddMode = kNone);
   static Handle<ArrayList> New(Isolate* isolate, int size);
-  inline int Length();
+
+  // Returns the number of elements in the list, not the allocated size, which
+  // is length(). Lower and upper case length() return different results!
+  inline int Length() const;
+
+  // Sets the Length() as used by Elements(). Does not change the underlying
+  // storage capacity, i.e., length().
   inline void SetLength(int length);
-  inline Object* Get(int index);
+  inline Object* Get(int index) const;
   inline Object** Slot(int index);
   inline void Set(int index, Object* obj,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
@@ -11173,7 +11180,6 @@ class CallHandlerInfo: public Struct {
  public:
   DECL_ACCESSORS(callback, Object)
   DECL_ACCESSORS(data, Object)
-  DECL_ACCESSORS(fast_handler, Object)
 
   DECLARE_CAST(CallHandlerInfo)
 
@@ -11183,8 +11189,7 @@ class CallHandlerInfo: public Struct {
 
   static const int kCallbackOffset = HeapObject::kHeaderSize;
   static const int kDataOffset = kCallbackOffset + kPointerSize;
-  static const int kFastHandlerOffset = kDataOffset + kPointerSize;
-  static const int kSize = kFastHandlerOffset + kPointerSize;
+  static const int kSize = kDataOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CallHandlerInfo);

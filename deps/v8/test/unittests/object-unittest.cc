@@ -23,7 +23,8 @@ TEST(Object, InstanceTypeListOrder) {
 #define TEST_INSTANCE_TYPE(type)                                           \
   current_type = InstanceType::type;                                       \
   current = static_cast<int>(current_type);                                \
-  if (current > static_cast<int>(LAST_NAME_TYPE)) {                        \
+  if (current > static_cast<int>(LAST_NAME_TYPE) &&                        \
+      current != JS_API_OBJECT_TYPE) {                                     \
     EXPECT_EQ(last + 1, current);                                          \
   }                                                                        \
   EXPECT_LT(last, current) << " INSTANCE_TYPE_LIST is not ordered: "       \

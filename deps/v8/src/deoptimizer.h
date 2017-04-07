@@ -1023,7 +1023,7 @@ class MaterializedObjectStore {
   bool Remove(Address fp);
 
  private:
-  Isolate* isolate() { return isolate_; }
+  Isolate* isolate() const { return isolate_; }
   Handle<FixedArray> GetStackEntries();
   Handle<FixedArray> EnsureStackEntries(int size);
 
