@@ -142,7 +142,7 @@ rules:
 
   # Custom rules in tools/eslint-rules
   align-multiline-assignment: 2
-  assert-throws-arguments: [2, { requireTwo: false }]
+  assert-throws-arguments: [2, { requireTwo: true }]
   no-unescaped-regexp-dot: 2
 
 # Global scoped method and vars
