@@ -1,4 +1,4 @@
-/******************************************************************************
+﻿/******************************************************************************
  * Experimental prototype for demonstrating VM agnostic and ABI stable API
  * for native modules to use instead of using Nan and V8 APIs directly.
  *
@@ -2162,7 +2162,7 @@ napi_status napi_instanceof(napi_env env,
 
   if (env->has_instance_available) {
     napi_value value, js_result, has_instance = nullptr;
-    napi_status status;
+    napi_status status = napi_ok;
     napi_valuetype value_type;
 
     // Get "Symbol" from the global object
