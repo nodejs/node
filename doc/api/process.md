@@ -1256,9 +1256,12 @@ function maybeSync(arg, cb) {
 This API is hazardous because in the following case:
 
 ```js
-maybeSync(true, () => {
+const maybeTrue = Math.random() > 0.5;
+
+maybeSync(maybeTrue, () => {
   foo();
 });
+
 bar();
 ```
 
