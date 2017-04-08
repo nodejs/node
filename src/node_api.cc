@@ -2164,7 +2164,7 @@ napi_status napi_instanceof(napi_env env,
 
   if (env->has_instance_available) {
     napi_value value, js_result, has_instance = nullptr;
-    napi_status status;
+    napi_status status = napi_generic_failure;
     napi_valuetype value_type;
 
     // Get "Symbol" from the global object
@@ -2187,14 +2187,12 @@ napi_status napi_instanceof(napi_env env,
         if (value_type == napi_symbol) {
           env->has_instance.Reset(env->isolate,
               v8impl::V8LocalValueFromJsValue(value));
-          if (status != napi_ok) return status;
           has_instance = value;
         }
       }
     } else {
       has_instance = v8impl::JsValueFromV8LocalValue(
           v8::Local<v8::Value>::New(env->isolate, env->has_instance));
-      if (status != napi_ok) return status;
     }
 
     if (has_instance) {
