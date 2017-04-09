@@ -230,7 +230,7 @@ Benchmark.prototype.report = function(rate, elapsed) {
   sendResult({
     name: this.name,
     conf: this.config,
-    rate: rate,
+    rate,
     time: elapsed[0] + elapsed[1] / 1e9,
     type: 'report'
   });

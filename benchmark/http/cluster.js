@@ -29,7 +29,7 @@ function main(conf) {
       var path = '/' + conf.type + '/' + conf.length;
 
       bench.http({
-        path: path,
+        path,
         connections: conf.c
       }, function() {
         w1.destroy();

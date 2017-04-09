@@ -19,7 +19,7 @@ function main(conf) {
                conf.res;
 
     bench.http({
-      path: path,
+      path,
       connections: conf.c
     }, function() {
       server.close();

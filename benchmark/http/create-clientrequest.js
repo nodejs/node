@@ -13,7 +13,7 @@ function main(conf) {
   var n = +conf.n;
 
   var path = '/'.repeat(pathlen);
-  var opts = { path: path, createConnection: function() {} };
+  var opts = { path, createConnection() {} };
 
   bench.start();
   for (var i = 0; i < n; i++) {
