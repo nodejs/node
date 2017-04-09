@@ -110,6 +110,9 @@ rules:
   }, {
     selector: "ThrowStatement > CallExpression[callee.name=/Error$/]",
     message: "Use new keyword when throwing an Error."
+    }, {
+    selector: "CallExpression[callee.object.name='assert'][callee.property.name='fail'][arguments.length=1]",
+    message: "assert.fail() message should be third argument"
     }]
   no-tabs: 2
   no-trailing-spaces: 2
@@ -142,7 +145,6 @@ rules:
 
   # Custom rules in tools/eslint-rules
   align-multiline-assignment: 2
-  assert-fail-single-argument: 2
   assert-throws-arguments: [2, { requireTwo: false }]
   no-unescaped-regexp-dot: 2
 
