@@ -8,7 +8,8 @@ if (cluster.isMaster) {
     // unicode confuses ab on os x.
     type: ['bytes', 'buffer'],
     length: [4, 1024, 102400],
-    c: [50, 500]
+    c: [50, 500],
+    dur: [10]
   });
 } else {
   require('./_http_simple.js');
@@ -30,7 +31,8 @@ function main(conf) {
 
       bench.http({
         path: path,
-        connections: conf.c
+        connections: conf.c,
+        duration: conf.dur
       }, function() {
         w1.destroy();
         w2.destroy();

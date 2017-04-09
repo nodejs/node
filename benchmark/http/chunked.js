@@ -13,7 +13,8 @@ var common = require('../common.js');
 var bench = common.createBenchmark(main, {
   num: [1, 4, 8, 16],
   size: [1, 64, 256],
-  c: [100]
+  c: [100],
+  dur: [10]
 });
 
 function main(conf) {
@@ -33,7 +34,8 @@ function main(conf) {
 
   server.listen(common.PORT, function() {
     bench.http({
-      connections: conf.c
+      connections: conf.c,
+      duration: conf.dur
     }, function() {
       server.close();
     });

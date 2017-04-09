@@ -8,7 +8,8 @@ var bench = common.createBenchmark(main, {
   length: [4, 1024, 102400],
   chunks: [0, 1, 4],  // chunks=0 means 'no chunked encoding'.
   c: [50, 500],
-  res: ['normal', 'setHeader', 'setHeaderWH']
+  res: ['normal', 'setHeader', 'setHeaderWH'],
+  dur: [10]
 });
 
 function main(conf) {
@@ -20,7 +21,8 @@ function main(conf) {
 
     bench.http({
       path: path,
-      connections: conf.c
+      connections: conf.c,
+      duration: conf.dur
     }, function() {
       server.close();
     });
