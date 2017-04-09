@@ -246,12 +246,6 @@ Checks whether `IPv6` is supported on this platform.
 
 Checks if there are multiple localhosts available.
 
-### fail(msg)
-* `msg` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
-* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
-
-Throws an `AssertionError` with `msg`
-
 ### fileExists(pathname)
 * pathname [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)

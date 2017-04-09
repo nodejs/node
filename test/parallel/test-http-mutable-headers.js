@@ -127,7 +127,7 @@ const s = http.createServer(common.mustCall((req, res) => {
       break;
 
     default:
-      common.fail('Unknown test');
+      assert.fail('Unknown test');
   }
 
   res.statusCode = 201;
@@ -174,7 +174,7 @@ function nextTest() {
         break;
 
       default:
-        common.fail('Unknown test');
+        assert.fail('Unknown test');
     }
 
     response.setEncoding('utf8');

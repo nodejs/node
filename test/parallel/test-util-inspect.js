@@ -239,7 +239,7 @@ for (const showHidden of [true, false]) {
       {visible: {value: 1, enumerable: true}, hidden: {value: 2}}), true);
   if (out !== '{ [hidden]: 2, visible: 1 }' &&
       out !== '{ visible: 1, [hidden]: 2 }') {
-    common.fail(`unexpected value for out ${out}`);
+    assert.fail(`unexpected value for out ${out}`);
   }
 }
 
@@ -251,7 +251,7 @@ for (const showHidden of [true, false]) {
                                            hidden: {value: 'secret'}}), true);
   if (out !== "{ [hidden]: 'secret', name: 'Tim' }" &&
       out !== "{ name: 'Tim', [hidden]: 'secret' }") {
-    common.fail(`unexpected value for out ${out}`);
+    assert.fail(`unexpected value for out ${out}`);
   }
 }
 

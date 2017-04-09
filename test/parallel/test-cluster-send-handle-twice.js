@@ -51,7 +51,7 @@ if (cluster.isMaster) {
     setTimeout(function() { client.end(); }, 50);
   }).on('error', function(e) {
     console.error(e);
-    common.fail('server.listen failed');
+    assert.fail('server.listen failed');
     cluster.worker.disconnect();
   });
 }

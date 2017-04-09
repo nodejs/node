@@ -62,7 +62,7 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
   try {
     stats = fs.fstatSync(fd);
   } catch (err) {
-    common.fail(err);
+    assert.fail(err);
   }
   if (stats) {
     console.dir(stats);
