@@ -236,8 +236,8 @@ On Windows:
 
 ```js
 path.format({
-  dir : "C:\\path\\dir",
-  base : "file.txt"
+  dir: "C:\\path\\dir",
+  base: "file.txt"
 });
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
