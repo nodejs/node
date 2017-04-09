@@ -256,6 +256,7 @@ If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned.
 
+## assert.fail(message)
 ## assert.fail(actual, expected, message, operator)
 <!-- YAML
 added: v0.1.21
@@ -263,7 +264,7 @@ added: v0.1.21
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
-* `operator` {string}
+* `operator` {string} (default: '!=')
 
 Throws an `AssertionError`. If `message` is falsy, the error message is set as
 the values of `actual` and `expected` separated by the provided `operator`.
@@ -277,6 +278,12 @@ assert.fail(1, 2, undefined, '>');
 
 assert.fail(1, 2, 'whoops', '>');
 // AssertionError: whoops
+
+assert.fail('boom');
+// AssertionError: boom
+
+assert.fail('a', 'b');
+// AssertionError: 'a' != 'b'
 ```
 
 ## assert.ifError(value)
