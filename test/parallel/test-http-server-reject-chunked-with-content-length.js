@@ -23,7 +23,7 @@ server.listen(0, () => {
   client.on('data', (data) => {
     // Should not get to this point because the server should simply
     // close the connection without returning any data.
-    common.fail('no data should be returned by the server');
+    assert.fail('no data should be returned by the server');
   });
   client.on('end', common.mustCall(() => {}));
 });

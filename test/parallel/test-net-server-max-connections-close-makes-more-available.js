@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const net = require('net');
@@ -86,5 +86,5 @@ process.on('exit', function() {
 
 process.on('unhandledRejection', function() {
   console.error('promise rejected');
-  common.fail('A promise in the chain rejected');
+  assert.fail('A promise in the chain rejected');
 });

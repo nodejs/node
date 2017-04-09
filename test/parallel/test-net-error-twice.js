@@ -20,7 +20,7 @@ const srv = net.createServer(function onConnection(conn) {
   conn.on('error', function(err) {
     errs.push(err);
     if (errs.length > 1 && errs[0] === errs[1])
-      assert(false, 'We should not be emitting the same error twice');
+      assert.fail('Should not emit the same error twice');
   });
   conn.on('close', function() {
     srv.unref();

@@ -4,7 +4,7 @@
 
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const EventEmitter = require('events');
 const leak_warning = /EventEmitter memory leak detected\. 2 hello listeners/;
@@ -26,7 +26,7 @@ process.stderr.write = (data) => {
   if (write_calls === 0)
     assert.ok(leak_warning.test(data));
   else
-    common.fail('stderr.write should be called only once');
+    assert.fail('stderr.write should be called only once');
 
   write_calls++;
 };

@@ -49,11 +49,11 @@ function listener2() {}
   const ee = new EventEmitter();
 
   function remove1() {
-    common.fail('remove1 should not have been called');
+    assert.fail('remove1 should not have been called');
   }
 
   function remove2() {
-    common.fail('remove2 should not have been called');
+    assert.fail('remove2 should not have been called');
   }
 
   ee.on('removeListener', common.mustCall(function(name, cb) {
