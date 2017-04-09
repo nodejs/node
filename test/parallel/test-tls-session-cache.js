@@ -102,7 +102,7 @@ function doTest(testOptions, callback) {
             spawnClient();
             return;
           }
-          common.fail(`code: ${code}, signal: ${signal}, output: ${err}`);
+          assert.fail(`code: ${code}, signal: ${signal}, output: ${err}`);
         }
         assert.strictEqual(code, 0);
         server.close(common.mustCall(function() {

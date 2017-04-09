@@ -1,8 +1,9 @@
 'use strict';
-const common = require('../common');
+require('../common');
+const assert = require('assert');
 
 process.on('beforeExit', function() {
-  common.fail('exit should not allow this to occur');
+  assert.fail('exit should not allow this to occur');
 });
 
 process.exit();

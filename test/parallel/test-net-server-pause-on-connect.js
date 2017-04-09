@@ -10,7 +10,7 @@ let server1Sock;
 const server1ConnHandler = (socket) => {
   socket.on('data', function(data) {
     if (stopped) {
-      common.fail('data event should not have happened yet');
+      assert.fail('data event should not have happened yet');
     }
 
     assert.strictEqual(data.toString(), msg, 'invalid data received');

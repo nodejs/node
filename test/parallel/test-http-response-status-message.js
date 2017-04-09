@@ -23,7 +23,7 @@ testCases.findByPath = function(path) {
     return testCase.path === path;
   });
   if (matching.length === 0) {
-    throw 'failed to find test case with path ' + path;
+    assert.fail(`failed to find test case with path ${path}`);
   }
   return matching[0];
 };

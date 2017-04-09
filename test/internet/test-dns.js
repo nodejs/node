@@ -449,7 +449,7 @@ TEST(function test_lookup_all_mixed(done) {
       else if (isIPv6(ip.address))
         assert.strictEqual(ip.family, 6);
       else
-        assert(false);
+        assert.fail('unexpected IP address');
     });
 
     done();
