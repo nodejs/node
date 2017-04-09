@@ -194,6 +194,7 @@ If the values are not equal, an `AssertionError` is thrown with a `message`
 property set equal to the value of the `message` parameter. If the `message`
 parameter is undefined, a default error message is assigned.
 
+## assert.fail(message)
 ## assert.fail(actual, expected[, message[, operator[, stackStartFunction]]])
 <!-- YAML
 added: v0.1.21
@@ -201,7 +202,7 @@ added: v0.1.21
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
-* `operator` {string}
+* `operator` {string} (default: '!=')
 * `stackStartFunction` {function} (default: `assert.fail`)
 
 Throws an `AssertionError`. If `message` is falsy, the error message is set as
@@ -221,6 +222,12 @@ assert.fail(1, 2, 'fail');
 
 assert.fail(1, 2, 'whoops', '>');
 // AssertionError: whoops
+
+assert.fail('boom');
+// AssertionError: boom
+
+assert.fail('a', 'b');
+// AssertionError: 'a' != 'b'
 ```
 
 Example use of `stackStartFunction` for truncating the exception's stacktrace:
