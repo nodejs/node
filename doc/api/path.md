@@ -236,8 +236,8 @@ On Windows:
 
 ```js
 path.format({
-  dir : "C:\\path\\dir",
-  base : "file.txt"
+  dir: 'C:\\path\\dir',
+  base: 'file.txt'
 });
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
@@ -299,7 +299,7 @@ path.join('/foo', 'bar', 'baz/asdf', 'quux', '..')
 // Returns: '/foo/bar/baz/asdf'
 
 path.join('foo', {}, 'bar')
-// throws TypeError: Arguments to path.join must be strings
+// throws 'TypeError: Path must be a string. Received {}'
 ```
 
 A [`TypeError`][] is thrown if any of the path segments is not a string.
@@ -332,7 +332,7 @@ path.normalize('/foo/bar//baz/asdf/quux/..')
 On Windows:
 
 ```js
-path.normalize('C:\\temp\\\\foo\\bar\\..\\');
+path.normalize('C:\\temp\\\\foo\\bar\\..\\')
 // Returns: 'C:\\temp\\foo\\'
 ```
 
@@ -362,13 +362,11 @@ For example on POSIX:
 ```js
 path.parse('/home/user/dir/file.txt')
 // Returns:
-// {
-//    root : "/",
-//    dir : "/home/user/dir",
-//    base : "file.txt",
-//    ext : ".txt",
-//    name : "file"
-// }
+// { root: '/',
+//   dir: '/home/user/dir',
+//   base: 'file.txt',
+//   ext: '.txt',
+//   name: 'file' }
 ```
 
 ```text
@@ -386,13 +384,11 @@ On Windows:
 ```js
 path.parse('C:\\path\\dir\\file.txt')
 // Returns:
-// {
-//    root : "C:\\",
-//    dir : "C:\\path\\dir",
-//    base : "file.txt",
-//    ext : ".txt",
-//    name : "file"
-// }
+// { root: 'C:\\',
+//   dir: 'C:\\path\\dir',
+//   base: 'file.txt',
+//   ext: '.txt',
+//   name: 'file' }
 ```
 
 ```text
