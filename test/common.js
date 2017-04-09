@@ -404,7 +404,7 @@ process.on('exit', function() {
   if (!exports.globalCheck) return;
   const leaked = leakedGlobals();
   if (leaked.length > 0) {
-    fail(`Unexpected global(s) found: ${leaked.join(', ')}`);
+    assert.fail(`Unexpected global(s) found: ${leaked.join(', ')}`);
   }
 });
 
@@ -507,14 +507,9 @@ exports.canCreateSymLink = function() {
   return true;
 };
 
-function fail(msg) {
-  assert.fail(null, null, msg);
-}
-exports.fail = fail;
-
 exports.mustNotCall = function(msg) {
   return function mustNotCall() {
-    fail(msg || 'function should not have been called');
+    assert.fail(msg || 'function should not have been called');
   };
 };
 
@@ -627,7 +622,7 @@ exports.WPT = {
   },
   assert_array_equals: assert.deepStrictEqual,
   assert_unreached(desc) {
-    assert.fail(undefined, undefined, `Reached unreachable code: ${desc}`);
+    assert.fail(`Reached unreachable code: ${desc}`);
   }
 };
 

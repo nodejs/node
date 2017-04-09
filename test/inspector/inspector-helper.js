@@ -217,7 +217,7 @@ TestSession.prototype.sendInspectorCommands = function(commands) {
         for (const id in this.messages_) {
           s += id + ', ';
         }
-        common.fail('Messages without response: ' +
+        assert.fail('Messages without response: ' +
                     s.substring(0, s.length - 2));
       }, TIMEOUT);
     });

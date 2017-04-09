@@ -95,10 +95,10 @@ check(fs.symlink, fs.symlinkSync, fileUrl, 'foobar');
 check(fs.symlink, fs.symlinkSync, 'foobar', fileUrl);
 check(fs.truncate, fs.truncateSync, fileUrl);
 check(fs.unlink, fs.unlinkSync, fileUrl);
-check(null, fs.unwatchFile, fileUrl, common.fail);
+check(null, fs.unwatchFile, fileUrl, assert.fail);
 check(fs.utimes, fs.utimesSync, fileUrl, 0, 0);
-check(null, fs.watch, fileUrl, common.fail);
-check(null, fs.watchFile, fileUrl, common.fail);
+check(null, fs.watch, fileUrl, assert.fail);
+check(null, fs.watchFile, fileUrl, assert.fail);
 check(fs.writeFile, fs.writeFileSync, fileUrl, 'abc');
 
 check(fs.access, fs.accessSync, fileUrl2);
@@ -123,10 +123,10 @@ check(fs.symlink, fs.symlinkSync, fileUrl2, 'foobar');
 check(fs.symlink, fs.symlinkSync, 'foobar', fileUrl2);
 check(fs.truncate, fs.truncateSync, fileUrl2);
 check(fs.unlink, fs.unlinkSync, fileUrl2);
-check(null, fs.unwatchFile, fileUrl2, common.fail);
+check(null, fs.unwatchFile, fileUrl2, assert.fail);
 check(fs.utimes, fs.utimesSync, fileUrl2, 0, 0);
-check(null, fs.watch, fileUrl2, common.fail);
-check(null, fs.watchFile, fileUrl2, common.fail);
+check(null, fs.watch, fileUrl2, assert.fail);
+check(null, fs.watchFile, fileUrl2, assert.fail);
 check(fs.writeFile, fs.writeFileSync, fileUrl2, 'abc');
 
 // an 'error' for exists means that it doesn't exist.

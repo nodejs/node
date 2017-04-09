@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -8,7 +8,7 @@ const theExperimentallyDeterminedNumber = 39;
 
 function fail(path) {
   assert.throws(() => {
-    http.request({ path }, common.fail);
+    http.request({ path }, assert.fail);
   }, expectedError);
 }
 

@@ -31,7 +31,7 @@ assert.throws(function() {
 }, /SyntaxError/);
 
 assert.throws(function() {
-  vm.runInDebugContext({ toString: common.fail });
+  vm.runInDebugContext({ toString: assert.fail });
 }, /AssertionError/);
 
 assert.throws(function() {

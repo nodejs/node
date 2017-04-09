@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -41,7 +41,7 @@ const srv = net.createServer(function onConnection(conn) {
   conn.on('error', function(err) {
     errs.push(err);
     if (errs.length > 1 && errs[0] === errs[1])
-      common.fail('Should not emit the same error twice');
+      assert.fail('Should not emit the same error twice');
   });
   conn.on('close', function() {
     srv.unref();

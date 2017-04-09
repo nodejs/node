@@ -34,7 +34,7 @@ e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 
 const remove = function() {
-  common.fail('once->foo should not be emitted');
+  assert.fail('once->foo should not be emitted');
 };
 
 e.once('foo', remove);

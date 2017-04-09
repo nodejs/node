@@ -40,7 +40,7 @@ socket.on('error', (err) => {
     return;
   }
 
-  common.fail(`Unexpected error: ${err}`);
+  assert.fail(`Unexpected error: ${err}`);
 });
 
 // Initiate a few send() operations, which will fail.

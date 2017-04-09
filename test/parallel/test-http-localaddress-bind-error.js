@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const http = require('http');
 
 const invalidLocalAddress = '1.2.3.4';
@@ -43,7 +44,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     method: 'GET',
     localAddress: invalidLocalAddress
   }, function(res) {
-    common.fail('unexpectedly got response from server');
+    assert.fail('unexpectedly got response from server');
   }).on('error', common.mustCall(function(e) {
     console.log('client got error: ' + e.message);
     server.close();
