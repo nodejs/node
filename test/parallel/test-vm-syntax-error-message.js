@@ -11,7 +11,9 @@ const p = child_process.spawn(process.execPath, [
       'catch (e) { console.log(e.message); }'
 ]);
 
-p.stderr.on('data', common.mustNotCall());
+p.stderr.on('data', function(data) {
+  assert.fail(`Unexpected stderr data: ${data}`);
+});
 
 let output = '';
 

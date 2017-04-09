@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const http = require('http');
 const net = require('net');
 const url = require('url');
@@ -38,7 +38,7 @@ const server = http.createServer((req, res) => {
       test(res, 200, {'foo': y});
       break;
     default:
-      common.fail('should not get to here.');
+      assert.fail('should not get to here.');
   }
   if (count === 3)
     server.close();

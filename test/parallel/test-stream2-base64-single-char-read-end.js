@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const R = require('_stream_readable');
 const W = require('_stream_writable');
 const assert = require('assert');
@@ -33,5 +33,5 @@ src.on('end', function() {
 src.pipe(dst);
 
 timeout = setTimeout(function() {
-  common.fail('timed out waiting for _write');
+  assert.fail('timed out waiting for _write');
 }, 100);

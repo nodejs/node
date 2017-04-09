@@ -21,8 +21,7 @@ if (process.argv[2] === 'child') {
 
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', function(data) {
-    console.log('parent stderr: ' + data);
-    assert.ok(false);
+    assert.fail(`Unexpected parent stderr: ${data}`);
   });
 
   // check if we receive both 'hello' at start and 'goodbye' at end

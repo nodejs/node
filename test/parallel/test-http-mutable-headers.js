@@ -63,6 +63,8 @@ const s = http.createServer(function(req, res) {
       res.setHeader('x-foo', 'keyboard cat');
       res.writeHead(200, { 'x-foo': 'bar', 'x-bar': 'baz' });
       break;
+    default:
+      assert.fail('Unknown test');
   }
 
   res.statusCode = 201;
@@ -120,7 +122,7 @@ function nextTest() {
         break;
 
       default:
-        throw new Error('?');
+        assert.fail('Unknown test');
     }
 
     response.setEncoding('utf8');

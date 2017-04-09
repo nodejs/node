@@ -184,15 +184,16 @@ if (process.argv[2] === 'child') {
       test.expectedMessages.forEach(function(expectedMessage) {
         if (test.messagesReceived === undefined ||
           test.messagesReceived.indexOf(expectedMessage) === -1)
-          assert(false, `test ${test.fn.name} should have sent message: ${
-            expectedMessage} but didn't`);
+          assert.fail('test ' + test.fn.name + ' should have sent message: ' +
+                      expectedMessage + ' but didn\'t');
       });
 
       if (test.messagesReceived) {
         test.messagesReceived.forEach(function(receivedMessage) {
-          if (!test.expectedMessages.includes(receivedMessage)) {
-            assert(false, `test ${test.fn.name} should not have sent message: ${
-              receivedMessage} but did`);
+          if (test.expectedMessages.indexOf(receivedMessage) === -1) {
+            assert.fail('test ' + test.fn.name +
+                        ' should not have sent message: ' + receivedMessage +
+                        ' but did');
           }
         });
       }
