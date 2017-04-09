@@ -10,7 +10,7 @@ napi_value createNapiError(napi_env env, napi_callback_info info) {
 
   NAPI_ASSERT(env, status != napi_ok, "Failed to produce error condition");
 
-  return NULL;
+  return nullptr;
 }
 
 napi_value testNapiErrorCleanup(napi_env env, napi_callback_info info) {

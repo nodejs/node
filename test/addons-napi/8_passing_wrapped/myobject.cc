@@ -30,7 +30,7 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, NULL));
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, nullptr));
 
   MyObject* obj = new MyObject();
 

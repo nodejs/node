@@ -38,7 +38,7 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, NULL));
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, nullptr));
 
   if (is_constructor) {
     // Invoked as constructor: `new MyObject(...)`
@@ -79,7 +79,8 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
 
 napi_value MyObject::GetValue(napi_env env, napi_callback_info info) {
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &_this, NULL));
+  NAPI_CALL(env, 
+    napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
 
   MyObject* obj;
   NAPI_CALL(env, napi_unwrap(env, _this, reinterpret_cast<void**>(&obj)));
@@ -94,19 +95,20 @@ napi_value MyObject::SetValue(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, NULL));
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, nullptr));
 
   MyObject* obj;
   NAPI_CALL(env, napi_unwrap(env, _this, reinterpret_cast<void**>(&obj)));
 
   NAPI_CALL(env, napi_get_value_double(env, args[0], &obj->value_));
 
-  return NULL;
+  return nullptr;
 }
 
 napi_value MyObject::PlusOne(napi_env env, napi_callback_info info) {
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &_this, NULL));
+  NAPI_CALL(env, 
+    napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
 
   MyObject* obj;
   NAPI_CALL(env, napi_unwrap(env, _this, reinterpret_cast<void**>(&obj)));
@@ -123,7 +125,7 @@ napi_value MyObject::Multiply(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, NULL));
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, nullptr));
 
   double multiple = 1;
   if (argc >= 1) {

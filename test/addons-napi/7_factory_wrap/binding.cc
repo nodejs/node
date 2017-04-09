@@ -4,7 +4,7 @@
 napi_value CreateObject(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, nullptr, nullptr));
 
   napi_value instance;
   NAPI_CALL(env, MyObject::NewInstance(env, args[0], &instance));

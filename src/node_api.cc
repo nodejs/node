@@ -86,7 +86,7 @@ class napi_env__ {
     auto str_maybe = v8::String::NewFromUtf8(                            \
         (env)->isolate, (str), v8::NewStringType::kInternalized, (len)); \
     CHECK_MAYBE_EMPTY((env), str_maybe, napi_generic_failure);           \
-    result = str_maybe.ToLocalChecked();                                 \
+    (result) = str_maybe.ToLocalChecked();                               \
   } while (0)
 
 #define CHECK_NEW_FROM_UTF8(env, result, str) \
@@ -187,7 +187,7 @@ v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
   return local;
 }
 
-napi_status V8NameFromPropertyDescriptor(napi_env env,
+static inline napi_status V8NameFromPropertyDescriptor(napi_env env,
                                          const napi_property_descriptor* p,
                                          v8::Local<v8::Name>* result) {
   if (p->utf8name != nullptr) {
@@ -814,14 +814,14 @@ napi_status napi_define_class(napi_env env,
 
     v8::Local<v8::Name> property_name;
     napi_status status =
-      v8impl::V8NameFromPropertyDescriptor(env, p, &property_name);
+        v8impl::V8NameFromPropertyDescriptor(env, p, &property_name);
 
     if (status != napi_ok) {
       return napi_set_last_error(env, status);
     }
 
     v8::PropertyAttribute attributes =
-      v8impl::V8PropertyAttributesFromDescriptor(p);
+        v8impl::V8PropertyAttributesFromDescriptor(p);
 
     // This code is similar to that in napi_define_properties(); the
     // difference is it applies to a template instead of an object.
@@ -838,7 +838,7 @@ napi_status napi_define_class(napi_env env,
         attributes);
     } else if (p->method != nullptr) {
       v8::Local<v8::Object> cbdata =
-        v8impl::CreateFunctionCallbackData(env, p->method, p->data);
+          v8impl::CreateFunctionCallbackData(env, p->method, p->data);
 
       RETURN_STATUS_IF_FALSE(env, !cbdata.IsEmpty(), napi_generic_failure);
 
@@ -1116,14 +1116,14 @@ napi_status napi_define_properties(napi_env env,
 
     v8::Local<v8::Name> property_name;
     napi_status status =
-      v8impl::V8NameFromPropertyDescriptor(env, p, &property_name);
+        v8impl::V8NameFromPropertyDescriptor(env, p, &property_name);
 
     if (status != napi_ok) {
       return napi_set_last_error(env, status);
     }
 
     v8::PropertyAttribute attributes =
-          v8impl::V8PropertyAttributesFromDescriptor(p);
+        v8impl::V8PropertyAttributesFromDescriptor(p);
 
     if (p->getter != nullptr || p->setter != nullptr) {
       v8::Local<v8::Object> cbdata = v8impl::CreateAccessorCallbackData(

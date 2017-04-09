@@ -35,7 +35,7 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, NULL));
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, &_this, nullptr));
 
   napi_valuetype valuetype;
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype));
@@ -79,7 +79,8 @@ napi_status MyObject::NewInstance(napi_env env,
 
 napi_value MyObject::PlusOne(napi_env env, napi_callback_info info) {
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &_this, NULL));
+  NAPI_CALL(env, 
+    napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
 
   MyObject* obj;
   NAPI_CALL(env, napi_unwrap(env, _this, reinterpret_cast<void**>(&obj)));

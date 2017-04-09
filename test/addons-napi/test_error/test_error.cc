@@ -4,7 +4,7 @@
 napi_value checkError(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, nullptr, nullptr));
 
   bool r;
   NAPI_CALL(env, napi_is_error(env, args[0], &r));
