@@ -40,8 +40,8 @@ assert.throws(function() {
 }, /^TypeError: Invalid expected value: \/foo\/$/);
 
 
-// common.fail() tests
+// assert.fail() tests
 assert.throws(
-  () => { common.fail('fhqwhgads'); },
+  () => { assert.fail('fhqwhgads'); },
   /^AssertionError: fhqwhgads$/
 );

@@ -34,7 +34,7 @@ const server = net.createServer(function(socket) {
   socket.setNoDelay();
   socket.setTimeout(9999);
   socket.on('timeout', function() {
-    common.fail(`flushed: ${flushed}, received: ${received}/${SIZE * N}`);
+    assert.fail(`flushed: ${flushed}, received: ${received}/${SIZE * N}`);
   });
 
   for (let i = 0; i < N; ++i) {

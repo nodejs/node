@@ -38,7 +38,7 @@ tls.connect(opts, fail).on('error', common.mustCall((err) => {
 }));
 
 function fail() {
-  common.fail('should fail to connect');
+  assert.fail('should fail to connect');
 }
 
 // New secure contexts have the well-known root CAs.

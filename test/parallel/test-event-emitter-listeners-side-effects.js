@@ -21,7 +21,7 @@
 
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const EventEmitter = require('events').EventEmitter;
@@ -35,12 +35,12 @@ assert.strictEqual(fl.length, 0);
 assert(!(e._events instanceof Object));
 assert.deepStrictEqual(Object.keys(e._events), []);
 
-e.on('foo', common.fail);
+e.on('foo', assert.fail);
 fl = e.listeners('foo');
-assert.strictEqual(e._events.foo, common.fail);
+assert.strictEqual(e._events.foo, assert.fail);
 assert(Array.isArray(fl));
 assert.strictEqual(fl.length, 1);
-assert.strictEqual(fl[0], common.fail);
+assert.strictEqual(fl[0], assert.fail);
 
 e.listeners('bar');
 
@@ -49,12 +49,12 @@ fl = e.listeners('foo');
 
 assert(Array.isArray(e._events.foo));
 assert.strictEqual(e._events.foo.length, 2);
-assert.strictEqual(e._events.foo[0], common.fail);
+assert.strictEqual(e._events.foo[0], assert.fail);
 assert.strictEqual(e._events.foo[1], assert.ok);
 
 assert(Array.isArray(fl));
 assert.strictEqual(fl.length, 2);
-assert.strictEqual(fl[0], common.fail);
+assert.strictEqual(fl[0], assert.fail);
 assert.strictEqual(fl[1], assert.ok);
 
 console.log('ok');

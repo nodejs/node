@@ -41,7 +41,7 @@ const dgram = require('dgram');
 
   socket.on('error', (err) => {
     socket.close();
-    common.fail(`Unexpected error on udp4 socket. ${err.toString()}`);
+    assert.fail(`Unexpected error on udp4 socket. ${err.toString()}`);
   });
 
   socket.bind(0, common.localhostIPv4);
@@ -65,7 +65,7 @@ if (common.hasIPv6) {
 
   socket.on('error', (err) => {
     socket.close();
-    common.fail(`Unexpected error on udp6 socket. ${err.toString()}`);
+    assert.fail(`Unexpected error on udp6 socket. ${err.toString()}`);
   });
 
   socket.bind(0, localhost);

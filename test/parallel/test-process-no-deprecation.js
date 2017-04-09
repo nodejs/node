@@ -10,7 +10,7 @@ process.noDeprecation = true;
 const assert = require('assert');
 
 function listener() {
-  common.fail('received unexpected warning');
+  assert.fail('received unexpected warning');
 }
 
 process.addListener('warning', listener);

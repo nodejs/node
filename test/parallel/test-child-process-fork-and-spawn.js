@@ -37,7 +37,7 @@ switch (process.argv[2] || '') {
   case 'spawn':
     break;
   default:
-    common.fail();
+    assert.fail();
 }
 
 function checkExit(statusCode) {

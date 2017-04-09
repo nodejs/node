@@ -71,7 +71,7 @@ let clientError = null;
 let connectError = null;
 
 const server = tls.createServer({ ca: ca, cert: cert, key: key }, () => {
-  common.fail('should be unreachable');
+  assert.fail('should be unreachable');
 }).on('tlsClientError', function(err, conn) {
   assert(!clientError && conn);
   clientError = err;

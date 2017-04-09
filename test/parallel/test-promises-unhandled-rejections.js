@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const domain = require('domain');
 
@@ -164,7 +164,7 @@ asyncTest('Catching a promise rejection after setImmediate is not' +
   });
   _reject(e);
   setImmediate(function() {
-    promise.then(common.fail, function() {});
+    promise.then(assert.fail, function() {});
   });
 });
 
@@ -176,7 +176,7 @@ asyncTest('When re-throwing new errors in a promise catch, only the' +
     assert.strictEqual(e2, reason);
     assert.strictEqual(promise2, promise);
   });
-  const promise2 = Promise.reject(e).then(common.fail, function(reason) {
+  const promise2 = Promise.reject(e).then(assert.fail, function(reason) {
     assert.strictEqual(e, reason);
     throw e2;
   });
@@ -205,7 +205,7 @@ asyncTest('When re-throwing new errors in a promise catch, only the ' +
     setTimeout(function() {
       reject(e);
     }, 1);
-  }).then(common.fail, function(reason) {
+  }).then(assert.fail, function(reason) {
     assert.strictEqual(e, reason);
     throw e2;
   });
@@ -224,7 +224,7 @@ asyncTest('When re-throwing new errors in a promise catch, only the re-thrown' +
     setTimeout(function() {
       reject(e);
       process.nextTick(function() {
-        promise2 = promise.then(common.fail, function(reason) {
+        promise2 = promise.then(assert.fail, function(reason) {
           assert.strictEqual(e, reason);
           throw e2;
         });
@@ -240,7 +240,7 @@ asyncTest(
   function(done) {
     const e = new Error();
     onUnhandledFail(done);
-    Promise.reject(e).then(common.fail, function() {});
+    Promise.reject(e).then(assert.fail, function() {});
   }
 );
 
@@ -252,7 +252,7 @@ asyncTest(
     onUnhandledFail(done);
     new Promise(function(_, reject) {
       reject(e);
-    }).then(common.fail, function() {});
+    }).then(assert.fail, function() {});
   }
 );
 
@@ -262,7 +262,7 @@ asyncTest('Attaching a promise catch in a process.nextTick is soon enough to' +
   onUnhandledFail(done);
   const promise = Promise.reject(e);
   process.nextTick(function() {
-    promise.then(common.fail, function() {});
+    promise.then(assert.fail, function() {});
   });
 });
 
@@ -274,7 +274,7 @@ asyncTest('Attaching a promise catch in a process.nextTick is soon enough to' +
     reject(e);
   });
   process.nextTick(function() {
-    promise.then(common.fail, function() {});
+    promise.then(assert.fail, function() {});
   });
 });
 
@@ -305,7 +305,7 @@ asyncTest('catching a promise which is asynchronously rejected (via' +
         reject(e);
       }, 1);
     });
-  }).then(common.fail, function(reason) {
+  }).then(assert.fail, function(reason) {
     assert.strictEqual(e, reason);
   });
 });
@@ -316,7 +316,7 @@ asyncTest('Catching a rejected promise derived from throwing in a' +
   onUnhandledFail(done);
   Promise.resolve().then(function() {
     throw e;
-  }).then(common.fail, function(reason) {
+  }).then(assert.fail, function(reason) {
     assert.strictEqual(e, reason);
   });
 });
@@ -328,7 +328,7 @@ asyncTest('Catching a rejected promise derived from returning a' +
   onUnhandledFail(done);
   Promise.resolve().then(function() {
     return Promise.reject(e);
-  }).then(common.fail, function(reason) {
+  }).then(assert.fail, function(reason) {
     assert.strictEqual(e, reason);
   });
 });
@@ -382,7 +382,7 @@ asyncTest('Catching the Promise.all() of a collection that includes a' +
           'rejected promise prevents unhandledRejection', function(done) {
   const e = new Error();
   onUnhandledFail(done);
-  Promise.all([Promise.reject(e)]).then(common.fail, function() {});
+  Promise.all([Promise.reject(e)]).then(assert.fail, function() {});
 });
 
 asyncTest(
@@ -398,7 +398,7 @@ asyncTest(
     });
     p = Promise.all([p]);
     process.nextTick(function() {
-      p.then(common.fail, function() {});
+      p.then(assert.fail, function() {});
     });
   }
 );
@@ -434,7 +434,7 @@ asyncTest('Waiting setTimeout(, 10) to catch a promise causes an' +
     throw e;
   });
   setTimeout(function() {
-    thePromise.then(common.fail, function(reason) {
+    thePromise.then(assert.fail, function(reason) {
       assert.strictEqual(e, reason);
     });
   }, 10);

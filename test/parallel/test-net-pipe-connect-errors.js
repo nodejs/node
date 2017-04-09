@@ -56,7 +56,7 @@ if (common.isWindows) {
 }
 
 const notSocketClient = net.createConnection(emptyTxt, function() {
-  common.fail('connection callback should not run');
+  assert.fail('connection callback should not run');
 });
 
 notSocketClient.on('error', common.mustCall(function(err) {
@@ -67,7 +67,7 @@ notSocketClient.on('error', common.mustCall(function(err) {
 
 // Trying to connect to not-existing socket should result in ENOENT error
 const noEntSocketClient = net.createConnection('no-ent-file', function() {
-  common.fail('connection to non-existent socket, callback should not run');
+  assert.fail('connection to non-existent socket, callback should not run');
 });
 
 noEntSocketClient.on('error', common.mustCall(function(err) {
@@ -84,7 +84,7 @@ if (!common.isWindows && process.getuid() !== 0) {
     fs.chmodSync(common.PIPE, 0);
 
     const accessClient = net.createConnection(common.PIPE, function() {
-      common.fail('connection should get EACCES, callback should not run');
+      assert.fail('connection should get EACCES, callback should not run');
     });
 
     accessClient.on('error', common.mustCall(function(err) {
