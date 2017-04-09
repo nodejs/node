@@ -332,7 +332,7 @@ path.normalize('/foo/bar//baz/asdf/quux/..')
 On Windows:
 
 ```js
-path.normalize('C:\\temp\\\\foo\\bar\\..\\');
+path.normalize('C:\\temp\\\\foo\\bar\\..\\')
 // Returns: 'C:\\temp\\foo\\'
 ```
 
