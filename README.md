@@ -1,5 +1,7 @@
 <p align="center">
-  <img alt="Node.js" src="https://nodejs.org/static/images/logo-light.svg" width="400"/>
+  <a href="https://nodejs.org/">
+    <img alt="Node.js" src="https://nodejs.org/static/images/logo-light.svg" width="400"/>
+  </a>
 </p>
 <p align="center">
   <a title="Gitter" href="https://gitter.im/nodejs/node?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge"><img src="https://badges.gitter.im/Join%20Chat.svg"></a>
