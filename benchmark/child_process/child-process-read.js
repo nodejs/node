@@ -19,7 +19,7 @@ function main(conf) {
   const dur = +conf.dur;
   const len = +conf.len;
 
-  const msg = '"' + Array(len).join('.') + '"';
+  const msg = `"${'.'.repeat(len)}"`;
   const options = { 'stdio': ['ignore', 'pipe', 'ignore'] };
   const child = spawn('yes', [msg], options);
 
