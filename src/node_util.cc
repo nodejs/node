@@ -20,7 +20,6 @@ using v8::Value;
 
 
 #define VALUE_METHOD_MAP(V)                                                   \
-  V(isArrayBuffer, IsArrayBuffer)                                             \
   V(isDataView, IsDataView)                                                   \
   V(isDate, IsDate)                                                           \
   V(isExternal, IsExternal)                                                   \
@@ -30,7 +29,6 @@ using v8::Value;
   V(isRegExp, IsRegExp)                                                       \
   V(isSet, IsSet)                                                             \
   V(isSetIterator, IsSetIterator)                                             \
-  V(isSharedArrayBuffer, IsSharedArrayBuffer)                                 \
   V(isTypedArray, IsTypedArray)                                               \
   V(isUint8Array, IsUint8Array)
 
@@ -43,6 +41,12 @@ using v8::Value;
 
   VALUE_METHOD_MAP(V)
 #undef V
+
+static void IsAnyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(1, args.Length());
+  args.GetReturnValue().Set(
+    args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer());
+}
 
 static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
   // Return undefined if it's not a Promise.
@@ -150,6 +154,8 @@ void Initialize(Local<Object> target,
 #define V(lcname, ucname) env->SetMethod(target, #lcname, ucname);
   VALUE_METHOD_MAP(V)
 #undef V
+
+  env->SetMethod(target, "isAnyArrayBuffer", IsAnyArrayBuffer);
 
 #define V(name, _)                                                            \
   target->Set(context,                                                        \
