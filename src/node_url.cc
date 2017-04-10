@@ -1108,12 +1108,14 @@ namespace url {
             state = kFileHost;
           } else {
             if (has_base &&
-                base->scheme == "file:" &&
-                base->flags & URL_FLAGS_HAS_PATH &&
-                base->path.size() > 0 &&
-                NORMALIZED_WINDOWS_DRIVE_LETTER(base->path[0])) {
-              url->flags |= URL_FLAGS_HAS_PATH;
-              url->path.push_back(base->path[0]);
+                base->scheme == "file:") {
+              if (NORMALIZED_WINDOWS_DRIVE_LETTER(base->path[0])) {
+                url->flags |= URL_FLAGS_HAS_PATH;
+                url->path.push_back(base->path[0]);
+              } else {
+                url->flags |= URL_FLAGS_HAS_HOST;
+                url->host = base->host;
+              }
             }
             state = kPath;
             continue;
@@ -1196,6 +1198,14 @@ namespace url {
               url->path.push_back(segment);
             }
             buffer.clear();
+            if (url->scheme == "file:" &&
+                (ch == kEOL ||
+                 ch == '?' ||
+                 ch == '#')) {
+              while (url->path.size() > 1 && url->path[0].length() == 0) {
+                url->path.erase(url->path.begin());
+              }
+            }
             if (ch == '?') {
               url->flags |= URL_FLAGS_HAS_QUERY;
               state = kQuery;
