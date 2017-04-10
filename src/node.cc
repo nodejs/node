@@ -2286,6 +2286,42 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void GetResourceUsage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  uv_rusage_t rusage;
+  int err = uv_getrusage(&rusage);
+  if (err)
+    return env->ThrowUVException(err, "uv_getrusage");
+
+  // Get the double array pointer from the Float64Array argument.
+  CHECK(args[0]->IsFloat64Array());
+  Local<Float64Array> array = args[0].As<Float64Array>();
+  CHECK_EQ(array->Length(), 18);
+  Local<ArrayBuffer> ab = array->Buffer();
+  double* fields = static_cast<double*>(ab->GetContents().Data());
+
+  fields[0] = rusage.ru_utime.tv_sec;
+  fields[1] = rusage.ru_utime.tv_usec;
+  fields[2] = rusage.ru_stime.tv_sec;
+  fields[3] = rusage.ru_stime.tv_usec;
+  fields[4] = rusage.ru_maxrss;
+  fields[5] = rusage.ru_ixrss;
+  fields[6] = rusage.ru_idrss;
+  fields[7] = rusage.ru_isrss;
+  fields[8] = rusage.ru_minflt;
+  fields[9] = rusage.ru_majflt;
+  fields[10] = rusage.ru_nswap;
+  fields[11] = rusage.ru_inblock;
+  fields[12] = rusage.ru_oublock;
+  fields[13] = rusage.ru_msgsnd;
+  fields[14] = rusage.ru_msgrcv;
+  fields[15] = rusage.ru_nsignals;
+  fields[16] = rusage.ru_nvcsw;
+  fields[17] = rusage.ru_nivcsw;
+}
+
+
 void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -3403,6 +3439,7 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "hrtime", Hrtime);
 
   env->SetMethod(process, "cpuUsage", CPUUsage);
+  env->SetMethod(process, "resourceUsage", GetResourceUsage);
 
   env->SetMethod(process, "dlopen", DLOpen);
 
