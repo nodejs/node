@@ -182,8 +182,11 @@ bool InspectorIo::Start() {
 }
 
 void InspectorIo::Stop() {
+  if (State::kNew == state_)
+    return;
   int err = uv_thread_join(&thread_);
   CHECK_EQ(err, 0);
+  state_ = State::kNew;
 }
 
 bool InspectorIo::IsConnected() {
