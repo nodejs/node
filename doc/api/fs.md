@@ -1444,7 +1444,7 @@ changes:
                  it will emit a deprecation warning.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5616
-    description: The `options` parameter was added
+    description: The `options` parameter was added.
 -->
 
 * `path` {string|Buffer}
