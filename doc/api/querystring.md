@@ -101,6 +101,9 @@ added: v0.1.25
 The `querystring.stringify()` method produces a URL query string from a
 given `obj` by iterating through the object's "own properties".
 
+This method searializes the following types of values passed in `obj`: strings,
+finite numbers, booleans and arrays of the aforementioned types.
+
 For example:
 
 ```js
