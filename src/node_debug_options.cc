@@ -9,7 +9,9 @@ namespace node {
 
 namespace {
 const int default_debugger_port = 5858;
+#if HAVE_INSPECTOR
 const int default_inspector_port = 9229;
+#endif  // HAVE_INSPECTOR
 
 inline std::string remove_brackets(const std::string& host) {
   if (!host.empty() && host.front() == '[' && host.back() == ']')
