@@ -79,7 +79,7 @@ napi_value MyObject::New(napi_env env, napi_callback_info info) {
 
 napi_value MyObject::GetValue(napi_env env, napi_callback_info info) {
   napi_value _this;
-  NAPI_CALL(env, 
+  NAPI_CALL(env,
     napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
 
   MyObject* obj;
@@ -107,7 +107,7 @@ napi_value MyObject::SetValue(napi_env env, napi_callback_info info) {
 
 napi_value MyObject::PlusOne(napi_env env, napi_callback_info info) {
   napi_value _this;
-  NAPI_CALL(env, 
+  NAPI_CALL(env,
     napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
 
   MyObject* obj;

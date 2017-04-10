@@ -79,7 +79,7 @@ napi_status MyObject::NewInstance(napi_env env,
 
 napi_value MyObject::PlusOne(napi_env env, napi_callback_info info) {
   napi_value _this;
-  NAPI_CALL(env, 
+  NAPI_CALL(env,
     napi_get_cb_info(env, info, nullptr, nullptr, &_this, nullptr));
 
   MyObject* obj;

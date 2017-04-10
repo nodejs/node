@@ -15,7 +15,7 @@ napi_value CreateObject(napi_env env, napi_callback_info info) {
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   NAPI_CALL_RETURN_VOID(env, MyObject::Init(env));
 
-  napi_property_descriptor desc = 
+  napi_property_descriptor desc =
     DECLARE_NAPI_PROPERTY("exports", CreateObject);
   NAPI_CALL_RETURN_VOID(env, napi_define_properties(env, module, 1, &desc));
 }
