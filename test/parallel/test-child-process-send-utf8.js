@@ -24,7 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const fork = require('child_process').fork;
 
-const expected = Array(1e5).join('ßßßß');
+const expected = 'ßßßß'.repeat(1e5 - 1);
 if (process.argv[2] === 'child') {
   process.send(expected);
 } else {
