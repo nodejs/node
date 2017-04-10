@@ -40,7 +40,7 @@ napi_value Echo(napi_env env, napi_callback_info info) {
 
 napi_value New(napi_env env, napi_callback_info info) {
   napi_value _this;
-  NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, NULL, &_this));
+  NAPI_CALL(env, napi_get_cb_info(env, info, NULL, NULL, &_this, NULL));
 
   return _this;
 }
