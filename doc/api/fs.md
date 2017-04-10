@@ -1442,6 +1442,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
                  it will emit a deprecation warning.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5616
+    description: The `options` parameter was added.
 -->
 
 * `path` {string|Buffer}
