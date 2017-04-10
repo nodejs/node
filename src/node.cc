@@ -3887,8 +3887,10 @@ static void ParseArgs(int* argc,
   const char** new_exec_argv = new const char*[nargs];
   const char** new_v8_argv = new const char*[nargs];
   const char** new_argv = new const char*[nargs];
+#if HAVE_OPENSSL
   bool use_bundled_ca = false;
   bool use_openssl_ca = false;
+#endif  // HAVE_INSPECTOR
 
   for (unsigned int i = 0; i < nargs; ++i) {
     new_exec_argv[i] = nullptr;
