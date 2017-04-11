@@ -13,11 +13,11 @@
 | `lib/{crypto,tls,https}` | @nodejs/crypto |
 | `lib/dgram` | @cjihrig, @mcollina |
 | `lib/domains` | @misterdjules |
-| `lib/fs`, `src/{fs|file}` | @nodejs/fs |
+| `lib/fs`, `src/{fs,file}` | @nodejs/fs |
 | `lib/internal/url`, `src/node_url` | @nodejs/url |
 | `lib/{_}http{*}` | @nodejs/http |
 | `lib/net` | @bnoordhuis, @indutny, @nodejs/streams |
-| `lib/{_}stream{s|*}` | @nodejs/streams |
+| `lib/{_}stream{*}` | @nodejs/streams |
 | `lib/repl` | @addaleax, @fishrock123 |
 | `lib/timers` | @fishrock123, @misterdjules |
 | `lib/util` | @bnoordhuis, @cjihrig, @evanlucas |
