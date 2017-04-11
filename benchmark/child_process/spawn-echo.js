@@ -1,15 +1,15 @@
 'use strict';
 var common = require('../common.js');
 var bench = common.createBenchmark(main, {
-  thousands: [1]
+  n: [1000]
 });
 
 var spawn = require('child_process').spawn;
 function main(conf) {
-  var len = +conf.thousands * 1000;
+  var n = +conf.n;
 
   bench.start();
-  go(len, len);
+  go(n, n);
 }
 
 function go(n, left) {
