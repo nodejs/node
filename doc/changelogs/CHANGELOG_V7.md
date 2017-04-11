@@ -6,6 +6,7 @@
 </tr>
 <tr>
 <td>
+<a href="#7.9.0">7.9.0</a><br/>
 <a href="#7.8.0">7.8.0</a><br/>
 <a href="#7.7.4">7.7.4</a><br/>
 <a href="#7.7.3">7.7.3</a><br/>
@@ -32,6 +33,69 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="7.9.0"></a>
+## 2017-04-11, Version 7.9.0 (Current), @italoacasas
+
+### Notable Changes
+
+* **util**: console is now closer to what is supported in all major browsers (Roman Reiss) [#10308](https://github.com/nodejs/node/pull/10308)
+
+### Commits
+
+* [[`9f73df5910`](https://github.com/nodejs/node/commit/9f73df5910)] - **deps**: cherry-pick 22858cb from V8 upstream (Ali Ijaz Sheikh) [#11998](https://github.com/nodejs/node/pull/11998)
+* [[`b997e62692`](https://github.com/nodejs/node/commit/b997e62692)] - **test**: add internal/socket_list tests (DavidCai) [#12109](https://github.com/nodejs/node/pull/12109)
+* [[`c11c23b22b`](https://github.com/nodejs/node/commit/c11c23b22b)] - **doc**: make the heading consistent (Sakthipriyan Vairamani (thefourtheye)) [#11569](https://github.com/nodejs/node/pull/11569)
+* [[`67d21149a2`](https://github.com/nodejs/node/commit/67d21149a2)] - **crypto**: handle exceptions in hmac/hash.digest (Tobias Nießen) [#12164](https://github.com/nodejs/node/pull/12164)
+* [[`3b765f5366`](https://github.com/nodejs/node/commit/3b765f5366)] - **doc**: fix confusing example in process.md (Vse Mozhet Byt) [#12282](https://github.com/nodejs/node/pull/12282)
+* [[`37568c093a`](https://github.com/nodejs/node/commit/37568c093a)] - **src**: use std::list for at_exit_functions (Daniel Bevenius) [#12255](https://github.com/nodejs/node/pull/12255)
+* [[`2f9e2fcf3e`](https://github.com/nodejs/node/commit/2f9e2fcf3e)] - **doc**: update information on test/known_issues (Jan Krems) [#12262](https://github.com/nodejs/node/pull/12262)
+* [[`0f4319a14a`](https://github.com/nodejs/node/commit/0f4319a14a)] - **src**: use std::string for trace enabled_categories (Sam Roberts) [#12242](https://github.com/nodejs/node/pull/12242)
+* [[`6826637f11`](https://github.com/nodejs/node/commit/6826637f11)] - **doc**: fix missing argument for dns.resolvePtr() (Uppinder Chugh) [#12256](https://github.com/nodejs/node/pull/12256)
+* [[`4a6bb378d4`](https://github.com/nodejs/node/commit/4a6bb378d4)] - **doc**: fix confusing reference in net.md (Vse Mozhet Byt) [#12247](https://github.com/nodejs/node/pull/12247)
+* [[`3e8991cc56`](https://github.com/nodejs/node/commit/3e8991cc56)] - **doc**: modernize and fix code examples in modules.md (Vse Mozhet Byt) [#12224](https://github.com/nodejs/node/pull/12224)
+* [[`376f5ef1ee`](https://github.com/nodejs/node/commit/376f5ef1ee)] - **doc**: document the performance team (Gibson Fahnestock) [#12213](https://github.com/nodejs/node/pull/12213)
+* [[`c0b7c075da`](https://github.com/nodejs/node/commit/c0b7c075da)] - **doc**: add refack to collaborators (Refael Ackermann) [#12277](https://github.com/nodejs/node/pull/12277)
+* [[`83f855d505`](https://github.com/nodejs/node/commit/83f855d505)] - **doc**: add aqrln to collaborators (Alexey Orlenko) [#12273](https://github.com/nodejs/node/pull/12273)
+* [[`2fb2289177`](https://github.com/nodejs/node/commit/2fb2289177)] - **doc**: add sub domain to host in url (Steven) [#12233](https://github.com/nodejs/node/pull/12233)
+* [[`ac200a6122`](https://github.com/nodejs/node/commit/ac200a6122)] - **test**: add a second argument to assert.throws() (dave-k) [#12139](https://github.com/nodejs/node/pull/12139)
+* [[`3cdd04b1c0`](https://github.com/nodejs/node/commit/3cdd04b1c0)] - **test**: skip irrelevant test on Windows (Rich Trott) [#12261](https://github.com/nodejs/node/pull/12261)
+* [[`d4d6986551`](https://github.com/nodejs/node/commit/d4d6986551)] - **build**: fix path voodoo in icu-generic.gyp (Refael Ackermann) [#11217](https://github.com/nodejs/node/pull/11217)
+* [[`a735c16d52`](https://github.com/nodejs/node/commit/a735c16d52)] - **deps**: backport ec1ffe3 from upstream V8 (Daniel Bevenius) [#12061](https://github.com/nodejs/node/pull/12061)
+* [[`d641164d09`](https://github.com/nodejs/node/commit/d641164d09)] - **doc**: update pull request template URL layout (Rich Trott) [#12216](https://github.com/nodejs/node/pull/12216)
+* [[`6feea08587`](https://github.com/nodejs/node/commit/6feea08587)] - **buffer**: preallocate array with buffer length (alejandro) [#11733](https://github.com/nodejs/node/pull/11733)
+* [[`a703bdecc4`](https://github.com/nodejs/node/commit/a703bdecc4)] - **build**: add checks for openssl configure options (Daniel Bevenius) [#12175](https://github.com/nodejs/node/pull/12175)
+* [[`b495b6acdf`](https://github.com/nodejs/node/commit/b495b6acdf)] - **build**: make configure print statements consistent (Daniel Bevenius) [#12176](https://github.com/nodejs/node/pull/12176)
+* [[`f60b4553f3`](https://github.com/nodejs/node/commit/f60b4553f3)] - **doc**: modernize and fix code examples in https.md (Vse Mozhet Byt) [#12171](https://github.com/nodejs/node/pull/12171)
+* [[`74d0266694`](https://github.com/nodejs/node/commit/74d0266694)] - **doc**: fix string interpolation in Stream 'finish' (Vinay Hiremath) [#12221](https://github.com/nodejs/node/pull/12221)
+* [[`4b54520a4a`](https://github.com/nodejs/node/commit/4b54520a4a)] - **test**: refactor mkdtemp test and added async (Luca Maraschi) [#12080](https://github.com/nodejs/node/pull/12080)
+* [[`8caf6fd58a`](https://github.com/nodejs/node/commit/8caf6fd58a)] - **test**: add Unicode characters regression test (Alexey Orlenko) [#11423](https://github.com/nodejs/node/pull/11423)
+* [[`961c89cc61`](https://github.com/nodejs/node/commit/961c89cc61)] - **doc**: add table of contents to README.md (Jason Marsh) [#11635](https://github.com/nodejs/node/pull/11635)
+* [[`a11ed6a0b3`](https://github.com/nodejs/node/commit/a11ed6a0b3)] - **test**: more robust check for location of `node.exe` (Refael Ackermann) [#12120](https://github.com/nodejs/node/pull/12120)
+* [[`6083e7aa7b`](https://github.com/nodejs/node/commit/6083e7aa7b)] - **benchmark**: avoid TurboFan deopt in arrays bench (Michaël Zasso) [#11894](https://github.com/nodejs/node/pull/11894)
+* [[`cf1117bc13`](https://github.com/nodejs/node/commit/cf1117bc13)] - **doc**: fix the timing of setImmediate's execution (Daiki Arai) [#12034](https://github.com/nodejs/node/pull/12034)
+* [[`806c4f3c0c`](https://github.com/nodejs/node/commit/806c4f3c0c)] - **doc**: fix fs.read arg type (Daiki Arai) [#12034](https://github.com/nodejs/node/pull/12034)
+* [[`c814c7e9ea`](https://github.com/nodejs/node/commit/c814c7e9ea)] - **events**: do not keep arrays with a single listener (Luigi Pinca) [#12043](https://github.com/nodejs/node/pull/12043)
+* [[`36617fd5b8`](https://github.com/nodejs/node/commit/36617fd5b8)] - **doc**: add notes to http.get options (Raphael Okon) [#12124](https://github.com/nodejs/node/pull/12124)
+* [[`9e6b0a4604`](https://github.com/nodejs/node/commit/9e6b0a4604)] - **test**: performance, remove Popen(shell=True) on Win (Refael Ackermann) [#12138](https://github.com/nodejs/node/pull/12138)
+* [[`805ebef8b1`](https://github.com/nodejs/node/commit/805ebef8b1)] - **buffer**: optimize decoding wrapped base64 data (Alexey Orlenko) [#12146](https://github.com/nodejs/node/pull/12146)
+* [[`fb34d9c210`](https://github.com/nodejs/node/commit/fb34d9c210)] - **test**: increase querystring coverage (DavidCai) [#12163](https://github.com/nodejs/node/pull/12163)
+* [[`d6e9cf7c22`](https://github.com/nodejs/node/commit/d6e9cf7c22)] - **doc**: fix and update examples in http.md (Vse Mozhet Byt) [#12169](https://github.com/nodejs/node/pull/12169)
+* [[`f057cc3d84`](https://github.com/nodejs/node/commit/f057cc3d84)] - **benchmark**: replace \[\].join() with ''.repeat() (Vse Mozhet Byt) [#12170](https://github.com/nodejs/node/pull/12170)
+* [[`b15dc95848`](https://github.com/nodejs/node/commit/b15dc95848)] - **test**: fix flaky test-child-process-exec-timeout (Santiago Gimeno) [#12159](https://github.com/nodejs/node/pull/12159)
+* [[`72a27b3eb5`](https://github.com/nodejs/node/commit/72a27b3eb5)] - **build**: use $(RM) in Makefile for consistency (Gibson Fahnestock) [#12157](https://github.com/nodejs/node/pull/12157)
+* [[`3af9101d20`](https://github.com/nodejs/node/commit/3af9101d20)] - **doc, inspector**: note that the host is optional (Gibson Fahnestock) [#12149](https://github.com/nodejs/node/pull/12149)
+* [[`b52b3f6710`](https://github.com/nodejs/node/commit/b52b3f6710)] - **test**: reduce buffer size in buffer-creation test (Sakthipriyan Vairamani (thefourtheye)) [#11177](https://github.com/nodejs/node/pull/11177)
+* [[`b5283f9d4b`](https://github.com/nodejs/node/commit/b5283f9d4b)] - **doc**: add logo to README (Roman Reiss) [#12148](https://github.com/nodejs/node/pull/12148)
+* [[`305f822a36`](https://github.com/nodejs/node/commit/305f822a36)] - **net**: rename internal functions for readability (Joyee Cheung) [#11796](https://github.com/nodejs/node/pull/11796)
+* [[`2f88de1ce3`](https://github.com/nodejs/node/commit/2f88de1ce3)] - **vm**: use SetterCallback to set func declarations (AnnaMag) [#12051](https://github.com/nodejs/node/pull/12051)
+* [[`ffbcfdfe32`](https://github.com/nodejs/node/commit/ffbcfdfe32)] - **src**: fix base64 decoding (Nikolai Vavilov) [#11995](https://github.com/nodejs/node/pull/11995)
+* [[`8823861d9d`](https://github.com/nodejs/node/commit/8823861d9d)] - **tools**: update dotfile whitelist in .gitignore (Michaël Zasso) [#12116](https://github.com/nodejs/node/pull/12116)
+* [[`87ca9a6ffe`](https://github.com/nodejs/node/commit/87ca9a6ffe)] - **test**: fix flaky child-process-exec-kill-throws (Rich Trott) [#12111](https://github.com/nodejs/node/pull/12111)
+* [[`fdf76d5aa0`](https://github.com/nodejs/node/commit/fdf76d5aa0)] - **tools**: add missing #include "unicode/putil.h" (Steven R. Loomis) [#12078](https://github.com/nodejs/node/pull/12078)
+* [[`6130d547a0`](https://github.com/nodejs/node/commit/6130d547a0)] - **deps**: backport 8dde6ac from upstream V8 (Daniel Bevenius) [#12060](https://github.com/nodejs/node/pull/12060)
+* [[`1ee38eb874`](https://github.com/nodejs/node/commit/1ee38eb874)] - **(SEMVER-MINOR)** **util**: add %i and %f formatting specifiers (Roman Reiss) [#10308](https://github.com/nodejs/node/pull/10308)
+* [[`5ac719d0d2`](https://github.com/nodejs/node/commit/5ac719d0d2)] - **doc**: add deprecations page to docs toc (Michaël Zasso) [#12268](https://github.com/nodejs/node/pull/12268)
 
 <a id="7.8.0"></a>
 ## 2017-03-28, Version 7.8.0 (Current), @MylesBorins
