@@ -1800,13 +1800,13 @@ module.exports =
                 "hash": "#%c3%89t%C3%A9"
             }
         },
-        // {
-        //     "href": "javascript:alert(1)",
-        //     "new_value": "castle",
-        //     "expected": {
-        //         "href": "javascript:alert(1)#castle",
-        //         "hash": "#castle"
-        //     }
-        // }
+        {
+            "href": "javascript:alert(1)",
+            "new_value": "castle",
+            "expected": {
+                "href": "javascript:alert(1)#castle",
+                "hash": "#castle"
+            }
+        }
     ]
 }
