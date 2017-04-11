@@ -3,8 +3,8 @@ const common = require('../../common');
 const assert = require('assert');
 
 // testing handle scope api calls
-const test_handle_scope =
+const testHandleScope =
     require(`./build/${common.buildType}/test_handle_scope`);
 
-test_handle_scope.NewScope();
-assert.ok(test_handle_scope.NewScopeEscape() instanceof Object);
+testHandleScope.NewScope();
+assert.ok(testHandleScope.NewScopeEscape() instanceof Object);
