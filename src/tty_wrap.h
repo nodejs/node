@@ -44,7 +44,8 @@ class TTYWrap : public StreamWrap {
   TTYWrap(Environment* env,
           v8::Local<v8::Object> object,
           int fd,
-          bool readable);
+          bool readable,
+          int* init_err);
 
   static void GuessHandleType(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsTTY(const v8::FunctionCallbackInfo<v8::Value>& args);
