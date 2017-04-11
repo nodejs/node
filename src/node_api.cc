@@ -24,8 +24,7 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
                                 void* engine_reserved = nullptr);
 void napi_clear_last_error(napi_env env);
 
-class napi_env__ {
- public:
+struct napi_env__ {
   explicit napi_env__(v8::Isolate* _isolate): isolate(_isolate),
       has_instance_available(true), last_error() {}
   ~napi_env__() {
