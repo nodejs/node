@@ -184,6 +184,8 @@ void Agent::WorkerRun() {
 
     // Clean-up persistent
     api_.Reset();
+
+    env.CleanupHandles();
   }
   isolate->Dispose();
 }
