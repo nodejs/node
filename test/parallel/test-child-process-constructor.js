@@ -2,8 +2,7 @@
 
 require('../common');
 const assert = require('assert');
-const child_process = require('child_process');
-const ChildProcess = child_process.ChildProcess;
+const { ChildProcess } = require('child_process');
 assert.strictEqual(typeof ChildProcess, 'function');
 
 // test that we can call spawn
@@ -16,10 +15,11 @@ child.spawn({
 });
 
 assert.strictEqual(child.hasOwnProperty('pid'), true);
+assert(Number.isInteger(child.pid));
 
 // try killing with invalid signal
-assert.throws(function() {
+assert.throws(() => {
   child.kill('foo');
-}, /Unknown signal: foo/);
+}, /^Error: Unknown signal: foo$/);
 
 assert.strictEqual(child.kill(), true);
