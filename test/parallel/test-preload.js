@@ -29,6 +29,7 @@ const fixtureA = fixture('printA.js');
 const fixtureB = fixture('printB.js');
 const fixtureC = fixture('printC.js');
 const fixtureD = fixture('define-global.js');
+const fixtureE = fixture('process-module-wrap.js');
 const fixtureThrows = fixture('throws_error4.js');
 
 // test preloading a single module works
@@ -144,5 +145,14 @@ childProcess.exec(
   function(err, stdout, stderr) {
     assert.ifError(err);
     assert.ok(/worker terminated with code 43/.test(stdout));
+  }
+);
+
+// test that preload can be used with --eval
+childProcess.exec(
+  nodeBinary + ' ' + preloadOption([fixtureE]) + '-p "require(\'http\').hello"',
+  function(err, stdout, stderr) {
+    assert.ifError(err);
+    assert.strictEqual(stdout, 'hi\n');
   }
 );
