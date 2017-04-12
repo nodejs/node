@@ -192,26 +192,26 @@ function replaceInText(text) {
 // for example, link man page references to the actual page
 function parseText(lexed) {
   lexed.forEach(function(tok) {
-    if (tok.text && tok.type !== 'code') {
-      tok.text = replaceInText(tok.text);
-    }
+    if (tok.type === 'table') {
+      if (tok.cells) {
+        tok.cells.forEach((row, x) => {
+          row.forEach((_, y) => {
+            if (tok.cells[x] && tok.cells[x][y]) {
+              tok.cells[x][y] = replaceInText(tok.cells[x][y]);
+            }
+          });
+        });
+      }
 
-    if (tok.cells) {
-      tok.cells.forEach((row, x) => {
-        row.forEach((_, y) => {
-          if (tok.cells[x] && tok.cells[x][y]) {
-            tok.cells[x][y] = replaceInText(tok.cells[x][y]);
+      if (tok.header) {
+        tok.header.forEach((_, i) => {
+          if (tok.header[i]) {
+            tok.header[i] = replaceInText(tok.header[i]);
           }
         });
-      });
-    }
-
-    if (tok.header) {
-      tok.headers.forEach((_, i) => {
-        if (tok.headers[i]) {
-          tok.headers[i] = replaceInText(tok.headers[i]);
-        }
-      });
+      }
+    } else if (tok.text && tok.type !== 'code') {
+      tok.text = replaceInText(tok.text);
     }
   });
 }

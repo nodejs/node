@@ -176,7 +176,7 @@ added: v0.1.27
 Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an
 array of the resource records, specified by `rrtype` (resource record type):
 
-| `rrtype`  | Return array contains          | Result type | Shorthand method         |
+| `rrtype`  | Return {Array} contains        | Result type | Shorthand method         |
 |-----------|--------------------------------|-------------|--------------------------|
 | `'A'`     | IPv4 addresses (default)       | {string}    | [`dns.resolve4()`][]     |
 | `'AAAA'`  | IPv6 addresses                 | {string}    | [`dns.resolve6()`][]     |
