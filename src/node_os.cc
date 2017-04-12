@@ -36,6 +36,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -318,7 +319,12 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   if (args[0]->IsObject()) {
     Local<Object> options = args[0].As<Object>();
-    Local<Value> encoding_opt = options->Get(env->encoding_string());
+    MaybeLocal<Value> maybe_encoding = options->Get(env->context(),
+                                                    env->encoding_string());
+    if (maybe_encoding.IsEmpty())
+      return;
+
+    Local<Value> encoding_opt = maybe_encoding.ToLocalChecked();
     encoding = ParseEncoding(env->isolate(), encoding_opt, UTF8);
   } else {
     encoding = UTF8;
