@@ -178,16 +178,16 @@ array of the resource records, specified by `rrtype` (resource record type):
 
 | `rrtype`  | Return array contains          | Result type | Shorthand method         |
 |-----------|--------------------------------|-------------|--------------------------|
-| `'A'`     | IPv4 addresses (default)       | {String}    | [`dns.resolve4()`][]     |
-| `'AAAA'`  | IPv6 addresses                 | {String}    | [`dns.resolve6()`][]     |
-| `'CNAME'` | canonical name records         | {String}    | [`dns.resolveCname()`][] |
+| `'A'`     | IPv4 addresses (default)       | {string}    | [`dns.resolve4()`][]     |
+| `'AAAA'`  | IPv6 addresses                 | {string}    | [`dns.resolve6()`][]     |
+| `'CNAME'` | canonical name records         | {string}    | [`dns.resolveCname()`][] |
 | `'MX'`    | mail exchange records          | {Object}    | [`dns.resolveMx()`][]    |
 | `'NAPTR'` | name authority pointer records | {Object}    | [`dns.resolveNaptr()`][] |
-| `'NS'`    | name server records            | {String}    | [`dns.resolveNs()`][]    |
-| `'PTR'`   | pointer records                | {String}    | [`dns.resolvePtr()`][]   |
+| `'NS'`    | name server records            | {string}    | [`dns.resolveNs()`][]    |
+| `'PTR'`   | pointer records                | {string}    | [`dns.resolvePtr()`][]   |
 | `'SOA'`   | start of authority records     | {Object}    | [`dns.resolveSoa()`][]   |
 | `'SRV'`   | service records                | {Object}    | [`dns.resolveSrv()`][]   |
-| `'TXT'`   | text records                   | {String}    | [`dns.resolveTxt()`][]   |
+| `'TXT'`   | text records                   | {string}    | [`dns.resolveTxt()`][]   |
 
 The `callback` function has arguments `(err, addresses)`. When successful,
 `addresses` will be an array of results.
