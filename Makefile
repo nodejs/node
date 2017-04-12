@@ -450,7 +450,7 @@ endif
 DOCS_ANALYTICS ?=
 
 apidoc_sources = $(wildcard doc/api/*.md)
-apidocs_html = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.html))
+apidocs_html = $(apidoc_dirs) $(apiassets) out/doc/api/service_worker.js $(addprefix out/,$(apidoc_sources:.md=.html))
 apidocs_json = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.json))
 
 apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
@@ -465,6 +465,9 @@ $(apidoc_dirs):
 
 out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 	cp $< $@
+
+out/doc/api/service_worker.js:
+	cp out/doc/api/assets/service_worker.js out/doc/api/service_worker.js
 
 out/doc/%: doc/%
 	cp -r $< $@
