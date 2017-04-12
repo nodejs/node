@@ -46,6 +46,8 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+namespace {
+
 template <typename ResourceType, typename TypeName>
 class ExternString: public ResourceType {
  public:
@@ -141,6 +143,7 @@ MaybeLocal<String> ExternTwoByteString::NewExternal(
   return String::NewExternalTwoByte(isolate, h_str);
 }
 
+}  // anonymous namespace
 
 // supports regular and URL-safe base64
 const int8_t unbase64_table[256] =
@@ -182,15 +185,15 @@ static const int8_t unhex_table[256] =
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
   };
 
-#define unhex(x)                                                              \
-  static_cast<unsigned>(unhex_table[static_cast<uint8_t>(x)])
-
+static inline unsigned unhex(uint8_t x) {
+  return unhex_table[x];
+}
 
 template <typename TypeName>
-size_t hex_decode(char* buf,
-                  size_t len,
-                  const TypeName* src,
-                  const size_t srcLen) {
+static size_t hex_decode(char* buf,
+                         size_t len,
+                         const TypeName* src,
+                         const size_t srcLen) {
   size_t i;
   for (i = 0; i < len && i * 2 + 1 < srcLen; ++i) {
     unsigned a = unhex(src[i * 2 + 0]);

@@ -25,7 +25,7 @@
 #include "env-inl.h"
 
 namespace node {
-namespace uv {
+namespace {
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -45,9 +45,9 @@ void ErrName(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context) {
+void InitializeUV(Local<Object> target,
+                  Local<Value> unused,
+                  Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "errname"),
               env->NewFunctionTemplate(ErrName)->GetFunction());
@@ -59,7 +59,7 @@ void Initialize(Local<Object> target,
 }
 
 
-}  // namespace uv
+}  // anonymous namespace
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(uv, node::uv::Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(uv, node::InitializeUV)

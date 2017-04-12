@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
-#include "node_file.h"
 #include "node_buffer.h"
 #include "node_internals.h"
 #include "node_stat_watcher.h"
@@ -46,6 +45,7 @@
 #include <vector>
 
 namespace node {
+namespace {
 
 using v8::Array;
 using v8::ArrayBuffer;
@@ -148,16 +148,16 @@ void FSReqWrap::Dispose() {
 }
 
 
-static void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
+void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
 }
 
 
-static inline bool IsInt64(double x) {
+inline bool IsInt64(double x) {
   return x == static_cast<double>(static_cast<int64_t>(x));
 }
 
-static void After(uv_fs_t *req) {
+void After(uv_fs_t *req) {
   FSReqWrap* req_wrap = static_cast<FSReqWrap*>(req->data);
   CHECK_EQ(req_wrap->req(), req);
   req_wrap->ReleaseEarly();  // Free memory that's no longer used now.
@@ -401,7 +401,7 @@ class fs_req_wrap {
 
 #define SYNC_RESULT err
 
-static void Access(const FunctionCallbackInfo<Value>& args) {
+void Access(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args.GetIsolate());
   HandleScope scope(env->isolate());
 
@@ -423,7 +423,7 @@ static void Access(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void Close(const FunctionCallbackInfo<Value>& args) {
+void Close(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() < 1)
@@ -440,6 +440,7 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+}  // anonymous namespace
 
 void FillStatsArray(double* fields, const uv_stat_t* s) {
   fields[0] = s->st_dev;

@@ -67,6 +67,7 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+namespace {
 
 inline const char* ToErrorCodeString(int status) {
   switch (status) {
@@ -114,7 +115,7 @@ GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
 }
 
 
-static void NewGetAddrInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
+void NewGetAddrInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
 }
 
@@ -133,17 +134,17 @@ GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
 }
 
 
-static void NewGetNameInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
+void NewGetNameInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
 }
 
 
-static void NewQueryReqWrap(const FunctionCallbackInfo<Value>& args) {
+void NewQueryReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
 }
 
 
-static int cmp_ares_tasks(const node_ares_task* a, const node_ares_task* b) {
+int cmp_ares_tasks(const node_ares_task* a, const node_ares_task* b) {
   if (a->sock < b->sock)
     return -1;
   if (a->sock > b->sock)
@@ -158,14 +159,14 @@ RB_GENERATE_STATIC(node_ares_task_list, node_ares_task, node, cmp_ares_tasks)
 
 /* This is called once per second by loop->timer. It is used to constantly */
 /* call back into c-ares for possibly processing timeouts. */
-static void ares_timeout(uv_timer_t* handle) {
+void ares_timeout(uv_timer_t* handle) {
   Environment* env = Environment::from_cares_timer_handle(handle);
   CHECK_EQ(false, RB_EMPTY(env->cares_task_list()));
   ares_process_fd(env->cares_channel(), ARES_SOCKET_BAD, ARES_SOCKET_BAD);
 }
 
 
-static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
+void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
   node_ares_task* task = ContainerOf(&node_ares_task::poll_watcher, watcher);
   Environment* env = task->env;
 
@@ -186,7 +187,7 @@ static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
 }
 
 
-static void ares_poll_close_cb(uv_handle_t* watcher) {
+void ares_poll_close_cb(uv_handle_t* watcher) {
   node_ares_task* task = ContainerOf(&node_ares_task::poll_watcher,
                                   reinterpret_cast<uv_poll_t*>(watcher));
   free(task);
@@ -194,7 +195,7 @@ static void ares_poll_close_cb(uv_handle_t* watcher) {
 
 
 /* Allocates and returns a new node_ares_task */
-static node_ares_task* ares_task_create(Environment* env, ares_socket_t sock) {
+node_ares_task* ares_task_create(Environment* env, ares_socket_t sock) {
   auto task = node::UncheckedMalloc<node_ares_task>(1);
 
   if (task == nullptr) {
@@ -216,10 +217,10 @@ static node_ares_task* ares_task_create(Environment* env, ares_socket_t sock) {
 
 
 /* Callback from ares when socket operation is started */
-static void ares_sockstate_cb(void* data,
-                              ares_socket_t sock,
-                              int read,
-                              int write) {
+void ares_sockstate_cb(void* data,
+                       ares_socket_t sock,
+                       int read,
+                       int write) {
   Environment* env = static_cast<Environment*>(data);
   node_ares_task* task;
 
@@ -273,7 +274,7 @@ static void ares_sockstate_cb(void* data,
 }
 
 
-static Local<Array> HostentToAddresses(Environment* env, struct hostent* host) {
+Local<Array> HostentToAddresses(Environment* env, struct hostent* host) {
   EscapableHandleScope scope(env->isolate());
   Local<Array> addresses = Array::New(env->isolate());
 
@@ -288,7 +289,7 @@ static Local<Array> HostentToAddresses(Environment* env, struct hostent* host) {
 }
 
 
-static Local<Array> HostentToNames(Environment* env, struct hostent* host) {
+Local<Array> HostentToNames(Environment* env, struct hostent* host) {
   EscapableHandleScope scope(env->isolate());
   Local<Array> names = Array::New(env->isolate());
 
@@ -1105,7 +1106,7 @@ void AfterGetNameInfo(uv_getnameinfo_t* req,
 }
 
 
-static void IsIP(const FunctionCallbackInfo<Value>& args) {
+void IsIP(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value ip(args.GetIsolate(), args[0]);
   char address_buffer[sizeof(struct in6_addr)];
 
@@ -1118,7 +1119,7 @@ static void IsIP(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(rc);
 }
 
-static void IsIPv4(const FunctionCallbackInfo<Value>& args) {
+void IsIPv4(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value ip(args.GetIsolate(), args[0]);
   char address_buffer[sizeof(struct in_addr)];
 
@@ -1129,7 +1130,7 @@ static void IsIPv4(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-static void IsIPv6(const FunctionCallbackInfo<Value>& args) {
+void IsIPv6(const FunctionCallbackInfo<Value>& args) {
   node::Utf8Value ip(args.GetIsolate(), args[0]);
   char address_buffer[sizeof(struct in6_addr)];
 
@@ -1140,7 +1141,7 @@ static void IsIPv6(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
+void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
@@ -1188,7 +1189,7 @@ static void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
+void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
@@ -1217,7 +1218,7 @@ static void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void GetServers(const FunctionCallbackInfo<Value>& args) {
+void GetServers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   Local<Array> server_array = Array::New(env->isolate());
@@ -1246,7 +1247,7 @@ static void GetServers(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void SetServers(const FunctionCallbackInfo<Value>& args) {
+void SetServers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsArray());
@@ -1313,30 +1314,30 @@ static void SetServers(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void StrError(const FunctionCallbackInfo<Value>& args) {
+void StrError(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   const char* errmsg = ares_strerror(args[0]->Int32Value());
   args.GetReturnValue().Set(OneByteString(env->isolate(), errmsg));
 }
 
 
-static void CaresTimerCloseCb(uv_handle_t* handle) {
+void CaresTimerCloseCb(uv_handle_t* handle) {
   Environment* env = Environment::from_cares_timer_handle(
       reinterpret_cast<uv_timer_t*>(handle));
   env->FinishHandleCleanup(handle);
 }
 
 
-static void CaresTimerClose(Environment* env,
+void CaresTimerClose(Environment* env,
                             uv_handle_t* handle,
                             void* arg) {
   uv_close(handle, CaresTimerCloseCb);
 }
 
 
-static void Initialize(Local<Object> target,
-                       Local<Value> unused,
-                       Local<Context> context) {
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
   int r = ares_library_init(ARES_LIB_INIT_ALL);
@@ -1424,6 +1425,7 @@ static void Initialize(Local<Object> target,
               qrw->GetFunction());
 }
 
+}  // anonymous namespace
 }  // namespace cares_wrap
 }  // namespace node
 
