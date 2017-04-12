@@ -194,7 +194,9 @@ function parseText(lexed) {
   lexed.forEach(function(tok) {
     if (tok.text && tok.type !== 'code') {
       tok.text = replaceInText(tok.text);
-    } else if (tok.cells) {
+    }
+
+    if (tok.cells) {
       tok.cells.forEach((row, x) => {
         row.forEach((_, y) => {
           if (tok.cells[x] && tok.cells[x][y]) {
@@ -202,7 +204,9 @@ function parseText(lexed) {
           }
         });
       });
-    } else if (tok.header) {
+    }
+
+    if (tok.header) {
       tok.headers.forEach((_, i) => {
         if (tok.headers[i]) {
           tok.headers[i] = replaceInText(tok.headers[i]);
