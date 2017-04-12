@@ -1267,6 +1267,25 @@ napi_status napi_create_array_with_length(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+napi_status napi_create_string_latin1(napi_env env,
+                                      const char* str,
+                                      size_t length,
+                                      napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
+
+  auto isolate = env->isolate;
+  auto str_maybe =
+      v8::String::NewFromOneByte(isolate,
+                                 reinterpret_cast<const uint8_t*>(str),
+                                 v8::NewStringType::kInternalized,
+                                 length);
+  CHECK_MAYBE_EMPTY(env, str_maybe, napi_generic_failure);
+
+  *result = v8impl::JsValueFromV8LocalValue(str_maybe.ToLocalChecked());
+  return GET_RETURN_STATUS(env);
+}
+
 napi_status napi_create_string_utf8(napi_env env,
                                     const char* str,
                                     size_t length,
@@ -1714,6 +1733,39 @@ napi_status napi_get_value_string_length(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+// Copies a JavaScript string into a LATIN-1 string buffer. The result is the
+// number of bytes copied into buf, including the null terminator. If bufsize
+// is insufficient, the string will be truncated, including a null terminator.
+// If buf is NULL, this method returns the length of the string (in bytes)
+// via the result parameter.
+// The result argument is optional unless buf is NULL.
+napi_status napi_get_value_string_latin1(napi_env env,
+                                         napi_value value,
+                                         char* buf,
+                                         size_t bufsize,
+                                         size_t* result) {
+  NAPI_PREAMBLE(env);
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+  RETURN_STATUS_IF_FALSE(env, val->IsString(), napi_string_expected);
+
+  if (!buf) {
+    CHECK_ARG(env, result);
+    *result = val.As<v8::String>()->Length();
+  } else {
+    int copied = val.As<v8::String>()->WriteOneByte(
+      reinterpret_cast<uint8_t*>(buf), 0, bufsize - 1,
+      v8::String::NO_NULL_TERMINATION);
+
+    buf[copied] = '\0';
+    if (result != nullptr) {
+      *result = copied;
+    }
+  }
+
+  return GET_RETURN_STATUS(env);
+}
+
 // Copies a JavaScript string into a UTF-8 string buffer. The result is the
 // number of bytes copied into buf, including the null terminator. If bufsize
 // is insufficient, the string will be truncated, including a null terminator.
@@ -1735,8 +1787,10 @@ napi_status napi_get_value_string_utf8(napi_env env,
     *result = val.As<v8::String>()->Utf8Length();
   } else {
     int copied = val.As<v8::String>()->WriteUtf8(
-      buf, bufsize, nullptr, v8::String::REPLACE_INVALID_UTF8);
+      buf, bufsize - 1, nullptr, v8::String::REPLACE_INVALID_UTF8 |
+      v8::String::NO_NULL_TERMINATION);
 
+    buf[copied] = '\0';
     if (result != nullptr) {
       *result = copied;
     }
@@ -1767,8 +1821,10 @@ napi_status napi_get_value_string_utf16(napi_env env,
     *result = val.As<v8::String>()->Length();
   } else {
     int copied = val.As<v8::String>()->Write(
-      reinterpret_cast<uint16_t*>(buf), 0, bufsize, v8::String::NO_OPTIONS);
+      reinterpret_cast<uint16_t*>(buf), 0, bufsize - 1,
+      v8::String::NO_NULL_TERMINATION);
 
+    buf[copied] = '\0';
     if (result != nullptr) {
       *result = copied;
     }
