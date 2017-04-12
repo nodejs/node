@@ -93,6 +93,7 @@ using v8::String;
 using v8::Value;
 
 namespace i18n {
+namespace {
 
 template <typename T>
 MaybeLocal<Object> ToBufferEndian(Environment* env, MaybeStackBuffer<T>* buf) {
@@ -344,7 +345,7 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
   return args.GetReturnValue().Set(result.ToLocalChecked());
 }
 
-static void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
+void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   UErrorCode status = static_cast<UErrorCode>(args[0]->Int32Value());
   args.GetReturnValue().Set(
@@ -366,9 +367,9 @@ static void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
  * @param status ICU error status. If failure, assume result is undefined.
  * @return version number, or NULL. May or may not be buf.
  */
-static const char* GetVersion(const char* type,
-                              char buf[U_MAX_VERSION_STRING_LENGTH],
-                              UErrorCode* status) {
+const char* GetVersion(const char* type,
+                       char buf[U_MAX_VERSION_STRING_LENGTH],
+                       UErrorCode* status) {
   if (!strcmp(type, TYPE_ICU)) {
     return U_ICU_VERSION;
   } else if (!strcmp(type, TYPE_UNICODE)) {
@@ -387,7 +388,7 @@ static const char* GetVersion(const char* type,
   return nullptr;
 }
 
-static void GetVersion(const FunctionCallbackInfo<Value>& args) {
+void GetVersion(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if ( args.Length() == 0 ) {
     // With no args - return a comma-separated list of allowed values
@@ -413,6 +414,8 @@ static void GetVersion(const FunctionCallbackInfo<Value>& args) {
     }
   }
 }
+
+}  // anonymous namespace
 
 bool InitializeICUDirectory(const std::string& path) {
   if (path.empty()) {

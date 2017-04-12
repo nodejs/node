@@ -17,9 +17,11 @@
 #include "node_api.h"
 #include "env-inl.h"
 
+static
 napi_status napi_set_last_error(napi_env env, napi_status error_code,
                                 uint32_t engine_error_code = 0,
                                 void* engine_reserved = nullptr);
+static
 void napi_clear_last_error(napi_env env);
 
 struct napi_env__ {
@@ -100,6 +102,7 @@ struct napi_env__ {
   (!try_catch.HasCaught() ? napi_ok \
                          : napi_set_last_error((env), napi_pending_exception))
 
+namespace {
 namespace v8impl {
 
 // convert from n-api property attributes to v8::PropertyAttribute
@@ -124,10 +127,6 @@ static inline v8::PropertyAttribute V8PropertyAttributesFromDescriptor(
   }
 
   return static_cast<v8::PropertyAttribute>(attribute_flags);
-}
-
-v8::Isolate* V8IsolateFromJsEnv(napi_env e) {
-  return reinterpret_cast<v8::Isolate*>(e);
 }
 
 class HandleScopeWrapper {
@@ -659,6 +658,8 @@ void napi_module_register_cb(v8::Local<v8::Object> exports,
     v8impl::JsValueFromV8LocalValue(module),
     mod->nm_priv);
 }
+
+}  // end of anonymous namespace
 
 #ifndef EXTERNAL_NAPI
 namespace node {

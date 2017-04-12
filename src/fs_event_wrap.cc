@@ -43,6 +43,8 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+namespace {
+
 class FSEventWrap: public HandleWrap {
  public:
   static void Initialize(Local<Object> target,
@@ -214,6 +216,7 @@ void FSEventWrap::Close(const FunctionCallbackInfo<Value>& args) {
   HandleWrap::Close(args);
 }
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(fs_event_wrap, node::FSEventWrap::Initialize)

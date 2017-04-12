@@ -43,6 +43,8 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+namespace {
+
 class ProcessWrap : public HandleWrap {
  public:
   static void Initialize(Local<Object> target,
@@ -273,6 +275,7 @@ class ProcessWrap : public HandleWrap {
 };
 
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(process_wrap, node::ProcessWrap::Initialize)

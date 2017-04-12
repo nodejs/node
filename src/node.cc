@@ -22,8 +22,6 @@
 #include "node.h"
 #include "node_buffer.h"
 #include "node_constants.h"
-#include "node_file.h"
-#include "node_http_parser.h"
 #include "node_javascript.h"
 #include "node_version.h"
 #include "node_internals.h"
@@ -1044,8 +1042,10 @@ void* ArrayBufferAllocator::Allocate(size_t size) {
     return node::UncheckedMalloc(size);
 }
 
-static bool DomainHasErrorHandler(const Environment* env,
-                                  const Local<Object>& domain) {
+namespace {
+
+bool DomainHasErrorHandler(const Environment* env,
+                           const Local<Object>& domain) {
   HandleScope scope(env->isolate());
 
   Local<Value> domain_event_listeners_v = domain->Get(env->events_string());
@@ -1066,7 +1066,7 @@ static bool DomainHasErrorHandler(const Environment* env,
   return false;
 }
 
-static bool DomainsStackHasErrorHandler(const Environment* env) {
+bool DomainsStackHasErrorHandler(const Environment* env) {
   HandleScope scope(env->isolate());
 
   if (!env->using_domains())
@@ -1091,7 +1091,7 @@ static bool DomainsStackHasErrorHandler(const Environment* env) {
 }
 
 
-static bool ShouldAbortOnUncaughtException(Isolate* isolate) {
+bool ShouldAbortOnUncaughtException(Isolate* isolate) {
   HandleScope scope(isolate);
 
   Environment* env = Environment::GetCurrent(isolate);
@@ -1220,6 +1220,8 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
       env->context(),
       FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupPromises")).FromJust();
 }
+
+}  // anonymous namespace
 
 
 Local<Value> MakeCallback(Environment* env,
@@ -2269,7 +2271,7 @@ static void WaitForInspectorDisconnect(Environment* env) {
 }
 
 
-void Exit(const FunctionCallbackInfo<Value>& args) {
+static void Exit(const FunctionCallbackInfo<Value>& args) {
   WaitForInspectorDisconnect(Environment::GetCurrent(args));
   exit(args[0]->Int32Value());
 }
@@ -2286,7 +2288,7 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
+static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   size_t rss;
@@ -2314,7 +2316,7 @@ void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Kill(const FunctionCallbackInfo<Value>& args) {
+static void Kill(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   if (args.Length() != 2) {
@@ -2338,7 +2340,7 @@ void Kill(const FunctionCallbackInfo<Value>& args) {
 // broken into the upper/lower 32 bits to be converted back in JS,
 // because there is no Uint64Array in JS.
 // The third entry contains the remaining nanosecond part of the value.
-void Hrtime(const FunctionCallbackInfo<Value>& args) {
+static void Hrtime(const FunctionCallbackInfo<Value>& args) {
   uint64_t t = uv_hrtime();
 
   Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
@@ -2357,7 +2359,7 @@ void Hrtime(const FunctionCallbackInfo<Value>& args) {
 // which are uv_timeval_t structs (long tv_sec, long tv_usec).
 // Returns those values as Float64 microseconds in the elements of the array
 // passed to the function.
-void CPUUsage(const FunctionCallbackInfo<Value>& args) {
+static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
   uv_rusage_t rusage;
 
   // Call libuv to get the values we'll return.
@@ -2428,7 +2430,7 @@ struct node_module* get_linked_module(const char* name) {
 // FIXME(bnoordhuis) Not multi-context ready. TBD how to resolve the conflict
 // when two contexts try to load the same shared object. Maybe have a shadow
 // cache that's a plain C list or hash table that's shared across contexts?
-void DLOpen(const FunctionCallbackInfo<Value>& args) {
+static void DLOpen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uv_lib_t lib;
 
@@ -2597,7 +2599,7 @@ void FatalException(Isolate* isolate, const TryCatch& try_catch) {
 }
 
 
-void OnMessage(Local<Message> message, Local<Value> error) {
+static void OnMessage(Local<Message> message, Local<Value> error) {
   // The current version of V8 sends messages for errors only
   // (thus `error` is always set).
   FatalException(Isolate::GetCurrent(), error, message);
@@ -3005,6 +3007,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args);
 static void DebugPause(const FunctionCallbackInfo<Value>& args);
 static void DebugEnd(const FunctionCallbackInfo<Value>& args);
 
+namespace {
 
 void NeedImmediateCallbackGetter(Local<Name> property,
                                  const PropertyCallbackInfo<Value>& info) {
@@ -3016,7 +3019,7 @@ void NeedImmediateCallbackGetter(Local<Name> property,
 }
 
 
-static void NeedImmediateCallbackSetter(
+void NeedImmediateCallbackSetter(
     Local<Name> property,
     Local<Value> value,
     const PropertyCallbackInfo<void>& info) {
@@ -3072,6 +3075,7 @@ void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
         .FromJust();                                                          \
   } while (0)
 
+}  // anonymous namespace
 
 void SetupProcessObject(Environment* env,
                         int argc,

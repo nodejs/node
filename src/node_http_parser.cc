@@ -21,12 +21,12 @@
 
 #include "node.h"
 #include "node_buffer.h"
-#include "node_http_parser.h"
 
 #include "async-wrap.h"
 #include "async-wrap-inl.h"
 #include "env.h"
 #include "env-inl.h"
+#include "http_parser.h"
 #include "stream_base.h"
 #include "stream_base-inl.h"
 #include "util.h"
@@ -49,6 +49,7 @@
 
 
 namespace node {
+namespace {
 
 using v8::Array;
 using v8::Boolean;
@@ -798,6 +799,7 @@ void InitHttpParser(Local<Object> target,
               t->GetFunction());
 }
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(http_parser, node::InitHttpParser)
