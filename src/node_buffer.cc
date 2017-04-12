@@ -87,6 +87,8 @@ using v8::Uint8Array;
 using v8::Value;
 using v8::WeakCallbackInfo;
 
+namespace {
+
 class CallbackInfo {
  public:
   static inline void Free(char* data, void* hint);
@@ -192,6 +194,7 @@ inline MUST_USE_RESULT bool ParseArrayIndex(Local<Value> arg,
   return true;
 }
 
+}  // anonymous namespace
 
 // Buffer methods
 
@@ -434,6 +437,7 @@ MaybeLocal<Object> New(Environment* env, char* data, size_t length) {
   return Local<Object>();
 }
 
+namespace {
 
 void CreateFromString(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
@@ -1285,7 +1289,7 @@ void Initialize(Local<Object> target,
               Integer::New(env->isolate(), String::kMaxLength)).FromJust();
 }
 
-
+}  // anonymous namespace
 }  // namespace Buffer
 }  // namespace node
 

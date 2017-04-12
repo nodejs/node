@@ -28,6 +28,8 @@ using v8::Value;
 using v8::ValueDeserializer;
 using v8::ValueSerializer;
 
+namespace {
+
 class SerializerContext : public BaseObject,
                           public ValueSerializer::Delegate {
  public:
@@ -478,6 +480,7 @@ void InitializeSerdesBindings(Local<Object> target,
               des->GetFunction(env->context()).ToLocalChecked()).FromJust();
 }
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(serdes, node::InitializeSerdesBindings)

@@ -50,6 +50,8 @@ using v8::Number;
 using v8::Object;
 using v8::Value;
 
+namespace {
+
 enum node_zlib_mode {
   NONE,
   DEFLATE,
@@ -693,6 +695,7 @@ void InitZlib(Local<Object> target,
               FIXED_ONE_BYTE_STRING(env->isolate(), ZLIB_VERSION));
 }
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(zlib, node::InitZlib)

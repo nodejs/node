@@ -6,7 +6,7 @@ namespace node {
 
 unsigned int reverted = 0;
 
-const char* RevertMessage(const unsigned int cve) {
+static const char* RevertMessage(const unsigned int cve) {
 #define V(code, label, msg) case REVERT_ ## code: return label ": " msg;
   switch (cve) {
     REVERSIONS(V)

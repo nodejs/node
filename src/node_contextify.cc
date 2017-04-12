@@ -65,6 +65,7 @@ using v8::UnboundScript;
 using v8::Value;
 using v8::WeakCallbackInfo;
 
+namespace {
 
 class ContextifyContext {
  protected:
@@ -963,6 +964,7 @@ void InitContextify(Local<Object> target,
   ContextifyScript::Init(env, target);
 }
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(contextify, node::InitContextify);

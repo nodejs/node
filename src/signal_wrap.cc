@@ -39,6 +39,8 @@ using v8::Local;
 using v8::Object;
 using v8::Value;
 
+namespace {
+
 class SignalWrap : public HandleWrap {
  public:
   static void Initialize(Local<Object> target,
@@ -119,6 +121,7 @@ class SignalWrap : public HandleWrap {
 };
 
 
+}  // anonymous namespace
 }  // namespace node
 
 

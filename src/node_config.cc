@@ -27,9 +27,9 @@ using v8::Value;
                               True(env->isolate()), ReadOnly).FromJust();     \
   } while (0)
 
-void InitConfig(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context) {
+static void InitConfig(Local<Object> target,
+                       Local<Value> unused,
+                       Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 #ifdef NODE_HAVE_I18N_SUPPORT
 

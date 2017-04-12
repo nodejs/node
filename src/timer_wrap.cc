@@ -30,6 +30,7 @@
 #include <stdint.h>
 
 namespace node {
+namespace {
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -132,6 +133,7 @@ class TimerWrap : public HandleWrap {
 };
 
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(timer_wrap, node::TimerWrap::Initialize)

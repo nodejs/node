@@ -53,6 +53,8 @@ using v8::Object;
 const char* default_cipher_list = DEFAULT_CIPHER_LIST_CORE;
 #endif
 
+namespace {
+
 void DefineErrnoConstants(Local<Object> target) {
 #ifdef E2BIG
   NODE_DEFINE_CONSTANT(target, E2BIG);
@@ -1255,6 +1257,8 @@ void DefineZlibConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, Z_MAX_LEVEL);
   NODE_DEFINE_CONSTANT(target, Z_DEFAULT_LEVEL);
 }
+
+}  // anonymous namespace
 
 void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
   Environment* env = Environment::GetCurrent(isolate);
