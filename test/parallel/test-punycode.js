@@ -13,6 +13,7 @@ assert.strictEqual(
   'Willst du die Blthe des frhen, die Frchte des spteren Jahres-x9e96lkal'
 );
 assert.strictEqual(punycode.encode('日本語'), 'wgv71a119e');
+assert.strictEqual(punycode.encode('𩸽'), 'x73l');
 
 assert.strictEqual(punycode.decode('tda'), 'ü');
 assert.strictEqual(punycode.decode('Goethe-'), 'Goethe');
@@ -24,6 +25,7 @@ assert.strictEqual(
   'Willst du die Blüthe des frühen, die Früchte des späteren Jahres'
 );
 assert.strictEqual(punycode.decode('wgv71a119e'), '日本語');
+assert.strictEqual(punycode.decode('x73l'), '𩸽');
 assert.throws(() => {
   punycode.decode(' ');
 }, /^RangeError: Invalid input$/);
