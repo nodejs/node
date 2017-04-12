@@ -14,10 +14,7 @@ function forEach(obj, fn) {
 
 
 if (cluster.isWorker) {
-  const http = require('http');
-  http.Server(function() {
-
-  }).listen(common.PORT, '127.0.0.1');
+  require('http').Server(common.noop).listen(0, '127.0.0.1');
 } else if (cluster.isMaster) {
 
   const checks = {
@@ -109,11 +106,15 @@ if (cluster.isWorker) {
 
         case 'listening':
           assert.strictEqual(arguments.length, 1);
-          const expect = { address: '127.0.0.1',
-                           port: common.PORT,
-                           addressType: 4,
-                           fd: undefined };
-          assert.deepStrictEqual(arguments[0], expect);
+          assert.strictEqual(Object.keys(arguments[0]).length, 4);
+          assert.strictEqual(arguments[0].address, '127.0.0.1');
+          assert.strictEqual(arguments[0].addressType, 4);
+          assert(arguments[0].hasOwnProperty('fd'));
+          assert.strictEqual(arguments[0].fd, undefined);
+          const port = arguments[0].port;
+          assert(Number.isInteger(port));
+          assert(port >= 1);
+          assert(port <= 65535);
           break;
 
         default:
