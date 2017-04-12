@@ -42,10 +42,30 @@ assert.strictEqual(test_string.TestUtf16Insufficient(str3), str3.slice(0, 3));
 assert.strictEqual(test_string.Length(str3), 27);
 assert.strictEqual(test_string.Utf8Length(str3), 27);
 
-const str4 = '\u{2003}\u{2101}\u{2001}\u{202}\u{2011}';
+const str4 = '¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿';
+assert.strictEqual(test_string.TestLatin1(str4), str4);
 assert.strictEqual(test_string.TestUtf8(str4), str4);
 assert.strictEqual(test_string.TestUtf16(str4), str4);
+assert.strictEqual(test_string.TestLatin1Insufficient(str4), str4.slice(0, 3));
 assert.strictEqual(test_string.TestUtf8Insufficient(str4), str4.slice(0, 1));
 assert.strictEqual(test_string.TestUtf16Insufficient(str4), str4.slice(0, 3));
-assert.strictEqual(test_string.Length(str4), 5);
-assert.strictEqual(test_string.Utf8Length(str4), 14);
+assert.strictEqual(test_string.Length(str4), 31);
+assert.strictEqual(test_string.Utf8Length(str4), 62);
+
+const str5 = 'ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþ';
+assert.strictEqual(test_string.TestLatin1(str5), str5);
+assert.strictEqual(test_string.TestUtf8(str5), str5);
+assert.strictEqual(test_string.TestUtf16(str5), str5);
+assert.strictEqual(test_string.TestLatin1Insufficient(str5), str5.slice(0, 3));
+assert.strictEqual(test_string.TestUtf8Insufficient(str5), str5.slice(0, 1));
+assert.strictEqual(test_string.TestUtf16Insufficient(str5), str5.slice(0, 3));
+assert.strictEqual(test_string.Length(str5), 63);
+assert.strictEqual(test_string.Utf8Length(str5), 126);
+
+const str6 = '\u{2003}\u{2101}\u{2001}\u{202}\u{2011}';
+assert.strictEqual(test_string.TestUtf8(str6), str6);
+assert.strictEqual(test_string.TestUtf16(str6), str6);
+assert.strictEqual(test_string.TestUtf8Insufficient(str6), str6.slice(0, 1));
+assert.strictEqual(test_string.TestUtf16Insufficient(str6), str6.slice(0, 3));
+assert.strictEqual(test_string.Length(str6), 5);
+assert.strictEqual(test_string.Utf8Length(str6), 14);
