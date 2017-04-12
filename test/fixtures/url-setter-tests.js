@@ -880,42 +880,42 @@ module.exports =
                 "hostname": "example.net"
             }
         },
-        // {
-        //     "href": "http://example.net/",
-        //     "new_value": "[::1.2.3.4x]",
-        //     "expected": {
-        //         "href": "http://example.net/",
-        //         "host": "example.net",
-        //         "hostname": "example.net"
-        //     }
-        // },
-        // {
-        //     "href": "http://example.net/",
-        //     "new_value": "[::1.2.3.]",
-        //     "expected": {
-        //         "href": "http://example.net/",
-        //         "host": "example.net",
-        //         "hostname": "example.net"
-        //     }
-        // },
-        // {
-        //     "href": "http://example.net/",
-        //     "new_value": "[::1.2.]",
-        //     "expected": {
-        //         "href": "http://example.net/",
-        //         "host": "example.net",
-        //         "hostname": "example.net"
-        //     }
-        // },
-        // {
-        //     "href": "http://example.net/",
-        //     "new_value": "[::1.]",
-        //     "expected": {
-        //         "href": "http://example.net/",
-        //         "host": "example.net",
-        //         "hostname": "example.net"
-        //     }
-        // },
+        {
+            "href": "http://example.net/",
+            "new_value": "[::1.2.3.4x]",
+            "expected": {
+                "href": "http://example.net/",
+                "host": "example.net",
+                "hostname": "example.net"
+            }
+        },
+        {
+            "href": "http://example.net/",
+            "new_value": "[::1.2.3.]",
+            "expected": {
+                "href": "http://example.net/",
+                "host": "example.net",
+                "hostname": "example.net"
+            }
+        },
+        {
+            "href": "http://example.net/",
+            "new_value": "[::1.2.]",
+            "expected": {
+                "href": "http://example.net/",
+                "host": "example.net",
+                "hostname": "example.net"
+            }
+        },
+        {
+            "href": "http://example.net/",
+            "new_value": "[::1.]",
+            "expected": {
+                "href": "http://example.net/",
+                "host": "example.net",
+                "hostname": "example.net"
+            }
+        },
         // {
         //     "href": "file://y/",
         //     "new_value": "x:123",
@@ -1214,42 +1214,42 @@ module.exports =
                 "hostname": "example.net"
             }
         },
-        // {
-        //     "href": "http://example.net/",
-        //     "new_value": "[::1.2.3.4x]",
-        //     "expected": {
-        //         "href": "http://example.net/",
-        //         "host": "example.net",
-        //         "hostname": "example.net"
-        //     }
-        // },
-        // {
-        //     "href": "http://example.net/",
-        //     "new_value": "[::1.2.3.]",
-        //     "expected": {
-        //         "href": "http://example.net/",
-        //         "host": "example.net",
-        //         "hostname": "example.net"
-        //     }
-        // },
-        // {
-        //     "href": "http://example.net/",
-        //     "new_value": "[::1.2.]",
-        //     "expected": {
-        //         "href": "http://example.net/",
-        //         "host": "example.net",
-        //         "hostname": "example.net"
-        //     }
-        // },
-        // {
-        //     "href": "http://example.net/",
-        //     "new_value": "[::1.]",
-        //     "expected": {
-        //         "href": "http://example.net/",
-        //         "host": "example.net",
-        //         "hostname": "example.net"
-        //     }
-        // },
+        {
+            "href": "http://example.net/",
+            "new_value": "[::1.2.3.4x]",
+            "expected": {
+                "href": "http://example.net/",
+                "host": "example.net",
+                "hostname": "example.net"
+            }
+        },
+        {
+            "href": "http://example.net/",
+            "new_value": "[::1.2.3.]",
+            "expected": {
+                "href": "http://example.net/",
+                "host": "example.net",
+                "hostname": "example.net"
+            }
+        },
+        {
+            "href": "http://example.net/",
+            "new_value": "[::1.2.]",
+            "expected": {
+                "href": "http://example.net/",
+                "host": "example.net",
+                "hostname": "example.net"
+            }
+        },
+        {
+            "href": "http://example.net/",
+            "new_value": "[::1.]",
+            "expected": {
+                "href": "http://example.net/",
+                "host": "example.net",
+                "hostname": "example.net"
+            }
+        },
         // {
         //     "href": "file://y/",
         //     "new_value": "x:123",
