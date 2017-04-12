@@ -88,6 +88,7 @@ class SignalWrap : public HandleWrap {
     SignalWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
     int signum = args[0]->Int32Value();
+    bool oneshot = args[1]->BooleanValue();
 #if defined(__POSIX__) && HAVE_INSPECTOR
     if (signum == SIGPROF) {
       Environment* env = Environment::GetCurrent(args);
@@ -98,7 +99,9 @@ class SignalWrap : public HandleWrap {
       }
     }
 #endif
-    int err = uv_signal_start(&wrap->handle_, OnSignal, signum);
+    int err = oneshot ?
+              uv_signal_start_oneshot(&wrap->handle_, OnSignal, signum) :
+              uv_signal_start(&wrap->handle_, OnSignal, signum);
     args.GetReturnValue().Set(err);
   }
 
