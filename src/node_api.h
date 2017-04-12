@@ -121,6 +121,10 @@ NAPI_EXTERN napi_status napi_create_array_with_length(napi_env env,
 NAPI_EXTERN napi_status napi_create_number(napi_env env,
                                            double value,
                                            napi_value* result);
+NAPI_EXTERN napi_status napi_create_string_latin1(napi_env env,
+                                                  const char* str,
+                                                  size_t length,
+                                                  napi_value* result);
 NAPI_EXTERN napi_status napi_create_string_utf8(napi_env env,
                                                 const char* str,
                                                 size_t length,
@@ -170,6 +174,13 @@ NAPI_EXTERN napi_status napi_get_value_bool(napi_env env,
 // Gets the number of CHARACTERS in the string.
 NAPI_EXTERN napi_status napi_get_value_string_length(napi_env env,
                                                      napi_value value,
+                                                     size_t* result);
+
+// Copies LATIN-1 encoded bytes from a string into a buffer.
+NAPI_EXTERN napi_status napi_get_value_string_latin1(napi_env env,
+                                                     napi_value value,
+                                                     char* buf,
+                                                     size_t bufsize,
                                                      size_t* result);
 
 // Copies UTF-8 encoded bytes from a string into a buffer.
