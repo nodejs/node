@@ -3,6 +3,11 @@ const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
 const child = spawn(process.execPath, ['debug']);
 child.stderr.setEncoding('utf8');
 
