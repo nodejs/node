@@ -1735,6 +1735,8 @@ napi_status napi_get_value_string_length(napi_env env,
 
 // Copies a JavaScript string into a LATIN-1 string buffer. The result is the
 // number of bytes (excluding the null terminator) copied into buf.
+// A sufficient buffer size should be greater than the length of string,
+// reserving space for null terminator.
 // If bufsize is insufficient, the string will be truncated and null terminated.
 // If buf is NULL, this method returns the length of the string (in bytes)
 // via the result parameter.
@@ -1768,6 +1770,8 @@ napi_status napi_get_value_string_latin1(napi_env env,
 
 // Copies a JavaScript string into a UTF-8 string buffer. The result is the
 // number of bytes (excluding the null terminator) copied into buf.
+// A sufficient buffer size should be greater than the length of string,
+// reserving space for null terminator.
 // If bufsize is insufficient, the string will be truncated and null terminated.
 // If buf is NULL, this method returns the length of the string (in bytes)
 // via the result parameter.
@@ -1801,6 +1805,8 @@ napi_status napi_get_value_string_utf8(napi_env env,
 
 // Copies a JavaScript string into a UTF-16 string buffer. The result is the
 // number of 2-byte code units (excluding the null terminator) copied into buf.
+// A sufficient buffer size should be greater than the length of string,
+// reserving space for null terminator.
 // If bufsize is insufficient, the string will be truncated and null terminated.
 // If buf is NULL, this method returns the length of the string (in 2-byte
 // code units) via the result parameter.
