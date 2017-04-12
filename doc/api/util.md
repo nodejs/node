@@ -133,6 +133,13 @@ Each argument is converted to a string using `util.inspect()`.
 util.format(1, 2, 3); // '1 2 3'
 ```
 
+If only one argument is passed to `util.format()`, it is returned as it is
+without any formatting.
+
+```js
+util.format('%% %s'); // '%% %s'
+```
+
 ## util.inherits(constructor, superConstructor)
 <!-- YAML
 added: v0.3.0
