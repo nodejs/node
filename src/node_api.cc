@@ -2602,6 +2602,7 @@ class Work {
     _data(data),
     _execute(execute),
     _complete(complete) {
+    memset(&_request, 0, sizeof(_request));
     _request.data = this;
   }
 
