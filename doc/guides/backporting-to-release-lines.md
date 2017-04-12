@@ -71,40 +71,11 @@ hint: and commit the result with 'git commit'
 * Make the required changes to remove the conflicts, add the files to the index
   using `git add`, and then commit the changes. That can be done with
   `git cherry-pick --continue`.
-* The commit message should be as close as possible to the commit message on the
-  master branch, unless the commit has to be different due to dependencies that
-  are not present in the targeted release line. The only exception is that the
-  metadata from the original commit should be removed. If a backport is
-  required, it should go through the same review steps as a commit landing
-  in the master branch.
+* Leave the commit message as is. If you think it should be modified, comment 
+  in the Pull Request.
 * Make sure `make -j4 test` passes
 * Push the changes to your fork and open a pull request.
 * Be sure to target the `v7.x-staging` branch in the pull request.
-
-Below are examples of an original commit message and a backport commit message.
-
-In this example, https://github.com/nodejs/node/pull/1234 is the original pull
-request and https://github.com/nodejs/node/pull/5678 is the backport.
-
-Original:
-
-```
-lib: make something faster
-
-Switch to using String#repeat to improve performance.
-
-PR-URL: https://github.com/nodejs/node/pull/1234
-```
-
-Backport:
-
-```
-lib: make something faster
-
-Switch to using String#repeat to improve performance.
-
-PR-URL: https://github.com/nodejs/node/pull/1234
-```
 
 ### Helpful Hints
 
