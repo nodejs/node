@@ -755,12 +755,12 @@ class ContextifyScript : public BaseObject {
     }
 
     Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "breakOnSigint");
-    MaybeLocal<Value> maybeValue =
+    MaybeLocal<Value> maybe_value =
         options.As<Object>()->Get(env->context(), key);
-    if (maybeValue.IsEmpty())
+    if (maybe_value.IsEmpty())
       return Nothing<bool>();
 
-    Local<Value> value = maybeValue.ToLocalChecked();
+    Local<Value> value = maybe_value.ToLocalChecked();
     return Just(value->IsTrue());
   }
 
@@ -773,12 +773,12 @@ class ContextifyScript : public BaseObject {
       return Nothing<int64_t>();
     }
 
-    MaybeLocal<Value> maybeValue =
+    MaybeLocal<Value> maybe_value =
         options.As<Object>()->Get(env->context(), env->timeout_string());
-    if (maybeValue.IsEmpty())
+    if (maybe_value.IsEmpty())
       return Nothing<int64_t>();
 
-    Local<Value> value = maybeValue.ToLocalChecked();
+    Local<Value> value = maybe_value.ToLocalChecked();
     if (value->IsUndefined()) {
       return Just<int64_t>(-1);
     }
@@ -805,12 +805,12 @@ class ContextifyScript : public BaseObject {
     }
 
     Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "displayErrors");
-    MaybeLocal<Value> maybeValue =
+    MaybeLocal<Value> maybe_value =
         options.As<Object>()->Get(env->context(), key);
-    if (maybeValue.IsEmpty())
+    if (maybe_value.IsEmpty())
       return Nothing<bool>();
 
-    Local<Value> value = maybeValue.ToLocalChecked();
+    Local<Value> value = maybe_value.ToLocalChecked();
     if (value->IsUndefined())
       return Just(true);
 
@@ -835,12 +835,12 @@ class ContextifyScript : public BaseObject {
     }
 
     Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "filename");
-    MaybeLocal<Value> maybeValue =
+    MaybeLocal<Value> maybe_value =
         options.As<Object>()->Get(env->context(), key);
-    if (maybeValue.IsEmpty())
+    if (maybe_value.IsEmpty())
       return MaybeLocal<String>();
 
-    Local<Value> value = maybeValue.ToLocalChecked();
+    Local<Value> value = maybe_value.ToLocalChecked();
     if (value->IsUndefined())
       return defaultFilename;
     return value->ToString(env->context());
@@ -853,12 +853,12 @@ class ContextifyScript : public BaseObject {
       return MaybeLocal<Uint8Array>();
     }
 
-    MaybeLocal<Value> maybeValue =
+    MaybeLocal<Value> maybe_value =
         options.As<Object>()->Get(env->context(), env->cached_data_string());
-    if (maybeValue.IsEmpty())
+    if (maybe_value.IsEmpty())
       return MaybeLocal<Uint8Array>();
 
-    Local<Value> value = maybeValue.ToLocalChecked();
+    Local<Value> value = maybe_value.ToLocalChecked();
     if (value->IsUndefined()) {
       return MaybeLocal<Uint8Array>();
     }
@@ -878,13 +878,13 @@ class ContextifyScript : public BaseObject {
       return Just(false);
     }
 
-    MaybeLocal<Value> maybeValue =
+    MaybeLocal<Value> maybe_value =
         options.As<Object>()->Get(env->context(),
                                   env->produce_cached_data_string());
-    if (maybeValue.IsEmpty())
+    if (maybe_value.IsEmpty())
       return Nothing<bool>();
 
-    Local<Value> value = maybeValue.ToLocalChecked();
+    Local<Value> value = maybe_value.ToLocalChecked();
     return Just(value->IsTrue());
   }
 
@@ -898,12 +898,12 @@ class ContextifyScript : public BaseObject {
     }
 
     Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "lineOffset");
-    MaybeLocal<Value> maybeValue =
+    MaybeLocal<Value> maybe_value =
         options.As<Object>()->Get(env->context(), key);
-    if (maybeValue.IsEmpty())
+    if (maybe_value.IsEmpty())
       return MaybeLocal<Integer>();
 
-    Local<Value> value = maybeValue.ToLocalChecked();
+    Local<Value> value = maybe_value.ToLocalChecked();
     if (value->IsUndefined())
       return defaultLineOffset;
 
@@ -920,12 +920,12 @@ class ContextifyScript : public BaseObject {
     }
 
     Local<String> key = FIXED_ONE_BYTE_STRING(env->isolate(), "columnOffset");
-    MaybeLocal<Value> maybeValue =
+    MaybeLocal<Value> maybe_value =
       options.As<Object>()->Get(env->context(), key);
-    if (maybeValue.IsEmpty())
+    if (maybe_value.IsEmpty())
       return MaybeLocal<Integer>();
 
-    Local<Value> value = maybeValue.ToLocalChecked();
+    Local<Value> value = maybe_value.ToLocalChecked();
     if (value->IsUndefined())
       return defaultColumnOffset;
 
