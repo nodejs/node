@@ -119,6 +119,12 @@ even for <code>GET</code> requests.</p>
 </ul>
 <p>When &quot;dev&quot; or &quot;development&quot; and running local <code>npm shrinkwrap</code>,
 <code>npm outdated</code>, or <code>npm update</code>, is an alias for <code>--dev</code>.</p>
+<h3 id="auth-type">auth-type</h3>
+<ul>
+<li>Default: <code>&#39;legacy&#39;</code></li>
+<li>Type: <code>&#39;legacy&#39;</code>, <code>&#39;sso&#39;</code>, <code>&#39;saml&#39;</code>, <code>&#39;oauth&#39;</code></li>
+</ul>
+<p>What authentication strategy to use with <code>adduser</code>/<code>login</code>.</p>
 <h3 id="bin-links">bin-links</h3>
 <ul>
 <li>Default: <code>true</code></li>
@@ -525,7 +531,7 @@ combination). Passed to the <code>http</code> <code>Agent</code> used to make th
 <p>Any &quot;%s&quot; in the message will be replaced with the version number.</p>
 <h3 id="metrics-registry">metrics-registry</h3>
 <ul>
-<li>Default: &quot;<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>&quot;</li>
+<li>Default: The value of  <code>registry</code> (which defaults to &quot;<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>&quot;)</li>
 <li>Type: String</li>
 </ul>
 <p>The registry you want to send cli metrics to if <code>send-metrics</code> is true.</p>
@@ -774,6 +780,19 @@ installing.</p>
 using <code>-s</code> to add a signature.</p>
 <p>Note that git requires you to have set up GPG keys in your git configs
 for this to work properly.</p>
+<h3 id="sso-poll-frequency">sso-poll-frequency</h3>
+<ul>
+<li>Default: 500</li>
+<li>Type: Number</li>
+</ul>
+<p>When used with SSO-enabled <code>auth-type</code>s, configures how regularly the registry
+should be polled while the user is completing authentication.</p>
+<h3 id="sso-type">sso-type</h3>
+<ul>
+<li>Default: &#39;oauth&#39;</li>
+<li>Type: &#39;oauth&#39;, &#39;saml&#39;, or null</li>
+</ul>
+<p>If <code>--auth-type=sso</code>, the type of SSO type to use.</p>
 <h3 id="strict-ssl">strict-ssl</h3>
 <ul>
 <li>Default: true</li>
@@ -901,5 +920,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@4.2.0</p>
+<p id="footer">npm-config &mdash; npm@4.5.0</p>
 

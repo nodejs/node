@@ -14,7 +14,7 @@ var fs = require('graceful-fs')
   , mkdirp = require('mkdirp')
   , exec = require('child_process').exec
   , processRelease = require('./process-release')
-  , win = process.platform == 'win32'
+  , win = process.platform === 'win32'
 
 exports.usage = 'Invokes `' + (win ? 'msbuild' : 'make') + '` and builds the module'
 
@@ -124,6 +124,13 @@ function build (gyp, argv, callback) {
    */
 
   function findMsbuild () {
+    if (config.variables.msbuild_path) {
+      command = config.variables.msbuild_path
+      log.verbose('using MSBuild:', command)
+      copyNodeLib()
+      return
+    }
+
     log.verbose('could not find "msbuild.exe" in PATH - finding location in registry')
     var notfoundErr = 'Can\'t find "msbuild.exe". Do you have Microsoft Visual Studio C++ 2008+ installed?'
     var cmd = 'reg query "HKLM\\Software\\Microsoft\\MSBuild\\ToolsVersions" /s'
@@ -226,7 +233,9 @@ function build (gyp, argv, callback) {
 
     // Specify the build type, Release by default
     if (win) {
-      var p = arch === 'x64' ? 'x64' : 'Win32'
+      var archLower = arch.toLowerCase()
+      var p = archLower === 'x64' ? 'x64' :
+              (archLower === 'arm' ? 'ARM' : 'Win32')
       argv.push('/p:Configuration=' + buildType + ';Platform=' + p)
       if (jobs) {
         var j = parseInt(jobs, 10)

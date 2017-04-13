@@ -1,0 +1,105 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "npm-run-path@^1.0.0",
+        "scope": null,
+        "escapedName": "npm-run-path",
+        "name": "npm-run-path",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa"
+    ]
+  ],
+  "_from": "npm-run-path@>=1.0.0 <2.0.0",
+  "_id": "npm-run-path@1.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/term-size/execa/npm-run-path",
+  "_nodeVersion": "4.2.4",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.14.12",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "npm-run-path@^1.0.0",
+    "scope": null,
+    "escapedName": "npm-run-path",
+    "name": "npm-run-path",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen/term-size/execa"
+  ],
+  "_resolved": "https://registry.npmjs.org/npm-run-path/-/npm-run-path-1.0.0.tgz",
+  "_shasum": "f5c32bf595fe81ae927daec52e82f8b000ac3c8f",
+  "_shrinkwrap": null,
+  "_spec": "npm-run-path@^1.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/npm-run-path/issues"
+  },
+  "dependencies": {
+    "path-key": "^1.0.0"
+  },
+  "description": "Get your PATH prepended with locally installed binaries",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "f5c32bf595fe81ae927daec52e82f8b000ac3c8f",
+    "tarball": "https://registry.npmjs.org/npm-run-path/-/npm-run-path-1.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "8565fe56a35dd58bde38d20409339ba2e0200bd0",
+  "homepage": "https://github.com/sindresorhus/npm-run-path",
+  "keywords": [
+    "npm",
+    "run",
+    "path",
+    "package",
+    "bin",
+    "binary",
+    "binaries",
+    "script",
+    "cli",
+    "command-line",
+    "execute",
+    "executable"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "npm-run-path",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/npm-run-path.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.0.0"
+}

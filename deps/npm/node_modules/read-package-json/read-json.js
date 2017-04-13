@@ -137,7 +137,7 @@ function scriptpath_ (key) {
   // This is never allowed, and only causes problems
   if (typeof s !== 'string') return delete this[key]
 
-  var spre = /^(\.[\/\\])?node_modules[\/\\].bin[\\\/]/
+  var spre = /^(\.[/\\])?node_modules[/\\].bin[\\/]/
   if (s.match(spre)) {
     this[key] = this[key].replace(spre, '')
   }
@@ -276,7 +276,7 @@ function bins (file, data, cb) {
 }
 
 function bins_ (file, data, bins, cb) {
-  var m = data.directories && data.directories.bin || '.'
+  var m = (data.directories && data.directories.bin) || '.'
   data.bin = bins.reduce(function (acc, mf) {
     if (mf && mf.charAt(0) !== '.') {
       var f = path.basename(mf)

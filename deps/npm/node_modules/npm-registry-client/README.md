@@ -53,6 +53,19 @@ for authorization. These credentials always look the same:
 * `alwaysAuth` {Boolean} Whether calls to the target registry are always
   authed.
 
+## Requests
+
+As of `npm-registry-client@8`, all requests are made with an `Accept` header
+of `application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*`.
+
+This enables filtered document responses to requests for package metadata.
+You know that you got a filtered response if the mime type is set to
+`application/vnd.npm.install-v1+json` and not `application/json`.
+
+This filtering substantially reduces the over all data size.  For example
+for `https://registry.npmjs.org/npm`, the compressed metadata goes from
+410kB to 21kB.
+
 ## API
 
 ### client.access(uri, params, cb)
@@ -125,7 +138,7 @@ Add (or replace) a single dist-tag onto the named package.
 * `cb` {Function}
 
 Set all of the `dist-tags` for the named package at once, creating any
-`dist-tags` that do not already exit. Any `dist-tags` not included in the
+`dist-tags` that do not already exist. Any `dist-tags` not included in the
 `distTags` map will be removed.
 
 ### client.distTags.update(uri, params, cb)
@@ -164,6 +177,8 @@ Remove a single `dist-tag` from the named package.
     the callback quickly, and update the cache the background. Optional
     (default: false).
   * `auth` {Credentials} Optional.
+  * `fullMetadata` {Boolean} If true, don't attempt to fetch filtered
+    ("corgi") registry metadata.  (default: false)
 * `cb` {Function}
 
 Fetches data from the registry via a GET request, saving it in the cache folder

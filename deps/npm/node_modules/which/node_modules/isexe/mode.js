@@ -4,13 +4,17 @@ isexe.sync = sync
 var fs = require('fs')
 
 function isexe (path, options, cb) {
-  fs.stat(path, function (er, st) {
-    cb(er, er ? false : checkMode(st, options))
+  fs.stat(path, function (er, stat) {
+    cb(er, er ? false : checkStat(stat, options))
   })
 }
 
 function sync (path, options) {
-  return checkMode(fs.statSync(path), options)
+  return checkStat(fs.statSync(path), options)
+}
+
+function checkStat (stat, options) {
+  return stat.isFile() && checkMode(stat, options)
 }
 
 function checkMode (stat, options) {

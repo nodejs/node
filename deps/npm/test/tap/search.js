@@ -130,7 +130,7 @@ test('can switch to tab separated mode', function (t) {
     '--cache', CACHE_DIR
   ], {}, function (err, code, stdout, stderr) {
     if (err) throw err
-    t.equal(stdout, 'cool\t\t\tprehistoric\t\t\nfoo\tthis has tabs\t\tprehistoric\t\t\n', 'correct output, including replacing tabs in descriptions')
+    t.equal(stdout, 'cool\t\t\tprehistoric\t1.0.0\t\nfoo\tthis has tabs\t\tprehistoric\t2.0.0\t\n', 'correct output, including replacing tabs in descriptions')
     t.equal(stderr, '', 'no error output')
     t.equal(code, 0, 'search gives 0 error code even if no matches')
     t.done()

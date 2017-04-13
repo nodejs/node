@@ -1,0 +1,111 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "lazy-req@^2.0.0",
+        "scope": null,
+        "escapedName": "lazy-req",
+        "name": "lazy-req",
+        "rawSpec": "^2.0.0",
+        "spec": ">=2.0.0 <3.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier"
+    ]
+  ],
+  "_from": "lazy-req@>=2.0.0 <3.0.0",
+  "_id": "lazy-req@2.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/lazy-req",
+  "_nodeVersion": "4.6.2",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/lazy-req-2.0.0.tgz_1484646276710_0.28619852592237294"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.11",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "lazy-req@^2.0.0",
+    "scope": null,
+    "escapedName": "lazy-req",
+    "name": "lazy-req",
+    "rawSpec": "^2.0.0",
+    "spec": ">=2.0.0 <3.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier"
+  ],
+  "_resolved": "https://registry.npmjs.org/lazy-req/-/lazy-req-2.0.0.tgz",
+  "_shasum": "c9450a363ecdda2e6f0c70132ad4f37f8f06f2b4",
+  "_shrinkwrap": null,
+  "_spec": "lazy-req@^2.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/lazy-req/issues"
+  },
+  "contributors": [
+    {
+      "name": "Jorge Bucaran",
+      "email": "jbucaran@me.com"
+    }
+  ],
+  "dependencies": {},
+  "description": "Require modules lazily",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "c9450a363ecdda2e6f0c70132ad4f37f8f06f2b4",
+    "tarball": "https://registry.npmjs.org/lazy-req/-/lazy-req-2.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "498395dd746a0ecfd6aeb785ecb93c593d5a680f",
+  "homepage": "https://github.com/sindresorhus/lazy-req#readme",
+  "keywords": [
+    "require",
+    "load",
+    "module",
+    "modules",
+    "lazy",
+    "lazily",
+    "defer",
+    "deferred",
+    "proxy",
+    "proxies"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "lazy-req",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/lazy-req.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "2.0.0"
+}

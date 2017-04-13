@@ -1,0 +1,111 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "cross-spawn-async@^2.1.1",
+        "scope": null,
+        "escapedName": "cross-spawn-async",
+        "name": "cross-spawn-async",
+        "rawSpec": "^2.1.1",
+        "spec": ">=2.1.1 <3.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa"
+    ]
+  ],
+  "_from": "cross-spawn-async@>=2.1.1 <3.0.0",
+  "_id": "cross-spawn-async@2.2.5",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/term-size/execa/cross-spawn-async",
+  "_nodeVersion": "6.9.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/cross-spawn-async-2.2.5.tgz_1477593813246_0.9181264599319547"
+  },
+  "_npmUser": {
+    "name": "satazor",
+    "email": "andremiguelcruz@msn.com"
+  },
+  "_npmVersion": "3.10.8",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "cross-spawn-async@^2.1.1",
+    "scope": null,
+    "escapedName": "cross-spawn-async",
+    "name": "cross-spawn-async",
+    "rawSpec": "^2.1.1",
+    "spec": ">=2.1.1 <3.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen/term-size/execa"
+  ],
+  "_resolved": "https://registry.npmjs.org/cross-spawn-async/-/cross-spawn-async-2.2.5.tgz",
+  "_shasum": "845ff0c0834a3ded9d160daca6d390906bb288cc",
+  "_shrinkwrap": null,
+  "_spec": "cross-spawn-async@^2.1.1",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa",
+  "author": {
+    "name": "IndigoUnited",
+    "email": "hello@indigounited.com",
+    "url": "http://indigounited.com"
+  },
+  "bugs": {
+    "url": "https://github.com/IndigoUnited/node-cross-spawn-async/issues/"
+  },
+  "dependencies": {
+    "lru-cache": "^4.0.0",
+    "which": "^1.2.8"
+  },
+  "description": "Cross platform child_process#spawn",
+  "devDependencies": {
+    "@satazor/eslint-config": "^3.0.0",
+    "eslint": "^3.0.0",
+    "expect.js": "^0.3.0",
+    "glob": "^7.0.0",
+    "mkdirp": "^0.5.1",
+    "mocha": "^3.0.2",
+    "rimraf": "^2.5.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "845ff0c0834a3ded9d160daca6d390906bb288cc",
+    "tarball": "https://registry.npmjs.org/cross-spawn-async/-/cross-spawn-async-2.2.5.tgz"
+  },
+  "gitHead": "4ff1e02130b9d54c327002f7953f549e2d143bef",
+  "homepage": "https://github.com/IndigoUnited/node-cross-spawn-async#readme",
+  "keywords": [
+    "spawn",
+    "windows",
+    "cross",
+    "platform",
+    "path",
+    "ext",
+    "path-ext",
+    "path_ext",
+    "shebang",
+    "hashbang",
+    "cmd",
+    "execute"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "satazor",
+      "email": "andremiguelcruz@msn.com"
+    }
+  ],
+  "name": "cross-spawn-async",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/IndigoUnited/node-cross-spawn-async.git"
+  },
+  "scripts": {
+    "lint": "eslint '{*.js,lib/**/*.js,test/**/*.js}'",
+    "test": "node test/prepare && mocha --bail test/test"
+  },
+  "version": "2.2.5"
+}

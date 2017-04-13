@@ -136,8 +136,10 @@ BundledPacker.prototype.applyIgnores = function (entry, partial, entryObj) {
 
     // the package root.
     var p = this.parent
-    // the package before this one.
+    // the directory before this one.
     var pp = p && p.parent
+    // the directory before that (if this is scoped)
+    if (pp && pp.basename[0] === '@') pp = pp && pp.parent
 
     // if this entry has already been bundled, and is a symlink,
     // and it is the *same* symlink as this one, then exclude it.

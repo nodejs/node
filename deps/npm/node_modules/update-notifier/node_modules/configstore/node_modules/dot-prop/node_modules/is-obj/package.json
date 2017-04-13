@@ -1,0 +1,101 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "is-obj@^1.0.0",
+        "scope": null,
+        "escapedName": "is-obj",
+        "name": "is-obj",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/configstore/node_modules/dot-prop"
+    ]
+  ],
+  "_from": "is-obj@>=1.0.0 <2.0.0",
+  "_id": "is-obj@1.0.1",
+  "_inCache": true,
+  "_location": "/update-notifier/configstore/dot-prop/is-obj",
+  "_nodeVersion": "4.3.0",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/is-obj-1.0.1.tgz_1458641652447_0.6715397178195417"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.14.12",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "is-obj@^1.0.0",
+    "scope": null,
+    "escapedName": "is-obj",
+    "name": "is-obj",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/configstore/dot-prop"
+  ],
+  "_resolved": "https://registry.npmjs.org/is-obj/-/is-obj-1.0.1.tgz",
+  "_shasum": "3e4729ac1f5fde025cd7d83a896dab9f4f67db0f",
+  "_shrinkwrap": null,
+  "_spec": "is-obj@^1.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/configstore/node_modules/dot-prop",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/is-obj/issues"
+  },
+  "dependencies": {},
+  "description": "Check if a value is an object",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "3e4729ac1f5fde025cd7d83a896dab9f4f67db0f",
+    "tarball": "https://registry.npmjs.org/is-obj/-/is-obj-1.0.1.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "7438be7393348bf65cbc2330446666bb7fc2c2da",
+  "homepage": "https://github.com/sindresorhus/is-obj#readme",
+  "keywords": [
+    "obj",
+    "object",
+    "is",
+    "check",
+    "test",
+    "type"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "is-obj",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/is-obj.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.0.1"
+}

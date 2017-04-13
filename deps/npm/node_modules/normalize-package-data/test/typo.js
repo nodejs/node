@@ -10,7 +10,7 @@ test('typos', function(t) {
   function warn(m) {
     warnings.push(m)
   }
-  
+
   var typoMessage = safeFormat.bind(undefined, warningMessages.typo)
 
   var expect =

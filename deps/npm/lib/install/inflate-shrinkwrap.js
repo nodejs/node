@@ -89,7 +89,7 @@ function inflateShrinkwrap (topPath, tree, swdeps, finishInflating) {
       tree.children.push(child)
       if (pkg._bundled) {
         delete pkg._bundled
-        inflateBundled(child, child.children)
+        inflateBundled(child, child, child.children)
       }
       inflateShrinkwrap(topPath, child, dependencies || {}, next)
     }

@@ -408,10 +408,10 @@ and the OpenSSH certificate format. This feature is intended to be used mainly
 to access basic metadata about certificates, extract public keys from them, and
 also to generate simple self-signed certificates from an existing key.
 
-Notably, there is no implementation of CA chain-of-trust verification, and no
-support for key usage restrictions (or other kinds of restrictions). Please do
-the security world a favour, and DO NOT use this code for certificate
-verification in the traditional X.509 CA chain style.
+Notably, there is no implementation of CA chain-of-trust verification, and only
+very minimal support for key usage restrictions. Please do the security world
+a favour, and DO NOT use this code for certificate verification in the
+traditional X.509 CA chain style.
 
 ### `parseCertificate(data, format)`
 
@@ -436,6 +436,7 @@ Parameters
                                   certificate validity period. If given
                                   `lifetime` will be ignored
    - `serial` -- optional Buffer, the serial number of the certificate
+   - `purposes` -- optional Array of String, X.509 key usage restrictions
 
 ### `createCertificate(subject, key, issuer, issuerKey[, options])`
 
@@ -452,6 +453,7 @@ Parameters
                                   certificate validity period. If given
                                   `lifetime` will be ignored
    - `serial` -- optional Buffer, the serial number of the certificate
+   - `purposes` -- optional Array of String, X.509 key usage restrictions
 
 ### `Certificate#subjects`
 
@@ -474,6 +476,23 @@ May be `undefined` if the issuer's key is unknown (e.g. on an X509 certificate).
 
 The serial number of the certificate. As this is normally a 64-bit or wider
 integer, it is returned as a Buffer.
+
+### `Certificate#purposes`
+
+Array of Strings indicating the X.509 key usage purposes that this certificate
+is valid for. The possible strings at the moment are:
+
+ * `'signature'` -- key can be used for digital signatures
+ * `'identity'` -- key can be used to attest about the identity of the signer
+                   (X.509 calls this `nonRepudiation`)
+ * `'codeSigning'` -- key can be used to sign executable code
+ * `'keyEncryption'` -- key can be used to encrypt other keys
+ * `'encryption'` -- key can be used to encrypt data (only applies for RSA)
+ * `'keyAgreement'` -- key can be used for key exchange protocols such as
+                       Diffie-Hellman
+ * `'ca'` -- key can be used to sign other certificates (is a Certificate
+             Authority)
+ * `'crl'` -- key can be used to sign Certificate Revocation Lists (CRLs)
 
 ### `Certificate#isExpired([when])`
 

@@ -1,0 +1,97 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "run-queue@^1.0.3",
+        "scope": null,
+        "escapedName": "run-queue",
+        "name": "run-queue",
+        "rawSpec": "^1.0.3",
+        "spec": ">=1.0.3 <2.0.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/move-concurrently"
+    ]
+  ],
+  "_from": "run-queue@>=1.0.3 <2.0.0",
+  "_id": "run-queue@1.0.3",
+  "_inCache": true,
+  "_location": "/move-concurrently/run-queue",
+  "_nodeVersion": "0.12.13",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/run-queue-1.0.3.tgz_1488161288446_0.14580746600404382"
+  },
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "_npmVersion": "2.15.0",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "run-queue@^1.0.3",
+    "scope": null,
+    "escapedName": "run-queue",
+    "name": "run-queue",
+    "rawSpec": "^1.0.3",
+    "spec": ">=1.0.3 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/move-concurrently",
+    "/move-concurrently/copy-concurrently"
+  ],
+  "_resolved": "https://registry.npmjs.org/run-queue/-/run-queue-1.0.3.tgz",
+  "_shasum": "e848396f057d223f24386924618e25694161ec47",
+  "_shrinkwrap": null,
+  "_spec": "run-queue@^1.0.3",
+  "_where": "/Users/rebecca/code/npm/node_modules/move-concurrently",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/iarna/run-queue/issues"
+  },
+  "dependencies": {
+    "aproba": "^1.1.1"
+  },
+  "description": "A promise based, dynamic priority queue runner, with concurrency limiting.",
+  "devDependencies": {
+    "standard": "^8.6.0",
+    "tap": "^10.2.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dist": {
+    "shasum": "e848396f057d223f24386924618e25694161ec47",
+    "tarball": "https://registry.npmjs.org/run-queue/-/run-queue-1.0.3.tgz"
+  },
+  "files": [
+    "queue.js"
+  ],
+  "gitHead": "3c315b738d0578c2c54be2beb0469d00ccf1dc25",
+  "homepage": "https://npmjs.com/package/run-queue",
+  "keywords": [],
+  "license": "ISC",
+  "main": "queue.js",
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "name": "run-queue",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/run-queue.git"
+  },
+  "scripts": {
+    "test": "standard && tap -J test"
+  },
+  "version": "1.0.3"
+}

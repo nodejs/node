@@ -16,6 +16,7 @@ var clone = require('lodash.clonedeep')
 var validate = require('aproba')
 var unpipe = require('unpipe')
 var normalizePackageData = require('normalize-package-data')
+var limit = require('call-limit')
 
 var npm = require('./npm.js')
 var mapToRegistry = require('./utils/map-to-registry.js')
@@ -39,12 +40,16 @@ function andLogAndFinish (spec, tracker, done) {
   }
 }
 
-module.exports = function fetchPackageMetadata (spec, where, tracker, done) {
+module.exports = limit(fetchPackageMetadata, npm.limit.fetch)
+
+function fetchPackageMetadata (spec, where, opts, done) {
+  validate('SSOF|SSFZ|OSOF|OSFZ', [spec, where, opts, done])
+
   if (!done) {
-    done = tracker || where
-    tracker = null
-    if (done === where) where = null
+    done = opts
+    opts = {}
   }
+  var tracker = opts.tracker
   if (typeof spec === 'object') {
     var dep = spec
     spec = dep.raw
@@ -53,11 +58,11 @@ module.exports = function fetchPackageMetadata (spec, where, tracker, done) {
   if (!dep) {
     log.silly('fetchPackageMetaData', spec)
     return realizePackageSpecifier(spec, where, iferr(logAndFinish, function (dep) {
-      fetchPackageMetadata(dep, where, tracker, done)
+      fetchPackageMetadata(dep, where, {tracker: tracker}, done)
     }))
   }
   if (dep.type === 'version' || dep.type === 'range' || dep.type === 'tag') {
-    fetchNamedPackageData(dep, addRequestedAndFinish)
+    fetchNamedPackageData(dep, opts, addRequestedAndFinish)
   } else if (dep.type === 'directory') {
     fetchDirectoryPackageData(dep, where, addRequestedAndFinish)
   } else {
@@ -105,14 +110,15 @@ function fetchDirectoryPackageData (dep, where, next) {
 
 var regCache = {}
 
-function fetchNamedPackageData (dep, next) {
-  validate('OF', arguments)
+function fetchNamedPackageData (dep, opts, next) {
+  validate('OOF', arguments)
   log.silly('fetchNamedPackageData', dep.name || dep.rawSpec)
   mapToRegistry(dep.name || dep.rawSpec, npm.config, iferr(next, function (url, auth) {
     if (regCache[url]) {
       pickVersionFromRegistryDocument(clone(regCache[url]))
     } else {
-      npm.registry.get(url, {auth: auth}, pulseTillDone('fetchMetadata', iferr(next, pickVersionFromRegistryDocument)))
+      var fullMetadata = opts.fullMetadata == null ? true : opts.fullMetadata
+      npm.registry.get(url, {auth: auth, fullMetadata: fullMetadata}, pulseTillDone('fetchMetadata', iferr(next, pickVersionFromRegistryDocument)))
     }
     function thenAddMetadata (pkg) {
       pkg._from = dep.raw
@@ -180,6 +186,10 @@ function retryWithCached (pkg, asserter, next) {
 module.exports.addShrinkwrap = function addShrinkwrap (pkg, next) {
   validate('OF', arguments)
   if (pkg._shrinkwrap !== undefined) return next(null, pkg)
+  if (pkg._hasShrinkwrap === false) {
+    pkg._shrinkwrap = null
+    return next(null, pkg)
+  }
   if (retryWithCached(pkg, addShrinkwrap, next)) return
   pkg._shrinkwrap = null
   // FIXME: cache the shrinkwrap directly

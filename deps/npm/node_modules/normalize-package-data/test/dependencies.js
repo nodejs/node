@@ -15,7 +15,7 @@ tap.test("warn if dependency contains anything else but a string", function(t) {
     devDependencies: { "b": 456},
     optionalDependencies: { "c": 789}
   }, warn)
-  
+
   var wanted1 = safeFormat(warningMessages.nonStringDependency, "a", 123)
   var wanted2 = safeFormat(warningMessages.nonStringDependency, "b", 456)
   var wanted3 = safeFormat(warningMessages.nonStringDependency, "c", 789)
@@ -34,7 +34,7 @@ tap.test("warn if bundleDependencies array contains anything else but strings", 
   normalize(a={
     bundleDependencies: ["abc", 123, {foo:"bar"}]
   }, warn)
-  
+
   var wanted1 = safeFormat(warningMessages.nonStringBundleDependency, 123)
   var wanted2 = safeFormat(warningMessages.nonStringBundleDependency, {foo:"bar"})
   var wanted2 = safeFormat(warningMessages.nonDependencyBundleDependency, "abc")
