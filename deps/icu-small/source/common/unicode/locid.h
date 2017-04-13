@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -33,10 +33,8 @@
 
 #include "unicode/utypes.h"
 #include "unicode/uobject.h"
-#include "unicode/unistr.h"
 #include "unicode/putil.h"
 #include "unicode/uloc.h"
-#include "unicode/strenum.h"
 
 /**
  * \file
@@ -47,6 +45,9 @@ U_NAMESPACE_BEGIN
 
 // Forward Declarations
 void U_CALLCONV locale_available_init(); /**< @internal */
+
+class StringEnumeration;
+class UnicodeString;
 
 /**
  * A <code>Locale</code> object represents a specific geographical, political,

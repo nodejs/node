@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  * Copyright (C) 2015, International Business Machines
@@ -13,7 +13,9 @@
 
 #include "unicode/dcfmtsym.h"
 #include "unicode/plurrule.h"
+#include "unicode/strenum.h"
 #include "unicode/ucurr.h"
+#include "unicode/ustring.h"
 #include "affixpatternparser.h"
 #include "charstr.h"
 #include "precision.h"

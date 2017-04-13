@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -27,12 +27,14 @@
 #include "unicode/udata.h"
 #include "unicode/udisplaycontext.h"
 #include "unicode/brkiter.h"
-#include "nfrs.h"
+#include "unicode/ucasemap.h"
 
 #include "cmemory.h"
 #include "cstring.h"
 #include "patternprops.h"
 #include "uresimp.h"
+#include "nfrs.h"
+#include "digitlst.h"
 
 // debugging
 // #define RBNF_DEBUG
@@ -1079,17 +1081,76 @@ RuleBasedNumberFormat::findRuleSet(const UnicodeString& name, UErrorCode& status
 }
 
 UnicodeString&
+RuleBasedNumberFormat::format(const DigitList &number,
+                      UnicodeString &appendTo,
+                      FieldPositionIterator *posIter,
+                      UErrorCode &status) const {
+    if (U_FAILURE(status)) {
+        return appendTo;
+    }
+    DigitList copy(number);
+    if (copy.fitsIntoInt64(false)) {
+        format(((DigitList &)number).getInt64(), appendTo, posIter, status);
+    }
+    else {
+        copy.roundAtExponent(0);
+        if (copy.fitsIntoInt64(false)) {
+            format(number.getDouble(), appendTo, posIter, status);
+        }
+        else {
+            // We're outside of our normal range that this framework can handle.
+            // The DecimalFormat will provide more accurate results.
+
+            // TODO this section should probably be optimized. The DecimalFormat is shared in ICU4J.
+            NumberFormat *decimalFormat = NumberFormat::createInstance(locale, UNUM_DECIMAL, status);
+            Formattable f;
+            f.adoptDigitList(new DigitList(number));
+            decimalFormat->format(f, appendTo, posIter, status);
+            delete decimalFormat;
+        }
+    }
+    return appendTo;
+}
+
+
+UnicodeString&
+RuleBasedNumberFormat::format(const DigitList &number,
+                     UnicodeString& appendTo,
+                     FieldPosition& pos,
+                     UErrorCode &status) const {
+    if (U_FAILURE(status)) {
+        return appendTo;
+    }
+    DigitList copy(number);
+    if (copy.fitsIntoInt64(false)) {
+        format(((DigitList &)number).getInt64(), appendTo, pos, status);
+    }
+    else {
+        copy.roundAtExponent(0);
+        if (copy.fitsIntoInt64(false)) {
+            format(number.getDouble(), appendTo, pos, status);
+        }
+        else {
+            // We're outside of our normal range that this framework can handle.
+            // The DecimalFormat will provide more accurate results.
+
+            // TODO this section should probably be optimized. The DecimalFormat is shared in ICU4J.
+            NumberFormat *decimalFormat = NumberFormat::createInstance(locale, UNUM_DECIMAL, status);
+            Formattable f;
+            f.adoptDigitList(new DigitList(number));
+            decimalFormat->format(f, appendTo, pos, status);
+            delete decimalFormat;
+        }
+    }
+    return appendTo;
+}
+
+UnicodeString&
 RuleBasedNumberFormat::format(int32_t number,
                               UnicodeString& toAppendTo,
-                              FieldPosition& /* pos */) const
+                              FieldPosition& pos) const
 {
-    if (defaultRuleSet) {
-        UErrorCode status = U_ZERO_ERROR;
-        int32_t startPos = toAppendTo.length();
-        defaultRuleSet->format((int64_t)number, toAppendTo, toAppendTo.length(), 0, status);
-        adjustForCapitalizationContext(startPos, toAppendTo);
-    }
-    return toAppendTo;
+    return format((int64_t)number, toAppendTo, pos);
 }
 
 
@@ -1100,9 +1161,7 @@ RuleBasedNumberFormat::format(int64_t number,
 {
     if (defaultRuleSet) {
         UErrorCode status = U_ZERO_ERROR;
-        int32_t startPos = toAppendTo.length();
-        defaultRuleSet->format(number, toAppendTo, toAppendTo.length(), 0, status);
-        adjustForCapitalizationContext(startPos, toAppendTo);
+        format(number, defaultRuleSet, toAppendTo, status);
     }
     return toAppendTo;
 }
@@ -1114,11 +1173,11 @@ RuleBasedNumberFormat::format(double number,
                               FieldPosition& /* pos */) const
 {
     int32_t startPos = toAppendTo.length();
+    UErrorCode status = U_ZERO_ERROR;
     if (defaultRuleSet) {
-        UErrorCode status = U_ZERO_ERROR;
         defaultRuleSet->format(number, toAppendTo, toAppendTo.length(), 0, status);
     }
-    return adjustForCapitalizationContext(startPos, toAppendTo);
+    return adjustForCapitalizationContext(startPos, toAppendTo, status);
 }
 
 
@@ -1126,24 +1185,10 @@ UnicodeString&
 RuleBasedNumberFormat::format(int32_t number,
                               const UnicodeString& ruleSetName,
                               UnicodeString& toAppendTo,
-                              FieldPosition& /* pos */,
+                              FieldPosition& pos,
                               UErrorCode& status) const
 {
-    // return format((int64_t)number, ruleSetName, toAppendTo, pos, status);
-    if (U_SUCCESS(status)) {
-        if (ruleSetName.indexOf(gPercentPercent, 2, 0) == 0) {
-            // throw new IllegalArgumentException("Can't use internal rule set");
-            status = U_ILLEGAL_ARGUMENT_ERROR;
-        } else {
-            NFRuleSet *rs = findRuleSet(ruleSetName, status);
-            if (rs) {
-                int32_t startPos = toAppendTo.length();
-                rs->format((int64_t)number, toAppendTo, toAppendTo.length(), 0, status);
-                adjustForCapitalizationContext(startPos, toAppendTo);
-            }
-        }
-    }
-    return toAppendTo;
+    return format((int64_t)number, ruleSetName, toAppendTo, pos, status);
 }
 
 
@@ -1161,9 +1206,7 @@ RuleBasedNumberFormat::format(int64_t number,
         } else {
             NFRuleSet *rs = findRuleSet(ruleSetName, status);
             if (rs) {
-                int32_t startPos = toAppendTo.length();
-                rs->format(number, toAppendTo, toAppendTo.length(), 0, status);
-                adjustForCapitalizationContext(startPos, toAppendTo);
+                format(number, rs, toAppendTo, status);
             }
         }
     }
@@ -1187,8 +1230,53 @@ RuleBasedNumberFormat::format(double number,
             if (rs) {
                 int32_t startPos = toAppendTo.length();
                 rs->format(number, toAppendTo, toAppendTo.length(), 0, status);
-                adjustForCapitalizationContext(startPos, toAppendTo);
+                adjustForCapitalizationContext(startPos, toAppendTo, status);
             }
+        }
+    }
+    return toAppendTo;
+}
+
+/**
+ * Bottleneck through which all the public format() methods
+ * that take a long pass. By the time we get here, we know
+ * which rule set we're using to do the formatting.
+ * @param number The number to format
+ * @param ruleSet The rule set to use to format the number
+ * @return The text that resulted from formatting the number
+ */
+UnicodeString&
+RuleBasedNumberFormat::format(int64_t number, NFRuleSet *ruleSet, UnicodeString& toAppendTo, UErrorCode& status) const
+{
+    // all API format() routines that take a double vector through
+    // here.  We have these two identical functions-- one taking a
+    // double and one taking a long-- the couple digits of precision
+    // that long has but double doesn't (both types are 8 bytes long,
+    // but double has to borrow some of the mantissa bits to hold
+    // the exponent).
+    // Create an empty string buffer where the result will
+    // be built, and pass it to the rule set (along with an insertion
+    // position of 0 and the number being formatted) to the rule set
+    // for formatting
+
+    if (U_SUCCESS(status)) {
+        if (number == U_INT64_MIN) {
+            // We can't handle this value right now. Provide an accurate default value.
+
+            // TODO this section should probably be optimized. The DecimalFormat is shared in ICU4J.
+            NumberFormat *decimalFormat = NumberFormat::createInstance(locale, UNUM_DECIMAL, status);
+            Formattable f;
+            FieldPosition pos(FieldPosition::DONT_CARE);
+            DigitList *digitList = new DigitList();
+            digitList->set(number);
+            f.adoptDigitList(digitList);
+            decimalFormat->format(f, toAppendTo, pos, status);
+            delete decimalFormat;
+        }
+        else {
+            int32_t startPos = toAppendTo.length();
+            ruleSet->format(number, toAppendTo, toAppendTo.length(), 0, status);
+            adjustForCapitalizationContext(startPos, toAppendTo, status);
         }
     }
     return toAppendTo;
@@ -1196,18 +1284,18 @@ RuleBasedNumberFormat::format(double number,
 
 UnicodeString&
 RuleBasedNumberFormat::adjustForCapitalizationContext(int32_t startPos,
-                                                      UnicodeString& currentResult) const
+                                                      UnicodeString& currentResult,
+                                                      UErrorCode& status) const
 {
 #if !UCONFIG_NO_BREAK_ITERATION
-    if (startPos==0 && currentResult.length() > 0) {
+    UDisplayContext capitalizationContext = getContext(UDISPCTX_TYPE_CAPITALIZATION, status);
+    if (capitalizationContext != UDISPCTX_CAPITALIZATION_NONE && startPos == 0 && currentResult.length() > 0) {
         // capitalize currentResult according to context
         UChar32 ch = currentResult.char32At(0);
-        UErrorCode status = U_ZERO_ERROR;
-        UDisplayContext capitalizationContext = getContext(UDISPCTX_TYPE_CAPITALIZATION, status);
-        if ( u_islower(ch) && U_SUCCESS(status) && capitalizationBrkIter!= NULL &&
-              ( capitalizationContext==UDISPCTX_CAPITALIZATION_FOR_BEGINNING_OF_SENTENCE ||
-                (capitalizationContext==UDISPCTX_CAPITALIZATION_FOR_UI_LIST_OR_MENU && capitalizationForUIListMenu) ||
-                (capitalizationContext==UDISPCTX_CAPITALIZATION_FOR_STANDALONE && capitalizationForStandAlone)) ) {
+        if (u_islower(ch) && U_SUCCESS(status) && capitalizationBrkIter != NULL &&
+              ( capitalizationContext == UDISPCTX_CAPITALIZATION_FOR_BEGINNING_OF_SENTENCE ||
+                (capitalizationContext == UDISPCTX_CAPITALIZATION_FOR_UI_LIST_OR_MENU && capitalizationForUIListMenu) ||
+                (capitalizationContext == UDISPCTX_CAPITALIZATION_FOR_STANDALONE && capitalizationForStandAlone)) ) {
             // titlecase first word of currentResult, here use sentence iterator unlike current implementations
             // in LocaleDisplayNamesImpl::adjustForUsageAndContext and RelativeDateFormat::format
             currentResult.toTitle(capitalizationBrkIter, locale, U_TITLECASE_NO_LOWERCASE | U_TITLECASE_NO_BREAK_ADJUSTMENT);

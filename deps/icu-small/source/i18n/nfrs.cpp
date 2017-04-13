@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 ******************************************************************************
 *   file name:  nfrs.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -23,6 +23,7 @@
 #include "nfrule.h"
 #include "nfrlist.h"
 #include "patternprops.h"
+#include "putilimp.h"
 
 #ifdef RBNF_DEBUG
 #include "cmemory.h"
@@ -544,7 +545,7 @@ NFRuleSet::findNormalRule(int64_t number) const
         // an explanation of the rollback rule).  If we do, roll back
         // one rule and return that one instead of the one we'd normally
         // return
-        if (result->shouldRollBack((double)number)) {
+        if (result->shouldRollBack(number)) {
             if (hi == 1) { // bad rule set, no prior rule to rollback to from this base
                 return NULL;
             }
@@ -829,18 +830,20 @@ int64_t util64_fromDouble(double d) {
     return result;
 }
 
-int64_t util64_pow(int32_t r, uint32_t e)  {
-    if (r == 0) {
+int64_t util64_pow(int32_t base, uint16_t exponent)  {
+    if (base == 0) {
         return 0;
-    } else if (e == 0) {
-        return 1;
-    } else {
-        int64_t n = r;
-        while (--e > 0) {
-            n *= r;
-        }
-        return n;
     }
+    int64_t result = 1;
+    int64_t pow = base;
+    while (exponent > 0) {
+        if ((exponent & 1) == 1) {
+            result *= pow;
+        }
+        pow *= pow;
+        exponent >>= 1;
+    }
+    return result;
 }
 
 static const uint8_t asciiDigits[] = {

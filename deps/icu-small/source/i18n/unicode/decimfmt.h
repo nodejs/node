@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
@@ -604,7 +604,7 @@ template class U_I18N_API    EnumSet<UNumberFormatAttribute,
  * including prefix and suffix, determines the format width.  For example, in
  * the pattern <code>"* #0 o''clock"</code>, the format width is 10.
  *
- * <li>The width is counted in 16-bit code units (UChars).
+ * <li>The width is counted in 16-bit code units (char16_ts).
  *
  * <li>Some parameters which usually do not matter have meaning when padding is
  * used, because the pattern width is significant with padding.  In the pattern
@@ -1961,14 +1961,14 @@ public:
      * @param ec input-output error code
      * @stable ICU 3.0
      */
-    virtual void setCurrency(const UChar* theCurrency, UErrorCode& ec);
+    virtual void setCurrency(const char16_t* theCurrency, UErrorCode& ec);
 
     /**
      * Sets the currency used to display currency amounts.  See
-     * setCurrency(const UChar*, UErrorCode&).
-     * @deprecated ICU 3.0. Use setCurrency(const UChar*, UErrorCode&).
+     * setCurrency(const char16_t*, UErrorCode&).
+     * @deprecated ICU 3.0. Use setCurrency(const char16_t*, UErrorCode&).
      */
-    virtual void setCurrency(const UChar* theCurrency);
+    virtual void setCurrency(const char16_t* theCurrency);
 
     /**
      * Sets the <tt>Currency Context</tt> object used to display currency.
@@ -2108,7 +2108,7 @@ private:
     void parse(const UnicodeString& text,
                Formattable& result,
                ParsePosition& pos,
-               UChar* currency) const;
+               char16_t* currency) const;
 
     enum {
         fgStatusInfinite,
@@ -2124,7 +2124,7 @@ private:
                    int8_t type,
                    ParsePosition& parsePosition,
                    DigitList& digits, UBool* status,
-                   UChar* currency) const;
+                   char16_t* currency) const;
 
     // Mixed style parsing for currency.
     // It parses against the current currency pattern
@@ -2135,7 +2135,7 @@ private:
                            ParsePosition& parsePosition,
                            DigitList& digits,
                            UBool* status,
-                           UChar* currency) const;
+                           char16_t* currency) const;
 
     int32_t skipPadding(const UnicodeString& text, int32_t position) const;
 
@@ -2146,7 +2146,7 @@ private:
                          const UnicodeString* affixPat,
                          UBool complexCurrencyParsing,
                          int8_t type,
-                         UChar* currency) const;
+                         char16_t* currency) const;
 
     static UnicodeString& trimMarksFromAffix(const UnicodeString& affix, UnicodeString& trimmedAffix);
 
@@ -2169,7 +2169,7 @@ private:
                                 const UnicodeString& input,
                                 int32_t pos,
                                 int8_t type,
-                                UChar* currency) const;
+                                char16_t* currency) const;
 
     static int32_t match(const UnicodeString& text, int32_t pos, UChar32 ch);
 
@@ -2195,11 +2195,11 @@ private:
     void setupCurrencyAffixPatterns(UErrorCode& status);
 
     // get the currency rounding with respect to currency usage
-    double getCurrencyRounding(const UChar* currency,
+    double getCurrencyRounding(const char16_t* currency,
                                UErrorCode* ec) const;
 
     // get the currency fraction with respect to currency usage
-    int getCurrencyFractionDigits(const UChar* currency,
+    int getCurrencyFractionDigits(const char16_t* currency,
                                   UErrorCode* ec) const;
 
     // hashtable operations
@@ -2271,7 +2271,7 @@ protected:
      * have a capacity of at least 4
      * @internal
      */
-    virtual void getEffectiveCurrency(UChar* result, UErrorCode& ec) const;
+    virtual void getEffectiveCurrency(char16_t* result, UErrorCode& ec) const;
 
   /** number of integer digits
    * @stable ICU 2.4

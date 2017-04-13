@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
@@ -13,7 +13,7 @@
 
 #include "unicode/utypes.h"
 
-#if U_PLATFORM_HAS_WIN32_API && !UCONFIG_NO_FORMATTING
+#if U_PLATFORM_USES_ONLY_WIN32_API && !UCONFIG_NO_FORMATTING
 
 #include "wintzimpl.h"
 
@@ -24,7 +24,9 @@
 #include "uassert.h"
 #include "cmemory.h"
 
+#ifndef WIN32_LEAN_AND_MEAN
 #   define WIN32_LEAN_AND_MEAN
+#endif
 #   define VC_EXTRALEAN
 #   define NOUSER
 #   define NOSERVICE

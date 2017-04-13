@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -25,14 +25,14 @@ UCharCharacterIterator::UCharCharacterIterator()
     // never default construct!
 }
 
-UCharCharacterIterator::UCharCharacterIterator(const UChar* textPtr,
+UCharCharacterIterator::UCharCharacterIterator(ConstChar16Ptr textPtr,
                                                int32_t length)
   : CharacterIterator(textPtr != 0 ? (length>=0 ? length : u_strlen(textPtr)) : 0),
   text(textPtr)
 {
 }
 
-UCharCharacterIterator::UCharCharacterIterator(const UChar* textPtr,
+UCharCharacterIterator::UCharCharacterIterator(ConstChar16Ptr textPtr,
                                                int32_t length,
                                                int32_t position)
   : CharacterIterator(textPtr != 0 ? (length>=0 ? length : u_strlen(textPtr)) : 0, position),
@@ -40,7 +40,7 @@ UCharCharacterIterator::UCharCharacterIterator(const UChar* textPtr,
 {
 }
 
-UCharCharacterIterator::UCharCharacterIterator(const UChar* textPtr,
+UCharCharacterIterator::UCharCharacterIterator(ConstChar16Ptr textPtr,
                                                int32_t length,
                                                int32_t textBegin,
                                                int32_t textEnd,
@@ -349,7 +349,7 @@ UCharCharacterIterator::move32(int32_t delta, CharacterIterator::EOrigin origin)
     return pos;
 }
 
-void UCharCharacterIterator::setText(const UChar* newText,
+void UCharCharacterIterator::setText(ConstChar16Ptr newText,
                                      int32_t      newTextLength) {
     text = newText;
     if(newText == 0 || newTextLength < 0) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *   Corporation and others.  All Rights Reserved.
 *******************************************************************************
 *   file name:  stringtriebuilder.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -105,7 +105,7 @@ protected:
     /** @internal */
     virtual int32_t getElementStringLength(int32_t i) const = 0;
     /** @internal */
-    virtual UChar getElementUnit(int32_t i, int32_t unitIndex) const = 0;
+    virtual char16_t getElementUnit(int32_t i, int32_t unitIndex) const = 0;
     /** @internal */
     virtual int32_t getElementValue(int32_t i) const = 0;
 
@@ -120,7 +120,7 @@ protected:
     /** @internal */
     virtual int32_t skipElementsBySomeUnits(int32_t i, int32_t unitIndex, int32_t count) const = 0;
     /** @internal */
-    virtual int32_t indexOfElementWithNextUnit(int32_t i, int32_t unitIndex, UChar unit) const = 0;
+    virtual int32_t indexOfElementWithNextUnit(int32_t i, int32_t unitIndex, char16_t unit) const = 0;
 
     /** @internal */
     virtual UBool matchNodesCanHaveValues() const = 0;
@@ -137,7 +137,7 @@ protected:
     /** @internal */
     static const int32_t kMaxBranchLinearSubNodeLength=5;
 
-    // Maximum number of nested split-branch levels for a branch on all 2^16 possible UChar units.
+    // Maximum number of nested split-branch levels for a branch on all 2^16 possible char16_t units.
     // log2(2^16/kMaxBranchLinearSubNodeLength) rounded up.
     /** @internal */
     static const int32_t kMaxSplitBranchLevels=14;
@@ -338,7 +338,7 @@ protected:
         virtual void write(StringTrieBuilder &builder);
         // Adds a unit with a final value.
         void add(int32_t c, int32_t value) {
-            units[length]=(UChar)c;
+            units[length]=(char16_t)c;
             equal[length]=NULL;
             values[length]=value;
             ++length;
@@ -346,7 +346,7 @@ protected:
         }
         // Adds a unit which leads to another match node.
         void add(int32_t c, Node *node) {
-            units[length]=(UChar)c;
+            units[length]=(char16_t)c;
             equal[length]=node;
             values[length]=0;
             ++length;
@@ -356,7 +356,7 @@ protected:
         Node *equal[kMaxBranchLinearSubNodeLength];  // NULL means "has final value".
         int32_t length;
         int32_t values[kMaxBranchLinearSubNodeLength];
-        UChar units[kMaxBranchLinearSubNodeLength];
+        char16_t units[kMaxBranchLinearSubNodeLength];
     };
 
     /**
@@ -364,7 +364,7 @@ protected:
      */
     class SplitBranchNode : public BranchNode {
     public:
-        SplitBranchNode(UChar middleUnit, Node *lessThanNode, Node *greaterOrEqualNode)
+        SplitBranchNode(char16_t middleUnit, Node *lessThanNode, Node *greaterOrEqualNode)
                 : BranchNode(((0x555555*37+middleUnit)*37+
                               hashCode(lessThanNode))*37+hashCode(greaterOrEqualNode)),
                   unit(middleUnit), lessThan(lessThanNode), greaterOrEqual(greaterOrEqualNode) {}
@@ -372,7 +372,7 @@ protected:
         virtual int32_t markRightEdgesFirst(int32_t edgeNumber);
         virtual void write(StringTrieBuilder &builder);
     protected:
-        UChar unit;
+        char16_t unit;
         Node *lessThan;
         Node *greaterOrEqual;
     };

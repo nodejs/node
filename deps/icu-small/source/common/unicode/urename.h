@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -7,7 +7,7 @@
 *******************************************************************************
 *
 *   file name:  urename.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -100,12 +100,16 @@
 #define _UTF16BEData U_ICU_ENTRY_POINT_RENAME(_UTF16BEData)
 #define _UTF16Data U_ICU_ENTRY_POINT_RENAME(_UTF16Data)
 #define _UTF16LEData U_ICU_ENTRY_POINT_RENAME(_UTF16LEData)
+#define _UTF16v2Data U_ICU_ENTRY_POINT_RENAME(_UTF16v2Data)
 #define _UTF32BEData U_ICU_ENTRY_POINT_RENAME(_UTF32BEData)
 #define _UTF32Data U_ICU_ENTRY_POINT_RENAME(_UTF32Data)
 #define _UTF32LEData U_ICU_ENTRY_POINT_RENAME(_UTF32LEData)
 #define _UTF7Data U_ICU_ENTRY_POINT_RENAME(_UTF7Data)
 #define _UTF8Data U_ICU_ENTRY_POINT_RENAME(_UTF8Data)
+#define allowedHourFormatsCleanup U_ICU_ENTRY_POINT_RENAME(allowedHourFormatsCleanup)
 #define cmemory_cleanup U_ICU_ENTRY_POINT_RENAME(cmemory_cleanup)
+#define dayPeriodRulesCleanup U_ICU_ENTRY_POINT_RENAME(dayPeriodRulesCleanup)
+#define deleteAllowedHourFormats U_ICU_ENTRY_POINT_RENAME(deleteAllowedHourFormats)
 #define gTimeZoneFilesInitOnce U_ICU_ENTRY_POINT_RENAME(gTimeZoneFilesInitOnce)
 #define izrule_clone U_ICU_ENTRY_POINT_RENAME(izrule_clone)
 #define izrule_close U_ICU_ENTRY_POINT_RENAME(izrule_close)
@@ -121,16 +125,6 @@
 #define izrule_getStaticClassID U_ICU_ENTRY_POINT_RENAME(izrule_getStaticClassID)
 #define izrule_isEquivalentTo U_ICU_ENTRY_POINT_RENAME(izrule_isEquivalentTo)
 #define izrule_open U_ICU_ENTRY_POINT_RENAME(izrule_open)
-#define le_close U_ICU_ENTRY_POINT_RENAME(le_close)
-#define le_create U_ICU_ENTRY_POINT_RENAME(le_create)
-#define le_getCharIndices U_ICU_ENTRY_POINT_RENAME(le_getCharIndices)
-#define le_getCharIndicesWithBase U_ICU_ENTRY_POINT_RENAME(le_getCharIndicesWithBase)
-#define le_getGlyphCount U_ICU_ENTRY_POINT_RENAME(le_getGlyphCount)
-#define le_getGlyphPosition U_ICU_ENTRY_POINT_RENAME(le_getGlyphPosition)
-#define le_getGlyphPositions U_ICU_ENTRY_POINT_RENAME(le_getGlyphPositions)
-#define le_getGlyphs U_ICU_ENTRY_POINT_RENAME(le_getGlyphs)
-#define le_layoutChars U_ICU_ENTRY_POINT_RENAME(le_layoutChars)
-#define le_reset U_ICU_ENTRY_POINT_RENAME(le_reset)
 #define locale_getKeywords U_ICU_ENTRY_POINT_RENAME(locale_getKeywords)
 #define locale_getKeywordsStart U_ICU_ENTRY_POINT_RENAME(locale_getKeywordsStart)
 #define locale_get_default U_ICU_ENTRY_POINT_RENAME(locale_get_default)
@@ -486,6 +480,7 @@
 #define ubrk_first U_ICU_ENTRY_POINT_RENAME(ubrk_first)
 #define ubrk_following U_ICU_ENTRY_POINT_RENAME(ubrk_following)
 #define ubrk_getAvailable U_ICU_ENTRY_POINT_RENAME(ubrk_getAvailable)
+#define ubrk_getBinaryRules U_ICU_ENTRY_POINT_RENAME(ubrk_getBinaryRules)
 #define ubrk_getLocaleByType U_ICU_ENTRY_POINT_RENAME(ubrk_getLocaleByType)
 #define ubrk_getRuleStatus U_ICU_ENTRY_POINT_RENAME(ubrk_getRuleStatus)
 #define ubrk_getRuleStatusVec U_ICU_ENTRY_POINT_RENAME(ubrk_getRuleStatusVec)
@@ -493,6 +488,7 @@
 #define ubrk_last U_ICU_ENTRY_POINT_RENAME(ubrk_last)
 #define ubrk_next U_ICU_ENTRY_POINT_RENAME(ubrk_next)
 #define ubrk_open U_ICU_ENTRY_POINT_RENAME(ubrk_open)
+#define ubrk_openBinaryRules U_ICU_ENTRY_POINT_RENAME(ubrk_openBinaryRules)
 #define ubrk_openRules U_ICU_ENTRY_POINT_RENAME(ubrk_openRules)
 #define ubrk_preceding U_ICU_ENTRY_POINT_RENAME(ubrk_preceding)
 #define ubrk_previous U_ICU_ENTRY_POINT_RENAME(ubrk_previous)
@@ -554,7 +550,6 @@
 #define ucase_addStringCaseClosure U_ICU_ENTRY_POINT_RENAME(ucase_addStringCaseClosure)
 #define ucase_fold U_ICU_ENTRY_POINT_RENAME(ucase_fold)
 #define ucase_getCaseLocale U_ICU_ENTRY_POINT_RENAME(ucase_getCaseLocale)
-#define ucase_getSingleton U_ICU_ENTRY_POINT_RENAME(ucase_getSingleton)
 #define ucase_getType U_ICU_ENTRY_POINT_RENAME(ucase_getType)
 #define ucase_getTypeOrIgnorable U_ICU_ENTRY_POINT_RENAME(ucase_getTypeOrIgnorable)
 #define ucase_hasBinaryProperty U_ICU_ENTRY_POINT_RENAME(ucase_hasBinaryProperty)
@@ -1150,6 +1145,7 @@
 #define unum_formatDecimal U_ICU_ENTRY_POINT_RENAME(unum_formatDecimal)
 #define unum_formatDouble U_ICU_ENTRY_POINT_RENAME(unum_formatDouble)
 #define unum_formatDoubleCurrency U_ICU_ENTRY_POINT_RENAME(unum_formatDoubleCurrency)
+#define unum_formatDoubleForFields U_ICU_ENTRY_POINT_RENAME(unum_formatDoubleForFields)
 #define unum_formatInt64 U_ICU_ENTRY_POINT_RENAME(unum_formatInt64)
 #define unum_formatUFormattable U_ICU_ENTRY_POINT_RENAME(unum_formatUFormattable)
 #define unum_getAttribute U_ICU_ENTRY_POINT_RENAME(unum_getAttribute)
@@ -1181,9 +1177,11 @@
 #define unumsys_openAvailableNames U_ICU_ENTRY_POINT_RENAME(unumsys_openAvailableNames)
 #define unumsys_openByName U_ICU_ENTRY_POINT_RENAME(unumsys_openByName)
 #define uplrules_close U_ICU_ENTRY_POINT_RENAME(uplrules_close)
+#define uplrules_getKeywords U_ICU_ENTRY_POINT_RENAME(uplrules_getKeywords)
 #define uplrules_open U_ICU_ENTRY_POINT_RENAME(uplrules_open)
 #define uplrules_openForType U_ICU_ENTRY_POINT_RENAME(uplrules_openForType)
 #define uplrules_select U_ICU_ENTRY_POINT_RENAME(uplrules_select)
+#define uplrules_selectWithFormat U_ICU_ENTRY_POINT_RENAME(uplrules_selectWithFormat)
 #define uplug_closeLibrary U_ICU_ENTRY_POINT_RENAME(uplug_closeLibrary)
 #define uplug_findLibrary U_ICU_ENTRY_POINT_RENAME(uplug_findLibrary)
 #define uplug_getConfiguration U_ICU_ENTRY_POINT_RENAME(uplug_getConfiguration)
@@ -1220,6 +1218,7 @@
 #define uprv_compareInvEbcdic U_ICU_ENTRY_POINT_RENAME(uprv_compareInvEbcdic)
 #define uprv_compareInvEbcdicAsAscii U_ICU_ENTRY_POINT_RENAME(uprv_compareInvEbcdicAsAscii)
 #define uprv_convertToLCID U_ICU_ENTRY_POINT_RENAME(uprv_convertToLCID)
+#define uprv_convertToLCIDPlatform U_ICU_ENTRY_POINT_RENAME(uprv_convertToLCIDPlatform)
 #define uprv_convertToPosix U_ICU_ENTRY_POINT_RENAME(uprv_convertToPosix)
 #define uprv_copyAscii U_ICU_ENTRY_POINT_RENAME(uprv_copyAscii)
 #define uprv_copyEbcdic U_ICU_ENTRY_POINT_RENAME(uprv_copyEbcdic)
@@ -1654,12 +1653,13 @@
 #define ustr_hashCharsN U_ICU_ENTRY_POINT_RENAME(ustr_hashCharsN)
 #define ustr_hashICharsN U_ICU_ENTRY_POINT_RENAME(ustr_hashICharsN)
 #define ustr_hashUCharsN U_ICU_ENTRY_POINT_RENAME(ustr_hashUCharsN)
+#define ustrcase_getCaseLocale U_ICU_ENTRY_POINT_RENAME(ustrcase_getCaseLocale)
 #define ustrcase_internalFold U_ICU_ENTRY_POINT_RENAME(ustrcase_internalFold)
 #define ustrcase_internalToLower U_ICU_ENTRY_POINT_RENAME(ustrcase_internalToLower)
 #define ustrcase_internalToTitle U_ICU_ENTRY_POINT_RENAME(ustrcase_internalToTitle)
 #define ustrcase_internalToUpper U_ICU_ENTRY_POINT_RENAME(ustrcase_internalToUpper)
 #define ustrcase_map U_ICU_ENTRY_POINT_RENAME(ustrcase_map)
-#define ustrcase_setTempCaseMapLocale U_ICU_ENTRY_POINT_RENAME(ustrcase_setTempCaseMapLocale)
+#define ustrcase_mapWithOverlap U_ICU_ENTRY_POINT_RENAME(ustrcase_mapWithOverlap)
 #define utext_char32At U_ICU_ENTRY_POINT_RENAME(utext_char32At)
 #define utext_clone U_ICU_ENTRY_POINT_RENAME(utext_clone)
 #define utext_close U_ICU_ENTRY_POINT_RENAME(utext_close)
@@ -1704,7 +1704,6 @@
 #define utrace_functionName U_ICU_ENTRY_POINT_RENAME(utrace_functionName)
 #define utrace_getFunctions U_ICU_ENTRY_POINT_RENAME(utrace_getFunctions)
 #define utrace_getLevel U_ICU_ENTRY_POINT_RENAME(utrace_getLevel)
-#define utrace_level U_ICU_ENTRY_POINT_RENAME(utrace_level)
 #define utrace_setFunctions U_ICU_ENTRY_POINT_RENAME(utrace_setFunctions)
 #define utrace_setLevel U_ICU_ENTRY_POINT_RENAME(utrace_setLevel)
 #define utrace_vformat U_ICU_ENTRY_POINT_RENAME(utrace_vformat)

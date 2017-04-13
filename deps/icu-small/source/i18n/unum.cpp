@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -247,6 +247,33 @@ unum_formatDouble(    const    UNumberFormat*  fmt,
   return res.extract(result, resultLength, *status);
 }
 
+U_CAPI int32_t U_EXPORT2
+unum_formatDoubleForFields(const UNumberFormat* format,
+                           double number,
+                           UChar* result,
+                           int32_t resultLength,
+                           UFieldPositionIterator* fpositer,
+                           UErrorCode* status)
+{
+    if (U_FAILURE(*status))
+        return -1;
+
+    if (result == NULL ? resultLength != 0 : resultLength < 0) {
+        *status = U_ILLEGAL_ARGUMENT_ERROR;
+        return -1;
+    }
+
+    UnicodeString res;
+    if (result != NULL) {
+        // NULL destination for pure preflighting: empty dummy string
+        // otherwise, alias the destination buffer
+        res.setTo(result, 0, resultLength);
+    }
+
+    ((const NumberFormat*)format)->format(number, res, (FieldPositionIterator*)fpositer, *status);
+
+    return res.extract(result, resultLength, *status);
+}
 
 U_CAPI int32_t U_EXPORT2
 unum_formatDecimal(const    UNumberFormat*  fmt,

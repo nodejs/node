@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -26,7 +26,7 @@
 #include "unicode/utf16.h"
 
 #define UFMT_DEFAULT_BUFFER_SIZE 128
-#define MAX_UCHAR_BUFFER_SIZE(buffer) (sizeof(buffer)/(U16_MAX_LENGTH*sizeof(UChar)))
+#define MAX_UCHAR_BUFFER_SIZE(buffer) ((int32_t)(sizeof(buffer)/(U16_MAX_LENGTH*sizeof(UChar))))
 #define MAX_UCHAR_BUFFER_NEEDED(strLen) ((strLen+1)*U16_MAX_LENGTH*sizeof(UChar))
 
 /**

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -475,7 +475,7 @@ struct AllowedHourFormatsSink : public ResourceSink {
         }
     }
 
-    AllowedHourFormat getHourFormatFromUnicodeString(UnicodeString s) {
+    AllowedHourFormat getHourFormatFromUnicodeString(const UnicodeString &s) {
         if (s.length() == 1) {
             if (s[0] == LOW_H) { return ALLOWED_HOUR_FORMAT_h; }
             if (s[0] == CAP_H) { return ALLOWED_HOUR_FORMAT_H; }
