@@ -20,25 +20,49 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-// Requires special privileges
 const common = require('../common');
+
 const assert = require('assert');
 
-var oldgid = process.getgid();
-process.setgid('nobody');
-var newgid = process.getgid();
-assert.notStrictEqual(newgid, oldgid, 'gids expected to be different');
-
-var olduid = process.getuid();
-process.setuid('nobody');
-var newuid = process.getuid();
-assert.notStrictEqual(newuid, olduid, 'uids expected to be different');
-
-try {
-  process.setuid('nobody1234');
-} catch (e) {
-  assert.strictEqual(e.message,
-               'failed to resolve group',
-               'unexpected error message'
-  );
+if (common.isWindows) {
+  // uid/gid functions are POSIX only
+  assert.strictEqual(process.getuid, undefined);
+  assert.strictEqual(process.setuid, undefined);
+  assert.strictEqual(process.getgid, undefined);
+  assert.strictEqual(process.setgid, undefined);
+  return;
 }
+
+assert.throws(() => {
+  process.setuid('fhqwhgadshgnsdhjsdbkhsdabkfabkveybvf');
+}, /^Error: setuid user id does not exist$/);
+
+// If we're not running as super user...
+if (process.getuid() !== 0) {
+  assert.doesNotThrow(() => {
+    process.getgid();
+    process.getuid();
+  });
+
+  assert.throws(
+    () => { process.setgid('nobody'); },
+    /^Error: (EPERM, .+|setgid group id does not exist)$/
+  );
+
+  assert.throws(
+    () => { process.setuid('nobody'); },
+    /^Error: EPERM, /
+  );
+  return;
+}
+
+// If we are running as super user...
+const oldgid = process.getgid();
+process.setgid('nobody');
+const newgid = process.getgid();
+assert.notStrictEqual(newgid, oldgid);
+
+const olduid = process.getuid();
+process.setuid('nobody');
+const newuid = process.getuid();
+assert.notStrictEqual(newuid, olduid);
