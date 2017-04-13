@@ -38,7 +38,7 @@ child.stdout.once('data', common.mustCall(() => {
 child.on('close', function(code) {
   assert.strictEqual(code, 0);
   assert.ok(
-    stdout.includes('Script execution interrupted.\n'),
+    stdout.includes('Script execution interrupted.'),
     `Expected stdout to contain "Script execution interrupted.", got ${stdout}`
   );
   assert.ok(
