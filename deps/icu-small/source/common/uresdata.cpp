@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -6,7 +6,7 @@
 *               and others. All Rights Reserved.
 *******************************************************************************
 *   file name:  uresdata.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -758,7 +758,9 @@ res_getTableItemByIndex(const ResourceData *pResData, Resource table,
                         int32_t indexR, const char **key) {
     uint32_t offset=RES_GET_OFFSET(table);
     int32_t length;
-    U_ASSERT(indexR>=0); /* to ensure the index is not negative */
+    if (indexR < 0) {
+        return RES_BOGUS;
+    }
     switch(RES_GET_TYPE(table)) {
     case URES_TABLE: {
         if (offset != 0) { /* empty if offset==0 */
@@ -836,7 +838,9 @@ UBool icu::ResourceTable::getKeyAndValue(int32_t i,
 U_CAPI Resource U_EXPORT2
 res_getArrayItem(const ResourceData *pResData, Resource array, int32_t indexR) {
     uint32_t offset=RES_GET_OFFSET(array);
-    U_ASSERT(indexR>=0); /* to ensure the index is not negative */
+    if (indexR < 0) {
+        return RES_BOGUS;
+    }
     switch(RES_GET_TYPE(array)) {
     case URES_ARRAY: {
         if (offset!=0) { /* empty if offset==0 */
@@ -923,14 +927,14 @@ res_findResource(const ResourceData *pResData, Resource r, char** path, const ch
       if(t2 == RES_BOGUS) {
         /* if we fail to get the resource by key, maybe we got an index */
         indexR = uprv_strtol(pathP, &closeIndex, 10);
-        if(*closeIndex == 0) {
+        if(indexR >= 0 && *closeIndex == 0) {
           /* if we indeed have an index, try to get the item by index */
           t2 = res_getTableItemByIndex(pResData, t1, indexR, key);
-        }
+        } // else t2 is already RES_BOGUS
       }
     } else if(URES_IS_ARRAY(type)) {
       indexR = uprv_strtol(pathP, &closeIndex, 10);
-      if(*closeIndex == 0) {
+      if(indexR >= 0 && *closeIndex == 0) {
         t2 = res_getArrayItem(pResData, t1, indexR);
       } else {
         t2 = RES_BOGUS; /* have an array, but don't have a valid index */

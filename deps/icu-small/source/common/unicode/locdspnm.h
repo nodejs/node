@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -20,6 +20,7 @@
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/locid.h"
+#include "unicode/strenum.h"
 #include "unicode/uscript.h"
 #include "unicode/uldnames.h"
 #include "unicode/udisplaycontext.h"
