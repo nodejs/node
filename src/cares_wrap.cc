@@ -115,11 +115,6 @@ GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
 }
 
 
-void NewGetAddrInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args.IsConstructCall());
-}
-
-
 class GetNameInfoReqWrap : public ReqWrap<uv_getnameinfo_t> {
  public:
   GetNameInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
@@ -131,16 +126,6 @@ GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
                                        Local<Object> req_wrap_obj)
     : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETNAMEINFOREQWRAP) {
   Wrap(req_wrap_obj, this);
-}
-
-
-void NewGetNameInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args.IsConstructCall());
-}
-
-
-void NewQueryReqWrap(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args.IsConstructCall());
 }
 
 
@@ -1400,8 +1385,12 @@ void Initialize(Local<Object> target,
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "AI_V4MAPPED"),
               Integer::New(env->isolate(), AI_V4MAPPED));
 
+  auto is_construct_call_callback =
+      [](const FunctionCallbackInfo<Value>& args) {
+    CHECK(args.IsConstructCall());
+  };
   Local<FunctionTemplate> aiw =
-      FunctionTemplate::New(env->isolate(), NewGetAddrInfoReqWrap);
+      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   aiw->InstanceTemplate()->SetInternalFieldCount(1);
   aiw->SetClassName(
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap"));
@@ -1409,7 +1398,7 @@ void Initialize(Local<Object> target,
               aiw->GetFunction());
 
   Local<FunctionTemplate> niw =
-      FunctionTemplate::New(env->isolate(), NewGetNameInfoReqWrap);
+      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   niw->InstanceTemplate()->SetInternalFieldCount(1);
   niw->SetClassName(
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"));
@@ -1417,7 +1406,7 @@ void Initialize(Local<Object> target,
               niw->GetFunction());
 
   Local<FunctionTemplate> qrw =
-      FunctionTemplate::New(env->isolate(), NewQueryReqWrap);
+      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   qrw->InstanceTemplate()->SetInternalFieldCount(1);
   qrw->SetClassName(
       FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"));
