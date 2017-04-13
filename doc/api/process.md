@@ -162,7 +162,7 @@ For example:
 
 ```js
 process.on('uncaughtException', (err) => {
-  fs.writeSync(1, `Caught exception: ${err}`);
+  fs.writeSync(1, `Caught exception: ${err}\n`);
 });
 
 setTimeout(() => {
@@ -231,7 +231,7 @@ For example:
 
 ```js
 process.on('unhandledRejection', (reason, p) => {
-  console.log('Unhandled Rejection at: Promise', p, 'reason:', reason);
+  console.log('Unhandled Rejection at:', p, 'reason:', reason);
   // application specific logging, throwing an error, or other logic here
 });
 
@@ -249,7 +249,7 @@ function SomeResource() {
   this.loaded = Promise.reject(new Error('Resource not yet loaded!'));
 }
 
-var resource = new SomeResource();
+const resource = new SomeResource();
 // no .catch or .then on resource.loaded for at least a turn
 ```
 
@@ -301,8 +301,8 @@ $ node
 > events.defaultMaxListeners = 1;
 > process.on('foo', () => {});
 > process.on('foo', () => {});
-> (node:38638) Warning: Possible EventEmitter memory leak detected. 2 foo
-... listeners added. Use emitter.setMaxListeners() to increase limit
+> (node:38638) MaxListenersExceededWarning: Possible EventEmitter memory leak
+detected. 2 foo listeners added. Use emitter.setMaxListeners() to increase limit
 ```
 
 In contrast, the following example turns off the default warning output and
@@ -310,7 +310,7 @@ adds a custom handler to the `'warning'` event:
 
 ```txt
 $ node --no-warnings
-> var p = process.on('warning', (warning) => console.warn('Do not do that!'));
+> const p = process.on('warning', (warning) => console.warn('Do not do that!'));
 > events.defaultMaxListeners = 1;
 > process.on('foo', () => {});
 > process.on('foo', () => {});
@@ -452,14 +452,14 @@ process.argv.forEach((val, index) => {
 Launching the Node.js process as:
 
 ```console
-$ node process-2.js one two=three four
+$ node process-args.js one two=three four
 ```
 
 Would generate the output:
 
 ```text
 0: /usr/local/bin/node
-1: /Users/mjr/work/node/process-2.js
+1: /Users/mjr/work/node/process-args.js
 2: one
 3: two=three
 4: four
@@ -511,7 +511,7 @@ try {
   console.log(`New directory: ${process.cwd()}`);
 }
 catch (err) {
-  console.log(`chdir: ${err}`);
+  console.error(`chdir: ${err}`);
 }
 ```
 
@@ -668,7 +668,7 @@ process.emitWarning('Something Happened!', 'CustomWarning');
 
 ```js
 process.emitWarning('Something happened!', 'CustomWarning', 'WARN001');
-// Emits: (node:56338) CustomWarning [WARN001]: Something Happened!
+// Emits: (node:56338) [WARN001] CustomWarning: Something happened!
 ```
 
 In each of the previous examples, an `Error` object is generated internally by
@@ -696,7 +696,7 @@ myWarning.name = 'CustomWarning';
 myWarning.code = 'WARN001';
 
 process.emitWarning(myWarning);
-// Emits: (node:56338) CustomWarning [WARN001]: Warning! Something Happened!
+// Emits: (node:56338) [WARN001] CustomWarning: Warning! Something happened!
 ```
 
 A `TypeError` is thrown if `warning` is anything other than a string or `Error`
@@ -1053,11 +1053,11 @@ drift. The primary use is for measuring performance between intervals:
 
 ```js
 const NS_PER_SEC = 1e9;
-var time = process.hrtime();
+const time = process.hrtime();
 // [ 1800216, 25 ]
 
 setTimeout(() => {
-  var diff = process.hrtime(time);
+  const diff = process.hrtime(time);
   // [ 1, 552 ]
 
   console.log(`Benchmark took ${diff[0] * NS_PER_SEC + diff[1]} nanoseconds`);
@@ -1232,7 +1232,7 @@ function MyThing(options) {
   });
 }
 
-var thing = new MyThing();
+const thing = new MyThing();
 thing.getReadyForStuff();
 
 // thing.startDoingStuff() gets called now, not before.
@@ -1535,7 +1535,7 @@ For example:
 process.stdin.setEncoding('utf8');
 
 process.stdin.on('readable', () => {
-  var chunk = process.stdin.read();
+  const chunk = process.stdin.read();
   if (chunk !== null) {
     process.stdout.write(`data: ${chunk}`);
   }
