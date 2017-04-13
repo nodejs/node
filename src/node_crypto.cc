@@ -4198,24 +4198,20 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   unsigned int md_len;
 
   unsigned int len = args.Length();
-  enum encoding encoding = BUFFER;
-  if (len >= 2) {
-    encoding = ParseEncoding(env->isolate(), args[1], BUFFER);
-  }
 
-  node::Utf8Value passphrase(env->isolate(), args[2]);
+  node::Utf8Value passphrase(env->isolate(), args[1]);
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Data");
   size_t buf_len = Buffer::Length(args[0]);
   char* buf = Buffer::Data(args[0]);
 
-  CHECK(args[3]->IsInt32());
-  Maybe<int32_t> maybe_padding = args[3]->Int32Value(env->context());
+  CHECK(args[2]->IsInt32());
+  Maybe<int32_t> maybe_padding = args[2]->Int32Value(env->context());
   CHECK(maybe_padding.IsJust());
   int padding = maybe_padding.ToChecked();
 
-  CHECK(args[4]->IsInt32());
-  Maybe<int32_t> maybe_salt_len = args[4]->Int32Value(env->context());
+  CHECK(args[3]->IsInt32());
+  Maybe<int32_t> maybe_salt_len = args[3]->Int32Value(env->context());
   CHECK(maybe_salt_len.IsJust());
   int salt_len = maybe_salt_len.ToChecked();
 
@@ -4228,7 +4224,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   Error err = sign->SignFinal(
       buf,
       buf_len,
-      len >= 3 && !args[2]->IsNull() ? *passphrase : nullptr,
+      len >= 2 && !args[1]->IsNull() ? *passphrase : nullptr,
       &md_value,
       &md_len,
       padding,
@@ -4240,10 +4236,9 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
     return sign->CheckThrow(err);
   }
 
-  Local<Value> rc = StringBytes::Encode(env->isolate(),
-                                        reinterpret_cast<const char*>(md_value),
-                                        md_len,
-                                        encoding);
+  Local<Object> rc = Buffer::Copy(env->isolate(),
+                                  reinterpret_cast<const char*>(md_value),
+                                  md_len).ToLocalChecked();
   delete[] md_value;
   args.GetReturnValue().Set(rc);
 }
@@ -4446,42 +4441,22 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_STRING_OR_BUFFER(args[1], "Hash");
 
-  enum encoding encoding = UTF8;
-  if (args.Length() >= 3) {
-    encoding = ParseEncoding(env->isolate(), args[2], UTF8);
-  }
+  char* hbuf = Buffer::Data(args[1]);
+  ssize_t hlen = Buffer::Length(args[1]);
 
-  ssize_t hlen = StringBytes::Size(env->isolate(), args[1], encoding);
-
-  // only copy if we need to, because it's a string.
-  char* hbuf;
-  if (args[1]->IsString()) {
-    hbuf = new char[hlen];
-    ssize_t hwritten = StringBytes::Write(env->isolate(),
-                                          hbuf,
-                                          hlen,
-                                          args[1],
-                                          encoding);
-    CHECK_EQ(hwritten, hlen);
-  } else {
-    hbuf = Buffer::Data(args[1]);
-  }
-
-  CHECK(args[3]->IsInt32());
-  Maybe<int32_t> maybe_padding = args[3]->Int32Value(env->context());
+  CHECK(args[2]->IsInt32());
+  Maybe<int32_t> maybe_padding = args[2]->Int32Value(env->context());
   CHECK(maybe_padding.IsJust());
   int padding = maybe_padding.ToChecked();
 
-  CHECK(args[4]->IsInt32());
-  Maybe<int32_t> maybe_salt_len = args[4]->Int32Value(env->context());
+  CHECK(args[3]->IsInt32());
+  Maybe<int32_t> maybe_salt_len = args[3]->Int32Value(env->context());
   CHECK(maybe_salt_len.IsJust());
   int salt_len = maybe_salt_len.ToChecked();
 
   bool verify_result;
   Error err = verify->VerifyFinal(kbuf, klen, hbuf, hlen, padding, salt_len,
                                   &verify_result);
-  if (args[1]->IsString())
-    delete[] hbuf;
   if (err != kSignOk)
     return verify->CheckThrow(err);
   args.GetReturnValue().Set(verify_result);
