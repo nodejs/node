@@ -511,7 +511,7 @@ try {
   console.log(`New directory: ${process.cwd()}`);
 }
 catch (err) {
-  console.log(`chdir: ${err}`);
+  console.error(`chdir: ${err}`);
 }
 ```
 
