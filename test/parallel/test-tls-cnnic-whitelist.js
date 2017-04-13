@@ -1,3 +1,4 @@
+// Flags: --use-bundled-ca
 'use strict';
 const common = require('../common');
 
