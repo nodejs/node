@@ -28,6 +28,7 @@ if (cluster.isMaster) {
   fork(4, ['--inspect', `--debug-port=${debuggerPort}`]);
   fork(5, [`--inspect-port=${debuggerPort}`]);
   fork(6, ['--inspect', `--inspect-port=${debuggerPort}`]);
+  fork(7, [`--inspect=${common.localhostIPv4}:${debuggerPort}`]);
 } else {
   const hasDebugArg = process.execArgv.some(function(arg) {
     return /inspect/.test(arg);

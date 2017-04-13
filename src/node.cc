@@ -3361,6 +3361,11 @@ void SetupProcessObject(Environment* env,
                              DebugPortSetter,
                              env->as_external()).FromJust());
 
+  READONLY_PROPERTY(process,
+                    "_debugHostname",
+                    OneByteString(env->isolate(),
+                    debug_options.host_name().c_str()));
+
   // define various internal methods
   env->SetMethod(process,
                  "_startProfilerIdleNotifier",
