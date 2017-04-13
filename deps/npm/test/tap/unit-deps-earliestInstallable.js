@@ -7,6 +7,9 @@ var deps = requireInject('../../lib/install/deps.js', {
   '../../lib/npm.js': {
     config: {
       get: function (val) { return (val === 'global-style' || val === 'legacy-bundling') ? false : 'mock' }
+    },
+    limit: {
+      fetch: 10
     }
   }
 })

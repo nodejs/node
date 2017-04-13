@@ -4,17 +4,16 @@ module.exports = errorHandler
 var cbCalled = false
 var log = require('npmlog')
 var npm = require('../npm.js')
-var rm = require('rimraf')
 var itWorked = false
 var path = require('path')
 var wroteLogFile = false
 var exitCode = 0
 var rollbacks = npm.rollbacks
 var chain = require('slide').chain
-var writeStreamAtomic = require('fs-write-stream-atomic')
+var writeFileAtomic = require('write-file-atomic')
 var errorMessage = require('./error-message.js')
 var stopMetrics = require('./metrics.js').stop
-var mkdir = require('mkdirp')
+var mkdirp = require('mkdirp')
 
 var logFileName
 function getLogFile () {
@@ -32,10 +31,15 @@ process.on('exit', function (code) {
   stopMetrics()
 
   if (code) itWorked = false
-  if (itWorked) log.info('ok')
-  else {
+  if (itWorked) {
+    log.info('ok')
+  } else {
     if (!cbCalled) {
       log.error('', 'cb() never called!')
+      console.error('')
+      log.error('', 'This is an error with npm itself. Please report this error at:')
+      log.error('', '    <https://github.com/npm/npm/issues>')
+      writeLogFile()
     }
 
     if (wroteLogFile) {
@@ -45,7 +49,7 @@ process.on('exit', function (code) {
       log.error(
         '',
         [
-          'Please include the following file with any support request:',
+          'A complete log of this run can be found in:',
           '    ' + getLogFile()
         ].join('\n')
       )
@@ -83,19 +87,22 @@ function exit (code, noLog) {
     }), function (er) {
       if (er) {
         log.error('error rolling back', er)
-        if (!code) errorHandler(er)
-        else if (noLog) rm('npm-debug.log', reallyExit.bind(null, er))
-        else writeLogFile(reallyExit.bind(this, er))
+        if (!code) {
+          errorHandler(er)
+        } else {
+          if (!noLog) writeLogFile()
+          reallyExit(er)
+        }
       } else {
-        if (!noLog && code) writeLogFile(reallyExit)
-        else rm(getLogFile(), reallyExit)
+        if (!noLog && code) writeLogFile()
+        reallyExit()
       }
     })
     rollbacks.length = 0
   } else if (code && !noLog) {
     writeLogFile(reallyExit)
   } else {
-    rm('npm-debug.log', reallyExit)
+    reallyExit()
   }
 
   function reallyExit (er) {
@@ -115,7 +122,6 @@ function exit (code, noLog) {
 
 function errorHandler (er) {
   log.disableProgress()
-  // console.error('errorHandler', er)
   if (!npm.config || !npm.config.loaded) {
     // logging won't work unless we pretend that it's ready
     er = er || new Error('Exit prior to config file resolving.')
@@ -163,14 +169,10 @@ function errorHandler (er) {
   log.verbose('cwd', process.cwd())
 
   var os = require('os')
-  // log.error('System', os.type() + ' ' + os.release())
-  // log.error('command', process.argv.map(JSON.stringify).join(' '))
-  // log.error('node -v', process.version)
-  // log.error('npm -v', npm.version)
-  log.error('', os.type() + ' ' + os.release())
-  log.error('argv', process.argv.map(JSON.stringify).join(' '))
-  log.error('node', process.version)
-  log.error('npm ', 'v' + npm.version)
+  log.verbose('', os.type() + ' ' + os.release())
+  log.verbose('argv', process.argv.map(JSON.stringify).join(' '))
+  log.verbose('node', process.version)
+  log.verbose('npm ', 'v' + npm.version)
 
   ;[
     'file',
@@ -183,9 +185,6 @@ function errorHandler (er) {
     if (v) log.error(k, v)
   })
 
-  // just a line break
-  if (log.levels[log.level] <= log.levels.error) console.error('')
-
   var msg = errorMessage(er)
   msg.summary.concat(msg.detail).forEach(function (errline) {
     log.error.apply(log, errline)
@@ -194,20 +193,15 @@ function errorHandler (er) {
   exit(typeof er.errno === 'number' ? er.errno : 1)
 }
 
-var writingLogFile = false
-function writeLogFile (cb) {
-  if (writingLogFile) return cb()
-  writingLogFile = true
+function writeLogFile () {
+  if (wroteLogFile) return
   wroteLogFile = true
 
   var os = require('os')
 
-  mkdir(path.resolve(npm.config.get('cache'), '_logs'), function (er) {
-    if (er) {
-      cb(er)
-      return
-    }
-    var fstr = writeStreamAtomic(getLogFile())
+  try {
+    mkdirp.sync(path.resolve(npm.config.get('cache'), '_logs'))
+    var logOutput = ''
     log.record.forEach(function (m) {
       var pref = [m.id, m.level]
       if (m.prefix) pref.push(m.prefix)
@@ -216,10 +210,11 @@ function writeLogFile (cb) {
       m.message.trim().split(/\r?\n/).map(function (line) {
         return (pref + ' ' + line).trim()
       }).forEach(function (line) {
-        fstr.write(line + os.EOL)
+        logOutput += line + os.EOL
       })
     })
-    fstr.end()
-    fstr.on('close', cb)
-  })
+    writeFileAtomic.sync(getLogFile(), logOutput)
+  } catch (ex) {
+    return
+  }
 }

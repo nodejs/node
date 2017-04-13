@@ -1,3 +1,19 @@
+1.26.0 / 2017-01-14
+===================
+
+  * Add `application/coap-payload`
+  * Add `application/cose`
+  * Add `application/cose-key`
+  * Add `application/cose-key-set`
+  * Add `application/mud+json`
+  * Add `application/trig`
+  * Add `application/vnd.dataresource+json`
+  * Add `application/vnd.hc+json`
+  * Add `application/vnd.tableschema+json`
+  * Add `application/yang-patch+json`
+  * Add `application/yang-patch+xml`
+  * Add extension `.geojson` to `application/geo+json`
+
 1.25.0 / 2016-11-11
 ===================
 

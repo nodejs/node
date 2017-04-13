@@ -11,11 +11,9 @@ function ping (uri, params, cb) {
   var auth = params.auth
   assert(auth && typeof auth === 'object', 'must pass auth to ping')
 
-  this.request(url.resolve(uri, '-/ping?write=true'), { auth: auth }, function (er, fullData) {
-    if (er) {
-      cb(er)
-    } else if (fullData) {
-      cb(null, fullData)
+  this.request(url.resolve(uri, '-/ping?write=true'), { auth: auth }, function (er, fullData, data, response) {
+    if (er || fullData) {
+      cb(er, fullData, data, response)
     } else {
       cb(new Error('No data received'))
     }

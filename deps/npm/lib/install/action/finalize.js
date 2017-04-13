@@ -4,7 +4,7 @@ var rimraf = require('rimraf')
 var fs = require('graceful-fs')
 var mkdirp = require('mkdirp')
 var asyncMap = require('slide').asyncMap
-var rename = require('../../utils/rename.js')
+var move = require('../../utils/move.js')
 var gentlyRm = require('../../utils/gently-rm')
 var moduleStagingPath = require('../module-staging-path.js')
 
@@ -26,31 +26,31 @@ module.exports = function (staging, pkg, log, next) {
 
   function destStatted (doesNotExist) {
     if (doesNotExist) {
-      rename(extractedTo, pkg.path, whenMoved)
+      move(extractedTo, pkg.path, whenMoved)
     } else {
       moveAway()
     }
   }
 
-  function whenMoved (renameEr) {
-    if (!renameEr) return next()
-    if (renameEr.code !== 'ENOTEMPTY') return next(renameEr)
+  function whenMoved (moveEr) {
+    if (!moveEr) return next()
+    if (moveEr.code !== 'ENOTEMPTY' && moveEr.code !== 'EEXIST') return next(moveEr)
     moveAway()
   }
 
   function moveAway () {
-    rename(pkg.path, delpath, whenOldMovedAway)
+    move(pkg.path, delpath, whenOldMovedAway)
   }
 
-  function whenOldMovedAway (renameEr) {
-    if (renameEr) return next(renameEr)
-    rename(extractedTo, pkg.path, whenConflictMoved)
+  function whenOldMovedAway (moveEr) {
+    if (moveEr) return next(moveEr)
+    move(extractedTo, pkg.path, whenConflictMoved)
   }
 
-  function whenConflictMoved (renameEr) {
+  function whenConflictMoved (moveEr) {
     // if we got an error we'll try to put back the original module back,
     // succeed or fail though we want the original error that caused this
-    if (renameEr) return rename(delpath, pkg.path, function () { next(renameEr) })
+    if (moveEr) return move(delpath, pkg.path, function () { next(moveEr) })
     fs.readdir(path.join(delpath, 'node_modules'), makeTarget)
   }
 
@@ -65,7 +65,7 @@ module.exports = function (staging, pkg, log, next) {
     asyncMap(files, function (file, done) {
       var from = path.join(delpath, 'node_modules', file)
       var to = path.join(pkg.path, 'node_modules', file)
-      rename(from, to, done)
+      move(from, to, done)
     }, cleanup)
   }
 

@@ -15,6 +15,8 @@ var semver = require('semver')
 var color = require('ansicolors')
 var npa = require('npm-package-arg')
 var iferr = require('iferr')
+var sortedObject = require('sorted-object')
+var extend = Object.assign || require('util')._extend
 var npm = require('./npm.js')
 var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
 var recalculateMetadata = require('./install/deps.js').recalculateMetadata
@@ -76,8 +78,8 @@ var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
 
   pruneNestedExtraneous(data)
   filterByEnv(data)
-  var bfs = filterFound(bfsify(data), args)
-  var lite = getLite(bfs)
+  var unlooped = filterFound(unloop(data), args)
+  var lite = getLite(unlooped)
 
   if (silent) return cb(null, data, lite)
 
@@ -86,7 +88,7 @@ var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
   var out
   if (json) {
     var seen = []
-    var d = long ? bfs : lite
+    var d = long ? unlooped : lite
     // the raw data can be circular
     out = JSON.stringify(d, function (k, o) {
       if (typeof o === 'object') {
@@ -96,9 +98,9 @@ var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
       return o
     }, 2)
   } else if (npm.config.get('parseable')) {
-    out = makeParseable(bfs, long, dir)
+    out = makeParseable(unlooped, long, dir)
   } else if (data) {
-    out = makeArchy(bfs, long, dir)
+    out = makeArchy(unlooped, long, dir)
   }
   output(out)
 
@@ -247,18 +249,10 @@ function getLite (data, noname, depth) {
   return lite
 }
 
-function bfsify (root) {
-  // walk over the data, and turn it from this:
-  // +-- a
-  // |   `-- b
-  // |       `-- a (truncated)
-  // `--b (truncated)
-  // into this:
-  // +-- a
-  // `-- b
-  // which looks nicer
+function unloop (root) {
   var queue = [root]
-  var seen = [root]
+  var seen = {}
+  seen[root.path] = true
 
   while (queue.length) {
     var current = queue.shift()
@@ -266,17 +260,14 @@ function bfsify (root) {
     Object.keys(deps).forEach(function (d) {
       var dep = deps[d]
       if (dep.missing) return
-      if (inList(seen, dep)) {
-        if (npm.config.get('parseable') || !npm.config.get('long')) {
-          delete deps[d]
-          return
-        } else {
-          dep = deps[d] = Object.create(dep)
-          dep.dependencies = {}
-        }
+      if (dep.path && seen[dep.path]) {
+        dep = deps[d] = extend({}, dep)
+        dep.dependencies = {}
+        dep._deduped = path.relative(root.path, dep.path).replace(/node_modules\//g, '')
+        return
       }
+      seen[dep.path] = true
       queue.push(dep)
-      seen.push(dep)
     })
   }
 
@@ -285,18 +276,23 @@ function bfsify (root) {
 
 function filterFound (root, args) {
   if (!args.length) return root
-  var deps = root.dependencies
-  if (deps) {
-    Object.keys(deps).forEach(function (depName) {
-      var dep = filterFound(deps[depName], args)
-      if (dep.peerMissing) return
+  if (!root.dependencies) return root
 
-      // see if this one itself matches
-      var found = false
-      for (var ii = 0; !found && ii < args.length; ii++) {
+  // Mark all deps
+  var toMark = [root]
+  while (toMark.length) {
+    var markPkg = toMark.shift()
+    var markDeps = markPkg.dependencies
+    if (!markDeps) continue
+    Object.keys(markDeps).forEach(function (depName) {
+      var dep = markDeps[depName]
+      if (dep.peerMissing) return
+      dep._parent = markPkg
+      for (var ii = 0; ii < args.length; ii++) {
         var argName = args[ii][0]
         var argVersion = args[ii][1]
         var argRaw = args[ii][2]
+        var found
         if (depName === argName && argVersion) {
           found = semver.satisfies(dep.version, argVersion, true)
         } else if (depName === argName) {
@@ -305,16 +301,33 @@ function filterFound (root, args) {
         } else if (dep.path === argRaw) {
           found = true
         }
+        if (found) {
+          dep._found = 'explicit'
+          var parent = dep._parent
+          while (parent && !parent._found && !parent._deduped) {
+            parent._found = 'implicit'
+            parent = parent._parent
+          }
+          break
+        }
       }
-      // included explicitly
-      if (found) dep._found = true
-      // included because a child was included
-      if (dep._found && !root._found) root._found = 1
-      // not included
-      if (!dep._found) delete deps[depName]
+      toMark.push(dep)
     })
   }
-  if (!root._found) root._found = false
+  var toTrim = [root]
+  while (toTrim.length) {
+    var trimPkg = toTrim.shift()
+    var trimDeps = trimPkg.dependencies
+    if (!trimDeps) continue
+    trimPkg.dependencies = {}
+    Object.keys(trimDeps).forEach(function (name) {
+      var dep = trimDeps[name]
+      if (!dep._found) return
+      if (dep._found === 'implicit' && dep._deduped) return
+      trimPkg.dependencies[name] = dep
+      toTrim.push(dep)
+    })
+  }
   return root
 }
 
@@ -345,7 +358,7 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
   var out = {}
   // the top level is a bit special.
   out.label = data._id || ''
-  if (data._found === true && data._id) {
+  if (data._found === 'explicit' && data._id) {
     if (npm.color) {
       out.label = color.bgBlack(color.yellow(out.label.trim())) + ' '
     } else {
@@ -353,6 +366,14 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
     }
   }
   if (data.link) out.label += ' -> ' + data.link
+
+  if (data._deduped) {
+    if (npm.color) {
+      out.label += ' ' + color.brightBlack('deduped')
+    } else {
+      out.label += ' deduped'
+    }
+  }
 
   if (data.invalid) {
     if (data.realName !== data.name) out.label += ' (' + data.realName + ')'
@@ -369,6 +390,7 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
 
   if (data.peerMissing) {
     var peerMissing = 'UNMET PEER DEPENDENCY'
+
     if (npm.color) peerMissing = color.bgBlack(color.red(peerMissing))
     out.label = peerMissing + ' ' + out.label
   }
@@ -415,7 +437,7 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
       .sort(alphasort).filter(function (d) {
         return !isCruft(data.dependencies[d])
       }).map(function (d) {
-        return makeArchy_(data.dependencies[d], long, dir, depth + 1, data, d)
+        return makeArchy_(sortedObject(data.dependencies[d]), long, dir, depth + 1, data, d)
       })
   }
 
@@ -444,19 +466,20 @@ function getExtras (data) {
 }
 
 function makeParseable (data, long, dir, depth, parent, d) {
+  if (data._deduped) return []
   depth = depth || 0
   if (depth > npm.config.get('depth')) return [ makeParseable_(data, long, dir, depth, parent, d) ]
   return [ makeParseable_(data, long, dir, depth, parent, d) ]
-  .concat(Object.keys(data.dependencies || {})
-    .sort(alphasort).map(function (d) {
-      return makeParseable(data.dependencies[d], long, dir, depth + 1, data, d)
-    }))
-  .filter(function (x) { return x })
-  .join('\n')
+    .concat(Object.keys(data.dependencies || {})
+      .sort(alphasort).map(function (d) {
+        return makeParseable(data.dependencies[d], long, dir, depth + 1, data, d)
+      }))
+    .filter(function (x) { return x })
+    .join('\n')
 }
 
 function makeParseable_ (data, long, dir, depth, parent, d) {
-  if (data.hasOwnProperty('_found') && data._found !== true) return ''
+  if (data.hasOwnProperty('_found') && data._found !== 'explicit') return ''
 
   if (data.missing) {
     if (depth < npm.config.get('depth')) {

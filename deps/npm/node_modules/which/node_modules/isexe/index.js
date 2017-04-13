@@ -2,8 +2,6 @@ var fs = require('fs')
 var core
 if (process.platform === 'win32' || global.TESTING_WINDOWS) {
   core = require('./windows.js')
-} else if (typeof fs.access === 'function') {
-  core = require('./access.js')
 } else {
   core = require('./mode.js')
 }

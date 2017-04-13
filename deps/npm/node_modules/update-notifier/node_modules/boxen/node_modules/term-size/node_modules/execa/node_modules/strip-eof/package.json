@@ -1,0 +1,103 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "strip-eof@^1.0.0",
+        "scope": null,
+        "escapedName": "strip-eof",
+        "name": "strip-eof",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa"
+    ]
+  ],
+  "_from": "strip-eof@>=1.0.0 <2.0.0",
+  "_id": "strip-eof@1.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/term-size/execa/strip-eof",
+  "_nodeVersion": "4.2.1",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.14.7",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "strip-eof@^1.0.0",
+    "scope": null,
+    "escapedName": "strip-eof",
+    "name": "strip-eof",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen/term-size/execa"
+  ],
+  "_resolved": "https://registry.npmjs.org/strip-eof/-/strip-eof-1.0.0.tgz",
+  "_shasum": "bb43ff5598a6eb05d89b59fcd129c983313606bf",
+  "_shrinkwrap": null,
+  "_spec": "strip-eof@^1.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/strip-eof/issues"
+  },
+  "dependencies": {},
+  "description": "Strip the End-Of-File (EOF) character from a string/buffer",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "bb43ff5598a6eb05d89b59fcd129c983313606bf",
+    "tarball": "https://registry.npmjs.org/strip-eof/-/strip-eof-1.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "365dfe6c19b4e607a0cc2cf7dad0b0620f238333",
+  "homepage": "https://github.com/sindresorhus/strip-eof",
+  "keywords": [
+    "strip",
+    "trim",
+    "remove",
+    "delete",
+    "eof",
+    "end",
+    "file",
+    "newline",
+    "linebreak",
+    "character",
+    "string",
+    "buffer"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "strip-eof",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/strip-eof.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.0.0"
+}

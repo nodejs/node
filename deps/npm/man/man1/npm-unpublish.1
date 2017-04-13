@@ -1,4 +1,4 @@
-.TH "NPM\-UNPUBLISH" "1" "February 2017" "" ""
+.TH "NPM\-UNPUBLISH" "1" "April 2017" "" ""
 .SH "NAME"
 \fBnpm-unpublish\fR \- Remove a package from the registry
 .SH SYNOPSIS
@@ -28,6 +28,11 @@ the root package entry is removed from the registry entirely\.
 Even if a package version is unpublished, that specific name and
 version combination can never be reused\.  In order to publish the
 package again, a new version number must be used\.
+.P
+With the default registry (\fBregistry\.npmjs\.org\fP), unpublish is
+only allowed with versions published in the last 24 hours\. If you
+are trying to unpublish a version published longer ago than that,
+contact support@npmjs\.com\.
 .P
 The scope is optional and follows the usual rules for npm help 7 \fBnpm\-scope\fP\|\.
 .SH SEE ALSO

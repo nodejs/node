@@ -1,3 +1,422 @@
+### v4.5.0 (2017-03-24)
+
+Welcome a wrinkle on npm's registry API!
+
+Codename: Corgi
+
+![corgi-meme](https://cloud.githubusercontent.com/assets/757502/24126107/64c14268-0d89-11e7-871b-d457e6d0082b.jpg)
+
+This release has some bug fixes, but it's mostly about bringing support for
+MUCH smaller package metadata.  How much smaller?  Well, for npm itself it
+reduces 416K of gzip compressed JSON to 24K.
+
+As a user, all you have to do is update to get to use the new API.  If
+you're interested in the details we've [documented the
+changes](https://github.com/npm/registry/blob/master/docs/responses/package-metadata.md)
+in detail.
+
+#### CORGUMENTS
+
+Package metadata: now smaller. This means a smaller cache and less to download.
+
+* [`86dad0d74`](https://github.com/npm/npm/commit/86dad0d747f288eab467d49c9635644d3d44d6f0)
+  Add support for filtered package metadata.
+  ([@iarna](https://github.com/iarna))
+* [`41789cffa`](https://github.com/npm/npm/commit/41789cffac9845603f4bdf3f5b03f412144a0e9f)
+  `npm-registry-client@8.1.0`
+  ([@iarna](https://github.com/iarna))
+
+#### NO SHRINKWRAP, NO PROBLEM
+
+Previously we needed to extract every package's tarball to look for an
+`npm-shrinkwrap.json` before we could begin working through what its
+dependencies were.  This was one of the things stopping npm's network
+accesses from happening more concurrently.  The new filtered package
+metadata provides a new key, `_hasShrinkwrap`.  When that's set to `false`
+then we know we don't have to look for one.
+
+* [`4f5060eb3`](https://github.com/npm/npm/commit/4f5060eb31b9091013e1d6a34050973613a294a3)
+  [#15969](https://github.com/npm/npm/pull/15969)
+  Add support for skipping `npm-shrinkwrap.json` extraction when the
+  registry can affirm that one doesn't exist.
+  ([@iarna](https://github.com/iarna))
+
+#### INTERRUPTING SCRIPTS
+
+* [`878aceb25`](https://github.com/npm/npm/commit/878aceb25e6d6052dac15da74639ce274c8e62c5)
+  [#16129](https://github.com/npm/npm/pull/16129)
+  Better handle Ctrl-C while running scripts.  `npm` will now no longer exit
+  until the script it is running has exited.  If you press Ctrl-C a second
+  time it kill the script rather than just forwarding the Ctrl-C.
+  ([@jaridmargolin](https://github.com/jaridmargolin))
+
+#### DEPENDENCY UPDATES:
+
+* [`def75eebf`](https://github.com/npm/npm/commit/def75eebf1ad437bf4fd3f5e103cc2d963bd2a73)
+  `hosted-git-info@2.4.1`:
+  Preserve case of the user name part of shortcut specifiers, previously they were lowercased.
+  ([@iarna](https://github.com/iarna))
+* [`eb3789fd1`](https://github.com/npm/npm/commit/eb3789fd18cfb063de9e6f80c3049e314993d235)
+  `node-gyp@3.6.0`: Add support for VS2017 and Chakracore improvements.
+  ([@refack](https://github.com/refack))
+  ([@kunalspathak](https://github.com/kunalspathak))
+* [`245e25315`](https://github.com/npm/npm/commit/245e25315524b95c0a71c980223a27719392ba75)
+  `readable-stream@2.2.6` ([@mcollina](https://github.com/mcollina))
+* [`30357ebc5`](https://github.com/npm/npm/commit/30357ebc5691d7c9e9cdc6e0fe7dc6253220c9c2)
+  `which@1.2.14` ([@isaacs](https://github.com/isaacs))
+
+### v4.4.4 (2017-03-16)
+
+😩😤😅 Okay!  We have another `next`
+release for ya today.  So, yes!  With v4.4.3 we fixed the bug that made
+bundled scoped modules uninstallable.  But somehow I overlooked the fact
+that we: A) were using these and B) that made upgrading to v4.4.3 impossible. 😭
+
+So I've renamed those two scoped modules to no longer use scopes and we now
+have a shiny new test to ensure that scoped modules don't creep into our
+transitive deps and make it impossible to upgrade to `npm`.
+
+(None of our woes applies to most of you all because most of you all don't
+use bundled dependencies. `npm` does because we want the published artifact to be
+installable without having to already have `npm`.)
+
+* [`2a7409fcb`](https://github.com/npm/npm/commit/2a7409fcba6a8fab716c80f56987b255983e048e)
+  [#16066](https://github.com/npm/npm/pull/16066)
+  Ensure we aren't using any scoped modules
+  Because `npm`s prior 4.4.3 can't install dependencies that have bundled scoped
+  modules.  This didn't show up sooner because they ALSO had a bug that caused
+  bundled scoped modules to not be included in the bundle.
+  ([@iarna](https://github.com/iarna))
+* [`eb4c70796`](https://github.com/npm/npm/commit/eb4c70796c38f24ee9357f5d4a0116db582cc7a9)
+  [#16066](https://github.com/npm/npm/pull/16066)
+  Switch to move-concurrently to remove scoped dependency
+  ([@iarna](https://github.com/iarna))
+
+### v4.4.3 (2017-03-15)
+
+This is a small patch release, mostly because the published tarball for
+v4.4.2 was missing a couple of modules, due to a bug involving scoped
+modules, bundled dependencies and legacy tree layouts.
+
+There are a couple of other things here that happened to be ready to go.  So
+without further ado…
+
+#### BUG FIXES
+
+* [`3d80f8f70`](https://github.com/npm/npm/commit/3d80f8f70679ad2b8ce7227d20e8dbce257a47b9)
+  [npm/fs-vacuum#6](https://github.com/npm/fs-vacuum/pull/6)
+  `fs-vacuum@1.2.1`: Make sure we never, ever remove home directories. Previously if your
+  home directory was entirely empty then we might `rmdir` it.
+  ([@helio-frota](https://github.com/helio-frota))
+* [`1af85ca9f`](https://github.com/npm/npm/commit/1af85ca9f4d625f948e85961372de7df3f3774e2)
+  [#16040](https://github.com/npm/npm/pull/16040)
+  Fix bug where bundled transitive dependencies that happened to be
+  installed under bundled scoped dependencies wouldn't be included in the
+  tarball when building a package.
+  ([@iarna](https://github.com/iarna))
+* [`13c7fdc2e`](https://github.com/npm/npm/commit/13c7fdc2e87456a87b1c9385a3daeae228ed7c95)
+  [#16040](https://github.com/npm/npm/pull/16040)
+  Fix a bug where bundled scoped dependencies couldn't be extracted.
+  ([@iarna](https://github.com/iarna))
+* [`d6cde98c2`](https://github.com/npm/npm/commit/d6cde98c2513fe160eab41e31c3198dfde993207)
+  [#16040](https://github.com/npm/npm/pull/16040)
+  Stop printing `ENOENT` errors more than once.
+  ([@iarna](https://github.com/iarna))
+* [`722fbf0f6`](https://github.com/npm/npm/commit/722fbf0f6cf4413cdc24b610bbd60a7dbaf2adfe)
+  [#16040](https://github.com/npm/npm/pull/16040)
+  Rewrite the `extract` action for greater clarity.
+  Specifically, this involves moving things around structurally to do the same
+  thing [`d0c6d194`](https://github.com/npm/npm/commit/d0c6d194) did, but in a more comprehensive manner.
+  This also fixes a long standing bug where errors from the move step would be
+  eaten during this phase and as a result we would get mysterious crashes in
+  the finalize phase when finalize tried to act on them.
+  ([@iarna](https://github.com/iarna))
+* [`6754dabb6`](https://github.com/npm/npm/commit/6754dabb6bd3301504efb3b62f36d3fe70958c19)
+  [#16040](https://github.com/npm/npm/pull/16040)
+  Flatten out `@npmcorp/move`'s deps for backwards compatibility reasons. Versions prior to this
+  one will fail to install any package that bundles a scoped dependency. This was responsible
+  for `ENOENT` errors during the `finalize` phase.
+  ([@iarna](https://github.com/iarna))
+
+#### DOC UPDATES
+
+* [`fba51c582`](https://github.com/npm/npm/commit/fba51c582d1d08dd4aa6eb27f9044dddba91bb18)
+  [#15960](https://github.com/npm/npm/pull/15960)
+  Update troubleshooting and contribution guide links.
+  ([@watilde](https://github.com/watilde))
+
+
+### v4.4.2 (2017-03-09):
+
+This week, the focus on the release was mainly going through [all of npm's deps
+that we manage
+ourselves](https://github.com/npm/npm/wiki/npm-maintained-dependencies), and
+making sure all their PRs and versions were up to date. That means there's a few
+fixes here and there. Nothing too big codewise, though.
+
+The most exciting part of this release is probably our [shiny new
+Contributing](https://github.com/npm/npm/blob/latest/CONTRIBUTING.md) and
+[Troubleshooting](https://github.com/npm/npm/blob/latest/TROUBLESHOOTING.md)
+docs! [@snopeks](https://github.com/snopeks) did some ✨fantastic✨ work hashing it
+out, and we're really hoping this is a nice big step towards making contributing
+to npm easier. The troubleshooting doc will also hopefully solve common issues
+for people! Do you think something is missing from it? File a PR and we'll add
+it! The current document is just a baseline for further editing and additions.
+
+Also there's maybe a bit of an easter egg in this release. 'Cause those are fun and I'm a huge nerd. 😉
+
+#### DOCUMENTATION AHOY
+
+* [`07e997a`](https://github.com/npm/npm/commit/07e997a7ecedba7b29ad76ffb2ce990d5c0200fc)
+  [#15756](https://github.com/npm/npm/pull/15756)
+  Overhaul `CONTRIBUTING.md` and add new `TROUBLESHOOTING.md` files. 🙌🏼
+  ([@snopeks](https://github.com/snopeks))
+* [`2f3e4b6`](https://github.com/npm/npm/commit/2f3e4b645cdc268889cf95ba24b2aae572d722ad)
+  [#15833](https://github.com/npm/npm/pull/15833)
+  Mention the [24-hour unpublish
+  policy](http://blog.npmjs.org/post/141905368000/changes-to-npms-unpublish-policy)
+  on the main registry.
+  ([@carols10cents](https://github.com/carols10cents))
+
+#### NOT REALLY FEATURES, NOT REALLY BUGFIXES. MORE LIKE TWEAKS? 🤔
+
+* [`84be534`](https://github.com/npm/npm/commit/84be534aedb78c65cd8012427fc04871ceeccf90)
+  [#15888](https://github.com/npm/npm/pull/15888)
+  Stop flattening `ls`-tree output. From now on, deduped deps will be marked as
+  such in the place where they would've been before getting hoisted by the
+  installer.
+  ([@iarna](https://github.com/iarna))
+* [`e9a5dca`](https://github.com/npm/npm/commit/e9a5dca369ead646ab5922326cede1406c62bd3b)
+  [#15967](https://github.com/npm/npm/pull/15967)
+  Limit metadata fetches to 10 concurrent requests.
+  ([@iarna](https://github.com/iarna))
+* [`46aa9bc`](https://github.com/npm/npm/commit/46aa9bcae088740df86234fc199f7aef53b116df)
+  [#15967](https://github.com/npm/npm/pull/15967)
+  Limit concurrent installer actions to 10.
+  ([@iarna](https://github.com/iarna))
+
+#### BUGFIXES
+
+* [`c3b994b`](https://github.com/npm/npm/commit/c3b994b71565eb4f943cce890bb887d810e6e2d4)
+  [#15901](https://github.com/npm/npm/pull/15901)
+  Use EXDEV aware move instead of rename. This will allow moving across devices
+  and moving when filesystems don't support renaming directories full of files. It might make folks using Docker a bit happier.
+  ([@iarna](https://github.com/iarna))
+* [`0de1a9c`](https://github.com/npm/npm/commit/0de1a9c1db90e6705c65c068df1fe82899e60d68)
+  [#15735](https://github.com/npm/npm/pull/15735)
+  Autocomplete support for npm scripts with `:` colons in the name.
+  ([@beyondcompute](https://github.com/beyondcompute))
+* [`84b0b92`](https://github.com/npm/npm/commit/84b0b92e7f78ec4add42e8161c555325c99b7f98)
+  [#15874](https://github.com/npm/npm/pull/15874)
+  Stop using [undocumented](https://github.com/nodejs/node/pull/11355)
+  `res.writeHeader` alias for `res.writeHead`.
+  ([@ChALkeR](https://github.com/ChALkeR))
+* [`895ffe4`](https://github.com/npm/npm/commit/895ffe4f3eecd674796395f91c30eda88aca6b36)
+  [#15824](https://github.com/npm/npm/pull/15824)
+  Fix empty versions column in `npm search` output.
+  ([@bcoe](https://github.com/bcoe))
+* [`38c8d7a`](https://github.com/npm/npm/commit/38c8d7adc1f43ab357d1e729ae7cd5d801a26e68)
+  `init-package-json@1.9.5`: [npm/init-package-json#61](https://github.com/npm/init-package-json/pull/61) Exclude existing `devDependencies` from being added to `dependencies`. Fixes [#12260](https://github.com/npm/npm/issues/12260).
+  ([@addaleax](https://github.com/addaleax))
+
+### v4.4.1 (2017-03-06):
+
+This is a quick little patch release to forgo the update notification
+checker if you're on an unsuported (but not otherwise broken) version of
+Node.js.  Right now that means 0.10 or 0.12.
+
+* [`56ac249`](https://github.com/npm/npm/commit/56ac249ef8ede1021f1bc62a0e4fe1e9ba556af2)
+  [#15864](https://github.com/npm/npm/pull/15864)
+  Only use `update-notifier` on supported versions.
+  ([@legodude17](https://github.com/legodude17))
+
+### v4.4.0 (2017-02-23):
+
+Aaaah, [@iarna](https://github.com/iarna) here, it's been a little while
+since I did one of these! This is a nice little release, we've got an
+update notifier, vastly less verbose error messages, new warnings on package
+metadata that will probably give you a bad day, and a sprinkling of bug
+fixes.
+
+#### UPDATE NOTIFICATIONS
+
+We now have a little nudge to update your `npm`, courtesy of
+[update-notifier](https://www.npmjs.com/package/update-notifier).
+
+* [`148ee66`](https://github.com/npm/npm/commit/148ee663740aa05877c64f16cdf18eba33fbc371)
+  [#15774](https://github.com/npm/npm/pull/15774)
+  `npm` will now check at start up to see if a newer version is available.
+  It will check once a day. If you want to disable this, set `optOut` to `true` in
+  `~/.config/configstore/update-notifier-npm.json`.
+  ([@ceejbot](https://github.com/ceejbot))
+
+#### LESS VERBOSE ERROR MESSAGES
+
+`npm` has, for a long time, had very verbose error messages.  There was a
+lot of info in there, including the cause of the error you were seeing but
+without a lot of experience reading them pulling that out was time consuming
+and difficult.
+
+With this change the output is cut down substantially, centering the error
+message.  So, for example if you try to `npm run sdlkfj` then the entire
+error you'll get will be:
+
+```
+npm ERR! missing script: sldkfj
+
+npm ERR! A complete log of this run can be found in:
+npm ERR!     /Users/rebecca/.npm/_logs/2017-02-24T00_41_36_988Z-debug.log
+```
+
+The CLI team has discussed cutting this down even further and stripping the
+`npm ERR!` prefix off those lines too.  We'd appreciate your feedback on
+this!
+
+* [`e544124`](https://github.com/npm/npm/commit/e544124592583654f2970ec332003cfd00d04f2b)
+  [#15716](https://github.com/npm/npm/pull/15716)
+  Make error output less verbose.
+  ([@iarna](https://github.com/iarna))
+* [`166bda9`](https://github.com/npm/npm/commit/166bda97410d0518b42ed361020ade1887e684af)
+  [#15716](https://github.com/npm/npm/pull/15716)
+  Stop encouraging users to visit the issue tracker unless we know for
+  certain that it's an npm bug.
+  ([@iarna](https://github.com/iarna))
+
+#### OTHER NEW FEATURES
+
+* [`53412eb`](https://github.com/npm/npm/commit/53412eb22c1c75d768e30f96d69ed620dfedabde)
+  [#15772](https://github.com/npm/npm/pull/15772)
+  We now warn if you have a module listed in both dependencies and
+  devDependencies.
+  ([@TedYav](https://github.com/TedYav))
+* [`426b180`](https://github.com/npm/npm/commit/426b1805904a13bdc5c0dd504105ba037270cbee)
+  [#15757](https://github.com/npm/npm/pull/15757)
+  Default reporting metrics to default registry. Previously it defaulted to using
+  `https://registry.npmjs.org`, now it will default to the result of
+  `npm config get registry`. For most folks this won't actually change anything, but it
+  means that folks who use a private registry will have metrics routed there by default.
+  This has the potential to be interesting because it means that in the
+  future private registry products ([npme](https://npme.npmjs.com/docs/)!)
+  will be able to report on these metrics.
+  ([@iarna](https://github.com/iarna))
+
+#### BUG FIXES
+
+* [`8ea0de9`](https://github.com/npm/npm/commit/8ea0de98563648ba0db032acd4d23d27c4a50a66)
+  [#15716](https://github.com/npm/npm/pull/15716)
+  Write logs for `cb() never called` errors.
+* [`c4e83dc`](https://github.com/npm/npm/commit/c4e83dca830b24305e3cb3201a42452d56d2d864)
+  Make it so that errors while reading the existing node_modules tree can't
+  result in installer crashes.
+  ([@iarna](https://github.com/iarna))
+* [`2690dc2`](https://github.com/npm/npm/commit/2690dc2684a975109ef44953c2cf0746dbe343bb)
+  Update `npm doctor` to not treat broken symlinks in your global modules as
+  a permission failure. This is particularly important if you link modules and your text
+  editor uses the convention of creating symlinks from `.#filename.js` to a
+  machine name and pid to lock files (eg emacs and compatible things).
+  ([@iarna](https://github.com/iarna))
+* [`f4c3f48`](https://github.com/npm/npm/commit/f4c3f489aa5787cf0d60e8436be2190e4b0d0ff7)
+  [#15777](https://github.com/npm/npm/pull/15777)
+  Not exactly a bug, but change a parameterless `.apply` to `.call`.
+  ([@notarseniy](https://github.com/notarseniy))
+
+#### DEPENDENCY UPDATES
+
+* [`549dcff`](https://github.com/npm/npm/commit/549dcff58c7aaa1e7ba71abaa14008fdf2697297)
+  `rimraf@2.6.0`:
+  Retry EBUSY, ENOTEMPTY and EPERM on non-Windows platforms too.
+  More reliable `rimraf.sync` on Windows.
+  ([@isaacs](https://github.com/isaacs))
+* [`052dfb6`](https://github.com/npm/npm/commit/052dfb623da508f2b5f681da0258125552a18a4a)
+  `validate-npm-package-name@3.0.0`:
+  Remove ableist language in README.
+  Stop allowing ~'!()* in package names.
+  ([@tomdale](https://github.com/tomdale))
+  ([@chrisdickinson](https://github.com/chrisdickinson))
+* [`6663ea6`](https://github.com/npm/npm/commit/6663ea6ac0f0ecec5a3f04a3c01a71499632f4dc)
+  `abbrev@1.1.0` ([@isaacs](https://github.com/isaacs))
+* [`be6de9a`](https://github.com/npm/npm/commit/be6de9aab9e20b6eac70884e8626161eebf8721a)
+  `opener@1.4.3` ([@dominic](https://github.com/dominic))
+* [`900a5e3`](https://github.com/npm/npm/commit/900a5e3e3411ec221306455f99b24b9ce35757c0)
+  `readable-stream@2.2.3` ([@RangerMauve](https://github.com/RangerMauve)) ([@mcollina](https://github.com/mcollina))
+* [`c972a8b`](https://github.com/npm/npm/commit/c972a8b0f20a61a79c45b6642f870bea8c55c7e4)
+  `tacks@1.2.6`
+  ([@iarna](https://github.com/iarna))
+* [`85a36ef`](https://github.com/npm/npm/commit/85a36efdac0c24501876875cb9ad40292024e0b0)
+  [`7ac9265`](https://github.com/npm/npm/commit/7ac9265c56b4d9eeaca6fcfb29513f301713e7bb)
+  `tap@10.2.0`
+  ([@isaacs](https://github.com/saacs))
+
+### v4.3.0 (2017-02-09):
+
+Yay! Release time! It's a rainy day, and we have another smallish release for
+y'all. These things are not necessarily related. Or are they 🌧🤔
+
+As far as news go, you may have noticed that the CLI team dropped support for
+`node@0.12` when that version went out of maintenance. Still, we've avoided
+explicitly breaking it and `node@0.10` so far -- but not much longer.
+
+Sometime soon, the CLI team plans on switching over to language features only
+available as of `node@4 LTS`, and will likely start dropping old versions of node
+as they go out of maintenance. The new features are exciting! We're really
+looking forward to using them in the core CLI (and its dependencies) as we keep up
+with our current feature work.
+
+And speaking of features, this release is a minor bump due to a small change in
+how `npm login` works for the sake of supporting OAuth-based login for npm
+Enterprise users. But we won't leave the rest of y'all out -- we're working on a
+larger version of this feature. Soon enough, you'll be able to log in to npm
+with, say, GitHub -- and use some shiny features that come from the integration.
+Or turn on 2FA and other such security features. Keep your eyes peeled for new
+on this in the next few releases and our weekly newsletter!
+
+#### NEW AUTH TYPES
+
+There's a new command line option: `--auth-type`, which can be used to log in to
+a supporting registry with OAuth2 or SAML. The current implementation is mainly
+meant to support npmE customers, so if you're one of those: ask us about using
+it! If not, just hold off cause we'll have a much more complete version of this
+feature out soon.
+
+* [`ac8595e`](https://github.com/npm/npm/commit/ac8595e3c9b615ff95abc3301fac1262c434792c) [`bcf2dd8`](https://github.com/npm/npm/commit/bcf2dd8a165843255c06515fa044c6e4d3b71ca4) [`9298d20`](https://github.com/npm/npm/commit/9298d20af58b92572515bfa9cf7377bd4221dc7d) [`66b61bc`](https://github.com/npm/npm/commit/66b61bc42e81ee8a1ee00fc63517f62284140688) [`dc85de7`](https://github.com/npm/npm/commit/dc85de7df6bb61f7788611813ee82ae695a18f1f)
+  [#13389](https://github.com/npm/npm/pull/13389)
+  Implement single-sign-on support with `--auth-type` option.
+  ([@zkat](https://github.com/zkat))
+
+#### FASTER STARTUP. SOMETIMES!
+
+`request` is pretty heavy. And it loads a bunch of things. It's actually a
+pretty big chunk of npm's load time. This small patch by Rebecca will make it so
+npm only loads that module when we're actually intending to make network
+requests. Those of you who use npm commands that run offline might see a small
+speedup in startup time.
+
+* [`ac73568`](https://github.com/npm/npm/commit/ac735682e666e8724549d56146821f3b8b018e25)
+  [#15631](https://github.com/npm/npm/pull/15631)
+  Lazy load `caching-registry-client`.
+  ([@iarna](https://github.com/iarna))
+
+#### DOCUMENTATION
+
+* [`4ad9247`](https://github.com/npm/npm/commit/4ad9247aa82f7553c9667ee93c74ec7399d6ceec)
+  [#15630](https://github.com/npm/npm/pull/15630)
+  Fix formatting/rendering for root npm README.
+  ([@ungoldman](https://github.com/ungoldman))
+
+#### DEPENDENCY UPDATES
+
+* [`8cc1112`](https://github.com/npm/npm/commit/8cc1112958638ff88ac2c24c4a065acacb93d64b)
+  [npm/hosted-git-info#21](https://github.com/npm/hosted-git-info/pull/21)
+  `hosted-git-info@2.2.0`:
+  Add support for `.tarball()` URLs.
+  ([@zkat](https://github.com/zkat))
+* [`6eacc1b`](https://github.com/npm/npm/commit/6eacc1bc1925fe3cc79fc97bdc3194d944fce55e)
+  `npm-registry-mock@1.1.0`
+  ([@addaleax](https://github.com/addaleax))
+* [`a9b6d77`](https://github.com/npm/npm/commit/a9b6d775e61cf090df0e13514c624f99bf31d1e7)
+  `aproba@1.1.1`
+  ([@iarna](https://github.com/iarna))
+
 ### v4.2.0 (2017-01-26):
 
 Hi all! I'm Kat, and I'm currently sitting in a train traveling at ~300km/h

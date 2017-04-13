@@ -1,16 +1,29 @@
-var fs = require('graceful-fs')
+'use strict'
 var path = require('path')
-
-var mkdirp = require('mkdirp')
-var mr = require('npm-registry-mock')
-var osenv = require('osenv')
-var rimraf = require('rimraf')
 var test = require('tap').test
-
+var mr = require('npm-registry-mock')
+var Tacks = require('tacks')
+var File = Tacks.File
+var Dir = Tacks.Dir
+var extend = Object.assign || require('util')._extend
 var common = require('../common-tap.js')
-var npm = npm = require('../../')
 
-var pkg = path.resolve(__dirname, 'peer-deps-toplevel')
+var basedir = path.join(__dirname, path.basename(__filename, '.js'))
+var testdir = path.join(basedir, 'testdir')
+var cachedir = path.join(basedir, 'cache')
+var globaldir = path.join(basedir, 'global')
+var tmpdir = path.join(basedir, 'tmp')
+
+var conf = {
+  cwd: testdir,
+  env: extend(extend({}, process.env), {
+    npm_config_cache: cachedir,
+    npm_config_tmp: tmpdir,
+    npm_config_prefix: globaldir,
+    npm_config_registry: common.registry,
+    npm_config_loglevel: 'warn'
+  })
+}
 
 var expected = {
   name: 'npm-test-peer-deps-toplevel',
@@ -59,57 +72,65 @@ var expected = {
   }
 }
 
-var json = {
-  author: 'Domenic Denicola',
-  name: 'npm-test-peer-deps-toplevel',
-  version: '0.0.0',
-  dependencies: {
-    'npm-test-peer-deps': '*'
-  },
-  peerDependencies: {
-    mkdirp: '*'
-  }
+var server
+var fixture = new Tacks(Dir({
+  cache: Dir(),
+  global: Dir(),
+  tmp: Dir(),
+  testdir: Dir({
+    'package.json': File({
+      name: 'npm-test-peer-deps-toplevel',
+      version: '0.0.0',
+      dependencies: {
+        'npm-test-peer-deps': '*'
+      },
+      peerDependencies: {
+        mkdirp: '*'
+      }
+    })
+  })
+}))
+
+function setup () {
+  cleanup()
+  fixture.create(basedir)
 }
 
+function cleanup () {
+  fixture.remove(basedir)
+}
+
+test('setup', function (t) {
+  setup()
+  mr({port: common.port, throwOnUnmatched: true}, function (err, s) {
+    if (err) throw err
+    server = s
+    t.done()
+  })
+})
+
 test('installs the peer dependency directory structure', function (t) {
-  mr({ port: common.port }, function (er, s) {
-    setup(function (err) {
-      t.ifError(err, 'setup ran successfully')
+  common.npm(['install'], conf, function (err, code, stdout, stderr) {
+    if (err) throw err
+    t.is(code, 0, 'install ran ok even w/ missing peeer deps')
+    t.comment(stdout.trim())
+    t.comment(stderr.trim())
 
-      npm.install('.', function (err) {
-        t.ifError(err, 'packages were installed')
+    common.npm(['ls', '--json'], conf, function (err, code, stdout, stderr) {
+      if (err) throw err
+      t.is(code, 1, 'missing peer deps _are_ an ls error though')
+      t.comment(stderr.trim())
+      var results = JSON.parse(stdout)
 
-        npm.commands.ls([], true, function (err, _, results) {
-          t.ifError(err, 'listed tree without problems')
-
-          t.deepEqual(results, expected, 'got expected output from ls')
-          s.close()
-          t.end()
-        })
-      })
+      t.deepEqual(results, expected, 'got expected output from ls')
+      t.done()
     })
   })
 })
 
 test('cleanup', function (t) {
+  server.close()
   cleanup()
-  t.end()
+  t.done()
 })
 
-function setup (cb) {
-  cleanup()
-  mkdirp.sync(pkg)
-  fs.writeFileSync(
-    path.join(pkg, 'package.json'),
-    JSON.stringify(json, null, 2)
-  )
-  process.chdir(pkg)
-
-  var opts = { cache: path.resolve(pkg, 'cache'), registry: common.registry }
-  npm.load(opts, cb)
-}
-
-function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(pkg)
-}

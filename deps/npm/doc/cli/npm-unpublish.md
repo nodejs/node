@@ -27,6 +27,11 @@ Even if a package version is unpublished, that specific name and
 version combination can never be reused.  In order to publish the
 package again, a new version number must be used.
 
+With the default registry (`registry.npmjs.org`), unpublish is
+only allowed with versions published in the last 24 hours. If you
+are trying to unpublish a version published longer ago than that,
+contact support@npmjs.com.
+
 The scope is optional and follows the usual rules for `npm-scope(7)`.
 
 ## SEE ALSO

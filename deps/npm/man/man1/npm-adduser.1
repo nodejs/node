@@ -1,11 +1,11 @@
-.TH "NPM\-ADDUSER" "1" "February 2017" "" ""
+.TH "NPM\-ADDUSER" "1" "April 2017" "" ""
 .SH "NAME"
 \fBnpm-adduser\fR \- Add a registry user account
 .SH SYNOPSIS
 .P
 .RS 2
 .nf
-npm adduser [\-\-registry=url] [\-\-scope=@orgname] [\-\-always\-auth]
+npm adduser [\-\-registry=url] [\-\-scope=@orgname] [\-\-always\-auth] [\-\-auth\-type=legacy]
 
 aliases: login, add\-user
 .fi
@@ -72,6 +72,18 @@ private registries where metadata and package tarballs are stored on hosts with
 different hostnames\. See \fBalways\-auth\fP in npm help 7 \fBnpm\-config\fP for more details on
 always\-auth\. Registry\-specific configuration of \fBalways\-auth\fP takes precedence
 over any global configuration\.
+.SS auth\-type
+.RS 0
+.IP \(bu 2
+Default: \fB\|'legacy'\fP
+.IP \(bu 2
+Type: \fB\|'legacy'\fP, \fB\|'sso'\fP, \fB\|'saml'\fP, \fB\|'oauth'\fP
+
+.RE
+.P
+What authentication strategy to use with \fBadduser\fP/\fBlogin\fP\|\. Some npm registries
+(for example, npmE) might support alternative auth strategies besides classic
+username/password entry in legacy npm\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

@@ -1,0 +1,91 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "lazy-property",
+        "scope": null,
+        "escapedName": "lazy-property",
+        "name": "lazy-property",
+        "rawSpec": "",
+        "spec": "latest",
+        "type": "tag"
+      },
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "lazy-property@latest",
+  "_id": "lazy-property@1.0.0",
+  "_inCache": true,
+  "_location": "/lazy-property",
+  "_npmUser": {
+    "name": "mikolalysenko",
+    "email": "mikolalysenko@gmail.com"
+  },
+  "_npmVersion": "1.4.3",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "lazy-property",
+    "scope": null,
+    "escapedName": "lazy-property",
+    "name": "lazy-property",
+    "rawSpec": "",
+    "spec": "latest",
+    "type": "tag"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/lazy-property/-/lazy-property-1.0.0.tgz",
+  "_shasum": "84ddc4b370679ba8bd4cdcfa4c06b43d57111147",
+  "_shrinkwrap": null,
+  "_spec": "lazy-property",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Mikola Lysenko"
+  },
+  "bugs": {
+    "url": "https://github.com/mikolalysenko/lazy-property/issues"
+  },
+  "dependencies": {},
+  "description": "Lazily initialized properties for objects",
+  "devDependencies": {
+    "tape": "^2.12.3"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dist": {
+    "shasum": "84ddc4b370679ba8bd4cdcfa4c06b43d57111147",
+    "tarball": "https://registry.npmjs.org/lazy-property/-/lazy-property-1.0.0.tgz"
+  },
+  "gitHead": "850a27f710ec72f05b534805c31f095ff590f1ea",
+  "homepage": "https://github.com/mikolalysenko/lazy-property",
+  "keywords": [
+    "lazy",
+    "property",
+    "object",
+    "initialize",
+    "array",
+    "dictionary"
+  ],
+  "license": "MIT",
+  "main": "lazyProperty.js",
+  "maintainers": [
+    {
+      "name": "mikolalysenko",
+      "email": "mikolalysenko@gmail.com"
+    }
+  ],
+  "name": "lazy-property",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mikolalysenko/lazy-property.git"
+  },
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "version": "1.0.0"
+}

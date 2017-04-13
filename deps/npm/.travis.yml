@@ -28,6 +28,8 @@ notifications:
 cache:
   directories:
   - $HOME/.npm
+  - html/doc
+  - man
   - node_modules/.bin
   - node_modules/.cache
   - node_modules/deep-equal

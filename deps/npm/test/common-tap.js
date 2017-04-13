@@ -29,8 +29,6 @@ process.env.npm_config_legacy_bundling = 'false'
 process.env.random_env_var = 'foo'
 // suppress warnings about using a prerelease version of node
 process.env.npm_config_node_version = process.version.replace(/-.*$/, '')
-// disable metrics for the test suite even if the user has enabled them
-process.env.npm_config_send_metrics = 'false'
 
 var bin = exports.bin = require.resolve('../bin/npm-cli.js')
 
@@ -49,6 +47,10 @@ exports.npm = function (cmd, opts, cb) {
   if (!opts.env.npm_config_cache) {
     opts.env.npm_config_cache = npm_config_cache
   }
+  if (!opts.env.npm_config_send_metrics) {
+    opts.env.npm_config_send_metrics = 'false'
+  }
+
   nodeBin = opts.nodeExecPath || nodeBin
 
   var stdout = ''

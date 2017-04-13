@@ -1,0 +1,113 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "is-fullwidth-code-point@^2.0.0",
+        "scope": null,
+        "escapedName": "is-fullwidth-code-point",
+        "name": "is-fullwidth-code-point",
+        "rawSpec": "^2.0.0",
+        "spec": ">=2.0.0 <3.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/string-width"
+    ]
+  ],
+  "_from": "is-fullwidth-code-point@>=2.0.0 <3.0.0",
+  "_id": "is-fullwidth-code-point@2.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/string-width/is-fullwidth-code-point",
+  "_nodeVersion": "4.5.0",
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/is-fullwidth-code-point-2.0.0.tgz_1474526567505_0.299921662081033"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "3.10.7",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "is-fullwidth-code-point@^2.0.0",
+    "scope": null,
+    "escapedName": "is-fullwidth-code-point",
+    "name": "is-fullwidth-code-point",
+    "rawSpec": "^2.0.0",
+    "spec": ">=2.0.0 <3.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen/string-width"
+  ],
+  "_resolved": "https://registry.npmjs.org/is-fullwidth-code-point/-/is-fullwidth-code-point-2.0.0.tgz",
+  "_shasum": "a3b30a5c4f199183167aaab93beefae3ddfb654f",
+  "_shrinkwrap": null,
+  "_spec": "is-fullwidth-code-point@^2.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/string-width",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/is-fullwidth-code-point/issues"
+  },
+  "dependencies": {},
+  "description": "Check if the character represented by a given Unicode code point is fullwidth",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "a3b30a5c4f199183167aaab93beefae3ddfb654f",
+    "tarball": "https://registry.npmjs.org/is-fullwidth-code-point/-/is-fullwidth-code-point-2.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "e94a78056056c5546f2bf4c4cf812a2163a46dae",
+  "homepage": "https://github.com/sindresorhus/is-fullwidth-code-point#readme",
+  "keywords": [
+    "fullwidth",
+    "full-width",
+    "full",
+    "width",
+    "unicode",
+    "character",
+    "char",
+    "string",
+    "str",
+    "codepoint",
+    "code",
+    "point",
+    "is",
+    "detect",
+    "check"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "is-fullwidth-code-point",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/is-fullwidth-code-point.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "2.0.0",
+  "xo": {
+    "esnext": true
+  }
+}

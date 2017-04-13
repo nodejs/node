@@ -1,0 +1,98 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "lowercase-keys@^1.0.0",
+        "scope": null,
+        "escapedName": "lowercase-keys",
+        "name": "lowercase-keys",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got"
+    ]
+  ],
+  "_from": "lowercase-keys@>=1.0.0 <2.0.0",
+  "_id": "lowercase-keys@1.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/got/lowercase-keys",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "1.4.28",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "lowercase-keys@^1.0.0",
+    "scope": null,
+    "escapedName": "lowercase-keys",
+    "name": "lowercase-keys",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/got"
+  ],
+  "_resolved": "https://registry.npmjs.org/lowercase-keys/-/lowercase-keys-1.0.0.tgz",
+  "_shasum": "4e3366b39e7f5457e35f1324bdf6f88d0bfc7306",
+  "_shrinkwrap": null,
+  "_spec": "lowercase-keys@^1.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/lowercase-keys/issues"
+  },
+  "dependencies": {},
+  "description": "Lowercase the keys of an object",
+  "devDependencies": {
+    "ava": "0.0.4"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "4e3366b39e7f5457e35f1324bdf6f88d0bfc7306",
+    "tarball": "https://registry.npmjs.org/lowercase-keys/-/lowercase-keys-1.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "4b1423164b551faa7a51a5b8f903c51e00c0ea94",
+  "homepage": "https://github.com/sindresorhus/lowercase-keys",
+  "keywords": [
+    "object",
+    "assign",
+    "extend",
+    "properties",
+    "lowercase",
+    "lower-case",
+    "case",
+    "keys",
+    "key"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "lowercase-keys",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/lowercase-keys.git"
+  },
+  "scripts": {
+    "test": "node test.js"
+  },
+  "version": "1.0.0"
+}

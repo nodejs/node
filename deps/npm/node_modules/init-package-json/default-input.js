@@ -15,7 +15,7 @@ function niceName (n) {
   return n.replace(/^node-|[.-]js$/g, '').toLowerCase()
 }
 
-function readDeps (test) { return function (cb) {
+function readDeps (test, excluded) { return function (cb) {
   fs.readdir('node_modules', function (er, dir) {
     if (er) return cb()
     var deps = {}
@@ -23,7 +23,7 @@ function readDeps (test) { return function (cb) {
     if (n === 0) return cb(null, deps)
     dir.forEach(function (d) {
       if (d.match(/^\./)) return next()
-      if (test !== isTestPkg(d))
+      if (test !== isTestPkg(d) || excluded[d])
         return next()
 
       var dp = path.join(dirname, 'node_modules', d, 'package.json')
@@ -137,11 +137,11 @@ exports.directories = function (cb) {
 }
 
 if (!package.dependencies) {
-  exports.dependencies = readDeps(false)
+  exports.dependencies = readDeps(false, package.devDependencies || {})
 }
 
 if (!package.devDependencies) {
-  exports.devDependencies = readDeps(true)
+  exports.devDependencies = readDeps(true, package.dependencies || {})
 }
 
 // MUST have a test script!

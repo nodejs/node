@@ -1,0 +1,115 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "dot-prop@^4.1.0",
+        "scope": null,
+        "escapedName": "dot-prop",
+        "name": "dot-prop",
+        "rawSpec": "^4.1.0",
+        "spec": ">=4.1.0 <5.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/update-notifier/node_modules/configstore"
+    ]
+  ],
+  "_from": "dot-prop@>=4.1.0 <5.0.0",
+  "_id": "dot-prop@4.1.1",
+  "_inCache": true,
+  "_location": "/update-notifier/configstore/dot-prop",
+  "_nodeVersion": "4.6.2",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/dot-prop-4.1.1.tgz_1487442351691_0.9279007718432695"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.11",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "dot-prop@^4.1.0",
+    "scope": null,
+    "escapedName": "dot-prop",
+    "name": "dot-prop",
+    "rawSpec": "^4.1.0",
+    "spec": ">=4.1.0 <5.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/configstore"
+  ],
+  "_resolved": "https://registry.npmjs.org/dot-prop/-/dot-prop-4.1.1.tgz",
+  "_shasum": "a8493f0b7b5eeec82525b5c7587fa7de7ca859c1",
+  "_shrinkwrap": null,
+  "_spec": "dot-prop@^4.1.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/update-notifier/node_modules/configstore",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/dot-prop/issues"
+  },
+  "dependencies": {
+    "is-obj": "^1.0.0"
+  },
+  "description": "Get, set, or delete a property from a nested object using a dot path",
+  "devDependencies": {
+    "ava": "*",
+    "matcha": "^0.7.0",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "a8493f0b7b5eeec82525b5c7587fa7de7ca859c1",
+    "tarball": "https://registry.npmjs.org/dot-prop/-/dot-prop-4.1.1.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "49f0809db1201f2cf13735de4f3631191a692658",
+  "homepage": "https://github.com/sindresorhus/dot-prop#readme",
+  "keywords": [
+    "obj",
+    "object",
+    "prop",
+    "property",
+    "dot",
+    "path",
+    "get",
+    "set",
+    "delete",
+    "del",
+    "access",
+    "notation",
+    "dotty"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "dot-prop",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/dot-prop.git"
+  },
+  "scripts": {
+    "bench": "matcha bench.js",
+    "test": "xo && ava"
+  },
+  "version": "4.1.1",
+  "xo": {
+    "esnext": true
+  }
+}

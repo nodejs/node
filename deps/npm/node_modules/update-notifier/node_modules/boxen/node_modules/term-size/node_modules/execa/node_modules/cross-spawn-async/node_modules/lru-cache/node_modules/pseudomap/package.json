@@ -1,0 +1,85 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "pseudomap@^1.0.1",
+        "scope": null,
+        "escapedName": "pseudomap",
+        "name": "pseudomap",
+        "rawSpec": "^1.0.1",
+        "spec": ">=1.0.1 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa/node_modules/cross-spawn-async/node_modules/lru-cache"
+    ]
+  ],
+  "_from": "pseudomap@>=1.0.1 <2.0.0",
+  "_id": "pseudomap@1.0.2",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/term-size/execa/cross-spawn-async/lru-cache/pseudomap",
+  "_nodeVersion": "4.0.0",
+  "_npmUser": {
+    "name": "isaacs",
+    "email": "i@izs.me"
+  },
+  "_npmVersion": "3.3.2",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "pseudomap@^1.0.1",
+    "scope": null,
+    "escapedName": "pseudomap",
+    "name": "pseudomap",
+    "rawSpec": "^1.0.1",
+    "spec": ">=1.0.1 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen/term-size/execa/cross-spawn-async/lru-cache"
+  ],
+  "_resolved": "https://registry.npmjs.org/pseudomap/-/pseudomap-1.0.2.tgz",
+  "_shasum": "f052a28da70e618917ef0a8ac34c1ae5a68286b3",
+  "_shrinkwrap": null,
+  "_spec": "pseudomap@^1.0.1",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa/node_modules/cross-spawn-async/node_modules/lru-cache",
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "bugs": {
+    "url": "https://github.com/isaacs/pseudomap/issues"
+  },
+  "dependencies": {},
+  "description": "A thing that is a lot like ES6 `Map`, but without iterators, for use in environments where `for..of` syntax and `Map` are not available.",
+  "devDependencies": {
+    "tap": "^2.3.1"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dist": {
+    "shasum": "f052a28da70e618917ef0a8ac34c1ae5a68286b3",
+    "tarball": "https://registry.npmjs.org/pseudomap/-/pseudomap-1.0.2.tgz"
+  },
+  "gitHead": "b6dc728207a0321ede6479e34506d3e0e13a940b",
+  "homepage": "https://github.com/isaacs/pseudomap#readme",
+  "license": "ISC",
+  "main": "map.js",
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "i@izs.me"
+    }
+  ],
+  "name": "pseudomap",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isaacs/pseudomap.git"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "version": "1.0.2"
+}
