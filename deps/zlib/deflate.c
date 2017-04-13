@@ -227,6 +227,37 @@ local void slide_hash(s)
 #endif
 }
 
+/* ===========================================================================
+ * Slide the hash table when sliding the window down (could be avoided with 32
+ * bit values at the expense of memory usage). We slide even when level == 0 to
+ * keep the hash table consistent if we switch back to level > 0 later.
+ */
+local void slide_hash(s)
+    deflate_state *s;
+{
+    unsigned n, m;
+    Posf *p;
+    uInt wsize = s->w_size;
+
+    n = s->hash_size;
+    p = &s->head[n];
+    do {
+        m = *--p;
+        *p = (Pos)(m >= wsize ? m - wsize : NIL);
+    } while (--n);
+    n = wsize;
+#ifndef FASTEST
+    p = &s->prev[n];
+    do {
+        m = *--p;
+        *p = (Pos)(m >= wsize ? m - wsize : NIL);
+        /* If n is not on any hash chain, prev[n] is garbage but
+         * its value will never be used.
+         */
+    } while (--n);
+#endif
+}
+
 /* ========================================================================= */
 int ZEXPORT deflateInit_(strm, level, version, stream_size)
     z_streamp strm;
