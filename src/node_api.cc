@@ -126,10 +126,6 @@ static inline v8::PropertyAttribute V8PropertyAttributesFromDescriptor(
   return static_cast<v8::PropertyAttribute>(attribute_flags);
 }
 
-v8::Isolate* V8IsolateFromJsEnv(napi_env e) {
-  return reinterpret_cast<v8::Isolate*>(e);
-}
-
 class HandleScopeWrapper {
  public:
   explicit HandleScopeWrapper(v8::Isolate* isolate) : scope(isolate) {}
