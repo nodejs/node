@@ -245,6 +245,55 @@ added: v0.3.0
 Use the internal `require()` machinery to look up the location of a module,
 but rather than loading the module, just return the resolved filename.
 
+### require.addTransform(transform)
+
+* `transform` {Function} A function to use to transform module text given the
+  content and full path to the file.
+
+Add a transform function to modify contents of a file loaded with `require()`
+before passing it to the parser. This enables pre-compile transformations such
+as transpiling code, replacing an interface with mock functions for testing or
+instrumenting code for purposes such as gathering code coverage metrics or
+tracing application behavior and measuring performance.
+
+The `transform` function accepts the content string and full file path as the
+first and second arguments. The function is expected to return a new content
+string as the result of the transformation.
+
+Multiple transforms may be added to the pipeline and will be applied in the
+order they are added.
+
+
+```js
+require.addTransform((content, filepath) => {
+  // Only apply the transform to a specific file
+  if (!/my\-module\.js$/.test(filename)) {
+    return content;
+  }
+  return `
+  ${content}
+  const originalFunction = exports.someFunction;
+  exports.someFunction = function myMockedFunction(first, second, callback) {
+    var start = process.hrtime();
+    function wrappedCallback() {
+      var end = process.hrtime(start);
+      console.log('execution time: %ds', end[0] + (end[1] / 1000000000));
+      return callback(this, arguments);
+    }
+    return someFunction.call(null, first, second, wrappedCallback);
+  }
+  `;
+});
+```
+
+### require.removeTransform(transform)
+
+* `transform` {Function} A function previously given to `require.addTransform()`
+  which will be removed from the transform pipeline.
+
+Removes a transform function from the transform pipeline so it will no longer
+be applied to the contents of files loaded in future `require()` calls.
+
 ## setImmediate(callback[, ...args])
 <!-- YAML
 added: v0.9.1
