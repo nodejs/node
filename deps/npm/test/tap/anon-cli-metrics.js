@@ -23,7 +23,7 @@ var conf = {
     npm_config_tmp: tmpdir,
     npm_config_prefix: globaldir,
     npm_config_registry: common.registry,
-    npm_config_metrics_registry: common.registry,
+    npm_config_metrics_registry: null,
     npm_config_loglevel: 'warn'
   })
 }

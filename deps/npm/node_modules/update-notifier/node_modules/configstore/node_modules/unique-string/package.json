@@ -1,0 +1,111 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "unique-string@^1.0.0",
+        "scope": null,
+        "escapedName": "unique-string",
+        "name": "unique-string",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/configstore"
+    ]
+  ],
+  "_from": "unique-string@>=1.0.0 <2.0.0",
+  "_id": "unique-string@1.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/configstore/unique-string",
+  "_nodeVersion": "4.6.1",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/unique-string-1.0.0.tgz_1479097654250_0.7648377516306937"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "unique-string@^1.0.0",
+    "scope": null,
+    "escapedName": "unique-string",
+    "name": "unique-string",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/configstore"
+  ],
+  "_resolved": "https://registry.npmjs.org/unique-string/-/unique-string-1.0.0.tgz",
+  "_shasum": "9e1057cca851abb93398f8b33ae187b99caec11a",
+  "_shrinkwrap": null,
+  "_spec": "unique-string@^1.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/configstore",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/unique-string/issues"
+  },
+  "dependencies": {
+    "crypto-random-string": "^1.0.0"
+  },
+  "description": "Generate a unique random string",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "9e1057cca851abb93398f8b33ae187b99caec11a",
+    "tarball": "https://registry.npmjs.org/unique-string/-/unique-string-1.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "157a6b74fb44cf5d4ee2aa579502b967edbf4203",
+  "homepage": "https://github.com/sindresorhus/unique-string#readme",
+  "keywords": [
+    "unique",
+    "string",
+    "random",
+    "uniq",
+    "str",
+    "rand",
+    "text",
+    "id",
+    "identifier",
+    "slug",
+    "hex"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "unique-string",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/unique-string.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.0.0",
+  "xo": {
+    "esnext": true
+  }
+}

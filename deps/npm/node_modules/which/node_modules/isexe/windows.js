@@ -24,13 +24,19 @@ function checkPathExt (path, options) {
   return false
 }
 
+function checkStat (stat, path, options) {
+  if (!stat.isSymbolicLink() && !stat.isFile()) {
+    return false
+  }
+  return checkPathExt(path, options)
+}
+
 function isexe (path, options, cb) {
-  fs.stat(path, function (er, st) {
-    cb(er, er ? false : checkPathExt(path, options))
+  fs.stat(path, function (er, stat) {
+    cb(er, er ? false : checkStat(stat, path, options))
   })
 }
 
 function sync (path, options) {
-  fs.statSync(path)
-  return checkPathExt(path, options)
+  return checkStat(fs.statSync(path), path, options)
 }

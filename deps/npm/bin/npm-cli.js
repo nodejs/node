@@ -25,10 +25,17 @@
 
   unsupported.checkForUnsupportedNode()
 
+  if (!unsupported.checkVersion(process.version).unsupported) {
+    var updater = require('update-notifier')
+    var pkg = require('../package.json')
+    updater({pkg: pkg}).notify({defer: true})
+  }
+
   var path = require('path')
   var npm = require('../lib/npm.js')
   var npmconf = require('../lib/config/core.js')
   var errorHandler = require('../lib/utils/error-handler.js')
+  var output = require('../lib/utils/output.js')
 
   var configDefs = npmconf.defs
   var shorthands = configDefs.shorthands
@@ -74,6 +81,12 @@
   conf._exit = true
   npm.load(conf, function (er) {
     if (er) return errorHandler(er)
-    npm.commands[npm.command](npm.argv, errorHandler)
+    npm.commands[npm.command](npm.argv, function (err) {
+      // https://www.youtube.com/watch?v=7nfPu8qTiQU
+      if (!err && npm.config.get('ham-it-up')) {
+        output('\n 🎵 I Have the Honour to Be Your Obedient Servant,🎵 ~ npm 📜🖋\n')
+      }
+      errorHandler.apply(this, arguments)
+    })
   })
 })()

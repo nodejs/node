@@ -282,6 +282,7 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
     procError(er)
   })
   process.once('SIGTERM', procKill)
+  process.once('SIGINT', procInterupt)
 
   function procError (er) {
     if (er) {
@@ -302,10 +303,19 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
       er.pkgname = pkg.name
     }
     process.removeListener('SIGTERM', procKill)
+    process.removeListener('SIGTERM', procInterupt)
+    process.removeListener('SIGINT', procKill)
     return cb(er)
   }
   function procKill () {
     proc.kill()
+  }
+  function procInterupt () {
+    proc.kill('SIGINT')
+    proc.on('exit', function () {
+      process.exit()
+    })
+    process.once('SIGINT', procKill)
   }
 }
 

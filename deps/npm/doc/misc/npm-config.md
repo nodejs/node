@@ -137,6 +137,13 @@ even for `GET` requests.
 When "dev" or "development" and running local `npm shrinkwrap`,
 `npm outdated`, or `npm update`, is an alias for `--dev`.
 
+### auth-type
+
+* Default: `'legacy'`
+* Type: `'legacy'`, `'sso'`, `'saml'`, `'oauth'`
+
+What authentication strategy to use with `adduser`/`login`.
+
 ### bin-links
 
 * Default: `true`
@@ -609,7 +616,7 @@ Any "%s" in the message will be replaced with the version number.
 
 ### metrics-registry
 
-* Default: "https://registry.npmjs.org/"
+* Default: The value of  `registry` (which defaults to "https://registry.npmjs.org/")
 * Type: String
 
 The registry you want to send cli metrics to if `send-metrics` is true.
@@ -903,6 +910,21 @@ using `-s` to add a signature.
 
 Note that git requires you to have set up GPG keys in your git configs
 for this to work properly.
+
+### sso-poll-frequency
+
+* Default: 500
+* Type: Number
+
+When used with SSO-enabled `auth-type`s, configures how regularly the registry
+should be polled while the user is completing authentication.
+
+### sso-type
+
+* Default: 'oauth'
+* Type: 'oauth', 'saml', or null
+
+If `--auth-type=sso`, the type of SSO type to use.
 
 ### strict-ssl
 

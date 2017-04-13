@@ -1,0 +1,95 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "create-error-class@^3.0.0",
+        "scope": null,
+        "escapedName": "create-error-class",
+        "name": "create-error-class",
+        "rawSpec": "^3.0.0",
+        "spec": ">=3.0.0 <4.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got"
+    ]
+  ],
+  "_from": "create-error-class@>=3.0.0 <4.0.0",
+  "_id": "create-error-class@3.0.2",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/got/create-error-class",
+  "_nodeVersion": "4.4.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/create-error-class-3.0.2.tgz_1459840488945_0.7410781022626907"
+  },
+  "_npmUser": {
+    "name": "floatdrop",
+    "email": "floatdrop@gmail.com"
+  },
+  "_npmVersion": "2.14.20",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "create-error-class@^3.0.0",
+    "scope": null,
+    "escapedName": "create-error-class",
+    "name": "create-error-class",
+    "rawSpec": "^3.0.0",
+    "spec": ">=3.0.0 <4.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/got"
+  ],
+  "_resolved": "https://registry.npmjs.org/create-error-class/-/create-error-class-3.0.2.tgz",
+  "_shasum": "06be7abef947a3f14a30fd610671d401bca8b7b6",
+  "_shrinkwrap": null,
+  "_spec": "create-error-class@^3.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got",
+  "author": {
+    "name": "Vsevolod Strukchinsky",
+    "email": "floatdrop@gmail.com",
+    "url": "github.com/floatdrop"
+  },
+  "bugs": {
+    "url": "https://github.com/floatdrop/create-error-class/issues"
+  },
+  "dependencies": {
+    "capture-stack-trace": "^1.0.0"
+  },
+  "description": "Create Error classes",
+  "devDependencies": {
+    "mocha": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "06be7abef947a3f14a30fd610671d401bca8b7b6",
+    "tarball": "https://registry.npmjs.org/create-error-class/-/create-error-class-3.0.2.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "af3f3979494c4eca0b0259d12035e7fb84fa302f",
+  "homepage": "https://github.com/floatdrop/create-error-class",
+  "keywords": [],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "floatdrop",
+      "email": "floatdrop@gmail.com"
+    }
+  ],
+  "name": "create-error-class",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/floatdrop/create-error-class.git"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "version": "3.0.2"
+}

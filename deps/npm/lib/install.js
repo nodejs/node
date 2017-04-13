@@ -508,7 +508,7 @@ Installer.prototype.rollbackFailedOptional = function (staging, actionsToRun, cb
   }).filter(function (pkg) {
     return pkg.failed && pkg.rollback
   })
-  var top = this.currentTree.path
+  var top = this.currentTree && this.currentTree.path
   asyncMap(failed, function (pkg, next) {
     asyncMap(pkg.rollback, function (rollback, done) {
       rollback(top, staging, pkg, done)

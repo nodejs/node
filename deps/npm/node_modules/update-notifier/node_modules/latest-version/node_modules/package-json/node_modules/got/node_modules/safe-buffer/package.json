@@ -1,0 +1,103 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "safe-buffer@^5.0.1",
+        "scope": null,
+        "escapedName": "safe-buffer",
+        "name": "safe-buffer",
+        "rawSpec": "^5.0.1",
+        "spec": ">=5.0.1 <6.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got"
+    ]
+  ],
+  "_from": "safe-buffer@>=5.0.1 <6.0.0",
+  "_id": "safe-buffer@5.0.1",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/got/safe-buffer",
+  "_nodeVersion": "4.4.5",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/safe-buffer-5.0.1.tgz_1464588482081_0.8112505874596536"
+  },
+  "_npmUser": {
+    "name": "feross",
+    "email": "feross@feross.org"
+  },
+  "_npmVersion": "2.15.5",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "safe-buffer@^5.0.1",
+    "scope": null,
+    "escapedName": "safe-buffer",
+    "name": "safe-buffer",
+    "rawSpec": "^5.0.1",
+    "spec": ">=5.0.1 <6.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/got"
+  ],
+  "_resolved": "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.0.1.tgz",
+  "_shasum": "d263ca54696cd8a306b5ca6551e92de57918fbe7",
+  "_shrinkwrap": null,
+  "_spec": "safe-buffer@^5.0.1",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got",
+  "author": {
+    "name": "Feross Aboukhadijeh",
+    "email": "feross@feross.org",
+    "url": "http://feross.org"
+  },
+  "browser": "./browser.js",
+  "bugs": {
+    "url": "https://github.com/feross/safe-buffer/issues"
+  },
+  "dependencies": {},
+  "description": "Safer Node.js Buffer API",
+  "devDependencies": {
+    "standard": "^7.0.0",
+    "tape": "^4.0.0",
+    "zuul": "^3.0.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "d263ca54696cd8a306b5ca6551e92de57918fbe7",
+    "tarball": "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.0.1.tgz"
+  },
+  "gitHead": "1e371a367da962afae2bebc527b50271c739d28c",
+  "homepage": "https://github.com/feross/safe-buffer",
+  "keywords": [
+    "buffer",
+    "buffer allocate",
+    "node security",
+    "safe",
+    "safe-buffer",
+    "security",
+    "uninitialized"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "feross",
+      "email": "feross@feross.org"
+    },
+    {
+      "name": "mafintosh",
+      "email": "mathiasbuus@gmail.com"
+    }
+  ],
+  "name": "safe-buffer",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/feross/safe-buffer.git"
+  },
+  "scripts": {
+    "test": "standard && tape test.js"
+  },
+  "version": "5.0.1"
+}

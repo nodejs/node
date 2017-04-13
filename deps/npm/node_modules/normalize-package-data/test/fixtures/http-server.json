@@ -4,11 +4,11 @@
   "version": "0.3.0",
   "author": "Nodejitsu <support@nodejitsu.com>",
   "description": "a simple zero-configuration command-line http server",
-  "contributors": [ 
+  "contributors": [
     {
       "name": "Marak Squires",
       "email": "marak@nodejitsu.com"
-    } 
+    }
   ],
   "bin": {
     "http-server": "./bin/http-server"
@@ -45,7 +45,7 @@
   "bundledDependencies": [
     "union",
     "ecstatic"
-  ],  
+  ],
   "license": "MIT",
   "engines": {
     "node": ">=0.6"

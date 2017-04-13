@@ -8,7 +8,7 @@ var mkdirp = require('mkdirp')
 var rmStuff = require('../../unbuild.js').rmStuff
 var lifecycle = require('../../utils/lifecycle.js')
 var updatePackageJson = require('../update-package-json.js')
-var rename = require('../../utils/rename.js')
+var move = require('../../utils/move.js')
 
 /*
   Move a module from one point in the node_modules tree to another.
@@ -46,7 +46,7 @@ function moveModuleOnly (from, to, log, done) {
 
   log.silly('move', 'move existing destination node_modules away', toModules)
 
-  rename(toModules, tempToModules, removeDestination(done))
+  move(toModules, tempToModules, removeDestination(done))
 
   function removeDestination (next) {
     return function (er) {
@@ -62,7 +62,7 @@ function moveModuleOnly (from, to, log, done) {
   function moveToModulesBack (next) {
     return function () {
       log.silly('move', 'move existing destination node_modules back', toModules)
-      rename(tempToModules, toModules, iferr(done, next))
+      move(tempToModules, toModules, iferr(done, next))
     }
   }
 
@@ -76,14 +76,14 @@ function moveModuleOnly (from, to, log, done) {
   function moveNodeModules (next) {
     return function () {
       log.silly('move', 'move source node_modules away', fromModules)
-      rename(fromModules, tempFromModules, iferr(doMove(next), doMove(moveNodeModulesBack(next))))
+      move(fromModules, tempFromModules, iferr(doMove(next), doMove(moveNodeModulesBack(next))))
     }
   }
 
   function doMove (next) {
     return function () {
       log.silly('move', 'move module dir to final dest', from, to)
-      rename(from, to, iferr(done, next))
+      move(from, to, iferr(done, next))
     }
   }
 
@@ -91,7 +91,7 @@ function moveModuleOnly (from, to, log, done) {
     return function () {
       mkdirp(from, iferr(done, function () {
         log.silly('move', 'put source node_modules back', fromModules)
-        rename(tempFromModules, fromModules, iferr(done, next))
+        move(tempFromModules, fromModules, iferr(done, next))
       }))
     }
   }

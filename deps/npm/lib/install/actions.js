@@ -2,7 +2,9 @@
 var validate = require('aproba')
 var chain = require('slide').chain
 var asyncMap = require('slide').asyncMap
+var limit = require('call-limit')
 var iferr = require('iferr')
+var npm = require('../npm.js')
 var andFinishTracker = require('./and-finish-tracker.js')
 var andAddParentToErrors = require('./and-add-parent-to-errors.js')
 var failedDependency = require('./deps.js').failedDependency
@@ -15,7 +17,6 @@ var actions = {}
 actions.fetch = require('./action/fetch.js')
 actions.extract = require('./action/extract.js')
 actions.build = require('./action/build.js')
-actions.test = require('./action/test.js')
 actions.preinstall = require('./action/preinstall.js')
 actions.install = require('./action/install.js')
 actions.postinstall = require('./action/postinstall.js')
@@ -32,7 +33,7 @@ actions['global-link'] = require('./action/global-link.js')
 
 Object.keys(actions).forEach(function (actionName) {
   var action = actions[actionName]
-  actions[actionName] = function (staging, pkg, log, next) {
+  actions[actionName] = limit(function (staging, pkg, log, next) {
   // top, buildpath, pkg, log
     validate('SOOF', arguments)
     // refuse to run actions for failed packages
@@ -62,7 +63,7 @@ Object.keys(actions).forEach(function (actionName) {
     function andDone (cb) {
       return andFinishTracker(log, andAddParentToErrors(pkg.parent, andHandleOptionalDepErrors(pkg, cb)))
     }
-  }
+  }, npm.limit.action)
 })
 
 function markAsFailed (pkg) {

@@ -1,0 +1,109 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "json-stable-stringify@^1.0.1",
+        "scope": null,
+        "escapedName": "json-stable-stringify",
+        "name": "json-stable-stringify",
+        "rawSpec": "^1.0.1",
+        "spec": ">=1.0.1 <2.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/request/node_modules/har-validator/node_modules/ajv"
+    ]
+  ],
+  "_from": "json-stable-stringify@>=1.0.1 <2.0.0",
+  "_id": "json-stable-stringify@1.0.1",
+  "_inCache": true,
+  "_location": "/request/har-validator/ajv/json-stable-stringify",
+  "_nodeVersion": "4.2.1",
+  "_npmOperationalInternal": {
+    "host": "packages-5-east.internal.npmjs.com",
+    "tmp": "tmp/json-stable-stringify-1.0.1.tgz_1454436356521_0.9410459187347442"
+  },
+  "_npmUser": {
+    "name": "substack",
+    "email": "substack@gmail.com"
+  },
+  "_npmVersion": "3.4.1",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "json-stable-stringify@^1.0.1",
+    "scope": null,
+    "escapedName": "json-stable-stringify",
+    "name": "json-stable-stringify",
+    "rawSpec": "^1.0.1",
+    "spec": ">=1.0.1 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/har-validator/ajv"
+  ],
+  "_resolved": "https://registry.npmjs.org/json-stable-stringify/-/json-stable-stringify-1.0.1.tgz",
+  "_shasum": "9a759d39c5f2ff503fd5300646ed445f88c4f9af",
+  "_shrinkwrap": null,
+  "_spec": "json-stable-stringify@^1.0.1",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/request/node_modules/har-validator/node_modules/ajv",
+  "author": {
+    "name": "James Halliday",
+    "email": "mail@substack.net",
+    "url": "http://substack.net"
+  },
+  "bugs": {
+    "url": "https://github.com/substack/json-stable-stringify/issues"
+  },
+  "dependencies": {
+    "jsonify": "~0.0.0"
+  },
+  "description": "deterministic JSON.stringify() with custom sorting to get deterministic hashes from stringified results",
+  "devDependencies": {
+    "tape": "~1.0.4"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "9a759d39c5f2ff503fd5300646ed445f88c4f9af",
+    "tarball": "https://registry.npmjs.org/json-stable-stringify/-/json-stable-stringify-1.0.1.tgz"
+  },
+  "gitHead": "4a3ac9cc006a91e64901f8ebe78d23bf9fc9fbd0",
+  "homepage": "https://github.com/substack/json-stable-stringify",
+  "keywords": [
+    "json",
+    "stringify",
+    "deterministic",
+    "hash",
+    "sort",
+    "stable"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "substack",
+      "email": "mail@substack.net"
+    }
+  ],
+  "name": "json-stable-stringify",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/substack/json-stable-stringify.git"
+  },
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "testling": {
+    "files": "test/*.js",
+    "browsers": [
+      "ie/8..latest",
+      "ff/5",
+      "ff/latest",
+      "chrome/15",
+      "chrome/latest",
+      "safari/latest",
+      "opera/latest"
+    ]
+  },
+  "version": "1.0.1"
+}

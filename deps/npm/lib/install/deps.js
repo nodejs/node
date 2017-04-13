@@ -462,7 +462,7 @@ function addDependency (name, versionSpec, tree, log, done) {
         }
       }))
     } else {
-      fetchPackageMetadata(req, packageRelativePath(tree), log.newItem('fetchMetadata'), iferr(next, function (pkg) {
+      fetchPackageMetadata(req, packageRelativePath(tree), {tracker: log.newItem('fetchMetadata')}, iferr(next, function (pkg) {
         resolveWithNewModule(pkg, tree, log, next)
       }))
     }
@@ -547,7 +547,7 @@ function resolveWithNewModule (pkg, tree, log, next) {
           if (tree.parent && parent !== tree) updatePhantomChildren(tree.parent, child)
 
           if (hasBundled) {
-            inflateBundled(child, child.children)
+            inflateBundled(child, child, child.children)
           }
 
           if (pkg._shrinkwrap && pkg._shrinkwrap.dependencies) {

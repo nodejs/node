@@ -268,7 +268,6 @@ function errorMessage (er) {
       detail.push([
         'enoent',
         [
-          er.message,
           'This is most likely not a problem with npm itself',
           'and is related to npm not being able to find a file.',
           er.file ? "\nCheck if the file '" + er.file + "' is present." : ''
@@ -304,14 +303,6 @@ function errorMessage (er) {
 
     default:
       short.push(['', er.message || er])
-      detail.push([
-        '',
-        [
-          '',
-          'If you need help, you may report this error at:',
-          '    <https://github.com/npm/npm/issues>'
-        ].join('\n')
-      ])
       break
   }
   if (er.optional) {

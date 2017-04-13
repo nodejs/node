@@ -1,0 +1,109 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "registry-url@^3.0.3",
+        "scope": null,
+        "escapedName": "registry-url",
+        "name": "registry-url",
+        "rawSpec": "^3.0.3",
+        "spec": ">=3.0.3 <4.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json"
+    ]
+  ],
+  "_from": "registry-url@>=3.0.3 <4.0.0",
+  "_id": "registry-url@3.1.0",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/registry-url",
+  "_nodeVersion": "4.3.0",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/registry-url-3.1.0.tgz_1459781197285_0.25229517510160804"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.14.12",
+  "_phantomChildren": {
+    "ini": "1.3.4"
+  },
+  "_requested": {
+    "raw": "registry-url@^3.0.3",
+    "scope": null,
+    "escapedName": "registry-url",
+    "name": "registry-url",
+    "rawSpec": "^3.0.3",
+    "spec": ">=3.0.3 <4.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json"
+  ],
+  "_resolved": "https://registry.npmjs.org/registry-url/-/registry-url-3.1.0.tgz",
+  "_shasum": "3d4ef870f73dde1d77f0cf9a381432444e174942",
+  "_shrinkwrap": null,
+  "_spec": "registry-url@^3.0.3",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/registry-url/issues"
+  },
+  "dependencies": {
+    "rc": "^1.0.1"
+  },
+  "description": "Get the set npm registry URL",
+  "devDependencies": {
+    "ava": "*",
+    "pify": "^2.3.0",
+    "require-uncached": "^1.0.2",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "3d4ef870f73dde1d77f0cf9a381432444e174942",
+    "tarball": "https://registry.npmjs.org/registry-url/-/registry-url-3.1.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "79d07a452fe0c990fa0b154d510c68fc483b4689",
+  "homepage": "https://github.com/sindresorhus/registry-url",
+  "keywords": [
+    "npm",
+    "conf",
+    "config",
+    "npmconf",
+    "registry",
+    "url",
+    "uri",
+    "scope"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "registry-url",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/registry-url.git"
+  },
+  "scripts": {
+    "test": "xo && ava --serial"
+  },
+  "version": "3.1.0"
+}

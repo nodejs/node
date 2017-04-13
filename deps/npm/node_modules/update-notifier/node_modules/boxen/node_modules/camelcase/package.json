@@ -1,0 +1,110 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "camelcase@^4.0.0",
+        "scope": null,
+        "escapedName": "camelcase",
+        "name": "camelcase",
+        "rawSpec": "^4.0.0",
+        "spec": ">=4.0.0 <5.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen"
+    ]
+  ],
+  "_from": "camelcase@>=4.0.0 <5.0.0",
+  "_id": "camelcase@4.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/camelcase",
+  "_nodeVersion": "4.6.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/camelcase-4.0.0.tgz_1478620489451_0.9916922175325453"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "camelcase@^4.0.0",
+    "scope": null,
+    "escapedName": "camelcase",
+    "name": "camelcase",
+    "rawSpec": "^4.0.0",
+    "spec": ">=4.0.0 <5.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen"
+  ],
+  "_resolved": "https://registry.npmjs.org/camelcase/-/camelcase-4.0.0.tgz",
+  "_shasum": "8b0f90d44be5e281b903b9887349b92595ef07f2",
+  "_shrinkwrap": null,
+  "_spec": "camelcase@^4.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/camelcase/issues"
+  },
+  "dependencies": {},
+  "description": "Convert a dash/dot/underscore/space separated string to camelCase: foo-bar → fooBar",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "8b0f90d44be5e281b903b9887349b92595ef07f2",
+    "tarball": "https://registry.npmjs.org/camelcase/-/camelcase-4.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "b1f77b8185bc99f32ba6fcf7a9ffd87a802f1152",
+  "homepage": "https://github.com/sindresorhus/camelcase#readme",
+  "keywords": [
+    "camelcase",
+    "camel-case",
+    "camel",
+    "case",
+    "dash",
+    "hyphen",
+    "dot",
+    "underscore",
+    "separator",
+    "string",
+    "text",
+    "convert"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "camelcase",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/camelcase.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "4.0.0",
+  "xo": {
+    "esnext": true
+  }
+}
