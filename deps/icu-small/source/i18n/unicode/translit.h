@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -1319,7 +1319,7 @@ inline int32_t Transliterator::getMaximumContextLength(void) const {
 inline void Transliterator::setID(const UnicodeString& id) {
     ID = id;
     // NUL-terminate the ID string, which is a non-aliased copy.
-    ID.append((UChar)0);
+    ID.append((char16_t)0);
     ID.truncate(ID.length()-1);
 }
 

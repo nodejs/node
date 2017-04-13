@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  ucasemap.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -22,8 +22,8 @@
 #define __UCASEMAP_H__
 
 #include "unicode/utypes.h"
-#include "unicode/ustring.h"
 #include "unicode/localpointer.h"
+#include "unicode/ustring.h"
 
 /**
  * \file
@@ -185,6 +185,15 @@ ucasemap_setOptions(UCaseMap *csm, uint32_t options, UErrorCode *pErrorCode);
  */
 #define U_TITLECASE_NO_BREAK_ADJUSTMENT 0x200
 
+/**
+ * Omit unchanged text when case-mapping with Edits.
+ *
+ * @see CaseMap
+ * @see Edits
+ * @draft ICU 59
+ */
+#define UCASEMAP_OMIT_UNCHANGED_TEXT 0x4000
+
 #if !UCONFIG_NO_BREAK_ITERATION
 
 /**
@@ -253,7 +262,7 @@ ucasemap_setBreakIterator(UCaseMap *csm, UBreakIterator *iterToAdopt, UErrorCode
  * @param dest      A buffer for the result string. The result will be NUL-terminated if
  *                  the buffer is large enough.
  *                  The contents is undefined in case of failure.
- * @param destCapacity The size of the buffer (number of bytes). If it is 0, then
+ * @param destCapacity The size of the buffer (number of UChars). If it is 0, then
  *                  dest may be NULL and the function will only return the length of the result
  *                  without writing any of the result string.
  * @param src       The original string.
@@ -272,7 +281,7 @@ ucasemap_toTitle(UCaseMap *csm,
                  const UChar *src, int32_t srcLength,
                  UErrorCode *pErrorCode);
 
-#endif
+#endif  // UCONFIG_NO_BREAK_ITERATION
 
 /**
  * Lowercase the characters in a UTF-8 string.

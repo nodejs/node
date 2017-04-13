@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -1368,7 +1368,7 @@ DateFormatSymbols::setZoneStrings(const UnicodeString* const *strings, int32_t r
 
 //------------------------------------------------------
 
-const UChar * U_EXPORT2
+const char16_t * U_EXPORT2
 DateFormatSymbols::getPatternUChars(void)
 {
     return gPatternChars;
