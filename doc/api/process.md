@@ -301,8 +301,8 @@ $ node
 > events.defaultMaxListeners = 1;
 > process.on('foo', () => {});
 > process.on('foo', () => {});
-> (node:38638) Warning: Possible EventEmitter memory leak detected. 2 foo
-... listeners added. Use emitter.setMaxListeners() to increase limit
+> (node:38638) MaxListenersExceededWarning: Possible EventEmitter memory leak
+detected. 2 foo listeners added. Use emitter.setMaxListeners() to increase limit
 ```
 
 In contrast, the following example turns off the default warning output and
@@ -668,7 +668,7 @@ process.emitWarning('Something Happened!', 'CustomWarning');
 
 ```js
 process.emitWarning('Something happened!', 'CustomWarning', 'WARN001');
-// Emits: (node:56338) CustomWarning [WARN001]: Something Happened!
+// Emits: (node:56338) [WARN001] CustomWarning: Something happened!
 ```
 
 In each of the previous examples, an `Error` object is generated internally by
@@ -696,7 +696,7 @@ myWarning.name = 'CustomWarning';
 myWarning.code = 'WARN001';
 
 process.emitWarning(myWarning);
-// Emits: (node:56338) CustomWarning [WARN001]: Warning! Something Happened!
+// Emits: (node:56338) [WARN001] CustomWarning: Warning! Something happened!
 ```
 
 A `TypeError` is thrown if `warning` is anything other than a string or `Error`
