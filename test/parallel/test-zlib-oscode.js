@@ -14,7 +14,7 @@ if (process.platform !== 'linux' && process.platform !== 'darwin')
 const assert = require('assert');
 const zlib = require('zlib');
 
-const expected = "1f8b0800000000000003ab00008316dc8c01000000";
+const expected = '1f8b0800000000000003ab00008316dc8c01000000';
 const options = {strategy: zlib.Z_DEFAULT_STRATEGY};
 
 zlib.gzip('x', options, common.mustCall(function(err, compressed) {
