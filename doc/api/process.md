@@ -1187,6 +1187,45 @@ Will generate:
 `external` refers to the memory usage of C++ objects bound to JavaScript
 objects managed by V8.
 
+## process.moduleWrap(content, filepath)
+
+* `content` {String} The file contents
+* `filepath` {String} The full path of the file
+* Returns: {String} The replacement content
+
+The `process.moduleWrap()` method, which only exists while preloading modules
+with the `--require` flag, will receive the text content of any file to be
+loaded with `require()` and will replace it with the return value. This method
+may be set to apply pre-compile transformations such as transpiling code,
+replacing an interface with mock functions for testing or instrumenting code
+for purposes such as gathering code coverage metrics or tracing the flow of
+an application.
+
+This is an example of replacing a function with one which has been instrumented
+to log execution time:
+
+```js
+process.moduleWrap = function(content, filepath) {
+  // Only apply the transform to a specific file
+  if (!/my\-module\.js$/.test(filename)) {
+    return content
+  }
+  return `
+  ${content}
+  const originalFunction = exports.someFunction
+  exports.someFunction = function myMockedFunction(first, second, callback) {
+    var start = process.hrtime()
+    function wrappedCallback() {
+      var end = process.hrtime(start)
+      console.log('execution time: %ds', end[0] + (end[1] / 1000000000))
+      return callback(this, arguments)
+    }
+    return someFunction.call(null, first, second, wrappedCallback)
+  }
+  `
+}
+```
+
 ## process.nextTick(callback[, ...args])
 <!-- YAML
 added: v0.1.26
