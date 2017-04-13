@@ -53,8 +53,13 @@ class ShutdownWrap : public ReqWrap<uv_shutdown_t>,
     Wrap(req_wrap_obj, this);
   }
 
+  ~ShutdownWrap() {
+    ClearWrap(object());
+  }
+
   static void NewShutdownWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
     CHECK(args.IsConstructCall());
+    ClearWrap(args.This());
   }
 
   static ShutdownWrap* from_req(uv_shutdown_t* req) {
@@ -85,6 +90,7 @@ class WriteWrap: public ReqWrap<uv_write_t>,
 
   static void NewWriteWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
     CHECK(args.IsConstructCall());
+    ClearWrap(args.This());
   }
 
   static WriteWrap* from_req(uv_write_t* req) {
@@ -104,6 +110,10 @@ class WriteWrap: public ReqWrap<uv_write_t>,
         wrap_(wrap),
         storage_size_(storage_size) {
     Wrap(obj, this);
+  }
+
+  ~WriteWrap() {
+    ClearWrap(object());
   }
 
   void* operator new(size_t size) = delete;

@@ -53,6 +53,8 @@ void TTYWrap::Initialize(Local<Object> target,
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TTY"));
   t->InstanceTemplate()->SetInternalFieldCount(1);
 
+  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+
   env->SetProtoMethod(t, "close", HandleWrap::Close);
   env->SetProtoMethod(t, "unref", HandleWrap::Unref);
   env->SetProtoMethod(t, "ref", HandleWrap::Ref);
@@ -150,17 +152,25 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
   int fd = args[0]->Int32Value();
   CHECK_GE(fd, 0);
 
-  TTYWrap* wrap = new TTYWrap(env, args.This(), fd, args[1]->IsTrue());
+  int err = 0;
+  TTYWrap* wrap = new TTYWrap(env, args.This(), fd, args[1]->IsTrue(), &err);
+  if (err != 0)
+    return env->ThrowUVException(err, "uv_tty_init");
+
   wrap->UpdateWriteQueueSize();
 }
 
 
-TTYWrap::TTYWrap(Environment* env, Local<Object> object, int fd, bool readable)
+TTYWrap::TTYWrap(Environment* env,
+                 Local<Object> object,
+                 int fd,
+                 bool readable,
+                 int* init_err)
     : StreamWrap(env,
                  object,
                  reinterpret_cast<uv_stream_t*>(&handle_),
                  AsyncWrap::PROVIDER_TTYWRAP) {
-  uv_tty_init(env->event_loop(), &handle_, fd, readable);
+  *init_err = uv_tty_init(env->event_loop(), &handle_, fd, readable);
 }
 
 }  // namespace node

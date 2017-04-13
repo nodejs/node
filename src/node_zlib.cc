@@ -89,6 +89,7 @@ class ZCtx : public AsyncWrap {
         refs_(0),
         gzip_id_bytes_read_(0) {
     MakeWeak<ZCtx>(this);
+    Wrap(wrap, this);
   }
 
 
@@ -679,6 +680,7 @@ void InitZlib(Local<Object> target,
 
   z->InstanceTemplate()->SetInternalFieldCount(1);
 
+  env->SetProtoMethod(z, "getAsyncId", AsyncWrap::GetAsyncId);
   env->SetProtoMethod(z, "write", ZCtx::Write<true>);
   env->SetProtoMethod(z, "writeSync", ZCtx::Write<false>);
   env->SetProtoMethod(z, "init", ZCtx::Init);
