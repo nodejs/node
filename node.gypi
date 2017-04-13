@@ -323,7 +323,8 @@
                    '-O0' ],
        'cflags': [ '--coverage',
                    '-g',
-                   '-O0' ]
+                   '-O0' ],
+       'cflags!': [ '-O3' ]
     }],
     [ 'OS=="sunos"', {
       'ldflags': [ '-Wl,-M,/usr/lib/ld/map.noexstk' ],
