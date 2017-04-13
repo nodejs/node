@@ -139,7 +139,7 @@ const modSize = 1024;
                              padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
                              saltLength: verifySaltLength
                            }, s4);
-          const saltLengthCorrect = getEffectiveSaltLength(signSaltLength) ==
+          const saltLengthCorrect = getEffectiveSaltLength(signSaltLength) ===
                                     getEffectiveSaltLength(verifySaltLength);
           assert.strictEqual(verified, saltLengthCorrect, 'verify (PSS)');
         });
