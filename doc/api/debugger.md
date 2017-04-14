@@ -183,8 +183,7 @@ flag instead of `--inspect`.
 
 ```txt
 $ node --inspect index.js
-Debugger listening on port 9229.
-Warning: This is an experimental feature and could change at any time.
+Debugger listening on 127.0.0.1:9229.
 To start debugging, open the following URL in Chrome:
     chrome-devtools://devtools/bundled/inspector.html?experiments=true&v8only=true&ws=127.0.0.1:9229/dc9010dd-f8b8-4ac5-a510-c1a114ec7d29
 ```
