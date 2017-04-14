@@ -3800,26 +3800,26 @@ module.exports =
     "base": "http://other.com/",
     "failure": true
   },
-  // {
-  //   "input": "http://[::1.2.3.4x]",
-  //   "base": "http://other.com/",
-  //   "failure": true
-  // },
-  // {
-  //   "input": "http://[::1.2.3.]",
-  //   "base": "http://other.com/",
-  //   "failure": true
-  // },
-  // {
-  //   "input": "http://[::1.2.]",
-  //   "base": "http://other.com/",
-  //   "failure": true
-  // },
-  // {
-  //   "input": "http://[::1.]",
-  //   "base": "http://other.com/",
-  //   "failure": true
-  // },
+  {
+    "input": "http://[::1.2.3.4x]",
+    "base": "http://other.com/",
+    "failure": true
+  },
+  {
+    "input": "http://[::1.2.3.]",
+    "base": "http://other.com/",
+    "failure": true
+  },
+  {
+    "input": "http://[::1.2.]",
+    "base": "http://other.com/",
+    "failure": true
+  },
+  {
+    "input": "http://[::1.]",
+    "base": "http://other.com/",
+    "failure": true
+  },
   "Misc Unicode",
   {
     "input": "http://foo:💩@example.com/bar",
