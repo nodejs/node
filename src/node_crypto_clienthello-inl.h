@@ -35,7 +35,7 @@ inline void ClientHelloParser::Reset() {
   extension_offset_ = 0;
   session_size_ = 0;
   session_id_ = nullptr;
-  tls_ticket_size_ = -1;
+  tls_ticket_size_ = static_cast<uint16_t>(-1);
   tls_ticket_ = nullptr;
   servername_size_ = 0;
   servername_ = nullptr;

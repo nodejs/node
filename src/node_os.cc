@@ -168,12 +168,12 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   for (i = 0, field_idx = 0; i < count; i++) {
     uv_cpu_info_t* ci = cpu_infos + i;
 
-    fields[field_idx++] = ci->speed;
-    fields[field_idx++] = ci->cpu_times.user;
-    fields[field_idx++] = ci->cpu_times.nice;
-    fields[field_idx++] = ci->cpu_times.sys;
-    fields[field_idx++] = ci->cpu_times.idle;
-    fields[field_idx++] = ci->cpu_times.irq;
+    fields[field_idx++] = static_cast<double>(ci->speed);
+    fields[field_idx++] = static_cast<double>(ci->cpu_times.user);
+    fields[field_idx++] = static_cast<double>(ci->cpu_times.nice);
+    fields[field_idx++] = static_cast<double>(ci->cpu_times.sys);
+    fields[field_idx++] = static_cast<double>(ci->cpu_times.idle);
+    fields[field_idx++] = static_cast<double>(ci->cpu_times.irq);
     model_argv[model_idx++] = OneByteString(env->isolate(), ci->model);
 
     if (model_idx >= NODE_PUSH_VAL_TO_ARRAY_MAX) {
@@ -193,7 +193,7 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
-  double amount = uv_get_free_memory();
+  double amount = static_cast<double>(uv_get_free_memory());
   if (amount < 0)
     return;
   args.GetReturnValue().Set(amount);
@@ -201,7 +201,7 @@ static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
-  double amount = uv_get_total_memory();
+  double amount = static_cast<double>(uv_get_total_memory());
   if (amount < 0)
     return;
   args.GetReturnValue().Set(amount);

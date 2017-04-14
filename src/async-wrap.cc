@@ -226,7 +226,7 @@ void AsyncWrap::DestroyIdsCb(uv_idle_t* handle) {
     // Want each callback to be cleaned up after itself, instead of cleaning
     // them all up after the while() loop completes.
     HandleScope scope(env->isolate());
-    Local<Value> argv = Number::New(env->isolate(), current_id);
+    Local<Value> argv = Number::New(env->isolate(), static_cast<double>(current_id));
     MaybeLocal<Value> ret = fn->Call(
         env->context(), Undefined(env->isolate()), 1, &argv);
 
@@ -260,7 +260,7 @@ AsyncWrap::AsyncWrap(Environment* env,
   CHECK_GE(object->InternalFieldCount(), 1);
 
   // Shift provider value over to prevent id collision.
-  persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider);
+  persistent().SetWrapperClassId(static_cast<uint16_t>(NODE_ASYNC_ID_OFFSET + provider));
 
   Local<Function> init_fn = env->async_hooks_init_function();
 
@@ -277,14 +277,14 @@ AsyncWrap::AsyncWrap(Environment* env,
   HandleScope scope(env->isolate());
 
   Local<Value> argv[] = {
-    Number::New(env->isolate(), get_uid()),
+    Number::New(env->isolate(), static_cast<double>(get_uid())),
     Int32::New(env->isolate(), provider),
     Null(env->isolate()),
     Null(env->isolate())
   };
 
   if (parent != nullptr) {
-    argv[2] = Number::New(env->isolate(), parent->get_uid());
+    argv[2] = Number::New(env->isolate(), static_cast<double>(parent->get_uid()));
     argv[3] = parent->object();
   }
 
@@ -320,7 +320,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
   Local<Function> pre_fn = env()->async_hooks_pre_function();
   Local<Function> post_fn = env()->async_hooks_post_function();
-  Local<Value> uid = Number::New(env()->isolate(), get_uid());
+  Local<Value> uid = Number::New(env()->isolate(), static_cast<double>(get_uid()));
   Local<Object> context = object();
   Local<Object> domain;
   bool has_domain = false;
