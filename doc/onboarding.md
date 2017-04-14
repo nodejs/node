@@ -132,7 +132,7 @@ onboarding session.
 
 ## Landing PRs
 
-  * [See the Collaborator Guide: Technical HOWTO](https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#technical-howto)
+  * [See the Collaborator Guide: Landing Pull Requests](https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md#landing-pull-requests)
 
 ## Exercise: Make a PR adding yourself to the README
 
