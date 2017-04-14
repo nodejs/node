@@ -116,7 +116,6 @@ assert.strictEqual(util.format('o: %j, a: %j', {}, []), 'o: {}, a: []');
 assert.strictEqual(util.format('o: %j, a: %j', {}), 'o: {}, a: %j');
 assert.strictEqual(util.format('o: %j, a: %j'), 'o: %j, a: %j');
 
-
 {
   const o = {};
   o.o = o;
