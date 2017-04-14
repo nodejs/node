@@ -110,7 +110,7 @@ namespace url {
     uint16_t* compress_pointer = nullptr;
     const char* pointer = input;
     const char* end = pointer + length;
-    unsigned value, len, swaps, dots;
+    unsigned value, len, swaps, numbers_seen;
     char ch = pointer < end ? pointer[0] : kEOL;
     if (ch == ':') {
       if (length < 2 || pointer[1] != ':')
@@ -148,9 +148,17 @@ namespace url {
           ch = pointer < end ? pointer[0] : kEOL;
           if (piece_pointer > last_piece - 2)
             goto end;
-          dots = 0;
+          numbers_seen = 0;
           while (ch != kEOL) {
             value = 0xffffffff;
+            if (numbers_seen > 0) {
+              if (ch == '.' && numbers_seen < 4) {
+                pointer++;
+                ch = pointer < end ? pointer[0] : kEOL;
+              } else {
+                goto end;
+              }
+            }
             if (!ASCII_DIGIT(ch))
               goto end;
             while (ASCII_DIGIT(ch)) {
@@ -167,19 +175,13 @@ namespace url {
               pointer++;
               ch = pointer < end ? pointer[0] : kEOL;
             }
-            if (dots < 3 && ch != '.')
-              goto end;
             *piece_pointer = *piece_pointer * 0x100 + value;
-            if (dots & 0x1)
+            numbers_seen++;
+            if (numbers_seen == 2 || numbers_seen == 4)
               piece_pointer++;
-            if (ch != kEOL) {
-              pointer++;
-              ch = pointer < end ? pointer[0] : kEOL;
-            }
-            if (dots == 3 && ch != kEOL)
-              goto end;
-            dots++;
           }
+          if (numbers_seen != 4)
+            goto end;
           continue;
         case ':':
           pointer++;
