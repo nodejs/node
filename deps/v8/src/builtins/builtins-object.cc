@@ -300,10 +300,10 @@ void Builtins::Generate_ObjectProtoToString(CodeStubAssembler* assembler) {
   Node* context = assembler->Parameter(3);
 
   assembler->GotoIf(
-      assembler->Word32Equal(receiver, assembler->UndefinedConstant()),
+      assembler->WordEqual(receiver, assembler->UndefinedConstant()),
       &return_undefined);
 
-  assembler->GotoIf(assembler->Word32Equal(receiver, assembler->NullConstant()),
+  assembler->GotoIf(assembler->WordEqual(receiver, assembler->NullConstant()),
                     &return_null);
 
   assembler->GotoIf(assembler->WordIsSmi(receiver), &return_number);
