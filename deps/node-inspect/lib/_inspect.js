@@ -110,7 +110,7 @@ function runScript(script, scriptArgs, inspectHost, inspectPort, childPrint) {
         let output = '';
         function waitForListenHint(text) {
           output += text;
-          if (/chrome-devtools:\/\//.test(output)) {
+          if (/Debugger listening on/.test(output)) {
             child.stderr.removeListener('data', waitForListenHint);
             resolve(child);
           }

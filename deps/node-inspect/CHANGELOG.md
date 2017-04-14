@@ -1,3 +1,8 @@
+### 1.11.2
+
+* [`42e0cd1`](https://github.com/nodejs/node-inspect/commit/42e0cd111d89ed09faba1c0ec45089b0b44de011) **fix:** look for generic hint text
+
+
 ### 1.11.1
 
 * Prefer --inspect-brk over --debug-brk - **[@ofrobots](https://github.com/ofrobots)** [#43](https://github.com/nodejs/node-inspect/pull/43)
