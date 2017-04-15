@@ -445,6 +445,10 @@ commit logs, ensure that they are properly formatted, and add
 * The commit message text must conform to the
 [commit message guidelines](./CONTRIBUTING.md#step-3-commit).
 
+Run tests (`make -j4 test` or `vcbuild test`). Even though there was a
+successful continuous integration run, other changes may have landed on master
+since then, so running the tests one last time locally is a good practice.
+
 Time to push it:
 
 ```text
@@ -462,11 +466,6 @@ landing your own contributions.
 your pull request shows the purple merged status then you should still
 add the "Landed in <commit hash>..<commit hash>" comment if you added
 multiple commits.
-
-* `./configure && make -j8 test`
-  * `-j8` builds node in parallel with 8 threads. Adjust to the number
-  of cores or processor-level threads your processor has (or slightly
-  more) for best results.
 
 ### I Just Made a Mistake
 
