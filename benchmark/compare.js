@@ -35,7 +35,7 @@ const runs = cli.optional.runs ? parseInt(cli.optional.runs, 10) : 30;
 const benchmarks = cli.benchmarks();
 
 if (benchmarks.length === 0) {
-  console.error('no benchmarks found');
+  console.error('No benchmarks found');
   process.exitCode = 1;
   return;
 }
