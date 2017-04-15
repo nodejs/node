@@ -345,7 +345,7 @@ Additionally:
 
 ### Technical HOWTO
 
-_Optional:_ ensure that you are not in a borked `am`/`rebase` state
+Clear any `am`/`rebase` that may already be underway.
 
 ```text
 $ git am --abort
