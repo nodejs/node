@@ -21,7 +21,7 @@ assert.strictEqual(
   origin: 'https://host.name:8080',
   protocol: 'https:',
   username: 'username',
-  password: '--------',
+  password: 'password',
   host: 'host.name:8080',
   hostname: 'host.name',
   port: '8080',
