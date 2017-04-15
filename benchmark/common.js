@@ -42,8 +42,8 @@ Benchmark.prototype._parseArgs = function(argv, configs) {
   const extraOptions = {};
   // Parse configuration arguments
   for (const arg of argv) {
-    const match = arg.match(/^(.+?)=([\s\S]*)$/);
-    if (!match || !match[1]) {
+    const match = arg.match(/^(.+?)=([\s\S]+)$/);
+    if (!match) {
       console.error('bad argument: ' + arg);
       process.exit(1);
     }
