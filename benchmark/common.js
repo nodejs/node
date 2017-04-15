@@ -43,7 +43,7 @@ Benchmark.prototype._parseArgs = function(argv, configs) {
   // Parse configuration arguments
   for (const arg of argv) {
     const match = arg.match(/^(.+?)=([\s\S]*)$/);
-    if (!match || !match[1]) {
+    if (!match) {
       console.error('bad argument: ' + arg);
       process.exit(1);
     }
