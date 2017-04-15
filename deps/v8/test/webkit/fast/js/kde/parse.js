@@ -28,16 +28,12 @@ shouldBe("function test() { while(0) break; } lab: 1", "1");
 shouldBe("function test() { while(0) continue; } lab: 1", "1");
 
 shouldBe("function test() { return lab;} lab: 1", "1");
-shouldThrow("function test() { while(0) break lab; } lab: 1");
-shouldThrow("function test() { while(0) continue lab; } lab: 1");
 
 shouldBe("function test() { return } lab: 1", "1");
 shouldBe("function test() { while(0) break } lab: 1", "1");
 shouldBe("function test() { while(0) continue } lab: 1", "1");
 
 shouldBe("function test() { return 0 } lab: 1", "1");
-shouldThrow("function test() { while(0) break lab } lab: 1");
-shouldThrow("function test() { while(0) continue lab } lab: 1");
 
 a = 1
 b = 123 // comment

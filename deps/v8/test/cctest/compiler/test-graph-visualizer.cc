@@ -3,15 +3,15 @@
 // found in the LICENSE file.
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
-#include "src/compiler/source-position.h"
 #include "src/compiler/verifier.h"
 #include "test/cctest/cctest.h"
 

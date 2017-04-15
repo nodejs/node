@@ -5,8 +5,7 @@
 #ifndef V8_LIVE_RANGE_SEPARATOR_H_
 #define V8_LIVE_RANGE_SEPARATOR_H_
 
-
-#include <src/zone.h>
+#include "src/zone/zone.h"
 namespace v8 {
 namespace internal {
 

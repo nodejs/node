@@ -1,42 +1,63 @@
-/* eslint-disable strict */
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var binaryString = '';
-for (var i = 255; i >= 0; i--) {
-  var s = '\'\\' + i.toString(8) + '\'';
-  var S = eval(s);
-  assert.ok(S.charCodeAt(0) == i);
-  assert.ok(S == String.fromCharCode(i));
+/* eslint-disable strict */
+require('../common');
+const assert = require('assert');
+const net = require('net');
+
+let binaryString = '';
+for (let i = 255; i >= 0; i--) {
+  const s = `'\\${i.toString(8)}'`;
+  const S = eval(s);
+  assert.strictEqual(S.charCodeAt(0), i);
+  assert.strictEqual(S, String.fromCharCode(i));
   binaryString += S;
 }
 
 // safe constructor
-var echoServer = net.Server(function(connection) {
-  connection.setEncoding('binary');
+const echoServer = net.Server(function(connection) {
+  connection.setEncoding('latin1');
   connection.on('data', function(chunk) {
-    connection.write(chunk, 'binary');
+    connection.write(chunk, 'latin1');
   });
   connection.on('end', function() {
     connection.end();
   });
 });
-echoServer.listen(common.PORT);
+echoServer.listen(0);
 
-var recv = '';
+let recv = '';
 
 echoServer.on('listening', function() {
-  var j = 0;
-  var c = net.createConnection({
-    port: common.PORT
+  let j = 0;
+  const c = net.createConnection({
+    port: this.address().port
   });
 
-  c.setEncoding('binary');
+  c.setEncoding('latin1');
   c.on('data', function(chunk) {
-    var n = j + chunk.length;
+    const n = j + chunk.length;
     while (j < n && j < 256) {
-      c.write(String.fromCharCode(j), 'binary');
+      c.write(String.fromCharCode(j), 'latin1');
       j++;
     }
     if (j === 256) {
@@ -55,13 +76,13 @@ echoServer.on('listening', function() {
 });
 
 process.on('exit', function() {
-  assert.equal(2 * 256, recv.length);
+  assert.strictEqual(2 * 256, recv.length);
 
-  var a = recv.split('');
+  const a = recv.split('');
 
-  var first = a.slice(0, 256).reverse().join('');
+  const first = a.slice(0, 256).reverse().join('');
 
-  var second = a.slice(256, 2 * 256).join('');
+  const second = a.slice(256, 2 * 256).join('');
 
-  assert.equal(first, second);
+  assert.strictEqual(first, second);
 });

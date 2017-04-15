@@ -96,21 +96,29 @@ struct ObjectGroupRetainerInfo {
   RetainedObjectInfo* info;
 };
 
-
 enum WeaknessType {
-  NORMAL_WEAK,  // Embedder gets a handle to the dying object.
+  // Embedder gets a handle to the dying object.
+  FINALIZER_WEAK,
   // In the following cases, the embedder gets the parameter they passed in
   // earlier, and 0 or 2 first internal fields. Note that the internal
   // fields must contain aligned non-V8 pointers.  Getting pointers to V8
   // objects through this interface would be GC unsafe so in that case the
   // embedder gets a null pointer instead.
   PHANTOM_WEAK,
-  PHANTOM_WEAK_2_INTERNAL_FIELDS
+  PHANTOM_WEAK_2_INTERNAL_FIELDS,
+  // The handle is automatically reset by the garbage collector when
+  // the object is no longer reachable.
+  PHANTOM_WEAK_RESET_HANDLE
 };
-
 
 class GlobalHandles {
  public:
+  enum IterationMode {
+    HANDLE_PHANTOM_NODES_VISIT_OTHERS,
+    VISIT_OTHERS,
+    HANDLE_PHANTOM_NODES
+  };
+
   ~GlobalHandles();
 
   // Creates a new global handle that is alive until Destroy is called.
@@ -122,14 +130,6 @@ class GlobalHandles {
   // Destroy a global handle.
   static void Destroy(Object** location);
 
-  typedef WeakCallbackData<v8::Value, void>::Callback WeakCallback;
-
-  // For a phantom weak reference, the callback does not have access to the
-  // dying object.  Phantom weak references are preferred because they allow
-  // memory to be reclaimed in one GC cycle rather than two.  However, for
-  // historical reasons the default is non-phantom.
-  enum PhantomState { Nonphantom, Phantom };
-
   // Make the global handle weak and set the callback parameter for the
   // handle.  When the garbage collector recognizes that only weak global
   // handles point to an object the callback function is invoked (for each
@@ -140,13 +140,10 @@ class GlobalHandles {
   // before the callback is invoked, but the handle can still be identified
   // in the callback by using the location() of the handle.
   static void MakeWeak(Object** location, void* parameter,
-                       WeakCallback weak_callback);
-
-  // It would be nice to template this one, but it's really hard to get
-  // the template instantiator to work right if you do.
-  static void MakeWeak(Object** location, void* parameter,
                        WeakCallbackInfo<void>::Callback weak_callback,
                        v8::WeakCallbackType type);
+
+  static void MakeWeak(Object*** location_addr);
 
   void RecordStats(HeapStats* stats);
 
@@ -162,14 +159,19 @@ class GlobalHandles {
     return number_of_global_handles_;
   }
 
+  size_t NumberOfPhantomHandleResets() {
+    return number_of_phantom_handle_resets_;
+  }
+
+  void ResetNumberOfPhantomHandleResets() {
+    number_of_phantom_handle_resets_ = 0;
+  }
+
   // Clear the weakness of a global handle.
   static void* ClearWeakness(Object** location);
 
-  // Clear the weakness of a global handle.
+  // Mark the reference to this object independent of any object group.
   static void MarkIndependent(Object** location);
-
-  // Mark the reference to this object externaly unreachable.
-  static void MarkPartiallyDependent(Object** location);
 
   static bool IsIndependent(Object** location);
 
@@ -231,6 +233,7 @@ class GlobalHandles {
 
   // Iterates over weak independent or unmodified handles.
   // See the note above.
+  template <IterationMode mode>
   void IterateNewSpaceWeakUnmodifiedRoots(ObjectVisitor* v);
 
   // Identify unmodified objects that are in weak state and marks them
@@ -241,6 +244,9 @@ class GlobalHandles {
   // which requires visiting. The callback has to return true if objects
   // can be skipped and false otherwise.
   bool IterateObjectGroups(ObjectVisitor* v, WeakSlotCallbackWithHeap can_skip);
+
+  // Print all objects in object groups
+  void PrintObjectGroups();
 
   // Add an object group.
   // Should be only used in GC callback function before a collection.
@@ -291,7 +297,7 @@ class GlobalHandles {
 #ifdef DEBUG
   void PrintStats();
   void Print();
-#endif
+#endif  // DEBUG
 
  private:
   explicit GlobalHandles(Isolate* isolate);
@@ -341,6 +347,8 @@ class GlobalHandles {
 
   int post_gc_processing_count_;
 
+  size_t number_of_phantom_handle_resets_;
+
   // Object groups and implicit references, public and more efficient
   // representation.
   List<ObjectGroup*> object_groups_;
@@ -388,8 +396,6 @@ class GlobalHandles::PendingPhantomCallback {
 class EternalHandles {
  public:
   enum SingletonHandle {
-    I18N_TEMPLATE_ONE,
-    I18N_TEMPLATE_TWO,
     DATE_CACHE_VERSION,
 
     NUMBER_OF_SINGLETON_HANDLES

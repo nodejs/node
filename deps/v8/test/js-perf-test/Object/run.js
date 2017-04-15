@@ -4,7 +4,11 @@
 
 
 load('../base.js');
+
 load('assign.js');
+load('create.js');
+load('entries.js');
+load('values.js');
 
 var success = true;
 

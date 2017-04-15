@@ -5,6 +5,8 @@
 #ifndef SRC_STRING_SEARCH_H_
 #define SRC_STRING_SEARCH_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
 #include <string.h>
 
@@ -42,7 +44,7 @@ class Vector {
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
-    ASSERT(0 <= index && index < length_);
+    ASSERT(index < length_);
     return start_[is_forward_ ? index : (length_ - index - 1)];
   }
 
@@ -132,16 +134,10 @@ class StringSearch : private StringSearchBase {
   }
 
  private:
-  typedef size_t (*SearchFunction)(  // NOLINT - it's not a cast!
+  typedef size_t (*SearchFunction)(
       StringSearch<Char>*,
       Vector<const Char>,
       size_t);
-
-  static size_t FailSearch(StringSearch<Char>*,
-                           Vector<const Char> subject,
-                           size_t) {
-    return subject.length();
-  }
 
   static size_t SingleCharSearch(StringSearch<Char>* search,
                                  Vector<const Char> subject,
@@ -167,12 +163,6 @@ class StringSearch : private StringSearchBase {
   void PopulateBoyerMooreHorspoolTable();
 
   void PopulateBoyerMooreTable();
-
-  static inline bool exceedsOneByte(uint8_t c) { return false; }
-
-  static inline bool exceedsOneByte(uint16_t c) {
-    return c > kMaxOneByteCharCodeU;
-  }
 
   static inline int CharOccurrence(int* bad_char_occurrence,
                                    Char char_code) {
@@ -248,7 +238,7 @@ inline const void* MemrchrFill(const void* haystack, uint8_t needle,
 }
 
 
-// Finds the first occurence of *two-byte* character pattern[0] in the string
+// Finds the first occurrence of *two-byte* character pattern[0] in the string
 // `subject`. Does not check that the whole pattern matches.
 template <typename Char>
 inline size_t FindFirstCharacter(Vector<const Char> pattern,
@@ -294,7 +284,7 @@ inline size_t FindFirstCharacter(Vector<const Char> pattern,
 }
 
 
-// Finds the first occurance of the byte pattern[0] in string `subject`.
+// Finds the first occurrence of the byte pattern[0] in string `subject`.
 // Does not verify that the whole pattern matches.
 template <>
 inline size_t FindFirstCharacter(Vector<const uint8_t> pattern,
@@ -383,7 +373,7 @@ size_t StringSearch<Char>::BoyerMooreSearch(
   // Only preprocess at most kBMMaxShift last characters of pattern.
   size_t start = search->start_;
 
-  int* bad_char_occurence = search->bad_char_table();
+  int* bad_char_occurrence = search->bad_char_table();
   int* good_suffix_shift = search->good_suffix_shift_table();
 
   Char last_char = pattern[pattern_length - 1];
@@ -393,13 +383,13 @@ size_t StringSearch<Char>::BoyerMooreSearch(
     size_t j = pattern_length - 1;
     int c;
     while (last_char != (c = subject[index + j])) {
-      int shift = j - CharOccurrence(bad_char_occurence, c);
+      int shift = j - CharOccurrence(bad_char_occurrence, c);
       index += shift;
       if (index > subject_length - pattern_length) {
         return subject.length();
       }
     }
-    while (j >= 0 && pattern[j] == (c = subject[index + j])) {
+    while (pattern[j] == (c = subject[index + j])) {
       if (j == 0) {
         return index;
       }
@@ -409,11 +399,11 @@ size_t StringSearch<Char>::BoyerMooreSearch(
       // we have matched more than our tables allow us to be smart about.
       // Fall back on BMH shift.
       index += pattern_length - 1 -
-               CharOccurrence(bad_char_occurence,
+               CharOccurrence(bad_char_occurrence,
                               static_cast<Char>(last_char));
     } else {
       int gs_shift = good_suffix_shift[j + 1];
-      int bc_occ = CharOccurrence(bad_char_occurence, c);
+      int bc_occ = CharOccurrence(bad_char_occurrence, c);
       int shift = j - bc_occ;
       if (gs_shift > shift) {
         shift = gs_shift;
@@ -527,7 +517,7 @@ size_t StringSearch<Char>::BoyerMooreHorspoolSearch(
       }
     }
     j--;
-    while (j >= 0 && pattern[j] == (subject[index + j])) {
+    while (pattern[j] == (subject[index + j])) {
       if (j == 0) {
         return index;
       }
@@ -633,8 +623,8 @@ size_t SearchString(Vector<const Char> subject,
   StringSearch<Char> search(pattern);
   return search.Search(subject, start_index);
 }
-}
-}  // namespace node::stringsearch
+}  // namespace stringsearch
+}  // namespace node
 
 namespace node {
 using node::stringsearch::Vector;
@@ -673,5 +663,7 @@ size_t SearchString(const Char* haystack,
   return is_forward ? pos : (haystack_length - needle_length - pos);
 }
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STRING_SEARCH_H_

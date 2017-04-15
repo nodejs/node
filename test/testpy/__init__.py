@@ -27,11 +27,9 @@
 
 import test
 import os
-import shutil
-from os import mkdir
-from glob import glob
 from os.path import join, dirname, exists
 import re
+import ast
 
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
@@ -64,7 +62,21 @@ class SimpleTestCase(test.TestCase):
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
-      result += flags_match.group(1).strip().split()
+      # PORT should match the definition in test/common.js.
+      env = { 'PORT': int(os.getenv('NODE_COMMON_PORT', '12346')) }
+      env['PORT'] += self.thread_id * 100
+      flag = flags_match.group(1).strip().format(**env).split()
+      # The following block reads config.gypi to extract the v8_enable_inspector
+      # value. This is done to check if the inspector is disabled in which case
+      # the '--inspect' flag cannot be passed to the node process as it will
+      # cause node to exit and report the test as failed. The use case
+      # is currently when Node is configured --without-ssl and the tests should
+      # still be runnable but skip any tests that require ssl (which includes the
+      # inspector related tests).
+      if flag[0].startswith('--inspect') and self.context.v8_enable_inspector == 0:
+        print('Skipping as inspector is disabled')
+      else:
+        result += flag
     files_match = FILES_PATTERN.search(source);
     additional_files = []
     if files_match:
@@ -150,5 +162,5 @@ class AddonTestConfiguration(SimpleTestConfiguration):
       if self.Contains(path, test):
         file_path = join(self.root, reduce(join, test[1:], "") + ".js")
         result.append(
-            SimpleTestCase(test, file_path, arch, mode, self.context, self))
+            SimpleTestCase(test, file_path, arch, mode, self.context, self, self.additional_flags))
     return result

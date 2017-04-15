@@ -1,0 +1,5 @@
+<WASM>[0]+5: RuntimeError: divide by zero
+RuntimeError: divide by zero
+    at main (<WASM>[0]+5)
+    at *%(basename)s:15:16
+

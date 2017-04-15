@@ -6,16 +6,15 @@
 .type	bn_mul_mont_gather5,@function
 .align	64
 bn_mul_mont_gather5:
+	movl	%r9d,%r9d
+	movq	%rsp,%rax
 	testl	$7,%r9d
 	jnz	.Lmul_enter
 	jmp	.Lmul4x_enter
 
 .align	16
 .Lmul_enter:
-	movl	%r9d,%r9d
-	movq	%rsp,%rax
 	movd	8(%rsp),%xmm5
-	leaq	.Linc(%rip),%r10
 	pushq	%rbx
 	pushq	%rbp
 	pushq	%r12
@@ -23,26 +22,36 @@ bn_mul_mont_gather5:
 	pushq	%r14
 	pushq	%r15
 
-	leaq	2(%r9),%r11
-	negq	%r11
-	leaq	-264(%rsp,%r11,8),%rsp
-	andq	$-1024,%rsp
+	negq	%r9
+	movq	%rsp,%r11
+	leaq	-280(%rsp,%r9,8),%r10
+	negq	%r9
+	andq	$-1024,%r10
 
+
+
+
+
+
+
+	subq	%r10,%r11
+	andq	$-4096,%r11
+	leaq	(%r10,%r11,1),%rsp
+	movq	(%rsp),%r11
+	cmpq	%r10,%rsp
+	ja	.Lmul_page_walk
+	jmp	.Lmul_page_walk_done
+
+.Lmul_page_walk:
+	leaq	-4096(%rsp),%rsp
+	movq	(%rsp),%r11
+	cmpq	%r10,%rsp
+	ja	.Lmul_page_walk
+.Lmul_page_walk_done:
+
+	leaq	.Linc(%rip),%r10
 	movq	%rax,8(%rsp,%r9,8)
 .Lmul_body:
-
-
-
-
-
-
-	subq	%rsp,%rax
-	andq	$-4096,%rax
-.Lmul_page_walk:
-	movq	(%rsp,%rax,1),%r11
-	subq	$4096,%rax
-.byte	0x2e
-	jnc	.Lmul_page_walk
 
 	leaq	128(%rdx),%r12
 	movdqa	0(%r10),%xmm0
@@ -413,15 +422,16 @@ bn_mul_mont_gather5:
 .type	bn_mul4x_mont_gather5,@function
 .align	32
 bn_mul4x_mont_gather5:
-.Lmul4x_enter:
 .byte	0x67
 	movq	%rsp,%rax
+.Lmul4x_enter:
 	pushq	%rbx
 	pushq	%rbp
 	pushq	%r12
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
+.Lmul4x_prologue:
 
 .byte	0x67
 	shll	$3,%r9d
@@ -438,32 +448,40 @@ bn_mul4x_mont_gather5:
 
 
 	leaq	-320(%rsp,%r9,2),%r11
+	movq	%rsp,%rbp
 	subq	%rdi,%r11
 	andq	$4095,%r11
 	cmpq	%r11,%r10
 	jb	.Lmul4xsp_alt
-	subq	%r11,%rsp
-	leaq	-320(%rsp,%r9,2),%rsp
+	subq	%r11,%rbp
+	leaq	-320(%rbp,%r9,2),%rbp
 	jmp	.Lmul4xsp_done
 
 .align	32
 .Lmul4xsp_alt:
 	leaq	4096-320(,%r9,2),%r10
-	leaq	-320(%rsp,%r9,2),%rsp
+	leaq	-320(%rbp,%r9,2),%rbp
 	subq	%r10,%r11
 	movq	$0,%r10
 	cmovcq	%r10,%r11
-	subq	%r11,%rsp
+	subq	%r11,%rbp
 .Lmul4xsp_done:
-	andq	$-64,%rsp
-	movq	%rax,%r11
-	subq	%rsp,%r11
+	andq	$-64,%rbp
+	movq	%rsp,%r11
+	subq	%rbp,%r11
 	andq	$-4096,%r11
+	leaq	(%r11,%rbp,1),%rsp
+	movq	(%rsp),%r10
+	cmpq	%rbp,%rsp
+	ja	.Lmul4x_page_walk
+	jmp	.Lmul4x_page_walk_done
+
 .Lmul4x_page_walk:
-	movq	(%rsp,%r11,1),%r10
-	subq	$4096,%r11
-.byte	0x2e
-	jnc	.Lmul4x_page_walk
+	leaq	-4096(%rsp),%rsp
+	movq	(%rsp),%r10
+	cmpq	%rbp,%rsp
+	ja	.Lmul4x_page_walk
+.Lmul4x_page_walk_done:
 
 	negq	%r9
 
@@ -1022,6 +1040,7 @@ bn_power5:
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
+.Lpower5_prologue:
 
 	shll	$3,%r9d
 	leal	(%r9,%r9,2),%r10d
@@ -1036,32 +1055,40 @@ bn_power5:
 
 
 	leaq	-320(%rsp,%r9,2),%r11
+	movq	%rsp,%rbp
 	subq	%rdi,%r11
 	andq	$4095,%r11
 	cmpq	%r11,%r10
 	jb	.Lpwr_sp_alt
-	subq	%r11,%rsp
-	leaq	-320(%rsp,%r9,2),%rsp
+	subq	%r11,%rbp
+	leaq	-320(%rbp,%r9,2),%rbp
 	jmp	.Lpwr_sp_done
 
 .align	32
 .Lpwr_sp_alt:
 	leaq	4096-320(,%r9,2),%r10
-	leaq	-320(%rsp,%r9,2),%rsp
+	leaq	-320(%rbp,%r9,2),%rbp
 	subq	%r10,%r11
 	movq	$0,%r10
 	cmovcq	%r10,%r11
-	subq	%r11,%rsp
+	subq	%r11,%rbp
 .Lpwr_sp_done:
-	andq	$-64,%rsp
-	movq	%rax,%r11
-	subq	%rsp,%r11
+	andq	$-64,%rbp
+	movq	%rsp,%r11
+	subq	%rbp,%r11
 	andq	$-4096,%r11
+	leaq	(%r11,%rbp,1),%rsp
+	movq	(%rsp),%r10
+	cmpq	%rbp,%rsp
+	ja	.Lpwr_page_walk
+	jmp	.Lpwr_page_walk_done
+
 .Lpwr_page_walk:
-	movq	(%rsp,%r11,1),%r10
-	subq	$4096,%r11
-.byte	0x2e
-	jnc	.Lpwr_page_walk
+	leaq	-4096(%rsp),%rsp
+	movq	(%rsp),%r10
+	cmpq	%rbp,%rsp
+	ja	.Lpwr_page_walk
+.Lpwr_page_walk_done:
 
 	movq	%r9,%r10
 	negq	%r9
@@ -1854,6 +1881,7 @@ __bn_sqr8x_reduction:
 
 .align	32
 .L8x_tail_done:
+	xorq	%rax,%rax
 	addq	(%rdx),%r8
 	adcq	$0,%r9
 	adcq	$0,%r10
@@ -1862,9 +1890,7 @@ __bn_sqr8x_reduction:
 	adcq	$0,%r13
 	adcq	$0,%r14
 	adcq	$0,%r15
-
-
-	xorq	%rax,%rax
+	adcq	$0,%rax
 
 	negq	%rsi
 .L8x_no_tail:
@@ -1972,6 +1998,7 @@ bn_from_mont8x:
 	pushq	%r13
 	pushq	%r14
 	pushq	%r15
+.Lfrom_prologue:
 
 	shll	$3,%r9d
 	leaq	(%r9,%r9,2),%r10
@@ -1986,32 +2013,40 @@ bn_from_mont8x:
 
 
 	leaq	-320(%rsp,%r9,2),%r11
+	movq	%rsp,%rbp
 	subq	%rdi,%r11
 	andq	$4095,%r11
 	cmpq	%r11,%r10
 	jb	.Lfrom_sp_alt
-	subq	%r11,%rsp
-	leaq	-320(%rsp,%r9,2),%rsp
+	subq	%r11,%rbp
+	leaq	-320(%rbp,%r9,2),%rbp
 	jmp	.Lfrom_sp_done
 
 .align	32
 .Lfrom_sp_alt:
 	leaq	4096-320(,%r9,2),%r10
-	leaq	-320(%rsp,%r9,2),%rsp
+	leaq	-320(%rbp,%r9,2),%rbp
 	subq	%r10,%r11
 	movq	$0,%r10
 	cmovcq	%r10,%r11
-	subq	%r11,%rsp
+	subq	%r11,%rbp
 .Lfrom_sp_done:
-	andq	$-64,%rsp
-	movq	%rax,%r11
-	subq	%rsp,%r11
+	andq	$-64,%rbp
+	movq	%rsp,%r11
+	subq	%rbp,%r11
 	andq	$-4096,%r11
+	leaq	(%r11,%rbp,1),%rsp
+	movq	(%rsp),%r10
+	cmpq	%rbp,%rsp
+	ja	.Lfrom_page_walk
+	jmp	.Lfrom_page_walk_done
+
 .Lfrom_page_walk:
-	movq	(%rsp,%r11,1),%r10
-	subq	$4096,%r11
-.byte	0x2e
-	jnc	.Lfrom_page_walk
+	leaq	-4096(%rsp),%rsp
+	movq	(%rsp),%r10
+	cmpq	%rbp,%rsp
+	ja	.Lfrom_page_walk
+.Lfrom_page_walk_done:
 
 	movq	%r9,%r10
 	negq	%r9

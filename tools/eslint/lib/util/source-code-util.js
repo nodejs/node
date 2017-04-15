@@ -9,14 +9,12 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash"),
-    debug = require("debug"),
-    CLIEngine = require("../cli-engine"),
+const CLIEngine = require("../cli-engine"),
     eslint = require("../eslint"),
     globUtil = require("./glob-util"),
-    defaultOptions = require("../../conf/cli-options");
+    baseDefaultOptions = require("../../conf/cli-options");
 
-debug = debug("eslint:source-code-util");
+const debug = require("debug")("eslint:source-code-util");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -31,16 +29,16 @@ debug = debug("eslint:source-code-util");
  */
 function getSourceCodeOfFile(filename, options) {
     debug("getting sourceCode of", filename);
-    var opts = lodash.assign({}, options, { rules: {}});
-    var cli = new CLIEngine(opts);
-    var results = cli.executeOnFiles([filename]);
+    const opts = Object.assign({}, options, { rules: {} });
+    const cli = new CLIEngine(opts);
+    const results = cli.executeOnFiles([filename]);
 
     if (results && results.results[0] && results.results[0].messages[0] && results.results[0].messages[0].fatal) {
-        var msg = results.results[0].messages[0];
+        const msg = results.results[0].messages[0];
 
-        throw new Error("(" + filename + ":" + msg.line + ":" + msg.column + ") " + msg.message);
+        throw new Error(`(${filename}:${msg.line}:${msg.column}) ${msg.message}`);
     }
-    var sourceCode = eslint.getSourceCode();
+    const sourceCode = eslint.getSourceCode();
 
     return sourceCode;
 }
@@ -66,15 +64,14 @@ function getSourceCodeOfFile(filename, options) {
  * @returns {Object}                      The SourceCode of all processed files.
  */
 function getSourceCodeOfFiles(patterns, options, cb) {
-    var sourceCodes = {},
-        filenames,
-        opts;
+    const sourceCodes = {};
+    let opts;
 
     if (typeof patterns === "string") {
         patterns = [patterns];
     }
 
-    defaultOptions = lodash.assign({}, defaultOptions, {cwd: process.cwd()});
+    const defaultOptions = Object.assign({}, baseDefaultOptions, { cwd: process.cwd() });
 
     if (typeof options === "undefined") {
         opts = defaultOptions;
@@ -82,19 +79,20 @@ function getSourceCodeOfFiles(patterns, options, cb) {
         cb = options;
         opts = defaultOptions;
     } else if (typeof options === "object") {
-        opts = lodash.assign({}, defaultOptions, options);
+        opts = Object.assign({}, defaultOptions, options);
     }
     debug("constructed options:", opts);
     patterns = globUtil.resolveFileGlobPatterns(patterns, opts);
 
-    filenames = globUtil.listFilesToProcess(patterns, opts).reduce(function(files, fileInfo) {
-        return !fileInfo.ignored ? files.concat(fileInfo.filename) : files;
-    }, []);
+    const filenames = globUtil.listFilesToProcess(patterns, opts)
+        .filter(fileInfo => !fileInfo.ignored)
+        .reduce((files, fileInfo) => files.concat(fileInfo.filename), []);
+
     if (filenames.length === 0) {
-        debug("Did not find any files matching pattern(s): " + patterns);
+        debug(`Did not find any files matching pattern(s): ${patterns}`);
     }
-    filenames.forEach(function(filename) {
-        var sourceCode = getSourceCodeOfFile(filename, opts);
+    filenames.forEach(filename => {
+        const sourceCode = getSourceCodeOfFile(filename, opts);
 
         if (sourceCode) {
             debug("got sourceCode of", filename);
@@ -108,5 +106,5 @@ function getSourceCodeOfFiles(patterns, options, cb) {
 }
 
 module.exports = {
-    getSourceCodeOfFiles: getSourceCodeOfFiles
+    getSourceCodeOfFiles
 };

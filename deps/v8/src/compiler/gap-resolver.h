@@ -26,18 +26,24 @@ class GapResolver final {
                               InstructionOperand* destination) = 0;
   };
 
-  explicit GapResolver(Assembler* assembler) : assembler_(assembler) {}
+  explicit GapResolver(Assembler* assembler)
+      : assembler_(assembler), split_rep_(MachineRepresentation::kSimd128) {}
 
   // Resolve a set of parallel moves, emitting assembler instructions.
-  void Resolve(ParallelMove* parallel_move) const;
+  void Resolve(ParallelMove* parallel_move);
 
  private:
-  // Perform the given move, possibly requiring other moves to satisfy
-  // dependencies.
-  void PerformMove(ParallelMove* moves, MoveOperands* move) const;
+  // Performs the given move, possibly performing other moves to unblock the
+  // destination operand.
+  void PerformMove(ParallelMove* moves, MoveOperands* move);
 
   // Assembler used to emit moves and save registers.
   Assembler* const assembler_;
+
+  // While resolving moves, the largest FP representation that can be moved.
+  // Any larger moves must be split into an equivalent series of moves of this
+  // representation.
+  MachineRepresentation split_rep_;
 };
 
 }  // namespace compiler

@@ -173,6 +173,22 @@ TEST(AssemblerX64CmpbOperation) {
   CHECK_EQ(0, result);
 }
 
+TEST(Regression684407) {
+  CcTest::InitializeVM();
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  Address before = assm.pc();
+  __ cmpl(Operand(arg1, 0),
+          Immediate(0, RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
+  Address after = assm.pc();
+  size_t instruction_size = static_cast<size_t>(after - before);
+  // Check that the immediate is not encoded as uint8.
+  CHECK_LT(sizeof(uint32_t), instruction_size);
+}
 
 TEST(AssemblerX64ImulOperation) {
   CcTest::InitializeVM();
@@ -201,6 +217,173 @@ TEST(AssemblerX64ImulOperation) {
   CHECK_EQ(-1, result);
 }
 
+TEST(AssemblerX64testbwqOperation) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+
+  __ pushq(rbx);
+  __ pushq(rdi);
+  __ pushq(rsi);
+  __ pushq(r12);
+  __ pushq(r13);
+  __ pushq(r14);
+  __ pushq(r15);
+
+  // Assemble a simple function that tests testb and testw
+  Label bad;
+  Label done;
+
+  // Test immediate testb and testw
+  __ movq(rax, Immediate(2));
+  __ movq(rbx, Immediate(4));
+  __ movq(rcx, Immediate(8));
+  __ movq(rdx, Immediate(16));
+  __ movq(rsi, Immediate(32));
+  __ movq(rdi, Immediate(64));
+  __ movq(r10, Immediate(128));
+  __ movq(r11, Immediate(0));
+  __ movq(r12, Immediate(0));
+  __ movq(r13, Immediate(0));
+  __ testb(rax, Immediate(2));
+  __ j(zero, &bad);
+  __ testb(rbx, Immediate(4));
+  __ j(zero, &bad);
+  __ testb(rcx, Immediate(8));
+  __ j(zero, &bad);
+  __ testb(rdx, Immediate(16));
+  __ j(zero, &bad);
+  __ testb(rsi, Immediate(32));
+  __ j(zero, &bad);
+  __ testb(rdi, Immediate(64));
+  __ j(zero, &bad);
+  __ testb(r10, Immediate(128));
+  __ j(zero, &bad);
+  __ testw(rax, Immediate(2));
+  __ j(zero, &bad);
+  __ testw(rbx, Immediate(4));
+  __ j(zero, &bad);
+  __ testw(rcx, Immediate(8));
+  __ j(zero, &bad);
+  __ testw(rdx, Immediate(16));
+  __ j(zero, &bad);
+  __ testw(rsi, Immediate(32));
+  __ j(zero, &bad);
+  __ testw(rdi, Immediate(64));
+  __ j(zero, &bad);
+  __ testw(r10, Immediate(128));
+  __ j(zero, &bad);
+
+  // Test reg, reg testb and testw
+  __ movq(rax, Immediate(2));
+  __ movq(rbx, Immediate(2));
+  __ testb(rax, rbx);
+  __ j(zero, &bad);
+  __ movq(rbx, Immediate(4));
+  __ movq(rax, Immediate(4));
+  __ testb(rbx, rax);
+  __ j(zero, &bad);
+  __ movq(rax, Immediate(8));
+  __ testb(rcx, rax);
+  __ j(zero, &bad);
+  __ movq(rax, Immediate(16));
+  __ testb(rdx, rax);
+  __ j(zero, &bad);
+  __ movq(rax, Immediate(32));
+  __ testb(rsi, rax);
+  __ j(zero, &bad);
+  __ movq(rax, Immediate(64));
+  __ testb(rdi, rax);
+  __ j(zero, &bad);
+  __ movq(rax, Immediate(128));
+  __ testb(r10, rax);
+  __ j(zero, &bad);
+  __ movq(rax, Immediate(2));
+  __ movq(rbx, Immediate(2));
+  __ testw(rax, rbx);
+  __ j(zero, &bad);
+  __ movq(rbx, Immediate(4));
+  __ movq(rax, Immediate(4));
+  __ testw(rbx, rax);
+  __ j(zero, &bad);
+  __ movq(rax, Immediate(8));
+  __ testw(rcx, rax);
+  __ j(zero, &bad);
+  __ movq(rax, Immediate(16));
+  __ testw(rdx, rax);
+  __ j(zero, &bad);
+  __ movq(rax, Immediate(32));
+  __ testw(rsi, rax);
+  __ j(zero, &bad);
+  __ movq(rax, Immediate(64));
+  __ testw(rdi, rax);
+  __ j(zero, &bad);
+  __ movq(rax, Immediate(128));
+  __ testw(r10, rax);
+  __ j(zero, &bad);
+
+  // Test diffrrent extended register coding combinations.
+  __ movq(rax, Immediate(5));
+  __ movq(r11, Immediate(5));
+  __ testb(r11, rax);
+  __ j(zero, &bad);
+  __ testb(rax, r11);
+  __ j(zero, &bad);
+  __ testw(r11, rax);
+  __ j(zero, &bad);
+  __ testw(rax, r11);
+  __ j(zero, &bad);
+  __ movq(r11, Immediate(3));
+  __ movq(r12, Immediate(3));
+  __ movq(rdi, Immediate(3));
+  __ testb(r12, rdi);
+  __ j(zero, &bad);
+  __ testb(rdi, r12);
+  __ j(zero, &bad);
+  __ testb(r12, r11);
+  __ j(zero, &bad);
+  __ testb(r11, r12);
+  __ j(zero, &bad);
+  __ testw(r12, r11);
+  __ j(zero, &bad);
+  __ testw(r11, r12);
+  __ j(zero, &bad);
+
+  // Test sign-extended imediate tests
+  __ movq(r11, Immediate(2));
+  __ shlq(r11, Immediate(32));
+  __ testq(r11, Immediate(-1));
+  __ j(zero, &bad);
+
+  // All tests passed
+  __ movq(rax, Immediate(1));
+  __ jmp(&done);
+
+  __ bind(&bad);
+  __ movq(rax, Immediate(0));
+  __ bind(&done);
+
+  __ popq(r15);
+  __ popq(r14);
+  __ popq(r13);
+  __ popq(r12);
+  __ popq(rsi);
+  __ popq(rdi);
+  __ popq(rbx);
+
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  int result = FUNCTION_CAST<F2>(buffer)(0, 0);
+  CHECK_EQ(1, result);
+}
 
 TEST(AssemblerX64XchglOperations) {
   CcTest::InitializeVM();
@@ -328,6 +511,32 @@ TEST(AssemblerX64TestlOperations) {
   CHECK_EQ(1u, result);
 }
 
+TEST(AssemblerX64TestwOperations) {
+  typedef uint16_t (*F)(uint16_t * x);
+  CcTest::InitializeVM();
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+
+  // Set rax with the ZF flag of the testl instruction.
+  Label done;
+  __ movq(rax, Immediate(1));
+  __ testw(Operand(arg1, 0), Immediate(0xf0f0));
+  __ j(not_zero, &done, Label::kNear);
+  __ movq(rax, Immediate(0));
+  __ bind(&done);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  // Call the function from C++.
+  uint16_t operand = 0x8000;
+  uint16_t result = FUNCTION_CAST<F>(buffer)(&operand);
+  CHECK_EQ(1u, result);
+}
 
 TEST(AssemblerX64XorlOperations) {
   CcTest::InitializeVM();
@@ -2268,6 +2477,62 @@ TEST(AssemblerX64JumpTables2) {
     PrintF("f(%d) = %d\n", i, res);
     CHECK_EQ(values[i], res);
   }
+}
+
+TEST(AssemblerX64PslldWithXmm15) {
+  CcTest::InitializeVM();
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+
+  __ movq(xmm15, arg1);
+  __ pslld(xmm15, 1);
+  __ movq(rax, xmm15);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  uint64_t result = FUNCTION_CAST<F5>(buffer)(V8_UINT64_C(0x1122334455667788));
+  CHECK_EQ(V8_UINT64_C(0x22446688aaccef10), result);
+}
+
+typedef float (*F9)(float x, float y);
+TEST(AssemblerX64vmovups) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(AVX)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
+  {
+    CpuFeatureScope avx_scope(&assm, AVX);
+    __ shufps(xmm0, xmm0, 0x0);  // brocast first argument
+    __ shufps(xmm1, xmm1, 0x0);  // brocast second argument
+    // copy xmm1 to xmm0 through the stack to test the "vmovups reg, mem".
+    __ subq(rsp, Immediate(kSimd128Size));
+    __ vmovups(Operand(rsp, 0), xmm1);
+    __ vmovups(xmm0, Operand(rsp, 0));
+    __ addq(rsp, Immediate(kSimd128Size));
+
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F9 f = FUNCTION_CAST<F9>(code->entry());
+  CHECK_EQ(-1.5, f(1.5, -1.5));
 }
 
 #undef __

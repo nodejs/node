@@ -28,8 +28,8 @@ class CompilationDependencies {
   void AssumeInitialMapCantChange(Handle<Map> map) {
     Insert(DependentCode::kInitialMapChangedGroup, map);
   }
-  void AssumeFieldType(Handle<Map> map) {
-    Insert(DependentCode::kFieldTypeGroup, map);
+  void AssumeFieldOwner(Handle<Map> map) {
+    Insert(DependentCode::kFieldOwnerGroup, map);
   }
   void AssumeMapStable(Handle<Map> map);
   void AssumePrototypeMapsStable(

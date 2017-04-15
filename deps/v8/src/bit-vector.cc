@@ -5,6 +5,7 @@
 #include "src/bit-vector.h"
 
 #include "src/base/bits.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

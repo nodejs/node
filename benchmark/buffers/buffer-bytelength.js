@@ -2,7 +2,7 @@
 var common = require('../common');
 
 var bench = common.createBenchmark(main, {
-  encoding: ['utf8', 'base64'],
+  encoding: ['utf8', 'base64', 'buffer'],
   len: [1, 2, 4, 16, 64, 256], // x16
   n: [5e6]
 });
@@ -21,21 +21,27 @@ function main(conf) {
   var encoding = conf.encoding;
 
   var strings = [];
-  for (var string of chars) {
-    // Strings must be built differently, depending on encoding
-    var data = buildString(string, len);
-    if (encoding === 'utf8') {
-      strings.push(data);
-    } else if (encoding === 'base64') {
-      // Base64 strings will be much longer than their UTF8 counterparts
-      strings.push(Buffer.from(data, 'utf8').toString('base64'));
+  var results;
+  if (encoding === 'buffer') {
+    strings = [ Buffer.alloc(len * 16, 'a') ];
+    results = [ len * 16 ];
+  } else {
+    for (var string of chars) {
+      // Strings must be built differently, depending on encoding
+      var data = buildString(string, len);
+      if (encoding === 'utf8') {
+        strings.push(data);
+      } else if (encoding === 'base64') {
+        // Base64 strings will be much longer than their UTF8 counterparts
+        strings.push(Buffer.from(data, 'utf8').toString('base64'));
+      }
     }
-  }
 
-  // Check the result to ensure it is *properly* optimized
-  var results = strings.map(function(val) {
-    return Buffer.byteLength(val, encoding);
-  });
+    // Check the result to ensure it is *properly* optimized
+    results = strings.map(function(val) {
+      return Buffer.byteLength(val, encoding);
+    });
+  }
 
   bench.start();
   for (var i = 0; i < n; i++) {
@@ -50,7 +56,7 @@ function main(conf) {
 }
 
 function buildString(str, times) {
-  if (times == 1) return str;
+  if (times === 1) return str;
 
   return str + buildString(str, times - 1);
 }

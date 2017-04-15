@@ -2,14 +2,16 @@
 
 const util = require('util');
 const common = require('../common');
-const v8 = require('v8');
+const types = [
+  'string',
+  'number',
+  'object',
+  'unknown',
+  'no-replace'
+];
 const bench = common.createBenchmark(main, {
-  n: [1e6]
-, type: ['string',
-         'number',
-         'object',
-         'unknown',
-         'no-replace']
+  n: [1e6],
+  type: types
 });
 
 const inputs = {
@@ -25,12 +27,6 @@ function main(conf) {
   const type = conf.type;
 
   const input = inputs[type];
-
-  v8.setFlagsFromString('--allow_natives_syntax');
-
-  util.format(input[0], input[1]);
-  eval('%OptimizeFunctionOnNextCall(util.format)');
-  util.format(input[0], input[1]);
 
   bench.start();
   for (var i = 0; i < n; i++) {

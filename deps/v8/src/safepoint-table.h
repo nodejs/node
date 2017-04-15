@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/heap/heap.h"
 #include "src/v8memory.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

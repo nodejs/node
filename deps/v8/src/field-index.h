@@ -27,7 +27,6 @@ class FieldIndex final {
   static FieldIndex ForInObjectOffset(int offset, Map* map = NULL);
   static FieldIndex ForDescriptor(Map* map, int descriptor_index);
   static FieldIndex ForLoadByFieldIndex(Map* map, int index);
-  static FieldIndex ForKeyedLookupCacheIndex(Map* map, int index);
   static FieldIndex FromFieldAccessStubKey(int key);
 
   int GetLoadByFieldIndex() const;
@@ -67,12 +66,15 @@ class FieldIndex final {
     return result;
   }
 
-  int GetKeyedLookupCacheIndex() const;
-
   int GetFieldAccessStubKey() const {
     return bit_field_ &
         (IsInObjectBits::kMask | IsDoubleBits::kMask | IndexBits::kMask);
   }
+
+  bool operator==(FieldIndex const& other) const {
+    return bit_field_ == other.bit_field_;
+  }
+  bool operator!=(FieldIndex const& other) const { return !(*this == other); }
 
  private:
   FieldIndex(bool is_inobject, int local_index, bool is_double,

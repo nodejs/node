@@ -3,21 +3,54 @@
 var fs = require('fs');
 var path = require('path');
 var vm = require('vm');
+var common = require('../common.js');
 
 var dir = path.join(__dirname, '..', '..', 'deps', 'v8', 'benchmarks');
 
-global.print = function(s) {
-  if (s === '----') return;
-  console.log('misc/v8_bench.js %s', s);
-};
-
-global.load = function(filename) {
+function load(filename, inGlobal) {
   var source = fs.readFileSync(path.join(dir, filename), 'utf8');
-  // deps/v8/benchmarks/regexp.js breaks console.log() because it clobbers
-  // the RegExp global,  Restore the original when the script is done.
-  var $RegExp = global.RegExp;
-  vm.runInThisContext(source, { filename: filename });
-  global.RegExp = $RegExp;
-};
+  if (!inGlobal) source = '(function () {' + source + '\n})()';
+  vm.runInThisContext(source, { filename: 'v8/bechmark/' + filename });
+}
 
-global.load('run.js');
+load('base.js', true);
+load('richards.js');
+load('deltablue.js');
+load('crypto.js');
+load('raytrace.js');
+load('earley-boyer.js');
+load('regexp.js');
+load('splay.js');
+load('navier-stokes.js');
+
+const benchmark_name = path.join('misc', 'v8-bench.js');
+const times = {};
+global.BenchmarkSuite.RunSuites({
+  NotifyStart: function(name) {
+    times[name] = process.hrtime();
+  },
+  NotifyResult: function(name, result) {
+    const elapsed = process.hrtime(times[name]);
+    common.sendResult({
+      name: benchmark_name,
+      conf: {
+        benchmark: name
+      },
+      rate: result,
+      time: elapsed[0] + elapsed[1] / 1e9
+    });
+  },
+  NotifyError: function(name, error) {
+    console.error(name + ': ' + error);
+  },
+  NotifyScore: function(score) {
+    common.sendResult({
+      name: benchmark_name,
+      conf: {
+        benchmark: 'Score (version ' + global.BenchmarkSuite.version + ')'
+      },
+      rate: score,
+      time: 0
+    });
+  }
+});

@@ -39,6 +39,7 @@
 namespace v8 {
 namespace internal {
 
+const auto GetRegConfig = RegisterConfiguration::Crankshaft;
 
 //------------------------------------------------------------------------------
 
@@ -81,6 +82,7 @@ class Decoder {
   void DecodeExt3(Instruction* instr);
   void DecodeExt4(Instruction* instr);
   void DecodeExt5(Instruction* instr);
+  void DecodeExt6(Instruction* instr);
 
   const disasm::NameConverter& converter_;
   Vector<char> out_buffer_;
@@ -118,7 +120,7 @@ void Decoder::PrintRegister(int reg) {
 
 // Print the double FP register name according to the active name converter.
 void Decoder::PrintDRegister(int reg) {
-  Print(DoubleRegister::from_code(reg).ToString());
+  Print(GetRegConfig()->GetDoubleRegisterName(reg));
 }
 
 
@@ -560,6 +562,24 @@ void Decoder::DecodeExt2(Instruction* instr) {
       return;
     }
 #endif
+    case MODSW: {
+      Format(instr, "modsw  'rt, 'ra, 'rb");
+      return;
+    }
+    case MODUW: {
+      Format(instr, "moduw  'rt, 'ra, 'rb");
+      return;
+    }
+#if V8_TARGET_ARCH_PPC64
+    case MODSD: {
+      Format(instr, "modsd  'rt, 'ra, 'rb");
+      return;
+    }
+    case MODUD: {
+      Format(instr, "modud  'rt, 'ra, 'rb");
+      return;
+    }
+#endif
     case SRAWIX: {
       Format(instr, "srawi'.  'ra,'rs,'sh");
       return;
@@ -657,8 +677,16 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "subfc'. 'rt, 'ra, 'rb");
       return;
     }
+    case SUBFEX: {
+      Format(instr, "subfe'. 'rt, 'ra, 'rb");
+      return;
+    }
     case ADDCX: {
       Format(instr, "addc'.   'rt, 'ra, 'rb");
+      return;
+    }
+    case ADDEX: {
+      Format(instr, "adde'.   'rt, 'ra, 'rb");
       return;
     }
     case CNTLZWX: {
@@ -1064,6 +1092,28 @@ void Decoder::DecodeExt5(Instruction* instr) {
   Unknown(instr);  // not used by V8
 }
 
+void Decoder::DecodeExt6(Instruction* instr) {
+  switch (instr->Bits(10, 3) << 3) {
+#define DECODE_XX3_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                            \
+    Format(instr, #name" 'Dt, 'Da, 'Db");                        \
+    return;                                                      \
+  }
+    XX3_OPCODE_LIST(DECODE_XX3_INSTRUCTIONS)
+#undef DECODE_XX3_INSTRUCTIONS
+  }
+  switch (instr->Bits(10, 2) << 2) {
+#define DECODE_XX2_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                            \
+    Format(instr, #name" 'Dt, 'Db");                             \
+    return;                                                      \
+  }
+    XX2_OPCODE_LIST(DECODE_XX2_INSTRUCTIONS)
+  }
+#undef DECODE_XX3_INSTRUCTIONS
+  Unknown(instr);  // not used by V8
+}
+
 #undef VERIFIY
 
 // Disassemble the instruction at *instr_ptr into the output buffer.
@@ -1351,6 +1401,10 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
       DecodeExt5(instr);
       break;
     }
+    case EXT6: {
+      DecodeExt6(instr);
+      break;
+    }
 #if V8_TARGET_ARCH_PPC64
     case LD: {
       switch (instr->Bits(1, 0)) {
@@ -1393,7 +1447,7 @@ namespace disasm {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.start();
 }
 
@@ -1404,7 +1458,7 @@ const char* NameConverter::NameOfConstant(byte* addr) const {
 
 
 const char* NameConverter::NameOfCPURegister(int reg) const {
-  return v8::internal::Register::from_code(reg).ToString();
+  return v8::internal::GetRegConfig()->GetGeneralRegisterName(reg);
 }
 
 const char* NameConverter::NameOfByteCPURegister(int reg) const {
@@ -1453,7 +1507,7 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
-    v8::internal::PrintF(f, "%p    %08x      %s\n", prev_pc,
+    v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
                          *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
   }
 }

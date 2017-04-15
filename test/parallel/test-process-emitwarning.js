@@ -9,21 +9,46 @@ const util = require('util');
 process.on('warning', common.mustCall((warning) => {
   assert(warning);
   assert(/^(Warning|CustomWarning)/.test(warning.name));
-  assert(warning.message, 'A Warning');
-}, 3));
+  assert.strictEqual(warning.message, 'A Warning');
+  if (warning.code) assert.strictEqual(warning.code, 'CODE001');
+}, 8));
 
 process.emitWarning('A Warning');
 process.emitWarning('A Warning', 'CustomWarning');
+process.emitWarning('A Warning', CustomWarning);
+process.emitWarning('A Warning', 'CustomWarning', CustomWarning);
+process.emitWarning('A Warning', 'CustomWarning', 'CODE001');
 
 function CustomWarning() {
   Error.call(this);
   this.name = 'CustomWarning';
   this.message = 'A Warning';
+  this.code = 'CODE001';
   Error.captureStackTrace(this, CustomWarning);
 }
 util.inherits(CustomWarning, Error);
 process.emitWarning(new CustomWarning());
 
-// TypeError is thrown on invalid output
+const warningNoToString = new CustomWarning();
+warningNoToString.toString = null;
+process.emitWarning(warningNoToString);
+
+const warningThrowToString = new CustomWarning();
+warningThrowToString.toString = function() {
+  throw new Error('invalid toString');
+};
+process.emitWarning(warningThrowToString);
+
+// TypeError is thrown on invalid input
 assert.throws(() => process.emitWarning(1), TypeError);
 assert.throws(() => process.emitWarning({}), TypeError);
+assert.throws(() => process.emitWarning(true), TypeError);
+assert.throws(() => process.emitWarning([]), TypeError);
+assert.throws(() => process.emitWarning('', {}), TypeError);
+assert.throws(() => process.emitWarning('', '', {}), TypeError);
+assert.throws(() => process.emitWarning('', 1), TypeError);
+assert.throws(() => process.emitWarning('', '', 1), TypeError);
+assert.throws(() => process.emitWarning('', true), TypeError);
+assert.throws(() => process.emitWarning('', '', true), TypeError);
+assert.throws(() => process.emitWarning('', []), TypeError);
+assert.throws(() => process.emitWarning('', '', []), TypeError);

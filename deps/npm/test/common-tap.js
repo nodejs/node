@@ -1,3 +1,9 @@
+'use strict'
+var fs = require('graceful-fs')
+var readCmdShim = require('read-cmd-shim')
+var isWindows = require('../lib/utils/is-windows.js')
+var extend = Object.assign || require('util')._extend
+
 // cheesy hackaround for test deps (read: nock) that rely on setImmediate
 if (!global.setImmediate || !require('timers').setImmediate) {
   require('timers').setImmediate = global.setImmediate = function () {
@@ -23,10 +29,15 @@ process.env.npm_config_legacy_bundling = 'false'
 process.env.random_env_var = 'foo'
 // suppress warnings about using a prerelease version of node
 process.env.npm_config_node_version = process.version.replace(/-.*$/, '')
+// disable metrics for the test suite even if the user has enabled them
+process.env.npm_config_send_metrics = 'false'
 
 var bin = exports.bin = require.resolve('../bin/npm-cli.js')
+
 var chain = require('slide').chain
 var once = require('once')
+
+var nodeBin = exports.nodeBin = process.env.npm_node_execpath || process.env.NODE || process.execPath
 
 exports.npm = function (cmd, opts, cb) {
   cb = once(cb)
@@ -34,14 +45,15 @@ exports.npm = function (cmd, opts, cb) {
   opts = opts || {}
 
   opts.env = opts.env || process.env
+  if (opts.env._storage) opts.env = opts.env._storage
   if (!opts.env.npm_config_cache) {
     opts.env.npm_config_cache = npm_config_cache
   }
+  nodeBin = opts.nodeExecPath || nodeBin
 
   var stdout = ''
   var stderr = ''
-  var node = process.execPath
-  var child = spawn(node, cmd, opts)
+  var child = spawn(nodeBin, cmd, opts)
 
   if (child.stderr) {
     child.stderr.on('data', function (chunk) {
@@ -87,4 +99,64 @@ exports.makeGitRepo = function (params, cb) {
   }
 
   chain(commands, cb)
+}
+
+exports.readBinLink = function (path) {
+  if (isWindows) {
+    return readCmdShim.sync(path)
+  } else {
+    return fs.readlinkSync(path)
+  }
+}
+
+exports.skipIfWindows = function (why) {
+  if (!isWindows) return
+  console.log('1..1')
+  if (!why) why = 'this test not available on windows'
+  console.log('ok 1 # skip ' + why)
+  process.exit(0)
+}
+
+exports.pendIfWindows = function (why) {
+  if (!isWindows) return
+  console.log('1..1')
+  if (!why) why = 'this test is pending further changes on windows'
+  console.log('not ok 1 # todo ' + why)
+  process.exit(0)
+}
+
+exports.newEnv = function () {
+  return new Environment(process.env)
+}
+
+function Environment (env) {
+  this._storage = extend({}, env)
+}
+Environment.prototype = {}
+
+Environment.prototype.delete = function (key) {
+  var args = Array.isArray(key) ? key : arguments
+  var ii
+  for (ii = 0; ii < args.length; ++ii) {
+    delete this._storage[args[ii]]
+  }
+  return this
+}
+
+Environment.prototype.clone = function () {
+  return new Environment(this._storage)
+}
+
+Environment.prototype.extend = function (env) {
+  var self = this
+  var args = Array.isArray(env) ? env : arguments
+  var ii
+  for (ii = 0; ii < args.length; ++ii) {
+    var arg = args[ii]
+    if (!arg) continue
+    Object.keys(arg).forEach(function (name) {
+      self._storage[name] = arg[name]
+    })
+  }
+  return this
 }

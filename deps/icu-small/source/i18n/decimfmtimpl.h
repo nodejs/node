@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
 *   Copyright (C) 2015, International Business Machines
@@ -217,7 +219,7 @@ UnicodeString &format(
         FieldPositionIterator *posIter,
         UErrorCode &status) const;
 UnicodeString &format(
-        const StringPiece &number,
+        StringPiece number,
         UnicodeString &appendTo,
         FieldPositionIterator *posIter,
         UErrorCode &status) const;

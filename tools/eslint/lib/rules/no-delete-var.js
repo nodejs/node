@@ -20,13 +20,13 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            UnaryExpression: function(node) {
+            UnaryExpression(node) {
                 if (node.operator === "delete" && node.argument.type === "Identifier") {
-                    context.report(node, "Variables should not be deleted.");
+                    context.report({ node, message: "Variables should not be deleted." });
                 }
             }
         };

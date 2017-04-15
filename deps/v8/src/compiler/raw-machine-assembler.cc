@@ -4,23 +4,23 @@
 
 #include "src/compiler/raw-machine-assembler.h"
 
-#include "src/code-factory.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/scheduler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
-                                         CallDescriptor* call_descriptor,
-                                         MachineRepresentation word,
-                                         MachineOperatorBuilder::Flags flags)
+RawMachineAssembler::RawMachineAssembler(
+    Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
+    MachineRepresentation word, MachineOperatorBuilder::Flags flags,
+    MachineOperatorBuilder::AlignmentRequirements alignment_requirements)
     : isolate_(isolate),
       graph_(graph),
       schedule_(new (zone()) Schedule(zone())),
-      machine_(zone(), word, flags),
+      machine_(zone(), word, flags, alignment_requirements),
       common_(zone()),
       call_descriptor_(call_descriptor),
       parameters_(parameter_count(), zone()),
@@ -35,11 +35,28 @@ RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
   graph->SetEnd(graph->NewNode(common_.End(0)));
 }
 
+Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,
+                                                     RelocInfo::Mode rmode) {
+  return kPointerSize == 8
+             ? RelocatableInt64Constant(value, rmode)
+             : RelocatableInt32Constant(static_cast<int>(value), rmode);
+}
 
 Schedule* RawMachineAssembler::Export() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
+  OFStream os(stdout);
+  if (FLAG_trace_turbo_scheduler) {
+    PrintF("--- RAW SCHEDULE -------------------------------------------\n");
+    os << *schedule_;
+  }
+  schedule_->EnsureCFGWellFormedness();
   Scheduler::ComputeSpecialRPO(zone(), schedule_);
+  schedule_->PropagateDeferredMark();
+  if (FLAG_trace_turbo_scheduler) {
+    PrintF("--- EDGE SPLIT AND PROPAGATED DEFERRED SCHEDULE ------------\n");
+    os << *schedule_;
+  }
   // Invalidate RawMachineAssembler.
   Schedule* schedule = schedule_;
   schedule_ = nullptr;
@@ -68,9 +85,16 @@ void RawMachineAssembler::Branch(Node* condition, RawMachineLabel* true_val,
   current_block_ = nullptr;
 }
 
+void RawMachineAssembler::Continuations(Node* call, RawMachineLabel* if_success,
+                                        RawMachineLabel* if_exception) {
+  DCHECK_NOT_NULL(schedule_);
+  DCHECK_NOT_NULL(current_block_);
+  schedule()->AddCall(CurrentBlock(), call, Use(if_success), Use(if_exception));
+  current_block_ = nullptr;
+}
 
 void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
-                                 int32_t* case_values,
+                                 const int32_t* case_values,
                                  RawMachineLabel** case_labels,
                                  size_t case_count) {
   DCHECK_NE(schedule()->end(), current_block_);
@@ -79,262 +103,95 @@ void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
   BasicBlock** succ_blocks = zone()->NewArray<BasicBlock*>(succ_count);
   for (size_t index = 0; index < case_count; ++index) {
     int32_t case_value = case_values[index];
-    BasicBlock* case_block = Use(case_labels[index]);
+    BasicBlock* case_block = schedule()->NewBasicBlock();
     Node* case_node =
         graph()->NewNode(common()->IfValue(case_value), switch_node);
     schedule()->AddNode(case_block, case_node);
+    schedule()->AddGoto(case_block, Use(case_labels[index]));
     succ_blocks[index] = case_block;
   }
-  BasicBlock* default_block = Use(default_label);
+  BasicBlock* default_block = schedule()->NewBasicBlock();
   Node* default_node = graph()->NewNode(common()->IfDefault(), switch_node);
   schedule()->AddNode(default_block, default_node);
+  schedule()->AddGoto(default_block, Use(default_label));
   succ_blocks[case_count] = default_block;
   schedule()->AddSwitch(CurrentBlock(), switch_node, succ_blocks, succ_count);
   current_block_ = nullptr;
 }
 
-
 void RawMachineAssembler::Return(Node* value) {
-  Node* ret = MakeNode(common()->Return(), 1, &value);
-  NodeProperties::MergeControlToEnd(graph(), common(), ret);
+  Node* values[] = {Int32Constant(0), value};
+  Node* ret = MakeNode(common()->Return(1), 2, values);
   schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = nullptr;
 }
 
 
 void RawMachineAssembler::Return(Node* v1, Node* v2) {
-  Node* values[] = {v1, v2};
-  Node* ret = MakeNode(common()->Return(2), 2, values);
-  NodeProperties::MergeControlToEnd(graph(), common(), ret);
+  Node* values[] = {Int32Constant(0), v1, v2};
+  Node* ret = MakeNode(common()->Return(2), 3, values);
   schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = nullptr;
 }
 
 
 void RawMachineAssembler::Return(Node* v1, Node* v2, Node* v3) {
-  Node* values[] = {v1, v2, v3};
-  Node* ret = MakeNode(common()->Return(3), 3, values);
-  NodeProperties::MergeControlToEnd(graph(), common(), ret);
+  Node* values[] = {Int32Constant(0), v1, v2, v3};
+  Node* ret = MakeNode(common()->Return(3), 4, values);
   schedule()->AddReturn(CurrentBlock(), ret);
   current_block_ = nullptr;
 }
 
-
-Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
-                                 Node** args) {
-  int param_count =
-      static_cast<int>(desc->GetMachineSignature()->parameter_count());
-  int input_count = param_count + 1;
-  Node** buffer = zone()->NewArray<Node*>(input_count);
-  int index = 0;
-  buffer[index++] = function;
-  for (int i = 0; i < param_count; i++) {
-    buffer[index++] = args[i];
-  }
-  return AddNode(common()->Call(desc), input_count, buffer);
+void RawMachineAssembler::PopAndReturn(Node* pop, Node* value) {
+  Node* values[] = {pop, value};
+  Node* ret = MakeNode(common()->Return(1), 2, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
 }
 
+void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2) {
+  Node* values[] = {pop, v1, v2};
+  Node* ret = MakeNode(common()->Return(2), 3, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
+void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2,
+                                       Node* v3) {
+  Node* values[] = {pop, v1, v2, v3};
+  Node* ret = MakeNode(common()->Return(3), 4, values);
+  schedule()->AddReturn(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
+void RawMachineAssembler::DebugBreak() { AddNode(machine()->DebugBreak()); }
+
+void RawMachineAssembler::Comment(const char* msg) {
+  AddNode(machine()->Comment(msg));
+}
+
+Node* RawMachineAssembler::CallN(CallDescriptor* desc, int input_count,
+                                 Node* const* inputs) {
+  DCHECK(!desc->NeedsFrameState());
+  // +1 is for target.
+  DCHECK_EQ(input_count, desc->ParameterCount() + 1);
+  return AddNode(common()->Call(desc), input_count, inputs);
+}
 
 Node* RawMachineAssembler::CallNWithFrameState(CallDescriptor* desc,
-                                               Node* function, Node** args,
-                                               Node* frame_state) {
+                                               int input_count,
+                                               Node* const* inputs) {
   DCHECK(desc->NeedsFrameState());
-  int param_count =
-      static_cast<int>(desc->GetMachineSignature()->parameter_count());
-  int input_count = param_count + 2;
-  Node** buffer = zone()->NewArray<Node*>(input_count);
-  int index = 0;
-  buffer[index++] = function;
-  for (int i = 0; i < param_count; i++) {
-    buffer[index++] = args[i];
-  }
-  buffer[index++] = frame_state;
-  return AddNode(common()->Call(desc), input_count, buffer);
+  // +2 is for target and frame state.
+  DCHECK_EQ(input_count, desc->ParameterCount() + 2);
+  return AddNode(common()->Call(desc), input_count, inputs);
 }
 
-Node* RawMachineAssembler::CallRuntime0(Runtime::FunctionId function,
-                                        Node* context) {
-  CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, 0, Operator::kNoProperties, CallDescriptor::kNoFlags);
-  int return_count = static_cast<int>(descriptor->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(0);
-
-  return AddNode(common()->Call(descriptor), centry, ref, arity, context);
-}
-
-Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
-                                        Node* arg1, Node* context) {
-  CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, 1, Operator::kNoProperties, CallDescriptor::kNoFlags);
-  int return_count = static_cast<int>(descriptor->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(1);
-
-  return AddNode(common()->Call(descriptor), centry, arg1, ref, arity, context);
-}
-
-
-Node* RawMachineAssembler::CallRuntime2(Runtime::FunctionId function,
-                                        Node* arg1, Node* arg2, Node* context) {
-  CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, 2, Operator::kNoProperties, CallDescriptor::kNoFlags);
-  int return_count = static_cast<int>(descriptor->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(2);
-
-  return AddNode(common()->Call(descriptor), centry, arg1, arg2, ref, arity,
-                 context);
-}
-
-Node* RawMachineAssembler::CallRuntime3(Runtime::FunctionId function,
-                                        Node* arg1, Node* arg2, Node* arg3,
-                                        Node* context) {
-  CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, 3, Operator::kNoProperties, CallDescriptor::kNoFlags);
-  int return_count = static_cast<int>(descriptor->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(3);
-
-  return AddNode(common()->Call(descriptor), centry, arg1, arg2, arg3, ref,
-                 arity, context);
-}
-
-Node* RawMachineAssembler::CallRuntime4(Runtime::FunctionId function,
-                                        Node* arg1, Node* arg2, Node* arg3,
-                                        Node* arg4, Node* context) {
-  CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, 4, Operator::kNoProperties, CallDescriptor::kNoFlags);
-  int return_count = static_cast<int>(descriptor->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(4);
-
-  return AddNode(common()->Call(descriptor), centry, arg1, arg2, arg3, arg4,
-                 ref, arity, context);
-}
-
-
-Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, Node* function,
-                                     Node** args) {
-  int param_count =
-      static_cast<int>(desc->GetMachineSignature()->parameter_count());
-  int input_count = param_count + 1;
-  Node** buffer = zone()->NewArray<Node*>(input_count);
-  int index = 0;
-  buffer[index++] = function;
-  for (int i = 0; i < param_count; i++) {
-    buffer[index++] = args[i];
-  }
-  Node* tail_call = MakeNode(common()->TailCall(desc), input_count, buffer);
-  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
-  schedule()->AddTailCall(CurrentBlock(), tail_call);
-  current_block_ = nullptr;
-  return tail_call;
-}
-
-
-Node* RawMachineAssembler::TailCallRuntime1(Runtime::FunctionId function,
-                                            Node* arg1, Node* context) {
-  const int kArity = 1;
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, kArity, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
-  int return_count = static_cast<int>(desc->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(kArity);
-
-  Node* nodes[] = {centry, arg1, ref, arity, context};
-  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
-
-  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
-  schedule()->AddTailCall(CurrentBlock(), tail_call);
-  current_block_ = nullptr;
-  return tail_call;
-}
-
-
-Node* RawMachineAssembler::TailCallRuntime2(Runtime::FunctionId function,
-                                            Node* arg1, Node* arg2,
-                                            Node* context) {
-  const int kArity = 2;
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, kArity, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
-  int return_count = static_cast<int>(desc->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(kArity);
-
-  Node* nodes[] = {centry, arg1, arg2, ref, arity, context};
-  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
-
-  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
-  schedule()->AddTailCall(CurrentBlock(), tail_call);
-  current_block_ = nullptr;
-  return tail_call;
-}
-
-Node* RawMachineAssembler::TailCallRuntime3(Runtime::FunctionId function,
-                                            Node* arg1, Node* arg2, Node* arg3,
-                                            Node* context) {
-  const int kArity = 3;
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, kArity, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
-  int return_count = static_cast<int>(desc->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(kArity);
-
-  Node* nodes[] = {centry, arg1, arg2, arg3, ref, arity, context};
-  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
-
-  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
-  schedule()->AddTailCall(CurrentBlock(), tail_call);
-  current_block_ = nullptr;
-  return tail_call;
-}
-
-Node* RawMachineAssembler::TailCallRuntime4(Runtime::FunctionId function,
-                                            Node* arg1, Node* arg2, Node* arg3,
-                                            Node* arg4, Node* context) {
-  const int kArity = 4;
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, kArity, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
-  int return_count = static_cast<int>(desc->ReturnCount());
-
-  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
-  Node* ref = AddNode(
-      common()->ExternalConstant(ExternalReference(function, isolate())));
-  Node* arity = Int32Constant(kArity);
-
-  Node* nodes[] = {centry, arg1, arg2, arg3, arg4, ref, arity, context};
-  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
-
-  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
+Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, int input_count,
+                                     Node* const* inputs) {
+  // +1 is for target.
+  DCHECK_EQ(input_count, desc->ParameterCount() + 1);
+  Node* tail_call = MakeNode(common()->TailCall(desc), input_count, inputs);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   current_block_ = nullptr;
   return tail_call;
@@ -378,6 +235,21 @@ Node* RawMachineAssembler::CallCFunction2(MachineType return_type,
   return AddNode(common()->Call(descriptor), function, arg0, arg1);
 }
 
+Node* RawMachineAssembler::CallCFunction3(MachineType return_type,
+                                          MachineType arg0_type,
+                                          MachineType arg1_type,
+                                          MachineType arg2_type, Node* function,
+                                          Node* arg0, Node* arg1, Node* arg2) {
+  MachineSignature::Builder builder(zone(), 1, 3);
+  builder.AddReturn(return_type);
+  builder.AddParam(arg0_type);
+  builder.AddParam(arg1_type);
+  builder.AddParam(arg2_type);
+  const CallDescriptor* descriptor =
+      Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  return AddNode(common()->Call(descriptor), function, arg0, arg1, arg2);
+}
 
 Node* RawMachineAssembler::CallCFunction8(
     MachineType return_type, MachineType arg0_type, MachineType arg1_type,
@@ -407,6 +279,7 @@ void RawMachineAssembler::Bind(RawMachineLabel* label) {
   DCHECK(!label->bound_);
   label->bound_ = true;
   current_block_ = EnsureBlock(label);
+  current_block_->set_deferred(label->deferred_);
 }
 
 
@@ -458,11 +331,6 @@ Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
   // so we disable checking input counts here.
   return graph()->NewNodeUnchecked(op, input_count, inputs);
 }
-
-
-RawMachineLabel::RawMachineLabel()
-    : block_(nullptr), used_(false), bound_(false) {}
-
 
 RawMachineLabel::~RawMachineLabel() { DCHECK(bound_ || !used_); }
 

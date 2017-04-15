@@ -17,24 +17,22 @@ void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
   __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
-
-Register* PropertyAccessCompiler::load_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3, scratch4.
+void PropertyAccessCompiler::InitializePlatformSpecific(
+    AccessCompilerData* data) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  static Register registers[] = {receiver, name, r6, r3, r7, r8};
-  return registers;
-}
 
-
-Register* PropertyAccessCompiler::store_calling_convention() {
+  // Load calling convention.
   // receiver, name, scratch1, scratch2, scratch3.
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  static Register registers[] = {receiver, name, r6, r7, r8};
-  return registers;
-}
+  Register load_registers[] = {receiver, name, r6, r3, r7};
 
+  // Store calling convention.
+  // receiver, name, scratch1, scratch2.
+  Register store_registers[] = {receiver, name, r6, r7};
+
+  data->Initialize(arraysize(load_registers), load_registers,
+                   arraysize(store_registers), store_registers);
+}
 
 #undef __
 }  // namespace internal

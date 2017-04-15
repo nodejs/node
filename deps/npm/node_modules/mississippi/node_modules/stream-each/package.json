@@ -1,0 +1,99 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "stream-each@^1.1.0",
+        "scope": null,
+        "escapedName": "stream-each",
+        "name": "stream-each",
+        "rawSpec": "^1.1.0",
+        "spec": ">=1.1.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/mississippi"
+    ]
+  ],
+  "_from": "stream-each@>=1.1.0 <2.0.0",
+  "_id": "stream-each@1.2.0",
+  "_inCache": true,
+  "_location": "/mississippi/stream-each",
+  "_nodeVersion": "4.6.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/stream-each-1.2.0.tgz_1478427484733_0.5437065886799246"
+  },
+  "_npmUser": {
+    "name": "mafintosh",
+    "email": "mathiasbuus@gmail.com"
+  },
+  "_npmVersion": "2.15.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "stream-each@^1.1.0",
+    "scope": null,
+    "escapedName": "stream-each",
+    "name": "stream-each",
+    "rawSpec": "^1.1.0",
+    "spec": ">=1.1.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/mississippi"
+  ],
+  "_resolved": "https://registry.npmjs.org/stream-each/-/stream-each-1.2.0.tgz",
+  "_shasum": "1e95d47573f580d814dc0ff8cd0f66f1ce53c991",
+  "_shrinkwrap": null,
+  "_spec": "stream-each@^1.1.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/mississippi",
+  "author": {
+    "name": "Mathias Buus",
+    "url": "@mafintosh"
+  },
+  "bugs": {
+    "url": "https://github.com/mafintosh/stream-each/issues"
+  },
+  "dependencies": {
+    "end-of-stream": "^1.1.0",
+    "stream-shift": "^1.0.0"
+  },
+  "description": "Iterate all the data in a stream",
+  "devDependencies": {
+    "standard": "^5.3.1",
+    "tape": "^4.2.1",
+    "through2": "^2.0.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "1e95d47573f580d814dc0ff8cd0f66f1ce53c991",
+    "tarball": "https://registry.npmjs.org/stream-each/-/stream-each-1.2.0.tgz"
+  },
+  "gitHead": "2968bf4f195641f5eda594c781a0b590776bc702",
+  "homepage": "https://github.com/mafintosh/stream-each",
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "karissa",
+      "email": "krmckelv@gmail.com"
+    },
+    {
+      "name": "mafintosh",
+      "email": "mathiasbuus@gmail.com"
+    },
+    {
+      "name": "maxogden",
+      "email": "max@maxogden.com"
+    }
+  ],
+  "name": "stream-each",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mafintosh/stream-each.git"
+  },
+  "scripts": {
+    "test": "standard && tape test.js"
+  },
+  "version": "1.2.0"
+}

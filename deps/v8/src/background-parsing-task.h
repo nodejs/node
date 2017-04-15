@@ -5,14 +5,19 @@
 #ifndef V8_BACKGROUND_PARSING_TASK_H_
 #define V8_BACKGROUND_PARSING_TASK_H_
 
+#include <memory>
+
+#include "include/v8.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
-#include "src/base/smart-pointers.h"
-#include "src/compiler.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
+#include "src/unicode-cache.h"
 
 namespace v8 {
 namespace internal {
+
+class Parser;
+class ScriptData;
 
 // Internal representation of v8::ScriptCompiler::StreamedSource. Contains all
 // data which needs to be transmitted between threads for background parsing,
@@ -22,23 +27,24 @@ struct StreamedSource {
                  ScriptCompiler::StreamedSource::Encoding encoding)
       : source_stream(source_stream), encoding(encoding) {}
 
+  void Release();
+
   // Internal implementation of v8::ScriptCompiler::StreamedSource.
-  base::SmartPointer<ScriptCompiler::ExternalSourceStream> source_stream;
+  std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream;
   ScriptCompiler::StreamedSource::Encoding encoding;
-  base::SmartPointer<ScriptCompiler::CachedData> cached_data;
+  std::unique_ptr<ScriptCompiler::CachedData> cached_data;
 
   // Data needed for parsing, and data needed to to be passed between thread
   // between parsing and compilation. These need to be initialized before the
   // compilation starts.
   UnicodeCache unicode_cache;
-  base::SmartPointer<Zone> zone;
-  base::SmartPointer<ParseInfo> info;
-  base::SmartPointer<Parser> parser;
+  std::unique_ptr<Zone> zone;
+  std::unique_ptr<ParseInfo> info;
+  std::unique_ptr<Parser> parser;
 
- private:
-  // Prevent copying. Not implemented.
-  StreamedSource(const StreamedSource&);
-  StreamedSource& operator=(const StreamedSource&);
+  // Prevent copying.
+  StreamedSource(const StreamedSource&) = delete;
+  StreamedSource& operator=(const StreamedSource&) = delete;
 };
 
 
@@ -53,6 +59,7 @@ class BackgroundParsingTask : public ScriptCompiler::ScriptStreamingTask {
  private:
   StreamedSource* source_;  // Not owned.
   int stack_size_;
+  ScriptData* script_data_;
 };
 }  // namespace internal
 }  // namespace v8

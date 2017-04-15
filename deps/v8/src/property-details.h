@@ -28,11 +28,6 @@ enum PropertyAttributes {
   // ABSENT can never be stored in or returned from a descriptor's attributes
   // bitfield.  It is only used as a return value meaning the attributes of
   // a non-existent property.
-
-  // When creating a property, EVAL_DECLARED used to indicate that the property
-  // came from a sloppy-mode direct eval, and certain checks need to be done.
-  // Cannot be stored in or returned from a descriptor's attributes bitfield.
-  EVAL_DECLARED = 128
 };
 
 
@@ -53,33 +48,29 @@ STATIC_ASSERT(ONLY_ENUMERABLE == static_cast<PropertyFilter>(DONT_ENUM));
 STATIC_ASSERT(ONLY_CONFIGURABLE == static_cast<PropertyFilter>(DONT_DELETE));
 STATIC_ASSERT(((SKIP_STRINGS | SKIP_SYMBOLS | ONLY_ALL_CAN_READ) &
                ALL_ATTRIBUTES_MASK) == 0);
-
+STATIC_ASSERT(ALL_PROPERTIES ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::ALL_PROPERTIES));
+STATIC_ASSERT(ONLY_WRITABLE ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::ONLY_WRITABLE));
+STATIC_ASSERT(ONLY_ENUMERABLE ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::ONLY_ENUMERABLE));
+STATIC_ASSERT(ONLY_CONFIGURABLE == static_cast<PropertyFilter>(
+                                       v8::PropertyFilter::ONLY_CONFIGURABLE));
+STATIC_ASSERT(SKIP_STRINGS ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::SKIP_STRINGS));
+STATIC_ASSERT(SKIP_SYMBOLS ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::SKIP_SYMBOLS));
 
 class Smi;
-class Type;
 class TypeInfo;
 
-// Type of properties.
 // Order of kinds is significant.
 // Must fit in the BitField PropertyDetails::KindField.
 enum PropertyKind { kData = 0, kAccessor = 1 };
 
-
 // Order of modes is significant.
-// Must fit in the BitField PropertyDetails::StoreModeField.
+// Must fit in the BitField PropertyDetails::LocationField.
 enum PropertyLocation { kField = 0, kDescriptor = 1 };
-
-
-// Order of properties is significant.
-// Must fit in the BitField PropertyDetails::TypeField.
-// A copy of this is in debug/mirrors.js.
-enum PropertyType {
-  DATA = (kField << 1) | kData,
-  DATA_CONSTANT = (kDescriptor << 1) | kData,
-  ACCESSOR = (kField << 1) | kAccessor,
-  ACCESSOR_CONSTANT = (kDescriptor << 1) | kAccessor
-};
-
 
 class Representation {
  public:
@@ -203,7 +194,6 @@ static const int kMaxNumberOfDescriptors =
 static const int kInvalidEnumCacheSentinel =
     (1 << kDescriptorIndexBitCount) - 1;
 
-
 enum class PropertyCellType {
   // Meaningful when a property cell does not contain the hole.
   kUndefined,     // The PREMONOMORPHIC of property cells.
@@ -213,12 +203,12 @@ enum class PropertyCellType {
 
   // Meaningful when a property cell contains the hole.
   kUninitialized = kUndefined,  // Cell has never been initialized.
-  kInvalidated = kConstant,     // Cell has been deleted or invalidated.
+  kInvalidated = kConstant,     // Cell has been deleted, invalidated or never
+                                // existed.
 
   // For dictionaries not holding cells.
   kNoCell = kMutable,
 };
-
 
 enum class PropertyCellConstantType {
   kSmi,
@@ -230,27 +220,17 @@ enum class PropertyCellConstantType {
 // They are used both in property dictionaries and instance descriptors.
 class PropertyDetails BASE_EMBEDDED {
  public:
-  PropertyDetails(PropertyAttributes attributes, PropertyType type, int index,
+  // Property details for dictionary mode properties/elements.
+  PropertyDetails(PropertyKind kind, PropertyAttributes attributes, int index,
                   PropertyCellType cell_type) {
-    value_ = TypeField::encode(type) | AttributesField::encode(attributes) |
+    value_ = KindField::encode(kind) | LocationField::encode(kField) |
+             AttributesField::encode(attributes) |
              DictionaryStorageField::encode(index) |
              PropertyCellTypeField::encode(cell_type);
-
-    DCHECK(type == this->type());
-    DCHECK(attributes == this->attributes());
   }
 
-  PropertyDetails(PropertyAttributes attributes,
-                  PropertyType type,
-                  Representation representation,
-                  int field_index = 0) {
-    value_ = TypeField::encode(type)
-        | AttributesField::encode(attributes)
-        | RepresentationField::encode(EncodeRepresentation(representation))
-        | FieldIndexField::encode(field_index);
-  }
-
-  PropertyDetails(PropertyAttributes attributes, PropertyKind kind,
+  // Property details for fast mode properties.
+  PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
                   PropertyLocation location, Representation representation,
                   int field_index = 0) {
     value_ = KindField::encode(kind) | LocationField::encode(location) |
@@ -259,8 +239,9 @@ class PropertyDetails BASE_EMBEDDED {
              FieldIndexField::encode(field_index);
   }
 
-  static PropertyDetails Empty() {
-    return PropertyDetails(NONE, DATA, 0, PropertyCellType::kNoCell);
+  static PropertyDetails Empty(
+      PropertyCellType cell_type = PropertyCellType::kNoCell) {
+    return PropertyDetails(kData, NONE, 0, cell_type);
   }
 
   int pointer() const { return DescriptorPointer::decode(value_); }
@@ -304,8 +285,6 @@ class PropertyDetails BASE_EMBEDDED {
 
   PropertyKind kind() const { return KindField::decode(value_); }
   PropertyLocation location() const { return LocationField::decode(value_); }
-
-  PropertyType type() const { return TypeField::decode(value_); }
 
   PropertyAttributes attributes() const {
     return AttributesField::decode(value_);
@@ -355,12 +334,6 @@ class PropertyDetails BASE_EMBEDDED {
       : public BitField<uint32_t, 9 + kDescriptorIndexBitCount,
                         kDescriptorIndexBitCount> {};  // NOLINT
 
-  // NOTE: TypeField overlaps with KindField and LocationField.
-  class TypeField : public BitField<PropertyType, 0, 2> {};
-  STATIC_ASSERT(KindField::kNext == LocationField::kShift);
-  STATIC_ASSERT(TypeField::kShift == KindField::kShift);
-  STATIC_ASSERT(TypeField::kNext == LocationField::kNext);
-
   // All bits for both fast and slow objects must fit in a smi.
   STATIC_ASSERT(DictionaryStorageField::kNext <= 31);
   STATIC_ASSERT(FieldIndexField::kNext <= 31);
@@ -371,6 +344,19 @@ class PropertyDetails BASE_EMBEDDED {
   // For our gdb macros, we should perhaps change these in the future.
   void Print(bool dictionary_mode);
 #endif
+
+  enum PrintMode {
+    kPrintAttributes = 1 << 0,
+    kPrintFieldIndex = 1 << 1,
+    kPrintRepresentation = 1 << 2,
+    kPrintPointer = 1 << 3,
+
+    kForProperties = kPrintFieldIndex,
+    kForTransitions = kPrintAttributes,
+    kPrintFull = -1,
+  };
+  void PrintAsSlowTo(std::ostream& out);
+  void PrintAsFastTo(std::ostream& out, PrintMode mode = kPrintFull);
 
  private:
   PropertyDetails(int value, int pointer) {
@@ -390,7 +376,6 @@ class PropertyDetails BASE_EMBEDDED {
 
 std::ostream& operator<<(std::ostream& os,
                          const PropertyAttributes& attributes);
-std::ostream& operator<<(std::ostream& os, const PropertyDetails& details);
 }  // namespace internal
 }  // namespace v8
 

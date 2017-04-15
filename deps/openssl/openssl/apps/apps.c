@@ -215,7 +215,8 @@ int args_from_file(char *file, int *argc, char **argv[])
     if (arg != NULL)
         OPENSSL_free(arg);
     arg = (char **)OPENSSL_malloc(sizeof(char *) * (i * 2));
-
+    if (arg == NULL)
+        return 0;
     *argv = arg;
     num = 0;
     p = buf;
@@ -971,7 +972,10 @@ EVP_PKEY *load_key(BIO *err, const char *file, int format, int maybe_stdin,
         if (!e)
             BIO_printf(err, "no engine specified\n");
         else {
-            pkey = ENGINE_load_private_key(e, file, ui_method, &cb_data);
+            if (ENGINE_init(e)) {
+                pkey = ENGINE_load_private_key(e, file, ui_method, &cb_data);
+                ENGINE_finish(e);
+            }
             if (!pkey) {
                 BIO_printf(err, "cannot load %s from engine\n", key_descrip);
                 ERR_print_errors(err);
@@ -1531,11 +1535,13 @@ static ENGINE *try_load_engine(BIO *err, const char *engine, int debug)
     }
     return e;
 }
+#endif
 
 ENGINE *setup_engine(BIO *err, const char *engine, int debug)
 {
     ENGINE *e = NULL;
 
+#ifndef OPENSSL_NO_ENGINE
     if (engine) {
         if (strcmp(engine, "auto") == 0) {
             BIO_printf(err, "enabling auto ENGINE support\n");
@@ -1560,13 +1566,19 @@ ENGINE *setup_engine(BIO *err, const char *engine, int debug)
         }
 
         BIO_printf(err, "engine \"%s\" set.\n", ENGINE_get_id(e));
-
-        /* Free our "structural" reference. */
-        ENGINE_free(e);
     }
+#endif
     return e;
 }
+
+void release_engine(ENGINE *e)
+{
+#ifndef OPENSSL_NO_ENGINE
+    if (e != NULL)
+        /* Free our "structural" reference. */
+        ENGINE_free(e);
 #endif
+}
 
 int load_config(BIO *err, CONF *cnf)
 {
@@ -2374,6 +2386,8 @@ int args_verify(char ***pargs, int *pargc,
         flags |= X509_V_FLAG_PARTIAL_CHAIN;
     else if (!strcmp(arg, "-no_alt_chains"))
         flags |= X509_V_FLAG_NO_ALT_CHAINS;
+    else if (!strcmp(arg, "-allow_proxy_certs"))
+        flags |= X509_V_FLAG_ALLOW_PROXY_CERTS;
     else
         return 0;
 
@@ -3195,6 +3209,36 @@ int app_isdir(const char *name)
 #endif
 
 /* raw_read|write section */
+#if defined(__VMS)
+# include "vms_term_sock.h"
+static int stdin_sock = -1;
+
+static void close_stdin_sock(void)
+{
+    TerminalSocket (TERM_SOCK_DELETE, &stdin_sock);
+}
+
+int fileno_stdin(void)
+{
+    if (stdin_sock == -1) {
+        TerminalSocket(TERM_SOCK_CREATE, &stdin_sock);
+        atexit(close_stdin_sock);
+    }
+
+    return stdin_sock;
+}
+#else
+int fileno_stdin(void)
+{
+    return fileno(stdin);
+}
+#endif
+
+int fileno_stdout(void)
+{
+    return fileno(stdout);
+}
+
 #if defined(_WIN32) && defined(STD_INPUT_HANDLE)
 int raw_read_stdin(void *buf, int siz)
 {
@@ -3204,10 +3248,17 @@ int raw_read_stdin(void *buf, int siz)
     else
         return (-1);
 }
+#elif defined(__VMS)
+#include <sys/socket.h>
+
+int raw_read_stdin(void *buf, int siz)
+{
+    return recv(fileno_stdin(), buf, siz, 0);
+}
 #else
 int raw_read_stdin(void *buf, int siz)
 {
-    return read(fileno(stdin), buf, siz);
+    return read(fileno_stdin(), buf, siz);
 }
 #endif
 
@@ -3223,6 +3274,6 @@ int raw_write_stdout(const void *buf, int siz)
 #else
 int raw_write_stdout(const void *buf, int siz)
 {
-    return write(fileno(stdout), buf, siz);
+    return write(fileno_stdout(), buf, siz);
 }
 #endif

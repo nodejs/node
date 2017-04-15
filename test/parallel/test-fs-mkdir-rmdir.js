@@ -29,8 +29,8 @@ fs.mkdir(d, 0o666, function(err) {
 
   fs.mkdir(d, 0o666, function(err) {
     assert.ok(err.message.match(/^EEXIST/), 'got EEXIST message');
-    assert.equal(err.code, 'EEXIST', 'got EEXIST code');
-    assert.equal(err.path, d, 'got proper path for EEXIST');
+    assert.strictEqual(err.code, 'EEXIST', 'got EEXIST code');
+    assert.strictEqual(err.path, d, 'got proper path for EEXIST');
 
     fs.rmdir(d, assert.ifError);
   });

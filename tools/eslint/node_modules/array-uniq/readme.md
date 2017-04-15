@@ -7,7 +7,7 @@ It's already pretty fast, but will be much faster when [Set](https://developer.m
 
 ## Install
 
-```sh
+```
 $ npm install --save array-uniq
 ```
 
@@ -15,7 +15,7 @@ $ npm install --save array-uniq
 ## Usage
 
 ```js
-var arrayUniq = require('array-uniq');
+const arrayUniq = require('array-uniq');
 
 arrayUniq([1, 1, 2, 3, 3]);
 //=> [1, 2, 3]
@@ -27,4 +27,4 @@ arrayUniq(['foo', 'foo', 'bar', 'foo']);
 
 ## License
 
-MIT © [Sindre Sorhus](http://sindresorhus.com)
+MIT © [Sindre Sorhus](https://sindresorhus.com)

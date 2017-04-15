@@ -1,13 +1,15 @@
 'use strict';
 
 var common = require('../common.js');
-var FreeList = require('internal/freelist').FreeList;
 
 var bench = common.createBenchmark(main, {
   n: [100000]
+}, {
+  flags: ['--expose-internals']
 });
 
 function main(conf) {
+  const FreeList = require('internal/freelist').FreeList;
   var n = conf.n;
   var poolSize = 1000;
   var list = new FreeList('test', poolSize, Object);

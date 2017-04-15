@@ -10,7 +10,7 @@ var rename = require('../../utils/rename.js')
 
 // This is weird because we want to remove the module but not it's node_modules folder
 // allowing for this allows us to not worry about the order of operations
-module.exports = function (top, buildpath, pkg, log, next) {
+module.exports = function (staging, pkg, log, next) {
   log.silly('remove', pkg.path)
   if (pkg.target) {
     removeLink(pkg, next)

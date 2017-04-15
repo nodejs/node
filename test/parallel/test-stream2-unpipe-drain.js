@@ -1,15 +1,30 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var stream = require('stream');
+require('../common');
+const assert = require('assert');
 
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
-var crypto = require('crypto');
-
-var util = require('util');
+const stream = require('stream');
+const util = require('util');
 
 function TestWriter() {
   stream.Writable.call(this);
@@ -21,7 +36,7 @@ TestWriter.prototype._write = function(buffer, encoding, callback) {
   // super slow write stream (callback never called)
 };
 
-var dest = new TestWriter();
+const dest = new TestWriter();
 
 function TestReader(id) {
   stream.Readable.call(this);
@@ -31,11 +46,11 @@ util.inherits(TestReader, stream.Readable);
 
 TestReader.prototype._read = function(size) {
   this.reads += 1;
-  this.push(crypto.randomBytes(size));
+  this.push(Buffer.alloc(size));
 };
 
-var src1 = new TestReader();
-var src2 = new TestReader();
+const src1 = new TestReader();
+const src2 = new TestReader();
 
 src1.pipe(dest);
 
@@ -55,6 +70,6 @@ src1.once('readable', function() {
 
 
 process.on('exit', function() {
-  assert.equal(src1.reads, 2);
-  assert.equal(src2.reads, 2);
+  assert.strictEqual(src1.reads, 2);
+  assert.strictEqual(src2.reads, 2);
 });

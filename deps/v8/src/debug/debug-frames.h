@@ -15,21 +15,29 @@ namespace internal {
 
 class FrameInspector {
  public:
-  FrameInspector(JavaScriptFrame* frame, int inlined_jsframe_index,
+  FrameInspector(StandardFrame* frame, int inlined_frame_index,
                  Isolate* isolate);
 
   ~FrameInspector();
 
+  FrameSummary& summary() { return frame_summary_; }
+
   int GetParametersCount();
-  Handle<Object> GetFunction();
+  Handle<JSFunction> GetFunction();
+  Handle<Script> GetScript();
   Handle<Object> GetParameter(int index);
   Handle<Object> GetExpression(int index);
   int GetSourcePosition();
   bool IsConstructor();
   Handle<Object> GetContext();
 
-  JavaScriptFrame* GetArgumentsFrame() { return frame_; }
-  void SetArgumentsFrame(JavaScriptFrame* frame);
+  inline JavaScriptFrame* javascript_frame() {
+    return frame_->is_arguments_adaptor() ? ArgumentsAdaptorFrame::cast(frame_)
+                                          : JavaScriptFrame::cast(frame_);
+  }
+
+  JavaScriptFrame* GetArgumentsFrame() { return javascript_frame(); }
+  void SetArgumentsFrame(StandardFrame* frame);
 
   void MaterializeStackLocals(Handle<JSObject> target,
                               Handle<ScopeInfo> scope_info);
@@ -44,7 +52,8 @@ class FrameInspector {
   bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
                                          Handle<String> parameter_name);
 
-  JavaScriptFrame* frame_;
+  StandardFrame* frame_;
+  FrameSummary frame_summary_;
   DeoptimizedFrameInfo* deoptimized_frame_;
   Isolate* isolate_;
   bool is_optimized_;
@@ -59,10 +68,10 @@ class FrameInspector {
 class DebugFrameHelper : public AllStatic {
  public:
   static SaveContext* FindSavedContextForFrame(Isolate* isolate,
-                                               JavaScriptFrame* frame);
+                                               StandardFrame* frame);
   // Advances the iterator to the frame that matches the index and returns the
   // inlined frame index, or -1 if not found.  Skips native JS functions.
-  static int FindIndexedNonNativeFrame(JavaScriptFrameIterator* it, int index);
+  static int FindIndexedNonNativeFrame(StackTraceFrameIterator* it, int index);
 
   // Helper functions for wrapping and unwrapping stack frame ids.
   static Smi* WrapFrameId(StackFrame::Id id) {

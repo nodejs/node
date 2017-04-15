@@ -7,6 +7,7 @@
 #include "src/api.h"
 #include "src/base/lazy-instance.h"
 #include "src/elements.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 
 namespace v8 {

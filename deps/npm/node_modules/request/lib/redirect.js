@@ -8,6 +8,7 @@ function Redirect (request) {
   this.followRedirect = true
   this.followRedirects = true
   this.followAllRedirects = false
+  this.followOriginalHttpMethod = false
   this.allowRedirect = function () {return true}
   this.maxRedirects = 10
   this.redirects = []
@@ -35,6 +36,9 @@ Redirect.prototype.onRequest = function (options) {
   }
   if (options.removeRefererHeader !== undefined) {
     self.removeRefererHeader = options.removeRefererHeader
+  }
+  if (options.followOriginalHttpMethod !== undefined) {
+    self.followOriginalHttpMethod = options.followOriginalHttpMethod
   }
 }
 
@@ -115,7 +119,7 @@ Redirect.prototype.onResponse = function (response) {
   )
   if (self.followAllRedirects && request.method !== 'HEAD'
     && response.statusCode !== 401 && response.statusCode !== 307) {
-    request.method = 'GET'
+    request.method = self.followOriginalHttpMethod ? request.method : 'GET'
   }
   // request.method = 'GET' // Force all redirects to use GET || commented out fixes #215
   delete request.src

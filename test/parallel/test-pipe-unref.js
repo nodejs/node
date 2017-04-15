@@ -1,21 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-
-var net = require('net');
-var closed = false;
+const common = require('../common');
+const net = require('net');
 
 common.refreshTmpDir();
 
-var s = net.Server();
+const s = net.Server();
 s.listen(common.PIPE);
 s.unref();
 
-setTimeout(function() {
-  closed = true;
-  s.close();
-}, 1000).unref();
-
-process.on('exit', function() {
-  assert.strictEqual(closed, false, 'Unrefd socket should not hold loop open');
-});
+setTimeout(common.mustNotCall(), 1000).unref();

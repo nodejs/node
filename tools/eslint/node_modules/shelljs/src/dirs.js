@@ -2,6 +2,16 @@ var common = require('./common');
 var _cd = require('./cd');
 var path = require('path');
 
+common.register('dirs', _dirs, {
+  wrapOutput: false,
+});
+common.register('pushd', _pushd, {
+  wrapOutput: false,
+});
+common.register('popd', _popd, {
+  wrapOutput: false,
+});
+
 // Pushd/popd/dirs internals
 var _dirStack = [];
 
@@ -13,9 +23,8 @@ function _parseStackIndex(index) {
   if (_isStackIndex(index)) {
     if (Math.abs(index) < _dirStack.length + 1) { // +1 for pwd
       return (/^-/).test(index) ? Number(index) - 1 : Number(index);
-    } else {
-      common.error(index + ': directory stack index out of range');
     }
+    common.error(index + ': directory stack index out of range');
   } else {
     common.error(index + ': invalid number');
   }
@@ -54,7 +63,7 @@ function _pushd(options, dir) {
   }
 
   options = common.parseOptions(options, {
-    'n' : 'no-cd'
+    'n': 'no-cd',
   });
 
   var dirs = _actualDirStack();
@@ -120,7 +129,7 @@ function _popd(options, index) {
   }
 
   options = common.parseOptions(options, {
-    'n' : 'no-cd'
+    'n': 'no-cd',
   });
 
   if (!_dirStack.length) {
@@ -163,10 +172,10 @@ function _dirs(options, index) {
   }
 
   options = common.parseOptions(options, {
-    'c' : 'clear'
+    'c': 'clear',
   });
 
-  if (options['clear']) {
+  if (options.clear) {
     _dirStack = [];
     return _dirStack;
   }

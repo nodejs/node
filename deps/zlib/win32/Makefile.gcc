@@ -39,7 +39,7 @@ IMPLIB    = libz.dll.a
 SHARED_MODE=0
 
 #LOC = -DASMV
-#LOC = -DDEBUG -g
+#LOC = -DZLIB_DEBUG -g
 
 PREFIX =
 CC = $(PREFIX)gcc

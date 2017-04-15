@@ -17,28 +17,32 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
-    create: function(context) {
+    create(context) {
+        const sourceCode = context.getSourceCode();
 
         return {
 
-            Literal: function(node) {
-                var token = context.getFirstToken(node),
-                    nodeType = token.type,
-                    source,
-                    grandparent,
-                    ancestors;
+            Literal(node) {
+                const token = sourceCode.getFirstToken(node),
+                    nodeType = token.type;
 
                 if (nodeType === "RegularExpression") {
-                    source = context.getTokenBefore(node);
-                    ancestors = context.getAncestors();
-                    grandparent = ancestors[ancestors.length - 1];
+                    const source = sourceCode.getTokenBefore(node);
+                    const ancestors = context.getAncestors();
+                    const grandparent = ancestors[ancestors.length - 1];
 
                     if (grandparent.type === "MemberExpression" && grandparent.object === node &&
                         (!source || source.value !== "(")) {
-                        context.report(node, "Wrap the regexp literal in parens to disambiguate the slash.");
+                        context.report({
+                            node,
+                            message: "Wrap the regexp literal in parens to disambiguate the slash.",
+                            fix: fixer => fixer.replaceText(node, `(${sourceCode.getText(node)})`)
+                        });
                     }
                 }
             }

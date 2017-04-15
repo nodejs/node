@@ -10,25 +10,46 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-AllNodes::AllNodes(Zone* local_zone, const Graph* graph)
-    : live(local_zone), is_live(graph->NodeCount(), false, local_zone) {
-  Node* end = graph->end();
-  is_live[end->id()] = true;
-  live.push_back(end);
-  // Find all live nodes reachable from end.
-  for (size_t i = 0; i < live.size(); i++) {
-    for (Node* const input : live[i]->inputs()) {
+AllNodes::AllNodes(Zone* local_zone, const Graph* graph, bool only_inputs)
+    : reachable(local_zone),
+      is_reachable_(graph->NodeCount(), false, local_zone),
+      only_inputs_(only_inputs) {
+  Mark(local_zone, graph->end(), graph);
+}
+
+AllNodes::AllNodes(Zone* local_zone, Node* end, const Graph* graph,
+                   bool only_inputs)
+    : reachable(local_zone),
+      is_reachable_(graph->NodeCount(), false, local_zone),
+      only_inputs_(only_inputs) {
+  Mark(local_zone, end, graph);
+}
+
+void AllNodes::Mark(Zone* local_zone, Node* end, const Graph* graph) {
+  DCHECK_LT(end->id(), graph->NodeCount());
+  is_reachable_[end->id()] = true;
+  reachable.push_back(end);
+  // Find all nodes reachable from {end}.
+  for (size_t i = 0; i < reachable.size(); i++) {
+    for (Node* const input : reachable[i]->inputs()) {
       if (input == nullptr) {
         // TODO(titzer): print a warning.
         continue;
       }
-      if (input->id() >= graph->NodeCount()) {
-        // TODO(titzer): print a warning.
-        continue;
+      if (!is_reachable_[input->id()]) {
+        is_reachable_[input->id()] = true;
+        reachable.push_back(input);
       }
-      if (!is_live[input->id()]) {
-        is_live[input->id()] = true;
-        live.push_back(input);
+    }
+    if (!only_inputs_) {
+      for (Node* use : reachable[i]->uses()) {
+        if (use == nullptr || use->id() >= graph->NodeCount()) {
+          continue;
+        }
+        if (!is_reachable_[use->id()]) {
+          is_reachable_[use->id()] = true;
+          reachable.push_back(use);
+        }
       }
     }
   }

@@ -37,34 +37,28 @@ and in the process of being redesigned.
 
 The stability indices are as follows:
 
-```
+```txt
 Stability: 0 - Deprecated
 This feature is known to be problematic, and changes are
 planned.  Do not rely on it.  Use of the feature may cause warnings.  Backwards
 compatibility should not be expected.
 ```
 
-```
+```txt
 Stability: 1 - Experimental
 This feature is subject to change, and is gated by a command line flag.
 It may change or be removed in future versions.
 ```
 
-```
+```txt
 Stability: 2 - Stable
 The API has proven satisfactory. Compatibility with the npm ecosystem
 is a high priority, and will not be broken unless absolutely necessary.
 ```
 
-```
-Stability: 3 - Locked
-Only fixes related to security, performance, or bug fixes will be accepted.
-Please do not suggest API changes in this area; they will be refused.
-```
-
 ## JSON Output
 
-    Stability: 1 - Experimental
+> Stability: 1 - Experimental
 
 Every HTML file in the markdown has a corresponding JSON file with the
 same data.
@@ -79,11 +73,11 @@ like `fs.open()`, will document that. The docs link to the corresponding man
 pages (short for manual pages) which describe how the syscalls work.
 
 **Caveat:** some syscalls, like lchown(2), are BSD-specific. That means, for
-example, that `fs.lchown()` only works on Mac OS X and other BSD-derived systems,
+example, that `fs.lchown()` only works on macOS and other BSD-derived systems,
 and is not available on Linux.
 
 Most Unix syscalls have Windows equivalents, but behavior may differ on Windows
-relative to Linux and OS X. For an example of the subtle ways in which it's
+relative to Linux and macOS. For an example of the subtle ways in which it's
 sometimes impossible to replace Unix syscall semantics on Windows, see [Node
 issue 4760](https://github.com/nodejs/node/issues/4760).
 

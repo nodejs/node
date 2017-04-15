@@ -19,16 +19,16 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------
 
         return {
-            UnaryExpression: function(node) {
+            UnaryExpression(node) {
                 if (node.operator === "void") {
-                    context.report(node, "Expected 'undefined' and instead saw 'void'.");
+                    context.report({ node, message: "Expected 'undefined' and instead saw 'void'." });
                 }
             }
         };

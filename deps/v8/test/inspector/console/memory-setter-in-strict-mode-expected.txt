@@ -1,0 +1,9 @@
+Tests checks that console.memory property can be set in strict mode (crbug.com/468611).
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}

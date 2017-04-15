@@ -152,3 +152,76 @@ for (var i = 63; i >= 0; i--) {
   assertEquals(xl - offset, z.length);
   offset -= i;
 }
+
+
+// Order of conversions.
+{
+  let log = [];
+  let string = {[Symbol.toPrimitive]() { log.push("this"); return "abc" }};
+  let start = {[Symbol.toPrimitive]() { log.push("start"); return 0 }};
+  let length = {[Symbol.toPrimitive]() { log.push("length"); return 1 }};
+  assertEquals("a", String.prototype.substr.call(string, start, length));
+  assertEquals(["this", "start", "length"], log);
+}
+{
+  let log = [];
+  let string = {[Symbol.toPrimitive]() { log.push("this"); return "abc" }};
+  let start = {[Symbol.toPrimitive]() { log.push("start"); return 0 }};
+  let length = {[Symbol.toPrimitive]() { log.push("length"); return 0 }};
+  assertEquals("", String.prototype.substr.call(string, start, length));
+  assertEquals(["this", "start", "length"], log);
+}
+
+// Bounds edge cases.
+{
+  const str = "abc";
+  const negativeHeapNumber = -1 * 2**32;
+  const positiveHeapNumber = 2**32;
+
+  assertEquals("abc", str.substr(negativeHeapNumber));
+  assertEquals("abc", str.substr(negativeHeapNumber, str.length));
+  assertEquals("abc", str.substr(-str.length, str.length));
+  assertEquals("abc", str.substr(0, str.length));
+  assertEquals("bc", str.substr(-2, str.length));
+  assertEquals("c", str.substr(-1, str.length));
+
+  assertEquals("", str.substr(str.length));
+  assertEquals("", str.substr(4));
+  assertEquals("", str.substr(positiveHeapNumber));
+
+  assertEquals("abc", str.substr(negativeHeapNumber, positiveHeapNumber));
+  assertEquals("abc", str.substr(negativeHeapNumber, positiveHeapNumber));
+  assertEquals("abc", str.substr(-str.length, positiveHeapNumber));
+  assertEquals("abc", str.substr(0, positiveHeapNumber));
+  assertEquals("bc", str.substr(-2, positiveHeapNumber));
+  assertEquals("c", str.substr(-1, positiveHeapNumber));
+
+  assertEquals("", str.substr(str.length, positiveHeapNumber));
+  assertEquals("", str.substr(4, positiveHeapNumber));
+  assertEquals("", str.substr(positiveHeapNumber, positiveHeapNumber));
+
+  assertEquals("", str.substr(negativeHeapNumber, negativeHeapNumber));
+  assertEquals("", str.substr(negativeHeapNumber, negativeHeapNumber));
+  assertEquals("", str.substr(-str.length, negativeHeapNumber));
+  assertEquals("", str.substr(0, negativeHeapNumber));
+  assertEquals("", str.substr(-2, negativeHeapNumber));
+  assertEquals("", str.substr(-1, negativeHeapNumber));
+
+  assertEquals("", str.substr(str.length, negativeHeapNumber));
+  assertEquals("", str.substr(4, negativeHeapNumber));
+  assertEquals("", str.substr(positiveHeapNumber, negativeHeapNumber));
+
+  assertEquals("", str.substr(negativeHeapNumber, -1));
+  assertEquals("", str.substr(negativeHeapNumber, -1));
+  assertEquals("", str.substr(-str.length, -1));
+  assertEquals("", str.substr(0, -1));
+  assertEquals("", str.substr(-2, -1));
+  assertEquals("", str.substr(-1, -1));
+
+  assertEquals("", str.substr(str.length, -1));
+  assertEquals("", str.substr(4, -1));
+  assertEquals("", str.substr(positiveHeapNumber, -1));
+
+  assertEquals("abc", str.substr(undefined));
+  assertEquals("abc", str.substr(undefined, undefined));
+}

@@ -39,6 +39,7 @@ import mmap
 import optparse
 import os
 import re
+import StringIO
 import sys
 import types
 import urllib
@@ -1745,10 +1746,12 @@ class InspectionInfo(object):
     frame_pointer = self.reader.ExceptionFP()
     self.styles[frame_pointer] = "frame"
     for slot in xrange(stack_top, stack_bottom, self.reader.PointerSize()):
-      self.styles[slot] = "stackaddress"
+      # stack address
+      self.styles[slot] = "sa"
     for slot in xrange(stack_top, stack_bottom, self.reader.PointerSize()):
       maybe_address = self.reader.ReadUIntPtr(slot)
-      self.styles[maybe_address] = "stackval"
+      # stack value
+      self.styles[maybe_address] = "sv"
       if slot == frame_pointer:
         self.styles[slot] = "frame"
         frame_pointer = maybe_address
@@ -1760,7 +1763,7 @@ class InspectionInfo(object):
   def get_style_class_string(self, address):
     style = self.get_style_class(address)
     if style != None:
-      return " class=\"%s\" " % style
+      return " class=%s " % style
     else:
       return ""
 
@@ -1875,11 +1878,13 @@ WEB_HEADER = """
 .dmptable {
   border-collapse : collapse;
   border-spacing : 0px;
+  table-layout: fixed;
 }
 
 .codedump {
   border-collapse : collapse;
   border-spacing : 0px;
+  table-layout: fixed;
 }
 
 .addrcomments {
@@ -1932,11 +1937,11 @@ input {
   background-color : cyan;
 }
 
-.stackaddress {
+.stackaddress, .sa {
   background-color : LightGray;
 }
 
-.stackval {
+.stackval, .sv {
   background-color : LightCyan;
 }
 
@@ -1944,16 +1949,17 @@ input {
   background-color : cyan;
 }
 
-.commentinput {
+.commentinput, .ci {
   width : 20em;
 }
 
-a.nodump:visited {
+/* a.nodump */
+a.nd:visited {
   color : black;
   text-decoration : none;
 }
 
-a.nodump:link {
+a.nd:link {
   color : black;
   text-decoration : none;
 }
@@ -1984,6 +1990,7 @@ function comment() {
     send_comment(s.substring(index + address_len), event.srcElement.value);
   }
 }
+var c = comment;
 
 function send_comment(address, comment) {
   xmlhttp = new XMLHttpRequest();
@@ -2038,7 +2045,7 @@ function onpage(kind, address) {
 
 <body>
   <div class="header">
-    <form class="navigation" action="search.html">
+    <form class="navigation" action=/search.html">
       <a href="summary.html?%(query_dump)s">Context info</a>&nbsp;&nbsp;&nbsp;
       <a href="info.html?%(query_dump)s">Dump info</a>&nbsp;&nbsp;&nbsp;
       <a href="modules.html?%(query_dump)s">Modules</a>&nbsp;&nbsp;&nbsp;
@@ -2095,24 +2102,34 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       query_components = urlparse.parse_qs(parsedurl.query)
       if parsedurl.path == "/dumps.html":
         self.send_success_html_headers()
-        self.server.output_dumps(self.wfile)
+        out_buffer = StringIO.StringIO()
+        self.server.output_dumps(out_buffer)
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/summary.html":
         self.send_success_html_headers()
-        self.formatter(query_components).output_summary(self.wfile)
+        out_buffer = StringIO.StringIO()
+        self.formatter(query_components).output_summary(out_buffer)
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/info.html":
         self.send_success_html_headers()
-        self.formatter(query_components).output_info(self.wfile)
+        out_buffer = StringIO.StringIO()
+        self.formatter(query_components).output_info(out_buffer)
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/modules.html":
         self.send_success_html_headers()
-        self.formatter(query_components).output_modules(self.wfile)
-      elif parsedurl.path == "/search.html":
+        out_buffer = StringIO.StringIO()
+        self.formatter(query_components).output_modules(out_buffer)
+        self.wfile.write(out_buffer.getvalue())
+      elif parsedurl.path == "/search.html" or parsedurl.path == "/s":
         address = query_components.get("val", [])
         if len(address) != 1:
           self.send_error(404, "Invalid params")
           return
         self.send_success_html_headers()
+        out_buffer = StringIO.StringIO()
         self.formatter(query_components).output_search_res(
-            self.wfile, address[0])
+            out_buffer, address[0])
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/disasm.html":
         address = query_components.get("val", [])
         exact = query_components.get("exact", ["on"])
@@ -2120,15 +2137,19 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
           self.send_error(404, "Invalid params")
           return
         self.send_success_html_headers()
+        out_buffer = StringIO.StringIO()
         self.formatter(query_components).output_disasm(
-            self.wfile, address[0], exact[0])
+            out_buffer, address[0], exact[0])
+        self.wfile.write(out_buffer.getvalue())
       elif parsedurl.path == "/data.html":
         address = query_components.get("val", [])
         datakind = query_components.get("type", ["address"])
         if len(address) == 1 and len(datakind) == 1:
           self.send_success_html_headers()
+          out_buffer = StringIO.StringIO()
           self.formatter(query_components).output_data(
-              self.wfile, address[0], datakind[0])
+              out_buffer, address[0], datakind[0])
+          self.wfile.write(out_buffer.getvalue())
         else:
           self.send_error(404,'Invalid params')
       elif parsedurl.path == "/setdumpdesc":
@@ -2235,8 +2256,8 @@ class InspectionWebFormatter(object):
         straddress = "0x" + self.reader.FormatIntPtr(maybeaddress)
       style_class = ""
       if not self.reader.IsValidAddress(maybeaddress):
-        style_class = " class=\"nodump\""
-      return ("<a %s href=\"search.html?%s&amp;val=%s\">%s</a>" %
+        style_class = "class=nd"
+      return ("<a %s href=s?%s&amp;val=%s>%s</a>" %
               (style_class, self.encfilename, straddress, straddress))
 
   def output_header(self, f):
@@ -2247,7 +2268,7 @@ class InspectionWebFormatter(object):
   def output_footer(self, f):
     f.write(WEB_FOOTER)
 
-  MAX_CONTEXT_STACK = 4096
+  MAX_CONTEXT_STACK = 2048
 
   def output_summary(self, f):
     self.output_header(f)
@@ -2257,9 +2278,10 @@ class InspectionWebFormatter(object):
 
     # Output stack
     exception_thread = self.reader.thread_map[self.reader.exception.thread_id]
-    stack_bottom = exception_thread.stack.start + \
-        min(exception_thread.stack.memory.data_size, self.MAX_CONTEXT_STACK)
     stack_top = self.reader.ExceptionSP()
+    stack_bottom = min(exception_thread.stack.start + \
+        exception_thread.stack.memory.data_size,
+        stack_top + self.MAX_CONTEXT_STACK)
     self.output_words(f, stack_top - 16, stack_bottom, stack_top, "Stack")
 
     f.write('</div>')
@@ -2268,14 +2290,14 @@ class InspectionWebFormatter(object):
 
   def output_info(self, f):
     self.output_header(f)
-    f.write("<h3>Dump info</h3>\n")
+    f.write("<h3>Dump info</h3>")
     f.write("Description: ")
     self.server.output_dump_desc_field(f, self.dumpfilename)
-    f.write("<br>\n")
+    f.write("<br>")
     f.write("Filename: ")
-    f.write("<span class=\"code\">%s</span><br>\n" % (self.dumpfilename))
+    f.write("<span class=\"code\">%s</span><br>" % (self.dumpfilename))
     dt = datetime.datetime.fromtimestamp(self.reader.header.time_date_stampt)
-    f.write("Timestamp: %s<br>\n" % dt.strftime('%Y-%m-%d %H:%M:%S'))
+    f.write("Timestamp: %s<br>" % dt.strftime('%Y-%m-%d %H:%M:%S'))
     self.output_context(f, InspectionWebFormatter.CONTEXT_FULL)
     self.output_address_ranges(f)
     self.output_footer(f)
@@ -2286,22 +2308,22 @@ class InspectionWebFormatter(object):
     def print_region(_reader, start, size, _location):
       regions[start] = size
     self.reader.ForEachMemoryRegion(print_region)
-    f.write("<h3>Available memory regions</h3>\n")
+    f.write("<h3>Available memory regions</h3>")
     f.write('<div class="code">')
-    f.write("<table class=\"regions\">\n")
+    f.write("<table class=\"regions\">")
     f.write("<thead><tr>")
     f.write("<th>Start address</th>")
     f.write("<th>End address</th>")
     f.write("<th>Number of bytes</th>")
-    f.write("</tr></thead>\n")
+    f.write("</tr></thead>")
     for start in sorted(regions):
       size = regions[start]
       f.write("<tr>")
       f.write("<td>%s</td>" % self.format_address(start))
       f.write("<td>&nbsp;%s</td>" % self.format_address(start + size))
       f.write("<td>&nbsp;%d</td>" % size)
-      f.write("</tr>\n")
-    f.write("</table>\n")
+      f.write("</tr>")
+    f.write("</table>")
     f.write('</div>')
     return
 
@@ -2311,19 +2333,19 @@ class InspectionWebFormatter(object):
                                     module.version_info.dwFileVersionLS)
     product_version = GetVersionString(module.version_info.dwProductVersionMS,
                                        module.version_info.dwProductVersionLS)
-    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("<br>&nbsp;&nbsp;")
     f.write("base: %s" % self.reader.FormatIntPtr(module.base_of_image))
-    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("<br>&nbsp;&nbsp;")
     f.write("  end: %s" % self.reader.FormatIntPtr(module.base_of_image +
                                             module.size_of_image))
-    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("<br>&nbsp;&nbsp;")
     f.write("  file version: %s" % file_version)
-    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("<br>&nbsp;&nbsp;")
     f.write("  product version: %s" % product_version)
-    f.write("<br>&nbsp;&nbsp;\n")
+    f.write("<br>&nbsp;&nbsp;")
     time_date_stamp = datetime.datetime.fromtimestamp(module.time_date_stamp)
     f.write("  timestamp: %s" % time_date_stamp)
-    f.write("<br>\n");
+    f.write("<br>");
 
   def output_modules(self, f):
     self.output_header(f)
@@ -2337,16 +2359,16 @@ class InspectionWebFormatter(object):
   def output_context(self, f, details):
     exception_thread = self.reader.thread_map[self.reader.exception.thread_id]
     f.write("<h3>Exception context</h3>")
-    f.write('<div class="code">\n')
+    f.write('<div class="code">')
     f.write("Thread id: %d" % exception_thread.id)
-    f.write("&nbsp;&nbsp; Exception code: %08X<br/>\n" %
+    f.write("&nbsp;&nbsp; Exception code: %08X<br/>" %
             self.reader.exception.exception.code)
     if details == InspectionWebFormatter.CONTEXT_FULL:
       if self.reader.exception.exception.parameter_count > 0:
-        f.write("&nbsp;&nbsp; Exception parameters: \n")
+        f.write("&nbsp;&nbsp; Exception parameters: ")
         for i in xrange(0, self.reader.exception.exception.parameter_count):
           f.write("%08x" % self.reader.exception.exception.information[i])
-        f.write("<br><br>\n")
+        f.write("<br><br>")
 
     for r in CONTEXT_FOR_ARCH[self.reader.arch]:
       f.write(HTML_REG_FORMAT %
@@ -2357,7 +2379,7 @@ class InspectionWebFormatter(object):
     else:
       f.write("<b>eflags</b>: %s" %
               bin(self.reader.exception_context.eflags)[2:])
-    f.write('</div>\n')
+    f.write('</div>')
     return
 
   def align_down(self, a, size):
@@ -2394,7 +2416,7 @@ class InspectionWebFormatter(object):
                    highlight_address, desc):
     region = self.reader.FindRegion(highlight_address)
     if region is None:
-      f.write("<h3>Address 0x%x not found in the dump.</h3>\n" %
+      f.write("<h3>Address 0x%x not found in the dump.</h3>" %
               (highlight_address))
       return
     size = self.heap.PointerSize()
@@ -2415,10 +2437,10 @@ class InspectionWebFormatter(object):
                 (self.encfilename, highlight_address))
 
     f.write("<h3>%s 0x%x - 0x%x, "
-            "highlighting <a href=\"#highlight\">0x%x</a> %s</h3>\n" %
+            "highlighting <a href=\"#highlight\">0x%x</a> %s</h3>" %
             (desc, start_address, end_address, highlight_address, expand))
     f.write('<div class="code">')
-    f.write("<table class=\"codedump\">\n")
+    f.write("<table class=codedump>")
 
     for j in xrange(0, end_address - start_address, size):
       slot = start_address + j
@@ -2440,33 +2462,31 @@ class InspectionWebFormatter(object):
         if maybe_address:
           heap_object = self.format_object(maybe_address)
 
-      address_fmt = "%s&nbsp;</td>\n"
+      address_fmt = "%s&nbsp;</td>"
       if slot == highlight_address:
-        f.write("<tr class=\"highlight-line\">\n")
-        address_fmt = "<a id=\"highlight\"></a>%s&nbsp;</td>\n"
+        f.write("<tr class=highlight-line>")
+        address_fmt = "<a id=highlight></a>%s&nbsp;</td>"
       elif slot < highlight_address and highlight_address < slot + size:
-        f.write("<tr class=\"inexact-highlight-line\">\n")
-        address_fmt = "<a id=\"highlight\"></a>%s&nbsp;</td>\n"
+        f.write("<tr class=inexact-highlight-line>")
+        address_fmt = "<a id=highlight></a>%s&nbsp;</td>"
       else:
-        f.write("<tr>\n")
+        f.write("<tr>")
 
-      f.write("  <td>")
+      f.write("<td>")
       self.output_comment_box(f, "da-", slot)
-      f.write("</td>\n")
-      f.write("  ")
+      f.write("</td>")
       self.td_from_address(f, slot)
       f.write(address_fmt % self.format_address(slot))
-      f.write("  ")
       self.td_from_address(f, maybe_address)
-      f.write(":&nbsp;%s&nbsp;</td>\n" % straddress)
-      f.write("  <td>")
+      f.write(":&nbsp;%s&nbsp;</td>" % straddress)
+      f.write("<td>")
       if maybe_address != None:
         self.output_comment_box(
             f, "sv-" + self.reader.FormatIntPtr(slot), maybe_address)
-      f.write("  </td>\n")
-      f.write("  <td>%s</td>\n" % (heap_object or ''))
-      f.write("</tr>\n")
-    f.write("</table>\n")
+      f.write("</td>")
+      f.write("<td>%s</td>" % (heap_object or ''))
+      f.write("</tr>")
+    f.write("</table>")
     f.write("</div>")
     return
 
@@ -2565,7 +2585,7 @@ class InspectionWebFormatter(object):
     f.write("<h3>Disassembling 0x%x - 0x%x, highlighting 0x%x %s</h3>" %
             (start_address, end_address, highlight_address, expand))
     f.write('<div class="code">')
-    f.write("<table class=\"codedump\">\n");
+    f.write("<table class=\"codedump\">");
     for i in xrange(len(lines)):
       line = lines[i]
       next_address = count
@@ -2574,7 +2594,7 @@ class InspectionWebFormatter(object):
         next_address = next_line[0]
       self.format_disasm_line(
           f, start_address, line, next_address, highlight_address)
-    f.write("</table>\n")
+    f.write("</table>")
     f.write("</div>")
     return
 
@@ -2590,22 +2610,22 @@ class InspectionWebFormatter(object):
       extra.append(cgi.escape(str(object_info)))
     if len(extra) == 0:
       return line
-    return ("%s <span class=\"disasmcomment\">;; %s</span>" %
+    return ("%s <span class=disasmcomment>;; %s</span>" %
             (line, ", ".join(extra)))
 
   def format_disasm_line(
       self, f, start, line, next_address, highlight_address):
     line_address = start + line[0]
-    address_fmt = "  <td>%s</td>\n"
+    address_fmt = "  <td>%s</td>"
     if line_address == highlight_address:
-      f.write("<tr class=\"highlight-line\">\n")
-      address_fmt = "  <td><a id=\"highlight\">%s</a></td>\n"
+      f.write("<tr class=highlight-line>")
+      address_fmt = "  <td><a id=highlight>%s</a></td>"
     elif (line_address < highlight_address and
           highlight_address < next_address + start):
-      f.write("<tr class=\"inexact-highlight-line\">\n")
-      address_fmt = "  <td><a id=\"highlight\">%s</a></td>\n"
+      f.write("<tr class=inexact-highlight-line>")
+      address_fmt = "  <td><a id=highlight>%s</a></td>"
     else:
-      f.write("<tr>\n")
+      f.write("<tr>")
     num_bytes = next_address - line[0]
     stack_slot = self.heap.stack_map.get(line_address)
     marker = ""
@@ -2630,22 +2650,26 @@ class InspectionWebFormatter(object):
     code = self.annotate_disasm_addresses(code[op_offset:])
     f.write("  <td>")
     self.output_comment_box(f, "codel-", line_address)
-    f.write("</td>\n")
+    f.write("</td>")
     f.write(address_fmt % marker)
     f.write("  ")
     self.td_from_address(f, line_address)
-    f.write("%s (+0x%x)</td>\n" %
-            (self.format_address(line_address), line[0]))
-    f.write("  <td>:&nbsp;%s&nbsp;</td>\n" % opcodes)
-    f.write("  <td>%s</td>\n" % code)
-    f.write("</tr>\n")
+    f.write(self.format_address(line_address))
+    f.write(" (+0x%x)</td>" % line[0])
+    f.write("<td>:&nbsp;%s&nbsp;</td>" % opcodes)
+    f.write("<td>%s</td>" % code)
+    f.write("</tr>")
 
   def output_comment_box(self, f, prefix, address):
-    f.write("<input type=\"text\" class=\"commentinput\" "
-            "id=\"%s-address-0x%s\" onchange=\"comment()\" value=\"%s\">" %
+    comment = self.comments.get_comment(address)
+    value = ""
+    if comment:
+      value = " value=\"%s\"" % cgi.escape(comment)
+    f.write("<input type=text class=ci "
+            "id=%s-address-0x%s onchange=c()%s>" %
             (prefix,
              self.reader.FormatIntPtr(address),
-             cgi.escape(self.comments.get_comment(address)) or ""))
+             value))
 
   MAX_FOUND_RESULTS = 100
 
@@ -2655,27 +2679,27 @@ class InspectionWebFormatter(object):
     if toomany:
       f.write("(found %i results, displaying only first %i)" %
               (len(results), self.MAX_FOUND_RESULTS))
-    f.write(": \n")
+    f.write(": ")
     results = sorted(results)
     results = results[:min(len(results), self.MAX_FOUND_RESULTS)]
     for address in results:
-      f.write("<span %s>%s</span>\n" %
+      f.write("<span %s>%s</span>" %
               (self.comments.get_style_class_string(address),
                self.format_address(address)))
     if toomany:
-      f.write("...\n")
+      f.write("...")
 
 
   def output_page_info(self, f, page_kind, page_address, my_page_address):
     if my_page_address == page_address and page_address != 0:
-      f.write("Marked first %s page.\n" % page_kind)
+      f.write("Marked first %s page." % page_kind)
     else:
       f.write("<span id=\"%spage\" style=\"display:none\">" % page_kind)
       f.write("Marked first %s page." % page_kind)
       f.write("</span>\n")
       f.write("<button onclick=\"onpage('%spage', '0x%x')\">" %
               (page_kind, my_page_address))
-      f.write("Mark as first %s page</button>\n" % page_kind)
+      f.write("Mark as first %s page</button>" % page_kind)
     return
 
   def output_search_res(self, f, straddress):
@@ -2687,11 +2711,11 @@ class InspectionWebFormatter(object):
 
       f.write("Comment: ")
       self.output_comment_box(f, "search-", address)
-      f.write("<br>\n")
+      f.write("<br>")
 
       page_address = address & ~self.heap.PageAlignmentMask()
 
-      f.write("Page info: \n")
+      f.write("Page info: ")
       self.output_page_info(f, "old", self.padawan.known_first_old_page, \
                             page_address)
       self.output_page_info(f, "map", self.padawan.known_first_map_page, \
@@ -2705,27 +2729,27 @@ class InspectionWebFormatter(object):
         self.output_words(f, address - 8, address + 32, address, "Dump")
 
         # Print as ASCII
-        f.write("<hr>\n")
+        f.write("<hr>")
         self.output_ascii(f, address, address + 256, address)
 
         # Print as code
-        f.write("<hr>\n")
+        f.write("<hr>")
         self.output_disasm_range(f, address - 16, address + 16, address, True)
 
       aligned_res, unaligned_res = self.reader.FindWordList(address)
 
       if len(aligned_res) > 0:
-        f.write("<h3>Occurrences of 0x%x at aligned addresses</h3>\n" %
+        f.write("<h3>Occurrences of 0x%x at aligned addresses</h3>" %
                 address)
         self.output_find_results(f, aligned_res)
 
       if len(unaligned_res) > 0:
-        f.write("<h3>Occurrences of 0x%x at unaligned addresses</h3>\n" % \
+        f.write("<h3>Occurrences of 0x%x at unaligned addresses</h3>" % \
                 address)
         self.output_find_results(f, unaligned_res)
 
       if len(aligned_res) + len(unaligned_res) == 0:
-        f.write("<h3>No occurences of 0x%x found in the dump</h3>\n" % address)
+        f.write("<h3>No occurences of 0x%x found in the dump</h3>" % address)
 
       self.output_footer(f)
 

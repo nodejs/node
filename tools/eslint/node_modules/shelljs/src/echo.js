@@ -1,7 +1,14 @@
 var common = require('./common');
 
+common.register('echo', _echo, {
+  allowGlobbing: false,
+});
+
 //@
-//@ ### echo(string [, string ...])
+//@ ### echo([options,] string [, string ...])
+//@ Available options:
+//@
+//@ + `-e`: interpret backslash escapes (default)
 //@
 //@ Examples:
 //@
@@ -12,9 +19,16 @@ var common = require('./common');
 //@
 //@ Prints string to stdout, and returns string with additional utility methods
 //@ like `.to()`.
-function _echo() {
-  var messages = [].slice.call(arguments, 0);
+function _echo(opts, messages) {
+  // allow strings starting with '-', see issue #20
+  messages = [].slice.call(arguments, opts ? 0 : 1);
+
+  if (messages[0] === '-e') {
+    // ignore -e
+    messages.shift();
+  }
+
   console.log.apply(console, messages);
-  return common.ShellString(messages.join(' '));
+  return messages.join(' ');
 }
 module.exports = _echo;

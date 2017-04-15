@@ -5,7 +5,7 @@
 
 "use strict";
 
-var ACCEPTABLE_PARENTS = [
+const ACCEPTABLE_PARENTS = [
     "AssignmentExpression",
     "VariableDeclarator",
     "MemberExpression",
@@ -23,17 +23,15 @@ var ACCEPTABLE_PARENTS = [
  * @returns {Reference|null} Returns the found reference or null if none were found.
  */
 function findReference(scope, node) {
-    var references = scope.references.filter(function(reference) {
-        return reference.identifier.range[0] === node.range[0] &&
-            reference.identifier.range[1] === node.range[1];
-    });
+    const references = scope.references.filter(reference => reference.identifier.range[0] === node.range[0] &&
+            reference.identifier.range[1] === node.range[1]);
 
     /* istanbul ignore else: correctly returns null */
     if (references.length === 1) {
         return references[0];
-    } else {
-        return null;
     }
+    return null;
+
 }
 
 /**
@@ -43,7 +41,7 @@ function findReference(scope, node) {
  * @returns {boolean} Whether or not the name is shadowed.
  */
 function isShadowed(scope, node) {
-    var reference = findReference(scope, node);
+    const reference = findReference(scope, node);
 
     return reference && reference.resolved && reference.resolved.defs.length > 0;
 }
@@ -59,18 +57,16 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         return {
-            CallExpression: function(node) {
-                var currentScope = context.getScope(),
-                    isGoodRequire;
+            CallExpression(node) {
+                const currentScope = context.getScope();
 
                 if (node.callee.name === "require" && !isShadowed(currentScope, node.callee)) {
-                    isGoodRequire = context.getAncestors().every(function(parent) {
-                        return ACCEPTABLE_PARENTS.indexOf(parent.type) > -1;
-                    });
+                    const isGoodRequire = context.getAncestors().every(parent => ACCEPTABLE_PARENTS.indexOf(parent.type) > -1);
+
                     if (!isGoodRequire) {
-                        context.report(node, "Unexpected require().");
+                        context.report({ node, message: "Unexpected require()." });
                     }
                 }
             }

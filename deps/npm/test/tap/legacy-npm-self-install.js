@@ -45,12 +45,11 @@ test('npm-self-install', function (t) {
   var pathsep = isWin32 ? ';' : ':'
   env.npm_config_prefix = globalpath
   env.npm_config_global = 'true'
-  env.npm_config_npat = 'false'
   env.NODE_PATH = null
   env.npm_config_user_agent = null
   env.npm_config_color = 'always'
   env.npm_config_progress = 'always'
-  var PATH = env.PATH.split(pathsep)
+  var PATH = env.PATH ? env.PATH.split(pathsep) : []
   var binpath = isWin32 ? globalpath : path.join(globalpath, 'bin')
   var cmdname = isWin32 ? 'npm.cmd' : 'npm'
   PATH.unshift(binpath)
@@ -63,7 +62,7 @@ test('npm-self-install', function (t) {
     if (err) throw err
     t.is(code, 0, 'install went ok')
     t.is(exists(binpath, cmdname), true, 'binary was installed')
-    t.is(exists(globalpath, 'lib', 'node_modules', 'npm'), true, 'module path exists')
+    t.is(exists(globalpath, isWin32 ? '' : 'lib', 'node_modules', 'npm'), true, 'module path exists')
     common.npm(['ls', '--json', '--depth=0'], {cwd: basepath, env: env}, lsCheckAndRemove)
   }
   function lsCheckAndRemove (err, code, stdout, stderr) {
@@ -73,7 +72,7 @@ test('npm-self-install', function (t) {
     var installed = JSON.parse(stdout.trim())
     t.is(Object.keys(installed.dependencies).length, 1, 'one thing installed')
     t.is(path.resolve(globalpath, installed.dependencies.npm.from), tarball, 'and it was our npm tarball')
-    common.npm(['rm', 'npm'], {cwd: basepath, env: env, stdio: 'inherit'}, removeCheck)
+    common.npm(['rm', 'npm'], {cwd: basepath, env: env}, removeCheck)
   }
   function removeCheck (err, code) {
     if (err) throw err

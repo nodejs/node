@@ -20,11 +20,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         // A stack of lone blocks to be checked for block-level bindings
-        var loneBlocks = [],
-            ruleDef;
+        const loneBlocks = [];
+        let ruleDef;
 
         /**
          * Reports a node as invalid.
@@ -32,22 +32,22 @@ module.exports = {
          * @returns {void}
         */
         function report(node) {
-            var parent = context.getAncestors().pop();
+            const message = node.parent.type === "BlockStatement" ? "Nested block is redundant." : "Block is redundant.";
 
-            context.report(node, parent.type === "Program" ?
-                "Block is redundant." :
-                "Nested block is redundant."
-            );
+            context.report({ node, message });
         }
 
         /**
-         * Checks for any ocurrence of BlockStatement > BlockStatement or Program > BlockStatement
-         * @returns {boolean} True if the current node is a lone block.
+         * Checks for any ocurrence of a BlockStatement in a place where lists of statements can appear
+         * @param {ASTNode} node The node to check
+         * @returns {boolean} True if the node is a lone block.
         */
-        function isLoneBlock() {
-            var parent = context.getAncestors().pop();
+        function isLoneBlock(node) {
+            return node.parent.type === "BlockStatement" ||
+                node.parent.type === "Program" ||
 
-            return parent.type === "BlockStatement" || parent.type === "Program";
+                // Don't report blocks in switch cases if the block is the only statement of the case.
+                node.parent.type === "SwitchCase" && !(node.parent.consequent[0] === node && node.parent.consequent.length === 1);
         }
 
         /**
@@ -60,7 +60,7 @@ module.exports = {
                 return;
             }
 
-            var block = context.getAncestors().pop();
+            const block = context.getAncestors().pop();
 
             if (loneBlocks[loneBlocks.length - 1] === block) {
                 loneBlocks.pop();
@@ -69,7 +69,7 @@ module.exports = {
 
         // Default rule definition: report all lone blocks
         ruleDef = {
-            BlockStatement: function(node) {
+            BlockStatement(node) {
                 if (isLoneBlock(node)) {
                     report(node);
                 }
@@ -79,12 +79,12 @@ module.exports = {
         // ES6: report blocks without block-level bindings
         if (context.parserOptions.ecmaVersion >= 6) {
             ruleDef = {
-                BlockStatement: function(node) {
+                BlockStatement(node) {
                     if (isLoneBlock(node)) {
                         loneBlocks.push(node);
                     }
                 },
-                "BlockStatement:exit": function(node) {
+                "BlockStatement:exit"(node) {
                     if (loneBlocks.length > 0 && loneBlocks[loneBlocks.length - 1] === node) {
                         loneBlocks.pop();
                         report(node);

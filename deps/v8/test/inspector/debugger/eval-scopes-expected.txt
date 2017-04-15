@@ -1,0 +1,19 @@
+{
+    id : <messageId>
+    result : {
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : hest
+                value : {
+                    description : 420
+                    type : number
+                    value : 420
+                }
+                writable : true
+            }
+        ]
+    }
+}

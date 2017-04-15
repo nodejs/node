@@ -37,6 +37,7 @@
       'sources': [
         'common.gypi',
         'include/ares.h',
+        'include/ares_rules.h',
         'include/ares_version.h',
         'include/nameser.h',
         'src/ares_cancel.c',
@@ -83,7 +84,6 @@
         'src/ares_process.c',
         'src/ares_query.c',
         'src/ares__read_line.c',
-        'src/ares_rules.h',
         'src/ares_search.c',
         'src/ares_send.c',
         'src/ares_setup.h',

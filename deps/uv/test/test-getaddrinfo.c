@@ -83,6 +83,13 @@ static void getaddrinfo_cuncurrent_cb(uv_getaddrinfo_t* handle,
 TEST_IMPL(getaddrinfo_fail) {
   uv_getaddrinfo_t req;
 
+  ASSERT(UV_EINVAL == uv_getaddrinfo(uv_default_loop(),
+                                     &req,
+                                     (uv_getaddrinfo_cb) abort,
+                                     NULL,
+                                     NULL,
+                                     NULL));
+
   /* Use a FQDN by ending in a period */
   ASSERT(0 == uv_getaddrinfo(uv_default_loop(),
                              &req,

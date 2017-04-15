@@ -10,7 +10,7 @@
 (function() {
   function f(n) {
     if (n <= 0) {
-      return  "foo";
+      return "foo";
     }
     return f(n - 1);
   }
@@ -27,9 +27,23 @@
   "use strict";
   function f(n) {
     if (n <= 0) {
-      return  "foo";
+      return "foo";
     }
     return f(n - 1);
+  }
+  assertEquals("foo", f(1e5));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals("foo", f(1e5));
+})();
+
+
+(function() {
+  "use strict";
+  function f(n) {
+    if (n <= 0) {
+      return  "foo";
+    }
+    return f(n - 1, 42);  // Call with arguments adaptor.
   }
   assertEquals("foo", f(1e5));
   %OptimizeFunctionOnNextCall(f);
@@ -50,6 +64,28 @@
       return "bar";
     }
     return f(n - 1);
+  }
+  assertEquals("foo", f(1e5));
+  assertEquals("bar", f(1e5 + 1));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals("foo", f(1e5));
+  assertEquals("bar", f(1e5 + 1));
+})();
+
+
+(function() {
+  "use strict";
+  function f(n){
+    if (n <= 0) {
+      return "foo";
+    }
+    return g(n - 1, 42);  // Call with arguments adaptor.
+  }
+  function g(n){
+    if (n <= 0) {
+      return "bar";
+    }
+    return f(n - 1, 42);  // Call with arguments adaptor.
   }
   assertEquals("foo", f(1e5));
   assertEquals("bar", f(1e5 + 1));

@@ -1,0 +1,35 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+if (v8_enable_inspector) {
+  v8_executable("inspector-test") {
+    testonly = true
+
+    sources = [
+      "inspector-impl.cc",
+      "inspector-impl.h",
+      "inspector-test.cc",
+      "task-runner.cc",
+      "task-runner.h",
+    ]
+
+    configs = [
+      "../..:external_config",
+      "../..:internal_config_base",
+    ]
+
+    deps = [
+      "../..:v8",
+      "../..:v8_libbase",
+      "../..:v8_libplatform",
+      "//build/config/sanitizers:deps",
+      "//build/win:default_exe_manifest",
+    ]
+
+    cflags = []
+    ldflags = []
+  }
+}

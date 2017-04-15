@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -16,11 +22,13 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
-    create: function(context) {
-        var scopeInfo = null;
+    create(context) {
+        let scopeInfo = null;
 
         /**
          * Reports a given function node.
@@ -33,33 +41,14 @@ module.exports = {
             context.report({
                 node: node.parent.parent,
                 message: "The function binding is unnecessary.",
-                loc: node.parent.property.loc.start
-            });
-        }
+                loc: node.parent.property.loc.start,
+                fix(fixer) {
+                    const firstTokenToRemove = context.getSourceCode()
+                        .getFirstTokenBetween(node.parent.object, node.parent.property, astUtils.isNotClosingParenToken);
 
-        /**
-         * Gets the property name of a given node.
-         * If the property name is dynamic, this returns an empty string.
-         *
-         * @param {ASTNode} node - A node to check. This is a MemberExpression.
-         * @returns {string} The property name of the node.
-         */
-        function getPropertyName(node) {
-            if (node.computed) {
-                switch (node.property.type) {
-                    case "Literal":
-                        return String(node.property.value);
-                    case "TemplateLiteral":
-                        if (node.property.expressions.length === 0) {
-                            return node.property.quasis[0].value.cooked;
-                        }
-
-                        // fallthrough
-                    default:
-                        return false;
+                    return fixer.removeRange([firstTokenToRemove.range[0], node.parent.parent.range[1]]);
                 }
-            }
-            return node.property.name;
+            });
         }
 
         /**
@@ -73,8 +62,8 @@ module.exports = {
          * @returns {boolean} `true` if the node is the callee of `.bind()` method.
          */
         function isCalleeOfBindMethod(node) {
-            var parent = node.parent;
-            var grandparent = parent.parent;
+            const parent = node.parent;
+            const grandparent = parent.parent;
 
             return (
                 grandparent &&
@@ -83,7 +72,7 @@ module.exports = {
                 grandparent.arguments.length === 1 &&
                 parent.type === "MemberExpression" &&
                 parent.object === node &&
-                getPropertyName(parent) === "bind"
+                astUtils.getStaticPropertyName(parent) === "bind"
             );
         }
 

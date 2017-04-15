@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #include "node.h"
 #include "env.h"
 #include "env-inl.h"
@@ -10,14 +31,15 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
+using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::NewStringType;
 using v8::Object;
+using v8::ScriptCompiler;
 using v8::String;
 using v8::Uint32;
 using v8::V8;
@@ -29,7 +51,10 @@ using v8::Value;
   V(2, total_physical_size, kTotalPhysicalSizeIndex)                          \
   V(3, total_available_size, kTotalAvailableSize)                             \
   V(4, used_heap_size, kUsedHeapSizeIndex)                                    \
-  V(5, heap_size_limit, kHeapSizeLimitIndex)
+  V(5, heap_size_limit, kHeapSizeLimitIndex)                                  \
+  V(6, malloced_memory, kMallocedMemoryIndex)                                 \
+  V(7, peak_malloced_memory, kPeakMallocedMemoryIndex)                        \
+  V(8, does_zap_garbage, kDoesZapGarbageIndex)
 
 #define V(a, b, c) +1
 static const size_t kHeapStatisticsPropertiesCount =
@@ -51,12 +76,21 @@ static const size_t kHeapSpaceStatisticsPropertiesCount =
 static size_t number_of_heap_spaces = 0;
 
 
+void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Integer> result =
+      Integer::NewFromUnsigned(env->isolate(),
+                               ScriptCompiler::CachedDataVersionTag());
+  args.GetReturnValue().Set(result);
+}
+
+
 void UpdateHeapStatisticsArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   HeapStatistics s;
   env->isolate()->GetHeapStatistics(&s);
-  uint32_t* const buffer = env->heap_statistics_buffer();
-#define V(index, name, _) buffer[index] = static_cast<uint32_t>(s.name());
+  double* const buffer = env->heap_statistics_buffer();
+#define V(index, name, _) buffer[index] = static_cast<double>(s.name());
   HEAP_STATISTICS_PROPERTIES(V)
 #undef V
 }
@@ -66,13 +100,13 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   HeapSpaceStatistics s;
   Isolate* const isolate = env->isolate();
-  uint32_t* buffer = env->heap_space_statistics_buffer();
+  double* buffer = env->heap_space_statistics_buffer();
 
   for (size_t i = 0; i < number_of_heap_spaces; i++) {
     isolate->GetHeapSpaceStatistics(&s, i);
     size_t const property_offset = i * kHeapSpaceStatisticsPropertiesCount;
 #define V(index, name, _) buffer[property_offset + index] = \
-                              static_cast<uint32_t>(s.name());
+                              static_cast<double>(s.name());
       HEAP_SPACE_STATISTICS_PROPERTIES(V)
 #undef V
   }
@@ -97,11 +131,13 @@ void InitializeV8Bindings(Local<Object> target,
                           Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
+  env->SetMethod(target, "cachedDataVersionTag", CachedDataVersionTag);
+
   env->SetMethod(target,
                  "updateHeapStatisticsArrayBuffer",
                  UpdateHeapStatisticsArrayBuffer);
 
-  env->set_heap_statistics_buffer(new uint32_t[kHeapStatisticsPropertiesCount]);
+  env->set_heap_statistics_buffer(new double[kHeapStatisticsPropertiesCount]);
 
   const size_t heap_statistics_buffer_byte_length =
       sizeof(*env->heap_statistics_buffer()) * kHeapStatisticsPropertiesCount;
@@ -147,7 +183,7 @@ void InitializeV8Bindings(Local<Object> target,
                  UpdateHeapSpaceStatisticsBuffer);
 
   env->set_heap_space_statistics_buffer(
-    new uint32_t[kHeapSpaceStatisticsPropertiesCount * number_of_heap_spaces]);
+    new double[kHeapSpaceStatisticsPropertiesCount * number_of_heap_spaces]);
 
   const size_t heap_space_statistics_buffer_byte_length =
       sizeof(*env->heap_space_statistics_buffer()) *

@@ -19,7 +19,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Checks whether or not a node is a lexical declaration.
@@ -39,13 +39,13 @@ module.exports = {
         }
 
         return {
-            SwitchCase: function(node) {
-                for (var i = 0; i < node.consequent.length; i++) {
-                    var statement = node.consequent[i];
+            SwitchCase(node) {
+                for (let i = 0; i < node.consequent.length; i++) {
+                    const statement = node.consequent[i];
 
                     if (isLexicalDeclaration(statement)) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Unexpected lexical declaration in case block."
                         });
                     }

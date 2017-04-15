@@ -79,9 +79,11 @@ enum class FrameStateType {
   kJavaScriptFunction,   // Represents an unoptimized JavaScriptFrame.
   kInterpretedFunction,  // Represents an InterpretedFrame.
   kArgumentsAdaptor,     // Represents an ArgumentsAdaptorFrame.
-  kConstructStub         // Represents a ConstructStubFrame.
+  kTailCallerFunction,   // Represents a frame removed by tail call elimination.
+  kConstructStub,        // Represents a ConstructStubFrame.
+  kGetterStub,           // Represents a GetterStubFrame.
+  kSetterStub            // Represents a SetterStubFrame.
 };
-
 
 class FrameStateFunctionInfo {
  public:

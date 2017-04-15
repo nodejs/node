@@ -202,7 +202,8 @@ Handle<Map> TransitionArray::FindTransitionToField(Handle<Map> map,
   if (target == NULL) return Handle<Map>::null();
   PropertyDetails details = target->GetLastDescriptorDetails();
   DCHECK_EQ(NONE, details.attributes());
-  if (details.type() != DATA) return Handle<Map>::null();
+  if (details.location() != kField) return Handle<Map>::null();
+  DCHECK_EQ(kData, details.kind());
   return Handle<Map>(target);
 }
 
@@ -214,7 +215,8 @@ Handle<String> TransitionArray::ExpectedTransitionKey(Handle<Map> map) {
   if (!IsSimpleTransition(raw_transition)) return Handle<String>::null();
   Map* target = GetSimpleTransition(raw_transition);
   PropertyDetails details = GetSimpleTargetDetails(target);
-  if (details.type() != DATA) return Handle<String>::null();
+  if (details.location() != kField) return Handle<String>::null();
+  DCHECK_EQ(kData, details.kind());
   if (details.attributes() != NONE) return Handle<String>::null();
   Name* name = GetSimpleTransitionKey(target);
   if (!name->IsString()) return Handle<String>::null();
@@ -395,8 +397,7 @@ Handle<TransitionArray> TransitionArray::Allocate(Isolate* isolate,
                                                   int slack) {
   Handle<FixedArray> array = isolate->factory()->NewTransitionArray(
       LengthFor(number_of_transitions + slack));
-  array->set(kNextLinkIndex, isolate->heap()->undefined_value());
-  array->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
+  array->set(kPrototypeTransitionsIndex, Smi::kZero);
   array->set(kTransitionLengthIndex, Smi::FromInt(number_of_transitions));
   return Handle<TransitionArray>::cast(array);
 }

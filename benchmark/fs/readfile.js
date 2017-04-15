@@ -22,10 +22,13 @@ function main(conf) {
   data = null;
 
   var reads = 0;
+  var bench_ended = false;
   bench.start();
   setTimeout(function() {
+    bench_ended = true;
     bench.end(reads);
     try { fs.unlinkSync(filename); } catch (e) {}
+    process.exit(0);
   }, +conf.dur * 1000);
 
   function read() {
@@ -40,7 +43,8 @@ function main(conf) {
       throw new Error('wrong number of bytes returned');
 
     reads++;
-    read();
+    if (!bench_ended)
+      read();
   }
 
   var cur = +conf.concurrent;

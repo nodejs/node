@@ -60,8 +60,7 @@ TIMEOUT_SCALEFACTOR = {"debug"   : 4,
 MODE_FLAGS = {
     "debug"   : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--enable-slow-asserts",
-                 "--debug-code", "--verify-heap",
-                 "--noconcurrent-recompilation"],
+                 "--verify-heap", "--noconcurrent-recompilation"],
     "release" : ["--nohard-abort", "--nodead-code-elimination",
                  "--nofold-constants", "--noconcurrent-recompilation"]}
 
@@ -71,17 +70,15 @@ SUPPORTED_ARCHS = ["android_arm",
                    "ia32",
                    "ppc",
                    "ppc64",
+                   "s390",
+                   "s390x",
                    "mipsel",
-                   "nacl_ia32",
-                   "nacl_x64",
                    "x64"]
 # Double the timeout for these:
 SLOW_ARCHS = ["android_arm",
               "android_ia32",
               "arm",
-              "mipsel",
-              "nacl_ia32",
-              "nacl_x64"]
+              "mipsel"]
 MAX_DEOPT = 1000000000
 DISTRIBUTION_MODES = ["smooth", "random"]
 
@@ -321,7 +318,6 @@ def Main():
     suite = testsuite.TestSuite.LoadTestSuite(
         os.path.join(BASE_DIR, "test", root))
     if suite:
-      suite.SetupWorkingDirectory()
       suites.append(suite)
 
   if options.download_data:
@@ -387,7 +383,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         0,  # No use of a rerun-failing-tests maximum.
                         False,  # No predictable mode.
                         False,  # No no_harness mode.
-                        False)   # Don't use perf data.
+                        False,  # Don't use perf data.
+                        False)  # Coverage not supported.
 
   # Find available test suites and read test cases from them.
   variables = {
@@ -396,7 +393,6 @@ def Execute(arch, mode, args, options, suites, workspace):
     "deopt_fuzzer": True,
     "gc_stress": False,
     "gcov_coverage": False,
-    "ignition": False,
     "isolates": options.isolates,
     "mode": mode,
     "no_i18n": False,

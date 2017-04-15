@@ -1,0 +1,664 @@
+Checks that inspector correctly process compiled scripts
+scriptParsed
+{
+    scriptSource : function foo1(){}//# sourceURL=oneline.js<nl>
+}
+{
+    endColumn : 0
+    endLine : 2
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : oneline.js
+}
+scriptParsed
+{
+    scriptSource : function foo2(){}//# sourceURL=oneline-without-nl.js
+}
+{
+    endColumn : 52
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : oneline-without-nl.js
+}
+scriptParsed
+{
+    scriptSource : function foo3(){}<nl>//# sourceURL=twoline.js<nl>
+}
+{
+    endColumn : 0
+    endLine : 3
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : twoline.js
+}
+scriptParsed
+{
+    scriptSource : function foo4(){}<nl><nl>//# sourceURL=threeline.js<nl>
+}
+{
+    endColumn : 0
+    endLine : 4
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : threeline.js
+}
+scriptParsed
+{
+    scriptSource : function foo5(){}//# sourceMappingURL=oneline-map<nl>
+}
+{
+    endColumn : 0
+    endLine : 2
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : oneline-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo6(){}//# sourceMappingURL=oneline-without-nl-map
+}
+{
+    endColumn : 60
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : oneline-without-nl-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo7(){}<nl>//# sourceMappingURL=twoline-map<nl>
+}
+{
+    endColumn : 0
+    endLine : 3
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : twoline-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo8(){}<nl><nl>//# sourceMappingURL=threeline-map<nl>
+}
+{
+    endColumn : 0
+    endLine : 4
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : threeline-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo9(){}//# sourceMappingURL=source-mapping-url-map<nl>//# sourceURL=source-url.js
+}
+{
+    endColumn : 27
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : source-mapping-url-map
+    startColumn : 0
+    startLine : 0
+    url : source-url.js
+}
+scriptParsed
+{
+    scriptSource : function foo10(){}//# sourceURL=source-url.js<nl>//# sourceMappingURL=source-mapping-url-map
+}
+{
+    endColumn : 43
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : source-mapping-url-map
+    startColumn : 0
+    startLine : 0
+    url : source-url.js
+}
+scriptParsed
+{
+    scriptSource : function foo11(){}<nl>//# sourceURL=end1.js
+}
+{
+    endColumn : 21
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : end1.js
+}
+scriptParsed
+{
+    scriptSource : function foo12(){}<nl>//# sourceURL=end2.js 
+}
+{
+    endColumn : 22
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : end2.js
+}
+scriptParsed
+{
+    scriptSource : function foo13(){}
+}
+{
+    endColumn : 18
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo15(){}; eval("function foo14(){}//# sourceURL=eval.js")//# sourceURL=eval-wrapper.js
+}
+{
+    endColumn : 96
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : eval-wrapper.js
+}
+scriptParsed
+{
+    scriptSource : function foo14(){}//# sourceURL=eval.js
+}
+{
+    endColumn : 39
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : eval.js
+}
+scriptParsed
+{
+    scriptSource : function foo16(){}<nl>
+}
+{
+    endColumn : 0
+    endLine : 2
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo17(){}<nl><nl>
+}
+{
+    endColumn : 0
+    endLine : 3
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo18(){}<nl><nl><nl>
+}
+{
+    endColumn : 0
+    endLine : 4
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo19(){}<nl><nl><nl><nl>
+}
+{
+    endColumn : 0
+    endLine : 5
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo1(){}//# sourceURL=oneline.js<nl>
+}
+{
+    endColumn : 0
+    endLine : 2
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : oneline.js
+}
+scriptParsed
+{
+    scriptSource : function foo2(){}//# sourceURL=oneline-without-nl.js
+}
+{
+    endColumn : 52
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : oneline-without-nl.js
+}
+scriptParsed
+{
+    scriptSource : function foo3(){}<nl>//# sourceURL=twoline.js<nl>
+}
+{
+    endColumn : 0
+    endLine : 3
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : twoline.js
+}
+scriptParsed
+{
+    scriptSource : function foo4(){}<nl><nl>//# sourceURL=threeline.js<nl>
+}
+{
+    endColumn : 0
+    endLine : 4
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : threeline.js
+}
+scriptParsed
+{
+    scriptSource : function foo5(){}//# sourceMappingURL=oneline-map<nl>
+}
+{
+    endColumn : 0
+    endLine : 2
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : oneline-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo6(){}//# sourceMappingURL=oneline-without-nl-map
+}
+{
+    endColumn : 60
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : oneline-without-nl-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo7(){}<nl>//# sourceMappingURL=twoline-map<nl>
+}
+{
+    endColumn : 0
+    endLine : 3
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : twoline-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo8(){}<nl><nl>//# sourceMappingURL=threeline-map<nl>
+}
+{
+    endColumn : 0
+    endLine : 4
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : threeline-map
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo9(){}//# sourceMappingURL=source-mapping-url-map<nl>//# sourceURL=source-url.js
+}
+{
+    endColumn : 27
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : source-mapping-url-map
+    startColumn : 0
+    startLine : 0
+    url : source-url.js
+}
+scriptParsed
+{
+    scriptSource : function foo10(){}//# sourceURL=source-url.js<nl>//# sourceMappingURL=source-mapping-url-map
+}
+{
+    endColumn : 43
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : source-mapping-url-map
+    startColumn : 0
+    startLine : 0
+    url : source-url.js
+}
+scriptParsed
+{
+    scriptSource : function foo11(){}<nl>//# sourceURL=end1.js
+}
+{
+    endColumn : 21
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : end1.js
+}
+scriptParsed
+{
+    scriptSource : function foo12(){}<nl>//# sourceURL=end2.js 
+}
+{
+    endColumn : 22
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : end2.js
+}
+scriptParsed
+{
+    scriptSource : function foo13(){}
+}
+{
+    endColumn : 18
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo15(){}; eval("function foo14(){}//# sourceURL=eval.js")//# sourceURL=eval-wrapper.js
+}
+{
+    endColumn : 96
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : eval-wrapper.js
+}
+scriptParsed
+{
+    scriptSource : function foo14(){}//# sourceURL=eval.js
+}
+{
+    endColumn : 39
+    endLine : 0
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : eval.js
+}
+scriptFailedToParse
+{
+    scriptSource : }//# sourceURL=failed.js<nl>//# sourceMappingURL=failed-map
+}
+{
+    endColumn : 31
+    endLine : 1
+    executionContextId : <executionContextId>
+    hasSourceURL : true
+    hash : <hash>
+    scriptId : <scriptId>
+    sourceMapURL : failed-map
+    startColumn : 0
+    startLine : 0
+    url : failed.js
+}
+scriptParsed
+{
+    scriptSource : function foo16(){}<nl>
+}
+{
+    endColumn : 0
+    endLine : 2
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo17(){}<nl><nl>
+}
+{
+    endColumn : 0
+    endLine : 3
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo18(){}<nl><nl><nl>
+}
+{
+    endColumn : 0
+    endLine : 4
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+scriptParsed
+{
+    scriptSource : function foo19(){}<nl><nl><nl><nl>
+}
+{
+    endColumn : 0
+    endLine : 5
+    executionContextId : <executionContextId>
+    hasSourceURL : false
+    hash : <hash>
+    isLiveEdit : false
+    scriptId : <scriptId>
+    sourceMapURL : 
+    startColumn : 0
+    startLine : 0
+    url : 
+}
+Remove script references and re-enable debugger.

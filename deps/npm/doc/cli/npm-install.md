@@ -183,6 +183,7 @@ after packing it up into a tarball (b).
     to the environment when running git:
 
     * `GIT_ASKPASS`
+    * `GIT_EXEC_PATH`
     * `GIT_PROXY_COMMAND`
     * `GIT_SSH`
     * `GIT_SSH_COMMAND`
@@ -271,7 +272,7 @@ global `node_modules` folder. Only your direct dependencies will show in
 `node_modules` and everything they depend on will be flattened in their
 `node_modules` folders. This obviously will eliminate some deduping.
 
-The `--ignore-scripts` argument will cause npm to not execute any
+The `--ignore-scripts` argument will cause npm to not execute any 
 scripts defined in the package.json. See `npm-scripts(7)`.
 
 The `--legacy-bundling` argument will cause npm to install the package such
@@ -342,6 +343,10 @@ folder structures that npm creates.
 
 ### Limitations of npm's Install Algorithm
 
+npm will refuse to install any package with an identical name to the
+current package. This can be overridden with the `--force` flag, but in
+most cases can simply be addressed by changing the local package name.
+
 There are some very rare and pathological edge-cases where a cycle can
 cause npm to try to install a never-ending tree of packages.  Here is
 the simplest case:
@@ -373,7 +378,7 @@ affects a real use-case, it will be investigated.
 * npm-config(7)
 * npmrc(5)
 * npm-registry(7)
-* npm-tag(1)
+* npm-dist-tag(1)
 * npm-uninstall(1)
 * npm-shrinkwrap(1)
 * package.json(5)

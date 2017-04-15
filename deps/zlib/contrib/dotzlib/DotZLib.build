@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <project name="DotZLib" default="build" basedir="./DotZLib">
 	<description>A .Net wrapper library around ZLib1.dll</description>
 

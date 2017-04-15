@@ -6,13 +6,14 @@
 #define V8_COMPILER_MOVE_OPTIMIZER_
 
 #include "src/compiler/instruction.h"
-#include "src/zone-containers.h"
+#include "src/globals.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class MoveOptimizer final {
+class V8_EXPORT_PRIVATE MoveOptimizer final {
  public:
   MoveOptimizer(Zone* local_zone, InstructionSequence* code);
   void Run();
@@ -51,6 +52,11 @@ class MoveOptimizer final {
   Zone* const local_zone_;
   InstructionSequence* const code_;
   MoveOpVector local_vector_;
+
+  // Reusable buffers for storing operand sets. We need at most two sets
+  // at any given time, so we create two buffers.
+  ZoneVector<InstructionOperand> operand_buffer1;
+  ZoneVector<InstructionOperand> operand_buffer2;
 
   DISALLOW_COPY_AND_ASSIGN(MoveOptimizer);
 };

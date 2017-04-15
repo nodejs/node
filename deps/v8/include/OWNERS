@@ -1,2 +1,7 @@
 danno@chromium.org
 jochen@chromium.org
+
+per-file v8-inspector.h=dgozman@chromium.org
+per-file v8-inspector.h=pfeldman@chromium.org
+per-file v8-inspector-protocol.h=dgozman@chromium.org
+per-file v8-inspector-protocol.h=pfeldman@chromium.org

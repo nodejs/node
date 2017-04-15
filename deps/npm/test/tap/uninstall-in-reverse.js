@@ -10,7 +10,7 @@ order. That is, they need to go shallow -> deep.
 
 var removed = []
 var npm = requireInject.installGlobally('../../lib/npm.js', {
-  '../../lib/install/action/remove.js': function (top, buildpath, pkg, log, next) {
+  '../../lib/install/action/remove.js': function (staging, pkg, log, next) {
     removed.push(pkg.package.name)
     next()
   }

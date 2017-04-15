@@ -8,7 +8,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-var stopNodePattern = /(?:Statement|Declaration|Function(?:Expression)?|Program)$/;
+const stopNodePattern = /(?:Statement|Declaration|Function(?:Expression)?|Program)$/;
 
 module.exports = {
     meta: {
@@ -20,17 +20,40 @@ module.exports = {
 
         schema: [
             {
-                type: "object",
-                properties: {
-                    props: {type: "boolean"}
-                },
-                additionalProperties: false
+                oneOf: [
+                    {
+                        type: "object",
+                        properties: {
+                            props: {
+                                enum: [false]
+                            }
+                        },
+                        additionalProperties: false
+                    },
+                    {
+                        type: "object",
+                        properties: {
+                            props: {
+                                enum: [true]
+                            },
+                            ignorePropertyModificationsFor: {
+                                type: "array",
+                                items: {
+                                    type: "string"
+                                },
+                                uniqueItems: true
+                            }
+                        },
+                        additionalProperties: false
+                    }
+                ]
             }
         ]
     },
 
-    create: function(context) {
-        var props = context.options[0] && Boolean(context.options[0].props);
+    create(context) {
+        const props = context.options[0] && Boolean(context.options[0].props);
+        const ignoredPropertyAssignmentsFor = context.options[0] && context.options[0].ignorePropertyModificationsFor || [];
 
         /**
          * Checks whether or not the reference modifies properties of its variable.
@@ -38,8 +61,8 @@ module.exports = {
          * @returns {boolean} Whether or not the reference modifies properties of its variable.
          */
         function isModifyingProp(reference) {
-            var node = reference.identifier;
-            var parent = node.parent;
+            let node = reference.identifier;
+            let parent = node.parent;
 
             while (parent && !stopNodePattern.test(parent.type)) {
                 switch (parent.type) {
@@ -73,8 +96,15 @@ module.exports = {
                         }
                         break;
 
-                    default:
+                    // EXCLUDES: e.g. ({ [foo]: a }) = bar;
+                    case "Property":
+                        if (parent.key === node) {
+                            return false;
+                        }
+
                         break;
+
+                    // no default
                 }
 
                 node = parent;
@@ -92,7 +122,7 @@ module.exports = {
          * @returns {void}
          */
         function checkReference(reference, index, references) {
-            var identifier = reference.identifier;
+            const identifier = reference.identifier;
 
             if (identifier &&
                 !reference.init &&
@@ -102,15 +132,9 @@ module.exports = {
                 (index === 0 || references[index - 1].identifier !== identifier)
             ) {
                 if (reference.isWrite()) {
-                    context.report(
-                        identifier,
-                        "Assignment to function parameter '{{name}}'.",
-                        {name: identifier.name});
-                } else if (props && isModifyingProp(reference)) {
-                    context.report(
-                        identifier,
-                        "Assignment to property of function parameter '{{name}}'.",
-                        {name: identifier.name});
+                    context.report({ node: identifier, message: "Assignment to function parameter '{{name}}'.", data: { name: identifier.name } });
+                } else if (props && isModifyingProp(reference) && ignoredPropertyAssignmentsFor.indexOf(identifier.name) === -1) {
+                    context.report({ node: identifier, message: "Assignment to property of function parameter '{{name}}'.", data: { name: identifier.name } });
                 }
             }
         }

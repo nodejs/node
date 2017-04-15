@@ -13,13 +13,12 @@ namespace internal {
 
 class CallOptimization;
 
-enum PrototypeCheckType { CHECK_ALL_MAPS, SKIP_RECEIVER };
 enum ReturnHolder { RETURN_HOLDER, DONT_RETURN_ANYTHING };
 
 class PropertyHandlerCompiler : public PropertyAccessCompiler {
  public:
   static Handle<Code> Find(Handle<Name> name, Handle<Map> map, Code::Kind kind,
-                           CacheHolderFlag cache_holder, Code::StubType type);
+                           CacheHolderFlag cache_holder);
 
  protected:
   PropertyHandlerCompiler(Isolate* isolate, Code::Kind kind, Handle<Map> map,
@@ -41,8 +40,6 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   // Frontend loads from receiver(), returns holder register which may be
   // different.
   Register Frontend(Handle<Name> name);
-  void NonexistentFrontendHeader(Handle<Name> name, Label* miss,
-                                 Register scratch1, Register scratch2);
 
   // When FLAG_vector_ics is true, handlers that have the possibility of missing
   // will need to save and pass these to miss handlers.
@@ -81,6 +78,18 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
                                         Handle<Name> name, Register scratch,
                                         Label* miss);
 
+  // Generates check that current native context has the same access rights
+  // as the given |native_context_cell|.
+  // If |compare_native_contexts_only| is true then access check is considered
+  // passed if the execution-time native context is equal to contents of
+  // |native_context_cell|.
+  // If |compare_native_contexts_only| is false then access check is considered
+  // passed if the execution-time native context is equal to contents of
+  // |native_context_cell| or security tokens of both contexts are equal.
+  void GenerateAccessCheck(Handle<WeakCell> native_context_cell,
+                           Register scratch1, Register scratch2, Label* miss,
+                           bool compare_native_contexts_only);
+
   // Generates code that verifies that the property holder has not changed
   // (checking maps of objects in the prototype chain for fast and global
   // objects or doing negative lookup for slow objects, ensures that the
@@ -96,9 +105,9 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   Register CheckPrototypes(Register object_reg, Register holder_reg,
                            Register scratch1, Register scratch2,
                            Handle<Name> name, Label* miss,
-                           PrototypeCheckType check, ReturnHolder return_what);
+                           ReturnHolder return_what);
 
-  Handle<Code> GetCode(Code::Kind kind, Code::StubType type, Handle<Name> name);
+  Handle<Code> GetCode(Code::Kind kind, Handle<Name> name);
   void set_holder(Handle<JSObject> holder) { holder_ = holder; }
   Handle<Map> map() const { return map_; }
   void set_map(Handle<Map> map) { map_ = map; }
@@ -120,16 +129,13 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
   virtual ~NamedLoadHandlerCompiler() {}
 
-  Handle<Code> CompileLoadField(Handle<Name> name, FieldIndex index);
-
   Handle<Code> CompileLoadCallback(Handle<Name> name,
-                                   Handle<AccessorInfo> callback);
+                                   Handle<AccessorInfo> callback,
+                                   Handle<Code> slow_stub);
 
   Handle<Code> CompileLoadCallback(Handle<Name> name,
                                    const CallOptimization& call_optimization,
-                                   int accessor_index);
-
-  Handle<Code> CompileLoadConstant(Handle<Name> name, int constant_index);
+                                   int accessor_index, Handle<Code> slow_stub);
 
   // The LookupIterator is used to perform a lookup behind the interceptor. If
   // the iterator points to a LookupIterator::PROPERTY, its access will be
@@ -141,10 +147,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
   Handle<Code> CompileLoadGlobal(Handle<PropertyCell> cell, Handle<Name> name,
                                  bool is_configurable);
-
-  // Static interface
-  static Handle<Code> ComputeLoadNonexistent(Handle<Name> name,
-                                             Handle<Map> map);
 
   static void GenerateLoadViaGetter(MacroAssembler* masm, Handle<Map> map,
                                     Register receiver, Register holder,
@@ -178,11 +180,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
 
  private:
-  Handle<Code> CompileLoadNonexistent(Handle<Name> name);
-  void GenerateLoadConstant(Handle<Object> value);
   void GenerateLoadCallback(Register reg, Handle<AccessorInfo> callback);
-  void GenerateLoadCallback(const CallOptimization& call_optimization,
-                            Handle<Map> receiver_map);
 
   // Helper emits no code if vector-ics are disabled.
   void InterceptorVectorSlotPush(Register holder_reg);
@@ -194,44 +192,39 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                                            Register holder_reg);
   void GenerateLoadPostInterceptor(LookupIterator* it, Register reg);
 
-  // Generates prototype loading code that uses the objects from the
-  // context we were in when this function was called. If the context
-  // has changed, a jump to miss is performed. This ties the generated
-  // code to a particular context and so must not be used in cases
-  // where the generated code is not allowed to have references to
-  // objects from a context.
-  static void GenerateDirectLoadGlobalFunctionPrototype(MacroAssembler* masm,
-                                                        int index,
-                                                        Register prototype,
-                                                        Label* miss);
-
-
-  Register scratch4() { return registers_[5]; }
+  Register scratch3() { return registers_[4]; }
 };
 
 
 class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
  public:
+  // All store handlers use StoreWithVectorDescriptor calling convention.
+  typedef StoreWithVectorDescriptor Descriptor;
+
   explicit NamedStoreHandlerCompiler(Isolate* isolate, Handle<Map> map,
                                      Handle<JSObject> holder)
       : PropertyHandlerCompiler(isolate, Code::STORE_IC, map, holder,
-                                kCacheOnReceiver) {}
+                                kCacheOnReceiver) {
+#ifdef DEBUG
+    if (Descriptor::kPassLastArgsOnStack) {
+      ZapStackArgumentsRegisterAliases();
+    }
+#endif
+  }
 
   virtual ~NamedStoreHandlerCompiler() {}
 
-  Handle<Code> CompileStoreTransition(Handle<Map> transition,
-                                      Handle<Name> name);
-  Handle<Code> CompileStoreField(LookupIterator* it);
+  void ZapStackArgumentsRegisterAliases();
+
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     Handle<AccessorInfo> callback,
                                     LanguageMode language_mode);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     const CallOptimization& call_optimization,
-                                    int accessor_index);
+                                    int accessor_index, Handle<Code> slow_stub);
   Handle<Code> CompileStoreViaSetter(Handle<JSObject> object, Handle<Name> name,
                                      int accessor_index,
                                      int expected_arguments);
-  Handle<Code> CompileStoreInterceptor(Handle<Name> name);
 
   static void GenerateStoreViaSetter(MacroAssembler* masm, Handle<Map> map,
                                      Register receiver, Register holder,
@@ -243,8 +236,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                            no_reg);
   }
 
-  static void GenerateSlow(MacroAssembler* masm);
-
  protected:
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
                                   Label* miss, ReturnHolder return_what);
@@ -252,35 +243,7 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
   void GenerateRestoreName(Label* label, Handle<Name> name);
 
-  // Pop the vector and slot into appropriate registers, moving the map in
-  // the process. (This is an accomodation for register pressure on ia32).
-  void RearrangeVectorAndSlot(Register current_map, Register destination_map);
-
  private:
-  void GenerateRestoreName(Handle<Name> name);
-  void GenerateRestoreMap(Handle<Map> transition, Register map_reg,
-                          Register scratch, Label* miss);
-
-  void GenerateConstantCheck(Register map_reg, int descriptor,
-                             Register value_reg, Register scratch,
-                             Label* miss_label);
-
-  bool RequiresFieldTypeChecks(FieldType* field_type) const;
-  void GenerateFieldTypeChecks(FieldType* field_type, Register value_reg,
-                               Label* miss_label);
-
-  static Builtins::Name SlowBuiltin(Code::Kind kind) {
-    switch (kind) {
-      case Code::STORE_IC:
-        return Builtins::kStoreIC_Slow;
-      case Code::KEYED_STORE_IC:
-        return Builtins::kKeyedStoreIC_Slow;
-      default:
-        UNREACHABLE();
-    }
-    return Builtins::kStoreIC_Slow;
-  }
-
   static Register value();
 };
 
@@ -294,10 +257,10 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
 
   virtual ~ElementHandlerCompiler() {}
 
+  static Handle<Object> GetKeyedLoadHandler(Handle<Map> receiver_map,
+                                            Isolate* isolate);
   void CompileElementHandlers(MapHandleList* receiver_maps,
-                              CodeHandleList* handlers);
-
-  static void GenerateStoreSlow(MacroAssembler* masm);
+                              List<Handle<Object>>* handlers);
 };
 }  // namespace internal
 }  // namespace v8

@@ -1,9 +1,30 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var clientAborts = 0;
+let clientAborts = 0;
 
 const server = http.Server(function(req, res) {
   console.log('Got connection');
@@ -23,21 +44,21 @@ const server = http.Server(function(req, res) {
   });
 });
 
-var responses = 0;
+let responses = 0;
 const N = 8;
 const requests = [];
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   console.log('Server listening.');
 
-  for (var i = 0; i < N; i++) {
+  for (let i = 0; i < N; i++) {
     console.log('Making client ' + i);
-    var options = { port: common.PORT, path: '/?id=' + i };
-    var req = http.get(options, function(res) {
+    const options = { port: this.address().port, path: '/?id=' + i };
+    const req = http.get(options, function(res) {
       console.log('Client response code ' + res.statusCode);
 
       res.resume();
-      if (++responses == N) {
+      if (++responses === N) {
         console.log('All clients connected, destroying.');
         requests.forEach(function(outReq) {
           console.log('abort');
@@ -51,5 +72,5 @@ server.listen(common.PORT, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(N, clientAborts);
+  assert.strictEqual(N, clientAborts);
 });

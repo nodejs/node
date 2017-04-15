@@ -35,7 +35,7 @@ void CodeDisableOptEventRecord::UpdateCodeMap(CodeMap* code_map) {
 
 void CodeDeoptEventRecord::UpdateCodeMap(CodeMap* code_map) {
   CodeEntry* entry = code_map->FindEntry(start);
-  if (entry != NULL) entry->set_deopt_info(deopt_reason, position, pc_offset);
+  if (entry != NULL) entry->set_deopt_info(deopt_reason, deopt_id);
 }
 
 
@@ -47,17 +47,6 @@ void ReportBuiltinEventRecord::UpdateCodeMap(CodeMap* code_map) {
     return;
   }
   entry->SetBuiltinId(builtin_id);
-}
-
-
-TickSample* CpuProfiler::StartTickSample() {
-  if (is_profiling_) return processor_->StartTickSample();
-  return NULL;
-}
-
-
-void CpuProfiler::FinishTickSample() {
-  processor_->FinishTickSample();
 }
 
 

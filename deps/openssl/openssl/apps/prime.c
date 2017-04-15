@@ -128,16 +128,24 @@ int MAIN(int argc, char **argv)
         BIO_printf(bio_out, "%s\n", s);
         OPENSSL_free(s);
     } else {
+        int r;
+
         if (hex)
-            BN_hex2bn(&bn, argv[0]);
+            r = BN_hex2bn(&bn, argv[0]);
         else
-            BN_dec2bn(&bn, argv[0]);
+            r = BN_dec2bn(&bn, argv[0]);
+
+        if(!r) {
+            BIO_printf(bio_err, "Failed to process value (%s)\n", argv[0]);
+            goto end;
+        }
 
         BN_print(bio_out, bn);
         BIO_printf(bio_out, " is %sprime\n",
                    BN_is_prime_ex(bn, checks, NULL, NULL) ? "" : "not ");
     }
 
+ end:
     BN_free(bn);
     BIO_free_all(bio_out);
 

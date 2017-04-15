@@ -80,10 +80,10 @@ function client() {
       chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
-      chunk = new Array(len / 2 + 1).join('ü');
+      chunk = 'ü'.repeat(len / 2);
       break;
     case 'asc':
-      chunk = new Array(len + 1).join('x');
+      chunk = 'x'.repeat(len);
       break;
     default:
       throw new Error('invalid type: ' + type);
@@ -96,8 +96,6 @@ function client() {
 
   if (err)
     fail(err, 'connect');
-
-  clientHandle.readStart();
 
   clientHandle.onread = function(nread, buffer) {
     if (nread < 0)
@@ -112,10 +110,13 @@ function client() {
 
     bench.start();
 
+    clientHandle.readStart();
+
     setTimeout(function() {
       // multiply by 2 since we're sending it first one way
       // then then back again.
       bench.end(2 * (bytes * 8) / (1024 * 1024 * 1024));
+      process.exit(0);
     }, dur * 1000);
 
     while (clientHandle.writeQueueSize === 0)

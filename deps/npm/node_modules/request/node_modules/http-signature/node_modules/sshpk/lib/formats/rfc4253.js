@@ -52,7 +52,7 @@ function keyTypeToAlg(key) {
 		throw (new Error('Unknown key type ' + key.type));
 }
 
-function read(partial, type, buf) {
+function read(partial, type, buf, options) {
 	if (typeof (buf) === 'string')
 		buf = new Buffer(buf);
 	assert.buffer(buf, 'buf');
@@ -120,7 +120,7 @@ function read(partial, type, buf) {
 	return (new Constructor(key));
 }
 
-function write(key) {
+function write(key, options) {
 	assert.object(key);
 
 	var alg = keyTypeToAlg(key);

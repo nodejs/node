@@ -6,13 +6,21 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const lodash = require("lodash");
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = {
     meta: {
         docs: {
-            description: "enforce a maximum number of statements allowed in `function` blocks",
+            description: "enforce a maximum number of statements allowed in function blocks",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -52,17 +60,17 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
 
-        var functionStack = [],
+        const functionStack = [],
             option = context.options[0],
-            maxStatements = 10,
             ignoreTopLevelFunctions = context.options[1] && context.options[1].ignoreTopLevelFunctions || false,
             topLevelFunctions = [];
+        let maxStatements = 10;
 
         if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
             maxStatements = option.maximum;
@@ -84,10 +92,13 @@ module.exports = {
          */
         function reportIfTooManyStatements(node, count, max) {
             if (count > max) {
-                context.report(
+                const name = lodash.upperFirst(astUtils.getFunctionNameWithKind(node));
+
+                context.report({
                     node,
-                    "This function has too many statements ({{count}}). Maximum allowed is {{max}}.",
-                    { count: count, max: max });
+                    message: "{{name}} has too many statements ({{count}}). Maximum allowed is {{max}}.",
+                    data: { name, count, max }
+                });
             }
         }
 
@@ -107,10 +118,10 @@ module.exports = {
          * @private
          */
         function endFunction(node) {
-            var count = functionStack.pop();
+            const count = functionStack.pop();
 
             if (ignoreTopLevelFunctions && functionStack.length === 0) {
-                topLevelFunctions.push({ node: node, count: count});
+                topLevelFunctions.push({ node, count });
             } else {
                 reportIfTooManyStatements(node, count, maxStatements);
             }
@@ -141,14 +152,14 @@ module.exports = {
             "FunctionExpression:exit": endFunction,
             "ArrowFunctionExpression:exit": endFunction,
 
-            "Program:exit": function() {
+            "Program:exit"() {
                 if (topLevelFunctions.length === 1) {
                     return;
                 }
 
-                topLevelFunctions.forEach(function(element) {
-                    var count = element.count;
-                    var node = element.node;
+                topLevelFunctions.forEach(element => {
+                    const count = element.count;
+                    const node = element.node;
 
                     reportIfTooManyStatements(node, count, maxStatements);
                 });

@@ -10,17 +10,17 @@ server.on('request', function(req, res) {
   res.flushHeaders();
   res.flushHeaders(); // Should be idempotent.
 });
-server.listen(common.PORT, common.localhostIPv4, function() {
-  var req = http.request({
+server.listen(0, common.localhostIPv4, function() {
+  const req = http.request({
     method: 'GET',
     host: common.localhostIPv4,
-    port: common.PORT,
+    port: this.address().port,
   }, onResponse);
 
   req.end();
 
   function onResponse(res) {
-    assert.equal(res.headers['foo'], 'bar');
+    assert.strictEqual(res.headers['foo'], 'bar');
     res.destroy();
     server.close();
   }

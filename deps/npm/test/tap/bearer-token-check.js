@@ -15,7 +15,7 @@ var outfile = resolve(pkg, '_npmrc')
 var modules = resolve(pkg, 'node_modules')
 var tarballPath = '/scoped-underscore/-/scoped-underscore-1.3.1.tgz'
 // needs to be a different hostname to verify tokens (not) being sent correctly
-var tarballURL = 'http://lvh.me:' + common.port + tarballPath
+var tarballURL = 'http://127.0.0.1:' + common.port + tarballPath
 var tarball = resolve(__dirname, '../fixtures/scoped-underscore-1.3.1.tgz')
 
 var server
@@ -47,17 +47,19 @@ test('authed npm install with tarball not on registry', function (t) {
       '--loglevel', 'silent',
       '--json',
       '--fetch-retries', 0,
+      '--registry', common.registry,
       '--userconfig', outfile
     ],
     EXEC_OPTS,
     function (err, code, stdout, stderr) {
       t.ifError(err, 'test runner executed without error')
       t.equal(code, 0, 'npm install exited OK')
+      t.comment(stdout.trim())
+      t.comment(stderr.trim())
       t.notOk(stderr, 'no output on stderr')
       try {
         var results = JSON.parse(stdout)
       } catch (ex) {
-        console.error('#', ex)
         t.ifError(ex, 'stdout was valid JSON')
       }
 
@@ -65,7 +67,7 @@ test('authed npm install with tarball not on registry', function (t) {
         var installedversion = {
           'version': '1.3.1',
           'from': '>=1.3.1 <2',
-          'resolved': 'http://lvh.me:1337/scoped-underscore/-/scoped-underscore-1.3.1.tgz'
+          'resolved': tarballURL
         }
         t.isDeeply(results.dependencies['@scoped/underscore'], installedversion, '@scoped/underscore installed')
       }

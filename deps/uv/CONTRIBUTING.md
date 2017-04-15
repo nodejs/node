@@ -165,5 +165,5 @@ not send out notifications when you add commits.
 [issue tracker]: https://github.com/libuv/libuv/issues
 [libuv mailing list]: http://groups.google.com/group/libuv
 [IRC]: http://webchat.freelibuv.net/?channels=libuv
-[Google C/C++ style guide]: http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
+[Google C/C++ style guide]: https://google.github.io/styleguide/cppguide.html
 [project maintainers]: https://github.com/libuv/libuv/blob/master/MAINTAINERS.md

@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #include "node_dtrace.h"
 #include "node_win32_etw_provider.h"
 #include "node_etw_provider.h"
@@ -155,9 +176,9 @@ void init_etw() {
     event_write = (EventWriteFunc)GetProcAddress(advapi, "EventWrite");
 
     // create async object used to invoke main thread from callback
-    uv_async_init(uv_default_loop(),
-                  &dispatch_etw_events_change_async,
-                  etw_events_change_async);
+    CHECK_EQ(0, uv_async_init(uv_default_loop(),
+                              &dispatch_etw_events_change_async,
+                              etw_events_change_async));
     uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_etw_events_change_async));
 
     if (event_register) {
@@ -187,4 +208,5 @@ void shutdown_etw() {
     advapi = nullptr;
   }
 }
-}
+
+}  // namespace node

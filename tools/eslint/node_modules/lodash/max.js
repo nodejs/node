@@ -1,5 +1,5 @@
 var baseExtremum = require('./_baseExtremum'),
-    gt = require('./gt'),
+    baseGt = require('./_baseGt'),
     identity = require('./identity');
 
 /**
@@ -22,7 +22,7 @@ var baseExtremum = require('./_baseExtremum'),
  */
 function max(array) {
   return (array && array.length)
-    ? baseExtremum(array, identity, gt)
+    ? baseExtremum(array, identity, baseGt)
     : undefined;
 }
 

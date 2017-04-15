@@ -6,12 +6,15 @@
 #define V8_CRANKSHAFT_LITHIUM_CODEGEN_H_
 
 #include "src/bailout-reason.h"
-#include "src/compiler.h"
 #include "src/deoptimizer.h"
+#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {
 
+class CompilationInfo;
+class HGraph;
+class LChunk;
 class LEnvironment;
 class LInstruction;
 class LPlatformChunk;
@@ -26,28 +29,30 @@ class LCodeGenBase BASE_EMBEDDED {
   // Simple accessors.
   MacroAssembler* masm() const { return masm_; }
   CompilationInfo* info() const { return info_; }
-  Isolate* isolate() const { return info_->isolate(); }
+  Isolate* isolate() const;
   Factory* factory() const { return isolate()->factory(); }
   Heap* heap() const { return isolate()->heap(); }
   Zone* zone() const { return zone_; }
   LPlatformChunk* chunk() const { return chunk_; }
   HGraph* graph() const;
+  SourcePositionTableBuilder* source_position_table_builder() {
+    return &source_position_table_builder_;
+  }
 
-  void FPRINTF_CHECKING Comment(const char* format, ...);
+  void PRINTF_FORMAT(2, 3) Comment(const char* format, ...);
   void DeoptComment(const Deoptimizer::DeoptInfo& deopt_info);
-  static Deoptimizer::DeoptInfo MakeDeoptInfo(
-      LInstruction* instr, Deoptimizer::DeoptReason deopt_reason);
+  static Deoptimizer::DeoptInfo MakeDeoptInfo(LInstruction* instr,
+                                              DeoptimizeReason deopt_reason,
+                                              int deopt_id);
 
   bool GenerateBody();
   virtual void GenerateBodyInstructionPre(LInstruction* instr) {}
   virtual void GenerateBodyInstructionPost(LInstruction* instr) {}
 
   virtual void EnsureSpaceForLazyDeopt(int space_needed) = 0;
-  virtual void RecordAndWritePosition(int position) = 0;
+  void RecordAndWritePosition(SourcePosition position);
 
   int GetNextEmittedBlock() const;
-
-  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code);
 
   void WriteTranslationFrame(LEnvironment* environment,
                              Translation* translation);
@@ -83,6 +88,7 @@ class LCodeGenBase BASE_EMBEDDED {
   int inlined_function_count_;
   int last_lazy_deopt_pc_;
   int osr_pc_offset_;
+  SourcePositionTableBuilder source_position_table_builder_;
 
   bool is_unused() const { return status_ == UNUSED; }
   bool is_generating() const { return status_ == GENERATING; }

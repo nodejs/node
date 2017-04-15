@@ -36,6 +36,7 @@ if (!%IsConcurrentRecompilationSupported()) {
 
 function test(fun) {
   fun();
+  %BaselineFunctionOnNextCall(fun);
   fun();
   // Mark for concurrent optimization.
   %OptimizeFunctionOnNextCall(fun, "concurrent");

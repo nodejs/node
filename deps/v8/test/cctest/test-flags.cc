@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 
+#include "src/flags.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -251,7 +252,7 @@ TEST(FlagsRemoveIncomplete) {
   // if the list of arguments ends unexpectedly.
   SetFlagsToDefault();
   int argc = 3;
-  const char* argv[] = { "", "--crankshaft", "--expose-debug-as" };
+  const char* argv[] = {"", "--crankshaft", "--expose-natives-as"};
   CHECK_EQ(2, FlagList::SetFlagsFromCommandLine(&argc,
                                                 const_cast<char **>(argv),
                                                 true));

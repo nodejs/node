@@ -66,7 +66,7 @@ class SimulatorStack : public v8::internal::AllStatic {
 // Running with a simulator.
 
 #include "src/assembler.h"
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 #include "src/ppc/constants-ppc.h"
 
 namespace v8 {
@@ -217,7 +217,7 @@ class Simulator {
   // Call on program start.
   static void Initialize(Isolate* isolate);
 
-  static void TearDown(HashMap* i_cache, Redirection* first);
+  static void TearDown(base::CustomMatcherHashMap* i_cache, Redirection* first);
 
   // V8 generally calls into generated JS code with 5 parameters and into
   // generated RegExp code with 7 parameters. This is a convenience function,
@@ -239,7 +239,7 @@ class Simulator {
   char* last_debugger_input() { return last_debugger_input_; }
 
   // ICache checking.
-  static void FlushICache(v8::internal::HashMap* i_cache, void* start,
+  static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
                           size_t size);
 
   // Returns true if pc register contains one of the 'special_values' defined
@@ -321,6 +321,7 @@ class Simulator {
 #if V8_TARGET_ARCH_PPC64
   void ExecuteExt5(Instruction* instr);
 #endif
+  void ExecuteExt6(Instruction* instr);
   void ExecuteGeneric(Instruction* instr);
 
   void SetFPSCR(int bit) { fp_condition_reg_ |= (1 << (31 - bit)); }
@@ -330,10 +331,12 @@ class Simulator {
   void ExecuteInstruction(Instruction* instr);
 
   // ICache.
-  static void CheckICache(v8::internal::HashMap* i_cache, Instruction* instr);
-  static void FlushOnePage(v8::internal::HashMap* i_cache, intptr_t start,
+  static void CheckICache(base::CustomMatcherHashMap* i_cache,
+                          Instruction* instr);
+  static void FlushOnePage(base::CustomMatcherHashMap* i_cache, intptr_t start,
                            int size);
-  static CachePage* GetCachePage(v8::internal::HashMap* i_cache, void* page);
+  static CachePage* GetCachePage(base::CustomMatcherHashMap* i_cache,
+                                 void* page);
 
   // Runtime call support.
   static void* RedirectExternalReference(
@@ -371,7 +374,7 @@ class Simulator {
   char* last_debugger_input_;
 
   // Icache simulation
-  v8::internal::HashMap* i_cache_;
+  base::CustomMatcherHashMap* i_cache_;
 
   // Registered breakpoints.
   Instruction* break_pc_;

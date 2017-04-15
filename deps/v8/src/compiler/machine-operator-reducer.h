@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_MACHINE_OPERATOR_REDUCER_H_
 #define V8_COMPILER_MACHINE_OPERATOR_REDUCER_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/machine-operator.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -19,9 +21,11 @@ class JSGraph;
 
 // Performs constant folding and strength reduction on nodes that have
 // machine operators.
-class MachineOperatorReducer final : public Reducer {
+class V8_EXPORT_PRIVATE MachineOperatorReducer final
+    : public NON_EXPORTED_BASE(Reducer) {
  public:
-  explicit MachineOperatorReducer(JSGraph* jsgraph);
+  explicit MachineOperatorReducer(JSGraph* jsgraph,
+                                  bool allow_signalling_nan = true);
   ~MachineOperatorReducer();
 
   Reduction Reduce(Node* node) override;
@@ -32,8 +36,13 @@ class MachineOperatorReducer final : public Reducer {
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* Uint32Constant(uint32_t value) {
-    return Int32Constant(bit_cast<uint32_t>(value));
+    return Int32Constant(bit_cast<int32_t>(value));
   }
+  Node* Uint64Constant(uint64_t value) {
+    return Int64Constant(bit_cast<int64_t>(value));
+  }
+  Node* Float64Mul(Node* lhs, Node* rhs);
+  Node* Float64PowHalf(Node* value);
   Node* Word32And(Node* lhs, Node* rhs);
   Node* Word32And(Node* lhs, uint32_t rhs) {
     return Word32And(lhs, Uint32Constant(rhs));
@@ -65,22 +74,30 @@ class MachineOperatorReducer final : public Reducer {
   }
 
   Reduction ReduceInt32Add(Node* node);
+  Reduction ReduceInt64Add(Node* node);
   Reduction ReduceInt32Sub(Node* node);
+  Reduction ReduceInt64Sub(Node* node);
   Reduction ReduceInt32Div(Node* node);
   Reduction ReduceUint32Div(Node* node);
   Reduction ReduceInt32Mod(Node* node);
   Reduction ReduceUint32Mod(Node* node);
-  Reduction ReduceTruncateFloat64ToInt32(Node* node);
   Reduction ReduceStore(Node* node);
   Reduction ReduceProjection(size_t index, Node* node);
   Reduction ReduceWord32Shifts(Node* node);
   Reduction ReduceWord32Shl(Node* node);
+  Reduction ReduceWord64Shl(Node* node);
+  Reduction ReduceWord32Shr(Node* node);
+  Reduction ReduceWord64Shr(Node* node);
   Reduction ReduceWord32Sar(Node* node);
+  Reduction ReduceWord64Sar(Node* node);
   Reduction ReduceWord32And(Node* node);
+  Reduction TryMatchWord32Ror(Node* node);
   Reduction ReduceWord32Or(Node* node);
+  Reduction ReduceWord32Xor(Node* node);
   Reduction ReduceFloat64InsertLowWord32(Node* node);
   Reduction ReduceFloat64InsertHighWord32(Node* node);
   Reduction ReduceFloat64Compare(Node* node);
+  Reduction ReduceFloat64RoundDown(Node* node);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -88,6 +105,7 @@ class MachineOperatorReducer final : public Reducer {
   MachineOperatorBuilder* machine() const;
 
   JSGraph* jsgraph_;
+  bool allow_signalling_nan_;
 };
 
 }  // namespace compiler

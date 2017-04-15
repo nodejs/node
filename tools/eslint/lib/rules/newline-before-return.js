@@ -15,12 +15,12 @@ module.exports = {
             category: "Stylistic Issues",
             recommended: false
         },
-
+        fixable: "whitespace",
         schema: []
     },
 
-    create: function(context) {
-        var sourceCode = context.getSourceCode();
+    create(context) {
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -34,11 +34,9 @@ module.exports = {
          * @private
          */
         function isPrecededByTokens(node, testTokens) {
-            var tokenBefore = sourceCode.getTokenBefore(node);
+            const tokenBefore = sourceCode.getTokenBefore(node);
 
-            return testTokens.some(function(token) {
-                return tokenBefore.value === token;
-            });
+            return testTokens.some(token => tokenBefore.value === token);
         }
 
         /**
@@ -48,7 +46,7 @@ module.exports = {
          * @private
          */
         function isFirstNode(node) {
-            var parentType = node.parent.type;
+            const parentType = node.parent.type;
 
             if (node.parent.body) {
                 return Array.isArray(node.parent.body)
@@ -62,9 +60,9 @@ module.exports = {
                 return isPrecededByTokens(node, ["do"]);
             } else if (parentType === "SwitchCase") {
                 return isPrecededByTokens(node, [":"]);
-            } else {
-                return isPrecededByTokens(node, [")"]);
             }
+            return isPrecededByTokens(node, [")"]);
+
         }
 
         /**
@@ -75,14 +73,14 @@ module.exports = {
          * @private
          */
         function calcCommentLines(node, lineNumTokenBefore) {
-            var comments = sourceCode.getComments(node).leading,
-                numLinesComments = 0;
+            const comments = sourceCode.getComments(node).leading;
+            let numLinesComments = 0;
 
             if (!comments.length) {
                 return numLinesComments;
             }
 
-            comments.forEach(function(comment) {
+            comments.forEach(comment => {
                 numLinesComments++;
 
                 if (comment.type === "Block") {
@@ -103,16 +101,14 @@ module.exports = {
         }
 
         /**
-         * Checks whether node is preceded by a newline
-         * @param {ASTNode} node - node to check
-         * @returns {boolean} Whether or not the node is preceded by a newline
+         * Returns the line number of the token before the node that is passed in as an argument
+         * @param {ASTNode} node - The node to use as the start of the calculation
+         * @returns {number} Line number of the token before `node`
          * @private
          */
-        function hasNewlineBefore(node) {
-            var tokenBefore = sourceCode.getTokenBefore(node),
-                lineNumNode = node.loc.start.line,
-                lineNumTokenBefore,
-                commentLines;
+        function getLineNumberOfTokenBefore(node) {
+            const tokenBefore = sourceCode.getTokenBefore(node);
+            let lineNumTokenBefore;
 
             /**
              * Global return (at the beginning of a script) is a special case.
@@ -128,25 +124,56 @@ module.exports = {
                 lineNumTokenBefore = 0;     // global return at beginning of script
             }
 
-            commentLines = calcCommentLines(node, lineNumTokenBefore);
+            return lineNumTokenBefore;
+        }
+
+        /**
+         * Checks whether node is preceded by a newline
+         * @param {ASTNode} node - node to check
+         * @returns {boolean} Whether or not the node is preceded by a newline
+         * @private
+         */
+        function hasNewlineBefore(node) {
+            const lineNumNode = node.loc.start.line;
+            const lineNumTokenBefore = getLineNumberOfTokenBefore(node);
+            const commentLines = calcCommentLines(node, lineNumTokenBefore);
 
             return (lineNumNode - lineNumTokenBefore - commentLines) > 1;
         }
 
         /**
-         * Reports expected/unexpected newline before return statement
-         * @param {ASTNode} node - the node to report in the event of an error
-         * @param {boolean} isExpected - whether the newline is expected or not
-         * @returns {void}
+         * Checks whether it is safe to apply a fix to a given return statement.
+         *
+         * The fix is not considered safe if the given return statement has leading comments,
+         * as we cannot safely determine if the newline should be added before or after the comments.
+         * For more information, see: https://github.com/eslint/eslint/issues/5958#issuecomment-222767211
+         *
+         * @param {ASTNode} node - The return statement node to check.
+         * @returns {boolean} `true` if it can fix the node.
          * @private
          */
-        function reportError(node, isExpected) {
-            var expected = isExpected ? "Expected" : "Unexpected";
+        function canFix(node) {
+            const leadingComments = sourceCode.getComments(node).leading;
+            const lastLeadingComment = leadingComments[leadingComments.length - 1];
+            const tokenBefore = sourceCode.getTokenBefore(node);
 
-            context.report({
-                node: node,
-                message: expected + " newline before return statement."
-            });
+            if (leadingComments.length === 0) {
+                return true;
+            }
+
+            // if the last leading comment ends in the same line as the previous token and
+            // does not share a line with the `return` node, we can consider it safe to fix.
+            // Example:
+            // function a() {
+            //     var b; //comment
+            //     return;
+            // }
+            if (lastLeadingComment.loc.end.line === tokenBefore.loc.end.line &&
+                lastLeadingComment.loc.end.line !== node.loc.start.line) {
+                return true;
+            }
+
+            return false;
         }
 
         //--------------------------------------------------------------------------
@@ -154,11 +181,21 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            ReturnStatement: function(node) {
-                if (isFirstNode(node) && hasNewlineBefore(node)) {
-                    reportError(node, false);
-                } else if (!isFirstNode(node) && !hasNewlineBefore(node)) {
-                    reportError(node, true);
+            ReturnStatement(node) {
+                if (!isFirstNode(node) && !hasNewlineBefore(node)) {
+                    context.report({
+                        node,
+                        message: "Expected newline before return statement.",
+                        fix(fixer) {
+                            if (canFix(node)) {
+                                const tokenBefore = sourceCode.getTokenBefore(node);
+                                const newlines = node.loc.start.line === tokenBefore.loc.end.line ? "\n\n" : "\n";
+
+                                return fixer.insertTextBefore(node, newlines);
+                            }
+                            return null;
+                        }
+                    });
                 }
             }
         };

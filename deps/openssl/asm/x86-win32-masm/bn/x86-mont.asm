@@ -31,44 +31,51 @@ $L_bn_mul_mont_begin::
 	jl	$L000just_leave
 	lea	esi,DWORD PTR 20[esp]
 	lea	edx,DWORD PTR 24[esp]
-	mov	ebp,esp
 	add	edi,2
 	neg	edi
-	lea	esp,DWORD PTR [edi*4+esp-32]
+	lea	ebp,DWORD PTR [edi*4+esp-32]
 	neg	edi
-	mov	eax,esp
+	mov	eax,ebp
 	sub	eax,edx
 	and	eax,2047
-	sub	esp,eax
-	xor	edx,esp
+	sub	ebp,eax
+	xor	edx,ebp
 	and	edx,2048
 	xor	edx,2048
-	sub	esp,edx
-	and	esp,-64
-	mov	eax,ebp
-	sub	eax,esp
+	sub	ebp,edx
+	and	ebp,-64
+	mov	eax,esp
+	sub	eax,ebp
 	and	eax,-4096
+	mov	edx,esp
+	lea	esp,DWORD PTR [eax*1+ebp]
+	mov	eax,DWORD PTR [esp]
+	cmp	esp,ebp
+	ja	$L001page_walk
+	jmp	$L002page_walk_done
+ALIGN	16
 $L001page_walk:
-	mov	edx,DWORD PTR [eax*1+esp]
-	sub	eax,4096
-DB	46
-	jnc	$L001page_walk
+	lea	esp,DWORD PTR [esp-4096]
+	mov	eax,DWORD PTR [esp]
+	cmp	esp,ebp
+	ja	$L001page_walk
+$L002page_walk_done:
 	mov	eax,DWORD PTR [esi]
 	mov	ebx,DWORD PTR 4[esi]
 	mov	ecx,DWORD PTR 8[esi]
-	mov	edx,DWORD PTR 12[esi]
+	mov	ebp,DWORD PTR 12[esi]
 	mov	esi,DWORD PTR 16[esi]
 	mov	esi,DWORD PTR [esi]
 	mov	DWORD PTR 4[esp],eax
 	mov	DWORD PTR 8[esp],ebx
 	mov	DWORD PTR 12[esp],ecx
-	mov	DWORD PTR 16[esp],edx
+	mov	DWORD PTR 16[esp],ebp
 	mov	DWORD PTR 20[esp],esi
 	lea	ebx,DWORD PTR [edi-3]
-	mov	DWORD PTR 24[esp],ebp
+	mov	DWORD PTR 24[esp],edx
 	lea	eax,DWORD PTR _OPENSSL_ia32cap_P
 	bt	DWORD PTR [eax],26
-	jnc	$L002non_sse2
+	jnc	$L003non_sse2
 	mov	eax,-1
 	movd	mm7,eax
 	mov	esi,DWORD PTR 8[esp]
@@ -92,7 +99,7 @@ DB	46
 	psrlq	mm3,32
 	inc	ecx
 ALIGN	16
-$L0031st:
+$L0041st:
 	pmuludq	mm0,mm4
 	pmuludq	mm1,mm5
 	paddq	mm2,mm0
@@ -107,7 +114,7 @@ $L0031st:
 	psrlq	mm3,32
 	lea	ecx,DWORD PTR 1[ecx]
 	cmp	ecx,ebx
-	jl	$L0031st
+	jl	$L0041st
 	pmuludq	mm0,mm4
 	pmuludq	mm1,mm5
 	paddq	mm2,mm0
@@ -121,7 +128,7 @@ $L0031st:
 	paddq	mm3,mm2
 	movq	QWORD PTR 32[ebx*4+esp],mm3
 	inc	edx
-$L004outer:
+$L005outer:
 	xor	ecx,ecx
 	movd	mm4,DWORD PTR [edx*4+edi]
 	movd	mm5,DWORD PTR [esi]
@@ -143,7 +150,7 @@ $L004outer:
 	paddq	mm2,mm6
 	inc	ecx
 	dec	ebx
-$L005inner:
+$L006inner:
 	pmuludq	mm0,mm4
 	pmuludq	mm1,mm5
 	paddq	mm2,mm0
@@ -160,7 +167,7 @@ $L005inner:
 	paddq	mm2,mm6
 	dec	ebx
 	lea	ecx,DWORD PTR 1[ecx]
-	jnz	$L005inner
+	jnz	$L006inner
 	mov	ebx,ecx
 	pmuludq	mm0,mm4
 	pmuludq	mm1,mm5
@@ -178,11 +185,11 @@ $L005inner:
 	movq	QWORD PTR 32[ebx*4+esp],mm3
 	lea	edx,DWORD PTR 1[edx]
 	cmp	edx,ebx
-	jle	$L004outer
+	jle	$L005outer
 	emms
-	jmp	$L006common_tail
+	jmp	$L007common_tail
 ALIGN	16
-$L002non_sse2:
+$L003non_sse2:
 	mov	esi,DWORD PTR 8[esp]
 	lea	ebp,DWORD PTR 1[ebx]
 	mov	edi,DWORD PTR 12[esp]
@@ -193,12 +200,12 @@ $L002non_sse2:
 	lea	eax,DWORD PTR 4[ebx*4+edi]
 	or	ebp,edx
 	mov	edi,DWORD PTR [edi]
-	jz	$L007bn_sqr_mont
+	jz	$L008bn_sqr_mont
 	mov	DWORD PTR 28[esp],eax
 	mov	eax,DWORD PTR [esi]
 	xor	edx,edx
 ALIGN	16
-$L008mull:
+$L009mull:
 	mov	ebp,edx
 	mul	edi
 	add	ebp,eax
@@ -207,7 +214,7 @@ $L008mull:
 	mov	eax,DWORD PTR [ecx*4+esi]
 	cmp	ecx,ebx
 	mov	DWORD PTR 28[ecx*4+esp],ebp
-	jl	$L008mull
+	jl	$L009mull
 	mov	ebp,edx
 	mul	edi
 	mov	edi,DWORD PTR 20[esp]
@@ -225,9 +232,9 @@ $L008mull:
 	mov	eax,DWORD PTR 4[esi]
 	adc	edx,0
 	inc	ecx
-	jmp	$L0092ndmadd
+	jmp	$L0102ndmadd
 ALIGN	16
-$L0101stmadd:
+$L0111stmadd:
 	mov	ebp,edx
 	mul	edi
 	add	ebp,DWORD PTR 32[ecx*4+esp]
@@ -238,7 +245,7 @@ $L0101stmadd:
 	adc	edx,0
 	cmp	ecx,ebx
 	mov	DWORD PTR 28[ecx*4+esp],ebp
-	jl	$L0101stmadd
+	jl	$L0111stmadd
 	mov	ebp,edx
 	mul	edi
 	add	eax,DWORD PTR 32[ebx*4+esp]
@@ -261,7 +268,7 @@ $L0101stmadd:
 	adc	edx,0
 	mov	ecx,1
 ALIGN	16
-$L0092ndmadd:
+$L0102ndmadd:
 	mov	ebp,edx
 	mul	edi
 	add	ebp,DWORD PTR 32[ecx*4+esp]
@@ -272,7 +279,7 @@ $L0092ndmadd:
 	adc	edx,0
 	cmp	ecx,ebx
 	mov	DWORD PTR 24[ecx*4+esp],ebp
-	jl	$L0092ndmadd
+	jl	$L0102ndmadd
 	mov	ebp,edx
 	mul	edi
 	add	ebp,DWORD PTR 32[ebx*4+esp]
@@ -288,16 +295,16 @@ $L0092ndmadd:
 	mov	DWORD PTR 32[ebx*4+esp],edx
 	cmp	ecx,DWORD PTR 28[esp]
 	mov	DWORD PTR 36[ebx*4+esp],eax
-	je	$L006common_tail
+	je	$L007common_tail
 	mov	edi,DWORD PTR [ecx]
 	mov	esi,DWORD PTR 8[esp]
 	mov	DWORD PTR 12[esp],ecx
 	xor	ecx,ecx
 	xor	edx,edx
 	mov	eax,DWORD PTR [esi]
-	jmp	$L0101stmadd
+	jmp	$L0111stmadd
 ALIGN	16
-$L007bn_sqr_mont:
+$L008bn_sqr_mont:
 	mov	DWORD PTR [esp],ebx
 	mov	DWORD PTR 12[esp],ecx
 	mov	eax,edi
@@ -308,7 +315,7 @@ $L007bn_sqr_mont:
 	and	ebx,1
 	inc	ecx
 ALIGN	16
-$L011sqr:
+$L012sqr:
 	mov	eax,DWORD PTR [ecx*4+esi]
 	mov	ebp,edx
 	mul	edi
@@ -320,7 +327,7 @@ $L011sqr:
 	cmp	ecx,DWORD PTR [esp]
 	mov	ebx,eax
 	mov	DWORD PTR 28[ecx*4+esp],ebp
-	jl	$L011sqr
+	jl	$L012sqr
 	mov	eax,DWORD PTR [ecx*4+esi]
 	mov	ebp,edx
 	mul	edi
@@ -344,7 +351,7 @@ $L011sqr:
 	mov	eax,DWORD PTR 4[esi]
 	mov	ecx,1
 ALIGN	16
-$L0123rdmadd:
+$L0133rdmadd:
 	mov	ebp,edx
 	mul	edi
 	add	ebp,DWORD PTR 32[ecx*4+esp]
@@ -363,7 +370,7 @@ $L0123rdmadd:
 	adc	edx,0
 	cmp	ecx,ebx
 	mov	DWORD PTR 24[ecx*4+esp],ebp
-	jl	$L0123rdmadd
+	jl	$L0133rdmadd
 	mov	ebp,edx
 	mul	edi
 	add	ebp,DWORD PTR 32[ebx*4+esp]
@@ -379,7 +386,7 @@ $L0123rdmadd:
 	mov	DWORD PTR 32[ebx*4+esp],edx
 	cmp	ecx,ebx
 	mov	DWORD PTR 36[ebx*4+esp],eax
-	je	$L006common_tail
+	je	$L007common_tail
 	mov	edi,DWORD PTR 4[ecx*4+esi]
 	lea	ecx,DWORD PTR 1[ecx]
 	mov	eax,edi
@@ -391,12 +398,12 @@ $L0123rdmadd:
 	xor	ebp,ebp
 	cmp	ecx,ebx
 	lea	ecx,DWORD PTR 1[ecx]
-	je	$L013sqrlast
+	je	$L014sqrlast
 	mov	ebx,edx
 	shr	edx,1
 	and	ebx,1
 ALIGN	16
-$L014sqradd:
+$L015sqradd:
 	mov	eax,DWORD PTR [ecx*4+esi]
 	mov	ebp,edx
 	mul	edi
@@ -412,13 +419,13 @@ $L014sqradd:
 	cmp	ecx,DWORD PTR [esp]
 	mov	DWORD PTR 28[ecx*4+esp],ebp
 	mov	ebx,eax
-	jle	$L014sqradd
+	jle	$L015sqradd
 	mov	ebp,edx
 	add	edx,edx
 	shr	ebp,31
 	add	edx,ebx
 	adc	ebp,0
-$L013sqrlast:
+$L014sqrlast:
 	mov	edi,DWORD PTR 20[esp]
 	mov	esi,DWORD PTR 16[esp]
 	imul	edi,DWORD PTR 32[esp]
@@ -433,9 +440,9 @@ $L013sqrlast:
 	adc	edx,0
 	mov	ecx,1
 	mov	eax,DWORD PTR 4[esi]
-	jmp	$L0123rdmadd
+	jmp	$L0133rdmadd
 ALIGN	16
-$L006common_tail:
+$L007common_tail:
 	mov	ebp,DWORD PTR 16[esp]
 	mov	edi,DWORD PTR 4[esp]
 	lea	esi,DWORD PTR 32[esp]
@@ -443,13 +450,13 @@ $L006common_tail:
 	mov	ecx,ebx
 	xor	edx,edx
 ALIGN	16
-$L015sub:
+$L016sub:
 	sbb	eax,DWORD PTR [edx*4+ebp]
 	mov	DWORD PTR [edx*4+edi],eax
 	dec	ecx
 	mov	eax,DWORD PTR 4[edx*4+esi]
 	lea	edx,DWORD PTR 1[edx]
-	jge	$L015sub
+	jge	$L016sub
 	sbb	eax,0
 	and	esi,eax
 	not	eax
@@ -457,12 +464,12 @@ $L015sub:
 	and	ebp,eax
 	or	esi,ebp
 ALIGN	16
-$L016copy:
+$L017copy:
 	mov	eax,DWORD PTR [ebx*4+esi]
 	mov	DWORD PTR [ebx*4+edi],eax
 	mov	DWORD PTR 32[ebx*4+esp],ecx
 	dec	ebx
-	jge	$L016copy
+	jge	$L017copy
 	mov	esp,DWORD PTR 24[esp]
 	mov	eax,1
 $L000just_leave:

@@ -12,11 +12,12 @@
       'parallel.py',
       'run-gcmole.py',
       # The following contains all relevant source and gyp files.
-      '../gyp/v8.gyp',
+      '../../BUILD.gn',
       '../../base/',
       '../../include/',
       '../../src/',
       '../../test/cctest/',
+      '../../testing/gtest/include/gtest/gtest_prod.h',
       '../../third_party/icu/source/',
     ],
   },

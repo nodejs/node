@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -17,14 +23,51 @@ module.exports = {
             recommended: false
         },
 
-        schema: [
-            {
-                enum: ["smart", "allow-null"]
-            }
-        ]
+        schema: {
+            anyOf: [
+                {
+                    type: "array",
+                    items: [
+                        {
+                            enum: ["always"]
+                        },
+                        {
+                            type: "object",
+                            properties: {
+                                null: {
+                                    enum: ["always", "never", "ignore"]
+                                }
+                            },
+                            additionalProperties: false
+                        }
+                    ],
+                    additionalItems: false
+                },
+                {
+                    type: "array",
+                    items: [
+                        {
+                            enum: ["smart", "allow-null"]
+                        }
+                    ],
+                    additionalItems: false
+                }
+            ]
+        },
+
+        fixable: "code"
     },
 
-    create: function(context) {
+    create(context) {
+        const config = context.options[0] || "always";
+        const options = context.options[1] || {};
+        const sourceCode = context.getSourceCode();
+
+        const nullOption = (config === "always")
+            ? options.null || "always"
+            : "ignore";
+        const enforceRuleForNull = (nullOption === "always");
+        const enforceInverseRuleForNull = (nullOption === "never");
 
         /**
          * Checks if an expression is a typeof expression
@@ -63,45 +106,73 @@ module.exports = {
          * @private
          */
         function isNullCheck(node) {
-            return (node.right.type === "Literal" && node.right.value === null) ||
-                    (node.left.type === "Literal" && node.left.value === null);
+            return astUtils.isNullLiteral(node.right) || astUtils.isNullLiteral(node.left);
         }
 
         /**
          * Gets the location (line and column) of the binary expression's operator
          * @param {ASTNode} node The binary expression node to check
-         * @param {String} operator The operator to find
+         * @param {string} operator The operator to find
          * @returns {Object} { line, column } location of operator
          * @private
          */
         function getOperatorLocation(node) {
-            var opToken = context.getTokenAfter(node.left);
+            const opToken = sourceCode.getTokenAfter(node.left);
 
-            return {line: opToken.loc.start.line, column: opToken.loc.start.column};
+            return { line: opToken.loc.start.line, column: opToken.loc.start.column };
+        }
+
+        /**
+         * Reports a message for this rule.
+         * @param {ASTNode} node The binary expression node that was checked
+         * @param {string} expectedOperator The operator that was expected (either '==', '!=', '===', or '!==')
+         * @returns {void}
+         * @private
+         */
+        function report(node, expectedOperator) {
+            context.report({
+                node,
+                loc: getOperatorLocation(node),
+                message: "Expected '{{expectedOperator}}' and instead saw '{{actualOperator}}'.",
+                data: { expectedOperator, actualOperator: node.operator },
+                fix(fixer) {
+
+                    // If the comparison is a `typeof` comparison or both sides are literals with the same type, then it's safe to fix.
+                    if (isTypeOfBinary(node) || areLiteralsAndSameType(node)) {
+                        const operatorToken = sourceCode.getFirstTokenBetween(
+                            node.left,
+                            node.right,
+                            token => token.value === node.operator
+                        );
+
+                        return fixer.replaceText(operatorToken, expectedOperator);
+                    }
+                    return null;
+                }
+            });
         }
 
         return {
-            BinaryExpression: function(node) {
+            BinaryExpression(node) {
+                const isNull = isNullCheck(node);
+
                 if (node.operator !== "==" && node.operator !== "!=") {
+                    if (enforceInverseRuleForNull && isNull) {
+                        report(node, node.operator.slice(0, -1));
+                    }
                     return;
                 }
 
-                if (context.options[0] === "smart" && (isTypeOfBinary(node) ||
-                        areLiteralsAndSameType(node) || isNullCheck(node))) {
+                if (config === "smart" && (isTypeOfBinary(node) ||
+                        areLiteralsAndSameType(node) || isNull)) {
                     return;
                 }
 
-                if (context.options[0] === "allow-null" && isNullCheck(node)) {
+                if (!enforceRuleForNull && isNull) {
                     return;
                 }
 
-                context.report({
-                    node: node,
-                    loc: getOperatorLocation(node),
-                    message: "Expected '{{op}}=' and instead saw '{{op}}'.",
-                    data: { op: node.operator }
-                });
-
+                report(node, `${node.operator}=`);
             }
         };
 

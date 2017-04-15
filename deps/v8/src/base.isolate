@@ -4,51 +4,16 @@
 {
   'includes': [
     '../third_party/icu/icu.isolate',
-    '../build/config/win/msvs_dependencies.isolate',
+
+    # MSVS runtime libraries.
+    '../gypfiles/win/msvs_dependencies.isolate',
   ],
   'conditions': [
-    ['use_custom_libcxx==1', {
-      'variables': {
-        'files': [
-          '<(PRODUCT_DIR)/lib/libc++.so',
-        ],
-      },
-    }],
     ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {
       'variables': {
         'files': [
           '<(PRODUCT_DIR)/natives_blob.bin',
           '<(PRODUCT_DIR)/snapshot_blob.bin',
-        ],
-      },
-    }],
-    ['v8_use_snapshot=="true" and v8_use_external_startup_data==1 and v8_separate_ignition_snapshot==1', {
-      'variables': {
-        'files': [
-          '<(PRODUCT_DIR)/snapshot_blob_ignition.bin',
-        ],
-      },
-    }],
-    ['OS=="linux" and component=="shared_library" and target_arch=="ia32"', {
-      'variables': {
-        'files': [
-          '<(PRODUCT_DIR)/lib/',
-        ],
-      },
-    }],
-    ['OS=="win" and component=="shared_library"', {
-      'variables': {
-        'files': [
-          '<(PRODUCT_DIR)/icui18n.dll',
-          '<(PRODUCT_DIR)/icuuc.dll',
-          '<(PRODUCT_DIR)/v8.dll',
-        ],
-      },
-    }],
-    ['OS=="mac" and asan==1', {
-      'variables': {
-        'files': [
-          '<(PRODUCT_DIR)/libclang_rt.asan_osx_dynamic.dylib',
         ],
       },
     }],

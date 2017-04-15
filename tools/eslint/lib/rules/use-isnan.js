@@ -20,12 +20,12 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
-            BinaryExpression: function(node) {
+            BinaryExpression(node) {
                 if (/^(?:[<>]|[!=]=)=?$/.test(node.operator) && (node.left.name === "NaN" || node.right.name === "NaN")) {
-                    context.report(node, "Use the isNaN function to compare with NaN.");
+                    context.report({ node, message: "Use the isNaN function to compare with NaN." });
                 }
             }
         };

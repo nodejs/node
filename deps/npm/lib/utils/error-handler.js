@@ -13,10 +13,24 @@ var rollbacks = npm.rollbacks
 var chain = require('slide').chain
 var writeStreamAtomic = require('fs-write-stream-atomic')
 var errorMessage = require('./error-message.js')
+var stopMetrics = require('./metrics.js').stop
+var mkdir = require('mkdirp')
+
+var logFileName
+function getLogFile () {
+  if (!logFileName) {
+    logFileName = path.resolve(npm.config.get('cache'), '_logs', (new Date()).toISOString().replace(/[.:]/g, '_') + '-debug.log')
+  }
+  return logFileName
+}
 
 process.on('exit', function (code) {
   log.disableProgress()
   if (!npm.config || !npm.config.loaded) return
+
+  // kill any outstanding stats reporter if it hasn't finished yet
+  stopMetrics()
+
   if (code) itWorked = false
   if (itWorked) log.info('ok')
   else {
@@ -32,13 +46,13 @@ process.on('exit', function (code) {
         '',
         [
           'Please include the following file with any support request:',
-          '    ' + path.resolve('npm-debug.log')
+          '    ' + getLogFile()
         ].join('\n')
       )
       wroteLogFile = false
     }
     if (code) {
-      log.error('code', code)
+      log.verbose('code', code)
     }
   }
 
@@ -74,13 +88,15 @@ function exit (code, noLog) {
         else writeLogFile(reallyExit.bind(this, er))
       } else {
         if (!noLog && code) writeLogFile(reallyExit)
-        else rm('npm-debug.log', reallyExit)
+        else rm(getLogFile(), reallyExit)
       }
     })
     rollbacks.length = 0
+  } else if (code && !noLog) {
+    writeLogFile(reallyExit)
+  } else {
+    rm('npm-debug.log', reallyExit)
   }
-  else if (code && !noLog) writeLogFile(reallyExit)
-  else rm('npm-debug.log', reallyExit)
 
   function reallyExit (er) {
     if (er && !code) code = typeof er.errno === 'number' ? er.errno : 1
@@ -184,22 +200,26 @@ function writeLogFile (cb) {
   writingLogFile = true
   wroteLogFile = true
 
-  var fstr = writeStreamAtomic('npm-debug.log')
   var os = require('os')
-  var out = ''
 
-  log.record.forEach(function (m) {
-    var pref = [m.id, m.level]
-    if (m.prefix) pref.push(m.prefix)
-    pref = pref.join(' ')
+  mkdir(path.resolve(npm.config.get('cache'), '_logs'), function (er) {
+    if (er) {
+      cb(er)
+      return
+    }
+    var fstr = writeStreamAtomic(getLogFile())
+    log.record.forEach(function (m) {
+      var pref = [m.id, m.level]
+      if (m.prefix) pref.push(m.prefix)
+      pref = pref.join(' ')
 
-    m.message.trim().split(/\r?\n/).map(function (line) {
-      return (pref + ' ' + line).trim()
-    }).forEach(function (line) {
-      out += line + os.EOL
+      m.message.trim().split(/\r?\n/).map(function (line) {
+        return (pref + ' ' + line).trim()
+      }).forEach(function (line) {
+        fstr.write(line + os.EOL)
+      })
     })
+    fstr.end()
+    fstr.on('close', cb)
   })
-
-  fstr.end(out)
-  fstr.on('close', cb)
 }

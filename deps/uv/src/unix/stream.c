@@ -291,7 +291,10 @@ int uv__stream_try_select(uv_stream_t* stream, int* fd) {
   timeout.tv_sec = 0;
   timeout.tv_nsec = 1;
 
-  ret = kevent(kq, filter, 1, events, 1, &timeout);
+  do
+    ret = kevent(kq, filter, 1, events, 1, &timeout);
+  while (ret == -1 && errno == EINTR);
+
   uv__close(kq);
 
   if (ret == -1)
@@ -387,7 +390,7 @@ failed_malloc:
 
 
 int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__MVS__)
   int enable;
 #endif
 
@@ -406,7 +409,7 @@ int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
       return -errno;
   }
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__MVS__)
   enable = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_OOBINLINE, &enable, sizeof(enable)) &&
       errno != ENOTSOCK &&
@@ -571,7 +574,6 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 int uv_accept(uv_stream_t* server, uv_stream_t* client) {
   int err;
 
-  /* TODO document this */
   assert(server->loop == client->loop);
 
   if (server->accepted_fd == -1)
@@ -601,6 +603,8 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
     default:
       return -EINVAL;
   }
+
+  client->flags |= UV_HANDLE_BOUND;
 
 done:
   /* Process queued fds */
@@ -962,8 +966,8 @@ uv_handle_type uv__handle_type(int fd) {
     return UV_UNKNOWN_HANDLE;
 
   if (type == SOCK_STREAM) {
-#if defined(_AIX)
-    /* on AIX the getsockname call returns an empty sa structure
+#if defined(_AIX) || defined(__DragonFly__)
+    /* on AIX/DragonFly the getsockname call returns an empty sa structure
      * for sockets of type AF_UNIX.  For all other types it will
      * return a properly filled in structure.
      */
@@ -1122,8 +1126,9 @@ static void uv__read(uv_stream_t* stream) {
       && (count-- > 0)) {
     assert(stream->alloc_cb != NULL);
 
+    buf = uv_buf_init(NULL, 0);
     stream->alloc_cb((uv_handle_t*)stream, 64 * 1024, &buf);
-    if (buf.len == 0) {
+    if (buf.base == NULL || buf.len == 0) {
       /* User indicates it can't or won't handle the read. */
       stream->read_cb(stream, UV_ENOBUFS, &buf);
       return;
@@ -1189,6 +1194,30 @@ static void uv__read(uv_stream_t* stream) {
           return;
         }
       }
+
+#if defined(__MVS__)
+      if (is_ipc && msg.msg_controllen > 0) {
+        uv_buf_t blankbuf;
+        int nread;
+        struct iovec *old;
+
+        blankbuf.base = 0;
+        blankbuf.len = 0;
+        old = msg.msg_iov;
+        msg.msg_iov = (struct iovec*) &blankbuf;
+        nread = 0;
+        do {
+          nread = uv__recvmsg(uv__stream_fd(stream), &msg, 0);
+          err = uv__stream_recv_cmsg(stream, &msg);
+          if (err != 0) {
+            stream->read_cb(stream, err, &buf);
+            msg.msg_iov = old;
+            return;
+          }
+        } while (nread == 0 && msg.msg_controllen > 0);
+        msg.msg_iov = old;
+      }
+#endif
       stream->read_cb(stream, nread, &buf);
 
       /* Return if we didn't fill the buffer, there is no more data to read. */
@@ -1216,8 +1245,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
   if (!(stream->flags & UV_STREAM_WRITABLE) ||
       stream->flags & UV_STREAM_SHUT ||
       stream->flags & UV_STREAM_SHUTTING ||
-      stream->flags & UV_CLOSED ||
-      stream->flags & UV_CLOSING) {
+      uv__is_closing(stream)) {
     return -ENOTCONN;
   }
 

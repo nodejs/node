@@ -41,7 +41,7 @@ function testGlobalAccess() {
 }
 function shouldBeSyntaxError(str) {
     shouldThrow(str);
-    shouldThrow("(function(){" + str + "})");
+    shouldThrow("(function (){" + str + "})");
 }
 function testLineContinuation() {
     "use stric\
@@ -97,13 +97,13 @@ shouldBeSyntaxError("(function (){'use strict'; var a; delete a;})()");
 shouldBeSyntaxError("(function (){var a; function f() {'use strict'; delete a;} })()");
 shouldBeSyntaxError("(function (){'use strict'; with(1){};})");
 shouldThrow("(function (){'use strict'; arguments.callee; })()");
-shouldThrow("(function (){'use strict'; arguments.caller; })()");
+shouldBeUndefined("(function (){'use strict'; arguments.caller; })()");
 shouldThrow("(function f(){'use strict'; f.arguments; })()");
 shouldThrow("(function f(){'use strict'; f.caller; })()");
 shouldThrow("(function f(){'use strict'; f.arguments=5; })()");
 shouldThrow("(function f(){'use strict'; f.caller=5; })()");
 shouldThrow("(function (arg){'use strict'; arguments.callee; })()");
-shouldThrow("(function (arg){'use strict'; arguments.caller; })()");
+shouldBeUndefined("(function (arg){'use strict'; arguments.caller; })()");
 shouldThrow("(function f(arg){'use strict'; f.arguments; })()");
 shouldThrow("(function f(arg){'use strict'; f.caller; })()");
 shouldThrow("(function f(arg){'use strict'; f.arguments=5; })()");
@@ -199,8 +199,7 @@ shouldBeTrue("(function (){var a = true; eval('\"use strict\"; var a = false'); 
 shouldBeUndefined("(function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(f.__proto__, 'arguments').value; })()");
 shouldBeUndefined("(function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(f.__proto__, 'caller').value; })()");
 shouldBeUndefined("(function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(arguments, 'callee').value; })()");
-shouldBeUndefined("(function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(arguments, 'caller').value; })()");
-shouldBeTrue("(function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(arguments, 'caller'); return descriptor.get === descriptor.set; })()");
+shouldBeUndefined("(function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(arguments, 'caller'); })()");
 shouldBeTrue("(function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(arguments, 'callee'); return descriptor.get === descriptor.set; })()");
 shouldBeTrue("(function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'caller'); return descriptor.get === descriptor.set; })()");
 shouldBeTrue("(function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'arguments'); return descriptor.get === descriptor.set; })()");

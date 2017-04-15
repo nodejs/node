@@ -6,21 +6,26 @@
 #define V8_CRANKSHAFT_TYPING_H_
 
 #include "src/allocation.h"
+#include "src/ast/ast-type-bounds.h"
+#include "src/ast/ast-types.h"
 #include "src/ast/ast.h"
-#include "src/ast/scopes.h"
+#include "src/ast/variables.h"
 #include "src/effects.h"
 #include "src/type-info.h"
-#include "src/types.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 
+class DeclarationScope;
+class Isolate;
+class FunctionLiteral;
 
-class AstTyper: public AstVisitor {
+class AstTyper final : public AstVisitor<AstTyper> {
  public:
   AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
-           Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root);
+           DeclarationScope* scope, BailoutId osr_ast_id, FunctionLiteral* root,
+           AstTypeBounds* bounds);
   void Run();
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
@@ -36,20 +41,21 @@ class AstTyper: public AstVisitor {
   Isolate* isolate_;
   Zone* zone_;
   Handle<JSFunction> closure_;
-  Scope* scope_;
+  DeclarationScope* scope_;
   BailoutId osr_ast_id_;
   FunctionLiteral* root_;
   TypeFeedbackOracle oracle_;
   Store store_;
+  AstTypeBounds* bounds_;
 
   Zone* zone() const { return zone_; }
   TypeFeedbackOracle* oracle() { return &oracle_; }
 
-  void NarrowType(Expression* e, Bounds b) {
-    e->set_bounds(Bounds::Both(e->bounds(), b, zone()));
+  void NarrowType(Expression* e, AstBounds b) {
+    bounds_->set(e, AstBounds::Both(bounds_->get(e), b, zone()));
   }
-  void NarrowLowerType(Expression* e, Type* t) {
-    e->set_bounds(Bounds::NarrowLower(e->bounds(), t, zone()));
+  void NarrowLowerType(Expression* e, AstType* t) {
+    bounds_->set(e, AstBounds::NarrowLower(bounds_->get(e), t, zone()));
   }
 
   Effects EnterEffects() {
@@ -61,18 +67,12 @@ class AstTyper: public AstVisitor {
   int parameter_index(int index) { return -index - 2; }
   int stack_local_index(int index) { return index; }
 
-  int variable_index(Variable* var) {
-    // Stack locals have the range [0 .. l]
-    // Parameters have the range [-1 .. p]
-    // We map this to [-p-2 .. -1, 0 .. l]
-    return var->IsStackLocal() ? stack_local_index(var->index()) :
-           var->IsParameter() ? parameter_index(var->index()) : kNoVar;
-  }
+  int variable_index(Variable* var);
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
-  void VisitStatements(ZoneList<Statement*>* statements) override;
+  void VisitDeclarations(Declaration::List* declarations);
+  void VisitStatements(ZoneList<Statement*>* statements);
 
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 

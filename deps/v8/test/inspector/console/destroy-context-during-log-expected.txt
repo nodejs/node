@@ -1,0 +1,8 @@
+{
+    type : string
+    value : First inspector activity after attaching inspector
+}
+{
+    type : string
+    value : End of test
+}

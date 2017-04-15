@@ -19,9 +19,16 @@
             'unittests/unittests.gyp:unittests_run',
             'webkit/webkit.gyp:webkit_run',
           ],
+          'conditions': [
+            ['v8_enable_inspector==1', {
+              'dependencies': [
+                'inspector/inspector.gyp:inspector-test_run',
+              ],
+            }],
+          ],
           'includes': [
-            '../build/features.gypi',
-            '../build/isolate.gypi',
+            '../gypfiles/features.gypi',
+            '../gypfiles/isolate.gypi',
           ],
           'sources': [
             'bot_default.isolate',

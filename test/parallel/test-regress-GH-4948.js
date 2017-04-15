@@ -1,11 +1,11 @@
 'use strict';
 // https://github.com/joyent/node/issues/4948
 
-var common = require('../common');
-var http = require('http');
+const common = require('../common');
+const http = require('http');
 
-var reqCount = 0;
-var server = http.createServer(function(serverReq, serverRes) {
+let reqCount = 0;
+const server = http.createServer(function(serverReq, serverRes) {
   if (reqCount) {
     serverRes.end();
     server.close();
@@ -16,28 +16,28 @@ var server = http.createServer(function(serverReq, serverRes) {
 
   // normally the use case would be to call an external site
   // does not require connecting locally or to itself to fail
-  var r = http.request({hostname: 'localhost',
-                        port: common.PORT}, function(res) {
+  const r = http.request({hostname: 'localhost',
+                          port: this.address().port}, function(res) {
     // required, just needs to be in the client response somewhere
     serverRes.end();
 
     // required for test to fail
-    res.on('data', function(data) { });
+    res.on('data', common.noop);
 
   });
-  r.on('error', function(e) {});
+  r.on('error', common.noop);
   r.end();
 
   serverRes.write('some data');
-}).listen(common.PORT);
+}).listen(0, function() {
+  // simulate a client request that closes early
+  const net = require('net');
 
-// simulate a client request that closes early
-var net = require('net');
+  const sock = new net.Socket();
+  sock.connect(this.address().port, 'localhost');
 
-var sock = new net.Socket();
-sock.connect(common.PORT, 'localhost');
-
-sock.on('connect', function() {
-  sock.write('GET / HTTP/1.1\r\n\r\n');
-  sock.end();
+  sock.on('connect', function() {
+    sock.write('GET / HTTP/1.1\r\n\r\n');
+    sock.end();
+  });
 });

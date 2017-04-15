@@ -1,12 +1,12 @@
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+  value: true
 });
 
-var _trim2 = require('lodash/trim');
+var _lodash = require('lodash');
 
-var _trim3 = _interopRequireDefault(_trim2);
+var _lodash2 = _interopRequireDefault(_lodash);
 
 var _sliceAnsi = require('slice-ansi');
 
@@ -23,41 +23,36 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * @param {number} size
  * @returns {Array}
  */
+exports.default = (input, size) => {
+  let subject;
 
-exports.default = function (input, size) {
-    var chunk = undefined,
-        chunks = undefined,
-        re = undefined,
-        subject = undefined;
+  subject = input;
 
-    subject = input;
+  const chunks = [];
 
-    chunks = [];
+  // https://regex101.com/r/gY5kZ1/1
+  const re = new RegExp('(^.{1,' + size + '}(\\s+|$))|(^.{1,' + (size - 1) + '}(\\\\|/|_|\\.|,|;|-))');
 
-    // https://regex101.com/r/gY5kZ1/1
-    re = new RegExp('(^.{1,' + size + '}(\\s+|$))|(^.{1,' + (size - 1) + '}(\\\\|/|_|\\.|,|;|\-))');
+  do {
+    let chunk;
 
-    do {
-        chunk = subject.match(re);
+    chunk = subject.match(re);
 
-        // console.log('chunk', chunk, re);
+    if (chunk) {
+      chunk = chunk[0];
 
-        if (chunk) {
-            chunk = chunk[0];
+      subject = (0, _sliceAnsi2.default)(subject, (0, _stringWidth2.default)(chunk));
 
-            subject = (0, _sliceAnsi2.default)(subject, (0, _stringWidth2.default)(chunk));
+      chunk = _lodash2.default.trim(chunk);
+    } else {
+      chunk = (0, _sliceAnsi2.default)(subject, 0, size);
+      subject = (0, _sliceAnsi2.default)(subject, size);
+    }
 
-            chunk = (0, _trim3.default)(chunk);
-        } else {
-            chunk = (0, _sliceAnsi2.default)(subject, 0, size);
-            subject = (0, _sliceAnsi2.default)(subject, size);
-        }
+    chunks.push(chunk);
+  } while ((0, _stringWidth2.default)(subject));
 
-        chunks.push(chunk);
-    } while ((0, _stringWidth2.default)(subject));
-
-    return chunks;
+  return chunks;
 };
 
 module.exports = exports['default'];
-//# sourceMappingURL=wrapWord.js.map

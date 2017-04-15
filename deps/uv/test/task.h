@@ -136,20 +136,12 @@ const char* fmt(double d);
 /* Reserved test exit codes. */
 enum test_status {
   TEST_OK = 0,
-  TEST_TODO,
   TEST_SKIP
 };
 
 #define RETURN_OK()                                                           \
   do {                                                                        \
     return TEST_OK;                                                           \
-  } while (0)
-
-#define RETURN_TODO(explanation)                                              \
-  do {                                                                        \
-    fprintf(stderr, "%s\n", explanation);                                     \
-    fflush(stderr);                                                           \
-    return TEST_TODO;                                                         \
   } while (0)
 
 #define RETURN_SKIP(explanation)                                              \

@@ -12,11 +12,10 @@
 #include "src/factory.h"
 #include "src/field-type.h"
 #include "src/global-handles.h"
-#include "src/heap/slots-buffer.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap/utils-inl.h"
+#include "test/cctest/heap/heap-utils.h"
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -107,13 +106,14 @@ static Handle<DescriptorArray> CreateDescriptorArray(Isolate* isolate,
     TestPropertyKind kind = props[i];
 
     if (kind == PROP_CONSTANT) {
-      DataConstantDescriptor d(name, func, NONE);
+      Descriptor d = Descriptor::DataConstant(name, func, NONE);
       descriptors->Append(&d);
 
     } else {
-      DataDescriptor f(name, next_field_offset, NONE, representations[kind]);
-      next_field_offset += f.GetDetails().field_width_in_words();
-      descriptors->Append(&f);
+      Descriptor d = Descriptor::DataField(name, next_field_offset, NONE,
+                                           representations[kind]);
+      next_field_offset += d.GetDetails().field_width_in_words();
+      descriptors->Append(&d);
     }
   }
   return descriptors;
@@ -629,18 +629,19 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
     Handle<LayoutDescriptor> layout_descriptor;
     TestPropertyKind kind = props[i];
     if (kind == PROP_CONSTANT) {
-      DataConstantDescriptor d(name, func, NONE);
+      Descriptor d = Descriptor::DataConstant(name, func, NONE);
       layout_descriptor = LayoutDescriptor::ShareAppend(map, d.GetDetails());
       descriptors->Append(&d);
 
     } else {
-      DataDescriptor f(name, next_field_offset, NONE, representations[kind]);
-      int field_width_in_words = f.GetDetails().field_width_in_words();
+      Descriptor d = Descriptor::DataField(name, next_field_offset, NONE,
+                                           representations[kind]);
+      int field_width_in_words = d.GetDetails().field_width_in_words();
       next_field_offset += field_width_in_words;
-      layout_descriptor = LayoutDescriptor::ShareAppend(map, f.GetDetails());
-      descriptors->Append(&f);
+      layout_descriptor = LayoutDescriptor::ShareAppend(map, d.GetDetails());
+      descriptors->Append(&d);
 
-      int field_index = f.GetDetails().field_index();
+      int field_index = d.GetDetails().field_index();
       bool is_inobject = field_index < map->GetInObjectProperties();
       for (int bit = 0; bit < field_width_in_words; bit++) {
         CHECK_EQ(is_inobject && (kind == PROP_DOUBLE),
@@ -784,7 +785,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
       CHECK_EQ(*full_layout_descriptor, layout_desc);
     } else {
       CHECK(!switched_to_slow_mode);
-      if (details.type() == DATA) {
+      if (details.location() == kField) {
         nof++;
         int field_index = details.field_index();
         int field_width_in_words = details.field_width_in_words();
@@ -935,7 +936,7 @@ TEST(Regress436816) {
   CHECK(object->map()->HasFastPointerLayout());
 
   // Trigger GCs and heap verification.
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 }
 
 
@@ -992,7 +993,7 @@ TEST(DescriptorArrayTrimming) {
 
   // Call GC that should trim both |map|'s descriptor array and layout
   // descriptor.
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 
   // The unused tail of the layout descriptor is now "clean" again.
   CHECK(map->layout_descriptor()->IsConsistentWithMap(*map, true));
@@ -1058,7 +1059,7 @@ TEST(DoScavenge) {
   CHECK(isolate->heap()->new_space()->Contains(*obj));
 
   // Do scavenge so that |obj| is moved to survivor space.
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+  CcTest::CollectGarbage(i::NEW_SPACE);
 
   // Create temp object in the new space.
   Handle<JSArray> temp = factory->NewJSArray(0, FAST_ELEMENTS);
@@ -1075,7 +1076,7 @@ TEST(DoScavenge) {
 
   // Now |obj| moves to old gen and it has a double field that looks like
   // a pointer to a from semi-space.
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE, "boom");
+  CcTest::CollectGarbage(i::NEW_SPACE);
 
   CHECK(isolate->heap()->old_space()->Contains(*obj));
 
@@ -1113,9 +1114,8 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   {
     AlwaysAllocateScope always_allocate(isolate);
     // Make sure |obj_value| is placed on an old-space evacuation candidate.
-    SimulateFullSpace(old_space);
-    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS,
-                                    Strength::WEAK, TENURED);
+    heap::SimulateFullSpace(old_space);
+    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
     ec_page = Page::FromAddress(obj_value->address());
   }
 
@@ -1143,8 +1143,8 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   // simulate incremental marking.
   FLAG_stress_compaction = true;
   FLAG_manual_evacuation_candidates_selection = true;
-  ec_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
-  SimulateIncrementalMarking(heap);
+  heap::ForceEvacuationCandidate(ec_page);
+  heap::SimulateIncrementalMarking(heap);
   // Disable stress compaction mode in order to let GC do scavenge.
   FLAG_stress_compaction = false;
 
@@ -1153,18 +1153,18 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   // in compacting mode and |obj_value|'s page is an evacuation candidate).
   IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsCompacting());
-  CHECK(Marking::IsBlack(Marking::MarkBitFrom(*obj)));
+  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*obj)));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
   // Trigger GCs so that |obj| moves to old gen.
-  heap->CollectGarbage(i::NEW_SPACE);  // in survivor space now
-  heap->CollectGarbage(i::NEW_SPACE);  // in old gen now
+  CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
+  CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
 
   CHECK(isolate->heap()->old_space()->Contains(*obj));
   CHECK(isolate->heap()->old_space()->Contains(*obj_value));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
-  heap->CollectGarbage(i::OLD_SPACE, "boom");
+  CcTest::CollectGarbage(i::OLD_SPACE);
 
   // |obj_value| must be evacuated.
   CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
@@ -1193,7 +1193,7 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
   int first_non_tagged_field_offset = end_offset;
   for (int i = 0; i < number_of_descriptors; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
-    if (details.type() != DATA) continue;
+    if (details.location() != kField) continue;
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
     if (!index.is_inobject()) continue;
     all_fields_tagged &= !details.representation().IsDouble();
@@ -1414,7 +1414,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   obj->RawFastDoublePropertyAtPut(double_field_index, boom_value);
 
   // Trigger GC to evacuate all candidates.
-  CcTest::heap()->CollectGarbage(NEW_SPACE, "boom");
+  CcTest::CollectGarbage(NEW_SPACE);
 
   if (check_tagged_value) {
     FieldIndex tagged_field_index =
@@ -1453,39 +1453,31 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
     CHECK(old_space->Contains(*obj));
 
     // Make sure |obj_value| is placed on an old-space evacuation candidate.
-    SimulateFullSpace(old_space);
-    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS,
-                                    Strength::WEAK, TENURED);
+    heap::SimulateFullSpace(old_space);
+    obj_value = factory->NewJSArray(32 * KB, FAST_HOLEY_ELEMENTS, TENURED);
     ec_page = Page::FromAddress(obj_value->address());
     CHECK_NE(ec_page, Page::FromAddress(obj->address()));
   }
 
   // Heap is ready, force |ec_page| to become an evacuation candidate and
   // simulate incremental marking.
-  ec_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
-  SimulateIncrementalMarking(heap);
+  heap::ForceEvacuationCandidate(ec_page);
+  heap::SimulateIncrementalMarking(heap);
 
   // Check that everything is ready for triggering incremental write barrier
   // (i.e. that both |obj| and |obj_value| are black and the marking phase is
   // still active and |obj_value|'s page is indeed an evacuation candidate).
   IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsMarking());
-  CHECK(Marking::IsBlack(Marking::MarkBitFrom(*obj)));
-  CHECK(Marking::IsBlack(Marking::MarkBitFrom(*obj_value)));
+  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*obj)));
+  CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(*obj_value)));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
-  // Trigger incremental write barrier, which should add a slot to |ec_page|'s
-  // slots buffer.
+  // Trigger incremental write barrier, which should add a slot to remembered
+  // set.
   {
-    int slots_buffer_len = SlotsBuffer::SizeOfChain(ec_page->slots_buffer());
     FieldIndex index = FieldIndex::ForDescriptor(*map, tagged_descriptor);
-    const int n = SlotsBuffer::kNumberOfElements + 10;
-    for (int i = 0; i < n; i++) {
-      obj->FastPropertyAtPut(index, *obj_value);
-    }
-    // Ensure that the slot was actually added to the |ec_page|'s slots buffer.
-    CHECK_EQ(slots_buffer_len + n,
-             SlotsBuffer::SizeOfChain(ec_page->slots_buffer()));
+    obj->FastPropertyAtPut(index, *obj_value);
   }
 
   // Migrate |obj| to |new_map| which should shift fields and put the
@@ -1501,7 +1493,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   obj->RawFastDoublePropertyAtPut(double_field_index, boom_value);
 
   // Trigger GC to evacuate all candidates.
-  CcTest::heap()->CollectGarbage(OLD_SPACE, "boom");
+  CcTest::CollectGarbage(OLD_SPACE);
 
   // Ensure that the values are still there and correct.
   CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
@@ -1514,10 +1506,12 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   CHECK_EQ(boom_value, obj->RawFastDoublePropertyAt(double_field_index));
 }
 
-
-enum WriteBarrierKind { OLD_TO_OLD_WRITE_BARRIER, OLD_TO_NEW_WRITE_BARRIER };
+enum OldToWriteBarrierKind {
+  OLD_TO_OLD_WRITE_BARRIER,
+  OLD_TO_NEW_WRITE_BARRIER
+};
 static void TestWriteBarrierObjectShiftFieldsRight(
-    WriteBarrierKind write_barrier_kind) {
+    OldToWriteBarrierKind write_barrier_kind) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
@@ -1540,7 +1534,7 @@ static void TestWriteBarrierObjectShiftFieldsRight(
 
   // Shift fields right by turning constant property to a field.
   Handle<Map> new_map = Map::ReconfigureProperty(
-      map, 0, kData, NONE, Representation::Tagged(), any_type, FORCE_FIELD);
+      map, 0, kData, NONE, Representation::Tagged(), any_type);
 
   if (write_barrier_kind == OLD_TO_NEW_WRITE_BARRIER) {
     TestWriteBarrier(map, new_map, 2, 1);

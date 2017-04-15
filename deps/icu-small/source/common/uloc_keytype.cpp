@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 2014-2016, International Business Machines
@@ -13,6 +15,7 @@
 #include "umutex.h"
 #include "uresimp.h"
 #include "uvector.h"
+#include "udataswp.h" /* for InvChar functions */
 
 static UHashtable* gLocExtKeyMap = NULL;
 static icu::UInitOnce gLocExtKeyMapInitOnce = U_INITONCE_INITIALIZER;
@@ -312,7 +315,7 @@ initFromResourceBundle(UErrorCode& sts) {
                             break;
                         }
                         // check if this is an alias of canoncal legacy type
-                        if (uprv_compareInvAscii(NULL, legacyTypeId, -1, to, toLen) == 0) {
+                        if (uprv_compareInvWithUChar(NULL, legacyTypeId, -1, to, toLen) == 0) {
                             const char* from = ures_getKey(typeAliasDataEntry.getAlias());
                             if (isTZ) {
                                 // replace colon with slash if necessary
@@ -362,7 +365,7 @@ initFromResourceBundle(UErrorCode& sts) {
                             break;
                         }
                         // check if this is an alias of bcp type
-                        if (uprv_compareInvAscii(NULL, bcpTypeId, -1, to, toLen) == 0) {
+                        if (uprv_compareInvWithUChar(NULL, bcpTypeId, -1, to, toLen) == 0) {
                             const char* from = ures_getKey(bcpTypeAliasDataEntry.getAlias());
                             uhash_put(typeDataMap, (void*)from, t, &sts);
                         }

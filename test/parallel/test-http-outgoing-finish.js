@@ -1,8 +1,29 @@
-'use strict';
-var common = require('../common');
-var assert = require('assert');
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var http = require('http');
+'use strict';
+require('../common');
+const assert = require('assert');
+
+const http = require('http');
 
 http.createServer(function(req, res) {
   req.resume();
@@ -10,9 +31,9 @@ http.createServer(function(req, res) {
     write(res);
   });
   this.close();
-}).listen(common.PORT, function() {
-  var req = http.request({
-    port: common.PORT,
+}).listen(0, function() {
+  const req = http.request({
+    port: this.address().port,
     method: 'PUT'
   });
   write(req);
@@ -21,11 +42,11 @@ http.createServer(function(req, res) {
   });
 });
 
-var buf = Buffer.alloc(1024 * 16, 'x');
+const buf = Buffer.alloc(1024 * 16, 'x');
 function write(out) {
-  var name = out.constructor.name;
-  var finishEvent = false;
-  var endCb = false;
+  const name = out.constructor.name;
+  let finishEvent = false;
+  let endCb = false;
 
   // first, write until it gets some backpressure
   while (out.write(buf)) {}

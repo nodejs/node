@@ -29,8 +29,6 @@
 // The code generator now handles compile-time constants specially.
 // Test the code generated when operands are known at compile time
 
-// Flags: --legacy-const
-
 // Test count operations involving constants
 function test_count() {
   var x = "foo";
@@ -69,11 +67,6 @@ function test_count() {
   z = y;
   y++;
   assertEquals(z, 20);
-
-  const w = 30;
-  assertEquals(w++, 30);
-  assertEquals(++w, 31);
-  assertEquals(++w, 31);
 }
 
 test_count();

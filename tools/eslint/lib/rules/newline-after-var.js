@@ -6,13 +6,19 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 module.exports = {
     meta: {
         docs: {
-            description: "require or disallow an empty line after `var` declarations",
+            description: "require or disallow an empty line after variable declarations",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -21,21 +27,23 @@ module.exports = {
             {
                 enum: ["never", "always"]
             }
-        ]
+        ],
+
+        fixable: "whitespace"
     },
 
-    create: function(context) {
+    create(context) {
 
-        var ALWAYS_MESSAGE = "Expected blank line after variable declarations.",
+        const ALWAYS_MESSAGE = "Expected blank line after variable declarations.",
             NEVER_MESSAGE = "Unexpected blank line after variable declarations.";
 
-        var sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         // Default `mode` to "always".
-        var mode = context.options[0] === "never" ? "never" : "always";
+        const mode = context.options[0] === "never" ? "never" : "always";
 
         // Cache starting and ending line numbers of comments for faster lookup
-        var commentEndLine = context.getAllComments().reduce(function(result, token) {
+        const commentEndLine = sourceCode.getAllComments().reduce((result, token) => {
             result[token.loc.start.line] = token.loc.end.line;
             return result;
         }, {});
@@ -44,6 +52,37 @@ module.exports = {
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
+
+        /**
+         * Gets a token from the given node to compare line to the next statement.
+         *
+         * In general, the token is the last token of the node. However, the token is the second last token if the following conditions satisfy.
+         *
+         * - The last token is semicolon.
+         * - The semicolon is on a different line from the previous token of the semicolon.
+         *
+         * This behavior would address semicolon-less style code. e.g.:
+         *
+         *     var foo = 1
+         *
+         *     ;(a || b).doSomething()
+         *
+         * @param {ASTNode} node - The node to get.
+         * @returns {Token} The token to compare line to the next statement.
+         */
+        function getLastToken(node) {
+            const lastToken = sourceCode.getLastToken(node);
+
+            if (lastToken.type === "Punctuator" && lastToken.value === ";") {
+                const prevToken = sourceCode.getTokenBefore(lastToken);
+
+                if (prevToken.loc.end.line !== lastToken.loc.start.line) {
+                    return prevToken;
+                }
+            }
+
+            return lastToken;
+        }
 
         /**
          * Determine if provided keyword is a variable declaration
@@ -83,9 +122,20 @@ module.exports = {
          * @returns {boolean} True if `node` is last of their parent block.
          */
         function isLastNode(node) {
-            var token = sourceCode.getTokenAfter(node);
+            const token = sourceCode.getTokenAfter(node);
 
             return !token || (token.type === "Punctuator" && token.value === "}");
+        }
+
+        /**
+        * Gets the last line of a group of consecutive comments
+        * @param {number} commentStartLine The starting line of the group
+        * @returns {number} The number of the last comment line of the group
+        */
+        function getLastCommentLineOfBlock(commentStartLine) {
+            const currentCommentEnd = commentEndLine[commentStartLine];
+
+            return commentEndLine[currentCommentEnd + 1] ? getLastCommentLineOfBlock(currentCommentEnd + 1) : currentCommentEnd;
         }
 
         /**
@@ -95,14 +145,7 @@ module.exports = {
          * @returns {boolean}                 True if `token` does not start immediately after a comment
          */
         function hasBlankLineAfterComment(token, commentStartLine) {
-            var commentEnd = commentEndLine[commentStartLine];
-
-            // If there's another comment, repeat check for blank line
-            if (commentEndLine[commentEnd + 1]) {
-                return hasBlankLineAfterComment(token, commentEnd + 1);
-            }
-
-            return (token.loc.start.line > commentEndLine[commentStartLine] + 1);
+            return token.loc.start.line > getLastCommentLineOfBlock(commentStartLine) + 1;
         }
 
         /**
@@ -114,11 +157,19 @@ module.exports = {
          * @returns {void}
          */
         function checkForBlankLine(node) {
-            var lastToken = sourceCode.getLastToken(node),
-                nextToken = sourceCode.getTokenAfter(node),
-                nextLineNum = lastToken.loc.end.line + 1,
-                noNextLineToken,
-                hasNextLineComment;
+
+            /*
+             * lastToken is the last token on the node's line. It will usually also be the last token of the node, but it will
+             * sometimes be second-last if there is a semicolon on a different line.
+             */
+            const lastToken = getLastToken(node),
+
+                /*
+                 * If lastToken is the last token of the node, nextToken should be the token after the node. Otherwise, nextToken
+                 * is the last token of the node.
+                 */
+                nextToken = lastToken === sourceCode.getLastToken(node) ? sourceCode.getTokenAfter(node) : sourceCode.getLastToken(node),
+                nextLineNum = lastToken.loc.end.line + 1;
 
             // Ignore if there is no following statement
             if (!nextToken) {
@@ -147,11 +198,20 @@ module.exports = {
             }
 
             // Next statement is not a `var`...
-            noNextLineToken = nextToken.loc.start.line > nextLineNum;
-            hasNextLineComment = (typeof commentEndLine[nextLineNum] !== "undefined");
+            const noNextLineToken = nextToken.loc.start.line > nextLineNum;
+            const hasNextLineComment = (typeof commentEndLine[nextLineNum] !== "undefined");
 
             if (mode === "never" && noNextLineToken && !hasNextLineComment) {
-                context.report(node, NEVER_MESSAGE, { identifier: node.name });
+                context.report({
+                    node,
+                    message: NEVER_MESSAGE,
+                    data: { identifier: node.name },
+                    fix(fixer) {
+                        const linesBetween = sourceCode.getText().slice(lastToken.range[1], nextToken.range[0]).split(astUtils.LINEBREAK_MATCHER);
+
+                        return fixer.replaceTextRange([lastToken.range[1], nextToken.range[0]], `${linesBetween.slice(0, -1).join("")}\n${linesBetween[linesBetween.length - 1]}`);
+                    }
+                });
             }
 
             // Token on the next line, or comment without blank line
@@ -161,7 +221,18 @@ module.exports = {
                     hasNextLineComment && !hasBlankLineAfterComment(nextToken, nextLineNum)
                 )
             ) {
-                context.report(node, ALWAYS_MESSAGE, { identifier: node.name });
+                context.report({
+                    node,
+                    message: ALWAYS_MESSAGE,
+                    data: { identifier: node.name },
+                    fix(fixer) {
+                        if ((noNextLineToken ? getLastCommentLineOfBlock(nextLineNum) : lastToken.loc.end.line) === nextToken.loc.start.line) {
+                            return fixer.insertTextBefore(nextToken, "\n\n");
+                        }
+
+                        return fixer.insertTextBeforeRange([nextToken.range[0] - nextToken.loc.start.column, nextToken.range[1]], "\n");
+                    }
+                });
             }
         }
 

@@ -5,69 +5,61 @@
 #ifndef V8_COMPILER_TYPER_H_
 #define V8_COMPILER_TYPER_H_
 
-#include "src/base/flags.h"
 #include "src/compiler/graph.h"
-#include "src/types.h"
+#include "src/compiler/operation-typer.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class CompilationDependencies;
-class TypeCache;
-
 namespace compiler {
 
+// Forward declarations.
+class LoopVariableOptimizer;
 
-class Typer {
+class V8_EXPORT_PRIVATE Typer {
  public:
-  // Flags that control the mode of operation.
-  enum Flag {
-    kNoFlags = 0u,
-    kDeoptimizationEnabled = 1u << 0,
+  enum Flag : uint8_t {
+    kNoFlags = 0,
+    kThisIsReceiver = 1u << 0,       // Parameter this is an Object.
+    kNewTargetIsReceiver = 1u << 1,  // Parameter new.target is an Object.
   };
   typedef base::Flags<Flag> Flags;
 
-  Typer(Isolate* isolate, Graph* graph, Flags flags = kNoFlags,
-        CompilationDependencies* dependencies = nullptr,
-        FunctionType* function_type = nullptr);
+  Typer(Isolate* isolate, Flags flags, Graph* graph);
   ~Typer();
 
   void Run();
   // TODO(bmeurer,jarin): Remove this once we have a notion of "roots" on Graph.
-  void Run(const ZoneVector<Node*>& roots);
+  void Run(const ZoneVector<Node*>& roots,
+           LoopVariableOptimizer* induction_vars);
 
  private:
   class Visitor;
   class Decorator;
 
+  Flags flags() const { return flags_; }
   Graph* graph() const { return graph_; }
   Zone* zone() const { return graph()->zone(); }
   Isolate* isolate() const { return isolate_; }
-  Flags flags() const { return flags_; }
-  CompilationDependencies* dependencies() const { return dependencies_; }
-  FunctionType* function_type() const { return function_type_; }
+  OperationTyper* operation_typer() { return &operation_typer_; }
 
   Isolate* const isolate_;
-  Graph* const graph_;
   Flags const flags_;
-  CompilationDependencies* const dependencies_;
-  FunctionType* function_type_;
+  Graph* const graph_;
   Decorator* decorator_;
   TypeCache const& cache_;
+  OperationTyper operation_typer_;
 
   Type* singleton_false_;
   Type* singleton_true_;
   Type* singleton_the_hole_;
-  Type* signed32ish_;
-  Type* unsigned32ish_;
   Type* falsish_;
   Type* truish_;
 
   DISALLOW_COPY_AND_ASSIGN(Typer);
 };
 
-DEFINE_OPERATORS_FOR_FLAGS(Typer::Flags)
+DEFINE_OPERATORS_FOR_FLAGS(Typer::Flags);
 
 }  // namespace compiler
 }  // namespace internal

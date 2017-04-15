@@ -6,10 +6,16 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var ALLOW_OPTIONS = Object.freeze([
+const ALLOW_OPTIONS = Object.freeze([
     "functions",
     "arrowFunctions",
     "generatorFunctions",
@@ -19,18 +25,6 @@ var ALLOW_OPTIONS = Object.freeze([
     "setters",
     "constructors"
 ]);
-var SHOW_KIND = Object.freeze({
-    functions: "function",
-    arrowFunctions: "arrow function",
-    generatorFunctions: "generator function",
-    asyncFunctions: "async function",
-    methods: "method",
-    generatorMethods: "generator method",
-    asyncMethods: "async method",
-    getters: "getter",
-    setters: "setter",
-    constructors: "constructor"
-});
 
 /**
  * Gets the kind of a given function node.
@@ -44,8 +38,8 @@ var SHOW_KIND = Object.freeze({
  *      "constructors".
  */
 function getKind(node) {
-    var parent = node.parent;
-    var kind = "";
+    const parent = node.parent;
+    let kind = "";
 
     if (node.type === "ArrowFunctionExpression") {
         return "arrowFunctions";
@@ -78,7 +72,7 @@ function getKind(node) {
     }
 
     // Detects prefix.
-    var prefix = "";
+    let prefix = "";
 
     if (node.generator) {
         prefix = "generator";
@@ -108,7 +102,7 @@ module.exports = {
                 properties: {
                     allow: {
                         type: "array",
-                        items: {enum: ALLOW_OPTIONS},
+                        items: { enum: ALLOW_OPTIONS },
                         uniqueItems: true
                     }
                 },
@@ -117,9 +111,11 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var options = context.options[0] || {};
-        var allowed = options.allow || [];
+    create(context) {
+        const options = context.options[0] || {};
+        const allowed = options.allow || [];
+
+        const sourceCode = context.getSourceCode();
 
         /**
          * Reports a given function node if the node matches the following patterns.
@@ -134,17 +130,19 @@ module.exports = {
          * @returns {void}
          */
         function reportIfEmpty(node) {
-            var kind = getKind(node);
+            const kind = getKind(node);
+            const name = astUtils.getFunctionNameWithKind(node);
 
             if (allowed.indexOf(kind) === -1 &&
                 node.body.type === "BlockStatement" &&
                 node.body.body.length === 0 &&
-                context.getComments(node.body).trailing.length === 0
+                sourceCode.getComments(node.body).trailing.length === 0
             ) {
                 context.report({
-                    node: node,
+                    node,
                     loc: node.body.loc.start,
-                    message: "Unexpected empty " + SHOW_KIND[kind] + "."
+                    message: "Unexpected empty {{name}}.",
+                    data: { name }
                 });
             }
         }

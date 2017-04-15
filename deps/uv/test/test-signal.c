@@ -19,13 +19,40 @@
  * IN THE SOFTWARE.
  */
 
-
-/* This test does not pretend to be cross-platform. */
-#ifndef _WIN32
-
 #include "uv.h"
 #include "task.h"
 
+/* For Windows we test only signum handling */
+#ifdef _WIN32
+static void signum_test_cb(uv_signal_t* handle, int signum) {
+  FATAL("signum_test_cb should not be called");
+}
+
+TEST_IMPL(win32_signum_number) {
+  uv_signal_t signal;
+  uv_loop_t* loop;
+
+  loop = uv_default_loop();
+  uv_signal_init(loop, &signal);
+
+  ASSERT(uv_signal_start(&signal, signum_test_cb, 0) == UV_EINVAL);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, SIGINT) == 0);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, SIGBREAK) == 0);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, SIGHUP) == 0);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, SIGWINCH) == 0);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, SIGILL) == 0);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, SIGABRT_COMPAT) == 0);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, SIGFPE) == 0);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, SIGSEGV) == 0);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, SIGTERM) == 0);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, SIGABRT) == 0);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, -1) == UV_EINVAL);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, NSIG) == UV_EINVAL);
+  ASSERT(uv_signal_start(&signal, signum_test_cb, 1024) == UV_EINVAL);
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+#else
 #include <errno.h>
 #include <signal.h>
 #include <stdarg.h>

@@ -16,26 +16,19 @@ function toRangeWrapped(value) {
   return value;
 }
 
-function toRangeClamped(value) {
-  if (value < this.min) return this.min;
-  if (value > this.max) return this.max;
-  return value;
-}
-
 function makeConstructorObject(constr, min, max, toRange) {
   var o = {constr: constr, min: min, max: max};
-  o.toRange = toRange.bind(o);
+  o.toRange = toRangeWrapped.bind(o);
   return o;
 }
 
 var IntegerTypedArrayConstructors = [
-  makeConstructorObject(Int8Array, -128, 127, toRangeWrapped),
-  makeConstructorObject(Int16Array, -32768, 32767, toRangeWrapped),
-  makeConstructorObject(Int32Array, -0x80000000, 0x7fffffff, toRangeWrapped),
-  makeConstructorObject(Uint8Array, 0, 255, toRangeWrapped),
-  makeConstructorObject(Uint8ClampedArray, 0, 255, toRangeClamped),
-  makeConstructorObject(Uint16Array, 0, 65535, toRangeWrapped),
-  makeConstructorObject(Uint32Array, 0, 0xffffffff, toRangeWrapped),
+  makeConstructorObject(Int8Array, -128, 127),
+  makeConstructorObject(Int16Array, -32768, 32767),
+  makeConstructorObject(Int32Array, -0x80000000, 0x7fffffff),
+  makeConstructorObject(Uint8Array, 0, 255),
+  makeConstructorObject(Uint16Array, 0, 65535),
+  makeConstructorObject(Uint32Array, 0, 0xffffffff),
 ];
 
 (function TestBadArray() {
@@ -44,9 +37,13 @@ var IntegerTypedArrayConstructors = [
   var sab = new SharedArrayBuffer(128);
   var sf32a = new Float32Array(sab);
   var sf64a = new Float64Array(sab);
+  var u8ca = new Uint8ClampedArray(sab);
 
   // Atomic ops required integer shared typed arrays
-  [undefined, 1, 'hi', 3.4, ab, u32a, sab, sf32a, sf64a].forEach(function(o) {
+  var badArrayTypes = [
+    undefined, 1, 'hi', 3.4, ab, u32a, sab, sf32a, sf64a, u8ca
+  ];
+  badArrayTypes.forEach(function(o) {
     assertThrows(function() { Atomics.compareExchange(o, 0, 0, 0); },
                  TypeError);
     assertThrows(function() { Atomics.load(o, 0); }, TypeError);
@@ -60,83 +57,65 @@ var IntegerTypedArrayConstructors = [
   });
 })();
 
-function testAtomicOp(op, ia, index, expectedIndex, name) {
-  for (var i = 0; i < ia.length; ++i)
-    ia[i] = 22;
-
-  ia[expectedIndex] = 0;
-  assertEquals(0, op(ia, index, 0, 0), name);
-  assertEquals(0, ia[expectedIndex], name);
-
-  for (var i = 0; i < ia.length; ++i) {
-    if (i == expectedIndex) continue;
-    assertEquals(22, ia[i], name);
-  }
-}
-
 (function TestBadIndex() {
   var sab = new SharedArrayBuffer(8);
   var si32a = new Int32Array(sab);
   var si32a2 = new Int32Array(sab, 4);
 
-  // Non-integer indexes are converted to an integer first, so they should all
-  // operate on index 0.
-  [undefined, null, false, 'hi', {}].forEach(function(i) {
+  // Non-integer indexes should throw RangeError.
+  var nonInteger = [1.4, '1.4', NaN, -Infinity, Infinity, undefined, 'hi', {}];
+  nonInteger.forEach(function(i) {
+    assertThrows(function() { Atomics.compareExchange(si32a, i, 0); },
+                 RangeError);
+    assertThrows(function() { Atomics.load(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.store(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.add(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.sub(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.and(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.or(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.xor(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.exchange(si32a, i, 0); }, RangeError);
+  }, RangeError);
 
-    var name = String(i);
-    testAtomicOp(Atomics.compareExchange, si32a, i, 0, name);
-    testAtomicOp(Atomics.load, si32a, i, 0, name);
-    testAtomicOp(Atomics.store, si32a, i, 0, name);
-    testAtomicOp(Atomics.add, si32a, i, 0, name);
-    testAtomicOp(Atomics.sub, si32a, i, 0, name);
-    testAtomicOp(Atomics.and, si32a, i, 0, name);
-    testAtomicOp(Atomics.or, si32a, i, 0, name);
-    testAtomicOp(Atomics.xor, si32a, i, 0, name);
-    testAtomicOp(Atomics.exchange, si32a, i, 0, name);
-  });
-
-  // Out-of-bounds indexes should return undefined.
-  // TODO(binji): Should these throw RangeError instead?
+  // Out-of-bounds indexes should throw RangeError.
   [-1, 2, 100].forEach(function(i) {
-    var name = String(i);
-    assertEquals(undefined, Atomics.compareExchange(si32a, i, 0, 0), name);
-    assertEquals(undefined, Atomics.load(si32a, i), name);
-    assertEquals(undefined, Atomics.store(si32a, i, 0), name);
-    assertEquals(undefined, Atomics.add(si32a, i, 0), name);
-    assertEquals(undefined, Atomics.sub(si32a, i, 0), name);
-    assertEquals(undefined, Atomics.and(si32a, i, 0), name);
-    assertEquals(undefined, Atomics.or(si32a, i, 0), name);
-    assertEquals(undefined, Atomics.xor(si32a, i, 0), name);
-    assertEquals(undefined, Atomics.exchange(si32a, i, 0), name);
-  });
+    assertThrows(function() { Atomics.compareExchange(si32a, i, 0, 0); },
+                 RangeError);
+    assertThrows(function() { Atomics.load(si32a, i); }, RangeError);
+    assertThrows(function() { Atomics.store(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.add(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.sub(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.and(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.or(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.xor(si32a, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.exchange(si32a, i, 0); }, RangeError);
+  }, RangeError);
 
-  // Out-of-bounds indexes for offset-array
+  // Out-of-bounds indexes for array with offset should throw RangeError.
   [-1, 1, 100].forEach(function(i) {
-    var name = String(i);
-    assertEquals(undefined, Atomics.compareExchange(si32a2, i, 0, 0), name);
-    assertEquals(undefined, Atomics.load(si32a2, i), name);
-    assertEquals(undefined, Atomics.store(si32a2, i, 0), name);
-    assertEquals(undefined, Atomics.add(si32a2, i, 0), name);
-    assertEquals(undefined, Atomics.sub(si32a2, i, 0), name);
-    assertEquals(undefined, Atomics.and(si32a2, i, 0), name);
-    assertEquals(undefined, Atomics.or(si32a2, i, 0), name);
-    assertEquals(undefined, Atomics.xor(si32a2, i, 0), name);
-    assertEquals(undefined, Atomics.exchange(si32a2, i, 0), name);
+    assertThrows(function() { Atomics.compareExchange(si32a2, i, 0, 0); });
+    assertThrows(function() { Atomics.load(si32a2, i); }, RangeError);
+    assertThrows(function() { Atomics.store(si32a2, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.add(si32a2, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.sub(si32a2, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.and(si32a2, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.or(si32a2, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.xor(si32a2, i, 0); }, RangeError);
+    assertThrows(function() { Atomics.exchange(si32a2, i, 0); }, RangeError);
   });
 
-  // Monkey-patch length and make sure these functions still return undefined.
+  // Monkey-patch length and make sure these functions still throw.
   Object.defineProperty(si32a, 'length', {get: function() { return 1000; }});
   [2, 100].forEach(function(i) {
-    var name = String(i);
-    assertEquals(undefined, Atomics.compareExchange(si32a, i, 0, 0), name);
-    assertEquals(undefined, Atomics.load(si32a, i), name);
-    assertEquals(undefined, Atomics.store(si32a, i, 0), name);
-    assertEquals(undefined, Atomics.add(si32a, i, 0), name);
-    assertEquals(undefined, Atomics.sub(si32a, i, 0), name);
-    assertEquals(undefined, Atomics.and(si32a, i, 0), name);
-    assertEquals(undefined, Atomics.or(si32a, i, 0), name);
-    assertEquals(undefined, Atomics.xor(si32a, i, 0), name);
-    assertEquals(undefined, Atomics.exchange(si32a, i, 0), name);
+    assertThrows(function() { Atomics.compareExchange(si32a, i, 0, 0); });
+    assertThrows(function() { Atomics.load(si32a, i); });
+    assertThrows(function() { Atomics.store(si32a, i, 0); });
+    assertThrows(function() { Atomics.add(si32a, i, 0); });
+    assertThrows(function() { Atomics.sub(si32a, i, 0); });
+    assertThrows(function() { Atomics.and(si32a, i, 0); });
+    assertThrows(function() { Atomics.or(si32a, i, 0); });
+    assertThrows(function() { Atomics.xor(si32a, i, 0); });
+    assertThrows(function() { Atomics.exchange(si32a, i, 0); });
   });
 })();
 
@@ -145,22 +124,53 @@ function testAtomicOp(op, ia, index, expectedIndex, name) {
   var si32a = new Int32Array(sab);
   var si32a2 = new Int32Array(sab, 32);
 
-  var valueOf = {valueOf: function(){ return 3;}};
-  var toString = {toString: function(){ return '3';}};
+  var testOp = function(op, ia, index, expectedIndex, name) {
+    for (var i = 0; i < ia.length; ++i)
+      ia[i] = i * 2;
 
-  [3, 3.5, '3', '3.5', valueOf, toString].forEach(function(i) {
+    ia[expectedIndex] = 0;
+    var result = op(ia, index, 0, 0);
+    assertEquals(0, result, name);
+    assertEquals(0, ia[expectedIndex], name);
+
+    for (var i = 0; i < ia.length; ++i) {
+      if (i == expectedIndex) continue;
+      assertEquals(i * 2, ia[i], name);
+    }
+  };
+
+  // These values all map to index 0
+  [-0, 0, 0.0, null, false].forEach(function(i) {
     var name = String(i);
     [si32a, si32a2].forEach(function(array) {
-        testAtomicOp(Atomics.compareExchange, array, i, 3, name);
-        testAtomicOp(Atomics.load, array, i, 3, name);
-        testAtomicOp(Atomics.store, array, i, 3, name);
-        testAtomicOp(Atomics.add, array, i, 3, name);
-        testAtomicOp(Atomics.sub, array, i, 3, name);
-        testAtomicOp(Atomics.and, array, i, 3, name);
-        testAtomicOp(Atomics.or, array, i, 3, name);
-        testAtomicOp(Atomics.xor, array, i, 3, name);
-        testAtomicOp(Atomics.exchange, array, i, 3, name);
-      })
+      testOp(Atomics.compareExchange, array, i, 0, name);
+      testOp(Atomics.load, array, i, 0, name);
+      testOp(Atomics.store, array, i, 0, name);
+      testOp(Atomics.add, array, i, 0, name);
+      testOp(Atomics.sub, array, i, 0, name);
+      testOp(Atomics.and, array, i, 0, name);
+      testOp(Atomics.or, array, i, 0, name);
+      testOp(Atomics.xor, array, i, 0, name);
+      testOp(Atomics.exchange, array, i, 0, name);
+    });
+  });
+
+  // These values all map to index 3
+  var valueOf = {valueOf: function(){ return 3;}};
+  var toString = {toString: function(){ return '3';}};
+  [3, 3.0, '3', '3.0', valueOf, toString].forEach(function(i) {
+    var name = String(i);
+    [si32a, si32a2].forEach(function(array) {
+      testOp(Atomics.compareExchange, array, i, 3, name);
+      testOp(Atomics.load, array, i, 3, name);
+      testOp(Atomics.store, array, i, 3, name);
+      testOp(Atomics.add, array, i, 3, name);
+      testOp(Atomics.sub, array, i, 3, name);
+      testOp(Atomics.and, array, i, 3, name);
+      testOp(Atomics.or, array, i, 3, name);
+      testOp(Atomics.xor, array, i, 3, name);
+      testOp(Atomics.exchange, array, i, 3, name);
+    });
   });
 })();
 
@@ -209,6 +219,24 @@ function clearArray(sab) {
         assertEquals(50, Atomics.load(array, i), name);
       }
     })
+  });
+
+  // Test Smi range
+  (function () {
+    var sab = new SharedArrayBuffer(4);
+    var i32 = new Int32Array(sab);
+    var u32 = new Uint32Array(sab);
+
+    function testLoad(signedValue, unsignedValue) {
+      u32[0] = unsignedValue;
+      assertEquals(unsignedValue, Atomics.load(u32, 0));
+      assertEquals(signedValue, Atomics.load(i32, 0));
+    }
+
+    testLoad(0x3fffffff,  0x3fffffff); // 2**30-1 (always smi)
+    testLoad(0x40000000,  0x40000000); // 2**30 (smi if signed and 32-bits)
+    testLoad(0x80000000, -0x80000000); // 2**31 (smi if signed and 32-bits)
+    testLoad(0xffffffff, -1);          // 2**31 (smi if signed)
   });
 })();
 
@@ -393,7 +421,7 @@ function clearArray(sab) {
       assertEquals(50, Atomics.compareExchange(sta, 0, v, v), name);
 
       // Store
-      assertEquals(+v, Atomics.store(sta, 0, v), name);
+      assertEquals(v|0, Atomics.store(sta, 0, v), name);
       assertEquals(v|0, sta[0], name);
 
       // Add

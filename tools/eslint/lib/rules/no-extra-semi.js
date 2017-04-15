@@ -6,6 +6,13 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const FixTracker = require("../util/fix-tracker");
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -21,7 +28,8 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
+        const sourceCode = context.getSourceCode();
 
         /**
          * Reports an unnecessary semicolon error.
@@ -32,8 +40,14 @@ module.exports = {
             context.report({
                 node: nodeOrToken,
                 message: "Unnecessary semicolon.",
-                fix: function(fixer) {
-                    return fixer.remove(nodeOrToken);
+                fix(fixer) {
+
+                    // Expand the replacement range to include the surrounding
+                    // tokens to avoid conflicting with semi.
+                    // https://github.com/eslint/eslint/issues/7928
+                    return new FixTracker(fixer, context.getSourceCode())
+                        .retainSurroundingTokens(nodeOrToken)
+                        .remove(nodeOrToken);
                 }
             });
         }
@@ -46,11 +60,11 @@ module.exports = {
          * @returns {void}
          */
         function checkForPartOfClassBody(firstToken) {
-            for (var token = firstToken;
-                token.type === "Punctuator" && token.value !== "}";
-                token = context.getTokenAfter(token)
+            for (let token = firstToken;
+                token.type === "Punctuator" && !astUtils.isClosingBraceToken(token);
+                token = sourceCode.getTokenAfter(token)
             ) {
-                if (token.value === ";") {
+                if (astUtils.isSemicolonToken(token)) {
                     report(token);
                 }
             }
@@ -63,9 +77,18 @@ module.exports = {
              * @param {Node} node - A EmptyStatement node to be reported.
              * @returns {void}
              */
-            EmptyStatement: function(node) {
-                var parent = node.parent,
-                    allowedParentTypes = ["ForStatement", "ForInStatement", "ForOfStatement", "WhileStatement", "DoWhileStatement"];
+            EmptyStatement(node) {
+                const parent = node.parent,
+                    allowedParentTypes = [
+                        "ForStatement",
+                        "ForInStatement",
+                        "ForOfStatement",
+                        "WhileStatement",
+                        "DoWhileStatement",
+                        "IfStatement",
+                        "LabeledStatement",
+                        "WithStatement"
+                    ];
 
                 if (allowedParentTypes.indexOf(parent.type) === -1) {
                     report(node);
@@ -77,8 +100,8 @@ module.exports = {
              * @param {Node} node - A ClassBody node to check.
              * @returns {void}
              */
-            ClassBody: function(node) {
-                checkForPartOfClassBody(context.getFirstToken(node, 1)); // 0 is `{`.
+            ClassBody(node) {
+                checkForPartOfClassBody(sourceCode.getFirstToken(node, 1)); // 0 is `{`.
             },
 
             /**
@@ -86,8 +109,8 @@ module.exports = {
              * @param {Node} node - A MethodDefinition node of the start point.
              * @returns {void}
              */
-            MethodDefinition: function(node) {
-                checkForPartOfClassBody(context.getTokenAfter(node));
+            MethodDefinition(node) {
+                checkForPartOfClassBody(sourceCode.getTokenAfter(node));
             }
         };
 

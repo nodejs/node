@@ -89,7 +89,7 @@ Display only the dependency tree for packages in `devDependencies`.
 
 When "dev" or "development", is an alias to `dev`.
 
-When "prod" or "production", is an alias to `production`.`
+When "prod" or "production", is an alias to `production`.
 
 ## SEE ALSO
 

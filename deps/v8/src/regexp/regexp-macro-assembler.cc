@@ -100,6 +100,15 @@ void RegExpMacroAssembler::CheckNotInSurrogatePair(int cp_offset,
   Bind(&ok);
 }
 
+void RegExpMacroAssembler::CheckPosition(int cp_offset,
+                                         Label* on_outside_input) {
+  LoadCurrentCharacter(cp_offset, on_outside_input, true);
+}
+
+bool RegExpMacroAssembler::CheckSpecialCharacterClass(uc16 type,
+                                                      Label* on_no_match) {
+  return false;
+}
 
 #ifndef V8_INTERPRETED_REGEXP  // Avoid unused code, e.g., on ARM.
 
@@ -113,7 +122,7 @@ NativeRegExpMacroAssembler::~NativeRegExpMacroAssembler() {
 
 
 bool NativeRegExpMacroAssembler::CanReadUnaligned() {
-  return FLAG_enable_unaligned_accesses && !slow_safe();
+  return FLAG_enable_regexp_unaligned_accesses && !slow_safe();
 }
 
 const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
@@ -168,7 +177,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     return_value = RETRY;
   } else {
     Object* result = isolate->stack_guard()->HandleInterrupts();
-    if (result->IsException()) return_value = EXCEPTION;
+    if (result->IsException(isolate)) return_value = EXCEPTION;
   }
 
   DisallowHeapAllocation no_gc;

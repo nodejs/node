@@ -1,7 +1,7 @@
 'use strict'
 
 var caseless = require('caseless')
-  , uuid = require('node-uuid')
+  , uuid = require('uuid')
   , helpers = require('./helpers')
 
 var md5 = helpers.md5

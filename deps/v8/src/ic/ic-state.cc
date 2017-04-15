@@ -17,7 +17,7 @@ void ICUtility::Clear(Isolate* isolate, Address address,
 
 
 std::ostream& operator<<(std::ostream& os, const CallICState& s) {
-  return os << "(args(" << s.argc() << "), " << s.convert_mode() << ", ";
+  return os << "(" << s.convert_mode() << ", " << s.tail_call_mode() << ")";
 }
 
 
@@ -61,6 +61,23 @@ ExtraICState BinaryOpICState::GetExtraICState() const {
   return extra_ic_state;
 }
 
+std::string BinaryOpICState::ToString() const {
+  std::string ret = "(";
+  ret += Token::Name(op_);
+  if (CouldCreateAllocationMementos()) ret += "_CreateAllocationMementos";
+  ret += ":";
+  ret += BinaryOpICState::KindToString(left_kind_);
+  ret += "*";
+  if (fixed_right_arg_.IsJust()) {
+    ret += fixed_right_arg_.FromJust();
+  } else {
+    ret += BinaryOpICState::KindToString(right_kind_);
+  }
+  ret += "->";
+  ret += BinaryOpICState::KindToString(result_kind_);
+  ret += ")";
+  return ret;
+}
 
 // static
 void BinaryOpICState::GenerateAheadOfTime(
@@ -189,15 +206,14 @@ void BinaryOpICState::GenerateAheadOfTime(
 #undef GENERATE
 }
 
-
-Type* BinaryOpICState::GetResultType() const {
+AstType* BinaryOpICState::GetResultType() const {
   Kind result_kind = result_kind_;
   if (HasSideEffects()) {
     result_kind = NONE;
   } else if (result_kind == GENERIC && op_ == Token::ADD) {
-    return Type::NumberOrString();
+    return AstType::NumberOrString();
   } else if (result_kind == NUMBER && op_ == Token::SHR) {
-    return Type::Unsigned32();
+    return AstType::Unsigned32();
   }
   DCHECK_NE(GENERIC, result_kind);
   return KindToType(result_kind);
@@ -257,10 +273,10 @@ void BinaryOpICState::Update(Handle<Object> left, Handle<Object> right,
 
   if (old_extra_ic_state == GetExtraICState()) {
     // Tagged operations can lead to non-truncating HChanges
-    if (left->IsUndefined() || left->IsBoolean()) {
+    if (left->IsOddball()) {
       left_kind_ = GENERIC;
     } else {
-      DCHECK(right->IsUndefined() || right->IsBoolean());
+      DCHECK(right->IsOddball());
       right_kind_ = GENERIC;
     }
   }
@@ -271,10 +287,10 @@ BinaryOpICState::Kind BinaryOpICState::UpdateKind(Handle<Object> object,
                                                   Kind kind) const {
   Kind new_kind = GENERIC;
   bool is_truncating = Token::IsTruncatingBinaryOp(op());
-  if (object->IsBoolean() && is_truncating) {
-    // Booleans will be automatically truncated by HChange.
+  if (object->IsOddball() && is_truncating) {
+    // Oddballs will be automatically truncated by HChange.
     new_kind = INT32;
-  } else if (object->IsUndefined()) {
+  } else if (object->IsUndefined(isolate_)) {
     // Undefined will be automatically truncated by HChange.
     new_kind = is_truncating ? INT32 : NUMBER;
   } else if (object->IsSmi()) {
@@ -318,20 +334,20 @@ const char* BinaryOpICState::KindToString(Kind kind) {
 
 
 // static
-Type* BinaryOpICState::KindToType(Kind kind) {
+AstType* BinaryOpICState::KindToType(Kind kind) {
   switch (kind) {
     case NONE:
-      return Type::None();
+      return AstType::None();
     case SMI:
-      return Type::SignedSmall();
+      return AstType::SignedSmall();
     case INT32:
-      return Type::Signed32();
+      return AstType::Signed32();
     case NUMBER:
-      return Type::Number();
+      return AstType::Number();
     case STRING:
-      return Type::String();
+      return AstType::String();
     case GENERIC:
-      return Type::Any();
+      return AstType::Any();
   }
   UNREACHABLE();
   return NULL;
@@ -365,29 +381,28 @@ const char* CompareICState::GetStateName(State state) {
   return NULL;
 }
 
-
-Type* CompareICState::StateToType(Zone* zone, State state, Handle<Map> map) {
+AstType* CompareICState::StateToType(Zone* zone, State state, Handle<Map> map) {
   switch (state) {
     case UNINITIALIZED:
-      return Type::None();
+      return AstType::None();
     case BOOLEAN:
-      return Type::Boolean();
+      return AstType::Boolean();
     case SMI:
-      return Type::SignedSmall();
+      return AstType::SignedSmall();
     case NUMBER:
-      return Type::Number();
+      return AstType::Number();
     case STRING:
-      return Type::String();
+      return AstType::String();
     case INTERNALIZED_STRING:
-      return Type::InternalizedString();
+      return AstType::InternalizedString();
     case UNIQUE_NAME:
-      return Type::UniqueName();
+      return AstType::UniqueName();
     case RECEIVER:
-      return Type::Receiver();
+      return AstType::Receiver();
     case KNOWN_RECEIVER:
-      return map.is_null() ? Type::Receiver() : Type::Class(map, zone);
+      return map.is_null() ? AstType::Receiver() : AstType::Class(map, zone);
     case GENERIC:
-      return Type::Any();
+      return AstType::Any();
   }
   UNREACHABLE();
   return NULL;
@@ -404,7 +419,9 @@ CompareICState::State CompareICState::NewInputState(State old_state,
       if (value->IsInternalizedString()) return INTERNALIZED_STRING;
       if (value->IsString()) return STRING;
       if (value->IsSymbol()) return UNIQUE_NAME;
-      if (value->IsJSReceiver()) return RECEIVER;
+      if (value->IsJSReceiver() && !value->IsUndetectable()) {
+        return RECEIVER;
+      }
       break;
     case BOOLEAN:
       if (value->IsBoolean()) return BOOLEAN;
@@ -428,7 +445,9 @@ CompareICState::State CompareICState::NewInputState(State old_state,
       if (value->IsUniqueName()) return UNIQUE_NAME;
       break;
     case RECEIVER:
-      if (value->IsJSReceiver()) return RECEIVER;
+      if (value->IsJSReceiver() && !value->IsUndetectable()) {
+        return RECEIVER;
+      }
       break;
     case GENERIC:
       break;
@@ -442,8 +461,9 @@ CompareICState::State CompareICState::NewInputState(State old_state,
 
 // static
 CompareICState::State CompareICState::TargetState(
-    State old_state, State old_left, State old_right, Token::Value op,
-    bool has_inlined_smi_code, Handle<Object> x, Handle<Object> y) {
+    Isolate* isolate, State old_state, State old_left, State old_right,
+    Token::Value op, bool has_inlined_smi_code, Handle<Object> x,
+    Handle<Object> y) {
   switch (old_state) {
     case UNINITIALIZED:
       if (x->IsBoolean() && y->IsBoolean()) return BOOLEAN;
@@ -452,8 +472,8 @@ CompareICState::State CompareICState::TargetState(
       if (Token::IsOrderedRelationalCompareOp(op)) {
         // Ordered comparisons treat undefined as NaN, so the
         // NUMBER stub will do the right thing.
-        if ((x->IsNumber() && y->IsUndefined()) ||
-            (y->IsNumber() && x->IsUndefined())) {
+        if ((x->IsNumber() && y->IsUndefined(isolate)) ||
+            (y->IsNumber() && x->IsUndefined(isolate))) {
           return NUMBER;
         }
       }
@@ -464,6 +484,9 @@ CompareICState::State CompareICState::TargetState(
       }
       if (x->IsString() && y->IsString()) return STRING;
       if (x->IsJSReceiver() && y->IsJSReceiver()) {
+        if (x->IsUndetectable() || y->IsUndetectable()) {
+          return GENERIC;
+        }
         if (Handle<JSReceiver>::cast(x)->map() ==
             Handle<JSReceiver>::cast(y)->map()) {
           return KNOWN_RECEIVER;

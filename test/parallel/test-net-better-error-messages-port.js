@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
 
-var c = net.createConnection(common.PORT);
+const c = net.createConnection(common.PORT);
 
-c.on('connect', common.fail);
+c.on('connect', common.mustNotCall());
 
 c.on('error', common.mustCall(function(e) {
-  assert.equal(e.code, 'ECONNREFUSED');
-  assert.equal(e.port, common.PORT);
-  assert.equal(e.address, '127.0.0.1');
+  assert.strictEqual(e.code, 'ECONNREFUSED');
+  assert.strictEqual(e.port, common.PORT);
+  assert.strictEqual(e.address, '127.0.0.1');
 }));

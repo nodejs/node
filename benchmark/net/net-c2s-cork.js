@@ -27,11 +27,11 @@ function main(conf) {
       break;
     case 'utf':
       encoding = 'utf8';
-      chunk = new Array(len / 2 + 1).join('ü');
+      chunk = 'ü'.repeat(len / 2);
       break;
     case 'asc':
       encoding = 'ascii';
-      chunk = new Array(len + 1).join('x');
+      chunk = 'x'.repeat(len);
       break;
     default:
       throw new Error('invalid type: ' + type);
@@ -84,6 +84,7 @@ function server() {
         var bytes = writer.received;
         var gbits = (bytes * 8) / (1024 * 1024 * 1024);
         bench.end(gbits);
+        process.exit(0);
       }, dur * 1000);
 
       function send() {

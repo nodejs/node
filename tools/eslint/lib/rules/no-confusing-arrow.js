@@ -6,7 +6,7 @@
 
 "use strict";
 
-var astUtils = require("../ast-utils.js");
+const astUtils = require("../ast-utils.js");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -36,14 +36,15 @@ module.exports = {
         schema: [{
             type: "object",
             properties: {
-                allowParens: {type: "boolean"}
+                allowParens: { type: "boolean" }
             },
             additionalProperties: false
         }]
     },
 
-    create: function(context) {
-        var config = context.options[0] || {};
+    create(context) {
+        const config = context.options[0] || {};
+        const sourceCode = context.getSourceCode();
 
         /**
          * Reports if an arrow function contains an ambiguous conditional.
@@ -51,10 +52,10 @@ module.exports = {
          * @returns {void}
          */
         function checkArrowFunc(node) {
-            var body = node.body;
+            const body = node.body;
 
-            if (isConditional(body) && !(config.allowParens && astUtils.isParenthesised(context, body))) {
-                context.report(node, "Arrow function used ambiguously with a conditional expression.");
+            if (isConditional(body) && !(config.allowParens && astUtils.isParenthesised(sourceCode, body))) {
+                context.report({ node, message: "Arrow function used ambiguously with a conditional expression." });
             }
         }
 

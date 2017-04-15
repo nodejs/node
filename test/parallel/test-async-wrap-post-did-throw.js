@@ -1,19 +1,24 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
 const assert = require('assert');
 const async_wrap = process.binding('async_wrap');
-var asyncThrows = 0;
-var uncaughtExceptionCount = 0;
+let asyncThrows = 0;
+let uncaughtExceptionCount = 0;
 
 process.on('uncaughtException', (e) => {
-  assert.equal(e.message, 'oh noes!', 'error messages do not match');
+  assert.strictEqual(e.message, 'oh noes!', 'error messages do not match');
 });
 
 process.on('exit', () => {
   process.removeAllListeners('uncaughtException');
-  assert.equal(uncaughtExceptionCount, 1);
-  assert.equal(uncaughtExceptionCount, asyncThrows);
+  assert.strictEqual(uncaughtExceptionCount, 1);
+  assert.strictEqual(uncaughtExceptionCount, asyncThrows);
 });
 
 function init() { }

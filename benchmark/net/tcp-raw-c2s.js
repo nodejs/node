@@ -56,6 +56,7 @@ function server() {
     setTimeout(function() {
       // report in Gb/sec
       bench.end((bytes * 8) / (1024 * 1024 * 1024));
+      process.exit(0);
     }, dur * 1000);
 
     clientHandle.onread = function(nread, buffer) {
@@ -82,10 +83,10 @@ function client() {
       chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
-      chunk = new Array(len / 2 + 1).join('ü');
+      chunk = 'ü'.repeat(len / 2);
       break;
     case 'asc':
-      chunk = new Array(len + 1).join('x');
+      chunk = 'x'.repeat(len);
       break;
     default:
       throw new Error('invalid type: ' + type);

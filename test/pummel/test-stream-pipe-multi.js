@@ -1,18 +1,39 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 // Test that having a bunch of streams piping in parallel
 // doesn't break anything.
 
 require('../common');
-var assert = require('assert');
-var Stream = require('stream').Stream;
-var rr = [];
-var ww = [];
-var cnt = 100;
-var chunks = 1000;
-var chunkSize = 250;
-var data = Buffer.allocUnsafe(chunkSize);
-var wclosed = 0;
-var rclosed = 0;
+const assert = require('assert');
+const Stream = require('stream').Stream;
+const rr = [];
+const ww = [];
+const cnt = 100;
+const chunks = 1000;
+const chunkSize = 250;
+const data = Buffer.allocUnsafe(chunkSize);
+let wclosed = 0;
+let rclosed = 0;
 
 function FakeStream() {
   Stream.apply(this);
@@ -45,8 +66,8 @@ FakeStream.prototype.close = function() {
 
 // expect all streams to close properly.
 process.on('exit', function() {
-  assert.equal(cnt, wclosed, 'writable streams closed');
-  assert.equal(cnt, rclosed, 'readable streams closed');
+  assert.strictEqual(cnt, wclosed, 'writable streams closed');
+  assert.strictEqual(cnt, rclosed, 'readable streams closed');
 });
 
 for (let i = 0; i < chunkSize; i++) {
@@ -54,14 +75,14 @@ for (let i = 0; i < chunkSize; i++) {
 }
 
 for (let i = 0; i < cnt; i++) {
-  var r = new FakeStream();
+  const r = new FakeStream();
   r.on('close', function() {
     console.error(this.ID, 'read close');
     rclosed++;
   });
   rr.push(r);
 
-  var w = new FakeStream();
+  const w = new FakeStream();
   w.on('close', function() {
     console.error(this.ID, 'write close');
     wclosed++;
@@ -75,8 +96,8 @@ for (let i = 0; i < cnt; i++) {
 // now start passing through data
 // simulate a relatively fast async stream.
 rr.forEach(function(r) {
-  var cnt = chunks;
-  var paused = false;
+  let cnt = chunks;
+  let paused = false;
 
   r.on('pause', function() {
     paused = true;

@@ -23,9 +23,11 @@ can be extensively customised by use of the B<flags> parameter.
 X509_NAME_print_ex_fp() is identical to X509_NAME_print_ex() except the output is
 written to FILE pointer B<fp>.
 
-X509_NAME_oneline() prints an ASCII version of B<a> to B<buf>. At most B<size>
-bytes will be written. If B<buf> is B<NULL> then a buffer is dynamically allocated
-and returned, otherwise B<buf> is returned.
+X509_NAME_oneline() prints an ASCII version of B<a> to B<buf>.
+If B<buf> is B<NULL> then a buffer is dynamically allocated and returned, and
+B<size> is ignored.
+Otherwise, at most B<size> bytes will be written, including the ending '\0',
+and B<buf> is returned.
 
 X509_NAME_print() prints out B<name> to B<bp> indenting each line by B<obase> 
 characters. Multiple lines are used if the output (including indent) exceeds

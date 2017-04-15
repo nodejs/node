@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 1997-2016, International Business Machines Corporation and    *
@@ -634,7 +636,9 @@ static const int32_t kCalendarLimits[UCAL_FIELD_COUNT][4] = {
 };
 
 // Resource bundle tags read by this class
+static const char gCalendar[] = "calendar";
 static const char gMonthNames[] = "monthNames";
+static const char gGregorian[] = "gregorian";
 
 // Data flow in Calendar
 // ---------------------
@@ -3791,12 +3795,30 @@ Calendar::setWeekData(const Locale& desiredLocale, const char *type, UErrorCode&
        from the calendar data.  The code used to use the dateTimeElements resource to get first day
        of week data, but this was moved to supplemental data under ticket 7755. (JCE) */
 
-    CalendarData calData(useLocale,type,status);
-    UResourceBundle *monthNames = calData.getByKey(gMonthNames,status);
+    // Get the monthNames resource bundle for the calendar 'type'. Fallback to gregorian if the resource is not
+    // found.
+    LocalUResourceBundlePointer calData(ures_open(NULL, useLocale.getBaseName(), &status));
+    ures_getByKey(calData.getAlias(), gCalendar, calData.getAlias(), &status);
+
+    LocalUResourceBundlePointer monthNames;
+    if (type != NULL && *type != '\0' && uprv_strcmp(type, gGregorian) != 0) {
+        monthNames.adoptInstead(ures_getByKeyWithFallback(calData.getAlias(), type, NULL, &status));
+        ures_getByKeyWithFallback(monthNames.getAlias(), gMonthNames,
+                                  monthNames.getAlias(), &status);
+    }
+
+    if (monthNames.isNull() || status == U_MISSING_RESOURCE_ERROR) {
+        status = U_ZERO_ERROR;
+        monthNames.adoptInstead(ures_getByKeyWithFallback(calData.getAlias(), gGregorian,
+                                                          monthNames.orphan(), &status));
+        ures_getByKeyWithFallback(monthNames.getAlias(), gMonthNames,
+                                  monthNames.getAlias(), &status);
+    }
+
     if (U_SUCCESS(status)) {
         U_LOCALE_BASED(locBased,*this);
-        locBased.setLocaleIDs(ures_getLocaleByType(monthNames, ULOC_VALID_LOCALE, &status),
-                              ures_getLocaleByType(monthNames, ULOC_ACTUAL_LOCALE, &status));
+        locBased.setLocaleIDs(ures_getLocaleByType(monthNames.getAlias(), ULOC_VALID_LOCALE, &status),
+                              ures_getLocaleByType(monthNames.getAlias(), ULOC_ACTUAL_LOCALE, &status));
     } else {
         status = U_USING_FALLBACK_WARNING;
         return;
@@ -3815,9 +3837,6 @@ Calendar::setWeekData(const Locale& desiredLocale, const char *type, UErrorCode&
     }
 
     if (U_FAILURE(status)) {
-#if defined (U_DEBUG_CALDATA)
-        fprintf(stderr, " Failure loading weekData from supplemental = %s\n", u_errorName(status));
-#endif
         status = U_USING_FALLBACK_WARNING;
     } else {
         int32_t arrLen;

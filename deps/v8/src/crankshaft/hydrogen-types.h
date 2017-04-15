@@ -8,8 +8,8 @@
 #include <climits>
 #include <iosfwd>
 
+#include "src/ast/ast-types.h"
 #include "src/base/macros.h"
-#include "src/types.h"
 
 namespace v8 {
 namespace internal {
@@ -64,7 +64,7 @@ class HType final {
   HTYPE_LIST(DECLARE_IS_TYPE)
   #undef DECLARE_IS_TYPE
 
-  static HType FromType(Type* type) WARN_UNUSED_RESULT;
+  static HType FromType(AstType* type) WARN_UNUSED_RESULT;
   static HType FromFieldType(Handle<FieldType> type,
                              Zone* temp_zone) WARN_UNUSED_RESULT;
   static HType FromValue(Handle<Object> value) WARN_UNUSED_RESULT;

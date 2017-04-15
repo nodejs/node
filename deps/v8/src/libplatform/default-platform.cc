@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <queue>
 
+#include "include/libplatform/libplatform.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
@@ -29,15 +30,30 @@ bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate) {
   return reinterpret_cast<DefaultPlatform*>(platform)->PumpMessageLoop(isolate);
 }
 
+void RunIdleTasks(v8::Platform* platform, v8::Isolate* isolate,
+                  double idle_time_in_seconds) {
+  reinterpret_cast<DefaultPlatform*>(platform)->RunIdleTasks(
+      isolate, idle_time_in_seconds);
+}
 
-const int DefaultPlatform::kMaxThreadPoolSize = 4;
+void SetTracingController(
+    v8::Platform* platform,
+    v8::platform::tracing::TracingController* tracing_controller) {
+  return reinterpret_cast<DefaultPlatform*>(platform)->SetTracingController(
+      tracing_controller);
+}
 
+const int DefaultPlatform::kMaxThreadPoolSize = 8;
 
 DefaultPlatform::DefaultPlatform()
     : initialized_(false), thread_pool_size_(0) {}
 
-
 DefaultPlatform::~DefaultPlatform() {
+  if (tracing_controller_) {
+    tracing_controller_->StopTracing();
+    tracing_controller_.reset();
+  }
+
   base::LockGuard<base::Mutex> guard(&lock_);
   queue_.Terminate();
   if (initialized_) {
@@ -59,6 +75,12 @@ DefaultPlatform::~DefaultPlatform() {
       i->second.pop();
     }
   }
+  for (auto& i : main_thread_idle_queue_) {
+    while (!i.second.empty()) {
+      delete i.second.front();
+      i.second.pop();
+    }
+  }
 }
 
 
@@ -66,7 +88,7 @@ void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
   base::LockGuard<base::Mutex> guard(&lock_);
   DCHECK(thread_pool_size >= 0);
   if (thread_pool_size < 1) {
-    thread_pool_size = base::SysInfo::NumberOfProcessors();
+    thread_pool_size = base::SysInfo::NumberOfProcessors() - 1;
   }
   thread_pool_size_ =
       std::max(std::min(thread_pool_size, kMaxThreadPoolSize), 1);
@@ -108,6 +130,15 @@ Task* DefaultPlatform::PopTaskInMainThreadDelayedQueue(v8::Isolate* isolate) {
   return deadline_and_task.second;
 }
 
+IdleTask* DefaultPlatform::PopTaskInMainThreadIdleQueue(v8::Isolate* isolate) {
+  auto it = main_thread_idle_queue_.find(isolate);
+  if (it == main_thread_idle_queue_.end() || it->second.empty()) {
+    return nullptr;
+  }
+  IdleTask* task = it->second.front();
+  it->second.pop();
+  return task;
+}
 
 bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate) {
   Task* task = NULL;
@@ -132,8 +163,25 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate) {
   return true;
 }
 
+void DefaultPlatform::RunIdleTasks(v8::Isolate* isolate,
+                                   double idle_time_in_seconds) {
+  double deadline_in_seconds =
+      MonotonicallyIncreasingTime() + idle_time_in_seconds;
+  while (deadline_in_seconds > MonotonicallyIncreasingTime()) {
+    {
+      IdleTask* task;
+      {
+        base::LockGuard<base::Mutex> guard(&lock_);
+        task = PopTaskInMainThreadIdleQueue(isolate);
+      }
+      if (task == nullptr) return;
+      task->Run(deadline_in_seconds);
+      delete task;
+    }
+  }
+}
 
-void DefaultPlatform::CallOnBackgroundThread(Task *task,
+void DefaultPlatform::CallOnBackgroundThread(Task* task,
                                              ExpectedRuntime expected_runtime) {
   EnsureInitialized();
   queue_.Append(task);
@@ -154,35 +202,47 @@ void DefaultPlatform::CallDelayedOnForegroundThread(Isolate* isolate,
   main_thread_delayed_queue_[isolate].push(std::make_pair(deadline, task));
 }
 
-
 void DefaultPlatform::CallIdleOnForegroundThread(Isolate* isolate,
                                                  IdleTask* task) {
-  UNREACHABLE();
+  base::LockGuard<base::Mutex> guard(&lock_);
+  main_thread_idle_queue_[isolate].push(task);
 }
 
-
-bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) { return false; }
-
+bool DefaultPlatform::IdleTasksEnabled(Isolate* isolate) { return true; }
 
 double DefaultPlatform::MonotonicallyIncreasingTime() {
   return base::TimeTicks::HighResolutionNow().ToInternalValue() /
          static_cast<double>(base::Time::kMicrosecondsPerSecond);
 }
 
-
 uint64_t DefaultPlatform::AddTraceEvent(
     char phase, const uint8_t* category_enabled_flag, const char* name,
-    uint64_t id, uint64_t bind_id, int num_args, const char** arg_names,
-    const uint8_t* arg_types, const uint64_t* arg_values, unsigned int flags) {
+    const char* scope, uint64_t id, uint64_t bind_id, int num_args,
+    const char** arg_names, const uint8_t* arg_types,
+    const uint64_t* arg_values,
+    std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
+    unsigned int flags) {
+  if (tracing_controller_) {
+    return tracing_controller_->AddTraceEvent(
+        phase, category_enabled_flag, name, scope, id, bind_id, num_args,
+        arg_names, arg_types, arg_values, arg_convertables, flags);
+  }
+
   return 0;
 }
 
-
 void DefaultPlatform::UpdateTraceEventDuration(
-    const uint8_t* category_enabled_flag, const char* name, uint64_t handle) {}
-
+    const uint8_t* category_enabled_flag, const char* name, uint64_t handle) {
+  if (tracing_controller_) {
+    tracing_controller_->UpdateTraceEventDuration(category_enabled_flag, name,
+                                                  handle);
+  }
+}
 
 const uint8_t* DefaultPlatform::GetCategoryGroupEnabled(const char* name) {
+  if (tracing_controller_) {
+    return tracing_controller_->GetCategoryGroupEnabled(name);
+  }
   static uint8_t no = 0;
   return &no;
 }
@@ -194,8 +254,23 @@ const char* DefaultPlatform::GetCategoryGroupName(
   return dummy;
 }
 
+void DefaultPlatform::SetTracingController(
+    tracing::TracingController* tracing_controller) {
+  tracing_controller_.reset(tracing_controller);
+}
+
 size_t DefaultPlatform::NumberOfAvailableBackgroundThreads() {
   return static_cast<size_t>(thread_pool_size_);
+}
+
+void DefaultPlatform::AddTraceStateObserver(TraceStateObserver* observer) {
+  if (!tracing_controller_) return;
+  tracing_controller_->AddTraceStateObserver(observer);
+}
+
+void DefaultPlatform::RemoveTraceStateObserver(TraceStateObserver* observer) {
+  if (!tracing_controller_) return;
+  tracing_controller_->RemoveTraceStateObserver(observer);
 }
 
 }  // namespace platform

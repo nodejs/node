@@ -1,9 +1,6 @@
 // Copyright 2014 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
-// Flags: --harmony-proxies --harmony-reflect
-
 (function testArrayConcatArity() {
   "use strict";
   assertEquals(1, Array.prototype.concat.length);
@@ -22,6 +19,15 @@
   assertEquals(false, desc.enumerable);
 })();
 
+(function testNonConcatSpreadableArray() {
+  "use strict"
+  var array = [1, 2, 3];
+  assertEquals(array, [].concat(array));
+  assertEquals(array, array.concat([]));
+  array[Symbol.isConcatSpreadable] = false;
+  assertEquals([[1,2,3]], [].concat(array));
+  assertEquals([[1,2,3]], array.concat([]));
+})();
 
 (function testConcatArrayLike() {
   "use strict";
@@ -803,9 +809,10 @@ logger.get = function(t, trap, r) {
 
   log.length = 0;
   assertEquals([obj], Array.prototype.concat.apply(obj));
-  assertEquals(1, log.length);
+  assertEquals(2, log.length);  // An extra read for the constructor
   for (var i in log) assertSame(target, log[i][1]);
-  assertEquals(["get", target, Symbol.isConcatSpreadable, obj], log[0]);
+  assertEquals(["get", target, "constructor", obj], log[0]);
+  assertEquals(["get", target, Symbol.isConcatSpreadable, obj], log[1]);
 })();
 
 
@@ -827,14 +834,15 @@ logger.get = function(t, trap, r) {
 
   log.length = 0;
   assertEquals(["a", "b"], Array.prototype.concat.apply(obj));
-  assertEquals(6, log.length);
+  assertEquals(7, log.length);
   for (var i in log) assertSame(target, log[i][1]);
-  assertEquals(["get", target, Symbol.isConcatSpreadable, obj], log[0]);
-  assertEquals(["get", target, "length", obj], log[1]);
-  assertEquals(["has", target, "0"], log[2]);
-  assertEquals(["get", target, "0", obj], log[3]);
-  assertEquals(["has", target, "1"], log[4]);
-  assertEquals(["get", target, "1", obj], log[5]);
+  assertEquals(["get", target, "constructor", obj], log[0]);
+  assertEquals(["get", target, Symbol.isConcatSpreadable, obj], log[1]);
+  assertEquals(["get", target, "length", obj], log[2]);
+  assertEquals(["has", target, "0"], log[3]);
+  assertEquals(["get", target, "0", obj], log[4]);
+  assertEquals(["has", target, "1"], log[5]);
+  assertEquals(["get", target, "1", obj], log[6]);
 })();
 
 
@@ -863,4 +871,26 @@ logger.get = function(t, trap, r) {
 
   assertThrows(() => [].concat(obj), TypeError);
   assertThrows(() => Array.prototype.concat.apply(obj), TypeError);
+})();
+
+(function testConcatRevokedProxy() {
+  "use strict";
+  var target = [];
+  var handler = {
+    get(_, name) {
+      if (name === Symbol.isConcatSpreadable) {
+        p.revoke();
+      }
+      return target[name];
+    }
+  }
+
+  p = Proxy.revocable(target, handler);
+  target = {};
+  target.__proto__ = p.proxy;
+  assertThrows(function() { [].concat({ __proto__: p.proxy }); }, TypeError);
+
+  target = [];
+  var p = Proxy.revocable(target, handler);
+  assertThrows(function() { [].concat(p.proxy); }, TypeError);
 })();

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const Buffer = require('buffer').Buffer;
@@ -79,40 +79,68 @@ assert(!b.includes(Buffer.from('f'), 6));
 assert(!Buffer.from('ff').includes(Buffer.from('f'), 1, 'ucs2'));
 
 // test hex encoding
-assert(
-    Buffer.from(b.toString('hex'), 'hex')
-    .includes('64', 0, 'hex'));
-assert(
-    Buffer.from(b.toString('hex'), 'hex')
-    .includes(Buffer.from('64', 'hex'), 0, 'hex'));
+assert.strictEqual(
+  Buffer.from(b.toString('hex'), 'hex')
+    .includes('64', 0, 'hex'),
+  true
+);
+assert.strictEqual(
+  Buffer.from(b.toString('hex'), 'hex')
+    .includes(Buffer.from('64', 'hex'), 0, 'hex'),
+  true
+);
 
 // test base64 encoding
-assert(
-    Buffer.from(b.toString('base64'), 'base64')
-    .includes('ZA==', 0, 'base64'));
-assert(
-    Buffer.from(b.toString('base64'), 'base64')
-    .includes(Buffer.from('ZA==', 'base64'), 0, 'base64'));
+assert.strictEqual(
+  Buffer.from(b.toString('base64'), 'base64')
+    .includes('ZA==', 0, 'base64'),
+  true
+);
+assert.strictEqual(
+  Buffer.from(b.toString('base64'), 'base64')
+    .includes(Buffer.from('ZA==', 'base64'), 0, 'base64'),
+  true
+);
 
 // test ascii encoding
-assert(
-    Buffer.from(b.toString('ascii'), 'ascii')
-    .includes('d', 0, 'ascii'));
-assert(
-    Buffer.from(b.toString('ascii'), 'ascii')
-    .includes(Buffer.from('d', 'ascii'), 0, 'ascii'));
+assert.strictEqual(
+  Buffer.from(b.toString('ascii'), 'ascii')
+    .includes('d', 0, 'ascii'),
+  true
+);
+assert.strictEqual(
+  Buffer.from(b.toString('ascii'), 'ascii')
+    .includes(Buffer.from('d', 'ascii'), 0, 'ascii'),
+  true
+);
+
+// test latin1 encoding
+assert.strictEqual(
+  Buffer.from(b.toString('latin1'), 'latin1')
+    .includes('d', 0, 'latin1'),
+  true
+);
+assert.strictEqual(
+  Buffer.from(b.toString('latin1'), 'latin1')
+    .includes(Buffer.from('d', 'latin1'), 0, 'latin1'),
+  true
+);
 
 // test binary encoding
-assert(
-    Buffer.from(b.toString('binary'), 'binary')
-    .includes('d', 0, 'binary'));
-assert(
-    Buffer.from(b.toString('binary'), 'binary')
-    .includes(Buffer.from('d', 'binary'), 0, 'binary'));
+assert.strictEqual(
+  Buffer.from(b.toString('binary'), 'binary')
+    .includes('d', 0, 'binary'),
+  true
+);
+assert.strictEqual(
+  Buffer.from(b.toString('binary'), 'binary')
+    .includes(Buffer.from('d', 'binary'), 0, 'binary'),
+  true
+);
 
 
 // test usc2 encoding
-var twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
+let twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
 assert(twoByteString.includes('\u0395', 4, 'ucs2'));
 assert(twoByteString.includes('\u03a3', -4, 'ucs2'));
@@ -127,14 +155,12 @@ assert(mixedByteStringUcs2.includes('bc', 0, 'ucs2'));
 assert(mixedByteStringUcs2.includes('\u03a3', 0, 'ucs2'));
 assert(!mixedByteStringUcs2.includes('\u0396', 0, 'ucs2'));
 
-assert(
-    6, mixedByteStringUcs2.includes(Buffer.from('bc', 'ucs2'), 0, 'ucs2'));
-assert(
-    10, mixedByteStringUcs2.includes(Buffer.from('\u03a3', 'ucs2'),
-    0, 'ucs2'));
-assert(
-    -1, mixedByteStringUcs2.includes(Buffer.from('\u0396', 'ucs2'),
-    0, 'ucs2'));
+assert.ok(
+    mixedByteStringUcs2.includes(Buffer.from('bc', 'ucs2'), 0, 'ucs2'));
+assert.ok(
+    mixedByteStringUcs2.includes(Buffer.from('\u03a3', 'ucs2'), 0, 'ucs2'));
+assert.ok(
+    !mixedByteStringUcs2.includes(Buffer.from('\u0396', 'ucs2'), 0, 'ucs2'));
 
 twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 
@@ -162,7 +188,7 @@ assert(!mixedByteStringUtf8.includes('\u0396'));
 
 // Test complex string includes algorithms. Only trigger for long strings.
 // Long string that isn't a simple repeat of a shorter string.
-var longString = 'A';
+let longString = 'A';
 for (let i = 66; i < 76; i++) {  // from 'B' to 'K'
   longString = longString + String.fromCharCode(i) + longString;
 }
@@ -170,7 +196,7 @@ for (let i = 66; i < 76; i++) {  // from 'B' to 'K'
 const longBufferString = Buffer.from(longString);
 
 // pattern of 15 chars, repeated every 16 chars in long
-var pattern = 'ABACABADABACABA';
+let pattern = 'ABACABADABACABA';
 for (let i = 0; i < longBufferString.length - pattern.length; i += 7) {
   const includes = longBufferString.includes(pattern, i);
   assert(includes, 'Long ABACABA...-string at index ' + i);
@@ -201,8 +227,8 @@ assert(!allCharsBufferUtf8.includes('notfound'));
 assert(!allCharsBufferUcs2.includes('notfound'));
 
 // Find substrings in Utf8.
-var lengths = [1, 3, 15];  // Single char, simple and complex.
-var indices = [0x5, 0x60, 0x400, 0x680, 0x7ee, 0xFF02, 0x16610, 0x2f77b];
+let lengths = [1, 3, 15];  // Single char, simple and complex.
+let indices = [0x5, 0x60, 0x400, 0x680, 0x7ee, 0xFF02, 0x16610, 0x2f77b];
 for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   for (let i = 0; i < indices.length; i++) {
     const index = indices[i];
@@ -238,21 +264,39 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
 
     const patternBufferUcs2 =
         allCharsBufferUcs2.slice(index, index + length);
-    assert(
-        index, allCharsBufferUcs2.includes(patternBufferUcs2, 0, 'ucs2'));
+    assert.ok(
+        allCharsBufferUcs2.includes(patternBufferUcs2, 0, 'ucs2'));
 
     const patternStringUcs2 = patternBufferUcs2.toString('ucs2');
-    assert(
-        index, allCharsBufferUcs2.includes(patternStringUcs2, 0, 'ucs2'));
+    assert.ok(
+        allCharsBufferUcs2.includes(patternStringUcs2, 0, 'ucs2'));
   }
 }
 
-assert.throws(function() {
-  b.includes(function() { });
-});
-assert.throws(function() {
+const expectedError =
+  /^TypeError: "val" argument must be string, number, Buffer or Uint8Array$/;
+assert.throws(() => {
+  b.includes(common.noop);
+}, expectedError);
+assert.throws(() => {
   b.includes({});
-});
-assert.throws(function() {
+}, expectedError);
+assert.throws(() => {
   b.includes([]);
-});
+}, expectedError);
+
+// test truncation of Number arguments to uint8
+{
+  const buf = Buffer.from('this is a test');
+  assert.ok(buf.includes(0x6973));
+  assert.ok(buf.includes(0x697320));
+  assert.ok(buf.includes(0x69732069));
+  assert.ok(buf.includes(0x697374657374));
+  assert.ok(buf.includes(0x69737374));
+  assert.ok(buf.includes(0x69737465));
+  assert.ok(buf.includes(0x69737465));
+  assert.ok(buf.includes(-140));
+  assert.ok(buf.includes(-152));
+  assert.ok(!buf.includes(0xff));
+  assert.ok(!buf.includes(0xffff));
+}

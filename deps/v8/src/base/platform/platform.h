@@ -25,7 +25,9 @@
 #include <string>
 #include <vector>
 
+#include "src/base/base-export.h"
 #include "src/base/build_config.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 
@@ -68,7 +70,7 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 
 #define V8_FAST_TLS_SUPPORTED 1
 
-extern intptr_t kMacTlsBaseOffset;
+extern V8_BASE_EXPORT intptr_t kMacTlsBaseOffset;
 
 INLINE(intptr_t InternalGetExistingThreadLocal(intptr_t index));
 
@@ -101,7 +103,7 @@ class TimezoneCache;
 // functions. Add methods here to cope with differences between the
 // supported platforms.
 
-class OS {
+class V8_BASE_EXPORT OS {
  public:
   // Initialize the OS class.
   // - random_seed: Used for the GetRandomMmapAddress() if non-zero.
@@ -142,6 +144,7 @@ class OS {
   static FILE* FOpen(const char* path, const char* mode);
   static bool Remove(const char* path);
 
+  static char DirectorySeparator();
   static bool isDirectorySeparator(const char ch);
 
   // Opens a temporary file, the file is auto removed on close.
@@ -153,18 +156,19 @@ class OS {
   // Print output to console. This is mostly used for debugging output.
   // On platforms that has standard terminal output, the output
   // should go to stdout.
-  static void Print(const char* format, ...);
-  static void VPrint(const char* format, va_list args);
+  static PRINTF_FORMAT(1, 2) void Print(const char* format, ...);
+  static PRINTF_FORMAT(1, 0) void VPrint(const char* format, va_list args);
 
   // Print output to a file. This is mostly used for debugging output.
-  static void FPrint(FILE* out, const char* format, ...);
-  static void VFPrint(FILE* out, const char* format, va_list args);
+  static PRINTF_FORMAT(2, 3) void FPrint(FILE* out, const char* format, ...);
+  static PRINTF_FORMAT(2, 0) void VFPrint(FILE* out, const char* format,
+                                          va_list args);
 
   // Print error output to console. This is mostly used for error message
   // output. On platforms that has standard terminal output, the output
   // should go to stderr.
-  static void PrintError(const char* format, ...);
-  static void VPrintError(const char* format, va_list args);
+  static PRINTF_FORMAT(1, 2) void PrintError(const char* format, ...);
+  static PRINTF_FORMAT(1, 0) void VPrintError(const char* format, va_list args);
 
   // Allocate/Free memory used by JS heap. Pages are readable/writable, but
   // they are not guaranteed to be executable unless 'executable' is true.
@@ -173,6 +177,11 @@ class OS {
                         size_t* allocated,
                         bool is_executable);
   static void Free(void* address, const size_t size);
+
+  // Allocates a region of memory that is inaccessible. On Windows this reserves
+  // but does not commit the memory. On Linux, it is equivalent to a call to
+  // Allocate() followed by Guard().
+  static void* AllocateGuarded(const size_t requested);
 
   // This is the granularity at which the ProtectCode(...) call can set page
   // permissions.
@@ -183,6 +192,9 @@ class OS {
 
   // Assign memory as a guard page so that access will cause an exception.
   static void Guard(void* address, const size_t size);
+
+  // Make a region of memory readable and writable.
+  static void Unprotect(void* address, const size_t size);
 
   // Generate a random address to be used for hinting mmap().
   static void* GetRandomMmapAddr();
@@ -208,7 +220,7 @@ class OS {
     char text[kStackWalkMaxTextLen];
   };
 
-  class MemoryMappedFile {
+  class V8_BASE_EXPORT MemoryMappedFile {
    public:
     virtual ~MemoryMappedFile() {}
     virtual void* memory() const = 0;
@@ -221,11 +233,10 @@ class OS {
 
   // Safe formatting print. Ensures that str is always null-terminated.
   // Returns the number of chars written, or -1 if output was truncated.
-  static int SNPrintF(char* str, int length, const char* format, ...);
-  static int VSNPrintF(char* str,
-                       int length,
-                       const char* format,
-                       va_list args);
+  static PRINTF_FORMAT(3, 4) int SNPrintF(char* str, int length,
+                                          const char* format, ...);
+  static PRINTF_FORMAT(3, 0) int VSNPrintF(char* str, int length,
+                                           const char* format, va_list args);
 
   static char* StrChr(char* str, int c);
   static void StrNCpy(char* dest, int length, const char* src, size_t n);
@@ -233,13 +244,20 @@ class OS {
   // Support for the profiler.  Can do nothing, in which case ticks
   // occuring in shared libraries will not be properly accounted for.
   struct SharedLibraryAddress {
-    SharedLibraryAddress(
-        const std::string& library_path, uintptr_t start, uintptr_t end)
-        : library_path(library_path), start(start), end(end) {}
+    SharedLibraryAddress(const std::string& library_path, uintptr_t start,
+                         uintptr_t end)
+        : library_path(library_path), start(start), end(end), aslr_slide(0) {}
+    SharedLibraryAddress(const std::string& library_path, uintptr_t start,
+                         uintptr_t end, intptr_t aslr_slide)
+        : library_path(library_path),
+          start(start),
+          end(end),
+          aslr_slide(aslr_slide) {}
 
     std::string library_path;
     uintptr_t start;
     uintptr_t end;
+    intptr_t aslr_slide;
   };
 
   static std::vector<SharedLibraryAddress> GetSharedLibraryAddresses();
@@ -277,7 +295,7 @@ class OS {
 // Control of the reserved memory can be assigned to another VirtualMemory
 // object by assignment or copy-contructing. This removes the reserved memory
 // from the original object.
-class VirtualMemory {
+class V8_BASE_EXPORT VirtualMemory {
  public:
   // Empty VirtualMemory object, controlling no reserved memory.
   VirtualMemory();
@@ -289,6 +307,10 @@ class VirtualMemory {
   // is aligned per alignment. This may not be at the position returned
   // by address().
   VirtualMemory(size_t size, size_t alignment);
+
+  // Construct a virtual memory by assigning it some already mapped address
+  // and size.
+  VirtualMemory(void* address, size_t size) : address_(address), size_(size) {}
 
   // Releases the reserved memory, if any, controlled by this VirtualMemory
   // object.
@@ -324,6 +346,23 @@ class VirtualMemory {
   // Creates a single guard page at the given address.
   bool Guard(void* address);
 
+  // Releases the memory after |free_start|.
+  void ReleasePartial(void* free_start) {
+    DCHECK(IsReserved());
+    // Notice: Order is important here. The VirtualMemory object might live
+    // inside the allocated region.
+    size_t size = size_ - (reinterpret_cast<size_t>(free_start) -
+                           reinterpret_cast<size_t>(address_));
+    CHECK(InVM(free_start, size));
+    DCHECK_LT(address_, free_start);
+    DCHECK_LT(free_start, reinterpret_cast<void*>(
+                              reinterpret_cast<size_t>(address_) + size_));
+    bool result = ReleasePartialRegion(address_, size_, free_start, size);
+    USE(result);
+    DCHECK(result);
+    size_ -= size;
+  }
+
   void Release() {
     DCHECK(IsReserved());
     // Notice: Order is important here. The VirtualMemory object might live
@@ -356,6 +395,12 @@ class VirtualMemory {
   // and the same size it was reserved with.
   static bool ReleaseRegion(void* base, size_t size);
 
+  // Must be called with a base pointer that has been returned by ReserveRegion
+  // and the same size it was reserved with.
+  // [free_start, free_start + free_size] is the memory that will be released.
+  static bool ReleasePartialRegion(void* base, size_t size, void* free_start,
+                                   size_t free_size);
+
   // Returns true if OS performs lazy commits, i.e. the memory allocation call
   // defers actual physical memory allocation till the first memory access.
   // Otherwise returns false.
@@ -382,7 +427,7 @@ class VirtualMemory {
 // thread. The Thread object should not be deallocated before the thread has
 // terminated.
 
-class Thread {
+class V8_BASE_EXPORT Thread {
  public:
   // Opaque data type for thread-local storage keys.
   typedef int32_t LocalStorageKey;

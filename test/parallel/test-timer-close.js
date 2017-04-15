@@ -1,16 +1,11 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
 
-var t = new (process.binding('timer_wrap').Timer);
-var called = 0;
-function onclose() {
-  called++;
-}
+// Make sure handle._handle.close(callback) is idempotent by closing a timer
+// twice. The first function should be called, the second one should not.
 
-t.close(onclose);
-t.close(onclose);
+const Timer = process.binding('timer_wrap').Timer;
+const t = new Timer();
 
-process.on('exit', function() {
-  assert.equal(1, called);
-});
+t.close(common.mustCall());
+t.close(common.mustNotCall());

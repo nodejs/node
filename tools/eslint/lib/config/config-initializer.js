@@ -9,9 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var util = require("util"),
-    debug = require("debug"),
-    lodash = require("lodash"),
+const util = require("util"),
     inquirer = require("inquirer"),
     ProgressBar = require("progress"),
     autoconfig = require("./autoconfig.js"),
@@ -19,10 +17,10 @@ var util = require("util"),
     ConfigOps = require("./config-ops"),
     getSourceCodeOfFiles = require("../util/source-code-util").getSourceCodeOfFiles,
     npmUtil = require("../util/npm-util"),
-    recConfig = require("../../conf/eslint.json"),
+    recConfig = require("../../conf/eslint-recommended"),
     log = require("../logging");
 
-debug = debug("eslint:config-initializer");
+const debug = require("debug")("eslint:config-initializer");
 
 //------------------------------------------------------------------------------
 // Private
@@ -38,7 +36,7 @@ debug = debug("eslint:config-initializer");
 function writeFile(config, format) {
 
     // default is .js
-    var extname = ".js";
+    let extname = ".js";
 
     if (format === "YAML") {
         extname = ".yml";
@@ -46,11 +44,14 @@ function writeFile(config, format) {
         extname = ".json";
     }
 
+    const installedESLint = config.installedESLint;
 
-    ConfigFile.write(config, "./.eslintrc" + extname);
-    log.info("Successfully created .eslintrc" + extname + " file in " + process.cwd());
+    delete config.installedESLint;
 
-    if (config.installedESLint) {
+    ConfigFile.write(config, `./.eslintrc${extname}`);
+    log.info(`Successfully created .eslintrc${extname} file in ${process.cwd()}`);
+
+    if (installedESLint) {
         log.info("ESLint was installed locally. We recommend using this local copy instead of your globally-installed copy.");
     }
 }
@@ -61,18 +62,14 @@ function writeFile(config, format) {
  * @returns {void}
  */
 function installModules(config) {
-    var modules = [],
-        installStatus,
-        modulesToInstall;
+    let modules = [];
 
     // Create a list of modules which should be installed based on config
     if (config.plugins) {
-        modules = modules.concat(config.plugins.map(function(name) {
-            return "eslint-plugin-" + name;
-        }));
+        modules = modules.concat(config.plugins.map(name => `eslint-plugin-${name}`));
     }
     if (config.extends && config.extends.indexOf("eslint:") === -1) {
-        modules.push("eslint-config-" + config.extends);
+        modules.push(`eslint-config-${config.extends}`);
     }
 
     // Determine which modules are already installed
@@ -83,11 +80,11 @@ function installModules(config) {
     // Add eslint to list in case user does not have it installed locally
     modules.unshift("eslint");
 
-    installStatus = npmUtil.checkDevDeps(modules);
+    const installStatus = npmUtil.checkDevDeps(modules);
 
     // Install packages which aren't already installed
-    modulesToInstall = Object.keys(installStatus).filter(function(module) {
-        var notInstalled = installStatus[module] === false;
+    const modulesToInstall = Object.keys(installStatus).filter(module => {
+        const notInstalled = installStatus[module] === false;
 
         if (module === "eslint" && notInstalled) {
             log.info("Local ESLint installation not found.");
@@ -98,7 +95,7 @@ function installModules(config) {
     });
 
     if (modulesToInstall.length > 0) {
-        log.info("Installing " + modulesToInstall.join(", "));
+        log.info(`Installing ${modulesToInstall.join(", ")}`);
         npmUtil.installSyncSaveDev(modulesToInstall);
     }
 }
@@ -114,40 +111,34 @@ function installModules(config) {
  * @returns {Object}          config object with configured rules
  */
 function configureRules(answers, config) {
-    var BAR_TOTAL = 20,
-        BAR_SOURCE_CODE_TOTAL = 4;
-
-    var newConfig = lodash.assign({}, config),
-        bar,
-        patterns,
-        sourceCodes,
-        fileQty,
-        registry,
-        failingRegistry,
-        disabledConfigs = {},
-        singleConfigs,
-        specTwoConfigs,
-        specThreeConfigs,
-        defaultConfigs;
+    const BAR_TOTAL = 20,
+        BAR_SOURCE_CODE_TOTAL = 4,
+        newConfig = Object.assign({}, config),
+        disabledConfigs = {};
+    let sourceCodes,
+        registry;
 
     // Set up a progress bar, as this process can take a long time
-    bar = new ProgressBar("Determining Config: :percent [:bar] :elapseds elapsed, eta :etas ", {
+    const bar = new ProgressBar("Determining Config: :percent [:bar] :elapseds elapsed, eta :etas ", {
         width: 30,
         total: BAR_TOTAL
     });
+
     bar.tick(0); // Shows the progress bar
 
     // Get the SourceCode of all chosen files
-    patterns = answers.patterns.split(/[\s]+/);
+    const patterns = answers.patterns.split(/[\s]+/);
+
     try {
-        sourceCodes = getSourceCodeOfFiles(patterns, { baseConfig: newConfig, useEslintrc: false }, function(total) {
+        sourceCodes = getSourceCodeOfFiles(patterns, { baseConfig: newConfig, useEslintrc: false }, total => {
             bar.tick((BAR_SOURCE_CODE_TOTAL / total));
         });
     } catch (e) {
         log.info("\n");
         throw e;
     }
-    fileQty = Object.keys(sourceCodes).length;
+    const fileQty = Object.keys(sourceCodes).length;
+
     if (fileQty === 0) {
         log.info("\n");
         throw new Error("Automatic Configuration failed.  No files were able to be parsed.");
@@ -158,20 +149,18 @@ function configureRules(answers, config) {
     registry.populateFromCoreRules();
 
     // Lint all files with each rule config in the registry
-    registry = registry.lintSourceCode(sourceCodes, newConfig, function(total) {
+    registry = registry.lintSourceCode(sourceCodes, newConfig, total => {
         bar.tick((BAR_TOTAL - BAR_SOURCE_CODE_TOTAL) / total); // Subtract out ticks used at beginning
     });
-    debug("\nRegistry: " + util.inspect(registry.rules, {depth: null}));
+    debug(`\nRegistry: ${util.inspect(registry.rules, { depth: null })}`);
 
     // Create a list of recommended rules, because we don't want to disable them
-    var recRules = Object.keys(recConfig.rules).filter(function(ruleId) {
-        return ConfigOps.isErrorSeverity(recConfig.rules[ruleId]);
-    });
+    const recRules = Object.keys(recConfig.rules).filter(ruleId => ConfigOps.isErrorSeverity(recConfig.rules[ruleId]));
 
     // Find and disable rules which had no error-free configuration
-    failingRegistry = registry.getFailingRulesRegistry();
+    const failingRegistry = registry.getFailingRulesRegistry();
 
-    Object.keys(failingRegistry.rules).forEach(function(ruleId) {
+    Object.keys(failingRegistry.rules).forEach(ruleId => {
 
         // If the rule is recommended, set it to error, otherwise disable it
         disabledConfigs[ruleId] = (recRules.indexOf(ruleId) !== -1) ? 2 : 0;
@@ -182,36 +171,34 @@ function configureRules(answers, config) {
 
     // If there is only one config that results in no errors for a rule, we should use it.
     // createConfig will only add rules that have one configuration in the registry.
-    singleConfigs = registry.createConfig().rules;
+    const singleConfigs = registry.createConfig().rules;
 
     // The "sweet spot" for number of options in a config seems to be two (severity plus one option).
     // Very often, a third option (usually an object) is available to address
     // edge cases, exceptions, or unique situations. We will prefer to use a config with
     // specificity of two.
-    specTwoConfigs = registry.filterBySpecificity(2).createConfig().rules;
+    const specTwoConfigs = registry.filterBySpecificity(2).createConfig().rules;
 
     // Maybe a specific combination using all three options works
-    specThreeConfigs = registry.filterBySpecificity(3).createConfig().rules;
+    const specThreeConfigs = registry.filterBySpecificity(3).createConfig().rules;
 
     // If all else fails, try to use the default (severity only)
-    defaultConfigs = registry.filterBySpecificity(1).createConfig().rules;
+    const defaultConfigs = registry.filterBySpecificity(1).createConfig().rules;
 
     // Combine configs in reverse priority order (later take precedence)
-    newConfig.rules = lodash.assign({}, disabledConfigs, defaultConfigs, specThreeConfigs, specTwoConfigs, singleConfigs);
+    newConfig.rules = Object.assign({}, disabledConfigs, defaultConfigs, specThreeConfigs, specTwoConfigs, singleConfigs);
 
     // Make sure progress bar has finished (floating point rounding)
     bar.update(BAR_TOTAL);
 
     // Log out some stats to let the user know what happened
-    var finalRuleIds = Object.keys(newConfig.rules),
-        totalRules = finalRuleIds.length;
-    var enabledRules = finalRuleIds.filter(function(ruleId) {
-        return (newConfig.rules[ruleId] !== 0);
-    }).length;
-    var resultMessage = [
-        "\nEnabled " + enabledRules + " out of " + totalRules,
-        "rules based on " + fileQty,
-        "file" + ((fileQty === 1) ? "." : "s.")
+    const finalRuleIds = Object.keys(newConfig.rules);
+    const totalRules = finalRuleIds.length;
+    const enabledRules = finalRuleIds.filter(ruleId => (newConfig.rules[ruleId] !== 0)).length;
+    const resultMessage = [
+        `\nEnabled ${enabledRules} out of ${totalRules}`,
+        `rules based on ${fileQty}`,
+        `file${(fileQty === 1) ? "." : "s."}`
     ].join(" ");
 
     log.info(resultMessage);
@@ -226,7 +213,7 @@ function configureRules(answers, config) {
  * @returns {Object} config object
  */
 function processAnswers(answers) {
-    var config = {rules: {}, env: {}};
+    let config = { rules: {}, env: {} };
 
     if (answers.es6) {
         config.env.es6 = true;
@@ -238,7 +225,7 @@ function processAnswers(answers) {
     if (answers.commonjs) {
         config.env.commonjs = true;
     }
-    answers.env.forEach(function(env) {
+    answers.env.forEach(env => {
         config.env[env] = true;
     });
     if (answers.jsx) {
@@ -276,10 +263,11 @@ function processAnswers(answers) {
  * @returns {Object} config object
  */
 function getConfigForStyleGuide(guide) {
-    var guides = {
-        google: {extends: "google"},
-        airbnb: {extends: "airbnb", plugins: ["react"]},
-        standard: {extends: "standard", plugins: ["standard"]}
+    const guides = {
+        google: { extends: "google" },
+        airbnb: { extends: "airbnb", plugins: ["react", "jsx-a11y", "import"] },
+        "airbnb-base": { extends: "airbnb-base", plugins: ["import"] },
+        standard: { extends: "standard", plugins: ["standard", "promise"] }
     };
 
     if (!guides[guide]) {
@@ -294,11 +282,11 @@ function getConfigForStyleGuide(guide) {
 /* istanbul ignore next: no need to test inquirer*/
 /**
  * Ask use a few questions on command prompt
- * @param {function} callback callback function when file has been written
+ * @param {Function} callback callback function when file has been written
  * @returns {void}
  */
 function promptUser(callback) {
-    var config;
+    let config;
 
     inquirer.prompt([
         {
@@ -307,28 +295,38 @@ function promptUser(callback) {
             message: "How would you like to configure ESLint?",
             default: "prompt",
             choices: [
-                {name: "Answer questions about your style", value: "prompt"},
-                {name: "Use a popular style guide", value: "guide"},
-                {name: "Inspect your JavaScript file(s)", value: "auto"}
+                { name: "Answer questions about your style", value: "prompt" },
+                { name: "Use a popular style guide", value: "guide" },
+                { name: "Inspect your JavaScript file(s)", value: "auto" }
             ]
         },
         {
             type: "list",
             name: "styleguide",
             message: "Which style guide do you want to follow?",
-            choices: [{name: "Google", value: "google"}, {name: "AirBnB", value: "airbnb"}, {name: "Standard", value: "standard"}],
-            when: function(answers) {
-                return answers.source === "guide";
+            choices: [{ name: "Google", value: "google" }, { name: "Airbnb", value: "airbnb" }, { name: "Standard", value: "standard" }],
+            when(answers) {
+                answers.packageJsonExists = npmUtil.checkPackageJson();
+                return answers.source === "guide" && answers.packageJsonExists;
+            }
+        },
+        {
+            type: "confirm",
+            name: "airbnbReact",
+            message: "Do you use React?",
+            default: false,
+            when(answers) {
+                return answers.styleguide === "airbnb";
             }
         },
         {
             type: "input",
             name: "patterns",
             message: "Which file(s), path(s), or glob(s) should be examined?",
-            when: function(answers) {
+            when(answers) {
                 return (answers.source === "auto");
             },
-            validate: function(input) {
+            validate(input) {
                 if (input.trim().length === 0 && input.trim() !== ",") {
                     return "You must tell us what code to examine. Try again.";
                 }
@@ -341,14 +339,21 @@ function promptUser(callback) {
             message: "What format do you want your config file to be in?",
             default: "JavaScript",
             choices: ["JavaScript", "YAML", "JSON"],
-            when: function(answers) {
-                return (answers.source === "guide" || answers.source === "auto");
+            when(answers) {
+                return ((answers.source === "guide" && answers.packageJsonExists) || answers.source === "auto");
             }
         }
-    ], function(earlyAnswers) {
+    ], earlyAnswers => {
 
         // early exit if you are using a style guide
         if (earlyAnswers.source === "guide") {
+            if (!earlyAnswers.packageJsonExists) {
+                log.info("A package.json is necessary to install plugins such as style guides. Run `npm init` to create a package.json file and try again.");
+                return;
+            }
+            if (earlyAnswers.styleguide === "airbnb" && !earlyAnswers.airbnbReact) {
+                earlyAnswers.styleguide = "airbnb-base";
+            }
             try {
                 config = getConfigForStyleGuide(earlyAnswers.styleguide);
                 writeFile(config, earlyAnswers.format);
@@ -372,7 +377,7 @@ function promptUser(callback) {
                 name: "modules",
                 message: "Are you using ES6 modules?",
                 default: false,
-                when: function(answers) {
+                when(answers) {
                     return answers.es6 === true;
                 }
             },
@@ -381,17 +386,15 @@ function promptUser(callback) {
                 name: "env",
                 message: "Where will your code run?",
                 default: ["browser"],
-                choices: [{name: "Browser", value: "browser"}, {name: "Node", value: "node"}]
+                choices: [{ name: "Browser", value: "browser" }, { name: "Node", value: "node" }]
             },
             {
                 type: "confirm",
                 name: "commonjs",
                 message: "Do you use CommonJS?",
                 default: false,
-                when: function(answers) {
-                    return answers.env.some(function(env) {
-                        return env === "browser";
-                    });
+                when(answers) {
+                    return answers.env.some(env => env === "browser");
                 }
             },
             {
@@ -403,18 +406,18 @@ function promptUser(callback) {
             {
                 type: "confirm",
                 name: "react",
-                message: "Do you use React",
+                message: "Do you use React?",
                 default: false,
-                when: function(answers) {
+                when(answers) {
                     return answers.jsx;
                 }
             }
-        ], function(secondAnswers) {
+        ], secondAnswers => {
 
             // early exit if you are using automatic style generation
             if (earlyAnswers.source === "auto") {
                 try {
-                    var combinedAnswers = lodash.assign({}, earlyAnswers, secondAnswers);
+                    const combinedAnswers = Object.assign({}, earlyAnswers, secondAnswers);
 
                     config = processAnswers(combinedAnswers);
                     installModules(config);
@@ -433,21 +436,21 @@ function promptUser(callback) {
                     name: "indent",
                     message: "What style of indentation do you use?",
                     default: "tab",
-                    choices: [{name: "Tabs", value: "tab"}, {name: "Spaces", value: 4}]
+                    choices: [{ name: "Tabs", value: "tab" }, { name: "Spaces", value: 4 }]
                 },
                 {
                     type: "list",
                     name: "quotes",
                     message: "What quotes do you use for strings?",
                     default: "double",
-                    choices: [{name: "Double", value: "double"}, {name: "Single", value: "single"}]
+                    choices: [{ name: "Double", value: "double" }, { name: "Single", value: "single" }]
                 },
                 {
                     type: "list",
                     name: "linebreak",
                     message: "What line endings do you use?",
                     default: "unix",
-                    choices: [{name: "Unix", value: "unix"}, {name: "Windows", value: "windows"}]
+                    choices: [{ name: "Unix", value: "unix" }, { name: "Windows", value: "windows" }]
                 },
                 {
                     type: "confirm",
@@ -462,18 +465,16 @@ function promptUser(callback) {
                     default: "JavaScript",
                     choices: ["JavaScript", "YAML", "JSON"]
                 }
-            ], function(answers) {
+            ], answers => {
                 try {
-                    var totalAnswers = lodash.assign({}, earlyAnswers, secondAnswers, answers);
+                    const totalAnswers = Object.assign({}, earlyAnswers, secondAnswers, answers);
 
                     config = processAnswers(totalAnswers);
                     installModules(config);
                     writeFile(config, answers.format);
                 } catch (err) {
-                    callback(err);
-                    return;
+                    callback(err); // eslint-disable-line callback-return
                 }
-                return;
             });
         });
     });
@@ -483,10 +484,10 @@ function promptUser(callback) {
 // Public Interface
 //------------------------------------------------------------------------------
 
-var init = {
-    getConfigForStyleGuide: getConfigForStyleGuide,
-    processAnswers: processAnswers,
-    initializeConfig: /* istanbul ignore next */ function(callback) {
+const init = {
+    getConfigForStyleGuide,
+    processAnswers,
+    /* istanbul ignore next */initializeConfig(callback) {
         promptUser(callback);
     }
 };

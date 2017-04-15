@@ -1,5 +1,28 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #ifndef SRC_NODE_CRYPTO_H_
 #define SRC_NODE_CRYPTO_H_
+
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
 #include "node_crypto_clienthello.h"  // ClientHelloParser
@@ -63,6 +86,8 @@ extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
 extern X509_STORE* root_cert_store;
 
+extern void UseExtraCaCerts(const std::string& file);
+
 // Forward declaration
 class Connection;
 
@@ -74,7 +99,6 @@ class SecureContext : public BaseObject {
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
-  X509_STORE* ca_store_;
   SSL_CTX* ctx_;
   X509* cert_;
   X509* issuer_;
@@ -129,7 +153,6 @@ class SecureContext : public BaseObject {
 
   SecureContext(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        ca_store_(nullptr),
         ctx_(nullptr),
         cert_(nullptr),
         issuer_(nullptr) {
@@ -138,27 +161,19 @@ class SecureContext : public BaseObject {
   }
 
   void FreeCTXMem() {
-    if (ctx_) {
-      env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
-      if (ctx_->cert_store == root_cert_store) {
-        // SSL_CTX_free() will attempt to free the cert_store as well.
-        // Since we want our root_cert_store to stay around forever
-        // we just clear the field. Hopefully OpenSSL will not modify this
-        // struct in future versions.
-        ctx_->cert_store = nullptr;
-      }
-      SSL_CTX_free(ctx_);
-      if (cert_ != nullptr)
-        X509_free(cert_);
-      if (issuer_ != nullptr)
-        X509_free(issuer_);
-      ctx_ = nullptr;
-      ca_store_ = nullptr;
-      cert_ = nullptr;
-      issuer_ = nullptr;
-    } else {
-      CHECK_EQ(ca_store_, nullptr);
+    if (!ctx_) {
+      return;
     }
+
+    env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
+    SSL_CTX_free(ctx_);
+    if (cert_ != nullptr)
+      X509_free(cert_);
+    if (issuer_ != nullptr)
+      X509_free(issuer_);
+    ctx_ = nullptr;
+    cert_ = nullptr;
+    issuer_ = nullptr;
   }
 };
 
@@ -255,7 +270,7 @@ class SSLWrap {
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // SSL_set_max_send_fragment
 
-#ifdef OPENSSL_NPN_NEGOTIATED
+#ifndef OPENSSL_NO_NEXTPROTONEG
   static void GetNegotiatedProto(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetNPNProtocols(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -269,7 +284,7 @@ class SSLWrap {
                                      const unsigned char* in,
                                      unsigned int inlen,
                                      void* arg);
-#endif  // OPENSSL_NPN_NEGOTIATED
+#endif  // OPENSSL_NO_NEXTPROTONEG
 
   static void GetALPNNegotiatedProto(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -322,7 +337,7 @@ class SSLWrap {
 // Connection inherits from AsyncWrap because SSLWrap makes calls to
 // MakeCallback, but SSLWrap doesn't store the handle itself. Instead it
 // assumes that any args.This() called will be the handle from Connection.
-class Connection : public SSLWrap<Connection>, public AsyncWrap {
+class Connection : public AsyncWrap, public SSLWrap<Connection> {
  public:
   ~Connection() override {
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
@@ -334,7 +349,7 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   void NewSessionDoneCb();
 
-#ifdef OPENSSL_NPN_NEGOTIATED
+#ifndef OPENSSL_NO_NEXTPROTONEG
   v8::Persistent<v8::Object> npnProtos_;
   v8::Persistent<v8::Value> selectedNPNProto_;
 #endif
@@ -387,8 +402,8 @@ class Connection : public SSLWrap<Connection>, public AsyncWrap {
              v8::Local<v8::Object> wrap,
              SecureContext* sc,
              SSLWrap<Connection>::Kind kind)
-      : SSLWrap<Connection>(env, sc, kind),
-        AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CRYPTO),
+      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CRYPTO),
+        SSLWrap<Connection>(env, sc, kind),
         bio_read_(nullptr),
         bio_write_(nullptr),
         hello_offset_(0) {
@@ -498,14 +513,12 @@ class Hmac : public BaseObject {
 
   Hmac(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        md_(nullptr),
         initialised_(false) {
     MakeWeak<Hmac>(this);
   }
 
  private:
   HMAC_CTX ctx_; /* coverity[member_decl] */
-  const EVP_MD* md_; /* coverity[member_decl] */
   bool initialised_;
 };
 
@@ -529,14 +542,12 @@ class Hash : public BaseObject {
 
   Hash(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        md_(nullptr),
         initialised_(false) {
     MakeWeak<Hash>(this);
   }
 
  private:
   EVP_MD_CTX mdctx_; /* coverity[member_decl] */
-  const EVP_MD* md_; /* coverity[member_decl] */
   bool initialised_;
   bool finalized_;
 };
@@ -555,7 +566,6 @@ class SignBase : public BaseObject {
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap)
       : BaseObject(env, wrap),
-        md_(nullptr),
         initialised_(false) {
   }
 
@@ -569,13 +579,11 @@ class SignBase : public BaseObject {
   void CheckThrow(Error error);
 
   EVP_MD_CTX mdctx_; /* coverity[member_decl] */
-  const EVP_MD* md_; /* coverity[member_decl] */
   bool initialised_;
 };
 
 class Sign : public SignBase {
  public:
-
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
   Error SignInit(const char* sign_type);
@@ -584,7 +592,9 @@ class Sign : public SignBase {
                   int key_pem_len,
                   const char* passphrase,
                   unsigned char** sig,
-                  unsigned int *sig_len);
+                  unsigned int *sig_len,
+                  int padding,
+                  int saltlen);
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -607,6 +617,8 @@ class Verify : public SignBase {
                     int key_pem_len,
                     const char* sig,
                     int siglen,
+                    int padding,
+                    int saltlen,
                     bool* verify_result);
 
  protected:
@@ -741,5 +753,7 @@ void InitCrypto(v8::Local<v8::Object> target);
 
 }  // namespace crypto
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_H_

@@ -2,16 +2,15 @@
 // This test is to assert that we can SIGINT a script which loops forever.
 // Ref(http):
 // groups.google.com/group/nodejs-dev/browse_thread/thread/e20f2f8df0296d3f
-require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 console.log('start');
 
-var c = spawn(process.execPath, ['-e', 'while(true) { console.log("hi"); }']);
+const c = spawn(process.execPath, ['-e', 'while(true) { console.log("hi"); }']);
 
-var sentKill = false;
-var gotChildExit = true;
+let sentKill = false;
 
 c.stdout.on('data', function(s) {
   // Prevent race condition:
@@ -25,14 +24,11 @@ c.stdout.on('data', function(s) {
   }
 });
 
-c.on('exit', function(code) {
+c.on('exit', common.mustCall(function(code) {
   assert.ok(code !== 0);
   console.log('killed infinite-loop.js');
-  gotChildExit = true;
-});
+}));
 
 process.on('exit', function() {
   assert.ok(sentKill);
-  assert.ok(gotChildExit);
 });
-

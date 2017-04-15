@@ -18,8 +18,8 @@ const Duplex = require('stream').Duplex;
 // Invoking the REPL should create a repl history file at the specified path
 // and mode 600.
 
-var stream = new Duplex();
-stream.pause = stream.resume = function() {};
+const stream = new Duplex();
+stream.pause = stream.resume = common.noop;
 // ends immediately
 stream._read = function() {
   this.push(null);
@@ -33,8 +33,11 @@ common.refreshTmpDir();
 const replHistoryPath = path.join(common.tmpDir, '.node_repl_history');
 
 const checkResults = common.mustCall(function(err, r) {
-  if (err)
-    throw err;
+  assert.ifError(err);
+
+  // The REPL registers 'module' and 'require' globals
+  common.allowGlobals(r.context.module, r.context.require);
+
   r.input.end();
   const stat = fs.statSync(replHistoryPath);
   assert.strictEqual(

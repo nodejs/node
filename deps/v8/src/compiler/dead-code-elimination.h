@@ -5,7 +5,9 @@
 #ifndef V8_COMPILER_DEAD_CODE_ELIMINATION_H_
 #define V8_COMPILER_DEAD_CODE_ELIMINATION_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +21,8 @@ class CommonOperatorBuilder;
 // Note that this does not include trimming dead uses from the graph, and it
 // also does not include detecting dead code by any other means than seeing a
 // {Dead} control input; that is left to other reducers.
-class DeadCodeElimination final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE DeadCodeElimination final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   DeadCodeElimination(Editor* editor, Graph* graph,
                       CommonOperatorBuilder* common);
@@ -30,7 +33,10 @@ class DeadCodeElimination final : public AdvancedReducer {
  private:
   Reduction ReduceEnd(Node* node);
   Reduction ReduceLoopOrMerge(Node* node);
+  Reduction ReduceLoopExit(Node* node);
   Reduction ReduceNode(Node* node);
+
+  Reduction RemoveLoopExit(Node* node);
 
   void TrimMergeOrPhi(Node* node, int size);
 

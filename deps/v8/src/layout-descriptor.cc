@@ -8,6 +8,7 @@
 
 #include "src/base/bits.h"
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 
 using v8::base::bits::CountTrailingZeros32;
 
@@ -245,7 +246,7 @@ LayoutDescriptor* LayoutDescriptor::Trim(Heap* heap, Map* map,
   if (current_length != array_length) {
     DCHECK_LT(array_length, current_length);
     int delta = current_length - array_length;
-    heap->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(this, delta);
+    heap->RightTrimFixedArray(this, delta);
   }
   memset(DataPtr(), 0, DataSize());
   LayoutDescriptor* layout_descriptor =

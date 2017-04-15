@@ -5,7 +5,7 @@ const assert = require('assert');
 const http = require('http');
 
 const uncaughtCallback = common.mustCall(function(er) {
-  assert.equal(er.message, 'get did fail');
+  assert.strictEqual(er.message, 'get did fail');
 });
 
 process.on('uncaughtException', uncaughtCallback);
@@ -13,8 +13,8 @@ process.on('uncaughtException', uncaughtCallback);
 const server = http.createServer(function(req, res) {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('bye');
-}).listen(common.PORT, function() {
-  http.get({ port: common.PORT }, function(res) {
+}).listen(0, function() {
+  http.get({ port: this.address().port }, function(res) {
     res.resume();
     throw new Error('get did fail');
   }).on('close', function() {

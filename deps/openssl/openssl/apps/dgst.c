@@ -243,6 +243,11 @@ int MAIN(int argc, char **argv)
         argv++;
     }
 
+    if (keyfile != NULL && argc > 1) {
+        BIO_printf(bio_err, "Can only sign or verify one file\n");
+        goto end;
+    }
+
     if (do_verify && !sigfile) {
         BIO_printf(bio_err,
                    "No signature to verify: use the -signature option\n");
@@ -532,6 +537,7 @@ int MAIN(int argc, char **argv)
         OPENSSL_free(sigbuf);
     if (bmd != NULL)
         BIO_free(bmd);
+    release_engine(e);
     apps_shutdown();
     OPENSSL_EXIT(err);
 }

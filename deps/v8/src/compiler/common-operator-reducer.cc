@@ -19,16 +19,10 @@ namespace compiler {
 
 namespace {
 
-enum class Decision { kUnknown, kTrue, kFalse };
-
 Decision DecideCondition(Node* const cond) {
   switch (cond->opcode()) {
     case IrOpcode::kInt32Constant: {
       Int32Matcher mcond(cond);
-      return mcond.Value() ? Decision::kTrue : Decision::kFalse;
-    }
-    case IrOpcode::kInt64Constant: {
-      Int64Matcher mcond(cond);
       return mcond.Value() ? Decision::kTrue : Decision::kFalse;
     }
     case IrOpcode::kHeapConstant: {
@@ -42,7 +36,6 @@ Decision DecideCondition(Node* const cond) {
 
 }  // namespace
 
-
 CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
                                              CommonOperatorBuilder* common,
                                              MachineOperatorBuilder* machine)
@@ -50,13 +43,17 @@ CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
       graph_(graph),
       common_(common),
       machine_(machine),
-      dead_(graph->NewNode(common->Dead())) {}
-
+      dead_(graph->NewNode(common->Dead())) {
+  NodeProperties::SetType(dead_, Type::None());
+}
 
 Reduction CommonOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kBranch:
       return ReduceBranch(node);
+    case IrOpcode::kDeoptimizeIf:
+    case IrOpcode::kDeoptimizeUnless:
+      return ReduceDeoptimizeConditional(node);
     case IrOpcode::kMerge:
       return ReduceMerge(node);
     case IrOpcode::kEffectPhi:
@@ -67,8 +64,6 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
       return ReduceReturn(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
-    case IrOpcode::kGuard:
-      return ReduceGuard(node);
     default:
       break;
   }
@@ -82,8 +77,12 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
   // Swap IfTrue/IfFalse on {branch} if {cond} is a BooleanNot and use the input
   // to BooleanNot as new condition for {branch}. Note we assume that {cond} was
   // already properly optimized before we get here (as guaranteed by the graph
-  // reduction logic).
-  if (cond->opcode() == IrOpcode::kBooleanNot) {
+  // reduction logic). The same applies if {cond} is a Select acting as boolean
+  // not (i.e. true being returned in the false case and vice versa).
+  if (cond->opcode() == IrOpcode::kBooleanNot ||
+      (cond->opcode() == IrOpcode::kSelect &&
+       DecideCondition(cond->InputAt(1)) == Decision::kFalse &&
+       DecideCondition(cond->InputAt(2)) == Decision::kTrue)) {
     for (Node* const use : node->uses()) {
       switch (use->opcode()) {
         case IrOpcode::kIfTrue:
@@ -123,6 +122,40 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
   return Replace(dead());
 }
 
+Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kDeoptimizeIf ||
+         node->opcode() == IrOpcode::kDeoptimizeUnless);
+  bool condition_is_true = node->opcode() == IrOpcode::kDeoptimizeUnless;
+  DeoptimizeReason reason = DeoptimizeReasonOf(node->op());
+  Node* condition = NodeProperties::GetValueInput(node, 0);
+  Node* frame_state = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  // Swap DeoptimizeIf/DeoptimizeUnless on {node} if {cond} is a BooleaNot
+  // and use the input to BooleanNot as new condition for {node}.  Note we
+  // assume that {cond} was already properly optimized before we get here
+  // (as guaranteed by the graph reduction logic).
+  if (condition->opcode() == IrOpcode::kBooleanNot) {
+    NodeProperties::ReplaceValueInput(node, condition->InputAt(0), 0);
+    NodeProperties::ChangeOp(node, condition_is_true
+                                       ? common()->DeoptimizeIf(reason)
+                                       : common()->DeoptimizeUnless(reason));
+    return Changed(node);
+  }
+  Decision const decision = DecideCondition(condition);
+  if (decision == Decision::kUnknown) return NoChange();
+  if (condition_is_true == (decision == Decision::kTrue)) {
+    ReplaceWithValue(node, dead(), effect, control);
+  } else {
+    control =
+        graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager, reason),
+                         frame_state, effect, control);
+    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+    NodeProperties::MergeControlToEnd(graph(), common(), control);
+    Revisit(graph()->end());
+  }
+  return Replace(dead());
+}
 
 Reduction CommonOperatorReducer::ReduceMerge(Node* node) {
   DCHECK_EQ(IrOpcode::kMerge, node->opcode());
@@ -162,15 +195,16 @@ Reduction CommonOperatorReducer::ReduceMerge(Node* node) {
 
 Reduction CommonOperatorReducer::ReduceEffectPhi(Node* node) {
   DCHECK_EQ(IrOpcode::kEffectPhi, node->opcode());
-  int const input_count = node->InputCount() - 1;
-  DCHECK_LE(1, input_count);
-  Node* const merge = node->InputAt(input_count);
+  Node::Inputs inputs = node->inputs();
+  int const effect_input_count = inputs.count() - 1;
+  DCHECK_LE(1, effect_input_count);
+  Node* const merge = inputs[effect_input_count];
   DCHECK(IrOpcode::IsMergeOpcode(merge->opcode()));
-  DCHECK_EQ(input_count, merge->InputCount());
-  Node* const effect = node->InputAt(0);
+  DCHECK_EQ(effect_input_count, merge->InputCount());
+  Node* const effect = inputs[0];
   DCHECK_NE(node, effect);
-  for (int i = 1; i < input_count; ++i) {
-    Node* const input = node->InputAt(i);
+  for (int i = 1; i < effect_input_count; ++i) {
+    Node* const input = inputs[i];
     if (input == node) {
       // Ignore redundant inputs.
       DCHECK_EQ(IrOpcode::kLoop, merge->opcode());
@@ -186,16 +220,18 @@ Reduction CommonOperatorReducer::ReduceEffectPhi(Node* node) {
 
 Reduction CommonOperatorReducer::ReducePhi(Node* node) {
   DCHECK_EQ(IrOpcode::kPhi, node->opcode());
-  int const input_count = node->InputCount() - 1;
-  DCHECK_LE(1, input_count);
-  Node* const merge = node->InputAt(input_count);
+  Node::Inputs inputs = node->inputs();
+  int const value_input_count = inputs.count() - 1;
+  DCHECK_LE(1, value_input_count);
+  Node* const merge = inputs[value_input_count];
   DCHECK(IrOpcode::IsMergeOpcode(merge->opcode()));
-  DCHECK_EQ(input_count, merge->InputCount());
-  if (input_count == 2) {
-    Node* vtrue = node->InputAt(0);
-    Node* vfalse = node->InputAt(1);
-    Node* if_true = merge->InputAt(0);
-    Node* if_false = merge->InputAt(1);
+  DCHECK_EQ(value_input_count, merge->InputCount());
+  if (value_input_count == 2) {
+    Node* vtrue = inputs[0];
+    Node* vfalse = inputs[1];
+    Node::Inputs merge_inputs = merge->inputs();
+    Node* if_true = merge_inputs[0];
+    Node* if_false = merge_inputs[1];
     if (if_true->opcode() != IrOpcode::kIfTrue) {
       std::swap(if_true, if_false);
       std::swap(vtrue, vfalse);
@@ -218,17 +254,6 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
             return Change(node, machine()->Float32Abs(), vtrue);
           }
         }
-        if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
-            machine()->Float32Min().IsSupported()) {
-          // We might now be able to further reduce the {merge} node.
-          Revisit(merge);
-          return Change(node, machine()->Float32Min().op(), vtrue, vfalse);
-        } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
-                   machine()->Float32Max().IsSupported()) {
-          // We might now be able to further reduce the {merge} node.
-          Revisit(merge);
-          return Change(node, machine()->Float32Max().op(), vtrue, vfalse);
-        }
       } else if (cond->opcode() == IrOpcode::kFloat64LessThan) {
         Float64BinopMatcher mcond(cond);
         if (mcond.left().Is(0.0) && mcond.right().Equals(vtrue) &&
@@ -240,24 +265,13 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
             return Change(node, machine()->Float64Abs(), vtrue);
           }
         }
-        if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
-            machine()->Float64Min().IsSupported()) {
-          // We might now be able to further reduce the {merge} node.
-          Revisit(merge);
-          return Change(node, machine()->Float64Min().op(), vtrue, vfalse);
-        } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
-                   machine()->Float64Max().IsSupported()) {
-          // We might now be able to further reduce the {merge} node.
-          Revisit(merge);
-          return Change(node, machine()->Float64Max().op(), vtrue, vfalse);
-        }
       }
     }
   }
-  Node* const value = node->InputAt(0);
+  Node* const value = inputs[0];
   DCHECK_NE(node, value);
-  for (int i = 1; i < input_count; ++i) {
-    Node* const input = node->InputAt(i);
+  for (int i = 1; i < value_input_count; ++i) {
+    Node* const input = inputs[i];
     if (input == node) {
       // Ignore redundant inputs.
       DCHECK_EQ(IrOpcode::kLoop, merge->opcode());
@@ -273,34 +287,49 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
 
 Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
   DCHECK_EQ(IrOpcode::kReturn, node->opcode());
-  Node* const value = node->InputAt(0);
-  Node* const effect = node->InputAt(1);
-  Node* const control = node->InputAt(2);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  bool changed = false;
+  if (effect->opcode() == IrOpcode::kCheckpoint) {
+    // Any {Return} node can never be used to insert a deoptimization point,
+    // hence checkpoints can be cut out of the effect chain flowing into it.
+    effect = NodeProperties::GetEffectInput(effect);
+    NodeProperties::ReplaceEffectInput(node, effect);
+    changed = true;
+  }
+  // TODO(ahaas): Extend the reduction below to multiple return values.
+  if (ValueInputCountOfReturn(node->op()) != 1) {
+    return NoChange();
+  }
+  Node* const value = node->InputAt(1);
   if (value->opcode() == IrOpcode::kPhi &&
       NodeProperties::GetControlInput(value) == control &&
       effect->opcode() == IrOpcode::kEffectPhi &&
       NodeProperties::GetControlInput(effect) == control &&
       control->opcode() == IrOpcode::kMerge) {
-    int const control_input_count = control->InputCount();
-    DCHECK_NE(0, control_input_count);
-    DCHECK_EQ(control_input_count, value->InputCount() - 1);
-    DCHECK_EQ(control_input_count, effect->InputCount() - 1);
+    Node::Inputs control_inputs = control->inputs();
+    Node::Inputs value_inputs = value->inputs();
+    Node::Inputs effect_inputs = effect->inputs();
+    DCHECK_NE(0, control_inputs.count());
+    DCHECK_EQ(control_inputs.count(), value_inputs.count() - 1);
+    DCHECK_EQ(control_inputs.count(), effect_inputs.count() - 1);
     DCHECK_EQ(IrOpcode::kEnd, graph()->end()->opcode());
     DCHECK_NE(0, graph()->end()->InputCount());
-    for (int i = 0; i < control_input_count; ++i) {
+    for (int i = 0; i < control_inputs.count(); ++i) {
       // Create a new {Return} and connect it to {end}. We don't need to mark
       // {end} as revisit, because we mark {node} as {Dead} below, which was
       // previously connected to {end}, so we know for sure that at some point
       // the reducer logic will visit {end} again.
-      Node* ret = graph()->NewNode(common()->Return(), value->InputAt(i),
-                                   effect->InputAt(i), control->InputAt(i));
+      Node* ret = graph()->NewNode(common()->Return(), node->InputAt(0),
+                                   value_inputs[i], effect_inputs[i],
+                                   control_inputs[i]);
       NodeProperties::MergeControlToEnd(graph(), common(), ret);
     }
     // Mark the merge {control} and return {node} as {dead}.
     Replace(control, dead());
     return Replace(dead());
   }
-  return NoChange();
+  return changed ? Changed(node) : NoChange();
 }
 
 
@@ -328,13 +357,6 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
           return Change(node, machine()->Float32Abs(), vtrue);
         }
       }
-      if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
-          machine()->Float32Min().IsSupported()) {
-        return Change(node, machine()->Float32Min().op(), vtrue, vfalse);
-      } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
-                 machine()->Float32Max().IsSupported()) {
-        return Change(node, machine()->Float32Max().op(), vtrue, vfalse);
-      }
       break;
     }
     case IrOpcode::kFloat64LessThan: {
@@ -346,28 +368,11 @@ Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
           return Change(node, machine()->Float64Abs(), vtrue);
         }
       }
-      if (mcond.left().Equals(vtrue) && mcond.right().Equals(vfalse) &&
-          machine()->Float64Min().IsSupported()) {
-        return Change(node, machine()->Float64Min().op(), vtrue, vfalse);
-      } else if (mcond.left().Equals(vfalse) && mcond.right().Equals(vtrue) &&
-                 machine()->Float64Max().IsSupported()) {
-        return Change(node, machine()->Float64Max().op(), vtrue, vfalse);
-      }
       break;
     }
     default:
       break;
   }
-  return NoChange();
-}
-
-
-Reduction CommonOperatorReducer::ReduceGuard(Node* node) {
-  DCHECK_EQ(IrOpcode::kGuard, node->opcode());
-  Node* const input = NodeProperties::GetValueInput(node, 0);
-  Type* const input_type = NodeProperties::GetTypeOrAny(input);
-  Type* const guard_type = OpParameter<Type*>(node);
-  if (input_type->Is(guard_type)) return Replace(input);
   return NoChange();
 }
 

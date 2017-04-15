@@ -55,19 +55,15 @@ function link (from, to, gently, abs, cb) {
   if (npm.config.get('force')) gently = false
 
   to = path.resolve(to)
-  var target = from = path.resolve(from)
-  if (!abs && process.platform !== 'win32') {
-    // junctions on windows must be absolute
-    target = path.relative(path.dirname(to), from)
-    // if there is no folder in common, then it will be much
-    // longer, and using a relative link is dumb.
-    if (target.length >= from.length) target = from
-  }
+  var toDir = path.dirname(to)
+  var absTarget = path.resolve(toDir, from)
+  var relativeTarget = path.relative(toDir, absTarget)
+  var target = abs ? absTarget : relativeTarget
 
   chain(
     [
-      [ensureFromIsNotSource, from, to],
-      [fs, 'stat', from],
+      [ensureFromIsNotSource, absTarget, to],
+      [fs, 'stat', absTarget],
       [rm, to, gently],
       [mkdir, path.dirname(to)],
       [fs, 'symlink', target, to, 'junction']

@@ -5,6 +5,8 @@
 #include "src/libplatform/task-queue.h"
 
 #include "src/base/logging.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
 
 namespace v8 {
 namespace platform {
@@ -51,6 +53,16 @@ void TaskQueue::Terminate() {
   DCHECK(!terminated_);
   terminated_ = true;
   process_queue_semaphore_.Signal();
+}
+
+void TaskQueue::BlockUntilQueueEmptyForTesting() {
+  for (;;) {
+    {
+      base::LockGuard<base::Mutex> guard(&lock_);
+      if (task_queue_.empty()) return;
+    }
+    base::OS::Sleep(base::TimeDelta::FromMilliseconds(5));
+  }
 }
 
 }  // namespace platform

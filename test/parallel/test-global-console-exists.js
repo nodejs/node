@@ -9,7 +9,7 @@ const assert = require('assert');
 const EventEmitter = require('events');
 const leak_warning = /EventEmitter memory leak detected\. 2 hello listeners/;
 
-var write_calls = 0;
+let write_calls = 0;
 
 process.on('warning', (warning) => {
   // This will be called after the default internal
@@ -26,7 +26,7 @@ process.stderr.write = (data) => {
   if (write_calls === 0)
     assert.ok(data.match(leak_warning));
   else
-    common.fail('stderr.write should be called only once');
+    assert.fail('stderr.write should be called only once');
 
   write_calls++;
 };
@@ -35,8 +35,8 @@ const old_default = EventEmitter.defaultMaxListeners;
 EventEmitter.defaultMaxListeners = 1;
 
 const e = new EventEmitter();
-e.on('hello', () => {});
-e.on('hello', () => {});
+e.on('hello', common.noop);
+e.on('hello', common.noop);
 
 // TODO: Figure out how to validate console. Currently,
 // there is no obvious way of validating that console

@@ -19,8 +19,8 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
-        var stack = [];
+    create(context) {
+        let stack = [];
 
         /**
          * Makes a block scope.
@@ -45,12 +45,9 @@ module.exports = {
          * @returns {void}
          */
         function report(reference) {
-            var identifier = reference.identifier;
+            const identifier = reference.identifier;
 
-            context.report(
-                identifier,
-                "'{{name}}' used outside of binding context.",
-                {name: identifier.name});
+            context.report({ node: identifier, message: "'{{name}}' used outside of binding context.", data: { name: identifier.name } });
         }
 
         /**
@@ -64,7 +61,7 @@ module.exports = {
             }
 
             // Defines a predicate to check whether or not a given reference is outside of valid scope.
-            var scopeRange = stack[stack.length - 1];
+            const scopeRange = stack[stack.length - 1];
 
             /**
              * Check if a reference is out of scope
@@ -73,15 +70,15 @@ module.exports = {
              * @private
              */
             function isOutsideOfScope(reference) {
-                var idRange = reference.identifier.range;
+                const idRange = reference.identifier.range;
 
                 return idRange[0] < scopeRange[0] || idRange[1] > scopeRange[1];
             }
 
             // Gets declared variables, and checks its references.
-            var variables = context.getDeclaredVariables(node);
+            const variables = context.getDeclaredVariables(node);
 
-            for (var i = 0; i < variables.length; ++i) {
+            for (let i = 0; i < variables.length; ++i) {
 
                 // Reports.
                 variables[i]
@@ -92,7 +89,7 @@ module.exports = {
         }
 
         return {
-            Program: function(node) {
+            Program(node) {
                 stack = [node.range];
             },
 

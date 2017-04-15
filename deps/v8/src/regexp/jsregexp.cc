@@ -4,10 +4,11 @@
 
 #include "src/regexp/jsregexp.h"
 
-#include "src/ast/ast.h"
+#include <memory>
+
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
-#include "src/compiler.h"
+#include "src/elements.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/isolate-inl.h"
@@ -15,9 +16,9 @@
 #include "src/ostreams.h"
 #include "src/regexp/interpreter-irregexp.h"
 #include "src/regexp/jsregexp-inl.h"
-#include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
 #include "src/regexp/regexp-macro-assembler-tracer.h"
+#include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-parser.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
@@ -26,7 +27,7 @@
 #include "src/unicode-decoder.h"
 
 #ifdef V8_I18N_SUPPORT
-#include "unicode/uset.h"
+#include "unicode/uniset.h"
 #include "unicode/utypes.h"
 #endif  // V8_I18N_SUPPORT
 
@@ -41,6 +42,8 @@
 #include "src/regexp/arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_PPC
 #include "src/regexp/ppc/regexp-macro-assembler-ppc.h"
+#elif V8_TARGET_ARCH_S390
+#include "src/regexp/s390/regexp-macro-assembler-s390.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "src/regexp/mips/regexp-macro-assembler-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
@@ -133,16 +136,12 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                         Handle<String> pattern,
                                         JSRegExp::Flags flags) {
   Isolate* isolate = re->GetIsolate();
-  Zone zone;
+  Zone zone(isolate->allocator(), ZONE_NAME);
   CompilationCache* compilation_cache = isolate->compilation_cache();
   MaybeHandle<FixedArray> maybe_cached =
       compilation_cache->LookupRegExp(pattern, flags);
   Handle<FixedArray> cached;
-  bool in_cache = maybe_cached.ToHandle(&cached);
-  LOG(isolate, RegExpCompileEvent(re, in_cache));
-
-  Handle<Object> result;
-  if (in_cache) {
+  if (maybe_cached.ToHandle(&cached)) {
     re->set_data(*cached);
     return re;
   }
@@ -189,11 +188,9 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   return re;
 }
 
-
 MaybeHandle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
-                                     Handle<String> subject,
-                                     int index,
-                                     Handle<JSArray> last_match_info) {
+                                     Handle<String> subject, int index,
+                                     Handle<RegExpMatchInfo> last_match_info) {
   switch (regexp->TypeTag()) {
     case JSRegExp::ATOM:
       return AtomExec(regexp, subject, index, last_match_info);
@@ -221,17 +218,14 @@ void RegExpImpl::AtomCompile(Handle<JSRegExp> re,
                                                  match_pattern);
 }
 
-
-static void SetAtomLastCapture(FixedArray* array,
-                               String* subject,
-                               int from,
-                               int to) {
-  SealHandleScope shs(array->GetIsolate());
-  RegExpImpl::SetLastCaptureCount(array, 2);
-  RegExpImpl::SetLastSubject(array, subject);
-  RegExpImpl::SetLastInput(array, subject);
-  RegExpImpl::SetCapture(array, 0, from);
-  RegExpImpl::SetCapture(array, 1, to);
+static void SetAtomLastCapture(Handle<RegExpMatchInfo> last_match_info,
+                               String* subject, int from, int to) {
+  SealHandleScope shs(last_match_info->GetIsolate());
+  last_match_info->SetNumberOfCaptureRegisters(2);
+  last_match_info->SetLastSubject(subject);
+  last_match_info->SetLastInput(subject);
+  last_match_info->SetCapture(0, from);
+  last_match_info->SetCapture(1, to);
 }
 
 
@@ -286,11 +280,9 @@ int RegExpImpl::AtomExecRaw(Handle<JSRegExp> regexp,
   return output_size / 2;
 }
 
-
-Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
-                                    Handle<String> subject,
+Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re, Handle<String> subject,
                                     int index,
-                                    Handle<JSArray> last_match_info) {
+                                    Handle<RegExpMatchInfo> last_match_info) {
   Isolate* isolate = re->GetIsolate();
 
   static const int kNumRegisters = 2;
@@ -303,8 +295,8 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
 
   DCHECK_EQ(res, RegExpImpl::RE_SUCCESS);
   SealHandleScope shs(isolate);
-  FixedArray* array = FixedArray::cast(last_match_info->elements());
-  SetAtomLastCapture(array, *subject, output_registers[0], output_registers[1]);
+  SetAtomLastCapture(last_match_info, *subject, output_registers[0],
+                     output_registers[1]);
   return last_match_info;
 }
 
@@ -344,7 +336,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                                  bool is_one_byte) {
   // Compile the RegExp.
   Isolate* isolate = re->GetIsolate();
-  Zone zone;
+  Zone zone(isolate->allocator(), ZONE_NAME);
   PostponeInterruptsScope postpone(isolate);
   // If we had a compilation error the last time this is saved at the
   // saved code index.
@@ -395,6 +387,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
 
   Handle<FixedArray> data = Handle<FixedArray>(FixedArray::cast(re->data()));
   data->set(JSRegExp::code_index(is_one_byte), result.code);
+  SetIrregexpCaptureNameMap(*data, compile_data.capture_name_map);
   int register_max = IrregexpMaxRegisterCount(*data);
   if (result.num_registers > register_max) {
     SetIrregexpMaxRegisterCount(*data, result.num_registers);
@@ -414,6 +407,14 @@ void RegExpImpl::SetIrregexpMaxRegisterCount(FixedArray* re, int value) {
   re->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::FromInt(value));
 }
 
+void RegExpImpl::SetIrregexpCaptureNameMap(FixedArray* re,
+                                           Handle<FixedArray> value) {
+  if (value.is_null()) {
+    re->set(JSRegExp::kIrregexpCaptureNameMapIndex, Smi::kZero);
+  } else {
+    re->set(JSRegExp::kIrregexpCaptureNameMapIndex, *value);
+  }
+}
 
 int RegExpImpl::IrregexpNumberOfCaptures(FixedArray* re) {
   return Smi::cast(re->get(JSRegExp::kIrregexpCaptureCountIndex))->value();
@@ -450,7 +451,7 @@ void RegExpImpl::IrregexpInitialize(Handle<JSRegExp> re,
 
 int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
                                 Handle<String> subject) {
-  subject = String::Flatten(subject);
+  DCHECK(subject->IsFlat());
 
   // Check representation of the underlying storage.
   bool is_one_byte = subject->IsOneByteRepresentationUnderneath();
@@ -558,13 +559,13 @@ int RegExpImpl::IrregexpExecRaw(Handle<JSRegExp> regexp,
 #endif  // V8_INTERPRETED_REGEXP
 }
 
-
-MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
-                                             Handle<String> subject,
-                                             int previous_index,
-                                             Handle<JSArray> last_match_info) {
+MaybeHandle<Object> RegExpImpl::IrregexpExec(
+    Handle<JSRegExp> regexp, Handle<String> subject, int previous_index,
+    Handle<RegExpMatchInfo> last_match_info) {
   Isolate* isolate = regexp->GetIsolate();
   DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
+
+  subject = String::Flatten(subject);
 
   // Prepare space for the return values.
 #if defined(V8_INTERPRETED_REGEXP) && defined(DEBUG)
@@ -585,7 +586,7 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   if (required_registers > Isolate::kJSRegexpStaticOffsetsVectorSize) {
     output_registers = NewArray<int32_t>(required_registers);
   }
-  base::SmartArrayPointer<int32_t> auto_release(output_registers);
+  std::unique_ptr<int32_t[]> auto_release(output_registers);
   if (output_registers == NULL) {
     output_registers = isolate->jsregexp_static_offsets_vector();
   }
@@ -606,33 +607,40 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   return isolate->factory()->null_value();
 }
 
+Handle<RegExpMatchInfo> RegExpImpl::SetLastMatchInfo(
+    Handle<RegExpMatchInfo> last_match_info, Handle<String> subject,
+    int capture_count, int32_t* match) {
+  // This is the only place where match infos can grow. If, after executing the
+  // regexp, RegExpExecStub finds that the match info is too small, it restarts
+  // execution in RegExpImpl::Exec, which finally grows the match info right
+  // here.
 
-static void EnsureSize(Handle<JSArray> array, uint32_t minimum_size) {
-  if (static_cast<uint32_t>(array->elements()->length()) < minimum_size) {
-    JSArray::SetLength(array, minimum_size);
-  }
-}
-
-
-Handle<JSArray> RegExpImpl::SetLastMatchInfo(Handle<JSArray> last_match_info,
-                                             Handle<String> subject,
-                                             int capture_count,
-                                             int32_t* match) {
-  DCHECK(last_match_info->HasFastObjectElements());
   int capture_register_count = (capture_count + 1) * 2;
-  EnsureSize(last_match_info, capture_register_count + kLastMatchOverhead);
-  DisallowHeapAllocation no_allocation;
-  FixedArray* array = FixedArray::cast(last_match_info->elements());
-  if (match != NULL) {
-    for (int i = 0; i < capture_register_count; i += 2) {
-      SetCapture(array, i, match[i]);
-      SetCapture(array, i + 1, match[i + 1]);
+  Handle<RegExpMatchInfo> result =
+      RegExpMatchInfo::ReserveCaptures(last_match_info, capture_register_count);
+  result->SetNumberOfCaptureRegisters(capture_register_count);
+
+  if (*result != *last_match_info) {
+    // The match info has been reallocated, update the corresponding reference
+    // on the native context.
+    Isolate* isolate = last_match_info->GetIsolate();
+    if (*last_match_info == *isolate->regexp_last_match_info()) {
+      isolate->native_context()->set_regexp_last_match_info(*result);
+    } else if (*last_match_info == *isolate->regexp_internal_match_info()) {
+      isolate->native_context()->set_regexp_internal_match_info(*result);
     }
   }
-  SetLastCaptureCount(array, capture_register_count);
-  SetLastSubject(array, *subject);
-  SetLastInput(array, *subject);
-  return last_match_info;
+
+  DisallowHeapAllocation no_allocation;
+  if (match != NULL) {
+    for (int i = 0; i < capture_register_count; i += 2) {
+      result->SetCapture(i, match[i]);
+      result->SetCapture(i + 1, match[i + 1]);
+    }
+  }
+  result->SetLastSubject(*subject);
+  result->SetLastInput(*subject);
+  return result;
 }
 
 
@@ -5108,30 +5116,22 @@ void AddUnicodeCaseEquivalents(RegExpCompiler* compiler,
   // Use ICU to compute the case fold closure over the ranges.
   DCHECK(compiler->unicode());
   DCHECK(compiler->ignore_case());
-  USet* set = uset_openEmpty();
+  icu::UnicodeSet set;
   for (int i = 0; i < ranges->length(); i++) {
-    uset_addRange(set, ranges->at(i).from(), ranges->at(i).to());
+    set.add(ranges->at(i).from(), ranges->at(i).to());
   }
   ranges->Clear();
-  uset_closeOver(set, USET_CASE_INSENSITIVE);
+  set.closeOver(USET_CASE_INSENSITIVE);
   // Full case mapping map single characters to multiple characters.
   // Those are represented as strings in the set. Remove them so that
   // we end up with only simple and common case mappings.
-  uset_removeAllStrings(set);
-  int item_count = uset_getItemCount(set);
-  int item_result = 0;
-  UErrorCode ec = U_ZERO_ERROR;
+  set.removeAllStrings();
   Zone* zone = compiler->zone();
-  for (int i = 0; i < item_count; i++) {
-    uc32 start = 0;
-    uc32 end = 0;
-    item_result += uset_getItem(set, i, &start, &end, nullptr, 0, &ec);
-    ranges->Add(CharacterRange::Range(start, end), zone);
+  for (int i = 0; i < set.getRangeCount(); i++) {
+    ranges->Add(CharacterRange::Range(set.getRangeStart(i), set.getRangeEnd(i)),
+                zone);
   }
   // No errors and everything we collected have been ranges.
-  DCHECK_EQ(U_ZERO_ERROR, ec);
-  DCHECK_EQ(0, item_result);
-  uset_close(set);
 #else
   // Fallback if ICU is not included.
   CharacterRange::AddCaseEquivalents(compiler->isolate(), compiler->zone(),
@@ -5157,8 +5157,10 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
       ranges = negated;
     }
     if (ranges->length() == 0) {
-      // No matches possible.
-      return new (zone) EndNode(EndNode::BACKTRACK, zone);
+      ranges->Add(CharacterRange::Everything(), zone);
+      RegExpCharacterClass* fail =
+          new (zone) RegExpCharacterClass(ranges, true);
+      return new (zone) TextNode(fail, compiler->read_backward(), on_success);
     }
     if (standard_type() == '*') {
       return UnanchoredAdvance(compiler, on_success);
@@ -5877,6 +5879,7 @@ Vector<const int> CharacterRange::GetWordBounds() {
 void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
                                         ZoneList<CharacterRange>* ranges,
                                         bool is_one_byte) {
+  CharacterRange::Canonicalize(ranges);
   int range_count = ranges->length();
   for (int i = 0; i < range_count; i++) {
     CharacterRange range = ranges->at(i);
@@ -6703,6 +6706,9 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
 #elif V8_TARGET_ARCH_ARM64
   RegExpMacroAssemblerARM64 macro_assembler(isolate, zone, mode,
                                             (data->capture_count + 1) * 2);
+#elif V8_TARGET_ARCH_S390
+  RegExpMacroAssemblerS390 macro_assembler(isolate, zone, mode,
+                                           (data->capture_count + 1) * 2);
 #elif V8_TARGET_ARCH_PPC
   RegExpMacroAssemblerPPC macro_assembler(isolate, zone, mode,
                                           (data->capture_count + 1) * 2);
@@ -6730,8 +6736,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   // Inserted here, instead of in Assembler, because it depends on information
   // in the AST that isn't replicated in the Node structure.
   static const int kMaxBacksearchLimit = 1024;
-  if (is_end_anchored &&
-      !is_start_anchored &&
+  if (is_end_anchored && !is_start_anchored && !is_sticky &&
       max_length < kMaxBacksearchLimit) {
     macro_assembler.SetCurrentPositionFromEnd(max_length);
   }
@@ -6757,7 +6762,7 @@ bool RegExpEngine::TooMuchRegExpCode(Handle<String> pattern) {
   Heap* heap = pattern->GetHeap();
   bool too_much = pattern->length() > RegExpImpl::kRegExpTooLargeToOptimize;
   if (heap->total_regexp_code_generated() > RegExpImpl::kRegExpCompiledLimit &&
-      heap->isolate()->memory_allocator()->SizeExecutable() >
+      heap->memory_allocator()->SizeExecutable() >
           RegExpImpl::kRegExpExecutableMemoryLimit) {
     too_much = true;
   }
@@ -6770,10 +6775,10 @@ Object* RegExpResultsCache::Lookup(Heap* heap, String* key_string,
                                    FixedArray** last_match_cache,
                                    ResultsCacheType type) {
   FixedArray* cache;
-  if (!key_string->IsInternalizedString()) return Smi::FromInt(0);
+  if (!key_string->IsInternalizedString()) return Smi::kZero;
   if (type == STRING_SPLIT_SUBSTRINGS) {
     DCHECK(key_pattern->IsString());
-    if (!key_pattern->IsInternalizedString()) return Smi::FromInt(0);
+    if (!key_pattern->IsInternalizedString()) return Smi::kZero;
     cache = heap->string_split_cache();
   } else {
     DCHECK(type == REGEXP_MULTIPLE_INDICES);
@@ -6790,7 +6795,7 @@ Object* RegExpResultsCache::Lookup(Heap* heap, String* key_string,
         ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
     if (cache->get(index + kStringOffset) != key_string ||
         cache->get(index + kPatternOffset) != key_pattern) {
-      return Smi::FromInt(0);
+      return Smi::kZero;
     }
   }
 
@@ -6820,7 +6825,7 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
   uint32_t hash = key_string->Hash();
   uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
                     ~(kArrayEntriesPerCacheEntry - 1));
-  if (cache->get(index + kStringOffset) == Smi::FromInt(0)) {
+  if (cache->get(index + kStringOffset) == Smi::kZero) {
     cache->set(index + kStringOffset, *key_string);
     cache->set(index + kPatternOffset, *key_pattern);
     cache->set(index + kArrayOffset, *value_array);
@@ -6828,16 +6833,16 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
   } else {
     uint32_t index2 =
         ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
-    if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
+    if (cache->get(index2 + kStringOffset) == Smi::kZero) {
       cache->set(index2 + kStringOffset, *key_string);
       cache->set(index2 + kPatternOffset, *key_pattern);
       cache->set(index2 + kArrayOffset, *value_array);
       cache->set(index2 + kLastMatchOffset, *last_match_cache);
     } else {
-      cache->set(index2 + kStringOffset, Smi::FromInt(0));
-      cache->set(index2 + kPatternOffset, Smi::FromInt(0));
-      cache->set(index2 + kArrayOffset, Smi::FromInt(0));
-      cache->set(index2 + kLastMatchOffset, Smi::FromInt(0));
+      cache->set(index2 + kStringOffset, Smi::kZero);
+      cache->set(index2 + kPatternOffset, Smi::kZero);
+      cache->set(index2 + kArrayOffset, Smi::kZero);
+      cache->set(index2 + kLastMatchOffset, Smi::kZero);
       cache->set(index + kStringOffset, *key_string);
       cache->set(index + kPatternOffset, *key_pattern);
       cache->set(index + kArrayOffset, *value_array);
@@ -6854,13 +6859,13 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
     }
   }
   // Convert backing store to a copy-on-write array.
-  value_array->set_map_no_write_barrier(*factory->fixed_cow_array_map());
+  value_array->set_map_no_write_barrier(isolate->heap()->fixed_cow_array_map());
 }
 
 
 void RegExpResultsCache::Clear(FixedArray* cache) {
   for (int i = 0; i < kRegExpResultsCacheSize; i++) {
-    cache->set(i, Smi::FromInt(0));
+    cache->set(i, Smi::kZero);
   }
 }
 

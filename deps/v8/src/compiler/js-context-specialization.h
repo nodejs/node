@@ -30,8 +30,10 @@ class JSContextSpecialization final : public AdvancedReducer {
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
 
-  // Returns the {Context} to specialize {node} to (if any).
-  MaybeHandle<Context> GetSpecializationContext(Node* node);
+  Reduction SimplifyJSStoreContext(Node* node, Node* new_context,
+                                   size_t new_depth);
+  Reduction SimplifyJSLoadContext(Node* node, Node* new_context,
+                                  size_t new_depth);
 
   Isolate* isolate() const;
   JSOperatorBuilder* javascript() const;

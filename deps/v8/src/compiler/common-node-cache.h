@@ -45,12 +45,26 @@ class CommonNodeCache final {
 
   Node** FindExternalConstant(ExternalReference value);
 
+  Node** FindPointerConstant(intptr_t value) {
+    return pointer_constants_.Find(zone(), value);
+  }
+
   Node** FindNumberConstant(double value) {
     // We canonicalize double constants at the bit representation level.
     return number_constants_.Find(zone(), bit_cast<int64_t>(value));
   }
 
   Node** FindHeapConstant(Handle<HeapObject> value);
+
+  Node** FindRelocatableInt32Constant(int32_t value, RelocInfoMode rmode) {
+    return relocatable_int32_constants_.Find(zone(),
+                                             std::make_pair(value, rmode));
+  }
+
+  Node** FindRelocatableInt64Constant(int64_t value, RelocInfoMode rmode) {
+    return relocatable_int64_constants_.Find(zone(),
+                                             std::make_pair(value, rmode));
+  }
 
   // Return all nodes from the cache.
   void GetCachedNodes(ZoneVector<Node*>* nodes);
@@ -63,8 +77,11 @@ class CommonNodeCache final {
   Int32NodeCache float32_constants_;
   Int64NodeCache float64_constants_;
   IntPtrNodeCache external_constants_;
+  IntPtrNodeCache pointer_constants_;
   Int64NodeCache number_constants_;
   IntPtrNodeCache heap_constants_;
+  RelocInt32NodeCache relocatable_int32_constants_;
+  RelocInt64NodeCache relocatable_int64_constants_;
   Zone* const zone_;
 
   DISALLOW_COPY_AND_ASSIGN(CommonNodeCache);

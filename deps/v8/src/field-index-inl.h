@@ -39,8 +39,7 @@ inline FieldIndex FieldIndex::ForPropertyIndex(Map* map,
                     is_double, inobject_properties, first_inobject_offset);
 }
 
-
-// Takes an index as computed by GetLoadFieldByIndex and reconstructs a
+// Takes an index as computed by GetLoadByFieldIndex and reconstructs a
 // FieldIndex object from it.
 inline FieldIndex FieldIndex::ForLoadByFieldIndex(Map* map, int orig_index) {
   int field_index = orig_index;
@@ -85,7 +84,6 @@ inline int FieldIndex::GetLoadByFieldIndex() const {
   return is_double() ? (result | 1) : result;
 }
 
-
 inline FieldIndex FieldIndex::ForDescriptor(Map* map, int descriptor_index) {
   PropertyDetails details =
       map->instance_descriptors()->GetDetails(descriptor_index);
@@ -94,29 +92,9 @@ inline FieldIndex FieldIndex::ForDescriptor(Map* map, int descriptor_index) {
                           details.representation().IsDouble());
 }
 
-
-inline FieldIndex FieldIndex::ForKeyedLookupCacheIndex(Map* map, int index) {
-  if (FLAG_compiled_keyed_generic_loads) {
-    return ForLoadByFieldIndex(map, index);
-  } else {
-    return ForPropertyIndex(map, index);
-  }
-}
-
-
 inline FieldIndex FieldIndex::FromFieldAccessStubKey(int key) {
   return FieldIndex(key);
 }
-
-
-inline int FieldIndex::GetKeyedLookupCacheIndex() const {
-  if (FLAG_compiled_keyed_generic_loads) {
-    return GetLoadByFieldIndex();
-  } else {
-    return property_index();
-  }
-}
-
 
 }  // namespace internal
 }  // namespace v8

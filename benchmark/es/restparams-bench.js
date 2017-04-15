@@ -35,8 +35,6 @@ function useArguments() {
 
 function runCopyArguments(n) {
 
-  common.v8ForceOptimization(copyArguments, 1, 2, 'a', 'b');
-
   var i = 0;
   bench.start();
   for (; i < n; i++)
@@ -46,8 +44,6 @@ function runCopyArguments(n) {
 
 function runRestArguments(n) {
 
-  common.v8ForceOptimization(restArguments, 1, 2, 'a', 'b');
-
   var i = 0;
   bench.start();
   for (; i < n; i++)
@@ -56,8 +52,6 @@ function runRestArguments(n) {
 }
 
 function runUseArguments(n) {
-
-  common.v8ForceOptimization(useArguments, 1, 2, 'a', 'b');
 
   var i = 0;
   bench.start();

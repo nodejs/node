@@ -1,6 +1,6 @@
-shared-library,"shell",0x08048000,0x081ee000
-shared-library,"/lib32/libm-2.7.so",0xf7db6000,0xf7dd9000
-shared-library,"ffffe000-fffff000",0xffffe000,0xfffff000
+shared-library,"shell",0x08048000,0x081ee000,0
+shared-library,"/lib32/libm-2.7.so",0xf7db6000,0xf7dd9000,0
+shared-library,"ffffe000-fffff000",0xffffe000,0xfffff000,0
 profiler,"begin",1
 code-creation,Stub,0,0x424260,348,"CompareStub_GE"
 code-creation,LazyCompile,0,0x2a8100,18535,"DrawQube 3d-cube.js:188",0xf43abcac,

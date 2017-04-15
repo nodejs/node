@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_GRAPH_H_
 #define V8_COMPILER_GRAPH_H_
 
-#include "src/zone.h"
-#include "src/zone-containers.h"
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
+#include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -28,10 +30,29 @@ typedef uint32_t Mark;
 // out-of-line data associated with each node.
 typedef uint32_t NodeId;
 
-
-class Graph : public ZoneObject {
+class V8_EXPORT_PRIVATE Graph final : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit Graph(Zone* zone);
+
+  // Scope used when creating a subgraph for inlining. Automatically preserves
+  // the original start and end nodes of the graph, and resets them when you
+  // leave the scope.
+  class SubgraphScope final {
+   public:
+    explicit SubgraphScope(Graph* graph)
+        : graph_(graph), start_(graph->start()), end_(graph->end()) {}
+    ~SubgraphScope() {
+      graph_->SetStart(start_);
+      graph_->SetEnd(end_);
+    }
+
+   private:
+    Graph* const graph_;
+    Node* const start_;
+    Node* const end_;
+
+    DISALLOW_COPY_AND_ASSIGN(SubgraphScope);
+  };
 
   // Base implementation used by all factory methods.
   Node* NewNodeUnchecked(const Operator* op, int input_count,
@@ -99,6 +120,9 @@ class Graph : public ZoneObject {
   void Decorate(Node* node);
   void AddDecorator(GraphDecorator* decorator);
   void RemoveDecorator(GraphDecorator* decorator);
+
+  // Very simple print API usable in a debugger.
+  void Print() const;
 
  private:
   friend class NodeMarkerBase;

@@ -63,7 +63,7 @@ var opdep_json = {
   }
 }
 
-var badServer = function () {/*
+var badServer = function () { /*
 var createServer = require('http').createServer
 var spawn = require('child_process').spawn
 var fs = require('fs')
@@ -98,9 +98,9 @@ if (process.argv[2]) {
 
   fs.writeFileSync(pidfile, child.pid + '\n')
 }
-*/}.toString().split('\n').slice(1, -1).join('\n')
+*/ }.toString().split('\n').slice(1, -1).join('\n')
 
-var blart = function () {/*
+var blart = function () { /*
 var rando = require('crypto').randomBytes
 var resolve = require('path').resolve
 
@@ -152,7 +152,7 @@ mkdirp(BASEDIR, function go () {
     keepItGoingLouder = {}
   }, 3 * 1000)
 })
-*/}.toString().split('\n').slice(1, -1).join('\n')
+*/ }.toString().split('\n').slice(1, -1).join('\n')
 test('setup', function (t) {
   cleanup()
 
@@ -199,14 +199,12 @@ test('go go test racer', function (t) {
       env: {
         PATH: process.env.PATH,
         Path: process.env.Path
-      },
-      stdio: [0, 'pipe', 2]
+      }
     },
     function (er, code, stdout, stderr) {
       t.ifError(er, 'install ran to completion without error')
       t.is(code, 0, 'npm install exited with code 0')
-      t.is(stderr, '')
-
+      t.comment(stdout.trim())
       // stdout should be empty, because we only have one, optional, dep and
       // if it fails we shouldn't try installing anything
       t.equal(stdout, '')

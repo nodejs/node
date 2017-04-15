@@ -6,6 +6,7 @@
 #define V8_COMPILER_TAIL_CALL_OPTIMIZATION_H_
 
 #include "src/compiler/graph-reducer.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -18,7 +19,7 @@ class Graph;
 
 // Performs tail call optimization by replacing certain combinations of Return
 // and Call nodes with a single TailCall.
-class TailCallOptimization final : public Reducer {
+class V8_EXPORT_PRIVATE TailCallOptimization final : public Reducer {
  public:
   TailCallOptimization(CommonOperatorBuilder* common, Graph* graph)
       : common_(common), graph_(graph) {}

@@ -24,13 +24,16 @@ class Vector {
     DCHECK(length == 0 || (length > 0 && data != NULL));
   }
 
+  template <int N>
+  explicit Vector(T (&arr)[N]) : start_(arr), length_(N) {}
+
   static Vector<T> New(int length) {
     return Vector<T>(NewArray<T>(length), length);
   }
 
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
-  Vector<T> SubVector(int from, int to) {
+  Vector<T> SubVector(int from, int to) const {
     DCHECK(0 <= from);
     SLOW_DCHECK(from < to);
     SLOW_DCHECK(static_cast<unsigned>(to) <= static_cast<unsigned>(length_));
@@ -48,7 +51,8 @@ class Vector {
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](int index) const {
-    DCHECK(0 <= index && index < length_);
+    DCHECK_LE(0, index);
+    DCHECK_LT(index, length_);
     return start_[index];
   }
 
@@ -114,6 +118,9 @@ class Vector {
     DCHECK(offset < length_);
     return Vector<T>(start_ + offset, length_ - offset);
   }
+
+  // Implicit conversion from Vector<T> to Vector<const T>.
+  inline operator Vector<const T>() { return Vector<const T>::cast(*this); }
 
   // Factory method for creating empty vectors.
   static Vector<T> empty() { return Vector<T>(NULL, 0); }
@@ -201,6 +208,10 @@ inline Vector<char> MutableCStrVector(char* data, int max) {
   return Vector<char>(data, (length < max) ? length : max);
 }
 
+template <typename T, int N>
+inline Vector<T> ArrayVector(T (&arr)[N]) {
+  return Vector<T>(arr);
+}
 
 }  // namespace internal
 }  // namespace v8

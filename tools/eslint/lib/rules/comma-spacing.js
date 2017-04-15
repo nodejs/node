@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -36,12 +36,12 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var sourceCode = context.getSourceCode();
-        var tokensAndComments = sourceCode.tokensAndComments;
+        const sourceCode = context.getSourceCode();
+        const tokensAndComments = sourceCode.tokensAndComments;
 
-        var options = {
+        const options = {
             before: context.options[0] ? !!context.options[0].before : false,
             after: context.options[0] ? !!context.options[0].after : true
         };
@@ -51,17 +51,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         // list of comma tokens to ignore for the check of leading whitespace
-        var commaTokensToIgnore = [];
-
-        /**
-         * Determines if a given token is a comma operator.
-         * @param {ASTNode} token The token to check.
-         * @returns {boolean} True if the token is a comma, false if not.
-         * @private
-         */
-        function isComma(token) {
-            return !!token && (token.type === "Punctuator") && (token.value === ",");
-        }
+        const commaTokensToIgnore = [];
 
         /**
          * Reports a spacing error with an appropriate message.
@@ -73,32 +63,35 @@ module.exports = {
          */
         function report(node, dir, otherNode) {
             context.report({
-                node: node,
-                fix: function(fixer) {
+                node,
+                fix(fixer) {
                     if (options[dir]) {
                         if (dir === "before") {
                             return fixer.insertTextBefore(node, " ");
-                        } else {
-                            return fixer.insertTextAfter(node, " ");
                         }
-                    } else {
-                        var start, end;
-                        var newText = "";
+                        return fixer.insertTextAfter(node, " ");
 
-                        if (dir === "before") {
-                            start = otherNode.range[1];
-                            end = node.range[0];
-                        } else {
-                            start = node.range[1];
-                            end = otherNode.range[0];
-                        }
-
-                        return fixer.replaceTextRange([start, end], newText);
                     }
+                    let start, end;
+                    const newText = "";
+
+                    if (dir === "before") {
+                        start = otherNode.range[1];
+                        end = node.range[0];
+                    } else {
+                        start = node.range[1];
+                        end = otherNode.range[0];
+                    }
+
+                    return fixer.replaceTextRange([start, end], newText);
+
                 },
-                message: options[dir] ?
-                  "A space is required " + dir + " ','." :
-                  "There should be no space " + dir + " ','."
+                message: options[dir]
+                  ? "A space is required {{dir}} ','."
+                  : "There should be no space {{dir}} ','.",
+                data: {
+                    dir
+                }
             });
         }
 
@@ -136,19 +129,19 @@ module.exports = {
          * @returns {void}
          */
         function addNullElementsToIgnoreList(node) {
-            var previousToken = context.getFirstToken(node);
+            let previousToken = sourceCode.getFirstToken(node);
 
-            node.elements.forEach(function(element) {
-                var token;
+            node.elements.forEach(element => {
+                let token;
 
                 if (element === null) {
-                    token = context.getTokenAfter(previousToken);
+                    token = sourceCode.getTokenAfter(previousToken);
 
-                    if (isComma(token)) {
+                    if (astUtils.isCommaToken(token)) {
                         commaTokensToIgnore.push(token);
                     }
                 } else {
-                    token = context.getTokenAfter(element);
+                    token = sourceCode.getTokenAfter(element);
                 }
 
                 previousToken = token;
@@ -160,14 +153,10 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            "Program:exit": function() {
+            "Program:exit"() {
+                tokensAndComments.forEach((token, i) => {
 
-                var previousToken,
-                    nextToken;
-
-                tokensAndComments.forEach(function(token, i) {
-
-                    if (!isComma(token)) {
+                    if (!astUtils.isCommaToken(token)) {
                         return;
                     }
 
@@ -175,13 +164,13 @@ module.exports = {
                         return;
                     }
 
-                    previousToken = tokensAndComments[i - 1];
-                    nextToken = tokensAndComments[i + 1];
+                    const previousToken = tokensAndComments[i - 1];
+                    const nextToken = tokensAndComments[i + 1];
 
                     validateCommaItemSpacing({
                         comma: token,
-                        left: isComma(previousToken) || commaTokensToIgnore.indexOf(token) > -1 ? null : previousToken,
-                        right: isComma(nextToken) ? null : nextToken
+                        left: astUtils.isCommaToken(previousToken) || commaTokensToIgnore.indexOf(token) > -1 ? null : previousToken,
+                        right: astUtils.isCommaToken(nextToken) ? null : nextToken
                     }, token);
                 });
             },

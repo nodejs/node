@@ -1,6 +1,14 @@
 var common = require('./common');
 var fs = require('fs');
 
+common.register('rm', _rm, {
+  cmdOptions: {
+    'f': 'force',
+    'r': 'recursive',
+    'R': 'recursive',
+  },
+});
+
 // Recursively removes 'dir'
 // Adapted from https://github.com/ryanmcgrath/wrench-js
 //
@@ -15,32 +23,24 @@ function rmdirSyncRecursive(dir, force) {
   files = fs.readdirSync(dir);
 
   // Loop through and delete everything in the sub-tree after checking it
-  for(var i = 0; i < files.length; i++) {
-    var file = dir + "/" + files[i],
-        currFile = fs.lstatSync(file);
+  for (var i = 0; i < files.length; i++) {
+    var file = dir + '/' + files[i];
+    var currFile = fs.lstatSync(file);
 
-    if(currFile.isDirectory()) { // Recursive function back to the beginning
+    if (currFile.isDirectory()) { // Recursive function back to the beginning
       rmdirSyncRecursive(file, force);
-    }
-
-    else if(currFile.isSymbolicLink()) { // Unlink symlinks
+    } else { // Assume it's a file - perhaps a try/catch belongs here?
       if (force || isWriteable(file)) {
         try {
           common.unlinkSync(file);
         } catch (e) {
-          common.error('could not remove file (code '+e.code+'): ' + file, true);
+          /* istanbul ignore next */
+          common.error('could not remove file (code ' + e.code + '): ' + file, {
+            continue: true,
+          });
         }
       }
     }
-
-    else // Assume it's a file - perhaps a try/catch belongs here?
-      if (force || isWriteable(file)) {
-        try {
-          common.unlinkSync(file);
-        } catch (e) {
-          common.error('could not remove file (code '+e.code+'): ' + file, true);
-        }
-      }
   }
 
   // Now that we know everything in the sub-tree has been deleted, we can delete the main directory.
@@ -50,16 +50,19 @@ function rmdirSyncRecursive(dir, force) {
   try {
     // Retry on windows, sometimes it takes a little time before all the files in the directory are gone
     var start = Date.now();
-    while (true) {
+
+    // TODO: replace this with a finite loop
+    for (;;) {
       try {
         result = fs.rmdirSync(dir);
-        if (fs.existsSync(dir)) throw { code: "EAGAIN" };
+        if (fs.existsSync(dir)) throw { code: 'EAGAIN' };
         break;
-      } catch(er) {
+      } catch (er) {
+        /* istanbul ignore next */
         // In addition to error codes, also check if the directory still exists and loop again if true
-        if (process.platform === "win32" && (er.code === "ENOTEMPTY" || er.code === "EBUSY" || er.code === "EPERM" || er.code === "EAGAIN")) {
+        if (process.platform === 'win32' && (er.code === 'ENOTEMPTY' || er.code === 'EBUSY' || er.code === 'EPERM' || er.code === 'EAGAIN')) {
           if (Date.now() - start > 1000) throw er;
-        } else if (er.code === "ENOENT") {
+        } else if (er.code === 'ENOENT') {
           // Directory did not exist, deletion was successful
           break;
         } else {
@@ -67,8 +70,8 @@ function rmdirSyncRecursive(dir, force) {
         }
       }
     }
-  } catch(e) {
-    common.error('could not remove directory (code '+e.code+'): ' + dir, true);
+  } catch (e) {
+    common.error('could not remove directory (code ' + e.code + '): ' + dir, { continue: true });
   }
 
   return result;
@@ -81,7 +84,7 @@ function isWriteable(file) {
   try {
     var __fd = fs.openSync(file, 'a');
     fs.closeSync(__fd);
-  } catch(e) {
+  } catch (e) {
     writePermission = false;
   }
 
@@ -104,60 +107,44 @@ function isWriteable(file) {
 //@ rm(['some_file.txt', 'another_file.txt']); // same as above
 //@ ```
 //@
-//@ Removes files. The wildcard `*` is accepted.
+//@ Removes files.
 function _rm(options, files) {
-  options = common.parseOptions(options, {
-    'f': 'force',
-    'r': 'recursive',
-    'R': 'recursive'
-  });
-  if (!files)
-    common.error('no paths given');
+  if (!files) common.error('no paths given');
 
-  if (typeof files === 'string')
-    files = [].slice.call(arguments, 1);
-  // if it's array leave it as it is
+  // Convert to array
+  files = [].slice.call(arguments, 1);
 
-  files = common.expand(files);
-
-  files.forEach(function(file) {
-    if (!fs.existsSync(file)) {
+  files.forEach(function (file) {
+    var stats;
+    try {
+      stats = fs.lstatSync(file); // test for existence
+    } catch (e) {
       // Path does not exist, no force flag given
-      if (!options.force)
-        common.error('no such file or directory: '+file, true);
-
+      if (!options.force) {
+        common.error('no such file or directory: ' + file, { continue: true });
+      }
       return; // skip file
     }
 
     // If here, path exists
-
-    var stats = fs.lstatSync(file);
-    if (stats.isFile() || stats.isSymbolicLink()) {
-
-      // Do not check for file writing permissions
-      if (options.force) {
+    if (stats.isFile()) {
+      if (options.force || isWriteable(file)) {
+        // -f was passed, or file is writable, so it can be removed
         common.unlinkSync(file);
-        return;
+      } else {
+        common.error('permission denied: ' + file, { continue: true });
       }
-
-      if (isWriteable(file))
-        common.unlinkSync(file);
-      else
-        common.error('permission denied: '+file, true);
-
-      return;
-    } // simple file
-
-    // Path is an existing directory, but no -r flag given
-    if (stats.isDirectory() && !options.recursive) {
-      common.error('path is a directory', true);
-      return; // skip path
-    }
-
-    // Recursively remove existing directory
-    if (stats.isDirectory() && options.recursive) {
-      rmdirSyncRecursive(file, options.force);
+    } else if (stats.isDirectory()) {
+      if (options.recursive) {
+        // -r was passed, so directory can be removed
+        rmdirSyncRecursive(file, options.force);
+      } else {
+        common.error('path is a directory', { continue: true });
+      }
+    } else if (stats.isSymbolicLink() || stats.isFIFO()) {
+      common.unlinkSync(file);
     }
   }); // forEach(file)
+  return '';
 } // rm
 module.exports = _rm;

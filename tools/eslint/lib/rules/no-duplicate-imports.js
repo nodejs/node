@@ -36,9 +36,12 @@ function getValue(node) {
 function checkAndReport(context, node, value, array, message) {
     if (array.indexOf(value) !== -1) {
         context.report({
-            node: node,
-            message: "'{{module}}' " + message,
-            data: {module: value}
+            node,
+            message: "'{{module}}' {{message}}",
+            data: {
+                module: value,
+                message
+            }
         });
     }
 }
@@ -60,7 +63,7 @@ function checkAndReport(context, node, value, array, message) {
  */
 function handleImports(context, includeExports, importsInFile, exportsInFile) {
     return function(node) {
-        var value = getValue(node);
+        const value = getValue(node);
 
         if (value) {
             checkAndReport(context, node, value, importsInFile, "import is duplicated.");
@@ -85,7 +88,7 @@ function handleImports(context, includeExports, importsInFile, exportsInFile) {
  */
 function handleExports(context, importsInFile, exportsInFile) {
     return function(node) {
-        var value = getValue(node);
+        const value = getValue(node);
 
         if (value) {
             checkAndReport(context, node, value, exportsInFile, "export is duplicated.");
@@ -115,12 +118,12 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
-        var includeExports = (context.options[0] || {}).includeExports,
+    create(context) {
+        const includeExports = (context.options[0] || {}).includeExports,
             importsInFile = [],
             exportsInFile = [];
 
-        var handlers = {
+        const handlers = {
             ImportDeclaration: handleImports(context, includeExports, importsInFile, exportsInFile)
         };
 

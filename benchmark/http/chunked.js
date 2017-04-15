@@ -11,16 +11,14 @@
 var common = require('../common.js');
 
 var bench = common.createBenchmark(main, {
-  num: [1, 4, 8, 16],
-  size: [1, 64, 256],
+  n: [1, 4, 8, 16],
+  len: [1, 64, 256],
   c: [100]
 });
 
 function main(conf) {
   const http = require('http');
-  var chunk = Buffer.alloc(conf.size, '8');
-
-  var args = ['-d', '10s', '-t', 8, '-c', conf.c];
+  var chunk = Buffer.alloc(conf.len, '8');
 
   var server = http.createServer(function(req, res) {
     function send(left) {
@@ -30,11 +28,13 @@ function main(conf) {
         send(left - 1);
       }, 0);
     }
-    send(conf.num);
+    send(conf.n);
   });
 
   server.listen(common.PORT, function() {
-    bench.http('/', args, function() {
+    bench.http({
+      connections: conf.c
+    }, function() {
       server.close();
     });
   });

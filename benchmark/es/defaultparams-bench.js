@@ -22,8 +22,6 @@ function defaultParams(x = 1, y = 2) {
 
 function runOldStyleDefaults(n) {
 
-  common.v8ForceOptimization(oldStyleDefaults);
-
   var i = 0;
   bench.start();
   for (; i < n; i++)
@@ -32,8 +30,6 @@ function runOldStyleDefaults(n) {
 }
 
 function runDefaultParams(n) {
-
-  common.v8ForceOptimization(defaultParams);
 
   var i = 0;
   bench.start();

@@ -185,6 +185,9 @@ int dsa_builtin_paramgen(DSA *ret, size_t bits, size_t qbits,
     p = BN_CTX_get(ctx);
     test = BN_CTX_get(ctx);
 
+    if (test == NULL)
+        goto err;
+
     if (!BN_lshift(test, BN_value_one(), bits - 1))
         goto err;
 
@@ -197,7 +200,7 @@ int dsa_builtin_paramgen(DSA *ret, size_t bits, size_t qbits,
                 goto err;
 
             if (!seed_len || !seed_in) {
-                if (RAND_pseudo_bytes(seed, qsize) < 0)
+                if (RAND_bytes(seed, qsize) <= 0)
                     goto err;
                 seed_is_random = 1;
             } else {
@@ -491,7 +494,7 @@ int dsa_builtin_paramgen2(DSA *ret, size_t L, size_t N,
                 goto err;
 
             if (!seed_in) {
-                if (RAND_pseudo_bytes(seed, seed_len) < 0)
+                if (RAND_bytes(seed, seed_len) <= 0)
                     goto err;
             }
             /* step 2 */

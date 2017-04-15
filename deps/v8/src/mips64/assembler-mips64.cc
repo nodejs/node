@@ -167,6 +167,38 @@ bool RelocInfo::IsInConstantPool() {
   return false;
 }
 
+Address RelocInfo::wasm_memory_reference() {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  return Assembler::target_address_at(pc_, host_);
+}
+
+Address RelocInfo::wasm_global_reference() {
+  DCHECK(IsWasmGlobalReference(rmode_));
+  return Assembler::target_address_at(pc_, host_);
+}
+
+uint32_t RelocInfo::wasm_memory_size_reference() {
+  DCHECK(IsWasmMemorySizeReference(rmode_));
+  return static_cast<uint32_t>(
+      reinterpret_cast<intptr_t>((Assembler::target_address_at(pc_, host_))));
+}
+
+uint32_t RelocInfo::wasm_function_table_size_reference() {
+  DCHECK(IsWasmFunctionTableSizeReference(rmode_));
+  return static_cast<uint32_t>(
+      reinterpret_cast<intptr_t>((Assembler::target_address_at(pc_, host_))));
+}
+
+void RelocInfo::unchecked_update_wasm_memory_reference(
+    Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+}
+
+void RelocInfo::unchecked_update_wasm_size(uint32_t size,
+                                           ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate_, pc_, host_,
+                                   reinterpret_cast<Address>(size), flush_mode);
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of Operand and MemOperand.
@@ -178,7 +210,6 @@ Operand::Operand(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    DCHECK(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     imm64_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
@@ -238,11 +269,9 @@ const Instr kLwSwInstrTypeMask = 0xffe00000;
 const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
-
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
-      recorded_ast_id_(TypeFeedbackId::None()),
-      positions_recorder_(this) {
+      recorded_ast_id_(TypeFeedbackId::None()) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   last_trampoline_pool_end_ = 0;
@@ -274,6 +303,8 @@ void Assembler::GetCode(CodeDesc* desc) {
       static_cast<int>((buffer_ + buffer_size_) - reloc_info_writer.pos());
   desc->origin = this;
   desc->constant_pool_size = 0;
+  desc->unwinding_info_size = 0;
+  desc->unwinding_info = nullptr;
 }
 
 
@@ -834,8 +865,7 @@ void Assembler::print(Label* L) {
       } else {
         PrintF("%d\n", instr);
       }
-      next(&l, internal_reference_positions_.find(l.pos()) !=
-                   internal_reference_positions_.end());
+      next(&l, is_internal_reference(&l));
     }
   } else {
     PrintF("label in inconsistent state (pos = %d)\n", L->pos_);
@@ -849,14 +879,15 @@ void Assembler::bind_to(Label* L, int pos) {
   bool is_internal = false;
   if (L->is_linked() && !trampoline_emitted_) {
     unbound_labels_count_--;
-    next_buffer_check_ += kTrampolineSlotsSize;
+    if (!is_internal_reference(L)) {
+      next_buffer_check_ += kTrampolineSlotsSize;
+    }
   }
 
   while (L->is_linked()) {
     int fixup_pos = L->pos();
     int dist = pos - fixup_pos;
-    is_internal = internal_reference_positions_.find(fixup_pos) !=
-                  internal_reference_positions_.end();
+    is_internal = is_internal_reference(L);
     next(L, is_internal);  // Call next before overwriting link with target at
                            // fixup_pos.
     Instr instr = instr_at(fixup_pos);
@@ -873,7 +904,6 @@ void Assembler::bind_to(Label* L, int pos) {
           CHECK((trampoline_pos - fixup_pos) <= branch_offset);
           target_at_put(fixup_pos, trampoline_pos, false);
           fixup_pos = trampoline_pos;
-          dist = pos - fixup_pos;
         }
         target_at_put(fixup_pos, pos, false);
       } else {
@@ -1226,7 +1256,6 @@ void Assembler::b(int16_t offset) {
 
 
 void Assembler::bal(int16_t offset) {
-  positions_recorder()->WriteRecordedPositions();
   bgezal(zero_reg, offset);
 }
 
@@ -1239,7 +1268,6 @@ void Assembler::bc(int32_t offset) {
 
 void Assembler::balc(int32_t offset) {
   DCHECK(kArchVariant == kMips64r6);
-  positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(BALC, offset, CompactBranchType::COMPACT_BRANCH);
 }
 
@@ -1286,7 +1314,6 @@ void Assembler::bgec(Register rs, Register rt, int16_t offset) {
 void Assembler::bgezal(Register rs, int16_t offset) {
   DCHECK(kArchVariant != kMips64r6 || rs.is(zero_reg));
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(REGIMM, rs, BGEZAL, offset);
   BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
@@ -1357,7 +1384,6 @@ void Assembler::bltz(Register rs, int16_t offset) {
 void Assembler::bltzal(Register rs, int16_t offset) {
   DCHECK(kArchVariant != kMips64r6 || rs.is(zero_reg));
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(REGIMM, rs, BLTZAL, offset);
   BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
@@ -1372,24 +1398,27 @@ void Assembler::bne(Register rs, Register rt, int16_t offset) {
 
 void Assembler::bovc(Register rs, Register rt, int16_t offset) {
   DCHECK(kArchVariant == kMips64r6);
-  DCHECK(!(rs.is(zero_reg)));
-  DCHECK(rs.code() >= rt.code());
-  GenInstrImmediate(ADDI, rs, rt, offset, CompactBranchType::COMPACT_BRANCH);
+  if (rs.code() >= rt.code()) {
+    GenInstrImmediate(ADDI, rs, rt, offset, CompactBranchType::COMPACT_BRANCH);
+  } else {
+    GenInstrImmediate(ADDI, rt, rs, offset, CompactBranchType::COMPACT_BRANCH);
+  }
 }
 
 
 void Assembler::bnvc(Register rs, Register rt, int16_t offset) {
   DCHECK(kArchVariant == kMips64r6);
-  DCHECK(!(rs.is(zero_reg)));
-  DCHECK(rs.code() >= rt.code());
-  GenInstrImmediate(DADDI, rs, rt, offset, CompactBranchType::COMPACT_BRANCH);
+  if (rs.code() >= rt.code()) {
+    GenInstrImmediate(DADDI, rs, rt, offset, CompactBranchType::COMPACT_BRANCH);
+  } else {
+    GenInstrImmediate(DADDI, rt, rs, offset, CompactBranchType::COMPACT_BRANCH);
+  }
 }
 
 
 void Assembler::blezalc(Register rt, int16_t offset) {
   DCHECK(kArchVariant == kMips64r6);
   DCHECK(!(rt.is(zero_reg)));
-  positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(BLEZ, zero_reg, rt, offset,
                     CompactBranchType::COMPACT_BRANCH);
 }
@@ -1398,7 +1427,6 @@ void Assembler::blezalc(Register rt, int16_t offset) {
 void Assembler::bgezalc(Register rt, int16_t offset) {
   DCHECK(kArchVariant == kMips64r6);
   DCHECK(!(rt.is(zero_reg)));
-  positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(BLEZ, rt, rt, offset, CompactBranchType::COMPACT_BRANCH);
 }
 
@@ -1407,7 +1435,6 @@ void Assembler::bgezall(Register rs, int16_t offset) {
   DCHECK(kArchVariant != kMips64r6);
   DCHECK(!(rs.is(zero_reg)));
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(REGIMM, rs, BGEZALL, offset);
   BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
@@ -1416,7 +1443,6 @@ void Assembler::bgezall(Register rs, int16_t offset) {
 void Assembler::bltzalc(Register rt, int16_t offset) {
   DCHECK(kArchVariant == kMips64r6);
   DCHECK(!(rt.is(zero_reg)));
-  positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(BGTZ, rt, rt, offset, CompactBranchType::COMPACT_BRANCH);
 }
 
@@ -1424,7 +1450,6 @@ void Assembler::bltzalc(Register rt, int16_t offset) {
 void Assembler::bgtzalc(Register rt, int16_t offset) {
   DCHECK(kArchVariant == kMips64r6);
   DCHECK(!(rt.is(zero_reg)));
-  positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(BGTZ, zero_reg, rt, offset,
                     CompactBranchType::COMPACT_BRANCH);
 }
@@ -1433,7 +1458,6 @@ void Assembler::bgtzalc(Register rt, int16_t offset) {
 void Assembler::beqzalc(Register rt, int16_t offset) {
   DCHECK(kArchVariant == kMips64r6);
   DCHECK(!(rt.is(zero_reg)));
-  positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(ADDI, zero_reg, rt, offset,
                     CompactBranchType::COMPACT_BRANCH);
 }
@@ -1442,7 +1466,6 @@ void Assembler::beqzalc(Register rt, int16_t offset) {
 void Assembler::bnezalc(Register rt, int16_t offset) {
   DCHECK(kArchVariant == kMips64r6);
   DCHECK(!(rt.is(zero_reg)));
-  positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(DADDI, zero_reg, rt, offset,
                     CompactBranchType::COMPACT_BRANCH);
 }
@@ -1508,7 +1531,6 @@ void Assembler::jal(Label* target) {
   uint64_t imm = jump_offset(target);
   if (target->is_bound()) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    positions_recorder()->WriteRecordedPositions();
     GenInstrJump(static_cast<Opcode>(kJalRawMark),
                  static_cast<uint32_t>(imm >> 2) & kImm26Mask);
     BlockTrampolinePoolFor(1);  // For associated delay slot.
@@ -1521,9 +1543,6 @@ void Assembler::jal(Label* target) {
 void Assembler::jr(Register rs) {
   if (kArchVariant != kMips64r6) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
-    if (rs.is(ra)) {
-      positions_recorder()->WriteRecordedPositions();
-    }
     GenInstrRegister(SPECIAL, rs, zero_reg, zero_reg, 0, JR);
     BlockTrampolinePoolFor(1);  // For associated delay slot.
   } else {
@@ -1534,7 +1553,6 @@ void Assembler::jr(Register rs) {
 
 void Assembler::jal(int64_t target) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  positions_recorder()->WriteRecordedPositions();
   GenInstrJump(JAL, static_cast<uint32_t>(target >> 2) & kImm26Mask);
   BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
@@ -1543,7 +1561,6 @@ void Assembler::jal(int64_t target) {
 void Assembler::jalr(Register rs, Register rd) {
   DCHECK(rs.code() != rd.code());
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  positions_recorder()->WriteRecordedPositions();
   GenInstrRegister(SPECIAL, rs, zero_reg, rd, 0, JALR);
   BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
@@ -1557,7 +1574,6 @@ void Assembler::jic(Register rt, int16_t offset) {
 
 void Assembler::jialc(Register rt, int16_t offset) {
   DCHECK(kArchVariant == kMips64r6);
-  positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(POP76, zero_reg, rt, offset);
 }
 
@@ -1863,6 +1879,12 @@ void Assembler::drotr(Register rd, Register rt, uint16_t sa) {
   emit(instr);
 }
 
+void Assembler::drotr32(Register rd, Register rt, uint16_t sa) {
+  DCHECK(rd.is_valid() && rt.is_valid() && is_uint5(sa));
+  Instr instr = SPECIAL | (1 << kRsShift) | (rt.code() << kRtShift) |
+                (rd.code() << kRdShift) | (sa << kSaShift) | DSRL32;
+  emit(instr);
+}
 
 void Assembler::drotrv(Register rd, Register rt, Register rs) {
   DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid() );
@@ -1899,20 +1921,20 @@ void Assembler::dsra32(Register rd, Register rt, uint16_t sa) {
 
 void Assembler::lsa(Register rd, Register rt, Register rs, uint8_t sa) {
   DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
-  DCHECK(sa < 5 && sa > 0);
+  DCHECK(sa <= 3);
   DCHECK(kArchVariant == kMips64r6);
-  Instr instr = SPECIAL | (rs.code() << kRsShift) | (rt.code() << kRtShift) |
-                (rd.code() << kRdShift) | (sa - 1) << kSaShift | LSA;
+  Instr instr = SPECIAL | rs.code() << kRsShift | rt.code() << kRtShift |
+                rd.code() << kRdShift | sa << kSaShift | LSA;
   emit(instr);
 }
 
 
 void Assembler::dlsa(Register rd, Register rt, Register rs, uint8_t sa) {
   DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
-  DCHECK(sa < 5 && sa > 0);
+  DCHECK(sa <= 3);
   DCHECK(kArchVariant == kMips64r6);
-  Instr instr = SPECIAL | (rs.code() << kRsShift) | (rt.code() << kRtShift) |
-                (rd.code() << kRdShift) | (sa - 1) << kSaShift | DLSA;
+  Instr instr = SPECIAL | rs.code() << kRsShift | rt.code() << kRtShift |
+                rd.code() << kRdShift | sa << kSaShift | DLSA;
   emit(instr);
 }
 
@@ -1923,19 +1945,64 @@ void Assembler::dlsa(Register rd, Register rt, Register rs, uint8_t sa) {
 void Assembler::LoadRegPlusOffsetToAt(const MemOperand& src) {
   DCHECK(!src.rm().is(at));
   DCHECK(is_int32(src.offset_));
-  daddiu(at, zero_reg, (src.offset_ >> kLuiShift) & kImm16Mask);
-  dsll(at, at, kLuiShift);
-  ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
-  daddu(at, at, src.rm());  // Add base register.
+
+  if (kArchVariant == kMips64r6) {
+    int32_t hi = (src.offset_ >> kLuiShift) & kImm16Mask;
+    if (src.offset_ & kNegOffset) {
+      if ((hi & kNegOffset) != ((hi + 1) & kNegOffset)) {
+        lui(at, (src.offset_ >> kLuiShift) & kImm16Mask);
+        ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
+        daddu(at, at, src.rm());                // Add base register.
+        return;
+      }
+
+      hi += 1;
+    }
+
+    daui(at, src.rm(), hi);
+    daddiu(at, at, src.offset_ & kImm16Mask);
+  } else {
+    lui(at, (src.offset_ >> kLuiShift) & kImm16Mask);
+    ori(at, at, src.offset_ & kImm16Mask);  // Load 32-bit offset.
+    daddu(at, at, src.rm());                // Add base register.
+  }
 }
 
+// Helper for base-reg + upper part of offset, when offset is larger than int16.
+// Loads higher part of the offset to AT register.
+// Returns lower part of the offset to be used as offset
+// in Load/Store instructions
+int32_t Assembler::LoadRegPlusUpperOffsetPartToAt(const MemOperand& src) {
+  DCHECK(!src.rm().is(at));
+  DCHECK(is_int32(src.offset_));
+  int32_t hi = (src.offset_ >> kLuiShift) & kImm16Mask;
+  // If the highest bit of the lower part of the offset is 1, this would make
+  // the offset in the load/store instruction negative. We need to compensate
+  // for this by adding 1 to the upper part of the offset.
+  if (src.offset_ & kNegOffset) {
+    if ((hi & kNegOffset) != ((hi + 1) & kNegOffset)) {
+      LoadRegPlusOffsetToAt(src);
+      return 0;
+    }
+
+    hi += 1;
+  }
+
+  if (kArchVariant == kMips64r6) {
+    daui(at, src.rm(), hi);
+  } else {
+    lui(at, hi);
+    daddu(at, at, src.rm());
+  }
+  return (src.offset_ & kImm16Mask);
+}
 
 void Assembler::lb(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LB, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LB, at, rd, 0);  // Equiv to lb(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LB, at, rd, off16);
   }
 }
 
@@ -1944,8 +2011,8 @@ void Assembler::lbu(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LBU, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LBU, at, rd, 0);  // Equiv to lbu(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LBU, at, rd, off16);
   }
 }
 
@@ -1954,8 +2021,8 @@ void Assembler::lh(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LH, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LH, at, rd, 0);  // Equiv to lh(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LH, at, rd, off16);
   }
 }
 
@@ -1964,8 +2031,8 @@ void Assembler::lhu(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LHU, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LHU, at, rd, 0);  // Equiv to lhu(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LHU, at, rd, off16);
   }
 }
 
@@ -1974,8 +2041,8 @@ void Assembler::lw(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LW, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LW, at, rd, 0);  // Equiv to lw(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LW, at, rd, off16);
   }
 }
 
@@ -1984,18 +2051,22 @@ void Assembler::lwu(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LWU, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LWU, at, rd, 0);  // Equiv to lwu(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LWU, at, rd, off16);
   }
 }
 
 
 void Assembler::lwl(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(LWL, rs.rm(), rd, rs.offset_);
 }
 
 
 void Assembler::lwr(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(LWR, rs.rm(), rd, rs.offset_);
 }
 
@@ -2004,8 +2075,8 @@ void Assembler::sb(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(SB, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to store.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(SB, at, rd, 0);  // Equiv to sb(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(SB, at, rd, off16);
   }
 }
 
@@ -2014,8 +2085,8 @@ void Assembler::sh(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(SH, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to store.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(SH, at, rd, 0);  // Equiv to sh(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(SH, at, rd, off16);
   }
 }
 
@@ -2024,18 +2095,22 @@ void Assembler::sw(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(SW, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to store.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(SW, at, rd, 0);  // Equiv to sw(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(SW, at, rd, off16);
   }
 }
 
 
 void Assembler::swl(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(SWL, rs.rm(), rd, rs.offset_);
 }
 
 
 void Assembler::swr(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(SWR, rs.rm(), rd, rs.offset_);
 }
 
@@ -2074,21 +2149,29 @@ void Assembler::dati(Register rs, int32_t j) {
 
 
 void Assembler::ldl(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(LDL, rs.rm(), rd, rs.offset_);
 }
 
 
 void Assembler::ldr(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(LDR, rs.rm(), rd, rs.offset_);
 }
 
 
 void Assembler::sdl(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(SDL, rs.rm(), rd, rs.offset_);
 }
 
 
 void Assembler::sdr(Register rd, const MemOperand& rs) {
+  DCHECK(is_int16(rs.offset_));
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrImmediate(SDR, rs.rm(), rd, rs.offset_);
 }
 
@@ -2097,8 +2180,8 @@ void Assembler::ld(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(LD, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(LD, at, rd, 0);  // Equiv to lw(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(LD, at, rd, off16);
   }
 }
 
@@ -2107,8 +2190,8 @@ void Assembler::sd(Register rd, const MemOperand& rs) {
   if (is_int16(rs.offset_)) {
     GenInstrImmediate(SD, rs.rm(), rd, rs.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to store.
-    LoadRegPlusOffsetToAt(rs);
-    GenInstrImmediate(SD, at, rd, 0);  // Equiv to sw(rd, MemOperand(at, 0));
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(rs);
+    GenInstrImmediate(SD, at, rd, off16);
   }
 }
 
@@ -2192,7 +2275,11 @@ void Assembler::stop(const char* msg, uint32_t code) {
   // The Simulator will handle the stop instruction and get the message address.
   // On MIPS stop() is just a special kind of break_().
   break_(code, true);
-  emit(reinterpret_cast<uint64_t>(msg));
+  // Do not embed the message string address! We used to do this, but that
+  // made snapshots created from position-independent executable builds
+  // non-deterministic.
+  // TODO(yangguo): remove this field entirely.
+  nop();
 #endif
 }
 
@@ -2245,6 +2332,10 @@ void Assembler::tne(Register rs, Register rt, uint16_t code) {
   emit(instr);
 }
 
+void Assembler::sync() {
+  Instr sync_instr = SPECIAL | SYNC;
+  emit(sync_instr);
+}
 
 // Move from HI/LO register.
 
@@ -2478,6 +2569,30 @@ void Assembler::dalign(Register rd, Register rs, Register rt, uint8_t bp) {
   GenInstrRegister(SPECIAL3, rs, rt, rd, sa, DBSHFL);
 }
 
+void Assembler::wsbh(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, WSBH, BSHFL);
+}
+
+void Assembler::dsbh(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, DSBH, DBSHFL);
+}
+
+void Assembler::dshd(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, DSHD, DBSHFL);
+}
+
+void Assembler::seh(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, SEH, BSHFL);
+}
+
+void Assembler::seb(Register rd, Register rt) {
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, zero_reg, rt, rd, SEB, BSHFL);
+}
 
 // --------Coprocessor-instructions----------------
 
@@ -2486,19 +2601,18 @@ void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
   if (is_int16(src.offset_)) {
     GenInstrImmediate(LWC1, src.rm(), fd, src.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(src);
-    GenInstrImmediate(LWC1, at, fd, 0);
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
+    GenInstrImmediate(LWC1, at, fd, off16);
   }
 }
 
 
 void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
-  DCHECK(!src.rm().is(at));
   if (is_int16(src.offset_)) {
     GenInstrImmediate(LDC1, src.rm(), fd, src.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(src);
-    GenInstrImmediate(LDC1, at, fd, 0);
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
+    GenInstrImmediate(LDC1, at, fd, off16);
   }
 }
 
@@ -2507,8 +2621,8 @@ void Assembler::swc1(FPURegister fd, const MemOperand& src) {
   if (is_int16(src.offset_)) {
     GenInstrImmediate(SWC1, src.rm(), fd, src.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(src);
-    GenInstrImmediate(SWC1, at, fd, 0);
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
+    GenInstrImmediate(SWC1, at, fd, off16);
   }
 }
 
@@ -2518,8 +2632,8 @@ void Assembler::sdc1(FPURegister fd, const MemOperand& src) {
   if (is_int16(src.offset_)) {
     GenInstrImmediate(SDC1, src.rm(), fd, src.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
-    LoadRegPlusOffsetToAt(src);
-    GenInstrImmediate(SDC1, at, fd, 0);
+    int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
+    GenInstrImmediate(SDC1, at, fd, off16);
   }
 }
 
@@ -2716,12 +2830,49 @@ void Assembler::mul_d(FPURegister fd, FPURegister fs, FPURegister ft) {
   GenInstrRegister(COP1, D, ft, fs, fd, MUL_D);
 }
 
+void Assembler::madd_s(FPURegister fd, FPURegister fr, FPURegister fs,
+                       FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r2);
+  GenInstrRegister(COP1X, fr, ft, fs, fd, MADD_S);
+}
 
 void Assembler::madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
     FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrRegister(COP1X, fr, ft, fs, fd, MADD_D);
 }
 
+void Assembler::msub_s(FPURegister fd, FPURegister fr, FPURegister fs,
+                       FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r2);
+  GenInstrRegister(COP1X, fr, ft, fs, fd, MSUB_S);
+}
+
+void Assembler::msub_d(FPURegister fd, FPURegister fr, FPURegister fs,
+                       FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r2);
+  GenInstrRegister(COP1X, fr, ft, fs, fd, MSUB_D);
+}
+
+void Assembler::maddf_s(FPURegister fd, FPURegister fs, FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(COP1, S, ft, fs, fd, MADDF_S);
+}
+
+void Assembler::maddf_d(FPURegister fd, FPURegister fs, FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(COP1, D, ft, fs, fd, MADDF_D);
+}
+
+void Assembler::msubf_s(FPURegister fd, FPURegister fs, FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(COP1, S, ft, fs, fd, MSUBF_S);
+}
+
+void Assembler::msubf_d(FPURegister fd, FPURegister fs, FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(COP1, D, ft, fs, fd, MSUBF_D);
+}
 
 void Assembler::div_s(FPURegister fd, FPURegister fs, FPURegister ft) {
   GenInstrRegister(COP1, S, ft, fs, fd, DIV_D);
@@ -3199,6 +3350,7 @@ void Assembler::dd(Label* label) {
     data = reinterpret_cast<uint64_t>(buffer_ + label->pos());
   } else {
     data = jump_address(label);
+    unbound_labels_count_++;
     internal_reference_positions_.insert(label->pos());
   }
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
@@ -3210,11 +3362,9 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
   RelocInfo rinfo(isolate(), pc_, rmode, data, NULL);
   if (rmode >= RelocInfo::COMMENT &&
-      rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_CALL) {
+      rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL) {
     // Adjust code for new modes.
-    DCHECK(RelocInfo::IsDebugBreakSlot(rmode)
-           || RelocInfo::IsComment(rmode)
-           || RelocInfo::IsPosition(rmode));
+    DCHECK(RelocInfo::IsDebugBreakSlot(rmode) || RelocInfo::IsComment(rmode));
     // These modes do not need an entry in the constant pool.
   }
   if (!RelocInfo::IsNone(rinfo.rmode())) {
@@ -3384,7 +3534,6 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
     Assembler::FlushICache(isolate, pc, 4 * Assembler::kInstrSize);
   }
 }
-
 
 }  // namespace internal
 }  // namespace v8

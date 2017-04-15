@@ -16,9 +16,9 @@ if (common.isWindows) {
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 
 if (cluster.isMaster) {
-  var worker1, worker2;
+  let worker2;
 
-  worker1 = cluster.fork();
+  const worker1 = cluster.fork();
   worker1.on('message', common.mustCall(function() {
     worker2 = cluster.fork();
     worker1.disconnect();
@@ -32,7 +32,7 @@ if (cluster.isMaster) {
   return;
 }
 
-var server = net.createServer();
+const server = net.createServer();
 
 server.listen(common.PORT, function() {
   process.send('listening');

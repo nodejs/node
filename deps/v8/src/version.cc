@@ -4,6 +4,7 @@
 
 #include "src/version.h"
 
+#include "include/v8-version-string.h"
 #include "include/v8-version.h"
 #include "src/utils.h"
 
@@ -11,25 +12,6 @@
 // shared library instead the generic SONAME generated from the V8 version
 // number. This define is mainly used by the build system script.
 #define SONAME            ""
-
-#if V8_IS_CANDIDATE_VERSION
-#define CANDIDATE_STRING " (candidate)"
-#else
-#define CANDIDATE_STRING ""
-#endif
-
-#define SX(x) #x
-#define S(x) SX(x)
-
-#if V8_PATCH_LEVEL > 0
-#define VERSION_STRING                                                      \
-  S(V8_MAJOR_VERSION) "." S(V8_MINOR_VERSION) "." S(V8_BUILD_NUMBER) "." S( \
-      V8_PATCH_LEVEL) CANDIDATE_STRING
-#else
-#define VERSION_STRING                                               \
-  S(V8_MAJOR_VERSION) "." S(V8_MINOR_VERSION) "." S(V8_BUILD_NUMBER) \
-      CANDIDATE_STRING
-#endif
 
 namespace v8 {
 namespace internal {
@@ -40,7 +22,7 @@ int Version::build_ = V8_BUILD_NUMBER;
 int Version::patch_ = V8_PATCH_LEVEL;
 bool Version::candidate_ = (V8_IS_CANDIDATE_VERSION != 0);
 const char* Version::soname_ = SONAME;
-const char* Version::version_string_ = VERSION_STRING;
+const char* Version::version_string_ = V8_VERSION_STRING;
 
 // Calculate the V8 version string.
 void Version::GetString(Vector<char> str) {

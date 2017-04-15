@@ -1,28 +1,52 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var path = require('path');
-var exec = require('child_process').exec;
-var async_completed = 0, async_expected = 0, unlink = [];
-var skipSymlinks = false;
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const exec = require('child_process').exec;
+let async_completed = 0;
+let async_expected = 0;
+const unlink = [];
+let skipSymlinks = false;
 
 common.refreshTmpDir();
 
-var root = '/';
-var assertEqualPath = assert.equal;
+let root = '/';
+let assertEqualPath = assert.strictEqual;
 if (common.isWindows) {
   // something like "C:\\"
   root = process.cwd().substr(0, 3);
   assertEqualPath = function(path_left, path_right, message) {
-    assert.equal(path_left.toLowerCase(), path_right.toLowerCase(), message);
+    assert
+      .strictEqual(path_left.toLowerCase(), path_right.toLowerCase(), message);
   };
 
   // On Windows, creating symlinks requires admin privileges.
   // We'll only try to run symlink test if we have enough privileges.
   try {
     exec('whoami /priv', function(err, o) {
-      if (err || o.indexOf('SeCreateSymbolicLinkPrivilege') == -1) {
+      if (err || !o.includes('SeCreateSymbolicLinkPrivilege')) {
         skipSymlinks = true;
       }
       runTest();
@@ -41,8 +65,8 @@ function tmp(p) {
   return path.join(common.tmpDir, p);
 }
 
-var targetsAbsDir = path.join(common.tmpDir, 'targets');
-var tmpAbsDir = common.tmpDir;
+const targetsAbsDir = path.join(common.tmpDir, 'targets');
+const tmpAbsDir = common.tmpDir;
 
 // Set up targetsAbsDir and expected subdirectories
 fs.mkdirSync(targetsAbsDir);
@@ -53,12 +77,11 @@ fs.mkdirSync(path.join(targetsAbsDir, 'nested-index', 'two'));
 function asynctest(testBlock, args, callback, assertBlock) {
   async_expected++;
   testBlock.apply(testBlock, args.concat(function(err) {
-    var ignoreError = false;
+    let ignoreError = false;
     if (assertBlock) {
       try {
         ignoreError = assertBlock.apply(assertBlock, arguments);
-      }
-      catch (e) {
+      } catch (e) {
         err = e;
       }
     }
@@ -69,18 +92,11 @@ function asynctest(testBlock, args, callback, assertBlock) {
 
 // sub-tests:
 function test_simple_error_callback(cb) {
-  var ncalls = 0;
-
-  fs.realpath('/this/path/does/not/exist', function(err, s) {
+  fs.realpath('/this/path/does/not/exist', common.mustCall(function(err, s) {
     assert(err);
     assert(!s);
-    ncalls++;
     cb();
-  });
-
-  process.on('exit', function() {
-    assert.equal(ncalls, 1);
-  });
+  }));
 }
 
 function test_simple_relative_symlink(callback) {
@@ -94,12 +110,12 @@ function test_simple_relative_symlink(callback) {
   [
     [entry, '../' + common.tmpDirName + '/cycles/root.js']
   ].forEach(function(t) {
-    try {fs.unlinkSync(t[0]);} catch (e) {}
+    try { fs.unlinkSync(t[0]); } catch (e) {}
     console.log('fs.symlinkSync(%j, %j, %j)', t[1], t[0], 'file');
     fs.symlinkSync(t[1], t[0], 'file');
     unlink.push(t[0]);
   });
-  var result = fs.realpathSync(entry);
+  const result = fs.realpathSync(entry);
   assertEqualPath(result, path.resolve(expected));
   asynctest(fs.realpath, [entry], callback, function(err, result) {
     assertEqualPath(result, path.resolve(expected));
@@ -111,7 +127,7 @@ function test_simple_absolute_symlink(callback) {
 
   // this one should still run, even if skipSymlinks is set,
   // because it uses a junction.
-  var type = skipSymlinks ? 'junction' : 'dir';
+  const type = skipSymlinks ? 'junction' : 'dir';
 
   console.log('using type=%s', type);
 
@@ -120,12 +136,12 @@ function test_simple_absolute_symlink(callback) {
   [
     [entry, expected]
   ].forEach(function(t) {
-    try {fs.unlinkSync(t[0]);} catch (e) {}
+    try { fs.unlinkSync(t[0]); } catch (e) {}
     console.error('fs.symlinkSync(%j, %j, %j)', t[1], t[0], type);
     fs.symlinkSync(t[1], t[0], type);
     unlink.push(t[0]);
   });
-  var result = fs.realpathSync(entry);
+  const result = fs.realpathSync(entry);
   assertEqualPath(result, path.resolve(expected));
   asynctest(fs.realpath, [entry], callback, function(err, result) {
     assertEqualPath(result, path.resolve(expected));
@@ -139,18 +155,19 @@ function test_deep_relative_file_symlink(callback) {
     return runNextTest();
   }
 
-  var expected = path.join(common.fixturesDir, 'cycles', 'root.js');
-  var linkData1 = path.relative(path.join(targetsAbsDir, 'nested-index', 'one'),
-    expected);
-  var linkPath1 = path.join(targetsAbsDir,
-                            'nested-index', 'one', 'symlink1.js');
-  try {fs.unlinkSync(linkPath1);} catch (e) {}
+  const expected = path.join(common.fixturesDir, 'cycles', 'root.js');
+  const linkData1 = path
+                      .relative(path.join(targetsAbsDir, 'nested-index', 'one'),
+                                expected);
+  const linkPath1 = path.join(targetsAbsDir,
+                              'nested-index', 'one', 'symlink1.js');
+  try { fs.unlinkSync(linkPath1); } catch (e) {}
   fs.symlinkSync(linkData1, linkPath1, 'file');
 
-  var linkData2 = '../one/symlink1.js';
-  var entry = path.join(targetsAbsDir,
-                        'nested-index', 'two', 'symlink1-b.js');
-  try {fs.unlinkSync(entry);} catch (e) {}
+  const linkData2 = '../one/symlink1.js';
+  const entry = path.join(targetsAbsDir,
+                          'nested-index', 'two', 'symlink1-b.js');
+  try { fs.unlinkSync(entry); } catch (e) {}
   fs.symlinkSync(linkData2, entry, 'file');
   unlink.push(linkPath1);
   unlink.push(entry);
@@ -167,17 +184,17 @@ function test_deep_relative_dir_symlink(callback) {
     common.skip('symlink test (no privs)');
     return runNextTest();
   }
-  var expected = path.join(common.fixturesDir, 'cycles', 'folder');
-  var path1b = path.join(targetsAbsDir, 'nested-index', 'one');
-  var linkPath1b = path.join(path1b, 'symlink1-dir');
-  var linkData1b = path.relative(path1b, expected);
-  try {fs.unlinkSync(linkPath1b);} catch (e) {}
+  const expected = path.join(common.fixturesDir, 'cycles', 'folder');
+  const path1b = path.join(targetsAbsDir, 'nested-index', 'one');
+  const linkPath1b = path.join(path1b, 'symlink1-dir');
+  const linkData1b = path.relative(path1b, expected);
+  try { fs.unlinkSync(linkPath1b); } catch (e) {}
   fs.symlinkSync(linkData1b, linkPath1b, 'dir');
 
-  var linkData2b = '../one/symlink1-dir';
-  var entry = path.join(targetsAbsDir,
-                        'nested-index', 'two', 'symlink12-dir');
-  try {fs.unlinkSync(entry);} catch (e) {}
+  const linkData2b = '../one/symlink1-dir';
+  const entry = path.join(targetsAbsDir,
+                          'nested-index', 'two', 'symlink12-dir');
+  try { fs.unlinkSync(entry); } catch (e) {}
   fs.symlinkSync(linkData2b, entry, 'dir');
   unlink.push(linkPath1b);
   unlink.push(entry);
@@ -195,21 +212,25 @@ function test_cyclic_link_protection(callback) {
     common.skip('symlink test (no privs)');
     return runNextTest();
   }
-  var entry = common.tmpDir + '/cycles/realpath-3a';
+  const entry = path.join(common.tmpDir, '/cycles/realpath-3a');
   [
     [entry, '../cycles/realpath-3b'],
-    [common.tmpDir + '/cycles/realpath-3b', '../cycles/realpath-3c'],
-    [common.tmpDir + '/cycles/realpath-3c', '../cycles/realpath-3a']
+    [path.join(common.tmpDir, '/cycles/realpath-3b'), '../cycles/realpath-3c'],
+    [path.join(common.tmpDir, '/cycles/realpath-3c'), '../cycles/realpath-3a']
   ].forEach(function(t) {
-    try {fs.unlinkSync(t[0]);} catch (e) {}
+    try { fs.unlinkSync(t[0]); } catch (e) {}
     fs.symlinkSync(t[1], t[0], 'dir');
     unlink.push(t[0]);
   });
-  assert.throws(function() { fs.realpathSync(entry); });
-  asynctest(fs.realpath, [entry], callback, function(err, result) {
-    assert.ok(err && true);
-    return true;
-  });
+  assert.throws(() => {
+    fs.realpathSync(entry);
+  }, common.expectsError({ code: 'ELOOP', type: Error }));
+  asynctest(
+    fs.realpath, [entry], callback, common.mustCall(function(err, result) {
+      assert.strictEqual(err.path, entry);
+      assert.strictEqual(result, undefined);
+      return true;
+    }));
 }
 
 function test_cyclic_link_overprotection(callback) {
@@ -218,13 +239,13 @@ function test_cyclic_link_overprotection(callback) {
     common.skip('symlink test (no privs)');
     return runNextTest();
   }
-  var cycles = common.tmpDir + '/cycles';
-  var expected = fs.realpathSync(cycles);
-  var folder = cycles + '/folder';
-  var link = folder + '/cycles';
-  var testPath = cycles;
+  const cycles = common.tmpDir + '/cycles';
+  const expected = fs.realpathSync(cycles);
+  const folder = cycles + '/folder';
+  const link = folder + '/cycles';
+  let testPath = cycles;
   testPath += '/folder/cycles'.repeat(10);
-  try {fs.unlinkSync(link);} catch (ex) {}
+  try { fs.unlinkSync(link); } catch (ex) {}
   fs.symlinkSync(cycles, link, 'dir');
   unlink.push(link);
   assertEqualPath(fs.realpathSync(testPath), path.resolve(expected));
@@ -241,26 +262,26 @@ function test_relative_input_cwd(callback) {
   }
 
   // we need to calculate the relative path to the tmp dir from cwd
-  var entrydir = process.cwd();
-  var entry = path.relative(entrydir,
-      path.join(common.tmpDir + '/cycles/realpath-3a'));
-  var expected = common.tmpDir + '/cycles/root.js';
+  const entrydir = process.cwd();
+  const entry = path.relative(entrydir,
+                              path.join(common.tmpDir + '/cycles/realpath-3a'));
+  const expected = common.tmpDir + '/cycles/root.js';
   [
     [entry, '../cycles/realpath-3b'],
     [common.tmpDir + '/cycles/realpath-3b', '../cycles/realpath-3c'],
     [common.tmpDir + '/cycles/realpath-3c', 'root.js']
   ].forEach(function(t) {
-    var fn = t[0];
+    const fn = t[0];
     console.error('fn=%j', fn);
-    try {fs.unlinkSync(fn);} catch (e) {}
-    var b = path.basename(t[1]);
-    var type = (b === 'root.js' ? 'file' : 'dir');
+    try { fs.unlinkSync(fn); } catch (e) {}
+    const b = path.basename(t[1]);
+    const type = (b === 'root.js' ? 'file' : 'dir');
     console.log('fs.symlinkSync(%j, %j, %j)', t[1], fn, type);
     fs.symlinkSync(t[1], fn, 'file');
     unlink.push(fn);
   });
 
-  var origcwd = process.cwd();
+  const origcwd = process.cwd();
   process.chdir(entrydir);
   assertEqualPath(fs.realpathSync(entry), path.resolve(expected));
   asynctest(fs.realpath, [entry], callback, function(err, result) {
@@ -290,7 +311,7 @@ function test_deep_symlink_mix(callback) {
   $tmpDir/targets/nested-index/two/realpath-c -> $tmpDir/cycles/root.js
   $tmpDir/targets/cycles/root.js (hard)
   */
-  var entry = tmp('node-test-realpath-f1');
+  const entry = tmp('node-test-realpath-f1');
   try { fs.unlinkSync(tmp('node-test-realpath-d2/foo')); } catch (e) {}
   try { fs.rmdirSync(tmp('node-test-realpath-d2')); } catch (e) {}
   fs.mkdirSync(tmp('node-test-realpath-d2'), 0o700);
@@ -298,14 +319,14 @@ function test_deep_symlink_mix(callback) {
     [
       [entry, common.tmpDir + '/node-test-realpath-d1/foo'],
       [tmp('node-test-realpath-d1'),
-        common.tmpDir + '/node-test-realpath-d2'],
+       common.tmpDir + '/node-test-realpath-d2'],
       [tmp('node-test-realpath-d2/foo'), '../node-test-realpath-f2'],
       [tmp('node-test-realpath-f2'), targetsAbsDir +
         '/nested-index/one/realpath-c'],
       [targetsAbsDir + '/nested-index/one/realpath-c', targetsAbsDir +
         '/nested-index/two/realpath-c'],
       [targetsAbsDir + '/nested-index/two/realpath-c',
-        common.tmpDir + '/cycles/root.js']
+       common.tmpDir + '/cycles/root.js']
     ].forEach(function(t) {
       try { fs.unlinkSync(t[0]); } catch (e) {}
       fs.symlinkSync(t[1], t[0]);
@@ -314,7 +335,7 @@ function test_deep_symlink_mix(callback) {
   } finally {
     unlink.push(tmp('node-test-realpath-d2'));
   }
-  var expected = tmpAbsDir + '/cycles/root.js';
+  const expected = tmpAbsDir + '/cycles/root.js';
   assertEqualPath(fs.realpathSync(entry), path.resolve(expected));
   asynctest(fs.realpath, [entry], callback, function(err, result) {
     assertEqualPath(result, path.resolve(expected));
@@ -324,10 +345,10 @@ function test_deep_symlink_mix(callback) {
 
 function test_non_symlinks(callback) {
   console.log('test_non_symlinks');
-  var entrydir = path.dirname(tmpAbsDir);
-  var entry = tmpAbsDir.substr(entrydir.length + 1) + '/cycles/root.js';
-  var expected = tmpAbsDir + '/cycles/root.js';
-  var origcwd = process.cwd();
+  const entrydir = path.dirname(tmpAbsDir);
+  const entry = tmpAbsDir.substr(entrydir.length + 1) + '/cycles/root.js';
+  const expected = tmpAbsDir + '/cycles/root.js';
+  const origcwd = process.cwd();
   process.chdir(entrydir);
   assertEqualPath(fs.realpathSync(entry), path.resolve(expected));
   asynctest(fs.realpath, [entry], callback, function(err, result) {
@@ -337,7 +358,7 @@ function test_non_symlinks(callback) {
   });
 }
 
-var upone = path.join(process.cwd(), '..');
+const upone = path.join(process.cwd(), '..');
 function test_escape_cwd(cb) {
   console.log('test_escape_cwd');
   asynctest(fs.realpath, ['..'], cb, function(er, uponeActual) {
@@ -346,7 +367,7 @@ function test_escape_cwd(cb) {
                     ' actual:' + uponeActual);
   });
 }
-var uponeActual = fs.realpathSync('..');
+const uponeActual = fs.realpathSync('..');
 assertEqualPath(upone, uponeActual,
                 'realpathSync("..") expected: ' + path.resolve(upone) +
                 ' actual:' + uponeActual);
@@ -367,9 +388,9 @@ function test_up_multiple(cb) {
   }
   function cleanup() {
     ['a/b',
-      'a'
+     'a'
     ].forEach(function(folder) {
-      try {fs.rmdirSync(tmp(folder));} catch (ex) {}
+      try { fs.rmdirSync(tmp(folder)); } catch (ex) {}
     });
   }
   function setup() {
@@ -383,19 +404,19 @@ function test_up_multiple(cb) {
   fs.symlinkSync('..', tmp('a/b/e'), 'dir');
   unlink.push(tmp('a/b/e'));
 
-  var abedabed = tmp('abedabed'.split('').join('/'));
-  var abedabed_real = tmp('');
+  const abedabed = tmp('abedabed'.split('').join('/'));
+  const abedabed_real = tmp('');
 
-  var abedabeda = tmp('abedabeda'.split('').join('/'));
-  var abedabeda_real = tmp('a');
+  const abedabeda = tmp('abedabeda'.split('').join('/'));
+  const abedabeda_real = tmp('a');
 
   assertEqualPath(fs.realpathSync(abedabeda), abedabeda_real);
   assertEqualPath(fs.realpathSync(abedabed), abedabed_real);
   fs.realpath(abedabeda, function(er, real) {
-    if (er) throw er;
+    assert.ifError(er);
     assertEqualPath(abedabeda_real, real);
     fs.realpath(abedabed, function(er, real) {
-      if (er) throw er;
+      assert.ifError(er);
       assertEqualPath(abedabed_real, real);
       cb();
       cleanup();
@@ -417,31 +438,31 @@ function test_abs_with_kids(cb) {
 
   // this one should still run, even if skipSymlinks is set,
   // because it uses a junction.
-  var type = skipSymlinks ? 'junction' : 'dir';
+  const type = skipSymlinks ? 'junction' : 'dir';
 
   console.log('using type=%s', type);
 
-  var root = tmpAbsDir + '/node-test-realpath-abs-kids';
+  const root = tmpAbsDir + '/node-test-realpath-abs-kids';
   function cleanup() {
     ['/a/b/c/x.txt',
-      '/a/link'
+     '/a/link'
     ].forEach(function(file) {
-      try {fs.unlinkSync(root + file);} catch (ex) {}
+      try { fs.unlinkSync(root + file); } catch (ex) {}
     });
     ['/a/b/c',
-      '/a/b',
-      '/a',
-      ''
+     '/a/b',
+     '/a',
+     ''
     ].forEach(function(folder) {
-      try {fs.rmdirSync(root + folder);} catch (ex) {}
+      try { fs.rmdirSync(root + folder); } catch (ex) {}
     });
   }
   function setup() {
     cleanup();
     ['',
-      '/a',
-      '/a/b',
-      '/a/b/c'
+     '/a',
+     '/a/b',
+     '/a/b/c'
     ].forEach(function(folder) {
       console.log('mkdir ' + root + folder);
       fs.mkdirSync(root + folder, 0o700);
@@ -450,9 +471,9 @@ function test_abs_with_kids(cb) {
     fs.symlinkSync(root + '/a/b', root + '/a/link', type);
   }
   setup();
-  var linkPath = root + '/a/link/c/x.txt';
-  var expectPath = root + '/a/b/c/x.txt';
-  var actual = fs.realpathSync(linkPath);
+  const linkPath = root + '/a/link/c/x.txt';
+  const expectPath = root + '/a/b/c/x.txt';
+  const actual = fs.realpathSync(linkPath);
   // console.log({link:linkPath,expect:expectPath,actual:actual},'sync');
   assertEqualPath(actual, path.resolve(expectPath));
   asynctest(fs.realpath, [linkPath], cb, function(er, actual) {
@@ -464,7 +485,7 @@ function test_abs_with_kids(cb) {
 
 // ----------------------------------------------------------------------------
 
-var tests = [
+const tests = [
   test_simple_error_callback,
   test_simple_relative_symlink,
   test_simple_absolute_symlink,
@@ -479,11 +500,11 @@ var tests = [
   test_abs_with_kids,
   test_up_multiple
 ];
-var numtests = tests.length;
-var testsRun = 0;
+const numtests = tests.length;
+let testsRun = 0;
 function runNextTest(err) {
-  if (err) throw err;
-  var test = tests.shift();
+  assert.ifError(err);
+  const test = tests.shift();
   if (!test) {
     return console.log(numtests +
                        ' subtests completed OK for fs.realpath');
@@ -495,13 +516,13 @@ function runNextTest(err) {
 
 assertEqualPath(root, fs.realpathSync('/'));
 fs.realpath('/', function(err, result) {
-  assert.equal(null, err);
+  assert.ifError(err);
   assertEqualPath(root, result);
 });
 
 
 function runTest() {
-  var tmpDirs = ['cycles', 'cycles/folder'];
+  const tmpDirs = ['cycles', 'cycles/folder'];
   tmpDirs.forEach(function(t) {
     t = tmp(t);
     fs.mkdirSync(t, 0o700);
@@ -513,7 +534,6 @@ function runTest() {
 
 
 process.on('exit', function() {
-  assert.equal(numtests, testsRun);
-  unlink.forEach(function(path) { try {fs.unlinkSync(path);} catch (e) {} });
-  assert.equal(async_completed, async_expected);
+  assert.strictEqual(numtests, testsRun);
+  assert.strictEqual(async_completed, async_expected);
 });

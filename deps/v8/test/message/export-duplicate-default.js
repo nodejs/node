@@ -5,4 +5,5 @@
 // MODULE
 
 export default function f() {};
+export default 42;
 export default class C {};

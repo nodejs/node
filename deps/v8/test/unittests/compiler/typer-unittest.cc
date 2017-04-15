@@ -51,7 +51,7 @@ class TyperTest : public TypedGraphTest {
 
   Types types_;
   JSOperatorBuilder javascript_;
-  BinaryOperationHints const hints_ = BinaryOperationHints::Any();
+  BinaryOperationHint const hints_ = BinaryOperationHint::kAny;
   Node* context_node_;
   v8::base::RandomNumberGenerator* rng_;
   std::vector<double> integers;
@@ -135,7 +135,7 @@ class TyperTest : public TypedGraphTest {
           for (int x1 = lmin; x1 < lmin + width; x1++) {
             for (int x2 = rmin; x2 < rmin + width; x2++) {
               double result_value = opfun(x1, x2);
-              Type* result_type = Type::Constant(
+              Type* result_type = Type::NewConstant(
                   isolate()->factory()->NewNumber(result_value), zone());
               EXPECT_TRUE(result_type->Is(expected_type));
             }
@@ -156,7 +156,7 @@ class TyperTest : public TypedGraphTest {
         double x1 = RandomInt(r1->AsRange());
         double x2 = RandomInt(r2->AsRange());
         double result_value = opfun(x1, x2);
-        Type* result_type = Type::Constant(
+        Type* result_type = Type::NewConstant(
             isolate()->factory()->NewNumber(result_value), zone());
         EXPECT_TRUE(result_type->Is(expected_type));
       }
@@ -173,10 +173,10 @@ class TyperTest : public TypedGraphTest {
         double x1 = RandomInt(r1->AsRange());
         double x2 = RandomInt(r2->AsRange());
         bool result_value = opfun(x1, x2);
-        Type* result_type =
-            Type::Constant(result_value ? isolate()->factory()->true_value()
-                                        : isolate()->factory()->false_value(),
-                           zone());
+        Type* result_type = Type::NewConstant(
+            result_value ? isolate()->factory()->true_value()
+                         : isolate()->factory()->false_value(),
+            zone());
         EXPECT_TRUE(result_type->Is(expected_type));
       }
     }
@@ -192,7 +192,7 @@ class TyperTest : public TypedGraphTest {
         int32_t x1 = static_cast<int32_t>(RandomInt(r1->AsRange()));
         int32_t x2 = static_cast<int32_t>(RandomInt(r2->AsRange()));
         double result_value = opfun(x1, x2);
-        Type* result_type = Type::Constant(
+        Type* result_type = Type::NewConstant(
             isolate()->factory()->NewNumber(result_value), zone());
         EXPECT_TRUE(result_type->Is(expected_type));
       }
@@ -223,8 +223,8 @@ class TyperTest : public TypedGraphTest {
 
 namespace {
 
-int32_t shift_left(int32_t x, int32_t y) { return x << y; }
-int32_t shift_right(int32_t x, int32_t y) { return x >> y; }
+int32_t shift_left(int32_t x, int32_t y) { return x << (y & 0x1f); }
+int32_t shift_right(int32_t x, int32_t y) { return x >> (y & 0x1f); }
 int32_t bit_or(int32_t x, int32_t y) { return x | y; }
 int32_t bit_and(int32_t x, int32_t y) { return x & y; }
 int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
@@ -290,44 +290,51 @@ TEST_F(TyperTest, TypeJSShiftRight) {
 
 
 TEST_F(TyperTest, TypeJSLessThan) {
-  TestBinaryCompareOp(javascript_.LessThan(), std::less<double>());
+  TestBinaryCompareOp(javascript_.LessThan(CompareOperationHint::kAny),
+                      std::less<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSLessThanOrEqual) {
-  TestBinaryCompareOp(javascript_.LessThanOrEqual(), std::less_equal<double>());
+  TestBinaryCompareOp(javascript_.LessThanOrEqual(CompareOperationHint::kAny),
+                      std::less_equal<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSGreaterThan) {
-  TestBinaryCompareOp(javascript_.GreaterThan(), std::greater<double>());
+  TestBinaryCompareOp(javascript_.GreaterThan(CompareOperationHint::kAny),
+                      std::greater<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSGreaterThanOrEqual) {
-  TestBinaryCompareOp(javascript_.GreaterThanOrEqual(),
-                      std::greater_equal<double>());
+  TestBinaryCompareOp(
+      javascript_.GreaterThanOrEqual(CompareOperationHint::kAny),
+      std::greater_equal<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSEqual) {
-  TestBinaryCompareOp(javascript_.Equal(), std::equal_to<double>());
+  TestBinaryCompareOp(javascript_.Equal(CompareOperationHint::kAny),
+                      std::equal_to<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSNotEqual) {
-  TestBinaryCompareOp(javascript_.NotEqual(), std::not_equal_to<double>());
+  TestBinaryCompareOp(javascript_.NotEqual(CompareOperationHint::kAny),
+                      std::not_equal_to<double>());
 }
 
 
 // For numbers there's no difference between strict and non-strict equality.
 TEST_F(TyperTest, TypeJSStrictEqual) {
-  TestBinaryCompareOp(javascript_.StrictEqual(), std::equal_to<double>());
+  TestBinaryCompareOp(javascript_.StrictEqual(CompareOperationHint::kAny),
+                      std::equal_to<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSStrictNotEqual) {
-  TestBinaryCompareOp(javascript_.StrictNotEqual(),
+  TestBinaryCompareOp(javascript_.StrictNotEqual(CompareOperationHint::kAny),
                       std::not_equal_to<double>());
 }
 
@@ -335,10 +342,9 @@ TEST_F(TyperTest, TypeJSStrictNotEqual) {
 //------------------------------------------------------------------------------
 // Monotonicity
 
-
-#define TEST_BINARY_MONOTONICITY(name)          \
-  TEST_F(TyperTest, Monotonicity_##name) {      \
-    TestBinaryMonotonicity(javascript_.name()); \
+#define TEST_BINARY_MONOTONICITY(name)                                    \
+  TEST_F(TyperTest, Monotonicity_##name) {                                \
+    TestBinaryMonotonicity(javascript_.name(CompareOperationHint::kAny)); \
   }
 TEST_BINARY_MONOTONICITY(Equal)
 TEST_BINARY_MONOTONICITY(NotEqual)
@@ -350,9 +356,9 @@ TEST_BINARY_MONOTONICITY(LessThanOrEqual)
 TEST_BINARY_MONOTONICITY(GreaterThanOrEqual)
 #undef TEST_BINARY_MONOTONICITY
 
-#define TEST_BINARY_MONOTONICITY(name)                                     \
-  TEST_F(TyperTest, Monotonicity_##name) {                                 \
-    TestBinaryMonotonicity(javascript_.name(BinaryOperationHints::Any())); \
+#define TEST_BINARY_MONOTONICITY(name)                                   \
+  TEST_F(TyperTest, Monotonicity_##name) {                               \
+    TestBinaryMonotonicity(javascript_.name(BinaryOperationHint::kAny)); \
   }
 TEST_BINARY_MONOTONICITY(BitwiseOr)
 TEST_BINARY_MONOTONICITY(BitwiseXor)
@@ -366,20 +372,6 @@ TEST_BINARY_MONOTONICITY(Multiply)
 TEST_BINARY_MONOTONICITY(Divide)
 TEST_BINARY_MONOTONICITY(Modulus)
 #undef TEST_BINARY_MONOTONICITY
-
-
-//------------------------------------------------------------------------------
-// Regression tests
-
-
-TEST_F(TyperTest, TypeRegressInt32Constant) {
-  int values[] = {-5, 10};
-  for (auto i : values) {
-    Node* c = graph()->NewNode(common()->Int32Constant(i));
-    Type* type = NodeProperties::GetType(c);
-    EXPECT_TRUE(type->Is(NewRange(i, i)));
-  }
-}
 
 }  // namespace compiler
 }  // namespace internal

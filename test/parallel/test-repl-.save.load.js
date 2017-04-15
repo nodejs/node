@@ -1,24 +1,45 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var assert = require('assert');
-var join = require('path').join;
-var fs = require('fs');
-var common = require('../common');
+const common = require('../common');
+const assert = require('assert');
+const join = require('path').join;
+const fs = require('fs');
 
 common.refreshTmpDir();
 
-var repl = require('repl');
+const repl = require('repl');
 
-var works = [['inner.one'], 'inner.o'];
+const works = [['inner.one'], 'inner.o'];
 
 const putIn = new common.ArrayStream();
-var testMe = repl.start('', putIn);
+const testMe = repl.start('', putIn);
 
 
-var testFile = [
+const testFile = [
   'var top = function() {',
   'var inner = {one:1};'
 ];
-var saveFileName = join(common.tmpDir, 'test.save.js');
+const saveFileName = join(common.tmpDir, 'test.save.js');
 
 // input some data
 putIn.run(testFile);
@@ -27,7 +48,28 @@ putIn.run(testFile);
 putIn.run(['.save ' + saveFileName]);
 
 // the file should have what I wrote
-assert.equal(fs.readFileSync(saveFileName, 'utf8'), testFile.join('\n') + '\n');
+assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'), testFile.join('\n') +
+                   '\n');
+
+{
+  // save .editor mode code
+  const cmds = [
+    'function testSave() {',
+    'return "saved";',
+    '}'
+  ];
+  const putIn = new common.ArrayStream();
+  const replServer = repl.start('', putIn);
+
+  putIn.run(['.editor']);
+  putIn.run(cmds);
+  replServer.write('', {ctrl: true, name: 'd'});
+
+  putIn.run([`.save ${saveFileName}`]);
+  replServer.close();
+  assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
+                     `${cmds.join('\n')}\n`);
+}
 
 // make sure that the REPL data is "correct"
 // so when I load it back I know I'm good
@@ -49,22 +91,23 @@ testMe.complete('inner.o', function(error, data) {
 // clear the REPL
 putIn.run(['.clear']);
 
-var loadFile = join(common.tmpDir, 'file.does.not.exist');
+let loadFile = join(common.tmpDir, 'file.does.not.exist');
 
 // should not break
 putIn.write = function(data) {
   // make sure I get a failed to load message and not some crazy error
-  assert.equal(data, 'Failed to load:' + loadFile + '\n');
+  assert.strictEqual(data, 'Failed to load:' + loadFile + '\n');
   // eat me to avoid work
-  putIn.write = function() {};
+  putIn.write = common.noop;
 };
 putIn.run(['.load ' + loadFile]);
 
 // throw error on loading directory
 loadFile = common.tmpDir;
 putIn.write = function(data) {
-  assert.equal(data, 'Failed to load:' + loadFile + ' is not a valid file\n');
-  putIn.write = function() {};
+  assert.strictEqual(data, 'Failed to load:' + loadFile +
+                     ' is not a valid file\n');
+  putIn.write = common.noop;
 };
 putIn.run(['.load ' + loadFile]);
 
@@ -78,9 +121,9 @@ const invalidFileName = join(common.tmpDir, '\0\0\0\0\0');
 // should not break
 putIn.write = function(data) {
   // make sure I get a failed to save message and not some other error
-  assert.equal(data, 'Failed to save:' + invalidFileName + '\n');
+  assert.strictEqual(data, 'Failed to save:' + invalidFileName + '\n');
   // reset to no-op
-  putIn.write = function() {};
+  putIn.write = common.noop;
 };
 
 // save it to a file

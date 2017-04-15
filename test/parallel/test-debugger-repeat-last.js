@@ -1,10 +1,8 @@
 'use strict';
+const common = require('../common');
 const path = require('path');
 const spawn = require('child_process').spawn;
 const assert = require('assert');
-
-const common = require('../common');
-
 const fixture = path.join(
   common.fixturesDir,
   'debugger-repeat-last.js'
@@ -19,24 +17,26 @@ const args = [
 const proc = spawn(process.execPath, args, { stdio: 'pipe' });
 proc.stdout.setEncoding('utf8');
 
-var stdout = '';
+let stdout = '';
 
-var sentCommand = false;
-var sentEmpty = false;
-var sentExit = false;
+let sentCommand = false;
+let sentExit = false;
 
 proc.stdout.on('data', (data) => {
   stdout += data;
-  if (!sentCommand && stdout.includes('> 1')) {
-    setImmediate(() => {proc.stdin.write('n\n');});
+
+  // Send 'n' as the first step.
+  if (!sentCommand && stdout.includes('> 1 ')) {
+    setImmediate(() => { proc.stdin.write('n\n'); });
     return sentCommand = true;
   }
-  if (!sentEmpty && stdout.includes('> 3')) {
-    setImmediate(() => {proc.stdin.write('\n');});
-    return sentEmpty = true;
+  // Send empty (repeat last command) until we reach line 5.
+  if (sentCommand && !stdout.includes('> 5')) {
+    setImmediate(() => { proc.stdin.write('\n'); });
+    return true;
   }
-  if (!sentExit && sentCommand && sentEmpty) {
-    setTimeout(() => {proc.stdin.write('\n\n\n.exit\n\n\n');}, 1);
+  if (!sentExit && stdout.includes('> 5')) {
+    setTimeout(() => { proc.stdin.write('\n\n\n.exit\n\n\n'); }, 1);
     return sentExit = true;
   }
 });

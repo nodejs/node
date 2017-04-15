@@ -46,9 +46,8 @@ inline void MemoryBarrier() {
 
 
 int localtime_s(tm* out_tm, const time_t* time) {
-  tm* posix_local_time_struct = localtime(time);  // NOLINT
+  tm* posix_local_time_struct = localtime_r(time, out_tm);
   if (posix_local_time_struct == NULL) return 1;
-  *out_tm = *posix_local_time_struct;
   return 0;
 }
 
@@ -574,6 +573,7 @@ bool OS::Remove(const char* path) {
   return (DeleteFileA(path) != 0);
 }
 
+char OS::DirectorySeparator() { return '\\'; }
 
 bool OS::isDirectorySeparator(const char ch) {
   return ch == '/' || ch == '\\';
@@ -797,6 +797,9 @@ void* OS::Allocate(const size_t requested,
   return mbase;
 }
 
+void* OS::AllocateGuarded(const size_t requested) {
+  return VirtualAlloc(nullptr, requested, MEM_RESERVE, PAGE_NOACCESS);
+}
 
 void OS::Free(void* address, const size_t size) {
   // TODO(1240712): VirtualFree has a return value which is ignored here.
@@ -821,6 +824,10 @@ void OS::Guard(void* address, const size_t size) {
   VirtualProtect(address, size, PAGE_NOACCESS, &oldprotect);
 }
 
+void OS::Unprotect(void* address, const size_t size) {
+  LPVOID result = VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE);
+  DCHECK_IMPLIES(result != nullptr, GetLastError() == 0);
+}
 
 void OS::Sleep(TimeDelta interval) {
   ::Sleep(static_cast<DWORD>(interval.InMilliseconds()));
@@ -1289,6 +1296,10 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
   return VirtualFree(base, size, MEM_DECOMMIT) != 0;
 }
 
+bool VirtualMemory::ReleasePartialRegion(void* base, size_t size,
+                                         void* free_start, size_t free_size) {
+  return VirtualFree(free_start, free_size, MEM_DECOMMIT) != 0;
+}
 
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
   return VirtualFree(base, 0, MEM_RELEASE) != 0;

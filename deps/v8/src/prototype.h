@@ -25,48 +25,63 @@ namespace internal {
 
 class PrototypeIterator {
  public:
-  enum WhereToStart { START_AT_RECEIVER, START_AT_PROTOTYPE };
-
   enum WhereToEnd { END_AT_NULL, END_AT_NON_HIDDEN };
 
   const int kProxyPrototypeLimit = 100 * 1000;
 
   PrototypeIterator(Isolate* isolate, Handle<JSReceiver> receiver,
-                    WhereToStart where_to_start = START_AT_PROTOTYPE,
+                    WhereToStart where_to_start = kStartAtPrototype,
                     WhereToEnd where_to_end = END_AT_NULL)
-      : object_(NULL),
+      : isolate_(isolate),
+        object_(NULL),
         handle_(receiver),
-        isolate_(isolate),
         where_to_end_(where_to_end),
         is_at_end_(false),
         seen_proxies_(0) {
     CHECK(!handle_.is_null());
-    if (where_to_start == START_AT_PROTOTYPE) Advance();
+    if (where_to_start == kStartAtPrototype) Advance();
   }
 
   PrototypeIterator(Isolate* isolate, JSReceiver* receiver,
-                    WhereToStart where_to_start = START_AT_PROTOTYPE,
+                    WhereToStart where_to_start = kStartAtPrototype,
                     WhereToEnd where_to_end = END_AT_NULL)
-      : object_(receiver),
-        isolate_(isolate),
+      : isolate_(isolate),
+        object_(receiver),
         where_to_end_(where_to_end),
         is_at_end_(false),
         seen_proxies_(0) {
-    if (where_to_start == START_AT_PROTOTYPE) Advance();
+    if (where_to_start == kStartAtPrototype) Advance();
   }
 
-  explicit PrototypeIterator(Map* receiver_map)
-      : object_(receiver_map->prototype()),
-        isolate_(receiver_map->GetIsolate()),
-        where_to_end_(END_AT_NULL),
-        is_at_end_(object_->IsNull()) {}
+  explicit PrototypeIterator(Map* receiver_map,
+                             WhereToEnd where_to_end = END_AT_NULL)
+      : isolate_(receiver_map->GetIsolate()),
+        object_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype()),
+        where_to_end_(where_to_end),
+        is_at_end_(object_->IsNull(isolate_)),
+        seen_proxies_(0) {
+    if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
+      DCHECK(object_->IsJSReceiver());
+      Map* map = JSReceiver::cast(object_)->map();
+      is_at_end_ = !map->has_hidden_prototype();
+    }
+  }
 
-  explicit PrototypeIterator(Handle<Map> receiver_map)
-      : object_(NULL),
-        handle_(handle(receiver_map->prototype(), receiver_map->GetIsolate())),
-        isolate_(receiver_map->GetIsolate()),
-        where_to_end_(END_AT_NULL),
-        is_at_end_(handle_->IsNull()) {}
+  explicit PrototypeIterator(Handle<Map> receiver_map,
+                             WhereToEnd where_to_end = END_AT_NULL)
+      : isolate_(receiver_map->GetIsolate()),
+        object_(NULL),
+        handle_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype(),
+                isolate_),
+        where_to_end_(where_to_end),
+        is_at_end_(handle_->IsNull(isolate_)),
+        seen_proxies_(0) {
+    if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
+      DCHECK(handle_->IsJSReceiver());
+      Map* map = JSReceiver::cast(*handle_)->map();
+      is_at_end_ = !map->has_hidden_prototype();
+    }
+  }
 
   ~PrototypeIterator() {}
 
@@ -114,7 +129,7 @@ class PrototypeIterator {
     Object* prototype = map->prototype();
     is_at_end_ = where_to_end_ == END_AT_NON_HIDDEN
                      ? !map->has_hidden_prototype()
-                     : prototype->IsNull();
+                     : prototype->IsNull(isolate_);
 
     if (handle_.is_null()) {
       object_ = prototype;
@@ -125,7 +140,7 @@ class PrototypeIterator {
 
   // Returns false iff a call to JSProxy::GetPrototype throws.
   // TODO(neis): This should probably replace Advance().
-  bool AdvanceFollowingProxies() {
+  MUST_USE_RESULT bool AdvanceFollowingProxies() {
     DCHECK(!(handle_.is_null() && object_->IsJSProxy()));
     if (!HasAccess()) {
       // Abort the lookup if we do not have access to the current object.
@@ -133,31 +148,37 @@ class PrototypeIterator {
       is_at_end_ = true;
       return true;
     }
+    return AdvanceFollowingProxiesIgnoringAccessChecks();
+  }
+
+  MUST_USE_RESULT bool AdvanceFollowingProxiesIgnoringAccessChecks() {
     if (handle_.is_null() || !handle_->IsJSProxy()) {
       AdvanceIgnoringProxies();
       return true;
     }
+
     // Due to possible __proto__ recursion limit the number of Proxies
     // we visit to an arbitrarily chosen large number.
     seen_proxies_++;
     if (seen_proxies_ > kProxyPrototypeLimit) {
-      isolate_->Throw(
-          *isolate_->factory()->NewRangeError(MessageTemplate::kStackOverflow));
+      isolate_->StackOverflow();
       return false;
     }
     MaybeHandle<Object> proto =
         JSProxy::GetPrototype(Handle<JSProxy>::cast(handle_));
     if (!proto.ToHandle(&handle_)) return false;
-    is_at_end_ = where_to_end_ == END_AT_NON_HIDDEN || handle_->IsNull();
+    is_at_end_ =
+        where_to_end_ == END_AT_NON_HIDDEN || handle_->IsNull(isolate_);
     return true;
   }
 
   bool IsAtEnd() const { return is_at_end_; }
+  Isolate* isolate() const { return isolate_; }
 
  private:
+  Isolate* isolate_;
   Object* object_;
   Handle<Object> handle_;
-  Isolate* isolate_;
   WhereToEnd where_to_end_;
   bool is_at_end_;
   int seen_proxies_;

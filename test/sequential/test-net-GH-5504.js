@@ -1,5 +1,26 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 // this test only fails with CentOS 6.3 using kernel version 2.6.32
 // On other linuxes and darwin, the `read` call gets an ECONNRESET in
@@ -18,8 +39,8 @@ switch (process.argv[2]) {
 }
 
 function server() {
-  var net = require('net');
-  var content = Buffer.alloc(64 * 1024 * 1024, '#');
+  const net = require('net');
+  const content = Buffer.alloc(64 * 1024 * 1024, '#');
   net.createServer(function(socket) {
     this.close();
     socket.on('end', function() {
@@ -29,15 +50,15 @@ function server() {
       console.error('_socketEnd');
     });
     socket.write(content);
-  }).listen(common.PORT, function() {
+  }).listen(common.PORT, common.localhostIPv4, function() {
     console.log('listening');
   });
 }
 
 function client() {
-  var net = require('net');
-  var client = net.connect({
-    host: 'localhost',
+  const net = require('net');
+  const client = net.connect({
+    host: common.localhostIPv4,
     port: common.PORT
   }, function() {
     client.destroy();
@@ -45,52 +66,26 @@ function client() {
 }
 
 function parent() {
-  var spawn = require('child_process').spawn;
-  var node = process.execPath;
-  var assert = require('assert');
-  var serverExited = false;
-  var clientExited = false;
-  var serverListened = false;
+  const spawn = require('child_process').spawn;
+  const node = process.execPath;
 
-  process.on('exit', function() {
-    assert(serverExited);
-    assert(clientExited);
-    assert(serverListened);
-    console.log('ok');
-  });
-
-  setTimeout(function() {
-    if (s) s.kill();
-    if (c) c.kill();
-    setTimeout(function() {
-      throw new Error('hang');
-    });
-  }, common.platformTimeout(2000)).unref();
-
-  var s = spawn(node, [__filename, 'server'], {
+  const s = spawn(node, [__filename, 'server'], {
     env: Object.assign(process.env, {
       NODE_DEBUG: 'net'
     })
   });
-  var c;
+  let c;
 
   wrap(s.stderr, process.stderr, 'SERVER 2>');
   wrap(s.stdout, process.stdout, 'SERVER 1>');
-  s.on('exit', function(c) {
-    console.error('server exited', c);
-    serverExited = true;
-  });
+  s.on('exit', common.mustCall(common.noop));
 
-  s.stdout.once('data', function() {
-    serverListened = true;
+  s.stdout.once('data', common.mustCall(function() {
     c = spawn(node, [__filename, 'client']);
     wrap(c.stderr, process.stderr, 'CLIENT 2>');
     wrap(c.stdout, process.stdout, 'CLIENT 1>');
-    c.on('exit', function(c) {
-      console.error('client exited', c);
-      clientExited = true;
-    });
-  });
+    c.on('exit', common.mustCall(common.noop));
+  }));
 
   function wrap(inp, out, w) {
     inp.setEncoding('utf8');

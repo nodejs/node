@@ -1,6 +1,8 @@
 #ifndef SRC_STREAM_BASE_INL_H_
 #define SRC_STREAM_BASE_INL_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "stream_base.h"
 
 #include "node.h"
@@ -69,16 +71,22 @@ void StreamBase::AddMethods(Environment* env,
                       "writeUcs2String",
                       JSMethod<Base, &StreamBase::WriteString<UCS2> >);
   env->SetProtoMethod(t,
-                      "writeBinaryString",
-                      JSMethod<Base, &StreamBase::WriteString<BINARY> >);
+                      "writeLatin1String",
+                      JSMethod<Base, &StreamBase::WriteString<LATIN1> >);
 }
 
 
 template <class Base>
 void StreamBase::GetFD(Local<String> key,
                        const PropertyCallbackInfo<Value>& args) {
-  StreamBase* wrap = Unwrap<Base>(args.Holder());
+  Base* handle = Unwrap<Base>(args.Holder());
 
+  // Mimic implementation of StreamBase::GetFD() and UDPWrap::GetFD().
+  ASSIGN_OR_RETURN_UNWRAP(&handle,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EINVAL));
+
+  StreamBase* wrap = static_cast<StreamBase*>(handle);
   if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
@@ -89,8 +97,14 @@ void StreamBase::GetFD(Local<String> key,
 template <class Base>
 void StreamBase::GetBytesRead(Local<String> key,
                               const PropertyCallbackInfo<Value>& args) {
-  StreamBase* wrap = Unwrap<Base>(args.Holder());
+  Base* handle = Unwrap<Base>(args.Holder());
 
+  // The handle instance hasn't been set. So no bytes could have been read.
+  ASSIGN_OR_RETURN_UNWRAP(&handle,
+                          args.Holder(),
+                          args.GetReturnValue().Set(0));
+
+  StreamBase* wrap = static_cast<StreamBase*>(handle);
   // uint64_t -> double. 53bits is enough for all real cases.
   args.GetReturnValue().Set(static_cast<double>(wrap->bytes_read_));
 }
@@ -99,8 +113,11 @@ void StreamBase::GetBytesRead(Local<String> key,
 template <class Base>
 void StreamBase::GetExternal(Local<String> key,
                              const PropertyCallbackInfo<Value>& args) {
-  StreamBase* wrap = Unwrap<Base>(args.Holder());
+  Base* handle = Unwrap<Base>(args.Holder());
 
+  ASSIGN_OR_RETURN_UNWRAP(&handle, args.Holder());
+
+  StreamBase* wrap = static_cast<StreamBase*>(handle);
   Local<External> ext = External::New(args.GetIsolate(), wrap);
   args.GetReturnValue().Set(ext);
 }
@@ -109,8 +126,11 @@ void StreamBase::GetExternal(Local<String> key,
 template <class Base,
           int (StreamBase::*Method)(const FunctionCallbackInfo<Value>& args)>
 void StreamBase::JSMethod(const FunctionCallbackInfo<Value>& args) {
-  StreamBase* wrap = Unwrap<Base>(args.Holder());
+  Base* handle = Unwrap<Base>(args.Holder());
 
+  ASSIGN_OR_RETURN_UNWRAP(&handle, args.Holder());
+
+  StreamBase* wrap = static_cast<StreamBase*>(handle);
   if (!wrap->IsAlive())
     return args.GetReturnValue().Set(UV_EINVAL);
 
@@ -143,5 +163,7 @@ char* WriteWrap::Extra(size_t offset) {
 }
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STREAM_BASE_INL_H_

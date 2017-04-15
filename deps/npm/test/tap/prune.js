@@ -107,7 +107,7 @@ test('npm prune', function (t) {
   ], EXEC_OPTS, function (err, code, stderr) {
     t.ifErr(err, 'prune finished successfully')
     t.notOk(code, 'exit ok')
-    t.equal(stderr, 'unbuild mkdirp@0.3.5\n')
+    t.equal(stderr, '- mkdirp@0.3.5 node_modules/mkdirp\n')
     t.end()
   })
 })

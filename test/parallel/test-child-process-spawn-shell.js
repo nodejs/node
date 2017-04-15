@@ -6,8 +6,8 @@ const cp = require('child_process');
 // Verify that a shell is, in fact, executed
 const doesNotExist = cp.spawn('does-not-exist', {shell: true});
 
-assert.notEqual(doesNotExist.spawnfile, 'does-not-exist');
-doesNotExist.on('error', common.fail);
+assert.notStrictEqual(doesNotExist.spawnfile, 'does-not-exist');
+doesNotExist.on('error', common.mustNotCall());
 doesNotExist.on('exit', common.mustCall((code, signal) => {
   assert.strictEqual(signal, null);
 
@@ -34,7 +34,7 @@ echo.on('close', common.mustCall((code, signal) => {
 }));
 
 // Verify that shell features can be used
-const cmd = common.isWindows ? 'echo bar | more' : 'echo bar | cat';
+const cmd = 'echo bar | cat';
 const command = cp.spawn(cmd, {
   encoding: 'utf8',
   shell: true

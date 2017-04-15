@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 // Regression test for GH-784
 // https://github.com/joyent/node/issues/784
@@ -7,13 +28,13 @@
 // The next two are made with server on - they should come back successful.
 // The next two are made with the server off - and so on.  Without the fix
 // we were experiencing parse errors and instead of ECONNREFUSED.
-var common = require('../common');
-var http = require('http');
-var assert = require('assert');
+const common = require('../common');
+const http = require('http');
+const assert = require('assert');
 
 
-var server = http.createServer(function(req, res) {
-  var body = '';
+const server = http.createServer(function(req, res) {
+  let body = '';
 
   req.setEncoding('utf8');
   req.on('data', function(chunk) {
@@ -21,7 +42,7 @@ var server = http.createServer(function(req, res) {
   });
 
   req.on('end', function() {
-    assert.equal('PING', body);
+    assert.strictEqual('PING', body);
     res.writeHead(200);
     res.end('PONG');
   });
@@ -43,7 +64,7 @@ function serverOff() {
   pingping();
 }
 
-var responses = [];
+const responses = [];
 
 
 function afterPing(result) {
@@ -81,14 +102,14 @@ function afterPing(result) {
 function ping() {
   console.error('making req');
 
-  var opt = {
+  const opt = {
     port: common.PORT,
     path: '/ping',
     method: 'POST'
   };
 
-  var req = http.request(opt, function(res) {
-    var body = '';
+  const req = http.request(opt, function(res) {
+    let body = '';
 
     res.setEncoding('utf8');
     res.on('data', function(chunk) {
@@ -96,7 +117,7 @@ function ping() {
     });
 
     res.on('end', function() {
-      assert.equal('PONG', body);
+      assert.strictEqual('PONG', body);
       assert.ok(!hadError);
       gotEnd = true;
       afterPing('success');
@@ -105,8 +126,8 @@ function ping() {
 
   req.end('PING');
 
-  var gotEnd = false;
-  var hadError = false;
+  let gotEnd = false;
+  let hadError = false;
 
   req.on('error', function(error) {
     console.log('Error making ping req: ' + error);
@@ -128,5 +149,5 @@ process.on('exit', function() {
   console.error("process.on('exit')");
   console.error(responses);
 
-  assert.equal(8, responses.length);
+  assert.strictEqual(8, responses.length);
 });

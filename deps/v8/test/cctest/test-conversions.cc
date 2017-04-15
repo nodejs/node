@@ -27,9 +27,20 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
-
 #include "src/base/platform/platform.h"
+#include "src/conversions.h"
+#include "src/factory.h"
+#include "src/isolate.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/factory.h -> src/objects-inl.h
+#include "src/objects-inl.h"
+#include "src/objects.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/feedback-vector.h ->
+// src/feedback-vector-inl.h
+#include "src/feedback-vector-inl.h"
+#include "src/unicode-cache.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -405,4 +416,89 @@ TEST(SpecialIndexParsing) {
   CheckNonArrayIndex(true, "-999999999999999");
   CheckNonArrayIndex(false, "-9999999999999999");
   CheckNonArrayIndex(false, "42949672964294967296429496729694966");
+}
+
+TEST(NoHandlesForTryNumberToSize) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  size_t result = 0;
+  {
+    SealHandleScope no_handles(isolate);
+    Smi* smi = Smi::FromInt(1);
+    CHECK(TryNumberToSize(smi, &result));
+    CHECK_EQ(result, 1u);
+  }
+  result = 0;
+  {
+    HandleScope scope(isolate);
+    Handle<HeapNumber> heap_number1 = isolate->factory()->NewHeapNumber(2.0);
+    {
+      SealHandleScope no_handles(isolate);
+      CHECK(TryNumberToSize(*heap_number1, &result));
+      CHECK_EQ(result, 2u);
+    }
+    Handle<HeapNumber> heap_number2 = isolate->factory()->NewHeapNumber(
+        static_cast<double>(std::numeric_limits<size_t>::max()) + 10000.0);
+    {
+      SealHandleScope no_handles(isolate);
+      CHECK(!TryNumberToSize(*heap_number2, &result));
+    }
+  }
+}
+
+TEST(TryNumberToSizeWithMaxSizePlusOne) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  {
+    HandleScope scope(isolate);
+    // 1 << 64, larger than the limit of size_t.
+    double value = 18446744073709551616.0;
+    size_t result = 0;
+    Handle<HeapNumber> heap_number = isolate->factory()->NewHeapNumber(value);
+    CHECK(!TryNumberToSize(*heap_number, &result));
+  }
+}
+
+TEST(PositiveNumberToUint32) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  uint32_t max = std::numeric_limits<uint32_t>::max();
+  HandleScope scope(isolate);
+  // Test Smi conversions.
+  Handle<Object> number = handle(Smi::FromInt(0), isolate);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = handle(Smi::FromInt(-1), isolate);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = handle(Smi::FromInt(-1), isolate);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = handle(Smi::FromInt(Smi::kMinValue), isolate);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = handle(Smi::FromInt(Smi::kMaxValue), isolate);
+  CHECK_EQ(PositiveNumberToUint32(*number),
+           static_cast<uint32_t>(Smi::kMaxValue));
+  // Test Double conversions.
+  number = factory->NewHeapNumber(0.0);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = factory->NewHeapNumber(0.999);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = factory->NewHeapNumber(1.999);
+  CHECK_EQ(PositiveNumberToUint32(*number), 1u);
+  number = factory->NewHeapNumber(-12.0);
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = factory->NewHeapNumber(12000.0);
+  CHECK_EQ(PositiveNumberToUint32(*number), 12000u);
+  number = factory->NewHeapNumber(static_cast<double>(Smi::kMaxValue) + 1);
+  CHECK_EQ(PositiveNumberToUint32(*number),
+           static_cast<uint32_t>(Smi::kMaxValue) + 1);
+  number = factory->NewHeapNumber(max);
+  CHECK_EQ(PositiveNumberToUint32(*number), max);
+  number = factory->NewHeapNumber(static_cast<double>(max) * 1000);
+  CHECK_EQ(PositiveNumberToUint32(*number), max);
+  number = factory->NewHeapNumber(std::numeric_limits<double>::max());
+  CHECK_EQ(PositiveNumberToUint32(*number), max);
+  number = factory->NewHeapNumber(std::numeric_limits<double>::infinity());
+  CHECK_EQ(PositiveNumberToUint32(*number), max);
+  number =
+      factory->NewHeapNumber(-1.0 * std::numeric_limits<double>::infinity());
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
+  number = factory->NewHeapNumber(std::nan(""));
+  CHECK_EQ(PositiveNumberToUint32(*number), 0u);
 }

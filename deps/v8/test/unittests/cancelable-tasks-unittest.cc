@@ -214,5 +214,50 @@ TEST(CancelableTask, RemoveUnmanagedId) {
   EXPECT_FALSE(manager.TryAbort(3));
 }
 
+TEST(CancelableTask, EmptyTryAbortAll) {
+  CancelableTaskManager manager;
+  EXPECT_EQ(manager.TryAbortAll(), CancelableTaskManager::kTaskRemoved);
+}
+
+TEST(CancelableTask, ThreadedMultipleTasksNotRunTryAbortAll) {
+  CancelableTaskManager manager;
+  ResultType result1 = 0;
+  ResultType result2 = 0;
+  TestTask* task1 = new TestTask(&manager, &result1, TestTask::kCheckNotRun);
+  TestTask* task2 = new TestTask(&manager, &result2, TestTask::kCheckNotRun);
+  ThreadedRunner runner1(task1);
+  ThreadedRunner runner2(task2);
+  EXPECT_EQ(manager.TryAbortAll(), CancelableTaskManager::kTaskAborted);
+  // Tasks are canceled, hence the runner will bail out and not update result.
+  runner1.Start();
+  runner2.Start();
+  runner1.Join();
+  runner2.Join();
+  EXPECT_EQ(GetValue(&result1), 0);
+  EXPECT_EQ(GetValue(&result2), 0);
+}
+
+TEST(CancelableTask, ThreadedMultipleTasksStartedTryAbortAll) {
+  CancelableTaskManager manager;
+  ResultType result1 = 0;
+  ResultType result2 = 0;
+  TestTask* task1 =
+      new TestTask(&manager, &result1, TestTask::kWaitTillCanceledAgain);
+  TestTask* task2 =
+      new TestTask(&manager, &result2, TestTask::kWaitTillCanceledAgain);
+  ThreadedRunner runner1(task1);
+  ThreadedRunner runner2(task2);
+  runner1.Start();
+  // Busy wait on result to make sure task1 is done.
+  while (GetValue(&result1) == 0) {
+  }
+  EXPECT_EQ(manager.TryAbortAll(), CancelableTaskManager::kTaskRunning);
+  runner2.Start();
+  runner1.Join();
+  runner2.Join();
+  EXPECT_EQ(GetValue(&result1), 1);
+  EXPECT_EQ(GetValue(&result2), 0);
+}
+
 }  // namespace internal
 }  // namespace v8

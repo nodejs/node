@@ -317,6 +317,9 @@ function instanceof_check2(type) {
 }
 
 var realmBArray = Realm.eval(realmB, "Array");
+// Two calls with Array because ES6 instanceof desugars into a load of Array,
+// and load has a premonomorphic state.
+instanceof_check(Array);
 instanceof_check(Array);
 instanceof_check(realmBArray);
 
@@ -327,6 +330,10 @@ instanceof_check(realmBArray);
 // It'll go (uninit->realmBArray) then (realmBArray->megamorphic). Recognize
 // that state "Array" implies an AllocationSite is present, and code is
 // configured to use it.
+
+// Two calls with realmBArray because ES6 instanceof desugars into a load of
+// realmBArray, and load has a premonomorphic state.
+instanceof_check2(realmBArray);
 instanceof_check2(realmBArray);
 instanceof_check2(Array);
 
@@ -466,4 +473,20 @@ gc();
   obj = get_deep_nested_literal();
   assertKind(elements_kind.fast_double, obj[0]);
   assertKind(elements_kind.fast, obj[1][0]);
+})();
+
+// Test gathering allocation site feedback for generic ics.
+(function() {
+  function make() { return new Array(); }
+  function foo(a, i) { a[0] = i; }
+
+  var a = make();
+  assertKind(elements_kind.fast_smi_only, a);
+
+  // Make the keyed store ic go generic.
+  foo("howdy", 1);
+  foo(a, 3.5);
+
+  var b = make();
+  assertKind(elements_kind.fast_double, b);
 })();

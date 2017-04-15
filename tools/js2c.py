@@ -37,8 +37,14 @@ import sys
 import string
 
 
-def ToCArray(filename, lines):
-  return ','.join(str(ord(c)) for c in lines)
+def ToCArray(elements, step=10):
+  slices = (elements[i:i+step] for i in xrange(0, len(elements), step))
+  slices = map(lambda s: ','.join(str(x) for x in s), slices)
+  return ',\n'.join(slices)
+
+
+def ToCString(contents):
+  return ToCArray(map(ord, contents), step=20)
 
 
 def ReadFile(filename):
@@ -59,21 +65,6 @@ def ReadLines(filename):
     if len(line) > 0:
       result.append(line)
   return result
-
-
-def LoadConfigFrom(name):
-  import ConfigParser
-  config = ConfigParser.ConfigParser()
-  config.read(name)
-  return config
-
-
-def ParseValue(string):
-  string = string.strip()
-  if string.startswith('[') and string.endswith(']'):
-    return string.lstrip('[').rstrip(']').split()
-  else:
-    return string
 
 
 def ExpandConstants(lines, constants):
@@ -173,54 +164,76 @@ def ReadMacros(lines):
   return (constants, macros)
 
 
-HEADER_TEMPLATE = """\
-#ifndef node_natives_h
-#define node_natives_h
-namespace node {
+TEMPLATE = """
+#include "node.h"
+#include "node_javascript.h"
+#include "v8.h"
+#include "env.h"
+#include "env-inl.h"
 
-%(source_lines)s\
+namespace node {{
 
-struct _native {
-  const char* name;
-  const unsigned char* source;
-  size_t source_len;
-};
+{definitions}
 
-static const struct _native natives[] = { %(native_lines)s };
+v8::Local<v8::String> MainSource(Environment* env) {{
+  return internal_bootstrap_node_value.ToStringChecked(env->isolate());
+}}
 
-}
-#endif
+void DefineJavaScript(Environment* env, v8::Local<v8::Object> target) {{
+  {initializers}
+}}
+
+}}  // namespace node
+"""
+
+ONE_BYTE_STRING = """
+static const uint8_t raw_{var}[] = {{ {data} }};
+static struct : public v8::String::ExternalOneByteStringResource {{
+  const char* data() const override {{
+    return reinterpret_cast<const char*>(raw_{var});
+  }}
+  size_t length() const override {{ return arraysize(raw_{var}); }}
+  void Dispose() override {{ /* Default calls `delete this`. */ }}
+  v8::Local<v8::String> ToStringChecked(v8::Isolate* isolate) {{
+    return v8::String::NewExternalOneByte(isolate, this).ToLocalChecked();
+  }}
+}} {var};
+"""
+
+TWO_BYTE_STRING = """
+static const uint16_t raw_{var}[] = {{ {data} }};
+static struct : public v8::String::ExternalStringResource {{
+  const uint16_t* data() const override {{ return raw_{var}; }}
+  size_t length() const override {{ return arraysize(raw_{var}); }}
+  void Dispose() override {{ /* Default calls `delete this`. */ }}
+  v8::Local<v8::String> ToStringChecked(v8::Isolate* isolate) {{
+    return v8::String::NewExternalTwoByte(isolate, this).ToLocalChecked();
+  }}
+}} {var};
+"""
+
+INITIALIZER = """\
+CHECK(target->Set(env->context(),
+                  {key}.ToStringChecked(env->isolate()),
+                  {value}.ToStringChecked(env->isolate())).FromJust());
 """
 
 
-NATIVE_DECLARATION = """\
-  { "%(id)s", %(escaped_id)s_native, sizeof(%(escaped_id)s_native) },
-"""
+def Render(var, data):
+  # Treat non-ASCII as UTF-8 and convert it to UTF-16.
+  if any(ord(c) > 127 for c in data):
+    template = TWO_BYTE_STRING
+    data = map(ord, data.decode('utf-8').encode('utf-16be'))
+    data = [data[i] * 256 + data[i+1] for i in xrange(0, len(data), 2)]
+    data = ToCArray(data)
+  else:
+    template = ONE_BYTE_STRING
+    data = ToCString(data)
+  return template.format(var=var, data=data)
 
-SOURCE_DECLARATION = """\
-  const unsigned char %(escaped_id)s_native[] = { %(data)s };
-"""
-
-
-GET_DELAY_INDEX_CASE = """\
-    if (strcmp(name, "%(id)s") == 0) return %(i)i;
-"""
-
-
-GET_DELAY_SCRIPT_SOURCE_CASE = """\
-    if (index == %(i)i) return Vector<const char>(%(id)s, %(length)i);
-"""
-
-
-GET_DELAY_SCRIPT_NAME_CASE = """\
-    if (index == %(i)i) return Vector<const char>("%(name)s", %(length)i);
-"""
 
 def JS2C(source, target):
-  ids = []
-  delay_ids = []
   modules = []
-  # Locate the macros file name.
   consts = {}
   macros = {}
   macro_lines = []
@@ -235,111 +248,33 @@ def JS2C(source, target):
   (consts, macros) = ReadMacros(macro_lines)
 
   # Build source code lines
-  source_lines = [ ]
-  source_lines_empty = []
+  definitions = []
+  initializers = []
 
-  native_lines = []
-
-  for s in modules:
-    delay = str(s).endswith('-delay.js')
-    lines = ReadFile(str(s))
-
+  for name in modules:
+    lines = ReadFile(str(name))
     lines = ExpandConstants(lines, consts)
     lines = ExpandMacros(lines, macros)
-    data = ToCArray(s, lines)
 
     # On Windows, "./foo.bar" in the .gyp file is passed as "foo.bar"
     # so don't assume there is always a slash in the file path.
-    if '/' in s or '\\' in s:
-      id = '/'.join(re.split('/|\\\\', s)[1:])
-    else:
-      id = s
+    if '/' in name or '\\' in name:
+      name = '/'.join(re.split('/|\\\\', name)[1:])
 
-    if '.' in id:
-      id = id.split('.', 1)[0]
+    name = name.split('.', 1)[0]
+    var = name.replace('-', '_').replace('/', '_')
+    key = '%s_key' % var
+    value = '%s_value' % var
 
-    if delay: id = id[:-6]
-    if delay:
-      delay_ids.append((id, len(lines)))
-    else:
-      ids.append((id, len(lines)))
-
-    escaped_id = id.replace('-', '_').replace('/', '_')
-    source_lines.append(SOURCE_DECLARATION % {
-      'id': id,
-      'escaped_id': escaped_id,
-      'data': data
-    })
-    source_lines_empty.append(SOURCE_DECLARATION % {
-      'id': id,
-      'escaped_id': escaped_id,
-      'data': 0
-    })
-    native_lines.append(NATIVE_DECLARATION % {
-      'id': id,
-      'escaped_id': escaped_id
-    })
-
-  # Build delay support functions
-  get_index_cases = [ ]
-  get_script_source_cases = [ ]
-  get_script_name_cases = [ ]
-
-  i = 0
-  for (id, length) in delay_ids:
-    native_name = "native %s.js" % id
-    get_index_cases.append(GET_DELAY_INDEX_CASE % { 'id': id, 'i': i })
-    get_script_source_cases.append(GET_DELAY_SCRIPT_SOURCE_CASE % {
-      'id': id,
-      'length': length,
-      'i': i
-    })
-    get_script_name_cases.append(GET_DELAY_SCRIPT_NAME_CASE % {
-      'name': native_name,
-      'length': len(native_name),
-      'i': i
-    });
-    i = i + 1
-
-  for (id, length) in ids:
-    native_name = "native %s.js" % id
-    get_index_cases.append(GET_DELAY_INDEX_CASE % { 'id': id, 'i': i })
-    get_script_source_cases.append(GET_DELAY_SCRIPT_SOURCE_CASE % {
-      'id': id,
-      'length': length,
-      'i': i
-    })
-    get_script_name_cases.append(GET_DELAY_SCRIPT_NAME_CASE % {
-      'name': native_name,
-      'length': len(native_name),
-      'i': i
-    });
-    i = i + 1
+    definitions.append(Render(key, name))
+    definitions.append(Render(value, lines))
+    initializers.append(INITIALIZER.format(key=key, value=value))
 
   # Emit result
   output = open(str(target[0]), "w")
-  output.write(HEADER_TEMPLATE % {
-    'builtin_count': len(ids) + len(delay_ids),
-    'delay_count': len(delay_ids),
-    'source_lines': "\n".join(source_lines),
-    'native_lines': "\n".join(native_lines),
-    'get_index_cases': "".join(get_index_cases),
-    'get_script_source_cases': "".join(get_script_source_cases),
-    'get_script_name_cases': "".join(get_script_name_cases)
-  })
+  output.write(TEMPLATE.format(definitions=''.join(definitions),
+                               initializers=''.join(initializers)))
   output.close()
-
-  if len(target) > 1:
-    output = open(str(target[1]), "w")
-    output.write(HEADER_TEMPLATE % {
-      'builtin_count': len(ids) + len(delay_ids),
-      'delay_count': len(delay_ids),
-      'source_lines': "\n".join(source_lines_empty),
-      'get_index_cases': "".join(get_index_cases),
-      'get_script_source_cases': "".join(get_script_source_cases),
-      'get_script_name_cases': "".join(get_script_name_cases)
-    })
-    output.close()
 
 def main():
   natives = sys.argv[1]

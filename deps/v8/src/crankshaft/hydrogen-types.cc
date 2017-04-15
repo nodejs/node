@@ -6,23 +6,24 @@
 
 #include "src/field-type.h"
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
 
 // static
-HType HType::FromType(Type* type) {
-  if (Type::Any()->Is(type)) return HType::Any();
+HType HType::FromType(AstType* type) {
+  if (AstType::Any()->Is(type)) return HType::Any();
   if (!type->IsInhabited()) return HType::None();
-  if (type->Is(Type::SignedSmall())) return HType::Smi();
-  if (type->Is(Type::Number())) return HType::TaggedNumber();
-  if (type->Is(Type::Null())) return HType::Null();
-  if (type->Is(Type::String())) return HType::String();
-  if (type->Is(Type::Boolean())) return HType::Boolean();
-  if (type->Is(Type::Undefined())) return HType::Undefined();
-  if (type->Is(Type::Object())) return HType::JSObject();
-  if (type->Is(Type::Receiver())) return HType::JSReceiver();
+  if (type->Is(AstType::SignedSmall())) return HType::Smi();
+  if (type->Is(AstType::Number())) return HType::TaggedNumber();
+  if (type->Is(AstType::Null())) return HType::Null();
+  if (type->Is(AstType::String())) return HType::String();
+  if (type->Is(AstType::Boolean())) return HType::Boolean();
+  if (type->Is(AstType::Undefined())) return HType::Undefined();
+  if (type->Is(AstType::Object())) return HType::JSObject();
+  if (type->Is(AstType::DetectableReceiver())) return HType::JSReceiver();
   return HType::Tagged();
 }
 
@@ -34,18 +35,25 @@ HType HType::FromFieldType(Handle<FieldType> type, Zone* temp_zone) {
 
 // static
 HType HType::FromValue(Handle<Object> value) {
-  if (value->IsSmi()) return HType::Smi();
-  if (value->IsNull()) return HType::Null();
-  if (value->IsHeapNumber()) {
+  Object* raw_value = *value;
+  if (raw_value->IsSmi()) return HType::Smi();
+  DCHECK(raw_value->IsHeapObject());
+  Isolate* isolate = HeapObject::cast(*value)->GetIsolate();
+  if (raw_value->IsNull(isolate)) return HType::Null();
+  if (raw_value->IsHeapNumber()) {
     double n = Handle<v8::internal::HeapNumber>::cast(value)->value();
     return IsSmiDouble(n) ? HType::Smi() : HType::HeapNumber();
   }
-  if (value->IsString()) return HType::String();
-  if (value->IsBoolean()) return HType::Boolean();
-  if (value->IsUndefined()) return HType::Undefined();
-  if (value->IsJSArray()) return HType::JSArray();
-  if (value->IsJSObject()) return HType::JSObject();
-  DCHECK(value->IsHeapObject());
+  if (raw_value->IsString()) return HType::String();
+  if (raw_value->IsBoolean()) return HType::Boolean();
+  if (raw_value->IsUndefined(isolate)) return HType::Undefined();
+  if (raw_value->IsJSArray()) {
+    DCHECK(!raw_value->IsUndetectable());
+    return HType::JSArray();
+  }
+  if (raw_value->IsJSObject() && !raw_value->IsUndetectable()) {
+    return HType::JSObject();
+  }
   return HType::HeapObject();
 }
 

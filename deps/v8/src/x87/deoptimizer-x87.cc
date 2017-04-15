@@ -35,6 +35,7 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     int pc_offset = deopt_data->Pc(i)->value();
     if (pc_offset == -1) continue;
+    pc_offset = pc_offset + 1;  // We will encode the pc offset after the call.
     DCHECK_GE(pc_offset, prev_pc_offset);
     int pc_delta = pc_offset - prev_pc_offset;
     // We use RUNTIME_ENTRY reloc info which has a size of 2 bytes
@@ -163,8 +164,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // Right trim the relocation info to free up remaining space.
   const int delta = reloc_info->length() - new_reloc_length;
   if (delta > 0) {
-    isolate->heap()->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(
-        reloc_info, delta);
+    isolate->heap()->RightTrimFixedArray(reloc_info, delta);
   }
 }
 
@@ -185,20 +185,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
     output_frame->SetDoubleRegister(i, double_value);
   }
 }
-
-bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
-  int parameter_count = shared->internal_formal_parameter_count() + 1;
-  unsigned input_frame_size = input_->GetFrameSize();
-  unsigned alignment_state_offset =
-      input_frame_size - parameter_count * kPointerSize -
-      StandardFrameConstants::kFixedFrameSize -
-      kPointerSize;
-  DCHECK(JavaScriptFrameConstants::kDynamicAlignmentStateOffset ==
-      JavaScriptFrameConstants::kLocal0Offset);
-  int32_t alignment_state = input_->GetFrameSlot(alignment_state_offset);
-  return (alignment_state == kAlignmentPaddingPushed);
-}
-
 
 #define __ masm()->
 
@@ -260,7 +246,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ push(edi);
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6, eax);
+  __ mov(eax, Immediate(0));
+  Label context_check;
+  __ mov(edi, Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(edi, &context_check);
   __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ mov(Operand(esp, 0 * kPointerSize), eax);  // Function.
   __ mov(Operand(esp, 1 * kPointerSize), Immediate(type()));  // Bailout type.
   __ mov(Operand(esp, 2 * kPointerSize), ebx);  // Bailout id.
@@ -286,8 +277,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   // Fill in the double input registers.
   for (int i = 0; i < X87Register::kMaxNumAllocatableRegisters; ++i) {
     int code = config->GetAllocatableDoubleCode(i);
@@ -336,20 +326,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ pop(eax);
   __ pop(edi);
+  __ mov(esp, Operand(eax, Deoptimizer::caller_frame_top_offset()));
 
-  // If frame was dynamically aligned, pop padding.
-  Label no_padding;
-  __ cmp(Operand(eax, Deoptimizer::has_alignment_padding_offset()),
-         Immediate(0));
-  __ j(equal, &no_padding);
-  __ pop(ecx);
-  if (FLAG_debug_code) {
-    __ cmp(ecx, Immediate(kAlignmentZapValue));
-    __ Assert(equal, kAlignmentMarkerExpected);
-  }
-  __ bind(&no_padding);
-
-  // Replace the current frame with the output frames.
+  // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
   // Outer loop state: eax = current FrameDescription**, edx = one past the

@@ -31,7 +31,7 @@ function main(conf) {
   var bob_secret = bob.computeSecret(alice.getPublicKey(), pubEnc, 'hex');
 
   // alice_secret and bob_secret should be the same
-  assert(alice_secret == bob_secret);
+  assert(alice_secret === bob_secret);
 
   var alice_cipher = crypto.createCipher(conf.cipher, alice_secret);
   var bob_cipher = crypto.createDecipher(conf.cipher, bob_secret);
@@ -40,11 +40,11 @@ function main(conf) {
   var encoding;
   switch (conf.type) {
     case 'asc':
-      message = new Array(conf.len + 1).join('a');
+      message = 'a'.repeat(conf.len);
       encoding = 'ascii';
       break;
     case 'utf':
-      message = new Array(conf.len / 2 + 1).join('ü');
+      message = 'ü'.repeat(conf.len / 2);
       encoding = 'utf8';
       break;
     case 'buf':

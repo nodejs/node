@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var debug = require("debug")("eslint:code-path");
+const debug = require("debug")("eslint:code-path");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -54,8 +54,8 @@ module.exports = {
      * @returns {void}
      */
     dumpState: !debug.enabled ? debug : /* istanbul ignore next */ function(node, state, leaving) {
-        for (var i = 0; i < state.currentSegments.length; ++i) {
-            var segInternal = state.currentSegments[i].internal;
+        for (let i = 0; i < state.currentSegments.length; ++i) {
+            const segInternal = state.currentSegments[i].internal;
 
             if (leaving) {
                 segInternal.exitNodes.push(node);
@@ -64,10 +64,10 @@ module.exports = {
             }
         }
 
-        debug(
-            state.currentSegments.map(getId).join(",") + ") " +
-            node.type + (leaving ? ":exit" : "")
-        );
+        debug([
+            `${state.currentSegments.map(getId).join(",")})`,
+            `${node.type}${leaving ? ":exit" : ""}`
+        ].join(" "));
     },
 
     /**
@@ -80,7 +80,7 @@ module.exports = {
      * @see http://www.webgraphviz.com
      */
     dumpDot: !debug.enabled ? debug : /* istanbul ignore next */ function(codePath) {
-        var text =
+        let text =
             "\n" +
             "digraph {\n" +
             "node[shape=box,style=\"rounded,filled\",fillcolor=white];\n" +
@@ -93,13 +93,13 @@ module.exports = {
             text += "thrown[label=\"✘\",shape=circle,width=0.3,height=0.3,fixedsize];\n";
         }
 
-        var traceMap = Object.create(null);
-        var arrows = this.makeDotArrows(codePath, traceMap);
+        const traceMap = Object.create(null);
+        const arrows = this.makeDotArrows(codePath, traceMap);
 
-        for (var id in traceMap) { // eslint-disable-line guard-for-in
-            var segment = traceMap[id];
+        for (const id in traceMap) { // eslint-disable-line guard-for-in
+            const segment = traceMap[id];
 
-            text += id + "[";
+            text += `${id}[`;
 
             if (segment.reachable) {
                 text += "label=\"";
@@ -107,22 +107,23 @@ module.exports = {
                 text += "style=\"rounded,dashed,filled\",fillcolor=\"#FF9800\",label=\"<<unreachable>>\\n";
             }
 
-            if (segment.internal.nodes.length > 0) {
-                text += segment.internal.nodes.map(function(node) {
-                    switch (node.type) {
-                        case "Identifier": return node.type + " (" + node.name + ")";
-                        case "Literal": return node.type + " (" + node.value + ")";
-                        default: return node.type;
-                    }
-                }).join("\\n");
-            } else if (segment.internal.exitNodes.length > 0) {
-                text += segment.internal.exitNodes.map(function(node) {
-                    switch (node.type) {
-                        case "Identifier": return node.type + ":exit (" + node.name + ")";
-                        case "Literal": return node.type + ":exit (" + node.value + ")";
-                        default: return node.type + ":exit";
-                    }
-                }).join("\\n");
+            if (segment.internal.nodes.length > 0 || segment.internal.exitNodes.length > 0) {
+                text += [].concat(
+                    segment.internal.nodes.map(node => {
+                        switch (node.type) {
+                            case "Identifier": return `${node.type} (${node.name})`;
+                            case "Literal": return `${node.type} (${node.value})`;
+                            default: return node.type;
+                        }
+                    }),
+                    segment.internal.exitNodes.map(node => {
+                        switch (node.type) {
+                            case "Identifier": return `${node.type}:exit (${node.name})`;
+                            case "Literal": return `${node.type}:exit (${node.value})`;
+                            default: return `${node.type}:exit`;
+                        }
+                    })
+                ).join("\\n");
             } else {
                 text += "????";
             }
@@ -130,7 +131,7 @@ module.exports = {
             text += "\"];\n";
         }
 
-        text += arrows + "\n";
+        text += `${arrows}\n`;
         text += "}";
         debug("DOT", text);
     },
@@ -140,35 +141,35 @@ module.exports = {
      * The DOT code can be visialized with Graphvis.
      *
      * @param {CodePath} codePath - A code path to make DOT.
-     * @param {object} traceMap - Optional. A map to check whether or not segments had been done.
+     * @param {Object} traceMap - Optional. A map to check whether or not segments had been done.
      * @returns {string} A DOT code of the code path.
      */
-    makeDotArrows: function(codePath, traceMap) {
-        var stack = [[codePath.initialSegment, 0]];
-        var done = traceMap || Object.create(null);
-        var lastId = codePath.initialSegment.id;
-        var text = "initial->" + codePath.initialSegment.id;
+    makeDotArrows(codePath, traceMap) {
+        const stack = [[codePath.initialSegment, 0]];
+        const done = traceMap || Object.create(null);
+        let lastId = codePath.initialSegment.id;
+        let text = `initial->${codePath.initialSegment.id}`;
 
         while (stack.length > 0) {
-            var item = stack.pop();
-            var segment = item[0];
-            var index = item[1];
+            const item = stack.pop();
+            const segment = item[0];
+            const index = item[1];
 
             if (done[segment.id] && index === 0) {
                 continue;
             }
             done[segment.id] = segment;
 
-            var nextSegment = segment.allNextSegments[index];
+            const nextSegment = segment.allNextSegments[index];
 
             if (!nextSegment) {
                 continue;
             }
 
             if (lastId === segment.id) {
-                text += "->" + nextSegment.id;
+                text += `->${nextSegment.id}`;
             } else {
-                text += ";\n" + segment.id + "->" + nextSegment.id;
+                text += `;\n${segment.id}->${nextSegment.id}`;
             }
             lastId = nextSegment.id;
 
@@ -176,24 +177,24 @@ module.exports = {
             stack.push([nextSegment, 0]);
         }
 
-        codePath.returnedSegments.forEach(function(finalSegment) {
+        codePath.returnedSegments.forEach(finalSegment => {
             if (lastId === finalSegment.id) {
                 text += "->final";
             } else {
-                text += ";\n" + finalSegment.id + "->final";
+                text += `;\n${finalSegment.id}->final`;
             }
             lastId = null;
         });
 
-        codePath.thrownSegments.forEach(function(finalSegment) {
+        codePath.thrownSegments.forEach(finalSegment => {
             if (lastId === finalSegment.id) {
                 text += "->thrown";
             } else {
-                text += ";\n" + finalSegment.id + "->thrown";
+                text += `;\n${finalSegment.id}->thrown`;
             }
             lastId = null;
         });
 
-        return text + ";";
+        return `${text};`;
     }
 };

@@ -9,14 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash"),
-    Module = require("module");
+const Module = require("module");
 
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
 
-var DEFAULT_OPTIONS = {
+const DEFAULT_OPTIONS = {
 
     /*
      * module.paths is an array of paths to search for resolving things relative
@@ -31,18 +30,18 @@ var DEFAULT_OPTIONS = {
 
 /**
  * Resolves modules based on a set of options.
- * @param {Object} options The options for resolving modules.
- * @param {string[]} options.lookupPaths An array of paths to include in the
- *      lookup with the highest priority paths coming first.
- * @constructor
  */
-function ModuleResolver(options) {
-    options = options || {};
+class ModuleResolver {
 
-    this.options = lodash.assign({}, DEFAULT_OPTIONS, options);
-}
-
-ModuleResolver.prototype = {
+    /**
+     * Resolves modules based on a set of options.
+     * @param {Object} options The options for resolving modules.
+     * @param {string[]} options.lookupPaths An array of paths to include in the
+     *      lookup with the highest priority paths coming first.
+     */
+    constructor(options) {
+        this.options = Object.assign({}, DEFAULT_OPTIONS, options || {});
+    }
 
     /**
      * Resolves the file location of a given module relative to the configured
@@ -53,14 +52,14 @@ ModuleResolver.prototype = {
      * @returns {string} The resolved file path for the module.
      * @throws {Error} If the module cannot be resolved.
      */
-    resolve: function(name, extraLookupPath) {
+    resolve(name, extraLookupPath) {
 
         /*
          * First, clone the lookup paths so we're not messing things up for
          * subsequent calls to this function. Then, move the extraLookupPath to the
          * top of the lookup paths list so it will be searched first.
          */
-        var lookupPaths = this.options.lookupPaths.concat();
+        const lookupPaths = this.options.lookupPaths.concat();
 
         lookupPaths.unshift(extraLookupPath);
 
@@ -69,17 +68,15 @@ ModuleResolver.prototype = {
          * lookup file paths when require() is called. So, we are hooking into the
          * exact same logic that Node.js uses.
          */
-        var result = Module._findPath(name, lookupPaths);   // eslint-disable-line no-underscore-dangle
+        const result = Module._findPath(name, lookupPaths);   // eslint-disable-line no-underscore-dangle
 
         if (!result) {
-            throw new Error("Cannot find module '" + name + "'");
+            throw new Error(`Cannot find module '${name}'`);
         }
 
         return result;
-
     }
-
-};
+}
 
 //------------------------------------------------------------------------------
 // Public API

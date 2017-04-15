@@ -1,0 +1,11 @@
+-- call boo:
+(top)
+(top)
+boo
+(top)
+-- call foo:
+(top)
+(top)
+(top)
+foo
+(top)

@@ -37,6 +37,9 @@ class DefaultPlatformEnvironment final : public ::testing::Environment {
 
 
 int main(int argc, char** argv) {
+  // Don't catch SEH exceptions and continue as the following tests might hang
+  // in an broken environment on windows.
+  testing::GTEST_FLAG(catch_exceptions) = false;
   testing::InitGoogleMock(&argc, argv);
   testing::AddGlobalTestEnvironment(new DefaultPlatformEnvironment);
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);

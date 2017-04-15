@@ -26,14 +26,12 @@ class TailCallOptimizationTest : public GraphTest {
 
 
 TEST_F(TailCallOptimizationTest, CallCodeObject0) {
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
-  LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
-                                          LinkageLocation::ForRegister(1)};
+  LinkageLocation kLocationSignature[] = {
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
+      LinkageLocation::ForRegister(1, MachineType::Pointer())};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallCodeObject, MachineType::AnyTagged(),
-      LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kNoFlags);
   Node* p0 = Parameter(0);
@@ -41,21 +39,21 @@ TEST_F(TailCallOptimizationTest, CallCodeObject0) {
   Node* call = graph()->NewNode(common()->Call(kCallDescriptor), p0, p1,
                                 graph()->start(), graph()->start());
   Node* if_success = graph()->NewNode(common()->IfSuccess(), call);
-  Node* ret = graph()->NewNode(common()->Return(), call, call, if_success);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret =
+      graph()->NewNode(common()->Return(), zero, call, call, if_success);
   Reduction r = Reduce(ret);
   ASSERT_FALSE(r.Changed());
 }
 
 
 TEST_F(TailCallOptimizationTest, CallCodeObject1) {
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
-  LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
-                                          LinkageLocation::ForRegister(1)};
+  LinkageLocation kLocationSignature[] = {
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
+      LinkageLocation::ForRegister(1, MachineType::Pointer())};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallCodeObject, MachineType::AnyTagged(),
-      LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kSupportsTailCalls);
   Node* p0 = Parameter(0);
@@ -63,9 +61,10 @@ TEST_F(TailCallOptimizationTest, CallCodeObject1) {
   Node* call = graph()->NewNode(common()->Call(kCallDescriptor), p0, p1,
                                 graph()->start(), graph()->start());
   Node* if_success = graph()->NewNode(common()->IfSuccess(), call);
-  Node* if_exception = graph()->NewNode(
-      common()->IfException(IfExceptionHint::kLocallyUncaught), call, call);
-  Node* ret = graph()->NewNode(common()->Return(), call, call, if_success);
+  Node* if_exception = graph()->NewNode(common()->IfException(), call, call);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret =
+      graph()->NewNode(common()->Return(), zero, call, call, if_success);
   Node* end = graph()->NewNode(common()->End(1), if_exception);
   graph()->SetEnd(end);
   Reduction r = Reduce(ret);
@@ -74,14 +73,12 @@ TEST_F(TailCallOptimizationTest, CallCodeObject1) {
 
 
 TEST_F(TailCallOptimizationTest, CallCodeObject2) {
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
-  LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
-                                          LinkageLocation::ForRegister(1)};
+  LinkageLocation kLocationSignature[] = {
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
+      LinkageLocation::ForRegister(1, MachineType::Pointer())};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallCodeObject, MachineType::AnyTagged(),
-      LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kSupportsTailCalls);
   Node* p0 = Parameter(0);
@@ -89,7 +86,9 @@ TEST_F(TailCallOptimizationTest, CallCodeObject2) {
   Node* call = graph()->NewNode(common()->Call(kCallDescriptor), p0, p1,
                                 graph()->start(), graph()->start());
   Node* if_success = graph()->NewNode(common()->IfSuccess(), call);
-  Node* ret = graph()->NewNode(common()->Return(), call, call, if_success);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret =
+      graph()->NewNode(common()->Return(), zero, call, call, if_success);
   Reduction r = Reduce(ret);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTailCall(kCallDescriptor, p0, p1,
@@ -98,14 +97,12 @@ TEST_F(TailCallOptimizationTest, CallCodeObject2) {
 
 
 TEST_F(TailCallOptimizationTest, CallJSFunction0) {
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
-  LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
-                                          LinkageLocation::ForRegister(1)};
+  LinkageLocation kLocationSignature[] = {
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
+      LinkageLocation::ForRegister(1, MachineType::Pointer())};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallJSFunction, MachineType::AnyTagged(),
-      LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kNoFlags);
   Node* p0 = Parameter(0);
@@ -113,21 +110,21 @@ TEST_F(TailCallOptimizationTest, CallJSFunction0) {
   Node* call = graph()->NewNode(common()->Call(kCallDescriptor), p0, p1,
                                 graph()->start(), graph()->start());
   Node* if_success = graph()->NewNode(common()->IfSuccess(), call);
-  Node* ret = graph()->NewNode(common()->Return(), call, call, if_success);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret =
+      graph()->NewNode(common()->Return(), zero, call, call, if_success);
   Reduction r = Reduce(ret);
   ASSERT_FALSE(r.Changed());
 }
 
 
 TEST_F(TailCallOptimizationTest, CallJSFunction1) {
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
-  LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
-                                          LinkageLocation::ForRegister(1)};
+  LinkageLocation kLocationSignature[] = {
+      LinkageLocation::ForRegister(0, MachineType::Pointer()),
+      LinkageLocation::ForRegister(1, MachineType::Pointer())};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallJSFunction, MachineType::AnyTagged(),
       LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kSupportsTailCalls);
   Node* p0 = Parameter(0);
@@ -135,9 +132,10 @@ TEST_F(TailCallOptimizationTest, CallJSFunction1) {
   Node* call = graph()->NewNode(common()->Call(kCallDescriptor), p0, p1,
                                 graph()->start(), graph()->start());
   Node* if_success = graph()->NewNode(common()->IfSuccess(), call);
-  Node* if_exception = graph()->NewNode(
-      common()->IfException(IfExceptionHint::kLocallyUncaught), call, call);
-  Node* ret = graph()->NewNode(common()->Return(), call, call, if_success);
+  Node* if_exception = graph()->NewNode(common()->IfException(), call, call);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret =
+      graph()->NewNode(common()->Return(), zero, call, call, if_success);
   Node* end = graph()->NewNode(common()->End(1), if_exception);
   graph()->SetEnd(end);
   Reduction r = Reduce(ret);
@@ -146,14 +144,11 @@ TEST_F(TailCallOptimizationTest, CallJSFunction1) {
 
 
 TEST_F(TailCallOptimizationTest, CallJSFunction2) {
-  MachineType kMachineSignature[] = {MachineType::AnyTagged(),
-                                     MachineType::AnyTagged()};
   LinkageLocation kLocationSignature[] = {LinkageLocation::ForRegister(0),
                                           LinkageLocation::ForRegister(1)};
   const CallDescriptor* kCallDescriptor = new (zone()) CallDescriptor(
       CallDescriptor::kCallJSFunction, MachineType::AnyTagged(),
       LinkageLocation::ForRegister(0),
-      new (zone()) MachineSignature(1, 1, kMachineSignature),
       new (zone()) LocationSignature(1, 1, kLocationSignature), 0,
       Operator::kNoProperties, 0, 0, CallDescriptor::kSupportsTailCalls);
   Node* p0 = Parameter(0);
@@ -161,7 +156,9 @@ TEST_F(TailCallOptimizationTest, CallJSFunction2) {
   Node* call = graph()->NewNode(common()->Call(kCallDescriptor), p0, p1,
                                 graph()->start(), graph()->start());
   Node* if_success = graph()->NewNode(common()->IfSuccess(), call);
-  Node* ret = graph()->NewNode(common()->Return(), call, call, if_success);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret =
+      graph()->NewNode(common()->Return(), zero, call, call, if_success);
   Reduction r = Reduce(ret);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTailCall(kCallDescriptor, p0, p1,

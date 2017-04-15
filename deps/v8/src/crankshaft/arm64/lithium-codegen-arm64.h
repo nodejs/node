@@ -186,8 +186,6 @@ class LCodeGen: public LCodeGenBase {
 
   template <class T>
   void EmitVectorLoadICRegisters(T* instr);
-  template <class T>
-  void EmitVectorStoreICRegisters(T* instr);
 
   // Emits optimized code for %_IsString(x).  Preserves input register.
   // Returns the condition on which a final split to
@@ -199,38 +197,35 @@ class LCodeGen: public LCodeGenBase {
                                    Register temp,
                                    LOperand* index,
                                    String::Encoding encoding);
-  void DeoptimizeBranch(LInstruction* instr,
-                        Deoptimizer::DeoptReason deopt_reason,
+  void DeoptimizeBranch(LInstruction* instr, DeoptimizeReason deopt_reason,
                         BranchType branch_type, Register reg = NoReg,
                         int bit = -1,
                         Deoptimizer::BailoutType* override_bailout_type = NULL);
-  void Deoptimize(LInstruction* instr, Deoptimizer::DeoptReason deopt_reason,
+  void Deoptimize(LInstruction* instr, DeoptimizeReason deopt_reason,
                   Deoptimizer::BailoutType* override_bailout_type = NULL);
   void DeoptimizeIf(Condition cond, LInstruction* instr,
-                    Deoptimizer::DeoptReason deopt_reason);
+                    DeoptimizeReason deopt_reason);
   void DeoptimizeIfZero(Register rt, LInstruction* instr,
-                        Deoptimizer::DeoptReason deopt_reason);
+                        DeoptimizeReason deopt_reason);
   void DeoptimizeIfNotZero(Register rt, LInstruction* instr,
-                           Deoptimizer::DeoptReason deopt_reason);
+                           DeoptimizeReason deopt_reason);
   void DeoptimizeIfNegative(Register rt, LInstruction* instr,
-                            Deoptimizer::DeoptReason deopt_reason);
+                            DeoptimizeReason deopt_reason);
   void DeoptimizeIfSmi(Register rt, LInstruction* instr,
-                       Deoptimizer::DeoptReason deopt_reason);
+                       DeoptimizeReason deopt_reason);
   void DeoptimizeIfNotSmi(Register rt, LInstruction* instr,
-                          Deoptimizer::DeoptReason deopt_reason);
+                          DeoptimizeReason deopt_reason);
   void DeoptimizeIfRoot(Register rt, Heap::RootListIndex index,
-                        LInstruction* instr,
-                        Deoptimizer::DeoptReason deopt_reason);
+                        LInstruction* instr, DeoptimizeReason deopt_reason);
   void DeoptimizeIfNotRoot(Register rt, Heap::RootListIndex index,
-                           LInstruction* instr,
-                           Deoptimizer::DeoptReason deopt_reason);
+                           LInstruction* instr, DeoptimizeReason deopt_reason);
   void DeoptimizeIfNotHeapNumber(Register object, LInstruction* instr);
   void DeoptimizeIfMinusZero(DoubleRegister input, LInstruction* instr,
-                             Deoptimizer::DeoptReason deopt_reason);
+                             DeoptimizeReason deopt_reason);
   void DeoptimizeIfBitSet(Register rt, int bit, LInstruction* instr,
-                          Deoptimizer::DeoptReason deopt_reason);
+                          DeoptimizeReason deopt_reason);
   void DeoptimizeIfBitClear(Register rt, int bit, LInstruction* instr,
-                            Deoptimizer::DeoptReason deopt_reason);
+                            DeoptimizeReason deopt_reason);
 
   MemOperand PrepareKeyedExternalArrayOperand(Register key,
                                               Register base,
@@ -322,14 +317,16 @@ class LCodeGen: public LCodeGenBase {
                                LInstruction* instr,
                                LOperand* context);
 
+  void PrepareForTailCall(const ParameterCount& actual, Register scratch1,
+                          Register scratch2, Register scratch3);
+
   // Generate a direct call to a known function.  Expects the function
   // to be in x1.
   void CallKnownFunction(Handle<JSFunction> function,
                          int formal_parameter_count, int arity,
-                         LInstruction* instr);
+                         bool is_tail_call, LInstruction* instr);
 
-  // Support for recording safepoint and position information.
-  void RecordAndWritePosition(int position) override;
+  // Support for recording safepoint information.
   void RecordSafepoint(LPointerMap* pointers,
                        Safepoint::Kind kind,
                        int arguments,
@@ -371,28 +368,9 @@ class LCodeGen: public LCodeGenBase {
 
   class PushSafepointRegistersScope BASE_EMBEDDED {
    public:
-    explicit PushSafepointRegistersScope(LCodeGen* codegen)
-        : codegen_(codegen) {
-      DCHECK(codegen_->info()->is_calling());
-      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
-      codegen_->expected_safepoint_kind_ = Safepoint::kWithRegisters;
+    explicit PushSafepointRegistersScope(LCodeGen* codegen);
 
-      UseScratchRegisterScope temps(codegen_->masm_);
-      // Preserve the value of lr which must be saved on the stack (the call to
-      // the stub will clobber it).
-      Register to_be_pushed_lr =
-          temps.UnsafeAcquire(StoreRegistersStateStub::to_be_pushed_lr());
-      codegen_->masm_->Mov(to_be_pushed_lr, lr);
-      StoreRegistersStateStub stub(codegen_->isolate());
-      codegen_->masm_->CallStub(&stub);
-    }
-
-    ~PushSafepointRegistersScope() {
-      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
-      RestoreRegistersStateStub stub(codegen_->isolate());
-      codegen_->masm_->CallStub(&stub);
-      codegen_->expected_safepoint_kind_ = Safepoint::kSimple;
-    }
+    ~PushSafepointRegistersScope();
 
    private:
     LCodeGen* codegen_;

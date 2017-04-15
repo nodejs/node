@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #include "async-wrap.h"
 #include "async-wrap-inl.h"
 #include "env.h"
@@ -5,6 +26,7 @@
 #include "util.h"
 #include "util-inl.h"
 
+#include "uv.h"
 #include "v8.h"
 #include "v8-profiler.h"
 
@@ -14,10 +36,12 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::HeapProfiler;
+using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::Number;
 using v8::Object;
 using v8::RetainedObjectInfo;
 using v8::TryCatch;
@@ -37,11 +61,11 @@ class RetainedAsyncInfo: public RetainedObjectInfo {
  public:
   explicit RetainedAsyncInfo(uint16_t class_id, AsyncWrap* wrap);
 
-  virtual void Dispose() override;
-  virtual bool IsEquivalent(RetainedObjectInfo* other) override;
-  virtual intptr_t GetHash() override;
-  virtual const char* GetLabel() override;
-  virtual intptr_t GetSizeInBytes() override;
+  void Dispose() override;
+  bool IsEquivalent(RetainedObjectInfo* other) override;
+  intptr_t GetHash() override;
+  const char* GetLabel() override;
+  intptr_t GetSizeInBytes() override;
 
  private:
   const char* label_;
@@ -154,9 +178,9 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context) {
+void AsyncWrap::Initialize(Local<Object> target,
+                           Local<Value> unused,
+                           Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
@@ -180,6 +204,42 @@ static void Initialize(Local<Object> target,
 }
 
 
+void AsyncWrap::DestroyIdsCb(uv_idle_t* handle) {
+  uv_idle_stop(handle);
+
+  Environment* env = Environment::from_destroy_ids_idle_handle(handle);
+  // None of the V8 calls done outside the HandleScope leak a handle. If this
+  // changes in the future then the SealHandleScope wrapping the uv_run()
+  // will catch this can cause the process to abort.
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+  Local<Function> fn = env->async_hooks_destroy_function();
+
+  if (fn.IsEmpty())
+    return env->destroy_ids_list()->clear();
+
+  TryCatch try_catch(env->isolate());
+
+  std::vector<int64_t> destroy_ids_list;
+  destroy_ids_list.swap(*env->destroy_ids_list());
+  for (auto current_id : destroy_ids_list) {
+    // Want each callback to be cleaned up after itself, instead of cleaning
+    // them all up after the while() loop completes.
+    HandleScope scope(env->isolate());
+    Local<Value> argv = Number::New(env->isolate(), current_id);
+    MaybeLocal<Value> ret = fn->Call(
+        env->context(), Undefined(env->isolate()), 1, &argv);
+
+    if (ret.IsEmpty()) {
+      ClearFatalExceptionHandlers(env);
+      FatalException(env->isolate(), try_catch);
+    }
+  }
+
+  env->destroy_ids_list()->clear();
+}
+
+
 void LoadAsyncWrapperInfo(Environment* env) {
   HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
 #define V(PROVIDER)                                                           \
@@ -190,6 +250,69 @@ void LoadAsyncWrapperInfo(Environment* env) {
 }
 
 
+AsyncWrap::AsyncWrap(Environment* env,
+                     Local<Object> object,
+                     ProviderType provider,
+                     AsyncWrap* parent)
+    : BaseObject(env, object), bits_(static_cast<uint32_t>(provider) << 1),
+      uid_(env->get_async_wrap_uid()) {
+  CHECK_NE(provider, PROVIDER_NONE);
+  CHECK_GE(object->InternalFieldCount(), 1);
+
+  // Shift provider value over to prevent id collision.
+  persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider);
+
+  Local<Function> init_fn = env->async_hooks_init_function();
+
+  // No init callback exists, no reason to go on.
+  if (init_fn.IsEmpty())
+    return;
+
+  // If async wrap callbacks are disabled and no parent was passed that has
+  // run the init callback then return.
+  if (!env->async_wrap_callbacks_enabled() &&
+      (parent == nullptr || !parent->ran_init_callback()))
+    return;
+
+  HandleScope scope(env->isolate());
+
+  Local<Value> argv[] = {
+    Number::New(env->isolate(), get_uid()),
+    Int32::New(env->isolate(), provider),
+    Null(env->isolate()),
+    Null(env->isolate())
+  };
+
+  if (parent != nullptr) {
+    argv[2] = Number::New(env->isolate(), parent->get_uid());
+    argv[3] = parent->object();
+  }
+
+  TryCatch try_catch(env->isolate());
+
+  MaybeLocal<Value> ret =
+      init_fn->Call(env->context(), object, arraysize(argv), argv);
+
+  if (ret.IsEmpty()) {
+    ClearFatalExceptionHandlers(env);
+    FatalException(env->isolate(), try_catch);
+  }
+
+  bits_ |= 1;  // ran_init_callback() is true now.
+}
+
+
+AsyncWrap::~AsyncWrap() {
+  if (!ran_init_callback())
+    return;
+
+  if (env()->destroy_ids_list()->empty())
+    uv_idle_start(env()->destroy_ids_idle_handle(), DestroyIdsCb);
+
+  env()->destroy_ids_list()->push_back(get_uid());
+}
+
+
 Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                      int argc,
                                      Local<Value>* argv) {
@@ -197,7 +320,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
   Local<Function> pre_fn = env()->async_hooks_pre_function();
   Local<Function> post_fn = env()->async_hooks_post_function();
-  Local<Value> uid = Integer::New(env()->isolate(), get_uid());
+  Local<Value> uid = Number::New(env()->isolate(), get_uid());
   Local<Object> context = object();
   Local<Object> domain;
   bool has_domain = false;
@@ -289,4 +412,4 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(async_wrap, node::Initialize)
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(async_wrap, node::AsyncWrap::Initialize)

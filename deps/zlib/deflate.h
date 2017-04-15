@@ -1,5 +1,5 @@
 /* deflate.h -- internal compression state
- * Copyright (C) 1995-2012 Jean-loup Gailly
+ * Copyright (C) 1995-2016 Jean-loup Gailly
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -51,13 +51,16 @@
 #define Buf_size 16
 /* size of bit buffer in bi_buf */
 
-#define INIT_STATE    42
-#define EXTRA_STATE   69
-#define NAME_STATE    73
-#define COMMENT_STATE 91
-#define HCRC_STATE   103
-#define BUSY_STATE   113
-#define FINISH_STATE 666
+#define INIT_STATE    42    /* zlib header -> BUSY_STATE */
+#ifdef GZIP
+#  define GZIP_STATE  57    /* gzip header -> BUSY_STATE | EXTRA_STATE */
+#endif
+#define EXTRA_STATE   69    /* gzip extra block -> NAME_STATE */
+#define NAME_STATE    73    /* gzip file name -> COMMENT_STATE */
+#define COMMENT_STATE 91    /* gzip comment -> HCRC_STATE */
+#define HCRC_STATE   103    /* gzip header CRC -> BUSY_STATE */
+#define BUSY_STATE   113    /* deflate -> FINISH_STATE */
+#define FINISH_STATE 666    /* stream complete */
 /* Stream status */
 
 
@@ -83,7 +86,7 @@ typedef struct static_tree_desc_s  static_tree_desc;
 typedef struct tree_desc_s {
     ct_data *dyn_tree;           /* the dynamic tree */
     int     max_code;            /* largest code with non zero frequency */
-    static_tree_desc *stat_desc; /* the corresponding static tree */
+    const static_tree_desc *stat_desc;  /* the corresponding static tree */
 } FAR tree_desc;
 
 typedef ush Pos;
@@ -100,10 +103,10 @@ typedef struct internal_state {
     Bytef *pending_buf;  /* output still pending */
     ulg   pending_buf_size; /* size of pending_buf */
     Bytef *pending_out;  /* next pending byte to output to the stream */
-    uInt   pending;      /* nb of bytes in the pending buffer */
+    ulg   pending;       /* nb of bytes in the pending buffer */
     int   wrap;          /* bit 0 true for zlib, bit 1 true for gzip */
     gz_headerp  gzhead;  /* gzip header information to write */
-    uInt   gzindex;      /* where in extra, name, or comment */
+    ulg   gzindex;       /* where in extra, name, or comment */
     Byte  method;        /* can only be DEFLATED */
     int   last_flush;    /* value of flush param for previous deflate call */
 
@@ -249,7 +252,7 @@ typedef struct internal_state {
     uInt matches;       /* number of string matches in current block */
     uInt insert;        /* bytes at end of window left to insert */
 
-#ifdef DEBUG
+#ifdef ZLIB_DEBUG
     ulg compressed_len; /* total bit length of compressed file mod 2^32 */
     ulg bits_sent;      /* bit length of compressed data sent mod 2^32 */
 #endif
@@ -275,7 +278,7 @@ typedef struct internal_state {
 /* Output a byte on the stream.
  * IN assertion: there is enough room in pending_buf.
  */
-#define put_byte(s, c) {s->pending_buf[s->pending++] = (c);}
+#define put_byte(s, c) {s->pending_buf[s->pending++] = (Bytef)(c);}
 
 
 #define MIN_LOOKAHEAD (MAX_MATCH+MIN_MATCH+1)
@@ -309,7 +312,7 @@ void ZLIB_INTERNAL _tr_stored_block OF((deflate_state *s, charf *buf,
  * used.
  */
 
-#ifndef DEBUG
+#ifndef ZLIB_DEBUG
 /* Inline versions of _tr_tally for speed: */
 
 #if defined(GEN_TREES_H) || !defined(STDC)
@@ -328,8 +331,8 @@ void ZLIB_INTERNAL _tr_stored_block OF((deflate_state *s, charf *buf,
     flush = (s->last_lit == s->lit_bufsize-1); \
    }
 # define _tr_tally_dist(s, distance, length, flush) \
-  { uch len = (length); \
-    ush dist = (distance); \
+  { uch len = (uch)(length); \
+    ush dist = (ush)(distance); \
     s->d_buf[s->last_lit] = dist; \
     s->l_buf[s->last_lit++] = len; \
     dist--; \

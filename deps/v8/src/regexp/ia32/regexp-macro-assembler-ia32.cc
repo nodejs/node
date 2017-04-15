@@ -8,7 +8,6 @@
 
 #include "src/log.h"
 #include "src/macro-assembler.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/unicode.h"
@@ -511,7 +510,8 @@ void RegExpMacroAssemblerIA32::CheckBitInTable(
     __ and_(ebx, current_character());
     index = ebx;
   }
-  __ cmpb(FieldOperand(eax, index, times_1, ByteArray::kHeaderSize), 0);
+  __ cmpb(FieldOperand(eax, index, times_1, ByteArray::kHeaderSize),
+          Immediate(0));
   BranchOrBacktrack(not_equal, on_bit_set);
 }
 
@@ -936,7 +936,8 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
       isolate()->factory()->NewCode(code_desc,
                                     Code::ComputeFlags(Code::REGEXP),
                                     masm_->CodeObject());
-  PROFILE(isolate(), RegExpCodeCreateEvent(*code, *source));
+  PROFILE(masm_->isolate(),
+          RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
 }
 

@@ -9,13 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var loadRules = require("./load-rules");
+const loadRules = require("./load-rules");
 
 //------------------------------------------------------------------------------
 // Privates
 //------------------------------------------------------------------------------
 
-var rules = Object.create(null);
+let rules = Object.create(null);
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -38,26 +38,28 @@ function define(ruleId, ruleModule) {
  * @returns {void}
  */
 function load(rulesDir, cwd) {
-    var newRules = loadRules(rulesDir, cwd);
+    const newRules = loadRules(rulesDir, cwd);
 
-    Object.keys(newRules).forEach(function(ruleId) {
+    Object.keys(newRules).forEach(ruleId => {
         define(ruleId, newRules[ruleId]);
     });
 }
 
 /**
  * Registers all given rules of a plugin.
- * @param {Object} pluginRules A key/value map of rule definitions.
+ * @param {Object} plugin The plugin object to import.
  * @param {string} pluginName The name of the plugin without prefix (`eslint-plugin-`).
  * @returns {void}
  */
-function importPlugin(pluginRules, pluginName) {
-    Object.keys(pluginRules).forEach(function(ruleId) {
-        var qualifiedRuleId = pluginName + "/" + ruleId,
-            rule = pluginRules[ruleId];
+function importPlugin(plugin, pluginName) {
+    if (plugin.rules) {
+        Object.keys(plugin.rules).forEach(ruleId => {
+            const qualifiedRuleId = `${pluginName}/${ruleId}`,
+                rule = plugin.rules[ruleId];
 
-        define(qualifiedRuleId, rule);
-    });
+            define(qualifiedRuleId, rule);
+        });
+    }
 }
 
 /**
@@ -65,12 +67,27 @@ function importPlugin(pluginRules, pluginName) {
  * @param {string} ruleId Rule id (file name).
  * @returns {Function} Rule handler.
  */
-function get(ruleId) {
+function getHandler(ruleId) {
     if (typeof rules[ruleId] === "string") {
         return require(rules[ruleId]);
-    } else {
-        return rules[ruleId];
     }
+    return rules[ruleId];
+
+}
+
+/**
+ * Get an object with all currently loaded rules
+ * @returns {Map} All loaded rules
+ */
+function getAllLoadedRules() {
+    const allRules = new Map();
+
+    Object.keys(rules).forEach(name => {
+        const rule = getHandler(name);
+
+        allRules.set(name, rule);
+    });
+    return allRules;
 }
 
 /**
@@ -83,17 +100,18 @@ function testClear() {
 }
 
 module.exports = {
-    define: define,
-    load: load,
-    import: importPlugin,
-    get: get,
-    testClear: testClear,
+    define,
+    load,
+    importPlugin,
+    get: getHandler,
+    getAllLoadedRules,
+    testClear,
 
     /**
      * Resets rules to its starting state. Use for tests only.
      * @returns {void}
      */
-    testReset: function() {
+    testReset() {
         testClear();
         load();
     }

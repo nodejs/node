@@ -9,21 +9,20 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash"),
-    debug = require("debug"),
-    Environments = require("./environments");
+const Environments = require("./environments");
+
+const debug = require("debug")("eslint:config-ops");
 
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
 
-debug = debug("eslint:config-ops");
-
-var RULE_SEVERITY_STRINGS = ["off", "warn", "error"],
-    RULE_SEVERITY = RULE_SEVERITY_STRINGS.reduce(function(map, value, index) {
+const RULE_SEVERITY_STRINGS = ["off", "warn", "error"],
+    RULE_SEVERITY = RULE_SEVERITY_STRINGS.reduce((map, value, index) => {
         map[value] = index;
         return map;
-    }, {});
+    }, {}),
+    VALID_SEVERITIES = [0, 1, 2, "off", "warn", "error"];
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -35,7 +34,7 @@ module.exports = {
      * Creates an empty configuration object suitable for merging as a base.
      * @returns {Object} A configuration object.
      */
-    createEmptyConfig: function() {
+    createEmptyConfig() {
         return {
             globals: {},
             env: {},
@@ -50,27 +49,25 @@ module.exports = {
      * @returns {Object} A configuration object with the appropriate rules and globals
      *      set.
      */
-    createEnvironmentConfig: function(env) {
+    createEnvironmentConfig(env) {
 
-        var envConfig = this.createEmptyConfig();
+        const envConfig = this.createEmptyConfig();
 
         if (env) {
 
             envConfig.env = env;
 
-            Object.keys(env).filter(function(name) {
-                return env[name];
-            }).forEach(function(name) {
-                var environment = Environments.get(name);
+            Object.keys(env).filter(name => env[name]).forEach(name => {
+                const environment = Environments.get(name);
 
                 if (environment) {
-                    debug("Creating config for environment " + name);
+                    debug(`Creating config for environment ${name}`);
                     if (environment.globals) {
-                        lodash.assign(envConfig.globals, environment.globals);
+                        Object.assign(envConfig.globals, environment.globals);
                     }
 
                     if (environment.parserOptions) {
-                        lodash.assign(envConfig.parserOptions, environment.parserOptions);
+                        Object.assign(envConfig.parserOptions, environment.parserOptions);
                     }
                 }
             });
@@ -85,7 +82,7 @@ module.exports = {
      * @param {Object} config The configuration information.
      * @returns {Object} The updated configuration information.
      */
-    applyEnvironments: function(config) {
+    applyEnvironments(config) {
         if (config.env && typeof config.env === "object") {
             debug("Apply environment settings to config");
             return this.merge(this.createEnvironmentConfig(config.env), config);
@@ -133,8 +130,8 @@ module.exports = {
          * (https://github.com/KyleAMathews/deepmerge)
          * and modified to meet our needs.
          */
-        var array = Array.isArray(src) || Array.isArray(target);
-        var dst = array && [] || {};
+        const array = Array.isArray(src) || Array.isArray(target);
+        let dst = array && [] || {};
 
         combine = !!combine;
         isRule = !!isRule;
@@ -150,7 +147,7 @@ module.exports = {
             if (typeof src !== "object" && !Array.isArray(src)) {
                 src = [src];
             }
-            Object.keys(src).forEach(function(e, i) {
+            Object.keys(src).forEach((e, i) => {
                 e = src[i];
                 if (typeof dst[i] === "undefined") {
                     dst[i] = e;
@@ -172,11 +169,11 @@ module.exports = {
             });
         } else {
             if (target && typeof target === "object") {
-                Object.keys(target).forEach(function(key) {
+                Object.keys(target).forEach(key => {
                     dst[key] = target[key];
                 });
             }
-            Object.keys(src).forEach(function(key) {
+            Object.keys(src).forEach(key => {
                 if (Array.isArray(src[key]) || Array.isArray(target[key])) {
                     dst[key] = deepmerge(target[key], src[key], key === "plugins", isRule);
                 } else if (typeof src[key] !== "object" || !src[key] || key === "exported" || key === "astGlobals") {
@@ -197,11 +194,11 @@ module.exports = {
      * @param {Object} config The config object to normalize.
      * @returns {void}
      */
-    normalize: function(config) {
+    normalize(config) {
 
         if (config.rules) {
-            Object.keys(config.rules).forEach(function(ruleId) {
-                var ruleConfig = config.rules[ruleId];
+            Object.keys(config.rules).forEach(ruleId => {
+                const ruleConfig = config.rules[ruleId];
 
                 if (typeof ruleConfig === "string") {
                     config.rules[ruleId] = RULE_SEVERITY[ruleConfig.toLowerCase()] || 0;
@@ -219,11 +216,11 @@ module.exports = {
      * @param {Object} config The config object to normalize.
      * @returns {void}
      */
-    normalizeToStrings: function(config) {
+    normalizeToStrings(config) {
 
         if (config.rules) {
-            Object.keys(config.rules).forEach(function(ruleId) {
-                var ruleConfig = config.rules[ruleId];
+            Object.keys(config.rules).forEach(ruleId => {
+                const ruleConfig = config.rules[ruleId];
 
                 if (typeof ruleConfig === "number") {
                     config.rules[ruleId] = RULE_SEVERITY_STRINGS[ruleConfig] || RULE_SEVERITY_STRINGS[0];
@@ -239,15 +236,37 @@ module.exports = {
      * @param {int|string|Array} ruleConfig The configuration for an individual rule.
      * @returns {boolean} True if the rule represents an error, false if not.
      */
-    isErrorSeverity: function(ruleConfig) {
+    isErrorSeverity(ruleConfig) {
 
-        var severity = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
+        let severity = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
 
         if (typeof severity === "string") {
             severity = RULE_SEVERITY[severity.toLowerCase()] || 0;
         }
 
         return (typeof severity === "number" && severity === 2);
-    }
+    },
 
+    /**
+     * Checks whether a given config has valid severity or not.
+     * @param {number|string|Array} ruleConfig - The configuration for an individual rule.
+     * @returns {boolean} `true` if the configuration has valid severity.
+     */
+    isValidSeverity(ruleConfig) {
+        let severity = Array.isArray(ruleConfig) ? ruleConfig[0] : ruleConfig;
+
+        if (typeof severity === "string") {
+            severity = severity.toLowerCase();
+        }
+        return VALID_SEVERITIES.indexOf(severity) !== -1;
+    },
+
+    /**
+     * Checks whether every rule of a given config has valid severity or not.
+     * @param {Object} config - The configuration for rules.
+     * @returns {boolean} `true` if the configuration has valid severity.
+     */
+    isEverySeverityValid(config) {
+        return Object.keys(config).every(ruleId => this.isValidSeverity(config[ruleId]));
+    }
 };

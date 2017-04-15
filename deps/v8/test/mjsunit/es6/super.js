@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
-// Flags: --harmony-destructuring-bind --harmony-sloppy
 
 (function TestSuperNamedLoads() {
   function Base() { }
@@ -2213,4 +2212,36 @@ TestKeyedSetterCreatingOwnPropertiesNonConfigurable(42, 43, 44);
   }
   let d = new Derived(42);
   assertSame(42, d.x);
+})();
+
+(function TestNullSuperPropertyLoad() {
+  var obj = {
+    __proto__: null,
+    named() { return super.x },
+    keyed() { return super[5] }
+  };
+  assertThrows(obj.named, TypeError);
+  assertThrows(obj.keyed, TypeError);
+  class C extends null {
+    named() { return super.x }
+    keyed() { return super[5] }
+  }
+  assertThrows(C.prototype.named, TypeError);
+  assertThrows(C.prototype.keyed, TypeError);
+})();
+
+(function TestNullSuperPropertyStore() {
+  var obj = {
+    __proto__: null,
+    named() { super.x = 42 },
+    keyed() { super[5] = 42 }
+  };
+  assertThrows(obj.named, TypeError);
+  assertThrows(obj.keyed, TypeError);
+  class C extends null {
+    named() { super.x = 42 }
+    keyed() { super[5] = 42 }
+  }
+  assertThrows(C.prototype.named, TypeError);
+  assertThrows(C.prototype.keyed, TypeError);
 })();

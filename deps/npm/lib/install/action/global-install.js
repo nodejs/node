@@ -4,7 +4,7 @@ var npm = require('../../npm.js')
 var Installer = require('../../install.js').Installer
 var packageId = require('../../utils/package-id.js')
 
-module.exports = function (top, buildpath, pkg, log, next) {
+module.exports = function (staging, pkg, log, next) {
   log.silly('global-install', packageId(pkg))
   var globalRoot = path.resolve(npm.globalDir, '..')
   npm.config.set('global', true)

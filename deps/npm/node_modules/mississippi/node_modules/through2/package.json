@@ -1,0 +1,104 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "through2@^2.0.0",
+        "scope": null,
+        "escapedName": "through2",
+        "name": "through2",
+        "rawSpec": "^2.0.0",
+        "spec": ">=2.0.0 <3.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/mississippi"
+    ]
+  ],
+  "_from": "through2@>=2.0.0 <3.0.0",
+  "_id": "through2@2.0.3",
+  "_inCache": true,
+  "_location": "/mississippi/through2",
+  "_nodeVersion": "7.2.0",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/through2-2.0.3.tgz_1480373529377_0.264686161885038"
+  },
+  "_npmUser": {
+    "name": "rvagg",
+    "email": "rod@vagg.org"
+  },
+  "_npmVersion": "3.10.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "through2@^2.0.0",
+    "scope": null,
+    "escapedName": "through2",
+    "name": "through2",
+    "rawSpec": "^2.0.0",
+    "spec": ">=2.0.0 <3.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/mississippi"
+  ],
+  "_resolved": "https://registry.npmjs.org/through2/-/through2-2.0.3.tgz",
+  "_shasum": "0004569b37c7c74ba39c43f3ced78d1ad94140be",
+  "_shrinkwrap": null,
+  "_spec": "through2@^2.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/mississippi",
+  "author": {
+    "name": "Rod Vagg",
+    "email": "r@va.gg",
+    "url": "https://github.com/rvagg"
+  },
+  "bugs": {
+    "url": "https://github.com/rvagg/through2/issues"
+  },
+  "dependencies": {
+    "readable-stream": "^2.1.5",
+    "xtend": "~4.0.1"
+  },
+  "description": "A tiny wrapper around Node streams2 Transform to avoid explicit subclassing noise",
+  "devDependencies": {
+    "bl": "~1.1.2",
+    "faucet": "0.0.1",
+    "stream-spigot": "~3.0.5",
+    "tape": "~4.6.2"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "0004569b37c7c74ba39c43f3ced78d1ad94140be",
+    "tarball": "https://registry.npmjs.org/through2/-/through2-2.0.3.tgz"
+  },
+  "gitHead": "4383b10b2cb6a32ae215760715b317513abe609f",
+  "homepage": "https://github.com/rvagg/through2#readme",
+  "keywords": [
+    "stream",
+    "streams2",
+    "through",
+    "transform"
+  ],
+  "license": "MIT",
+  "main": "through2.js",
+  "maintainers": [
+    {
+      "name": "rvagg",
+      "email": "rod@vagg.org"
+    },
+    {
+      "name": "bryce",
+      "email": "bryce@ravenwall.com"
+    }
+  ],
+  "name": "through2",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rvagg/through2.git"
+  },
+  "scripts": {
+    "test": "node test/test.js | faucet",
+    "test-local": "brtapsauce-local test/basic-test.js"
+  },
+  "version": "2.0.3"
+}

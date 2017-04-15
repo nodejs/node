@@ -115,9 +115,9 @@ function TestTypedArrayOf(constructor) {
   // Check superficial features of %TypedArray%.of.
   var desc = Object.getOwnPropertyDescriptor(constructor.__proto__, "of");
 
-  assertEquals(desc.configurable, false);
+  assertEquals(desc.configurable, true);
   assertEquals(desc.enumerable, false);
-  assertEquals(desc.writable, false);
+  assertEquals(desc.writable, true);
   assertEquals(constructor.of.length, 0);
 
   // %TypedArray%.of is not a constructor.

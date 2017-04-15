@@ -10,7 +10,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var assert = require("assert");
+const assert = require("assert");
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -21,7 +21,7 @@ module.exports = {
     /**
      * Overrideable `describe` function to test.
      * @param {string} text - A description.
-     * @param {function} method - A test logic.
+     * @param {Function} method - A test logic.
      * @returns {any} The returned value with the test logic.
      */
     describe: (typeof describe === "function") ? describe : /* istanbul ignore next */ function(text, method) {
@@ -31,7 +31,7 @@ module.exports = {
     /**
      * Overrideable `it` function to test.
      * @param {string} text - A description.
-     * @param {function} method - A test logic.
+     * @param {Function} method - A test logic.
      * @returns {any} The returned value with the test logic.
      */
     it: (typeof it === "function") ? it : /* istanbul ignore next */ function(text, method) {
@@ -40,23 +40,23 @@ module.exports = {
 
     /**
      * Does some tests to check a given object implements the EventGenerator interface.
-     * @param {object} instance - An object to check.
+     * @param {Object} instance - An object to check.
      * @returns {void}
      */
-    testEventGeneratorInterface: function(instance) {
-        this.describe("should implement EventGenerator interface", function() {
-            this.it("should have `emitter` property.", function() {
+    testEventGeneratorInterface(instance) {
+        this.describe("should implement EventGenerator interface", () => {
+            this.it("should have `emitter` property.", () => {
                 assert.equal(typeof instance.emitter, "object");
                 assert.equal(typeof instance.emitter.emit, "function");
             });
 
-            this.it("should have `enterNode` property.", function() {
+            this.it("should have `enterNode` property.", () => {
                 assert.equal(typeof instance.enterNode, "function");
             });
 
-            this.it("should have `leaveNode` property.", function() {
+            this.it("should have `leaveNode` property.", () => {
                 assert.equal(typeof instance.leaveNode, "function");
             });
-        }.bind(this));
+        });
     }
 };

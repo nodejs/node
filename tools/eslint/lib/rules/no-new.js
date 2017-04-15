@@ -21,15 +21,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
-
-            ExpressionStatement: function(node) {
-
-                if (node.expression.type === "NewExpression") {
-                    context.report(node, "Do not use 'new' for side effects.");
-                }
+            "ExpressionStatement > NewExpression"(node) {
+                context.report({ node: node.parent, message: "Do not use 'new' for side effects." });
             }
         };
 

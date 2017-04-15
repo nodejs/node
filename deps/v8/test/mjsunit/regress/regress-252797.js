@@ -31,10 +31,16 @@
 // starting with a negative lookup.
 
 // Create a holder in fast mode.
-var holder = Object.create(null, {
+var holder = Object.create({}, {
   holderMethod: {value: function() {}}
 });
 assertTrue(%HasFastProperties(holder));
+
+// We assume dict usage for null prototype.
+var holder = Object.create(null, {
+  holderMethod: {value: function() {}}
+});
+assertFalse(%HasFastProperties(holder));
 
 // Create a receiver into dictionary mode.
 var receiver = Object.create(holder, {

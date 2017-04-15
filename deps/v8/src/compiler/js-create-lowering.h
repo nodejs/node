@@ -5,7 +5,9 @@
 #ifndef V8_COMPILER_JS_CREATE_LOWERING_H_
 #define V8_COMPILER_JS_CREATE_LOWERING_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -27,15 +29,17 @@ class SimplifiedOperatorBuilder;
 
 
 // Lowers JSCreate-level operators to fast (inline) allocations.
-class JSCreateLowering final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE JSCreateLowering final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   JSCreateLowering(Editor* editor, CompilationDependencies* dependencies,
                    JSGraph* jsgraph, MaybeHandle<LiteralsArray> literals_array,
-                   Zone* zone)
+                   Handle<Context> native_context, Zone* zone)
       : AdvancedReducer(editor),
         dependencies_(dependencies),
         jsgraph_(jsgraph),
         literals_array_(literals_array),
+        native_context_(native_context),
         zone_(zone) {}
   ~JSCreateLowering() final {}
 
@@ -45,7 +49,9 @@ class JSCreateLowering final : public AdvancedReducer {
   Reduction ReduceJSCreate(Node* node);
   Reduction ReduceJSCreateArguments(Node* node);
   Reduction ReduceJSCreateArray(Node* node);
+  Reduction ReduceJSCreateClosure(Node* node);
   Reduction ReduceJSCreateIterResultObject(Node* node);
+  Reduction ReduceJSCreateKeyValueArray(Node* node);
   Reduction ReduceJSCreateLiteral(Node* node);
   Reduction ReduceJSCreateFunctionContext(Node* node);
   Reduction ReduceJSCreateWithContext(Node* node);
@@ -70,7 +76,8 @@ class JSCreateLowering final : public AdvancedReducer {
                                     Handle<JSObject> boilerplate,
                                     PretenureFlag pretenure,
                                     AllocationSiteUsageContext* site_context);
-  Node* AllocateMutableHeapNumber(double value, Node* effect, Node* control);
+
+  Reduction ReduceNewArrayToStubCall(Node* node, Handle<AllocationSite> site);
 
   // Infers the LiteralsArray to use for a given {node}.
   MaybeHandle<LiteralsArray> GetSpecializationLiterals(Node* node);
@@ -79,6 +86,7 @@ class JSCreateLowering final : public AdvancedReducer {
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
+  Handle<Context> native_context() const { return native_context_; }
   JSOperatorBuilder* javascript() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
@@ -89,6 +97,7 @@ class JSCreateLowering final : public AdvancedReducer {
   CompilationDependencies* const dependencies_;
   JSGraph* const jsgraph_;
   MaybeHandle<LiteralsArray> const literals_array_;
+  Handle<Context> const native_context_;
   Zone* const zone_;
 };
 

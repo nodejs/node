@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var DEFAULT_COMMENT_PATTERN = /^no default$/;
+const DEFAULT_COMMENT_PATTERN = /^no default$/i;
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -13,7 +13,7 @@ var DEFAULT_COMMENT_PATTERN = /^no default$/;
 module.exports = {
     meta: {
         docs: {
-            description: "require `default` cases in <code>switch</code> statements",
+            description: "require `default` cases in `switch` statements",
             category: "Best Practices",
             recommended: false
         },
@@ -29,11 +29,13 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
-        var options = context.options[0] || {};
-        var commentPattern = options.commentPattern ?
-            new RegExp(options.commentPattern) :
-            DEFAULT_COMMENT_PATTERN;
+    create(context) {
+        const options = context.options[0] || {};
+        const commentPattern = options.commentPattern
+            ? new RegExp(options.commentPattern)
+            : DEFAULT_COMMENT_PATTERN;
+
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -54,7 +56,7 @@ module.exports = {
 
         return {
 
-            SwitchStatement: function(node) {
+            SwitchStatement(node) {
 
                 if (!node.cases.length) {
 
@@ -65,25 +67,21 @@ module.exports = {
                     return;
                 }
 
-                var hasDefault = node.cases.some(function(v) {
-                    return v.test === null;
-                });
+                const hasDefault = node.cases.some(v => v.test === null);
 
                 if (!hasDefault) {
 
-                    var comment;
-                    var comments;
+                    let comment;
 
-                    var lastCase = last(node.cases);
-
-                    comments = context.getComments(lastCase).trailing;
+                    const lastCase = last(node.cases);
+                    const comments = sourceCode.getComments(lastCase).trailing;
 
                     if (comments.length) {
                         comment = last(comments);
                     }
 
                     if (!comment || !commentPattern.test(comment.value.trim())) {
-                        context.report(node, "Expected a default case.");
+                        context.report({ node, message: "Expected a default case." });
                     }
                 }
             }

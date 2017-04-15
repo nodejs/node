@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
@@ -12,7 +33,6 @@ namespace node {
 
 using v8::Array;
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -22,6 +42,8 @@ using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Value;
+
+namespace {
 
 class ProcessWrap : public HandleWrap {
  public:
@@ -86,6 +108,7 @@ class ProcessWrap : public HandleWrap {
             UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE);
         Local<String> handle_key = env->handle_string();
         Local<Object> handle = stdio->Get(handle_key).As<Object>();
+        CHECK(!handle.IsEmpty());
         options->stdio[i].data.stream =
             reinterpret_cast<uv_stream_t*>(
                 Unwrap<PipeWrap>(handle)->UVHandle());
@@ -109,7 +132,8 @@ class ProcessWrap : public HandleWrap {
   static void Spawn(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
 
-    ProcessWrap* wrap = Unwrap<ProcessWrap>(args.Holder());
+    ProcessWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
     Local<Object> js_options = args[0]->ToObject(env->isolate());
 
@@ -120,41 +144,29 @@ class ProcessWrap : public HandleWrap {
 
     // options.uid
     Local<Value> uid_v = js_options->Get(env->uid_string());
-    if (uid_v->IsInt32()) {
-      int32_t uid = uid_v->Int32Value();
-      if (uid & ~((uv_uid_t) ~0)) {
-        return env->ThrowRangeError("options.uid is out of range");
-      }
+    if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
+      CHECK(uid_v->IsInt32());
+      const int32_t uid = uid_v->Int32Value(env->context()).FromJust();
       options.flags |= UV_PROCESS_SETUID;
-      options.uid = (uv_uid_t) uid;
-    } else if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
-      return env->ThrowTypeError("options.uid should be a number");
+      options.uid = static_cast<uv_uid_t>(uid);
     }
 
     // options.gid
     Local<Value> gid_v = js_options->Get(env->gid_string());
-    if (gid_v->IsInt32()) {
-      int32_t gid = gid_v->Int32Value();
-      if (gid & ~((uv_gid_t) ~0)) {
-        return env->ThrowRangeError("options.gid is out of range");
-      }
+    if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
+      CHECK(gid_v->IsInt32());
+      const int32_t gid = gid_v->Int32Value(env->context()).FromJust();
       options.flags |= UV_PROCESS_SETGID;
-      options.gid = (uv_gid_t) gid;
-    } else if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
-      return env->ThrowTypeError("options.gid should be a number");
+      options.gid = static_cast<uv_gid_t>(gid);
     }
 
     // TODO(bnoordhuis) is this possible to do without mallocing ?
 
     // options.file
     Local<Value> file_v = js_options->Get(env->file_string());
-    node::Utf8Value file(env->isolate(),
-                         file_v->IsString() ? file_v : Local<Value>());
-    if (file.length() > 0) {
-      options.file = *file;
-    } else {
-      return env->ThrowTypeError("Bad argument");
-    }
+    CHECK(file_v->IsString());
+    node::Utf8Value file(env->isolate(), file_v);
+    options.file = *file;
 
     // options.args
     Local<Value> argv_v = js_options->Get(env->args_string());
@@ -233,7 +245,8 @@ class ProcessWrap : public HandleWrap {
   }
 
   static void Kill(const FunctionCallbackInfo<Value>& args) {
-    ProcessWrap* wrap = Unwrap<ProcessWrap>(args.Holder());
+    ProcessWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
     int signal = args[0]->Int32Value();
     int err = uv_process_kill(&wrap->process_, signal);
     args.GetReturnValue().Set(err);
@@ -262,6 +275,7 @@ class ProcessWrap : public HandleWrap {
 };
 
 
+}  // anonymous namespace
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_BUILTIN(process_wrap, node::ProcessWrap::Initialize)

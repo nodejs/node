@@ -152,16 +152,11 @@ class EntryFrameConstants : public AllStatic {
       -(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
 };
 
-
-class ExitFrameConstants : public AllStatic {
+class ExitFrameConstants : public TypedFrameConstants {
  public:
-  static const int kFrameSize =
-      FLAG_enable_embedded_constant_pool ? 3 * kPointerSize : 2 * kPointerSize;
-
-  static const int kConstantPoolOffset =
-      FLAG_enable_embedded_constant_pool ? -3 * kPointerSize : 0;
-  static const int kCodeOffset = -2 * kPointerSize;
-  static const int kSPOffset = -1 * kPointerSize;
+  static const int kSPOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static const int kCodeOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  DEFINE_TYPED_FRAME_SIZES(2);
 
   // The caller fields are below the frame pointer on the stack.
   static const int kCallerFPOffset = 0 * kPointerSize;
@@ -179,7 +174,7 @@ class JavaScriptFrameConstants : public AllStatic {
   // FP-relative.
   static const int kLocal0Offset = StandardFrameConstants::kExpressionsOffset;
   static const int kLastParameterOffset = +2 * kPointerSize;
-  static const int kFunctionOffset = StandardFrameConstants::kMarkerOffset;
+  static const int kFunctionOffset = StandardFrameConstants::kFunctionOffset;
 
   // Caller SP-relative.
   static const int kParam0Offset = -2 * kPointerSize;

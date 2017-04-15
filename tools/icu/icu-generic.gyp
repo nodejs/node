@@ -20,9 +20,7 @@
       'type': 'none',
       'toolsets': [ 'target' ],
       'direct_dependent_settings': {
-        'defines': [
-          'UCONFIG_NO_CONVERSION=1',
-        ]
+        'defines': []
       },
     },
     {
@@ -37,13 +35,11 @@
              'defines': [
                 # ICU cannot swap the initial data without this.
                 # http://bugs.icu-project.org/trac/ticket/11046
-                'UCONFIG_NO_LEGACY_CONVERSION=1',
-                'UCONFIG_NO_IDNA=1',
+                'UCONFIG_NO_LEGACY_CONVERSION=1'
              ],
           }],
         ],
         'defines': [
-          'UCONFIG_NO_TRANSLITERATION=1',
           'UCONFIG_NO_SERVICE=1',
           'UCONFIG_NO_REGULAR_EXPRESSIONS=1',
           'U_ENABLE_DYLOAD=0',
@@ -69,6 +65,7 @@
           [ 'os_posix == 1 and OS != "mac" and OS != "ios"', {
             'cflags': [ '-Wno-deprecated-declarations' ],
             'cflags_cc': [ '-frtti' ],
+            'cflags_cc!': [ '-fno-rtti' ],
           }],
           [ 'OS == "mac" or OS == "ios"', {
             'xcode_settings': {'GCC_ENABLE_CPP_RTTI': 'YES' },
@@ -231,6 +228,7 @@
               'actions': [
                 {
                   'action_name': 'icudata',
+                  'msvs_quote_cmd': 0,
                   'inputs': [ '<(icu_data_in)' ],
                   'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.obj' ],
                   'action': [ '<(PRODUCT_DIR)/genccode',
@@ -250,11 +248,12 @@
                 {
                   # trim down ICU
                   'action_name': 'icutrim',
+                  'msvs_quote_cmd': 0,
                   'inputs': [ '<(icu_data_in)', 'icu_small.json' ],
                   'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
                   'action': [ 'python',
                               'icutrim.py',
-                              '-P', '../../<(CONFIGURATION_NAME)',
+                              '-P', '<(PRODUCT_DIR)/.', # '.' suffix is a workaround against GYP assumptions :(
                               '-D', '<(icu_data_in)',
                               '--delete-tmp',
                               '-T', '<(SHARED_INTERMEDIATE_DIR)/icutmp',
@@ -266,9 +265,10 @@
                 {
                   # build final .dat -> .obj
                   'action_name': 'genccode',
+                  'msvs_quote_cmd': 0,
                   'inputs': [ '<(SHARED_INTERMEDIATE_DIR)/icutmp/icudt<(icu_ver_major)<(icu_endianness).dat' ],
                   'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/icudt<(icu_ver_major)<(icu_endianness)_dat.obj' ],
-                  'action': [ '../../<(CONFIGURATION_NAME)/genccode',
+                  'action': [ '<(PRODUCT_DIR)/genccode',
                               '-o',
                               '-d', '<(SHARED_INTERMEDIATE_DIR)/',
                               '-n', 'icudata',
@@ -428,9 +428,6 @@
           #'<(icu_path)/source/common/ubidi_props_data.h',
           # and the callers
           '<(icu_path)/source/common/ushape.cpp',
-          '<(icu_path)/source/common/usprep.cpp',
-          '<(icu_path)/source/common/uts46.cpp',
-          '<(icu_path)/source/common/uidna.cpp',
         ]}],
         [ 'icu_ver_major == 57', { 'sources!': [
           # work around http://bugs.icu-project.org/trac/ticket/12451
@@ -447,9 +444,6 @@
           #'<(icu_path)/source/common/ubidi_props_data.h',
           # and the callers
           '<(icu_path)/source/common/ushape.cpp',
-          '<(icu_path)/source/common/usprep.cpp',
-          '<(icu_path)/source/common/uts46.cpp',
-          '<(icu_path)/source/common/uidna.cpp',
         ]}],
         [ 'OS == "solaris"', { 'defines': [
           '_XOPEN_SOURCE_EXTENDED=0',

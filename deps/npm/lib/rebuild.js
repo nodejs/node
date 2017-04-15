@@ -7,6 +7,7 @@ var log = require('npmlog')
 var npm = require('./npm.js')
 var npa = require('npm-package-arg')
 var usage = require('./utils/usage')
+var output = require('./utils/output.js')
 
 rebuild.usage = usage(
   'rebuild',
@@ -33,11 +34,9 @@ function rebuild (args, cb) {
 function cleanBuild (folders, set, cb) {
   npm.commands.build(folders, function (er) {
     if (er) return cb(er)
-    log.clearProgress()
-    console.log(folders.map(function (f) {
+    output(folders.map(function (f) {
       return set[f] + ' ' + f
     }).join('\n'))
-    log.showProgress()
     cb()
   })
 }

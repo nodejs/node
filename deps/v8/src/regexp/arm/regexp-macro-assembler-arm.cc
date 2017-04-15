@@ -9,7 +9,6 @@
 #include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/unicode.h"
@@ -891,7 +890,8 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   masm_->GetCode(&code_desc);
   Handle<Code> code = isolate()->factory()->NewCode(
       code_desc, Code::ComputeFlags(Code::REGEXP), masm_->CodeObject());
-  PROFILE(masm_->isolate(), RegExpCodeCreateEvent(*code, *source));
+  PROFILE(masm_->isolate(),
+          RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
 }
 
@@ -1197,11 +1197,6 @@ void RegExpMacroAssemblerARM::CheckStackLimit() {
   __ ldr(r0, MemOperand(r0));
   __ cmp(backtrack_stackpointer(), Operand(r0));
   SafeCall(&stack_overflow_label_, ls);
-}
-
-
-bool RegExpMacroAssemblerARM::CanReadUnaligned() {
-  return CpuFeatures::IsSupported(UNALIGNED_ACCESSES) && !slow_safe();
 }
 
 

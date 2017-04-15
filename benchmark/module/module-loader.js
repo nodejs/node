@@ -8,7 +8,8 @@ var benchmarkDirectory = path.join(tmpDirectory, 'nodejs-benchmark-module');
 
 var bench = common.createBenchmark(main, {
   thousands: [50],
-  fullPath: ['true', 'false']
+  fullPath: ['true', 'false'],
+  useCache: ['true', 'false']
 });
 
 function main(conf) {
@@ -31,22 +32,36 @@ function main(conf) {
   }
 
   if (conf.fullPath === 'true')
-    measureFull(n);
+    measureFull(n, conf.useCache === 'true');
   else
-    measureDir(n);
+    measureDir(n, conf.useCache === 'true');
+
+  rmrf(tmpDirectory);
 }
 
-function measureFull(n) {
+function measureFull(n, useCache) {
+  var i;
+  if (useCache) {
+    for (i = 0; i <= n; i++) {
+      require(benchmarkDirectory + i + '/index.js');
+    }
+  }
   bench.start();
-  for (var i = 0; i <= n; i++) {
+  for (i = 0; i <= n; i++) {
     require(benchmarkDirectory + i + '/index.js');
   }
   bench.end(n / 1e3);
 }
 
-function measureDir(n) {
+function measureDir(n, useCache) {
+  var i;
+  if (useCache) {
+    for (i = 0; i <= n; i++) {
+      require(benchmarkDirectory + i);
+    }
+  }
   bench.start();
-  for (var i = 0; i <= n; i++) {
+  for (i = 0; i <= n; i++) {
     require(benchmarkDirectory + i);
   }
   bench.end(n / 1e3);

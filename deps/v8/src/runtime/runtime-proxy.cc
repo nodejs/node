@@ -40,17 +40,15 @@ RUNTIME_FUNCTION(Runtime_JSProxyCall) {
       Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name));
   // 6. If trap is undefined, then
   int const arguments_length = args.length() - 2;
-  if (trap->IsUndefined()) {
+  if (trap->IsUndefined(isolate)) {
     // 6.a. Return Call(target, thisArgument, argumentsList).
     ScopedVector<Handle<Object>> argv(arguments_length);
     for (int i = 0; i < arguments_length; ++i) {
-      argv[i] = args.at<Object>(i + 1);
+      argv[i] = args.at(i + 1);
     }
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, Execution::Call(isolate, target, receiver,
-                                         arguments_length, argv.start()));
-    return *result;
+    RETURN_RESULT_OR_FAILURE(
+        isolate, Execution::Call(isolate, target, receiver, arguments_length,
+                                 argv.start()));
   }
   // 7. Let argArray be CreateArrayFromList(argumentsList).
   Handle<JSArray> arg_array = isolate->factory()->NewJSArray(
@@ -63,12 +61,10 @@ RUNTIME_FUNCTION(Runtime_JSProxyCall) {
     }
   }
   // 8. Return Call(trap, handler, «target, thisArgument, argArray»).
-  Handle<Object> trap_result;
   Handle<Object> trap_args[] = {target, receiver, arg_array};
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, trap_result,
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
       Execution::Call(isolate, trap, handler, arraysize(trap_args), trap_args));
-  return *trap_result;
 }
 
 
@@ -98,19 +94,17 @@ RUNTIME_FUNCTION(Runtime_JSProxyConstruct) {
       Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name));
   // 6. If trap is undefined, then
   int const arguments_length = args.length() - 3;
-  if (trap->IsUndefined()) {
+  if (trap->IsUndefined(isolate)) {
     // 6.a. Assert: target has a [[Construct]] internal method.
     DCHECK(target->IsConstructor());
     // 6.b. Return Construct(target, argumentsList, newTarget).
     ScopedVector<Handle<Object>> argv(arguments_length);
     for (int i = 0; i < arguments_length; ++i) {
-      argv[i] = args.at<Object>(i + 1);
+      argv[i] = args.at(i + 1);
     }
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result, Execution::New(isolate, target, new_target,
-                                        arguments_length, argv.start()));
-    return *result;
+    RETURN_RESULT_OR_FAILURE(
+        isolate, Execution::New(isolate, target, new_target, arguments_length,
+                                argv.start()));
   }
   // 7. Let argArray be CreateArrayFromList(argumentsList).
   Handle<JSArray> arg_array = isolate->factory()->NewJSArray(
@@ -141,7 +135,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyConstruct) {
 
 RUNTIME_FUNCTION(Runtime_IsJSProxy) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSProxy());
 }
@@ -149,7 +143,7 @@ RUNTIME_FUNCTION(Runtime_IsJSProxy) {
 
 RUNTIME_FUNCTION(Runtime_JSProxyGetHandler) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
   return proxy->handler();
 }
@@ -157,7 +151,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyGetHandler) {
 
 RUNTIME_FUNCTION(Runtime_JSProxyGetTarget) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
   return proxy->target();
 }
@@ -165,7 +159,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyGetTarget) {
 
 RUNTIME_FUNCTION(Runtime_JSProxyRevoke) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSProxy, proxy, 0);
   JSProxy::Revoke(proxy);
   return isolate->heap()->undefined_value();

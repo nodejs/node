@@ -30,13 +30,9 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 
 using namespace v8::internal;
-
-static bool DefaultMatchFun(void* a, void* b) {
-  return a == b;
-}
 
 
 typedef uint32_t (*IntKeyHash)(uint32_t key);
@@ -44,11 +40,11 @@ typedef uint32_t (*IntKeyHash)(uint32_t key);
 
 class IntSet {
  public:
-  explicit IntSet(IntKeyHash hash) : hash_(hash), map_(DefaultMatchFun)  {}
+  explicit IntSet(IntKeyHash hash) : hash_(hash) {}
 
   void Insert(int x) {
     CHECK_NE(0, x);  // 0 corresponds to (void*)NULL - illegal key value
-    HashMap::Entry* p =
+    v8::base::HashMap::Entry* p =
         map_.LookupOrInsert(reinterpret_cast<void*>(x), hash_(x));
     CHECK(p != NULL);  // insert is set!
     CHECK_EQ(reinterpret_cast<void*>(x), p->key);
@@ -61,7 +57,8 @@ class IntSet {
   }
 
   bool Present(int x) {
-    HashMap::Entry* p = map_.Lookup(reinterpret_cast<void*>(x), hash_(x));
+    v8::base::HashMap::Entry* p =
+        map_.Lookup(reinterpret_cast<void*>(x), hash_(x));
     if (p != NULL) {
       CHECK_EQ(reinterpret_cast<void*>(x), p->key);
     }
@@ -74,7 +71,8 @@ class IntSet {
 
   uint32_t occupancy() const {
     uint32_t count = 0;
-    for (HashMap::Entry* p = map_.Start(); p != NULL; p = map_.Next(p)) {
+    for (v8::base::HashMap::Entry* p = map_.Start(); p != NULL;
+         p = map_.Next(p)) {
       count++;
     }
     CHECK_EQ(map_.occupancy(), static_cast<double>(count));
@@ -83,7 +81,7 @@ class IntSet {
 
  private:
   IntKeyHash hash_;
-  HashMap map_;
+  v8::base::HashMap map_;
 };
 
 

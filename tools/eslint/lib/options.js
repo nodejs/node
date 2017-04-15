@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var optionator = require("optionator");
+const optionator = require("optionator");
 
 //------------------------------------------------------------------------------
 // Initialization and Public Interface
@@ -57,7 +57,6 @@ module.exports = optionator({
         {
             option: "parser",
             type: "String",
-            default: "espree",
             description: "Specify the parser to be used"
         },
         {
@@ -115,7 +114,7 @@ module.exports = optionator({
             option: "ignore",
             type: "Boolean",
             default: "true",
-            description: "Disable use of .eslintignore"
+            description: "Disable use of ignore files and patterns"
         },
         {
             option: "ignore-pattern",
@@ -217,8 +216,8 @@ module.exports = optionator({
         },
         {
             option: "print-config",
-            type: "Boolean",
-            description: "Print the configuration to be used"
+            type: "path::String",
+            description: "Print the configuration for the given file"
         }
     ]
 });

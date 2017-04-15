@@ -12,7 +12,7 @@ stream.end();
 stream.on('finish', common.mustCall(function() {
   process.nextTick(common.mustCall(function() {
     assert.strictEqual(stream.closed, undefined);
-    assert(stream.fd !== null);
+    assert.notStrictEqual(stream.fd, null);
     next();
   }));
 }));
@@ -32,7 +32,7 @@ function next() {
 function next2() {
   // This will test if after reusing the fd data is written properly
   fs.readFile(file, function(err, data) {
-    assert(!err);
+    assert.ifError(err);
     assert.strictEqual(data.toString(), 'Test2');
     process.nextTick(common.mustCall(next3));
   });

@@ -13,7 +13,7 @@
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
-#include "src/compiler.h"
+#include "src/deoptimizer.h"
 #include "src/globals.h"
 #include "src/objects.h"
 
@@ -21,58 +21,30 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class CompilationInfo;
+class CompilationJob;
 class JumpPatchSite;
+class Scope;
 
 // -----------------------------------------------------------------------------
 // Full code generator.
 
-class FullCodeGenerator: public AstVisitor {
+class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
  public:
-  enum State {
-    NO_REGISTERS,
-    TOS_REG
-  };
+  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info,
+                    uintptr_t stack_limit);
 
-  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info)
-      : masm_(masm),
-        info_(info),
-        isolate_(info->isolate()),
-        zone_(info->zone()),
-        scope_(info->scope()),
-        nesting_stack_(NULL),
-        loop_depth_(0),
-        try_catch_depth_(0),
-        operand_stack_depth_(0),
-        globals_(NULL),
-        context_(NULL),
-        bailout_entries_(info->HasDeoptimizationSupport()
-                             ? info->literal()->ast_node_count()
-                             : 0,
-                         info->zone()),
-        back_edges_(2, info->zone()),
-        handler_table_(info->zone()),
-        ic_total_count_(0) {
-    DCHECK(!info->IsStub());
-    Initialize();
-  }
+  void Initialize(uintptr_t stack_limit);
 
-  void Initialize();
+  static CompilationJob* NewCompilationJob(CompilationInfo* info);
 
+  static bool MakeCode(CompilationInfo* info, uintptr_t stack_limit);
   static bool MakeCode(CompilationInfo* info);
 
-  // Encode state and pc-offset as a BitField<type, start, size>.
+  // Encode bailout state and pc-offset as a BitField<type, start, size>.
   // Only use 30 bits because we encode the result as a smi.
-  class StateField : public BitField<State, 0, 1> { };
-  class PcField    : public BitField<unsigned, 1, 30-1> { };
-
-  static const char* State2String(State state) {
-    switch (state) {
-      case NO_REGISTERS: return "NO_REGISTERS";
-      case TOS_REG: return "TOS_REG";
-    }
-    UNREACHABLE();
-    return NULL;
-  }
+  class BailoutStateField : public BitField<Deoptimizer::BailoutState, 0, 1> {};
+  class PcField : public BitField<unsigned, 1, 30 - 1> {};
 
   static const int kMaxBackEdgeWeight = 127;
 
@@ -93,6 +65,12 @@ class FullCodeGenerator: public AstVisitor {
   static const int kCodeSizeMultiplier = 149;
 #elif V8_TARGET_ARCH_MIPS64
   static const int kCodeSizeMultiplier = 149;
+#elif V8_TARGET_ARCH_S390
+// TODO(joransiu): Copied PPC value. Check this is sensible for S390.
+  static const int kCodeSizeMultiplier = 200;
+#elif V8_TARGET_ARCH_S390X
+// TODO(joransiu): Copied PPC value. Check this is sensible for S390X.
+  static const int kCodeSizeMultiplier = 200;
 #else
 #error Unsupported target architecture.
 #endif
@@ -100,15 +78,18 @@ class FullCodeGenerator: public AstVisitor {
   static Register result_register();
 
  private:
+  typedef Deoptimizer::BailoutState BailoutState;
+
   class Breakable;
   class Iteration;
-  class TryFinally;
 
   class TestContext;
 
   class NestedStatement BASE_EMBEDDED {
    public:
-    explicit NestedStatement(FullCodeGenerator* codegen) : codegen_(codegen) {
+    explicit NestedStatement(FullCodeGenerator* codegen)
+        : codegen_(codegen),
+          stack_depth_at_target_(codegen->operand_stack_depth_) {
       // Link into codegen's nesting stack.
       previous_ = codegen->nesting_stack_;
       codegen->nesting_stack_ = this;
@@ -121,27 +102,27 @@ class FullCodeGenerator: public AstVisitor {
 
     virtual Breakable* AsBreakable() { return nullptr; }
     virtual Iteration* AsIteration() { return nullptr; }
-    virtual TryFinally* AsTryFinally() { return nullptr; }
 
     virtual bool IsContinueTarget(Statement* target) { return false; }
     virtual bool IsBreakTarget(Statement* target) { return false; }
-    virtual bool IsTryFinally() { return false; }
 
     // Notify the statement that we are exiting it via break, continue, or
     // return and give it a chance to generate cleanup code.  Return the
     // next outer statement in the nesting stack.  We accumulate in
-    // *stack_depth the amount to drop the stack and in *context_length the
-    // number of context chain links to unwind as we traverse the nesting
-    // stack from an exit to its target.
-    virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
-      return previous_;
-    }
+    // {*context_length} the number of context chain links to unwind as we
+    // traverse the nesting stack from an exit to its target.
+    virtual NestedStatement* Exit(int* context_length) { return previous_; }
+
+    // Determine the expected operand stack depth when this statement is being
+    // used as the target of an exit. The caller will drop to this depth.
+    int GetStackDepthAtTarget() { return stack_depth_at_target_; }
 
    protected:
     MacroAssembler* masm() { return codegen_->masm(); }
 
     FullCodeGenerator* codegen_;
     NestedStatement* previous_;
+    int stack_depth_at_target_;
 
    private:
     DISALLOW_COPY_AND_ASSIGN(NestedStatement);
@@ -192,122 +173,11 @@ class FullCodeGenerator: public AstVisitor {
         : Breakable(codegen, block) {
     }
 
-    NestedStatement* Exit(int* stack_depth, int* context_length) override {
+    NestedStatement* Exit(int* context_length) override {
       auto block_scope = statement()->AsBlock()->scope();
       if (block_scope != nullptr) {
         if (block_scope->ContextLocalCount() > 0) ++(*context_length);
       }
-      return previous_;
-    }
-  };
-
-  // The try block of a try/catch statement.
-  class TryCatch : public NestedStatement {
-   public:
-    static const int kElementCount = TryBlockConstant::kElementCount;
-
-    explicit TryCatch(FullCodeGenerator* codegen) : NestedStatement(codegen) {}
-
-    NestedStatement* Exit(int* stack_depth, int* context_length) override {
-      *stack_depth += kElementCount;
-      return previous_;
-    }
-  };
-
-  class DeferredCommands {
-   public:
-    enum Command { kReturn, kThrow, kBreak, kContinue };
-    typedef int TokenId;
-    struct DeferredCommand {
-      Command command;
-      TokenId token;
-      Statement* target;
-    };
-
-    DeferredCommands(FullCodeGenerator* codegen, Label* finally_entry)
-        : codegen_(codegen),
-          commands_(codegen->zone()),
-          return_token_(TokenDispenserForFinally::kInvalidToken),
-          throw_token_(TokenDispenserForFinally::kInvalidToken),
-          finally_entry_(finally_entry) {}
-
-    void EmitCommands();
-
-    void RecordBreak(Statement* target);
-    void RecordContinue(Statement* target);
-    void RecordReturn();
-    void RecordThrow();
-    void EmitFallThrough();
-
-   private:
-    MacroAssembler* masm() { return codegen_->masm(); }
-    void EmitJumpToFinally(TokenId token);
-
-    FullCodeGenerator* codegen_;
-    ZoneVector<DeferredCommand> commands_;
-    TokenDispenserForFinally dispenser_;
-    TokenId return_token_;
-    TokenId throw_token_;
-    Label* finally_entry_;
-  };
-
-  // The try block of a try/finally statement.
-  class TryFinally : public NestedStatement {
-   public:
-    static const int kElementCount = TryBlockConstant::kElementCount;
-
-    TryFinally(FullCodeGenerator* codegen, DeferredCommands* commands)
-        : NestedStatement(codegen), deferred_commands_(commands) {}
-
-    NestedStatement* Exit(int* stack_depth, int* context_length) override;
-
-    bool IsTryFinally() override { return true; }
-    TryFinally* AsTryFinally() override { return this; }
-
-    DeferredCommands* deferred_commands() { return deferred_commands_; }
-
-   private:
-    DeferredCommands* deferred_commands_;
-  };
-
-  // The finally block of a try/finally statement.
-  class Finally : public NestedStatement {
-   public:
-    static const int kElementCount = 3;
-
-    explicit Finally(FullCodeGenerator* codegen) : NestedStatement(codegen) {}
-
-    NestedStatement* Exit(int* stack_depth, int* context_length) override {
-      *stack_depth += kElementCount;
-      return previous_;
-    }
-  };
-
-  // The body of a for/in loop.
-  class ForIn : public Iteration {
-   public:
-    static const int kElementCount = 5;
-
-    ForIn(FullCodeGenerator* codegen, ForInStatement* statement)
-        : Iteration(codegen, statement) {
-    }
-
-    NestedStatement* Exit(int* stack_depth, int* context_length) override {
-      *stack_depth += kElementCount;
-      return previous_;
-    }
-  };
-
-
-  // The body of a with or catch.
-  class WithOrCatch : public NestedStatement {
-   public:
-    explicit WithOrCatch(FullCodeGenerator* codegen)
-        : NestedStatement(codegen) {
-    }
-
-    NestedStatement* Exit(int* stack_depth, int* context_length) override {
-      ++(*context_length);
       return previous_;
     }
   };
@@ -383,21 +253,21 @@ class FullCodeGenerator: public AstVisitor {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     EffectContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, NO_REGISTERS);
+    PrepareForBailout(expr, BailoutState::NO_REGISTERS);
   }
 
   void VisitForAccumulatorValue(Expression* expr) {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     AccumulatorValueContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, TOS_REG);
+    PrepareForBailout(expr, BailoutState::TOS_REGISTER);
   }
 
   void VisitForStackValue(Expression* expr) {
     if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     StackValueContext context(this);
     Visit(expr);
-    PrepareForBailout(expr, NO_REGISTERS);
+    PrepareForBailout(expr, BailoutState::NO_REGISTERS);
   }
 
   void VisitForControl(Expression* expr,
@@ -414,8 +284,7 @@ class FullCodeGenerator: public AstVisitor {
 
   void VisitInDuplicateContext(Expression* expr);
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
-  void DeclareModules(Handle<FixedArray> descriptions);
+  void VisitDeclarations(Declaration::List* declarations);
   void DeclareGlobals(Handle<FixedArray> pairs);
   int DeclareGlobalsFlags();
 
@@ -469,13 +338,13 @@ class FullCodeGenerator: public AstVisitor {
                              NilValue nil);
 
   // Bailout support.
-  void PrepareForBailout(Expression* node, State state);
-  void PrepareForBailoutForId(BailoutId id, State state);
+  void PrepareForBailout(Expression* node, Deoptimizer::BailoutState state);
+  void PrepareForBailoutForId(BailoutId id, Deoptimizer::BailoutState state);
 
   // Returns a smi for the index into the FixedArray that backs the feedback
   // vector
   Smi* SmiFromSlot(FeedbackVectorSlot slot) const {
-    return Smi::FromInt(TypeFeedbackVector::GetIndexFromSpec(
+    return Smi::FromInt(FeedbackVector::GetIndexFromSpec(
         literal()->feedback_vector_spec(), slot));
   }
 
@@ -523,45 +392,27 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific code sequences for calls
   void EmitCall(Call* expr, ConvertReceiverMode = ConvertReceiverMode::kAny);
-  void EmitSuperConstructorCall(Call* expr);
   void EmitCallWithLoadIC(Call* expr);
-  void EmitSuperCallWithLoadIC(Call* expr);
   void EmitKeyedCallWithLoadIC(Call* expr, Expression* key);
-  void EmitKeyedSuperCallWithLoadIC(Call* expr);
-  void EmitPossiblyEvalCall(Call* expr);
 
 #define FOR_EACH_FULL_CODE_INTRINSIC(F) \
   F(IsSmi)                              \
   F(IsArray)                            \
   F(IsTypedArray)                       \
-  F(IsRegExp)                           \
   F(IsJSProxy)                          \
   F(Call)                               \
-  F(ValueOf)                            \
-  F(StringCharFromCode)                 \
-  F(StringCharAt)                       \
-  F(OneByteSeqStringSetChar)            \
-  F(TwoByteSeqStringSetChar)            \
   F(IsJSReceiver)                       \
-  F(MathPow)                            \
-  F(HasCachedArrayIndex)                \
-  F(GetCachedArrayIndex)                \
   F(GetSuperConstructor)                \
-  F(GeneratorNext)                      \
-  F(GeneratorReturn)                    \
-  F(GeneratorThrow)                     \
   F(DebugBreakInOptimizedCode)          \
   F(ClassOf)                            \
   F(StringCharCodeAt)                   \
   F(SubString)                          \
   F(RegExpExec)                         \
-  F(RegExpConstructResult)              \
   F(ToInteger)                          \
   F(NumberToString)                     \
   F(ToString)                           \
   F(ToLength)                           \
   F(ToNumber)                           \
-  F(ToName)                             \
   F(ToObject)                           \
   F(DebugIsActive)                      \
   F(CreateIterResultObject)
@@ -572,31 +423,23 @@ class FullCodeGenerator: public AstVisitor {
 
   void EmitIntrinsicAsStubCall(CallRuntime* expr, const Callable& callable);
 
-  // Platform-specific code for resuming generators.
-  void EmitGeneratorResume(Expression *generator,
-                           Expression *value,
-                           JSGeneratorObject::ResumeMode resume_mode);
+  // Emits call to respective code stub.
+  void EmitHasProperty();
+
+  // Platform-specific code for restoring context from current JS frame.
+  void RestoreContext();
 
   // Platform-specific code for loading variables.
-  void EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
-                                     TypeofMode typeof_mode, Label* slow);
-  MemOperand ContextSlotOperandCheckExtensions(Variable* var, Label* slow);
-  void EmitDynamicLookupFastCase(VariableProxy* proxy, TypeofMode typeof_mode,
-                                 Label* slow, Label* done);
   void EmitGlobalVariableLoad(VariableProxy* proxy, TypeofMode typeof_mode);
   void EmitVariableLoad(VariableProxy* proxy,
                         TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
 
   void EmitAccessor(ObjectLiteralProperty* property);
 
-  bool NeedsHoleCheckForLoad(VariableProxy* proxy);
-
-  // Expects the arguments and the function already pushed.
-  void EmitResolvePossiblyDirectEval(int arg_count);
-
   // Platform-specific support for allocating a new closure based on
   // the given function info.
-  void EmitNewClosure(Handle<SharedFunctionInfo> info, bool pretenure);
+  void EmitNewClosure(Handle<SharedFunctionInfo> info, FeedbackVectorSlot slot,
+                      bool pretenure);
 
   // Re-usable portions of CallRuntime
   void EmitLoadJSRuntimeFunction(CallRuntime* expr);
@@ -606,25 +449,9 @@ class FullCodeGenerator: public AstVisitor {
   // The receiver is left on the stack by the IC.
   void EmitNamedPropertyLoad(Property* expr);
 
-  // Load a value from super.named property.
-  // Expect receiver ('this' value) and home_object on the stack.
-  void EmitNamedSuperPropertyLoad(Property* expr);
-
-  // Load a value from super[keyed] property.
-  // Expect receiver ('this' value), home_object and key on the stack.
-  void EmitKeyedSuperPropertyLoad(Property* expr);
-
   // Load a value from a keyed property.
   // The receiver and the key is left on the stack by the IC.
   void EmitKeyedPropertyLoad(Property* expr);
-
-  // Adds the properties to the class (function) object and to its prototype.
-  // Expects the class (function) in the accumulator. The class (function) is
-  // in the accumulator after installing all the properties.
-  void EmitClassDefineProperties(ClassLiteral* lit);
-
-  // Pushes the property key as a Name on the stack.
-  void EmitPropertyKey(ObjectLiteralProperty* property, BailoutId bailout_id);
 
   // Apply the compound assignment operator. Expects the left operand on top
   // of the stack and the right one in the accumulator.
@@ -645,7 +472,8 @@ class FullCodeGenerator: public AstVisitor {
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.
   void EmitVariableAssignment(Variable* var, Token::Value op,
-                              FeedbackVectorSlot slot);
+                              FeedbackVectorSlot slot,
+                              HoleCheckMode hole_check_mode);
 
   // Helper functions to EmitVariableAssignment
   void EmitStoreToStackLocalOrContextSlot(Variable* var,
@@ -654,14 +482,6 @@ class FullCodeGenerator: public AstVisitor {
   // Complete a named property assignment.  The receiver is expected on top
   // of the stack and the right-hand-side value in the accumulator.
   void EmitNamedPropertyAssignment(Assignment* expr);
-
-  // Complete a super named property assignment. The right-hand-side value
-  // is expected in accumulator.
-  void EmitNamedSuperPropertyStore(Property* prop);
-
-  // Complete a super named property assignment. The right-hand-side value
-  // is expected in accumulator.
-  void EmitKeyedSuperPropertyStore(Property* prop);
 
   // Complete a keyed property assignment.  The receiver and key are
   // expected on top of the stack and the right-hand-side value in the
@@ -681,13 +501,17 @@ class FullCodeGenerator: public AstVisitor {
   void EmitSetHomeObjectAccumulator(Expression* initializer, int offset,
                                     FeedbackVectorSlot slot);
 
+  // Platform-specific code for loading a slot to a register.
+  void EmitLoadSlot(Register destination, FeedbackVectorSlot slot);
+  // Platform-specific code for pushing a slot to the stack.
+  void EmitPushSlot(FeedbackVectorSlot slot);
+
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
 
-  // Inside typeof reference errors are never thrown.
-  void CallLoadIC(TypeofMode typeof_mode,
-                  TypeFeedbackId id = TypeFeedbackId::None());
-  void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
+  void CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name);
+  void CallStoreIC(FeedbackVectorSlot slot, Handle<Object> name);
+  void CallKeyedStoreIC(FeedbackVectorSlot slot);
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
@@ -700,27 +524,24 @@ class FullCodeGenerator: public AstVisitor {
   // otherwise.
   void SetStatementPosition(Statement* stmt,
                             InsertBreak insert_break = INSERT_BREAK);
-  void SetExpressionPosition(Expression* expr,
-                             InsertBreak insert_break = SKIP_BREAK);
+  void SetExpressionPosition(Expression* expr);
 
   // Consider an expression a statement. As such, we also insert a break.
   // This is used in loop headers where we want to break for each iteration.
   void SetExpressionAsStatementPosition(Expression* expr);
 
-  void SetCallPosition(Expression* expr);
+  void SetCallPosition(Expression* expr,
+                       TailCallMode tail_call_mode = TailCallMode::kDisallow);
 
   void SetConstructCallPosition(Expression* expr) {
     // Currently call and construct calls are treated the same wrt debugging.
     SetCallPosition(expr);
   }
 
-  // Non-local control flow support.
-  void EnterTryBlock(int handler_index, Label* handler);
-  void ExitTryBlock(int handler_index);
-  void EnterFinallyBlock();
-  void ExitFinallyBlock();
-  void ClearPendingMessage();
+  void RecordStatementPosition(int pos);
+  void RecordPosition(int pos);
 
+  // Local control flow support.
   void EmitContinue(Statement* target);
   void EmitBreak(Statement* target);
 
@@ -740,16 +561,17 @@ class FullCodeGenerator: public AstVisitor {
 
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
-  Handle<Script> script() { return info_->script(); }
-  bool is_eval() { return info_->is_eval(); }
-  bool is_native() { return info_->is_native(); }
-  LanguageMode language_mode() { return literal()->language_mode(); }
-  bool has_simple_parameters() { return info_->has_simple_parameters(); }
-  FunctionLiteral* literal() const { return info_->literal(); }
+  Handle<Script> script();
+  LanguageMode language_mode();
+  bool has_simple_parameters();
+  FunctionLiteral* literal() const;
   Scope* scope() { return scope_; }
 
   static Register context_register();
 
+  // Get fields from the stack frame. Offsets are the frame pointer relative
+  // offsets defined in, e.g., StandardFrameConstants.
+  void LoadFromFrameField(int frame_offset, Register value);
   // Set fields in the stack frame. Offsets are the frame pointer relative
   // offsets defined in, e.g., StandardFrameConstants.
   void StoreToFrameField(int frame_offset, Register value);
@@ -762,10 +584,8 @@ class FullCodeGenerator: public AstVisitor {
   // and PushCatchContext.
   void PushFunctionArgumentForContextAllocation();
 
-  void PushCalleeAndWithBaseObject(Call* expr);
-
   // AST node visit functions.
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
@@ -778,14 +598,9 @@ class FullCodeGenerator: public AstVisitor {
   void Generate();
   void PopulateDeoptimizationData(Handle<Code> code);
   void PopulateTypeFeedbackInfo(Handle<Code> code);
-  void PopulateHandlerTable(Handle<Code> code);
 
   bool MustCreateObjectLiteralWithRuntime(ObjectLiteral* expr) const;
   bool MustCreateArrayLiteralWithRuntime(ArrayLiteral* expr) const;
-
-  void EmitLoadStoreICSlot(FeedbackVectorSlot slot);
-
-  int NewHandlerTableEntry();
 
   struct BailoutEntry {
     BailoutId id;
@@ -796,14 +611,6 @@ class FullCodeGenerator: public AstVisitor {
     BailoutId id;
     unsigned pc;
     uint32_t loop_depth;
-  };
-
-  struct HandlerTableEntry {
-    unsigned range_start;
-    unsigned range_end;
-    unsigned handler_offset;
-    int stack_depth;
-    int try_catch_depth;
   };
 
   class ExpressionContext BASE_EMBEDDED {
@@ -998,15 +805,12 @@ class FullCodeGenerator: public AstVisitor {
   Label return_label_;
   NestedStatement* nesting_stack_;
   int loop_depth_;
-  int try_catch_depth_;
   int operand_stack_depth_;
   ZoneList<Handle<Object> >* globals_;
-  Handle<FixedArray> modules_;
-  int module_index_;
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BackEdgeEntry> back_edges_;
-  ZoneVector<HandlerTableEntry> handler_table_;
+  SourcePositionTableBuilder source_position_table_builder_;
   int ic_total_count_;
   Handle<Cell> profiling_counter_;
 
@@ -1046,11 +850,7 @@ class BackEdgeTable {
     return instruction_start_ + pc_offset(index);
   }
 
-  enum BackEdgeState {
-    INTERRUPT,
-    ON_STACK_REPLACEMENT,
-    OSR_AFTER_STACK_CHECK
-  };
+  enum BackEdgeState { INTERRUPT, ON_STACK_REPLACEMENT };
 
   // Increase allowed loop nesting level by one and patch those matching loops.
   static void Patch(Isolate* isolate, Code* unoptimized_code);
@@ -1064,13 +864,6 @@ class BackEdgeTable {
   // Change all patched back edges back to normal interrupts.
   static void Revert(Isolate* isolate,
                      Code* unoptimized_code);
-
-  // Change a back edge patched for on-stack replacement to perform a
-  // stack check first.
-  static void AddStackCheck(Handle<Code> code, uint32_t pc_offset);
-
-  // Revert the patch by AddStackCheck.
-  static void RemoveStackCheck(Handle<Code> code, uint32_t pc_offset);
 
   // Return the current patch state of the back edge.
   static BackEdgeState GetBackEdgeState(Isolate* isolate,

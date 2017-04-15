@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 // Open a chain of five Node processes each a child of the next. The final
 // process exits immediately. Each process in the chain is instructed to
@@ -5,11 +26,11 @@
 // https://github.com/joyent/node/issues/1726
 
 require('../common');
-var assert = require('assert');
-var ch = require('child_process');
+const assert = require('assert');
+const ch = require('child_process');
 
-var gen = +(process.argv[2] || 0);
-var maxGen = 5;
+const gen = +(process.argv[2] || 0);
+const maxGen = 5;
 
 
 if (gen === maxGen) {
@@ -17,7 +38,7 @@ if (gen === maxGen) {
   return;
 }
 
-var child = ch.spawn(process.execPath, [__filename, gen + 1], {
+const child = ch.spawn(process.execPath, [__filename, gen + 1], {
   stdio: [ 'ignore', 'pipe', 'ignore' ]
 });
 assert.ok(!child.stdin);

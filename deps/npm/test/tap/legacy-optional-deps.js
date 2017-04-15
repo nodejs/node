@@ -22,7 +22,7 @@ var fixture = new Tacks(
       name: 'npm-test-optional-deps',
       version: '1.2.5',
       optionalDependencies: {
-        'npm-test-foobarzaaakakaka': 'http://example.com/',
+        'npm-test-foobarzaaakakaka': common.registry + '/not-a-package',
         async: '10.999.14234',
         mkdirp: '0.3.5',
         optimist: 'some invalid version 99 #! $$ x y z',
@@ -45,6 +45,7 @@ test('setup', function (t) {
 
 test('optional-deps', function (t) {
   server.get('/npm-test-failer').reply(404, {error: 'nope'})
+  server.get('/not-a-package').reply(200, 'HI THERE')
 
   var opts = ['--registry=' + common.registry, '--timeout=100']
   common.npm(opts.concat(['install', fixturepath]), {cwd: basepath}, installCheckAndTest)

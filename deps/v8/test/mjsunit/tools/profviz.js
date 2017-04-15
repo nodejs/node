@@ -78,6 +78,5 @@ var create_baseline = false;
 if (create_baseline) {
   print(JSON.stringify(output_lines, null, 2));
 } else {
-  assertArrayEquals(output_lines,
-                    JSON.parse(read(reference_file)));
+  assertArrayEquals(JSON.parse(read(reference_file)), output_lines);
 }

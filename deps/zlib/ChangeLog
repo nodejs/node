@@ -1,10 +1,53 @@
 
                 ChangeLog file for zlib
 
+Changes in 1.2.11 (15 Jan 2017)
+- Fix deflate stored bug when pulling last block from window
+- Permit immediate deflateParams changes before any deflate input
+
+Changes in 1.2.10 (2 Jan 2017)
+- Avoid warnings on snprintf() return value
+- Fix bug in deflate_stored() for zero-length input
+- Fix bug in gzwrite.c that produced corrupt gzip files
+- Remove files to be installed before copying them in Makefile.in
+- Add warnings when compiling with assembler code
+
+Changes in 1.2.9 (31 Dec 2016)
+- Fix contrib/minizip to permit unzipping with desktop API [Zouzou]
+- Improve contrib/blast to return unused bytes
+- Assure that gzoffset() is correct when appending
+- Improve compress() and uncompress() to support large lengths
+- Fix bug in test/example.c where error code not saved
+- Remedy Coverity warning [Randers-Pehrson]
+- Improve speed of gzprintf() in transparent mode
+- Fix inflateInit2() bug when windowBits is 16 or 32
+- Change DEBUG macro to ZLIB_DEBUG
+- Avoid uninitialized access by gzclose_w()
+- Allow building zlib outside of the source directory
+- Fix bug that accepted invalid zlib header when windowBits is zero
+- Fix gzseek() problem on MinGW due to buggy _lseeki64 there
+- Loop on write() calls in gzwrite.c in case of non-blocking I/O
+- Add --warn (-w) option to ./configure for more compiler warnings
+- Reject a window size of 256 bytes if not using the zlib wrapper
+- Fix bug when level 0 used with Z_HUFFMAN or Z_RLE
+- Add --debug (-d) option to ./configure to define ZLIB_DEBUG
+- Fix bugs in creating a very large gzip header
+- Add uncompress2() function, which returns the input size used
+- Assure that deflateParams() will not switch functions mid-block
+- Dramatically speed up deflation for level 0 (storing)
+- Add gzfread(), duplicating the interface of fread()
+- Add gzfwrite(), duplicating the interface of fwrite()
+- Add deflateGetDictionary() function
+- Use snprintf() for later versions of Microsoft C
+- Fix *Init macros to use z_ prefix when requested
+- Replace as400 with os400 for OS/400 support [Monnerat]
+- Add crc32_z() and adler32_z() functions with size_t lengths
+- Update Visual Studio project files [AraHaan]
+
 Changes in 1.2.8 (28 Apr 2013)
 - Update contrib/minizip/iowin32.c for Windows RT [Vollant]
 - Do not force Z_CONST for C++
-- Clean up contrib/vstudio [Ro§]
+- Clean up contrib/vstudio [RoÃŸ]
 - Correct spelling error in zlib.h
 - Fix mixed line endings in contrib/vstudio
 
@@ -34,7 +77,7 @@ Changes in 1.2.7.1 (24 Mar 2013)
 - Clean up the usage of z_const and respect const usage within zlib
 - Clean up examples/gzlog.[ch] comparisons of different types
 - Avoid shift equal to bits in type (caused endless loop)
-- Fix unintialized value bug in gzputc() introduced by const patches
+- Fix uninitialized value bug in gzputc() introduced by const patches
 - Fix memory allocation error in examples/zran.c [Nor]
 - Fix bug where gzopen(), gzclose() would write an empty file
 - Fix bug in gzclose() when gzwrite() runs out of memory
@@ -194,7 +237,7 @@ Changes in 1.2.5.2 (17 Dec 2011)
 - Add a transparent write mode to gzopen() when 'T' is in the mode
 - Update python link in zlib man page
 - Get inffixed.h and MAKEFIXED result to match
-- Add a ./config --solo option to make zlib subset with no libary use
+- Add a ./config --solo option to make zlib subset with no library use
 - Add undocumented inflateResetKeep() function for CAB file decoding
 - Add --cover option to ./configure for gcc coverage testing
 - Add #define ZLIB_CONST option to use const in the z_stream interface
@@ -564,7 +607,7 @@ Changes in 1.2.3.1 (16 August 2006)
 - Update make_vms.com [Zinser]
 - Use -fPIC for shared build in configure [Teredesai, Nicholson]
 - Use only major version number for libz.so on IRIX and OSF1 [Reinholdtsen]
-- Use fdopen() (not _fdopen()) for Interix in zutil.h [BŠck]
+- Use fdopen() (not _fdopen()) for Interix in zutil.h [BÃ¤ck]
 - Add some FAQ entries about the contrib directory
 - Update the MVS question in the FAQ
 - Avoid extraneous reads after EOF in gzio.c [Brown]
@@ -1178,7 +1221,7 @@ Changes in 1.0.6 (19 Jan 1998)
         386 asm code replacing longest_match().
    contrib/iostream/ by Kevin Ruland <kevin@rodin.wustl.edu>
         A C++ I/O streams interface to the zlib gz* functions
-   contrib/iostream2/  by Tyge Løvset <Tyge.Lovset@cmr.no>
+   contrib/iostream2/  by Tyge LÃ¸vset <Tyge.Lovset@cmr.no>
         Another C++ I/O streams interface
    contrib/untgz/  by "Pedro A. Aranda Guti\irrez" <paag@tid.es>
         A very simple tar.gz file extractor using zlib
@@ -1267,7 +1310,7 @@ Changes in 1.0.1 (20 May 96) [1.0 skipped to avoid confusion]
 - fix array overlay in deflate.c which sometimes caused bad compressed data
 - fix inflate bug with empty stored block
 - fix MSDOS medium model which was broken in 0.99
-- fix deflateParams() which could generated bad compressed data.
+- fix deflateParams() which could generate bad compressed data.
 - Bytef is define'd instead of typedef'ed (work around Borland bug)
 - added an INDEX file
 - new makefiles for DJGPP (Makefile.dj2), 32-bit Borland (Makefile.b32),

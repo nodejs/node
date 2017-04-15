@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/opcodes.h"
-#include "src/compiler/operator.h"
-#include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/types.h"
+#include "src/compiler/opcodes.h"
+#include "src/compiler/operator-properties.h"
+#include "src/compiler/operator.h"
+#include "src/compiler/types.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -31,7 +31,6 @@ std::ostream& operator<<(std::ostream& os, const PureOperator& pop) {
   return os << IrOpcode::Mnemonic(pop.opcode);
 }
 
-
 const PureOperator kPureOperators[] = {
 #define PURE(Name, properties, input_count)              \
   {                                                      \
@@ -39,7 +38,6 @@ const PureOperator kPureOperators[] = {
         Operator::kPure | properties, input_count        \
   }
     PURE(BooleanNot, Operator::kNoProperties, 1),
-    PURE(BooleanToNumber, Operator::kNoProperties, 1),
     PURE(NumberEqual, Operator::kCommutative, 2),
     PURE(NumberLessThan, Operator::kNoProperties, 2),
     PURE(NumberLessThanOrEqual, Operator::kNoProperties, 2),
@@ -56,15 +54,17 @@ const PureOperator kPureOperators[] = {
     PURE(NumberShiftRightLogical, Operator::kNoProperties, 2),
     PURE(NumberToInt32, Operator::kNoProperties, 1),
     PURE(NumberToUint32, Operator::kNoProperties, 1),
-    PURE(PlainPrimitiveToNumber, Operator::kNoProperties, 1),
+    PURE(ChangeTaggedSignedToInt32, Operator::kNoProperties, 1),
     PURE(ChangeTaggedToInt32, Operator::kNoProperties, 1),
     PURE(ChangeTaggedToUint32, Operator::kNoProperties, 1),
     PURE(ChangeTaggedToFloat64, Operator::kNoProperties, 1),
     PURE(ChangeInt32ToTagged, Operator::kNoProperties, 1),
     PURE(ChangeUint32ToTagged, Operator::kNoProperties, 1),
-    PURE(ChangeFloat64ToTagged, Operator::kNoProperties, 1),
-    PURE(ChangeBoolToBit, Operator::kNoProperties, 1),
-    PURE(ChangeBitToBool, Operator::kNoProperties, 1),
+    PURE(ChangeTaggedToBit, Operator::kNoProperties, 1),
+    PURE(ChangeBitToTagged, Operator::kNoProperties, 1),
+    PURE(TruncateTaggedToWord32, Operator::kNoProperties, 1),
+    PURE(TruncateTaggedToFloat64, Operator::kNoProperties, 1),
+    PURE(TruncateTaggedToBit, Operator::kNoProperties, 1),
     PURE(ObjectIsNumber, Operator::kNoProperties, 1),
     PURE(ObjectIsReceiver, Operator::kNoProperties, 1),
     PURE(ObjectIsSmi, Operator::kNoProperties, 1)
@@ -156,7 +156,8 @@ TEST_P(SimplifiedBufferAccessOperatorTest, LoadBuffer) {
   const Operator* op = simplified.LoadBuffer(access);
 
   EXPECT_EQ(IrOpcode::kLoadBuffer, op->opcode());
-  EXPECT_EQ(Operator::kNoThrow | Operator::kNoWrite, op->properties());
+  EXPECT_EQ(Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
+            op->properties());
   EXPECT_EQ(access, BufferAccessOf(op));
 
   EXPECT_EQ(3, op->ValueInputCount());
@@ -176,7 +177,8 @@ TEST_P(SimplifiedBufferAccessOperatorTest, StoreBuffer) {
   const Operator* op = simplified.StoreBuffer(access);
 
   EXPECT_EQ(IrOpcode::kStoreBuffer, op->opcode());
-  EXPECT_EQ(Operator::kNoRead | Operator::kNoThrow, op->properties());
+  EXPECT_EQ(Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,
+            op->properties());
   EXPECT_EQ(access, BufferAccessOf(op));
 
   EXPECT_EQ(4, op->ValueInputCount());
@@ -203,39 +205,46 @@ namespace {
 
 const ElementAccess kElementAccesses[] = {
     {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
-     MachineType::AnyTagged()},
-    {kUntaggedBase, 0, Type::Any(), MachineType::Int8()},
-    {kUntaggedBase, 0, Type::Any(), MachineType::Int16()},
-    {kUntaggedBase, 0, Type::Any(), MachineType::Int32()},
-    {kUntaggedBase, 0, Type::Any(), MachineType::Uint8()},
-    {kUntaggedBase, 0, Type::Any(), MachineType::Uint16()},
-    {kUntaggedBase, 0, Type::Any(), MachineType::Uint32()},
-    {kUntaggedBase, 0, Type::Signed32(), MachineType::Int8()},
-    {kUntaggedBase, 0, Type::Unsigned32(), MachineType::Uint8()},
-    {kUntaggedBase, 0, Type::Signed32(), MachineType::Int16()},
-    {kUntaggedBase, 0, Type::Unsigned32(), MachineType::Uint16()},
-    {kUntaggedBase, 0, Type::Signed32(), MachineType::Int32()},
-    {kUntaggedBase, 0, Type::Unsigned32(), MachineType::Uint32()},
+     MachineType::AnyTagged(), kFullWriteBarrier},
+    {kUntaggedBase, 0, Type::Any(), MachineType::Int8(), kNoWriteBarrier},
+    {kUntaggedBase, 0, Type::Any(), MachineType::Int16(), kNoWriteBarrier},
+    {kUntaggedBase, 0, Type::Any(), MachineType::Int32(), kNoWriteBarrier},
+    {kUntaggedBase, 0, Type::Any(), MachineType::Uint8(), kNoWriteBarrier},
+    {kUntaggedBase, 0, Type::Any(), MachineType::Uint16(), kNoWriteBarrier},
+    {kUntaggedBase, 0, Type::Any(), MachineType::Uint32(), kNoWriteBarrier},
+    {kUntaggedBase, 0, Type::Signed32(), MachineType::Int8(), kNoWriteBarrier},
+    {kUntaggedBase, 0, Type::Unsigned32(), MachineType::Uint8(),
+     kNoWriteBarrier},
+    {kUntaggedBase, 0, Type::Signed32(), MachineType::Int16(), kNoWriteBarrier},
+    {kUntaggedBase, 0, Type::Unsigned32(), MachineType::Uint16(),
+     kNoWriteBarrier},
+    {kUntaggedBase, 0, Type::Signed32(), MachineType::Int32(), kNoWriteBarrier},
+    {kUntaggedBase, 0, Type::Unsigned32(), MachineType::Uint32(),
+     kNoWriteBarrier},
     {kUntaggedBase, 0, Type::Number(),
-     MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone)},
+     MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone),
+     kNoWriteBarrier},
     {kUntaggedBase, 0, Type::Number(),
-     MachineType(MachineRepresentation::kFloat64, MachineSemantic::kNone)},
+     MachineType(MachineRepresentation::kFloat64, MachineSemantic::kNone),
+     kNoWriteBarrier},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Signed32(),
-     MachineType::Int8()},
+     MachineType::Int8(), kNoWriteBarrier},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Unsigned32(),
-     MachineType::Uint8()},
+     MachineType::Uint8(), kNoWriteBarrier},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Signed32(),
-     MachineType::Int16()},
+     MachineType::Int16(), kNoWriteBarrier},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Unsigned32(),
-     MachineType::Uint16()},
+     MachineType::Uint16(), kNoWriteBarrier},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Signed32(),
-     MachineType::Int32()},
+     MachineType::Int32(), kNoWriteBarrier},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Unsigned32(),
-     MachineType::Uint32()},
+     MachineType::Uint32(), kNoWriteBarrier},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Number(),
-     MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone)},
+     MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone),
+     kNoWriteBarrier},
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Number(),
-     MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone)}};
+     MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone),
+     kNoWriteBarrier}};
 
 }  // namespace
 
@@ -251,7 +260,8 @@ TEST_P(SimplifiedElementAccessOperatorTest, LoadElement) {
   const Operator* op = simplified.LoadElement(access);
 
   EXPECT_EQ(IrOpcode::kLoadElement, op->opcode());
-  EXPECT_EQ(Operator::kNoThrow | Operator::kNoWrite, op->properties());
+  EXPECT_EQ(Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
+            op->properties());
   EXPECT_EQ(access, ElementAccessOf(op));
 
   EXPECT_EQ(2, op->ValueInputCount());
@@ -271,7 +281,8 @@ TEST_P(SimplifiedElementAccessOperatorTest, StoreElement) {
   const Operator* op = simplified.StoreElement(access);
 
   EXPECT_EQ(IrOpcode::kStoreElement, op->opcode());
-  EXPECT_EQ(Operator::kNoRead | Operator::kNoThrow, op->properties());
+  EXPECT_EQ(Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,
+            op->properties());
   EXPECT_EQ(access, ElementAccessOf(op));
 
   EXPECT_EQ(3, op->ValueInputCount());

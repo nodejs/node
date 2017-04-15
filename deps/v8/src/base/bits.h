@@ -6,6 +6,8 @@
 #define V8_BASE_BITS_H_
 
 #include <stdint.h>
+
+#include "src/base/base-export.h"
 #include "src/base/macros.h"
 #if V8_CC_MSVC
 #include <intrin.h>
@@ -16,6 +18,12 @@
 
 namespace v8 {
 namespace base {
+
+namespace internal {
+template <typename T>
+class CheckedNumeric;
+}
+
 namespace bits {
 
 // CountPopulation32(value) returns the number of bits set in |value|.
@@ -105,7 +113,6 @@ T ReverseBits(T value) {
   return result;
 }
 
-
 // CountTrailingZeros32(value) returns the number of zero bits preceding the
 // least significant 1 bit in |value| if |value| is non-zero, otherwise it
 // returns 32.
@@ -141,6 +148,14 @@ inline unsigned CountTrailingZeros64(uint64_t value) {
 #endif
 }
 
+// Overloaded versions of CountTrailingZeros32/64.
+inline unsigned CountTrailingZeros(uint32_t value) {
+  return CountTrailingZeros32(value);
+}
+
+inline unsigned CountTrailingZeros(uint64_t value) {
+  return CountTrailingZeros64(value);
+}
 
 // Returns true iff |value| is a power of 2.
 inline bool IsPowerOfTwo32(uint32_t value) {
@@ -159,8 +174,7 @@ inline bool IsPowerOfTwo64(uint64_t value) {
 // power of two, it is returned as is. |value| must be less than or equal to
 // 0x80000000u. Implementation is from "Hacker's Delight" by Henry S. Warren,
 // Jr., figure 3-3, page 48, where the function is called clp2.
-uint32_t RoundUpToPowerOfTwo32(uint32_t value);
-
+V8_BASE_EXPORT uint32_t RoundUpToPowerOfTwo32(uint32_t value);
 
 // RoundDownToPowerOfTwo32(value) returns the greatest power of two which is
 // less than or equal to |value|. If you pass in a |value| that is already a
@@ -225,6 +239,10 @@ inline bool SignedSubOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
 #endif
 }
 
+// SignedMulOverflow32(lhs,rhs,val) performs a signed multiplication of |lhs|
+// and |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed multiplication resulted in an overflow.
+V8_BASE_EXPORT bool SignedMulOverflow32(int32_t lhs, int32_t rhs, int32_t* val);
 
 // SignedAddOverflow64(lhs,rhs,val) performs a signed summation of |lhs| and
 // |rhs| and stores the result into the variable pointed to by |val| and
@@ -245,30 +263,31 @@ inline bool SignedSubOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
   return ((res ^ lhs) & (res ^ ~rhs) & (1ULL << 63)) != 0;
 }
 
+// SignedMulOverflow64(lhs,rhs,val) performs a signed multiplication of |lhs|
+// and |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed multiplication resulted in an overflow.
+V8_BASE_EXPORT bool SignedMulOverflow64(int64_t lhs, int64_t rhs, int64_t* val);
 
 // SignedMulHigh32(lhs, rhs) multiplies two signed 32-bit values |lhs| and
 // |rhs|, extracts the most significant 32 bits of the result, and returns
 // those.
-int32_t SignedMulHigh32(int32_t lhs, int32_t rhs);
-
+V8_BASE_EXPORT int32_t SignedMulHigh32(int32_t lhs, int32_t rhs);
 
 // SignedMulHighAndAdd32(lhs, rhs, acc) multiplies two signed 32-bit values
 // |lhs| and |rhs|, extracts the most significant 32 bits of the result, and
 // adds the accumulate value |acc|.
-int32_t SignedMulHighAndAdd32(int32_t lhs, int32_t rhs, int32_t acc);
-
+V8_BASE_EXPORT int32_t SignedMulHighAndAdd32(int32_t lhs, int32_t rhs,
+                                             int32_t acc);
 
 // SignedDiv32(lhs, rhs) divides |lhs| by |rhs| and returns the quotient
 // truncated to int32. If |rhs| is zero, then zero is returned. If |lhs|
 // is minint and |rhs| is -1, it returns minint.
-int32_t SignedDiv32(int32_t lhs, int32_t rhs);
-
+V8_BASE_EXPORT int32_t SignedDiv32(int32_t lhs, int32_t rhs);
 
 // SignedMod32(lhs, rhs) divides |lhs| by |rhs| and returns the remainder
 // truncated to int32. If either |rhs| is zero or |lhs| is minint and |rhs|
 // is -1, it returns zero.
-int32_t SignedMod32(int32_t lhs, int32_t rhs);
-
+V8_BASE_EXPORT int32_t SignedMod32(int32_t lhs, int32_t rhs);
 
 // UnsignedAddOverflow32(lhs,rhs,val) performs an unsigned summation of |lhs|
 // and |rhs| and stores the result into the variable pointed to by |val| and
@@ -295,6 +314,19 @@ inline uint32_t UnsignedDiv32(uint32_t lhs, uint32_t rhs) {
 inline uint32_t UnsignedMod32(uint32_t lhs, uint32_t rhs) {
   return rhs ? lhs % rhs : 0u;
 }
+
+
+// Clamp |value| on overflow and underflow conditions.
+V8_BASE_EXPORT int64_t
+FromCheckedNumeric(const internal::CheckedNumeric<int64_t> value);
+
+// SignedSaturatedAdd64(lhs, rhs) adds |lhs| and |rhs|,
+// checks and returns the result.
+V8_BASE_EXPORT int64_t SignedSaturatedAdd64(int64_t lhs, int64_t rhs);
+
+// SignedSaturatedSub64(lhs, rhs) substracts |lhs| by |rhs|,
+// checks and returns the result.
+V8_BASE_EXPORT int64_t SignedSaturatedSub64(int64_t lhs, int64_t rhs);
 
 }  // namespace bits
 }  // namespace base

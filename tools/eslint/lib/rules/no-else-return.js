@@ -6,6 +6,13 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+const FixTracker = require("../util/fix-tracker");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -17,10 +24,12 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -33,7 +42,66 @@ module.exports = {
          * @returns {void}
          */
         function displayReport(node) {
-            context.report(node, "Unexpected 'else' after 'return'.");
+            context.report({
+                node,
+                message: "Unnecessary 'else' after 'return'.",
+                fix: fixer => {
+                    const sourceCode = context.getSourceCode();
+                    const startToken = sourceCode.getFirstToken(node);
+                    const elseToken = sourceCode.getTokenBefore(startToken);
+                    const source = sourceCode.getText(node);
+                    const lastIfToken = sourceCode.getTokenBefore(elseToken);
+                    let fixedSource, firstTokenOfElseBlock;
+
+                    if (startToken.type === "Punctuator" && startToken.value === "{") {
+                        firstTokenOfElseBlock = sourceCode.getTokenAfter(startToken);
+                    } else {
+                        firstTokenOfElseBlock = startToken;
+                    }
+
+                    // If the if block does not have curly braces and does not end in a semicolon
+                    // and the else block starts with (, [, /, +, ` or -, then it is not
+                    // safe to remove the else keyword, because ASI will not add a semicolon
+                    // after the if block
+                    const ifBlockMaybeUnsafe = node.parent.consequent.type !== "BlockStatement" && lastIfToken.value !== ";";
+                    const elseBlockUnsafe = /^[([/+`-]/.test(firstTokenOfElseBlock.value);
+
+                    if (ifBlockMaybeUnsafe && elseBlockUnsafe) {
+                        return null;
+                    }
+
+                    const endToken = sourceCode.getLastToken(node);
+                    const lastTokenOfElseBlock = sourceCode.getTokenBefore(endToken);
+
+                    if (lastTokenOfElseBlock.value !== ";") {
+                        const nextToken = sourceCode.getTokenAfter(endToken);
+
+                        const nextTokenUnsafe = nextToken && /^[([/+`-]/.test(nextToken.value);
+                        const nextTokenOnSameLine = nextToken && nextToken.loc.start.line === lastTokenOfElseBlock.loc.start.line;
+
+                        // If the else block contents does not end in a semicolon,
+                        // and the else block starts with (, [, /, +, ` or -, then it is not
+                        // safe to remove the else block, because ASI will not add a semicolon
+                        // after the remaining else block contents
+                        if (nextTokenUnsafe || (nextTokenOnSameLine && nextToken.value !== "}")) {
+                            return null;
+                        }
+                    }
+
+                    if (startToken.type === "Punctuator" && startToken.value === "{") {
+                        fixedSource = source.slice(1, -1);
+                    } else {
+                        fixedSource = source;
+                    }
+
+                    // Extend the replacement range to include the entire
+                    // function to avoid conflicting with no-useless-return.
+                    // https://github.com/eslint/eslint/issues/8026
+                    return new FixTracker(fixer, sourceCode)
+                        .retainEnclosingFunction(node)
+                        .replaceTextRange([elseToken.start, node.end], fixedSource);
+                }
+            });
         }
 
         /**
@@ -56,7 +124,7 @@ module.exports = {
          */
         function naiveHasReturn(node) {
             if (node.type === "BlockStatement") {
-                var body = node.body,
+                const body = node.body,
                     lastChildNode = body[body.length - 1];
 
                 return lastChildNode && checkForReturn(lastChildNode);
@@ -112,13 +180,44 @@ module.exports = {
 
                 // If we have a BlockStatement, check each consequent body node.
                 return node.body.some(checkForReturnOrIf);
-            } else {
+            }
 
-                /*
-                 * If not a block statement, make sure the consequent isn't a
-                 * ReturnStatement or an IfStatement with returns on both paths.
-                 */
-                return checkForReturnOrIf(node);
+            /*
+             * If not a block statement, make sure the consequent isn't a
+             * ReturnStatement or an IfStatement with returns on both paths.
+             */
+            return checkForReturnOrIf(node);
+        }
+
+        /**
+         * Check the if statement
+         * @returns {void}
+         * @param {Node} node The node for the if statement to check
+         * @private
+         */
+        function IfStatement(node) {
+            const parent = context.getAncestors().pop();
+            let consequents,
+                alternate;
+
+            /*
+             * Fixing this would require splitting one statement into two, so no error should
+             * be reported if this node is in a position where only one statement is allowed.
+             */
+            if (!astUtils.STATEMENT_LIST_PARENTS.has(parent.type)) {
+                return;
+            }
+
+            for (consequents = []; node.type === "IfStatement"; node = node.alternate) {
+                if (!node.alternate) {
+                    return;
+                }
+                consequents.push(node.consequent);
+                alternate = node.alternate;
+            }
+
+            if (consequents.every(alwaysReturns)) {
+                displayReport(alternate);
             }
         }
 
@@ -128,29 +227,7 @@ module.exports = {
 
         return {
 
-            IfStatement: function(node) {
-                var parent = context.getAncestors().pop(),
-                    consequents,
-                    alternate;
-
-                // Only "top-level" if statements are checked, meaning the first `if`
-                // in a `if-else-if-...` chain.
-                if (parent.type === "IfStatement" && parent.alternate === node) {
-                    return;
-                }
-
-                for (consequents = []; node.type === "IfStatement"; node = node.alternate) {
-                    if (!node.alternate) {
-                        return;
-                    }
-                    consequents.push(node.consequent);
-                    alternate = node.alternate;
-                }
-
-                if (consequents.every(alwaysReturns)) {
-                    displayReport(alternate);
-                }
-            }
+            "IfStatement:exit": IfStatement
 
         };
 

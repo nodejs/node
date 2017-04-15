@@ -4,6 +4,7 @@
 
 #include "src/compiler/escape-analysis-reducer.h"
 
+#include "src/compiler/all-nodes.h"
 #include "src/compiler/js-graph.h"
 #include "src/counters.h"
 
@@ -28,10 +29,9 @@ EscapeAnalysisReducer::EscapeAnalysisReducer(Editor* editor, JSGraph* jsgraph,
       escape_analysis_(escape_analysis),
       zone_(zone),
       fully_reduced_(static_cast<int>(jsgraph->graph()->NodeCount() * 2), zone),
-      exists_virtual_allocate_(true) {}
+      exists_virtual_allocate_(escape_analysis->ExistsVirtualAllocate()) {}
 
-
-Reduction EscapeAnalysisReducer::Reduce(Node* node) {
+Reduction EscapeAnalysisReducer::ReduceNode(Node* node) {
   if (node->id() < static_cast<NodeId>(fully_reduced_.length()) &&
       fully_reduced_.Contains(node->id())) {
     return NoChange();
@@ -61,8 +61,7 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
         break;
       }
       bool depends_on_object_state = false;
-      for (int i = 0; i < node->InputCount(); i++) {
-        Node* input = node->InputAt(i);
+      for (Node* input : node->inputs()) {
         switch (input->opcode()) {
           case IrOpcode::kAllocate:
           case IrOpcode::kFinishRegion:
@@ -97,6 +96,39 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
   return NoChange();
 }
 
+Reduction EscapeAnalysisReducer::Reduce(Node* node) {
+  Reduction reduction = ReduceNode(node);
+  if (reduction.Changed() && node != reduction.replacement()) {
+    escape_analysis()->SetReplacement(node, reduction.replacement());
+  }
+  return reduction;
+}
+
+namespace {
+
+Node* MaybeGuard(JSGraph* jsgraph, Zone* zone, Node* original,
+                 Node* replacement) {
+  // We might need to guard the replacement if the type of the {replacement}
+  // node is not in a sub-type relation to the type of the the {original} node.
+  Type* const replacement_type = NodeProperties::GetType(replacement);
+  Type* const original_type = NodeProperties::GetType(original);
+  if (!replacement_type->Is(original_type)) {
+    Node* const control = NodeProperties::GetControlInput(original);
+    replacement = jsgraph->graph()->NewNode(
+        jsgraph->common()->TypeGuard(original_type), replacement, control);
+    NodeProperties::SetType(replacement, original_type);
+  }
+  return replacement;
+}
+
+Node* SkipTypeGuards(Node* node) {
+  while (node->opcode() == IrOpcode::kTypeGuard) {
+    node = NodeProperties::GetValueInput(node, 0);
+  }
+  return node;
+}
+
+}  // namespace
 
 Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kLoadField ||
@@ -104,12 +136,16 @@ Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
   if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
     fully_reduced_.Add(node->id());
   }
-  if (Node* rep = escape_analysis()->GetReplacement(node)) {
-    counters()->turbo_escape_loads_replaced()->Increment();
-    TRACE("Replaced #%d (%s) with #%d (%s)\n", node->id(),
-          node->op()->mnemonic(), rep->id(), rep->op()->mnemonic());
-    ReplaceWithValue(node, rep);
-    return Replace(rep);
+  if (escape_analysis()->IsVirtual(
+          SkipTypeGuards(NodeProperties::GetValueInput(node, 0)))) {
+    if (Node* rep = escape_analysis()->GetReplacement(node)) {
+      isolate()->counters()->turbo_escape_loads_replaced()->Increment();
+      TRACE("Replaced #%d (%s) with #%d (%s)\n", node->id(),
+            node->op()->mnemonic(), rep->id(), rep->op()->mnemonic());
+      rep = MaybeGuard(jsgraph(), zone(), node, rep);
+      ReplaceWithValue(node, rep);
+      return Replace(rep);
+    }
   }
   return NoChange();
 }
@@ -121,7 +157,8 @@ Reduction EscapeAnalysisReducer::ReduceStore(Node* node) {
   if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
     fully_reduced_.Add(node->id());
   }
-  if (escape_analysis()->IsVirtual(NodeProperties::GetValueInput(node, 0))) {
+  if (escape_analysis()->IsVirtual(
+          SkipTypeGuards(NodeProperties::GetValueInput(node, 0)))) {
     TRACE("Removed #%d (%s) from effect chain\n", node->id(),
           node->op()->mnemonic());
     RelaxEffectsAndControls(node);
@@ -138,7 +175,7 @@ Reduction EscapeAnalysisReducer::ReduceAllocate(Node* node) {
   }
   if (escape_analysis()->IsVirtual(node)) {
     RelaxEffectsAndControls(node);
-    counters()->turbo_escape_allocs_replaced()->Increment();
+    isolate()->counters()->turbo_escape_allocs_replaced()->Increment();
     TRACE("Removed allocate #%d from effect chain\n", node->id());
     return Changed(node);
   }
@@ -176,14 +213,14 @@ Reduction EscapeAnalysisReducer::ReduceFinishRegion(Node* node) {
 
 Reduction EscapeAnalysisReducer::ReduceReferenceEqual(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kReferenceEqual);
-  Node* left = NodeProperties::GetValueInput(node, 0);
-  Node* right = NodeProperties::GetValueInput(node, 1);
+  Node* left = SkipTypeGuards(NodeProperties::GetValueInput(node, 0));
+  Node* right = SkipTypeGuards(NodeProperties::GetValueInput(node, 1));
   if (escape_analysis()->IsVirtual(left)) {
     if (escape_analysis()->IsVirtual(right) &&
         escape_analysis()->CompareVirtualObjects(left, right)) {
       ReplaceWithValue(node, jsgraph()->TrueConstant());
       TRACE("Replaced ref eq #%d with true\n", node->id());
-      Replace(jsgraph()->TrueConstant());
+      return Replace(jsgraph()->TrueConstant());
     }
     // Right-hand side is not a virtual object, or a different one.
     ReplaceWithValue(node, jsgraph()->FalseConstant());
@@ -201,7 +238,7 @@ Reduction EscapeAnalysisReducer::ReduceReferenceEqual(Node* node) {
 
 Reduction EscapeAnalysisReducer::ReduceObjectIsSmi(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kObjectIsSmi);
-  Node* input = NodeProperties::GetValueInput(node, 0);
+  Node* input = SkipTypeGuards(NodeProperties::GetValueInput(node, 0));
   if (escape_analysis()->IsVirtual(input)) {
     ReplaceWithValue(node, jsgraph()->FalseConstant());
     TRACE("Replaced ObjectIsSmi #%d with false\n", node->id());
@@ -268,7 +305,7 @@ Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
     }
   }
   if (node->opcode() == IrOpcode::kFrameState) {
-    Node* outer_frame_state = NodeProperties::GetFrameStateInput(node, 0);
+    Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
     if (outer_frame_state->opcode() == IrOpcode::kFrameState) {
       if (Node* ret =
               ReduceDeoptState(outer_frame_state, effect, multiple_users_rec)) {
@@ -277,7 +314,7 @@ Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
           node = clone = jsgraph()->graph()->CloneNode(node);
           TRACE(" to #%d\n", node->id());
         }
-        NodeProperties::ReplaceFrameStateInput(node, 0, ret);
+        NodeProperties::ReplaceFrameStateInput(node, ret);
       }
     }
   }
@@ -294,7 +331,7 @@ Node* EscapeAnalysisReducer::ReduceStateValueInput(Node* node, int node_index,
                                                    bool node_multiused,
                                                    bool already_cloned,
                                                    bool multiple_users) {
-  Node* input = NodeProperties::GetValueInput(node, node_index);
+  Node* input = SkipTypeGuards(NodeProperties::GetValueInput(node, node_index));
   if (node->id() < static_cast<NodeId>(fully_reduced_.length()) &&
       fully_reduced_.Contains(node->id())) {
     return nullptr;
@@ -305,6 +342,12 @@ Node* EscapeAnalysisReducer::ReduceStateValueInput(Node* node, int node_index,
   if (input->opcode() == IrOpcode::kFinishRegion ||
       input->opcode() == IrOpcode::kAllocate) {
     if (escape_analysis()->IsVirtual(input)) {
+      if (escape_analysis()->IsCyclicObjectState(effect, input)) {
+        // TODO(mstarzinger): Represent cyclic object states differently to
+        // ensure the scheduler can properly handle such object states.
+        compilation_failed_ = true;
+        return nullptr;
+      }
       if (Node* object_state =
               escape_analysis()->GetOrCreateObjectState(effect, input)) {
         if (node_multiused || (multiple_users && !already_cloned)) {
@@ -328,39 +371,18 @@ Node* EscapeAnalysisReducer::ReduceStateValueInput(Node* node, int node_index,
 }
 
 
-Counters* EscapeAnalysisReducer::counters() const {
-  return jsgraph_->isolate()->counters();
-}
-
-
-class EscapeAnalysisVerifier final : public AdvancedReducer {
- public:
-  EscapeAnalysisVerifier(Editor* editor, EscapeAnalysis* escape_analysis)
-      : AdvancedReducer(editor), escape_analysis_(escape_analysis) {}
-
-  Reduction Reduce(Node* node) final {
-    switch (node->opcode()) {
-      case IrOpcode::kAllocate:
-        CHECK(!escape_analysis_->IsVirtual(node));
-        break;
-      default:
-        break;
-    }
-    return NoChange();
-  }
-
- private:
-  EscapeAnalysis* escape_analysis_;
-};
-
 void EscapeAnalysisReducer::VerifyReplacement() const {
 #ifdef DEBUG
-  GraphReducer graph_reducer(zone(), jsgraph()->graph());
-  EscapeAnalysisVerifier verifier(&graph_reducer, escape_analysis());
-  graph_reducer.AddReducer(&verifier);
-  graph_reducer.ReduceGraph();
+  AllNodes all(zone(), jsgraph()->graph());
+  for (Node* node : all.reachable) {
+    if (node->opcode() == IrOpcode::kAllocate) {
+      CHECK(!escape_analysis_->IsVirtual(node));
+    }
+  }
 #endif  // DEBUG
 }
+
+Isolate* EscapeAnalysisReducer::isolate() const { return jsgraph_->isolate(); }
 
 }  // namespace compiler
 }  // namespace internal

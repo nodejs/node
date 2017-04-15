@@ -19,10 +19,11 @@ const toSend = [Buffer.alloc(256, 'x'),
 const received = [];
 
 client.on('listening', common.mustCall(() => {
-  client.send(toSend[0], 0, toSend[0].length, common.PORT);
-  client.send(toSend[1], common.PORT);
-  client.send([toSend[2]], common.PORT);
-  client.send(toSend[3], 0, toSend[3].length, common.PORT);
+  const port = client.address().port;
+  client.send(toSend[0], 0, toSend[0].length, port);
+  client.send(toSend[1], port);
+  client.send([toSend[2]], port);
+  client.send(toSend[3], 0, toSend[3].length, port);
 }));
 
 client.on('message', common.mustCall((buf, info) => {
@@ -38,4 +39,4 @@ client.on('message', common.mustCall((buf, info) => {
   }
 }, toSend.length));
 
-client.bind(common.PORT);
+client.bind(0);

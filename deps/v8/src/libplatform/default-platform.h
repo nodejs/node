@@ -7,10 +7,14 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <queue>
 #include <vector>
 
+#include "include/libplatform/libplatform-export.h"
+#include "include/libplatform/v8-tracing.h"
 #include "include/v8-platform.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/libplatform/task-queue.h"
@@ -22,7 +26,11 @@ class TaskQueue;
 class Thread;
 class WorkerThread;
 
-class DefaultPlatform : public Platform {
+namespace tracing {
+class TracingController;
+}
+
+class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
  public:
   DefaultPlatform();
   virtual ~DefaultPlatform();
@@ -32,6 +40,8 @@ class DefaultPlatform : public Platform {
   void EnsureInitialized();
 
   bool PumpMessageLoop(v8::Isolate* isolate);
+
+  void RunIdleTasks(v8::Isolate* isolate, double idle_time_in_seconds);
 
   // v8::Platform implementation.
   size_t NumberOfAvailableBackgroundThreads() override;
@@ -46,33 +56,42 @@ class DefaultPlatform : public Platform {
   const uint8_t* GetCategoryGroupEnabled(const char* name) override;
   const char* GetCategoryGroupName(
       const uint8_t* category_enabled_flag) override;
-  uint64_t AddTraceEvent(char phase, const uint8_t* category_enabled_flag,
-                         const char* name, uint64_t id, uint64_t bind_id,
-                         int32_t num_args, const char** arg_names,
-                         const uint8_t* arg_types, const uint64_t* arg_values,
-                         unsigned int flags) override;
+  using Platform::AddTraceEvent;
+  uint64_t AddTraceEvent(
+      char phase, const uint8_t* category_enabled_flag, const char* name,
+      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
+      const char** arg_names, const uint8_t* arg_types,
+      const uint64_t* arg_values,
+      std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
+      unsigned int flags) override;
   void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
                                 const char* name, uint64_t handle) override;
+  void SetTracingController(tracing::TracingController* tracing_controller);
 
+  void AddTraceStateObserver(TraceStateObserver* observer) override;
+  void RemoveTraceStateObserver(TraceStateObserver* observer) override;
 
  private:
   static const int kMaxThreadPoolSize;
 
   Task* PopTaskInMainThreadQueue(v8::Isolate* isolate);
   Task* PopTaskInMainThreadDelayedQueue(v8::Isolate* isolate);
+  IdleTask* PopTaskInMainThreadIdleQueue(v8::Isolate* isolate);
 
   base::Mutex lock_;
   bool initialized_;
   int thread_pool_size_;
   std::vector<WorkerThread*> thread_pool_;
   TaskQueue queue_;
-  std::map<v8::Isolate*, std::queue<Task*> > main_thread_queue_;
+  std::map<v8::Isolate*, std::queue<Task*>> main_thread_queue_;
+  std::map<v8::Isolate*, std::queue<IdleTask*>> main_thread_idle_queue_;
 
   typedef std::pair<double, Task*> DelayedEntry;
   std::map<v8::Isolate*,
            std::priority_queue<DelayedEntry, std::vector<DelayedEntry>,
                                std::greater<DelayedEntry> > >
       main_thread_delayed_queue_;
+  std::unique_ptr<tracing::TracingController> tracing_controller_;
 
   DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);
 };

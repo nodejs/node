@@ -1,25 +1,13 @@
-var isKeyable = require('./_isKeyable');
-
-/** Used to stand-in for `undefined` hash values. */
-var HASH_UNDEFINED = '__lodash_hash_undefined__';
-
 /**
- * Checks if `value` is in `cache`.
+ * Checks if a `cache` value for `key` exists.
  *
  * @private
- * @param {Object} cache The set cache to search.
- * @param {*} value The value to search for.
- * @returns {number} Returns `true` if `value` is found, else `false`.
+ * @param {Object} cache The cache to query.
+ * @param {string} key The key of the entry to check.
+ * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
  */
-function cacheHas(cache, value) {
-  var map = cache.__data__;
-  if (isKeyable(value)) {
-    var data = map.__data__,
-        hash = typeof value == 'string' ? data.string : data.hash;
-
-    return hash[value] === HASH_UNDEFINED;
-  }
-  return map.has(value);
+function cacheHas(cache, key) {
+  return cache.has(key);
 }
 
 module.exports = cacheHas;

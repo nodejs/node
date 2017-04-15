@@ -30,18 +30,19 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
 
         // contains reported nodes to avoid reporting twice on destructuring with shorthand notation
-        var reported = [];
+        const reported = [];
+        const ALLOWED_PARENT_TYPES = new Set(["CallExpression", "NewExpression"]);
 
         /**
          * Checks if a string contains an underscore and isn't all upper-case
-         * @param {String} name The string to check.
+         * @param {string} name The string to check.
          * @returns {boolean} if the string is underscored
          * @private
          */
@@ -60,12 +61,12 @@ module.exports = {
         function report(node) {
             if (reported.indexOf(node) < 0) {
                 reported.push(node);
-                context.report(node, "Identifier '{{name}}' is not in camel case.", { name: node.name });
+                context.report({ node, message: "Identifier '{{name}}' is not in camel case.", data: { name: node.name } });
             }
         }
 
-        var options = context.options[0] || {},
-            properties = options.properties || "";
+        const options = context.options[0] || {};
+        let properties = options.properties || "";
 
         if (properties !== "always" && properties !== "never") {
             properties = "always";
@@ -73,13 +74,13 @@ module.exports = {
 
         return {
 
-            Identifier: function(node) {
+            Identifier(node) {
 
                 /*
                  * Leading and trailing underscores are commonly used to flag
                  * private/protected identifiers, strip them
                  */
-                var name = node.name.replace(/^_+|_+$/g, ""),
+                const name = node.name.replace(/^_+|_+$/g, ""),
                     effectiveParent = (node.parent.type === "MemberExpression") ? node.parent.parent : node.parent;
 
                 // MemberExpressions get special rules
@@ -118,12 +119,20 @@ module.exports = {
                         return;
                     }
 
-                    if (isUnderscored(name) && effectiveParent.type !== "CallExpression") {
+                    if (isUnderscored(name) && !ALLOWED_PARENT_TYPES.has(effectiveParent.type)) {
+                        report(node);
+                    }
+
+                // Check if it's an import specifier
+                } else if (["ImportSpecifier", "ImportNamespaceSpecifier", "ImportDefaultSpecifier"].indexOf(node.parent.type) >= 0) {
+
+                    // Report only if the local imported identifier is underscored
+                    if (node.parent.local && node.parent.local.name === node.name && isUnderscored(name)) {
                         report(node);
                     }
 
                 // Report anything that is underscored that isn't a CallExpression
-                } else if (isUnderscored(name) && effectiveParent.type !== "CallExpression") {
+                } else if (isUnderscored(name) && !ALLOWED_PARENT_TYPES.has(effectiveParent.type)) {
                     report(node);
                 }
             }

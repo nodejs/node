@@ -29,7 +29,6 @@
 [ALWAYS, {
   # All tests prefixed with 'Bug' are expected to fail.
   'test-api/Bug*': [FAIL],
-  'test-serialize/Bug*': [FAIL],
 
   ##############################################################################
 
@@ -39,7 +38,6 @@
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
   'test-serialize/TestThatAlwaysFails': [FAIL],
-  'test-serialize/DependentTestThatAlwaysFails': [FAIL],
   'test-api/SealHandleScope': [FAIL],
 
   # This test always fails.  It tests that LiveEdit causes abort when turned off.
@@ -67,20 +65,17 @@
   # This tests only the type system, no point in running several variants.
   'test-hydrogen-types/*': [PASS, NO_VARIANTS],
   'test-types/*': [PASS, NO_VARIANTS],
+  'test-ast-types/*': [PASS, NO_VARIANTS],
 
   # This tests API threading, no point in running several variants.
-  'test-api/Threading*': [PASS, NO_VARIANTS],
+  # They are also slow in debug mode.
+  'test-api/Threading*': [PASS, NO_VARIANTS, ['mode == debug', SLOW]],
 
   # BUG(2999). The cpu profiler tests are notoriously flaky.
   'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
+  'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
-
-  # BUG(3525). Test crashes flakily.
-  'test-debug/RecursiveBreakpoints': [PASS, FLAKY],
-  'test-debug/RecursiveBreakpointsGlobal': [PASS, FLAKY],
-
-  # BUG(v8:4358). Hangs flakily.
-  'test-debug/ProcessDebugMessagesThreaded': [SKIP],
+  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
 
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
@@ -89,59 +84,24 @@
   'test-func-name-inference/UpperCaseClass': [FAIL],
   'test-func-name-inference/LowerCaseClass': [FAIL],
 
-  # BUG(3956). Strong mode is being deprecated. Decide about these tests.
-  'test-api/StrongModeAccessCheckAllowed': [FAIL],
-  'test-api/StrongModeAccessCheckBlocked': [FAIL],
+  # Bug(5784). StubCache tests need to be redesigned, as a) they don't work
+  # in the new (ignition + turbofan) pipeline environment, and b) they are
+  # stymied by a move of code stubs into builtins.
+  'test-api/PrimaryStubCache': [SKIP],
+  'test-api/SecondaryStubCache': [SKIP],
+  'test-api/AccessCheckInIC': [SKIP],
 
-  ##############################################################################
-  # TurboFan compiler failures.
-
-  # Some tests are just too slow to run for now.
-  'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
-  'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
-  'test-serialize/SerializeToplevelLargeCodeObject': [PASS, NO_VARIANTS],
-  'test-debug/ThreadedDebugging': [PASS, NO_VARIANTS],
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
-  # TODO(mstarzinger): The rewriter is not being called when top-level code is
-  # optimized and hence scripts don't "return" the correct value. Fix this.
-  'test-compiler/CompileFunctionInContext*': [PASS, NO_VARIANTS],
-
-  # TODO(bmeurer): TurboFan embeds strong references to all kinds of objects
-  # via deoptimization data (Crankshaft also does this, but lack proper test
-  # coverage).
-  'test-heap/ObjectsInOptimizedCodeAreWeak': [PASS, NO_VARIANTS],
-
-  # TurboFan doesn't support allocation sites currently.
-  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringAllocationFolding': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringdoubleArrayLiterals': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringDoubleArrayProperties': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringMixedInObjectProperties': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringNestedDoubleLiterals': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringNestedMixedArrayLiterals': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringNestedObjectLiterals': [PASS, NO_VARIANTS],
-  'test-heap/OptimizedPretenuringObjectArrayLiterals': [PASS, NO_VARIANTS],
-
-  # TurboFan cpu profiler result is different.
-  'test-cpu-profiler/CollectDeoptEvents': [PASS, NO_VARIANTS],
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [PASS, NO_VARIANTS],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [PASS, NO_VARIANTS],
-  'test-cpu-profiler/DeoptUntrackedFunction': [PASS, NO_VARIANTS],
-  'test-cpu-profiler/TickLines': [PASS, NO_VARIANTS],
+  # Test that serialization with unknown external reference fails.
+  'test-serialize/SnapshotCreatorUnknownExternalReferences': [FAIL],
 
   ############################################################################
   # Slow tests.
-  'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
-  'test-api/Threading2': [PASS, ['mode == debug', SLOW]],
-  'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
-  'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
-
-  # TODO(machenbach, mvstanton): Flaky in debug on all platforms.
-  'test-lockers/LockerUnlocker': [PASS, ['mode == debug', FLAKY]],
+  'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -152,8 +112,8 @@
   'test-api/Bug618': [PASS],
 
   # BUG(v8:3385).
-  'test-serialize/DeserializeFromSecondSerialization': [PASS, FAIL],
-  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [PASS, FAIL],
+  'test-serialize/StartupSerializerOnceRunScript': [PASS, FAIL],
+  'test-serialize/StartupSerializerTwiceRunScript': [PASS, FAIL],
 
   # BUG(v8:3154).
   'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
@@ -175,8 +135,6 @@
 
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, TIMEOUT],
-  'test-api/Threading1': [SKIP],
-  'test-api/Threading2': [SKIP],
 }],  # 'arch == arm64 and simulator_run == True'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {
@@ -194,6 +152,12 @@
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
+
+  # BUG(v8:5243).
+  'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
+  'test-cpu-profiler/JsNativeJsSample': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
@@ -202,10 +166,7 @@
   'test-strings/CountBreakIterator': [SKIP],
 
   # Slow tests.
-  'test-api/Threading1': [PASS, SLOW],
-  'test-api/Threading2': [PASS, SLOW],
-  'test-api/Threading3': [PASS, SLOW],
-  'test-api/Threading4': [PASS, SLOW],
+  'test-api/Threading*': [PASS, SLOW],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -235,45 +196,21 @@
 
   # BUG(v8:4642).
   'test-lockers/LockAndUnlockDifferentIsolates': [PASS, NO_VARIANTS],
+
+  # BUG(v8:2999,v8:4751).
+  'test-cpu-profiler/CollectDeoptEvents': [SKIP],
+  'test-cpu-profiler/FunctionCallSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
+  'test-cpu-profiler/JsNativeJsSample': [SKIP],
+  'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
+
+  # BUG(v8:5193): Flaky.
+  'test-cpu-profiler/FunctionApplySample': [SKIP],
+
+  # BUG(5193): Flaky timeout.
+  'test-sampler/LibSamplerCollectSample': [PASS, ['arch == x64', SKIP]],
 }],  # 'system == windows'
-
-##############################################################################
-['system == macos', {
-
-  # BUG(3125).
-  'test-debug/DebugGetLoadedScripts': [PASS, FLAKY],
-  'test-debug/DebugStepLinear': [PASS, FLAKY],
-  'test-debug/DebuggerClearMessageHandler': [PASS, FLAKY],
-}],  # 'system == macos'
-
-##############################################################################
-['byteorder == big', {
-  # TODO(mips-team): Fix Wasm for big-endian.
-  'test-run-wasm-module/Run_WasmModule_CallAdd': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_CallAdd_rev': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_CallMain_recursive': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_ReadLoadedDataSegment': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_Return114': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_CheckMemoryIsZero': [SKIP],
-  'test-run-wasm-module/Run_WasmModule_Global': [SKIP],
-  'test-run-wasm/Run_WasmInt32*': [SKIP],
-  'test-run-wasm/Run_Wasm_TableSwitch*': [SKIP],
-  'test-run-wasm/Run_Wasm_StoreMemI32_offset': [SKIP],
-  'test-run-wasm/Run_Wasm_Int32LoadInt16_*': [SKIP],
-  'test-run-wasm/Run_WasmMixedGlobals': [SKIP],
-  'test-run-wasm/Run_WasmCall*': [SKIP],
-  'test-run-wasm/Run_WasmMixedCall_*': [SKIP],
-  'test-run-wasm/Run_WasmInt64*': [SKIP],
-  'test-run-wasm/Run_Wasm_LoadStoreI64_sx': [SKIP],
-  'test-run-wasm/Run_WASM_Int64DivS_byzero_const': [SKIP],
-  'test-run-wasm/Run_TestI64WasmRunner': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_1': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_2': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_3': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_4': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_5': [SKIP],
-  'test-run-wasm-js/Run_JSSelect_6': [SKIP],
-}],  # 'byteorder == big'
 
 ##############################################################################
 ['arch == arm', {
@@ -284,21 +221,18 @@
   'test-log/ProfLazyMode': [SKIP],
 
   # BUG(1075): Unresolved crashes.
-  'test-serialize/Deserialize': [SKIP],
-  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
-  'test-serialize/DeserializeAndRunScript2': [SKIP],
-  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+  'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerTwice': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+  'test-run-wasm-simd/RunWasmCompiled_F32x4Add': [SKIP],
+  'test-run-wasm-simd/RunWasmCompiled_F32x4Sub': [SKIP],
+  'test-run-wasm-simd/RunWasmInterpreted_F32x4Add': [SKIP],
+  'test-run-wasm-simd/RunWasmInterpreted_F32x4Sub': [SKIP],
 
   ############################################################################
   # Slow tests.
-  'test-api/Threading1': [PASS, SLOW],
-  'test-api/Threading2': [PASS, SLOW],
-  'test-api/Threading3': [PASS, SLOW],
-  'test-api/Threading4': [PASS, SLOW],
-
-  # Crashes due to OOM in simulator.
-  'test-types/Distributivity1': [PASS, FLAKY],
-  'test-types/Distributivity2': [PASS, FLAKY],
+  'test-api/Threading*': [PASS, SLOW],
 }],  # 'arch == arm'
 
 ##############################################################################
@@ -309,10 +243,10 @@
   'test-heap/TestSizeOfRegExpCode':  [SKIP],
 
   # BUG(1075): Unresolved crashes on MIPS also.
-  'test-serialize/Deserialize': [SKIP],
-  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
-  'test-serialize/DeserializeAndRunScript2': [SKIP],
-  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+  'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerTwice': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -322,7 +256,8 @@
 
   # TODO(mips-team): Currently fails on mips board.
   'test-parsing/TooManyArguments': [SKIP],
-  'test-api/Threading3': [SKIP],
+  'test-api/Threading5': [SKIP],
+  'test-api/Threading6': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################
@@ -336,10 +271,10 @@
   'test-heap/TestSizeOfRegExpCode':  [SKIP],
 
   # BUG(1075): Unresolved crashes on MIPS also.
-  'test-serialize/Deserialize': [SKIP],
-  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
-  'test-serialize/DeserializeAndRunScript2': [SKIP],
-  'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+  'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerTwice': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
@@ -353,6 +288,14 @@
   'test-run-machops/RunFloat64MulAndFloat64Add2': [SKIP],
   'test-run-machops/RunFloat64MulAndFloat64Sub1': [SKIP],
   'test-run-machops/RunFloat64MulAndFloat64Sub2': [SKIP],
+  'test-run-machops/RunFloat64Sin': [SKIP],
+  'test-run-machops/RunFloat64Cos': [SKIP],
+  'test-run-machops/RunFloat64Expm1': [SKIP],
+  'test-run-machops/RunFloat64Tan': [SKIP],
+  'test-cpu-profiler/Inlining': [SKIP],
+  'test-gap-resolver/FuzzResolver': [SKIP],
+  'test-run-wasm/RunWasmCompiled_MultiReturnSelect_f32': [SKIP],
+  'test-run-wasm/RunWasmCompiled_MultiReturnSelect_f64': [SKIP],
 }],  # 'arch == x87'
 
 ##############################################################################
@@ -363,111 +306,6 @@
   'test-log/LogCallbacks': [SKIP],
   'test-log/ProfLazyMode': [SKIP],
 }],  # 'arch == android_arm or arch == android_ia32'
-
-##############################################################################
-['arch == nacl_ia32 or arch == nacl_x64', {
-
-  # NaCl builds have problems with threaded tests since Pepper_28.
-  # V8 Issue 2786
-  'test-api/Threading1': [SKIP],
-  'test-lockers/ExtensionsRegistration': [SKIP],
-
-  # These tests fail as there is no /tmp directory in Native Client.
-  'test-log/LogAccessorCallbacks': [SKIP],
-  'test-log/LogCallbacks': [SKIP],
-  'test-log/ProfLazyMode': [SKIP],
-
-  # Native Client doesn't support sockets.
-  'test-debug/DebuggerAgent': [SKIP],
-  'test-debug/DebuggerAgentProtocolOverflowHeader': [SKIP],
-  'test-socket/Socket': [SKIP],
-
-  # Profiling doesn't work on Native Client.
-  'test-cpu-profiler/*': [SKIP],
-
-  # Fails since 16322 (new test).
-  'test-code-stubs-arm/ConvertDToI': [SKIP],
-
-  # BUG(2998).
-  'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [SKIP],
-
-  # BUG(3150).
-  'test-api/PreCompileInvalidPreparseDataError': [SKIP],
-
-  'test-types/Convert' : [SKIP],
-  'test-symbols/Create' : [SKIP],
-  'test-parsing/ParserSync' : [SKIP],
-  'test-parsing/ErrorsEvalAndArguments' : [SKIP],
-  'test-parsing/ErrorsFutureStrictReservedWords' : [SKIP],
-  'test-parsing/ErrorsReservedWords' : [SKIP],
-  'test-parsing/ErrorsYieldStrict' : [SKIP],
-  'test-parsing/ErrorsNotAnIdentifierName' : [SKIP],
-  'test-parsing/FunctionDeclaresItselfStrict' : [SKIP],
-  'test-parsing/ErrorsObjectLiteralChecking' : [SKIP],
-  'test-parsing/InvalidLeftHandSide' : [SKIP],
-  'test-heap/GarbageCollection' : [SKIP],
-  'test-heap/GlobalHandles' : [SKIP],
-  'test-heap/WeakGlobalHandlesScavenge' : [SKIP],
-  'test-heap/DeleteWeakGlobalHandle' : [SKIP],
-  'test-heap/GrowAndShrinkNewSpace' : [SKIP],
-  'test-heap/OptimizedAllocationAlwaysInNewSpace' : [SKIP],
-  'test-heap/OptimizedPretenuringAllocationFolding' : [SKIP],
-  'test-heap/OptimizedPretenuringObjectArrayLiterals' : [SKIP],
-  'test-heap/OptimizedPretenuringAllocationFoldingBlocks' : [SKIP],
-  'test-heap/OptimizedPretenuringMixedInObjectProperties' : [SKIP],
-  'test-heap/OptimizedPretenuringDoubleArrayProperties' : [SKIP],
-  'test-heap/OptimizedPretenuringdoubleArrayLiterals' : [SKIP],
-  'test-heap/OptimizedPretenuringNestedMixedArrayLiterals' : [SKIP],
-  'test-heap/OptimizedPretenuringNestedObjectLiterals' : [SKIP],
-  'test-heap/OptimizedPretenuringNestedDoubleLiterals' : [SKIP],
-  'test-heap/Regress169928' : [SKIP],
-  'test-decls/Unknown' : [SKIP],
-  'test-decls/Present' : [SKIP],
-  'test-decls/Absent' : [SKIP],
-  'test-decls/Appearing' : [SKIP],
-  'test-decls/Reappearing' : [SKIP],
-  'test-decls/ExistsInPrototype' : [SKIP],
-  'test-decls/AbsentInPrototype' : [SKIP],
-  'test-decls/ExistsInHiddenPrototype' : [SKIP],
-  'test-debug/ConditionalScriptBreakPoint' : [SKIP],
-  'test-debug/DebugEvaluate' : [SKIP],
-  'test-debug/ConditionalBreakpointWithCodeGenerationDisallowed' : [SKIP],
-  'test-debug/DebugEvaluateWithCodeGenerationDisallowed' : [SKIP],
-  'test-debug/DebugBreak' : [SKIP],
-  'test-debug/ThreadedDebugging' : [SKIP],
-  'test-debug/RecursiveBreakpoints' : [SKIP],
-  'test-dictionary/HashMap' : [SKIP],
-  'test-debug/Backtrace' : [SKIP],
-  'test-debug/DebugBreakLoop' : [SKIP],
-  'test-constantpool/ConstantPool' : [SKIP],
-  'test-compiler/GetScriptLineNumber' : [SKIP],
-  'test-api/ScriptMakingExternalString' : [SKIP],
-  'test-api/ScriptMakingExternalOneByteString' : [SKIP],
-  'test-api/MakingExternalStringConditions' : [SKIP],
-  'test-api/MakingExternalOneByteStringConditions' : [SKIP],
-  'test-api/MakingExternalUnalignedOneByteString' : [SKIP],
-  'test-api/IndexedInterceptorUnboxedDoubleWithIndexedAccessor' : [SKIP],
-  'test-api/IndependentWeakHandle' : [SKIP],
-  'test-api/GCFromWeakCallbacks' : [SKIP],
-  'test-api/IndependentHandleRevival' : [SKIP],
-  'test-api/StringWrite' : [SKIP],
-  'test-api/Threading3' : [SKIP],
-  'test-api/Threading4' : [SKIP],
-  'test-api/Threading2' : [SKIP],
-  'test-api/FixedFloat32Array' : [SKIP],
-  'test-api/FixedFloat64Array' : [SKIP],
-  'test-api/ExternalFloat32Array' : [SKIP],
-  'test-api/ExternalFloat64Array' : [SKIP],
-  'test-api/ExternalArrays' : [SKIP],
-  'test-api/Float32Array' : [SKIP],
-  'test-api/Float64Array' : [SKIP],
-  'test-api/Regress2333' : [SKIP],
-  'test-alloc/StressHandles' : [SKIP],
-  'test-alloc/StressJS' : [SKIP],
-  'test-accessors/HandleScopePop' : [SKIP],
-  'test-accessors/Gc' : [SKIP],
-
-}],  # 'arch == nacl_ia32 or arch == nacl_x64'
 
 ##############################################################################
 ['system == aix and arch == ppc64', {
@@ -492,134 +330,54 @@
 ['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
 
   # Pass but take too long with the simulator.
-  'test-api/Threading1': [PASS, SLOW],
-  'test-api/Threading2': [PASS, SLOW],
+  'test-api/Threading*': [PASS, SLOW],
   'test-api/ExternalArrays': [PASS, SLOW],
 
 }],  # 'arch == ppc64 and simulator_run == True'
 
-['ignition == True', {
-  # TODO(yangguo,4690): Test failures in debugger tests.
-  'test-debug/DebugStepLocals': [FAIL],
-  'test-debug/DebugStepKeyedLoadLoop': [FAIL],
-  'test-debug/DebugStepKeyedStoreLoop': [FAIL],
-  'test-debug/DebugStepIf': [FAIL],
-  'test-debug/DebugStepNamedLoadLoop': [FAIL],
-  'test-debug/DebugStepDeclarations': [FAIL],
-  'test-debug/BreakPointConstructCallWithGC': [PASS, FAIL],
-  'test-debug/DebugStepNamedStoreLoop': [FAIL],
-  'test-debug/DebugStepLinearMixedICs': [FAIL],
-  'test-debug/DebugStepSwitch': [FAIL],
-  'test-debug/DebugStepWhile': [FAIL],
-  'test-debug/DebugStepFor': [FAIL],
-  'test-debug/DebugStepForContinue': [FAIL],
-  'test-debug/DebugStepForIn': [FAIL],
-  'test-debug/DebugStepDoWhile': [FAIL],
-  'test-debug/DebugConditional': [FAIL],
-  'test-debug/DebugStepForBreak': [FAIL],
-  'test-debug/DebugStepWith': [FAIL],
-  'test-debug/DebugStepFunctionApply': [FAIL],
-  'test-debug/StepInOutBranch': [FAIL],
-  'test-debug/DebugStepFunctionCall': [FAIL],
-
-  # TODO(yangguo,4690): Required DebuggerStatement support.
-  'test-profile-generator/BailoutReason': [FAIL],
-
-  # TODO(rmcilroy,4680): Check failed: toplevel_test_code_event_found.
-  'test-serialize/SerializeToplevelIsolates': [FAIL],
-
-  # BUG(4333). Function name inferrer does not work for ES6 clases.
-  'test-func-name-inference/UpperCaseClass': [TIMEOUT],
-  'test-func-name-inference/LowerCaseClass': [TIMEOUT],
-
-  # TODO(rmcilroy,4681): Requires support for generators.
-  'test-inobject-slack-tracking/JSGeneratorObjectBasic': [FAIL],
-  'test-inobject-slack-tracking/JSGeneratorObjectBasicNoInlineNew': [FAIL],
-  'test-api/IsGeneratorFunctionOrObject': [FAIL],
-
-  # TODO(rmcilroy,4680): Strong mode failures.
-  'test-api/AccessorShouldThrowOnError': [FAIL],
-  'test-api/InterceptorShouldThrowOnError': [FAIL],
-
-  # TODO(rmcilroy,4680): The function_data field should be a BytecodeArray on interpreter entry
-  'test-api/SetFunctionEntryHook': [FAIL],
-
-  # TODO(rmcilroy,4680): Fail on shared_function_data()->IsUndefined in
-  #compiler.cc
-  'test-heap/CanonicalSharedFunctionInfo': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-
-  # TODO(rmcilroy,4680): Check failed: !function->shared()->is_compiled() || function->IsOptimized().
-  'test-heap/TestCodeFlushingPreAged': [FAIL],
-  'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
-  'test-heap/TestCodeFlushing': [FAIL],
-  'test-heap/TestCodeFlushingIncremental': [FAIL],
-  'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-
-  # TODO(rmcilroy,4680): Check failed: fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft().
-  'test-compiler/OptimizedCodeSharing2': [FAIL],
-  'test-compiler/OptimizedCodeSharing3': [FAIL],
-
-  # TODO(rmcilroy,4689): Stack trace line number failures.
-  'test-run-jsexceptions/ThrowMessagePosition': [FAIL],
-  'test-api/TryCatchMixedNesting': [FAIL],
-
-  # TODO(rmcilroy,4680): Test assert errors.
-  'test-cpu-profiler/CodeEvents': [FAIL],
-  'test-cpu-profiler/TickEvents': [FAIL],
-  'test-cpu-profiler/BoundFunctionCall': [FAIL],
-  'test-cpu-profiler/CollectCpuProfile': [FAIL],
-  'test-cpu-profiler/CollectSampleAPI': [FAIL],
-  'test-cpu-profiler/CpuProfileDeepStack': [FAIL],
-  'test-cpu-profiler/FunctionApplySample': [FAIL],
-  'test-cpu-profiler/FunctionCallSample': [FAIL],
-  'test-cpu-profiler/FunctionDetails': [FAIL],
-  'test-cpu-profiler/HotDeoptNoFrameEntry': [FAIL],
-  'test-cpu-profiler/JsNative1JsNative2JsSample': [FAIL],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [FAIL],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [FAIL],
-  'test-cpu-profiler/JsNativeJsSample': [FAIL],
-  'test-cpu-profiler/NativeMethodUninitializedIC': [FAIL],
-  'test-cpu-profiler/NativeMethodMonomorphicIC': [FAIL],
-  'test-cpu-profiler/NativeAccessorUninitializedIC': [FAIL],
-  'test-cpu-profiler/NativeAccessorMonomorphicIC': [FAIL],
-  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [FAIL],
-  'test-sampler-api/StackFramesConsistent': [FAIL],
-  'test-profile-generator/LineNumber': [FAIL],
-  'test-profile-generator/ProfileNodeScriptId': [FAIL],
-  'test-profile-generator/RecordStackTraceAtStartProfiling': [FAIL],
-  'test-feedback-vector/VectorCallICStates': [FAIL],
-  'test-compiler/FeedbackVectorPreservedAcrossRecompiles': [FAIL],
-  'test-api/PromiseRejectCallback': [FAIL],
-  'test-api/SetJitCodeEventHandler': [FAIL],
-  'test-heap/WeakFunctionInConstructor': [FAIL],
-  'test-heap/Regress169209': [FAIL],
-  'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [FAIL],
-  'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [FAIL],
-  'test-heap/IncrementalMarkingPreservesMonomorphicCallIC': [FAIL],
-  'test-heap/CompilationCacheCachingBehavior': [FAIL],
-  'test-heap/CellsInOptimizedCodeAreWeak': [FAIL],
-  'test-run-inlining/InlineTwice': [FAIL],
-  'test-serialize/SerializeInternalReference': [FAIL, ['arch == arm or arch == arm64', PASS]],
-}],  # ignition == True
-
-['ignition == True and arch == x64', {
-  # TODO(rmcilroy,4680): The function_data field should be a BytecodeArray on interpreter entry
-  'test-serialize/PerIsolateSnapshotBlobsOutdatedContextWithOverflow': [PASS, ['mode == debug', FAIL]],
-  'test-serialize/PerIsolateSnapshotBlobsWithLocker': [PASS, ['mode == debug', FAIL]],
-  'test-serialize/SnapshotBlobsStackOverflow': [PASS, ['mode == debug', FAIL]],
-  'test-serialize/PerIsolateSnapshotBlobs': [PASS, ['mode == debug', FAIL]],
-  'test-serialize/SerializationMemoryStats': [PASS, ['mode == debug', FAIL]],
-
-  # TODO(rmcilroy,4680): Test assert errors.
-  'test-heap-profiler/HeapSnapshotSimd': [PASS, ['mode == debug', FAIL]],
-  'test-api/InitializeDefaultIsolateOnSecondaryThread1': [PASS, ['mode == debug', FAIL]],
-}],
+##############################################################################
+['variant == turbofan_opt', {
+  # BUG(v8:5457)
+  'test-api/SetJitCodeEventHandler': [PASS, ['no_snap', SKIP]],
+}],  # variant == turbofan_opt
 
 ##############################################################################
-# exclude test issues for which fixes for PPC did not make it into 5.0
-# These should be removed when we upgrade Node.js to use v8 5.1
-['arch == ppc64', {
-  'test-heap/ReleaseOverReservedPages' : [SKIP],
-}],  # 'arch == ppc64''
+['variant == turbofan or variant == ignition_turbofan', {
+  # BUG(4751). Flaky with Ignition.
+  'test-cpu-profiler/JsNativeJsSample': [SKIP],
+
+  # TODO(vogelheim,5548): Turbofan does support cached accessors.
+  'test-api-accessors/CachedAccessorCrankshaft': [FAIL],
+}],  # variant == turbofan or variant == ignition_turbofan
+
+##############################################################################
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
+
+##############################################################################
+['variant == wasm_traps', {
+  'test-accessors/*': [SKIP],
+  'test-api-interceptors/*': [SKIP],
+  'test-api/*': [SKIP],
+  'test-bignum-dtoa/*': [SKIP],
+  'test-cpu-profiler/*': [SKIP],
+  'test-debug/*': [SKIP],
+  'test-global-handles/*': [SKIP],
+  'test-heap-profiler/*': [SKIP],
+  'test-heap/*': [SKIP],
+  'test-inobject-slack-tracking/*': [SKIP],
+  'test-lockers/*': [SKIP],
+  'test-run-machops/*': [SKIP],
+  'test-serialize/*': [SKIP],
+  'test-strings/*': [SKIP],
+  'test-field-type-tracking/*': [SKIP],
+  'test-parsing/*': [SKIP],
+  'test-page-promotion/*': [SKIP],
+  'test-decls/*': [SKIP],
+  'test-log/*': [SKIP],
+  'test-gap-resolver/*': [SKIP],
+  'test-dtoa/*': [SKIP],
+}],  # variant == wasm_traps
 
 ]

@@ -9,32 +9,39 @@ namespace v8 {
 namespace internal {
 
 std::ostream& operator<<(std::ostream& os, MachineRepresentation rep) {
-  switch (rep) {
-    case MachineRepresentation::kNone:
-      return os << "kMachNone";
-    case MachineRepresentation::kBit:
-      return os << "kRepBit";
-    case MachineRepresentation::kWord8:
-      return os << "kRepWord8";
-    case MachineRepresentation::kWord16:
-      return os << "kRepWord16";
-    case MachineRepresentation::kWord32:
-      return os << "kRepWord32";
-    case MachineRepresentation::kWord64:
-      return os << "kRepWord64";
-    case MachineRepresentation::kFloat32:
-      return os << "kRepFloat32";
-    case MachineRepresentation::kFloat64:
-      return os << "kRepFloat64";
-    case MachineRepresentation::kSimd128:
-      return os << "kRepSimd128";
-    case MachineRepresentation::kTagged:
-      return os << "kRepTagged";
-  }
-  UNREACHABLE();
-  return os;
+  return os << MachineReprToString(rep);
 }
 
+const char* MachineReprToString(MachineRepresentation rep) {
+  switch (rep) {
+    case MachineRepresentation::kNone:
+      return "kMachNone";
+    case MachineRepresentation::kBit:
+      return "kRepBit";
+    case MachineRepresentation::kWord8:
+      return "kRepWord8";
+    case MachineRepresentation::kWord16:
+      return "kRepWord16";
+    case MachineRepresentation::kWord32:
+      return "kRepWord32";
+    case MachineRepresentation::kWord64:
+      return "kRepWord64";
+    case MachineRepresentation::kFloat32:
+      return "kRepFloat32";
+    case MachineRepresentation::kFloat64:
+      return "kRepFloat64";
+    case MachineRepresentation::kSimd128:
+      return "kRepSimd128";
+    case MachineRepresentation::kTaggedSigned:
+      return "kRepTaggedSigned";
+    case MachineRepresentation::kTaggedPointer:
+      return "kRepTaggedPointer";
+    case MachineRepresentation::kTagged:
+      return "kRepTagged";
+  }
+  UNREACHABLE();
+  return nullptr;
+}
 
 std::ostream& operator<<(std::ostream& os, MachineSemantic type) {
   switch (type) {

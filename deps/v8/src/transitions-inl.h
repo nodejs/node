@@ -26,7 +26,7 @@ void TransitionArray::set_next_link(Object* next, WriteBarrierMode mode) {
 
 
 bool TransitionArray::HasPrototypeTransitions() {
-  return get(kPrototypeTransitionsIndex) != Smi::FromInt(0);
+  return get(kPrototypeTransitionsIndex) != Smi::kZero;
 }
 
 
@@ -113,9 +113,7 @@ bool TransitionArray::IsSpecialTransition(Name* name) {
   return name == heap->nonextensible_symbol() ||
          name == heap->sealed_symbol() || name == heap->frozen_symbol() ||
          name == heap->elements_transition_symbol() ||
-         name == heap->strict_function_transition_symbol() ||
-         name == heap->strong_function_transition_symbol() ||
-         name == heap->observed_symbol();
+         name == heap->strict_function_transition_symbol();
 }
 #endif
 

@@ -4,9 +4,12 @@
 
 // Flags: --expose-wasm
 
-assertFalse(undefined === _WASMEXP_);
-assertFalse(undefined == _WASMEXP_);
-assertEquals("function", typeof _WASMEXP_.verifyModule);
-assertEquals("function", typeof _WASMEXP_.verifyFunction);
-assertEquals("function", typeof _WASMEXP_.instantiateModule);
-assertEquals("function", typeof _WASMEXP_.instantiateModuleFromAsm);
+// Old API should be gone.
+assertEquals("undefined", typeof Wasm);
+
+// New API should rule.
+assertEquals('object', typeof WebAssembly);
+assertEquals('function', typeof WebAssembly.Module);
+assertEquals('function', typeof WebAssembly.Instance);
+assertEquals('function', typeof WebAssembly.compile);
+assertEquals('function', typeof WebAssembly.validate);

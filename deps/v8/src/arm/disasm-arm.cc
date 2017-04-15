@@ -40,6 +40,7 @@
 namespace v8 {
 namespace internal {
 
+const auto GetRegConfig = RegisterConfiguration::Crankshaft;
 
 //------------------------------------------------------------------------------
 
@@ -104,6 +105,8 @@ class Decoder {
   void DecodeType6(Instruction* instr);
   // Type 7 includes special Debugger instructions.
   int DecodeType7(Instruction* instr);
+  // CP15 coprocessor instructions.
+  void DecodeTypeCP15(Instruction* instr);
   // For VFP support.
   void DecodeTypeVFP(Instruction* instr);
   void DecodeType6CoprocessorIns(Instruction* instr);
@@ -604,6 +607,26 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
           Print("s");
         }
         return 4;
+      } else if (format[1] == 'p') {
+        if (format[8] == '_') {  // 'spec_reg_fields
+          DCHECK(STRING_STARTS_WITH(format, "spec_reg_fields"));
+          Print("_");
+          int mask = instr->Bits(19, 16);
+          if (mask == 0) Print("(none)");
+          if ((mask & 0x8) != 0) Print("f");
+          if ((mask & 0x4) != 0) Print("s");
+          if ((mask & 0x2) != 0) Print("x");
+          if ((mask & 0x1) != 0) Print("c");
+          return 15;
+        } else {  // 'spec_reg
+          DCHECK(STRING_STARTS_WITH(format, "spec_reg"));
+          if (instr->Bit(22) == 0) {
+            Print("CPSR");
+          } else {
+            Print("SPSR");
+          }
+          return 8;
+        }
       }
       // 's: S field of data processing instructions
       if (instr->HasS()) {
@@ -735,7 +758,45 @@ void Decoder::DecodeType01(Instruction* instr) {
           Format(instr, "'um'al'cond's 'rd, 'rn, 'rm, 'rs");
         }
       } else {
-        Unknown(instr);  // not used by V8
+        if (instr->Bits(24, 23) == 3) {
+          if (instr->Bit(20) == 1) {
+            // ldrex
+            switch (instr->Bits(22, 21)) {
+              case 0:
+                Format(instr, "ldrex'cond 'rt, ['rn]");
+                break;
+              case 2:
+                Format(instr, "ldrexb'cond 'rt, ['rn]");
+                break;
+              case 3:
+                Format(instr, "ldrexh'cond 'rt, ['rn]");
+                break;
+              default:
+                UNREACHABLE();
+                break;
+            }
+          } else {
+            // strex
+            // The instruction is documented as strex rd, rt, [rn], but the
+            // "rt" register is using the rm bits.
+            switch (instr->Bits(22, 21)) {
+              case 0:
+                Format(instr, "strex'cond 'rd, 'rm, ['rn]");
+                break;
+              case 2:
+                Format(instr, "strexb'cond 'rd, 'rm, ['rn]");
+                break;
+              case 3:
+                Format(instr, "strexh'cond 'rd, 'rm, ['rn]");
+                break;
+              default:
+                UNREACHABLE();
+                break;
+            }
+          }
+        } else {
+          Unknown(instr);  // not used by V8
+        }
       }
     } else if ((instr->Bit(20) == 0) && ((instr->Bits(7, 4) & 0xd) == 0xd)) {
       // ldrd, strd
@@ -822,7 +883,13 @@ void Decoder::DecodeType01(Instruction* instr) {
       return;
     }
   } else if ((type == 0) && instr->IsMiscType0()) {
-    if (instr->Bits(22, 21) == 1) {
+    if ((instr->Bits(27, 23) == 2) && (instr->Bits(21, 20) == 2) &&
+        (instr->Bits(15, 4) == 0xf00)) {
+      Format(instr, "msr'cond 'spec_reg'spec_reg_fields, 'rm");
+    } else if ((instr->Bits(27, 23) == 2) && (instr->Bits(21, 20) == 0) &&
+               (instr->Bits(11, 0) == 0)) {
+      Format(instr, "mrs'cond 'rd, 'spec_reg");
+    } else if (instr->Bits(22, 21) == 1) {
       switch (instr->BitField(7, 4)) {
         case BX:
           Format(instr, "bx'cond 'rm");
@@ -1214,18 +1281,16 @@ void Decoder::DecodeType3(Instruction* instr) {
           break;
         }
       }
-      if (FLAG_enable_sudiv) {
-        if (instr->Bits(5, 4) == 0x1) {
-          if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
-            if (instr->Bit(21) == 0x1) {
-              // UDIV (in V8 notation matching ARM ISA format) rn = rm/rs
-              Format(instr, "udiv'cond'b 'rn, 'rm, 'rs");
-            } else {
-              // SDIV (in V8 notation matching ARM ISA format) rn = rm/rs
-              Format(instr, "sdiv'cond'b 'rn, 'rm, 'rs");
-            }
-            break;
+      if (instr->Bits(5, 4) == 0x1) {
+        if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
+          if (instr->Bit(21) == 0x1) {
+            // UDIV (in V8 notation matching ARM ISA format) rn = rm/rs
+            Format(instr, "udiv'cond'b 'rn, 'rm, 'rs");
+          } else {
+            // SDIV (in V8 notation matching ARM ISA format) rn = rm/rs
+            Format(instr, "sdiv'cond'b 'rn, 'rm, 'rs");
           }
+          break;
         }
       }
       Format(instr, "'memop'cond'b 'rd, ['rn, -'shift_rm]'w");
@@ -1299,23 +1364,28 @@ int Decoder::DecodeType7(Instruction* instr) {
   if (instr->Bit(24) == 1) {
     if (instr->SvcValue() >= kStopCode) {
       Format(instr, "stop'cond 'svc");
-      // Also print the stop message. Its address is encoded
-      // in the following 4 bytes.
-      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "\n  %p  %08x       stop message: %s",
-                                  reinterpret_cast<void*>(instr
-                                                 + Instruction::kInstrSize),
-                                  *reinterpret_cast<uint32_t*>(instr
-                                                + Instruction::kInstrSize),
-                                  *reinterpret_cast<char**>(instr
-                                                + Instruction::kInstrSize));
+      out_buffer_pos_ += SNPrintF(
+          out_buffer_ + out_buffer_pos_, "\n  %p  %08x",
+          reinterpret_cast<void*>(instr + Instruction::kInstrSize),
+          *reinterpret_cast<uint32_t*>(instr + Instruction::kInstrSize));
       // We have decoded 2 * Instruction::kInstrSize bytes.
       return 2 * Instruction::kInstrSize;
     } else {
       Format(instr, "svc'cond 'svc");
     }
   } else {
-    DecodeTypeVFP(instr);
+    switch (instr->CoprocessorValue()) {
+      case 10:  // Fall through.
+      case 11:
+        DecodeTypeVFP(instr);
+        break;
+      case 15:
+        DecodeTypeCP15(instr);
+        break;
+      default:
+        Unknown(instr);
+        break;
+    }
   }
   return Instruction::kInstrSize;
 }
@@ -1349,6 +1419,9 @@ int Decoder::DecodeType7(Instruction* instr) {
 // Sd = vsqrt(Sm)
 // vmrs
 // vmsr
+// Qd = vdup.size(Qd, Rt)
+// vmov.size: Dd[i] = Rt
+// vmov.sign.size: Rt = Dn[i]
 void Decoder::DecodeTypeVFP(Instruction* instr) {
   VERIFY((instr->TypeValue() == 7) && (instr->Bit(24) == 0x0) );
   VERIFY(instr->Bits(11, 9) == 0x5);
@@ -1404,7 +1477,7 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
         if (instr->SzValue() == 0x1) {
           Format(instr, "vmov'cond.f64 'Dd, 'd");
         } else {
-          Unknown(instr);  // Not used by V8.
+          Format(instr, "vmov'cond.f32 'Sd, 'd");
         }
       } else if (((instr->Opc2Value() == 0x6)) && instr->Opc3Value() == 0x3) {
         // vrintz - round towards zero (truncate)
@@ -1461,21 +1534,71 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
     if ((instr->VCValue() == 0x0) &&
         (instr->VAValue() == 0x0)) {
       DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(instr);
-    } else if ((instr->VLValue() == 0x0) &&
-               (instr->VCValue() == 0x1) &&
-               (instr->Bit(23) == 0x0)) {
-      if (instr->Bit(21) == 0x0) {
-        Format(instr, "vmov'cond.32 'Dd[0], 'rt");
+    } else if ((instr->VLValue() == 0x0) && (instr->VCValue() == 0x1)) {
+      if (instr->Bit(23) == 0) {
+        int opc1_opc2 = (instr->Bits(22, 21) << 2) | instr->Bits(6, 5);
+        if ((opc1_opc2 & 0xb) == 0) {
+          // NeonS32/NeonU32
+          if (instr->Bit(21) == 0x0) {
+            Format(instr, "vmov'cond.32 'Dd[0], 'rt");
+          } else {
+            Format(instr, "vmov'cond.32 'Dd[1], 'rt");
+          }
+        } else {
+          int vd = instr->VFPNRegValue(kDoublePrecision);
+          int rt = instr->RtValue();
+          if ((opc1_opc2 & 0x8) != 0) {
+            // NeonS8 / NeonU8
+            int i = opc1_opc2 & 0x7;
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vmov.8 d%d[%d], r%d", vd, i, rt);
+          } else if ((opc1_opc2 & 0x1) != 0) {
+            // NeonS16 / NeonU16
+            int i = (opc1_opc2 >> 1) & 0x3;
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vmov.16 d%d[%d], r%d", vd, i, rt);
+          } else {
+            Unknown(instr);
+          }
+        }
       } else {
-        Format(instr, "vmov'cond.32 'Dd[1], 'rt");
+        int size = 32;
+        if (instr->Bit(5) != 0)
+          size = 16;
+        else if (instr->Bit(22) != 0)
+          size = 8;
+        int Vd = instr->VFPNRegValue(kSimd128Precision);
+        int Rt = instr->RtValue();
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vdup.%i q%d, r%d", size, Vd, Rt);
       }
-    } else if ((instr->VLValue() == 0x1) &&
-               (instr->VCValue() == 0x1) &&
-               (instr->Bit(23) == 0x0)) {
-      if (instr->Bit(21) == 0x0) {
-        Format(instr, "vmov'cond.32 'rt, 'Dd[0]");
+    } else if ((instr->VLValue() == 0x1) && (instr->VCValue() == 0x1)) {
+      int opc1_opc2 = (instr->Bits(22, 21) << 2) | instr->Bits(6, 5);
+      if ((opc1_opc2 & 0xb) == 0) {
+        // NeonS32 / NeonU32
+        if (instr->Bit(21) == 0x0) {
+          Format(instr, "vmov'cond.32 'rt, 'Dd[0]");
+        } else {
+          Format(instr, "vmov'cond.32 'rt, 'Dd[1]");
+        }
       } else {
-        Format(instr, "vmov'cond.32 'rt, 'Dd[1]");
+        const char* sign = instr->Bit(23) != 0 ? "u" : "s";
+        int rt = instr->RtValue();
+        int vn = instr->VFPNRegValue(kDoublePrecision);
+        if ((opc1_opc2 & 0x8) != 0) {
+          // NeonS8 / NeonU8
+          int i = opc1_opc2 & 0x7;
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "vmov.%s8 r%d, d%d[%d]", sign, rt, vn, i);
+        } else if ((opc1_opc2 & 0x1) != 0) {
+          // NeonS16 / NeonU16
+          int i = (opc1_opc2 >> 1) & 0x3;
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vmov.%s16 r%d, d%d[%d]",
+                       sign, rt, vn, i);
+        } else {
+          Unknown(instr);
+        }
       }
     } else if ((instr->VCValue() == 0x0) &&
                (instr->VAValue() == 0x7) &&
@@ -1493,10 +1616,40 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
           Format(instr, "vmrs'cond 'rt, FPSCR");
         }
       }
+    } else {
+      Unknown(instr);  // Not used by V8.
     }
   }
 }
 
+void Decoder::DecodeTypeCP15(Instruction* instr) {
+  VERIFY((instr->TypeValue() == 7) && (instr->Bit(24) == 0x0));
+  VERIFY(instr->CoprocessorValue() == 15);
+
+  if (instr->Bit(4) == 1) {
+    int crn = instr->Bits(19, 16);
+    int crm = instr->Bits(3, 0);
+    int opc1 = instr->Bits(23, 21);
+    int opc2 = instr->Bits(7, 5);
+    if ((opc1 == 0) && (crn == 7)) {
+      // ARMv6 memory barrier operations.
+      // Details available in ARM DDI 0406C.b, B3-1750.
+      if ((crm == 10) && (opc2 == 5)) {
+        Format(instr, "mcr'cond (CP15DMB)");
+      } else if ((crm == 10) && (opc2 == 4)) {
+        Format(instr, "mcr'cond (CP15DSB)");
+      } else if ((crm == 5) && (opc2 == 4)) {
+        Format(instr, "mcr'cond (CP15ISB)");
+      } else {
+        Unknown(instr);
+      }
+    } else {
+      Unknown(instr);
+    }
+  } else {
+    Unknown(instr);
+  }
+}
 
 void Decoder::DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(
     Instruction* instr) {
@@ -1703,6 +1856,104 @@ static const char* const barrier_option_names[] = {
 
 void Decoder::DecodeSpecialCondition(Instruction* instr) {
   switch (instr->SpecialValue()) {
+    case 4:
+      if (instr->Bits(11, 8) == 1 && instr->Bits(21, 20) == 2 &&
+          instr->Bit(6) == 1 && instr->Bit(4) == 1) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        if (Vm == Vn) {
+          // vmov Qd, Qm
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vmov q%d, q%d", Vd, Vm);
+        } else {
+          // vorr Qd, Qm, Qn.
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "vorr q%d, q%d, q%d", Vd, Vn, Vm);
+        }
+      } else if (instr->Bits(11, 8) == 8) {
+        const char* op = (instr->Bit(4) == 0) ? "vadd" : "vtst";
+        int size = kBitsPerByte * (1 << instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        // vadd/vtst.i<size> Qd, Qm, Qn.
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "%s.i%d q%d, q%d, q%d", op,
+                     size, Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 0xd && instr->Bit(4) == 0) {
+        const char* op = (instr->Bits(21, 20) == 0) ? "vadd" : "vsub";
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        // vadd/vsub.f32 Qd, Qm, Qn.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 0x9 && instr->Bit(6) == 1 &&
+                 instr->Bit(4) == 1) {
+        int size = kBitsPerByte * (1 << instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        // vmul.i<size> Qd, Qm, Qn.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vmul.i%d q%d, q%d, q%d", size, Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 0xe && instr->Bits(21, 20) == 0 &&
+                 instr->Bit(4) == 0) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        // vceq.f32 Qd, Qm, Qn.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vceq.f32 q%d, q%d, q%d", Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 1 && instr->Bits(21, 20) == 0 &&
+                 instr->Bit(6) == 1 && instr->Bit(4) == 1) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        // vand Qd, Qm, Qn.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vand q%d, q%d, q%d", Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 0x3) {
+        int size = kBitsPerByte * (1 << instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        const char* op = (instr->Bit(4) == 1) ? "vcge" : "vcgt";
+        // vcge/vcgt.s<size> Qd, Qm, Qn.
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "%s.s%d q%d, q%d, q%d", op,
+                     size, Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 0xf && instr->Bit(20) == 0 &&
+                 instr->Bit(6) == 1) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        if (instr->Bit(4) == 1) {
+          // vrecps/vrsqrts.f32 Qd, Qm, Qn.
+          const char* op = instr->Bit(21) == 0 ? "vrecps" : "vrsqrts";
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
+        } else {
+          // vmin/max.f32 Qd, Qm, Qn.
+          const char* op = instr->Bit(21) == 1 ? "vmin" : "vmax";
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
+        }
+      } else if (instr->Bits(11, 8) == 0x6) {
+        int size = kBitsPerByte * (1 << instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        // vmin/vmax.s<size> Qd, Qm, Qn.
+        const char* op = instr->Bit(4) == 1 ? "vmin" : "vmax";
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "%s.s%d q%d, q%d, q%d", op,
+                     size, Vd, Vn, Vm);
+      } else {
+        Unknown(instr);
+      }
+      break;
     case 5:
       if ((instr->Bits(18, 16) == 0) && (instr->Bits(11, 6) == 0x28) &&
           (instr->Bit(4) == 1)) {
@@ -1713,6 +1964,96 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int imm3 = instr->Bits(21, 19);
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                     "vmovl.s%d q%d, d%d", imm3*8, Vd, Vm);
+      } else if (instr->Bits(21, 20) == 3 && instr->Bit(4) == 0) {
+        // vext.8 Qd, Qm, Qn, imm4
+        int imm4 = instr->Bits(11, 8);
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vext.8 q%d, q%d, q%d, #%d",
+                     Vd, Vn, Vm, imm4);
+      } else {
+        Unknown(instr);
+      }
+      break;
+    case 6:
+      if (instr->Bits(11, 8) == 8) {
+        int size = kBitsPerByte * (1 << instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        if (instr->Bit(4) == 0) {
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vsub.i%d q%d, q%d, q%d",
+                       size, Vd, Vn, Vm);
+        } else {
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vceq.i%d q%d, q%d, q%d",
+                       size, Vd, Vn, Vm);
+        }
+      } else if (instr->Bits(11, 8) == 1 && instr->Bits(21, 20) == 1 &&
+                 instr->Bit(4) == 1) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vbsl q%d, q%d, q%d", Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 1 && instr->Bits(21, 20) == 0 &&
+                 instr->Bit(4) == 1) {
+        if (instr->Bit(6) == 0) {
+          // veor Dd, Dn, Dm
+          int Vd = instr->VFPDRegValue(kDoublePrecision);
+          int Vn = instr->VFPNRegValue(kDoublePrecision);
+          int Vm = instr->VFPMRegValue(kDoublePrecision);
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "veor d%d, d%d, d%d", Vd, Vn, Vm);
+
+        } else {
+          // veor Qd, Qn, Qm
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vn = instr->VFPNRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kSimd128Precision);
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "veor q%d, q%d, q%d", Vd, Vn, Vm);
+        }
+      } else if (instr->Bits(11, 8) == 0xd && instr->Bit(21) == 0 &&
+                 instr->Bit(6) == 1 && instr->Bit(4) == 1) {
+        // vmul.f32 Qd, Qn, Qm
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vmul.f32 q%d, q%d, q%d", Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 0xe && instr->Bit(20) == 0 &&
+                 instr->Bit(4) == 0) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        const char* op = (instr->Bit(21) == 0) ? "vcge" : "vcgt";
+        // vcge/vcgt.f32 Qd, Qm, Qn.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 0x3) {
+        int size = kBitsPerByte * (1 << instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        const char* op = (instr->Bit(4) == 1) ? "vcge" : "vcgt";
+        // vcge/vcgt.u<size> Qd, Qm, Qn.
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "%s.u%d q%d, q%d, q%d", op,
+                     size, Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 0x6) {
+        int size = kBitsPerByte * (1 << instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        // vmin/vmax.u<size> Qd, Qm, Qn.
+        const char* op = instr->Bit(4) == 1 ? "vmin" : "vmax";
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "%s.u%d q%d, q%d, q%d", op,
+                     size, Vd, Vn, Vm);
       } else {
         Unknown(instr);
       }
@@ -1727,6 +2068,109 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int imm3 = instr->Bits(21, 19);
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                     "vmovl.u%d q%d, d%d", imm3*8, Vd, Vm);
+      } else if (instr->Opc1Value() == 7 && instr->Bits(21, 20) == 0x3 &&
+                 instr->Bit(4) == 0) {
+        if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 7) == 0) {
+          if (instr->Bit(6) == 0) {
+            int Vd = instr->VFPDRegValue(kDoublePrecision);
+            int Vm = instr->VFPMRegValue(kDoublePrecision);
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vswp d%d, d%d", Vd, Vm);
+          } else {
+            int Vd = instr->VFPDRegValue(kSimd128Precision);
+            int Vm = instr->VFPMRegValue(kSimd128Precision);
+            out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                        "vswp q%d, q%d", Vd, Vm);
+          }
+        } else if (instr->Bits(11, 7) == 0x18) {
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kDoublePrecision);
+          int index = instr->Bit(19);
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "vdup q%d, d%d[%d]", Vd, Vm, index);
+        } else if (instr->Bits(19, 16) == 0 && instr->Bits(11, 6) == 0x17) {
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kSimd128Precision);
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vmvn q%d, q%d", Vd, Vm);
+        } else if (instr->Bits(19, 16) == 0xB && instr->Bits(11, 9) == 0x3 &&
+                   instr->Bit(6) == 1) {
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kSimd128Precision);
+          const char* suffix = nullptr;
+          int op = instr->Bits(8, 7);
+          switch (op) {
+            case 0:
+              suffix = "f32.s32";
+              break;
+            case 1:
+              suffix = "f32.u32";
+              break;
+            case 2:
+              suffix = "s32.f32";
+              break;
+            case 3:
+              suffix = "u32.f32";
+              break;
+          }
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "vcvt.%s q%d, q%d", suffix, Vd, Vm);
+        } else if (instr->Bits(11, 10) == 0x2) {
+          int Vd = instr->VFPDRegValue(kDoublePrecision);
+          int Vn = instr->VFPNRegValue(kDoublePrecision);
+          int Vm = instr->VFPMRegValue(kDoublePrecision);
+          int len = instr->Bits(9, 8);
+          NeonListOperand list(DwVfpRegister::from_code(Vn), len + 1);
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "%s d%d, ",
+                       instr->Bit(6) == 0 ? "vtbl.8" : "vtbx.8", Vd);
+          FormatNeonList(Vn, list.type());
+          Print(", ");
+          PrintDRegister(Vm);
+        } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 6) == 0x7) {
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kSimd128Precision);
+          int size = kBitsPerByte * (1 << instr->Bits(19, 18));
+          // vzip.<size> Qd, Qm.
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "vzip.%d q%d, q%d", size, Vd, Vm);
+        } else if (instr->Bits(17, 16) == 0 && instr->Bits(11, 9) == 0) {
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kSimd128Precision);
+          int size = kBitsPerByte * (1 << instr->Bits(19, 18));
+          int op = kBitsPerByte
+                   << (static_cast<int>(Neon64) - instr->Bits(8, 7));
+          // vrev<op>.<size> Qd, Qm.
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "vrev%d.%d q%d, q%d", op, size, Vd, Vm);
+        } else if (instr->Bits(17, 16) == 0x1 && instr->Bit(11) == 0) {
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kSimd128Precision);
+          int size = kBitsPerByte * (1 << instr->Bits(19, 18));
+          const char* type = instr->Bit(10) != 0 ? "f" : "s";
+          if (instr->Bits(9, 6) == 0xd) {
+            // vabs<type>.<size> Qd, Qm.
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_, "vabs.%s%d q%d, q%d",
+                         type, size, Vd, Vm);
+          } else if (instr->Bits(9, 6) == 0xf) {
+            // vneg<type>.<size> Qd, Qm.
+            out_buffer_pos_ +=
+                SNPrintF(out_buffer_ + out_buffer_pos_, "vneg.%s%d q%d, q%d",
+                         type, size, Vd, Vm);
+          } else {
+            Unknown(instr);
+          }
+        } else if (instr->Bits(19, 18) == 0x2 && instr->Bits(11, 8) == 0x5) {
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kSimd128Precision);
+          const char* op = instr->Bit(7) == 0 ? "vrecpe" : "vrsqrte";
+          // vrecpe/vrsqrte.f32 Qd, Qm.
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "%s.f32 q%d, q%d", op, Vd, Vm);
+        } else {
+          Unknown(instr);
+        }
       } else {
         Unknown(instr);
       }
@@ -1839,6 +2283,64 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
             UNREACHABLE();  // Case analysis is exhaustive.
             break;
         }
+      } else if ((instr->Opc1Value() == 0x4) && (instr->Bits(11, 9) == 0x5) &&
+                 (instr->Bit(4) == 0x0)) {
+        // VMAXNM, VMINNM (floating-point)
+        if (instr->SzValue() == 0x1) {
+          if (instr->Bit(6) == 0x1) {
+            Format(instr, "vminnm.f64 'Dd, 'Dn, 'Dm");
+          } else {
+            Format(instr, "vmaxnm.f64 'Dd, 'Dn, 'Dm");
+          }
+        } else {
+          if (instr->Bit(6) == 0x1) {
+            Format(instr, "vminnm.f32 'Sd, 'Sn, 'Sm");
+          } else {
+            Format(instr, "vmaxnm.f32 'Sd, 'Sn, 'Sm");
+          }
+        }
+      } else {
+        Unknown(instr);
+      }
+      break;
+    case 0x1C:
+      if ((instr->Bits(11, 9) == 0x5) && (instr->Bit(6) == 0) &&
+          (instr->Bit(4) == 0)) {
+        // VSEL* (floating-point)
+        bool dp_operation = (instr->SzValue() == 1);
+        switch (instr->Bits(21, 20)) {
+          case 0x0:
+            if (dp_operation) {
+              Format(instr, "vseleq.f64 'Dd, 'Dn, 'Dm");
+            } else {
+              Format(instr, "vseleq.f32 'Sd, 'Sn, 'Sm");
+            }
+            break;
+          case 0x1:
+            if (dp_operation) {
+              Format(instr, "vselvs.f64 'Dd, 'Dn, 'Dm");
+            } else {
+              Format(instr, "vselvs.f32 'Sd, 'Sn, 'Sm");
+            }
+            break;
+          case 0x2:
+            if (dp_operation) {
+              Format(instr, "vselge.f64 'Dd, 'Dn, 'Dm");
+            } else {
+              Format(instr, "vselge.f32 'Sd, 'Sn, 'Sm");
+            }
+            break;
+          case 0x3:
+            if (dp_operation) {
+              Format(instr, "vselgt.f64 'Dd, 'Dn, 'Dm");
+            } else {
+              Format(instr, "vselgt.f32 'Sd, 'Sn, 'Sm");
+            }
+            break;
+          default:
+            UNREACHABLE();  // Case analysis is exhaustive.
+            break;
+        }
       } else {
         Unknown(instr);
       }
@@ -1942,7 +2444,7 @@ namespace disasm {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.start();
 }
 
@@ -1953,7 +2455,7 @@ const char* NameConverter::NameOfConstant(byte* addr) const {
 
 
 const char* NameConverter::NameOfCPURegister(int reg) const {
-  return v8::internal::Register::from_code(reg).ToString();
+  return v8::internal::GetRegConfig()->GetGeneralRegisterName(reg);
 }
 
 
@@ -2005,9 +2507,8 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
-    v8::internal::PrintF(
-        f, "%p    %08x      %s\n",
-        prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
+    v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
+                         *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
   }
 }
 

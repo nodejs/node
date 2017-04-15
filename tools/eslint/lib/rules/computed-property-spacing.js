@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -27,9 +27,9 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var sourceCode = context.getSourceCode();
-        var propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
+    create(context) {
+        const sourceCode = context.getSourceCode();
+        const propertyNameMustBeSpaced = context.options[0] === "always"; // default is "never"
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -44,10 +44,13 @@ module.exports = {
         */
         function reportNoBeginningSpace(node, token, tokenAfter) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
-                message: "There should be no space after '" + token.value + "'",
-                fix: function(fixer) {
+                message: "There should be no space after '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
+                fix(fixer) {
                     return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
                 }
             });
@@ -62,10 +65,13 @@ module.exports = {
         */
         function reportNoEndingSpace(node, token, tokenBefore) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
-                message: "There should be no space before '" + token.value + "'",
-                fix: function(fixer) {
+                message: "There should be no space before '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
+                fix(fixer) {
                     return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
                 }
             });
@@ -79,10 +85,13 @@ module.exports = {
         */
         function reportRequiredBeginningSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
-                message: "A space is required after '" + token.value + "'",
-                fix: function(fixer) {
+                message: "A space is required after '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
+                fix(fixer) {
                     return fixer.insertTextAfter(token, " ");
                 }
             });
@@ -96,10 +105,13 @@ module.exports = {
         */
         function reportRequiredEndingSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
-                message: "A space is required before '" + token.value + "'",
-                fix: function(fixer) {
+                message: "A space is required before '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
+                fix(fixer) {
                     return fixer.insertTextBefore(token, " ");
                 }
             });
@@ -108,7 +120,7 @@ module.exports = {
         /**
          * Returns a function that checks the spacing of a node on the property name
          * that was passed in.
-         * @param {String} propertyName The property on the node to check for spacing
+         * @param {string} propertyName The property on the node to check for spacing
          * @returns {Function} A function that will check spacing on a node
          */
         function checkSpacing(propertyName) {
@@ -117,12 +129,12 @@ module.exports = {
                     return;
                 }
 
-                var property = node[propertyName];
+                const property = node[propertyName];
 
-                var before = context.getTokenBefore(property),
-                    first = context.getFirstToken(property),
-                    last = context.getLastToken(property),
-                    after = context.getTokenAfter(property);
+                const before = sourceCode.getTokenBefore(property),
+                    first = sourceCode.getFirstToken(property),
+                    last = sourceCode.getLastToken(property),
+                    after = sourceCode.getTokenAfter(property);
 
                 if (astUtils.isTokenOnSameLine(before, first)) {
                     if (propertyNameMustBeSpaced) {

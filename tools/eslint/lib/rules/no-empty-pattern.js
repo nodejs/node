@@ -19,16 +19,16 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         return {
-            ObjectPattern: function(node) {
+            ObjectPattern(node) {
                 if (node.properties.length === 0) {
-                    context.report(node, "Unexpected empty object pattern.");
+                    context.report({ node, message: "Unexpected empty object pattern." });
                 }
             },
-            ArrayPattern: function(node) {
+            ArrayPattern(node) {
                 if (node.elements.length === 0) {
-                    context.report(node, "Unexpected empty array pattern.");
+                    context.report({ node, message: "Unexpected empty array pattern." });
                 }
             }
         };

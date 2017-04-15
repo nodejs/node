@@ -1568,8 +1568,8 @@ ___
 }
 
 ########################################################################
-# void AES_xts_encrypt(const char *inp,char *out,size_t len,
-#	const AES_KEY *key1, const AES_KEY *key2,
+# void AES_xts_encrypt(const unsigned char *inp, unsigned char *out,
+#	size_t len, const AES_KEY *key1, const AES_KEY *key2,
 #	const unsigned char iv[16]);
 #
 {
@@ -1937,8 +1937,8 @@ $code.=<<___;
 	br	$ra
 .size	AES_xts_encrypt,.-AES_xts_encrypt
 ___
-# void AES_xts_decrypt(const char *inp,char *out,size_t len,
-#	const AES_KEY *key1, const AES_KEY *key2,
+# void AES_xts_decrypt(const unsigned char *inp, unsigned char *out,
+#	size_t len, const AES_KEY *key1, const AES_KEY *key2,
 #	const unsigned char iv[16]);
 #
 $code.=<<___;

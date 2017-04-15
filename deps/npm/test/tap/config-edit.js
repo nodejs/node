@@ -8,7 +8,7 @@ var common = require('../common-tap.js')
 
 var pkg = path.resolve(__dirname, 'npm-global-edit')
 
-var editorSrc = function () {/*
+var editorSrc = function () { /*
 #!/usr/bin/env node
 var fs = require('fs')
 if (fs.existsSync(process.argv[2])) {
@@ -17,7 +17,7 @@ if (fs.existsSync(process.argv[2])) {
   console.log('error')
   process.exit(1)
 }
-*/}.toString().split('\n').slice(1, -1).join('\n')
+*/ }.toString().split('\n').slice(1, -1).join('\n')
 var editorPath = path.join(pkg, 'editor')
 
 test('setup', function (t) {
@@ -38,7 +38,9 @@ test('saving configs', function (t) {
     cwd: pkg,
     env: {
       PATH: process.env.PATH,
-      EDITOR: editorPath
+      // We rely on the cwd + relative path combo here because otherwise,
+      // this test will break if there's spaces in the editorPath
+      EDITOR: 'node editor'
     }
   }
   common.npm(

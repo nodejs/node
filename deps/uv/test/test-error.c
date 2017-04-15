@@ -21,6 +21,9 @@
 
 #include "uv.h"
 #include "task.h"
+#if defined(_WIN32)
+# include "../src/win/winapi.h"
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,6 +48,26 @@ TEST_IMPL(error_message) {
   ASSERT(strstr(uv_strerror(UV_EINVAL), "Success") == NULL);
   ASSERT(strcmp(uv_strerror(1337), "Unknown error") == 0);
   ASSERT(strcmp(uv_strerror(-1337), "Unknown error") == 0);
+
+  return 0;
+}
+
+
+TEST_IMPL(sys_error) {
+#if defined(_WIN32)
+  ASSERT(uv_translate_sys_error(ERROR_NOACCESS) == UV_EACCES);
+  ASSERT(uv_translate_sys_error(ERROR_ELEVATION_REQUIRED) == UV_EACCES);
+  ASSERT(uv_translate_sys_error(WSAEADDRINUSE) == UV_EADDRINUSE);
+  ASSERT(uv_translate_sys_error(ERROR_BAD_PIPE) == UV_EPIPE);
+#else
+  ASSERT(uv_translate_sys_error(EPERM) == UV_EPERM);
+  ASSERT(uv_translate_sys_error(EPIPE) == UV_EPIPE);
+  ASSERT(uv_translate_sys_error(EINVAL) == UV_EINVAL);
+#endif
+  ASSERT(uv_translate_sys_error(UV_EINVAL) == UV_EINVAL);
+  ASSERT(uv_translate_sys_error(UV_ERANGE) == UV_ERANGE);
+  ASSERT(uv_translate_sys_error(UV_EACCES) == UV_EACCES);
+  ASSERT(uv_translate_sys_error(0) == 0);
 
   return 0;
 }

@@ -4,6 +4,12 @@
 
 Pretty much [rimraf](https://github.com/isaacs/rimraf) with a Promise API and support for multiple files and globbing. It also protects you against deleting the current working directory and above.
 
+---
+
+<p align="center"><b>🔥 Want to strengthen your core JavaScript skills and master ES6?</b><br>I would personally recommend this awesome <a href="https://ES6.io/friend/AWESOME">ES6 course</a> by Wes Bos.</p>
+
+---
+
 
 ## Install
 
@@ -72,7 +78,7 @@ See the `node-glob` [options](https://github.com/isaacs/node-glob#options).
 Type: `boolean`  
 Default: `false`
 
-Allow deleting the current working directory and files/folders outside it.
+Allow deleting the current working directory and outside.
 
 ##### dryRun
 
@@ -92,7 +98,7 @@ del(['tmp/*.js'], {dryRun: true}).then(paths => {
 
 ## CLI
 
-See [trash-cli](https://github.com/sindresorhus/trash-cli).
+See [del-cli](https://github.com/sindresorhus/del-cli) for a CLI for this module and [trash-cli](https://github.com/sindresorhus/trash-cli) for a safe version that is suitable for running by hand.
 
 
 ## License

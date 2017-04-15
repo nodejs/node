@@ -21,16 +21,16 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            BinaryExpression: function(node) {
-                var badOperator = node.operator === "==" || node.operator === "!=";
+            BinaryExpression(node) {
+                const badOperator = node.operator === "==" || node.operator === "!=";
 
                 if (node.right.type === "Literal" && node.right.raw === "null" && badOperator ||
                         node.left.type === "Literal" && node.left.raw === "null" && badOperator) {
-                    context.report(node, "Use ‘===’ to compare with ‘null’.");
+                    context.report({ node, message: "Use ‘===’ to compare with ‘null’." });
                 }
             }
         };

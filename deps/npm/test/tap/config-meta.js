@@ -67,7 +67,7 @@ test('get lines', function (t) {
               line: i
             }
           }
-        } else if (exceptions.indexOf(f) === -1) {
+        } else if (exceptions.indexOf(f) === -1 && f.indexOf('.cache') === -1) {
           t.fail('non-string-literal config used in ' + f + ':' + i)
         }
       })

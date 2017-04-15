@@ -96,9 +96,7 @@ int MAIN(int argc, char **argv)
     int g = 2;
     char *outfile = NULL;
     char *inrand = NULL;
-# ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-# endif
     BIO *out = NULL;
 
     apps_startup();
@@ -162,9 +160,7 @@ int MAIN(int argc, char **argv)
         BIO_printf(bio_err, "             the random number generator\n");
         goto end;
     }
-# ifndef OPENSSL_NO_ENGINE
     setup_engine(bio_err, engine, 0);
-# endif
 
     out = BIO_new(BIO_s_file());
     if (out == NULL) {

@@ -20,13 +20,13 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            Literal: function(node) {
+            Literal(node) {
                 if (typeof node.value === "number" && /^0[0-7]/.test(node.raw)) {
-                    context.report(node, "Octal literals should not be used.");
+                    context.report({ node, message: "Octal literals should not be used." });
                 }
             }
         };

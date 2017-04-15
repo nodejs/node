@@ -1,15 +1,6 @@
-/* Built-in method references for those with the same name as other `lodash` methods. */
-var nativeGetPrototype = Object.getPrototypeOf;
+var overArg = require('./_overArg');
 
-/**
- * Gets the `[[Prototype]]` of `value`.
- *
- * @private
- * @param {*} value The value to query.
- * @returns {null|Object} Returns the `[[Prototype]]`.
- */
-function getPrototype(value) {
-  return nativeGetPrototype(Object(value));
-}
+/** Built-in value references. */
+var getPrototype = overArg(Object.getPrototypeOf, Object);
 
 module.exports = getPrototype;

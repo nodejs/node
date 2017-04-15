@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --allow-natives-syntax
+
 (function () {
   var o = [];
   o.__proto__ = {};
@@ -27,7 +29,28 @@
 })();
 
 (function () {
-  var o = new Int32Array();
-  Object.defineProperty(o, "0", {get: function(){}});
-  assertEquals(undefined, Object.getOwnPropertyDescriptor(o, "0"));
+  var o = new Int32Array(1);
+  assertThrows(
+      () => Object.defineProperty(o, '0', {get: function() {}}), TypeError);
+  assertEquals({
+    value: 0,
+    writable: true,
+    enumerable: true,
+    configurable: false
+  }, Object.getOwnPropertyDescriptor(o, "0"));
+})();
+
+(function() {
+  function f() {
+    var a = new Array();
+    a[1] = 1.5;
+    return a;
+  }
+
+  f();
+  f();
+  %OptimizeFunctionOnNextCall(f);
+  var a = f();
+  a[2] = 2;
+  assertEquals(3, a.length);
 })();

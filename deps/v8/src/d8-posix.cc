@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -14,10 +15,6 @@
 #include <unistd.h>
 
 #include "src/d8.h"
-
-#if !V8_OS_NACL
-#include <sys/select.h>
-#endif
 
 namespace v8 {
 
@@ -105,16 +102,11 @@ static bool WaitOnFD(int fd,
   }
   timeout.tv_usec = (read_timeout % 1000) * 1000;
   timeout.tv_sec = read_timeout / 1000;
-#if V8_OS_NACL
-  // PNaCL has no support for select.
-  int number_of_fds_ready = -1;
-#else
   int number_of_fds_ready = select(fd + 1,
                                    &readfds,
                                    &writefds,
                                    &exceptfds,
                                    read_timeout != -1 ? &timeout : NULL);
-#endif
   return number_of_fds_ready == 1;
 }
 
@@ -531,21 +523,18 @@ void Shell::System(const v8::FunctionCallbackInfo<v8::Value>& args) {
   OpenFDCloser error_read_closer(exec_error_fds[kReadFD]);
   OpenFDCloser stdout_read_closer(stdout_fds[kReadFD]);
 
-  if (!ChildLaunchedOK(args.GetIsolate(), exec_error_fds)) return;
+  Isolate* isolate = args.GetIsolate();
+  if (!ChildLaunchedOK(isolate, exec_error_fds)) return;
 
-  Local<Value> accumulator = GetStdout(args.GetIsolate(), stdout_fds[kReadFD],
-                                       start_time, read_timeout, total_timeout);
+  Local<Value> accumulator = GetStdout(isolate, stdout_fds[kReadFD], start_time,
+                                       read_timeout, total_timeout);
   if (accumulator->IsUndefined()) {
     kill(pid, SIGINT);  // On timeout, kill the subprocess.
     args.GetReturnValue().Set(accumulator);
     return;
   }
 
-  if (!WaitForChild(args.GetIsolate(),
-                    pid,
-                    child_waiter,
-                    start_time,
-                    read_timeout,
+  if (!WaitForChild(isolate, pid, child_waiter, start_time, read_timeout,
                     total_timeout)) {
     return;
   }
@@ -588,13 +577,8 @@ void Shell::SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   if (args[0]->IsNumber()) {
-#if V8_OS_NACL
-    // PNaCL has no support for umask.
-    int previous = 0;
-#else
     int previous = umask(
         args[0]->Int32Value(args.GetIsolate()->GetCurrentContext()).FromJust());
-#endif
     args.GetReturnValue().Set(previous);
     return;
   } else {
@@ -786,6 +770,14 @@ void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {
   os_templ->Set(String::NewFromUtf8(isolate, "rmdir", NewStringType::kNormal)
                     .ToLocalChecked(),
                 FunctionTemplate::New(isolate, RemoveDirectory));
+}
+
+void Shell::Exit(int exit_code) {
+  // Use _exit instead of exit to avoid races between isolate
+  // threads and static destructors.
+  fflush(stdout);
+  fflush(stderr);
+  _exit(exit_code);
 }
 
 }  // namespace v8

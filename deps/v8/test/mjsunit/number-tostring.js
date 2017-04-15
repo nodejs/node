@@ -144,6 +144,13 @@ assertEquals("1e-7", (0.0000001).toString());
 assertEquals("8.8", (8.5).toString(16));
 assertEquals("-8.8", (-8.5).toString(16));
 
+assertEquals("1.1", (4/3).toString(3));
+assertEquals("11.1", (13/3).toString(3));
+assertEquals("0.01", (1/9).toString(3));
+assertEquals("10000", (81).toString(3));
+assertEquals("10000.01", (81 + 1/9).toString(3));
+assertEquals("0.0212010212010212010212010212010212", (2/7).toString(3));
+
 // ----------------------------------------------------------------------
 // toFixed
 assertEquals("NaN", (NaN).toFixed(2));

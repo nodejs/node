@@ -12,6 +12,7 @@ using v8::Context;
 using v8::Local;
 using v8::Object;
 using v8::ReadOnly;
+using v8::String;
 using v8::Value;
 
 // The config binding is used to provide an internal view of compile or runtime
@@ -26,11 +27,11 @@ using v8::Value;
                               True(env->isolate()), ReadOnly).FromJust();     \
   } while (0)
 
-void InitConfig(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context) {
-#ifdef NODE_HAVE_I18N_SUPPORT
+static void InitConfig(Local<Object> target,
+                       Local<Value> unused,
+                       Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
+#ifdef NODE_HAVE_I18N_SUPPORT
 
   READONLY_BOOLEAN_PROPERTY("hasIntl");
 
@@ -38,12 +39,28 @@ void InitConfig(Local<Object> target,
   READONLY_BOOLEAN_PROPERTY("hasSmallICU");
 #endif  // NODE_HAVE_SMALL_ICU
 
-  if (flag_icu_data_dir)
-    READONLY_BOOLEAN_PROPERTY("usingICUDataDir");
+  target->DefineOwnProperty(env->context(),
+                            OneByteString(env->isolate(), "icuDataDir"),
+                            OneByteString(env->isolate(), icu_data_dir.data()))
+      .FromJust();
+
 #endif  // NODE_HAVE_I18N_SUPPORT
 
   if (config_preserve_symlinks)
     READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
+
+  if (!config_warning_file.empty()) {
+    Local<String> name = OneByteString(env->isolate(), "warningFile");
+    Local<String> value = String::NewFromUtf8(env->isolate(),
+                                              config_warning_file.data(),
+                                              v8::NewStringType::kNormal,
+                                              config_warning_file.size())
+                                                .ToLocalChecked();
+    target->DefineOwnProperty(env->context(), name, value).FromJust();
+  }
+
+  if (config_expose_internals)
+    READONLY_BOOLEAN_PROPERTY("exposeInternals");
 }  // InitConfig
 
 }  // namespace node

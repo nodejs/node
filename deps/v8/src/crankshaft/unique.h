@@ -11,7 +11,7 @@
 #include "src/base/functional.h"
 #include "src/handles.h"
 #include "src/utils.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

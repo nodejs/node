@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -23,11 +23,14 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
-    create: function(context) {
-        var scopeInfo = null;
+    create(context) {
+        const sourceCode = context.getSourceCode();
+        let scopeInfo = null;
 
         /**
          * Creates a new scope with a breakable statement.
@@ -37,7 +40,7 @@ module.exports = {
          */
         function enterBreakableStatement(node) {
             scopeInfo = {
-                label: astUtils.getLabel(node),
+                label: node.parent.type === "LabeledStatement" ? node.parent.label : null,
                 breakable: true,
                 upper: scopeInfo
             };
@@ -64,7 +67,7 @@ module.exports = {
         function enterLabeledStatement(node) {
             if (!astUtils.isBreakableStatement(node.body)) {
                 scopeInfo = {
-                    label: node.label.name,
+                    label: node.label,
                     breakable: false,
                     upper: scopeInfo
                 };
@@ -98,23 +101,20 @@ module.exports = {
                 return;
             }
 
-            var labelNode = node.label;
-            var label = labelNode.name;
-            var info = scopeInfo;
+            const labelNode = node.label;
 
-            while (info) {
-                if (info.breakable || info.label === label) {
-                    if (info.breakable && info.label === label) {
+            for (let info = scopeInfo; info !== null; info = info.upper) {
+                if (info.breakable || info.label && info.label.name === labelNode.name) {
+                    if (info.breakable && info.label && info.label.name === labelNode.name) {
                         context.report({
                             node: labelNode,
                             message: "This label '{{name}}' is unnecessary.",
-                            data: labelNode
+                            data: labelNode,
+                            fix: fixer => fixer.removeRange([sourceCode.getFirstToken(node).range[1], labelNode.range[1]])
                         });
                     }
                     return;
                 }
-
-                info = info.upper;
             }
         }
 

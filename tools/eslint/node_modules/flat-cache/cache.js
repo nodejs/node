@@ -1,8 +1,8 @@
 var path = require( 'path' );
 var fs = require( 'graceful-fs' );
-var readJSON = require( 'read-json-sync' );
-var write = require( 'write' );
 var del = require( 'del' ).sync;
+var utils = require( './utils' );
+var writeJSON = utils.writeJSON;
 
 var cache = {
   /**
@@ -22,7 +22,7 @@ var cache = {
     me._pathToFile = cacheDir ? path.resolve( cacheDir, docId ) : path.resolve( __dirname, './.cache/', docId );
 
     if ( fs.existsSync( me._pathToFile ) ) {
-      me._persisted = readJSON( me._pathToFile );
+      me._persisted = utils.tryParse( me._pathToFile, { } );
     }
   },
 
@@ -100,13 +100,14 @@ var cache = {
   /**
    * Save the state of the cache identified by the docId to disk
    * as a JSON structure
+   * @param [noPrune=false] {Boolean} whether to remove from cache the non visited files
    * @method save
    */
-  save: function () {
+  save: function ( noPrune ) {
     var me = this;
 
-    me._prune();
-    write.sync( me._pathToFile, JSON.stringify( me._persisted ) );
+    (!noPrune) && me._prune();
+    writeJSON( me._pathToFile, me._persisted );
   },
 
   /**

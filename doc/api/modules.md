@@ -1,29 +1,30 @@
 # Modules
 
-    Stability: 3 - Locked
+> Stability: 2 - Stable
 
 <!--name=module-->
 
-Node.js has a simple module loading system.  In Node.js, files and modules are
-in one-to-one correspondence.  As an example, `foo.js` loads the module
-`circle.js` in the same directory.
+Node.js has a simple module loading system.  In Node.js, files and modules
+are in one-to-one correspondence (each file is treated as a separate module).
 
-The contents of `foo.js`:
+As an example, consider a file named `foo.js`:
 
 ```js
 const circle = require('./circle.js');
-console.log( `The area of a circle of radius 4 is ${circle.area(4)}`);
+console.log(`The area of a circle of radius 4 is ${circle.area(4)}`);
 ```
 
-The contents of `circle.js`:
+On the first line, `foo.js` loads the module `circle.js` that is in the same
+directory as `foo.js`.
+
+Here are the contents of `circle.js`:
 
 ```js
-const PI = Math.PI;
+const { PI } = Math;
 
-exports.area = (r) => PI * r * r;
+exports.area = (r) => PI * r ** 2;
 
 exports.circumference = (r) => 2 * PI * r;
-
 ```
 
 The module `circle.js` has exported the functions `area()` and
@@ -43,7 +44,7 @@ Below, `bar.js` makes use of the `square` module, which exports a constructor:
 
 ```js
 const square = require('./square.js');
-var mySquare = square(2);
+const mySquare = square(2);
 console.log(`The area of my square is ${mySquare.area()}`);
 ```
 
@@ -53,12 +54,12 @@ The `square` module is defined in `square.js`:
 // assigning to exports will not modify module, must use module.exports
 module.exports = (width) => {
   return {
-    area: () => width * width
+    area: () => width ** 2
   };
-}
+};
 ```
 
-The module system is implemented in the `require("module")` module.
+The module system is implemented in the `require('module')` module.
 
 ## Accessing the main module
 
@@ -141,18 +142,20 @@ To get the exact filename that will be loaded when `require()` is called, use
 the `require.resolve()` function.
 
 Putting together all of the above, here is the high-level algorithm
-in pseudocode of what require.resolve does:
+in pseudocode of what `require.resolve()` does:
 
-```
+```txt
 require(X) from module at path Y
 1. If X is a core module,
    a. return the core module
    b. STOP
-2. If X begins with './' or '/' or '../'
+2. If X begins with '/'
+   a. set Y to be the filesystem root
+3. If X begins with './' or '/' or '../'
    a. LOAD_AS_FILE(Y + X)
    b. LOAD_AS_DIRECTORY(Y + X)
-3. LOAD_NODE_MODULES(X, dirname(Y))
-4. THROW "not found"
+4. LOAD_NODE_MODULES(X, dirname(Y))
+5. THROW "not found"
 
 LOAD_AS_FILE(X)
 1. If X is a file, load X as JavaScript text.  STOP
@@ -160,14 +163,18 @@ LOAD_AS_FILE(X)
 3. If X.json is a file, parse X.json to a JavaScript Object.  STOP
 4. If X.node is a file, load X.node as binary addon.  STOP
 
+LOAD_INDEX(X)
+1. If X/index.js is a file, load X/index.js as JavaScript text.  STOP
+2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
+3. If X/index.node is a file, load X/index.node as binary addon.  STOP
+
 LOAD_AS_DIRECTORY(X)
 1. If X/package.json is a file,
    a. Parse X/package.json, and look for "main" field.
    b. let M = X + (json main field)
    c. LOAD_AS_FILE(M)
-2. If X/index.js is a file, load X/index.js as JavaScript text.  STOP
-3. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
-4. If X/index.node is a file, load X/index.node as binary addon.  STOP
+   d. LOAD_INDEX(M)
+2. LOAD_INDEX(X)
 
 LOAD_NODE_MODULES(X, START)
 1. let DIRS=NODE_MODULES_PATHS(START)
@@ -181,9 +188,9 @@ NODE_MODULES_PATHS(START)
 3. let DIRS = []
 4. while I >= 0,
    a. if PARTS[I] = "node_modules" CONTINUE
-   c. DIR = path join(PARTS[0 .. I] + "node_modules")
-   b. DIRS = DIRS + DIR
-   c. let I = I - 1
+   b. DIR = path join(PARTS[0 .. I] + "node_modules")
+   c. DIRS = DIRS + DIR
+   d. let I = I - 1
 5. return DIRS
 ```
 
@@ -244,7 +251,7 @@ Consider this situation:
 
 `a.js`:
 
-```
+```js
 console.log('a starting');
 exports.done = false;
 const b = require('./b.js');
@@ -255,7 +262,7 @@ console.log('a done');
 
 `b.js`:
 
-```
+```js
 console.log('b starting');
 exports.done = false;
 const a = require('./a.js');
@@ -266,7 +273,7 @@ console.log('b done');
 
 `main.js`:
 
-```
+```js
 console.log('main starting');
 const a = require('./a.js');
 const b = require('./b.js');
@@ -282,7 +289,7 @@ provided to the `a.js` module.
 By the time `main.js` has loaded both modules, they're both finished.
 The output of this program would thus be:
 
-```
+```txt
 $ node main.js
 main starting
 a starting
@@ -336,7 +343,7 @@ The first is to create a `package.json` file in the root of the folder,
 which specifies a `main` module.  An example package.json file might
 look like this:
 
-```
+```json
 { "name" : "some-library",
   "main" : "./lib/some-library.js" }
 ```
@@ -351,7 +358,7 @@ Note: If the file specified by the `"main"` entry of `package.json` is missing
 and can not be resolved, Node.js will report the entire module as missing with
 the default error:
 
-```
+```txt
 Error: Cannot find module 'some-library'
 ```
 
@@ -367,11 +374,11 @@ example, then `require('./some-library')` would attempt to load:
 
 <!--type=misc-->
 
-If the module identifier passed to `require()` is not a native module,
-and does not begin with `'/'`, `'../'`, or `'./'`, then Node.js starts at the
-parent directory of the current module, and adds `/node_modules`, and
-attempts to load the module from that location. Node will not append
-`node_modules` to a path already ending in `node_modules`.
+If the module identifier passed to `require()` is not a
+[core](#modules_core_modules) module, and does not begin with `'/'`, `'../'`, or
+`'./'`, then Node.js starts at the parent directory of the current module, and
+adds `/node_modules`, and attempts to load the module from that location. Node
+will not append `node_modules` to a path already ending in `node_modules`.
 
 If it is not found there, then it moves to the parent directory, and so
 on, until the root of the file system is reached.
@@ -451,6 +458,9 @@ to the module, such as:
   module's absolute filename and directory path.
 
 ## The `module` Object
+<!-- YAML
+added: v0.1.16
+-->
 
 <!-- type=var -->
 <!-- name=module -->
@@ -459,16 +469,22 @@ to the module, such as:
 
 In each module, the `module` free variable is a reference to the object
 representing the current module.  For convenience, `module.exports` is
-also accessible via the `exports` module-global. `module` isn't actually
+also accessible via the `exports` module-global. `module` is not actually
 a global but rather local to each module.
 
 ### module.children
+<!-- YAML
+added: v0.1.16
+-->
 
 * {Array}
 
 The module objects required by this one.
 
 ### module.exports
+<!-- YAML
+added: v0.1.16
+-->
 
 * {Object}
 
@@ -520,61 +536,96 @@ const x = require('./x');
 console.log(x.a);
 ```
 
-#### exports alias
+#### exports shortcut
+<!-- YAML
+added: v0.1.16
+-->
 
-The `exports` variable that is available within a module starts as a reference
-to `module.exports`. As with any variable, if you assign a new value to it, it
-is no longer bound to the previous value.
+The `exports` variable is available within a module's file-level scope, and is
+assigned the value of `module.exports` before the module is evaluated.
 
-To illustrate the behavior, imagine this hypothetical implementation of
-`require()`:
+It allows a shortcut, so that `module.exports.f = ...` can be written more
+succinctly as `exports.f = ...`. However, be aware that like any variable, if a
+new value is assigned to `exports`, it is no longer bound to `module.exports`:
 
 ```js
-function require(...) {
-  // ...
+module.exports.hello = true; // Exported from require of module
+exports = { hello: false };  // Not exported, only available in the module
+```
+
+When the `module.exports` property is being completely replaced by a new
+object, it is common to also reassign `exports`, for example:
+
+```js
+module.exports = exports = function Constructor() {
+    // ... etc.
+```
+
+To illustrate the behavior, imagine this hypothetical implementation of
+`require()`, which is quite similar to what is actually done by `require()`:
+
+```js
+function require(/* ... */) {
+  const module = { exports: {} };
   ((module, exports) => {
-    // Your module code here
-    exports = some_func;        // re-assigns exports, exports is no longer
-                                // a shortcut, and nothing is exported.
-    module.exports = some_func; // makes your module export 0
+    // Your module code here. In this example, define a function.
+    function someFunc() {}
+    exports = someFunc;
+    // At this point, exports is no longer a shortcut to module.exports, and
+    // this module will still export an empty default object.
+    module.exports = someFunc;
+    // At this point, the module will now export someFunc, instead of the
+    // default object.
   })(module, module.exports);
-  return module;
+  return module.exports;
 }
 ```
 
-As a guideline, if the relationship between `exports` and `module.exports`
-seems like magic to you, ignore `exports` and only use `module.exports`.
-
 ### module.filename
+<!-- YAML
+added: v0.1.16
+-->
 
-* {String}
+* {string}
 
 The fully resolved filename to the module.
 
 ### module.id
+<!-- YAML
+added: v0.1.16
+-->
 
-* {String}
+* {string}
 
 The identifier for the module.  Typically this is the fully resolved
 filename.
 
 ### module.loaded
+<!-- YAML
+added: v0.1.16
+-->
 
-* {Boolean}
+* {boolean}
 
 Whether or not the module is done loading, or is in the process of
 loading.
 
 ### module.parent
+<!-- YAML
+added: v0.1.16
+-->
 
 * {Object} Module object
 
 The module that first required this one.
 
 ### module.require(id)
+<!-- YAML
+added: v0.5.1
+-->
 
-* `id` {String}
-* Return: {Object} `module.exports` from the resolved module
+* `id` {string}
+* Returns: {Object} `module.exports` from the resolved module
 
 The `module.require` method provides a way to load a module as if
 `require()` was called from the original module.

@@ -1,8 +1,35 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 
-var common = require('../common');
-var assert = require('assert');
-var repl = require('repl');
+const common = require('../common');
+const assert = require('assert');
+
+// We have to change the directory to ../fixtures before requiring repl
+// in order to make the tests for completion of node_modules work properly
+// since repl modifies module.paths.
+process.chdir(common.fixturesDir);
+
+const repl = require('repl');
 
 function getNoResultsFunction() {
   return common.mustCall((err, data) => {
@@ -11,9 +38,9 @@ function getNoResultsFunction() {
   });
 }
 
-var works = [['inner.one'], 'inner.o'];
+const works = [['inner.one'], 'inner.o'];
 const putIn = new common.ArrayStream();
-var testMe = repl.start('', putIn);
+const testMe = repl.start('', putIn);
 
 // Some errors are passed to the domain, but do not callback
 testMe._domain.on('error', function(err) {
@@ -32,7 +59,7 @@ testMe.complete('console.lo', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
 }));
 
-// Tab Complete will return globaly scoped variables
+// Tab Complete will return globally scoped variables
 putIn.run(['};']);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, works);
@@ -159,7 +186,7 @@ testMe.complete('str.len', common.mustCall(function(error, data) {
 putIn.run(['.clear']);
 
 // tab completion should not break on spaces
-var spaceTimeout = setTimeout(function() {
+const spaceTimeout = setTimeout(function() {
   throw new Error('timeout');
 }, 1000);
 
@@ -196,6 +223,15 @@ testMe.complete('require(\'n', common.mustCall(function(error, data) {
   });
 }));
 
+{
+  const expected = ['@nodejsscope', '@nodejsscope/'];
+  putIn.run(['.clear']);
+  testMe.complete('require(\'@nodejs', common.mustCall((err, data) => {
+    assert.strictEqual(err, null);
+    assert.deepStrictEqual(data, [expected, '@nodejs']);
+  }));
+}
+
 // Make sure tab completion works on context properties
 putIn.run(['.clear']);
 
@@ -216,6 +252,7 @@ putIn.run([
 
 testMe.complete('proxy.', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
+  assert(Array.isArray(data));
 }));
 
 // Make sure tab completion does not include integer members of an Array
@@ -259,4 +296,110 @@ putIn.run(['.clear']);
 
 testMe.complete('var log = console.lo', common.mustCall((error, data) => {
   assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
+}));
+
+// tab completion for defined commands
+putIn.run(['.clear']);
+
+testMe.complete('.b', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['break'], 'b']);
+}));
+
+const testNonGlobal = repl.start({
+  input: putIn,
+  output: putIn,
+  useGlobal: false
+});
+
+const builtins = [['Infinity', '', 'Int16Array', 'Int32Array',
+                   'Int8Array'], 'I'];
+
+if (common.hasIntl) {
+  builtins[0].push('Intl');
+}
+testNonGlobal.complete('I', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, builtins);
+}));
+
+// To test custom completer function.
+// Sync mode.
+const customCompletions = 'aaa aa1 aa2 bbb bb1 bb2 bb3 ccc ddd eee'.split(' ');
+const testCustomCompleterSyncMode = repl.start({
+  prompt: '',
+  input: putIn,
+  output: putIn,
+  completer: function completer(line) {
+    const hits = customCompletions.filter((c) => c.startsWith(line));
+    // Show all completions if none found.
+    return [hits.length ? hits : customCompletions, line];
+  }
+});
+
+// On empty line should output all the custom completions
+// without complete anything.
+testCustomCompleterSyncMode.complete('', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [
+    customCompletions,
+    ''
+  ]);
+}));
+
+// On `a` should output `aaa aa1 aa2` and complete until `aa`.
+testCustomCompleterSyncMode.complete('a', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [
+    'aaa aa1 aa2'.split(' '),
+    'a'
+  ]);
+}));
+
+// To test custom completer function.
+// Async mode.
+const testCustomCompleterAsyncMode = repl.start({
+  prompt: '',
+  input: putIn,
+  output: putIn,
+  completer: function completer(line, callback) {
+    const hits = customCompletions.filter((c) => c.startsWith(line));
+    // Show all completions if none found.
+    callback(null, [hits.length ? hits : customCompletions, line]);
+  }
+});
+
+// On empty line should output all the custom completions
+// without complete anything.
+testCustomCompleterAsyncMode.complete('', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [
+    customCompletions,
+    ''
+  ]);
+}));
+
+// On `a` should output `aaa aa1 aa2` and complete until `aa`.
+testCustomCompleterAsyncMode.complete('a', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [
+    'aaa aa1 aa2'.split(' '),
+    'a'
+  ]);
+}));
+
+// tab completion in editor mode
+const editorStream = new common.ArrayStream();
+const editor = repl.start({
+  stream: editorStream,
+  terminal: true,
+  useColors: false
+});
+
+editorStream.run(['.clear']);
+editorStream.run(['.editor']);
+
+editor.completer('co', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['con'], 'co']);
+}));
+
+editorStream.run(['.clear']);
+editorStream.run(['.editor']);
+
+editor.completer('var log = console.l', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['console.log'], 'console.l']);
 }));

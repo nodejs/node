@@ -20,16 +20,16 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            MemberExpression: function(node) {
+            MemberExpression(node) {
 
                 if (node.property &&
                         (node.property.type === "Identifier" && node.property.name === "__proto__" && !node.computed) ||
                         (node.property.type === "Literal" && node.property.value === "__proto__")) {
-                    context.report(node, "The '__proto__' property is deprecated.");
+                    context.report({ node, message: "The '__proto__' property is deprecated." });
                 }
             }
         };

@@ -38,7 +38,7 @@ inflate86/  by Chris Anderson <christop@charm.net>
 iostream/   by Kevin Ruland <kevin@rodin.wustl.edu>
         A C++ I/O streams interface to the zlib gz* functions
 
-iostream2/  by Tyge Løvset <Tyge.Lovset@cmr.no>
+iostream2/  by Tyge LÃ¸vset <Tyge.Lovset@cmr.no>
         Another C++ I/O streams interface
 
 iostream3/  by Ludwig Schwardt <schwardt@sun.ac.za>
@@ -58,7 +58,7 @@ masmx86/    by Gilles Vollant <info@winimage.com>
 minizip/    by Gilles Vollant <info@winimage.com>
         Mini zip and unzip based on zlib
         Includes Zip64 support by Mathias Svensson <mathias@result42.com>
-        See http://www.winimage.com/zLibDll/unzip.html
+        See http://www.winimage.com/zLibDll/minizip.html
 
 pascal/     by Bob Dellaca <bobdl@xtra.co.nz> et al.
         Support for Pascal

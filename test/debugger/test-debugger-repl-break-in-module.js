@@ -1,6 +1,27 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 require('../common');
-var repl = require('./helper-debugger-repl.js');
+const repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('break-in-module/main.js');
 
@@ -20,7 +41,7 @@ repl.addTest('sb(")^$*+?}{|][(.js\\\\", 1)', [
 
 // continue - the breakpoint should be triggered
 repl.addTest('c', [
-  /break in .*[\\\/]mod\.js:2/,
+  /break in .*[\\/]mod\.js:2/,
   /1/, /2/, /3/, /4/
 ]);
 
@@ -33,7 +54,7 @@ repl.addTest('restart', [].concat(
   ],
   repl.handshakeLines,
   [
-    /Restoring breakpoint mod.js:2/,
+    /Restoring breakpoint mod\.js:2/,
     /Warning: script 'mod\.js' was not loaded yet\./,
     /Restoring breakpoint \).*:\d+/,
     /Warning: script '\)[^']*' was not loaded yet\./
@@ -42,7 +63,7 @@ repl.addTest('restart', [].concat(
 
 // continue - the breakpoint should be triggered
 repl.addTest('c', [
-  /break in .*[\\\/]mod\.js:2/,
+  /break in .*[\\/]mod\.js:2/,
   /1/, /2/, /3/, /4/
 ]);
 
@@ -53,7 +74,7 @@ repl.addTest('cb("mod.js", 2)', [
 ]);
 
 repl.addTest('c', [
-  /break in .*[\\\/]main\.js:4/,
+  /break in .*[\\/]main\.js:4/,
   /2/, /3/, /4/, /5/, /6/
 ]);
 

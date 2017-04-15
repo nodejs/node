@@ -492,7 +492,7 @@ WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target) {
    *   input : hello\\"world
    *   output: "hello\\\\\"world"
    *   input : hello world\
-   *   output: "hello world\"
+   *   output: "hello world\\"
    */
 
   *(target++) = L'"';

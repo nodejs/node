@@ -7,9 +7,10 @@ var pulse
 
 module.exports = function (prefix, cb) {
   validate('SF', [prefix, cb])
+  if (!prefix) prefix = 'network'
   if (!pulsers++) {
     pulse = setInterval(function () {
-      log.gauge.pulse('network')
+      log.gauge.pulse(prefix)
     }, 250)
   }
   return function () {

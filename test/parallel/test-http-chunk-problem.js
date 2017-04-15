@@ -10,7 +10,7 @@ if (!common.hasCrypto) {
 if (process.argv[2] === 'request') {
   const http = require('http');
   const options = {
-    port: common.PORT,
+    port: +process.argv[3],
     path: '/'
   };
 
@@ -39,19 +39,21 @@ const http = require('http');
 const cp = require('child_process');
 
 const filename = require('path').join(common.tmpDir, 'big');
+let server;
 
 function executeRequest(cb) {
   cp.exec([process.execPath,
            __filename,
            'request',
+           server.address().port,
            '|',
            process.execPath,
            __filename,
            'shasum' ].join(' '),
           (err, stdout, stderr) => {
-            if (err) throw err;
-            assert.equal('8c206a1a87599f532ce68675536f0b1546900d7a',
-                         stdout.slice(0, 40));
+            assert.ifError(err);
+            assert.strictEqual('8c206a1a87599f532ce68675536f0b1546900d7a',
+                               stdout.slice(0, 40));
             cb();
           }
   );
@@ -63,8 +65,8 @@ common.refreshTmpDir();
 const ddcmd = common.ddCommand(filename, 10240);
 
 cp.exec(ddcmd, function(err, stdout, stderr) {
-  if (err) throw err;
-  const server = http.createServer(function(req, res) {
+  assert.ifError(err);
+  server = http.createServer(function(req, res) {
     res.writeHead(200);
 
     // Create the subprocess
@@ -87,7 +89,7 @@ cp.exec(ddcmd, function(err, stdout, stderr) {
 
   });
 
-  server.listen(common.PORT, () => {
+  server.listen(0, () => {
     executeRequest(() => server.close());
   });
 });

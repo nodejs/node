@@ -19,9 +19,9 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
-        var MATCHER = /^__(?:dir|file)name$/;
+        const MATCHER = /^__(?:dir|file)name$/;
 
         //--------------------------------------------------------------------------
         // Public
@@ -29,9 +29,9 @@ module.exports = {
 
         return {
 
-            BinaryExpression: function(node) {
+            BinaryExpression(node) {
 
-                var left = node.left,
+                const left = node.left,
                     right = node.right;
 
                 if (node.operator === "+" &&
@@ -39,7 +39,7 @@ module.exports = {
                         (right.type === "Identifier" && MATCHER.test(right.name)))
                 ) {
 
-                    context.report(node, "Use path.join() or path.resolve() instead of + to create paths.");
+                    context.report({ node, message: "Use path.join() or path.resolve() instead of + to create paths." });
                 }
             }
 

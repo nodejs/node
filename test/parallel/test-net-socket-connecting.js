@@ -1,13 +1,13 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const net = require('net');
 
 const server = net.createServer((conn) => {
   conn.end();
   server.close();
-}).listen(common.PORT, () => {
-  const client = net.connect(common.PORT, () => {
+}).listen(0, () => {
+  const client = net.connect(server.address().port, () => {
     assert.strictEqual(client.connecting, false);
 
     // Legacy getter

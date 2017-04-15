@@ -6,6 +6,7 @@ release lines.
 
 Select a Node.js version below to view the changelog history:
 
+* [Node.js v7](doc/changelogs/CHANGELOG_V7.md)
 * [Node.js v6](doc/changelogs/CHANGELOG_V6.md)
 * [Node.js v5](doc/changelogs/CHANGELOG_V5.md)
 * [Node.js v4](doc/changelogs/CHANGELOG_V4.md)
@@ -18,19 +19,57 @@ release.
 
 <table>
 <tr>
-  <th><a href="doc/changelogs/CHANGELOG_V6.md">v6</a><sup>Current</sup</th>
-  <th><a href="doc/changelogs/CHANGELOG_V5.md">v5</a></th>
+  <th><a href="doc/changelogs/CHANGELOG_V7.md">v7</a><sup>Current</sup></th>
+  <th title="LTS Until 2019-04"><a href="doc/changelogs/CHANGELOG_V6.md">v6</a><sup>LTS</sup></th>
+  <th title="Unsupported Since 2016-07-01"><a href="doc/changelogs/CHANGELOG_V5.md">v5</a><sup>EOL</sup></th>
   <th title="LTS Until 2018-04"><a href="doc/changelogs/CHANGELOG_V4.md">v4</a><sup>LTS</sup></th>
-  <th title="LTS Until 2016-12-31"><a href="doc/changelogs/CHANGELOG_V012.md">v0.12</a><sup>LTS</sup></th>
-  <th title="LTS Until 2016-10-31" colspan="3"><a href="doc/changelogs/CHANGELOG_V010.md">v0.10</a><sup>LTS</sup></th>
+  <th title="Unsupported Since 2017-01-01"><a href="doc/changelogs/CHANGELOG_V012.md">v0.12</a><sup>EOL</sup></th>
+  <th title="Unsupported Since 2016-11-01" colspan="3"><a href="doc/changelogs/CHANGELOG_V010.md">v0.10</a><sup>EOL</sup></th>
 </tr>
 <tr>
+    <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V7.md#7.9.0">7.9.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.8.0<">7.8.0<</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.7.4">7.7.4</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.7.3">7.7.3</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.7.2">7.7.2</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.7.1">7.7.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.7.0">7.7.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.6.0">7.6.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.5.0">7.5.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.4.0">7.4.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.3.0">7.3.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.2.1">7.2.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.2.0">7.2.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.1.0">7.1.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.0.0">7.0.0</a><br/>
+    </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V6.md#6.1.0">6.1.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V6.md#6.10.2">6.10.2</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.10.1">6.10.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.10.0">6.10.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.9.5">6.9.5</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.9.4">6.9.4</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.9.3">6.9.3</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.9.2">6.9.2</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.9.1">6.9.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.9.0">6.9.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.8.1">6.8.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.8.0">6.8.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.7.0">6.7.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.6.0">6.6.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.5.0">6.5.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.4.0">6.4.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.3.1">6.3.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.3.0">6.3.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.2.2">6.2.2</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.2.1">6.2.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.2.0">6.2.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.1.0">6.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.0.0">6.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V5.md#5.11.1">5.11.1</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V5.md#5.11.1">5.11.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V5.md#5.11.0">5.11.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V5.md#5.10.1">5.10.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V5.md#5.10.0">5.10.0</a><br/>
@@ -50,7 +89,21 @@ release.
 <a href="doc/changelogs/CHANGELOG_V5.md#5.0.0">5.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V4.md#4.4.4">4.4.4</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V4.md#4.8.2">4.8.2</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.8.1">4.8.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.8.0">4.8.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.7.3">4.7.3</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.7.2">4.7.2</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.7.1">4.7.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.7.0">4.7.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.6.1">4.6.2</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.6.1">4.6.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.6.0">4.6.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.5.0">4.5.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.4.7">4.4.7</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.4.6">4.4.6</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.4.5">4.4.5</a><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.4.4">4.4.4</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.3">4.4.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.2">4.4.2</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.4.1">4.4.1</a><br/>
@@ -71,7 +124,11 @@ release.
 <a href="doc/changelogs/CHANGELOG_V4.md#4.0.0">4.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V012.md#0.12.14">0.12.14</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V012.md#0.12.18">0.12.18</a><br/>
+<a href="doc/changelogs/CHANGELOG_V012.md#0.12.17">0.12.17</a><br/>
+<a href="doc/changelogs/CHANGELOG_V012.md#0.12.16">0.12.16</a><br/>
+<a href="doc/changelogs/CHANGELOG_V012.md#0.12.15">0.12.15</a><br/>
+<a href="doc/changelogs/CHANGELOG_V012.md#0.12.14">0.12.14</a><br/>
 <a href="doc/changelogs/CHANGELOG_V012.md#0.12.13">0.12.13</a><br/>
 <a href="doc/changelogs/CHANGELOG_V012.md#0.12.12">0.12.12</a><br/>
 <a href="doc/changelogs/CHANGELOG_V012.md#0.12.11">0.12.11</a><br/>
@@ -88,7 +145,10 @@ release.
 <a href="doc/changelogs/CHANGELOG_V012.md#0.12.0">0.12.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V010.md#0.10.45">0.10.45</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V010.md#0.10.48">0.10.48</a><br/>
+<a href="doc/changelogs/CHANGELOG_V010.md#0.10.47">0.10.47</a><br/>
+<a href="doc/changelogs/CHANGELOG_V010.md#0.10.46">0.10.46</a><br/>
+<a href="doc/changelogs/CHANGELOG_V010.md#0.10.45">0.10.45</a><br/>
 <a href="doc/changelogs/CHANGELOG_V010.md#0.10.44">0.10.44</a><br/>
 <a href="doc/changelogs/CHANGELOG_V010.md#0.10.43">0.10.43</a><br/>
 <a href="doc/changelogs/CHANGELOG_V010.md#0.10.42">0.10.42</a><br/>
@@ -144,7 +204,7 @@ release.
 
 ### Notes
 
-* Release streams marked with `LTS` are currently covered by the 
+* Release streams marked with `LTS` are currently covered by the
   [Node.js Long Term Support plan](https://github.com/nodejs/LTS).
 * Release versions displayed in **bold** text represent the most
   recent actively supported release.
@@ -346,7 +406,7 @@ release.
 
 ## 2015-09-15, io.js Version 3.3.1 @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#3.3.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#3.3.1</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#3.3.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#3.3.1</a>.
 
 ## 2015-09-08, Version 4.0.0 (Stable), @rvagg
 
@@ -354,35 +414,35 @@ release.
 
 ## 2015-09-02, Version 3.3.0, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#3.3.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#3.3.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#3.3.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#3.3.0</a>.
 
 ## 2015-08-25, Version 3.2.0, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#3.2.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#3.2.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#3.2.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#3.2.0</a>.
 
 ## 2015-08-18, Version 3.1.0, @Fishrock123
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#3.1.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#3.1.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#3.1.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#3.1.0</a>.
 
 ## 2015-08-04, Version 3.0.0, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#3.0.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#3.0.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#3.0.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#3.0.0</a>.
 
 ## 2015-07-28, Version 2.5.0, @cjihrig
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.5.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.5.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.5.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.5.0</a>.
 
 ## 2015-07-17, Version 2.4.0, @Fishrock123
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.4.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.4.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.4.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.4.0</a>.
 
 ## 2015-07-09, Version 2.3.4, @Fishrock123
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.3.4">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.3.4</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.3.4">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.3.4</a>.
 
 ## 2015-07-09, Version 1.8.4, @Fishrock123
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.8.4">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.8.4</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.8.4">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.8.4</a>.
 
 ## 2015-07-09, Version 0.12.7 (Stable)
 
@@ -390,27 +450,27 @@ release.
 
 ## 2015-07-04, Version 2.3.3, @Fishrock123
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.3.3">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.3.3</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.3.3">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.3.3</a>.
 
 ## 2015-07-04, Version 1.8.3, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.8.3">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.8.3</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.8.3">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.8.3</a>.
 
 ## 2015-07-03, Version 0.12.6 (Stable)
 
-<a href="doc/changelogs/CHANGELOG_V010.md#0.12.6">Moved to doc/changelogs/CHANGELOG_V010.md#0.12.6</a>.
+<a href="doc/changelogs/CHANGELOG_V012.md#0.12.6">Moved to doc/changelogs/CHANGELOG_V012.md#0.12.6</a>.
 
 ## 2015-07-01, Version 2.3.2, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.3.2">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.3.2</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.3.2">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.3.2</a>.
 
 ## 2015-06-23, Version 2.3.1, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.3.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.3.1</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.3.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.3.1</a>.
 
 ## 2015-06-22, Version 0.12.5 (Stable)
 
-<a href="doc/changelogs/CHANGELOG_V010.md#0.12.5">Moved to doc/changelogs/CHANGELOG_V010.md#0.12.5</a>.
+<a href="doc/changelogs/CHANGELOG_V012.md#0.12.5">Moved to doc/changelogs/CHANGELOG_V012.md#0.12.5</a>.
 
 ## 2015-06-18, Version 0.10.39 (Maintenance)
 
@@ -418,19 +478,19 @@ release.
 
 ## 2015-06-13, Version 2.3.0, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.3.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.3.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.3.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.3.0</a>.
 
 ## 2015-06-01, Version 2.2.1, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.2.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.2.1</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.2.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.2.1</a>.
 
 ## 2015-05-31, Version 2.2.0, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.2.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.2.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.2.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.2.0</a>.
 
 ## 2015-05-24, Version 2.1.0, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.1.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.1.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.1.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.1.0</a>.
 
 ## 2015-05-22, Version 0.12.4 (Stable)
 
@@ -438,11 +498,11 @@ release.
 
 ## 2015-05-17, Version 1.8.2, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.8.2">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.8.2</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.8.2">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.8.2</a>.
 
 ## 2015-05-15, Version 2.0.2, @Fishrock123
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.0.2">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.0.2</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.0.2">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.0.2</a>.
 
 ## 2015-05-13, Version 0.12.3 (Stable)
 
@@ -450,31 +510,31 @@ release.
 
 ## 2015-05-07, Version 2.0.1, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.0.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.0.1</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.0.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.0.1</a>.
 
 ## 2015-05-04, Version 2.0.0, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#2.0.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.0.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#2.0.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#2.0.0</a>.
 
 ## 2015-04-20, Version 1.8.1, @chrisdickinson
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.8.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.8.1</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.8.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.8.1</a>.
 
 ## 2015-04-14, Version 1.7.1, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.7.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.7.1</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.7.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.7.1</a>.
 
 ## 2015-04-14, Version 1.7.0, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.7.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.7.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.7.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.7.0</a>.
 
 ## 2015-04-06, Version 1.6.4, @Fishrock123
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.6.4">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.6.4</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.6.4">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.6.4</a>.
 
 ## 2015-03-31, Version 1.6.3, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.6.3">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.6.3</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.6.3">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.6.3</a>.
 
 ## 2015-03-31, Version 0.12.2 (Stable)
 
@@ -482,7 +542,7 @@ release.
 
 ## 2015-03-23, Version 1.6.2, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.6.2">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.6.2</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.6.2">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.6.2</a>.
 
 ## 2015-03-23, Version 0.12.1 (Stable)
 
@@ -494,11 +554,11 @@ release.
 
 ## 2015-03-20, Version 1.6.1, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.6.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.6.1</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.6.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.6.1</a>.
 
 ## 2015-03-19, Version 1.6.0, @chrisdickinson
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.6.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.6.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.6.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.6.0</a>.
 
 ## 2015-03-11, Version 0.10.37 (Maintenance)
 
@@ -506,31 +566,31 @@ release.
 
 ## 2015-03-09, Version 1.5.1, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.5.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.5.1</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.5.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.5.1</a>.
 
 ## 2015-03-06, Version 1.5.0, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.5.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.5.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.5.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.5.0</a>.
 
 ## 2015-03-02, Version 1.4.3, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.4.3">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.4.3</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.4.3">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.4.3</a>.
 
 ## 2015-02-28, Version 1.4.2, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.4.2">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.4.2</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.4.2">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.4.2</a>.
 
 ## 2015-02-26, Version 1.4.1, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.4.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.4.1</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.4.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.4.1</a>.
 
 ## 2015-02-20, Version 1.3.0, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.3.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.3.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.3.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.3.0</a>.
 
 ## 2015-02-10, Version 1.2.0, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.2.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.2.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.2.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.2.0</a>.
 
 ## 2015-02-06, Version 0.12.0 (Stable)
 
@@ -538,7 +598,7 @@ release.
 
 ## 2015-02-03, Version 1.1.0, @chrisdickinson
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.1.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.1.0</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.1.0">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.1.0</a>.
 
 ## 2015-01-26, Version 0.10.36 (Stable)
 
@@ -546,19 +606,19 @@ release.
 
 ## 2015-01-24, Version 1.0.4, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.0.4">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.0.4</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.0.4">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.0.4</a>.
 
 ## 2015-01-20, Version 1.0.3, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.0.3">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.0.3</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.0.3">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.0.3</a>.
 
 ## 2015-01-16, Version 1.0.2, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.0.2">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.0.2</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.0.2">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.0.2</a>.
 
 ## 2015-01-14, Version 1.0.1, @rvagg
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#1.0.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.0.1</a>.
+<a href="doc/changelogs/CHANGELOG_IOJS.md#1.0.1">Moved to doc/changelogs/CHANGELOG_IOJS.md#1.0.1</a>.
 
 ## 2014.09.24, Version 0.11.14 (Unstable)
 
@@ -730,7 +790,7 @@ release.
 
 ## 2013.05.24, Version 0.10.8 (Stable)
 
-<a href="doc/changelogs/CHANGELOG_V6.md#0.10.8">Moved to doc/changelogs/CHANGELOG_V6.md#0.10.8</a>.
+<a href="doc/changelogs/CHANGELOG_V010.md#0.10.8">Moved to doc/changelogs/CHANGELOG_V010.md#0.10.8</a>.
 
 ## 2013.05.17, Version 0.10.7 (Stable)
 
@@ -842,7 +902,7 @@ release.
 
 ## 2013.02.06, Version 0.8.19 (Stable)
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#0.8.29">Moved to doc/changelogs/CHANGELOG_ARCHIVE.md#0.8.29</a>.
+<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#0.8.19">Moved to doc/changelogs/CHANGELOG_ARCHIVE.md#0.8.19</a>.
 
 ## 2013.01.18, Version 0.8.18 (Stable)
 
@@ -1298,7 +1358,7 @@ release.
 
 ## 2009.12.19, Version 0.1.22
 
-<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#01.1.22">Moved to doc/changelogs/CHANGELOG_ARCHIVE.md#01.1.22</a>.
+<a href="doc/changelogs/CHANGELOG_ARCHIVE.md#0.1.22">Moved to doc/changelogs/CHANGELOG_ARCHIVE.md#0.1.22</a>.
 
 ## 2009.12.06, Version 0.1.21
 

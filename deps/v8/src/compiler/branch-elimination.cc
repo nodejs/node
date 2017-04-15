@@ -15,10 +15,12 @@ namespace compiler {
 BranchElimination::BranchElimination(Editor* editor, JSGraph* js_graph,
                                      Zone* zone)
     : AdvancedReducer(editor),
+      jsgraph_(js_graph),
       node_conditions_(zone, js_graph->graph()->NodeCount()),
       zone_(zone),
-      dead_(js_graph->graph()->NewNode(js_graph->common()->Dead())) {}
-
+      dead_(js_graph->graph()->NewNode(js_graph->common()->Dead())) {
+  NodeProperties::SetType(dead_, Type::None());
+}
 
 BranchElimination::~BranchElimination() {}
 
@@ -27,6 +29,9 @@ Reduction BranchElimination::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kDead:
       return NoChange();
+    case IrOpcode::kDeoptimizeIf:
+    case IrOpcode::kDeoptimizeUnless:
+      return ReduceDeoptimizeConditional(node);
     case IrOpcode::kMerge:
       return ReduceMerge(node);
     case IrOpcode::kLoop:
@@ -76,6 +81,42 @@ Reduction BranchElimination::ReduceBranch(Node* node) {
   return TakeConditionsFromFirstControl(node);
 }
 
+Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kDeoptimizeIf ||
+         node->opcode() == IrOpcode::kDeoptimizeUnless);
+  bool condition_is_true = node->opcode() == IrOpcode::kDeoptimizeUnless;
+  DeoptimizeReason reason = DeoptimizeReasonOf(node->op());
+  Node* condition = NodeProperties::GetValueInput(node, 0);
+  Node* frame_state = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  ControlPathConditions const* conditions = node_conditions_.Get(control);
+  // If we do not know anything about the predecessor, do not propagate just
+  // yet because we will have to recompute anyway once we compute the
+  // predecessor.
+  if (conditions == nullptr) {
+    return UpdateConditions(node, conditions);
+  }
+  Maybe<bool> condition_value = conditions->LookupCondition(condition);
+  if (condition_value.IsJust()) {
+    // If we know the condition we can discard the branch.
+    if (condition_is_true == condition_value.FromJust()) {
+      // We don't update the conditions here, because we're replacing {node}
+      // with the {control} node that already contains the right information.
+      ReplaceWithValue(node, dead(), effect, control);
+    } else {
+      control =
+          graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager, reason),
+                           frame_state, effect, control);
+      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+      NodeProperties::MergeControlToEnd(graph(), common(), control);
+      Revisit(graph()->end());
+    }
+    return Replace(dead());
+  }
+  return UpdateConditions(
+      node, conditions->AddCondition(zone_, condition, condition_is_true));
+}
 
 Reduction BranchElimination::ReduceIf(Node* node, bool is_true_branch) {
   // Add the condition to the list arriving from the input branch.
@@ -85,8 +126,7 @@ Reduction BranchElimination::ReduceIf(Node* node, bool is_true_branch) {
   // yet because we will have to recompute anyway once we compute the
   // predecessor.
   if (from_branch == nullptr) {
-    DCHECK(node_conditions_.Get(node) == nullptr);
-    return NoChange();
+    return UpdateConditions(node, nullptr);
   }
   Node* condition = branch->InputAt(0);
   return UpdateConditions(
@@ -105,21 +145,27 @@ Reduction BranchElimination::ReduceLoop(Node* node) {
 Reduction BranchElimination::ReduceMerge(Node* node) {
   // Shortcut for the case when we do not know anything about some
   // input.
-  for (int i = 0; i < node->InputCount(); i++) {
-    if (node_conditions_.Get(node->InputAt(i)) == nullptr) {
-      DCHECK(node_conditions_.Get(node) == nullptr);
-      return NoChange();
+  Node::Inputs inputs = node->inputs();
+  for (Node* input : inputs) {
+    if (node_conditions_.Get(input) == nullptr) {
+      return UpdateConditions(node, nullptr);
     }
   }
 
-  const ControlPathConditions* first = node_conditions_.Get(node->InputAt(0));
+  auto input_it = inputs.begin();
+
+  DCHECK_GT(inputs.count(), 0);
+
+  const ControlPathConditions* first = node_conditions_.Get(*input_it);
+  ++input_it;
   // Make a copy of the first input's conditions and merge with the conditions
   // from other inputs.
   ControlPathConditions* conditions =
       new (zone_->New(sizeof(ControlPathConditions)))
           ControlPathConditions(*first);
-  for (int i = 1; i < node->InputCount(); i++) {
-    conditions->Merge(*(node_conditions_.Get(node->InputAt(i))));
+  auto input_end = inputs.end();
+  for (; input_it != input_end; ++input_it) {
+    conditions->Merge(*(node_conditions_.Get(*input_it)));
   }
 
   return UpdateConditions(node, conditions);
@@ -171,7 +217,8 @@ Reduction BranchElimination::UpdateConditions(
   // Only signal that the node has Changed if the condition information has
   // changed.
   if (conditions != original) {
-    if (original == nullptr || *conditions != *original) {
+    if (conditions == nullptr || original == nullptr ||
+        *conditions != *original) {
       node_conditions_.Set(node, conditions);
       return Changed(node);
     }
@@ -262,6 +309,12 @@ bool BranchElimination::ControlPathConditions::operator==(
   }
   UNREACHABLE();
   return false;
+}
+
+Graph* BranchElimination::graph() const { return jsgraph()->graph(); }
+
+CommonOperatorBuilder* BranchElimination::common() const {
+  return jsgraph()->common();
 }
 
 }  // namespace compiler

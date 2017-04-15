@@ -5,38 +5,42 @@
 #ifndef WASM_RUN_UTILS_H
 #define WASM_RUN_UTILS_H
 
+#include <setjmp.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <array>
+#include <memory>
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/zone/accounting-allocator.h"
 
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
-
-#include "src/wasm/ast-decoder.h"
+#include "src/compiler/zone-stats.h"
+#include "src/wasm/function-body-decoder.h"
+#include "src/wasm/wasm-external-refs.h"
+#include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 
-// TODO(titzer): pull WASM_64 up to a common header.
-#if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
-#define WASM_64 1
-#else
-#define WASM_64 0
-#endif
-
 static const uint32_t kMaxFunctions = 10;
+
+enum WasmExecutionMode { kExecuteInterpreted, kExecuteCompiled };
 
 // TODO(titzer): check traps more robustly in tests.
 // Currently, in tests, we just return 0xdeadbeef from the function in which
@@ -48,8 +52,13 @@ static const uint32_t kMaxFunctions = 10;
   CHECK_EQ(0xdeadbeefdeadbeef, (bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
 #define CHECK_TRAP(x) CHECK_TRAP32(x)
 
-#define WASM_RUNNER_MAX_NUM_PARAMETERS 4
 #define WASM_WRAPPER_RETURN_VALUE 8754
+
+#define BUILD(r, ...)                      \
+  do {                                     \
+    byte code[] = {__VA_ARGS__};           \
+    r.Build(code, code + arraysize(code)); \
+  } while (false)
 
 namespace {
 using namespace v8::base;
@@ -57,75 +66,72 @@ using namespace v8::internal;
 using namespace v8::internal::compiler;
 using namespace v8::internal::wasm;
 
-inline void init_env(FunctionEnv* env, FunctionSig* sig) {
-  env->module = nullptr;
-  env->sig = sig;
-  env->local_i32_count = 0;
-  env->local_i64_count = 0;
-  env->local_f32_count = 0;
-  env->local_f64_count = 0;
-  env->SumLocals();
-}
-
 const uint32_t kMaxGlobalsSize = 128;
 
 // A helper for module environments that adds the ability to allocate memory
 // and global variables. Contains a built-in {WasmModule} and
-// {WasmModuleInstance}.
+// {WasmInstance}.
 class TestingModule : public ModuleEnv {
  public:
-  TestingModule() : instance_(&module_), global_offset(0) {
-    module_.shared_isolate = CcTest::InitIsolateOnce();
-    module = &module_;
-    instance = &instance_;
+  explicit TestingModule(Zone* zone, WasmExecutionMode mode = kExecuteCompiled)
+      : ModuleEnv(&module_, &instance_),
+        execution_mode_(mode),
+        instance_(&module_),
+        isolate_(CcTest::InitIsolateOnce()),
+        global_offset(0),
+        interpreter_(mode == kExecuteInterpreted
+                         ? new WasmInterpreter(
+                               ModuleBytesEnv(&module_, &instance_,
+                                              Vector<const byte>::empty()),
+                               zone->allocator())
+                         : nullptr) {
+    WasmJs::Install(isolate_);
     instance->module = &module_;
     instance->globals_start = global_data;
-    instance->globals_size = kMaxGlobalsSize;
+    module_.globals_size = kMaxGlobalsSize;
     instance->mem_start = nullptr;
     instance->mem_size = 0;
-    instance->function_code = nullptr;
-    linker = nullptr;
-    asm_js = false;
     memset(global_data, 0, sizeof(global_data));
+    instance_object_ = InitInstanceObject();
   }
 
   ~TestingModule() {
     if (instance->mem_start) {
       free(instance->mem_start);
     }
-    if (instance->function_code) {
-      delete instance->function_code;
-    }
+    if (interpreter_) delete interpreter_;
   }
 
-  byte* AddMemory(size_t size) {
+  void ChangeOriginToAsmjs() { module_.origin = kAsmJsOrigin; }
+
+  byte* AddMemory(uint32_t size) {
+    CHECK(!module_.has_memory);
     CHECK_NULL(instance->mem_start);
     CHECK_EQ(0, instance->mem_size);
+    module_.has_memory = true;
     instance->mem_start = reinterpret_cast<byte*>(malloc(size));
-    CHECK(instance->mem_start);
+    CHECK(size == 0 || instance->mem_start);
     memset(instance->mem_start, 0, size);
     instance->mem_size = size;
     return raw_mem_start<byte>();
   }
 
   template <typename T>
-  T* AddMemoryElems(size_t count) {
+  T* AddMemoryElems(uint32_t count) {
     AddMemory(count * sizeof(T));
     return raw_mem_start<T>();
   }
 
   template <typename T>
-  T* AddGlobal(MachineType mem_type) {
-    WasmGlobal* global = AddGlobal(mem_type);
+  T* AddGlobal(
+      ValueType type = WasmOpcodes::ValueTypeFor(MachineTypeForC<T>())) {
+    const WasmGlobal* global = AddGlobal(type);
     return reinterpret_cast<T*>(instance->globals_start + global->offset);
   }
 
   byte AddSignature(FunctionSig* sig) {
-    if (!module->signatures) {
-      module->signatures = new std::vector<FunctionSig*>();
-    }
-    module->signatures->push_back(sig);
-    size_t size = module->signatures->size();
+    module_.signatures.push_back(sig);
+    size_t size = module->signatures.size();
     CHECK(size < 127);
     return static_cast<byte>(size - 1);
   }
@@ -145,14 +151,22 @@ class TestingModule : public ModuleEnv {
   template <typename T>
   T raw_mem_at(int i) {
     DCHECK(instance->mem_start);
-    return reinterpret_cast<T*>(instance->mem_start)[i];
+    return ReadMemory(&(reinterpret_cast<T*>(instance->mem_start)[i]));
   }
 
   template <typename T>
   T raw_val_at(int i) {
-    T val;
-    memcpy(&val, reinterpret_cast<void*>(instance->mem_start + i), sizeof(T));
-    return val;
+    return ReadMemory(reinterpret_cast<T*>(instance->mem_start + i));
+  }
+
+  template <typename T>
+  void WriteMemory(T* p, T val) {
+    WriteLittleEndianValue<T>(p, val);
+  }
+
+  template <typename T>
+  T ReadMemory(T* p) {
+    return ReadLittleEndianValue<T>(p);
   }
 
   // Zero-initialize the memory.
@@ -170,75 +184,176 @@ class TestingModule : public ModuleEnv {
     rng.NextBytes(raw, end - raw);
   }
 
-  int AddFunction(FunctionSig* sig, Handle<Code> code) {
-    if (module->functions == nullptr) {
-      module->functions = new std::vector<WasmFunction>();
+  void SetMaxMemPages(uint32_t max_mem_pages) {
+    module_.max_mem_pages = max_mem_pages;
+  }
+
+  uint32_t AddFunction(FunctionSig* sig, Handle<Code> code, const char* name) {
+    if (module->functions.size() == 0) {
       // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
       // structs from moving.
-      module->functions->reserve(kMaxFunctions);
-      instance->function_code = new std::vector<Handle<Code>>();
+      module_.functions.reserve(kMaxFunctions);
     }
-    uint32_t index = static_cast<uint32_t>(module->functions->size());
-    module->functions->push_back(
-        {sig, index, 0, 0, 0, 0, 0, 0, 0, false, false});
-    instance->function_code->push_back(code);
+    uint32_t index = static_cast<uint32_t>(module->functions.size());
+    module_.functions.push_back({sig, index, 0, 0, 0, 0, 0, false, false});
+    if (name) {
+      Vector<const byte> name_vec = Vector<const byte>::cast(CStrVector(name));
+      module_.functions.back().name_offset = AddBytes(name_vec);
+      module_.functions.back().name_length = name_vec.length();
+    }
+    instance->function_code.push_back(code);
+    if (interpreter_) {
+      const WasmFunction* function = &module->functions.back();
+      int interpreter_index = interpreter_->AddFunctionForTesting(function);
+      CHECK_EQ(index, static_cast<uint32_t>(interpreter_index));
+    }
     DCHECK_LT(index, kMaxFunctions);  // limited for testing.
     return index;
   }
 
-  void SetFunctionCode(uint32_t index, Handle<Code> code) {
-    instance->function_code->at(index) = code;
+  uint32_t AddJsFunction(FunctionSig* sig, const char* source) {
+    Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(CompileRun(source))));
+    uint32_t index = AddFunction(sig, Handle<Code>::null(), nullptr);
+    Handle<Code> code = CompileWasmToJSWrapper(
+        isolate_, jsfunc, sig, index, Handle<String>::null(),
+        Handle<String>::null(), module->origin);
+    instance->function_code[index] = code;
+    return index;
   }
 
-  void AddIndirectFunctionTable(int* functions, int table_size) {
-    Isolate* isolate = module->shared_isolate;
-    Handle<FixedArray> fixed =
-        isolate->factory()->NewFixedArray(2 * table_size);
-    instance->function_table = fixed;
-    module->function_table = new std::vector<uint16_t>();
-    for (int i = 0; i < table_size; i++) {
-      module->function_table->push_back(functions[i]);
+  Handle<JSFunction> WrapCode(uint32_t index) {
+    // Wrap the code so it can be called as a JS function.
+    Handle<WasmInstanceObject> instance_obj(0, isolate_);
+    Handle<Code> code = instance->function_code[index];
+    Handle<Code> ret_code =
+        compiler::CompileJSToWasmWrapper(isolate_, &module_, code, index);
+    Handle<JSFunction> ret = WasmExportedFunction::New(
+        isolate_, instance_obj, MaybeHandle<String>(), static_cast<int>(index),
+        static_cast<int>(this->module->functions[index].sig->parameter_count()),
+        ret_code);
+    return ret;
+  }
+
+  void SetFunctionCode(uint32_t index, Handle<Code> code) {
+    instance->function_code[index] = code;
+  }
+
+  void AddIndirectFunctionTable(uint16_t* function_indexes,
+                                uint32_t table_size) {
+    module_.function_tables.push_back({table_size, table_size, true,
+                                       std::vector<int32_t>(), false, false,
+                                       SignatureMap()});
+    WasmIndirectFunctionTable& table = module_.function_tables.back();
+    table.min_size = table_size;
+    table.max_size = table_size;
+    for (uint32_t i = 0; i < table_size; ++i) {
+      table.values.push_back(function_indexes[i]);
+      table.map.FindOrInsert(module_.functions[function_indexes[i]].sig);
     }
+
+    instance->function_tables.push_back(
+        isolate_->factory()->NewFixedArray(table_size));
+    instance->signature_tables.push_back(
+        isolate_->factory()->NewFixedArray(table_size));
   }
 
   void PopulateIndirectFunctionTable() {
-    if (instance->function_table.is_null()) return;
-    int table_size = static_cast<int>(module->function_table->size());
-    for (int i = 0; i < table_size; i++) {
-      int function_index = module->function_table->at(i);
-      WasmFunction* function = &module->functions->at(function_index);
-      instance->function_table->set(i, Smi::FromInt(function->sig_index));
-      instance->function_table->set(
-          i + table_size, *instance->function_code->at(function_index));
+    if (execution_mode_ == kExecuteInterpreted) return;
+    // Initialize the fixed arrays in instance->function_tables.
+    for (uint32_t i = 0; i < instance->function_tables.size(); i++) {
+      WasmIndirectFunctionTable& table = module_.function_tables[i];
+      Handle<FixedArray> function_table = instance->function_tables[i];
+      Handle<FixedArray> signature_table = instance->signature_tables[i];
+      int table_size = static_cast<int>(table.values.size());
+      for (int j = 0; j < table_size; j++) {
+        WasmFunction& function = module_.functions[table.values[j]];
+        signature_table->set(j, Smi::FromInt(table.map.Find(function.sig)));
+        function_table->set(j, *instance->function_code[function.func_index]);
+      }
     }
   }
 
+  uint32_t AddBytes(Vector<const byte> bytes) {
+    Handle<SeqOneByteString> old_bytes(
+        instance_object_->compiled_module()->module_bytes(), isolate_);
+    uint32_t old_size = static_cast<uint32_t>(old_bytes->length());
+    ScopedVector<byte> new_bytes(old_size + bytes.length());
+    memcpy(new_bytes.start(), old_bytes->GetChars(), old_size);
+    memcpy(new_bytes.start() + old_size, bytes.start(), bytes.length());
+    Handle<SeqOneByteString> new_bytes_str = Handle<SeqOneByteString>::cast(
+        isolate_->factory()->NewStringFromOneByte(new_bytes).ToHandleChecked());
+    instance_object_->compiled_module()->shared()->set_module_bytes(
+        *new_bytes_str);
+    return old_size;
+  }
+
+  WasmFunction* GetFunctionAt(int index) { return &module_.functions[index]; }
+
+  WasmInterpreter* interpreter() { return interpreter_; }
+  WasmExecutionMode execution_mode() { return execution_mode_; }
+  Isolate* isolate() { return isolate_; }
+  Handle<WasmInstanceObject> instance_object() { return instance_object_; }
+
  private:
+  WasmExecutionMode execution_mode_;
   WasmModule module_;
-  WasmModuleInstance instance_;
+  WasmInstance instance_;
+  Isolate* isolate_;
   uint32_t global_offset;
   V8_ALIGNED(8) byte global_data[kMaxGlobalsSize];  // preallocated global data.
+  WasmInterpreter* interpreter_;
+  Handle<WasmInstanceObject> instance_object_;
 
-  WasmGlobal* AddGlobal(MachineType mem_type) {
-    if (!module->globals) {
-      module->globals = new std::vector<WasmGlobal>();
-    }
-    byte size = WasmOpcodes::MemSize(mem_type);
+  const WasmGlobal* AddGlobal(ValueType type) {
+    byte size = WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(type));
     global_offset = (global_offset + size - 1) & ~(size - 1);  // align
-    module->globals->push_back({0, mem_type, global_offset, false});
+    module_.globals.push_back(
+        {type, true, WasmInitExpr(), global_offset, false, false});
     global_offset += size;
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);
-    return &module->globals->back();
+    return &module->globals.back();
+  }
+
+  Handle<WasmInstanceObject> InitInstanceObject() {
+    Handle<SeqOneByteString> empty_string = Handle<SeqOneByteString>::cast(
+        isolate_->factory()->NewStringFromOneByte({}).ToHandleChecked());
+    Handle<Managed<wasm::WasmModule>> module_wrapper =
+        Managed<wasm::WasmModule>::New(isolate_, &module_, false);
+    Handle<Script> script =
+        isolate_->factory()->NewScript(isolate_->factory()->empty_string());
+    script->set_type(Script::TYPE_WASM);
+    Handle<WasmSharedModuleData> shared_module_data =
+        WasmSharedModuleData::New(isolate_, module_wrapper, empty_string,
+                                  script, Handle<ByteArray>::null());
+    Handle<WasmCompiledModule> compiled_module =
+        WasmCompiledModule::New(isolate_, shared_module_data);
+    // Minimally initialize the compiled module such that IsWasmCompiledModule
+    // passes.
+    // If tests need more (correct) information, add it later.
+    compiled_module->set_min_mem_pages(0);
+    compiled_module->set_max_mem_pages(Smi::kMaxValue);
+    DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));
+    return WasmInstanceObject::New(isolate_, compiled_module);
   }
 };
 
-
-inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, FunctionEnv* env,
+inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
+                              FunctionSig* sig,
+                              SourcePositionTable* source_position_table,
                               const byte* start, const byte* end) {
-  compiler::WasmGraphBuilder builder(zone, jsgraph, env->sig);
-  TreeResult result = BuildTFGraph(&builder, env, start, end);
+  compiler::WasmGraphBuilder builder(module, zone, jsgraph, sig,
+                                     source_position_table);
+  DecodeResult result =
+      BuildTFGraph(zone->allocator(), &builder, sig, start, end);
   if (result.failed()) {
+    if (!FLAG_trace_wasm_decoder) {
+      // Retry the compilation with the tracing flag on, to help in debugging.
+      FLAG_trace_wasm_decoder = true;
+      result = BuildTFGraph(zone->allocator(), &builder, sig, start, end);
+    }
+
     ptrdiff_t pc = result.error_pc - result.start;
     ptrdiff_t pt = result.error_pt - result.start;
     std::ostringstream str;
@@ -248,42 +363,34 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, FunctionEnv* env,
     FATAL(str.str().c_str());
   }
   builder.Int64LoweringForTesting();
-  if (FLAG_trace_turbo_graph) {
-    OFStream os(stdout);
-    os << AsRPO(*jsgraph->graph());
+  if (!CpuFeatures::SupportsSimd128()) {
+    builder.SimdScalarLoweringForTesting();
   }
 }
 
-template <typename ReturnType>
-class WasmFunctionWrapper : public HandleAndZoneScope,
-                            private GraphAndBuilders {
+class WasmFunctionWrapper : private GraphAndBuilders {
  public:
-  WasmFunctionWrapper()
-      : GraphAndBuilders(main_zone()),
-        inner_code_node_(nullptr),
-        signature_(nullptr) {
+  explicit WasmFunctionWrapper(Zone* zone, int num_params)
+      : GraphAndBuilders(zone), inner_code_node_(nullptr), signature_(nullptr) {
     // One additional parameter for the pointer to the return value memory.
-    Signature<MachineType>::Builder sig_builder(
-        zone(), 1, WASM_RUNNER_MAX_NUM_PARAMETERS + 1);
+    Signature<MachineType>::Builder sig_builder(zone, 1, num_params + 1);
 
     sig_builder.AddReturn(MachineType::Int32());
-    for (int i = 0; i < WASM_RUNNER_MAX_NUM_PARAMETERS + 1; i++) {
+    for (int i = 0; i < num_params + 1; i++) {
       sig_builder.AddParam(MachineType::Pointer());
     }
     signature_ = sig_builder.Build();
   }
 
-  void Init(CallDescriptor* descriptor, MachineType p0 = MachineType::None(),
-            MachineType p1 = MachineType::None(),
-            MachineType p2 = MachineType::None(),
-            MachineType p3 = MachineType::None()) {
-    // Create the TF graph for the wrapper. The wrapper always takes four
-    // pointers as parameters, but may not pass the values of all pointers to
-    // the actual test function.
+  void Init(CallDescriptor* descriptor, MachineType return_type,
+            Vector<MachineType> param_types) {
+    DCHECK_NOT_NULL(descriptor);
+    DCHECK_EQ(signature_->parameter_count(), param_types.length() + 1);
+
+    // Create the TF graph for the wrapper.
 
     // Function, effect, and control.
-    Node** parameters =
-        zone()->template NewArray<Node*>(WASM_RUNNER_MAX_NUM_PARAMETERS + 3);
+    Node** parameters = zone()->NewArray<Node*>(param_types.length() + 3);
     graph()->SetStart(graph()->NewNode(common()->Start(6)));
     Node* effect = graph()->start();
     int parameter_count = 0;
@@ -292,34 +399,12 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
     inner_code_node_ = graph()->NewNode(common()->Int32Constant(0));
     parameters[parameter_count++] = inner_code_node_;
 
-    if (p0 != MachineType::None()) {
+    int param_idx = 0;
+    for (MachineType t : param_types) {
+      DCHECK_NE(MachineType::None(), t);
       parameters[parameter_count] = graph()->NewNode(
-          machine()->Load(p0),
-          graph()->NewNode(common()->Parameter(0), graph()->start()),
-          graph()->NewNode(common()->Int32Constant(0)), effect,
-          graph()->start());
-      effect = parameters[parameter_count++];
-    }
-    if (p1 != MachineType::None()) {
-      parameters[parameter_count] = graph()->NewNode(
-          machine()->Load(p0),
-          graph()->NewNode(common()->Parameter(1), graph()->start()),
-          graph()->NewNode(common()->Int32Constant(0)), effect,
-          graph()->start());
-      effect = parameters[parameter_count++];
-    }
-    if (p2 != MachineType::None()) {
-      parameters[parameter_count] = graph()->NewNode(
-          machine()->Load(p0),
-          graph()->NewNode(common()->Parameter(2), graph()->start()),
-          graph()->NewNode(common()->Int32Constant(0)), effect,
-          graph()->start());
-      effect = parameters[parameter_count++];
-    }
-    if (p3 != MachineType::None()) {
-      parameters[parameter_count] = graph()->NewNode(
-          machine()->Load(p0),
-          graph()->NewNode(common()->Parameter(3), graph()->start()),
+          machine()->Load(t),
+          graph()->NewNode(common()->Parameter(param_idx++), graph()->start()),
           graph()->NewNode(common()->Int32Constant(0)), effect,
           graph()->start());
       effect = parameters[parameter_count++];
@@ -330,19 +415,30 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
     Node* call = graph()->NewNode(common()->Call(descriptor), parameter_count,
                                   parameters);
 
-    effect = graph()->NewNode(
-        machine()->Store(
-            StoreRepresentation(MachineTypeForC<ReturnType>().representation(),
-                                WriteBarrierKind::kNoWriteBarrier)),
-        graph()->NewNode(common()->Parameter(WASM_RUNNER_MAX_NUM_PARAMETERS),
-                         graph()->start()),
-        graph()->NewNode(common()->Int32Constant(0)), call, effect,
-        graph()->start());
+    if (!return_type.IsNone()) {
+      effect = graph()->NewNode(
+          machine()->Store(StoreRepresentation(
+              return_type.representation(), WriteBarrierKind::kNoWriteBarrier)),
+          graph()->NewNode(common()->Parameter(param_types.length()),
+                           graph()->start()),
+          graph()->NewNode(common()->Int32Constant(0)), call, effect,
+          graph()->start());
+    }
+    Node* zero = graph()->NewNode(common()->Int32Constant(0));
     Node* r = graph()->NewNode(
-        common()->Return(),
+        common()->Return(), zero,
         graph()->NewNode(common()->Int32Constant(WASM_WRAPPER_RETURN_VALUE)),
         effect, graph()->start());
     graph()->SetEnd(graph()->NewNode(common()->End(2), r, graph()->start()));
+  }
+
+  template <typename ReturnType, typename... ParamTypes>
+  void Init(CallDescriptor* descriptor) {
+    std::array<MachineType, sizeof...(ParamTypes)> param_machine_types{
+        {MachineTypeForC<ParamTypes>()...}};
+    Vector<MachineType> param_vec(param_machine_types.data(),
+                                  param_machine_types.size());
+    Init(descriptor, MachineTypeForC<ReturnType>(), param_vec);
   }
 
   void SetInnerCode(Handle<Code> code_handle) {
@@ -358,12 +454,13 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
           Linkage::GetSimplifiedCDescriptor(zone(), signature_, true);
 
       if (kPointerSize == 4) {
+        size_t num_params = signature_->parameter_count();
         // One additional parameter for the pointer of the return value.
-        Signature<MachineRepresentation>::Builder rep_builder(
-            zone(), 1, WASM_RUNNER_MAX_NUM_PARAMETERS + 1);
+        Signature<MachineRepresentation>::Builder rep_builder(zone(), 1,
+                                                              num_params + 1);
 
         rep_builder.AddReturn(MachineRepresentation::kWord32);
-        for (int i = 0; i < WASM_RUNNER_MAX_NUM_PARAMETERS + 1; i++) {
+        for (size_t i = 0; i < num_params + 1; i++) {
           rep_builder.AddParam(MachineRepresentation::kWord32);
         }
         Int64Lowering r(graph(), machine(), common(), zone(),
@@ -371,7 +468,8 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
         r.LowerGraph();
       }
 
-      CompilationInfo info("testing", isolate, graph()->zone());
+      CompilationInfo info(ArrayVector("testing"), isolate, graph()->zone(),
+                           Code::ComputeFlags(Code::STUB));
       code_ =
           Pipeline::GenerateCodeForTesting(&info, descriptor, graph(), nullptr);
       CHECK(!code_.is_null());
@@ -394,161 +492,142 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
   Signature<MachineType>* signature_;
 };
 
-// A helper for compiling WASM functions for testing. This class can create a
-// standalone function if {module} is NULL or a function within a
-// {TestingModule}. It contains the internal state for compilation (i.e.
-// TurboFan graph) and, later, interpretation.
-class WasmFunctionCompiler : public HandleAndZoneScope,
-                             private GraphAndBuilders {
+// A helper for compiling WASM functions for testing.
+// It contains the internal state for compilation (i.e. TurboFan graph) and
+// interpretation (by adding to the interpreter manually).
+class WasmFunctionCompiler : private GraphAndBuilders {
  public:
-  explicit WasmFunctionCompiler(FunctionSig* sig, TestingModule* module)
-      : GraphAndBuilders(main_zone()),
-        jsgraph(this->isolate(), this->graph(), this->common(), nullptr,
-                nullptr, this->machine()),
-        descriptor_(nullptr),
-        testing_module_(module) {
-    init_env(&env, sig);
-    env.module = module;
-    if (module) {
-      // Get a new function from the testing module.
-      function_ = nullptr;
-      function_index_ = module->AddFunction(sig, Handle<Code>::null());
-    } else {
-      // Create our own function.
-      function_ = new WasmFunction();
-      function_->sig = sig;
-      function_index_ = 0;
-    }
-  }
-
-  ~WasmFunctionCompiler() {
-    if (function_) delete function_;
-  }
-
-  JSGraph jsgraph;
-  FunctionEnv env;
-  // The call descriptor is initialized when the function is compiled.
-  CallDescriptor* descriptor_;
-  TestingModule* testing_module_;
-  WasmFunction* function_;
-  int function_index_;
-
-  Isolate* isolate() { return main_isolate(); }
+  Isolate* isolate() { return testing_module_->isolate(); }
   Graph* graph() const { return main_graph_; }
   Zone* zone() const { return graph()->zone(); }
   CommonOperatorBuilder* common() { return &main_common_; }
   MachineOperatorBuilder* machine() { return &main_machine_; }
-  void InitializeDescriptor() {
+  CallDescriptor* descriptor() {
     if (descriptor_ == nullptr) {
-      descriptor_ = env.module->GetWasmCallDescriptor(main_zone(), env.sig);
+      descriptor_ = testing_module_->GetWasmCallDescriptor(zone(), sig);
     }
+    return descriptor_;
   }
-  CallDescriptor* descriptor() { return descriptor_; }
+  uint32_t function_index() { return function_->func_index; }
 
   void Build(const byte* start, const byte* end) {
-    // Transfer local counts before compiling.
-    function()->local_i32_count = env.local_i32_count;
-    function()->local_i64_count = env.local_i64_count;
-    function()->local_f32_count = env.local_f32_count;
-    function()->local_f64_count = env.local_f64_count;
+    size_t locals_size = local_decls.Size();
+    size_t total_size = end - start + locals_size + 1;
+    byte* buffer = static_cast<byte*>(zone()->New(total_size));
+    // Prepend the local decls to the code.
+    local_decls.Emit(buffer);
+    // Emit the code.
+    memcpy(buffer + locals_size, start, end - start);
+    // Append an extra end opcode.
+    buffer[total_size - 1] = kExprEnd;
+
+    start = buffer;
+    end = buffer + total_size;
+
+    CHECK_GE(kMaxInt, end - start);
+    int len = static_cast<int>(end - start);
+    function_->code_start_offset =
+        testing_module_->AddBytes(Vector<const byte>(start, len));
+    function_->code_end_offset = function_->code_start_offset + len;
+
+    if (interpreter_) {
+      // Add the code to the interpreter.
+      CHECK(interpreter_->SetFunctionCodeForTesting(function_, start, end));
+      return;
+    }
 
     // Build the TurboFan graph.
-    TestBuildingGraph(main_zone(), &jsgraph, &env, start, end);
+    TestBuildingGraph(zone(), &jsgraph, testing_module_, sig,
+                      &source_position_table_, start, end);
+    Handle<Code> code = Compile();
+    testing_module_->SetFunctionCode(function_index(), code);
   }
 
-  byte AllocateLocal(LocalType type) {
-    int result = static_cast<int>(env.total_locals);
-    env.AddLocals(type, 1);
-    byte b = static_cast<byte>(result);
-    CHECK_EQ(result, b);
-    return b;
-  }
-
-  // TODO(titzer): remove me.
-  Handle<Code> Compile() {
-    InitializeDescriptor();
-    CallDescriptor* desc = descriptor_;
-    if (kPointerSize == 4) {
-      desc = testing_module_->GetI32WasmCallDescriptor(this->zone(), desc);
-    }
-    CompilationInfo info("wasm compile", this->isolate(), this->zone());
-    Handle<Code> result =
-        Pipeline::GenerateCodeForTesting(&info, desc, this->graph());
-#ifdef ENABLE_DISASSEMBLER
-    if (!result.is_null() && FLAG_print_opt_code) {
-      OFStream os(stdout);
-      result->Disassemble("wasm code", os);
-    }
-#endif
-
+  byte AllocateLocal(ValueType type) {
+    uint32_t index = local_decls.AddLocals(1, type);
+    byte result = static_cast<byte>(index);
+    DCHECK_EQ(index, result);
     return result;
   }
 
-  // TODO(titzer): remove me.
-  uint32_t CompileAndAdd(uint16_t sig_index = 0) {
-    CHECK(testing_module_);
-    function()->sig_index = sig_index;
-    Handle<Code> code = Compile();
-    testing_module_->SetFunctionCode(function_index_, code);
-    return static_cast<uint32_t>(function_index_);
+  void SetSigIndex(int sig_index) { function_->sig_index = sig_index; }
+
+ private:
+  friend class WasmRunnerBase;
+
+  explicit WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
+                                TestingModule* module, const char* name)
+      : GraphAndBuilders(zone),
+        jsgraph(module->isolate(), this->graph(), this->common(), nullptr,
+                nullptr, this->machine()),
+        sig(sig),
+        descriptor_(nullptr),
+        testing_module_(module),
+        local_decls(zone, sig),
+        source_position_table_(this->graph()),
+        interpreter_(module->interpreter()) {
+    // Get a new function from the testing module.
+    int index = module->AddFunction(sig, Handle<Code>::null(), name);
+    function_ = testing_module_->GetFunctionAt(index);
   }
 
-  WasmFunction* function() {
-    if (function_) return function_;
-    return &testing_module_->module->functions->at(function_index_);
+  Handle<Code> Compile() {
+    CallDescriptor* desc = descriptor();
+    if (kPointerSize == 4) {
+      desc = testing_module_->GetI32WasmCallDescriptor(this->zone(), desc);
+    }
+    CompilationInfo info(CStrVector("wasm"), this->isolate(), this->zone(),
+                         Code::ComputeFlags(Code::WASM_FUNCTION));
+    std::unique_ptr<CompilationJob> job(Pipeline::NewWasmCompilationJob(
+        &info, &jsgraph, desc, &source_position_table_, nullptr, false));
+    if (job->ExecuteJob() != CompilationJob::SUCCEEDED ||
+        job->FinalizeJob() != CompilationJob::SUCCEEDED)
+      return Handle<Code>::null();
+
+    Handle<Code> code = info.code();
+
+    // Deopt data holds <WeakCell<wasm_instance>, func_index>.
+    DCHECK(code->deoptimization_data() == nullptr ||
+           code->deoptimization_data()->length() == 0);
+    Handle<FixedArray> deopt_data =
+        isolate()->factory()->NewFixedArray(2, TENURED);
+    Handle<Object> weak_instance =
+        isolate()->factory()->NewWeakCell(testing_module_->instance_object());
+    deopt_data->set(0, *weak_instance);
+    deopt_data->set(1, Smi::FromInt(static_cast<int>(function_index())));
+    deopt_data->set_length(2);
+    code->set_deoptimization_data(*deopt_data);
+
+#ifdef ENABLE_DISASSEMBLER
+    if (FLAG_print_opt_code) {
+      OFStream os(stdout);
+      code->Disassemble("wasm code", os);
+    }
+#endif
+
+    return code;
   }
+
+  JSGraph jsgraph;
+  FunctionSig* sig;
+  // The call descriptor is initialized when the function is compiled.
+  CallDescriptor* descriptor_;
+  TestingModule* testing_module_;
+  Vector<const char> debug_name_;
+  WasmFunction* function_;
+  LocalDeclEncoder local_decls;
+  SourcePositionTable source_position_table_;
+  WasmInterpreter* interpreter_;
 };
 
-// A helper class to build graphs from Wasm bytecode, generate machine
+// A helper class to build a module around Wasm bytecode, generate machine
 // code, and run that code.
-template <typename ReturnType>
-class WasmRunner {
+class WasmRunnerBase : public HandleAndZoneScope {
  public:
-  WasmRunner(MachineType p0 = MachineType::None(),
-             MachineType p1 = MachineType::None(),
-             MachineType p2 = MachineType::None(),
-             MachineType p3 = MachineType::None())
-      : compiled_(false),
-
-        signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
-                   GetParameterCount(p0, p1, p2, p3), storage_),
-        compiler_(&signature_, nullptr) {
-    InitSigStorage(p0, p1, p2, p3);
-  }
-
-  WasmRunner(TestingModule* module, MachineType p0 = MachineType::None(),
-             MachineType p1 = MachineType::None(),
-             MachineType p2 = MachineType::None(),
-             MachineType p3 = MachineType::None())
-      : compiled_(false),
-        signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
-                   GetParameterCount(p0, p1, p2, p3), storage_),
-        compiler_(&signature_, module) {
-    DCHECK(module);
-    InitSigStorage(p0, p1, p2, p3);
-  }
-
-  void InitSigStorage(MachineType p0, MachineType p1, MachineType p2,
-                      MachineType p3) {
-    int index = 0;
-    MachineType ret = MachineTypeForC<ReturnType>();
-    if (ret != MachineType::None()) {
-      storage_[index++] = WasmOpcodes::LocalTypeFor(ret);
-    }
-    if (p0 != MachineType::None())
-      storage_[index++] = WasmOpcodes::LocalTypeFor(p0);
-    if (p1 != MachineType::None())
-      storage_[index++] = WasmOpcodes::LocalTypeFor(p1);
-    if (p2 != MachineType::None())
-      storage_[index++] = WasmOpcodes::LocalTypeFor(p2);
-    if (p3 != MachineType::None())
-      storage_[index++] = WasmOpcodes::LocalTypeFor(p3);
-
-    compiler_.InitializeDescriptor();
-    wrapper_.Init(compiler_.descriptor(), p0, p1, p2, p3);
-  }
-
-  FunctionEnv* env() { return &compiler_.env; }
+  explicit WasmRunnerBase(WasmExecutionMode execution_mode, int num_params)
+      : zone_(&allocator_, ZONE_NAME),
+        module_(&zone_, execution_mode),
+        wrapper_(&zone_, num_params) {}
 
   // Builds a graph from the given Wasm code and generates the machine
   // code and call wrapper for that graph. This method must not be called
@@ -556,74 +635,187 @@ class WasmRunner {
   void Build(const byte* start, const byte* end) {
     CHECK(!compiled_);
     compiled_ = true;
+    functions_[0]->Build(start, end);
+  }
 
-    // Build the TF graph within the compiler.
-    compiler_.Build(start, end);
-    // Generate code.
-    Handle<Code> code = compiler_.Compile();
+  // Resets the state for building the next function.
+  // The main function called will always be the first function.
+  template <typename ReturnType, typename... ParamTypes>
+  WasmFunctionCompiler& NewFunction(const char* name = nullptr) {
+    return NewFunction(CreateSig<ReturnType, ParamTypes...>(), name);
+  }
 
-    if (compiler_.testing_module_) {
-      // Update the table of function code in the module.
-      compiler_.testing_module_->SetFunctionCode(compiler_.function_index_,
-                                                 code);
+  // Resets the state for building the next function.
+  // The main function called will be the last generated function.
+  // Returns the index of the previously built function.
+  WasmFunctionCompiler& NewFunction(FunctionSig* sig,
+                                    const char* name = nullptr) {
+    functions_.emplace_back(
+        new WasmFunctionCompiler(&zone_, sig, &module_, name));
+    return *functions_.back();
+  }
+
+  byte AllocateLocal(ValueType type) {
+    return functions_[0]->AllocateLocal(type);
+  }
+
+  WasmFunction* function() { return functions_[0]->function_; }
+  WasmInterpreter* interpreter() { return functions_[0]->interpreter_; }
+  bool possible_nondeterminism() { return possible_nondeterminism_; }
+  TestingModule& module() { return module_; }
+  Zone* zone() { return &zone_; }
+
+  // Set the context, such that e.g. runtime functions can be called.
+  void SetModuleContext() {
+    if (!module_.instance->context.is_null()) {
+      CHECK(module_.instance->context.is_identical_to(
+          main_isolate()->native_context()));
+      return;
     }
-
-    wrapper_.SetInnerCode(code);
+    module_.instance->context = main_isolate()->native_context();
   }
 
-  ReturnType Call() { return Call(0, 0, 0, 0); }
+ private:
+  FunctionSig* CreateSig(MachineType return_type,
+                         Vector<MachineType> param_types) {
+    int return_count = return_type.IsNone() ? 0 : 1;
+    int param_count = param_types.length();
 
-  template <typename P0>
-  ReturnType Call(P0 p0) {
-    return Call(p0, 0, 0, 0);
+    // Allocate storage array in zone.
+    ValueType* sig_types =
+        zone_.NewArray<ValueType>(return_count + param_count);
+
+    // Convert machine types to local types, and check that there are no
+    // MachineType::None()'s in the parameters.
+    int idx = 0;
+    if (return_count) sig_types[idx++] = WasmOpcodes::ValueTypeFor(return_type);
+    for (MachineType param : param_types) {
+      CHECK_NE(MachineType::None(), param);
+      sig_types[idx++] = WasmOpcodes::ValueTypeFor(param);
+    }
+    return new (&zone_) FunctionSig(return_count, param_count, sig_types);
   }
 
-  template <typename P0, typename P1>
-  ReturnType Call(P0 p0, P1 p1) {
-    return Call(p0, p1, 0, 0);
-  }
-
-  template <typename P0, typename P1, typename P2>
-  ReturnType Call(P0 p0, P1 p1, P2 p2) {
-    return Call(p0, p1, p2, 0);
-  }
-
-  template <typename P0, typename P1, typename P2, typename P3>
-  ReturnType Call(P0 p0, P1 p1, P2 p2, P3 p3) {
-    CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
-                               wrapper_.GetWrapperCode(), wrapper_.signature());
-    ReturnType return_value;
-    int32_t result = runner.Call<void*, void*, void*, void*, void*>(
-        &p0, &p1, &p2, &p3, &return_value);
-    CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
-    return return_value;
-  }
-
-  byte AllocateLocal(LocalType type) {
-    int result = static_cast<int>(env()->total_locals);
-    env()->AddLocals(type, 1);
-    byte b = static_cast<byte>(result);
-    CHECK_EQ(result, b);
-    return b;
+  template <typename ReturnType, typename... ParamTypes>
+  FunctionSig* CreateSig() {
+    std::array<MachineType, sizeof...(ParamTypes)> param_machine_types{
+        {MachineTypeForC<ParamTypes>()...}};
+    Vector<MachineType> param_vec(param_machine_types.data(),
+                                  param_machine_types.size());
+    return CreateSig(MachineTypeForC<ReturnType>(), param_vec);
   }
 
  protected:
-  Zone zone;
-  bool compiled_;
-  LocalType storage_[WASM_RUNNER_MAX_NUM_PARAMETERS];
-  FunctionSig signature_;
-  WasmFunctionCompiler compiler_;
-  WasmFunctionWrapper<ReturnType> wrapper_;
+  v8::internal::AccountingAllocator allocator_;
+  Zone zone_;
+  TestingModule module_;
+  std::vector<std::unique_ptr<WasmFunctionCompiler>> functions_;
+  WasmFunctionWrapper wrapper_;
+  bool compiled_ = false;
+  bool possible_nondeterminism_ = false;
 
-  static size_t GetParameterCount(MachineType p0, MachineType p1,
-                                  MachineType p2, MachineType p3) {
-    if (p0 == MachineType::None()) return 0;
-    if (p1 == MachineType::None()) return 1;
-    if (p2 == MachineType::None()) return 2;
-    if (p3 == MachineType::None()) return 3;
-    return 4;
+  bool interpret() { return module_.execution_mode() == kExecuteInterpreted; }
+
+ public:
+  // This field has to be static. Otherwise, gcc complains about the using in
+  // the lambda context below.
+  static jmp_buf jump_buffer;
+};
+
+template <typename ReturnType, typename... ParamTypes>
+class WasmRunner : public WasmRunnerBase {
+ public:
+  explicit WasmRunner(WasmExecutionMode execution_mode,
+                      const char* main_fn_name = "main")
+      : WasmRunnerBase(execution_mode, sizeof...(ParamTypes)) {
+    NewFunction<ReturnType, ParamTypes...>(main_fn_name);
+    if (!interpret()) {
+      wrapper_.Init<ReturnType, ParamTypes...>(functions_[0]->descriptor());
+    }
+  }
+
+  ReturnType Call(ParamTypes... p) {
+    DCHECK(compiled_);
+    if (interpret()) return CallInterpreter(p...);
+
+    // Use setjmp/longjmp to deal with traps in WebAssembly code.
+    ReturnType return_value = static_cast<ReturnType>(0xdeadbeefdeadbeef);
+    static int setjmp_ret;
+    setjmp_ret = setjmp(WasmRunnerBase::jump_buffer);
+    // setjmp returns 0 on the first return, 1 (passed to longjmp) after trap.
+    if (setjmp_ret == 0) {
+      DoCall(static_cast<void*>(&p)..., static_cast<void*>(&return_value));
+    }
+    return return_value;
+  }
+
+  ReturnType CallInterpreter(ParamTypes... p) {
+    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
+    thread->Reset();
+    std::array<WasmVal, sizeof...(p)> args{{WasmVal(p)...}};
+    thread->PushFrame(function(), args.data());
+    if (thread->Run() == WasmInterpreter::FINISHED) {
+      WasmVal val = thread->GetReturnValue();
+      possible_nondeterminism_ |= thread->PossibleNondeterminism();
+      return val.to<ReturnType>();
+    } else if (thread->state() == WasmInterpreter::TRAPPED) {
+      // TODO(titzer): return the correct trap code
+      int64_t result = 0xdeadbeefdeadbeef;
+      return static_cast<ReturnType>(result);
+    } else {
+      // TODO(titzer): falling off end
+      return ReturnType{0};
+    }
+  }
+
+ private:
+  // Don't inline this function. The setjmp above should be followed immediately
+  // by a call.
+  template <typename... Ptrs>
+  V8_NOINLINE void DoCall(Ptrs... ptrs) {
+    auto trap_callback = []() -> void {
+      set_trap_callback_for_testing(nullptr);
+      longjmp(WasmRunnerBase::jump_buffer, 1);
+    };
+    set_trap_callback_for_testing(trap_callback);
+
+    wrapper_.SetInnerCode(
+        module_.GetFunctionCode(functions_[0]->function_index()));
+    CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
+                               wrapper_.GetWrapperCode(), wrapper_.signature());
+    int32_t result = runner.Call(ptrs...);
+    // If we arrive here, no trap happened.
+    CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
   }
 };
+
+// Declare static variable.
+jmp_buf WasmRunnerBase::jump_buffer;
+
+// A macro to define tests that run in different engine configurations.
+#define WASM_EXEC_TEST(name)                                               \
+  void RunWasm_##name(WasmExecutionMode execution_mode);                   \
+  TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); }       \
+  TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
+  void RunWasm_##name(WasmExecutionMode execution_mode)
+
+#define WASM_EXEC_TEST_WITH_TRAP(name)                                     \
+  void RunWasm_##name(WasmExecutionMode execution_mode);                   \
+  TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); }       \
+  void RunWasm_##name(WasmExecutionMode execution_mode);                   \
+  TEST(RunWasmCompiledWithTrapIf_##name) {                                 \
+    bool trap_if = FLAG_wasm_trap_if;                                      \
+    FLAG_wasm_trap_if = true;                                              \
+    RunWasm_##name(kExecuteCompiled);                                      \
+    FLAG_wasm_trap_if = trap_if;                                           \
+  }                                                                        \
+  TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
+  void RunWasm_##name(WasmExecutionMode execution_mode)
+
+#define WASM_EXEC_COMPILED_TEST(name)                                \
+  void RunWasm_##name(WasmExecutionMode execution_mode);             \
+  TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); } \
+  void RunWasm_##name(WasmExecutionMode execution_mode)
 
 }  // namespace
 

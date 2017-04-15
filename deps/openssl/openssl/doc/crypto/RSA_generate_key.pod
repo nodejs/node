@@ -52,7 +52,7 @@ it is called as B<BN_GENCB_call(cb, 3, 0)>.
 The process is then repeated for prime q with B<BN_GENCB_call(cb, 3, 1)>.
 
 RSA_generate_key is deprecated (new applications should use
-RSA_generate_key_ex instead). RSA_generate_key works in the same was as
+RSA_generate_key_ex instead). RSA_generate_key works in the same way as
 RSA_generate_key_ex except it uses "old style" call backs. See
 L<BN_generate_prime(3)|BN_generate_prime(3)> for further details.
 

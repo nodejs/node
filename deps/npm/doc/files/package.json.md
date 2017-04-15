@@ -119,7 +119,7 @@ array of license objects:
     // Not valid metadata
     { "license" :
       { "type" : "ISC"
-      , "url" : "http://opensource.org/licenses/ISC"
+      , "url" : "https://opensource.org/licenses/ISC"
       }
     }
 
@@ -127,10 +127,10 @@ array of license objects:
     { "licenses" :
       [
         { "type": "MIT"
-        , "url": "http://www.opensource.org/licenses/mit-license.php"
+        , "url": "https://www.opensource.org/licenses/mit-license.php"
         }
       , { "type": "Apache-2.0"
-        , "url": "http://opensource.org/licenses/apache2.0.php"
+        , "url": "https://opensource.org/licenses/apache2.0.php"
         }
       ]
     }
@@ -183,9 +183,10 @@ Certain files are always included, regardless of settings:
 * `README`
 * `CHANGES` / `CHANGELOG` / `HISTORY`
 * `LICENSE` / `LICENCE`
+* `NOTICE`
 * The file in the "main" field
 
-`README`, `CHANGES` & `LICENSE` can have any case and extension.
+`README`, `CHANGES`, `LICENSE` & `NOTICE` can have any case and extension.
 
 Conversely, some files are always ignored:
 
@@ -201,6 +202,8 @@ Conversely, some files are always ignored:
 * `npm-debug.log`
 * `.npmrc`
 * `node_modules`
+* `config.gypi`
+* `*.orig`
 
 ## main
 
@@ -244,6 +247,10 @@ would be the same as this:
     { "name": "my-program"
     , "version": "1.2.5"
     , "bin" : { "my-program" : "./path/to/program" } }
+
+Please make sure that your file(s) referenced in `bin` starts with
+`#!/usr/bin/env node`, otherwise the scripts are started without the node
+executable!
 
 ## man
 
@@ -413,7 +420,7 @@ See semver(7) for more details about specifying version ranges.
 * `range1 || range2` Passes if either range1 or range2 are satisfied.
 * `git...` See 'Git URLs as Dependencies' below
 * `user/repo` See 'GitHub URLs' below
-* `tag` A specific version tagged and published as `tag`  See `npm-tag(1)`
+* `tag` A specific version tagged and published as `tag`  See `npm-dist-tag(1)`
 * `path/path/path` See [Local Paths](#local-paths) below
 
 For example, these are all valid:
@@ -464,8 +471,9 @@ included.  For example:
       "name": "foo",
       "version": "0.0.0",
       "dependencies": {
-        "express": "visionmedia/express",
-        "mocha": "visionmedia/mocha#4727d357ea"
+        "express": "expressjs/express",
+        "mocha": "mochajs/mocha#4727d357ea",
+        "module": "user/repo#feature\/branch"
       }
     }
 
@@ -509,7 +517,7 @@ from the root of a package, and can be managed like any other npm
 configuration param.  See `npm-config(7)` for more on the topic.
 
 For build steps that are not platform-specific, such as compiling
-CoffeeScript or other languages to JavaScript, use the `prepublish`
+CoffeeScript or other languages to JavaScript, use the `prepare`
 script to do this, and make the required package a devDependency.
 
 For example:
@@ -521,12 +529,12 @@ For example:
         "coffee-script": "~1.6.3"
       },
       "scripts": {
-        "prepublish": "coffee -o lib/ -c src/waza.coffee"
+        "prepare": "coffee -o lib/ -c src/waza.coffee"
       },
       "main": "lib/waza.js"
     }
 
-The `prepublish` script will be run before publishing, so that users
+The `prepare` script will be run before publishing, so that users
 can consume the functionality without requiring them to compile it
 themselves.  In dev mode (ie, locally running `npm install`), it'll
 run this script as well, so that you can test it easily.
@@ -654,10 +662,10 @@ field is advisory only will produce warnings when your package is installed as a
 
 ## engineStrict
 
-**This feature was deprecated with npm 3.0.0**
+**This feature was removed in npm 3.0.0**
 
 Prior to npm 3.0.0, this feature was used to treat this package as if the
-user had set `engine-strict`.
+user had set `engine-strict`. It is no longer used.
 
 ## os
 
@@ -731,10 +739,10 @@ npm will default some values based on package contents.
   If there is a `server.js` file in the root of your package, then npm
   will default the `start` command to `node server.js`.
 
-* `"scripts":{"preinstall": "node-gyp rebuild"}`
+* `"scripts":{"install": "node-gyp rebuild"}`
 
-  If there is a `binding.gyp` file in the root of your package, npm will
-  default the `preinstall` command to compile using node-gyp.
+  If there is a `binding.gyp` file in the root of your package and you have not defined an `install` or `preinstall` script, npm will
+  default the `install` command to compile using node-gyp.
 
 * `"contributors": [...]`
 

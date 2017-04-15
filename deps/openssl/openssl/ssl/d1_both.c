@@ -581,9 +581,12 @@ static int dtls1_preprocess_fragment(SSL *s, struct hm_header_st *msg_hdr,
         /*
          * msg_len is limited to 2^24, but is effectively checked against max
          * above
+         *
+         * Make buffer slightly larger than message length as a precaution
+         * against small OOB reads e.g. CVE-2016-6306
          */
         if (!BUF_MEM_grow_clean
-            (s->init_buf, msg_len + DTLS1_HM_HEADER_LENGTH)) {
+            (s->init_buf, msg_len + DTLS1_HM_HEADER_LENGTH + 16)) {
             SSLerr(SSL_F_DTLS1_PREPROCESS_FRAGMENT, ERR_R_BUF_LIB);
             return SSL_AD_INTERNAL_ERROR;
         }
@@ -618,11 +621,23 @@ static int dtls1_retrieve_buffered_fragment(SSL *s, long max, int *ok)
     int al;
 
     *ok = 0;
-    item = pqueue_peek(s->d1->buffered_messages);
-    if (item == NULL)
-        return 0;
+    do {
+        item = pqueue_peek(s->d1->buffered_messages);
+        if (item == NULL)
+            return 0;
 
-    frag = (hm_fragment *)item->data;
+        frag = (hm_fragment *)item->data;
+
+        if (frag->msg_header.seq < s->d1->handshake_read_seq) {
+            /* This is a stale message that has been buffered so clear it */
+            pqueue_pop(s->d1->buffered_messages);
+            dtls1_hm_fragment_free(frag);
+            pitem_free(item);
+            item = NULL;
+            frag = NULL;
+        }
+    } while (item == NULL);
+
 
     /* Don't return if reassembly still in progress */
     if (frag->reassembly != NULL)
@@ -1211,7 +1226,7 @@ dtls1_retransmit_message(SSL *s, unsigned short seq, unsigned long frag_off,
     unsigned long header_length;
     unsigned char seq64be[8];
     struct dtls1_retransmit_state saved_state;
-    unsigned char save_write_sequence[8];
+    unsigned char save_write_sequence[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     /*-
       OPENSSL_assert(s->init_num == 0);
@@ -1294,18 +1309,6 @@ dtls1_retransmit_message(SSL *s, unsigned short seq, unsigned long frag_off,
 
     (void)BIO_flush(SSL_get_wbio(s));
     return ret;
-}
-
-/* call this function when the buffered messages are no longer needed */
-void dtls1_clear_record_buffer(SSL *s)
-{
-    pitem *item;
-
-    for (item = pqueue_pop(s->d1->sent_messages);
-         item != NULL; item = pqueue_pop(s->d1->sent_messages)) {
-        dtls1_hm_fragment_free((hm_fragment *)item->data);
-        pitem_free(item);
-    }
 }
 
 unsigned char *dtls1_set_message_header(SSL *s, unsigned char *p,
@@ -1469,7 +1472,7 @@ int dtls1_process_heartbeat(SSL *s)
         memcpy(bp, pl, payload);
         bp += payload;
         /* Random padding */
-        if (RAND_pseudo_bytes(bp, padding) < 0) {
+        if (RAND_bytes(bp, padding) <= 0) {
             OPENSSL_free(buffer);
             return -1;
         }
@@ -1546,6 +1549,8 @@ int dtls1_heartbeat(SSL *s)
      *  - Padding
      */
     buf = OPENSSL_malloc(1 + 2 + payload + padding);
+    if (buf == NULL)
+        goto err;
     p = buf;
     /* Message Type */
     *p++ = TLS1_HB_REQUEST;
@@ -1554,11 +1559,11 @@ int dtls1_heartbeat(SSL *s)
     /* Sequence number */
     s2n(s->tlsext_hb_seq, p);
     /* 16 random bytes */
-    if (RAND_pseudo_bytes(p, 16) < 0)
+    if (RAND_bytes(p, 16) <= 0)
         goto err;
     p += 16;
     /* Random padding */
-    if (RAND_pseudo_bytes(p, padding) < 0)
+    if (RAND_bytes(p, padding) <= 0)
         goto err;
 
     ret = dtls1_write_bytes(s, TLS1_RT_HEARTBEAT, buf, 3 + payload + padding);

@@ -1,5 +1,5 @@
 /* zconf.h -- configuration of the zlib compression library
- * Copyright (C) 1995-2013 Jean-loup Gailly.
+ * Copyright (C) 1995-2016 Jean-loup Gailly, Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -19,7 +19,7 @@
 #ifdef Z_PREFIX     /* may be set to #if 1 by ./configure */
 #  define Z_PREFIX_SET
 
-/* all linked symbols */
+/* all linked symbols and init macros */
 #  define _dist_code            z__dist_code
 #  define _length_code          z__length_code
 #  define _tr_align             z__tr_align
@@ -31,6 +31,7 @@
 #  define adler32               z_adler32
 #  define adler32_combine       z_adler32_combine
 #  define adler32_combine64     z_adler32_combine64
+#  define adler32_z             z_adler32_z
 #  ifndef Z_SOLO
 #    define compress              z_compress
 #    define compress2             z_compress2
@@ -39,10 +40,14 @@
 #  define crc32                 z_crc32
 #  define crc32_combine         z_crc32_combine
 #  define crc32_combine64       z_crc32_combine64
+#  define crc32_z               z_crc32_z
 #  define deflate               z_deflate
 #  define deflateBound          z_deflateBound
 #  define deflateCopy           z_deflateCopy
 #  define deflateEnd            z_deflateEnd
+#  define deflateGetDictionary  z_deflateGetDictionary
+#  define deflateInit           z_deflateInit
+#  define deflateInit2          z_deflateInit2
 #  define deflateInit2_         z_deflateInit2_
 #  define deflateInit_          z_deflateInit_
 #  define deflateParams         z_deflateParams
@@ -69,6 +74,8 @@
 #    define gzeof                 z_gzeof
 #    define gzerror               z_gzerror
 #    define gzflush               z_gzflush
+#    define gzfread               z_gzfread
+#    define gzfwrite              z_gzfwrite
 #    define gzgetc                z_gzgetc
 #    define gzgetc_               z_gzgetc_
 #    define gzgets                z_gzgets
@@ -80,7 +87,6 @@
 #      define gzopen_w              z_gzopen_w
 #    endif
 #    define gzprintf              z_gzprintf
-#    define gzvprintf             z_gzvprintf
 #    define gzputc                z_gzputc
 #    define gzputs                z_gzputs
 #    define gzread                z_gzread
@@ -91,32 +97,39 @@
 #    define gztell                z_gztell
 #    define gztell64              z_gztell64
 #    define gzungetc              z_gzungetc
+#    define gzvprintf             z_gzvprintf
 #    define gzwrite               z_gzwrite
 #  endif
 #  define inflate               z_inflate
 #  define inflateBack           z_inflateBack
 #  define inflateBackEnd        z_inflateBackEnd
+#  define inflateBackInit       z_inflateBackInit
 #  define inflateBackInit_      z_inflateBackInit_
+#  define inflateCodesUsed      z_inflateCodesUsed
 #  define inflateCopy           z_inflateCopy
 #  define inflateEnd            z_inflateEnd
+#  define inflateGetDictionary  z_inflateGetDictionary
 #  define inflateGetHeader      z_inflateGetHeader
+#  define inflateInit           z_inflateInit
+#  define inflateInit2          z_inflateInit2
 #  define inflateInit2_         z_inflateInit2_
 #  define inflateInit_          z_inflateInit_
 #  define inflateMark           z_inflateMark
 #  define inflatePrime          z_inflatePrime
 #  define inflateReset          z_inflateReset
 #  define inflateReset2         z_inflateReset2
+#  define inflateResetKeep      z_inflateResetKeep
 #  define inflateSetDictionary  z_inflateSetDictionary
-#  define inflateGetDictionary  z_inflateGetDictionary
 #  define inflateSync           z_inflateSync
 #  define inflateSyncPoint      z_inflateSyncPoint
 #  define inflateUndermine      z_inflateUndermine
-#  define inflateResetKeep      z_inflateResetKeep
+#  define inflateValidate       z_inflateValidate
 #  define inflate_copyright     z_inflate_copyright
 #  define inflate_fast          z_inflate_fast
 #  define inflate_table         z_inflate_table
 #  ifndef Z_SOLO
 #    define uncompress            z_uncompress
+#    define uncompress2           z_uncompress2
 #  endif
 #  define zError                z_zError
 #  ifndef Z_SOLO
@@ -226,9 +239,19 @@
 #  define z_const
 #endif
 
-/* Some Mac compilers merge all .h files incorrectly: */
-#if defined(__MWERKS__)||defined(applec)||defined(THINK_C)||defined(__SC__)
-#  define NO_DUMMY_DECL
+#ifdef Z_SOLO
+   typedef unsigned long z_size_t;
+#else
+#  define z_longlong long long
+#  if defined(NO_SIZE_T)
+     typedef unsigned NO_SIZE_T z_size_t;
+#  elif defined(STDC)
+#    include <stddef.h>
+     typedef size_t z_size_t;
+#  else
+     typedef unsigned long z_size_t;
+#  endif
+#  undef z_longlong
 #endif
 
 /* Maximum value for memLevel in deflateInit2 */
@@ -258,7 +281,7 @@
  Of course this will generally degrade compression (there's no free lunch).
 
    The memory requirements for inflate are (in bytes) 1 << windowBits
- that is, 32K for windowBits=15 (default value) plus a few kilobytes
+ that is, 32K for windowBits=15 (default value) plus about 7 kilobytes
  for small objects.
 */
 

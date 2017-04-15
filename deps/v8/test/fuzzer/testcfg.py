@@ -18,7 +18,10 @@ class FuzzerVariantGenerator(testsuite.VariantGenerator):
 
 
 class FuzzerTestSuite(testsuite.TestSuite):
-  SUB_TESTS = ( 'json', 'parser', 'regexp', )
+  SUB_TESTS = ( 'json', 'parser', 'regexp', 'wasm', 'wasm_asmjs', 'wasm_call',
+          'wasm_code', 'wasm_data_section', 'wasm_function_sigs_section',
+          'wasm_globals_section', 'wasm_imports_section', 'wasm_memory_section',
+          'wasm_names_section', 'wasm_types_section' )
 
   def __init__(self, name, root):
     super(FuzzerTestSuite, self).__init__(name, root)
@@ -26,7 +29,7 @@ class FuzzerTestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     tests = []
     for subtest in FuzzerTestSuite.SUB_TESTS:
-      shell = '%s_fuzzer' % subtest
+      shell = 'v8_simple_%s_fuzzer' % subtest
       for fname in os.listdir(os.path.join(self.root, subtest)):
         if not os.path.isfile(os.path.join(self.root, subtest, fname)):
           continue

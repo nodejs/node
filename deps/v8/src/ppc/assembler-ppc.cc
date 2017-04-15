@@ -66,6 +66,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #ifndef USE_SIMULATOR
   // Probe for additional features at runtime.
   base::CPU cpu;
+  if (cpu.part() == base::CPU::PPC_POWER9) {
+    supported_ |= (1u << MODULO);
+  }
 #if V8_TARGET_ARCH_PPC64
   if (cpu.part() == base::CPU::PPC_POWER8) {
     supported_ |= (1u << FPR_GPR_MOV);
@@ -79,6 +82,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.part() == base::CPU::PPC_POWER7 ||
       cpu.part() == base::CPU::PPC_POWER8) {
     supported_ |= (1u << ISELECT);
+    supported_ |= (1u << VSX);
   }
 #if V8_OS_LINUX
   if (!(cpu.part() == base::CPU::PPC_G5 || cpu.part() == base::CPU::PPC_G4)) {
@@ -96,6 +100,8 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= (1u << FPU);
   supported_ |= (1u << LWSYNC);
   supported_ |= (1u << ISELECT);
+  supported_ |= (1u << VSX);
+  supported_ |= (1u << MODULO);
 #if V8_TARGET_ARCH_PPC64
   supported_ |= (1u << FPR_GPR_MOV);
 #endif
@@ -155,6 +161,38 @@ bool RelocInfo::IsInConstantPool() {
   return false;
 }
 
+Address RelocInfo::wasm_memory_reference() {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  return Assembler::target_address_at(pc_, host_);
+}
+
+uint32_t RelocInfo::wasm_memory_size_reference() {
+  DCHECK(IsWasmMemorySizeReference(rmode_));
+  return static_cast<uint32_t>(
+     reinterpret_cast<intptr_t>(Assembler::target_address_at(pc_, host_)));
+}
+
+Address RelocInfo::wasm_global_reference() {
+  DCHECK(IsWasmGlobalReference(rmode_));
+  return Assembler::target_address_at(pc_, host_);
+}
+
+uint32_t RelocInfo::wasm_function_table_size_reference() {
+  DCHECK(IsWasmFunctionTableSizeReference(rmode_));
+  return static_cast<uint32_t>(
+      reinterpret_cast<intptr_t>(Assembler::target_address_at(pc_, host_)));
+}
+
+void RelocInfo::unchecked_update_wasm_memory_reference(
+    Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+}
+
+void RelocInfo::unchecked_update_wasm_size(uint32_t size,
+                                           ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate_, pc_, host_,
+                                   reinterpret_cast<Address>(size), flush_mode);
+}
 
 // -----------------------------------------------------------------------------
 // Implementation of Operand and MemOperand
@@ -166,7 +204,6 @@ Operand::Operand(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    DCHECK(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     imm_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
@@ -194,12 +231,10 @@ MemOperand::MemOperand(Register ra, Register rb) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
-      constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits),
-      positions_recorder_(this) {
+      constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   no_trampoline_pool_before_ = 0;
@@ -230,6 +265,8 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->constant_pool_size =
       (constant_pool_offset ? desc->instr_size - constant_pool_offset : 0);
   desc->origin = this;
+  desc->unwinding_info_size = 0;
+  desc->unwinding_info = nullptr;
 }
 
 
@@ -615,6 +652,14 @@ void Assembler::xo_form(Instr instr, Register rt, Register ra, Register rb,
   emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 | o | r);
 }
 
+void Assembler::xx3_form(Instr instr, DoubleRegister t, DoubleRegister a,
+                         DoubleRegister b) {
+  int AX = ((a.code() & 0x20) >> 5) & 0x1;
+  int BX = ((b.code() & 0x20) >> 5) & 0x1;
+  int TX = ((t.code() & 0x20) >> 5) & 0x1;
+  emit(instr | (t.code() & 0x1F) * B21 | (a.code() & 0x1F) * B16 | (b.code()
+       & 0x1F) * B11 | AX * B2 | BX * B1 | TX);
+}
 
 void Assembler::md_form(Instr instr, Register ra, Register rs, int shift,
                         int maskbit, RCBit r) {
@@ -678,13 +723,11 @@ int Assembler::link(Label* L) {
 
 
 void Assembler::bclr(BOfield bo, int condition_bit, LKBit lk) {
-  positions_recorder()->WriteRecordedPositions();
   emit(EXT1 | bo | condition_bit * B16 | BCLRX | lk);
 }
 
 
 void Assembler::bcctr(BOfield bo, int condition_bit, LKBit lk) {
-  positions_recorder()->WriteRecordedPositions();
   emit(EXT1 | bo | condition_bit * B16 | BCCTRX | lk);
 }
 
@@ -701,9 +744,6 @@ void Assembler::bctrl() { bcctr(BA, 0, SetLK); }
 
 
 void Assembler::bc(int branch_offset, BOfield bo, int condition_bit, LKBit lk) {
-  if (lk == SetLK) {
-    positions_recorder()->WriteRecordedPositions();
-  }
   int imm16 = branch_offset;
   CHECK(is_int16(imm16) && (imm16 & (kAAMask | kLKMask)) == 0);
   emit(BCX | bo | condition_bit * B16 | (imm16 & kImm16Mask) | lk);
@@ -711,9 +751,6 @@ void Assembler::bc(int branch_offset, BOfield bo, int condition_bit, LKBit lk) {
 
 
 void Assembler::b(int branch_offset, LKBit lk) {
-  if (lk == SetLK) {
-    positions_recorder()->WriteRecordedPositions();
-  }
   int imm26 = branch_offset;
   CHECK(is_int26(imm26) && (imm26 & (kAAMask | kLKMask)) == 0);
   emit(BX | (imm26 & kImm26Mask) | lk);
@@ -849,6 +886,10 @@ void Assembler::addc(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | ADDCX, dst, src1, src2, o, r);
 }
 
+void Assembler::adde(Register dst, Register src1, Register src2, OEBit o,
+                     RCBit r) {
+  xo_form(EXT2 | ADDEX, dst, src1, src2, o, r);
+}
 
 void Assembler::addze(Register dst, Register src1, OEBit o, RCBit r) {
   // a special xo_form
@@ -861,12 +902,15 @@ void Assembler::sub(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | SUBFX, dst, src2, src1, o, r);
 }
 
-
-void Assembler::subfc(Register dst, Register src1, Register src2, OEBit o,
-                      RCBit r) {
+void Assembler::subc(Register dst, Register src1, Register src2, OEBit o,
+                     RCBit r) {
   xo_form(EXT2 | SUBFCX, dst, src2, src1, o, r);
 }
 
+void Assembler::sube(Register dst, Register src1, Register src2, OEBit o,
+                     RCBit r) {
+  xo_form(EXT2 | SUBFEX, dst, src2, src1, o, r);
+}
 
 void Assembler::subfic(Register dst, Register src, const Operand& imm) {
   d_form(SUBFIC, dst, src, imm.imm_, true);
@@ -911,6 +955,13 @@ void Assembler::divwu(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | DIVWU, dst, src1, src2, o, r);
 }
 
+void Assembler::modsw(Register rt, Register ra, Register rb) {
+  x_form(EXT2 | MODSW, ra, rt, rb, LeaveRC);
+}
+
+void Assembler::moduw(Register rt, Register ra, Register rb) {
+  x_form(EXT2 | MODUW, ra, rt, rb, LeaveRC);
+}
 
 void Assembler::addi(Register dst, Register src, const Operand& imm) {
   DCHECK(!src.is(r0));  // use li instead to show intent
@@ -1203,6 +1254,21 @@ void Assembler::lwax(Register rt, const MemOperand& src) {
 #else
   lwzx(rt, src);
 #endif
+}
+
+
+void Assembler::ldbrx(Register dst, const MemOperand& src) {
+  x_form(EXT2 | LDBRX, src.ra(), dst, src.rb(), LeaveRC);
+}
+
+
+void Assembler::lwbrx(Register dst, const MemOperand& src) {
+  x_form(EXT2 | LWBRX, src.ra(), dst, src.rb(), LeaveRC);
+}
+
+
+void Assembler::lhbrx(Register dst, const MemOperand& src) {
+  x_form(EXT2 | LHBRX, src.ra(), dst, src.rb(), LeaveRC);
 }
 
 
@@ -1499,6 +1565,14 @@ void Assembler::divd(Register dst, Register src1, Register src2, OEBit o,
 void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
                       RCBit r) {
   xo_form(EXT2 | DIVDU, dst, src1, src2, o, r);
+}
+
+void Assembler::modsd(Register rt, Register ra, Register rb) {
+  x_form(EXT2 | MODSD, ra, rt, rb, LeaveRC);
+}
+
+void Assembler::modud(Register rt, Register ra, Register rb) {
+  x_form(EXT2 | MODUD, ra, rt, rb, LeaveRC);
 }
 #endif
 
@@ -2282,6 +2356,24 @@ void Assembler::fmsub(const DoubleRegister frt, const DoubleRegister fra,
        frc.code() * B6 | rc);
 }
 
+// Support for VSX instructions
+
+void Assembler::xsadddp(const DoubleRegister frt, const DoubleRegister fra,
+                        const DoubleRegister frb) {
+  xx3_form(EXT6 | XSADDDP, frt, fra, frb);
+}
+void Assembler::xssubdp(const DoubleRegister frt, const DoubleRegister fra,
+                        const DoubleRegister frb) {
+  xx3_form(EXT6 | XSSUBDP, frt, fra, frb);
+}
+void Assembler::xsdivdp(const DoubleRegister frt, const DoubleRegister fra,
+                        const DoubleRegister frb) {
+  xx3_form(EXT6 | XSDIVDP, frt, fra, frb);
+}
+void Assembler::xsmuldp(const DoubleRegister frt, const DoubleRegister fra,
+                        const DoubleRegister frb) {
+  xx3_form(EXT6 | XSMULDP, frt, fra, frb);
+}
 
 // Pseudo instructions.
 void Assembler::nop(int type) {
@@ -2438,8 +2530,6 @@ void Assembler::EmitRelocations() {
 
     reloc_info_writer.Write(&rinfo);
   }
-
-  reloc_info_writer.Finish();
 }
 
 

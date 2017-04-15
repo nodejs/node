@@ -24,7 +24,7 @@
 function insertTextAt(index, text) {
     return {
         range: [index, index],
-        text: text
+        text
     };
 }
 
@@ -34,14 +34,9 @@ function insertTextAt(index, text) {
 
 /**
  * Creates code fixing commands for rules.
- * @constructor
  */
-function RuleFixer() {
-    Object.freeze(this);
-}
 
-RuleFixer.prototype = {
-    constructor: RuleFixer,
+const ruleFixer = Object.freeze({
 
     /**
      * Creates a fix command that inserts text after the given node or token.
@@ -50,7 +45,7 @@ RuleFixer.prototype = {
      * @param {string} text The text to insert.
      * @returns {Object} The fix command.
      */
-    insertTextAfter: function(nodeOrToken, text) {
+    insertTextAfter(nodeOrToken, text) {
         return this.insertTextAfterRange(nodeOrToken.range, text);
     },
 
@@ -62,7 +57,7 @@ RuleFixer.prototype = {
      * @param {string} text The text to insert.
      * @returns {Object} The fix command.
      */
-    insertTextAfterRange: function(range, text) {
+    insertTextAfterRange(range, text) {
         return insertTextAt(range[1], text);
     },
 
@@ -73,7 +68,7 @@ RuleFixer.prototype = {
      * @param {string} text The text to insert.
      * @returns {Object} The fix command.
      */
-    insertTextBefore: function(nodeOrToken, text) {
+    insertTextBefore(nodeOrToken, text) {
         return this.insertTextBeforeRange(nodeOrToken.range, text);
     },
 
@@ -85,7 +80,7 @@ RuleFixer.prototype = {
      * @param {string} text The text to insert.
      * @returns {Object} The fix command.
      */
-    insertTextBeforeRange: function(range, text) {
+    insertTextBeforeRange(range, text) {
         return insertTextAt(range[0], text);
     },
 
@@ -96,7 +91,7 @@ RuleFixer.prototype = {
      * @param {string} text The text to insert.
      * @returns {Object} The fix command.
      */
-    replaceText: function(nodeOrToken, text) {
+    replaceText(nodeOrToken, text) {
         return this.replaceTextRange(nodeOrToken.range, text);
     },
 
@@ -108,10 +103,10 @@ RuleFixer.prototype = {
      * @param {string} text The text to insert.
      * @returns {Object} The fix command.
      */
-    replaceTextRange: function(range, text) {
+    replaceTextRange(range, text) {
         return {
-            range: range,
-            text: text
+            range,
+            text
         };
     },
 
@@ -121,7 +116,7 @@ RuleFixer.prototype = {
      * @param {ASTNode|Token} nodeOrToken The node or token to remove.
      * @returns {Object} The fix command.
      */
-    remove: function(nodeOrToken) {
+    remove(nodeOrToken) {
         return this.removeRange(nodeOrToken.range);
     },
 
@@ -132,14 +127,14 @@ RuleFixer.prototype = {
      *      is end of range.
      * @returns {Object} The fix command.
      */
-    removeRange: function(range) {
+    removeRange(range) {
         return {
-            range: range,
+            range,
             text: ""
         };
     }
 
-};
+});
 
 
-module.exports = RuleFixer;
+module.exports = ruleFixer;

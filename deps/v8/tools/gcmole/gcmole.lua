@@ -111,6 +111,7 @@ local function MakeClangCommandLine(
       .. " -DENABLE_DEBUGGER_SUPPORT"
       .. " -DV8_I18N_SUPPORT"
       .. " -I./"
+      .. " -Iinclude/"
       .. " -Ithird_party/icu/source/common"
       .. " -Ithird_party/icu/source/i18n"
       .. " " .. arch_options
@@ -182,27 +183,54 @@ end
 -------------------------------------------------------------------------------
 -- GYP file parsing
 
+-- TODO(machenbach): Remove this when deprecating gyp.
 local function ParseGYPFile()
-   local gyp = ""
-   local gyp_files = { "tools/gyp/v8.gyp", "test/cctest/cctest.gyp" }
+   local result = {}
+   local gyp_files = {
+       { "src/v8.gyp",             "'([^']-%.cc)'",      "src/"         },
+       { "test/cctest/cctest.gyp", "'(test-[^']-%.cc)'", "test/cctest/" }
+   }
+
    for i = 1, #gyp_files do
-      local f = assert(io.open(gyp_files[i]), "failed to open GYP file")
-      local t = f:read('*a')
-      gyp = gyp .. t
-      f:close()
+      local filename = gyp_files[i][1]
+      local pattern = gyp_files[i][2]
+      local prefix = gyp_files[i][3]
+      local gyp_file = assert(io.open(filename), "failed to open GYP file")
+      local gyp = gyp_file:read('*a')
+      for condition, sources in
+         gyp:gmatch "%[.-### gcmole%((.-)%) ###(.-)%]" do
+         if result[condition] == nil then result[condition] = {} end
+         for file in sources:gmatch(pattern) do
+            table.insert(result[condition], prefix .. file)
+         end
+      end
+      gyp_file:close()
    end
 
-   local result = {}
+   return result
+end
 
-   for condition, sources in
-      gyp:gmatch "'sources': %[.-### gcmole%((.-)%) ###(.-)%]" do
-      if result[condition] == nil then result[condition] = {} end
-      for file in sources:gmatch "'%.%./%.%./src/([^']-%.cc)'" do
-         table.insert(result[condition], "src/" .. file)
+local function ParseGNFile()
+   local result = {}
+   local gn_files = {
+       { "BUILD.gn",             '"([^"]-%.cc)"',      ""         },
+       { "test/cctest/BUILD.gn", '"(test-[^"]-%.cc)"', "test/cctest/" }
+   }
+
+   for i = 1, #gn_files do
+      local filename = gn_files[i][1]
+      local pattern = gn_files[i][2]
+      local prefix = gn_files[i][3]
+      local gn_file = assert(io.open(filename), "failed to open GN file")
+      local gn = gn_file:read('*a')
+      for condition, sources in
+         gn:gmatch "### gcmole%((.-)%) ###(.-)%]" do
+         if result[condition] == nil then result[condition] = {} end
+         for file in sources:gmatch(pattern) do
+            table.insert(result[condition], prefix .. file)
+         end
       end
-      for file in sources:gmatch "'(test-[^']-%.cc)'" do
-         table.insert(result[condition], "test/cctest/" .. file)
-      end
+      gn_file:close()
    end
 
    return result
@@ -229,13 +257,40 @@ local function BuildFileList(sources, props)
    return list
 end
 
-local sources = ParseGYPFile()
+
+local gyp_sources = ParseGYPFile()
+local gn_sources = ParseGNFile()
+
+-- TODO(machenbach): Remove this comparison logic when deprecating gyp.
+local function CompareSources(sources1, sources2, what)
+  for condition, files1 in pairs(sources1) do
+    local files2 = sources2[condition]
+    assert(
+      files2 ~= nil,
+      "Missing gcmole condition in " .. what .. ": " .. condition)
+
+    -- Turn into set for speed.
+    files2_set = {}
+    for i, file in pairs(files2) do files2_set[file] = true end
+
+    for i, file in pairs(files1) do
+      assert(
+        files2_set[file] ~= nil,
+        "Missing file " .. file .. " in " .. what .. " for condition " ..
+        condition)
+    end
+  end
+end
+
+CompareSources(gyp_sources, gn_sources, "GN")
+CompareSources(gn_sources, gyp_sources, "GYP")
+
 
 local function FilesForArch(arch)
-   return BuildFileList(sources, { os = 'linux',
-                                   arch = arch,
-                                   mode = 'debug',
-                                   simulator = ''})
+   return BuildFileList(gn_sources, { os = 'linux',
+                                      arch = arch,
+                                      mode = 'debug',
+                                      simulator = ''})
 end
 
 local mtConfig = {}

@@ -5,9 +5,9 @@
 #ifndef V8_CRANKSHAFT_HYDROGEN_FLOW_ENGINE_H_
 #define V8_CRANKSHAFT_HYDROGEN_FLOW_ENGINE_H_
 
-#include "src/crankshaft/hydrogen.h"
 #include "src/crankshaft/hydrogen-instructions.h"
-#include "src/zone.h"
+#include "src/crankshaft/hydrogen.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

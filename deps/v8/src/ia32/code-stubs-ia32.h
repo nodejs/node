@@ -16,16 +16,6 @@ void ArrayNativeCode(MacroAssembler* masm,
 
 class StringHelper : public AllStatic {
  public:
-  // Generate code for copying characters using the rep movs instruction.
-  // Copies ecx characters from esi to edi. Copying of overlapping regions is
-  // not supported.
-  static void GenerateCopyCharacters(MacroAssembler* masm,
-                                     Register dest,
-                                     Register src,
-                                     Register count,
-                                     Register scratch,
-                                     String::Encoding encoding);
-
   // Compares two flat one byte strings and returns result in eax.
   static void GenerateCompareFlatOneByteStrings(MacroAssembler* masm,
                                                 Register left, Register right,
@@ -67,14 +57,6 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
                                      Register properties,
                                      Handle<Name> name,
                                      Register r0);
-
-  static void GeneratePositiveLookup(MacroAssembler* masm,
-                                     Label* miss,
-                                     Label* done,
-                                     Register elements,
-                                     Register name,
-                                     Register r0,
-                                     Register r1);
 
   bool SometimesSetsUpAFrame() override { return false; }
 
@@ -301,8 +283,8 @@ class RecordWriteStub: public PlatformCodeStub {
                                   Register r2,
                                   Register r3) {
       for (int i = 0; i < Register::kNumRegisters; i++) {
-        Register candidate = Register::from_code(i);
-        if (candidate.IsAllocatable()) {
+        if (RegisterConfiguration::Crankshaft()->IsAllocatableGeneralCode(i)) {
+          Register candidate = Register::from_code(i);
           if (candidate.is(ecx)) continue;
           if (candidate.is(r1)) continue;
           if (candidate.is(r2)) continue;

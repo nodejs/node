@@ -15,7 +15,7 @@ assert.throws(function() {
 }, /"watchFile\(\)" requires a listener function/);
 
 assert.throws(function() {
-  fs.watchFile(new Object(), function() {});
+  fs.watchFile(new Object(), common.noop);
 }, /Path must be a string/);
 
 const enoentFile = path.join(common.tmpDir, 'non-existent-file');
@@ -40,7 +40,7 @@ common.refreshTmpDir();
 
 // If the file initially didn't exist, and gets created at a later point of
 // time, the callback should be invoked again with proper values in stat object
-var fileExists = false;
+let fileExists = false;
 
 fs.watchFile(enoentFile, {interval: 0}, common.mustCall(function(curr, prev) {
   if (!fileExists) {

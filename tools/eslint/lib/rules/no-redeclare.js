@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `var` redeclaration",
+            description: "disallow variable redeclaration",
             category: "Best Practices",
             recommended: true
         },
@@ -21,15 +21,15 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    builtinGlobals: {type: "boolean"}
+                    builtinGlobals: { type: "boolean" }
                 },
                 additionalProperties: false
             }
         ]
     },
 
-    create: function(context) {
-        var options = {
+    create(context) {
+        const options = {
             builtinGlobals: Boolean(context.options[0] && context.options[0].builtinGlobals)
         };
 
@@ -40,20 +40,15 @@ module.exports = {
          * @private
          */
         function findVariablesInScope(scope) {
-            scope.variables.forEach(function(variable) {
-                var hasBuiltin = options.builtinGlobals && "writeable" in variable;
-                var count = (hasBuiltin ? 1 : 0) + variable.identifiers.length;
+            scope.variables.forEach(variable => {
+                const hasBuiltin = options.builtinGlobals && "writeable" in variable;
+                const count = (hasBuiltin ? 1 : 0) + variable.identifiers.length;
 
                 if (count >= 2) {
-                    variable.identifiers.sort(function(a, b) {
-                        return a.range[1] - b.range[1];
-                    });
+                    variable.identifiers.sort((a, b) => a.range[1] - b.range[1]);
 
-                    for (var i = (hasBuiltin ? 0 : 1), l = variable.identifiers.length; i < l; i++) {
-                        context.report(
-                            variable.identifiers[i],
-                            "'{{a}}' is already defined",
-                            {a: variable.name});
+                    for (let i = (hasBuiltin ? 0 : 1), l = variable.identifiers.length; i < l; i++) {
+                        context.report({ node: variable.identifiers[i], message: "'{{a}}' is already defined.", data: { a: variable.name } });
                     }
                 }
             });
@@ -67,7 +62,7 @@ module.exports = {
          * @private
          */
         function checkForGlobal(node) {
-            var scope = context.getScope(),
+            const scope = context.getScope(),
                 parserOptions = context.parserOptions,
                 ecmaFeatures = parserOptions.ecmaFeatures || {};
 
@@ -94,13 +89,13 @@ module.exports = {
                 BlockStatement: checkForBlock,
                 SwitchStatement: checkForBlock
             };
-        } else {
-            return {
-                Program: checkForGlobal,
-                FunctionDeclaration: checkForBlock,
-                FunctionExpression: checkForBlock,
-                ArrowFunctionExpression: checkForBlock
-            };
         }
+        return {
+            Program: checkForGlobal,
+            FunctionDeclaration: checkForBlock,
+            FunctionExpression: checkForBlock,
+            ArrowFunctionExpression: checkForBlock
+        };
+
     }
 };

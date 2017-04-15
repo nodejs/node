@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/scheduler.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/scheduler.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/source-position.h"
 #include "src/compiler/verifier.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/test-utils.h"
@@ -96,7 +96,8 @@ TEST_F(SchedulerTest, BuildScheduleOneParameter) {
   graph()->SetStart(graph()->NewNode(common()->Start(0)));
 
   Node* p1 = graph()->NewNode(common()->Parameter(0), graph()->start());
-  Node* ret = graph()->NewNode(common()->Return(), p1, graph()->start(),
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, p1, graph()->start(),
                                graph()->start());
 
   graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
@@ -128,14 +129,62 @@ TARGET_TEST_F(SchedulerTest, FloatingDiamond1) {
 
   Node* p0 = graph()->NewNode(common()->Parameter(0), start);
   Node* d1 = CreateDiamond(graph(), common(), p0);
-  Node* ret = graph()->NewNode(common()->Return(), d1, start, start);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, d1, start, start);
   Node* end = graph()->NewNode(common()->End(1), ret);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(13);
+  ComputeAndVerifySchedule(14);
 }
 
+TARGET_TEST_F(SchedulerTest, FloatingDeadDiamond1) {
+  Node* start = graph()->NewNode(common()->Start(1));
+  graph()->SetStart(start);
+
+  Node* p0 = graph()->NewNode(common()->Parameter(0), start);
+  Node* d1 = CreateDiamond(graph(), common(), p0);
+  USE(d1);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, p0, start, start);
+  Node* end = graph()->NewNode(common()->End(1), ret);
+
+  graph()->SetEnd(end);
+
+  ComputeAndVerifySchedule(5);
+}
+
+TARGET_TEST_F(SchedulerTest, FloatingDeadDiamond2) {
+  Graph* g = graph();
+  Node* start = g->NewNode(common()->Start(1));
+  g->SetStart(start);
+
+  Node* n1 = g->NewNode(common()->Parameter(1), start);
+
+  Node* n2 = g->NewNode(common()->Branch(), n1, start);
+  Node* n3 = g->NewNode(common()->IfTrue(), n2);
+  Node* n4 = g->NewNode(common()->IfFalse(), n2);
+  Node* n5 = g->NewNode(common()->Int32Constant(-100));
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* n6 = g->NewNode(common()->Return(), zero, n5, start, n4);
+  Node* n7 = g->NewNode(common()->Int32Constant(0));
+  Node* n8 = g->NewNode(common()->Return(), zero, n7, start, n3);
+  Node* n9 = g->NewNode(common()->End(2), n6, n8);
+
+  // Dead nodes
+  Node* n10 = g->NewNode(common()->Branch(), n1, n3);
+  Node* n11 = g->NewNode(common()->IfTrue(), n10);
+  Node* n12 = g->NewNode(common()->IfFalse(), n10);
+  Node* n13 = g->NewNode(common()->Merge(2), n11, n12);
+  Node* n14 =
+      g->NewNode(common()->Phi(MachineRepresentation::kWord32, 2), n1, n7, n13);
+
+  USE(n14);
+
+  g->SetEnd(n9);
+
+  ComputeAndVerifySchedule(11);
+}
 
 TARGET_TEST_F(SchedulerTest, FloatingDiamond2) {
   Node* start = graph()->NewNode(common()->Start(2));
@@ -146,12 +195,13 @@ TARGET_TEST_F(SchedulerTest, FloatingDiamond2) {
   Node* d1 = CreateDiamond(graph(), common(), p0);
   Node* d2 = CreateDiamond(graph(), common(), p1);
   Node* add = graph()->NewNode(&kIntAdd, d1, d2);
-  Node* ret = graph()->NewNode(common()->Return(), add, start, start);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, add, start, start);
   Node* end = graph()->NewNode(common()->End(1), ret);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(24);
+  ComputeAndVerifySchedule(25);
 }
 
 
@@ -165,12 +215,13 @@ TARGET_TEST_F(SchedulerTest, FloatingDiamond3) {
   Node* d2 = CreateDiamond(graph(), common(), p1);
   Node* add = graph()->NewNode(&kIntAdd, d1, d2);
   Node* d3 = CreateDiamond(graph(), common(), add);
-  Node* ret = graph()->NewNode(common()->Return(), d3, start, start);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, d3, start, start);
   Node* end = graph()->NewNode(common()->End(1), ret);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(33);
+  ComputeAndVerifySchedule(34);
 }
 
 
@@ -203,12 +254,13 @@ TARGET_TEST_F(SchedulerTest, NestedFloatingDiamonds) {
                                fv, phi1, m);
   Node* ephi1 = graph()->NewNode(common()->EffectPhi(2), start, map, m);
 
-  Node* ret = graph()->NewNode(common()->Return(), phi, ephi1, start);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, phi, ephi1, start);
   Node* end = graph()->NewNode(common()->End(1), ret);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(23);
+  ComputeAndVerifySchedule(24);
 }
 
 
@@ -249,12 +301,13 @@ TARGET_TEST_F(SchedulerTest, NestedFloatingDiamondWithChain) {
       common()->Phi(MachineRepresentation::kTagged, 2), phiA1, c, mB2);
 
   Node* add = graph()->NewNode(&kIntAdd, phiA2, phiB2);
-  Node* ret = graph()->NewNode(common()->Return(), add, start, start);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, add, start, start);
   Node* end = graph()->NewNode(common()->End(1), ret);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(36);
+  ComputeAndVerifySchedule(37);
 }
 
 
@@ -285,12 +338,13 @@ TARGET_TEST_F(SchedulerTest, NestedFloatingDiamondWithLoop) {
   Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                                fv, ind, m);
 
-  Node* ret = graph()->NewNode(common()->Return(), phi, start, start);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, phi, start, start);
   Node* end = graph()->NewNode(common()->End(1), ret);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(20);
+  ComputeAndVerifySchedule(21);
 }
 
 
@@ -320,12 +374,13 @@ TARGET_TEST_F(SchedulerTest, LoopedFloatingDiamond1) {
   loop->ReplaceInput(1, t);    // close loop.
   ind->ReplaceInput(1, phi1);  // close induction variable.
 
-  Node* ret = graph()->NewNode(common()->Return(), ind, start, f);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, ind, start, f);
   Node* end = graph()->NewNode(common()->End(2), ret, f);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(20);
+  ComputeAndVerifySchedule(21);
 }
 
 
@@ -356,12 +411,13 @@ TARGET_TEST_F(SchedulerTest, LoopedFloatingDiamond2) {
   loop->ReplaceInput(1, t);   // close loop.
   ind->ReplaceInput(1, add);  // close induction variable.
 
-  Node* ret = graph()->NewNode(common()->Return(), ind, start, f);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, ind, start, f);
   Node* end = graph()->NewNode(common()->End(2), ret, f);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(20);
+  ComputeAndVerifySchedule(21);
 }
 
 
@@ -405,12 +461,13 @@ TARGET_TEST_F(SchedulerTest, LoopedFloatingDiamond3) {
   loop->ReplaceInput(1, t);   // close loop.
   ind->ReplaceInput(1, add);  // close induction variable.
 
-  Node* ret = graph()->NewNode(common()->Return(), ind, start, f);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, ind, start, f);
   Node* end = graph()->NewNode(common()->End(2), ret, f);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(28);
+  ComputeAndVerifySchedule(29);
 }
 
 
@@ -441,12 +498,13 @@ TARGET_TEST_F(SchedulerTest, PhisPushedDownToDifferentBranches) {
   Node* phi3 = graph()->NewNode(
       common()->Phi(MachineRepresentation::kTagged, 2), phi, phi2, m2);
 
-  Node* ret = graph()->NewNode(common()->Return(), phi3, start, start);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, phi3, start, start);
   Node* end = graph()->NewNode(common()->End(1), ret);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(24);
+  ComputeAndVerifySchedule(25);
 }
 
 
@@ -463,12 +521,13 @@ TARGET_TEST_F(SchedulerTest, BranchHintTrue) {
   Node* m = graph()->NewNode(common()->Merge(2), t, f);
   Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                                tv, fv, m);
-  Node* ret = graph()->NewNode(common()->Return(), phi, start, start);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, phi, start, start);
   Node* end = graph()->NewNode(common()->End(1), ret);
 
   graph()->SetEnd(end);
 
-  Schedule* schedule = ComputeAndVerifySchedule(13);
+  Schedule* schedule = ComputeAndVerifySchedule(14);
   // Make sure the false block is marked as deferred.
   EXPECT_FALSE(schedule->block(t)->deferred());
   EXPECT_TRUE(schedule->block(f)->deferred());
@@ -488,12 +547,13 @@ TARGET_TEST_F(SchedulerTest, BranchHintFalse) {
   Node* m = graph()->NewNode(common()->Merge(2), t, f);
   Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                                tv, fv, m);
-  Node* ret = graph()->NewNode(common()->Return(), phi, start, start);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, phi, start, start);
   Node* end = graph()->NewNode(common()->End(1), ret);
 
   graph()->SetEnd(end);
 
-  Schedule* schedule = ComputeAndVerifySchedule(13);
+  Schedule* schedule = ComputeAndVerifySchedule(14);
   // Make sure the true block is marked as deferred.
   EXPECT_TRUE(schedule->block(t)->deferred());
   EXPECT_FALSE(schedule->block(f)->deferred());
@@ -507,22 +567,21 @@ TARGET_TEST_F(SchedulerTest, CallException) {
   Node* p0 = graph()->NewNode(common()->Parameter(0), start);
   Node* c1 = graph()->NewNode(&kMockCall, start);
   Node* ok1 = graph()->NewNode(common()->IfSuccess(), c1);
-  Node* ex1 = graph()->NewNode(
-      common()->IfException(IfExceptionHint::kLocallyUncaught), c1, c1);
+  Node* ex1 = graph()->NewNode(common()->IfException(), c1, c1);
   Node* c2 = graph()->NewNode(&kMockCall, ok1);
   Node* ok2 = graph()->NewNode(common()->IfSuccess(), c2);
-  Node* ex2 = graph()->NewNode(
-      common()->IfException(IfExceptionHint::kLocallyUncaught), c2, c2);
+  Node* ex2 = graph()->NewNode(common()->IfException(), c2, c2);
   Node* hdl = graph()->NewNode(common()->Merge(2), ex1, ex2);
   Node* m = graph()->NewNode(common()->Merge(2), ok2, hdl);
   Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                                c2, p0, m);
-  Node* ret = graph()->NewNode(common()->Return(), phi, start, m);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, phi, start, m);
   Node* end = graph()->NewNode(common()->End(1), ret);
 
   graph()->SetEnd(end);
 
-  Schedule* schedule = ComputeAndVerifySchedule(17);
+  Schedule* schedule = ComputeAndVerifySchedule(18);
   // Make sure the exception blocks as well as the handler are deferred.
   EXPECT_TRUE(schedule->block(ex1)->deferred());
   EXPECT_TRUE(schedule->block(ex2)->deferred());
@@ -560,12 +619,13 @@ TARGET_TEST_F(SchedulerTest, Switch) {
   Node* m = graph()->NewNode(common()->Merge(3), c0, c1, d);
   Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 3),
                                v0, v1, vd, m);
-  Node* ret = graph()->NewNode(common()->Return(), phi, start, m);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, phi, start, m);
   Node* end = graph()->NewNode(common()->End(1), ret);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(16);
+  ComputeAndVerifySchedule(17);
 }
 
 
@@ -584,12 +644,13 @@ TARGET_TEST_F(SchedulerTest, FloatingSwitch) {
   Node* m = graph()->NewNode(common()->Merge(3), c0, c1, d);
   Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 3),
                                v0, v1, vd, m);
-  Node* ret = graph()->NewNode(common()->Return(), phi, start, start);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, phi, start, start);
   Node* end = graph()->NewNode(common()->End(1), ret);
 
   graph()->SetEnd(end);
 
-  ComputeAndVerifySchedule(16);
+  ComputeAndVerifySchedule(17);
 }
 
 

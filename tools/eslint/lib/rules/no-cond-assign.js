@@ -4,7 +4,9 @@
  */
 "use strict";
 
-var NODE_DESCRIPTIONS = {
+const astUtils = require("../ast-utils");
+
+const NODE_DESCRIPTIONS = {
     DoWhileStatement: "a 'do...while' statement",
     ForStatement: "a 'for' statement",
     IfStatement: "an 'if' statement",
@@ -30,9 +32,11 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var prohibitAssign = (context.options[0] || "except-parens");
+        const prohibitAssign = (context.options[0] || "except-parens");
+
+        const sourceCode = context.getSourceCode();
 
         /**
          * Check whether an AST node is the test expression for a conditional statement.
@@ -51,28 +55,15 @@ module.exports = {
          * @returns {?Object} The closest ancestor node that represents a conditional statement.
          */
         function findConditionalAncestor(node) {
-            var currentAncestor = node;
+            let currentAncestor = node;
 
             do {
                 if (isConditionalTestExpression(currentAncestor)) {
                     return currentAncestor.parent;
                 }
-            } while ((currentAncestor = currentAncestor.parent));
+            } while ((currentAncestor = currentAncestor.parent) && !astUtils.isFunction(currentAncestor));
 
             return null;
-        }
-
-        /**
-         * Check whether the code represented by an AST node is enclosed in parentheses.
-         * @param {!Object} node The node to test.
-         * @returns {boolean} `true` if the code is enclosed in parentheses; otherwise, `false`.
-         */
-        function isParenthesised(node) {
-            var previousToken = context.getTokenBefore(node),
-                nextToken = context.getTokenAfter(node);
-
-            return previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
-                nextToken.value === ")" && nextToken.range[0] >= node.range[1];
         }
 
         /**
@@ -81,12 +72,12 @@ module.exports = {
          * @returns {boolean} `true` if the code is enclosed in two sets of parentheses; otherwise, `false`.
          */
         function isParenthesisedTwice(node) {
-            var previousToken = context.getTokenBefore(node, 1),
-                nextToken = context.getTokenAfter(node, 1);
+            const previousToken = sourceCode.getTokenBefore(node, 1),
+                nextToken = sourceCode.getTokenAfter(node, 1);
 
-            return isParenthesised(node) &&
-                previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
-                nextToken.value === ")" && nextToken.range[0] >= node.range[1];
+            return astUtils.isParenthesised(sourceCode, node) &&
+                astUtils.isOpeningParenToken(previousToken) && previousToken.range[1] <= node.range[0] &&
+                astUtils.isClosingParenToken(nextToken) && nextToken.range[0] >= node.range[1];
         }
 
         /**
@@ -97,15 +88,15 @@ module.exports = {
         function testForAssign(node) {
             if (node.test &&
                 (node.test.type === "AssignmentExpression") &&
-                (node.type === "ForStatement" ?
-                    !isParenthesised(node.test) :
-                    !isParenthesisedTwice(node.test)
+                (node.type === "ForStatement"
+                    ? !astUtils.isParenthesised(sourceCode, node.test)
+                    : !isParenthesisedTwice(node.test)
                 )
             ) {
 
                 // must match JSHint's error message
                 context.report({
-                    node: node,
+                    node,
                     loc: node.test.loc.start,
                     message: "Expected a conditional expression and instead saw an assignment."
                 });
@@ -118,12 +109,12 @@ module.exports = {
          * @returns {void}
          */
         function testForConditionalAncestor(node) {
-            var ancestor = findConditionalAncestor(node);
+            const ancestor = findConditionalAncestor(node);
 
             if (ancestor) {
-                context.report(ancestor, "Unexpected assignment within {{type}}.", {
+                context.report({ node: ancestor, message: "Unexpected assignment within {{type}}.", data: {
                     type: NODE_DESCRIPTIONS[ancestor.type] || ancestor.type
-                });
+                } });
             }
         }
 

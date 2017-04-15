@@ -11,7 +11,7 @@ function pathToPackageName (dir) {
   if (dir === '') return ''
   var name = path.relative(path.resolve(dir, '..'), dir)
   var scoped = path.relative(path.resolve(dir, '../..'), dir)
-  if (scoped[0] === '@') return scoped
+  if (scoped[0] === '@') return scoped.replace(/\\/g, '/')
   return name
 }
 

@@ -1,24 +1,15 @@
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+  value: true
 });
-exports.drawBorderBottom = exports.drawBorderJoin = exports.drawBorderTop = exports.drawBorder = undefined;
+exports.drawBorderTop = exports.drawBorderJoin = exports.drawBorderBottom = exports.drawBorder = undefined;
 
-var _repeat2 = require('lodash/repeat');
+var _lodash = require('lodash');
 
-var _repeat3 = _interopRequireDefault(_repeat2);
-
-var _map2 = require('lodash/map');
-
-var _map3 = _interopRequireDefault(_map2);
+var _lodash2 = _interopRequireDefault(_lodash);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var drawBorder = undefined,
-    drawBorderBottom = undefined,
-    drawBorderJoin = undefined,
-    drawBorderTop = undefined;
 
 /**
  * @typedef drawBorder~parts
@@ -33,16 +24,12 @@ var drawBorder = undefined,
  * @param {drawBorder~parts} parts
  * @returns {string}
  */
-exports.drawBorder = drawBorder = function drawBorder(columnSizeIndex, parts) {
-    var columns = undefined;
+const drawBorder = (columnSizeIndex, parts) => {
+  const columns = _lodash2.default.map(columnSizeIndex, size => {
+    return _lodash2.default.repeat(parts.body, size);
+  }).join(parts.join);
 
-    columns = (0, _map3.default)(columnSizeIndex, function (size) {
-        return (0, _repeat3.default)(parts.body, size);
-    });
-
-    columns = columns.join(parts.join);
-
-    return parts.left + columns + parts.right + '\n';
+  return parts.left + columns + parts.right + '\n';
 };
 
 /**
@@ -56,15 +43,15 @@ exports.drawBorder = drawBorder = function drawBorder(columnSizeIndex, parts) {
 /**
  * @param {number[]} columnSizeIndex
  * @param {drawBorderTop~parts} parts
- * @return {string}
+ * @returns {string}
  */
-exports.drawBorderTop = drawBorderTop = function drawBorderTop(columnSizeIndex, parts) {
-    return drawBorder(columnSizeIndex, {
-        left: parts.topLeft,
-        right: parts.topRight,
-        body: parts.topBody,
-        join: parts.topJoin
-    });
+const drawBorderTop = (columnSizeIndex, parts) => {
+  return drawBorder(columnSizeIndex, {
+    body: parts.topBody,
+    join: parts.topJoin,
+    left: parts.topLeft,
+    right: parts.topRight
+  });
 };
 
 /**
@@ -80,13 +67,13 @@ exports.drawBorderTop = drawBorderTop = function drawBorderTop(columnSizeIndex, 
  * @param {drawBorderJoin~parts} parts
  * @returns {string}
  */
-exports.drawBorderJoin = drawBorderJoin = function drawBorderJoin(columnSizeIndex, parts) {
-    return drawBorder(columnSizeIndex, {
-        left: parts.joinLeft,
-        right: parts.joinRight,
-        body: parts.joinBody,
-        join: parts.joinJoin
-    });
+const drawBorderJoin = (columnSizeIndex, parts) => {
+  return drawBorder(columnSizeIndex, {
+    body: parts.joinBody,
+    join: parts.joinJoin,
+    left: parts.joinLeft,
+    right: parts.joinRight
+  });
 };
 
 /**
@@ -102,17 +89,16 @@ exports.drawBorderJoin = drawBorderJoin = function drawBorderJoin(columnSizeInde
  * @param {drawBorderBottom~parts} parts
  * @returns {string}
  */
-exports.drawBorderBottom = drawBorderBottom = function drawBorderBottom(columnSizeIndex, parts) {
-    return drawBorder(columnSizeIndex, {
-        left: parts.bottomLeft,
-        right: parts.bottomRight,
-        body: parts.bottomBody,
-        join: parts.bottomJoin
-    });
+const drawBorderBottom = (columnSizeIndex, parts) => {
+  return drawBorder(columnSizeIndex, {
+    body: parts.bottomBody,
+    join: parts.bottomJoin,
+    left: parts.bottomLeft,
+    right: parts.bottomRight
+  });
 };
 
 exports.drawBorder = drawBorder;
-exports.drawBorderTop = drawBorderTop;
-exports.drawBorderJoin = drawBorderJoin;
 exports.drawBorderBottom = drawBorderBottom;
-//# sourceMappingURL=drawBorder.js.map
+exports.drawBorderJoin = drawBorderJoin;
+exports.drawBorderTop = drawBorderTop;

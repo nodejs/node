@@ -512,8 +512,18 @@ void uv__fs_scandir_cleanup(uv_fs_t* req) {
 int uv_fs_scandir_next(uv_fs_t* req, uv_dirent_t* ent) {
   uv__dirent_t** dents;
   uv__dirent_t* dent;
+  unsigned int* nbufs;
 
-  unsigned int* nbufs = uv__get_nbufs(req);
+  /* Check to see if req passed */
+  if (req->result < 0)
+    return req->result;
+
+  /* Ptr will be null if req was canceled or no files found */
+  if (!req->ptr)
+    return UV_EOF;
+
+  nbufs = uv__get_nbufs(req);
+  assert(nbufs);
 
   dents = req->ptr;
 
@@ -613,6 +623,9 @@ uv_loop_t* uv_loop_new(void) {
 int uv_loop_close(uv_loop_t* loop) {
   QUEUE* q;
   uv_handle_t* h;
+#ifndef NDEBUG
+  void* saved_data;
+#endif
 
   if (!QUEUE_EMPTY(&(loop)->active_reqs))
     return UV_EBUSY;
@@ -626,7 +639,9 @@ int uv_loop_close(uv_loop_t* loop) {
   uv__loop_close(loop);
 
 #ifndef NDEBUG
+  saved_data = loop->data;
   memset(loop, -1, sizeof(*loop));
+  loop->data = saved_data;
 #endif
   if (loop == default_loop_ptr)
     default_loop_ptr = NULL;

@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -13,7 +13,7 @@ var astUtils = require("../ast-utils");
 module.exports = {
     meta: {
         docs: {
-            description: "Enforce spacing inside array brackets",
+            description: "enforce consistent spacing inside array brackets",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -39,8 +39,8 @@ module.exports = {
             }
         ]
     },
-    create: function(context) {
-        var spaced = context.options[0] === "always",
+    create(context) {
+        const spaced = context.options[0] === "always",
             sourceCode = context.getSourceCode();
 
         /**
@@ -54,8 +54,8 @@ module.exports = {
             return context.options[1] ? context.options[1][option] === !spaced : false;
         }
 
-        var options = {
-            spaced: spaced,
+        const options = {
+            spaced,
             singleElementException: isOptionSet("singleValue"),
             objectsInArraysException: isOptionSet("objectsInArrays"),
             arraysInArraysException: isOptionSet("arraysInArrays")
@@ -73,11 +73,14 @@ module.exports = {
         */
         function reportNoBeginningSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
-                message: "There should be no space after '" + token.value + "'",
-                fix: function(fixer) {
-                    var nextToken = context.getSourceCode().getTokenAfter(token);
+                message: "There should be no space after '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
+                fix(fixer) {
+                    const nextToken = sourceCode.getTokenAfter(token);
 
                     return fixer.removeRange([token.range[1], nextToken.range[0]]);
                 }
@@ -92,11 +95,14 @@ module.exports = {
         */
         function reportNoEndingSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
-                message: "There should be no space before '" + token.value + "'",
-                fix: function(fixer) {
-                    var previousToken = context.getSourceCode().getTokenBefore(token);
+                message: "There should be no space before '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
+                fix(fixer) {
+                    const previousToken = sourceCode.getTokenBefore(token);
 
                     return fixer.removeRange([previousToken.range[1], token.range[0]]);
                 }
@@ -111,10 +117,13 @@ module.exports = {
         */
         function reportRequiredBeginningSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
-                message: "A space is required after '" + token.value + "'",
-                fix: function(fixer) {
+                message: "A space is required after '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
+                fix(fixer) {
                     return fixer.insertTextAfter(token, " ");
                 }
             });
@@ -128,10 +137,13 @@ module.exports = {
         */
         function reportRequiredEndingSpace(node, token) {
             context.report({
-                node: node,
+                node,
                 loc: token.loc.start,
-                message: "A space is required before '" + token.value + "'",
-                fix: function(fixer) {
+                message: "A space is required before '{{tokenValue}}'.",
+                data: {
+                    tokenValue: token.value
+                },
+                fix(fixer) {
                     return fixer.insertTextBefore(token, " ");
                 }
             });
@@ -165,20 +177,22 @@ module.exports = {
                 return;
             }
 
-            var first = context.getFirstToken(node),
-                second = context.getFirstToken(node, 1),
-                penultimate = context.getLastToken(node, 1),
-                last = context.getLastToken(node),
+            const first = sourceCode.getFirstToken(node),
+                second = sourceCode.getFirstToken(node, 1),
+                last = node.typeAnnotation
+                    ? sourceCode.getTokenBefore(node.typeAnnotation)
+                    : sourceCode.getLastToken(node),
+                penultimate = sourceCode.getTokenBefore(last),
                 firstElement = node.elements[0],
                 lastElement = node.elements[node.elements.length - 1];
 
-            var openingBracketMustBeSpaced =
+            const openingBracketMustBeSpaced =
                 options.objectsInArraysException && isObjectType(firstElement) ||
                 options.arraysInArraysException && isArrayType(firstElement) ||
                 options.singleElementException && node.elements.length === 1
                     ? !options.spaced : options.spaced;
 
-            var closingBracketMustBeSpaced =
+            const closingBracketMustBeSpaced =
                 options.objectsInArraysException && isObjectType(lastElement) ||
                 options.arraysInArraysException && isArrayType(lastElement) ||
                 options.singleElementException && node.elements.length === 1

@@ -1,9 +1,15 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const fs = require('fs');
 const assert = require('assert');
 const async_wrap = process.binding('async_wrap');
+
+// Give the event loop time to clear out the final uv_close().
+let si_cntr = 3;
+process.on('beforeExit', () => {
+  if (--si_cntr > 0) setImmediate(common.noop);
+});
 
 const storage = new Map();
 async_wrap.setupHooks({ init, pre, post, destroy });
@@ -14,7 +20,7 @@ function init(uid) {
     init: true,
     pre: false,
     post: false,
-    destroy: false
+    destroy: false,
   });
 }
 
@@ -51,7 +57,7 @@ process.once('exit', function() {
       init: true,
       pre: true,
       post: true,
-      destroy: true
+      destroy: true,
     });
   }
 });

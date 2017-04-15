@@ -29,6 +29,7 @@ cache.removeKey('key'); // removes a key from the cache
 
 // save it to disk
 cache.save(); // very important, if you don't save no changes will be persisted.
+// cache.save( true /* noPrune */) // can be used to prevent the removal of non visited keys
 
 // loads the cache from a given directory, if one does
 // not exists for the given Id a new one will be prepared to be created
@@ -57,6 +58,8 @@ storage was needed and Bam! this module was born.
 - All the changes to the cache state are done to memory
 - I could have used a timer or `Object.observe` to deliver the changes to disk, but I wanted to keep this module
   intentionally dumb and simple
+- Non visited keys are removed when `cache.save()` is called. If this is not desired, you can pass `true` to the save call
+  like: `cache.save( true /* noPrune */ )`.
 
 ## License
 

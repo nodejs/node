@@ -5,43 +5,17 @@
 // Flags: --expose-wasm
 
 load("test/mjsunit/wasm/wasm-constants.js");
+load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function instantiate(sig, body) {
-  var module = new Array();
-  module = module.concat([
-    // -- signatures
-    kDeclSignatures, 1,
-  ]);
-  module = module.concat(sig);
-  module = module.concat([
-    // -- functions
-    kDeclFunctions, 1,
-    0,                 // decl flags
-    0, 0,              // signature
-    body.length, 0,    // body size
-  ]);
-  module = module.concat(body);
-  module = module.concat([
-    // -- declare start function
-    kDeclStartFunction,
-    0
-  ]);
+  var builder = new WasmModuleBuilder();
 
-  var data = bytes.apply(this, module);
-  print(module);
-  print(data instanceof ArrayBuffer);
-  print(data.byteLength);
-  return _WASMEXP_.instantiateModule(data);
-}
+  var func = builder.addFunction("", sig)
+    .addBody(body);
 
-function assertFails(sig, body) {
-  try {
-    var module = instantiate(sig, body);
-    print("expected failure, but passes");
-    assertFalse(true);
-  } catch (expected) {
-    print("ok: " + expected);
-  }
+  builder.addStart(func.index);
+
+  return builder.instantiate();
 }
 
 function assertVerifies(sig, body) {
@@ -53,120 +27,92 @@ function assertVerifies(sig, body) {
   return module;
 }
 
-assertVerifies([0, kAstStmt], [kExprNop]);
-assertVerifies([0, kAstI32], [kExprI8Const, 0]);
+assertVerifies(kSig_v_v, [kExprNop]);
 
 // Arguments aren't allow to start functions.
-assertFails([1, kAstI32, kAstI32], [kExprGetLocal, 0]);
-assertFails([2, kAstI32, kAstI32, kAstF32], [kExprGetLocal, 0]);
-assertFails([3, kAstI32, kAstI32, kAstF32, kAstF64], [kExprGetLocal, 0]);
+assertThrows(() => {instantiate(kSig_i_i, [kExprGetLocal, 0]);});
+assertThrows(() => {instantiate(kSig_i_ii, [kExprGetLocal, 0]);});
+assertThrows(() => {instantiate(kSig_i_dd, [kExprGetLocal, 0]);});
+assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
 
 (function testInvalidIndex() {
-  var kBodySize = 1;
-  var data = bytes(
-    // -- signatures
-    kDeclSignatures, 1,
-    0, kAstStmt,
-    // -- functions
-    kDeclFunctions, 1,
-    0,                 // decl flags
-    0, 0,              // signature
-    kBodySize, 0,      // body size
-    kExprNop,          // body
-    // -- declare start function
-    kDeclStartFunction,
-    1
-  );
+  print("testInvalidIndex");
+  var builder = new WasmModuleBuilder();
 
-  assertThrows(function() { _WASMEXP_.instantiateModule(data); });
+  var func = builder.addFunction("", kSig_v_v)
+    .addBody([kExprNop]);
+
+  builder.addStart(func.index + 1);
+
+  assertThrows(builder.instantiate);
 })();
 
 
 (function testTwoStartFuncs() {
-  var kBodySize = 1;
-  var data = bytes(
-    // -- signatures
-    kDeclSignatures, 1,
-    0, kAstStmt,
-    // -- functions
-    kDeclFunctions, 1,
-    0,                 // decl flags
-    0, 0,              // signature
-    kBodySize, 0,      // body size
-    kExprNop,          // body
-    // -- declare start function
-    kDeclStartFunction,
-    0,
-    // -- declare start function
-    kDeclStartFunction,
-    0
-  );
+  print("testTwoStartFuncs");
+  var builder = new WasmModuleBuilder();
 
-  assertThrows(function() { _WASMEXP_.instantiateModule(data); });
+  var func = builder.addFunction("", kSig_v_v)
+    .addBody([kExprNop]);
+
+  builder.addExplicitSection([kStartSectionCode, 0]);
+  builder.addExplicitSection([kStartSectionCode, 0]);
+
+  assertThrows(builder.instantiate);
 })();
 
 
-(function testRun() {
-  var kBodySize = 6;
+(function testRun1() {
+  print("testRun1");
+  var builder = new WasmModuleBuilder();
 
-  var data = bytes(
-    kDeclMemory,
-    12, 12, 1,                  // memory
-    // -- signatures
-    kDeclSignatures, 1,
-    0, kAstStmt,
-    // -- start function
-    kDeclFunctions, 1,
-    0,                          // decl flags
-    0, 0,                       // signature
-    kBodySize, 0,               // code size
-    // -- start body
-    kExprI32StoreMem, 0, kExprI8Const, 0, kExprI8Const, 77,
-    // -- declare start function
-    kDeclStartFunction,
-    0
-  );
+  builder.addMemory(12, 12, true);
 
-  var module = _WASMEXP_.instantiateModule(data);
-  var memory = module.memory;
+  var func = builder.addFunction("", kSig_v_v)
+    .addBody([kExprI32Const, 0, kExprI32Const, 55, kExprI32StoreMem, 0, 0]);
+
+  builder.addStart(func.index);
+
+  var module = builder.instantiate();
+  var memory = module.exports.memory.buffer;
+  var view = new Int8Array(memory);
+  assertEquals(55, view[0]);
+})();
+
+(function testRun2() {
+  print("testRun2");
+  var builder = new WasmModuleBuilder();
+
+  builder.addMemory(12, 12, true);
+
+  var func = builder.addFunction("", kSig_v_v)
+    .addBody([kExprI32Const, 0, kExprI32Const, 22, kExprI32Const, 55, kExprI32Add, kExprI32StoreMem, 0, 0]);
+
+  builder.addStart(func.index);
+
+  var module = builder.instantiate();
+  var memory = module.exports.memory.buffer;
   var view = new Int8Array(memory);
   assertEquals(77, view[0]);
 })();
 
 (function testStartFFI() {
-  var kBodySize = 2;
-  var kNameOffset = 4 + 9 + 7 + 3;
-
-  var data = bytes(
-    // -- signatures
-    kDeclSignatures, 1,
-    0, kAstStmt,
-    // -- imported function
-    kDeclFunctions, 2,
-    kDeclFunctionImport | kDeclFunctionName,     // decl flags
-    0, 0,                       // signature
-    kNameOffset, 0, 0, 0,
-    // -- start function
-    0,                          // decl flags
-    0, 0,                       // signature
-    kBodySize, 0,               // code size
-    // -- start body
-    kExprCallFunction, 0,
-    // -- declare start function
-    kDeclStartFunction,
-    1,
-    kDeclEnd,
-    'f', 'o', 'o', 0
-  );
-
+  print("testStartFFI");
   var ranned = false;
-  var ffi = new Object();
-  ffi.foo = function() {
+  var ffi = {gak: {foo : function() {
     print("we ranned at stert!");
     ranned = true;
-  }
-  var module = _WASMEXP_.instantiateModule(data, ffi);
-  var memory = module.memory;
-  var view = new Int8Array(memory);
+  }}};
+
+  var builder = new WasmModuleBuilder();
+  var sig_index = builder.addType(kSig_v_v);
+
+  builder.addImport("gak", "foo", sig_index);
+  var func = builder.addFunction("", sig_index)
+    .addBody([kExprCallFunction, 0]);
+
+  builder.addStart(func.index);
+
+  var module = builder.instantiate(ffi);
   assertTrue(ranned);
 })();

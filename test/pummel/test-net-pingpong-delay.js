@@ -1,67 +1,85 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-
-
-var tests_run = 0;
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 function pingPongTest(port, host, on_complete) {
-  var N = 100;
-  var DELAY = 1;
-  var count = 0;
-  var client_ended = false;
+  const N = 100;
+  const DELAY = 1;
+  let count = 0;
+  let client_ended = false;
 
-  var server = net.createServer({ allowHalfOpen: true }, function(socket) {
+  const server = net.createServer({ allowHalfOpen: true }, function(socket) {
     socket.setEncoding('utf8');
 
     socket.on('data', function(data) {
       console.log(data);
-      assert.equal('PING', data);
-      assert.equal('open', socket.readyState);
-      assert.equal(true, count <= N);
+      assert.strictEqual('PING', data);
+      assert.strictEqual('open', socket.readyState);
+      assert.strictEqual(true, count <= N);
       setTimeout(function() {
-        assert.equal('open', socket.readyState);
+        assert.strictEqual('open', socket.readyState);
         socket.write('PONG');
       }, DELAY);
     });
 
     socket.on('timeout', function() {
       console.error('server-side timeout!!');
-      assert.equal(false, true);
+      assert.strictEqual(false, true);
     });
 
     socket.on('end', function() {
       console.log('server-side socket EOF');
-      assert.equal('writeOnly', socket.readyState);
+      assert.strictEqual('writeOnly', socket.readyState);
       socket.end();
     });
 
     socket.on('close', function(had_error) {
       console.log('server-side socket.end');
-      assert.equal(false, had_error);
-      assert.equal('closed', socket.readyState);
+      assert.strictEqual(false, had_error);
+      assert.strictEqual('closed', socket.readyState);
       socket.server.close();
     });
   });
 
-  server.listen(port, host, function() {
-    var client = net.createConnection(port, host);
+  server.listen(port, host, common.mustCall(function() {
+    const client = net.createConnection(port, host);
 
     client.setEncoding('utf8');
 
     client.on('connect', function() {
-      assert.equal('open', client.readyState);
+      assert.strictEqual('open', client.readyState);
       client.write('PING');
     });
 
     client.on('data', function(data) {
       console.log(data);
-      assert.equal('PONG', data);
-      assert.equal('open', client.readyState);
+      assert.strictEqual('PONG', data);
+      assert.strictEqual('open', client.readyState);
 
       setTimeout(function() {
-        assert.equal('open', client.readyState);
+        assert.strictEqual('open', client.readyState);
         if (count++ < N) {
           client.write('PING');
         } else {
@@ -74,21 +92,16 @@ function pingPongTest(port, host, on_complete) {
 
     client.on('timeout', function() {
       console.error('client-side timeout!!');
-      assert.equal(false, true);
+      assert.strictEqual(false, true);
     });
 
-    client.on('close', function() {
+    client.on('close', common.mustCall(function() {
       console.log('client.end');
-      assert.equal(N + 1, count);
+      assert.strictEqual(N + 1, count);
       assert.ok(client_ended);
       if (on_complete) on_complete();
-      tests_run += 1;
-    });
-  });
+    }));
+  }));
 }
 
 pingPongTest(common.PORT);
-
-process.on('exit', function() {
-  assert.equal(1, tests_run);
-});

@@ -1,6 +1,27 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // This test verifies that:
 // 1. unshift() does not cause colliding _read() calls.
@@ -9,19 +30,19 @@ var assert = require('assert');
 // 3. push() after the EOF signaling null is an error.
 // 4. _read() is not called after pushing the EOF null chunk.
 
-var stream = require('stream');
-var hwm = 10;
-var r = stream.Readable({ highWaterMark: hwm });
-var chunks = 10;
+const stream = require('stream');
+const hwm = 10;
+const r = stream.Readable({ highWaterMark: hwm });
+const chunks = 10;
 
-var data = Buffer.allocUnsafe(chunks * hwm + Math.ceil(hwm / 2));
-for (var i = 0; i < data.length; i++) {
-  var c = 'asdf'.charCodeAt(i % 4);
+const data = Buffer.allocUnsafe(chunks * hwm + Math.ceil(hwm / 2));
+for (let i = 0; i < data.length; i++) {
+  const c = 'asdf'.charCodeAt(i % 4);
   data[i] = c;
 }
 
-var pos = 0;
-var pushedNull = false;
+let pos = 0;
+let pushedNull = false;
 r._read = function(n) {
   assert(!pushedNull, '_read after null push');
 
@@ -30,7 +51,7 @@ r._read = function(n) {
 
   function push(fast) {
     assert(!pushedNull, 'push() after null push');
-    var c = pos >= data.length ? null : data.slice(pos, pos + n);
+    const c = pos >= data.length ? null : data.slice(pos, pos + n);
     pushedNull = c === null;
     if (fast) {
       pos += n;
@@ -41,7 +62,7 @@ r._read = function(n) {
         pos += n;
         r.push(c);
         if (c === null) pushError();
-      });
+      }, 1);
     }
   }
 };
@@ -49,29 +70,26 @@ r._read = function(n) {
 function pushError() {
   assert.throws(function() {
     r.push(Buffer.allocUnsafe(1));
-  });
+  }, /^Error: stream\.push\(\) after EOF$/);
 }
 
 
-var w = stream.Writable();
-var written = [];
+const w = stream.Writable();
+const written = [];
 w._write = function(chunk, encoding, cb) {
   written.push(chunk.toString());
   cb();
 };
 
-var ended = false;
-r.on('end', function() {
-  assert(!ended, 'end emitted more than once');
+r.on('end', common.mustCall(function() {
   assert.throws(function() {
     r.unshift(Buffer.allocUnsafe(1));
-  });
-  ended = true;
+  }, /^Error: stream\.unshift\(\) after end event$/);
   w.end();
-});
+}));
 
 r.on('readable', function() {
-  var chunk;
+  let chunk;
   while (null !== (chunk = r.read(10))) {
     w.write(chunk);
     if (chunk.length > 4)
@@ -79,21 +97,19 @@ r.on('readable', function() {
   }
 });
 
-var finished = false;
-w.on('finish', function() {
-  finished = true;
+w.on('finish', common.mustCall(function() {
   // each chunk should start with 1234, and then be asfdasdfasdf...
   // The first got pulled out before the first unshift('1234'), so it's
   // lacking that piece.
-  assert.equal(written[0], 'asdfasdfas');
-  var asdf = 'd';
+  assert.strictEqual(written[0], 'asdfasdfas');
+  let asdf = 'd';
   console.error('0: %s', written[0]);
-  for (var i = 1; i < written.length; i++) {
+  for (let i = 1; i < written.length; i++) {
     console.error('%s: %s', i.toString(32), written[i]);
-    assert.equal(written[i].slice(0, 4), '1234');
-    for (var j = 4; j < written[i].length; j++) {
-      var c = written[i].charAt(j);
-      assert.equal(c, asdf);
+    assert.strictEqual(written[i].slice(0, 4), '1234');
+    for (let j = 4; j < written[i].length; j++) {
+      const c = written[i].charAt(j);
+      assert.strictEqual(c, asdf);
       switch (asdf) {
         case 'a': asdf = 's'; break;
         case 's': asdf = 'd'; break;
@@ -102,11 +118,9 @@ w.on('finish', function() {
       }
     }
   }
-});
+}));
 
 process.on('exit', function() {
-  assert.equal(written.length, 18);
-  assert(ended, 'stream ended');
-  assert(finished, 'stream finished');
+  assert.strictEqual(written.length, 18);
   console.log('ok');
 });

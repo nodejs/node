@@ -46,11 +46,9 @@ class RegExpImpl {
 
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
-  MUST_USE_RESULT static MaybeHandle<Object> Exec(
-      Handle<JSRegExp> regexp,
-      Handle<String> subject,
-      int index,
-      Handle<JSArray> lastMatchInfo);
+  V8_EXPORT_PRIVATE MUST_USE_RESULT static MaybeHandle<Object> Exec(
+      Handle<JSRegExp> regexp, Handle<String> subject, int index,
+      Handle<RegExpMatchInfo> last_match_info);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
   static void IrregexpInitialize(Handle<JSRegExp> re,
@@ -71,11 +69,9 @@ class RegExpImpl {
                          int32_t* output,
                          int output_size);
 
-
   static Handle<Object> AtomExec(Handle<JSRegExp> regexp,
-                                 Handle<String> subject,
-                                 int index,
-                                 Handle<JSArray> lastMatchInfo);
+                                 Handle<String> subject, int index,
+                                 Handle<RegExpMatchInfo> last_match_info);
 
   enum IrregexpResult { RE_FAILURE = 0, RE_SUCCESS = 1, RE_EXCEPTION = -1 };
 
@@ -106,17 +102,13 @@ class RegExpImpl {
   // captured positions.  On a failure, the result is the null value.
   // Returns an empty handle in case of an exception.
   MUST_USE_RESULT static MaybeHandle<Object> IrregexpExec(
-      Handle<JSRegExp> regexp,
-      Handle<String> subject,
-      int index,
-      Handle<JSArray> lastMatchInfo);
+      Handle<JSRegExp> regexp, Handle<String> subject, int index,
+      Handle<RegExpMatchInfo> last_match_info);
 
   // Set last match info.  If match is NULL, then setting captures is omitted.
-  static Handle<JSArray> SetLastMatchInfo(Handle<JSArray> last_match_info,
-                                          Handle<String> subject,
-                                          int capture_count,
-                                          int32_t* match);
-
+  static Handle<RegExpMatchInfo> SetLastMatchInfo(
+      Handle<RegExpMatchInfo> last_match_info, Handle<String> subject,
+      int capture_count, int32_t* match);
 
   class GlobalCache {
    public:
@@ -150,52 +142,11 @@ class RegExpImpl {
     Handle<String> subject_;
   };
 
-
-  // Array index in the lastMatchInfo array.
-  static const int kLastCaptureCount = 0;
-  static const int kLastSubject = 1;
-  static const int kLastInput = 2;
-  static const int kFirstCapture = 3;
-  static const int kLastMatchOverhead = 3;
-
-  // Direct offset into the lastMatchInfo array.
-  static const int kLastCaptureCountOffset =
-      FixedArray::kHeaderSize + kLastCaptureCount * kPointerSize;
-  static const int kLastSubjectOffset =
-      FixedArray::kHeaderSize + kLastSubject * kPointerSize;
-  static const int kLastInputOffset =
-      FixedArray::kHeaderSize + kLastInput * kPointerSize;
-  static const int kFirstCaptureOffset =
-      FixedArray::kHeaderSize + kFirstCapture * kPointerSize;
-
-  // Used to access the lastMatchInfo array.
-  static int GetCapture(FixedArray* array, int index) {
-    return Smi::cast(array->get(index + kFirstCapture))->value();
-  }
-
-  static void SetLastCaptureCount(FixedArray* array, int to) {
-    array->set(kLastCaptureCount, Smi::FromInt(to));
-  }
-
-  static void SetLastSubject(FixedArray* array, String* to) {
-    array->set(kLastSubject, to);
-  }
-
-  static void SetLastInput(FixedArray* array, String* to) {
-    array->set(kLastInput, to);
-  }
-
-  static void SetCapture(FixedArray* array, int index, int to) {
-    array->set(index + kFirstCapture, Smi::FromInt(to));
-  }
-
-  static int GetLastCaptureCount(FixedArray* array) {
-    return Smi::cast(array->get(kLastCaptureCount))->value();
-  }
-
   // For acting on the JSRegExp data FixedArray.
   static int IrregexpMaxRegisterCount(FixedArray* re);
   static void SetIrregexpMaxRegisterCount(FixedArray* re, int value);
+  static void SetIrregexpCaptureNameMap(FixedArray* re,
+                                        Handle<FixedArray> value);
   static int IrregexpNumberOfCaptures(FixedArray* re);
   static int IrregexpNumberOfRegisters(FixedArray* re);
   static ByteArray* IrregexpByteCode(FixedArray* re, bool is_one_byte);
@@ -206,7 +157,7 @@ class RegExpImpl {
   // is not tracked, however.  As a conservative approximation we track the
   // total regexp code compiled including code that has subsequently been freed
   // and the total executable memory at any point.
-  static const int kRegExpExecutableMemoryLimit = 16 * MB;
+  static const size_t kRegExpExecutableMemoryLimit = 16 * MB;
   static const int kRegExpCompiledLimit = 1 * MB;
   static const int kRegExpTooLargeToOptimize = 20 * KB;
 
@@ -1530,6 +1481,7 @@ struct RegExpCompileData {
   RegExpNode* node;
   bool simple;
   bool contains_anchor;
+  Handle<FixedArray> capture_name_map;
   Handle<String> error;
   int capture_count;
 };

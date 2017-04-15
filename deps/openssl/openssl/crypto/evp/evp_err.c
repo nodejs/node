@@ -1,6 +1,6 @@
 /* crypto/evp/evp_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2013 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2016 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -192,6 +192,7 @@ static ERR_STRING_DATA EVP_str_reasons[] = {
     {ERR_REASON(EVP_R_INPUT_NOT_INITIALIZED), "input not initialized"},
     {ERR_REASON(EVP_R_INVALID_DIGEST), "invalid digest"},
     {ERR_REASON(EVP_R_INVALID_FIPS_MODE), "invalid fips mode"},
+    {ERR_REASON(EVP_R_INVALID_KEY), "invalid key"},
     {ERR_REASON(EVP_R_INVALID_KEY_LENGTH), "invalid key length"},
     {ERR_REASON(EVP_R_INVALID_OPERATION), "invalid operation"},
     {ERR_REASON(EVP_R_IV_TOO_LARGE), "iv too large"},

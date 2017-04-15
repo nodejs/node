@@ -4,6 +4,7 @@
 
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
+#include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
@@ -11,7 +12,6 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/pipeline.h"
-#include "src/parsing/parser.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -27,7 +27,7 @@ TEST(RunStringLengthStub) {
   // Create code and an accompanying descriptor.
   StringLengthStub stub(isolate);
   Handle<Code> code = stub.GenerateCode();
-  CompilationInfo info("test", isolate, zone,
+  CompilationInfo info(ArrayVector("test"), isolate, zone,
                        Code::ComputeFlags(Code::HANDLER));
   CallInterfaceDescriptor interface_descriptor =
       stub.GetCallInterfaceDescriptor();
@@ -47,10 +47,11 @@ TEST(RunStringLengthStub) {
   Node* vectorParam = graph.NewNode(common.Parameter(4), start);
   Node* theCode = graph.NewNode(common.HeapConstant(code));
   Node* dummyContext = graph.NewNode(common.NumberConstant(0.0));
+  Node* zero = graph.NewNode(common.Int32Constant(0));
   Node* call =
       graph.NewNode(common.Call(descriptor), theCode, receiverParam, nameParam,
                     slotParam, vectorParam, dummyContext, start, start);
-  Node* ret = graph.NewNode(common.Return(), call, call, start);
+  Node* ret = graph.NewNode(common.Return(), zero, call, call, start);
   Node* end = graph.NewNode(common.End(1), ret);
   graph.SetStart(start);
   graph.SetEnd(end);

@@ -164,3 +164,11 @@ separator = { toString: function() { assertEquals(1, counter);
 
 assertEquals(["a", "c"], String.prototype.split.call(subject, separator));
 assertEquals(2, counter);
+
+// Check ToUint32 conversion of limit.
+assertArrayEquals(["a"], "a,b,c,d,e,f".split(/,/, -4294967295));
+assertArrayEquals(["a"], "a,b,c,d,e,f".split(/,/, -4294967294.5));
+assertArrayEquals(["a", "b"], "a,b,c,d,e,f".split(/,/, -4294967294));
+assertArrayEquals(["a", "b", "c"], "a,b,c,d,e,f".split(/,/, -4294967293));
+assertArrayEquals(["a", "b", "c", "d"], "a,b,c,d,e,f".split(/,/, -4294967292));
+assertArrayEquals(["a", "b", "c", "d", "e", "f"], "a,b,c,d,e,f".split(/,/, -1));

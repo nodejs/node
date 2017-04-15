@@ -283,8 +283,6 @@ const Operator kMockOpEffect(IrOpcode::kDead, Operator::kNoProperties,
 const Operator kMockOpControl(IrOpcode::kDead, Operator::kNoProperties,
                               "MockOpControl", 0, 0, 1, 1, 0, 1);
 
-const IfExceptionHint kNoHint = IfExceptionHint::kLocallyCaught;
-
 }  // namespace
 
 
@@ -292,12 +290,13 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ValueUse) {
   CommonOperatorBuilder common(zone());
   Node* node = graph()->NewNode(&kMockOperator);
   Node* start = graph()->NewNode(common.Start(1));
-  Node* use_value = graph()->NewNode(common.Return(), node, start, start);
+  Node* zero = graph()->NewNode(common.Int32Constant(0));
+  Node* use_value = graph()->NewNode(common.Return(), zero, node, start, start);
   Node* replacement = graph()->NewNode(&kMockOperator);
   GraphReducer graph_reducer(zone(), graph(), nullptr);
   ReplaceWithValueReducer r(&graph_reducer);
   r.ReplaceWithValue(node, replacement);
-  EXPECT_EQ(replacement, use_value->InputAt(0));
+  EXPECT_EQ(replacement, use_value->InputAt(1));
   EXPECT_EQ(0, node->UseCount());
   EXPECT_EQ(1, replacement->UseCount());
   EXPECT_THAT(replacement->uses(), ElementsAre(use_value));
@@ -348,7 +347,7 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse2) {
   Node* dead = graph()->NewNode(&kMockOperator);
   Node* node = graph()->NewNode(&kMockOpControl, start);
   Node* success = graph()->NewNode(common.IfSuccess(), node);
-  Node* exception = graph()->NewNode(common.IfException(kNoHint), effect, node);
+  Node* exception = graph()->NewNode(common.IfException(), effect, node);
   Node* use_control = graph()->NewNode(common.Merge(1), success);
   Node* replacement = graph()->NewNode(&kMockOperator);
   GraphReducer graph_reducer(zone(), graph(), dead);
@@ -372,7 +371,7 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse3) {
   Node* dead = graph()->NewNode(&kMockOperator);
   Node* node = graph()->NewNode(&kMockOpControl, start);
   Node* success = graph()->NewNode(common.IfSuccess(), node);
-  Node* exception = graph()->NewNode(common.IfException(kNoHint), effect, node);
+  Node* exception = graph()->NewNode(common.IfException(), effect, node);
   Node* use_control = graph()->NewNode(common.Merge(1), success);
   Node* replacement = graph()->NewNode(&kMockOperator);
   GraphReducer graph_reducer(zone(), graph(), dead);

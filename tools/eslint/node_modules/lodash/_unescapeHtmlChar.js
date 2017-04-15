@@ -1,11 +1,12 @@
+var basePropertyOf = require('./_basePropertyOf');
+
 /** Used to map HTML entities to characters. */
 var htmlUnescapes = {
   '&amp;': '&',
   '&lt;': '<',
   '&gt;': '>',
   '&quot;': '"',
-  '&#39;': "'",
-  '&#96;': '`'
+  '&#39;': "'"
 };
 
 /**
@@ -15,8 +16,6 @@ var htmlUnescapes = {
  * @param {string} chr The matched character to unescape.
  * @returns {string} Returns the unescaped character.
  */
-function unescapeHtmlChar(chr) {
-  return htmlUnescapes[chr];
-}
+var unescapeHtmlChar = basePropertyOf(htmlUnescapes);
 
 module.exports = unescapeHtmlChar;

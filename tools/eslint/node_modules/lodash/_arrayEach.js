@@ -3,13 +3,13 @@
  * iteratee shorthands.
  *
  * @private
- * @param {Array} array The array to iterate over.
+ * @param {Array} [array] The array to iterate over.
  * @param {Function} iteratee The function invoked per iteration.
  * @returns {Array} Returns `array`.
  */
 function arrayEach(array, iteratee) {
   var index = -1,
-      length = array.length;
+      length = array == null ? 0 : array.length;
 
   while (++index < length) {
     if (iteratee(array[index], index, array) === false) {

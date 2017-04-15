@@ -26,8 +26,8 @@ module.exports = {
         }
     },
 
-    create: function(context) {
-        var aliases = [];
+    create(context) {
+        let aliases = [];
 
         if (context.options.length === 0) {
             aliases.push("that");
@@ -43,9 +43,7 @@ module.exports = {
          * @returns {void}
          */
         function reportBadAssignment(node, alias) {
-            context.report(node,
-                "Designated alias '{{alias}}' is not assigned to 'this'.",
-                { alias: alias });
+            context.report({ node, message: "Designated alias '{{alias}}' is not assigned to 'this'.", data: { alias } });
         }
 
         /**
@@ -57,15 +55,14 @@ module.exports = {
          * @returns {void}
          */
         function checkAssignment(node, name, value) {
-            var isThis = value.type === "ThisExpression";
+            const isThis = value.type === "ThisExpression";
 
             if (aliases.indexOf(name) !== -1) {
                 if (!isThis || node.operator && node.operator !== "=") {
                     reportBadAssignment(node, name);
                 }
             } else if (isThis) {
-                context.report(node,
-                    "Unexpected alias '{{name}}' for 'this'.", { name: name });
+                context.report({ node, message: "Unexpected alias '{{name}}' for 'this'.", data: { name } });
             }
         }
 
@@ -73,28 +70,26 @@ module.exports = {
          * Ensures that a variable declaration of the alias in a program or function
          * is assigned to the correct value.
          * @param {string} alias alias the check the assignment of.
-         * @param {object} scope scope of the current code we are checking.
+         * @param {Object} scope scope of the current code we are checking.
          * @private
          * @returns {void}
          */
         function checkWasAssigned(alias, scope) {
-            var variable = scope.set.get(alias);
+            const variable = scope.set.get(alias);
 
             if (!variable) {
                 return;
             }
 
-            if (variable.defs.some(function(def) {
-                return def.node.type === "VariableDeclarator" &&
-                def.node.init !== null;
-            })) {
+            if (variable.defs.some(def => def.node.type === "VariableDeclarator" &&
+                def.node.init !== null)) {
                 return;
             }
 
             // The alias has been declared and not assigned: check it was
             // assigned later in the same scope.
-            if (!variable.references.some(function(reference) {
-                var write = reference.writeExpr;
+            if (!variable.references.some(reference => {
+                const write = reference.writeExpr;
 
                 return (
                     reference.from === scope &&
@@ -102,9 +97,7 @@ module.exports = {
                     write.parent.operator === "="
                 );
             })) {
-                variable.defs.map(function(def) {
-                    return def.node;
-                }).forEach(function(node) {
+                variable.defs.map(def => def.node).forEach(node => {
                     reportBadAssignment(node, alias);
                 });
             }
@@ -115,9 +108,9 @@ module.exports = {
          * @returns {void}
          */
         function ensureWasAssigned() {
-            var scope = context.getScope();
+            const scope = context.getScope();
 
-            aliases.forEach(function(alias) {
+            aliases.forEach(alias => {
                 checkWasAssigned(alias, scope);
             });
         }
@@ -127,9 +120,9 @@ module.exports = {
             "FunctionExpression:exit": ensureWasAssigned,
             "FunctionDeclaration:exit": ensureWasAssigned,
 
-            VariableDeclarator: function(node) {
-                var id = node.id;
-                var isDestructuring =
+            VariableDeclarator(node) {
+                const id = node.id;
+                const isDestructuring =
                     id.type === "ArrayPattern" || id.type === "ObjectPattern";
 
                 if (node.init !== null && !isDestructuring) {
@@ -137,7 +130,7 @@ module.exports = {
                 }
             },
 
-            AssignmentExpression: function(node) {
+            AssignmentExpression(node) {
                 if (node.left.type === "Identifier") {
                     checkAssignment(node, node.left.name, node.right);
                 }

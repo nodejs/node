@@ -9,25 +9,24 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash"),
-    debug = require("debug"),
+const lodash = require("lodash"),
     eslint = require("../eslint"),
     configRule = require("./config-rule"),
     ConfigOps = require("./config-ops"),
-    recConfig = require("../../conf/eslint.json");
+    recConfig = require("../../conf/eslint-recommended");
+
+const debug = require("debug")("eslint:autoconfig");
 
 //------------------------------------------------------------------------------
 // Data
 //------------------------------------------------------------------------------
 
-var MAX_CONFIG_COMBINATIONS = 17, // 16 combinations + 1 for severity only
+const MAX_CONFIG_COMBINATIONS = 17, // 16 combinations + 1 for severity only
     RECOMMENDED_CONFIG_NAME = "eslint:recommended";
 
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
-
-debug = debug("eslint:autoconfig");
 
 /**
  * Information about a rule configuration, in the context of a Registry.
@@ -50,14 +49,12 @@ debug = debug("eslint:autoconfig");
  * @returns {Object}                  registryItems for each rule in provided rulesConfig
  */
 function makeRegistryItems(rulesConfig) {
-    return Object.keys(rulesConfig).reduce(function(accumulator, ruleId) {
-        accumulator[ruleId] = rulesConfig[ruleId].map(function(config) {
-            return {
-                config: config,
-                specificity: config.length || 1,
-                errorCount: void 0
-            };
-        });
+    return Object.keys(rulesConfig).reduce((accumulator, ruleId) => {
+        accumulator[ruleId] = rulesConfig[ruleId].map(config => ({
+            config,
+            specificity: config.length || 1,
+            errorCount: void 0
+        }));
         return accumulator;
     }, {});
 }
@@ -68,17 +65,16 @@ function makeRegistryItems(rulesConfig) {
 * Unless a rulesConfig is provided at construction, the registry will not contain
 * any rules, only methods.  This will be useful for building up registries manually.
 *
-* @constructor
-* @class   Registry
-* @param   {rulesConfig} [rulesConfig] Hash of rule names and arrays of possible configurations
+* Registry class
 */
-function Registry(rulesConfig) {
-    this.rules = (rulesConfig) ? makeRegistryItems(rulesConfig) : {};
-}
+class Registry {
 
-Registry.prototype = {
-
-    constructor: Registry,
+    /**
+     * @param {rulesConfig} [rulesConfig] Hash of rule names and arrays of possible configurations
+     */
+    constructor(rulesConfig) {
+        this.rules = (rulesConfig) ? makeRegistryItems(rulesConfig) : {};
+    }
 
     /**
      * Populate the registry with core rule configs.
@@ -88,11 +84,11 @@ Registry.prototype = {
      *
      * @returns {void}
      */
-    populateFromCoreRules: function() {
-        var rulesConfig = configRule.createCoreRuleConfigs();
+    populateFromCoreRules() {
+        const rulesConfig = configRule.createCoreRuleConfigs();
 
         this.rules = makeRegistryItems(rulesConfig);
-    },
+    }
 
     /**
      * Creates sets of rule configurations which can be used for linting
@@ -108,9 +104,9 @@ Registry.prototype = {
      * @param   {Object}   registry The autoconfig registry
      * @returns {Object[]}          "rules" configurations to use for linting
      */
-    buildRuleSets: function() {
-        var idx = 0,
-            ruleIds = Object.keys(this.rules),
+    buildRuleSets() {
+        let idx = 0;
+        const ruleIds = Object.keys(this.rules),
             ruleSets = [];
 
         /**
@@ -122,7 +118,7 @@ Registry.prototype = {
          * @param   {string} rule The ruleId to add.
          * @returns {void}
          */
-        var addRuleToRuleSet = function(rule) {
+        const addRuleToRuleSet = function(rule) {
 
             /*
              * This check ensures that there is a rule configuration and that
@@ -130,7 +126,7 @@ Registry.prototype = {
              * If it has too many configs, we will only use the most basic of
              * the possible configurations.
              */
-            var hasFewCombos = (this.rules[rule].length <= MAX_CONFIG_COMBINATIONS);
+            const hasFewCombos = (this.rules[rule].length <= MAX_CONFIG_COMBINATIONS);
 
             if (this.rules[rule][idx] && (hasFewCombos || this.rules[rule][idx].specificity <= 2)) {
 
@@ -159,7 +155,7 @@ Registry.prototype = {
         }
 
         return ruleSets;
-    },
+    }
 
     /**
      * Remove all items from the registry with a non-zero number of errors
@@ -169,15 +165,13 @@ Registry.prototype = {
      *
      * @returns {void}
      */
-    stripFailingConfigs: function() {
-        var ruleIds = Object.keys(this.rules),
+    stripFailingConfigs() {
+        const ruleIds = Object.keys(this.rules),
             newRegistry = new Registry();
 
-        newRegistry.rules = lodash.assign({}, this.rules);
-        ruleIds.forEach(function(ruleId) {
-            var errorFreeItems = newRegistry.rules[ruleId].filter(function(registryItem) {
-                return (registryItem.errorCount === 0);
-            });
+        newRegistry.rules = Object.assign({}, this.rules);
+        ruleIds.forEach(ruleId => {
+            const errorFreeItems = newRegistry.rules[ruleId].filter(registryItem => (registryItem.errorCount === 0));
 
             if (errorFreeItems.length > 0) {
                 newRegistry.rules[ruleId] = errorFreeItems;
@@ -187,26 +181,24 @@ Registry.prototype = {
         });
 
         return newRegistry;
-    },
+    }
 
     /**
      * Removes rule configurations which were not included in a ruleSet
      *
      * @returns {void}
      */
-    stripExtraConfigs: function() {
-        var ruleIds = Object.keys(this.rules),
+    stripExtraConfigs() {
+        const ruleIds = Object.keys(this.rules),
             newRegistry = new Registry();
 
-        newRegistry.rules = lodash.assign({}, this.rules);
-        ruleIds.forEach(function(ruleId) {
-            newRegistry.rules[ruleId] = newRegistry.rules[ruleId].filter(function(registryItem) {
-                return (typeof registryItem.errorCount !== "undefined");
-            });
+        newRegistry.rules = Object.assign({}, this.rules);
+        ruleIds.forEach(ruleId => {
+            newRegistry.rules[ruleId] = newRegistry.rules[ruleId].filter(registryItem => (typeof registryItem.errorCount !== "undefined"));
         });
 
         return newRegistry;
-    },
+    }
 
     /**
      * Creates a registry of rules which had no error-free configs.
@@ -215,22 +207,20 @@ Registry.prototype = {
      *
      * @returns {Registry}  A registry of failing rules.
      */
-    getFailingRulesRegistry: function() {
-        var ruleIds = Object.keys(this.rules),
+    getFailingRulesRegistry() {
+        const ruleIds = Object.keys(this.rules),
             failingRegistry = new Registry();
 
-        ruleIds.forEach(function(ruleId) {
-            var failingConfigs = this.rules[ruleId].filter(function(registryItem) {
-                return (registryItem.errorCount > 0);
-            });
+        ruleIds.forEach(ruleId => {
+            const failingConfigs = this.rules[ruleId].filter(registryItem => (registryItem.errorCount > 0));
 
             if (failingConfigs && failingConfigs.length === this.rules[ruleId].length) {
                 failingRegistry.rules[ruleId] = failingConfigs;
             }
-        }.bind(this));
+        });
 
         return failingRegistry;
-    },
+    }
 
     /**
      * Create an eslint config for any rules which only have one configuration
@@ -238,18 +228,18 @@ Registry.prototype = {
      *
      * @returns {Object} An eslint config with rules section populated
      */
-    createConfig: function() {
-        var ruleIds = Object.keys(this.rules),
-            config = {rules: {}};
+    createConfig() {
+        const ruleIds = Object.keys(this.rules),
+            config = { rules: {} };
 
-        ruleIds.forEach(function(ruleId) {
+        ruleIds.forEach(ruleId => {
             if (this.rules[ruleId].length === 1) {
                 config.rules[ruleId] = this.rules[ruleId][0].config;
             }
-        }.bind(this));
+        });
 
         return config;
-    },
+    }
 
     /**
      * Return a cloned registry containing only configs with a desired specificity
@@ -257,19 +247,17 @@ Registry.prototype = {
      * @param   {number} specificity Only keep configs with this specificity
      * @returns {Registry}           A registry of rules
      */
-    filterBySpecificity: function(specificity) {
-        var ruleIds = Object.keys(this.rules),
+    filterBySpecificity(specificity) {
+        const ruleIds = Object.keys(this.rules),
             newRegistry = new Registry();
 
-        newRegistry.rules = lodash.assign({}, this.rules);
-        ruleIds.forEach(function(ruleId) {
-            newRegistry.rules[ruleId] = this.rules[ruleId].filter(function(registryItem) {
-                return (registryItem.specificity === specificity);
-            });
-        }.bind(this));
+        newRegistry.rules = Object.assign({}, this.rules);
+        ruleIds.forEach(ruleId => {
+            newRegistry.rules[ruleId] = this.rules[ruleId].filter(registryItem => (registryItem.specificity === specificity));
+        });
 
         return newRegistry;
-    },
+    }
 
     /**
      * Lint SourceCodes against all configurations in the registry, and record results
@@ -279,42 +267,42 @@ Registry.prototype = {
      * @param   {progressCallback} [cb] Optional callback for reporting execution status
      * @returns {Registry}              New registry with errorCount populated
      */
-    lintSourceCode: function(sourceCodes, config, cb) {
-        var totalFilesLinting,
-            lintConfig,
-            ruleSets,
-            ruleSetIdx,
-            filenames,
+    lintSourceCode(sourceCodes, config, cb) {
+        let ruleSetIdx,
             lintedRegistry;
 
         lintedRegistry = new Registry();
-        lintedRegistry.rules = lodash.assign({}, this.rules);
+        lintedRegistry.rules = Object.assign({}, this.rules);
 
-        ruleSets = lintedRegistry.buildRuleSets();
+        const ruleSets = lintedRegistry.buildRuleSets();
 
         lintedRegistry = lintedRegistry.stripExtraConfigs();
 
         debug("Linting with all possible rule combinations");
 
-        filenames = Object.keys(sourceCodes);
+        const filenames = Object.keys(sourceCodes);
+        const totalFilesLinting = filenames.length * ruleSets.length;
 
-        totalFilesLinting = filenames.length * ruleSets.length;
-
-        filenames.forEach(function(filename) {
-            debug("Linting file: " + filename);
+        filenames.forEach(filename => {
+            debug(`Linting file: ${filename}`);
 
             ruleSetIdx = 0;
 
-            ruleSets.forEach(function(ruleSet) {
-                lintConfig = lodash.assign({}, config, {rules: ruleSet});
-                var lintResults = eslint.verify(sourceCodes[filename], lintConfig);
+            ruleSets.forEach(ruleSet => {
+                const lintConfig = Object.assign({}, config, { rules: ruleSet });
+                const lintResults = eslint.verify(sourceCodes[filename], lintConfig);
 
-                lintResults.forEach(function(result) {
+                lintResults.forEach(result => {
 
                     // It is possible that the error is from a configuration comment
                     // in a linted file, in which case there may not be a config
-                    // set in this ruleSetIdx. (https://github.com/eslint/eslint/issues/5992)
-                    if (lintedRegistry.rules[result.ruleId][ruleSetIdx]) {
+                    // set in this ruleSetIdx.
+                    // (https://github.com/eslint/eslint/issues/5992)
+                    // (https://github.com/eslint/eslint/issues/7860)
+                    if (
+                        lintedRegistry.rules[result.ruleId] &&
+                        lintedRegistry.rules[result.ruleId][ruleSetIdx]
+                    ) {
                         lintedRegistry.rules[result.ruleId][ruleSetIdx].errorCount += 1;
                     }
                 });
@@ -332,7 +320,7 @@ Registry.prototype = {
 
         return lintedRegistry;
     }
-};
+}
 
 /**
  * Extract rule configuration into eslint:recommended where possible.
@@ -344,15 +332,13 @@ Registry.prototype = {
  * @returns {Object}        config object using `"extends": "eslint:recommended"`
  */
 function extendFromRecommended(config) {
-    var newConfig = lodash.assign({}, config);
+    const newConfig = Object.assign({}, config);
 
     ConfigOps.normalizeToStrings(newConfig);
 
-    var recRules = Object.keys(recConfig.rules).filter(function(ruleId) {
-        return ConfigOps.isErrorSeverity(recConfig.rules[ruleId]);
-    });
+    const recRules = Object.keys(recConfig.rules).filter(ruleId => ConfigOps.isErrorSeverity(recConfig.rules[ruleId]));
 
-    recRules.forEach(function(ruleId) {
+    recRules.forEach(ruleId => {
         if (lodash.isEqual(recConfig.rules[ruleId], newConfig.rules[ruleId])) {
             delete newConfig.rules[ruleId];
         }
@@ -367,6 +353,6 @@ function extendFromRecommended(config) {
 //------------------------------------------------------------------------------
 
 module.exports = {
-    Registry: Registry,
-    extendFromRecommended: extendFromRecommended
+    Registry,
+    extendFromRecommended
 };

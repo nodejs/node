@@ -8,37 +8,53 @@
 #include <cmath>
 
 #include "src/base/platform/platform.h"
-#include "src/counters.h"
+#include "src/counters-inl.h"
+#include "src/feedback-vector-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/object-stats.h"
+#include "src/heap/remembered-set.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
-#include "src/heap/store-buffer-inl.h"
 #include "src/isolate.h"
 #include "src/list-inl.h"
 #include "src/log.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
-#include "src/type-feedback-vector-inl.h"
+#include "src/objects/scope-info.h"
 
 namespace v8 {
 namespace internal {
 
-void PromotionQueue::insert(HeapObject* target, int size) {
+AllocationSpace AllocationResult::RetrySpace() {
+  DCHECK(IsRetry());
+  return static_cast<AllocationSpace>(Smi::cast(object_)->value());
+}
+
+HeapObject* AllocationResult::ToObjectChecked() {
+  CHECK(!IsRetry());
+  return HeapObject::cast(object_);
+}
+
+void PromotionQueue::insert(HeapObject* target, int32_t size,
+                            bool was_marked_black) {
   if (emergency_stack_ != NULL) {
-    emergency_stack_->Add(Entry(target, size));
+    emergency_stack_->Add(Entry(target, size, was_marked_black));
     return;
   }
 
-  if ((rear_ - 2) < limit_) {
+  if ((rear_ - 1) < limit_) {
     RelocateQueueHead();
-    emergency_stack_->Add(Entry(target, size));
+    emergency_stack_->Add(Entry(target, size, was_marked_black));
     return;
   }
 
-  *(--rear_) = reinterpret_cast<intptr_t>(target);
-  *(--rear_) = size;
+  struct Entry* entry = reinterpret_cast<struct Entry*>(--rear_);
+  entry->obj_ = target;
+  entry->size_ = size;
+  entry->was_marked_black_ = was_marked_black;
+
 // Assert no overflow into live objects.
 #ifdef DEBUG
   SemiSpace::AssertValidRange(target->GetIsolate()->heap()->new_space()->top(),
@@ -46,6 +62,62 @@ void PromotionQueue::insert(HeapObject* target, int size) {
 #endif
 }
 
+void PromotionQueue::remove(HeapObject** target, int32_t* size,
+                            bool* was_marked_black) {
+  DCHECK(!is_empty());
+  if (front_ == rear_) {
+    Entry e = emergency_stack_->RemoveLast();
+    *target = e.obj_;
+    *size = e.size_;
+    *was_marked_black = e.was_marked_black_;
+    return;
+  }
+
+  struct Entry* entry = reinterpret_cast<struct Entry*>(--front_);
+  *target = entry->obj_;
+  *size = entry->size_;
+  *was_marked_black = entry->was_marked_black_;
+
+  // Assert no underflow.
+  SemiSpace::AssertValidRange(reinterpret_cast<Address>(rear_),
+                              reinterpret_cast<Address>(front_));
+}
+
+Page* PromotionQueue::GetHeadPage() {
+  return Page::FromAllocationAreaAddress(reinterpret_cast<Address>(rear_));
+}
+
+void PromotionQueue::SetNewLimit(Address limit) {
+  // If we are already using an emergency stack, we can ignore it.
+  if (emergency_stack_) return;
+
+  // If the limit is not on the same page, we can ignore it.
+  if (Page::FromAllocationAreaAddress(limit) != GetHeadPage()) return;
+
+  limit_ = reinterpret_cast<struct Entry*>(limit);
+
+  if (limit_ <= rear_) {
+    return;
+  }
+
+  RelocateQueueHead();
+}
+
+bool PromotionQueue::IsBelowPromotionQueue(Address to_space_top) {
+  // If an emergency stack is used, the to-space address cannot interfere
+  // with the promotion queue.
+  if (emergency_stack_) return true;
+
+  // If the given to-space top pointer and the head of the promotion queue
+  // are not on the same page, then the to-space objects are below the
+  // promotion queue.
+  if (GetHeadPage() != Page::FromAddress(to_space_top)) {
+    return true;
+  }
+  // If the to space top pointer is smaller or equal than the promotion
+  // queue head, then the to-space objects are below the promotion queue.
+  return reinterpret_cast<struct Entry*>(to_space_top) <= rear_;
+}
 
 #define ROOT_ACCESSOR(type, name, camel_name) \
   type* Heap::name() { return type::cast(roots_[k##camel_name##RootIndex]); }
@@ -85,6 +157,37 @@ WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
+PagedSpace* Heap::paged_space(int idx) {
+  DCHECK_NE(idx, LO_SPACE);
+  DCHECK_NE(idx, NEW_SPACE);
+  return static_cast<PagedSpace*>(space_[idx]);
+}
+
+Space* Heap::space(int idx) { return space_[idx]; }
+
+Address* Heap::NewSpaceAllocationTopAddress() {
+  return new_space_->allocation_top_address();
+}
+
+Address* Heap::NewSpaceAllocationLimitAddress() {
+  return new_space_->allocation_limit_address();
+}
+
+Address* Heap::OldSpaceAllocationTopAddress() {
+  return old_space_->allocation_top_address();
+}
+
+Address* Heap::OldSpaceAllocationLimitAddress() {
+  return old_space_->allocation_limit_address();
+}
+
+void Heap::UpdateNewSpaceAllocationCounter() {
+  new_space_allocation_counter_ = NewSpaceAllocationCounter();
+}
+
+size_t Heap::NewSpaceAllocationCounter() {
+  return new_space_allocation_counter_ + new_space()->AllocatedSinceLastGC();
+}
 
 template <>
 bool inline Heap::IsOneByte(Vector<const char> str, int chars) {
@@ -205,14 +308,14 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
 
-  bool large_object = size_in_bytes > Page::kMaxRegularHeapObjectSize;
+  bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
   HeapObject* object = nullptr;
   AllocationResult allocation;
   if (NEW_SPACE == space) {
     if (large_object) {
       space = LO_SPACE;
     } else {
-      allocation = new_space_.AllocateRaw(size_in_bytes, alignment);
+      allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
       if (allocation.To(&object)) {
         OnAllocationEvent(object, size_in_bytes);
       }
@@ -244,9 +347,8 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   }
   if (allocation.To(&object)) {
     OnAllocationEvent(object, size_in_bytes);
-  } else {
-    old_gen_exhausted_ = true;
   }
+
   return allocation;
 }
 
@@ -350,9 +452,17 @@ void Heap::FinalizeExternalString(String* string) {
   }
 }
 
+Address Heap::NewSpaceTop() { return new_space_->top(); }
+
+bool Heap::DeoptMaybeTenuredAllocationSites() {
+  return new_space_->IsAtMaximumCapacity() && maximum_size_scavenges_ == 0;
+}
 
 bool Heap::InNewSpace(Object* object) {
-  bool result = new_space_.Contains(object);
+  // Inlined check from NewSpace::Contains.
+  bool result =
+      object->IsHeapObject() &&
+      Page::FromAddress(HeapObject::cast(object)->address())->InNewSpace();
   DCHECK(!result ||                 // Either not in new space
          gc_state_ != NOT_IN_GC ||  // ... or in the middle of GC
          InToSpace(object));        // ... or in to-space (where we allocate).
@@ -360,33 +470,31 @@ bool Heap::InNewSpace(Object* object) {
 }
 
 bool Heap::InFromSpace(Object* object) {
-  return new_space_.FromSpaceContains(object);
+  return object->IsHeapObject() &&
+         MemoryChunk::FromAddress(HeapObject::cast(object)->address())
+             ->IsFlagSet(Page::IN_FROM_SPACE);
 }
 
 
 bool Heap::InToSpace(Object* object) {
-  return new_space_.ToSpaceContains(object);
+  return object->IsHeapObject() &&
+         MemoryChunk::FromAddress(HeapObject::cast(object)->address())
+             ->IsFlagSet(Page::IN_TO_SPACE);
 }
 
 bool Heap::InOldSpace(Object* object) { return old_space_->Contains(object); }
 
 bool Heap::InNewSpaceSlow(Address address) {
-  return new_space_.ContainsSlow(address);
+  return new_space_->ContainsSlow(address);
 }
 
 bool Heap::InOldSpaceSlow(Address address) {
   return old_space_->ContainsSlow(address);
 }
 
-bool Heap::OldGenerationAllocationLimitReached() {
-  if (!incremental_marking()->IsStopped()) return false;
-  return OldGenerationSpaceAvailable() < 0;
-}
-
-
 bool Heap::ShouldBePromoted(Address old_address, int object_size) {
-  NewSpacePage* page = NewSpacePage::FromAddress(old_address);
-  Address age_mark = new_space_.age_mark();
+  Page* page = Page::FromAddress(old_address);
+  Address age_mark = new_space_->age_mark();
   return page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
          (!page->ContainsLimit(age_mark) || old_address < age_mark);
 }
@@ -395,11 +503,27 @@ void Heap::RecordWrite(Object* object, int offset, Object* o) {
   if (!InNewSpace(o) || !object->IsHeapObject() || InNewSpace(object)) {
     return;
   }
-  Page* page = Page::FromAddress(reinterpret_cast<Address>(object));
-  Address slot = HeapObject::cast(object)->address() + offset;
-  RememberedSet<OLD_TO_NEW>::Insert(page, slot);
+  store_buffer()->InsertEntry(HeapObject::cast(object)->address() + offset);
 }
 
+void Heap::RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value) {
+  if (InNewSpace(value)) {
+    RecordWriteIntoCodeSlow(host, rinfo, value);
+  }
+}
+
+void Heap::RecordFixedArrayElements(FixedArray* array, int offset, int length) {
+  if (InNewSpace(array)) return;
+  for (int i = 0; i < length; i++) {
+    if (!InNewSpace(array->get(offset + i))) continue;
+    store_buffer()->InsertEntry(
+        reinterpret_cast<Address>(array->RawFieldOfElementAt(offset + i)));
+  }
+}
+
+Address* Heap::store_buffer_top_address() {
+  return store_buffer()->top_address();
+}
 
 bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
   // Object migration is governed by the following rules:
@@ -434,40 +558,18 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
   return false;
 }
 
-
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   CopyWords(reinterpret_cast<Object**>(dst), reinterpret_cast<Object**>(src),
             static_cast<size_t>(byte_size / kPointerSize));
 }
 
-
-void Heap::MoveBlock(Address dst, Address src, int byte_size) {
-  DCHECK(IsAligned(byte_size, kPointerSize));
-
-  int size_in_words = byte_size / kPointerSize;
-
-  if ((dst < src) || (dst >= (src + byte_size))) {
-    Object** src_slot = reinterpret_cast<Object**>(src);
-    Object** dst_slot = reinterpret_cast<Object**>(dst);
-    Object** end_slot = src_slot + size_in_words;
-
-    while (src_slot != end_slot) {
-      *dst_slot++ = *src_slot++;
-    }
-  } else {
-    MemMove(dst, src, static_cast<size_t>(byte_size));
-  }
-}
-
 template <Heap::FindMementoMode mode>
 AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
-  // Check if there is potentially a memento behind the object. If
-  // the last word of the memento is on another page we return
-  // immediately.
   Address object_address = object->address();
   Address memento_address = object_address + object->Size();
   Address last_memento_word_address = memento_address + kPointerSize;
-  if (!NewSpacePage::OnSamePage(object_address, last_memento_word_address)) {
+  // If the memento would be on another page, bail out immediately.
+  if (!Page::OnSamePage(object_address, last_memento_word_address)) {
     return nullptr;
   }
   HeapObject* candidate = HeapObject::FromAddress(memento_address);
@@ -479,6 +581,22 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   if (candidate_map != allocation_memento_map()) {
     return nullptr;
   }
+
+  // Bail out if the memento is below the age mark, which can happen when
+  // mementos survived because a page got moved within new space.
+  Page* object_page = Page::FromAddress(object_address);
+  if (object_page->IsFlagSet(Page::NEW_SPACE_BELOW_AGE_MARK)) {
+    Address age_mark =
+        reinterpret_cast<SemiSpace*>(object_page->owner())->age_mark();
+    if (!object_page->Contains(age_mark)) {
+      return nullptr;
+    }
+    // Do an exact check in the case where the age mark is on the same page.
+    if (object_address < age_mark) {
+      return nullptr;
+    }
+  }
+
   AllocationMemento* memento_candidate = AllocationMemento::cast(candidate);
 
   // Depending on what the memento is used for, we might need to perform
@@ -495,7 +613,7 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
       top = NewSpaceTop();
       DCHECK(memento_address == top ||
              memento_address + HeapObject::kHeaderSize <= top ||
-             !NewSpacePage::OnSamePage(memento_address, top - 1));
+             !Page::OnSamePage(memento_address, top - 1));
       if ((memento_address != top) && memento_candidate->IsValid()) {
         return memento_candidate;
       }
@@ -509,8 +627,14 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
 
 template <Heap::UpdateAllocationSiteMode mode>
 void Heap::UpdateAllocationSite(HeapObject* object,
-                                HashMap* pretenuring_feedback) {
-  DCHECK(InFromSpace(object));
+                                base::HashMap* pretenuring_feedback) {
+  DCHECK(InFromSpace(object) ||
+         (InToSpace(object) &&
+          Page::FromAddress(object->address())
+              ->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) ||
+         (!InNewSpace(object) &&
+          Page::FromAddress(object->address())
+              ->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)));
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(object->map()->instance_type()))
     return;
@@ -537,7 +661,7 @@ void Heap::UpdateAllocationSite(HeapObject* object,
     // to dereference the allocation site and rather have to postpone all checks
     // till actually merging the data.
     Address key = memento_candidate->GetAllocationSiteUnchecked();
-    HashMap::Entry* e =
+    base::HashMap::Entry* e =
         pretenuring_feedback->LookupOrInsert(key, ObjectHash(key));
     DCHECK(e != nullptr);
     (*bit_cast<intptr_t*>(&e->value))++;
@@ -550,8 +674,8 @@ void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite* site) {
       site, static_cast<uint32_t>(bit_cast<uintptr_t>(site)));
 }
 
-
-bool Heap::CollectGarbage(AllocationSpace space, const char* gc_reason,
+bool Heap::CollectGarbage(AllocationSpace space,
+                          GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags callbackFlags) {
   const char* collector_reason = NULL;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
@@ -575,12 +699,15 @@ void Heap::ExternalStringTable::AddString(String* string) {
   }
 }
 
-
-void Heap::ExternalStringTable::Iterate(ObjectVisitor* v) {
+void Heap::ExternalStringTable::IterateNewSpaceStrings(ObjectVisitor* v) {
   if (!new_space_strings_.is_empty()) {
     Object** start = &new_space_strings_[0];
     v->VisitPointers(start, start + new_space_strings_.length());
   }
+}
+
+void Heap::ExternalStringTable::IterateAll(ObjectVisitor* v) {
+  IterateNewSpaceStrings(v);
   if (!old_space_strings_.is_empty()) {
     Object** start = &old_space_strings_[0];
     v->VisitPointers(start, start + old_space_strings_.length());
@@ -595,12 +722,12 @@ void Heap::ExternalStringTable::Verify() {
   for (int i = 0; i < new_space_strings_.length(); ++i) {
     Object* obj = Object::cast(new_space_strings_[i]);
     DCHECK(heap_->InNewSpace(obj));
-    DCHECK(obj != heap_->the_hole_value());
+    DCHECK(!obj->IsTheHole(heap_->isolate()));
   }
   for (int i = 0; i < old_space_strings_.length(); ++i) {
     Object* obj = Object::cast(old_space_strings_[i]);
     DCHECK(!heap_->InNewSpace(obj));
-    DCHECK(obj != heap_->the_hole_value());
+    DCHECK(!obj->IsTheHole(heap_->isolate()));
   }
 #endif
 }
@@ -622,48 +749,16 @@ void Heap::ExternalStringTable::ShrinkNewStrings(int position) {
 #endif
 }
 
-// static
-int DescriptorLookupCache::Hash(Object* source, Name* name) {
-  DCHECK(name->IsUniqueName());
-  // Uses only lower 32 bits if pointers are larger.
-  uint32_t source_hash =
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(source)) >>
-      kPointerSizeLog2;
-  uint32_t name_hash = name->hash_field();
-  return (source_hash ^ name_hash) % kLength;
-}
+void Heap::ClearInstanceofCache() { set_instanceof_cache_function(Smi::kZero); }
 
-int DescriptorLookupCache::Lookup(Map* source, Name* name) {
-  int index = Hash(source, name);
-  Key& key = keys_[index];
-  if ((key.source == source) && (key.name == name)) return results_[index];
-  return kAbsent;
-}
-
-
-void DescriptorLookupCache::Update(Map* source, Name* name, int result) {
-  DCHECK(result != kAbsent);
-  int index = Hash(source, name);
-  Key& key = keys_[index];
-  key.source = source;
-  key.name = name;
-  results_[index] = result;
-}
-
-
-void Heap::ClearInstanceofCache() {
-  set_instanceof_cache_function(Smi::FromInt(0));
-}
-
-
-Object* Heap::ToBoolean(bool condition) {
+Oddball* Heap::ToBoolean(bool condition) {
   return condition ? true_value() : false_value();
 }
 
 
 void Heap::CompletelyClearInstanceofCache() {
-  set_instanceof_cache_map(Smi::FromInt(0));
-  set_instanceof_cache_function(Smi::FromInt(0));
+  set_instanceof_cache_map(Smi::kZero);
+  set_instanceof_cache_function(Smi::kZero);
 }
 
 
@@ -685,30 +780,58 @@ int Heap::NextScriptId() {
   return last_id;
 }
 
-
 void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
-  DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
+  DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::kZero);
   set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
-
 void Heap::SetConstructStubDeoptPCOffset(int pc_offset) {
-  DCHECK(construct_stub_deopt_pc_offset() == Smi::FromInt(0));
+  DCHECK(construct_stub_deopt_pc_offset() == Smi::kZero);
   set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
-
 void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {
-  DCHECK(getter_stub_deopt_pc_offset() == Smi::FromInt(0));
+  DCHECK(getter_stub_deopt_pc_offset() == Smi::kZero);
   set_getter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
-
 void Heap::SetSetterStubDeoptPCOffset(int pc_offset) {
-  DCHECK(setter_stub_deopt_pc_offset() == Smi::FromInt(0));
+  DCHECK(setter_stub_deopt_pc_offset() == Smi::kZero);
   set_setter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
+void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
+  DCHECK(interpreter_entry_return_pc_offset() == Smi::kZero);
+  set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));
+}
+
+int Heap::GetNextTemplateSerialNumber() {
+  int next_serial_number = next_template_serial_number()->value() + 1;
+  set_next_template_serial_number(Smi::FromInt(next_serial_number));
+  return next_serial_number;
+}
+
+void Heap::SetSerializedTemplates(FixedArray* templates) {
+  DCHECK_EQ(empty_fixed_array(), serialized_templates());
+  DCHECK(isolate()->serializer_enabled());
+  set_serialized_templates(templates);
+}
+
+void Heap::SetSerializedGlobalProxySizes(FixedArray* sizes) {
+  DCHECK_EQ(empty_fixed_array(), serialized_global_proxy_sizes());
+  DCHECK(isolate()->serializer_enabled());
+  set_serialized_global_proxy_sizes(sizes);
+}
+
+void Heap::CreateObjectStats() {
+  if (V8_LIKELY(FLAG_gc_stats == 0)) return;
+  if (!live_object_stats_) {
+    live_object_stats_ = new ObjectStats(this);
+  }
+  if (!dead_object_stats_) {
+    dead_object_stats_ = new ObjectStats(this);
+  }
+}
 
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
     : heap_(isolate->heap()) {

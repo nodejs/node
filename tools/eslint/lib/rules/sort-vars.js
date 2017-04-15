@@ -30,19 +30,17 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var configuration = context.options[0] || {},
+        const configuration = context.options[0] || {},
             ignoreCase = configuration.ignoreCase || false;
 
         return {
-            VariableDeclaration: function(node) {
-                node.declarations.reduce(function(memo, decl) {
-                    if (decl.id.type === "ObjectPattern" || decl.id.type === "ArrayPattern") {
-                        return memo;
-                    }
+            VariableDeclaration(node) {
+                const idDeclarations = node.declarations.filter(decl => decl.id.type === "Identifier");
 
-                    var lastVariableName = memo.id.name,
+                idDeclarations.slice(1).reduce((memo, decl) => {
+                    let lastVariableName = memo.id.name,
                         currenVariableName = decl.id.name;
 
                     if (ignoreCase) {
@@ -51,12 +49,12 @@ module.exports = {
                     }
 
                     if (currenVariableName < lastVariableName) {
-                        context.report(decl, "Variables within the same declaration block should be sorted alphabetically");
+                        context.report({ node: decl, message: "Variables within the same declaration block should be sorted alphabetically." });
                         return memo;
-                    } else {
-                        return decl;
                     }
-                }, node.declarations[0]);
+                    return decl;
+
+                }, idDeclarations[0]);
             }
         };
     }

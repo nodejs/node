@@ -44,3 +44,14 @@ testThrows(1);
 
 assertEquals("/pattern/flags", RegExp.prototype.toString.call(fake));
 assertEquals(["p", "ps", "f", "fs"], log);
+
+// Monkey-patching is also possible on RegExp instances
+
+let weird = /foo/;
+Object.defineProperty(weird, 'flags', {value: 'bar'});
+Object.defineProperty(weird, 'source', {value: 'baz'});
+assertEquals('/baz/bar', weird.toString());
+
+assertEquals('/(?:)/', RegExp.prototype.toString());
+assertEquals('(?:)', RegExp.prototype.source);
+assertEquals('', RegExp.prototype.flags);

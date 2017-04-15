@@ -9,6 +9,7 @@
 
 #include "src/api.h"
 #include "src/heap/heap.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 
 using namespace v8::internal;

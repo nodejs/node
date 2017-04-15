@@ -1,13 +1,34 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var stream = require('stream');
+const stream = require('stream');
 
-var queue = [];
-for (var decode = 0; decode < 2; decode++) {
-  for (var uncork = 0; uncork < 2; uncork++) {
-    for (var multi = 0; multi < 2; multi++) {
+const queue = [];
+for (let decode = 0; decode < 2; decode++) {
+  for (let uncork = 0; uncork < 2; uncork++) {
+    for (let multi = 0; multi < 2; multi++) {
       queue.push([!!decode, !!uncork, !!multi]);
     }
   }
@@ -16,7 +37,7 @@ for (var decode = 0; decode < 2; decode++) {
 run();
 
 function run() {
-  var t = queue.pop();
+  const t = queue.pop();
   if (t)
     test(t[0], t[1], t[2], run);
   else
@@ -25,25 +46,22 @@ function run() {
 
 function test(decode, uncork, multi, next) {
   console.log('# decode=%j uncork=%j multi=%j', decode, uncork, multi);
-  var counter = 0;
-  var expectCount = 0;
+  let counter = 0;
+  let expectCount = 0;
   function cnt(msg) {
     expectCount++;
-    var expect = expectCount;
+    const expect = expectCount;
     return function(er) {
-      if (er)
-        throw er;
+      assert.ifError(er);
       counter++;
-      assert.equal(counter, expect);
+      assert.strictEqual(counter, expect);
     };
   }
 
-  var w = new stream.Writable({ decodeStrings: decode });
-  w._write = function(chunk, e, cb) {
-    assert(false, 'Should not call _write');
-  };
+  const w = new stream.Writable({ decodeStrings: decode });
+  w._write = common.mustNotCall('Should not call _write');
 
-  var expectChunks = decode ? [
+  const expectChunks = decode ? [
     { encoding: 'buffer',
       chunk: [104, 101, 108, 108, 111, 44, 32] },
     { encoding: 'buffer',
@@ -58,11 +76,11 @@ function test(decode, uncork, multi, next) {
     { encoding: 'ascii', chunk: 'hello, ' },
     { encoding: 'utf8', chunk: 'world' },
     { encoding: 'buffer', chunk: [33] },
-    { encoding: 'binary', chunk: '\nand then...' },
+    { encoding: 'latin1', chunk: '\nand then...' },
     { encoding: 'hex', chunk: 'facebea7deadbeefdecafbad' }
   ];
 
-  var actualChunks;
+  let actualChunks;
   w._writev = function(chunks, cb) {
     actualChunks = chunks.map(function(chunk) {
       return {
@@ -82,7 +100,7 @@ function test(decode, uncork, multi, next) {
     w.cork();
 
   w.write(Buffer.from('!'), 'buffer', cnt('!'));
-  w.write('\nand then...', 'binary', cnt('and then'));
+  w.write('\nand then...', 'latin1', cnt('and then'));
 
   if (multi)
     w.uncork();

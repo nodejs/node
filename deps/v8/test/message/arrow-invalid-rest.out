@@ -1,4 +1,4 @@
-*%(basename)s:7: SyntaxError: Rest parameter must be an identifier or destructuring pattern
+*%(basename)s:7: SyntaxError: Unexpected token =
 var f = (...x = 10) => x;
-         ^^^^^^^^^
-SyntaxError: Rest parameter must be an identifier or destructuring pattern
+              ^
+SyntaxError: Unexpected token =

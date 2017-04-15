@@ -38,6 +38,10 @@
 # include "linux-syscalls.h"
 #endif /* __linux__ */
 
+#if defined(__MVS__)
+# include "os390-syscalls.h"
+#endif /* __MVS__ */
+
 #if defined(__sun)
 # include <sys/port.h>
 # include <port.h>
@@ -52,7 +56,7 @@
 #endif /* _AIX */
 
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
-# include <CoreServices/CoreServices.h>
+# include <AvailabilityMacros.h>
 #endif
 
 #if defined(__ANDROID__)
@@ -132,7 +136,8 @@ enum {
   UV_TCP_KEEPALIVE        = 0x800,  /* Turn on keep-alive. */
   UV_TCP_SINGLE_ACCEPT    = 0x1000, /* Only accept() when idle. */
   UV_HANDLE_IPV6          = 0x10000, /* Handle is bound to a IPv6 socket. */
-  UV_UDP_PROCESSING       = 0x20000  /* Handle is running the send callback queue. */
+  UV_UDP_PROCESSING       = 0x20000, /* Handle is running the send callback queue. */
+  UV_HANDLE_BOUND         = 0x40000  /* Handle is bound to an address and port */
 };
 
 /* loop flags */
@@ -152,11 +157,26 @@ struct uv__stream_queued_fds_s {
 };
 
 
+#if defined(_AIX) || \
+    defined(__APPLE__) || \
+    defined(__DragonFly__) || \
+    defined(__FreeBSD__) || \
+    defined(__FreeBSD_kernel__) || \
+    defined(__linux__)
+#define uv__cloexec uv__cloexec_ioctl
+#define uv__nonblock uv__nonblock_ioctl
+#else
+#define uv__cloexec uv__cloexec_fcntl
+#define uv__nonblock uv__nonblock_fcntl
+#endif
+
 /* core */
-int uv__nonblock(int fd, int set);
+int uv__cloexec_ioctl(int fd, int set);
+int uv__cloexec_fcntl(int fd, int set);
+int uv__nonblock_ioctl(int fd, int set);
+int uv__nonblock_fcntl(int fd, int set);
 int uv__close(int fd);
 int uv__close_nocheckstdio(int fd);
-int uv__cloexec(int fd, int set);
 int uv__socket(int domain, int type, int protocol);
 int uv__dup(int fd);
 ssize_t uv__recvmsg(int fd, struct msghdr *msg, int flags);

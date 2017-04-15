@@ -1,0 +1,80 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "cyclist@~0.2.2",
+        "scope": null,
+        "escapedName": "cyclist",
+        "name": "cyclist",
+        "rawSpec": "~0.2.2",
+        "spec": ">=0.2.2 <0.3.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/mississippi/node_modules/parallel-transform"
+    ]
+  ],
+  "_from": "cyclist@>=0.2.2 <0.3.0",
+  "_id": "cyclist@0.2.2",
+  "_inCache": true,
+  "_location": "/mississippi/parallel-transform/cyclist",
+  "_npmUser": {
+    "name": "mafintosh",
+    "email": "mathiasbuus@gmail.com"
+  },
+  "_npmVersion": "1.3.5",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "cyclist@~0.2.2",
+    "scope": null,
+    "escapedName": "cyclist",
+    "name": "cyclist",
+    "rawSpec": "~0.2.2",
+    "spec": ">=0.2.2 <0.3.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/mississippi/parallel-transform"
+  ],
+  "_resolved": "https://registry.npmjs.org/cyclist/-/cyclist-0.2.2.tgz",
+  "_shasum": "1b33792e11e914a2fd6d6ed6447464444e5fa640",
+  "_shrinkwrap": null,
+  "_spec": "cyclist@~0.2.2",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/mississippi/node_modules/parallel-transform",
+  "author": {
+    "name": "Mathias Buus Madsen",
+    "email": "mathiasbuus@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/mafintosh/cyclist/issues"
+  },
+  "dependencies": {},
+  "description": "Cyclist is an efficient cyclic list implemention.",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "1b33792e11e914a2fd6d6ed6447464444e5fa640",
+    "tarball": "https://registry.npmjs.org/cyclist/-/cyclist-0.2.2.tgz"
+  },
+  "homepage": "https://github.com/mafintosh/cyclist#readme",
+  "keywords": [
+    "circular",
+    "buffer",
+    "ring",
+    "cyclic",
+    "data"
+  ],
+  "maintainers": [
+    {
+      "name": "mafintosh",
+      "email": "mathiasbuus@gmail.com"
+    }
+  ],
+  "name": "cyclist",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mafintosh/cyclist.git"
+  },
+  "version": "0.2.2"
+}

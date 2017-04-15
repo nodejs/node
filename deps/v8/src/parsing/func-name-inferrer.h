@@ -6,7 +6,7 @@
 #define V8_PARSING_FUNC_NAME_INFERRER_H_
 
 #include "src/handles.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -15,6 +15,8 @@ class AstRawString;
 class AstString;
 class AstValueFactory;
 class FunctionLiteral;
+
+enum class InferName { kYes, kNo };
 
 // FuncNameInferrer is a stateful class that is used to perform name
 // inference for anonymous functions during static analysis of source code.
@@ -70,6 +72,8 @@ class FuncNameInferrer : public ZoneObject {
       funcs_to_infer_.RemoveLast();
     }
   }
+
+  void RemoveAsyncKeywordFromEnd();
 
   // Infers a function name and leaves names collection state.
   void Infer() {

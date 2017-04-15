@@ -7,20 +7,20 @@ var test = require('../../test/common.js');
 
 var bench = common.createBenchmark(main, {
   len:  [1, 4, 8, 16, 32, 64, 128],
-  num:  [5, 50, 500, 2000],
+  n:  [5, 50, 500, 2000],
   type: ['send'],
 });
 
 
 function main(conf) {
   var len = +conf.len;
-  var num = +conf.num;
+  var num = +conf.n;
   var todo = [];
   var headers = [];
   // Chose 7 because 9 showed "Connection error" / "Connection closed"
   // An odd number could result in a better length dispersion.
   for (var i = 7; i <= 7 * 7 * 7; i *= 7)
-    headers.push(Array(i + 1).join('o'));
+    headers.push('o'.repeat(i));
 
   function WriteHTTPHeaders(channel, has_keep_alive, extra_header_count) {
     todo = [];
@@ -50,8 +50,6 @@ function main(conf) {
     }
   }
 
-  var success = 0;
-  var failure = 0;
   var min = 10;
   var size = 0;
   var mod = 317;
@@ -69,14 +67,12 @@ function main(conf) {
       if ((d.length === pattern.length && d === pattern) ||
           (d.length > pattern.length &&
            d.slice(0, pattern.length) === pattern)) {
-        success += 1;
         did = true;
       } else {
         pattern = 'HTTP/1.1 ';
         if ((d.length === pattern.length && d === pattern) ||
             (d.length > pattern.length &&
              d.slice(0, pattern.length) === pattern)) {
-          failure += 1;
           did = true;
         }
       }
@@ -85,6 +81,7 @@ function main(conf) {
         count += 1;
         if (count === num) {
           bench.end(count);
+          process.exit(0);
         } else {
           WriteHTTPHeaders(socket, 1, min + size);
         }

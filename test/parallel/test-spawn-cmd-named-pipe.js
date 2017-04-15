@@ -39,11 +39,11 @@ if (!process.argv[2]) {
 
   const comspec = process.env['comspec'];
   if (!comspec || comspec.length === 0) {
-    assert.fail(null, null, 'Failed to get COMSPEC');
+    assert.fail('Failed to get COMSPEC');
   }
 
   const args = ['/c', process.execPath, __filename, 'child',
-              '<', stdinPipeName, '>', stdoutPipeName];
+                '<', stdinPipeName, '>', stdoutPipeName];
 
   const child = spawn(comspec, args);
 

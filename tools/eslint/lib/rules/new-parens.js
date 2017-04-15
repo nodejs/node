@@ -6,6 +6,16 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -17,24 +27,32 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
-    create: function(context) {
+    create(context) {
+        const sourceCode = context.getSourceCode();
 
         return {
+            NewExpression(node) {
+                if (node.arguments.length !== 0) {
+                    return;  // shortcut: if there are arguments, there have to be parens
+                }
 
-            NewExpression: function(node) {
-                var tokens = context.getTokens(node);
-                var prenticesTokens = tokens.filter(function(token) {
-                    return token.value === "(" || token.value === ")";
-                });
+                const lastToken = sourceCode.getLastToken(node);
+                const hasLastParen = lastToken && astUtils.isClosingParenToken(lastToken);
+                const hasParens = hasLastParen && astUtils.isOpeningParenToken(sourceCode.getTokenBefore(lastToken));
 
-                if (prenticesTokens.length < 2) {
-                    context.report(node, "Missing '()' invoking a constructor");
+                if (!hasParens) {
+                    context.report({
+                        node,
+                        message: "Missing '()' invoking a constructor.",
+                        fix: fixer => fixer.insertTextAfter(node, "()")
+                    });
                 }
             }
         };
-
     }
 };

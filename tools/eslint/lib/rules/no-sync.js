@@ -22,17 +22,18 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            MemberExpression: function(node) {
-                var propertyName = node.property.name,
-                    syncRegex = /.*Sync$/;
-
-                if (syncRegex.exec(propertyName) !== null) {
-                    context.report(node, "Unexpected sync method: '" + propertyName + "'.");
-                }
+            "MemberExpression[property.name=/.*Sync$/]"(node) {
+                context.report({
+                    node,
+                    message: "Unexpected sync method: '{{propertyName}}'.",
+                    data: {
+                        propertyName: node.property.name
+                    }
+                });
             }
         };
 

@@ -32,7 +32,7 @@ server.listen(port, hostname, () => {
 To run the server, put the code into a file called `example.js` and execute
 it with Node.js:
 
-```
+```txt
 $ node example.js
 Server running at http://127.0.0.1:3000/
 ```

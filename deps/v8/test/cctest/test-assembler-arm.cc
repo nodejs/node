@@ -30,11 +30,11 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/arm/assembler-arm-inl.h"
 #include "src/arm/simulator-arm.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/disassembler.h"
 #include "src/factory.h"
+#include "src/macro-assembler.h"
 #include "src/ostreams.h"
 
 using namespace v8::base;
@@ -46,7 +46,7 @@ typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 typedef Object* (*F2)(int x, int y, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p0, int p1, int p2, int p3, int p4);
 typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
-
+typedef Object* (*F5)(uint32_t p0, void* p1, void* p2, int p3, int p4);
 
 #define __ assm.
 
@@ -232,6 +232,8 @@ TEST(4) {
     double j;
     double m;
     double n;
+    float o;
+    float p;
     float x;
     float y;
   } T;
@@ -242,9 +244,8 @@ TEST(4) {
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
-
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatureScope scope(&assm, VFP3);
+  if (CpuFeatures::IsSupported(VFPv3)) {
+    CpuFeatureScope scope(&assm, VFPv3);
 
     __ mov(ip, Operand(sp));
     __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
@@ -265,12 +266,12 @@ TEST(4) {
 
     // Load t.x and t.y, switch values, and store back to the struct.
     __ vldr(s0, r4, offsetof(T, x));
-    __ vldr(s31, r4, offsetof(T, y));
-    __ vmov(s16, s0);
-    __ vmov(s0, s31);
-    __ vmov(s31, s16);
+    __ vldr(s1, r4, offsetof(T, y));
+    __ vmov(s2, s0);
+    __ vmov(s0, s1);
+    __ vmov(s1, s2);
     __ vstr(s0, r4, offsetof(T, x));
-    __ vstr(s31, r4, offsetof(T, y));
+    __ vstr(s1, r4, offsetof(T, y));
 
     // Move a literal into a register that can be encoded in the instruction.
     __ vmov(d4, 1.0);
@@ -283,13 +284,13 @@ TEST(4) {
 
     // Convert from floating point to integer.
     __ vmov(d4, 2.0);
-    __ vcvt_s32_f64(s31, d4);
-    __ vstr(s31, r4, offsetof(T, i));
+    __ vcvt_s32_f64(s1, d4);
+    __ vstr(s1, r4, offsetof(T, i));
 
     // Convert from integer to floating point.
     __ mov(lr, Operand(42));
-    __ vmov(s31, lr);
-    __ vcvt_f64_s32(d4, s31);
+    __ vmov(s1, lr);
+    __ vcvt_f64_s32(d4, s1);
     __ vstr(d4, r4, offsetof(T, f));
 
     // Convert from fixed point to floating point.
@@ -313,6 +314,12 @@ TEST(4) {
     __ vldr(d1, r4, offsetof(T, n));
     __ vneg(d0, d1);
     __ vstr(d0, r4, offsetof(T, n));
+
+    // Test vmov for single-precision immediates.
+    __ vmov(s0, 0.25f);
+    __ vstr(s0, r4, offsetof(T, o));
+    __ vmov(s0, -16.0f);
+    __ vstr(s0, r4, offsetof(T, p));
 
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
@@ -341,6 +348,8 @@ TEST(4) {
     t.y = 9.0;
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
+    CHECK_EQ(-16.0f, t.p);
+    CHECK_EQ(0.25f, t.o);
     CHECK_EQ(-123.456, t.n);
     CHECK_EQ(2718.2818, t.m);
     CHECK_EQ(2, t.i);
@@ -402,29 +411,26 @@ TEST(6) {
 
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(ARMv7)) {
-    CpuFeatureScope scope(&assm, ARMv7);
-    __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
-    __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
-    __ usat(r3, 1, Operand(r0, LSL, 16));  // Sat (0xFFFF<<16) to 0-1 = 0x0.
-    __ add(r0, r1, Operand(r2));
-    __ add(r0, r0, Operand(r3));
-    __ mov(pc, Operand(lr));
+  __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
+  __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
+  __ usat(r3, 1, Operand(r0, LSL, 16));  // Sat (0xFFFF<<16) to 0-1 = 0x0.
+  __ add(r0, r1, Operand(r2));
+  __ add(r0, r0, Operand(r3));
+  __ mov(pc, Operand(lr));
 
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
-    code->Print(os);
+  OFStream os(stdout);
+  code->Print(os);
 #endif
-    F1 f = FUNCTION_CAST<F1>(code->entry());
-    int res = reinterpret_cast<int>(
-        CALL_GENERATED_CODE(isolate, f, 0xFFFF, 0, 0, 0, 0));
-    ::printf("f() = %d\n", res);
-    CHECK_EQ(382, res);
-  }
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  int res = reinterpret_cast<int>(
+      CALL_GENERATED_CODE(isolate, f, 0xFFFF, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(382, res);
 }
 
 
@@ -443,62 +449,57 @@ static void TestRoundingMode(VCVTTypes types,
 
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatureScope scope(&assm, VFP3);
+  Label wrong_exception;
 
-    Label wrong_exception;
+  __ vmrs(r1);
+  // Set custom FPSCR.
+  __ bic(r2, r1, Operand(kVFPRoundingModeMask | kVFPExceptionMask));
+  __ orr(r2, r2, Operand(mode));
+  __ vmsr(r2);
 
-    __ vmrs(r1);
-    // Set custom FPSCR.
-    __ bic(r2, r1, Operand(kVFPRoundingModeMask | kVFPExceptionMask));
-    __ orr(r2, r2, Operand(mode));
-    __ vmsr(r2);
+  // Load value, convert, and move back result to r0 if everything went well.
+  __ vmov(d1, value);
+  switch (types) {
+    case s32_f64:
+      __ vcvt_s32_f64(s0, d1, kFPSCRRounding);
+      break;
 
-    // Load value, convert, and move back result to r0 if everything went well.
-    __ vmov(d1, value);
-    switch (types) {
-      case s32_f64:
-        __ vcvt_s32_f64(s0, d1, kFPSCRRounding);
-        break;
+    case u32_f64:
+      __ vcvt_u32_f64(s0, d1, kFPSCRRounding);
+      break;
 
-      case u32_f64:
-        __ vcvt_u32_f64(s0, d1, kFPSCRRounding);
-        break;
-
-      default:
-        UNREACHABLE();
-        break;
-    }
-    // Check for vfp exceptions
-    __ vmrs(r2);
-    __ tst(r2, Operand(kVFPExceptionMask));
-    // Check that we behaved as expected.
-    __ b(&wrong_exception,
-         expected_exception ? eq : ne);
-    // There was no exception. Retrieve the result and return.
-    __ vmov(r0, s0);
-    __ mov(pc, Operand(lr));
-
-    // The exception behaviour is not what we expected.
-    // Load a special value and return.
-    __ bind(&wrong_exception);
-    __ mov(r0, Operand(11223344));
-    __ mov(pc, Operand(lr));
-
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-#ifdef DEBUG
-    OFStream os(stdout);
-    code->Print(os);
-#endif
-    F1 f = FUNCTION_CAST<F1>(code->entry());
-    int res =
-        reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
-    ::printf("res = %d\n", res);
-    CHECK_EQ(expected, res);
+    default:
+      UNREACHABLE();
+      break;
   }
+  // Check for vfp exceptions
+  __ vmrs(r2);
+  __ tst(r2, Operand(kVFPExceptionMask));
+  // Check that we behaved as expected.
+  __ b(&wrong_exception, expected_exception ? eq : ne);
+  // There was no exception. Retrieve the result and return.
+  __ vmov(r0, s0);
+  __ mov(pc, Operand(lr));
+
+  // The exception behaviour is not what we expected.
+  // Load a special value and return.
+  __ bind(&wrong_exception);
+  __ mov(r0, Operand(11223344));
+  __ mov(pc, Operand(lr));
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  int res =
+      reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+  ::printf("res = %d\n", res);
+  CHECK_EQ(expected, res);
 }
 
 
@@ -1044,9 +1045,8 @@ TEST(13) {
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
-
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatureScope scope(&assm, VFP3);
+  if (CpuFeatures::IsSupported(VFPv3)) {
+    CpuFeatureScope scope(&assm, VFPv3);
 
     __ stm(db_w, sp, r4.bit() | lr.bit());
 
@@ -1221,6 +1221,32 @@ TEST(14) {
   CHECK_EQ(kArmNanLower32, bit_cast<int64_t>(t.div_result) & 0xffffffffu);
 }
 
+#define CHECK_EQ_SPLAT(field, ex) \
+  CHECK_EQ(ex, t.field[0]);       \
+  CHECK_EQ(ex, t.field[1]);       \
+  CHECK_EQ(ex, t.field[2]);       \
+  CHECK_EQ(ex, t.field[3]);
+
+#define CHECK_EQ_32X4(field, ex0, ex1, ex2, ex3) \
+  CHECK_EQ(ex0, t.field[0]);                     \
+  CHECK_EQ(ex1, t.field[1]);                     \
+  CHECK_EQ(ex2, t.field[2]);                     \
+  CHECK_EQ(ex3, t.field[3]);
+
+#define CHECK_ESTIMATE(expected, tolerance, value) \
+  CHECK_LT((expected) - (tolerance), value);       \
+  CHECK_GT((expected) + (tolerance), value);
+
+#define CHECK_ESTIMATE_SPLAT(field, ex, tol) \
+  CHECK_ESTIMATE(ex, tol, t.field[0]);       \
+  CHECK_ESTIMATE(ex, tol, t.field[1]);       \
+  CHECK_ESTIMATE(ex, tol, t.field[2]);       \
+  CHECK_ESTIMATE(ex, tol, t.field[3]);
+
+#define INT32_TO_FLOAT(val) \
+  std::round(static_cast<float>(bit_cast<int32_t>(val)))
+#define UINT32_TO_FLOAT(val) \
+  std::round(static_cast<float>(bit_cast<uint32_t>(val)))
 
 TEST(15) {
   // Test the Neon instructions.
@@ -1255,18 +1281,50 @@ TEST(15) {
     uint32_t dstA5;
     uint32_t dstA6;
     uint32_t dstA7;
+    uint32_t lane_test[4];
+    uint64_t vmov_to_scalar1, vmov_to_scalar2;
+    uint32_t vmov_from_scalar_s8, vmov_from_scalar_u8;
+    uint32_t vmov_from_scalar_s16, vmov_from_scalar_u16;
+    uint32_t vmov_from_scalar_32;
+    uint32_t vmov[4], vmvn[4];
+    int32_t vcvt_s32_f32[4];
+    uint32_t vcvt_u32_f32[4];
+    float vcvt_f32_s32[4], vcvt_f32_u32[4];
+    uint32_t vdup8[4], vdup16[4], vdup32[4];
+    float vabsf[4], vnegf[4];
+    uint32_t vabs_s8[4], vabs_s16[4], vabs_s32[4];
+    uint32_t vneg_s8[4], vneg_s16[4], vneg_s32[4];
+    uint32_t veor[4], vand[4], vorr[4];
+    float vdupf[4], vaddf[4], vsubf[4], vmulf[4];
+    uint32_t vmin_s8[4], vmin_u16[4], vmin_s32[4];
+    uint32_t vmax_s8[4], vmax_u16[4], vmax_s32[4];
+    uint32_t vadd8[4], vadd16[4], vadd32[4];
+    uint32_t vsub8[4], vsub16[4], vsub32[4];
+    uint32_t vmul8[4], vmul16[4], vmul32[4];
+    uint32_t vceq[4], vceqf[4], vcgef[4], vcgtf[4];
+    uint32_t vcge_s8[4], vcge_u16[4], vcge_s32[4];
+    uint32_t vcgt_s8[4], vcgt_u16[4], vcgt_s32[4];
+    float vrecpe[4], vrecps[4], vrsqrte[4], vrsqrts[4];
+    float vminf[4], vmaxf[4];
+    uint32_t vtst[4], vbsl[4];
+    uint32_t vext[4];
+    uint32_t vzip8a[4], vzip8b[4], vzip16a[4], vzip16b[4], vzip32a[4],
+        vzip32b[4];
+    uint32_t vrev64_32[4], vrev64_16[4], vrev64_8[4];
+    uint32_t vrev32_16[4], vrev32_8[4];
+    uint32_t vrev16_8[4];
+    uint32_t vtbl[2], vtbx[2];
   } T;
   T t;
 
   // Create a function that accepts &t, and loads, manipulates, and stores
-  // the doubles and floats.
+  // the doubles, floats, and SIMD values.
   Assembler assm(isolate, NULL, 0);
-
 
   if (CpuFeatures::IsSupported(NEON)) {
     CpuFeatureScope scope(&assm, NEON);
 
-    __ stm(db_w, sp, r4.bit() | lr.bit());
+    __ stm(db_w, sp, r4.bit() | r5.bit() | lr.bit());
     // Move 32 bytes with neon.
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, src0))));
     __ vld1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(r4));
@@ -1287,7 +1345,456 @@ TEST(15) {
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, dstA4))));
     __ vst1(Neon8, NeonListOperand(d2, 2), NeonMemOperand(r4));
 
-    __ ldm(ia_w, sp, r4.bit() | pc.bit());
+    // ARM core register to scalar.
+    __ mov(r4, Operand(0xfffffff8));
+    __ vmov(d0, 0);
+    __ vmov(NeonS8, d0, 1, r4);
+    __ vmov(NeonS16, d0, 1, r4);
+    __ vmov(NeonS32, d0, 1, r4);
+    __ vstr(d0, r0, offsetof(T, vmov_to_scalar1));
+    __ vmov(d0, 0);
+    __ vmov(NeonS8, d0, 3, r4);
+    __ vmov(NeonS16, d0, 3, r4);
+    __ vstr(d0, r0, offsetof(T, vmov_to_scalar2));
+
+    // Scalar to ARM core register.
+    __ mov(r4, Operand(0xffffff00));
+    __ mov(r5, Operand(0xffffffff));
+    __ vmov(d0, r4, r5);
+    __ vmov(NeonS8, r4, d0, 1);
+    __ str(r4, MemOperand(r0, offsetof(T, vmov_from_scalar_s8)));
+    __ vmov(NeonU8, r4, d0, 1);
+    __ str(r4, MemOperand(r0, offsetof(T, vmov_from_scalar_u8)));
+    __ vmov(NeonS16, r4, d0, 1);
+    __ str(r4, MemOperand(r0, offsetof(T, vmov_from_scalar_s16)));
+    __ vmov(NeonU16, r4, d0, 1);
+    __ str(r4, MemOperand(r0, offsetof(T, vmov_from_scalar_u16)));
+    __ vmov(NeonS32, r4, d0, 1);
+    __ str(r4, MemOperand(r0, offsetof(T, vmov_from_scalar_32)));
+
+    // vmov for q-registers.
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, lane_test))));
+    __ vld1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+    __ vmov(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmov))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vmvn.
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, lane_test))));
+    __ vld1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+    __ vmvn(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmvn))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vcvt for q-registers.
+    __ vmov(s0, -1.5);
+    __ vmov(s1, -1);
+    __ vmov(s2, 1);
+    __ vmov(s3, 1.5);
+    __ vcvt_s32_f32(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcvt_s32_f32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vcvt_u32_f32(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcvt_u32_f32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ mov(r4, Operand(kMinInt));
+    __ mov(r5, Operand(kMaxInt));
+    __ vmov(d0, r4, r5);
+    __ mov(r4, Operand(kMaxUInt32));
+    __ mov(r5, Operand(kMinInt + 1));
+    __ vmov(d1, r4, r5);  // q0 = [kMinInt, kMaxInt, kMaxUInt32, kMinInt + 1]
+    __ vcvt_f32_s32(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcvt_f32_s32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vcvt_f32_u32(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcvt_f32_u32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vdup (integer).
+    __ mov(r4, Operand(0xa));
+    __ vdup(Neon8, q0, r4);
+    __ vdup(Neon16, q1, r4);
+    __ vdup(Neon32, q2, r4);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vdup8))));
+    __ vst1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vdup16))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vdup32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    // vdup (float).
+    __ vmov(s0, -1.0);
+    __ vdup(q0, s0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vdupf))));
+    __ vst1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+
+    // vabs (float).
+    __ vmov(s0, -1.0);
+    __ vmov(s1, -0.0);
+    __ vmov(s2, 0.0);
+    __ vmov(s3, 1.0);
+    __ vabs(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vabsf))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vneg (float).
+    __ vneg(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vnegf))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vabs (integer).
+    __ mov(r4, Operand(0x7f7f7f7f));
+    __ mov(r5, Operand(0x01010101));
+    __ vmov(d0, r4, r5);
+    __ mov(r4, Operand(0xffffffff));
+    __ mov(r5, Operand(0x80808080));
+    __ vmov(d1, r4, r5);
+    __ vabs(Neon8, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vabs_s8))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vabs(Neon16, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vabs_s16))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vabs(Neon32, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vabs_s32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vneg (integer).
+    __ vneg(Neon8, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vneg_s8))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vneg(Neon16, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vneg_s16))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vneg(Neon32, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vneg_s32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // veor.
+    __ mov(r4, Operand(0xaa));
+    __ vdup(Neon16, q0, r4);
+    __ mov(r4, Operand(0x55));
+    __ vdup(Neon16, q1, r4);
+    __ veor(q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, veor))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vand.
+    __ mov(r4, Operand(0xff));
+    __ vdup(Neon16, q0, r4);
+    __ mov(r4, Operand(0xfe));
+    __ vdup(Neon16, q1, r4);
+    __ vand(q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vand))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vorr.
+    __ mov(r4, Operand(0xaa));
+    __ vdup(Neon16, q0, r4);
+    __ mov(r4, Operand(0x55));
+    __ vdup(Neon16, q1, r4);
+    __ vorr(q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vorr))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vmin (float).
+    __ vmov(s4, 2.0);
+    __ vdup(q0, s4);
+    __ vmov(s4, 1.0);
+    __ vdup(q1, s4);
+    __ vmin(q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vminf))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vmax (float).
+    __ vmov(s4, 2.0);
+    __ vdup(q0, s4);
+    __ vmov(s4, 1.0);
+    __ vdup(q1, s4);
+    __ vmax(q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmaxf))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vadd (float).
+    __ vmov(s4, 1.0);
+    __ vdup(q0, s4);
+    __ vdup(q1, s4);
+    __ vadd(q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vaddf))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vsub (float).
+    __ vmov(s4, 2.0);
+    __ vdup(q0, s4);
+    __ vmov(s4, 1.0);
+    __ vdup(q1, s4);
+    __ vsub(q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vsubf))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vmul (float).
+    __ vmov(s4, 2.0);
+    __ vdup(q0, s4);
+    __ vdup(q1, s4);
+    __ vmul(q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmulf))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vrecpe.
+    __ vmov(s4, 2.0);
+    __ vdup(q0, s4);
+    __ vrecpe(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrecpe))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vrecps.
+    __ vmov(s4, 2.0);
+    __ vdup(q0, s4);
+    __ vmov(s4, 1.5);
+    __ vdup(q1, s4);
+    __ vrecps(q1, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrecps))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vrsqrte.
+    __ vmov(s4, 4.0);
+    __ vdup(q0, s4);
+    __ vrsqrte(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrsqrte))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vrsqrts.
+    __ vmov(s4, 2.0);
+    __ vdup(q0, s4);
+    __ vmov(s4, 2.5);
+    __ vdup(q1, s4);
+    __ vrsqrts(q1, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrsqrts))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vceq (float).
+    __ vmov(s4, 1.0);
+    __ vdup(q0, s4);
+    __ vdup(q1, s4);
+    __ vceq(q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vceqf))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vcge (float).
+    __ vmov(s0, 1.0);
+    __ vmov(s1, -1.0);
+    __ vmov(s2, -0.0);
+    __ vmov(s3, 0.0);
+    __ vdup(q1, s3);
+    __ vcge(q2, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcgef))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ vcgt(q2, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcgtf))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    // vmin/vmax integer.
+    __ mov(r4, Operand(0x03));
+    __ vdup(Neon16, q0, r4);
+    __ vdup(Neon8, q1, r4);
+    __ vmin(NeonS8, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmin_s8))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ vmax(NeonS8, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmax_s8))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ mov(r4, Operand(0xff));
+    __ vdup(Neon16, q0, r4);
+    __ vdup(Neon8, q1, r4);
+    __ vmin(NeonU16, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmin_u16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ vmax(NeonU16, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmax_u16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ mov(r4, Operand(0xff));
+    __ vdup(Neon32, q0, r4);
+    __ vdup(Neon8, q1, r4);
+    __ vmin(NeonS32, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmin_s32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ vmax(NeonS32, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmax_s32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    // vadd (integer).
+    __ mov(r4, Operand(0x81));
+    __ vdup(Neon8, q0, r4);
+    __ mov(r4, Operand(0x82));
+    __ vdup(Neon8, q1, r4);
+    __ vadd(Neon8, q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vadd8))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ mov(r4, Operand(0x8001));
+    __ vdup(Neon16, q0, r4);
+    __ mov(r4, Operand(0x8002));
+    __ vdup(Neon16, q1, r4);
+    __ vadd(Neon16, q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vadd16))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ mov(r4, Operand(0x80000001));
+    __ vdup(Neon32, q0, r4);
+    __ mov(r4, Operand(0x80000002));
+    __ vdup(Neon32, q1, r4);
+    __ vadd(Neon32, q1, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vadd32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vsub (integer).
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q0, r4);
+    __ mov(r4, Operand(0x03));
+    __ vdup(Neon8, q1, r4);
+    __ vsub(Neon8, q1, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vsub8))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ mov(r4, Operand(0x0001));
+    __ vdup(Neon16, q0, r4);
+    __ mov(r4, Operand(0x0003));
+    __ vdup(Neon16, q1, r4);
+    __ vsub(Neon16, q1, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vsub16))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ mov(r4, Operand(0x00000001));
+    __ vdup(Neon32, q0, r4);
+    __ mov(r4, Operand(0x00000003));
+    __ vdup(Neon32, q1, r4);
+    __ vsub(Neon32, q1, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vsub32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vmul (integer).
+    __ mov(r4, Operand(0x02));
+    __ vdup(Neon8, q0, r4);
+    __ vmul(Neon8, q1, q0, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmul8))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ mov(r4, Operand(0x0002));
+    __ vdup(Neon16, q0, r4);
+    __ vmul(Neon16, q1, q0, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmul16))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ mov(r4, Operand(0x00000002));
+    __ vdup(Neon32, q0, r4);
+    __ vmul(Neon32, q1, q0, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmul32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vceq.
+    __ mov(r4, Operand(0x03));
+    __ vdup(Neon8, q0, r4);
+    __ vdup(Neon16, q1, r4);
+    __ vceq(Neon8, q1, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vceq))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vcge/vcgt (integer).
+    __ mov(r4, Operand(0x03));
+    __ vdup(Neon16, q0, r4);
+    __ vdup(Neon8, q1, r4);
+    __ vcge(NeonS8, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcge_s8))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ vcgt(NeonS8, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcgt_s8))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ mov(r4, Operand(0xff));
+    __ vdup(Neon16, q0, r4);
+    __ vdup(Neon8, q1, r4);
+    __ vcge(NeonU16, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcge_u16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ vcgt(NeonU16, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcgt_u16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ mov(r4, Operand(0xff));
+    __ vdup(Neon32, q0, r4);
+    __ vdup(Neon8, q1, r4);
+    __ vcge(NeonS32, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcge_s32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ vcgt(NeonS32, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcgt_s32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    // vtst.
+    __ mov(r4, Operand(0x03));
+    __ vdup(Neon8, q0, r4);
+    __ mov(r4, Operand(0x02));
+    __ vdup(Neon16, q1, r4);
+    __ vtst(Neon8, q1, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vtst))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vbsl.
+    __ mov(r4, Operand(0x00ff));
+    __ vdup(Neon16, q0, r4);
+    __ mov(r4, Operand(0x01));
+    __ vdup(Neon8, q1, r4);
+    __ mov(r4, Operand(0x02));
+    __ vdup(Neon8, q2, r4);
+    __ vbsl(q0, q1, q2);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vbsl))));
+    __ vst1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+
+    // vext.
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, lane_test))));
+    __ vld1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+    __ vmov(q1, q0);
+    __ vext(q2, q0, q1, 3);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vext))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+
+    // vzip.
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, lane_test))));
+    __ vld1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+    __ vmov(q1, q0);
+    __ vzip(Neon8, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vzip8a))));
+    __ vst1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vzip8b))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, lane_test))));
+    __ vld1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+    __ vmov(q1, q0);
+    __ vzip(Neon16, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vzip16a))));
+    __ vst1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vzip16b))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, lane_test))));
+    __ vld1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+    __ vmov(q1, q0);
+    __ vzip(Neon32, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vzip32a))));
+    __ vst1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vzip32b))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vrev64/32/16
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, lane_test))));
+    __ vld1(Neon8, NeonListOperand(q0), NeonMemOperand(r4));
+    __ vrev64(Neon32, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrev64_32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vrev64(Neon16, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrev64_16))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vrev64(Neon8, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrev64_8))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vrev32(Neon16, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrev32_16))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vrev32(Neon8, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrev32_8))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vrev16(Neon8, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrev16_8))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vtb[l/x].
+    __ mov(r4, Operand(0x06040200));
+    __ mov(r5, Operand(0xff050301));
+    __ vmov(d2, r4, r5);  // d2 = ff05030106040200
+    __ vtbl(d0, NeonListOperand(d2, 1), d2);
+    __ vstr(d0, r0, offsetof(T, vtbl));
+    __ vtbx(d2, NeonListOperand(d2, 1), d2);
+    __ vstr(d2, r0, offsetof(T, vtbx));
+
+    // Restore and return.
+    __ ldm(ia_w, sp, r4.bit() | r5.bit() | pc.bit());
 
     CodeDesc desc;
     assm.GetCode(&desc);
@@ -1324,8 +1831,13 @@ TEST(15) {
     t.dstA5 = 0;
     t.dstA6 = 0;
     t.dstA7 = 0;
+    t.lane_test[0] = 0x03020100;
+    t.lane_test[1] = 0x07060504;
+    t.lane_test[2] = 0x0b0a0908;
+    t.lane_test[3] = 0x0f0e0d0c;
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
+
     CHECK_EQ(0x01020304u, t.dst0);
     CHECK_EQ(0x11121314u, t.dst1);
     CHECK_EQ(0x21222324u, t.dst2);
@@ -1342,9 +1854,117 @@ TEST(15) {
     CHECK_EQ(0x00410042u, t.dstA5);
     CHECK_EQ(0x00830084u, t.dstA6);
     CHECK_EQ(0x00810082u, t.dstA7);
+
+    CHECK_EQ(0xfffffff8fff8f800u, t.vmov_to_scalar1);
+    CHECK_EQ(0xfff80000f8000000u, t.vmov_to_scalar2);
+    CHECK_EQ(0xFFFFFFFFu, t.vmov_from_scalar_s8);
+    CHECK_EQ(0xFFu, t.vmov_from_scalar_u8);
+    CHECK_EQ(0xFFFFFFFFu, t.vmov_from_scalar_s16);
+    CHECK_EQ(0xFFFFu, t.vmov_from_scalar_u16);
+    CHECK_EQ(0xFFFFFFFFu, t.vmov_from_scalar_32);
+
+    CHECK_EQ_32X4(vmov, 0x03020100u, 0x07060504u, 0x0b0a0908u, 0x0f0e0d0cu);
+    CHECK_EQ_32X4(vmvn, 0xfcfdfeffu, 0xf8f9fafbu, 0xf4f5f6f7u, 0xf0f1f2f3u);
+
+    CHECK_EQ_SPLAT(vdup8, 0x0a0a0a0au);
+    CHECK_EQ_SPLAT(vdup16, 0x000a000au);
+    CHECK_EQ_SPLAT(vdup32, 0x0000000au);
+    CHECK_EQ_SPLAT(vdupf, -1.0);
+
+    // src: [-1, -1, 1, 1]
+    CHECK_EQ_32X4(vcvt_s32_f32, -1, -1, 1, 1);
+    CHECK_EQ_32X4(vcvt_u32_f32, 0u, 0u, 1u, 1u);
+    // src: [kMinInt, kMaxInt, kMaxUInt32, kMinInt + 1]
+    CHECK_EQ_32X4(vcvt_f32_s32, INT32_TO_FLOAT(kMinInt),
+                  INT32_TO_FLOAT(kMaxInt), INT32_TO_FLOAT(kMaxUInt32),
+                  INT32_TO_FLOAT(kMinInt + 1));
+    CHECK_EQ_32X4(vcvt_f32_u32, UINT32_TO_FLOAT(kMinInt),
+                  UINT32_TO_FLOAT(kMaxInt), UINT32_TO_FLOAT(kMaxUInt32),
+                  UINT32_TO_FLOAT(kMinInt + 1));
+
+    CHECK_EQ_32X4(vabsf, 1.0, 0.0, 0.0, 1.0);
+    CHECK_EQ_32X4(vnegf, 1.0, 0.0, -0.0, -1.0);
+    // src: [0x7f7f7f7f, 0x01010101, 0xffffffff, 0x80808080]
+    CHECK_EQ_32X4(vabs_s8, 0x7f7f7f7fu, 0x01010101u, 0x01010101u, 0x80808080u);
+    CHECK_EQ_32X4(vabs_s16, 0x7f7f7f7fu, 0x01010101u, 0x00010001u, 0x7f807f80u);
+    CHECK_EQ_32X4(vabs_s32, 0x7f7f7f7fu, 0x01010101u, 0x00000001u, 0x7f7f7f80u);
+    CHECK_EQ_32X4(vneg_s8, 0x81818181u, 0xffffffffu, 0x01010101u, 0x80808080u);
+    CHECK_EQ_32X4(vneg_s16, 0x80818081u, 0xfefffeffu, 0x00010001u, 0x7f807f80u);
+    CHECK_EQ_32X4(vneg_s32, 0x80808081u, 0xfefefeffu, 0x00000001u, 0x7f7f7f80u);
+
+    CHECK_EQ_SPLAT(veor, 0x00ff00ffu);
+    CHECK_EQ_SPLAT(vand, 0x00fe00feu);
+    CHECK_EQ_SPLAT(vorr, 0x00ff00ffu);
+    CHECK_EQ_SPLAT(vaddf, 2.0);
+    CHECK_EQ_SPLAT(vminf, 1.0);
+    CHECK_EQ_SPLAT(vmaxf, 2.0);
+    CHECK_EQ_SPLAT(vsubf, -1.0);
+    CHECK_EQ_SPLAT(vmulf, 4.0);
+    CHECK_ESTIMATE_SPLAT(vrecpe, 0.5f, 0.1f);  // 1 / 2
+    CHECK_EQ_SPLAT(vrecps, -1.0f);   // 2 - (2 * 1.5)
+    CHECK_ESTIMATE_SPLAT(vrsqrte, 0.5f, 0.1f);  // 1 / sqrt(4)
+    CHECK_EQ_SPLAT(vrsqrts, -1.0f);  // (3 - (2 * 2.5)) / 2
+    CHECK_EQ_SPLAT(vceqf, 0xffffffffu);
+    // [0] >= [-1, 1, -0, 0]
+    CHECK_EQ_32X4(vcgef, 0u, 0xffffffffu, 0xffffffffu, 0xffffffffu);
+    CHECK_EQ_32X4(vcgtf, 0u, 0xffffffffu, 0u, 0u);
+    // [0, 3, 0, 3, ...] and [3, 3, 3, 3, ...]
+    CHECK_EQ_SPLAT(vmin_s8, 0x00030003u);
+    CHECK_EQ_SPLAT(vmax_s8, 0x03030303u);
+    // [0x00ff, 0x00ff, ...] and [0xffff, 0xffff, ...]
+    CHECK_EQ_SPLAT(vmin_u16, 0x00ff00ffu);
+    CHECK_EQ_SPLAT(vmax_u16, 0xffffffffu);
+    // [0x000000ff, 0x000000ff, ...] and [0xffffffff, 0xffffffff, ...]
+    CHECK_EQ_SPLAT(vmin_s32, 0xffffffffu);
+    CHECK_EQ_SPLAT(vmax_s32, 0xffu);
+    CHECK_EQ_SPLAT(vadd8, 0x03030303u);
+    CHECK_EQ_SPLAT(vadd16, 0x00030003u);
+    CHECK_EQ_SPLAT(vadd32, 0x00000003u);
+    CHECK_EQ_SPLAT(vsub8, 0xfefefefeu);
+    CHECK_EQ_SPLAT(vsub16, 0xfffefffeu);
+    CHECK_EQ_SPLAT(vsub32, 0xfffffffeu);
+    CHECK_EQ_SPLAT(vmul8, 0x04040404u);
+    CHECK_EQ_SPLAT(vmul16, 0x00040004u);
+    CHECK_EQ_SPLAT(vmul32, 0x00000004u);
+    CHECK_EQ_SPLAT(vceq, 0x00ff00ffu);
+    // [0, 3, 0, 3, ...] >= [3, 3, 3, 3, ...]
+    CHECK_EQ_SPLAT(vcge_s8, 0x00ff00ffu);
+    CHECK_EQ_SPLAT(vcgt_s8, 0u);
+    // [0x00ff, 0x00ff, ...] >= [0xffff, 0xffff, ...]
+    CHECK_EQ_SPLAT(vcge_u16, 0u);
+    CHECK_EQ_SPLAT(vcgt_u16, 0u);
+    // [0x000000ff, 0x000000ff, ...] >= [0xffffffff, 0xffffffff, ...]
+    CHECK_EQ_SPLAT(vcge_s32, 0xffffffffu);
+    CHECK_EQ_SPLAT(vcgt_s32, 0xffffffffu);
+    CHECK_EQ_SPLAT(vtst, 0x00ff00ffu);
+    CHECK_EQ_SPLAT(vbsl, 0x02010201u);
+
+    CHECK_EQ_32X4(vext, 0x06050403u, 0x0a090807u, 0x0e0d0c0bu, 0x0201000fu);
+
+    CHECK_EQ_32X4(vzip8a, 0x01010000u, 0x03030202u, 0x05050404u, 0x07070606u);
+    CHECK_EQ_32X4(vzip8b, 0x09090808u, 0x0b0b0a0au, 0x0d0d0c0cu, 0x0f0f0e0eu);
+    CHECK_EQ_32X4(vzip16a, 0x01000100u, 0x03020302u, 0x05040504u, 0x07060706u);
+    CHECK_EQ_32X4(vzip16b, 0x09080908u, 0x0b0a0b0au, 0x0d0c0d0cu, 0x0f0e0f0eu);
+    CHECK_EQ_32X4(vzip32a, 0x03020100u, 0x03020100u, 0x07060504u, 0x07060504u);
+    CHECK_EQ_32X4(vzip32b, 0x0b0a0908u, 0x0b0a0908u, 0x0f0e0d0cu, 0x0f0e0d0cu);
+
+    // src: 0 1 2 3  4 5 6 7  8 9 a b  c d e f (little endian)
+    CHECK_EQ_32X4(vrev64_32, 0x07060504u, 0x03020100u, 0x0f0e0d0cu,
+                  0x0b0a0908u);
+    CHECK_EQ_32X4(vrev64_16, 0x05040706u, 0x01000302u, 0x0d0c0f0eu,
+                  0x09080b0au);
+    CHECK_EQ_32X4(vrev64_8, 0x04050607u, 0x00010203u, 0x0c0d0e0fu, 0x08090a0bu);
+    CHECK_EQ_32X4(vrev32_16, 0x01000302u, 0x05040706u, 0x09080b0au,
+                  0x0d0c0f0eu);
+    CHECK_EQ_32X4(vrev32_8, 0x00010203u, 0x04050607u, 0x08090a0bu, 0x0c0d0e0fu);
+    CHECK_EQ_32X4(vrev16_8, 0x02030001u, 0x06070405u, 0x0a0b0809u, 0x0e0f0c0du);
+
+    CHECK_EQ(0x05010400u, t.vtbl[0]);
+    CHECK_EQ(0x00030602u, t.vtbl[1]);
+    CHECK_EQ(0x05010400u, t.vtbx[0]);
+    CHECK_EQ(0xff030602u, t.vtbx[1]);
   }
 }
-
 
 TEST(16) {
   // Test the pkh, uxtb, uxtab and uxtb16 instructions.
@@ -1818,13 +2438,11 @@ TEST(uxtah) {
   }
 }
 
-
 #define TEST_RBIT(expected_, input_)                       \
   t.input = input_;                                        \
   t.result = 0;                                            \
   dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0); \
-  CHECK_EQ(expected_, t.result);
-
+  CHECK_EQ(static_cast<uint32_t>(expected_), t.result);
 
 TEST(rbit) {
   CcTest::InitializeVM();
@@ -1939,6 +2557,78 @@ TEST(code_relative_offset) {
   CHECK_EQ(42, res);
 }
 
+TEST(msr_mrs) {
+  // Test msr and mrs.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  // Create a helper function:
+  //  void TestMsrMrs(uint32_t nzcv,
+  //                  uint32_t * result_conditionals,
+  //                  uint32_t * result_mrs);
+  __ msr(CPSR_f, Operand(r0));
+
+  // Test that the condition flags have taken effect.
+  __ mov(r3, Operand(0));
+  __ orr(r3, r3, Operand(1 << 31), LeaveCC, mi);  // N
+  __ orr(r3, r3, Operand(1 << 30), LeaveCC, eq);  // Z
+  __ orr(r3, r3, Operand(1 << 29), LeaveCC, cs);  // C
+  __ orr(r3, r3, Operand(1 << 28), LeaveCC, vs);  // V
+  __ str(r3, MemOperand(r1));
+
+  // Also check mrs, ignoring everything other than the flags.
+  __ mrs(r3, CPSR);
+  __ and_(r3, r3, Operand(kSpecialCondition));
+  __ str(r3, MemOperand(r2));
+
+  __ bx(lr);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F5 f = FUNCTION_CAST<F5>(code->entry());
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#define CHECK_MSR_MRS(n, z, c, v)                                       \
+  do {                                                                  \
+    uint32_t nzcv = (n << 31) | (z << 30) | (c << 29) | (v << 28);      \
+    uint32_t result_conditionals = -1;                                  \
+    uint32_t result_mrs = -1;                                           \
+    dummy = CALL_GENERATED_CODE(isolate, f, nzcv, &result_conditionals, \
+                                &result_mrs, 0, 0);                     \
+    CHECK_EQ(nzcv, result_conditionals);                                \
+    CHECK_EQ(nzcv, result_mrs);                                         \
+  } while (0);
+
+  //            N  Z  C  V
+  CHECK_MSR_MRS(0, 0, 0, 0);
+  CHECK_MSR_MRS(0, 0, 0, 1);
+  CHECK_MSR_MRS(0, 0, 1, 0);
+  CHECK_MSR_MRS(0, 0, 1, 1);
+  CHECK_MSR_MRS(0, 1, 0, 0);
+  CHECK_MSR_MRS(0, 1, 0, 1);
+  CHECK_MSR_MRS(0, 1, 1, 0);
+  CHECK_MSR_MRS(0, 1, 1, 1);
+  CHECK_MSR_MRS(1, 0, 0, 0);
+  CHECK_MSR_MRS(1, 0, 0, 1);
+  CHECK_MSR_MRS(1, 0, 1, 0);
+  CHECK_MSR_MRS(1, 0, 1, 1);
+  CHECK_MSR_MRS(1, 1, 0, 0);
+  CHECK_MSR_MRS(1, 1, 0, 1);
+  CHECK_MSR_MRS(1, 1, 1, 0);
+  CHECK_MSR_MRS(1, 1, 1, 1);
+
+#undef CHECK_MSR_MRS
+}
 
 TEST(ARMv8_float32_vrintX) {
   // Test the vrintX floating point instructions.
@@ -2149,6 +2839,753 @@ TEST(ARMv8_vrintX) {
   }
 }
 
+TEST(ARMv8_vsel) {
+  // Test the vsel floating point instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  // Used to indicate whether a condition passed or failed.
+  static constexpr float kResultPass = 1.0f;
+  static constexpr float kResultFail = -kResultPass;
+
+  struct ResultsF32 {
+    float vseleq_;
+    float vselge_;
+    float vselgt_;
+    float vselvs_;
+
+    // The following conditions aren't architecturally supported, but the
+    // assembler implements them by swapping the inputs.
+    float vselne_;
+    float vsellt_;
+    float vselle_;
+    float vselvc_;
+  };
+
+  struct ResultsF64 {
+    double vseleq_;
+    double vselge_;
+    double vselgt_;
+    double vselvs_;
+
+    // The following conditions aren't architecturally supported, but the
+    // assembler implements them by swapping the inputs.
+    double vselne_;
+    double vsellt_;
+    double vselle_;
+    double vselvc_;
+  };
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
+
+    // Create a helper function:
+    //  void TestVsel(uint32_t nzcv,
+    //                ResultsF32* results_f32,
+    //                ResultsF64* results_f64);
+    __ msr(CPSR_f, Operand(r0));
+
+    __ vmov(s1, kResultPass);
+    __ vmov(s2, kResultFail);
+
+    __ vsel(eq, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vseleq_));
+    __ vsel(ge, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselge_));
+    __ vsel(gt, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselgt_));
+    __ vsel(vs, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselvs_));
+
+    __ vsel(ne, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselne_));
+    __ vsel(lt, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vsellt_));
+    __ vsel(le, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselle_));
+    __ vsel(vc, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselvc_));
+
+    __ vmov(d1, kResultPass);
+    __ vmov(d2, kResultFail);
+
+    __ vsel(eq, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vseleq_));
+    __ vsel(ge, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselge_));
+    __ vsel(gt, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselgt_));
+    __ vsel(vs, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselvs_));
+
+    __ vsel(ne, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselne_));
+    __ vsel(lt, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vsellt_));
+    __ vsel(le, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselle_));
+    __ vsel(vc, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselvc_));
+
+    __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F5 f = FUNCTION_CAST<F5>(code->entry());
+    Object* dummy = nullptr;
+    USE(dummy);
+
+    STATIC_ASSERT(kResultPass == -kResultFail);
+#define CHECK_VSEL(n, z, c, v, vseleq, vselge, vselgt, vselvs)                \
+  do {                                                                        \
+    ResultsF32 results_f32;                                                   \
+    ResultsF64 results_f64;                                                   \
+    uint32_t nzcv = (n << 31) | (z << 30) | (c << 29) | (v << 28);            \
+    dummy = CALL_GENERATED_CODE(isolate, f, nzcv, &results_f32, &results_f64, \
+                                0, 0);                                        \
+    CHECK_EQ(vseleq, results_f32.vseleq_);                                    \
+    CHECK_EQ(vselge, results_f32.vselge_);                                    \
+    CHECK_EQ(vselgt, results_f32.vselgt_);                                    \
+    CHECK_EQ(vselvs, results_f32.vselvs_);                                    \
+    CHECK_EQ(-vseleq, results_f32.vselne_);                                   \
+    CHECK_EQ(-vselge, results_f32.vsellt_);                                   \
+    CHECK_EQ(-vselgt, results_f32.vselle_);                                   \
+    CHECK_EQ(-vselvs, results_f32.vselvc_);                                   \
+    CHECK_EQ(vseleq, results_f64.vseleq_);                                    \
+    CHECK_EQ(vselge, results_f64.vselge_);                                    \
+    CHECK_EQ(vselgt, results_f64.vselgt_);                                    \
+    CHECK_EQ(vselvs, results_f64.vselvs_);                                    \
+    CHECK_EQ(-vseleq, results_f64.vselne_);                                   \
+    CHECK_EQ(-vselge, results_f64.vsellt_);                                   \
+    CHECK_EQ(-vselgt, results_f64.vselle_);                                   \
+    CHECK_EQ(-vselvs, results_f64.vselvc_);                                   \
+  } while (0);
+
+    //         N  Z  C  V  vseleq       vselge       vselgt       vselvs
+    CHECK_VSEL(0, 0, 0, 0, kResultFail, kResultPass, kResultPass, kResultFail);
+    CHECK_VSEL(0, 0, 0, 1, kResultFail, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(0, 0, 1, 0, kResultFail, kResultPass, kResultPass, kResultFail);
+    CHECK_VSEL(0, 0, 1, 1, kResultFail, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(0, 1, 0, 0, kResultPass, kResultPass, kResultFail, kResultFail);
+    CHECK_VSEL(0, 1, 0, 1, kResultPass, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(0, 1, 1, 0, kResultPass, kResultPass, kResultFail, kResultFail);
+    CHECK_VSEL(0, 1, 1, 1, kResultPass, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(1, 0, 0, 0, kResultFail, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 0, 0, 1, kResultFail, kResultPass, kResultPass, kResultPass);
+    CHECK_VSEL(1, 0, 1, 0, kResultFail, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 0, 1, 1, kResultFail, kResultPass, kResultPass, kResultPass);
+    CHECK_VSEL(1, 1, 0, 0, kResultPass, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 1, 0, 1, kResultPass, kResultPass, kResultFail, kResultPass);
+    CHECK_VSEL(1, 1, 1, 0, kResultPass, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 1, 1, 1, kResultPass, kResultPass, kResultFail, kResultPass);
+
+#undef CHECK_VSEL
+  }
+}
+
+TEST(ARMv8_vminmax_f64) {
+  // Test the vminnm and vmaxnm floating point instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  struct Inputs {
+    double left_;
+    double right_;
+  };
+
+  struct Results {
+    double vminnm_;
+    double vmaxnm_;
+  };
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
+
+    // Create a helper function:
+    //  void TestVminmax(const Inputs* inputs,
+    //                   Results* results);
+    __ vldr(d1, r0, offsetof(Inputs, left_));
+    __ vldr(d2, r0, offsetof(Inputs, right_));
+
+    __ vminnm(d0, d1, d2);
+    __ vstr(d0, r1, offsetof(Results, vminnm_));
+    __ vmaxnm(d0, d1, d2);
+    __ vstr(d0, r1, offsetof(Results, vmaxnm_));
+
+    __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F4 f = FUNCTION_CAST<F4>(code->entry());
+    Object* dummy = nullptr;
+    USE(dummy);
+
+#define CHECK_VMINMAX(left, right, vminnm, vmaxnm)                             \
+  do {                                                                         \
+    Inputs inputs = {left, right};                                             \
+    Results results;                                                           \
+    dummy = CALL_GENERATED_CODE(isolate, f, &inputs, &results, 0, 0, 0);       \
+    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                  \
+    CHECK_EQ(bit_cast<uint64_t>(vminnm), bit_cast<uint64_t>(results.vminnm_)); \
+    CHECK_EQ(bit_cast<uint64_t>(vmaxnm), bit_cast<uint64_t>(results.vmaxnm_)); \
+  } while (0);
+
+    double nan_a = bit_cast<double>(UINT64_C(0x7ff8000000000001));
+    double nan_b = bit_cast<double>(UINT64_C(0x7ff8000000000002));
+
+    CHECK_VMINMAX(1.0, -1.0, -1.0, 1.0);
+    CHECK_VMINMAX(-1.0, 1.0, -1.0, 1.0);
+    CHECK_VMINMAX(0.0, -1.0, -1.0, 0.0);
+    CHECK_VMINMAX(-1.0, 0.0, -1.0, 0.0);
+    CHECK_VMINMAX(-0.0, -1.0, -1.0, -0.0);
+    CHECK_VMINMAX(-1.0, -0.0, -1.0, -0.0);
+    CHECK_VMINMAX(0.0, 1.0, 0.0, 1.0);
+    CHECK_VMINMAX(1.0, 0.0, 0.0, 1.0);
+
+    CHECK_VMINMAX(0.0, 0.0, 0.0, 0.0);
+    CHECK_VMINMAX(-0.0, -0.0, -0.0, -0.0);
+    CHECK_VMINMAX(-0.0, 0.0, -0.0, 0.0);
+    CHECK_VMINMAX(0.0, -0.0, -0.0, 0.0);
+
+    CHECK_VMINMAX(0.0, nan_a, 0.0, 0.0);
+    CHECK_VMINMAX(nan_a, 0.0, 0.0, 0.0);
+    CHECK_VMINMAX(nan_a, nan_b, nan_a, nan_a);
+    CHECK_VMINMAX(nan_b, nan_a, nan_b, nan_b);
+
+#undef CHECK_VMINMAX
+  }
+}
+
+TEST(ARMv8_vminmax_f32) {
+  // Test the vminnm and vmaxnm floating point instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  struct Inputs {
+    float left_;
+    float right_;
+  };
+
+  struct Results {
+    float vminnm_;
+    float vmaxnm_;
+  };
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
+
+    // Create a helper function:
+    //  void TestVminmax(const Inputs* inputs,
+    //                   Results* results);
+    __ vldr(s1, r0, offsetof(Inputs, left_));
+    __ vldr(s2, r0, offsetof(Inputs, right_));
+
+    __ vminnm(s0, s1, s2);
+    __ vstr(s0, r1, offsetof(Results, vminnm_));
+    __ vmaxnm(s0, s1, s2);
+    __ vstr(s0, r1, offsetof(Results, vmaxnm_));
+
+    __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F4 f = FUNCTION_CAST<F4>(code->entry());
+    Object* dummy = nullptr;
+    USE(dummy);
+
+#define CHECK_VMINMAX(left, right, vminnm, vmaxnm)                             \
+  do {                                                                         \
+    Inputs inputs = {left, right};                                             \
+    Results results;                                                           \
+    dummy = CALL_GENERATED_CODE(isolate, f, &inputs, &results, 0, 0, 0);       \
+    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                  \
+    CHECK_EQ(bit_cast<uint32_t>(vminnm), bit_cast<uint32_t>(results.vminnm_)); \
+    CHECK_EQ(bit_cast<uint32_t>(vmaxnm), bit_cast<uint32_t>(results.vmaxnm_)); \
+  } while (0);
+
+    float nan_a = bit_cast<float>(UINT32_C(0x7fc00001));
+    float nan_b = bit_cast<float>(UINT32_C(0x7fc00002));
+
+    CHECK_VMINMAX(1.0f, -1.0f, -1.0f, 1.0f);
+    CHECK_VMINMAX(-1.0f, 1.0f, -1.0f, 1.0f);
+    CHECK_VMINMAX(0.0f, -1.0f, -1.0f, 0.0f);
+    CHECK_VMINMAX(-1.0f, 0.0f, -1.0f, 0.0f);
+    CHECK_VMINMAX(-0.0f, -1.0f, -1.0f, -0.0f);
+    CHECK_VMINMAX(-1.0f, -0.0f, -1.0f, -0.0f);
+    CHECK_VMINMAX(0.0f, 1.0f, 0.0f, 1.0f);
+    CHECK_VMINMAX(1.0f, 0.0f, 0.0f, 1.0f);
+
+    CHECK_VMINMAX(0.0f, 0.0f, 0.0f, 0.0f);
+    CHECK_VMINMAX(-0.0f, -0.0f, -0.0f, -0.0f);
+    CHECK_VMINMAX(-0.0f, 0.0f, -0.0f, 0.0f);
+    CHECK_VMINMAX(0.0f, -0.0f, -0.0f, 0.0f);
+
+    CHECK_VMINMAX(0.0f, nan_a, 0.0f, 0.0f);
+    CHECK_VMINMAX(nan_a, 0.0f, 0.0f, 0.0f);
+    CHECK_VMINMAX(nan_a, nan_b, nan_a, nan_a);
+    CHECK_VMINMAX(nan_b, nan_a, nan_b, nan_b);
+
+#undef CHECK_VMINMAX
+  }
+}
+
+template <typename T, typename Inputs, typename Results>
+static F4 GenerateMacroFloatMinMax(MacroAssembler& assm) {
+  T a = T::from_code(0);  // d0/s0
+  T b = T::from_code(1);  // d1/s1
+  T c = T::from_code(2);  // d2/s2
+
+  // Create a helper function:
+  //  void TestFloatMinMax(const Inputs* inputs,
+  //                       Results* results);
+  Label ool_min_abc, ool_min_aab, ool_min_aba;
+  Label ool_max_abc, ool_max_aab, ool_max_aba;
+
+  Label done_min_abc, done_min_aab, done_min_aba;
+  Label done_max_abc, done_max_aab, done_max_aba;
+
+  // a = min(b, c);
+  __ vldr(b, r0, offsetof(Inputs, left_));
+  __ vldr(c, r0, offsetof(Inputs, right_));
+  __ FloatMin(a, b, c, &ool_min_abc);
+  __ bind(&done_min_abc);
+  __ vstr(a, r1, offsetof(Results, min_abc_));
+
+  // a = min(a, b);
+  __ vldr(a, r0, offsetof(Inputs, left_));
+  __ vldr(b, r0, offsetof(Inputs, right_));
+  __ FloatMin(a, a, b, &ool_min_aab);
+  __ bind(&done_min_aab);
+  __ vstr(a, r1, offsetof(Results, min_aab_));
+
+  // a = min(b, a);
+  __ vldr(b, r0, offsetof(Inputs, left_));
+  __ vldr(a, r0, offsetof(Inputs, right_));
+  __ FloatMin(a, b, a, &ool_min_aba);
+  __ bind(&done_min_aba);
+  __ vstr(a, r1, offsetof(Results, min_aba_));
+
+  // a = max(b, c);
+  __ vldr(b, r0, offsetof(Inputs, left_));
+  __ vldr(c, r0, offsetof(Inputs, right_));
+  __ FloatMax(a, b, c, &ool_max_abc);
+  __ bind(&done_max_abc);
+  __ vstr(a, r1, offsetof(Results, max_abc_));
+
+  // a = max(a, b);
+  __ vldr(a, r0, offsetof(Inputs, left_));
+  __ vldr(b, r0, offsetof(Inputs, right_));
+  __ FloatMax(a, a, b, &ool_max_aab);
+  __ bind(&done_max_aab);
+  __ vstr(a, r1, offsetof(Results, max_aab_));
+
+  // a = max(b, a);
+  __ vldr(b, r0, offsetof(Inputs, left_));
+  __ vldr(a, r0, offsetof(Inputs, right_));
+  __ FloatMax(a, b, a, &ool_max_aba);
+  __ bind(&done_max_aba);
+  __ vstr(a, r1, offsetof(Results, max_aba_));
+
+  __ bx(lr);
+
+  // Generate out-of-line cases.
+  __ bind(&ool_min_abc);
+  __ FloatMinOutOfLine(a, b, c);
+  __ b(&done_min_abc);
+
+  __ bind(&ool_min_aab);
+  __ FloatMinOutOfLine(a, a, b);
+  __ b(&done_min_aab);
+
+  __ bind(&ool_min_aba);
+  __ FloatMinOutOfLine(a, b, a);
+  __ b(&done_min_aba);
+
+  __ bind(&ool_max_abc);
+  __ FloatMaxOutOfLine(a, b, c);
+  __ b(&done_max_abc);
+
+  __ bind(&ool_max_aab);
+  __ FloatMaxOutOfLine(a, a, b);
+  __ b(&done_max_aab);
+
+  __ bind(&ool_max_aba);
+  __ FloatMaxOutOfLine(a, b, a);
+  __ b(&done_max_aba);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = assm.isolate()->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  return FUNCTION_CAST<F4>(code->entry());
+}
+
+TEST(macro_float_minmax_f64) {
+  // Test the FloatMin and FloatMax macros.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, CodeObjectRequired::kYes);
+
+  struct Inputs {
+    double left_;
+    double right_;
+  };
+
+  struct Results {
+    // Check all register aliasing possibilities in order to exercise all
+    // code-paths in the macro assembler.
+    double min_abc_;
+    double min_aab_;
+    double min_aba_;
+    double max_abc_;
+    double max_aab_;
+    double max_aba_;
+  };
+
+  F4 f = GenerateMacroFloatMinMax<DwVfpRegister, Inputs, Results>(assm);
+
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#define CHECK_MINMAX(left, right, min, max)                                  \
+  do {                                                                       \
+    Inputs inputs = {left, right};                                           \
+    Results results;                                                         \
+    dummy = CALL_GENERATED_CODE(isolate, f, &inputs, &results, 0, 0, 0);     \
+    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                \
+    CHECK_EQ(bit_cast<uint64_t>(min), bit_cast<uint64_t>(results.min_abc_)); \
+    CHECK_EQ(bit_cast<uint64_t>(min), bit_cast<uint64_t>(results.min_aab_)); \
+    CHECK_EQ(bit_cast<uint64_t>(min), bit_cast<uint64_t>(results.min_aba_)); \
+    CHECK_EQ(bit_cast<uint64_t>(max), bit_cast<uint64_t>(results.max_abc_)); \
+    CHECK_EQ(bit_cast<uint64_t>(max), bit_cast<uint64_t>(results.max_aab_)); \
+    CHECK_EQ(bit_cast<uint64_t>(max), bit_cast<uint64_t>(results.max_aba_)); \
+  } while (0)
+
+  double nan_a = bit_cast<double>(UINT64_C(0x7ff8000000000001));
+  double nan_b = bit_cast<double>(UINT64_C(0x7ff8000000000002));
+
+  CHECK_MINMAX(1.0, -1.0, -1.0, 1.0);
+  CHECK_MINMAX(-1.0, 1.0, -1.0, 1.0);
+  CHECK_MINMAX(0.0, -1.0, -1.0, 0.0);
+  CHECK_MINMAX(-1.0, 0.0, -1.0, 0.0);
+  CHECK_MINMAX(-0.0, -1.0, -1.0, -0.0);
+  CHECK_MINMAX(-1.0, -0.0, -1.0, -0.0);
+  CHECK_MINMAX(0.0, 1.0, 0.0, 1.0);
+  CHECK_MINMAX(1.0, 0.0, 0.0, 1.0);
+
+  CHECK_MINMAX(0.0, 0.0, 0.0, 0.0);
+  CHECK_MINMAX(-0.0, -0.0, -0.0, -0.0);
+  CHECK_MINMAX(-0.0, 0.0, -0.0, 0.0);
+  CHECK_MINMAX(0.0, -0.0, -0.0, 0.0);
+
+  CHECK_MINMAX(0.0, nan_a, nan_a, nan_a);
+  CHECK_MINMAX(nan_a, 0.0, nan_a, nan_a);
+  CHECK_MINMAX(nan_a, nan_b, nan_a, nan_a);
+  CHECK_MINMAX(nan_b, nan_a, nan_b, nan_b);
+
+#undef CHECK_MINMAX
+}
+
+TEST(macro_float_minmax_f32) {
+  // Test the FloatMin and FloatMax macros.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, CodeObjectRequired::kYes);
+
+  struct Inputs {
+    float left_;
+    float right_;
+  };
+
+  struct Results {
+    // Check all register aliasing possibilities in order to exercise all
+    // code-paths in the macro assembler.
+    float min_abc_;
+    float min_aab_;
+    float min_aba_;
+    float max_abc_;
+    float max_aab_;
+    float max_aba_;
+  };
+
+  F4 f = GenerateMacroFloatMinMax<SwVfpRegister, Inputs, Results>(assm);
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#define CHECK_MINMAX(left, right, min, max)                                  \
+  do {                                                                       \
+    Inputs inputs = {left, right};                                           \
+    Results results;                                                         \
+    dummy = CALL_GENERATED_CODE(isolate, f, &inputs, &results, 0, 0, 0);     \
+    /* Use a bit_cast to correctly identify -0.0 and NaNs. */                \
+    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_abc_)); \
+    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aab_)); \
+    CHECK_EQ(bit_cast<uint32_t>(min), bit_cast<uint32_t>(results.min_aba_)); \
+    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_abc_)); \
+    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_aab_)); \
+    CHECK_EQ(bit_cast<uint32_t>(max), bit_cast<uint32_t>(results.max_aba_)); \
+  } while (0)
+
+  float nan_a = bit_cast<float>(UINT32_C(0x7fc00001));
+  float nan_b = bit_cast<float>(UINT32_C(0x7fc00002));
+
+  CHECK_MINMAX(1.0f, -1.0f, -1.0f, 1.0f);
+  CHECK_MINMAX(-1.0f, 1.0f, -1.0f, 1.0f);
+  CHECK_MINMAX(0.0f, -1.0f, -1.0f, 0.0f);
+  CHECK_MINMAX(-1.0f, 0.0f, -1.0f, 0.0f);
+  CHECK_MINMAX(-0.0f, -1.0f, -1.0f, -0.0f);
+  CHECK_MINMAX(-1.0f, -0.0f, -1.0f, -0.0f);
+  CHECK_MINMAX(0.0f, 1.0f, 0.0f, 1.0f);
+  CHECK_MINMAX(1.0f, 0.0f, 0.0f, 1.0f);
+
+  CHECK_MINMAX(0.0f, 0.0f, 0.0f, 0.0f);
+  CHECK_MINMAX(-0.0f, -0.0f, -0.0f, -0.0f);
+  CHECK_MINMAX(-0.0f, 0.0f, -0.0f, 0.0f);
+  CHECK_MINMAX(0.0f, -0.0f, -0.0f, 0.0f);
+
+  CHECK_MINMAX(0.0f, nan_a, nan_a, nan_a);
+  CHECK_MINMAX(nan_a, 0.0f, nan_a, nan_a);
+  CHECK_MINMAX(nan_a, nan_b, nan_a, nan_a);
+  CHECK_MINMAX(nan_b, nan_a, nan_b, nan_b);
+
+#undef CHECK_MINMAX
+}
+
+TEST(unaligned_loads) {
+  // All supported ARM targets allow unaligned accesses.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint32_t ldrh;
+    uint32_t ldrsh;
+    uint32_t ldr;
+  } T;
+  T t;
+
+  Assembler assm(isolate, NULL, 0);
+  __ ldrh(ip, MemOperand(r1, r2));
+  __ str(ip, MemOperand(r0, offsetof(T, ldrh)));
+  __ ldrsh(ip, MemOperand(r1, r2));
+  __ str(ip, MemOperand(r0, offsetof(T, ldrsh)));
+  __ ldr(ip, MemOperand(r1, r2));
+  __ str(ip, MemOperand(r0, offsetof(T, ldr)));
+  __ bx(lr);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#ifndef V8_TARGET_LITTLE_ENDIAN
+#error This test assumes a little-endian layout.
+#endif
+  uint64_t data = UINT64_C(0x84838281807f7e7d);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 0, 0, 0);
+  CHECK_EQ(0x00007e7du, t.ldrh);
+  CHECK_EQ(0x00007e7du, t.ldrsh);
+  CHECK_EQ(0x807f7e7du, t.ldr);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 1, 0, 0);
+  CHECK_EQ(0x00007f7eu, t.ldrh);
+  CHECK_EQ(0x00007f7eu, t.ldrsh);
+  CHECK_EQ(0x81807f7eu, t.ldr);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 2, 0, 0);
+  CHECK_EQ(0x0000807fu, t.ldrh);
+  CHECK_EQ(0xffff807fu, t.ldrsh);
+  CHECK_EQ(0x8281807fu, t.ldr);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 3, 0, 0);
+  CHECK_EQ(0x00008180u, t.ldrh);
+  CHECK_EQ(0xffff8180u, t.ldrsh);
+  CHECK_EQ(0x83828180u, t.ldr);
+}
+
+TEST(unaligned_stores) {
+  // All supported ARM targets allow unaligned accesses.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+  __ strh(r3, MemOperand(r0, r2));
+  __ str(r3, MemOperand(r1, r2));
+  __ bx(lr);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#ifndef V8_TARGET_LITTLE_ENDIAN
+#error This test assumes a little-endian layout.
+#endif
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 0, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x000000000000ba98), strh);
+    CHECK_EQ(UINT64_C(0x00000000fedcba98), str);
+  }
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 1, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x0000000000ba9800), strh);
+    CHECK_EQ(UINT64_C(0x000000fedcba9800), str);
+  }
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 2, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x00000000ba980000), strh);
+    CHECK_EQ(UINT64_C(0x0000fedcba980000), str);
+  }
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 3, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x000000ba98000000), strh);
+    CHECK_EQ(UINT64_C(0x00fedcba98000000), str);
+  }
+}
+
+TEST(vswp) {
+  if (!CpuFeatures::IsSupported(NEON)) return;
+
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(isolate, NULL, 0);
+
+  typedef struct {
+    uint64_t vswp_d0;
+    uint64_t vswp_d1;
+    uint64_t vswp_d30;
+    uint64_t vswp_d31;
+    uint32_t vswp_q4[4];
+    uint32_t vswp_q5[4];
+  } T;
+  T t;
+
+  __ stm(db_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | lr.bit());
+
+  uint64_t one = bit_cast<uint64_t>(1.0);
+  __ mov(r5, Operand(one >> 32));
+  __ mov(r4, Operand(one & 0xffffffff));
+  uint64_t minus_one = bit_cast<uint64_t>(-1.0);
+  __ mov(r7, Operand(minus_one >> 32));
+  __ mov(r6, Operand(minus_one & 0xffffffff));
+
+  __ vmov(d0, r4, r5);  // d0 = 1.0
+  __ vmov(d1, r6, r7);  // d1 = -1.0
+  __ vswp(d0, d1);
+  __ vstr(d0, r0, offsetof(T, vswp_d0));
+  __ vstr(d1, r0, offsetof(T, vswp_d1));
+
+  if (CpuFeatures::IsSupported(VFP32DREGS)) {
+    __ vmov(d30, r4, r5);  // d30 = 1.0
+    __ vmov(d31, r6, r7);  // d31 = -1.0
+    __ vswp(d30, d31);
+    __ vstr(d30, r0, offsetof(T, vswp_d30));
+    __ vstr(d31, r0, offsetof(T, vswp_d31));
+  }
+
+  // q-register swap.
+  const uint32_t test_1 = 0x01234567;
+  const uint32_t test_2 = 0x89abcdef;
+  __ mov(r4, Operand(test_1));
+  __ mov(r5, Operand(test_2));
+  // TODO(bbudge) replace with vdup when implemented.
+  __ vmov(d8, r4, r4);
+  __ vmov(d9, r4, r4);  // q4 = [1.0, 1.0]
+  __ vmov(d10, r5, r5);
+  __ vmov(d11, r5, r5);  // q5 = [-1.0, -1.0]
+  __ vswp(q4, q5);
+  __ add(r6, r0, Operand(static_cast<int32_t>(offsetof(T, vswp_q4))));
+  __ vst1(Neon8, NeonListOperand(q4), NeonMemOperand(r6));
+  __ add(r6, r0, Operand(static_cast<int32_t>(offsetof(T, vswp_q5))));
+  __ vst1(Neon8, NeonListOperand(q5), NeonMemOperand(r6));
+
+  __ ldm(ia_w, sp, r4.bit() | r5.bit() | r6.bit() | r7.bit() | pc.bit());
+  __ bx(lr);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
+  USE(dummy);
+  CHECK_EQ(minus_one, t.vswp_d0);
+  CHECK_EQ(one, t.vswp_d1);
+  if (CpuFeatures::IsSupported(VFP32DREGS)) {
+    CHECK_EQ(minus_one, t.vswp_d30);
+    CHECK_EQ(one, t.vswp_d31);
+  }
+  CHECK_EQ(t.vswp_q4[0], test_2);
+  CHECK_EQ(t.vswp_q4[1], test_2);
+  CHECK_EQ(t.vswp_q4[2], test_2);
+  CHECK_EQ(t.vswp_q4[3], test_2);
+  CHECK_EQ(t.vswp_q5[0], test_1);
+  CHECK_EQ(t.vswp_q5[1], test_1);
+  CHECK_EQ(t.vswp_q5[2], test_1);
+  CHECK_EQ(t.vswp_q5[3], test_1);
+}
 
 TEST(regress4292_b) {
   CcTest::InitializeVM();

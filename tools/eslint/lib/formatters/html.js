@@ -4,17 +4,17 @@
  */
 "use strict";
 
-var lodash = require("lodash");
-var fs = require("fs");
-var path = require("path");
+const lodash = require("lodash");
+const fs = require("fs");
+const path = require("path");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var pageTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-template-page.html"), "utf-8"));
-var messageTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-template-message.html"), "utf-8"));
-var resultTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-template-result.html"), "utf-8"));
+const pageTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-template-page.html"), "utf-8"));
+const messageTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-template-message.html"), "utf-8"));
+const resultTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-template-result.html"), "utf-8"));
 
 /**
  * Given a word and a count, append an s if count is not one.
@@ -23,7 +23,7 @@ var resultTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "html-
  * @returns {string} The original word with an s on the end if count is not one.
  */
 function pluralize(word, count) {
-    return (count === 1 ? word : word + "s");
+    return (count === 1 ? word : `${word}s`);
 }
 
 /**
@@ -33,11 +33,11 @@ function pluralize(word, count) {
  * @returns {string} The formatted string, pluralized where necessary
  */
 function renderSummary(totalErrors, totalWarnings) {
-    var totalProblems = totalErrors + totalWarnings;
-    var renderedText = totalProblems + " " + pluralize("problem", totalProblems);
+    const totalProblems = totalErrors + totalWarnings;
+    let renderedText = `${totalProblems} ${pluralize("problem", totalProblems)}`;
 
     if (totalProblems !== 0) {
-        renderedText += " (" + totalErrors + " " + pluralize("error", totalErrors) + ", " + totalWarnings + " " + pluralize("warning", totalWarnings) + ")";
+        renderedText += ` (${totalErrors} ${pluralize("error", totalErrors)}, ${totalWarnings} ${pluralize("warning", totalWarnings)})`;
     }
     return renderedText;
 }
@@ -70,17 +70,14 @@ function renderMessages(messages, parentIndex) {
      * @param {Object} message Message.
      * @returns {string} HTML (table row) describing a message.
      */
-    return lodash.map(messages, function(message) {
-        var lineNumber,
-            columnNumber;
-
-        lineNumber = message.line || 0;
-        columnNumber = message.column || 0;
+    return lodash.map(messages, message => {
+        const lineNumber = message.line || 0;
+        const columnNumber = message.column || 0;
 
         return messageTemplate({
-            parentIndex: parentIndex,
-            lineNumber: lineNumber,
-            columnNumber: columnNumber,
+            parentIndex,
+            lineNumber,
+            columnNumber,
             severityNumber: message.severity,
             severityName: message.severity === 1 ? "Warning" : "Error",
             message: message.message,
@@ -94,15 +91,13 @@ function renderMessages(messages, parentIndex) {
  * @returns {string} HTML string describing the results.
  */
 function renderResults(results) {
-    return lodash.map(results, function(result, index) {
-        return resultTemplate({
-            index: index,
-            color: renderColor(result.errorCount, result.warningCount),
-            filePath: result.filePath,
-            summary: renderSummary(result.errorCount, result.warningCount)
+    return lodash.map(results, (result, index) => resultTemplate({
+        index,
+        color: renderColor(result.errorCount, result.warningCount),
+        filePath: result.filePath,
+        summary: renderSummary(result.errorCount, result.warningCount)
 
-        }) + renderMessages(result.messages, index);
-    }).join("\n");
+    }) + renderMessages(result.messages, index)).join("\n");
 }
 
 //------------------------------------------------------------------------------
@@ -110,14 +105,14 @@ function renderResults(results) {
 //------------------------------------------------------------------------------
 
 module.exports = function(results) {
-    var totalErrors,
+    let totalErrors,
         totalWarnings;
 
     totalErrors = 0;
     totalWarnings = 0;
 
     // Iterate over results to get totals
-    results.forEach(function(result) {
+    results.forEach(result => {
         totalErrors += result.errorCount;
         totalWarnings += result.warningCount;
     });

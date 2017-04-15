@@ -6,6 +6,7 @@
 #define V8_HEAP_SCAVENGE_JOB_H_
 
 #include "src/cancelable-task.h"
+#include "src/globals.h"
 #include "src/heap/gc-tracer.h"
 
 namespace v8 {
@@ -16,7 +17,7 @@ class Isolate;
 
 
 // This class posts idle tasks and performs scavenges in the idle tasks.
-class ScavengeJob {
+class V8_EXPORT_PRIVATE ScavengeJob {
  public:
   class IdleTask : public CancelableIdleTask {
    public:
@@ -47,12 +48,12 @@ class ScavengeJob {
   void NotifyIdleTask() { idle_task_pending_ = false; }
   bool IdleTaskRescheduled() { return idle_task_rescheduled_; }
 
-  static bool ReachedIdleAllocationLimit(size_t scavenge_speed_in_bytes_per_ms,
+  static bool ReachedIdleAllocationLimit(double scavenge_speed_in_bytes_per_ms,
                                          size_t new_space_size,
                                          size_t new_space_capacity);
 
   static bool EnoughIdleTimeForScavenge(double idle_time_ms,
-                                        size_t scavenge_speed_in_bytes_per_ms,
+                                        double scavenge_speed_in_bytes_per_ms,
                                         size_t new_space_size);
 
   // If we haven't recorded any scavenger events yet, we use a conservative

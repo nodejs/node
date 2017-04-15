@@ -89,3 +89,19 @@ function $DONE(arg){
 
     quit(0);
 };
+
+function RealmOperators(realm) {
+  let $ = {
+    evalScript(script) {
+      return Realm.eval(realm, script);
+    },
+    createRealm() {
+      return RealmOperators(Realm.createAllowCrossRealmAccess());
+    },
+    global: Realm.eval(realm, 'this')
+  };
+  $.global.$ = $;
+  return $;
+}
+
+var $ = RealmOperators(Realm.current());

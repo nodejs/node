@@ -387,8 +387,8 @@ void MemCopyUint16Uint8Wrapper(uint16_t* dest, const uint8_t* src,
   }
 }
 
-
-MemCopyUint8Function memcopy_uint8_function = &MemCopyUint8Wrapper;
+V8_EXPORT_PRIVATE MemCopyUint8Function memcopy_uint8_function =
+    &MemCopyUint8Wrapper;
 MemCopyUint16Uint8Function memcopy_uint16_uint8_function =
     &MemCopyUint16Uint8Wrapper;
 // Defined in codegen-arm.cc.
@@ -398,7 +398,8 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
     Isolate* isolate, MemCopyUint16Uint8Function stub);
 
 #elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
-MemCopyUint8Function memcopy_uint8_function = &MemCopyUint8Wrapper;
+V8_EXPORT_PRIVATE MemCopyUint8Function memcopy_uint8_function =
+    &MemCopyUint8Wrapper;
 // Defined in codegen-mips.cc.
 MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
                                                 MemCopyUint8Function stub);
@@ -430,11 +431,8 @@ void init_memcopy_functions(Isolate* isolate) {
 
 bool DoubleToBoolean(double d) {
   // NaN, +0, and -0 should return the false object
-#if V8_TARGET_LITTLE_ENDIAN
-  union IeeeDoubleLittleEndianArchType u;
-#else
-  union IeeeDoubleBigEndianArchType u;
-#endif
+  IeeeDoubleArchType u;
+
   u.d = d;
   if (u.bits.exp == 2047) {
     // Detect NaN for IEEE double precision floating point.

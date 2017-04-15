@@ -143,8 +143,9 @@ int BN_sqr(BIGNUM *r, const BIGNUM *a, BN_CTX *ctx)
         rr->top = max - 1;
     else
         rr->top = max;
-    if (rr != r)
-        BN_copy(r, rr);
+    if (r != rr && BN_copy(r, rr) == NULL)
+        goto err;
+
     ret = 1;
  err:
     bn_check_top(rr);

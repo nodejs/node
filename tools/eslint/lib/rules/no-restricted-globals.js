@@ -25,8 +25,8 @@ module.exports = {
         }
     },
 
-    create: function(context) {
-        var restrictedGlobals = context.options;
+    create(context) {
+        const restrictedGlobals = context.options;
 
         // if no globals are restricted we don't need to check
         if (restrictedGlobals.length === 0) {
@@ -40,9 +40,9 @@ module.exports = {
          * @private
          */
         function reportReference(reference) {
-            context.report(reference.identifier, "Unexpected use of '{{name}}'", {
+            context.report({ node: reference.identifier, message: "Unexpected use of '{{name}}'.", data: {
                 name: reference.identifier.name
-            });
+            } });
         }
 
         /**
@@ -56,18 +56,18 @@ module.exports = {
         }
 
         return {
-            Program: function() {
-                var scope = context.getScope();
+            Program() {
+                const scope = context.getScope();
 
                 // Report variables declared elsewhere (ex: variables defined as "global" by eslint)
-                scope.variables.forEach(function(variable) {
+                scope.variables.forEach(variable => {
                     if (!variable.defs.length && isRestricted(variable.name)) {
                         variable.references.forEach(reportReference);
                     }
                 });
 
                 // Report variables not declared at all
-                scope.through.forEach(function(reference) {
+                scope.through.forEach(reference => {
                     if (isRestricted(reference.identifier.name)) {
                         reportReference(reference);
                     }
@@ -77,4 +77,3 @@ module.exports = {
         };
     }
 };
-

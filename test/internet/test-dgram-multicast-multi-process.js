@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -13,6 +34,7 @@ const messages = [
 ];
 const workers = {};
 const listeners = 3;
+let listening, sendSocket, done, timer, dead;
 
 
 // Skip test in FreeBSD jails.
@@ -21,14 +43,14 @@ if (common.inFreeBSDJail) {
   return;
 }
 
-function launchChildProcess(index) {
+function launchChildProcess() {
   const worker = fork(__filename, ['child']);
   workers[worker.pid] = worker;
 
   worker.messagesReceived = [];
 
   // Handle the death of workers.
-  worker.on('exit', function(code, signal) {
+  worker.on('exit', function(code) {
     // Don't consider this the true death if the worker has finished
     // successfully or if the exit code is 0.
     if (worker.isDone || code === 0) {
@@ -76,10 +98,10 @@ function launchChildProcess(index) {
         Object.keys(workers).forEach(function(pid) {
           const worker = workers[pid];
 
-          var count = 0;
+          let count = 0;
 
           worker.messagesReceived.forEach(function(buf) {
-            for (var i = 0; i < messages.length; ++i) {
+            for (let i = 0; i < messages.length; ++i) {
               if (buf.toString() === messages[i].toString()) {
                 count++;
                 break;
@@ -110,13 +132,13 @@ function killChildren(children) {
 }
 
 if (process.argv[2] !== 'child') {
-  var listening = 0;
-  var dead = 0;
-  var i = 0;
-  var done = 0;
+  listening = 0;
+  dead = 0;
+  let i = 0;
+  done = 0;
 
   // Exit the test if it doesn't succeed within TIMEOUT.
-  var timer = setTimeout(function() {
+  timer = setTimeout(function() {
     console.error('[PARENT] Responses were not received within %d ms.',
                   TIMEOUT);
     console.error('[PARENT] Fail');
@@ -127,11 +149,11 @@ if (process.argv[2] !== 'child') {
   }, TIMEOUT);
 
   // Launch child processes.
-  for (var x = 0; x < listeners; x++) {
+  for (let x = 0; x < listeners; x++) {
     launchChildProcess(x);
   }
 
-  var sendSocket = dgram.createSocket('udp4');
+  sendSocket = dgram.createSocket('udp4');
 
   // The socket is actually created async now.
   sendSocket.on('listening', function() {
@@ -160,7 +182,7 @@ if (process.argv[2] !== 'child') {
       common.PORT,
       LOCAL_BROADCAST_HOST,
       function(err) {
-        if (err) throw err;
+        assert.ifError(err);
         console.error('[PARENT] sent "%s" to %s:%s',
                       buf.toString(),
                       LOCAL_BROADCAST_HOST, common.PORT);
@@ -188,7 +210,7 @@ if (process.argv[2] === 'child') {
 
       process.send({ message: buf.toString() });
 
-      if (receivedMessages.length == messages.length) {
+      if (receivedMessages.length === messages.length) {
         // .dropMembership() not strictly needed but here as a sanity check.
         listenSocket.dropMembership(LOCAL_BROADCAST_HOST);
         process.nextTick(function() {

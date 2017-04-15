@@ -5,6 +5,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
@@ -15,7 +21,7 @@
  * @returns {boolean} True if str contains a line terminator.
  */
 function containsLineTerminator(str) {
-    return /[\n\r\u2028\u2029]/.test(str);
+    return astUtils.LINEBREAK_MATCHER.test(str);
 }
 
 /**
@@ -34,9 +40,8 @@ function last(arr) {
  * @returns {boolean} True if the candidate property is part of the group.
  */
 function continuesPropertyGroup(lastMember, candidate) {
-    var groupEndLine = lastMember.loc.start.line,
-        candidateStartLine = candidate.loc.start.line,
-        comments, i;
+    const groupEndLine = lastMember.loc.start.line,
+        candidateStartLine = candidate.loc.start.line;
 
     if (candidateStartLine - groupEndLine <= 1) {
         return true;
@@ -45,13 +50,14 @@ function continuesPropertyGroup(lastMember, candidate) {
     // Check that the first comment is adjacent to the end of the group, the
     // last comment is adjacent to the candidate property, and that successive
     // comments are adjacent to each other.
-    comments = candidate.leadingComments;
+    const comments = candidate.leadingComments;
+
     if (
         comments &&
         comments[0].loc.start.line - groupEndLine <= 1 &&
         candidateStartLine - last(comments).loc.end.line <= 1
     ) {
-        for (i = 1; i < comments.length; i++) {
+        for (let i = 1; i < comments.length; i++) {
             if (comments[i].loc.start.line - comments[i - 1].loc.end.line > 1) {
                 return false;
             }
@@ -71,18 +77,14 @@ function isSingleLine(node) {
     return (node.loc.end.line === node.loc.start.line);
 }
 
-/** Sets option values from the configured options with defaults
+/**
+ * Initializes a single option property from the configuration with defaults for undefined values
  * @param {Object} toOptions Object to be initialized
  * @param {Object} fromOptions Object to be initialized from
  * @returns {Object} The object with correctly initialized options and values
  */
-function initOptions(toOptions, fromOptions) {
+function initOptionProperty(toOptions, fromOptions) {
     toOptions.mode = fromOptions.mode || "strict";
-
-    // Set align if exists -  multiLine case
-    if (typeof fromOptions.align !== "undefined") {
-        toOptions.align = fromOptions.align;
-    }
 
     // Set value of beforeColon
     if (typeof fromOptions.beforeColon !== "undefined") {
@@ -98,6 +100,55 @@ function initOptions(toOptions, fromOptions) {
         toOptions.afterColon = 1;
     }
 
+    // Set align if exists
+    if (typeof fromOptions.align !== "undefined") {
+        if (typeof fromOptions.align === "object") {
+            toOptions.align = fromOptions.align;
+        } else { // "string"
+            toOptions.align = {
+                on: fromOptions.align,
+                mode: toOptions.mode,
+                beforeColon: toOptions.beforeColon,
+                afterColon: toOptions.afterColon
+            };
+        }
+    }
+
+    return toOptions;
+}
+
+/**
+ * Initializes all the option values (singleLine, multiLine and align) from the configuration with defaults for undefined values
+ * @param {Object} toOptions Object to be initialized
+ * @param {Object} fromOptions Object to be initialized from
+ * @returns {Object} The object with correctly initialized options and values
+ */
+function initOptions(toOptions, fromOptions) {
+    if (typeof fromOptions.align === "object") {
+
+        // Initialize the alignment configuration
+        toOptions.align = initOptionProperty({}, fromOptions.align);
+        toOptions.align.on = fromOptions.align.on || "colon";
+        toOptions.align.mode = fromOptions.align.mode || "strict";
+
+        toOptions.multiLine = initOptionProperty({}, (fromOptions.multiLine || fromOptions));
+        toOptions.singleLine = initOptionProperty({}, (fromOptions.singleLine || fromOptions));
+
+    } else { // string or undefined
+        toOptions.multiLine = initOptionProperty({}, (fromOptions.multiLine || fromOptions));
+        toOptions.singleLine = initOptionProperty({}, (fromOptions.singleLine || fromOptions));
+
+        // If alignment options are defined in multiLine, pull them out into the general align configuration
+        if (toOptions.multiLine.align) {
+            toOptions.align = {
+                on: toOptions.multiLine.align.on,
+                mode: toOptions.multiLine.align.mode || toOptions.multiLine.mode,
+                beforeColon: toOptions.multiLine.align.beforeColon,
+                afterColon: toOptions.multiLine.align.afterColon
+            };
+        }
+    }
+
     return toOptions;
 }
 
@@ -105,7 +156,7 @@ function initOptions(toOptions, fromOptions) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-var messages = {
+const messages = {
     key: "{{error}} space after {{computed}}key '{{key}}'.",
     value: "{{error}} space before value for {{computed}}key '{{key}}'."
 };
@@ -118,13 +169,37 @@ module.exports = {
             recommended: false
         },
 
+        fixable: "whitespace",
+
         schema: [{
             anyOf: [
                 {
                     type: "object",
                     properties: {
                         align: {
-                            enum: ["colon", "value"]
+                            anyOf: [
+                                {
+                                    enum: ["colon", "value"]
+                                },
+                                {
+                                    type: "object",
+                                    properties: {
+                                        mode: {
+                                            enum: ["strict", "minimum"]
+                                        },
+                                        on: {
+                                            enum: ["colon", "value"]
+                                        },
+                                        beforeColon: {
+                                            type: "boolean"
+                                        },
+                                        afterColon: {
+                                            type: "boolean"
+                                        }
+                                    },
+                                    additionalProperties: false
+                                }
+                            ]
                         },
                         mode: {
                             enum: ["strict", "minimum"]
@@ -160,10 +235,86 @@ module.exports = {
                             type: "object",
                             properties: {
                                 align: {
-                                    enum: ["colon", "value"]
+                                    anyOf: [
+                                        {
+                                            enum: ["colon", "value"]
+                                        },
+                                        {
+                                            type: "object",
+                                            properties: {
+                                                mode: {
+                                                    enum: ["strict", "minimum"]
+                                                },
+                                                on: {
+                                                    enum: ["colon", "value"]
+                                                },
+                                                beforeColon: {
+                                                    type: "boolean"
+                                                },
+                                                afterColon: {
+                                                    type: "boolean"
+                                                }
+                                            },
+                                            additionalProperties: false
+                                        }
+                                    ]
                                 },
                                 mode: {
                                     enum: ["strict", "minimum"]
+                                },
+                                beforeColon: {
+                                    type: "boolean"
+                                },
+                                afterColon: {
+                                    type: "boolean"
+                                }
+                            },
+                            additionalProperties: false
+                        }
+                    },
+                    additionalProperties: false
+                },
+                {
+                    type: "object",
+                    properties: {
+                        singleLine: {
+                            type: "object",
+                            properties: {
+                                mode: {
+                                    enum: ["strict", "minimum"]
+                                },
+                                beforeColon: {
+                                    type: "boolean"
+                                },
+                                afterColon: {
+                                    type: "boolean"
+                                }
+                            },
+                            additionalProperties: false
+                        },
+                        multiLine: {
+                            type: "object",
+                            properties: {
+                                mode: {
+                                    enum: ["strict", "minimum"]
+                                },
+                                beforeColon: {
+                                    type: "boolean"
+                                },
+                                afterColon: {
+                                    type: "boolean"
+                                }
+                            },
+                            additionalProperties: false
+                        },
+                        align: {
+                            type: "object",
+                            properties: {
+                                mode: {
+                                    enum: ["strict", "minimum"]
+                                },
+                                on: {
+                                    enum: ["colon", "value"]
                                 },
                                 beforeColon: {
                                     type: "boolean"
@@ -181,7 +332,7 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * OPTIONS
@@ -191,15 +342,18 @@ module.exports = {
          *     align: "colon" // Optional, or "value"
          * }
          */
+        const options = context.options[0] || {},
+            ruleOptions = initOptions({}, options),
+            multiLineOptions = ruleOptions.multiLine,
+            singleLineOptions = ruleOptions.singleLine,
+            alignmentOptions = ruleOptions.align || null;
 
-        var options = context.options[0] || {},
-            multiLineOptions = initOptions({}, (options.multiLine || options)),
-            singleLineOptions = initOptions({}, (options.singleLine || options));
+        const sourceCode = context.getSourceCode();
 
         /**
          * Determines if the given property is key-value property.
          * @param {ASTNode} property Property node to check.
-         * @returns {Boolean} Whether the property is a key-value property.
+         * @returns {boolean} Whether the property is a key-value property.
          */
         function isKeyValueProperty(property) {
             return !(
@@ -216,14 +370,9 @@ module.exports = {
          * @returns {ASTNode} The last token before a colon punctuator.
          */
         function getLastTokenBeforeColon(node) {
-            var prevNode;
+            const colonToken = sourceCode.getTokenAfter(node, astUtils.isColonToken);
 
-            while (node && (node.type !== "Punctuator" || node.value !== ":")) {
-                prevNode = node;
-                node = context.getTokenAfter(node);
-            }
-
-            return prevNode;
+            return sourceCode.getTokenBefore(colonToken);
         }
 
         /**
@@ -233,12 +382,7 @@ module.exports = {
          * @returns {ASTNode} The colon punctuator.
          */
         function getNextColon(node) {
-
-            while (node && (node.type !== "Punctuator" || node.value !== ":")) {
-                node = context.getTokenAfter(node);
-            }
-
-            return node;
+            return sourceCode.getTokenAfter(node, astUtils.isColonToken);
         }
 
         /**
@@ -247,10 +391,10 @@ module.exports = {
          * @returns {string} The property's key.
          */
         function getKey(property) {
-            var key = property.key;
+            const key = property.key;
 
             if (property.computed) {
-                return context.getSource().slice(key.range[0], key.range[1]);
+                return sourceCode.getText().slice(key.range[0], key.range[1]);
             }
 
             return property.key.name || property.key.value;
@@ -267,10 +411,16 @@ module.exports = {
          * @returns {void}
          */
         function report(property, side, whitespace, expected, mode) {
-            var diff = whitespace.length - expected,
-                key = property.key,
-                firstTokenAfterColon = context.getTokenAfter(getNextColon(key)),
-                location = side === "key" ? key.loc.start : firstTokenAfterColon.loc.start;
+            const diff = whitespace.length - expected,
+                nextColon = getNextColon(property.key),
+                tokenBeforeColon = sourceCode.getTokenBefore(nextColon, { includeComments: true }),
+                tokenAfterColon = sourceCode.getTokenAfter(nextColon, { includeComments: true }),
+                isKeySide = side === "key",
+                locStart = isKeySide ? tokenBeforeColon.loc.start : tokenAfterColon.loc.start,
+                isExtra = diff > 0,
+                diffAbs = Math.abs(diff),
+                spaces = Array(diffAbs + 1).join(" ");
+            let fix;
 
             if ((
                 diff && mode === "strict" ||
@@ -278,10 +428,42 @@ module.exports = {
                 diff > 0 && !expected && mode === "minimum") &&
                 !(expected && containsLineTerminator(whitespace))
             ) {
-                context.report(property[side], location, messages[side], {
-                    error: diff > 0 ? "Extra" : "Missing",
-                    computed: property.computed ? "computed " : "",
-                    key: getKey(property)
+                if (isExtra) {
+                    let range;
+
+                    // Remove whitespace
+                    if (isKeySide) {
+                        range = [tokenBeforeColon.end, tokenBeforeColon.end + diffAbs];
+                    } else {
+                        range = [tokenAfterColon.start - diffAbs, tokenAfterColon.start];
+                    }
+                    fix = function(fixer) {
+                        return fixer.removeRange(range);
+                    };
+                } else {
+
+                    // Add whitespace
+                    if (isKeySide) {
+                        fix = function(fixer) {
+                            return fixer.insertTextAfter(tokenBeforeColon, spaces);
+                        };
+                    } else {
+                        fix = function(fixer) {
+                            return fixer.insertTextBefore(tokenAfterColon, spaces);
+                        };
+                    }
+                }
+
+                context.report({
+                    node: property[side],
+                    loc: locStart,
+                    message: messages[side],
+                    data: {
+                        error: isExtra ? "Extra" : "Missing",
+                        computed: property.computed ? "computed " : "",
+                        key: getKey(property)
+                    },
+                    fix
                 });
             }
         }
@@ -293,10 +475,8 @@ module.exports = {
          * @returns {int} Width of the key.
          */
         function getKeyWidth(property) {
-            var startToken, endToken;
-
-            startToken = context.getFirstToken(property);
-            endToken = getLastTokenBeforeColon(property.key);
+            const startToken = sourceCode.getFirstToken(property);
+            const endToken = getLastTokenBeforeColon(property.key);
 
             return endToken.range[1] - startToken.range[0];
         }
@@ -307,7 +487,7 @@ module.exports = {
          * @returns {Object} Whitespace before and after the property's colon.
          */
         function getPropertyWhitespace(property) {
-            var whitespace = /(\s*):(\s*)/.exec(context.getSource().slice(
+            const whitespace = /(\s*):(\s*)/.exec(sourceCode.getText().slice(
                 property.key.range[1], property.value.range[0]
             ));
 
@@ -330,8 +510,8 @@ module.exports = {
                 return [node.properties];
             }
 
-            return node.properties.reduce(function(groups, property) {
-                var currentGroup = last(groups),
+            return node.properties.reduce((groups, property) => {
+                const currentGroup = last(groups),
                     prev = last(currentGroup);
 
                 if (!prev || continuesPropertyGroup(prev, property)) {
@@ -352,23 +532,31 @@ module.exports = {
          * @returns {void}
          */
         function verifyGroupAlignment(properties) {
-            var length = properties.length,
+            const length = properties.length,
                 widths = properties.map(getKeyWidth), // Width of keys, including quotes
-                targetWidth = Math.max.apply(null, widths),
-                i, property, whitespace, width,
-                align = multiLineOptions.align,
-                beforeColon = multiLineOptions.beforeColon,
-                afterColon = multiLineOptions.afterColon,
-                mode = multiLineOptions.mode;
+                align = alignmentOptions.on; // "value" or "colon"
+            let targetWidth = Math.max.apply(null, widths),
+                beforeColon, afterColon, mode;
+
+            if (alignmentOptions && length > 1) { // When aligning values within a group, use the alignment configuration.
+                beforeColon = alignmentOptions.beforeColon;
+                afterColon = alignmentOptions.afterColon;
+                mode = alignmentOptions.mode;
+            } else {
+                beforeColon = multiLineOptions.beforeColon;
+                afterColon = multiLineOptions.afterColon;
+                mode = alignmentOptions.mode;
+            }
 
             // Conditionally include one space before or after colon
             targetWidth += (align === "colon" ? beforeColon : afterColon);
 
-            for (i = 0; i < length; i++) {
-                property = properties[i];
-                whitespace = getPropertyWhitespace(property);
+            for (let i = 0; i < length; i++) {
+                const property = properties[i];
+                const whitespace = getPropertyWhitespace(property);
+
                 if (whitespace) { // Object literal getters/setters lack a colon
-                    width = widths[i];
+                    const width = widths[i];
 
                     if (align === "value") {
                         report(property, "key", whitespace.beforeColon, beforeColon, mode);
@@ -387,7 +575,7 @@ module.exports = {
          * @returns {void}
          */
         function verifyAlignment(node) {
-            createGroups(node).forEach(function(group) {
+            createGroups(node).forEach(group => {
                 verifyGroupAlignment(group.filter(isKeyValueProperty));
             });
         }
@@ -399,7 +587,7 @@ module.exports = {
          * @returns {void}
          */
         function verifySpacing(node, lineOptions) {
-            var actual = getPropertyWhitespace(node);
+            const actual = getPropertyWhitespace(node);
 
             if (actual) { // Object literal getters/setters lack colons
                 report(node, "key", actual.beforeColon, lineOptions.beforeColon, lineOptions.mode);
@@ -413,9 +601,9 @@ module.exports = {
          * @returns {void}
          */
         function verifyListSpacing(properties) {
-            var length = properties.length;
+            const length = properties.length;
 
-            for (var i = 0; i < length; i++) {
+            for (let i = 0; i < length; i++) {
                 verifySpacing(properties[i], singleLineOptions);
             }
         }
@@ -424,10 +612,10 @@ module.exports = {
         // Public API
         //--------------------------------------------------------------------------
 
-        if (multiLineOptions.align) { // Verify vertical alignment
+        if (alignmentOptions) { // Verify vertical alignment
 
             return {
-                ObjectExpression: function(node) {
+                ObjectExpression(node) {
                     if (isSingleLine(node)) {
                         verifyListSpacing(node.properties.filter(isKeyValueProperty));
                     } else {
@@ -436,15 +624,16 @@ module.exports = {
                 }
             };
 
-        } else { // Obey beforeColon and afterColon in each property as configured
-
-            return {
-                Property: function(node) {
-                    verifySpacing(node, isSingleLine(node.parent) ? singleLineOptions : multiLineOptions);
-                }
-            };
-
         }
+
+        // Obey beforeColon and afterColon in each property as configured
+        return {
+            Property(node) {
+                verifySpacing(node, isSingleLine(node.parent) ? singleLineOptions : multiLineOptions);
+            }
+        };
+
+
 
     }
 };

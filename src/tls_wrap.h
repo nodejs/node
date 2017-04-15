@@ -1,5 +1,28 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 #ifndef SRC_TLS_WRAP_H_
 #define SRC_TLS_WRAP_H_
+
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
 #include "node_crypto.h"  // SSLWrap
@@ -18,7 +41,7 @@ namespace node {
 class NodeBIO;
 class WriteWrap;
 namespace crypto {
-  class SecureContext;
+class SecureContext;
 }
 
 class TLSWrap : public AsyncWrap,
@@ -51,6 +74,8 @@ class TLSWrap : public AsyncWrap,
   void NewSessionDoneCb();
 
   size_t self_size() const override { return sizeof(*this); }
+
+  void clear_stream() { stream_ = nullptr; }
 
  protected:
   static const int kClearOutChunkSize = 16384;
@@ -119,6 +144,7 @@ class TLSWrap : public AsyncWrap,
                          const uv_buf_t* buf,
                          uv_handle_type pending,
                          void* ctx);
+  static void OnDestructImpl(void* ctx);
 
   void DoRead(ssize_t nread, const uv_buf_t* buf, uv_handle_type pending);
 
@@ -148,7 +174,6 @@ class TLSWrap : public AsyncWrap,
   BIO* enc_out_;
   NodeBIO* clear_in_;
   size_t write_size_;
-  size_t write_queue_size_;
   typedef ListHead<WriteItem, &WriteItem::member_> WriteItemList;
   WriteItemList write_item_queue_;
   WriteItemList pending_write_items_;
@@ -164,5 +189,7 @@ class TLSWrap : public AsyncWrap,
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_TLS_WRAP_H_

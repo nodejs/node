@@ -6,8 +6,10 @@
 #define V8_CRANKSHAFT_LITHIUM_ALLOCATOR_H_
 
 #include "src/allocation.h"
+#include "src/base/compiler-specific.h"
+#include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/lithium.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -326,7 +328,7 @@ class LAllocator BASE_EMBEDDED {
  public:
   LAllocator(int first_virtual_register, HGraph* graph);
 
-  static void TraceAlloc(const char* msg, ...);
+  static PRINTF_FORMAT(1, 2) void TraceAlloc(const char* msg, ...);
 
   // Checks whether the value of a given virtual register is tagged.
   bool HasTaggedValue(int virtual_register) const;

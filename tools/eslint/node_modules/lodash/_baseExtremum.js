@@ -1,3 +1,5 @@
+var isSymbol = require('./isSymbol');
+
 /**
  * The base implementation of methods like `_.max` and `_.min` which accepts a
  * `comparator` to determine the extremum value.
@@ -17,7 +19,7 @@ function baseExtremum(array, iteratee, comparator) {
         current = iteratee(value);
 
     if (current != null && (computed === undefined
-          ? current === current
+          ? (current === current && !isSymbol(current))
           : comparator(current, computed)
         )) {
       var computed = current,

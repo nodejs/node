@@ -19,16 +19,15 @@ $L$SEH_begin_bn_mul_mont_gather5::
 	mov	r9,QWORD PTR[48+rsp]
 
 
+	mov	r9d,r9d
+	mov	rax,rsp
 	test	r9d,7
 	jnz	$L$mul_enter
 	jmp	$L$mul4x_enter
 
 ALIGN	16
 $L$mul_enter::
-	mov	r9d,r9d
-	mov	rax,rsp
 	movd	xmm5,DWORD PTR[56+rsp]
-	lea	r10,QWORD PTR[$L$inc]
 	push	rbx
 	push	rbp
 	push	r12
@@ -36,26 +35,36 @@ $L$mul_enter::
 	push	r14
 	push	r15
 
-	lea	r11,QWORD PTR[2+r9]
-	neg	r11
-	lea	rsp,QWORD PTR[((-264))+r11*8+rsp]
-	and	rsp,-1024
+	neg	r9
+	mov	r11,rsp
+	lea	r10,QWORD PTR[((-280))+r9*8+rsp]
+	neg	r9
+	and	r10,-1024
 
+
+
+
+
+
+
+	sub	r11,r10
+	and	r11,-4096
+	lea	rsp,QWORD PTR[r11*1+r10]
+	mov	r11,QWORD PTR[rsp]
+	cmp	rsp,r10
+	ja	$L$mul_page_walk
+	jmp	$L$mul_page_walk_done
+
+$L$mul_page_walk::
+	lea	rsp,QWORD PTR[((-4096))+rsp]
+	mov	r11,QWORD PTR[rsp]
+	cmp	rsp,r10
+	ja	$L$mul_page_walk
+$L$mul_page_walk_done::
+
+	lea	r10,QWORD PTR[$L$inc]
 	mov	QWORD PTR[8+r9*8+rsp],rax
 $L$mul_body::
-
-
-
-
-
-
-	sub	rax,rsp
-	and	rax,-4096
-$L$mul_page_walk::
-	mov	r11,QWORD PTR[rax*1+rsp]
-	sub	rax,4096
-DB	02eh
-	jnc	$L$mul_page_walk
 
 	lea	r12,QWORD PTR[128+rdx]
 	movdqa	xmm0,XMMWORD PTR[r10]
@@ -441,15 +450,16 @@ $L$SEH_begin_bn_mul4x_mont_gather5::
 	mov	r9,QWORD PTR[48+rsp]
 
 
-$L$mul4x_enter::
 DB	067h
 	mov	rax,rsp
+$L$mul4x_enter::
 	push	rbx
 	push	rbp
 	push	r12
 	push	r13
 	push	r14
 	push	r15
+$L$mul4x_prologue::
 
 DB	067h
 	shl	r9d,3
@@ -466,32 +476,40 @@ DB	067h
 
 
 	lea	r11,QWORD PTR[((-320))+r9*2+rsp]
+	mov	rbp,rsp
 	sub	r11,rdi
 	and	r11,4095
 	cmp	r10,r11
 	jb	$L$mul4xsp_alt
-	sub	rsp,r11
-	lea	rsp,QWORD PTR[((-320))+r9*2+rsp]
+	sub	rbp,r11
+	lea	rbp,QWORD PTR[((-320))+r9*2+rbp]
 	jmp	$L$mul4xsp_done
 
 ALIGN	32
 $L$mul4xsp_alt::
 	lea	r10,QWORD PTR[((4096-320))+r9*2]
-	lea	rsp,QWORD PTR[((-320))+r9*2+rsp]
+	lea	rbp,QWORD PTR[((-320))+r9*2+rbp]
 	sub	r11,r10
 	mov	r10,0
 	cmovc	r11,r10
-	sub	rsp,r11
+	sub	rbp,r11
 $L$mul4xsp_done::
-	and	rsp,-64
-	mov	r11,rax
-	sub	r11,rsp
+	and	rbp,-64
+	mov	r11,rsp
+	sub	r11,rbp
 	and	r11,-4096
+	lea	rsp,QWORD PTR[rbp*1+r11]
+	mov	r10,QWORD PTR[rsp]
+	cmp	rsp,rbp
+	ja	$L$mul4x_page_walk
+	jmp	$L$mul4x_page_walk_done
+
 $L$mul4x_page_walk::
-	mov	r10,QWORD PTR[r11*1+rsp]
-	sub	r11,4096
-DB	02eh
-	jnc	$L$mul4x_page_walk
+	lea	rsp,QWORD PTR[((-4096))+rsp]
+	mov	r10,QWORD PTR[rsp]
+	cmp	rsp,rbp
+	ja	$L$mul4x_page_walk
+$L$mul4x_page_walk_done::
 
 	neg	r9
 
@@ -1065,6 +1083,7 @@ $L$SEH_begin_bn_power5::
 	push	r13
 	push	r14
 	push	r15
+$L$power5_prologue::
 
 	shl	r9d,3
 	lea	r10d,DWORD PTR[r9*2+r9]
@@ -1079,32 +1098,40 @@ $L$SEH_begin_bn_power5::
 
 
 	lea	r11,QWORD PTR[((-320))+r9*2+rsp]
+	mov	rbp,rsp
 	sub	r11,rdi
 	and	r11,4095
 	cmp	r10,r11
 	jb	$L$pwr_sp_alt
-	sub	rsp,r11
-	lea	rsp,QWORD PTR[((-320))+r9*2+rsp]
+	sub	rbp,r11
+	lea	rbp,QWORD PTR[((-320))+r9*2+rbp]
 	jmp	$L$pwr_sp_done
 
 ALIGN	32
 $L$pwr_sp_alt::
 	lea	r10,QWORD PTR[((4096-320))+r9*2]
-	lea	rsp,QWORD PTR[((-320))+r9*2+rsp]
+	lea	rbp,QWORD PTR[((-320))+r9*2+rbp]
 	sub	r11,r10
 	mov	r10,0
 	cmovc	r11,r10
-	sub	rsp,r11
+	sub	rbp,r11
 $L$pwr_sp_done::
-	and	rsp,-64
-	mov	r11,rax
-	sub	r11,rsp
+	and	rbp,-64
+	mov	r11,rsp
+	sub	r11,rbp
 	and	r11,-4096
+	lea	rsp,QWORD PTR[rbp*1+r11]
+	mov	r10,QWORD PTR[rsp]
+	cmp	rsp,rbp
+	ja	$L$pwr_page_walk
+	jmp	$L$pwr_page_walk_done
+
 $L$pwr_page_walk::
-	mov	r10,QWORD PTR[r11*1+rsp]
-	sub	r11,4096
-DB	02eh
-	jnc	$L$pwr_page_walk
+	lea	rsp,QWORD PTR[((-4096))+rsp]
+	mov	r10,QWORD PTR[rsp]
+	cmp	rsp,rbp
+	ja	$L$pwr_page_walk
+$L$pwr_page_walk_done::
 
 	mov	r10,r9
 	neg	r9
@@ -1900,6 +1927,7 @@ $L$8x_tail::
 
 ALIGN	32
 $L$8x_tail_done::
+	xor	rax,rax
 	add	r8,QWORD PTR[rdx]
 	adc	r9,0
 	adc	r10,0
@@ -1908,9 +1936,7 @@ $L$8x_tail_done::
 	adc	r13,0
 	adc	r14,0
 	adc	r15,0
-
-
-	xor	rax,rax
+	adc	rax,0
 
 	neg	rsi
 $L$8x_no_tail::
@@ -2030,6 +2056,7 @@ DB	067h
 	push	r13
 	push	r14
 	push	r15
+$L$from_prologue::
 
 	shl	r9d,3
 	lea	r10,QWORD PTR[r9*2+r9]
@@ -2044,32 +2071,40 @@ DB	067h
 
 
 	lea	r11,QWORD PTR[((-320))+r9*2+rsp]
+	mov	rbp,rsp
 	sub	r11,rdi
 	and	r11,4095
 	cmp	r10,r11
 	jb	$L$from_sp_alt
-	sub	rsp,r11
-	lea	rsp,QWORD PTR[((-320))+r9*2+rsp]
+	sub	rbp,r11
+	lea	rbp,QWORD PTR[((-320))+r9*2+rbp]
 	jmp	$L$from_sp_done
 
 ALIGN	32
 $L$from_sp_alt::
 	lea	r10,QWORD PTR[((4096-320))+r9*2]
-	lea	rsp,QWORD PTR[((-320))+r9*2+rsp]
+	lea	rbp,QWORD PTR[((-320))+r9*2+rbp]
 	sub	r11,r10
 	mov	r10,0
 	cmovc	r11,r10
-	sub	rsp,r11
+	sub	rbp,r11
 $L$from_sp_done::
-	and	rsp,-64
-	mov	r11,rax
-	sub	r11,rsp
+	and	rbp,-64
+	mov	r11,rsp
+	sub	r11,rbp
 	and	r11,-4096
+	lea	rsp,QWORD PTR[rbp*1+r11]
+	mov	r10,QWORD PTR[rsp]
+	cmp	rsp,rbp
+	ja	$L$from_page_walk
+	jmp	$L$from_page_walk_done
+
 $L$from_page_walk::
-	mov	r10,QWORD PTR[r11*1+rsp]
-	sub	r11,4096
-DB	02eh
-	jnc	$L$from_page_walk
+	lea	rsp,QWORD PTR[((-4096))+rsp]
+	mov	r10,QWORD PTR[rsp]
+	cmp	rsp,rbp
+	ja	$L$from_page_walk
+$L$from_page_walk_done::
 
 	mov	r10,r9
 	neg	r9
@@ -2383,9 +2418,14 @@ mul_handler	PROC PRIVATE
 	cmp	rbx,r10
 	jb	$L$common_seh_tail
 
+	mov	r10d,DWORD PTR[4+r11]
+	lea	r10,QWORD PTR[r10*1+rsi]
+	cmp	rbx,r10
+	jb	$L$common_pop_regs
+
 	mov	rax,QWORD PTR[152+r8]
 
-	mov	r10d,DWORD PTR[4+r11]
+	mov	r10d,DWORD PTR[8+r11]
 	lea	r10,QWORD PTR[r10*1+rsi]
 	cmp	rbx,r10
 	jae	$L$common_seh_tail
@@ -2397,11 +2437,11 @@ mul_handler	PROC PRIVATE
 	mov	r10,QWORD PTR[192+r8]
 	mov	rax,QWORD PTR[8+r10*8+rax]
 
-	jmp	$L$body_proceed
+	jmp	$L$common_pop_regs
 
 $L$body_40::
 	mov	rax,QWORD PTR[40+rax]
-$L$body_proceed::
+$L$common_pop_regs::
 	mov	rbx,QWORD PTR[((-8))+rax]
 	mov	rbp,QWORD PTR[((-16))+rax]
 	mov	r12,QWORD PTR[((-24))+rax]
@@ -2483,22 +2523,22 @@ ALIGN	8
 $L$SEH_info_bn_mul_mont_gather5::
 DB	9,0,0,0
 	DD	imagerel mul_handler
-	DD	imagerel $L$mul_body,imagerel $L$mul_epilogue
+	DD	imagerel $L$mul_body,imagerel $L$mul_body,imagerel $L$mul_epilogue
 ALIGN	8
 $L$SEH_info_bn_mul4x_mont_gather5::
 DB	9,0,0,0
 	DD	imagerel mul_handler
-	DD	imagerel $L$mul4x_body,imagerel $L$mul4x_epilogue
+	DD	imagerel $L$mul4x_prologue,imagerel $L$mul4x_body,imagerel $L$mul4x_epilogue
 ALIGN	8
 $L$SEH_info_bn_power5::
 DB	9,0,0,0
 	DD	imagerel mul_handler
-	DD	imagerel $L$power5_body,imagerel $L$power5_epilogue
+	DD	imagerel $L$power5_prologue,imagerel $L$power5_body,imagerel $L$power5_epilogue
 ALIGN	8
 $L$SEH_info_bn_from_mont8x::
 DB	9,0,0,0
 	DD	imagerel mul_handler
-	DD	imagerel $L$from_body,imagerel $L$from_epilogue
+	DD	imagerel $L$from_prologue,imagerel $L$from_body,imagerel $L$from_epilogue
 ALIGN	8
 $L$SEH_info_bn_gather5::
 DB	001h,00bh,003h,00ah

@@ -5,7 +5,9 @@
 #ifndef V8_COMPILER_LOOP_PEELING_H_
 #define V8_COMPILER_LOOP_PEELING_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/loop-analysis.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -14,7 +16,7 @@ namespace compiler {
 // Represents the output of peeling a loop, which is basically the mapping
 // from the body of the loop to the corresponding nodes in the peeled
 // iteration.
-class PeeledIteration : public ZoneObject {
+class V8_EXPORT_PRIVATE PeeledIteration : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   // Maps {node} to its corresponding copy in the peeled iteration, if
   // the node was part of the body of the loop. Returns {node} otherwise.
@@ -27,12 +29,17 @@ class PeeledIteration : public ZoneObject {
 class CommonOperatorBuilder;
 
 // Implements loop peeling.
-class LoopPeeler {
+class V8_EXPORT_PRIVATE LoopPeeler {
  public:
   static bool CanPeel(LoopTree* loop_tree, LoopTree::Loop* loop);
   static PeeledIteration* Peel(Graph* graph, CommonOperatorBuilder* common,
                                LoopTree* loop_tree, LoopTree::Loop* loop,
                                Zone* tmp_zone);
+  static void PeelInnerLoopsOfTree(Graph* graph, CommonOperatorBuilder* common,
+                                   LoopTree* loop_tree, Zone* tmp_zone);
+
+  static void EliminateLoopExits(Graph* graph, Zone* temp_zone);
+  static const size_t kMaxPeeledNodes = 1000;
 };
 
 

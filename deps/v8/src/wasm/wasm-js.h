@@ -5,21 +5,21 @@
 #ifndef V8_WASM_JS_H_
 #define V8_WASM_JS_H_
 
-#ifndef V8_SHARED
 #include "src/allocation.h"
-#include "src/hashmap.h"
-#else
-#include "include/v8.h"
-#include "src/base/compiler-specific.h"
-#endif  // !V8_SHARED
+#include "src/base/hashmap.h"
 
 namespace v8 {
 namespace internal {
 // Exposes a WASM API to JavaScript through the V8 API.
 class WasmJs {
  public:
-  static void Install(Isolate* isolate, Handle<JSGlobalObject> global_object);
-  static void InstallWasmFunctionMap(Isolate* isolate, Handle<Context> context);
+  V8_EXPORT_PRIVATE static void Install(Isolate* isolate);
+
+  // WebAssembly.Table.
+  static bool IsWasmTableObject(Isolate* isolate, Handle<Object> value);
+
+  // WebAssembly.Memory
+  static bool IsWasmMemoryObject(Isolate* isolate, Handle<Object> value);
 };
 
 }  // namespace internal

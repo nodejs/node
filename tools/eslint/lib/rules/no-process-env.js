@@ -19,16 +19,16 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            MemberExpression: function(node) {
-                var objectName = node.object.name,
+            MemberExpression(node) {
+                const objectName = node.object.name,
                     propertyName = node.property.name;
 
                 if (objectName === "process" && !node.computed && propertyName && propertyName === "env") {
-                    context.report(node, "Unexpected use of process.env.");
+                    context.report({ node, message: "Unexpected use of process.env." });
                 }
 
             }

@@ -1,38 +1,53 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-const common = require('../common');
-var assert = require('assert');
+require('../common');
+const assert = require('assert');
 
-console.error('load test-module-loading-error.js');
-
-var error_desc = {
+const error_desc = {
   win32: ['%1 is not a valid Win32 application'],
   linux: ['file too short', 'Exec format error'],
   sunos: ['unknown file type', 'not an ELF file'],
   darwin: ['file too short']
 };
-var dlerror_msg = error_desc[process.platform];
+const dlerror_msg = error_desc[process.platform];
 
-if (!dlerror_msg) {
-  common.skip('platform not supported.');
-  return;
-}
+assert.throws(
+  () => { require('../fixtures/module-loading-error.node'); },
+  (e) => {
+    if (dlerror_msg && !dlerror_msg.some((msg) => e.message.includes(msg)))
+      return false;
+    if (e.name !== 'Error')
+      return false;
+    return true;
+  }
+);
 
-try {
-  require('../fixtures/module-loading-error.node');
-} catch (e) {
-  assert.strictEqual(dlerror_msg.some((errMsgCase) => {
-    return e.toString().indexOf(errMsgCase) !== -1;
-  }), true);
-}
+assert.throws(
+  require,
+  /^AssertionError: missing path$/
+);
 
-try {
-  require();
-} catch (e) {
-  assert.notEqual(e.toString().indexOf('missing path'), -1);
-}
-
-try {
-  require({});
-} catch (e) {
-  assert.notEqual(e.toString().indexOf('path must be a string'), -1);
-}
+assert.throws(
+  () => { require({}); },
+  /^AssertionError: path must be a string$/
+);

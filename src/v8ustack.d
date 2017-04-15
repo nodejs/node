@@ -414,7 +414,7 @@ dtrace:helper:ustack:
 dtrace:helper:ustack:
 /!this->done/
 {
-	this->marker = COPYIN_PTR(this->fp + V8_OFF_FP_MARKER);
+	this->marker = COPYIN_PTR(this->fp + V8_OFF_FP_CONTEXT);
 }
 
 dtrace:helper:ustack:
@@ -532,7 +532,7 @@ dtrace:helper:ustack:
 	APPEND_CHR('s');
 	APPEND_CHR(' ');
 
-	this->funcnamestr = COPYIN_PTR(this->shared + V8_OFF_SHARED_INFERRED);
+	this->funcnamestr = COPYIN_PTR(this->shared + V8_OFF_SHARED_IDENT);
 	LOAD_STRFIELDS(this->funcnamestr, this->funcnamelen,
 	    this->funcnameattrs);
 }

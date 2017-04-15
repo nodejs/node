@@ -1,6 +1,10 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
+const debug = require('_debug_agent');
 
-assert.throws(() => { require('_debug_agent').start(); },
-  assert.AssertionError);
+assert.throws(
+  () => { debug.start(); },
+  common.expectsError({ type: assert.AssertionError,
+                        message: 'Debugger agent running without bindings!' })
+);

@@ -1,6 +1,6 @@
 /*
  * gzlog.c
- * Copyright (C) 2004, 2008, 2012 Mark Adler, all rights reserved
+ * Copyright (C) 2004, 2008, 2012, 2016 Mark Adler, all rights reserved
  * For conditions of distribution and use, see copyright notice in gzlog.h
  * version 2.2, 14 Aug 2012
  */
@@ -243,7 +243,7 @@ typedef unsigned int uint;
 typedef unsigned long ulong;
 
 /* Macro for debugging to deterministically force recovery operations */
-#ifdef DEBUG
+#ifdef GZLOG_DEBUG
     #include <setjmp.h>         /* longjmp */
     jmp_buf gzlog_jump;         /* where to go back to */
     int gzlog_bail = 0;         /* which point to bail at (1..8) */

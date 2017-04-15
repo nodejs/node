@@ -52,7 +52,14 @@ static int udp_options_test(const struct sockaddr* addr) {
   /* values 1-255 should work */
   for (i = 1; i <= 255; i++) {
     r = uv_udp_set_ttl(&h, i);
+#if defined(__MVS__)
+    if (addr->sa_family == AF_INET6)
+      ASSERT(r == 0);
+    else
+      ASSERT(r == UV_ENOTSUP);
+#else
     ASSERT(r == 0);
+#endif
   }
 
   for (i = 0; i < (int) ARRAY_SIZE(invalid_ttls); i++) {
@@ -113,7 +120,11 @@ TEST_IMPL(udp_no_autobind) {
   ASSERT(0 == uv_udp_init(loop, &h));
   ASSERT(UV_EBADF == uv_udp_set_multicast_ttl(&h, 32));
   ASSERT(UV_EBADF == uv_udp_set_broadcast(&h, 1));
+#if defined(__MVS__)
+  ASSERT(UV_ENOTSUP == uv_udp_set_ttl(&h, 1));
+#else
   ASSERT(UV_EBADF == uv_udp_set_ttl(&h, 1));
+#endif
   ASSERT(UV_EBADF == uv_udp_set_multicast_loop(&h, 1));
   ASSERT(UV_EBADF == uv_udp_set_multicast_interface(&h, "0.0.0.0"));
 

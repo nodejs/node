@@ -37,6 +37,29 @@ void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
   return ScavengeObjectSlow(p, object);
 }
 
+SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
+                                                     Address slot_address) {
+  Object** slot = reinterpret_cast<Object**>(slot_address);
+  Object* object = *slot;
+  if (heap->InFromSpace(object)) {
+    HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
+    DCHECK(heap_object->IsHeapObject());
+
+    ScavengeObject(reinterpret_cast<HeapObject**>(slot), heap_object);
+
+    object = *slot;
+    // If the object was in from space before and is after executing the
+    // callback in to space, the object is still live.
+    // Unfortunately, we do not know about the slot. It could be in a
+    // just freed free space object.
+    if (heap->InToSpace(object)) {
+      return KEEP_SLOT;
+    }
+  }
+  // Slots can point to "to" space if the slot has been recorded multiple
+  // times in the remembered set. We remove the redundant slot now.
+  return REMOVE_SLOT;
+}
 
 // static
 void StaticScavengeVisitor::VisitPointer(Heap* heap, HeapObject* obj,

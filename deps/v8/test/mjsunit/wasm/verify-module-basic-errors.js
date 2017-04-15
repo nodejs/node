@@ -6,13 +6,13 @@
 
 function Foo() { }
 
-assertThrows(function() { _WASMEXP_.verifyModule(); })
-assertThrows(function() { _WASMEXP_.verifyModule(0); })
-assertThrows(function() { _WASMEXP_.verifyModule("s"); })
-assertThrows(function() { _WASMEXP_.verifyModule(undefined); })
-assertThrows(function() { _WASMEXP_.verifyModule(1.1); })
-assertThrows(function() { _WASMEXP_.verifyModule(1/0); })
-assertThrows(function() { _WASMEXP_.verifyModule(null); })
-assertThrows(function() { _WASMEXP_.verifyModule(new Foo()); })
-assertThrows(function() { _WASMEXP_.verifyModule(new ArrayBuffer(0)); })
-assertThrows(function() { _WASMEXP_.verifyModule(new ArrayBuffer(7)); })
+assertThrows(function() { new WebAssembly.Module(); })
+assertThrows(function() { new WebAssembly.Module(0); })
+assertThrows(function() { new WebAssembly.Module("s"); })
+assertThrows(function() { new WebAssembly.Module(undefined); })
+assertThrows(function() { new WebAssembly.Module(1.1); })
+assertThrows(function() { new WebAssembly.Module(1/0); })
+assertThrows(function() { new WebAssembly.Module(null); })
+assertThrows(function() { new WebAssembly.Module(new Foo()); })
+assertThrows(function() { new WebAssembly.Module(new ArrayBuffer(0)); })
+assertThrows(function() { new WebAssembly.Module(new ArrayBuffer(7)); })

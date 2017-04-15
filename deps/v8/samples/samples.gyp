@@ -29,13 +29,15 @@
   'variables': {
     'v8_code': 1,
     'v8_enable_i18n_support%': 1,
+    'v8_toolset_for_shell%': 'target',
   },
-  'includes': ['../build/toolchain.gypi', '../build/features.gypi'],
+  'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
   'target_defaults': {
     'type': 'executable',
     'dependencies': [
-      '../tools/gyp/v8.gyp:v8',
-      '../tools/gyp/v8.gyp:v8_libplatform',
+      '../src/v8.gyp:v8',
+      '../src/v8.gyp:v8_libbase',
+      '../src/v8.gyp:v8_libplatform',
     ],
     'include_dirs': [
       '..',
@@ -56,9 +58,14 @@
   },
   'targets': [
     {
-      'target_name': 'shell',
+      'target_name': 'v8_shell',
       'sources': [
         'shell.cc',
+      ],
+      'conditions': [
+        [ 'want_separate_host_toolset==1', {
+          'toolsets': [ '<(v8_toolset_for_shell)', ],
+        }],
       ],
     },
     {

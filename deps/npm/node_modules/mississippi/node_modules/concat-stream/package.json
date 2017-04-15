@@ -1,0 +1,122 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "concat-stream@^1.5.0",
+        "scope": null,
+        "escapedName": "concat-stream",
+        "name": "concat-stream",
+        "rawSpec": "^1.5.0",
+        "spec": ">=1.5.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/mississippi"
+    ]
+  ],
+  "_from": "concat-stream@>=1.5.0 <2.0.0",
+  "_id": "concat-stream@1.6.0",
+  "_inCache": true,
+  "_location": "/mississippi/concat-stream",
+  "_nodeVersion": "4.6.2",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/concat-stream-1.6.0.tgz_1482162257023_0.2988202746491879"
+  },
+  "_npmUser": {
+    "name": "mafintosh",
+    "email": "mathiasbuus@gmail.com"
+  },
+  "_npmVersion": "2.15.11",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "concat-stream@^1.5.0",
+    "scope": null,
+    "escapedName": "concat-stream",
+    "name": "concat-stream",
+    "rawSpec": "^1.5.0",
+    "spec": ">=1.5.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/mississippi"
+  ],
+  "_resolved": "https://registry.npmjs.org/concat-stream/-/concat-stream-1.6.0.tgz",
+  "_shasum": "0aac662fd52be78964d5532f694784e70110acf7",
+  "_shrinkwrap": null,
+  "_spec": "concat-stream@^1.5.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/mississippi",
+  "author": {
+    "name": "Max Ogden",
+    "email": "max@maxogden.com"
+  },
+  "bugs": {
+    "url": "http://github.com/maxogden/concat-stream/issues"
+  },
+  "dependencies": {
+    "inherits": "^2.0.3",
+    "readable-stream": "^2.2.2",
+    "typedarray": "^0.0.6"
+  },
+  "description": "writable stream that concatenates strings or binary data and calls a callback with the result",
+  "devDependencies": {
+    "tape": "^4.6.3"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "0aac662fd52be78964d5532f694784e70110acf7",
+    "tarball": "https://registry.npmjs.org/concat-stream/-/concat-stream-1.6.0.tgz"
+  },
+  "engines": [
+    "node >= 0.8"
+  ],
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "e482281642c1e011fc158f5749ef40a71c77a426",
+  "homepage": "https://github.com/maxogden/concat-stream",
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "mafintosh",
+      "email": "mathiasbuus@gmail.com"
+    },
+    {
+      "name": "maxogden",
+      "email": "max@maxogden.com"
+    }
+  ],
+  "name": "concat-stream",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/maxogden/concat-stream.git"
+  },
+  "scripts": {
+    "test": "tape test/*.js test/server/*.js"
+  },
+  "tags": [
+    "stream",
+    "simple",
+    "util",
+    "utility"
+  ],
+  "testling": {
+    "files": "test/*.js",
+    "browsers": [
+      "ie/8..latest",
+      "firefox/17..latest",
+      "firefox/nightly",
+      "chrome/22..latest",
+      "chrome/canary",
+      "opera/12..latest",
+      "opera/next",
+      "safari/5.1..latest",
+      "ipad/6.0..latest",
+      "iphone/6.0..latest",
+      "android-browser/4.2..latest"
+    ]
+  },
+  "version": "1.6.0"
+}

@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `var` and named `function` declarations in the global scope",
+            description: "disallow variable and `function` declarations in the global scope",
             category: "Best Practices",
             recommended: false
         },
@@ -20,32 +20,32 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
         return {
-            Program: function() {
-                var scope = context.getScope();
+            Program() {
+                const scope = context.getScope();
 
-                scope.variables.forEach(function(variable) {
+                scope.variables.forEach(variable => {
                     if (variable.writeable) {
                         return;
                     }
 
-                    variable.defs.forEach(function(def) {
+                    variable.defs.forEach(def => {
                         if (def.type === "FunctionName" || (def.type === "Variable" && def.parent.kind === "var")) {
-                            context.report(def.node, "Implicit global variable, assign as global property instead.");
+                            context.report({ node: def.node, message: "Implicit global variable, assign as global property instead." });
                         }
                     });
                 });
 
-                scope.implicit.variables.forEach(function(variable) {
-                    var scopeVariable = scope.set.get(variable.name);
+                scope.implicit.variables.forEach(variable => {
+                    const scopeVariable = scope.set.get(variable.name);
 
                     if (scopeVariable && scopeVariable.writeable) {
                         return;
                     }
 
-                    variable.defs.forEach(function(def) {
-                        context.report(def.node, "Implicit global variable, assign as global property instead.");
+                    variable.defs.forEach(def => {
+                        context.report({ node: def.node, message: "Implicit global variable, assign as global property instead." });
                     });
                 });
             }

@@ -19,24 +19,16 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------
 
         return {
-
-            CallExpression: function(node) {
-                var callee = node.callee;
-
-                if (callee.type === "MemberExpression" && callee.object.name === "process" &&
-                    callee.property.name === "exit"
-                ) {
-                    context.report(node, "Don't use process.exit(); throw an error instead.");
-                }
+            "CallExpression > MemberExpression.callee[object.name = 'process'][property.name = 'exit']"(node) {
+                context.report({ node: node.parent, message: "Don't use process.exit(); throw an error instead." });
             }
-
         };
 
     }

@@ -6,6 +6,8 @@ var common = require('../common-tap.js')
 
 var pkg = path.resolve(__dirname, 'spawn-enoent-help')
 
+common.pendIfWindows('man pages are not built on Windows')
+
 test('setup', function (t) {
   rimraf.sync(pkg)
   mkdirp.sync(pkg)

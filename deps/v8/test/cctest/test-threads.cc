@@ -30,7 +30,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/isolate.h"
-
+#include "src/list-inl.h"
 
 class ThreadIdValidationThread : public v8::base::Thread {
  public:

@@ -20,10 +20,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const dgram = require('dgram');
 
 // Without an explicit bind, send() causes an implicit bind, which always
 // generate a unique per-socket ephemeral port. An explicit bind to a port
@@ -40,34 +40,32 @@ var dgram = require('dgram');
 // with ENOTSUP.
 
 if (cluster.isMaster) {
-  var pass;
-  var messages = 0;
-  var ports = {};
+  let messages = 0;
+  const ports = {};
+  const pids = [];
 
-  process.on('exit', function() {
-    assert.equal(pass, true);
+  const target = dgram.createSocket('udp4');
+
+  const done = common.mustCall(function() {
+    cluster.disconnect();
+    target.close();
   });
 
-  var target = dgram.createSocket('udp4');
-
   target.on('message', function(buf, rinfo) {
+    if (pids.includes(buf.toString()))
+      return;
+    pids.push(buf.toString());
     messages++;
     ports[rinfo.port] = true;
 
     if (common.isWindows && messages === 2) {
-      assert.equal(Object.keys(ports).length, 2);
+      assert.strictEqual(Object.keys(ports).length, 2);
       done();
     }
 
     if (!common.isWindows && messages === 4) {
-      assert.equal(Object.keys(ports).length, 3);
+      assert.strictEqual(Object.keys(ports).length, 3);
       done();
-    }
-
-    function done() {
-      pass = true;
-      cluster.disconnect();
-      target.close();
     }
   });
 
@@ -85,7 +83,11 @@ if (cluster.isMaster) {
   return;
 }
 
-var source = dgram.createSocket('udp4');
+const source = dgram.createSocket('udp4');
+
+source.on('close', function() {
+  clearInterval(interval);
+});
 
 if (process.env.BOUND === 'y') {
   source.bind(0);
@@ -96,4 +98,7 @@ if (process.env.BOUND === 'y') {
   source.unref();
 }
 
-source.send(Buffer.from('abc'), 0, 3, common.PORT, '127.0.0.1');
+const buf = Buffer.from(process.pid.toString());
+const interval = setInterval(() => {
+  source.send(buf, common.PORT, '127.0.0.1');
+}, 1).unref();

@@ -6,17 +6,13 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
 
 void AstLiteralReindexer::VisitVariableDeclaration(VariableDeclaration* node) {
-  VisitVariableProxy(node->proxy());
-}
-
-
-void AstLiteralReindexer::VisitExportDeclaration(ExportDeclaration* node) {
   VisitVariableProxy(node->proxy());
 }
 
@@ -80,11 +76,6 @@ void AstLiteralReindexer::VisitSuperCallReference(SuperCallReference* node) {
 void AstLiteralReindexer::VisitRewritableExpression(
     RewritableExpression* node) {
   Visit(node->expression());
-}
-
-
-void AstLiteralReindexer::VisitImportDeclaration(ImportDeclaration* node) {
-  VisitVariableProxy(node->proxy());
 }
 
 
@@ -196,6 +187,9 @@ void AstLiteralReindexer::VisitSpread(Spread* node) {
 
 void AstLiteralReindexer::VisitEmptyParentheses(EmptyParentheses* node) {}
 
+void AstLiteralReindexer::VisitGetIterator(GetIterator* node) {
+  Visit(node->iterable());
+}
 
 void AstLiteralReindexer::VisitForInStatement(ForInStatement* node) {
   Visit(node->each());
@@ -259,21 +253,18 @@ void AstLiteralReindexer::VisitClassLiteral(ClassLiteral* node) {
     VisitVariableProxy(node->class_variable_proxy());
   }
   for (int i = 0; i < node->properties()->length(); i++) {
-    VisitObjectLiteralProperty(node->properties()->at(i));
+    VisitLiteralProperty(node->properties()->at(i));
   }
 }
-
 
 void AstLiteralReindexer::VisitObjectLiteral(ObjectLiteral* node) {
   UpdateIndex(node);
   for (int i = 0; i < node->properties()->length(); i++) {
-    VisitObjectLiteralProperty(node->properties()->at(i));
+    VisitLiteralProperty(node->properties()->at(i));
   }
 }
 
-
-void AstLiteralReindexer::VisitObjectLiteralProperty(
-    ObjectLiteralProperty* node) {
+void AstLiteralReindexer::VisitLiteralProperty(LiteralProperty* node) {
   Visit(node->key());
   Visit(node->value());
 }
@@ -326,9 +317,6 @@ void AstLiteralReindexer::VisitFunctionLiteral(FunctionLiteral* node) {
   // We don't recurse into the declarations or body of the function literal:
 }
 
-
-void AstLiteralReindexer::Reindex(Expression* pattern) {
-  pattern->Accept(this);
-}
+void AstLiteralReindexer::Reindex(Expression* pattern) { Visit(pattern); }
 }  // namespace internal
 }  // namespace v8

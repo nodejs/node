@@ -25,14 +25,14 @@ const server = net.createServer(function onClient(client) {
       clients[1].end();
     });
 
-    // Use a delay that is higher than the lowest timer resolution accross all
+    // Use a delay that is higher than the lowest timer resolution across all
     // supported platforms, so that the two timers don't fire at the same time.
     clients[1].setTimeout(50);
   }
 });
 
-server.listen(common.PORT, common.localhostIPv4, function() {
-  var nbClientsEnded = 0;
+server.listen(0, common.localhostIPv4, function() {
+  let nbClientsEnded = 0;
 
   function addEndedClient(client) {
     ++nbClientsEnded;
@@ -41,9 +41,9 @@ server.listen(common.PORT, common.localhostIPv4, function() {
     }
   }
 
-  const client1 = net.connect({ port: common.PORT });
+  const client1 = net.connect({ port: this.address().port });
   client1.on('end', addEndedClient);
 
-  const client2 = net.connect({ port: common.PORT });
+  const client2 = net.connect({ port: this.address().port });
   client2.on('end', addEndedClient);
 });

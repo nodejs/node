@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -20,7 +26,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Determines if a given node is part of JSX syntax.
@@ -38,11 +44,9 @@ module.exports = {
 
         return {
 
-            Literal: function(node) {
-                var lineBreak = /\n/;
-
-                if (lineBreak.test(node.raw) && !isJSXElement(node.parent)) {
-                    context.report(node, "Multiline support is limited to browsers supporting ES5 only.");
+            Literal(node) {
+                if (astUtils.LINEBREAK_MATCHER.test(node.raw) && !isJSXElement(node.parent)) {
+                    context.report({ node, message: "Multiline support is limited to browsers supporting ES5 only." });
                 }
             }
         };

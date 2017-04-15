@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_GRAPH_REDUCER_H_
 #define V8_COMPILER_GRAPH_REDUCER_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/node-marker.h"
-#include "src/zone-containers.h"
+#include "src/globals.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -40,7 +42,7 @@ class Reduction final {
 // language-specific reductions (e.g. reduction based on types or constant
 // folding of low-level operators) can be integrated into the graph reduction
 // phase.
-class Reducer {
+class V8_EXPORT_PRIVATE Reducer {
  public:
   virtual ~Reducer() {}
 
@@ -74,8 +76,7 @@ class AdvancedReducer : public Reducer {
     virtual void Revisit(Node* node) = 0;
     // Replace value uses of {node} with {value} and effect uses of {node} with
     // {effect}. If {effect == nullptr}, then use the effect input to {node}.
-    // All
-    // control uses will be relaxed assuming {node} cannot throw.
+    // All control uses will be relaxed assuming {node} cannot throw.
     virtual void ReplaceWithValue(Node* node, Node* value, Node* effect,
                                   Node* control) = 0;
   };
@@ -120,7 +121,8 @@ class AdvancedReducer : public Reducer {
 
 
 // Performs an iterative reduction of a node graph.
-class GraphReducer : public AdvancedReducer::Editor {
+class V8_EXPORT_PRIVATE GraphReducer
+    : public NON_EXPORTED_BASE(AdvancedReducer::Editor) {
  public:
   GraphReducer(Zone* zone, Graph* graph, Node* dead = nullptr);
   ~GraphReducer();

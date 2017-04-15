@@ -7,10 +7,12 @@
 
 #include <ostream>  // NOLINT(readability/streams)
 
+#include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/base/functional.h"
+#include "src/globals.h"
 #include "src/handles.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +30,7 @@ namespace compiler {
 // as the name for a named field access, the ID of a runtime function, etc.
 // Static parameters are private to the operator and only semantically
 // meaningful to the operator itself.
-class Operator : public ZoneObject {
+class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   typedef uint16_t Opcode;
 
@@ -36,20 +38,27 @@ class Operator : public ZoneObject {
   // transformations for nodes that have this operator.
   enum Property {
     kNoProperties = 0,
-    kReducible = 1 << 0,    // Participates in strength reduction.
-    kCommutative = 1 << 1,  // OP(a, b) == OP(b, a) for all inputs.
-    kAssociative = 1 << 2,  // OP(a, OP(b,c)) == OP(OP(a,b), c) for all inputs.
-    kIdempotent = 1 << 3,   // OP(a); OP(a) == OP(a).
-    kNoRead = 1 << 4,       // Has no scheduling dependency on Effects
-    kNoWrite = 1 << 5,      // Does not modify any Effects and thereby
+    kCommutative = 1 << 0,  // OP(a, b) == OP(b, a) for all inputs.
+    kAssociative = 1 << 1,  // OP(a, OP(b,c)) == OP(OP(a,b), c) for all inputs.
+    kIdempotent = 1 << 2,   // OP(a); OP(a) == OP(a).
+    kNoRead = 1 << 3,       // Has no scheduling dependency on Effects
+    kNoWrite = 1 << 4,      // Does not modify any Effects and thereby
                             // create new scheduling dependencies.
-    kNoThrow = 1 << 6,      // Can never generate an exception.
+    kNoThrow = 1 << 5,      // Can never generate an exception.
+    kNoDeopt = 1 << 6,      // Can never generate an eager deoptimization exit.
     kFoldable = kNoRead | kNoWrite,
-    kKontrol = kFoldable | kNoThrow,
-    kEliminatable = kNoWrite | kNoThrow,
-    kPure = kNoRead | kNoWrite | kNoThrow | kIdempotent
+    kKontrol = kNoDeopt | kFoldable | kNoThrow,
+    kEliminatable = kNoDeopt | kNoWrite | kNoThrow,
+    kPure = kNoDeopt | kNoRead | kNoWrite | kNoThrow | kIdempotent
   };
+
+// List of all bits, for the visualizer.
+#define OPERATOR_PROPERTY_LIST(V) \
+  V(Commutative)                  \
+  V(Associative) V(Idempotent) V(NoRead) V(NoWrite) V(NoThrow) V(NoDeopt)
+
   typedef base::Flags<Property, uint8_t> Properties;
+  enum class PrintVerbosity { kVerbose, kSilent };
 
   // Constructor.
   Operator(Opcode opcode, Properties properties, const char* mnemonic,
@@ -111,11 +120,20 @@ class Operator : public ZoneObject {
   }
 
   // TODO(titzer): API for input and output types, for typechecking graph.
- protected:
+
   // Print the full operator into the given stream, including any
   // static parameters. Useful for debugging and visualizing the IR.
-  virtual void PrintTo(std::ostream& os) const;
-  friend std::ostream& operator<<(std::ostream& os, const Operator& op);
+  void PrintTo(std::ostream& os,
+               PrintVerbosity verbose = PrintVerbosity::kVerbose) const {
+    // We cannot make PrintTo virtual, because default arguments to virtual
+    // methods are banned in the style guide.
+    return PrintToImpl(os, verbose);
+  }
+
+  void PrintPropsTo(std::ostream& os) const;
+
+ protected:
+  virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const;
 
  private:
   Opcode opcode_;
@@ -126,7 +144,7 @@ class Operator : public ZoneObject {
   uint16_t control_in_;
   uint16_t value_out_;
   uint8_t effect_out_;
-  uint16_t control_out_;
+  uint32_t control_out_;
 
   DISALLOW_COPY_AND_ASSIGN(Operator);
 };
@@ -172,14 +190,19 @@ class Operator1 : public Operator {
   size_t HashCode() const final {
     return base::hash_combine(this->opcode(), this->hash_(this->parameter()));
   }
-  virtual void PrintParameter(std::ostream& os) const {
-    os << "[" << this->parameter() << "]";
+  // For most parameter types, we have only a verbose way to print them, namely
+  // ostream << parameter. But for some types it is particularly useful to have
+  // a shorter way to print them for the node labels in Turbolizer. The
+  // following method can be overridden to provide a concise and a verbose
+  // printing of a parameter.
+
+  virtual void PrintParameter(std::ostream& os, PrintVerbosity verbose) const {
+    os << "[" << parameter() << "]";
   }
 
- protected:
-  void PrintTo(std::ostream& os) const final {
+  virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const {
     os << mnemonic();
-    PrintParameter(os);
+    PrintParameter(os, verbose);
   }
 
  private:

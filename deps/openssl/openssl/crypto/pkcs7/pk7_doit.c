@@ -340,7 +340,7 @@ BIO *PKCS7_dataInit(PKCS7 *p7, BIO *bio)
         ivlen = EVP_CIPHER_iv_length(evp_cipher);
         xalg->algorithm = OBJ_nid2obj(EVP_CIPHER_type(evp_cipher));
         if (ivlen > 0)
-            if (RAND_pseudo_bytes(iv, ivlen) <= 0)
+            if (RAND_bytes(iv, ivlen) <= 0)
                 goto err;
         if (EVP_CipherInit_ex(ctx, evp_cipher, NULL, NULL, NULL, 1) <= 0)
             goto err;
@@ -642,6 +642,8 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
     } else {
 # if 0
         bio = BIO_new(BIO_s_mem());
+        if (bio == NULL)
+            goto err;
         /*
          * We need to set this so that when we have read all the data, the
          * encrypt BIO, if present, will read EOF and encode the last few

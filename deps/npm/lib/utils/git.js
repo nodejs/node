@@ -11,6 +11,7 @@ var which = require('which')
 var git = npm.config.get('git')
 var assert = require('assert')
 var log = require('npmlog')
+var noProgressTillDone = require('./no-progress-while-running.js').tillDone
 
 function prefixGitArgs () {
   return process.platform === 'win32' ? ['-c', 'core.longpaths=true'] : []
@@ -19,7 +20,7 @@ function prefixGitArgs () {
 function execGit (args, options, cb) {
   log.info('git', args)
   var fullArgs = prefixGitArgs().concat(args || [])
-  return exec(git, fullArgs, options, cb)
+  return exec(git, fullArgs, options, noProgressTillDone(cb))
 }
 
 function spawnGit (args, options) {
@@ -32,14 +33,10 @@ function chainableExec () {
   return [execGit].concat(args)
 }
 
-function whichGit (cb) {
-  return which(git, cb)
-}
-
 function whichAndExec (args, options, cb) {
   assert.equal(typeof cb, 'function', 'no callback provided')
   // check for git
-  whichGit(function (err) {
+  which(git, function (err) {
     if (err) {
       err.code = 'ENOGIT'
       return cb(err)

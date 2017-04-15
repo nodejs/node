@@ -24,9 +24,9 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var errorArgument = context.options[0] || "err";
+        const errorArgument = context.options[0] || "err";
 
         /**
          * Checks if the given argument should be interpreted as a regexp pattern.
@@ -34,7 +34,7 @@ module.exports = {
          * @returns {boolean} Whether or not the string should be interpreted as a pattern.
          */
         function isPattern(stringToCheck) {
-            var firstChar = stringToCheck[0];
+            const firstChar = stringToCheck[0];
 
             return firstChar === "^";
         }
@@ -46,7 +46,7 @@ module.exports = {
          */
         function matchesConfiguredErrorName(name) {
             if (isPattern(errorArgument)) {
-                var regexp = new RegExp(errorArgument);
+                const regexp = new RegExp(errorArgument);
 
                 return regexp.test(name);
             }
@@ -55,13 +55,11 @@ module.exports = {
 
         /**
          * Get the parameters of a given function scope.
-         * @param {object} scope The function scope.
+         * @param {Object} scope The function scope.
          * @returns {array} All parameters of the given scope.
          */
         function getParameters(scope) {
-            return scope.variables.filter(function(variable) {
-                return variable.defs[0] && variable.defs[0].type === "Parameter";
-            });
+            return scope.variables.filter(variable => variable.defs[0] && variable.defs[0].type === "Parameter");
         }
 
         /**
@@ -70,13 +68,13 @@ module.exports = {
          * @returns {void}
          */
         function checkForError(node) {
-            var scope = context.getScope(),
+            const scope = context.getScope(),
                 parameters = getParameters(scope),
                 firstParameter = parameters[0];
 
             if (firstParameter && matchesConfiguredErrorName(firstParameter.name)) {
                 if (firstParameter.references.length === 0) {
-                    context.report(node, "Expected error to be handled.");
+                    context.report({ node, message: "Expected error to be handled." });
                 }
             }
         }

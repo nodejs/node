@@ -401,9 +401,12 @@ static int cms_wrap_init(CMS_KeyAgreeRecipientInfo *kari,
      * Pick a cipher based on content encryption cipher. If it is DES3 use
      * DES3 wrap otherwise use AES wrap similar to key size.
      */
+#ifndef OPENSSL_NO_DES
     if (EVP_CIPHER_type(cipher) == NID_des_ede3_cbc)
         kekcipher = EVP_des_ede3_wrap();
-    else if (keylen <= 16)
+    else
+#endif
+    if (keylen <= 16)
         kekcipher = EVP_aes_128_wrap();
     else if (keylen <= 24)
         kekcipher = EVP_aes_192_wrap();

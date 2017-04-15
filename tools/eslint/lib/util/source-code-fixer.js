@@ -8,13 +8,24 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var debug = require("debug")("eslint:text-fixer");
+const debug = require("debug")("eslint:text-fixer");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var BOM = "\uFEFF";
+const BOM = "\uFEFF";
+
+/**
+ * Compares items in a messages array by range.
+ * @param {Message} a The first message.
+ * @param {Message} b The second message.
+ * @returns {int} -1 if a comes before b, 1 if a comes after b, 0 if equal.
+ * @private
+ */
+function compareMessagesByFixRange(a, b) {
+    return a.fix.range[0] - b.fix.range[0] || a.fix.range[1] - b.fix.range[1];
+}
 
 /**
  * Compares items in a messages array by line and column.
@@ -24,13 +35,7 @@ var BOM = "\uFEFF";
  * @private
  */
 function compareMessagesByLocation(a, b) {
-    var lineDiff = a.line - b.line;
-
-    if (lineDiff === 0) {
-        return a.column - b.column;
-    } else {
-        return lineDiff;
-    }
+    return a.line - b.line || a.column - b.column;
 }
 
 //------------------------------------------------------------------------------
@@ -60,19 +65,20 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
         debug("No source code to fix");
         return {
             fixed: false,
-            messages: messages,
+            messages,
             output: ""
         };
     }
 
     // clone the array
-    var remainingMessages = [],
+    const remainingMessages = [],
         fixes = [],
-        text = sourceCode.text,
-        lastFixPos = text.length + 1,
-        prefix = (sourceCode.hasBOM ? BOM : "");
+        bom = (sourceCode.hasBOM ? BOM : ""),
+        text = sourceCode.text;
+    let lastPos = Number.NEGATIVE_INFINITY,
+        output = bom;
 
-    messages.forEach(function(problem) {
+    messages.forEach(problem => {
         if (problem.hasOwnProperty("fix")) {
             fixes.push(problem);
         } else {
@@ -83,59 +89,43 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
     if (fixes.length) {
         debug("Found fixes to apply");
 
-        // sort in reverse order of occurrence
-        fixes.sort(function(a, b) {
-            if (a.fix.range[1] <= b.fix.range[0]) {
-                return 1;
-            } else {
-                return -1;
-            }
-        });
+        for (const problem of fixes.sort(compareMessagesByFixRange)) {
+            const fix = problem.fix;
+            const start = fix.range[0];
+            const end = fix.range[1];
 
-        // split into array of characters for easier manipulation
-        var chars = text.split("");
-
-        fixes.forEach(function(problem) {
-            var fix = problem.fix;
-            var start = fix.range[0];
-            var end = fix.range[1];
-            var insertionText = fix.text;
-
-            if (end < lastFixPos) {
-                if (start < 0) {
-
-                    // Remove BOM.
-                    prefix = "";
-                    start = 0;
-                }
-
-                if (start === 0 && insertionText[0] === BOM) {
-
-                    // Set BOM.
-                    prefix = BOM;
-                    insertionText = insertionText.slice(1);
-                }
-
-                chars.splice(start, end - start, insertionText);
-                lastFixPos = start;
-            } else {
+            // Remain it as a problem if it's overlapped or it's a negative range
+            if (lastPos >= start || start > end) {
                 remainingMessages.push(problem);
+                continue;
             }
-        });
+
+            // Remove BOM.
+            if ((start < 0 && end >= 0) || (start === 0 && fix.text.startsWith(BOM))) {
+                output = "";
+            }
+
+            // Make output to this fix.
+            output += text.slice(Math.max(0, lastPos), Math.max(0, start));
+            output += fix.text;
+            lastPos = end;
+        }
+        output += text.slice(Math.max(0, lastPos));
 
         return {
             fixed: true,
             messages: remainingMessages.sort(compareMessagesByLocation),
-            output: prefix + chars.join("")
-        };
-    } else {
-        debug("No fixes to apply");
-        return {
-            fixed: false,
-            messages: messages,
-            output: prefix + text
+            output
         };
     }
+
+    debug("No fixes to apply");
+    return {
+        fixed: false,
+        messages,
+        output: bom + text
+    };
+
 };
 
 module.exports = SourceCodeFixer;

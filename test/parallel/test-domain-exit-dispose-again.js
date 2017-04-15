@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 
 // This test makes sure that when a domain is disposed, timers that are
@@ -6,22 +27,22 @@
 // the same invocation of listOnTimeout, _are_ called.
 
 require('../common');
-var assert = require('assert');
-var domain = require('domain');
-var disposalFailed = false;
+const assert = require('assert');
+const domain = require('domain');
+let disposalFailed = false;
 
 // Repeatedly schedule a timer with a delay different than the timers attached
 // to a domain that will eventually be disposed to make sure that they are
 // called, regardless of what happens with those timers attached to domains
 // that will eventually be disposed.
-var a = 0;
+let a = 0;
 log();
 function log() {
   console.log(a++, process.domain);
   if (a < 10) setTimeout(log, 20);
 }
 
-var secondTimerRan = false;
+let secondTimerRan = false;
 
 // Use the same timeout duration for both "firstTimer" and "secondTimer"
 // callbacks so that they are called during the same invocation of the
@@ -51,7 +72,7 @@ setTimeout(function firstTimer() {
           'a domain that should be disposed.');
       disposalFailed = true;
       process.exit(1);
-    });
+    }, 1);
 
     // Make V8 throw an unreferenced error. As a result, the domain's error
     // handler is called, which disposes the domain "d" and should prevent the
@@ -69,8 +90,8 @@ setTimeout(function secondTimer() {
 }, TIMEOUT_DURATION);
 
 process.on('exit', function() {
-  assert.equal(a, 10);
-  assert.equal(disposalFailed, false);
+  assert.strictEqual(a, 10);
+  assert.strictEqual(disposalFailed, false);
   assert(secondTimerRan);
   console.log('ok');
 });

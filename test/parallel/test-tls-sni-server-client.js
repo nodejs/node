@@ -1,11 +1,32 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
+const common = require('../common');
 if (!process.features.tls_sni) {
   common.skip('node compiled without OpenSSL or ' +
               'with old OpenSSL version.');
   return;
 }
 
-const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
@@ -13,7 +34,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
 function filenamePEM(n) {
   return require('path').join(common.fixturesDir, 'keys', n + '.pem');
@@ -23,12 +44,12 @@ function loadPEM(n) {
   return fs.readFileSync(filenamePEM(n));
 }
 
-var serverOptions = {
+const serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert')
 };
 
-var SNIContexts = {
+const SNIContexts = {
   'a.example.com': {
     key: loadPEM('agent1-key'),
     cert: loadPEM('agent1-cert')
@@ -44,30 +65,28 @@ var SNIContexts = {
   }
 };
 
-var serverPort = common.PORT;
-
-var clientsOptions = [{
-  port: serverPort,
+const clientsOptions = [{
+  port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca2-cert')],
   servername: 'b.test.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca2-cert')],
   servername: 'a.b.test.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'c.wrong.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'chain.example.com',
   rejectUnauthorized: false
@@ -76,7 +95,7 @@ var clientsOptions = [{
 const serverResults = [];
 const clientResults = [];
 
-var server = tls.createServer(serverOptions, function(c) {
+const server = tls.createServer(serverOptions, function(c) {
   serverResults.push(c.servername);
 });
 
@@ -84,17 +103,18 @@ server.addContext('a.example.com', SNIContexts['a.example.com']);
 server.addContext('*.test.com', SNIContexts['asterisk.test.com']);
 server.addContext('chain.example.com', SNIContexts['chain.example.com']);
 
-server.listen(serverPort, startTest);
+server.listen(0, startTest);
 
 function startTest() {
-  var i = 0;
+  let i = 0;
   function start() {
     // No options left
     if (i === clientsOptions.length)
       return server.close();
 
-    var options = clientsOptions[i++];
-    var client = tls.connect(options, function() {
+    const options = clientsOptions[i++];
+    options.port = server.address().port;
+    const client = tls.connect(options, function() {
       clientResults.push(
         client.authorizationError &&
         /Hostname\/IP doesn't/.test(client.authorizationError));

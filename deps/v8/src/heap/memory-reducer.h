@@ -8,6 +8,7 @@
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
 #include "src/cancelable-task.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -79,21 +80,23 @@ class Heap;
 // now_ms is the current time,
 // t' is t if the current event is not a GC event and is now_ms otherwise,
 // long_delay_ms, short_delay_ms, and watchdog_delay_ms are constants.
-class MemoryReducer {
+class V8_EXPORT_PRIVATE MemoryReducer {
  public:
   enum Action { kDone, kWait, kRun };
 
   struct State {
     State(Action action, int started_gcs, double next_gc_start_ms,
-          double last_gc_time_ms)
+          double last_gc_time_ms, size_t committed_memory_at_last_run)
         : action(action),
           started_gcs(started_gcs),
           next_gc_start_ms(next_gc_start_ms),
-          last_gc_time_ms(last_gc_time_ms) {}
+          last_gc_time_ms(last_gc_time_ms),
+          committed_memory_at_last_run(committed_memory_at_last_run) {}
     Action action;
     int started_gcs;
     double next_gc_start_ms;
     double last_gc_time_ms;
+    size_t committed_memory_at_last_run;
   };
 
   enum EventType { kTimer, kMarkCompact, kPossibleGarbage };
@@ -101,6 +104,7 @@ class MemoryReducer {
   struct Event {
     EventType type;
     double time_ms;
+    size_t committed_memory;
     bool next_gc_likely_to_collect_more;
     bool should_start_incremental_gc;
     bool can_start_incremental_gc;
@@ -108,7 +112,7 @@ class MemoryReducer {
 
   explicit MemoryReducer(Heap* heap)
       : heap_(heap),
-        state_(kDone, 0, 0.0, 0.0),
+        state_(kDone, 0, 0.0, 0.0, 0),
         js_calls_counter_(0),
         js_calls_sample_time_ms_(0.0) {}
   // Callbacks.
@@ -125,6 +129,12 @@ class MemoryReducer {
   static const int kShortDelayMs;
   static const int kWatchdogDelayMs;
   static const int kMaxNumberOfGCs;
+  // The committed memory has to increase by at least this factor since the
+  // last run in order to trigger a new run after mark-compact.
+  static const double kCommittedMemoryFactor;
+  // The committed memory has to increase by at least this amount since the
+  // last run in order to trigger a new run after mark-compact.
+  static const size_t kCommittedMemoryDelta;
 
   Heap* heap() { return heap_; }
 
@@ -147,9 +157,6 @@ class MemoryReducer {
   void NotifyTimer(const Event& event);
 
   static bool WatchdogGC(const State& state, const Event& event);
-
-  // Returns the rate of JS calls initiated from the API.
-  double SampleAndGetJsCallsPerMs(double time_ms);
 
   Heap* heap_;
   State state_;

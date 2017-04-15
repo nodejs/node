@@ -13,93 +13,9 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_NumberToRadixString) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_SMI_ARG_CHECKED(radix, 1);
-  RUNTIME_ASSERT(2 <= radix && radix <= 36);
-
-  // Fast case where the result is a one character string.
-  if (args[0]->IsSmi()) {
-    int value = args.smi_at(0);
-    if (value >= 0 && value < radix) {
-      // Character array used for conversion.
-      static const char kCharTable[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-      return *isolate->factory()->LookupSingleCharacterStringFromCode(
-          kCharTable[value]);
-    }
-  }
-
-  // Slow case.
-  CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  if (std::isnan(value)) {
-    return isolate->heap()->nan_string();
-  }
-  if (std::isinf(value)) {
-    if (value < 0) {
-      return isolate->heap()->minus_infinity_string();
-    }
-    return isolate->heap()->infinity_string();
-  }
-  char* str = DoubleToRadixCString(value, radix);
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberToFixed) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
-  int f = FastD2IChecked(f_number);
-  // See DoubleToFixedCString for these constants:
-  RUNTIME_ASSERT(f >= 0 && f <= 20);
-  RUNTIME_ASSERT(!Double(value).IsSpecial());
-  char* str = DoubleToFixedCString(value, f);
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberToExponential) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
-  int f = FastD2IChecked(f_number);
-  RUNTIME_ASSERT(f >= -1 && f <= 20);
-  RUNTIME_ASSERT(!Double(value).IsSpecial());
-  char* str = DoubleToExponentialCString(value, f);
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_NumberToPrecision) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(value, 0);
-  CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
-  int f = FastD2IChecked(f_number);
-  RUNTIME_ASSERT(f >= 1 && f <= 21);
-  RUNTIME_ASSERT(!Double(value).IsSpecial());
-  char* str = DoubleToPrecisionCString(value, f);
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
-  return *result;
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsValidSmi) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_NUMBER_CHECKED(int32_t, number, Int32, args[0]);
   return isolate->heap()->ToBoolean(Smi::IsValid(number));
@@ -117,35 +33,47 @@ RUNTIME_FUNCTION(Runtime_StringToNumber) {
 // ES6 18.2.5 parseInt(string, radix) slow path
 RUNTIME_FUNCTION(Runtime_StringParseInt) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
-  CONVERT_NUMBER_CHECKED(int, radix, Int32, args[1]);
-  // Step 8.a. is already handled in the JS function.
-  RUNTIME_ASSERT(radix == 0 || (2 <= radix && radix <= 36));
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, string, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, radix, 1);
 
+  // Convert {string} to a String first, and flatten it.
+  Handle<String> subject;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, subject,
+                                     Object::ToString(isolate, string));
   subject = String::Flatten(subject);
-  double value;
 
+  // Convert {radix} to Int32.
+  if (!radix->IsNumber()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix, Object::ToNumber(radix));
+  }
+  int radix32 = DoubleToInt32(radix->Number());
+  if (radix32 != 0 && (radix32 < 2 || radix32 > 36)) {
+    return isolate->heap()->nan_value();
+  }
+
+  double result;
   {
     DisallowHeapAllocation no_gc;
     String::FlatContent flat = subject->GetFlatContent();
 
     if (flat.IsOneByte()) {
-      value =
-          StringToInt(isolate->unicode_cache(), flat.ToOneByteVector(), radix);
+      result = StringToInt(isolate->unicode_cache(), flat.ToOneByteVector(),
+                           radix32);
     } else {
-      value = StringToInt(isolate->unicode_cache(), flat.ToUC16Vector(), radix);
+      result =
+          StringToInt(isolate->unicode_cache(), flat.ToUC16Vector(), radix32);
     }
   }
 
-  return *isolate->factory()->NewNumber(value);
+  return *isolate->factory()->NewNumber(result);
 }
 
 
 // ES6 18.2.4 parseFloat(string)
 RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   HandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
 
   double value =
@@ -158,7 +86,7 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
 
 RUNTIME_FUNCTION(Runtime_NumberToString) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 0);
 
   return *isolate->factory()->NumberToString(number);
@@ -167,24 +95,10 @@ RUNTIME_FUNCTION(Runtime_NumberToString) {
 
 RUNTIME_FUNCTION(Runtime_NumberToStringSkipCache) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 0);
 
   return *isolate->factory()->NumberToString(number, false);
-}
-
-
-// TODO(bmeurer): Kill this runtime entry. Uses in date.js are wrong anyway.
-RUNTIME_FUNCTION(Runtime_NumberToIntegerMapMinusZero) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, input, Object::ToNumber(input));
-  double double_value = DoubleToInteger(input->Number());
-  // Map both -0 and +0 to +0.
-  if (double_value == 0) double_value = 0;
-
-  return *isolate->factory()->NewNumber(double_value);
 }
 
 
@@ -192,7 +106,7 @@ RUNTIME_FUNCTION(Runtime_NumberToIntegerMapMinusZero) {
 // a small integer.
 RUNTIME_FUNCTION(Runtime_NumberToSmi) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
   if (obj->IsSmi()) {
     return obj;
@@ -208,24 +122,11 @@ RUNTIME_FUNCTION(Runtime_NumberToSmi) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NumberImul) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  // We rely on implementation-defined behavior below, but at least not on
-  // undefined behavior.
-  CONVERT_NUMBER_CHECKED(uint32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(uint32_t, y, Int32, args[1]);
-  int32_t product = static_cast<int32_t>(x * y);
-  return *isolate->factory()->NewNumberFromInt(product);
-}
-
-
 // Compare two Smis as if they were converted to strings and then
 // compared lexicographically.
 RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(x_value, 0);
   CONVERT_SMI_ARG_CHECKED(y_value, 1);
 
@@ -299,14 +200,14 @@ RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
 
 RUNTIME_FUNCTION(Runtime_MaxSmi) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return Smi::FromInt(Smi::kMaxValue);
 }
 
 
 RUNTIME_FUNCTION(Runtime_IsSmi) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsSmi());
 }
@@ -314,21 +215,21 @@ RUNTIME_FUNCTION(Runtime_IsSmi) {
 
 RUNTIME_FUNCTION(Runtime_GetRootNaN) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return isolate->heap()->nan_value();
 }
 
 
 RUNTIME_FUNCTION(Runtime_GetHoleNaNUpper) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return *isolate->factory()->NewNumberFromUint(kHoleNanUpper32);
 }
 
 
 RUNTIME_FUNCTION(Runtime_GetHoleNaNLower) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return *isolate->factory()->NewNumberFromUint(kHoleNanLower32);
 }
 

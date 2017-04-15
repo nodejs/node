@@ -1,29 +1,50 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var bufferSize = 5 * 1024 * 1024;
-var measuredSize = 0;
+const bufferSize = 5 * 1024 * 1024;
+let measuredSize = 0;
 
-var buffer = Buffer.allocUnsafe(bufferSize);
-for (var i = 0; i < buffer.length; i++) {
+const buffer = Buffer.allocUnsafe(bufferSize);
+for (let i = 0; i < buffer.length; i++) {
   buffer[i] = i % 256;
 }
 
 
-var web = http.Server(function(req, res) {
+const web = http.Server(function(req, res) {
   web.close();
 
   console.log(req.headers);
 
-  var i = 0;
+  let i = 0;
 
   req.on('data', function(d) {
     process.stdout.write(',');
     measuredSize += d.length;
-    for (var j = 0; j < d.length; j++) {
-      assert.equal(buffer[i], d[j]);
+    for (let j = 0; j < d.length; j++) {
+      assert.strictEqual(buffer[i], d[j]);
       i++;
     }
   });
@@ -42,29 +63,25 @@ var web = http.Server(function(req, res) {
   });
 });
 
-var gotThanks = false;
-
-web.listen(common.PORT, function() {
+web.listen(0, common.mustCall(function() {
   console.log('Making request');
 
-  var req = http.request({
-    port: common.PORT,
+  const req = http.request({
+    port: this.address().port,
     method: 'GET',
     path: '/',
     headers: { 'content-length': buffer.length }
-  }, function(res) {
+  }, common.mustCall(function(res) {
     console.log('Got response');
     res.setEncoding('utf8');
-    res.on('data', function(string) {
-      assert.equal('thanks', string);
-      gotThanks = true;
-    });
-  });
+    res.on('data', common.mustCall(function(string) {
+      assert.strictEqual('thanks', string);
+    }));
+  }));
   req.end(buffer);
-});
+}));
 
 
 process.on('exit', function() {
-  assert.equal(bufferSize, measuredSize);
-  assert.ok(gotThanks);
+  assert.strictEqual(bufferSize, measuredSize);
 });
