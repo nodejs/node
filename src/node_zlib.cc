@@ -66,9 +66,6 @@ enum node_zlib_mode {
 #define GZIP_HEADER_ID1 0x1f
 #define GZIP_HEADER_ID2 0x8b
 
-void InitZlib(v8::Local<v8::Object> target);
-
-
 /**
  * Deflate/Inflate
  */
