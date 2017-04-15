@@ -735,10 +735,12 @@ bench-idle:
 	$(NODE) benchmark/idle_clients.js &
 
 jslint:
+	@echo "Running JS linter..."
 	$(NODE) tools/eslint/bin/eslint.js --cache --rulesdir=tools/eslint-rules \
 	  benchmark lib test tools
 
 jslint-ci:
+	@echo "Running JS linter..."
 	$(NODE) tools/jslint.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
 		benchmark lib test tools
 
@@ -761,12 +763,13 @@ CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 	))
 
 cpplint:
+	@echo "Running C++ linter..."
 	@$(PYTHON) tools/cpplint.py $(CPPLINT_FILES)
 	@$(PYTHON) tools/check-imports.py
 
 ifneq ("","$(wildcard tools/eslint/lib/eslint.js)")
 lint:
-	EXIT_STATUS=0 ; \
+	@EXIT_STATUS=0 ; \
 	$(MAKE) jslint || EXIT_STATUS=$$? ; \
 	$(MAKE) cpplint || EXIT_STATUS=$$? ; \
 	exit $$EXIT_STATUS
