@@ -358,11 +358,12 @@ Checkout proper target branch
 $ git checkout master
 ```
 
-Update the tree
+Update the tree (assumes your repo is set up as detailed in
+[CONTRIBUTING.md](CONTRIBUTING.md#step-1-fork))
 
 ```text
-$ git fetch origin
-$ git merge --ff-only origin/master
+$ git fetch upstream
+$ git merge --ff-only upstream/master
 ```
 
 Apply external patches
@@ -374,13 +375,13 @@ $ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am --whitespace=fi
 Check and re-review the changes
 
 ```text
-$ git diff origin/master
+$ git diff upstream/master
 ```
 
 Check number of commits and commit messages
 
 ```text
-$ git log origin/master...master
+$ git log upstream/master...master
 ```
 
 If there are multiple commits that relate to the same feature or
@@ -388,7 +389,7 @@ one with a feature and separate with a test for that feature,
 you'll need to use `squash` or `fixup`:
 
 ```text
-$ git rebase -i origin/master
+$ git rebase -i upstream/master
 ```
 
 This will open a screen like this (in the default shell editor):
@@ -447,7 +448,7 @@ commit logs, ensure that they are properly formatted, and add
 Time to push it:
 
 ```text
-$ git push origin master
+$ git push upstream master
 ```
 * Optional: Force push the amended commit to the branch you used to
 open the pull request. If your branch is called `bugfix`, then the
