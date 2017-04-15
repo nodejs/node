@@ -41,7 +41,8 @@ const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
 // Let the OS assign a random port to the first socket
 socket.bind(0, function() {
   // Creates the second socket using the same port from the previous one
-  dgram.createSocket({ type: 'udp4', reuseAddr: true }).bind(socket.address().port, next);
+  dgram.createSocket({ type: 'udp4', reuseAddr: true })
+    .bind(socket.address().port, next);
   // Call next for the first socket
   next.call(this);
 });
