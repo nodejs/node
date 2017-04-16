@@ -160,7 +160,7 @@ to see how they should be structured can also help.
 To run the tests on Unix / macOS:
 
 ```text
-$ ./configure && make -j4 test
+$ ./configure && make test
 ```
 
 Windows:
@@ -194,7 +194,7 @@ You can run tests directly with node:
 $ ./node ./test/parallel/test-stream2-transform.js
 ```
 
-Remember to recompile with `make -j4` in between test runs if you change
+Remember to recompile with `make` in between test runs if you change
 core modules.
 
 ### Step 6: Push
