@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const cluster = require('cluster');
 const domain = require('domain');
 
@@ -11,7 +11,7 @@ if (cluster.isWorker) {
   d.run(function() { });
 
   const http = require('http');
-  http.Server(function() { }).listen(common.PORT, '127.0.0.1');
+  http.Server(function() { }).listen(0, '127.0.0.1');
 
 } else if (cluster.isMaster) {
   let worker;
