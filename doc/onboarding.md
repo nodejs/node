@@ -32,7 +32,7 @@ onboarding session.
 ## Local setup
 
   * git:
-    * make sure you have whitespace=fix: `git config --global --add core.whitespace fix`
+    * make sure you have whitespace=fix: `git config --global --add apply.whitespace fix`
     * usually PR from your own github fork
     * [See "Updating Node.js from Upstream"](./onboarding-extras.md#updating-nodejs-from-upstream)
     * make new branches for all commits you make!
