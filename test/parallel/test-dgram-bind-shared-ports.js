@@ -66,10 +66,13 @@ if (cluster.isMaster) {
     address: 'localhost',
     port: 0,
     exclusive: false
-  }, () => {
-    socket2.bind({ port: socket1.address().port + 1, exclusive: true }, () => {
+  }, common.mustCall(() => {
+    socket2.bind({
+      port: socket1.address().port + 1,
+      exclusive: true
+    }, () => {
       // the first worker should succeed
       process.send('success');
     });
-  });
+  }));
 }
