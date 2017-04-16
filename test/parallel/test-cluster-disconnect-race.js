@@ -34,6 +34,6 @@ if (cluster.isMaster) {
 
 const server = net.createServer();
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   process.send('listening');
 });
