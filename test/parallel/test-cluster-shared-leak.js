@@ -13,10 +13,10 @@ if (cluster.isMaster) {
   let conn, worker2;
 
   const worker1 = cluster.fork();
-  worker1.on('message', common.mustCall(function() {
+  worker1.on('listening', common.mustCall(function(address) {
     worker2 = cluster.fork();
     worker2.on('online', function() {
-      conn = net.connect(common.PORT, common.mustCall(function() {
+      conn = net.connect(address.port, common.mustCall(function() {
         worker1.disconnect();
         worker2.disconnect();
       }));
@@ -48,6 +48,4 @@ const server = net.createServer(function(c) {
   c.end('bye');
 });
 
-server.listen(common.PORT, function() {
-  process.send('listening');
-});
+server.listen(0);
