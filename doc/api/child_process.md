@@ -148,7 +148,18 @@ added: v0.1.90
 * Returns: {ChildProcess}
 
 Spawns a shell then executes the `command` within that shell, buffering any
-generated output.
+generated output. The `command` string passed to the exec function is processed
+directly by the shell and special characters (vary based on 
+[shell](https://en.wikipedia.org/wiki/List_of_command-line_interpreters))
+need to be dealt with accordingly:
+```js
+exec('"/path/to/test file/test.sh" arg1 arg2');
+//Double quotes are used so that the space in the path is not interpreted as 
+//multiple arguments
+
+exec('echo "The \\$HOME variable is $HOME"'); 
+//The $HOME variable is escaped in the first instance, but not in the second
+```
 
 **Note: Never pass unsanitised user input to this function. Any input
 containing shell metacharacters may be used to trigger arbitrary command
