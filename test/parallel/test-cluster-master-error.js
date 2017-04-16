@@ -31,7 +31,7 @@ if (cluster.isWorker) {
   const http = require('http');
   http.Server(() => {
 
-  }).listen(common.PORT, '127.0.0.1');
+  }).listen(0, '127.0.0.1');
 
 } else if (process.argv[2] === 'cluster') {
 
