@@ -32,7 +32,7 @@ if (cluster.isWorker) {
   d.run(common.noop);
 
   const http = require('http');
-  http.Server(common.noop).listen(common.PORT, '127.0.0.1');
+  http.Server(common.noop).listen(0, '127.0.0.1');
 
 } else if (cluster.isMaster) {
 
