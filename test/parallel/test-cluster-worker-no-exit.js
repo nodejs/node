@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
@@ -55,7 +55,7 @@ if (cluster.isMaster) {
       success = true;
     });
 
-  }).listen(common.PORT, function() {
+  }).listen(0, function() {
     const port = this.address().port;
 
     worker = cluster.fork()

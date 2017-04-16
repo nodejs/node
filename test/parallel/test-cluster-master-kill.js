@@ -28,7 +28,7 @@ if (cluster.isWorker) {
 
   // keep the worker alive
   const http = require('http');
-  http.Server().listen(common.PORT, '127.0.0.1');
+  http.Server().listen(0, '127.0.0.1');
 
 } else if (process.argv[2] === 'cluster') {
 
