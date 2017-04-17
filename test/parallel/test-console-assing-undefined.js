@@ -9,7 +9,6 @@ global.console = undefined;
 // Initially, the `console` variable is `undefined`, since console will be
 // lazily loaded in the getter.
 
-const common = require('../common');
 const assert = require('assert');
 
 // global.console's getter is called
@@ -19,3 +18,9 @@ const assert = require('assert');
 
 assert.strictEqual(global.console, undefined, 'first read');
 assert.strictEqual(global.console, undefined, 'second read');
+
+global.console = 1;
+assert.strictEqual(global.console, 1, 'set true-like primitive');
+
+global.console = 0;
+assert.strictEqual(global.console, 0, 'set false-like primitive, again');
