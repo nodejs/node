@@ -9,8 +9,8 @@ global.console = undefined;
 // Initially, the `console` variable is `undefined`, since console will be
 // lazily loaded in the getter.
 
-const assert = require('assert');
 require('../common');
+const assert = require('assert');
 
 // global.console's getter is called
 // Since the `console` cache variable is `undefined` and therefore false-y,
