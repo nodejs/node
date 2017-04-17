@@ -20,10 +20,6 @@ assert.doesNotThrow(() => {
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
 
-assert.doesNotThrow(() => {
-  global.console = global.console;
-});
-
 test(() => {
   assert_true(global.hasOwnProperty('console'));
 }, 'console exists on the global object');
