@@ -89,7 +89,7 @@ function client() {
       chunk = 'x'.repeat(len);
       break;
     default:
-      throw new Error('invalid type: ' + type);
+      throw new Error(`invalid type: ${type}`);
   }
 
   var clientHandle = new TCP();

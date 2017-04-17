@@ -50,7 +50,7 @@ if (format === 'csv') {
     // Construct configuration string, " A=a, B=b, ..."
     let conf = '';
     for (const key of Object.keys(data.conf)) {
-      conf += ' ' + key + '=' + JSON.stringify(data.conf[key]);
+      conf += ` ${key}=${JSON.stringify(data.conf[key])}`;
     }
     // delete first space of the configuration
     conf = conf.slice(1);

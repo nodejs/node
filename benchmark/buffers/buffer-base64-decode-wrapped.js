@@ -12,7 +12,7 @@ function main(conf) {
   const linesCount = 8 << 16;
   const bytesCount = charsPerLine * linesCount / 4 * 3;
 
-  const line = 'abcd'.repeat(charsPerLine / 4) + '\n';
+  const line = `${'abcd'.repeat(charsPerLine / 4)}\n`;
   const data = line.repeat(linesCount);
   // eslint-disable-next-line no-unescaped-regexp-dot
   data.match(/./);  // Flatten the string

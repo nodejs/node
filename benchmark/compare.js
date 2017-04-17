@@ -79,14 +79,14 @@ if (showProgress) {
       // Construct configuration string, " A=a, B=b, ..."
       let conf = '';
       for (const key of Object.keys(data.conf)) {
-        conf += ' ' + key + '=' + JSON.stringify(data.conf[key]);
+        conf += ` ${key}=${JSON.stringify(data.conf[key])}`;
       }
       conf = conf.slice(1);
       // Escape quotes (") for correct csv formatting
       conf = conf.replace(/"/g, '""');
 
-      console.log(`"${job.binary}", "${job.filename}", "${conf}", ` +
-                  `${data.rate}, ${data.time}`);
+      console.log(`"${job.binary}", "${job.filename}", "${conf}", ${
+                   data.rate}, ${data.time}`);
       if (showProgress) {
         // One item in the subqueue has been completed.
         progress.completeConfig(data);

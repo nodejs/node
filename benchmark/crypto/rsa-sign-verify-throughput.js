@@ -10,10 +10,10 @@ var RSA_PublicPem = {};
 var RSA_PrivatePem = {};
 
 keylen_list.forEach(function(key) {
-  RSA_PublicPem[key] = fs.readFileSync(fixtures_keydir +
-                                       '/rsa_public_' + key + '.pem');
-  RSA_PrivatePem[key] = fs.readFileSync(fixtures_keydir +
-                                        '/rsa_private_' + key + '.pem');
+  RSA_PublicPem[key] =
+    fs.readFileSync(`${fixtures_keydir}/rsa_public_${key}.pem`);
+  RSA_PrivatePem[key] =
+    fs.readFileSync(`${fixtures_keydir}/rsa_private_${key}.pem`);
 });
 
 var bench = common.createBenchmark(main, {
