@@ -285,6 +285,22 @@ def _ConfigFullName(config_name, config_data):
   return '%s|%s' % (_ConfigBaseName(config_name, platform_name), platform_name)
 
 
+def _ConfigWindowsTargetPlatformVersion(config_data):
+  ver = config_data.get('msvs_windows_target_platform_version')
+  if not ver or re.match(r'^\d+', ver):
+    return ver
+  for key in [r'HKLM\Software\Microsoft\Microsoft SDKs\Windows\%s',
+              r'HKLM\Software\Wow6432Node\Microsoft\Microsoft SDKs\Windows\%s']:
+    sdkdir = MSVSVersion._RegistryGetValue(key % ver, 'InstallationFolder')
+    if not sdkdir:
+      continue
+    version = MSVSVersion._RegistryGetValue(key % ver, 'ProductVersion') or ''
+    # find a matching entry in sdkdir\include
+    names = sorted([x for x in os.listdir(r'%s\include' % sdkdir) \
+                    if x.startswith(version)], reverse = True)
+    return names[0]
+
+
 def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
                                 quote_cmd, do_setup_env):
 
@@ -338,6 +354,8 @@ def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
       command = ['type']
     else:
       command = [cmd[0].replace('/', '\\')]
+    if quote_cmd:
+      command = ['"%s"' % i for i in command]
     # Add call before command to ensure that commands can be tied together one
     # after the other without aborting in Incredibuild, since IB makes a bat
     # file out of the raw command string, and some commands (like python) are
@@ -2662,6 +2680,22 @@ def _GetMSBuildGlobalProperties(spec, guid, gyp_file_name):
     else:
       properties[0].append(['ApplicationType', 'Windows Store'])
 
+  platform_name = None
+  msvs_windows_target_platform_version = None
+  for configuration in spec['configurations'].itervalues():
+    platform_name = platform_name or _ConfigPlatform(configuration)
+    msvs_windows_target_platform_version = \
+                    msvs_windows_target_platform_version or \
+                    _ConfigWindowsTargetPlatformVersion(configuration)
+    if platform_name and msvs_windows_target_platform_version:
+      break
+
+  if platform_name == 'ARM':
+    properties[0].append(['WindowsSDKDesktopARMSupport', 'true'])
+  if msvs_windows_target_platform_version:
+    properties[0].append(['WindowsTargetPlatformVersion', \
+                          str(msvs_windows_target_platform_version)])
+
   return properties
 
 def _GetMSBuildConfigurationDetails(spec, build_file):
@@ -3209,6 +3243,9 @@ def _GetMSBuildProjectReferences(project):
           ['ReferenceOutputAssembly', 'false']
           ]
       for config in dependency.spec.get('configurations', {}).itervalues():
+        if config.get('msvs_use_library_dependency_inputs', 0):
+          project_ref.append(['UseLibraryDependencyInputs', 'true'])
+          break
         # If it's disabled in any config, turn it off in the reference.
         if config.get('msvs_2010_disable_uldi_when_referenced', 0):
           project_ref.append(['UseLibraryDependencyInputs', 'false'])

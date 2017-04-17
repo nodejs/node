@@ -1,0 +1,60 @@
+{
+  "name": "semver",
+  "version": "5.3.0",
+  "description": "The semantic version parser used by npm.",
+  "main": "semver.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "devDependencies": {
+    "tap": "^2.0.0"
+  },
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/node-semver.git"
+  },
+  "bin": {
+    "semver": "./bin/semver"
+  },
+  "files": [
+    "bin",
+    "range.bnf",
+    "semver.js"
+  ],
+  "gitHead": "d21444a0658224b152ce54965d02dbe0856afb84",
+  "bugs": {
+    "url": "https://github.com/npm/node-semver/issues"
+  },
+  "homepage": "https://github.com/npm/node-semver#readme",
+  "_id": "semver@5.3.0",
+  "_shasum": "9b2ce5d3de02d17c6012ad326aa6b4d0cf54f94f",
+  "_from": "semver@>=5.3.0 <5.4.0",
+  "_npmVersion": "3.10.6",
+  "_nodeVersion": "4.4.4",
+  "_npmUser": {
+    "name": "isaacs",
+    "email": "i@izs.me"
+  },
+  "dist": {
+    "shasum": "9b2ce5d3de02d17c6012ad326aa6b4d0cf54f94f",
+    "tarball": "https://registry.npmjs.org/semver/-/semver-5.3.0.tgz"
+  },
+  "maintainers": [
+    {
+      "name": "isaacs",
+      "email": "isaacs@npmjs.com"
+    },
+    {
+      "name": "othiym23",
+      "email": "ogd@aoaioxxysz.net"
+    }
+  ],
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/semver-5.3.0.tgz_1468515166602_0.9155273644719273"
+  },
+  "directories": {},
+  "_resolved": "https://registry.npmjs.org/semver/-/semver-5.3.0.tgz",
+  "readme": "ERROR: No README data found!"
+}
