@@ -79,6 +79,8 @@ class NodeTestFixture : public ::testing::Test {
   ArrayBufferAllocator allocator_;
   v8::Isolate* isolate_;
 
+  NodeTestFixture() : isolate_(nullptr), platform_(nullptr) {}
+
   virtual void SetUp() {
     platform_ = v8::platform::CreateDefaultPlatform();
     v8::V8::InitializePlatform(platform_);
@@ -88,6 +90,8 @@ class NodeTestFixture : public ::testing::Test {
   }
 
   virtual void TearDown() {
+    isolate_->Dispose();
+    isolate_ = nullptr;
     v8::V8::ShutdownPlatform();
     delete platform_;
     platform_ = nullptr;
