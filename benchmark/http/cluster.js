@@ -27,7 +27,7 @@ function main(conf) {
       return;
 
     setTimeout(function() {
-      var path = '/' + conf.type + '/' + conf.len;
+      var path = `/${conf.type}/${conf.len}`;
 
       bench.http({
         path: path,

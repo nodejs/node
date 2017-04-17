@@ -23,5 +23,5 @@ function main(conf) {
 }
 
 function cb() {
-  assert(false, 'Timer ' + this._idleTimeout + ' should not call callback');
+  assert(false, `Timer ${this._idleTimeout} should not call callback`);
 }

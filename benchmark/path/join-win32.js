@@ -12,7 +12,7 @@ var bench = common.createBenchmark(main, {
 function main(conf) {
   var n = +conf.n;
   var p = path.win32;
-  var args = ('' + conf.paths).split('|');
+  var args = String(conf.paths).split('|');
 
   bench.start();
   for (var i = 0; i < n; i++) {

@@ -44,7 +44,7 @@ function main(conf) {
   var ab = new ArrayBuffer(8);
   var dv = new DataView(ab, 0, 8);
   var le = /LE$/.test(conf.type);
-  var fn = 'set' + conf.type.replace(/[LB]E$/, '');
+  var fn = `set${conf.type.replace(/[LB]E$/, '')}`;
 
   if (/int/i.test(fn))
     benchInt(dv, fn, len, le);

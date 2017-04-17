@@ -20,13 +20,13 @@ function main(conf) {
   try { fs.mkdirSync(benchmarkDirectory); } catch (e) {}
 
   for (var i = 0; i <= n; i++) {
-    fs.mkdirSync(benchmarkDirectory + i);
+    fs.mkdirSync(`${benchmarkDirectory}${i}`);
     fs.writeFileSync(
-      benchmarkDirectory + i + '/package.json',
+      `${benchmarkDirectory}${i}/package.json`,
       '{"main": "index.js"}'
     );
     fs.writeFileSync(
-      benchmarkDirectory + i + '/index.js',
+      `${benchmarkDirectory}${i}/index.js`,
       'module.exports = "";'
     );
   }
@@ -43,12 +43,12 @@ function measureFull(n, useCache) {
   var i;
   if (useCache) {
     for (i = 0; i <= n; i++) {
-      require(benchmarkDirectory + i + '/index.js');
+      require(`${benchmarkDirectory}${i}/index.js`);
     }
   }
   bench.start();
   for (i = 0; i <= n; i++) {
-    require(benchmarkDirectory + i + '/index.js');
+    require(`${benchmarkDirectory}${i}/index.js`);
   }
   bench.end(n / 1e3);
 }
@@ -57,12 +57,12 @@ function measureDir(n, useCache) {
   var i;
   if (useCache) {
     for (i = 0; i <= n; i++) {
-      require(benchmarkDirectory + i);
+      require(`${benchmarkDirectory}${i}`);
     }
   }
   bench.start();
   for (i = 0; i <= n; i++) {
-    require(benchmarkDirectory + i);
+    require(`${benchmarkDirectory}${i}`);
   }
   bench.end(n / 1e3);
 }
