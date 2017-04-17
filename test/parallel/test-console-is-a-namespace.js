@@ -7,10 +7,6 @@ const common = require('../common');
 const assert = require('assert');
 const { test, assert_equals, assert_true, assert_false } = common.WPT;
 
-assert.doesNotThrow(() => {
-  global.console = global.console;
-});
-
 test(() => {
   assert_true(global.hasOwnProperty('console'));
 }, 'console exists on the global object');
@@ -21,10 +17,10 @@ test(() => {
 
 test(() => {
   const propDesc = Object.getOwnPropertyDescriptor(global, 'console');
-  // assert_equals(propDesc.writable, true, 'must be writable');
-  // assert_equals(propDesc.enumerable, false, 'must not be enumerable');
+  assert_equals(propDesc.writable, true, 'must be writable');
+  assert_equals(propDesc.enumerable, false, 'must not be enumerable');
   assert_equals(propDesc.configurable, true, 'must be configurable');
-  // assert_equals(propDesc.value, console, 'must have the right value');
+  assert_equals(propDesc.value, console, 'must have the right value');
 }, 'console has the right property descriptors');
 
 test(() => {
@@ -42,3 +38,7 @@ test(() => {
                 'The [[Prototype]]\'s [[Prototype]] must be Object Prototype');
 
 }, 'The prototype chain must be correct');
+
+assert.doesNotThrow(() => {
+  global.console = global.console;
+});
