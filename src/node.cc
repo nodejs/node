@@ -54,6 +54,7 @@
 #include "env.h"
 #include "env-inl.h"
 #include "handle_wrap.h"
+#include "http_parser.h"
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "string_bytes.h"
