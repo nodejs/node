@@ -1,4 +1,5 @@
 'use strict';
+
 // https://heycam.github.io/webidl/#es-namespaces
 // https://console.spec.whatwg.org/#console-namespace
 // https://github.com/w3c/web-platform-tests/blob/master/console/console-is-a-namespace.any.js
@@ -6,6 +7,22 @@
 const common = require('../common');
 const assert = require('assert');
 const { test, assert_equals, assert_true, assert_false } = common.WPT;
+
+assert.doesNotThrow(() => {
+  global.console = global.console;
+});
+
+// Tests above are not from WPT.
+
+/* eslint-disable */
+/* WPT Refs:
+   https://github.com/w3c/web-platform-tests/blob/master/console/console-is-a-namespace.any.js
+   License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
+*/
+
+assert.doesNotThrow(() => {
+  global.console = global.console;
+});
 
 test(() => {
   assert_true(global.hasOwnProperty('console'));
@@ -36,9 +53,5 @@ test(() => {
                 'The [[Prototype]]\'s [[Prototype]] must be Object Prototype');
 
 }, 'The prototype chain must be correct');
-/* eslint-enable */
 
-// Tests below are not from WPT.
-assert.doesNotThrow(() => {
-  global.console = global.console;
-});
+/* eslint-enable */
