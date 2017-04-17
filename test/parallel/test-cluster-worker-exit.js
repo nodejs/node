@@ -19,7 +19,7 @@ if (cluster.isWorker) {
   server.once('listening', common.mustCall(() => {
     process.exit(EXIT_CODE);
   }));
-  server.listen(common.PORT, '127.0.0.1');
+  server.listen(0, '127.0.0.1');
 
 } else if (cluster.isMaster) {
 

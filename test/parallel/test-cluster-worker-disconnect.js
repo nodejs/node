@@ -7,7 +7,7 @@ if (cluster.isWorker) {
   const http = require('http');
   http.Server(() => {
 
-  }).listen(common.PORT, '127.0.0.1');
+  }).listen(0, '127.0.0.1');
   const worker = cluster.worker;
   assert.strictEqual(worker.exitedAfterDisconnect, worker.suicide);
 
