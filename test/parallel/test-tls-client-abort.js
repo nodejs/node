@@ -14,9 +14,7 @@ const path = require('path');
 const cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
 const key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
 
-const conn = tls.connect({cert: cert, key: key, port: common.PORT}, function() {
-  assert.ok(false); // callback should never be executed
-});
+const conn = tls.connect({cert, key, port: 0}, common.mustNotCall());
 conn.on('error', function() {
 });
 assert.doesNotThrow(function() {
