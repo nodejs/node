@@ -4,6 +4,8 @@
 
 #include "src/hydrogen.h"
 #include "src/hydrogen-gvn.h"
+#include "src/list.h"
+#include "src/list-inl.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -654,19 +656,23 @@ SideEffects
 HGlobalValueNumberingPhase::CollectSideEffectsOnPathsToDominatedBlock(
     HBasicBlock* dominator, HBasicBlock* dominated) {
   SideEffects side_effects;
-  for (int i = 0; i < dominated->predecessors()->length(); ++i) {
-    HBasicBlock* block = dominated->predecessors()->at(i);
-    if (dominator->block_id() < block->block_id() &&
-        block->block_id() < dominated->block_id() &&
-        !visited_on_paths_.Contains(block->block_id())) {
-      visited_on_paths_.Add(block->block_id());
-      side_effects.Add(block_side_effects_[block->block_id()]);
-      if (block->IsLoopHeader()) {
-        side_effects.Add(loop_side_effects_[block->block_id()]);
+  List<HBasicBlock*> blocks;
+  for (;;) {
+    for (int i = 0; i < dominated->predecessors()->length(); ++i) {
+      HBasicBlock* block = dominated->predecessors()->at(i);
+      if (dominator->block_id() < block->block_id() &&
+          block->block_id() < dominated->block_id() &&
+          !visited_on_paths_.Contains(block->block_id())) {
+        visited_on_paths_.Add(block->block_id());
+        side_effects.Add(block_side_effects_[block->block_id()]);
+        if (block->IsLoopHeader()) {
+          side_effects.Add(loop_side_effects_[block->block_id()]);
+        }
+        blocks.Add(block);
       }
-      side_effects.Add(CollectSideEffectsOnPathsToDominatedBlock(
-          dominator, block));
     }
+    if (blocks.is_empty()) break;
+    dominated = blocks.RemoveLast();
   }
   return side_effects;
 }
