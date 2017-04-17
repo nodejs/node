@@ -24,8 +24,11 @@ if (cluster.isMaster) {
     process.send('send-handle-2', socket);
   });
 
-  server.listen(common.PORT, function() {
-    const client = net.connect({ host: 'localhost', port: common.PORT });
+  server.listen(0, function() {
+    const client = net.connect({
+      host: 'localhost',
+      port: server.address().port
+    });
     client.on('close', common.mustCall(() => { cluster.worker.disconnect(); }));
     setTimeout(function() { client.end(); }, 50);
   }).on('error', function(e) {
