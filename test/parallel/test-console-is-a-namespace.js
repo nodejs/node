@@ -38,7 +38,9 @@ test(() => {
                 'The [[Prototype]]\'s [[Prototype]] must be Object Prototype');
 
 }, 'The prototype chain must be correct');
+/* eslint-enable */
 
+// Tests below are not from WPT.
 assert.doesNotThrow(() => {
   global.console = global.console;
 });
