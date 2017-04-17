@@ -18,7 +18,7 @@ var bench = common.createBenchmark(main, {
 function main(conf) {
   var n = +conf.n;
   var p = path.posix;
-  var from = '' + conf.paths;
+  var from = String(conf.paths);
   var to = '';
   var delimIdx = from.indexOf('|');
   if (delimIdx > -1) {

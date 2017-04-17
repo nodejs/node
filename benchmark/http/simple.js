@@ -16,8 +16,7 @@ function main(conf) {
   var server = require('../fixtures/simple-http-server.js')
   .listen(process.env.PORT || common.PORT)
   .on('listening', function() {
-    var path = '/' + conf.type + '/' + conf.len + '/' + conf.chunks + '/' +
-               conf.res;
+    var path = `/${conf.type}/${conf.len}/${conf.chunks}/${conf.res}`;
 
     bench.http({
       path: path,

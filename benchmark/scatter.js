@@ -34,7 +34,7 @@ function csvEncodeValue(value) {
   if (typeof value === 'number') {
     return value.toString();
   } else {
-    return '"' + value.replace(/"/g, '""') + '"';
+    return `"${value.replace(/"/g, '""')}"`;
   }
 }
 

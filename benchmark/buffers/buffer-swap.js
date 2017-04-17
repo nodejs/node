@@ -64,11 +64,11 @@ function createBuffer(len, aligned) {
 }
 
 function genMethod(method) {
-  const fnString =
-      'return function ' + method + '(n, buf) {' +
-      '  for (var i = 0; i <= n; i++)' +
-      '    buf.' + method + '();' +
-      '}';
+  const fnString = `
+      return function ${method}(n, buf) {
+        for (var i = 0; i <= n; i++)
+          buf.${method}();
+      }`;
   return (new Function(fnString))();
 }
 

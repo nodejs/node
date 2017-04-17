@@ -50,7 +50,7 @@ function main(conf) {
   var len = +conf.millions * 1e6;
   var clazz = conf.buf === 'fast' ? Buffer : require('buffer').SlowBuffer;
   var buff = new clazz(8);
-  var fn = 'write' + conf.type;
+  var fn = `write${conf.type}`;
 
   if (fn.match(/Int/))
     benchInt(buff, fn, len, noAssert);
@@ -60,22 +60,22 @@ function main(conf) {
 
 function benchInt(buff, fn, len, noAssert) {
   var m = mod[fn];
-  var testFunction = new Function('buff', [
-    'for (var i = 0; i !== ' + len + '; i++) {',
-    '  buff.' + fn + '(i & ' + m + ', 0, ' + JSON.stringify(noAssert) + ');',
-    '}'
-  ].join('\n'));
+  var testFunction = new Function('buff', `
+    for (var i = 0; i !== ${len}; i++) {
+      buff.${fn}(i & ${m}, 0, ${JSON.stringify(noAssert)});
+    }
+  `);
   bench.start();
   testFunction(buff);
   bench.end(len / 1e6);
 }
 
 function benchFloat(buff, fn, len, noAssert) {
-  var testFunction = new Function('buff', [
-    'for (var i = 0; i !== ' + len + '; i++) {',
-    '  buff.' + fn + '(i, 0, ' + JSON.stringify(noAssert) + ');',
-    '}'
-  ].join('\n'));
+  var testFunction = new Function('buff', `
+    for (var i = 0; i !== ${len}; i++) {
+      buff.${fn}(i, 0, ${JSON.stringify(noAssert)});
+    }
+  `);
   bench.start();
   testFunction(buff);
   bench.end(len / 1e6);
