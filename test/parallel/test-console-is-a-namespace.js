@@ -2,7 +2,7 @@
 
 // https://heycam.github.io/webidl/#es-namespaces
 // https://console.spec.whatwg.org/#console-namespace
-// https://github.com/w3c/web-platform-tests/blob/master/console/console-is-a-namespace.any.js
+// https://github.com/w3c/web-platform-tests/blob/40e451c/console/console-is-a-namespace.any.js
 
 const common = require('../common');
 const assert = require('assert');
@@ -16,7 +16,7 @@ assert.doesNotThrow(() => {
 
 /* eslint-disable */
 /* WPT Refs:
-   https://github.com/w3c/web-platform-tests/blob/master/console/console-is-a-namespace.any.js
+   https://github.com/w3c/web-platform-tests/blob/40e451c/console/console-is-a-namespace.any.js
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
 
