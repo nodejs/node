@@ -167,16 +167,18 @@ dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
 <!-- YAML
 added: v0.1.27
 -->
-- `hostname` {string}
-- `rrtype` {string}
+- `hostname` {string} Hostname to resolve.
+- `rrtype` {string} Resource record type. Default: `'A'`.
 - `callback` {Function}
   - `err` {Error}
-  - `addresses` {string[] | Object[] | string[][] | Object}
+  - `records` {string[] | Object[] | string[][] | Object}
 
-Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an
-array of the resource records, specified by `rrtype` (resource record type):
+Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an array
+of the resource records. The `callback` function has arguments
+`(err, records)`. When successful, `records` will be an array of resource
+records. The type and structure of individual results varies based on `rrtype`:
 
-| `rrtype`  | Return {Array} contains        | Result type | Shorthand method         |
+|  `rrtype` | `records` contains             | Result type | Shorthand method         |
 |-----------|--------------------------------|-------------|--------------------------|
 | `'A'`     | IPv4 addresses (default)       | {string}    | [`dns.resolve4()`][]     |
 | `'AAAA'`  | IPv6 addresses                 | {string}    | [`dns.resolve6()`][]     |
@@ -188,9 +190,6 @@ array of the resource records, specified by `rrtype` (resource record type):
 | `'SOA'`   | start of authority records     | {Object}    | [`dns.resolveSoa()`][]   |
 | `'SRV'`   | service records                | {Object}    | [`dns.resolveSrv()`][]   |
 | `'TXT'`   | text records                   | {string}    | [`dns.resolveTxt()`][]   |
-
-The `callback` function has arguments `(err, addresses)`. When successful,
-`addresses` will be an array of results.
 
 On error, `err` is an [`Error`][] object, where `err.code` is one of the
 [DNS error codes](#dns_error_codes).
