@@ -340,6 +340,39 @@ class TapProgressIndicator(SimpleProgressIndicator):
   def Done(self):
     pass
 
+class DeoptsCheckProgressIndicator(SimpleProgressIndicator):
+
+  def Starting(self):
+    pass
+
+  def AboutToRun(self, case):
+    pass
+
+  def HasRun(self, output):
+    # Print test name as (for example) "parallel/test-assert".  Tests that are
+    # scraped from the addons documentation are all named test.js, making it
+    # hard to decipher what test is running when only the filename is printed.
+    prefix = abspath(join(dirname(__file__), '../test')) + os.sep
+    command = output.command[-1]
+    if command.endswith('.js'): command = command[:-3]
+    if command.startswith(prefix): command = command[len(prefix):]
+    command = command.replace('\\', '/')
+
+    stdout = output.output.stdout.strip()
+    printed_file = False
+    for line in stdout.splitlines():
+      if (line.startswith("[aborted optimiz") or \
+          line.startswith("[disabled optimiz")) and \
+         ("because:" in line or "reason:" in line):
+        if not printed_file:
+          printed_file = True
+          print '==== %s ====' % command
+          self.failed.append(output)
+        print '  %s' % line
+
+  def Done(self):
+    pass
+
 
 class CompactProgressIndicator(ProgressIndicator):
 
@@ -432,7 +465,8 @@ PROGRESS_INDICATORS = {
   'dots': DotsProgressIndicator,
   'color': ColorProgressIndicator,
   'tap': TapProgressIndicator,
-  'mono': MonochromeProgressIndicator
+  'mono': MonochromeProgressIndicator,
+  'deopts': DeoptsCheckProgressIndicator
 }
 
 
@@ -1367,6 +1401,8 @@ def BuildOptions():
       help="Expect test cases to fail", default=False, action="store_true")
   result.add_option("--valgrind", help="Run tests through valgrind",
       default=False, action="store_true")
+  result.add_option("--check-deopts", help="Check tests for permanent deoptimizations",
+      default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
       default=False, action="store_true")
   result.add_option("--flaky-tests",
@@ -1568,6 +1604,14 @@ def Main():
   if options.valgrind:
     run_valgrind = join(workspace, "tools", "run-valgrind.py")
     options.special_command = "python -u " + run_valgrind + " @"
+
+  if options.check_deopts:
+    options.node_args.append("--trace-opt")
+    options.node_args.append("--trace-file-names")
+    # --always-opt is needed because many tests do not run long enough for the
+    # optimizer to kick in, so this flag will force it to run.
+    options.node_args.append("--always-opt")
+    options.progress = "deopts"
 
   shell = abspath(options.shell)
   buildspace = dirname(shell)

@@ -204,6 +204,9 @@ test-parallel: all
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
 
+test-check-deopts: all
+	$(PYTHON) tools/test.py --mode=release --check-deopts parallel sequential -J
+
 # Implicitly depends on $(NODE_EXE).  We don't depend on it explicitly because
 # it always triggers a rebuild due to it being a .PHONY rule.  See the comment
 # near the build-addons rule for more background.

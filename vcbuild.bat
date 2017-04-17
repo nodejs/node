@@ -41,6 +41,7 @@ set configure_flags=
 set build_addons=
 set dll=
 set test_node_inspect=
+set test_check_deopts=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -71,6 +72,7 @@ if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
 if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc inspector internet pummel&set build_testgc_addon=1&set cpplint=1&set jslint=1&goto arg-ok
 if /i "%1"=="test-known-issues" set test_args=%test_args% known_issues&goto arg-ok
 if /i "%1"=="test-node-inspect" set test_node_inspect=1&goto arg-ok
+if /i "%1"=="test-check-deopts" set test_check_deopts=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="jslint-ci"     set jslint_ci=1&goto arg-ok
 if /i "%1"=="lint"          set cpplint=1&set jslint=1&goto arg-ok
@@ -338,7 +340,16 @@ endlocal
 goto run-tests
 
 :run-tests
-if not defined test_node_inspect goto node-tests
+if defined test_check_deopts goto node-check-deopts
+if defined test_node_inspect goto node-test-inspect
+goto node-tests
+
+:node-check-deopts
+python tools\test.py --mode=release --check-deopts parallel sequential -J
+if defined test_node_inspect goto node-test-inspect
+goto node-tests
+
+:node-test-inspect
 set USE_EMBEDDED_NODE_INSPECT=1
 %config%\node tools\test-npm-package.js --install deps\node-inspect test
 goto node-tests
