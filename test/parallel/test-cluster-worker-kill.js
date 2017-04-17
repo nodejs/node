@@ -15,7 +15,7 @@ if (cluster.isWorker) {
   const server = http.Server(() => { });
 
   server.once('listening', common.mustCall(() => { }));
-  server.listen(common.PORT, '127.0.0.1');
+  server.listen(0, '127.0.0.1');
 
 } else if (cluster.isMaster) {
 
