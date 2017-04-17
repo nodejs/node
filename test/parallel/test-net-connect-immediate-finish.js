@@ -5,7 +5,7 @@ const net = require('net');
 
 const client = net.connect({host: '***', port: common.PORT});
 
-client.once('error', common.mustCall(function(err) {
+client.once('error', common.mustCall((err) => {
   assert(err);
   assert.strictEqual(err.code, err.errno);
   assert.strictEqual(err.code, 'ENOTFOUND');
