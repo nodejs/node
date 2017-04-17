@@ -175,7 +175,7 @@ exports.run = function(options, callback) {
     const result = benchmarker.processResults(stdout);
     if (result === undefined) {
       callback(new Error(
-        `${options.benchmarker} produced strange output: ${stdout}`, code));
+        `${options.benchmarker} produced strange output: ${stdout}`), code);
       return;
     }
 
