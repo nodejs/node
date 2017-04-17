@@ -30,8 +30,6 @@ test(() => {
 test(() => {
   const prototype1 = Object.getPrototypeOf(console);
   const prototype2 = Object.getPrototypeOf(prototype1);
-  // console.log('console',Object.getOwnPropertyNames(console));
-  // console.log('prototype1',Object.getOwnPropertyNames(prototype1));
   // assert_equals(Object.getOwnPropertyNames(prototype1).length, 0,
   //                'The [[Prototype]] must have no properties');
   assert_equals(prototype2, Object.prototype,
