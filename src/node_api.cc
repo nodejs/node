@@ -1720,21 +1720,6 @@ napi_status napi_get_value_bool(napi_env env, napi_value value, bool* result) {
   return napi_ok;
 }
 
-// Gets the number of CHARACTERS in the string.
-napi_status napi_get_value_string_length(napi_env env,
-                                         napi_value value,
-                                         size_t* result) {
-  NAPI_PREAMBLE(env);
-  CHECK_ARG(env, result);
-
-  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
-  RETURN_STATUS_IF_FALSE(env, val->IsString(), napi_string_expected);
-
-  *result = val.As<v8::String>()->Length();
-
-  return GET_RETURN_STATUS(env);
-}
-
 // Copies a JavaScript string into a LATIN-1 string buffer. The result is the
 // number of bytes (excluding the null terminator) copied into buf.
 // A sufficient buffer size should be greater than the length of string,
