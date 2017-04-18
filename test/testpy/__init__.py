@@ -72,9 +72,14 @@ class SimpleTestCase(test.TestCase):
       # cause node to exit and report the test as failed. The use case
       # is currently when Node is configured --without-ssl and the tests should
       # still be runnable but skip any tests that require ssl (which includes the
-      # inspector related tests).
-      if flag[0].startswith('--inspect') and self.context.v8_enable_inspector == 0:
-        print('Skipping as inspector is disabled')
+      # inspector related tests). Also, if there is no ssl support the options
+      # '--use-bundled-ca' and '--use-openssl-ca' will also cause a similar
+      # failure so such tests are also skipped.
+      if ('--inspect' in flag[0] or \
+          '--use-bundled-ca' in flag[0] or \
+          '--use-openssl-ca' in flag[0]) and \
+          self.context.v8_enable_inspector == 0:
+        print('Skipping as node was configured --without-ssl')
       else:
         result += flag
     files_match = FILES_PATTERN.search(source);
