@@ -5,6 +5,7 @@ const PACKETS_PER_WORKER = 10;
 
 const cluster = require('cluster');
 const dgram = require('dgram');
+const assert = require('assert');
 
 
 if (common.isWindows) {
@@ -24,7 +25,14 @@ function master() {
 
   // Start listening on a socket.
   const socket = dgram.createSocket('udp4');
-  socket.bind(common.PORT);
+  socket.bind({ port: 0 }, common.mustCall(() => {
+
+    // Fork workers.
+    for (let i = 0; i < NUM_WORKERS; i++) {
+      const worker = cluster.fork();
+      worker.send({ port: socket.address().port });
+    }
+  }));
 
   // Disconnect workers when the expected number of messages have been
   // received.
@@ -40,10 +48,6 @@ function master() {
       cluster.disconnect();
     }
   }, NUM_WORKERS * PACKETS_PER_WORKER));
-
-  // Fork workers.
-  for (let i = 0; i < NUM_WORKERS; i++)
-    cluster.fork();
 }
 
 
@@ -57,13 +61,17 @@ function worker() {
   // send(), explicitly bind them to an ephemeral port.
   socket.bind(0);
 
-  // There is no guarantee that a sent dgram packet will be received so keep
-  // sending until disconnect.
-  const interval = setInterval(() => {
-    socket.send(buf, 0, buf.length, common.PORT, '127.0.0.1');
-  }, 1);
+  process.on('message', common.mustCall((msg) => {
+    assert(msg.port);
 
-  cluster.worker.on('disconnect', () => {
-    clearInterval(interval);
-  });
+    // There is no guarantee that a sent dgram packet will be received so keep
+    // sending until disconnect.
+    const interval = setInterval(() => {
+      socket.send(buf, 0, buf.length, msg.port, '127.0.0.1');
+    }, 1);
+
+    cluster.worker.on('disconnect', () => {
+      clearInterval(interval);
+    });
+  }));
 }

@@ -28,7 +28,7 @@ function master() {
     cluster.fork();
 
   // Wait until all workers are listening.
-  cluster.on('listening', common.mustCall(() => {
+  cluster.on('listening', common.mustCall((worker, address) => {
     if (++listening < NUM_WORKERS)
       return;
 
@@ -39,7 +39,7 @@ function master() {
     doSend();
 
     function doSend() {
-      socket.send(buf, 0, buf.length, common.PORT, '127.0.0.1', afterSend);
+      socket.send(buf, 0, buf.length, address.port, address.address, afterSend);
     }
 
     function afterSend() {
@@ -90,5 +90,5 @@ function worker() {
     }
   }, PACKETS_PER_WORKER));
 
-  socket.bind(common.PORT);
+  socket.bind(0);
 }
