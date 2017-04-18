@@ -99,20 +99,29 @@ directory and the symbolic `node` link in the project's root directory.
 On FreeBSD and OpenBSD, you may also need:
 * libexecinfo
 
+
+For faster builds:
+
+When running the various `make` commands specified in the build steps below,
+using the `-j4` command line flag will cause it to run 4 processes concurrently.
+This may significantly reduce build time. The number after `-j` can be changed
+to suit the number of processor cores on your machine. If you run into problems
+running `make` with concurrency, try running it without the `-j4` flag. See the
+[GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html)
+for more information.
+
+Alternatively, you can achieve the same effect by setting `make` as an alias for
+`make -j4` or by setting your `MAKEFLAGS` environment variable to include `-j4`.
+
+
 To build Node.js:
 
 ```console
 $ ./configure
-$ make -j4
+$ make
 ```
 
-Running `make` with the `-j4` flag will cause it to run 4 compilation jobs
-concurrently which may significantly reduce build time. The number after `-j`
-can be changed to best suit the number of processor cores on your machine. If
-you run into problems running `make` with concurrency, try running it without
-the `-j4` flag. See the
-[GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html)
-for more information.
+
 
 Note that the above requires that `python` resolve to Python 2.6 or 2.7
 and not a newer version.
@@ -349,5 +358,5 @@ and [user guide](https://openssl.org/docs/fips/UserGuide-2.0.pdf).
 7. `./configure --openssl-fips=/path/to/openssl-fips/installdir`
    For example on ubuntu 12 the installation directory was
    `/usr/local/ssl/fips-2.0`
-8. Build Node.js with `make -j`
+8. Build Node.js with `make`
 9. Verify with `node -p "process.versions.openssl"` (for example `1.0.2a-fips`)
