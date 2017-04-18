@@ -13,4 +13,4 @@ Error: boo!
     at Module.load (module.js:*)
     at tryModuleLoad (module.js:*:*)
     at Function.Module._load (module.js:*)
-    at Module.runMain (module.js:*)
+    at Function.Module.runMain (module.js:*)
