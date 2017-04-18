@@ -42,7 +42,7 @@ const buf4 = Buffer.from([1, 2, 3]);
 const buf5 = Buffer.from('tést');
 
 // Creates a Buffer containing Latin-1 bytes [0x74, 0xe9, 0x73, 0x74].
-const buf6 = Buffer.from('tést', 'latin-1');
+const buf6 = Buffer.from('tést', 'latin1');
 ```
 
 ## `Buffer.from()`, `Buffer.alloc()`, and `Buffer.allocUnsafe()`
