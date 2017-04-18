@@ -89,7 +89,7 @@ function setupExpectValue(value) {
 
 function testBreakpointOnStart(session) {
   console.log('[test]',
-              'Verifying debugger stops on start (--debug-brk option)');
+              'Verifying debugger stops on start (--inspect-brk option)');
   const commands = [
     { 'method': 'Runtime.enable' },
     { 'method': 'Debugger.enable' },
