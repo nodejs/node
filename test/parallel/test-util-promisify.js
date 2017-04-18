@@ -1,9 +1,11 @@
 'use strict';
+// Flags: --expose-internals
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 const { promisify } = require('util');
+const { customPromisifyArgs } = require('internal/util');
 
 common.crashOnUnhandledRejection();
 
@@ -40,6 +42,21 @@ const stat = promisify(fs.stat);
       (err) => err instanceof TypeError &&
                 err.message === 'The [util.promisify.custom] property must ' +
                                 'be a function');
+}
+
+{
+  const firstValue = 5;
+  const secondValue = 17;
+
+  function fn(callback) {
+    callback(null, firstValue, secondValue);
+  }
+
+  fn[customPromisifyArgs] = ['first', 'second'];
+
+  promisify(fn)().then(common.mustCall((obj) => {
+    assert.deepStrictEqual(obj, {first: firstValue, second: secondValue});
+  }));
 }
 
 {
