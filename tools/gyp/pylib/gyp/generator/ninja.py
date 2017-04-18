@@ -2148,13 +2148,13 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       restat=True,
       command=mtime_preserving_solink_base % {'suffix': '@$link_file_list'},
       rspfile='$link_file_list',
-      rspfile_content='-Wl,--start-group $in -Wl,--end-group $solibs $libs',
+      rspfile_content='-Wl,--start-group $in $solibs $libs -Wl,--end-group',
       pool='link_pool')
     master_ninja.rule(
       'link',
       description='LINK $out',
       command=('$ld $ldflags -o $out '
-               '-Wl,--start-group $in -Wl,--end-group $solibs $libs'),
+               '-Wl,--start-group $in $solibs $libs -Wl,--end-group'),
       pool='link_pool')
   elif flavor == 'win':
     master_ninja.rule(
