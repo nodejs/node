@@ -74,3 +74,97 @@ const stat = promisify(fs.stat);
     assert.strictEqual(value, undefined);
   }));
 }
+
+{
+  function fn(err, val, callback) {
+    callback(err, val);
+  }
+  promisify(fn)(null, 42).then(common.mustCall((value) => {
+    assert.strictEqual(value, 42);
+  }));
+}
+
+{
+  function fn(err, val, callback) {
+    callback(err, val);
+  }
+  promisify(fn)(new Error('oops'), null).catch(common.mustCall((err) => {
+    assert.strictEqual(err.message, 'oops');
+  }));
+}
+
+{
+  function fn(err, val, callback) {
+    callback(err, val);
+  }
+
+  (async () => {
+    const value = await promisify(fn)(null, 42);
+    assert.strictEqual(value, 42);
+  })();
+}
+
+{
+  const o = {};
+  const fn = promisify(function(cb) {
+
+    cb(null, this === o);
+  });
+
+  o.fn = fn;
+
+  o.fn().then(common.mustCall(function(val) {
+    assert(val);
+  }));
+}
+
+{
+  const err = new Error('Should not have called the callback with the error.');
+  const stack = err.stack;
+
+  const fn = promisify(function(cb) {
+    cb(null);
+    cb(err);
+  });
+
+  (async () => {
+    await fn();
+    await Promise.resolve();
+    return assert.strictEqual(stack, err.stack);
+  })();
+}
+
+{
+  function c() { }
+  const a = promisify(function() { });
+  const b = promisify(a);
+  assert.notStrictEqual(c, a);
+  assert.strictEqual(a, b);
+}
+
+{
+  let errToThrow;
+  const thrower = promisify(function(a, b, c, cb) {
+    errToThrow = new Error();
+    throw errToThrow;
+  });
+  thrower(1, 2, 3)
+    .then(assert.fail)
+    .then(assert.fail, (e) => assert.strictEqual(e, errToThrow));
+}
+
+{
+  const err = new Error();
+
+  const a = promisify((cb) => cb(err))();
+  const b = promisify(() => { throw err; })();
+
+  Promise.all([
+    a.then(assert.fail, function(e) {
+      assert.strictEqual(err, e);
+    }),
+    b.then(assert.fail, function(e) {
+      assert.strictEqual(err, e);
+    })
+  ]);
+}
