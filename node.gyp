@@ -574,19 +574,31 @@
         'OBJ_GEN_PATH': '<(OBJ_DIR)/node/gen',
         'OBJ_TRACING_PATH': '<(OBJ_DIR)/node/src/tracing',
         'OBJ_SUFFIX': 'o',
+        'OBJ_SEPARATOR': '/',
         'conditions': [
           ['OS=="win"', {
-            'OBJ_PATH': '<(OBJ_DIR)/node',
-            'OBJ_GEN_PATH': '<(OBJ_DIR)/node',
-            'OBJ_TRACING_PATH': '<(OBJ_DIR)/node',
             'OBJ_SUFFIX': 'obj',
           }],
-          ['OS=="aix"', {
-            'OBJ_PATH': '<(OBJ_DIR)/node_base/src',
-            'OBJ_GEN_PATH': '<(OBJ_DIR)/node_base/gen',
-            'OBJ_TRACING_PATH': '<(OBJ_DIR)/node_base/src/tracing',
-          }],
-         ],
+          ['GENERATOR=="ninja"', {
+            'OBJ_PATH': '<(OBJ_DIR)/src',
+            'OBJ_GEN_PATH': '<(OBJ_DIR)/gen',
+            'OBJ_TRACING_PATH': '<(OBJ_DIR)/src/tracing',
+            'OBJ_SEPARATOR': '/node.',
+          }, {
+            'conditions': [
+              ['OS=="win"', {
+                'OBJ_PATH': '<(OBJ_DIR)/node',
+                'OBJ_GEN_PATH': '<(OBJ_DIR)/node',
+                'OBJ_TRACING_PATH': '<(OBJ_DIR)/node',
+              }],
+              ['OS=="aix"', {
+                'OBJ_PATH': '<(OBJ_DIR)/node_base/src',
+                'OBJ_GEN_PATH': '<(OBJ_DIR)/node_base/gen',
+                'OBJ_TRACING_PATH': '<(OBJ_DIR)/node_base/src/tracing',
+              }],
+            ]}
+          ]
+        ],
        },
 
       'includes': [
@@ -603,24 +615,24 @@
       ],
 
       'libraries': [
-        '<(OBJ_GEN_PATH)/node_javascript.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_debug_options.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/async-wrap.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/env.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_buffer.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_i18n.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_url.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/util.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/string_bytes.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/string_search.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/stream_base.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_constants.<(OBJ_SUFFIX)',
-        '<(OBJ_PATH)/node_revert.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)/agent.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)/node_trace_buffer.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)/node_trace_writer.<(OBJ_SUFFIX)',
-        '<(OBJ_TRACING_PATH)/trace_event.<(OBJ_SUFFIX)',
+        '<(OBJ_GEN_PATH)<(OBJ_SEPARATOR)node_javascript.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_debug_options.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)async-wrap.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)env.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)node.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_buffer.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_i18n.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_url.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)util.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)string_bytes.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)string_search.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)stream_base.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_constants.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)<(OBJ_SEPARATOR)node_revert.<(OBJ_SUFFIX)',
+        '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)agent.<(OBJ_SUFFIX)',
+        '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)node_trace_buffer.<(OBJ_SUFFIX)',
+        '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)node_trace_writer.<(OBJ_SUFFIX)',
+        '<(OBJ_TRACING_PATH)<(OBJ_SEPARATOR)trace_event.<(OBJ_SUFFIX)',
       ],
 
       'defines': [
@@ -683,9 +695,9 @@
           'copies': [{
             'destination': '<(OBJ_DIR)/cctest/src',
             'files': [
-              '<(OBJ_PATH)/node_dtrace_ustack.<(OBJ_SUFFIX)',
-              '<(OBJ_PATH)/node_dtrace_provider.<(OBJ_SUFFIX)',
-              '<(OBJ_PATH)/node_dtrace.<(OBJ_SUFFIX)',
+              '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace_ustack.<(OBJ_SUFFIX)',
+              '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace_provider.<(OBJ_SUFFIX)',
+              '<(OBJ_PATH)<(OBJ_SEPARATOR)node_dtrace.<(OBJ_SUFFIX)',
             ]},
           ],
         }],
