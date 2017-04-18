@@ -142,6 +142,7 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
+using v8::PromiseHookType;
 using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
@@ -1113,6 +1114,56 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 }
 
 
+void PromiseHook(PromiseHookType type,
+                 Local<Promise> promise,
+                 Local<Value> parent) {
+  Environment* env = Environment::GetCurrent(Isolate::GetCurrent());
+  Local<Context> context = env->context();
+
+  if (type == PromiseHookType::kResolve) return;
+  if (type == PromiseHookType::kInit && env->in_domain()) {
+    promise->Set(context,
+                 env->domain_string(),
+                 env->domain_array()->Get(0)).FromJust();
+    return;
+  }
+
+  // Loosely based on node::MakeCallback().
+  Local<Value> domain_v =
+      promise->Get(context, env->domain_string()).ToLocalChecked();
+  if (!domain_v->IsObject())
+    return;
+
+  Local<Object> domain = domain_v.As<Object>();
+  if (domain->Get(context, env->disposed_string())
+          .ToLocalChecked()->IsTrue()) {
+    return;
+  }
+
+  if (type == PromiseHookType::kBefore) {
+    Local<Value> enter_v =
+        domain->Get(context, env->enter_string()).ToLocalChecked();
+    if (enter_v->IsFunction()) {
+      if (enter_v.As<Function>()->Call(context, domain, 0, nullptr).IsEmpty()) {
+        FatalError("node::PromiseHook",
+                   "domain enter callback threw, please report this "
+                   "as a bug in Node.js");
+      }
+    }
+  } else {
+    Local<Value> exit_v =
+        domain->Get(context, env->exit_string()).ToLocalChecked();
+    if (exit_v->IsFunction()) {
+      if (exit_v.As<Function>()->Call(context, domain, 0, nullptr).IsEmpty()) {
+        FatalError("node::MakeCallback",
+                   "domain exit callback threw, please report this "
+                   "as a bug in Node.js");
+      }
+    }
+  }
+}
+
+
 void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1151,6 +1202,8 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
 
   Local<ArrayBuffer> array_buffer =
       ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
+
+  env->isolate()->SetPromiseHook(PromiseHook);
 
   args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
 }
