@@ -2,22 +2,17 @@
 
 const readline = require('readline');
 
-function pad(input, minLength, fill) {
-  var result = input + '';
-  return fill.repeat(Math.max(0, minLength - result.length)) + result;
-}
-
 function fraction(numerator, denominator) {
   const fdenominator = denominator + '';
-  const fnumerator = pad(numerator, fdenominator.length, ' ');
+  const fnumerator = String(numerator).padStart(fdenominator.length, ' ');
   return `${fnumerator}/${fdenominator}`;
 }
 
 function getTime(diff) {
   const time = Math.ceil(diff[0] + diff[1] / 1e9);
-  const hours = pad(Math.floor(time / 3600), 2, '0');
-  const minutes = pad(Math.floor((time % 3600) / 60), 2, '0');
-  const seconds = pad((time % 3600) % 60, 2, '0');
+  const hours = String(Math.floor(time / 3600)).padStart(2, '0');
+  const minutes = String(Math.floor((time % 3600) / 60)).padStart(2, '0');
+  const seconds = String((time % 3600) % 60).padStart(2, '0');
   return `${hours}:${minutes}:${seconds}`;
 }
 
@@ -97,7 +92,7 @@ class BenchmarkProgress {
       runRate = completedConfig / scheduledConfig;
     }
     const completedRate = ((completedRuns + runRate) / scheduledRuns);
-    const percent = pad(Math.floor(completedRate * 100), 3, ' ');
+    const percent = String(Math.floor(completedRate * 100)).padStart(3, ' ');
 
     const caption = finished ? 'Done\n' : this.currentFile;
     return `[${getTime(diff)}|% ${percent}` +
