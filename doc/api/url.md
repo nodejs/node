@@ -1049,23 +1049,25 @@ located within the structure of the URL. The WHATWG URL Standard uses a more
 selective and fine grained approach to selecting encoded characters than that
 used by the older [`url.parse()`][] and [`url.format()`][] methods.
 
-The WHATWG algorithm defines three "encoding sets" that describe ranges of
-characters that must be percent-encoded:
+The WHATWG algorithm defines three "percent-encode sets" that describe ranges
+of characters that must be percent-encoded:
 
-* The *simple encode set* includes code points in range U+0000 to U+001F
-  (inclusive) and all code points greater than U+007E.
+* The *C0 control percent-encode set* includes code points in range U+0000 to
+  U+001F (inclusive) and all code points greater than U+007E.
 
-* The *default encode set* includes the *simple encode set* and code points
-  U+0020, U+0022, U+0023, U+003C, U+003E, U+003F, U+0060, U+007B, and U+007D.
+* The *path percent-encode set* includes the *C0 control percent-encode set*
+  and code points U+0020, U+0022, U+0023, U+003C, U+003E, U+003F, U+0060,
+  U+007B, and U+007D.
 
-* The *userinfo encode set* includes the *default encode set* and code points
-  U+002F, U+003A, U+003B, U+003D, U+0040, U+005B, U+005C, U+005D, U+005E, and
-  U+007C.
+* The *userinfo encode set* includes the *path percent-encode set* and code
+  points U+002F, U+003A, U+003B, U+003D, U+0040, U+005B, U+005C, U+005D,
+  U+005E, and U+007C.
 
-The *simple encode set* is used primary for URL fragments and certain specific
-conditions for the path. The *userinfo encode set* is used specifically for
-username and passwords encoded within the URL. The *default encode set* is used
-for all other cases.
+The *userinfo percent-encode set* is used exclusively for username and
+passwords encoded within the URL. The *path percent-encode set* is used for the
+path of most URLs. The *C0 control percent-encode set* is used for all
+other cases, including URL fragments in particular, but also host and path
+under certain specific conditions.
 
 When non-ASCII characters appear within a hostname, the hostname is encoded
 using the [Punycode][] algorithm. Note, however, that a hostname *may* contain
