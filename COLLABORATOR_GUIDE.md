@@ -89,18 +89,18 @@ continuous integration tests on the
 
 Here is a summary of current CI jobs:
 
-[node-test-pull-request] (https://ci.nodejs.org/job/node-test-pull-request/)
+[node-test-pull-request](https://ci.nodejs.org/job/node-test-pull-request/)
 `node-test-pull-request` is the standard CI run we do to check Pull Requests. It triggers `node-test-commit`, which runs the `build-ci` and `test-ci` targets on all supported platforms.
 
-[node-test-linter] (https://ci.nodejs.org/job/node-test-linter/)
+[node-test-linter](https://ci.nodejs.org/job/node-test-linter/)
 The `node-test-linter` only runs the linter targets, which is useful for changes that only affect comments or documentation.
 
-[citgm-smoker] (https://ci.nodejs.org/view/Node.js-citgm/job/citgm-smoker/)
+[citgm-smoker](https://ci.nodejs.org/view/Node.js-citgm/job/citgm-smoker/)
 The `citgm-smoker` job uses CitGM to allow you to run npm install && npm test on a large selection of common modules. This is useful to check whether a change will cause breakage in the ecosystem. To test node ABI changes you can run [citgm-abi-smoker](https://ci.nodejs.org/view/Node.js-citgm/job/citgm-abi-smoker/).
 
-[node-stress_single-test] (https://ci.nodejs.org/job/node-stress-single-test/)
+[node-stress_single-test](https://ci.nodejs.org/job/node-stress-single-test/)
 
-[node-test-commit] (https://ci.nodejs.org/job/node-test-commit/)
+[node-test-commit](https://ci.nodejs.org/job/node-test-commit/)
 
 ### Internal vs. Public API
 
