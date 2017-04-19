@@ -29,10 +29,35 @@ napi_value NewScopeEscape(napi_env env, napi_callback_info info) {
   return escapee;
 }
 
+napi_value NewScopeWithException(napi_env env, napi_callback_info info) {
+  napi_handle_scope scope;
+  size_t argc;
+  napi_value exception_function;
+  napi_status status;
+  napi_value output = NULL;
+
+  NAPI_CALL(env, napi_open_handle_scope(env, &scope));
+  NAPI_CALL(env, napi_create_object(env, &output));
+
+  argc = 1;
+  NAPI_CALL(env, napi_get_cb_info(
+    env, info, &argc, &exception_function, NULL, NULL));
+
+	status = napi_call_function(
+    env, output, exception_function, 0, NULL, NULL);
+  NAPI_ASSERT(env, status == napi_pending_exception,
+    "Function should have thrown.");
+
+  // Closing a handle scope should still work while an exception is pending.
+  NAPI_CALL(env, napi_close_handle_scope(env, scope));
+  return NULL;
+}
+
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_property_descriptor properties[] = {
     DECLARE_NAPI_PROPERTY("NewScope", NewScope),
     DECLARE_NAPI_PROPERTY("NewScopeEscape", NewScopeEscape),
+    DECLARE_NAPI_PROPERTY("NewScopeWithException", NewScopeWithException),
   };
 
   NAPI_CALL_RETURN_VOID(env, napi_define_properties(
