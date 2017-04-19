@@ -30,4 +30,7 @@ if (cluster.isMaster) {
 
   test(['--inspect-brk']);
   test([`--inspect-brk=${debuggerPort}`]);
+} else {
+  // Cluster worker is at a breakpoint, should not reach here.
+  assert.fail(1, 2, 'Test failed: cluster worker is at a breakpoint.', '>');
 }
