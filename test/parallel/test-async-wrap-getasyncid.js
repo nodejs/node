@@ -66,6 +66,12 @@ function testInitialized(req, ctor_name) {
 }
 
 
+{
+  // TODO: determine the rigth way to expose promise wrap.
+  new Promise((res) => res(5));
+}
+
+
 if (common.hasCrypto) {
   const tls = require('tls');
   // SecurePair
@@ -136,7 +142,6 @@ if (common.hasCrypto) {
   const Process = process.binding('process_wrap').Process;
   testInitialized(new Process(), 'Process');
 }
-
 
 {
   const Signal = process.binding('signal_wrap').Signal;

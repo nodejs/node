@@ -47,6 +47,7 @@ namespace node {
   V(PIPECONNECTWRAP)                                                          \
   V(PIPEWRAP)                                                                 \
   V(PROCESSWRAP)                                                              \
+  V(PROMISE)                                                                  \
   V(QUERYWRAP)                                                                \
   V(RANDOMBYTESREQUEST)                                                       \
   V(SHUTDOWNWRAP)                                                             \

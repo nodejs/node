@@ -44,6 +44,8 @@ using v8::Local;
 using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
+using v8::Promise;
+using v8::PromiseHookType;
 using v8::RetainedObjectInfo;
 using v8::Symbol;
 using v8::TryCatch;
@@ -177,6 +179,135 @@ static void PushBackDestroyId(Environment* env, double id) {
 }
 
 
+static bool PreCallbackExecution(AsyncWrap* wrap) {
+  AsyncHooks* async_hooks = wrap->env()->async_hooks();
+  if (wrap->env()->using_domains()) {
+    Local<Value> domain_v = wrap->object()->Get(wrap->env()->domain_string());
+    if (domain_v->IsObject()) {
+      Local<Object> domain = domain_v.As<Object>();
+      if (domain->Get(wrap->env()->disposed_string())->IsTrue())
+        return false;
+      Local<Value> enter_v = domain->Get(wrap->env()->enter_string());
+      if (enter_v->IsFunction()) {
+        if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
+          FatalError("node::AsyncWrap::MakeCallback",
+                    "domain enter callback threw, please report this");
+        }
+      }
+    }
+  }
+
+  if (async_hooks->fields()[AsyncHooks::kBefore] > 0) {
+    Local<Value> uid = Number::New(wrap->env()->isolate(), wrap->get_id());
+    Local<Function> fn = wrap->env()->async_hooks_before_function();
+    TryCatch try_catch(wrap->env()->isolate());
+    MaybeLocal<Value> ar = fn->Call(
+        wrap->env()->context(), Undefined(wrap->env()->isolate()), 1, &uid);
+    if (ar.IsEmpty()) {
+      ClearFatalExceptionHandlers(wrap->env());
+      FatalException(wrap->env()->isolate(), try_catch);
+      return false;
+    }
+  }
+  return true;
+}
+
+
+static bool PostCallbackExecution(AsyncWrap* wrap) {
+  AsyncHooks* async_hooks = wrap->env()->async_hooks();
+
+  // If the callback failed then the after() hooks will be called at the end
+  // of _fatalException().
+  if (async_hooks->fields()[AsyncHooks::kAfter] > 0) {
+    Local<Value> uid = Number::New(wrap->env()->isolate(), wrap->get_id());
+    Local<Function> fn = wrap->env()->async_hooks_after_function();
+    TryCatch try_catch(wrap->env()->isolate());
+    MaybeLocal<Value> ar = fn->Call(
+        wrap->env()->context(), Undefined(wrap->env()->isolate()), 1, &uid);
+    if (ar.IsEmpty()) {
+      ClearFatalExceptionHandlers(wrap->env());
+      FatalException(wrap->env()->isolate(), try_catch);
+      return false;
+    }
+  }
+
+  if (wrap->env()->using_domains()) {
+    Local<Value> domain_v = wrap->object()->Get(wrap->env()->domain_string());
+    if (domain_v->IsObject()) {
+      Local<Object> domain = domain_v.As<Object>();
+      if (domain->Get(wrap->env()->disposed_string())->IsTrue())
+        return false;
+      Local<Value> exit_v = domain->Get(wrap->env()->exit_string());
+      if (exit_v->IsFunction()) {
+        if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
+          FatalError("node::AsyncWrap::MakeCallback",
+                    "domain exit callback threw, please report this");
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+class PromiseWrap : public AsyncWrap {
+ public:
+  PromiseWrap(Environment* env, Local<Object> object)
+    : AsyncWrap(env, object, PROVIDER_PROMISE) {}
+  size_t self_size() const override { return sizeof(*this); }
+};
+
+
+static void GetPromiseDomain(Local<v8::Name> name,
+                             const v8::PropertyCallbackInfo<v8::Value>& info) {
+  Local<Context> context = info.GetIsolate()->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+  info.GetReturnValue().Set(Object::Cast(*info.Data())->Get(context,
+                            env->domain_string()).ToLocalChecked());
+}
+
+
+static void PromiseHook(PromiseHookType type, Local<Promise> promise,
+                        Local<Value> parent) {
+  Local<Context> context = promise->CreationContext();
+  Environment* env = Environment::GetCurrent(context);
+  const char async_id_key[] = "__async_wrap";
+  const char tag_id_key[] = "__async_wrap_tag";
+  if (type == PromiseHookType::kInit) {
+    // Unfortunately, promises don't have internal fields. Need a surrogate that
+    // async wrap can wrap.
+    Local<v8::ObjectTemplate> tem = v8::ObjectTemplate::New(env->isolate());
+    tem->SetInternalFieldCount(1);
+    Local<Object> obj = tem->NewInstance(context).ToLocalChecked();
+    PromiseWrap* wrap = new PromiseWrap(env, obj);
+    promise->DefineOwnProperty(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), async_id_key),
+              v8::External::New(env->isolate(), wrap),
+              v8::PropertyAttribute::DontEnum).FromJust();
+    promise->DefineOwnProperty(context,
+              FIXED_ONE_BYTE_STRING(env->isolate(), tag_id_key),
+              obj, v8::PropertyAttribute::DontEnum).FromJust();
+    if (env->in_domain()) {
+      obj->Set(context, env->domain_string(),
+        env->domain_array()->Get(context, 0).ToLocalChecked()).FromJust();
+      promise->SetAccessor(context, env->domain_string(),
+                           GetPromiseDomain, NULL, obj).FromJust();
+    }
+  } else if (type == PromiseHookType::kResolve) {
+    // TODO(matthewloring): need to expose this through the async hooks api.
+  }
+  Local<v8::Value> external_wrap = promise->Get(context, FIXED_ONE_BYTE_STRING(env->isolate(),
+               async_id_key)).ToLocalChecked();
+  PromiseWrap* wrap =
+    static_cast<PromiseWrap*>(v8::External::Cast(*external_wrap)->Value());
+  if (type == PromiseHookType::kBefore) {
+    PreCallbackExecution(wrap);
+  } else if (type == PromiseHookType::kAfter) {
+    PostCallbackExecution(wrap);
+  }
+}
+
+
 static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -201,6 +332,7 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   SET_HOOK_FN(before);
   SET_HOOK_FN(after);
   SET_HOOK_FN(destroy);
+  env->isolate()->SetPromiseHook(PromiseHook);
 #undef SET_HOOK_FN
 }
 
@@ -416,86 +548,29 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                      Local<Value>* argv) {
   CHECK(env()->context() == env()->isolate()->GetCurrentContext());
 
-  AsyncHooks* async_hooks = env()->async_hooks();
-  Local<Object> context = object();
-  Local<Object> domain;
-  Local<Value> uid;
-  bool has_domain = false;
-
   Environment::AsyncCallbackScope callback_scope(env());
 
-  if (env()->using_domains()) {
-    Local<Value> domain_v = context->Get(env()->domain_string());
-    has_domain = domain_v->IsObject();
-    if (has_domain) {
-      domain = domain_v.As<Object>();
-      if (domain->Get(env()->disposed_string())->IsTrue())
-        return Local<Value>();
-    }
-  }
+  Environment::AsyncHooks::ExecScope exec_scope(env(),
+                                                get_id(),
+                                                get_trigger_id());
 
-  if (has_domain) {
-    Local<Value> enter_v = domain->Get(env()->enter_string());
-    if (enter_v->IsFunction()) {
-      if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::AsyncWrap::MakeCallback",
-                   "domain enter callback threw, please report this");
-      }
-    }
-  }
-
-  // Want currentId() to return the correct value from the callbacks.
-  AsyncHooks::ExecScope exec_scope(env(), get_id(), get_trigger_id());
-
-  if (async_hooks->fields()[AsyncHooks::kBefore] > 0) {
-    uid = Number::New(env()->isolate(), get_id());
-    Local<Function> fn = env()->async_hooks_before_function();
-    TryCatch try_catch(env()->isolate());
-    MaybeLocal<Value> ar = fn->Call(
-        env()->context(), Undefined(env()->isolate()), 1, &uid);
-    if (ar.IsEmpty()) {
-      ClearFatalExceptionHandlers(env());
-      FatalException(env()->isolate(), try_catch);
-      return Local<Value>();
-    }
+  if (!PreCallbackExecution(this)) {
+    return Local<Value>();
   }
 
   // Finally... Get to running the user's callback.
-  MaybeLocal<Value> ret = cb->Call(env()->context(), context, argc, argv);
+  MaybeLocal<Value> ret = cb->Call(env()->context(), object(), argc, argv);
 
   Local<Value> ret_v;
   if (!ret.ToLocal(&ret_v)) {
     return Local<Value>();
   }
 
-  // If the callback failed then the after() hooks will be called at the end
-  // of _fatalException().
-  if (async_hooks->fields()[AsyncHooks::kAfter] > 0) {
-    if (uid.IsEmpty())
-      uid = Number::New(env()->isolate(), get_id());
-    Local<Function> fn = env()->async_hooks_after_function();
-    TryCatch try_catch(env()->isolate());
-    MaybeLocal<Value> ar = fn->Call(
-        env()->context(), Undefined(env()->isolate()), 1, &uid);
-    if (ar.IsEmpty()) {
-      ClearFatalExceptionHandlers(env());
-      FatalException(env()->isolate(), try_catch);
-      return Local<Value>();
-    }
+  if (!PostCallbackExecution(this)) {
+    return Local<Value>();
   }
 
-  // The execution scope of the id and trigger_id only go this far.
   exec_scope.Dispose();
-
-  if (has_domain) {
-    Local<Value> exit_v = domain->Get(env()->exit_string());
-    if (exit_v->IsFunction()) {
-      if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::AsyncWrap::MakeCallback",
-                   "domain exit callback threw, please report this");
-      }
-    }
-  }
 
   if (callback_scope.in_makecallback()) {
     return ret_v;
