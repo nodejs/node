@@ -19,4 +19,5 @@ process.on('warning', common.mustCall((warning) => {
 }));
 
 e.on('event-type', function() {});
-e.on('event-type', function() {});
+e.on('event-type', function() {});  // Trigger warning.
+e.on('event-type', function() {});  // Verify that warning is emitted only once.
