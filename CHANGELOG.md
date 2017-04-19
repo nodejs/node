@@ -1,5 +1,36 @@
 # Node.js ChangeLog
 
+## 2017-05-02, Version 4.8.3 'Argon' (Maintenance), @MylesBorins
+
+### Notable Changes
+
+* **module**:
+  - The [module loading global fallback](https://nodejs.org/dist/latest-v4.x/docs/api/modules.html#modules_loading_from_the_global_folders) to the Node executable's directory now works correctly on Windows.  (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
+* **src**:
+  - fix base64 decoding in rare edgecase (Nikolai Vavilov) [#11995](https://github.com/nodejs/node/pull/11995)
+* **tls**:
+  - fix rare segmentation faults when using TLS
+   * (Trevor Norris) [#11947](https://github.com/nodejs/node/pull/11947)
+   * (Ben Noordhuis) [#11898](https://github.com/nodejs/node/pull/11898)
+   * (jBarz) [#11776](https://github.com/nodejs/node/pull/11776)
+
+### Commits
+
+* [[`44260806a6`](https://github.com/nodejs/node/commit/44260806a6)] - Partial revert "tls: keep track of stream that is closed" (Trevor Norris) [#11947](https://github.com/nodejs/node/pull/11947)
+* [[`ab3fdf531f`](https://github.com/nodejs/node/commit/ab3fdf531f)] - **deps**: cherry-pick ca0f9573 from V8 upstream (Ali Ijaz Sheikh) [#11940](https://github.com/nodejs/node/pull/11940)
+* [[`07b92a3c0b`](https://github.com/nodejs/node/commit/07b92a3c0b)] - **doc**: add supported platforms list for v4.x (Michael Dawson) [#12091](https://github.com/nodejs/node/pull/12091)
+* [[`ba91c41478`](https://github.com/nodejs/node/commit/ba91c41478)] - **module**: fix loading from global folders on Windows (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
+* [[`b5b78b12b8`](https://github.com/nodejs/node/commit/b5b78b12b8)] - **src**: add fcntl.h include to node.cc (Bartosz Sosnowski) [#12540](https://github.com/nodejs/node/pull/12540)
+* [[`eb393f9ae1`](https://github.com/nodejs/node/commit/eb393f9ae1)] - **src**: fix base64 decoding (Nikolai Vavilov) [#11995](https://github.com/nodejs/node/pull/11995)
+* [[`8ed18a1429`](https://github.com/nodejs/node/commit/8ed18a1429)] - **src**: ensure that fd 0-2 are valid on windows (Bartosz Sosnowski) [#11863](https://github.com/nodejs/node/pull/11863)
+* [[`ff1d61c11b`](https://github.com/nodejs/node/commit/ff1d61c11b)] - **stream_base,tls_wrap**: notify on destruct (Trevor Norris) [#11947](https://github.com/nodejs/node/pull/11947)
+* [[`6040efd7dc`](https://github.com/nodejs/node/commit/6040efd7dc)] - **test**: fix flaky test-tls-wrap-timeout (Rich Trott) [#7857](https://github.com/nodejs/node/pull/7857)
+* [[`7a1920dc84`](https://github.com/nodejs/node/commit/7a1920dc84)] - **test**: add hasCrypto check to tls-socket-close (Daniel Bevenius) [#11911](https://github.com/nodejs/node/pull/11911)
+* [[`1dc6b38dcf`](https://github.com/nodejs/node/commit/1dc6b38dcf)] - **test**: add test for loading from global folders (Richard Lau) [#9283](https://github.com/nodejs/node/pull/9283)
+* [[`54f5258582`](https://github.com/nodejs/node/commit/54f5258582)] - **tls**: fix segfault on destroy after partial read (Ben Noordhuis) [#11898](https://github.com/nodejs/node/pull/11898)
+* [[`99749dccfe`](https://github.com/nodejs/node/commit/99749dccfe)] - **tls**: keep track of stream that is closed (jBarz) [#11776](https://github.com/nodejs/node/pull/11776)
+* [[`6d3aaa72a8`](https://github.com/nodejs/node/commit/6d3aaa72a8)] - **tls**: TLSSocket emits 'error' on handshake failure (Mariusz 'koder' Chwalba) [#8805](https://github.com/nodejs/node/pull/8805)
+
 ## 2017-04-04, Version 4.8.2 'Argon' (Maintenance), @MylesBorins
 
 This is a maintenance release to fix a memory leak that was introduced in 4.8.1.
