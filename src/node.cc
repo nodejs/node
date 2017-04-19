@@ -1117,14 +1117,15 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 void PromiseHook(PromiseHookType type,
                  Local<Promise> promise,
                  Local<Value> parent) {
-  Environment* env = Environment::GetCurrent(Isolate::GetCurrent());
-  Local<Context> context = env->context();
+  Local<Context> context = promise->CreationContext();
+  Environment* env = Environment::GetCurrent(context);
 
   if (type == PromiseHookType::kResolve) return;
   if (type == PromiseHookType::kInit && env->in_domain()) {
     promise->Set(context,
                  env->domain_string(),
-                 env->domain_array()->Get(0)).FromJust();
+                 env->domain_array()->Get(context,
+                                          0).ToLocalChecked()).FromJust();
     return;
   }
 
