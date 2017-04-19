@@ -1,4 +1,11 @@
 # Domain
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12489
+    description: Handlers for `Promise`s are now invoked in the domain in which
+                 the first promise of a chain was created.
+-->
 
 > Stability: 0 - Deprecated
 

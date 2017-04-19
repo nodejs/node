@@ -13,6 +13,12 @@ d.run(common.mustCall(() => {
 }));
 
 d.run(common.mustCall(() => {
+  Promise.resolve().then(() => {}).then(() => {}).then(common.mustCall(() => {
+    assert.strictEqual(process.domain, d);
+  }));
+}));
+
+d.run(common.mustCall(() => {
   vm.runInNewContext(`Promise.resolve().then(common.mustCall(() => {
     assert.strictEqual(process.domain, d);
   }));`, { common, assert, process, d });
