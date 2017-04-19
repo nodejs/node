@@ -101,16 +101,6 @@ to update from nodejs/node:
 * `git merge --ff-only upstream/master` (or `REMOTENAME/BRANCH`)
 
 
-## If `git am` fails
-
-* if `git am` fails – use `git am --abort`
-  * this usually means the PR needs updated
-  * prefer to make the originating user update the code, since they have it fresh in mind
-* first, reattempt with `git am -3` (3-way merge)`
-* if `-3` still fails, and you need to get it merged:
-  * `git fetch upstream pull/N/head:pr-N && git checkout pr-N && git rebase master`
-
-
 ## best practices
 
 * commit often, out to your github fork (origin), open a PR
