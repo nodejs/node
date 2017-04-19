@@ -552,3 +552,9 @@ exports.expectWarning = function(name, expected) {
     expected.splice(expected.indexOf(warning.message), 1);
   }, expected.length));
 };
+
+// Crash the process on unhandled rejections.
+exports.crashOnUnhandledRejection = function() {
+  process.on('unhandledRejection',
+             (err) => process.nextTick(() => { throw err; }));
+};
