@@ -183,13 +183,35 @@ function analyticsScript(analytics) {
   `;
 }
 
+// replace placeholders in text tokens
+function replaceInText(text) {
+  return linkJsTypeDocs(linkManPages(text));
+}
+
 // handle general body-text replacements
 // for example, link man page references to the actual page
 function parseText(lexed) {
   lexed.forEach(function(tok) {
-    if (tok.text && tok.type !== 'code') {
-      tok.text = linkManPages(tok.text);
-      tok.text = linkJsTypeDocs(tok.text);
+    if (tok.type === 'table') {
+      if (tok.cells) {
+        tok.cells.forEach((row, x) => {
+          row.forEach((_, y) => {
+            if (tok.cells[x] && tok.cells[x][y]) {
+              tok.cells[x][y] = replaceInText(tok.cells[x][y]);
+            }
+          });
+        });
+      }
+
+      if (tok.header) {
+        tok.header.forEach((_, i) => {
+          if (tok.header[i]) {
+            tok.header[i] = replaceInText(tok.header[i]);
+          }
+        });
+      }
+    } else if (tok.text && tok.type !== 'code') {
+      tok.text = replaceInText(tok.text);
     }
   });
 }
