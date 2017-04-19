@@ -8,7 +8,7 @@ const path = require('path');
 
 const runjs = path.join(__dirname, '..', '..', 'benchmark', 'run.js');
 
-const child = fork(runjs, ['--set', 'dur=0.1',
+const child = fork(runjs, ['--set', 'dur=0',
                            '--set', 'n=1',
                            '--set', 'len=1',
                            '--set', 'params=1',
