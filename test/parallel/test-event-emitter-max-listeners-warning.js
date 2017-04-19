@@ -19,4 +19,5 @@ process.on('warning', common.mustCall((warning) => {
 }));
 
 e.on('event-type', common.noop);
-e.on('event-type', common.noop);
+e.on('event-type', common.noop);  // Trigger warning.
+e.on('event-type', common.noop);  // Verify that warning is emitted only once.
