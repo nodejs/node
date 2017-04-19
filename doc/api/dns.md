@@ -167,37 +167,32 @@ dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
 <!-- YAML
 added: v0.1.27
 -->
-- `hostname` {string}
-- `rrtype` {string}
+- `hostname` {string} Hostname to resolve.
+- `rrtype` {string} Resource record type. Default: `'A'`.
 - `callback` {Function}
   - `err` {Error}
-  - `addresses` {string[] | Object[] | string[][] | Object}
+  - `records` {string[] | Object[] | string[][] | Object}
 
-Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an
-array of the record types specified by `rrtype`.
+Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an array
+of the resource records. The `callback` function has arguments
+`(err, records)`. When successful, `records` will be an array of resource
+records. The type and structure of individual results varies based on `rrtype`:
 
-Valid values for `rrtype` are:
+|  `rrtype` | `records` contains             | Result type | Shorthand method         |
+|-----------|--------------------------------|-------------|--------------------------|
+| `'A'`     | IPv4 addresses (default)       | {string}    | [`dns.resolve4()`][]     |
+| `'AAAA'`  | IPv6 addresses                 | {string}    | [`dns.resolve6()`][]     |
+| `'CNAME'` | canonical name records         | {string}    | [`dns.resolveCname()`][] |
+| `'MX'`    | mail exchange records          | {Object}    | [`dns.resolveMx()`][]    |
+| `'NAPTR'` | name authority pointer records | {Object}    | [`dns.resolveNaptr()`][] |
+| `'NS'`    | name server records            | {string}    | [`dns.resolveNs()`][]    |
+| `'PTR'`   | pointer records                | {string}    | [`dns.resolvePtr()`][]   |
+| `'SOA'`   | start of authority records     | {Object}    | [`dns.resolveSoa()`][]   |
+| `'SRV'`   | service records                | {Object}    | [`dns.resolveSrv()`][]   |
+| `'TXT'`   | text records                   | {string}    | [`dns.resolveTxt()`][]   |
 
- * `'A'` - IPV4 addresses, default
- * `'AAAA'` - IPV6 addresses
- * `'MX'` - mail exchange records
- * `'TXT'` - text records
- * `'SRV'` - SRV records
- * `'PTR'` - PTR records
- * `'NS'` - name server records
- * `'CNAME'` - canonical name records
- * `'SOA'` - start of authority record
- * `'NAPTR'` - name authority pointer record
-
-The `callback` function has arguments `(err, addresses)`. When successful,
-`addresses` will be an array, except when resolving an SOA record which returns
-an object structured in the same manner as one returned by the
-[`dns.resolveSoa()`][] method. The type of each item in `addresses` is
-determined by the record type, and described in the documentation for the
-corresponding lookup methods.
-
-On error, `err` is an [`Error`][] object, where `err.code` is
-one of the error codes listed [here](#dns_error_codes).
+On error, `err` is an [`Error`][] object, where `err.code` is one of the
+[DNS error codes](#dns_error_codes).
 
 ## dns.resolve4(hostname[, options], callback)
 <!-- YAML
@@ -516,7 +511,16 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
 [DNS error codes]: #dns_error_codes
 [`dns.lookup()`]: #dns_dns_lookup_hostname_options_callback
+[`dns.resolve4()`]: #dns_dns_resolve4_hostname_options_callback
+[`dns.resolve6()`]: #dns_dns_resolve6_hostname_options_callback
+[`dns.resolveCname()`]: #dns_dns_resolvecname_hostname_callback
+[`dns.resolveMx()`]: #dns_dns_resolvemx_hostname_callback
+[`dns.resolveNaptr()`]: #dns_dns_resolvenaptr_hostname_callback
+[`dns.resolveNs()`]: #dns_dns_resolvens_hostname_callback
+[`dns.resolvePtr()`]: #dns_dns_resolveptr_hostname_callback
 [`dns.resolveSoa()`]: #dns_dns_resolvesoa_hostname_callback
+[`dns.resolveSrv()`]: #dns_dns_resolvesrv_hostname_callback
+[`dns.resolveTxt()`]: #dns_dns_resolvetxt_hostname_callback
 [`Error`]: errors.html#errors_class_error
 [Implementation considerations section]: #dns_implementation_considerations
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
