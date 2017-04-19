@@ -24,6 +24,7 @@
 * [HTTP](http.html)
 * [HTTPS](https.html)
 * [Modules](modules.html)
+* [N-API](n-api.html)
 * [Net](net.html)
 * [OS](os.html)
 * [Path](path.html)
