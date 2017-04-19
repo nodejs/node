@@ -576,8 +576,8 @@ assert.notStrictEqual(a, b);
 assert(!Object.is(a, b));
 // but Object.is() does!
 
-const str1 = "foo";
-const str2 = "foo";
+const str1 = 'foo';
+const str2 = 'foo';
 assert.strictEqual(str1 / 1, str2 / 1);
 // AssertionError: NaN === NaN
 // Strict Equality Comparison can't be used to check NaN...
