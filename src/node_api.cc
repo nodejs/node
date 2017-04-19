@@ -2044,7 +2044,9 @@ napi_status napi_create_reference(napi_env env,
                                   napi_value value,
                                   uint32_t initial_refcount,
                                   napi_ref* result) {
-  NAPI_PREAMBLE(env);
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
@@ -2052,7 +2054,7 @@ napi_status napi_create_reference(napi_env env,
       env, v8impl::V8LocalValueFromJsValue(value), initial_refcount, false);
 
   *result = reinterpret_cast<napi_ref>(reference);
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 // Deletes a reference. The referenced value is released, and may be GC'd unless
@@ -2074,7 +2076,9 @@ napi_status napi_delete_reference(napi_env env, napi_ref ref) {
 // Calling this when the refcount is 0 and the object is unavailable
 // results in an error.
 napi_status napi_reference_ref(napi_env env, napi_ref ref, uint32_t* result) {
-  NAPI_PREAMBLE(env);
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
   CHECK_ARG(env, ref);
 
   v8impl::Reference* reference = reinterpret_cast<v8impl::Reference*>(ref);
@@ -2084,7 +2088,7 @@ napi_status napi_reference_ref(napi_env env, napi_ref ref, uint32_t* result) {
     *result = count;
   }
 
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 // Decrements the reference count, optionally returning the resulting count. If
@@ -2092,7 +2096,9 @@ napi_status napi_reference_ref(napi_env env, napi_ref ref, uint32_t* result) {
 // time if there are no other references. Calling this when the refcount is
 // already 0 results in an error.
 napi_status napi_reference_unref(napi_env env, napi_ref ref, uint32_t* result) {
-  NAPI_PREAMBLE(env);
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
   CHECK_ARG(env, ref);
 
   v8impl::Reference* reference = reinterpret_cast<v8impl::Reference*>(ref);
@@ -2107,7 +2113,7 @@ napi_status napi_reference_unref(napi_env env, napi_ref ref, uint32_t* result) {
     *result = count;
   }
 
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 // Attempts to get a referenced value. If the reference is weak, the value might
@@ -2116,59 +2122,71 @@ napi_status napi_reference_unref(napi_env env, napi_ref ref, uint32_t* result) {
 napi_status napi_get_reference_value(napi_env env,
                                      napi_ref ref,
                                      napi_value* result) {
-  NAPI_PREAMBLE(env);
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
   CHECK_ARG(env, ref);
   CHECK_ARG(env, result);
 
   v8impl::Reference* reference = reinterpret_cast<v8impl::Reference*>(ref);
   *result = v8impl::JsValueFromV8LocalValue(reference->Get());
 
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_open_handle_scope(napi_env env, napi_handle_scope* result) {
-  NAPI_PREAMBLE(env);
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
   CHECK_ARG(env, result);
 
   *result = v8impl::JsHandleScopeFromV8HandleScope(
       new v8impl::HandleScopeWrapper(env->isolate));
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_close_handle_scope(napi_env env, napi_handle_scope scope) {
-  NAPI_PREAMBLE(env);
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
   CHECK_ARG(env, scope);
 
   delete v8impl::V8HandleScopeFromJsHandleScope(scope);
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_open_escapable_handle_scope(
     napi_env env,
     napi_escapable_handle_scope* result) {
-  NAPI_PREAMBLE(env);
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
   CHECK_ARG(env, result);
 
   *result = v8impl::JsEscapableHandleScopeFromV8EscapableHandleScope(
       new v8impl::EscapableHandleScopeWrapper(env->isolate));
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_close_escapable_handle_scope(
     napi_env env,
     napi_escapable_handle_scope scope) {
-  NAPI_PREAMBLE(env);
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
   CHECK_ARG(env, scope);
 
   delete v8impl::V8EscapableHandleScopeFromJsEscapableHandleScope(scope);
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_escape_handle(napi_env env,
                                napi_escapable_handle_scope scope,
                                napi_value escapee,
                                napi_value* result) {
-  NAPI_PREAMBLE(env);
+  // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
+  // JS exceptions.
+  CHECK_ENV(env);
   CHECK_ARG(env, scope);
   CHECK_ARG(env, escapee);
   CHECK_ARG(env, result);
@@ -2177,7 +2195,7 @@ napi_status napi_escape_handle(napi_env env,
       v8impl::V8EscapableHandleScopeFromJsEscapableHandleScope(scope);
   *result = v8impl::JsValueFromV8LocalValue(
       s->Escape(v8impl::V8LocalValueFromJsValue(escapee)));
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_new_instance(napi_env env,
@@ -2387,7 +2405,6 @@ napi_status napi_create_buffer(napi_env env,
                                void** data,
                                napi_value* result) {
   NAPI_PREAMBLE(env);
-  CHECK_ARG(env, data);
   CHECK_ARG(env, result);
 
   auto maybe = node::Buffer::New(env->isolate, length);
@@ -2397,7 +2414,10 @@ napi_status napi_create_buffer(napi_env env,
   v8::Local<v8::Object> buffer = maybe.ToLocalChecked();
 
   *result = v8impl::JsValueFromV8LocalValue(buffer);
-  *data = node::Buffer::Data(buffer);
+
+  if (data != nullptr) {
+    *data = node::Buffer::Data(buffer);
+  }
 
   return GET_RETURN_STATUS(env);
 }
