@@ -39,7 +39,7 @@ function getPort(cb) {
 
 if (common.isWindows) {
   common.skip('dgram clustering is currently not supported ' +
-    'on windows.');
+              'on windows.');
   return;
 }
 
