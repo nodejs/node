@@ -12,7 +12,7 @@ const child = fork(runjs, ['--set', 'dur=0.1',
                            '--set', 'n=1',
                            '--set', 'len=1',
                            '--set', 'params=1',
-                           '--set', 'methodName=exec',
+                           '--set', 'methodName=execSync',
                            'child_process'],
                    {env: {NODEJS_BENCHMARK_ZERO_ALLOWED: 1}});
 child.on('exit', (code, signal) => {
