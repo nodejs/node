@@ -583,9 +583,9 @@
             'OBJ_SEPARATOR': 'node.',
           }],
           ['OS=="win"', {
-            'OBJ_PATH': '<(OBJ_DIR)/node',
-            'OBJ_GEN_PATH': '<(OBJ_DIR)/node',
-            'OBJ_TRACING_PATH': '<(OBJ_DIR)/node',
+            'OBJ_PATH%': '<(OBJ_DIR)/node',
+            'OBJ_GEN_PATH%': '<(OBJ_DIR)/node',
+            'OBJ_TRACING_PATH%': '<(OBJ_DIR)/node',
             'OBJ_SUFFIX': 'obj',
           }],
           ['OS=="aix"', {
