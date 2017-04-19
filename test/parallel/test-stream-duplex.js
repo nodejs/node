@@ -22,7 +22,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const Duplex = require('stream').Transform;
+const Duplex = require('stream').Duplex;
 
 const stream = new Duplex({ objectMode: true });
 
