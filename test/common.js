@@ -675,3 +675,8 @@ exports.getArrayBufferViews = function getArrayBufferViews(buf) {
   }
   return out;
 };
+
+// Crash the process on unhandled rejections.
+exports.crashOnUnhandledRejection = function() {
+  process.on('unhandledRejection', (err) => setImmediate(() => { throw err; }));
+};
