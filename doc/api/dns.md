@@ -323,7 +323,7 @@ Uses the DNS protocol to resolve name server records (`NS` records) for the
 contain an array of name server records available for `hostname`
 (e.g. `['ns1.example.com', 'ns2.example.com']`).
 
-## dns.resolvePtr(hostname, callback)
+## dns.resolvePtr(hostname)
 <!-- YAML
 added: v6.0.0
 -->
