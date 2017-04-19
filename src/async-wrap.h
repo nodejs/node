@@ -44,6 +44,7 @@ namespace node {
   V(PIPECONNECTWRAP)                                                          \
   V(PIPEWRAP)                                                                 \
   V(PROCESSWRAP)                                                              \
+  V(PROMISE)                                                                  \
   V(QUERYWRAP)                                                                \
   V(SHUTDOWNWRAP)                                                             \
   V(SIGNALWRAP)                                                               \
@@ -131,6 +132,9 @@ class AsyncWrap : public BaseObject {
 };
 
 void LoadAsyncWrapperInfo(Environment* env);
+
+bool DomainEnter(Environment* env, v8::Local<v8::Object> object);
+bool DomainExit(Environment* env, v8::Local<v8::Object> object);
 
 }  // namespace node
 
