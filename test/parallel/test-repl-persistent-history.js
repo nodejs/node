@@ -76,6 +76,8 @@ const oldHistoryPath = path.join(fixtures, 'old-repl-history-file.json');
 const enoentHistoryPath = path.join(fixtures, 'enoent-repl-history-file.json');
 const emptyHistoryPath = path.join(fixtures, '.empty-repl-history-file');
 const defaultHistoryPath = path.join(common.tmpDir, '.node_repl_history');
+const emptyHiddenHistoryPath = path.join(fixtures,
+                                         '.empty-hidden-repl-history-file');
 
 const tests = [
   {
@@ -162,6 +164,19 @@ const tests = [
            NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP],
     expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
+  },
+  {
+    before: function before() {
+      if (common.isWindows) {
+        const execSync = require('child_process').execSync;
+        execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`, (err) => {
+          assert.ifError(err);
+        });
+      }
+    },
+    env: { NODE_REPL_HISTORY: emptyHiddenHistoryPath },
+    test: [UP],
+    expected: [prompt]
   },
   { // Make sure this is always the last test, since we change os.homedir()
     before: function before() {
