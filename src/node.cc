@@ -938,8 +938,6 @@ Local<Value> UVException(Isolate* isolate,
 
   Local<Object> e = Exception::Error(js_msg)->ToObject(isolate);
 
-  // TODO(piscisaureus) errno should probably go; the user has no way of
-  // knowing which uv errno value maps to which error.
   e->Set(env->errno_string(), Integer::New(isolate, errorno));
   e->Set(env->code_string(), js_code);
   e->Set(env->syscall_string(), js_syscall);
