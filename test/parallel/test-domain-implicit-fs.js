@@ -36,6 +36,7 @@ d.on('error', common.mustCall(function(er) {
   assert.ok(!er.domainEmitter);
   assert.strictEqual(er.code, 'ENOENT');
   assert.ok(/\bthis file does not exist\b/i.test(er.path));
+  assert.strictEqual(typeof er.errno, 'number');
 }));
 
 
