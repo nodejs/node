@@ -12,4 +12,10 @@ const bufferWarning = 'The Buffer() and new Buffer() constructors are not ' +
 
 common.expectWarning('DeprecationWarning', bufferWarning);
 
+// This is used to make sure that a warning is only emitted once even though
+// `new Buffer()` is called twice.
+process.on('warning', common.mustCall());
+
+new Buffer(10);
+
 new Buffer(10);
