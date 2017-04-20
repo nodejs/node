@@ -24,6 +24,7 @@ using v8::Value;
   V(isDate, IsDate)                                                           \
   V(isMap, IsMap)                                                             \
   V(isMapIterator, IsMapIterator)                                             \
+  V(isNativeError, IsNativeError)                                             \
   V(isPromise, IsPromise)                                                     \
   V(isRegExp, IsRegExp)                                                       \
   V(isSet, IsSet)                                                             \
