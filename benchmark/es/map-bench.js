@@ -70,6 +70,37 @@ function runStorageObject(n) {
   bench.end(n / 1e6);
 }
 
+function runNullProtoLiteralObject(n) {
+  const m = { __proto__: null };
+  var i = 0;
+  bench.start();
+  for (; i < n; i++) {
+    m['i' + i] = i;
+    m['s' + i] = String(i);
+    assert.strictEqual(String(m['i' + i]), m['s' + i]);
+    m['i' + i] = undefined;
+    m['s' + i] = undefined;
+  }
+  bench.end(n / 1e6);
+}
+
+function StorageObject() {}
+StorageObject.prototype = Object.create(null);
+
+function runStorageObject(n) {
+  const m = new StorageObject();
+  var i = 0;
+  bench.start();
+  for (; i < n; i++) {
+    m['i' + i] = i;
+    m['s' + i] = String(i);
+    assert.strictEqual(String(m['i' + i]), m['s' + i]);
+    m['i' + i] = undefined;
+    m['s' + i] = undefined;
+  }
+  bench.end(n / 1e6);
+}
+
 function fakeMap() {
   const m = {};
   return {
