@@ -1916,7 +1916,7 @@ changes:
   * `persistent` {boolean} Indicates whether the process should continue to run
     as long as files are being watched. default = `true`
   * `recursive` {boolean} Indicates whether all subdirectories should be
-    watched, or only the current directory. The applies when a directory is
+    watched, or only the current directory. This applies when a directory is
     specified, and only on supported platforms (See [Caveats][]). default =
     `false`
   * `encoding` {string} Specifies the character encoding to be used for the
