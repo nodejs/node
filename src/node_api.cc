@@ -1465,6 +1465,10 @@ napi_status napi_typeof(napi_env env,
     // This test has to come before IsObject because IsFunction
     // implies IsObject
     *result = napi_function;
+  } else if (v->IsExternal()) {
+    // This test has to come before IsObject because IsExternal
+    // implies IsObject
+    *result = napi_external;
   } else if (v->IsObject()) {
     *result = napi_object;
   } else if (v->IsBoolean()) {
@@ -1475,8 +1479,6 @@ napi_status napi_typeof(napi_env env,
     *result = napi_symbol;
   } else if (v->IsNull()) {
     *result = napi_null;
-  } else if (v->IsExternal()) {
-    *result = napi_external;
   } else {
     // Should not get here unless V8 has added some new kind of value.
     return napi_set_last_error(env, napi_invalid_arg);
