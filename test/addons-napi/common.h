@@ -50,3 +50,6 @@
 
 #define DECLARE_NAPI_PROPERTY(name, func)                                \
   { (name), 0, (func), 0, 0, 0, napi_default, 0 }
+
+#define DECLARE_NAPI_GETTER(name, func)                                  \
+  { (name), 0, 0, (func), 0, 0, napi_default, 0 }
