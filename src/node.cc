@@ -230,6 +230,8 @@ bool config_expose_internals = false;
 
 bool v8_initialized = false;
 
+bool linux_at_secure = false;
+
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
 static bool debugger_running;
@@ -959,13 +961,15 @@ Local<Value> UVException(Isolate* isolate,
 // Look up environment variable unless running as setuid root.
 bool SafeGetenv(const char* key, std::string* text) {
 #ifndef _WIN32
-  // TODO(bnoordhuis) Should perhaps also check whether getauxval(AT_SECURE)
-  // is non-zero on Linux.
   if (getuid() != geteuid() || getgid() != getegid()) {
     text->clear();
     return false;
   }
 #endif
+  if (linux_at_secure) {
+    text->clear();
+    return false;
+  }
   if (const char* value = getenv(key)) {
     *text = value;
     return true;
