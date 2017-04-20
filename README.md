@@ -300,6 +300,8 @@ more information about the governance of the Node.js project, see
 **Minwoo Jung** &lt;minwoo@nodesource.com&gt; (he/him)
 * [lance](https://github.com/lance) -
 **Lance Ball** &lt;lball@redhat.com&gt;
+* [lucamaraschi](https://github.com/lucamaraschi) -
+**Luca Maraschi** &lt;luca.maraschi@gmail.com&gt; (he/him)
 * [lpinca](https://github.com/lpinca) -
 **Luigi Pinca** &lt;luigipinca@gmail.com&gt; (he/him)
 * [lxe](https://github.com/lxe) -
