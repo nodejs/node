@@ -9,11 +9,12 @@ const fork = require('child_process').fork;
 const net = require('net');
 
 const id = '' + process.argv[2];
+const port = '' + process.argv[3];
 
 if (id === 'undefined') {
   const server = net.createServer(common.mustNotCall());
-  server.listen(common.PORT, function() {
-    const worker = fork(__filename, ['worker']);
+  server.listen(0, function() {
+    const worker = fork(__filename, ['worker', server.address().port]);
     worker.on('message', function(msg) {
       if (msg !== 'stop-listening') return;
       server.close(function() {
@@ -23,14 +24,14 @@ if (id === 'undefined') {
   });
 } else if (id === 'worker') {
   let server = net.createServer(common.mustNotCall());
-  server.listen(common.PORT, common.mustNotCall());
+  server.listen(port, common.mustNotCall());
   server.on('error', common.mustCall(function(e) {
     assert(e.code, 'EADDRINUSE');
     process.send('stop-listening');
     process.once('message', function(msg) {
       if (msg !== 'stopped-listening') return;
       server = net.createServer(common.mustNotCall());
-      server.listen(common.PORT, common.mustCall(function() {
+      server.listen(port, common.mustCall(function() {
         server.close();
       }));
     });
