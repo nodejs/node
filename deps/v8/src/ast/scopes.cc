@@ -1083,12 +1083,15 @@ Variable* Scope::LookupRecursive(VariableProxy* proxy,
     if (var != NULL && proxy->is_assigned()) var->set_maybe_assigned();
     *binding_kind = DYNAMIC_LOOKUP;
     return NULL;
-  } else if (calls_sloppy_eval() && !is_script_scope() &&
-             name_can_be_shadowed) {
+  } else if (calls_sloppy_eval() && is_declaration_scope() &&
+             !is_script_scope() && name_can_be_shadowed) {
     // A variable binding may have been found in an outer scope, but the current
     // scope makes a sloppy 'eval' call, so the found variable may not be
     // the correct one (the 'eval' may introduce a binding with the same name).
     // In that case, change the lookup result to reflect this situation.
+    // Only scopes that can host var bindings (declaration scopes) need be
+    // considered here (this excludes block and catch scopes), and variable
+    // lookups at script scope are always dynamic.
     if (*binding_kind == BOUND) {
       *binding_kind = BOUND_EVAL_SHADOWED;
     } else if (*binding_kind == UNBOUND) {
