@@ -125,12 +125,6 @@ assert.throws(() => {
                            message: /^Error for testing 2/ }));
 }, /AssertionError: .+ does not match \S/);
 
-assert.doesNotThrow(() => errors.E('TEST_ERROR_USED_SYMBOL'));
-assert.throws(
-  () => errors.E('TEST_ERROR_USED_SYMBOL'),
-  /^AssertionError: Error symbol: TEST_ERROR_USED_SYMBOL was already used\.$/
-);
-
 // // Test ERR_INVALID_ARG_TYPE
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b']),
                    'The "a" argument must be of type b');
