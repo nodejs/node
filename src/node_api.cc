@@ -22,7 +22,7 @@ static
 napi_status napi_set_last_error(napi_env env, napi_status error_code,
                                 uint32_t engine_error_code = 0,
                                 void* engine_reserved = nullptr);
-void napi_clear_last_error(napi_env env);
+static napi_status napi_clear_last_error(napi_env env);
 
 struct napi_env__ {
   explicit napi_env__(v8::Isolate* _isolate): isolate(_isolate),
@@ -69,9 +69,18 @@ struct napi_env__ {
 
 #define CHECK_TO_TYPE(env, type, context, result, src, status)                \
   do {                                                                        \
+    CHECK_ARG((env), (src));                                                  \
     auto maybe = v8impl::V8LocalValueFromJsValue((src))->To##type((context)); \
     CHECK_MAYBE_EMPTY((env), maybe, (status));                                \
     (result) = maybe.ToLocalChecked();                                        \
+  } while (0)
+
+#define CHECK_TO_FUNCTION(env, result, src)                                 \
+  do {                                                                      \
+    CHECK_ARG((env), (src));                                                \
+    v8::Local<v8::Value> v8value = v8impl::V8LocalValueFromJsValue((src));  \
+    RETURN_STATUS_IF_FALSE((env), v8value->IsFunction(), napi_invalid_arg); \
+    (result) = v8value.As<v8::Function>();                                  \
   } while (0)
 
 #define CHECK_TO_OBJECT(env, context, result, src) \
@@ -710,17 +719,20 @@ const char* error_messages[] = {nullptr,
                                 "An exception is pending",
                                 "The async work item was cancelled"};
 
-void napi_clear_last_error(napi_env env) {
+static napi_status napi_clear_last_error(napi_env env) {
+  CHECK_ENV(env);
+
   env->last_error.error_code = napi_ok;
 
   // TODO(boingoing): Should this be a callback?
   env->last_error.engine_error_code = 0;
   env->last_error.engine_reserved = nullptr;
+  return napi_ok;
 }
 
-napi_status napi_set_last_error(napi_env env, napi_status error_code,
-                                uint32_t engine_error_code,
-                                void* engine_reserved) {
+static napi_status napi_set_last_error(napi_env env, napi_status error_code,
+                                       uint32_t engine_error_code,
+                                       void* engine_reserved) {
   env->last_error.error_code = error_code;
   env->last_error.engine_error_code = engine_error_code;
   env->last_error.engine_reserved = engine_reserved;
@@ -731,6 +743,7 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
 napi_status napi_get_last_error_info(napi_env env,
                                      const napi_extended_error_info** result) {
   CHECK_ENV(env);
+  CHECK_ARG(env, result);
 
   static_assert(node::arraysize(error_messages) == napi_status_last,
       "Count of error messages must match count of error values");
@@ -742,7 +755,7 @@ napi_status napi_get_last_error_info(napi_env env,
       error_messages[env->last_error.error_code];
 
   *result = &(env->last_error);
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_create_function(napi_env env,
@@ -752,6 +765,7 @@ napi_status napi_create_function(napi_env env,
                                  napi_value* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
+  CHECK_ARG(env, cb);
 
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::Function> return_value;
@@ -790,6 +804,7 @@ napi_status napi_define_class(napi_env env,
                               napi_value* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
+  CHECK_ARG(env, constructor);
 
   v8::Isolate* isolate = env->isolate;
 
@@ -911,6 +926,8 @@ napi_status napi_set_property(napi_env env,
                               napi_value key,
                               napi_value value) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, key);
+  CHECK_ARG(env, value);
 
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -933,6 +950,7 @@ napi_status napi_has_property(napi_env env,
                               bool* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
+  CHECK_ARG(env, key);
 
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -954,6 +972,7 @@ napi_status napi_get_property(napi_env env,
                               napi_value key,
                               napi_value* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, key);
   CHECK_ARG(env, result);
 
   v8::Isolate* isolate = env->isolate;
@@ -977,6 +996,7 @@ napi_status napi_set_named_property(napi_env env,
                                     const char* utf8name,
                                     napi_value value) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
 
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -1050,6 +1070,7 @@ napi_status napi_set_element(napi_env env,
                              uint32_t index,
                              napi_value value) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
 
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -1112,11 +1133,15 @@ napi_status napi_define_properties(napi_env env,
                                    size_t property_count,
                                    const napi_property_descriptor* properties) {
   NAPI_PREAMBLE(env);
+  if (property_count > 0) {
+    CHECK_ARG(env, properties);
+  }
 
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::Local<v8::Object> obj =
-      v8impl::V8LocalValueFromJsValue(object).As<v8::Object>();
+
+  v8::Local<v8::Object> obj;
+  CHECK_TO_OBJECT(env, context, obj, object);
 
   for (size_t i = 0; i < property_count; i++) {
     const napi_property_descriptor* p = &properties[i];
@@ -1183,6 +1208,7 @@ napi_status napi_define_properties(napi_env env,
 
 napi_status napi_is_array(napi_env env, napi_value value, bool* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
@@ -1195,6 +1221,7 @@ napi_status napi_get_array_length(napi_env env,
                                   napi_value value,
                                   uint32_t* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
@@ -1211,6 +1238,8 @@ napi_status napi_strict_equals(napi_env env,
                                napi_value rhs,
                                bool* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, lhs);
+  CHECK_ARG(env, rhs);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> a = v8impl::V8LocalValueFromJsValue(lhs);
@@ -1345,7 +1374,7 @@ napi_status napi_get_boolean(napi_env env, bool value, napi_value* result) {
     *result = v8impl::JsValueFromV8LocalValue(v8::False(isolate));
   }
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_create_symbol(napi_env env,
@@ -1373,6 +1402,7 @@ napi_status napi_create_error(napi_env env,
                               napi_value msg,
                               napi_value* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, msg);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
@@ -1388,6 +1418,7 @@ napi_status napi_create_type_error(napi_env env,
                                    napi_value msg,
                                    napi_value* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, msg);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
@@ -1403,6 +1434,7 @@ napi_status napi_create_range_error(napi_env env,
                                     napi_value msg,
                                     napi_value* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, msg);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> message_value = v8impl::V8LocalValueFromJsValue(msg);
@@ -1420,6 +1452,7 @@ napi_status napi_typeof(napi_env env,
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
   // JS exceptions.
   CHECK_ENV(env);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> v = v8impl::V8LocalValueFromJsValue(value);
@@ -1449,7 +1482,7 @@ napi_status napi_typeof(napi_env env,
     return napi_set_last_error(env, napi_invalid_arg);
   }
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_get_undefined(napi_env env, napi_value* result) {
@@ -1459,7 +1492,7 @@ napi_status napi_get_undefined(napi_env env, napi_value* result) {
   *result = v8impl::JsValueFromV8LocalValue(
       v8::Undefined(env->isolate));
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_get_null(napi_env env, napi_value* result) {
@@ -1469,7 +1502,7 @@ napi_status napi_get_null(napi_env env, napi_value* result) {
   *result = v8impl::JsValueFromV8LocalValue(
         v8::Null(env->isolate));
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 // Gets all callback info in a single call. (Ugly, but faster.)
@@ -1482,6 +1515,7 @@ napi_status napi_get_cb_info(
     napi_value* this_arg,  // [out] Receives the JS 'this' arg for the call
     void** data) {         // [out] Receives the data pointer for the callback.
   CHECK_ENV(env);
+  CHECK_ARG(env, cbinfo);
 
   v8impl::CallbackWrapper* info =
       reinterpret_cast<v8impl::CallbackWrapper*>(cbinfo);
@@ -1500,7 +1534,7 @@ napi_status napi_get_cb_info(
     *data = info->Data();
   }
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_is_construct_call(napi_env env,
@@ -1508,13 +1542,14 @@ napi_status napi_is_construct_call(napi_env env,
                                    bool* result) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because no V8 APIs are called.
   CHECK_ENV(env);
+  CHECK_ARG(env, cbinfo);
   CHECK_ARG(env, result);
 
   v8impl::CallbackWrapper* info =
       reinterpret_cast<v8impl::CallbackWrapper*>(cbinfo);
 
   *result = info->IsConstructCall();
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_call_function(napi_env env,
@@ -1524,16 +1559,19 @@ napi_status napi_call_function(napi_env env,
                                const napi_value* argv,
                                napi_value* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, recv);
+  if (argc > 0) {
+    CHECK_ARG(env, argv);
+  }
 
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
   v8::Local<v8::Value> v8recv = v8impl::V8LocalValueFromJsValue(recv);
 
-  v8::Local<v8::Value> v8value = v8impl::V8LocalValueFromJsValue(func);
-  RETURN_STATUS_IF_FALSE(env, v8value->IsFunction(), napi_invalid_arg);
+  v8::Local<v8::Function> v8func;
+  CHECK_TO_FUNCTION(env, v8func, func);
 
-  v8::Local<v8::Function> v8func = v8value.As<v8::Function>();
   auto maybe = v8func->Call(context, v8recv, argc,
     reinterpret_cast<v8::Local<v8::Value>*>(const_cast<napi_value*>(argv)));
 
@@ -1544,7 +1582,7 @@ napi_status napi_call_function(napi_env env,
       CHECK_MAYBE_EMPTY(env, maybe, napi_generic_failure);
       *result = v8impl::JsValueFromV8LocalValue(maybe.ToLocalChecked());
     }
-    return napi_ok;
+    return napi_clear_last_error(env);
   }
 }
 
@@ -1559,18 +1597,19 @@ napi_status napi_get_global(napi_env env, napi_value* result) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   *result = v8impl::JsValueFromV8LocalValue(context->Global());
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_throw(napi_env env, napi_value error) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, error);
 
   v8::Isolate* isolate = env->isolate;
 
   isolate->ThrowException(v8impl::V8LocalValueFromJsValue(error));
   // any VM calls after this point and before returning
   // to the javascript invoker will fail
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_throw_error(napi_env env, const char* msg) {
@@ -1583,7 +1622,7 @@ napi_status napi_throw_error(napi_env env, const char* msg) {
   isolate->ThrowException(v8::Exception::Error(str));
   // any VM calls after this point and before returning
   // to the javascript invoker will fail
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_throw_type_error(napi_env env, const char* msg) {
@@ -1596,7 +1635,7 @@ napi_status napi_throw_type_error(napi_env env, const char* msg) {
   isolate->ThrowException(v8::Exception::TypeError(str));
   // any VM calls after this point and before returning
   // to the javascript invoker will fail
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_throw_range_error(napi_env env, const char* msg) {
@@ -1609,19 +1648,20 @@ napi_status napi_throw_range_error(napi_env env, const char* msg) {
   isolate->ThrowException(v8::Exception::RangeError(str));
   // any VM calls after this point and before returning
   // to the javascript invoker will fail
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_is_error(napi_env env, napi_value value, bool* result) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot
   // throw JS exceptions.
   CHECK_ENV(env);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
   *result = val->IsNativeError();
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_get_value_double(napi_env env,
@@ -1638,7 +1678,7 @@ napi_status napi_get_value_double(napi_env env,
 
   *result = val.As<v8::Number>()->Value();
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_get_value_int32(napi_env env,
@@ -1657,7 +1697,7 @@ napi_status napi_get_value_int32(napi_env env,
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   *result = val->Int32Value(context).ToChecked();
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_get_value_uint32(napi_env env,
@@ -1676,7 +1716,7 @@ napi_status napi_get_value_uint32(napi_env env,
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   *result = val->Uint32Value(context).ToChecked();
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_get_value_int64(napi_env env,
@@ -1702,7 +1742,7 @@ napi_status napi_get_value_int64(napi_env env,
     *result = val->IntegerValue(context).ToChecked();
   }
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_get_value_bool(napi_env env, napi_value value, bool* result) {
@@ -1717,7 +1757,7 @@ napi_status napi_get_value_bool(napi_env env, napi_value value, bool* result) {
 
   *result = val.As<v8::Boolean>()->Value();
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 // Copies a JavaScript string into a LATIN-1 string buffer. The result is the
@@ -1734,6 +1774,7 @@ napi_status napi_get_value_string_latin1(napi_env env,
                                          size_t bufsize,
                                          size_t* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
   RETURN_STATUS_IF_FALSE(env, val->IsString(), napi_string_expected);
@@ -1769,6 +1810,7 @@ napi_status napi_get_value_string_utf8(napi_env env,
                                        size_t bufsize,
                                        size_t* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
   RETURN_STATUS_IF_FALSE(env, val->IsString(), napi_string_expected);
@@ -1804,6 +1846,7 @@ napi_status napi_get_value_string_utf16(napi_env env,
                                         size_t bufsize,
                                         size_t* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
   RETURN_STATUS_IF_FALSE(env, val->IsString(), napi_string_expected);
@@ -1830,6 +1873,7 @@ napi_status napi_coerce_to_object(napi_env env,
                                   napi_value value,
                                   napi_value* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Isolate* isolate = env->isolate;
@@ -1845,6 +1889,7 @@ napi_status napi_coerce_to_bool(napi_env env,
                                 napi_value value,
                                 napi_value* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Isolate* isolate = env->isolate;
@@ -1861,6 +1906,7 @@ napi_status napi_coerce_to_number(napi_env env,
                                   napi_value value,
                                   napi_value* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Isolate* isolate = env->isolate;
@@ -1877,6 +1923,7 @@ napi_status napi_coerce_to_string(napi_env env,
                                   napi_value value,
                                   napi_value* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Isolate* isolate = env->isolate;
@@ -1946,7 +1993,7 @@ napi_status napi_unwrap(napi_env env, napi_value js_object, void** result) {
 
   *result = unwrappedValue.As<v8::External>()->Value();
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_create_external(napi_env env,
@@ -1998,6 +2045,7 @@ napi_status napi_create_reference(napi_env env,
                                   uint32_t initial_refcount,
                                   napi_ref* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8impl::Reference* reference = v8impl::Reference::New(
@@ -2017,7 +2065,7 @@ napi_status napi_delete_reference(napi_env env, napi_ref ref) {
 
   v8impl::Reference::Delete(reinterpret_cast<v8impl::Reference*>(ref));
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 // Increments the reference count, optionally returning the resulting count.
@@ -2122,6 +2170,7 @@ napi_status napi_escape_handle(napi_env env,
                                napi_value* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, scope);
+  CHECK_ARG(env, escapee);
   CHECK_ARG(env, result);
 
   v8impl::EscapableHandleScopeWrapper* s =
@@ -2137,15 +2186,17 @@ napi_status napi_new_instance(napi_env env,
                               const napi_value* argv,
                               napi_value* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, constructor);
+  if (argc > 0) {
+    CHECK_ARG(env, argv);
+  }
   CHECK_ARG(env, result);
 
   v8::Isolate* isolate = env->isolate;
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-  v8::Local<v8::Value> v8value = v8impl::V8LocalValueFromJsValue(constructor);
-  RETURN_STATUS_IF_FALSE(env, v8value->IsFunction(), napi_invalid_arg);
-
-  v8::Local<v8::Function> ctor = v8value.As<v8::Function>();
+  v8::Local<v8::Function> ctor;
+  CHECK_TO_FUNCTION(env, ctor, constructor);
 
   auto maybe = ctor->NewInstance(context, argc,
     reinterpret_cast<v8::Local<v8::Value>*>(const_cast<napi_value*>(argv)));
@@ -2161,6 +2212,7 @@ napi_status napi_instanceof(napi_env env,
                             napi_value constructor,
                             bool* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, object);
   CHECK_ARG(env, result);
 
   *result = false;
@@ -2276,12 +2328,19 @@ napi_status napi_make_callback(napi_env env,
                                const napi_value* argv,
                                napi_value* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, recv);
+  if (argc > 0) {
+    CHECK_ARG(env, argv);
+  }
 
   v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Object> v8recv =
-      v8impl::V8LocalValueFromJsValue(recv).As<v8::Object>();
-  v8::Local<v8::Function> v8func =
-      v8impl::V8LocalValueFromJsValue(func).As<v8::Function>();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  v8::Local<v8::Object> v8recv;
+  CHECK_TO_OBJECT(env, context, v8recv, recv);
+
+  v8::Local<v8::Function> v8func;
+  CHECK_TO_FUNCTION(env, v8func, func);
 
   v8::Local<v8::Value> callback_result = node::MakeCallback(
       isolate, v8recv, v8func, argc,
@@ -2302,7 +2361,7 @@ napi_status napi_is_exception_pending(napi_env env, bool* result) {
   CHECK_ARG(env, result);
 
   *result = !env->last_exception.IsEmpty();
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_get_and_clear_last_exception(napi_env env,
@@ -2320,7 +2379,7 @@ napi_status napi_get_and_clear_last_exception(napi_env env,
     env->last_exception.Reset();
   }
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_create_buffer(napi_env env,
@@ -2399,6 +2458,7 @@ napi_status napi_create_buffer_copy(napi_env env,
 
 napi_status napi_is_buffer(napi_env env, napi_value value, bool* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   *result = node::Buffer::HasInstance(v8impl::V8LocalValueFromJsValue(value));
@@ -2410,6 +2470,7 @@ napi_status napi_get_buffer_info(napi_env env,
                                  void** data,
                                  size_t* length) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
 
   v8::Local<v8::Object> buffer =
       v8impl::V8LocalValueFromJsValue(value).As<v8::Object>();
@@ -2426,6 +2487,7 @@ napi_status napi_get_buffer_info(napi_env env,
 
 napi_status napi_is_arraybuffer(napi_env env, napi_value value, bool* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
@@ -2489,6 +2551,7 @@ napi_status napi_get_arraybuffer_info(napi_env env,
                                       void** data,
                                       size_t* byte_length) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, arraybuffer);
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
   RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
@@ -2509,6 +2572,7 @@ napi_status napi_get_arraybuffer_info(napi_env env,
 
 napi_status napi_is_typedarray(napi_env env, napi_value value, bool* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
@@ -2524,6 +2588,7 @@ napi_status napi_create_typedarray(napi_env env,
                                    size_t byte_offset,
                                    napi_value* result) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, arraybuffer);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
@@ -2576,6 +2641,7 @@ napi_status napi_get_typedarray_info(napi_env env,
                                      napi_value* arraybuffer,
                                      size_t* byte_offset) {
   NAPI_PREAMBLE(env);
+  CHECK_ARG(env, typedarray);
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(typedarray);
   RETURN_STATUS_IF_FALSE(env, value->IsTypedArray(), napi_invalid_arg);
@@ -2627,7 +2693,7 @@ napi_status napi_get_typedarray_info(napi_env env,
 
 namespace uvimpl {
 
-napi_status ConvertUVErrorCode(int code) {
+static napi_status ConvertUVErrorCode(int code) {
   switch (code) {
   case 0:
     return napi_ok;
@@ -2718,7 +2784,7 @@ napi_status napi_create_async_work(napi_env env,
 
   *result = reinterpret_cast<napi_async_work>(work);
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_delete_async_work(napi_env env, napi_async_work work) {
@@ -2727,7 +2793,7 @@ napi_status napi_delete_async_work(napi_env env, napi_async_work work) {
 
   uvimpl::Work::Delete(reinterpret_cast<uvimpl::Work*>(work));
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_queue_async_work(napi_env env, napi_async_work work) {
@@ -2745,7 +2811,7 @@ napi_status napi_queue_async_work(napi_env env, napi_async_work work) {
                              uvimpl::Work::ExecuteCallback,
                              uvimpl::Work::CompleteCallback));
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_cancel_async_work(napi_env env, napi_async_work work) {
@@ -2756,5 +2822,5 @@ napi_status napi_cancel_async_work(napi_env env, napi_async_work work) {
 
   CALL_UV(env, uv_cancel(reinterpret_cast<uv_req_t*>(w->Request())));
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
