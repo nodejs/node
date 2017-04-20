@@ -576,24 +576,29 @@
         'OBJ_SUFFIX': 'o',
         'OBJ_SEPARATOR': '/',
         'conditions': [
+          ['OS=="win"', {
+            'OBJ_SUFFIX': 'obj',
+          }],
           ['GENERATOR=="ninja"', {
             'OBJ_PATH': '<(OBJ_DIR)/src',
             'OBJ_GEN_PATH': '<(OBJ_DIR)/gen',
             'OBJ_TRACING_PATH': '<(OBJ_DIR)/src/tracing',
             'OBJ_SEPARATOR': '/node.',
-          }],
-          ['OS=="win"', {
-            'OBJ_PATH%': '<(OBJ_DIR)/node',
-            'OBJ_GEN_PATH%': '<(OBJ_DIR)/node',
-            'OBJ_TRACING_PATH%': '<(OBJ_DIR)/node',
-            'OBJ_SUFFIX': 'obj',
-          }],
-          ['OS=="aix"', {
-            'OBJ_PATH': '<(OBJ_DIR)/node_base/src',
-            'OBJ_GEN_PATH': '<(OBJ_DIR)/node_base/gen',
-            'OBJ_TRACING_PATH': '<(OBJ_DIR)/node_base/src/tracing',
-          }],
-         ],
+          }, {
+            'conditions': [
+              ['OS=="win"', {
+                'OBJ_PATH': '<(OBJ_DIR)/node',
+                'OBJ_GEN_PATH': '<(OBJ_DIR)/node',
+                'OBJ_TRACING_PATH': '<(OBJ_DIR)/node',
+              }],
+              ['OS=="aix"', {
+                'OBJ_PATH': '<(OBJ_DIR)/node_base/src',
+                'OBJ_GEN_PATH': '<(OBJ_DIR)/node_base/gen',
+                'OBJ_TRACING_PATH': '<(OBJ_DIR)/node_base/src/tracing',
+              }],
+            ]}
+          ]
+        ],
        },
 
       'includes': [
