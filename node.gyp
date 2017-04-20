@@ -577,10 +577,10 @@
         'OBJ_SEPARATOR': '/',
         'conditions': [
           ['GENERATOR=="ninja"', {
-            'OBJ_PATH': '<(OBJ_DIR)/src/',
-            'OBJ_GEN_PATH': '<(OBJ_DIR)/gen/',
-            'OBJ_TRACING_PATH': '<(OBJ_DIR)/src/tracing/',
-            'OBJ_SEPARATOR': 'node.',
+            'OBJ_PATH': '<(OBJ_DIR)/src',
+            'OBJ_GEN_PATH': '<(OBJ_DIR)/gen',
+            'OBJ_TRACING_PATH': '<(OBJ_DIR)/src/tracing',
+            'OBJ_SEPARATOR': '/node.',
           }],
           ['OS=="win"', {
             'OBJ_PATH%': '<(OBJ_DIR)/node',
