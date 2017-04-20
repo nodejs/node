@@ -25,6 +25,7 @@ using v8::Value;
   V(isExternal, IsExternal)                                                   \
   V(isMap, IsMap)                                                             \
   V(isMapIterator, IsMapIterator)                                             \
+  V(isNativeError, IsNativeError)                                             \
   V(isPromise, IsPromise)                                                     \
   V(isRegExp, IsRegExp)                                                       \
   V(isSet, IsSet)                                                             \

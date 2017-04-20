@@ -23,6 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 const util = require('util');
+const binding = process.binding('util');
 const context = require('vm').runInNewContext;
 
 // isArray
@@ -153,3 +154,20 @@ util.print('test');
 util.puts('test');
 util.debug('test');
 util.error('test');
+
+{
+  // binding.isNativeError()
+  assert.strictEqual(binding.isNativeError(new Error()), true);
+  assert.strictEqual(binding.isNativeError(new TypeError()), true);
+  assert.strictEqual(binding.isNativeError(new SyntaxError()), true);
+  assert.strictEqual(binding.isNativeError(new (context('Error'))()), true);
+  assert.strictEqual(binding.isNativeError(new (context('TypeError'))()), true);
+  assert.strictEqual(binding.isNativeError(new (context('SyntaxError'))()),
+                     true);
+  assert.strictEqual(binding.isNativeError({}), false);
+  assert.strictEqual(binding.isNativeError({ name: 'Error', message: '' }),
+                     false);
+  assert.strictEqual(binding.isNativeError([]), false);
+  assert.strictEqual(binding.isNativeError(Object.create(Error.prototype)),
+                     false);
+}
