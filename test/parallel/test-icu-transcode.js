@@ -50,12 +50,12 @@ assert.throws(
 
 assert.throws(
   () => buffer.transcode(Buffer.from('a'), 'b', 'utf8'),
-  /^Error: Unable to transcode Buffer \[U_ILLEGAL_ARGUMENT_ERROR\]/
+  common.expectsError('ERR_UNABlE_TRANSCODE_BUFFER', Error)
 );
 
 assert.throws(
   () => buffer.transcode(Buffer.from('a'), 'uf8', 'b'),
-  /^Error: Unable to transcode Buffer \[U_ILLEGAL_ARGUMENT_ERROR\]$/
+  common.expectsError('ERR_UNABlE_TRANSCODE_BUFFER', Error)
 );
 
 assert.deepStrictEqual(
