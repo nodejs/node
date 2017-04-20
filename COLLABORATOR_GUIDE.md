@@ -376,11 +376,13 @@ If the merge fails even though recent CI runs were successful, then a 3-way merg
 be required.  In this case try:
 
 ```text
+$ git am --abort
 $ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am -3 --whitespace=fix
 ```
 If the 3-way merge succeeds you can proceed, but make sure to check the changes
 against the original PR carefully and build/test on at least one platform
-before landing.
+before landing. If the 3-way merge fails, then it is most likely that a conflicting
+PR has landed since the CI run and you will have to ask the author to rebase.
 
 Check and re-review the changes
 
