@@ -53,11 +53,6 @@ class ShutdownWrap : public ReqWrap<uv_shutdown_t>,
     Wrap(req_wrap_obj, this);
   }
 
-  NODE_DEPRECATED("Use lambda expression instead",
-  static void NewShutdownWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    CHECK(args.IsConstructCall());
-  })
-
   static ShutdownWrap* from_req(uv_shutdown_t* req) {
     return ContainerOf(&ShutdownWrap::req_, req);
   }
@@ -83,11 +78,6 @@ class WriteWrap: public ReqWrap<uv_write_t>,
   inline StreamBase* wrap() const { return wrap_; }
 
   size_t self_size() const override { return storage_size_; }
-
-  NODE_DEPRECATED("Use lambda expression instead",
-  static void NewWriteWrap(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    CHECK(args.IsConstructCall());
-  })
 
   static WriteWrap* from_req(uv_write_t* req) {
     return ContainerOf(&WriteWrap::req_, req);
