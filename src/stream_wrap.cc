@@ -38,15 +38,19 @@ void StreamWrap::Initialize(Local<Object> target,
                             Local<Context> context) {
   Environment* env = Environment::GetCurrent(context);
 
+  auto is_construct_call_callback =
+      [](const FunctionCallbackInfo<Value>& args) {
+    CHECK(args.IsConstructCall());
+  };
   Local<FunctionTemplate> sw =
-      FunctionTemplate::New(env->isolate(), ShutdownWrap::NewShutdownWrap);
+      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   sw->InstanceTemplate()->SetInternalFieldCount(1);
   sw->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap"),
               sw->GetFunction());
 
   Local<FunctionTemplate> ww =
-      FunctionTemplate::New(env->isolate(), WriteWrap::NewWriteWrap);
+      FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   ww->InstanceTemplate()->SetInternalFieldCount(1);
   ww->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap"),
