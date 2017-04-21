@@ -218,7 +218,7 @@ synchronous counterparts are of this type.
 For a regular file [`util.inspect(stats)`][] would return a string very
 similar to this:
 
-```txt
+```
 Stats {
   dev: 2114,
   ino: 48064969,

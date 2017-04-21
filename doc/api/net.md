@@ -333,6 +333,7 @@ Construct a new socket object.
 
 `options` is an object with the following defaults:
 
+<!-- eslint-skip -->
 ```js
 {
   fd: null,
@@ -859,6 +860,7 @@ automatically set as a listener for the [`'connection'`][] event.
 
 `options` is an object with the following defaults:
 
+<!-- eslint-skip -->
 ```js
 {
   allowHalfOpen: false,

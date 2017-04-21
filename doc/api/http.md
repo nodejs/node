@@ -12,6 +12,7 @@ user is able to stream data.
 
 HTTP message headers are represented by an object like this:
 
+<!-- eslint-skip -->
 ```js
 { 'content-length': '123',
   'content-type': 'text/plain',
@@ -34,6 +35,7 @@ property, which is an array of `[key, value, key2, value2, ...]`.  For
 example, the previous message header object might have a `rawHeaders`
 list like the following:
 
+<!-- eslint-disable semi -->
 ```js
 [ 'ConTent-Length', '123456',
   'content-LENGTH', '123',
@@ -130,7 +132,7 @@ To configure any of them, you must create your own [`http.Agent`][] instance.
 
 ```js
 const http = require('http');
-var keepAliveAgent = new http.Agent({ keepAlive: true });
+const keepAliveAgent = new http.Agent({ keepAlive: true });
 options.agent = keepAliveAgent;
 http.request(options, onResponseCallback);
 ```
@@ -309,14 +311,14 @@ const net = require('net');
 const url = require('url');
 
 // Create an HTTP tunneling proxy
-var proxy = http.createServer( (req, res) => {
+const proxy = http.createServer((req, res) => {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('okay');
 });
 proxy.on('connect', (req, cltSocket, head) => {
   // connect to an origin server
-  var srvUrl = url.parse(`http://${req.url}`);
-  var srvSocket = net.connect(srvUrl.port, srvUrl.hostname, () => {
+  const srvUrl = url.parse(`http://${req.url}`);
+  const srvSocket = net.connect(srvUrl.port, srvUrl.hostname, () => {
     cltSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                     'Proxy-agent: Node.js-Proxy\r\n' +
                     '\r\n');
@@ -330,14 +332,14 @@ proxy.on('connect', (req, cltSocket, head) => {
 proxy.listen(1337, '127.0.0.1', () => {
 
   // make a request to a tunneling proxy
-  var options = {
+  const options = {
     port: 1337,
     hostname: '127.0.0.1',
     method: 'CONNECT',
     path: 'www.google.com:80'
   };
 
-  var req = http.request(options);
+  const req = http.request(options);
   req.end();
 
   req.on('connect', (res, socket, head) => {
@@ -405,7 +407,7 @@ A client server pair that show you how to listen for the `'upgrade'` event.
 const http = require('http');
 
 // Create an HTTP server
-var srv = http.createServer( (req, res) => {
+const srv = http.createServer((req, res) => {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('okay');
 });
@@ -422,7 +424,7 @@ srv.on('upgrade', (req, socket, head) => {
 srv.listen(1337, '127.0.0.1', () => {
 
   // make a request
-  var options = {
+  const options = {
     port: 1337,
     hostname: '127.0.0.1',
     headers: {
@@ -431,7 +433,7 @@ srv.listen(1337, '127.0.0.1', () => {
     }
   };
 
-  var req = http.request(options);
+  const req = http.request(options);
   req.end();
 
   req.on('upgrade', (res, socket, upgradeHead) => {
@@ -933,7 +935,7 @@ Note that the name is case insensitive.
 Example:
 
 ```js
-var contentType = response.getHeader('content-type');
+const contentType = response.getHeader('content-type');
 ```
 
 ### response.headersSent
@@ -1006,7 +1008,7 @@ any headers passed to [`response.writeHead()`][], with the headers passed to
 
 ```js
 // returns content-type = text/plain
-const server = http.createServer((req,res) => {
+const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
   res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -1138,7 +1140,7 @@ argument.
 Example:
 
 ```js
-var body = 'hello world';
+const body = 'hello world';
 response.writeHead(200, {
   'Content-Length': Buffer.byteLength(body),
   'Content-Type': 'text/plain' });
@@ -1156,7 +1158,7 @@ any headers passed to [`response.writeHead()`][], with the headers passed to
 
 ```js
 // returns content-type = text/plain
-const server = http.createServer((req,res) => {
+const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
   res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -1385,6 +1387,7 @@ Accept: text/plain\r\n
 
 Then `request.url` will be:
 
+<!-- eslint-disable semi -->
 ```js
 '/status?name=ryan'
 ```
@@ -1488,10 +1491,10 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
 
   let error;
   if (statusCode !== 200) {
-    error = new Error(`Request Failed.\n` +
+    error = new Error('Request Failed.\n' +
                       `Status Code: ${statusCode}`);
   } else if (!/^application\/json/.test(contentType)) {
-    error = new Error(`Invalid content-type.\n` +
+    error = new Error('Invalid content-type.\n' +
                       `Expected application/json but received ${contentType}`);
   }
   if (error) {
@@ -1506,7 +1509,7 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
   res.on('data', (chunk) => rawData += chunk);
   res.on('end', () => {
     try {
-      let parsedData = JSON.parse(rawData);
+      const parsedData = JSON.parse(rawData);
       console.log(parsedData);
     } catch (e) {
       console.log(e.message);
@@ -1584,11 +1587,11 @@ upload a file with a POST request, then write to the `ClientRequest` object.
 Example:
 
 ```js
-var postData = querystring.stringify({
-  'msg' : 'Hello World!'
+const postData = querystring.stringify({
+  'msg': 'Hello World!'
 });
 
-var options = {
+const options = {
   hostname: 'www.google.com',
   port: 80,
   path: '/upload',
@@ -1599,7 +1602,7 @@ var options = {
   }
 };
 
-var req = http.request(options, (res) => {
+const req = http.request(options, (res) => {
   console.log(`STATUS: ${res.statusCode}`);
   console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
   res.setEncoding('utf8');

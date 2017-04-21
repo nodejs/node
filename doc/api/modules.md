@@ -67,11 +67,7 @@ The module system is implemented in the `require('module')` module.
 
 When a file is run directly from Node.js, `require.main` is set to its
 `module`. That means that you can determine whether a file has been run
-directly by testing
-
-```js
-require.main === module
-```
+directly by testing `require.main === module`.
 
 For a file `foo.js`, this will be `true` if run via `node foo.js`, but
 `false` if run by `require('./foo')`.
@@ -441,7 +437,7 @@ Before a module's code is executed, Node.js will wrap it with a function
 wrapper that looks like the following:
 
 ```js
-(function (exports, require, module, __filename, __dirname) {
+(function(exports, require, module, __filename, __dirname) {
 // Your module code actually lives in here
 });
 ```
@@ -556,6 +552,7 @@ exports = { hello: false };  // Not exported, only available in the module
 When the `module.exports` property is being completely replaced by a new
 object, it is common to also reassign `exports`, for example:
 
+<!-- eslint-disable func-name-matching -->
 ```js
 module.exports = exports = function Constructor() {
   // ... etc.

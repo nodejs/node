@@ -130,7 +130,7 @@ the default behavior of `console` in Node.js.
 // new impl for assert without monkey-patching.
 const myConsole = Object.create(console, {
   assert: {
-    value: function assert(assertion, message, ...args) {
+    value(assertion, message, ...args) {
       try {
         console.assert(assertion, message, ...args);
       } catch (err) {
@@ -253,9 +253,7 @@ prints the result to `stdout`:
 
 ```js
 console.time('100-elements');
-for (let i = 0; i < 100; i++) {
-  ;
-}
+for (let i = 0; i < 100; i++) ;
 console.timeEnd('100-elements');
 // prints 100-elements: 225.438ms
 ```
