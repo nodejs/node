@@ -12,6 +12,7 @@ user is able to stream data.
 
 HTTP message headers are represented by an object like this:
 
+<!-- eslint-disable -->
 ```js
 { 'content-length': '123',
   'content-type': 'text/plain',
@@ -34,6 +35,7 @@ property, which is an array of `[key, value, key2, value2, ...]`.  For
 example, the previous message header object might have a `rawHeaders`
 list like the following:
 
+<!-- eslint-disable semi -->
 ```js
 [ 'ConTent-Length', '123456',
   'content-LENGTH', '123',
@@ -1460,6 +1462,7 @@ Accept: text/plain\r\n
 
 Then `request.url` will be:
 
+<!-- eslint-disable semi -->
 ```js
 '/status?name=ryan'
 ```

@@ -151,8 +151,9 @@ From `zlib/zconf.h`, modified to node.js's usage:
 
 The memory requirements for deflate are (in bytes):
 
+<!-- eslint-disable semi -->
 ```js
-(1 << (windowBits + 2)) + (1 << (memLevel + 9));
+(1 << (windowBits + 2)) + (1 << (memLevel + 9))
 ```
 
 That is: 128K for windowBits=15  +  128K for memLevel = 8
@@ -167,12 +168,7 @@ const options = { windowBits: 14, memLevel: 7 };
 
 This will, however, generally degrade compression.
 
-The memory requirements for inflate are (in bytes)
-
-```js
-1 << windowBits;
-```
-
+The memory requirements for inflate are (in bytes) `1 << windowBits`.
 That is, 32K for windowBits=15 (default value) plus a few kilobytes
 for small objects.
 
