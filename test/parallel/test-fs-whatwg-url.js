@@ -30,9 +30,11 @@ fs.readFile(url, common.mustCall((err, data) => {
 // Check that using a non file:// URL reports an error
 const httpUrl = new URL('http://example.org');
 fs.readFile(httpUrl, common.mustCall((err) => {
-  assert(err);
-  assert.strictEqual(err.message,
-                     'Only `file:` URLs are supported');
+  common.expectsError({
+    code: 'ERR_INVALID_URL_SCHEME',
+    type: TypeError,
+    message: 'The URL must be of scheme file'
+  })(err);
 }));
 
 // pct-encoded characters in the path will be decoded and checked
@@ -46,25 +48,30 @@ if (common.isWindows) {
   // encoded back and forward slashes are not permitted on windows
   ['%2f', '%2F', '%5c', '%5C'].forEach((i) => {
     fs.readFile(new URL(`file:///c:/tmp/${i}`), common.mustCall((err) => {
-      assert(err);
-      assert.strictEqual(err.message,
-                         'Path must not include encoded \\ or / characters');
+      common.expectsError({
+        code: 'ERR_INVALID_FILE_URL_PATH',
+        type: TypeError,
+        message: 'File URL path must not include encoded \\ or / characters'
+      })(err);
     }));
   });
 } else {
   // encoded forward slashes are not permitted on other platforms
   ['%2f', '%2F'].forEach((i) => {
     fs.readFile(new URL(`file:///c:/tmp/${i}`), common.mustCall((err) => {
-      assert(err);
-      assert.strictEqual(err.message,
-                         'Path must not include encoded / characters');
+      common.expectsError({
+        code: 'ERR_INVALID_FILE_URL_PATH',
+        type: TypeError,
+        message: 'File URL path must not include encoded / characters'
+      })(err);
     }));
   });
 
   fs.readFile(new URL('file://hostname/a/b/c'), common.mustCall((err) => {
-    assert(err);
-    assert.strictEqual(err.message,
-                       `File URLs on ${os.platform()} must use ` +
-                       'hostname \'localhost\' or not specify any hostname');
+    common.expectsError({
+      code: 'ERR_INVALID_FILE_URL_HOST',
+      type: TypeError,
+      message: `File URL host must be "localhost" or empty on ${os.platform()}`
+    })(err);
   }));
 }

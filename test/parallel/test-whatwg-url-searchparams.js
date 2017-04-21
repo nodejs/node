@@ -71,10 +71,15 @@ sp.forEach(function(val, key, obj) {
 sp.forEach(function() {
   assert.strictEqual(this, m);
 }, m);
-assert.throws(() => sp.forEach(),
-              /^TypeError: "callback" argument must be a function$/);
-assert.throws(() => sp.forEach(1),
-              /^TypeError: "callback" argument must be a function$/);
+
+{
+  const callbackErr = common.expectsError({
+    code: 'ERR_INVALID_CALLBACK',
+    type: TypeError
+  });
+  assert.throws(() => sp.forEach(), callbackErr);
+  assert.throws(() => sp.forEach(1), callbackErr);
+}
 
 m.search = '?a=a&b=b';
 assert.strictEqual(sp.toString(), 'a=a&b=b');
