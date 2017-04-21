@@ -1195,7 +1195,7 @@ stream.
 `tls.TLSSocket()`. For example, the code:
 
 ```js
-pair = tls.createSecurePair( ... );
+pair = tls.createSecurePair(/* ... */);
 pair.encrypted.pipe(socket);
 socket.pipe(pair.encrypted);
 ```
