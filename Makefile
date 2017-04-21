@@ -855,8 +855,8 @@ bench-ci: bench
 
 jslint:
 	@echo "Running JS linter..."
-	$(NODE) tools/eslint/bin/eslint.js --cache --rulesdir=tools/eslint-rules \
-	  benchmark lib test tools
+	$(NODE) tools/eslint/bin/eslint.js --cache --rulesdir=tools/eslint-rules --ext=.js,.md \
+	  benchmark doc lib test tools
 
 jslint-ci:
 	@echo "Running JS linter..."

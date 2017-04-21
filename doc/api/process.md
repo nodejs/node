@@ -528,7 +528,8 @@ running the `./configure` script.
 
 An example of the possible output looks like:
 
-```txt
+<!-- eslint-disable -->
+```js
 {
   target_defaults:
    { cflags: [],
@@ -745,6 +746,7 @@ See environ(7).
 
 An example of this object looks like:
 
+<!-- eslint-disable -->
 ```js
 {
   TERM: 'xterm-256color',
@@ -832,12 +834,14 @@ $ node --harmony script.js --version
 
 Results in `process.execArgv`:
 
+<!-- eslint-disable semi -->
 ```js
 ['--harmony']
 ```
 
 And `process.argv`:
 
+<!-- eslint-disable semi -->
 ```js
 ['/usr/local/bin/node', 'script.js', '--version']
 ```
@@ -854,6 +858,7 @@ that started the Node.js process.
 
 For example:
 
+<!-- eslint-disable semi -->
 ```js
 '/usr/local/bin/node'
 ```
@@ -1173,6 +1178,7 @@ console.log(process.memoryUsage());
 
 Will generate:
 
+<!-- eslint-disable -->
 ```js
 {
   rss: 4935680,
@@ -1344,6 +1350,7 @@ tarball.
 
 For example:
 
+<!-- eslint-disable -->
 ```js
 {
   name: 'node',
@@ -1705,6 +1712,7 @@ console.log(process.versions);
 
 Will generate an object similar to:
 
+<!-- eslint-disable -->
 ```js
 {
   http_parser: '2.3.0',

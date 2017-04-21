@@ -1,0 +1,5 @@
+rules:
+  strict: 0
+  no-restricted-properties: 0
+  no-undef: 0
+  no-unused-vars: 0

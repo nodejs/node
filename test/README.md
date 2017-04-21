@@ -352,6 +352,7 @@ A non-op `Function` that can be used for a variety of scenarios.
 
 For instance,
 
+<!-- eslint-disable strict, no-undef -->
 ```js
 const common = require('../common');
 
