@@ -150,3 +150,29 @@ assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
                                   ['a', 'b', null]),
                    'The "a" argument must be of type b. Received type null');
+
+// Test ERR_INVALID_URL_SCHEME
+assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', ['file']),
+                   'The URL must be of scheme file');
+assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['file']]),
+                   'The URL must be of scheme file');
+assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['http', 'ftp']]),
+                   'The URL must be one of scheme http or ftp');
+assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['a', 'b', 'c']]),
+                   'The URL must be one of scheme a, b, or c');
+assert.throws(
+  () => errors.message('ERR_INVALID_URL_SCHEME', [[]]),
+  /^AssertionError: At least one expected value needs to be specified$/
+);
+
+// Test ERR_MISSING_ARGS
+assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['name']),
+                   'The "name" argument must be specified');
+assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['name', 'value']),
+                   'The "name" and "value" arguments must be specified');
+assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['a', 'b', 'c']),
+                   'The "a", "b", and "c" arguments must be specified');
+assert.throws(
+  () => errors.message('ERR_MISSING_ARGS'),
+  /^AssertionError: At least one arg needs to be specified$/
+);

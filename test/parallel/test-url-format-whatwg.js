@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const url = require('url');
 const URL = url.URL;
@@ -17,11 +17,17 @@ assert.strictEqual(
   'http://xn--lck1c3crb1723bpq4a.com/a?a=b#c'
 );
 
-const errreg = /^TypeError: options must be an object$/;
-assert.throws(() => url.format(myURL, true), errreg);
-assert.throws(() => url.format(myURL, 1), errreg);
-assert.throws(() => url.format(myURL, 'test'), errreg);
-assert.throws(() => url.format(myURL, Infinity), errreg);
+{
+  const expectedErr = common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError,
+    message: 'The "options" argument must be of type object'
+  });
+  assert.throws(() => url.format(myURL, true), expectedErr);
+  assert.throws(() => url.format(myURL, 1), expectedErr);
+  assert.throws(() => url.format(myURL, 'test'), expectedErr);
+  assert.throws(() => url.format(myURL, Infinity), expectedErr);
+}
 
 // Any falsy value other than undefined will be treated as false.
 // Any truthy value will be treated as true.
