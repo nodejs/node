@@ -106,9 +106,6 @@ cause breakage in the ecosystem. To test node ABI changes you can run [`citgm-ab
 is designed to allow one to run a single test over and over on a specific platform
 to confirm that the test is reliable.
 
-* [`node-test-commit`](https://ci.nodejs.org/job/node-test-commit/)
-runs the `build-ci` and `test-ci` targets on all supported platforms.
-
 ### Internal vs. Public API
 
 Due to the nature of the JavaScript language, it can often be difficult to
