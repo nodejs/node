@@ -529,7 +529,7 @@ running the `./configure` script.
 
 An example of the possible output looks like:
 
-```js
+```txt
 {
   target_defaults:
    { cflags: [],
@@ -1695,7 +1695,7 @@ to load modules that were compiled against a different module ABI version.
 console.log(process.versions);
 ```
 
-Will generate output similar to:
+Will generate an object similar to:
 
 ```js
 {

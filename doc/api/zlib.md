@@ -84,7 +84,9 @@ request.on('response', (response) => {
       break;
   }
 });
+```
 
+```js
 // server example
 // Running a gzip operation on every request is quite expensive.
 // It would be much more efficient to cache the compressed buffer.
@@ -159,7 +161,7 @@ For example, to reduce the default memory requirements from 256K to 128K, the
 options should be set to:
 
 ```js
-{ windowBits: 14, memLevel: 7 }
+const options = { windowBits: 14, memLevel: 7 };
 ```
 
 This will, however, generally degrade compression.

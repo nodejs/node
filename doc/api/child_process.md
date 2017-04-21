@@ -101,7 +101,9 @@ bat.stderr.on('data', (data) => {
 bat.on('exit', (code) => {
   console.log(`Child exited with code ${code}`);
 });
+```
 
+```js
 // OR...
 const exec = require('child_process').exec;
 exec('my.bat', (err, stdout, stderr) => {
@@ -184,14 +186,14 @@ The `options` argument may be passed as the second argument to customize how
 the process is spawned. The default options are:
 
 ```js
-{
+const defaults = {
   encoding: 'utf8',
   timeout: 0,
   maxBuffer: 200*1024,
   killSignal: 'SIGTERM',
   cwd: null,
   env: null
-}
+};
 ```
 
 If `timeout` is greater than `0`, the parent will send the signal
@@ -348,10 +350,10 @@ trigger arbitrary command execution.**
 A third argument may be used to specify additional options, with these defaults:
 
 ```js
-{
+const defaults = {
   cwd: undefined,
   env: process.env
-}
+};
 ```
 
 Use `cwd` to specify the working directory from which the process is spawned.
