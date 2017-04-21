@@ -188,7 +188,7 @@ the process is spawned. The default options are:
 const defaults = {
   encoding: 'utf8',
   timeout: 0,
-  maxBuffer: 200*1024,
+  maxBuffer: 200 * 1024,
   killSignal: 'SIGTERM',
   cwd: null,
   env: null
@@ -868,13 +868,17 @@ as in this example:
 'use strict';
 const spawn = require('child_process').spawn;
 
-const child = spawn('sh', ['-c',
-  `node -e "setInterval(() => {
+const child = spawn(
+  'sh',
+  [
+    '-c',
+    `node -e "setInterval(() => {
       console.log(process.pid, 'is alive')
     }, 500);"`
   ], {
     stdio: ['inherit', 'inherit', 'inherit']
-  });
+  }
+);
 
 setTimeout(() => {
   child.kill(); // does not terminate the node process in the shell

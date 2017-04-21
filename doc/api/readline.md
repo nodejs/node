@@ -485,7 +485,7 @@ const rl = readline.createInterface({
 rl.prompt();
 
 rl.on('line', (line) => {
-  switch(line.trim()) {
+  switch (line.trim()) {
     case 'hello':
       console.log('world!');
       break;

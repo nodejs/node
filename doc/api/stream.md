@@ -112,7 +112,7 @@ that implements an HTTP server:
 ```js
 const http = require('http');
 
-const server = http.createServer( (req, res) => {
+const server = http.createServer((req, res) => {
   // req is an http.IncomingMessage, which is a Readable Stream
   // res is an http.ServerResponse, which is a Writable Stream
 
@@ -237,7 +237,7 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
   let i = 1000000;
   write();
   function write() {
-    var ok = true;
+    let ok = true;
     do {
       i--;
       if (i === 0) {
@@ -280,7 +280,7 @@ has been called, and all data has been flushed to the underlying system.
 
 ```js
 const writer = getWritableStreamSomehow();
-for (var i = 0; i < 100; i ++) {
+for (let i = 0; i < 100; i++) {
   writer.write(`hello, #${i}!\n`);
 }
 writer.end('This is the end\n');
@@ -474,18 +474,18 @@ possible to respect backpressure and avoid memory issues using the
 [`'drain'`][] event:
 
 ```js
-function write (data, cb) {
+function write(data, cb) {
   if (!stream.write(data)) {
-    stream.once('drain', cb)
+    stream.once('drain', cb);
   } else {
-    process.nextTick(cb)
+    process.nextTick(cb);
   }
 }
 
 // Wait for cb to be called before doing any other write.
 write('hello', () => {
-  console.log('write completed, do more writes now')
-})
+  console.log('write completed, do more writes now');
+});
 ```
 
 A Writable stream in object mode will always ignore the `encoding` argument.
@@ -755,13 +755,13 @@ Readable. This is used primarily by the mechanism that underlies the
 use this method directly.
 
 ```js
-const readable = new stream.Readable
+const readable = new stream.Readable();
 
-readable.isPaused() // === false
-readable.pause()
-readable.isPaused() // === true
-readable.resume()
-readable.isPaused() // === false
+readable.isPaused(); // === false
+readable.pause();
+readable.isPaused(); // === true
+readable.resume();
+readable.isPaused(); // === false
 ```
 
 ##### readable.pause()
@@ -875,7 +875,7 @@ the internal buffer is fully drained.
 ```js
 const readable = getReadableStreamSomehow();
 readable.on('readable', () => {
-  var chunk;
+  let chunk;
   while (null !== (chunk = readable.read())) {
     console.log(`Received ${chunk.length} bytes of data.`);
   }
@@ -1007,14 +1007,14 @@ function parseHeader(stream, callback) {
   stream.on('error', callback);
   stream.on('readable', onReadable);
   const decoder = new StringDecoder('utf8');
-  var header = '';
+  let header = '';
   function onReadable() {
-    var chunk;
+    let chunk;
     while (null !== (chunk = stream.read())) {
-      var str = decoder.write(chunk);
+      const str = decoder.write(chunk);
       if (str.match(/\n\n/)) {
         // found the header boundary
-        var split = str.split(/\n\n/);
+        const split = str.split(/\n\n/);
         header += split.shift();
         const remaining = split.join('\n\n');
         const buf = Buffer.from(remaining, 'utf8');
@@ -1068,7 +1068,7 @@ For example:
 ```js
 const OldReader = require('./old-api-module.js').OldReader;
 const Readable = require('stream').Readable;
-const oreader = new OldReader;
+const oreader = new OldReader();
 const myReader = new Readable().wrap(oreader);
 
 myReader.on('readable', () => {
@@ -1597,12 +1597,12 @@ class Counter extends Readable {
   }
 
   _read() {
-    var i = this._index++;
+    const i = this._index++;
     if (i > this._max)
       this.push(null);
     else {
-      var str = '' + i;
-      var buf = Buffer.from(str, 'ascii');
+      const str = '' + i;
+      const buf = Buffer.from(str, 'ascii');
       this.push(buf);
     }
   }
@@ -1906,12 +1906,12 @@ argument is passed to the `callback`, it will be forwarded on to the
 `readable.push()` method. In other words the following are equivalent:
 
 ```js
-transform.prototype._transform = function (data, encoding, callback) {
+transform.prototype._transform = function(data, encoding, callback) {
   this.push(data);
   callback();
 };
 
-transform.prototype._transform = function (data, encoding, callback) {
+transform.prototype._transform = function(data, encoding, callback) {
   callback(null, data);
 };
 ```
