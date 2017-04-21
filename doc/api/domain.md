@@ -472,8 +472,7 @@ d2.run(() => {
 });
 ```
 
-If you need to run that callback in a specific domain, you can use
-[`domain.bind(callback)`][]:
+A callback may be bound to a specific domain using [`domain.bind(callback)`][]:
 
 ```js
 const d1 = domain.create();
