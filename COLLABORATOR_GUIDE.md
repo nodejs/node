@@ -97,10 +97,10 @@ which runs the `build-ci` and `test-ci` targets on all supported platforms.
 only runs the linter targets, which is useful for changes that only affect comments 
 or documentation.
 
-* [`citgm-smoker`](https://ci.nodejs.org/view/Node.js-citgm/job/citgm-smoker/)
+* [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
 uses [CitGM](https://github.com/nodejs/citgm) to allow you to run `npm install && npm test` 
 on a large selection of common modules. This is useful to check whether a change will 
-cause breakage in the ecosystem. To test node ABI changes you can run [`citgm-abi-smoker`](https://ci.nodejs.org/view/Node.js-citgm/job/citgm-abi-smoker/).
+cause breakage in the ecosystem. To test node ABI changes you can run [`citgm-abi-smoker`](https://ci.nodejs.org/job/citgm-abi-smoker/).
 
 * [`node-stress-single-test`](https://ci.nodejs.org/job/node-stress-single-test/)
 is designed to allow one to run a single test over and over on a specific platform
