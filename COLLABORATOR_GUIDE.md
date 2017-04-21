@@ -87,19 +87,24 @@ All pull requests that modify executable code should be subjected to
 continuous integration tests on the
 [project CI server](https://ci.nodejs.org/).
 
-Here is a summary of current CI jobs:
+Here are some useful CI jobs:
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
-is the standard CI run we do to check Pull Requests. It triggers `node-test-commit`, which runs the `build-ci` and `test-ci` targets on all supported platforms.
+is the standard CI run we do to check Pull Requests. It triggers `node-test-commit`, 
+which runs the `build-ci` and `test-ci` targets on all supported platforms.
 
 * [`node-test-linter`](https://ci.nodejs.org/job/node-test-linter/)
-only runs the linter targets, which is useful for changes that only affect comments or documentation.
+only runs the linter targets, which is useful for changes that only affect comments 
+or documentation.
 
 * [`citgm-smoker`](https://ci.nodejs.org/view/Node.js-citgm/job/citgm-smoker/)
-uses CitGM to allow you to run npm install && npm test on a large selection of common modules. This is useful to check whether a change will cause breakage in the ecosystem. To test node ABI changes you can run [citgm-abi-smoker](https://ci.nodejs.org/view/Node.js-citgm/job/citgm-abi-smoker/).
+uses [CitGM](https://github.com/nodejs/citgm) to allow you to run `npm install && npm test` 
+on a large selection of common modules. This is useful to check whether a change will 
+cause breakage in the ecosystem. To test node ABI changes you can run [`citgm-abi-smoker`](https://ci.nodejs.org/view/Node.js-citgm/job/citgm-abi-smoker/).
 
 * [`node-stress-single-test`](https://ci.nodejs.org/job/node-stress-single-test/)
-is designed to allow one to run a single test over and over on a specific platform to confirm that the test is reliable.
+is designed to allow one to run a single test over and over on a specific platform
+to confirm that the test is reliable.
 
 * [`node-test-commit`](https://ci.nodejs.org/job/node-test-commit/)
 runs the `build-ci` and `test-ci` targets on all supported platforms.
