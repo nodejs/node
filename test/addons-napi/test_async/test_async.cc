@@ -7,6 +7,9 @@
 #include <unistd.h>
 #endif
 
+// this needs to be greater than the thread pool size
+#define MAX_CANCEL_THREADS 6
+
 typedef struct {
   int32_t _input;
   int32_t _output;
@@ -15,6 +18,7 @@ typedef struct {
 } carrier;
 
 carrier the_carrier;
+carrier async_carrier[MAX_CANCEL_THREADS];
 
 struct AutoHandleScope {
   explicit AutoHandleScope(napi_env env)
@@ -74,7 +78,7 @@ void Complete(napi_env env, napi_status status, void* data) {
 
   napi_value result;
   NAPI_CALL_RETURN_VOID(env,
-    napi_call_function(env, global, callback, 2, argv, &result));
+    napi_make_callback(env, global, callback, 2, argv, &result));
 
   NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, c->_callback));
   NAPI_CALL_RETURN_VOID(env, napi_delete_async_work(env, c->_request));
@@ -111,12 +115,78 @@ napi_value Test(napi_env env, napi_callback_info info) {
   return nullptr;
 }
 
+void BusyCancelComplete(napi_env env, napi_status status, void* data) {
+  AutoHandleScope scope(env);
+  carrier* c = static_cast<carrier*>(data);
+  NAPI_CALL_RETURN_VOID(env, napi_delete_async_work(env, c->_request));
+}
+
+void CancelComplete(napi_env env, napi_status status, void* data) {
+  AutoHandleScope scope(env);
+  carrier* c = static_cast<carrier*>(data);
+
+  if (status == napi_cancelled) {
+    // ok we got the status we expected so make the callback to
+    // indicate the cancel succeeded.
+    napi_value callback;
+    NAPI_CALL_RETURN_VOID(env,
+      napi_get_reference_value(env, c->_callback, &callback));
+    napi_value global;
+    NAPI_CALL_RETURN_VOID(env, napi_get_global(env, &global));
+    napi_value result;
+    NAPI_CALL_RETURN_VOID(env,
+      napi_make_callback(env, global, callback, 0, nullptr, &result));
+  }
+
+  NAPI_CALL_RETURN_VOID(env, napi_delete_async_work(env, c->_request));
+  NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, c->_callback));
+}
+
+void CancelExecute(napi_env env, void* data) {
+#if defined _WIN32
+  Sleep(1000);
+#else
+  sleep(1);
+#endif
+}
+
+napi_value TestCancel(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value argv[1];
+  napi_value _this;
+  void* data;
+
+  // make sure the work we are going to cancel will not be
+  // able to start by using all the threads in the pool
+  for (int i = 1; i < MAX_CANCEL_THREADS; i++) {
+    NAPI_CALL(env, napi_create_async_work(env, CancelExecute,
+      BusyCancelComplete, &async_carrier[i], &async_carrier[i]._request));
+    NAPI_CALL(env, napi_queue_async_work(env, async_carrier[i]._request));
+  }
+
+  // now queue the work we are going to cancel and then cancel it.
+  // cancel will fail if the work has already started, but
+  // we have prevented it from starting by consuming all of the
+  // workers above.
+  NAPI_CALL(env,
+    napi_get_cb_info(env, info, &argc, argv, &_this, &data));
+  NAPI_CALL(env, napi_create_async_work(env, CancelExecute,
+    CancelComplete, &async_carrier[0], &async_carrier[0]._request));
+  NAPI_CALL(env,
+    napi_create_reference(env, argv[0], 1, &async_carrier[0]._callback));
+  NAPI_CALL(env, napi_queue_async_work(env, async_carrier[0]._request));
+  NAPI_CALL(env, napi_cancel_async_work(env, async_carrier[0]._request));
+  return nullptr;
+}
+
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
-  napi_value test;
-  NAPI_CALL_RETURN_VOID(env,
-    napi_create_function(env, "Test", Test, nullptr, &test));
-  NAPI_CALL_RETURN_VOID(env,
-    napi_set_named_property(env, module, "exports", test));
+  napi_property_descriptor properties[] = {
+    DECLARE_NAPI_PROPERTY("Test", Test),
+    DECLARE_NAPI_PROPERTY("TestCancel", TestCancel),
+  };
+
+  NAPI_CALL_RETURN_VOID(env, napi_define_properties(
+    env, exports, sizeof(properties) / sizeof(*properties), properties));
 }
 
 NAPI_MODULE(addon, Init)
