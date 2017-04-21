@@ -3,33 +3,33 @@
 > Stability: 1 - Experimental
 
 
-N-API is a newer API for building native Addons.  It is independent from
+N-API is an API for building native Addons. It is independent from
 the underlying JavaScript runtime (ex v8) and is maintained as part of
-Node.js itself.  This API will be Application Binary Interface (ABI) stable
-across versions of Node.js.  It is intended to insulate Addons from
+Node.js itself. This API will be Application Binary Interface (ABI) stable
+across versions of Node.js. It is intended to insulate Addons from
 changes in the underlying JavaScript engine and allow modules
 compiled for one version to run on later versions of Node.js without
 recompilation.
 
 Addons are built/packaged with the same approach/tools
-outlined the second titled  [C/C++ Addons](addons.html).
+outlined in the section titled  [C/C++ Addons](addons.html).
 The only difference is the set of APIs that are used by the native code.
 Instead of using the V8 or [Native Abstractions for Node.js][] APIs,
-the functions available in the N-API are used instead.
+the functions available in the N-API are used.
 
 
-APIs exposed by the N-API surface are generally used to create and manipulate
+APIs exposed by N-AP are generally used to create and manipulate
 JavaScript values. Concepts and operations generally map to ideas specified 
 in the ECMA262 Language Specification. The APIs have the following 
 properties:
 - All N-API calls return a status code of type `napi_status`. This
-  status can be used to determine whether the API call succeeded or failed.
-- The actual value being returned by the API is returned in an out parameter.
+  status indicates whether the API call succeeded or failed.
+- The API's return value is passed via an out parameter.
 - All JavaScript values are abstracted behind an opaque type named 
   `napi_value`.
 - In case of an error status code, additional information can be obtained 
   using `napi_get_last_error_info`. More information can be found in the error
-  handling section [Error Handling][Error Handling].
+  handling section [Error Handling][].
 
 The documentation for N-API is structured as follows:
 
@@ -44,14 +44,14 @@ The documentation for N-API is structured as follows:
 * [Object Wrap][]
 * [Aynchronous Operations][]
 
-The N-API is a C based API in order to allow us to ensure ABI stability
-across Node.js versions and different compiler levels.  However, we also
+The N-API is a C API that ensures ABI stability
+across Node.js versions and different compiler levels. However, we also
 understand that a C++ API can be easier/faster to use in many
-cases.  To support these cases we expect there to be one or more
-C++ wrapper modules that provide an in-lineable C++ API that results in
-a binary that only depends on the symbols for the N-API C based
-functions exported by Node.js.  These wrappers are not part of N-API, nor
-will they be maintained as part of Node.js.  One such example is:
+cases. To support these cases we expect there to be one or more
+C++ wrapper modules that provide an inlineable C++ API. Binaries built
+with these wrapper modules will depend on the symbols for the N-API C based
+functions exported by Node.js. These wrappers are not part of N-API, nor
+will they be maintained as part of Node.js. One such example is:
 [node-api](https://github.com/nodejs/node-api).
 
 ## Basic N-API Data Types
@@ -97,9 +97,7 @@ typedef struct {
   not implemented for any VM.
 - error_code: the N-API status code that originated with the last error
 
-#### Additional Information
-
-See the Error Handling section [Error Handling][].
+See the [Error Handling][] section for additional information.
 
 ### *napi_env*
 
@@ -120,7 +118,7 @@ This is an opaque pointer that is used to represent a JavaScript value.
 This is an abstraction used to control and modify the lifetime of objects 
 created within a particular scope. In general, N-API values are created within
 the context of a handle scope. When a native method is called from 
-JavaScript, a default handle scope will exist- if the user does not explicitly
+JavaScript, a default handle scope will exist. If the user does not explicitly
 create a new handle scope, N-API values will be created in the default handle
 scope. For any invocations of code outside the execution of a native method 
 (for instance, during a libuv callback invocation), the module is required to 
@@ -156,7 +154,7 @@ purposes:
 
 #### *napi_callback*
 Function pointer type for user-provided native functions which are to be 
-exposed to JavaScript via N-API. Your callback function should satisfy the 
+exposed to JavaScript via N-API. Callback functions should satisfy the 
 following signature:
 ```C
 typedef void (*napi_callback)(napi_env, napi_callback_info);
@@ -173,18 +171,17 @@ finding out when objects that have external data are collected.
 
 #### napi_async_execute_callback
 
-Function pointer used with the functions that support asynchronous
-operations. Your callback function should statisfy the following signature:
+Function pointer used with functions that support asynchronous
+operations. Callback functions must statisfy the following signature:
 
 ```C
-typedef void (*napi_async_execute_callback)(napi_env env,
-                                            void* data);
+typedef void (*napi_async_execute_callback)(napi_env env, void* data);
 ```
 
 #### napi_async_complete_callback
 
-Function pointer used with the functions that support asynchronous
-operations. Your callback function should statisfy the following signature:
+Function pointer used with functions that support asynchronous
+operations. Callback functions must statisfy the following signature:
 
 ```C
 typedef void (*napi_async_complete_callback)(napi_env env,
@@ -194,17 +191,17 @@ typedef void (*napi_async_complete_callback)(napi_env env,
 
 ## Error Handling
 N-API uses both return values and Javascript exceptions for error handling.
-The sections which follow explain the approach for each case.
+The following sections explain the approach for each case.
 
 ### Return values
 
-All of the N-API functions share the same error handling pattern.  The
+All of the N-API functions share the same error handling pattern. The
 return type of all API functions is `napi_status`.
 
 The return value will be `napi_ok` if the request was successful and
 no uncaught JavaScript exception was thrown. If an error occurred AND
 an exception was thrown, the `napi_status` value for the error
-will be returned.  If an exception was thrown, and no error occurred,
+will be returned. If an exception was thrown, and no error occurred,
 `napi_pending_exception` will be returned.
 
 In cases where a return value other than `napi_ok` or
@@ -215,10 +212,10 @@ See the section on exceptions for more details.
 The full set of possible napi_status values is defined
 in `napi_api_types.h`.
 
-Thr `napi_status` return value provides a vm-independent representation of
-the error which occurred.  In some cases it is useful to be able to get
+The `napi_status` return value provides a VM-independent representation of
+the error which occurred. In some cases it is useful to be able to get
 more detailed information, including a string representing the error as well as
-vm(engine)-specific information.  **NOTE:**  you should not rely on the
+VM (engine)-specific information. **NOTE:**  you should not rely on the
 content or format of any of the extended information as it is
 not subject to SemVer and may change at any time. It is intended
 only for logging purposes.
@@ -228,7 +225,7 @@ In order to retrieve this information, the following method is provided:
 ```C
 NODE_EXTERN const napi_extended_error_info* napi_get_last_error_info();
 ```
-and the format of the `napi_extended_error_info` structure is as follows:
+The format of the `napi_extended_error_info` structure is as follows:
 
 ```C
 struct napi_extended_error_info {
@@ -240,8 +237,8 @@ struct napi_extended_error_info {
 ```
 
 `napi_get_last_error_info()` returns the information for the last
-N-API call that was made and the  `error_code` will match the
-`napi_status` returned by that call.  The `error_message` will
+N-API call that was made. Tthe  `error_code` will match the
+`napi_status` returned by that call. The `error_message` will
 be a textual representation of the error that occurred.
 
 
@@ -267,46 +264,45 @@ about the last error tha occured.
 
 ### Exceptions
 
-Any N-API function may result in a pending JavaScript exception.  This is
+Any N-API function may result in a pending JavaScript exception. This is
 obviously the case for any function that may cause the execution of JavaScript
 but N-API specifies that an exception may be pending on return from any
 of the API functions.
 
 If the `napi_status` returned by a function is `napi_ok` then no
-exception is pending and no additional action is required.  If the
+exception is pending and no additional action is required. If the
 `napi_status` returned is anything other than `napi_ok` or
 `napi_pending_exception`, and you want to try to recover and continue
 instead of simply returning immediately, then you must call the
-following function in order to determine if an exception is pending or not:
+following function in order to determine if an exception is pending or not
+and then check the value of `result`:
 
 ```C
 napi_is_exception_pending()
 ```
 
-and then check the value of `result`.
-
 When an exception is pending you will generally follow one of two approaches.
 
 The first appoach is to do any appropriate cleanup and then return so that
-execution will return to JavaScript.  As part of the transition back to
+execution will return to JavaScript. As part of the transition back to
 JavaScript the exception will be thrown at the point in the JavaScript
-code where the native method was invoked.  The behavior of most N-API calls
+code where the native method was invoked. The behavior of most N-API calls
 is unspecified while an exception is pending, and many will simply return
 `napi_pending_exception`, so it is important to do as little as possible
 and then return to JavaScript where the exception can be handled.
 
 The second approach is to try to handle the exception. There will be cases
-where the native code can 'catch' the exception, take the appropriate action,
-and then continue.  It is recommended that you only do this in specific cases
-where you know you can safely handle the exception.  In these cases you can
+where the native code can catch the exception, take the appropriate action,
+and then continue. It is recommended that you only do this in specific cases
+where you know you can safely handle the exception. In these cases you can
 use the following function to get and clear the exception:
 
 ```C
 napi_get_and_clear_last_exception()
 ```
 
-On success, result will contain the handle to the JavaScript `Error` object.
-If you determine after retrieving the exception that you cannot
+On success, result will contain the handle to the last JavaScript Object
+thrown. If you determine after retrieving the exception that you cannot
 handle it after all, you can re-throw it with the following function:
 
 ```C
@@ -315,7 +311,7 @@ napi_throw()
 
 where error is the JavaScript Error object to be thrown.
 
-The following utility functions are also available in case your native code
+The following utility functions are also available in case native code
 needs to throw an exception or determine if a `napi_value` is an instance
 of a JavaScript `Error` object.
 
@@ -326,8 +322,8 @@ napi_throw_range_error()
 napi_status napi_is_error()
 ```
 
-The following utility functions are also available in case your native
-code needs to create an error object:
+The following utility functions are also available in case native
+code needs to create an Error object:
 
 ```
 napi_create_error()
@@ -413,7 +409,7 @@ NODE_EXTERN napi_status napi_is_error(napi_env e,
 ##### Parameters
 - `[in] env `: The environment that the API is invoked under
 - `[in] msg`: `napi_value` to be checked
-- `[out] `result`: boolean value. Set to true if `napi_value` represents
+- `[out] result`: boolean value. Set to true if `napi_value` represents
 an error, false otherwise
 
 ##### Return value
@@ -476,7 +472,7 @@ This API returns a JavaScript RangeError with the text provided.
 ## Object Lifetime management
 
 As N-API calls are made, handles to objects in the heap for the underlying
-vm may be returned as `napi_values`.  These handles must hold the
+VM may be returned as `napi_values`. These handles must hold the
 objects 'live' until they are no longer required by the native code,
 otherwise the objects could be collected before the native code was
 finished using them.
@@ -515,19 +511,19 @@ use the most recent handle, all of the associated objects would also be
 kept alive since they all share the same scope.
 
 To handle this case, N-API provides the ability to establish a new 'scope' to
-which newly created handles will be associated.  Once those handles
+which newly created handles will be associated. Once those handles
 are no longer required, the scope can be 'closed' and any handles associated
-with the scope are invalidated.  The methods available to open/close scopes are:
+with the scope are invalidated. The methods available to open/close scopes are:
 
 ```C
 napi_open_handle_scope()
 napi_close_handle_scope()
 ```
 
-N-API only supports a single nested hiearchy of scopes.  There is only one
+N-API only supports a single nested hiearchy of scopes. There is only one
 active scope at any time, and all new handles will be associated with that
-scope while it is active.  Scopes must be closed in the reverse order from
-which they are opened.  In addition, all scopes created within a native method
+scope while it is active. Scopes must be closed in the reverse order from
+which they are opened. In addition, all scopes created within a native method
 must be closed before returning from that method.
 
 Taking the earlier example, adding calls to `napi_open_handle_scope()` and
@@ -555,8 +551,8 @@ for (int i = 0; i < 1000000; i++) {napi_
 ```
 
 When nesting scopes, there are cases where you want a handle from an
-inner scope to live beyond the lifespan of that scope.  N-API supports an
-'escapable scope' in order to support this case.  An escapable scope
+inner scope to live beyond the lifespan of that scope. N-API supports an
+'escapable scope' in order to support this case. An escapable scope
 allows one or more handles to be 'promoted' so that they 'escape' the
 current scope and the lifespan of the handle(s) changes from the current
 scope to that of the outer scope.
@@ -566,6 +562,7 @@ The methods available to open/close escapable scopes are:
 ```C
 napi_open_escapable_handle_scope()
 napi_close_escapable_handle_scope()
+```
 
 The request to promote a handle is made through the `napi_escape_handle`
 function:
@@ -674,30 +671,30 @@ example, if you want to create a constructor and later use that constructor
 in a request to creates instances, you will need to be able to reference
 the constructor object across many different instance creation requests. This
 would not be possible with a normal handle returned as a `napi_value` as
-described in the earlier section.  The lifespan of a normal handle is
+described in the earlier section. The lifespan of a normal handle is
 managed by scopes and all scopes must be closed before the end of a native
 method.
 
 N-API provides methods to create persistent references to an object.
 Each persistent reference has an associated count with a value of 0
 or higher. The count determines if the reference will keep
-the corresponding object live.  References with a count of 0 do not
+the corresponding object live. References with a count of 0 do not
 prevent the object from being collected and are often called 'weak'
 references. Any count greater than 0 will prevent the object
 from being collected.
 
-References can be created with an initial reference count.  The count can
+References can be created with an initial reference count. The count can
 then be modified through `napi_reference_ref()` and
-`napi_reference_unref()`.  If an object is collected while the count
+`napi_reference_unref()`. If an object is collected while the count
 for a reference is 0, all subsequent calls to
 get the object associated with the reference (`napi_get_reference_value()`)
-will return NULL for the returned `napi_value`.  An attempt to call
+will return NULL for the returned `napi_value`. An attempt to call
 `napi_reference_ref()` for a reference whose object has been collected,
 will result in an error.
 
 References must be deleted once they are no longer required by the addon. When
 a reference is deleted it will no longer prevent the corresponding object from
-being collected.  Failure to delete a persistent reference will result in
+being collected. Failure to delete a persistent reference will result in
 a 'memory leak' with both the native memory for the persistent reference and
 the corresponding object on the heap being retained forever.
 
@@ -711,7 +708,9 @@ individual count.
 NODE_EXTERN napi_status napi_create_reference(napi_env e,
                                               napi_value value,
                                               int initial_refcount,
-                                              napi_ref* result);
+                                              ndapi_ref* result);
+```
+
 ##### Parameters
 - `[in] env `: The environment that the API is invoked under
 - `[in] value`: `napi_value` representing the Object to which we want
@@ -815,7 +814,7 @@ except that instead of using the `NODE_MODULE` macro you use:
 NAPI_MODULE(addon, Init)
 ```
 
-The next difference is the signature for the `Init` method.  For a N-API
+The next difference is the signature for the `Init` method. For a N-API
 module it is as follows:
 
 ```C
@@ -848,7 +847,7 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
 }
 ```
 
-For example, to define your own class so that new instances can be created
+For example, to define a class so that new instances can be created
 (often used with [object wrap]()):
 
 ```C
@@ -945,7 +944,7 @@ typedef enum {
 ##### Description
 This represents the underlying binary scalar datatype of the TypedArray.
 Elements of this enum correspond to 
-[Section 22.2] (https://tc39.github.io/ecma262/#sec-typedarray-objects)
+[Section 22.2](https://tc39.github.io/ecma262/#sec-typedarray-objects)
 of the [ECMAScript Language Specification](https://tc39.github.io/ecma262/).
 
 ### Object Creation Functions
@@ -2254,15 +2253,15 @@ typedef struct {
 ```
 
 ##### Members
-- `utf8name`: String describing the key for the property, encoded as UTF8
+- `utf8name`: String describing the key for the property, encoded as UTF8.
 - `value`: The value that's retrieved by a get access of the property if the
  property is a data property. If this is passed in, set `getter`, `setter`,
- `method` and `data` to `NULL` (since these members won't be used)
+ `method` and `data` to `NULL` (since these members won't be used).
 - `getter`: A function to call when a get access of the property is performed.
 If this is passed in, set `value` and `method` to `NULL` (since these members
 won't be used). The given function is called implicitly by the runtime when the
 property is accessed from JavaScript code (or if a get on the property is 
-performed using a N-API call)
+performed using a N-API call).
 - `setter`: A function to call when a set access of the property is performed.
 If this is passed in, set `value` and `method` to `NULL` (since these members
 won't be used). The given function is called implicitly by the runtime when the
@@ -2271,11 +2270,11 @@ performed using a N-API call).
 - `method`: Set this if you want the property descriptor object's `value`
 property to be a JavaScript function represented by `method`. If this is
 passed in, set `value`, `getter` and `setter` to `NULL` (since these members
-won't be used)
+won't be used).
 - `data`: The callback data passed into `method`, `getter` and `setter` if 
-this function is invoked
+this function is invoked.
 - `attributes`: The attributes associated with the particular property. 
-See [`napi_property_attributes`](#napi_property_attributes)
+See [`napi_property_attributes`](#napi_property_attributes).
 
 ### Functions
 
@@ -2576,7 +2575,7 @@ in as arguments to the function.
 - `napi_ok` if the API succeeded.
 
 #### Description
-This method allows you to call a JavaScript function object from your native 
+This method allows you to call a JavaScript function object from a native 
 add-on. This is an primary mechanism of calling back *from* the add-on's
 native code *into* JavaScript. For special cases like calling into JavaScript
 after an async operation, see [`napi_make_callback`](#napi_make_callback).
@@ -2590,7 +2589,7 @@ function AddTwo(num)
 }
 ```
 
-Then, the above function can be invoked from your native add-on using the
+Then, the above function can be invoked from a native add-on using the
 following code:
 ```C
 // Get the function named "AddTwo" on the global object
@@ -2823,7 +2822,7 @@ representing the arguments to the function.
 - `napi_ok` if the API succeeded.
 
 #### Description
-This method allows you to call a JavaScript function object from your native 
+This method allows you to call a JavaScript function object from a native 
 add-on. This API is similar to `napi_call_function`. However, it is used to call
 *from* native code back *into* JavaScript *after* returning from an async 
 operation (when there is no other script on the stack). It is a fairly simple
@@ -2870,7 +2869,7 @@ napi_status napi_define_class(napi_env env,
    of the class. (This should be a static method on the class, not an actual
    C++ constructor function.)
  - `[in]  data`: Optional data to be passed to the constructor callback as
-   the `data' property of the callback info
+   the `data` property of the callback info
  - `[in]  property_count`: Number of items in the `properties` array argument
  - `[in]  properties`: Array of property descriptors describing static and
    instance data properties, accessors, and methods on the class
@@ -2983,8 +2982,8 @@ then by calling `napi_unwrap()` on the wrapper object.
 ## Asynchronous Operations
 
 Addon modules often need to leverage async helpers from libuv as part of their
-implementation.  This allows them to schedule work to be executed asynchronously
-so that their methods can return in advance of the work being completed.  This
+implementation. This allows them to schedule work to be executed asynchronously
+so that their methods can return in advance of the work being completed. This
 is important in order to allow them to avoid blocking overall execution
 of the Node.js application.
 
@@ -3007,7 +3006,7 @@ NAPI_EXTERN napi_status napi_delete_async_work(napi_env env,
 
 The `execute` and `complete` callbacks are functions that will be
 invoked when the executor is ready to execute and when it completes its
-task respectively.  These functions implement the following interfaces:
+task respectively. These functions implement the following interfaces:
 
 ```C
 typedef void (*napi_async_execute_callback)(napi_env env,
@@ -3131,9 +3130,9 @@ NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
 
 #### Description
 This API allows you to cancel a previously allocated work, provided
-it has not yet been queued for execution.  After this function is called
+it has not yet been queued for execution. After this function is called
 the `complete` callback will be invoked with a status value of
-`napi_cancelled`.  The work should not be deleted before the `complete`
+`napi_cancelled`. The work should not be deleted before the `complete`
 callback invocation, even when it was cancelled.
 
 
