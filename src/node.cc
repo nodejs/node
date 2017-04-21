@@ -1114,11 +1114,12 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 }
 
 
-void PromiseHook(PromiseHookType type,
-                 Local<Promise> promise,
-                 Local<Value> parent) {
-  Local<Context> context = promise->CreationContext();
-  Environment* env = Environment::GetCurrent(context);
+void DomainPromiseHook(PromiseHookType type,
+                       Local<Promise> promise,
+                       Local<Value> parent,
+                       void* arg) {
+  Environment* env = static_cast<Environment*>(arg);
+  Local<Context> context = env->context();
 
   if (type == PromiseHookType::kResolve) return;
   if (type == PromiseHookType::kInit && env->in_domain()) {
@@ -1204,10 +1205,11 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   Local<ArrayBuffer> array_buffer =
       ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
 
-  env->isolate()->SetPromiseHook(PromiseHook);
+  env->AddPromiseHook(DomainPromiseHook, static_cast<void*>(env));
 
   args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
 }
+
 
 void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
   args.GetIsolate()->RunMicrotasks();
