@@ -34,17 +34,18 @@ constructor iterates through the configuration object property values and runs
 the test function with each of the combined arguments in spawned processes. For
 example, buffers/buffer-read.js has the following configuration:
 
+<!-- eslint-disable strict, no-undef, no-unused-vars -->
 ```js
 var bench = common.createBenchmark(main, {
     noAssert: [false, true],
     buffer: ['fast', 'slow'],
     type: ['UInt8', 'UInt16LE', 'UInt16BE',
-        'UInt32LE', 'UInt32BE',
-        'Int8', 'Int16LE', 'Int16BE',
-        'Int32LE', 'Int32BE',
-        'FloatLE', 'FloatBE',
-        'DoubleLE', 'DoubleBE'],
-        millions: [1]
+           'UInt32LE', 'UInt32BE',
+           'Int8', 'Int16LE', 'Int16BE',
+           'Int32LE', 'Int32BE',
+           'FloatLE', 'FloatBE',
+           'DoubleLE', 'DoubleBE'],
+    millions: [1]
 });
 ```
 The runner takes one item from each of the property array value to build a list
@@ -52,21 +53,24 @@ of arguments to run the main function. The main function will receive the conf
 object as follows:
 
 - first run:
+
+<!-- eslint-skip -->
 ```js
-    {   noAssert: false,
-        buffer: 'fast',
-        type: 'UInt8',
-        millions: 1
-    }
+{   noAssert: false,
+    buffer: 'fast',
+    type: 'UInt8',
+    millions: 1
+}
 ```
 - second run:
+
+<!-- eslint-skip -->
 ```js
-    {
-        noAssert: false,
-        buffer: 'fast',
-        type: 'UInt16LE',
-        millions: 1
-    }
+{   noAssert: false,
+    buffer: 'fast',
+    type: 'UInt16LE',
+    millions: 1
+}
 ```
 ...
 
@@ -122,6 +126,7 @@ buffers/buffer-slice.js.
 
 ### The code snippet
 
+<!-- eslint-disable strict, no-undef, no-unused-vars -->
 ```js
 var common = require('../common.js'); // Load the test runner
 

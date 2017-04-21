@@ -241,7 +241,7 @@ function SomeResource() {
   this.loaded = Promise.reject(new Error('Resource not yet loaded!'));
 }
 
-var resource = new SomeResource();
+const resource = new SomeResource();
 // no .catch or .then on resource.loaded for at least a turn
 ```
 
@@ -530,9 +530,8 @@ console.log(`Starting directory: ${process.cwd()}`);
 try {
   process.chdir('/tmp');
   console.log(`New directory: ${process.cwd()}`);
-}
-catch (err) {
-  console.log(`chdir: ${err}`);
+} catch (err) {
+  console.error(`chdir: ${err}`);
 }
 ```
 
@@ -550,7 +549,8 @@ running the `./configure` script.
 
 An example of the possible output looks like:
 
-```txt
+<!-- eslint-skip -->
+```js
 {
   target_defaults:
    { cflags: [],
@@ -670,6 +670,7 @@ See environ(7).
 
 An example of this object looks like:
 
+<!-- eslint-skip -->
 ```js
 {
   TERM: 'xterm-256color',
@@ -811,7 +812,7 @@ so, it is recommended to place the `emitWarning()` behind a simple boolean
 flag as illustrated in the example below:
 
 ```js
-var warned = false;
+let warned = false;
 function emitMyWarning() {
   if (!warned) {
     process.emitWarning('Only warn once!');
@@ -846,12 +847,14 @@ $ node --harmony script.js --version
 
 Results in `process.execArgv`:
 
+<!-- eslint-disable semi -->
 ```js
 ['--harmony']
 ```
 
 And `process.argv`:
 
+<!-- eslint-disable semi -->
 ```js
 ['/usr/local/bin/node', 'script.js', '--version']
 ```
@@ -868,6 +871,7 @@ that started the Node.js process.
 
 For example:
 
+<!-- eslint-disable semi -->
 ```js
 '/usr/local/bin/node'
 ```
@@ -1059,11 +1063,11 @@ Passing in the result of a previous call to `process.hrtime()` is useful for
 calculating an amount of time passed between calls:
 
 ```js
-var time = process.hrtime();
+const time = process.hrtime();
 // [ 1800216, 25 ]
 
 setTimeout(() => {
-  var diff = process.hrtime(time);
+  const diff = process.hrtime(time);
   // [ 1, 552 ]
 
   console.log(`Benchmark took ${diff[0] * 1e9 + diff[1]} nanoseconds`);
@@ -1179,6 +1183,7 @@ console.log(process.memoryUsage());
 
 Will generate:
 
+<!-- eslint-skip -->
 ```js
 {
   rss: 4935680,
@@ -1233,7 +1238,7 @@ function MyThing(options) {
   });
 }
 
-var thing = new MyThing();
+const thing = new MyThing();
 thing.getReadyForStuff();
 
 // thing.startDoingStuff() gets called now, not before.
@@ -1348,6 +1353,7 @@ tarball.
 
 For example:
 
+<!-- eslint-skip -->
 ```js
 {
   name: 'node',
@@ -1401,8 +1407,7 @@ if (process.getegid && process.setegid) {
   try {
     process.setegid(501);
     console.log(`New gid: ${process.getegid()}`);
-  }
-  catch (err) {
+  } catch (err) {
     console.log(`Failed to set gid: ${err}`);
   }
 }
@@ -1430,8 +1435,7 @@ if (process.geteuid && process.seteuid) {
   try {
     process.seteuid(501);
     console.log(`New uid: ${process.geteuid()}`);
-  }
-  catch (err) {
+  } catch (err) {
     console.log(`Failed to set uid: ${err}`);
   }
 }
@@ -1458,8 +1462,7 @@ if (process.getgid && process.setgid) {
   try {
     process.setgid(501);
     console.log(`New gid: ${process.getgid()}`);
-  }
-  catch (err) {
+  } catch (err) {
     console.log(`Failed to set gid: ${err}`);
   }
 }
@@ -1500,8 +1503,7 @@ if (process.getuid && process.setuid) {
   try {
     process.setuid(501);
     console.log(`New uid: ${process.getuid()}`);
-  }
-  catch (err) {
+  } catch (err) {
     console.log(`Failed to set uid: ${err}`);
   }
 }
@@ -1538,7 +1540,7 @@ For example:
 process.stdin.setEncoding('utf8');
 
 process.stdin.on('readable', () => {
-  var chunk = process.stdin.read();
+  const chunk = process.stdin.read();
   if (chunk !== null) {
     process.stdout.write(`data: ${chunk}`);
   }
@@ -1709,6 +1711,7 @@ console.log(process.versions);
 
 Will generate an object similar to:
 
+<!-- eslint-skip -->
 ```js
 {
   http_parser: '2.3.0',

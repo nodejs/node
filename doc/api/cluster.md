@@ -511,11 +511,14 @@ When any of the workers die the cluster module will emit the `'exit'` event.
 This can be used to restart the worker by calling `.fork()` again.
 
 ```js
-cluster.on('exit', (worker, code, signal) => {
-  console.log('worker %d died (%s). restarting...',
-    worker.process.pid, signal || code);
-  cluster.fork();
-});
+cluster.on(
+  'exit',
+  (worker, code, signal) => {
+    console.log('worker %d died (%s). restarting...',
+                worker.process.pid, signal || code);
+    cluster.fork();
+  }
+);
 ```
 
 See [child_process event: 'exit'][].

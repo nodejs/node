@@ -40,6 +40,7 @@ The following special commands are supported by all REPL instances:
   `> .load ./file/to/load.js`
 * `.editor` - Enter editor mode (`<ctrl>-D` to finish, `<ctrl>-C` to cancel)
 
+<!-- eslint-skip -->
 ```js
 > .editor
 // Entering editor mode (^D to finish, ^C to cancel)
@@ -75,6 +76,7 @@ evaluation function when the `repl.REPLServer` instance is created.
 
 The default evaluator supports direct evaluation of JavaScript expressions:
 
+<!-- eslint-skip -->
 ```js
 > 1 + 1
 2
@@ -96,13 +98,14 @@ it to the `context` object associated with each `REPLServer`.  For example:
 
 ```js
 const repl = require('repl');
-var msg = 'message';
+const msg = 'message';
 
 repl.start('> ').context.m = msg;
 ```
 
 Properties in the `context` object appear as local within the REPL:
 
+<!-- eslint-skip -->
 ```js
 $ node repl_test.js
 > m
@@ -115,7 +118,7 @@ To specify read-only globals, context properties must be defined using
 
 ```js
 const repl = require('repl');
-var msg = 'message';
+const msg = 'message';
 
 const r = repl.start('> ');
 Object.defineProperty(r.context, 'm', {
@@ -132,6 +135,7 @@ REPL environment when used. For instance, unless otherwise declared as a
 global or scoped variable, the input `fs` will be evaluated on-demand as
 `global.fs = require('fs')`.
 
+<!-- eslint-skip -->
 ```js
 > fs.createReadStream('./some/file');
 ```
@@ -141,6 +145,7 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 The default evaluator will, by default, assign the result of the most recently
 evaluated expression to the special variable `_` (underscore).
 
+<!-- eslint-skip -->
 ```js
 > [ 'a', 'b', 'c' ]
 [ 'a', 'b', 'c' ]
@@ -183,7 +188,7 @@ to the provided callback function:
 
 ```js
 function eval(cmd, context, filename, callback) {
-  var result;
+  let result;
   try {
     result = vm.runInThisContext(cmd);
   } catch (e) {
@@ -220,7 +225,7 @@ const repl = require('repl');
 const r = repl.start({prompt: '>', eval: myEval, writer: myWriter});
 
 function myEval(cmd, context, filename, callback) {
-  callback(null,cmd);
+  callback(null, cmd);
 }
 
 function myWriter(output) {
@@ -275,7 +280,7 @@ function initializeContext(context) {
   context.m = 'test';
 }
 
-var r = repl.start({prompt: '>'});
+const r = repl.start({prompt: '>'});
 initializeContext(r.context);
 
 r.on('reset', initializeContext);
@@ -284,6 +289,7 @@ r.on('reset', initializeContext);
 When this code is executed, the global `'m'` variable can be modified but then
 reset to its initial value using the `.clear` command:
 
+<!-- eslint-skip -->
 ```js
 $ ./node example.js
 >m
@@ -321,7 +327,7 @@ The following example shows two new commands added to the REPL instance:
 ```js
 const repl = require('repl');
 
-var replServer = repl.start({prompt: '> '});
+const replServer = repl.start({prompt: '> '});
 replServer.defineCommand('sayhello', {
   help: 'Say hello',
   action: function(name) {
@@ -428,6 +434,7 @@ Node.js itself uses the `repl` module to provide its own interactive interface
 for executing JavaScript. This can be used by executing the Node.js binary
 without passing any arguments (or by passing the `-i` argument):
 
+<!-- eslint-skip -->
 ```js
 $ node
 > a = [1, 2, 3];
@@ -502,7 +509,7 @@ socket, and a TCP socket:
 ```js
 const net = require('net');
 const repl = require('repl');
-var connections = 0;
+let connections = 0;
 
 repl.start({
   prompt: 'Node.js via stdin> ',
