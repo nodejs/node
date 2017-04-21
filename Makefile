@@ -66,13 +66,17 @@ endif
 # to check for changes.
 .PHONY: $(NODE_EXE) $(NODE_G_EXE)
 
+# The -r/-L check stops it recreating the link if it is already in place,
+# otherwise $(NODE_EXE) being a .PHONY target means it is always re-run.
+# Without the check there is a race condition between the link being deleted
+# and recreated which can break the addons build when running test-ci
 $(NODE_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Release V=$(V)
-	ln -fs out/Release/$(NODE_EXE) $@
+	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
 
 $(NODE_G_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
-	ln -fs out/Debug/$(NODE_EXE) $@
+	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
 
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp \
               deps/zlib/zlib.gyp deps/v8/gypfiles/toolchain.gypi \
@@ -186,7 +190,8 @@ v8:
 	tools/make-v8.sh
 	$(MAKE) -C deps/v8 $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
-test: build-addons
+test: all
+	$(MAKE) build-addons
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
 		doctool inspector known_issues message pseudo-tty parallel sequential $(CI_NATIVE_SUITES)
@@ -198,6 +203,10 @@ test-parallel: all
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
 
+# Builds test/addons, test/addons-napi and test/gc.
+build-addons: $(NODE_EXE)
+	./$< tools/build-addons.js
+
 clear-stalled:
 	# Clean up any leftover processes but don't error if found.
 	ps awwx | grep Release/node | grep -v grep | cat
@@ -206,17 +215,18 @@ clear-stalled:
 		echo $${PS_OUT} | xargs kill; \
 	fi
 
-test-gc: build-addons
+test-gc: test-build
 	$(PYTHON) tools/test.py --mode=release gc
 
-# Builds test/addons, test/addons-napi and test/gc.
-build-addons: $(NODE_EXE)
-	./$< tools/build-addons.js
+test-gc-clean:
+	$(RM) -r test/gc/build
 
-test-all: build-addons
+test-build: | all build-addons
+
+test-all: test-build
 	$(PYTHON) tools/test.py --mode=debug,release
 
-test-all-valgrind: build-addons
+test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 CI_NATIVE_SUITES := addons addons-napi
@@ -224,7 +234,7 @@ CI_JS_SUITES := doctool inspector known_issues message parallel pseudo-tty seque
 
 # Build and test addons without building anything else
 test-ci-native: LOGLEVEL := info
-test-ci-native: build-addons
+test-ci-native: | build-addons
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
@@ -254,13 +264,13 @@ test-ci: | clear-stalled build-addons
 		echo $${PS_OUT} | xargs kill; exit 1; \
 	fi
 
-test-release: build-addons
+test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
 
-test-debug: build-addons
+test-debug: test-build
 	$(PYTHON) tools/test.py --mode=debug
 
-test-message: build-addons
+test-message: test-build
 	$(PYTHON) tools/test.py message
 
 test-simple: | cctest  # Depends on 'all'.
@@ -294,10 +304,10 @@ test-npm: $(NODE_EXE)
 test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
 
-test-addons: build-addons
+test-addons: test-build
 	$(PYTHON) tools/test.py --mode=release addons
 
-test-addons-napi: build-addons
+test-addons-napi: test-build
 	$(PYTHON) tools/test.py --mode=release addons-napi
 
 test-addons-clean:
@@ -871,6 +881,7 @@ endif
   test-ci-js \
   test-ci-native \
   test-gc \
+  test-gc-clean \
   test-v8 \
   test-v8-all \
   test-v8-benchmarks \
