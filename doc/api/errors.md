@@ -64,6 +64,7 @@ Errors that occur within _Asynchronous APIs_ may be reported in multiple ways:
   argument is not `null` and is an instance of `Error`, then an error occurred
   that should be handled.
 
+<!-- eslint-disable no-useless-return -->
   ```js
   const fs = require('fs');
   fs.readFile('a file that does not exist', (err, data) => {
