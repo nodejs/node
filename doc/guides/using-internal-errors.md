@@ -52,7 +52,7 @@ and appending the new error codes to the end using the utility `E()` method.
 
 ```js
 E('EXAMPLE_KEY1', 'This is the error value');
-E('EXAMPLE_KEY2', (a, b) => return `${a} ${b}`);
+E('EXAMPLE_KEY2', (a, b) => `${a} ${b}`);
 ```
 
 The first argument passed to `E()` is the static identifier. The second
