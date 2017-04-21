@@ -4,6 +4,8 @@ const assert = require('assert');
 const domain = require('domain');
 const vm = require('vm');
 
+common.crashOnUnhandledRejection();
+
 const d = domain.create();
 
 d.run(common.mustCall(() => {
