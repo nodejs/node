@@ -243,7 +243,6 @@ function processList(section) {
         current.options.push(n);
         current = n;
       }
-      return;
     } else if (type === 'list_item_end') {
       if (!current) {
         throw new Error('invalid list - end without current item\n' +
@@ -516,9 +515,6 @@ function finishSection(section, parent) {
             parent[k] = parent[k].concat(section[k]);
           } else if (!parent[k]) {
             parent[k] = section[k];
-          } else {
-            // parent already has, and it's not an array.
-            return;
           }
       }
     });
