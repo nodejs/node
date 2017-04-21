@@ -293,6 +293,7 @@ function will contain an array of objects with the following properties:
 
 For example:
 
+<!-- eslint-disable -->
 ```js
 {
   flags: 's',
@@ -352,6 +353,7 @@ be an object with the following properties:
 * `expire`
 * `minttl`
 
+<!-- eslint-disable -->
 ```js
 {
   nsname: 'ns.example.com',
@@ -382,6 +384,7 @@ be an array of objects with the following properties:
 * `port`
 * `name`
 
+<!-- eslint-disable -->
 ```js
 {
   priority: 10,
