@@ -137,7 +137,7 @@ assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b']),
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', ['b']]),
                    'The "a" argument must be of type b');
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', ['b', 'c']]),
-                   'The "a" argument must be one of type b, or c');
+                   'The "a" argument must be one of type b or c');
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
                                   ['a', ['b', 'c', 'd']]),
                    'The "a" argument must be one of type b, c, or d');
