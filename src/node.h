@@ -516,6 +516,17 @@ NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = 0);
  */
 NODE_EXTERN void AtExit(Environment* env, void (*cb)(void* arg), void* arg = 0);
 
+typedef void (*promise_hook_func) (v8::PromiseHookType type,
+                                   v8::Local<v8::Promise> promise,
+                                   v8::Local<v8::Value> parent,
+                                   void* arg);
+
+/* Registers an additional v8::PromiseHook wrapper. This API exists because V8
+ * itself supports only a single PromiseHook. */
+NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
+                                promise_hook_func fn,
+                                void* arg);
+
 }  // namespace node
 
 #endif  // SRC_NODE_H_
