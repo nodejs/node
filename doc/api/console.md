@@ -62,6 +62,9 @@ or `console.Console`:
 
 ```js
 const Console = require('console').Console;
+```
+
+```js
 const Console = console.Console;
 ```
 
