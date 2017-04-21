@@ -14,7 +14,6 @@ if (common.isWindows) {
   exec('whoami /priv', function(err, o) {
     if (err || !o.includes('SeCreateSymbolicLinkPrivilege')) {
       common.skip('insufficient privileges');
-      return;
     }
   });
 }
