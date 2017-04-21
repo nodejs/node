@@ -2,9 +2,8 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const cbTypeError = /^TypeError: "callback" argument must be a function$/;
+const cbTypeError = common.expectsError({code: 'ERR_INVALID_CALLBACK'});
 const callbackThrowValues = [null, true, false, 0, 1, 'foo', /foo/, [], {}];
-const warn = 'Calling an asynchronous function without callback is deprecated.';
 
 function testMakeStatsCallback(cb) {
   return function() {
@@ -13,13 +12,8 @@ function testMakeStatsCallback(cb) {
   };
 }
 
-common.expectWarning('DeprecationWarning', warn);
-
 // Verify the case where a callback function is provided
 assert.doesNotThrow(testMakeStatsCallback(common.noop));
-
-// Passing undefined/nothing calls rethrow() internally, which emits a warning
-assert.doesNotThrow(testMakeStatsCallback());
 
 function invalidCallbackThrowsTests() {
   callbackThrowValues.forEach((value) => {
