@@ -563,6 +563,13 @@ found [here][online].
 <a id="nodejs-error-codes"></a>
 ## Node.js Error Codes
 
+<a id="ERR_ARG_NOT_ITERABLE"></a>
+### ERR_ARG_NOT_ITERABLE
+
+The `'ERR_ARG_NOT_ITERABLE'` error code is used generically to identify that an
+iterable argument (i.e. a value that works with `for...of` loops) is required,
+but not provided to a Node.js API.
+
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
 
@@ -574,6 +581,76 @@ an argument of the wrong type has been passed to a Node.js API.
 
 The `'ERR_INVALID_CALLBACK'` error code is used generically to identify that
 a callback function is required and has not been provided to a Node.js API.
+
+<a id="ERR_INVALID_FILE_URL_HOST"></a>
+### ERR_INVALID_FILE_URL_HOST
+
+An error with the `'ERR_INVALID_FILE_URL_HOST'` code may be thrown when a
+Node.js API that consumes `file:` URLs (such as certain functions in the
+[`fs`][] module) encounters a file URL with an incompatible host. Currently,
+this situation can only occur on Unix-like systems, where only `localhost` or
+an empty host is supported.
+
+<a id="ERR_INVALID_FILE_URL_PATH"></a>
+### ERR_INVALID_FILE_URL_PATH
+
+An error with the `'ERR_INVALID_FILE_URL_PATH'` code may be thrown when a
+Node.js API that consumes `file:` URLs (such as certain functions in the
+[`fs`][] module) encounters a file URL with an incompatible path. The exact
+semantics for determining whether a path can be used is platform-dependent.
+
+<a id="ERR_INVALID_THIS"></a>
+### ERR_INVALID_THIS
+
+The `'ERR_INVALID_THIS'` error code is used generically to identify that a
+Node.js API function is called with an incompatible `this` value.
+
+Example:
+
+```js
+const { URLSearchParams } = require('url');
+const urlSearchParams = new URLSearchParams('foo=bar&baz=new');
+
+const buf = Buffer.alloc(1);
+urlSearchParams.has.call(buf, 'foo');
+  // Throws a TypeError with code 'ERR_INVALID_THIS'
+```
+
+<a id="ERR_INVALID_TUPLE"></a>
+### ERR_INVALID_TUPLE
+
+An error with code `'ERR_INVALID_TUPLE'` is thrown when an element in the
+`iterable` provided to the [WHATWG][WHATWG URL API] [`URLSearchParams`
+constructor][`new URLSearchParams(iterable)`] does not represent a `[name,
+value]` tuple – that is, if an element is not iterable, or does not consist of
+exactly two elements.
+
+<a id="ERR_INVALID_URL"></a>
+### ERR_INVALID_URL
+
+An error using the `'ERR_INVALID_URL'` code is thrown when an invalid URL is
+passed to the [WHATWG][WHATWG URL API] [`URL` constructor][`new URL(input)`] to
+be parsed. The thrown error object typically has an additional property
+`'input'` that contains the URL that failed to parse.
+
+<a id="ERR_INVALID_URL_SCHEME"></a>
+### ERR_INVALID_URL_SCHEME
+
+The code `'ERR_INVALID_URL_SCHEME'` is used generically to signify an attempt
+to use a URL of an incompatible scheme (aka protocol) for a specific purpose.
+It is currently only used in the [WHATWG URL API][] support in the [`fs`][]
+module (which only accepts URLs with `'file'` scheme), but may be used in other
+Node.js APIs as well in the future.
+
+<a id="ERR_MISSING_ARGS"></a>
+### ERR_MISSING_ARGS
+
+The `'ERR_MISSING_ARGS'` error code is a generic error code for instances where
+a required argument of a Node.js API is not passed. This is currently only used
+in the [WHATWG URL API][] for strict compliance with the specification (which
+in some cases may accept `func(undefined)` but not `func()`). In most native
+Node.js APIs, `func(undefined)` and `func()` are treated identically, and the
+[`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
 <a id="ERR_STDERR_CLOSE"></a>
 ### ERR_STDERR_CLOSE
@@ -627,11 +704,15 @@ likely an indication of a bug within Node.js itself.
 [`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
+[`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
 [Node.js Error Codes]: #nodejs-error-codes
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
+[`new URL(input)`]: url.html#url_constructor_new_url_input_base
+[`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [vm]: vm.html
+[WHATWG URL API]: url.html#url_the_whatwg_url_api

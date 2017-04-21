@@ -188,24 +188,31 @@ test(() => {
 }
 
 {
+  const iterableError = common.expectsError({
+    code: 'ERR_ARG_NOT_ITERABLE',
+    type: TypeError,
+    message: 'Query pairs must be iterable'
+  });
+  const tupleError = common.expectsError({
+    code: 'ERR_INVALID_TUPLE',
+    type: TypeError,
+    message: 'Each query pair must be an iterable [name, value] tuple'
+  });
+
   let params;
   // URLSearchParams constructor, undefined and null as argument
   params = new URLSearchParams(undefined);
   assert.strictEqual(params.toString(), '');
   params = new URLSearchParams(null);
   assert.strictEqual(params.toString(), '');
-  assert.throws(() => new URLSearchParams([[1]]),
-                /^TypeError: Each query pair must be a name\/value tuple$/);
-  assert.throws(() => new URLSearchParams([[1, 2, 3]]),
-                /^TypeError: Each query pair must be a name\/value tuple$/);
+  assert.throws(() => new URLSearchParams([[1]]), tupleError);
+  assert.throws(() => new URLSearchParams([[1, 2, 3]]), tupleError);
   assert.throws(() => new URLSearchParams({ [Symbol.iterator]: 42 }),
-                /^TypeError: Query pairs must be iterable$/);
-  assert.throws(() => new URLSearchParams([{}]),
-                /^TypeError: Each query pair must be iterable$/);
-  assert.throws(() => new URLSearchParams(['a']),
-                /^TypeError: Each query pair must be iterable$/);
+                iterableError);
+  assert.throws(() => new URLSearchParams([{}]), tupleError);
+  assert.throws(() => new URLSearchParams(['a']), tupleError);
   assert.throws(() => new URLSearchParams([{ [Symbol.iterator]: 42 }]),
-                /^TypeError: Each query pair must be iterable$/);
+                tupleError);
 }
 
 {

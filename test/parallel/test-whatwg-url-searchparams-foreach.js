@@ -50,5 +50,9 @@ test(function() {
   const params = new URLSearchParams();
   assert.throws(() => {
     params.forEach.call(undefined);
-  }, /^TypeError: Value of `this` is not a URLSearchParams$/);
+  }, common.expectsError({
+    code: 'ERR_INVALID_THIS',
+    type: TypeError,
+    message: 'Value of "this" must be of type URLSearchParams'
+  }));
 }
