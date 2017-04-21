@@ -162,7 +162,7 @@ function handleRequest(req, res) {
       setTimeout(() => {
         // Whoops!
         flerb.bark();
-      });
+      }, timeout);
       break;
     default:
       res.end('ok');

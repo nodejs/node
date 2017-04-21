@@ -530,9 +530,8 @@ console.log(`Starting directory: ${process.cwd()}`);
 try {
   process.chdir('/tmp');
   console.log(`New directory: ${process.cwd()}`);
-}
-catch (err) {
-  console.log(`chdir: ${err}`);
+} catch (err) {
+  console.error(`chdir: ${err}`);
 }
 ```
 
@@ -1401,8 +1400,7 @@ if (process.getegid && process.setegid) {
   try {
     process.setegid(501);
     console.log(`New gid: ${process.getegid()}`);
-  }
-  catch (err) {
+  } catch (err) {
     console.log(`Failed to set gid: ${err}`);
   }
 }
@@ -1430,8 +1428,7 @@ if (process.geteuid && process.seteuid) {
   try {
     process.seteuid(501);
     console.log(`New uid: ${process.geteuid()}`);
-  }
-  catch (err) {
+  } catch (err) {
     console.log(`Failed to set uid: ${err}`);
   }
 }
@@ -1458,8 +1455,7 @@ if (process.getgid && process.setgid) {
   try {
     process.setgid(501);
     console.log(`New gid: ${process.getgid()}`);
-  }
-  catch (err) {
+  } catch (err) {
     console.log(`Failed to set gid: ${err}`);
   }
 }
@@ -1500,8 +1496,7 @@ if (process.getuid && process.setuid) {
   try {
     process.setuid(501);
     console.log(`New uid: ${process.getuid()}`);
-  }
-  catch (err) {
+  } catch (err) {
     console.log(`Failed to set uid: ${err}`);
   }
 }
