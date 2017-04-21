@@ -959,7 +959,7 @@ Example: Copy an ASCII string into a `Buffer`, one byte at a time
 const str = 'Node.js';
 const buf = Buffer.allocUnsafe(str.length);
 
-for (let i = 0; i < str.length ; i++) {
+for (let i = 0; i < str.length; i++) {
   buf[i] = str.charCodeAt(i);
 }
 
@@ -1087,7 +1087,7 @@ byte 16 through byte 19 into `buf2`, starting at the 8th byte in `buf2`
 const buf1 = Buffer.allocUnsafe(26);
 const buf2 = Buffer.allocUnsafe(26).fill('!');
 
-for (let i = 0 ; i < 26 ; i++) {
+for (let i = 0; i < 26; i++) {
   // 97 is the decimal ASCII value for 'a'
   buf1[i] = i + 97;
 }
@@ -1104,7 +1104,7 @@ overlapping region within the same `Buffer`
 ```js
 const buf = Buffer.allocUnsafe(26);
 
-for (let i = 0 ; i < 26 ; i++) {
+for (let i = 0; i < 26; i++) {
   // 97 is the decimal ASCII value for 'a'
   buf[i] = i + 97;
 }
@@ -1871,7 +1871,7 @@ one byte from the original `Buffer`
 ```js
 const buf1 = Buffer.allocUnsafe(26);
 
-for (let i = 0 ; i < 26 ; i++) {
+for (let i = 0; i < 26; i++) {
   // 97 is the decimal ASCII value for 'a'
   buf1[i] = i + 97;
 }
@@ -2021,9 +2021,9 @@ const json = JSON.stringify(buf);
 console.log(json);
 
 const copy = JSON.parse(json, (key, value) => {
-  return value && value.type === 'Buffer'
-    ? Buffer.from(value.data)
-    : value;
+  return value && value.type === 'Buffer' ?
+    Buffer.from(value.data) :
+    value;
 });
 
 // Prints: <Buffer 01 02 03 04 05>
@@ -2049,7 +2049,7 @@ Examples:
 ```js
 const buf1 = Buffer.allocUnsafe(26);
 
-for (let i = 0 ; i < 26 ; i++) {
+for (let i = 0; i < 26; i++) {
   // 97 is the decimal ASCII value for 'a'
   buf1[i] = i + 97;
 }

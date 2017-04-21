@@ -63,18 +63,18 @@ are evaluated also:
 const assert = require('assert');
 
 const obj1 = {
-  a : {
-    b : 1
+  a: {
+    b: 1
   }
 };
 const obj2 = {
-  a : {
-    b : 2
+  a: {
+    b: 2
   }
 };
 const obj3 = {
-  a : {
-    b : 1
+  a: {
+    b: 1
   }
 };
 const obj4 = Object.create(obj1);
@@ -322,18 +322,18 @@ Tests for any deep inequality. Opposite of [`assert.deepEqual()`][].
 const assert = require('assert');
 
 const obj1 = {
-  a : {
-    b : 1
+  a: {
+    b: 1
   }
 };
 const obj2 = {
-  a : {
-    b : 2
+  a: {
+    b: 2
   }
 };
 const obj3 = {
-  a : {
-    b : 1
+  a: {
+    b: 1
   }
 };
 const obj4 = Object.create(obj1);
@@ -368,10 +368,10 @@ Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
 ```js
 const assert = require('assert');
 
-assert.notDeepEqual({a:1}, {a:'1'});
+assert.notDeepEqual({a: 1}, {a: '1'});
 // AssertionError: { a: 1 } notDeepEqual { a: '1' }
 
-assert.notDeepStrictEqual({a:1}, {a:'1'});
+assert.notDeepStrictEqual({a: 1}, {a: '1'});
 // OK
 ```
 
@@ -542,7 +542,7 @@ assert.throws(
     throw new Error('Wrong value');
   },
   function(err) {
-    if ( (err instanceof Error) && /value/.test(err) ) {
+    if ((err instanceof Error) && /value/.test(err)) {
       return true;
     }
   },

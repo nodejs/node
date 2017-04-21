@@ -80,7 +80,7 @@ in the following example:
 // Assuming gbkDecodeURIComponent function already exists...
 
 querystring.parse('w=%D6%D0%CE%C4&foo=bar', null, null,
-  { decodeURIComponent: gbkDecodeURIComponent })
+  { decodeURIComponent: gbkDecodeURIComponent });
 ```
 
 ## querystring.stringify(obj[, sep[, eq[, options]]])
@@ -108,10 +108,10 @@ Any other input values will be coerced to empty strings.
 For example:
 
 ```js
-querystring.stringify({ foo: 'bar', baz: ['qux', 'quux'], corge: '' })
+querystring.stringify({ foo: 'bar', baz: ['qux', 'quux'], corge: '' });
 // returns 'foo=bar&baz=qux&baz=quux&corge='
 
-querystring.stringify({ foo: 'bar', baz: 'qux' }, ';', ':')
+querystring.stringify({ foo: 'bar', baz: 'qux' }, ';', ':');
 // returns 'foo:bar;baz:qux'
 ```
 
@@ -124,7 +124,7 @@ following example:
 // Assuming gbkEncodeURIComponent function already exists,
 
 querystring.stringify({ w: '中文', foo: 'bar' }, null, null,
-  { encodeURIComponent: gbkEncodeURIComponent })
+  { encodeURIComponent: gbkEncodeURIComponent });
 ```
 
 ## querystring.unescape(str)

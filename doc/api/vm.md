@@ -435,7 +435,7 @@ to the `http` module passed to it. For instance:
 'use strict';
 const vm = require('vm');
 
-let code =
+const code =
 `(function(require) {
 
    const http = require('http');
@@ -448,7 +448,7 @@ let code =
    console.log('Server running at http://127.0.0.1:8124/');
  })`;
 
- vm.runInThisContext(code)(require);
+vm.runInThisContext(code)(require);
  ```
 
 *Note*: The `require()` in the above case shares the state with the context it

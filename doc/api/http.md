@@ -309,7 +309,7 @@ const net = require('net');
 const url = require('url');
 
 // Create an HTTP tunneling proxy
-const proxy = http.createServer( (req, res) => {
+const proxy = http.createServer((req, res) => {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('okay');
 });
@@ -405,7 +405,7 @@ A client server pair demonstrating how to listen for the `'upgrade'` event.
 const http = require('http');
 
 // Create an HTTP server
-const srv = http.createServer( (req, res) => {
+const srv = http.createServer((req, res) => {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('okay');
 });
@@ -1570,10 +1570,10 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
 
   let error;
   if (statusCode !== 200) {
-    error = new Error(`Request Failed.\n` +
+    error = new Error('Request Failed.\n' +
                       `Status Code: ${statusCode}`);
   } else if (!/^application\/json/.test(contentType)) {
-    error = new Error(`Invalid content-type.\n` +
+    error = new Error('Invalid content-type.\n' +
                       `Expected application/json but received ${contentType}`);
   }
   if (error) {
