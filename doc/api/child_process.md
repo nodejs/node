@@ -201,7 +201,7 @@ the process is spawned. The default options are:
   maxBuffer: 200*1024,
   killSignal: 'SIGTERM',
   cwd: null,
-  env: null
+  env: null,
 }
 ```
 
@@ -364,7 +364,7 @@ A third argument may be used to specify additional options, with these defaults:
 ```js
 {
   cwd: undefined,
-  env: process.env
+  env: process.env,
 }
 ```
 
@@ -487,7 +487,7 @@ const spawn = require('child_process').spawn;
 
 const child = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
-  stdio: 'ignore'
+  stdio: 'ignore',
 });
 
 child.unref();
@@ -503,7 +503,7 @@ const err = fs.openSync('./out.log', 'a');
 
 const child = spawn('prg', [], {
   detached: true,
-  stdio: [ 'ignore', out, err ]
+  stdio: [ 'ignore', out, err ],
 });
 
 child.unref();
@@ -934,9 +934,9 @@ const spawn = require('child_process').spawn;
 const child = spawn('sh', ['-c',
   `node -e "setInterval(() => {
       console.log(process.pid, 'is alive')
-    }, 500);"`
+    }, 500);"`,
   ], {
-    stdio: ['inherit', 'inherit', 'inherit']
+    stdio: ['inherit', 'inherit', 'inherit'],
   });
 
 setTimeout(() => {
@@ -1192,8 +1192,8 @@ const child = child_process.spawn('ls', {
   stdio: [
     0, // Use parent's stdin for child
     'pipe', // Pipe child's stdout to parent
-    fs.openSync('err.out', 'w') // Direct child's stderr to a file
-  ]
+    fs.openSync('err.out', 'w'), // Direct child's stderr to a file
+  ],
 });
 
 assert.strictEqual(child.stdio[0], null);

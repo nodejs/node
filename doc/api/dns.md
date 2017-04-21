@@ -300,7 +300,7 @@ For example:
   regexp: '',
   replacement: '_sip._udp.example.com',
   order: 30,
-  preference: 100
+  preference: 100,
 }
 ```
 
@@ -360,7 +360,7 @@ be an object with the following properties:
   refresh: 10000,
   retry: 2400,
   expire: 604800,
-  minttl: 3600
+  minttl: 3600,
 }
 ```
 
@@ -387,7 +387,7 @@ be an array of objects with the following properties:
   priority: 10,
   weight: 5,
   port: 21223,
-  name: 'service.example.com'
+  name: 'service.example.com',
 }
 ```
 

@@ -530,16 +530,14 @@ running the `./configure` script.
 An example of the possible output looks like:
 
 ```js
-{
-  target_defaults:
+{ target_defaults:
    { cflags: [],
      default_configuration: 'Release',
      defines: [],
      include_dirs: [],
      libraries: [] },
   variables:
-   {
-     host_arch: 'x64',
+   { host_arch: 'x64',
      node_install_npm: 'true',
      node_prefix: '',
      node_shared_cares: 'false',
@@ -551,9 +549,7 @@ An example of the possible output looks like:
      node_shared_openssl: 'false',
      strict_aliasing: 'true',
      target_arch: 'x64',
-     v8_use_snapshot: 'true'
-   }
-}
+     v8_use_snapshot: 'true' } }
 ```
 
 *Note*: The `process.config` property is **not** read-only and there are
@@ -757,7 +753,7 @@ An example of this object looks like:
   SHLVL: '1',
   HOME: '/Users/maciej',
   LOGNAME: 'maciej',
-  _: '/usr/local/bin/node'
+  _: '/usr/local/bin/node',
 }
 ```
 
@@ -1175,12 +1171,10 @@ console.log(process.memoryUsage());
 Will generate:
 
 ```js
-{
-  rss: 4935680,
+{ rss: 4935680,
   heapTotal: 1826816,
   heapUsed: 650472,
-  external: 49879
-}
+  external: 49879 }
 ```
 
 `heapTotal` and `heapUsed` refer to V8's memory usage.
@@ -1346,13 +1340,11 @@ tarball.
 For example:
 
 ```js
-{
-  name: 'node',
+{ name: 'node',
   lts: 'Argon',
   sourceUrl: 'https://nodejs.org/download/release/v4.4.5/node-v4.4.5.tar.gz',
   headersUrl: 'https://nodejs.org/download/release/v4.4.5/node-v4.4.5-headers.tar.gz',
-  libUrl: 'https://nodejs.org/download/release/v4.4.5/win-x64/node.lib'
-}
+  libUrl: 'https://nodejs.org/download/release/v4.4.5/win-x64/node.lib' }
 ```
 
 In custom builds from non-release versions of the source tree, only the
@@ -1711,8 +1703,7 @@ console.log(process.versions);
 Will generate output similar to:
 
 ```js
-{
-  http_parser: '2.3.0',
+{ http_parser: '2.3.0',
   node: '1.1.1',
   v8: '4.1.0.14',
   uv: '1.3.0',

@@ -54,7 +54,7 @@ const fs = require('fs');
 
 const options = {
   key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
-  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem')
+  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem'),
 };
 
 https.createServer(options, (req, res) => {
@@ -71,7 +71,7 @@ const fs = require('fs');
 
 const options = {
   pfx: fs.readFileSync('test/fixtures/test_cert.pfx'),
-  passphrase: 'sample'
+  passphrase: 'sample',
 };
 
 https.createServer(options, (req, res) => {
@@ -172,7 +172,7 @@ const options = {
   hostname: 'encrypted.google.com',
   port: 443,
   path: '/',
-  method: 'GET'
+  method: 'GET',
 };
 
 const req = https.request(options, (res) => {
@@ -198,7 +198,7 @@ const options = {
   path: '/',
   method: 'GET',
   key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
-  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem')
+  cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem'),
 };
 options.agent = new https.Agent(options);
 
@@ -219,7 +219,7 @@ const options = {
   method: 'GET',
   key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
   cert: fs.readFileSync('test/fixtures/keys/agent2-cert.pem'),
-  agent: false
+  agent: false,
 };
 
 const req = https.request(options, (res) => {

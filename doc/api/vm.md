@@ -110,7 +110,7 @@ const vm = require('vm');
 
 const sandbox = {
   animal: 'cat',
-  count: 2
+  count: 2,
 };
 
 const script = new vm.Script('count += 1; name = "kitty";');
@@ -363,7 +363,7 @@ const vm = require('vm');
 
 const sandbox = {
   animal: 'cat',
-  count: 2
+  count: 2,
 };
 
 vm.runInNewContext('count += 1; name = "kitty"', sandbox);

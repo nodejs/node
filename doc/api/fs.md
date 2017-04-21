@@ -635,7 +635,7 @@ default value of 64 kb for the same parameter.
   encoding: null,
   fd: null,
   mode: 0o666,
-  autoClose: true
+  autoClose: true,
 }
 ```
 
@@ -701,7 +701,7 @@ Returns a new [`WriteStream`][] object. (See [Writable Stream][]).
   defaultEncoding: 'utf8',
   fd: null,
   mode: 0o666,
-  autoClose: true
+  autoClose: true,
 }
 ```
 

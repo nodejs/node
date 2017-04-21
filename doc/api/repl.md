@@ -121,7 +121,7 @@ const r = repl.start('> ');
 Object.defineProperty(r.context, 'm', {
   configurable: false,
   enumerable: true,
-  value: msg
+  value: msg,
 });
 ```
 
@@ -333,7 +333,7 @@ replServer.defineCommand('sayhello', {
     this.bufferedCommand = '';
     console.log(`Hello, ${name}!`);
     this.displayPrompt();
-  }
+  },
 });
 replServer.defineCommand('saybye', () => {
   console.log('Goodbye!');
@@ -517,7 +517,7 @@ let connections = 0;
 repl.start({
   prompt: 'Node.js via stdin> ',
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
 });
 
 net.createServer((socket) => {
@@ -525,7 +525,7 @@ net.createServer((socket) => {
   repl.start({
     prompt: 'Node.js via Unix socket> ',
     input: socket,
-    output: socket
+    output: socket,
   }).on('exit', () => {
     socket.end();
   });
@@ -536,7 +536,7 @@ net.createServer((socket) => {
   repl.start({
     prompt: 'Node.js via TCP socket> ',
     input: socket,
-    output: socket
+    output: socket,
   }).on('exit', () => {
     socket.end();
   });

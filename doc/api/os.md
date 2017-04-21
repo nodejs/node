@@ -81,8 +81,8 @@ For example:
       nice: 0,
       sys: 30340,
       idle: 1070356870,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -92,8 +92,8 @@ For example:
       nice: 0,
       sys: 26980,
       idle: 1071569080,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -103,8 +103,8 @@ For example:
       nice: 0,
       sys: 21750,
       idle: 1070919370,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -114,8 +114,8 @@ For example:
       nice: 0,
       sys: 19430,
       idle: 1070905480,
-      irq: 20
-    }
+      irq: 20,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -125,8 +125,8 @@ For example:
       nice: 20,
       sys: 40900,
       idle: 1070842510,
-      irq: 0
-    }
+      irq: 0,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -136,8 +136,8 @@ For example:
       nice: 0,
       sys: 34360,
       idle: 1070888000,
-      irq: 10
-    }
+      irq: 10,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -147,8 +147,8 @@ For example:
       nice: 0,
       sys: 55410,
       idle: 1071129970,
-      irq: 880
-    }
+      irq: 880,
+    },
   },
   {
     model: 'Intel(R) Core(TM) i7 CPU         860  @ 2.80GHz',
@@ -158,9 +158,9 @@ For example:
       nice: 1480,
       sys: 34920,
       idle: 1072572010,
-      irq: 30
-    }
-  }
+      irq: 30,
+    },
+  },
 ]
 ```
 
@@ -261,15 +261,15 @@ The properties available on the assigned network address object include:
       netmask: '255.0.0.0',
       family: 'IPv4',
       mac: '00:00:00:00:00:00',
-      internal: true
+      internal: true,
     },
     {
       address: '::1',
       netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
       family: 'IPv6',
       mac: '00:00:00:00:00:00',
-      internal: true
-    }
+      internal: true,
+    },
   ],
   eth0: [
     {
@@ -277,16 +277,16 @@ The properties available on the assigned network address object include:
       netmask: '255.255.255.0',
       family: 'IPv4',
       mac: '01:02:03:0a:0b:0c',
-      internal: false
+      internal: false,
     },
     {
       address: 'fe80::a00:27ff:fe4e:66a1',
       netmask: 'ffff:ffff:ffff:ffff::',
       family: 'IPv6',
       mac: '01:02:03:0a:0b:0c',
-      internal: false
-    }
-  ]
+      internal: false,
+    },
+  ],
 }
 ```
 
