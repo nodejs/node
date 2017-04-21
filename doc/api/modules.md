@@ -70,7 +70,7 @@ When a file is run directly from Node.js, `require.main` is set to its
 directly by testing
 
 ```js
-require.main === module
+require.main === module;
 ```
 
 For a file `foo.js`, this will be `true` if run via `node foo.js`, but
@@ -441,7 +441,7 @@ Before a module's code is executed, Node.js will wrap it with a function
 wrapper that looks like the following:
 
 ```js
-(function (exports, require, module, __filename, __dirname) {
+(function(exports, require, module, __filename, __dirname) {
 // Your module code actually lives in here
 });
 ```

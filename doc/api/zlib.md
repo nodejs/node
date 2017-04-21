@@ -65,9 +65,9 @@ const zlib = require('zlib');
 const http = require('http');
 const fs = require('fs');
 const request = http.get({ host: 'example.com',
-                         path: '/',
-                         port: 80,
-                         headers: { 'Accept-Encoding': 'gzip,deflate' } });
+                           path: '/',
+                           port: 80,
+                           headers: { 'Accept-Encoding': 'gzip,deflate' } });
 request.on('response', (response) => {
   var output = fs.createWriteStream('example.com_index.html');
 
@@ -125,15 +125,16 @@ method that is used to compressed the last chunk of input data:
 // This is a truncated version of the buffer from the above examples
 const buffer = Buffer.from('eJzT0yMA', 'base64');
 
-zlib.unzip(buffer,
-           {finishFlush: zlib.constants.Z_SYNC_FLUSH},
-           (err, buffer) => {
-  if (!err) {
-    console.log(buffer.toString());
-  } else {
-    // handle error
-  }
-});
+zlib.unzip(
+  buffer,
+  {finishFlush: zlib.constants.Z_SYNC_FLUSH},
+  (err, buffer) => {
+    if (!err) {
+      console.log(buffer.toString());
+    } else {
+      // handle error
+    }
+  });
 ```
 
 This will not change the behavior in other error-throwing situations, e.g.
@@ -151,7 +152,7 @@ From `zlib/zconf.h`, modified to node.js's usage:
 The memory requirements for deflate are (in bytes):
 
 ```js
-(1 << (windowBits+2)) +  (1 << (memLevel+9))
+(1 << (windowBits + 2)) + (1 << (memLevel + 9));
 ```
 
 That is: 128K for windowBits=15  +  128K for memLevel = 8
@@ -169,7 +170,7 @@ This will, however, generally degrade compression.
 The memory requirements for inflate are (in bytes)
 
 ```js
-1 << windowBits
+1 << windowBits;
 ```
 
 That is, 32K for windowBits=15 (default value) plus a few kilobytes
