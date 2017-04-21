@@ -1233,6 +1233,12 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
 }  // anonymous namespace
 
 
+void AddPromiseHook(v8::Isolate* isolate, promise_hook_func fn, void* arg) {
+  Environment* env = Environment::GetCurrent(isolate);
+  env->AddPromiseHook(fn, arg);
+}
+
+
 Local<Value> MakeCallback(Environment* env,
                           Local<Value> recv,
                           const Local<Function> callback,

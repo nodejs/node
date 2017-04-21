@@ -188,4 +188,20 @@ void Environment::AtExit(void (*cb)(void* arg), void* arg) {
   at_exit_functions_.push_back(AtExitCallback{cb, arg});
 }
 
+void Environment::AddPromiseHook(promise_hook_func fn, void* arg) {
+  promise_hooks_.push_back(PromiseHookCallback{fn, arg});
+  if (promise_hooks_.size() == 1) {
+    isolate_->SetPromiseHook(EnvPromiseHook);
+  }
+}
+
+void Environment::EnvPromiseHook(v8::PromiseHookType type,
+                                 v8::Local<v8::Promise> promise,
+                                 v8::Local<v8::Value> parent) {
+  Environment* env = Environment::GetCurrent(promise->CreationContext());
+  for (const PromiseHookCallback& hook : env->promise_hooks_) {
+    hook.cb_(type, promise, parent, hook.arg_);
+  }
+}
+
 }  // namespace node

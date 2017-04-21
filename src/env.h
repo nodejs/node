@@ -35,6 +35,7 @@
 #include "util.h"
 #include "uv.h"
 #include "v8.h"
+#include "node.h"
 
 #include <list>
 #include <stdint.h>
@@ -572,6 +573,8 @@ class Environment {
 
   static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
 
+  void AddPromiseHook(promise_hook_func fn, void* arg);
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -619,6 +622,16 @@ class Environment {
     void* arg_;
   };
   std::list<AtExitCallback> at_exit_functions_;
+
+  struct PromiseHookCallback {
+    promise_hook_func cb_;
+    void* arg_;
+  };
+  std::vector<PromiseHookCallback> promise_hooks_;
+
+  static void EnvPromiseHook(v8::PromiseHookType type,
+                             v8::Local<v8::Promise> promise,
+                             v8::Local<v8::Value> parent);
 
 #define V(PropertyName, TypeName)                                             \
   v8::Persistent<TypeName> PropertyName ## _;
