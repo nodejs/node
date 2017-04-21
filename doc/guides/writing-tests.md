@@ -23,27 +23,27 @@ Add tests when:
 Let's analyze this basic test from the Node.js test suite:
 
 ```javascript
-1   'use strict';
-2   const common = require('../common');
-3
-4   // This test ensures that the http-parser can handle UTF-8 characters
-5   // in the http header.
-6
-7   const assert = require('assert');
-8   const http = require('http');
-9
-10  const server = http.createServer(common.mustCall((req, res) => {
-11    res.end('ok');
-12  }));
-13  server.listen(0, () => {
-14   http.get({
-15     port: server.address().port,
-16     headers: {'Test': 'Düsseldorf'}
-17   }, common.mustCall((res) => {
-18     assert.strictEqual(res.statusCode, 200);
-19     server.close();
-20   }));
-21 });
+'use strict';                                                          // 1
+const common = require('../common');                                   // 2
+                                                                       // 3
+// This test ensures that the http-parser can handle UTF-8 characters  // 4
+// in the http header.                                                 // 5
+                                                                       // 6
+const assert = require('assert');                                      // 7
+const http = require('http');                                          // 8
+                                                                       // 9
+const server = http.createServer(common.mustCall((req, res) => {       // 10
+  res.end('ok');                                                       // 11
+}));                                                                   // 12
+server.listen(0, () => {                                               // 13
+  http.get({                                                           // 14
+    port: server.address().port,                                       // 15
+    headers: {'Test': 'Düsseldorf'}                                    // 16
+  }, common.mustCall((res) => {                                        // 17
+    assert.strictEqual(res.statusCode, 200);                           // 18
+    server.close();                                                    // 19
+  }));                                                                 // 20
+});                                                                    // 21
 ```
 
 ### **Lines 1-2**

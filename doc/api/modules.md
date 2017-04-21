@@ -558,7 +558,8 @@ object, it is common to also reassign `exports`, for example:
 
 ```js
 module.exports = exports = function Constructor() {
-    // ... etc.
+  // ... etc.
+};
 ```
 
 To illustrate the behavior, imagine this hypothetical implementation of
