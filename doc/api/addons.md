@@ -229,7 +229,7 @@ or [Native Abstractions for Node.js][] APIs, the functions available
 in the N-API are used.
 
 The functions available and how to use them are documented in the 
-section titled [N-API](n-api.html).
+section titled [C/C++ Addons - N-API](n-api.html).
 
 ## Addon examples
 
