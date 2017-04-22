@@ -62,9 +62,27 @@ assert.ok(gh1140Exception,
           'expected exception from runInContext signature test');
 
 // GH-558, non-context argument segfaults / raises assertion
-[undefined, null, 0, 0.0, '', {}, []].forEach(function(e) {
-  assert.throws(function() { script.runInContext(e); }, TypeError);
-  assert.throws(function() { vm.runInContext('', e); }, TypeError);
+const nonContextualSandboxErrorMsg =
+  /^TypeError: contextifiedSandbox argument must be an object\.$/;
+
+[undefined, null, 0, 0.0, ''].forEach(function(e) {
+
+  assert.throws(function() { script.runInContext(e); },
+                nonContextualSandboxErrorMsg);
+  assert.throws(function() { vm.runInContext('', e); },
+                nonContextualSandboxErrorMsg);
+});
+
+// GH-558, non-context argument segfaults / raises assertion
+const contextifiedSandboxErrorMsg =
+  /^TypeError: sandbox argument must have been converted to a context\.$/;
+
+[{}, []].forEach(function(e) {
+
+  assert.throws(function() { script.runInContext(e); },
+                contextifiedSandboxErrorMsg);
+  assert.throws(function() { vm.runInContext('', e); },
+                contextifiedSandboxErrorMsg);
 });
 
 // Issue GH-693:
