@@ -599,7 +599,7 @@ Returns an object containing commonly used constants for file system
 operations. The specific constants currently defined are described in
 [FS Constants][].
 
-## fs.copy(path1, path2, overwrite_mode, callback)
+## fs.copy(path1, path2[, overwrite_mode], callback)
 
 * `path1` {string}
 * `path2` {string}
@@ -611,6 +611,8 @@ ownership, permissions and times. If `path1` is a file, it will be copied
 to `path2`, if `path1` is a directory it will be recursively copied
 retaining it's file structure with the root of the `path1` directory
 being the root of the `path2` directory.
+
+`overwrite_mode` defaults to 2.
 
 If `overwrite_mode` is a function, any time a file in `path2` already
 exists it will be called with the arguments (`file1`,`file2`,`callback`)
@@ -631,7 +633,7 @@ an error if a file already exists.
 No arguments other than a possible exception are given to the completion
 callback.
 
-## fs.copySync(path1, path2, overwrite_mode)
+## fs.copySync(path1, path2[, overwrite_mode])
 
 * `path1` {string}
 * `path2` {string}
@@ -771,7 +773,7 @@ If `options` is a string, then it specifies the encoding.
 * `path` {string|Buffer}
 * `callback` {function}
 
-If `path` us a file, it is the equivalent of [`fs.unlink()`][], however if `path`
+If `path` is a file, it is the equivalent of [`fs.unlink()`][], however if `path`
 is a directory, it will recursively delete it, it does this be recursively
 calling [`fs.delete()`][] on all the directory contents and after all of them
 have completed call [`fs.rmdir()`][] on the directory.
