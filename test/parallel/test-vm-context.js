@@ -64,25 +64,16 @@ assert.ok(gh1140Exception,
 // GH-558, non-context argument segfaults / raises assertion
 const nonContextualSandboxErrorMsg =
   /^TypeError: contextifiedSandbox argument must be an object\.$/;
-
-[undefined, null, 0, 0.0, ''].forEach(function(e) {
-
-  assert.throws(function() { script.runInContext(e); },
-                nonContextualSandboxErrorMsg);
-  assert.throws(function() { vm.runInContext('', e); },
-                nonContextualSandboxErrorMsg);
-});
-
-// GH-558, non-context argument segfaults / raises assertion
 const contextifiedSandboxErrorMsg =
-  /^TypeError: sandbox argument must have been converted to a context\.$/;
-
-[{}, []].forEach(function(e) {
-
-  assert.throws(function() { script.runInContext(e); },
-                contextifiedSandboxErrorMsg);
-  assert.throws(function() { vm.runInContext('', e); },
-                contextifiedSandboxErrorMsg);
+    /^TypeError: sandbox argument must have been converted to a context\.$/;
+[
+  [undefined, nonContextualSandboxErrorMsg],
+  [null, nonContextualSandboxErrorMsg], [0, nonContextualSandboxErrorMsg],
+  [0.0, nonContextualSandboxErrorMsg], ['', nonContextualSandboxErrorMsg],
+  [{}, contextifiedSandboxErrorMsg], [[], contextifiedSandboxErrorMsg]
+].forEach((e) => {
+  assert.throws(() => { script.runInContext(e[0]); }, e[1]);
+  assert.throws(() => { vm.runInContext('', e[0]); }, e[1]);
 });
 
 // Issue GH-693:
