@@ -3,6 +3,10 @@
 require('../common');
 const assert = require('assert');
 const inherits = require('util').inherits;
+const errCheck =
+  new RegExp('^TypeError: The super constructor to "inherits" must not be ' +
+                      'null or undefined$');
+
 
 // super constructor
 function A() {
@@ -75,6 +79,12 @@ assert.strictEqual(e.e(), 'e');
 assert.strictEqual(e.constructor, E);
 
 // should throw with invalid arguments
-assert.throws(function() { inherits(A, {}); }, TypeError);
-assert.throws(function() { inherits(A, null); }, TypeError);
-assert.throws(function() { inherits(null, A); }, TypeError);
+assert.throws(function() {
+  inherits(A, {});
+}, /^TypeError: The super constructor to "inherits" must have a prototype$/);
+assert.throws(function() {
+  inherits(A, null);
+}, errCheck);
+assert.throws(function() {
+  inherits(null, A);
+}, /^TypeError: The constructor to "inherits" must not be null or undefined$/);
