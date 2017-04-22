@@ -9,7 +9,7 @@ namespace node {
 class DebugOptions {
  public:
   DebugOptions();
-  bool ParseOption(const std::string& option);
+  bool ParseOption(const char* argv0, const std::string& option);
   bool inspector_enabled() const {
 #if HAVE_INSPECTOR
     return inspector_enabled_;
