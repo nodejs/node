@@ -62,7 +62,7 @@ DebugOptions::DebugOptions() :
                                wait_connect_(false), http_enabled_(false),
                                host_name_("127.0.0.1"), port_(-1) { }
 
-bool DebugOptions::ParseOption(const std::string& option) {
+bool DebugOptions::ParseOption(const char* argv0, const std::string& option) {
   bool enable_inspector = false;
   bool has_argument = false;
   std::string option_name;
@@ -72,9 +72,13 @@ bool DebugOptions::ParseOption(const std::string& option) {
   if (pos == std::string::npos) {
     option_name = option;
   } else {
-    has_argument = true;
     option_name = option.substr(0, pos);
     argument = option.substr(pos + 1);
+
+    if (argument.length() > 0)
+      has_argument = true;
+    else
+      argument.clear();
   }
 
   if (option_name == "--inspect") {
@@ -82,11 +86,14 @@ bool DebugOptions::ParseOption(const std::string& option) {
   } else if (option_name == "--inspect-brk") {
     enable_inspector = true;
     wait_connect_ = true;
-  } else if ((option_name != "--debug-port" &&
-              option_name != "--inspect-port") ||
-              !has_argument) {
-    // only other valid possibility is --inspect-port,
-    // which requires an argument
+  } else if (option_name == "--debug-port" ||
+             option_name == "--inspect-port") {
+    if (!has_argument) {
+      fprintf(stderr, "%s: %s requires an argument\n",
+              argv0, option.c_str());
+      exit(9);
+    }
+  } else {
     return false;
   }
 
