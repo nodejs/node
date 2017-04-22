@@ -28,6 +28,14 @@ const assert = require('assert');
 const cluster = require('cluster');
 const dgram = require('dgram');
 
+function getPort(cb) {
+  const s = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+  s.bind(0, () => {
+    const port = s.address().port;
+    s.close();
+    cb(null, port);
+  });
+}
 
 if (common.isWindows) {
   common.skip('dgram clustering is currently not supported ' +
@@ -35,18 +43,22 @@ if (common.isWindows) {
   return;
 }
 
-if (cluster.isMaster)
-  master();
-else
+// We are creating unique port only for the in the master cluster
+if (cluster.isMaster) {
+  getPort((info, port) => {
+    master(port);
+  });
+} else {
   worker();
+}
 
 
-function master() {
+function master(port) {
   let listening = 0;
 
   // Fork 4 workers.
   for (let i = 0; i < NUM_WORKERS; i++)
-    cluster.fork();
+    cluster.fork().send(port);
 
   // Wait until all workers are listening.
   cluster.on('listening', common.mustCall(() => {
@@ -60,7 +72,7 @@ function master() {
     doSend();
 
     function doSend() {
-      socket.send(buf, 0, buf.length, common.PORT, '127.0.0.1', afterSend);
+      socket.send(buf, 0, buf.length, port, '127.0.0.1', afterSend);
     }
 
     function afterSend() {
@@ -106,10 +118,13 @@ function worker() {
 
     // Every 10 messages, notify the master.
     if (received === PACKETS_PER_WORKER) {
-      process.send({received: received});
+      process.send({ received: received });
       socket.close();
     }
   }, PACKETS_PER_WORKER));
-
-  socket.bind(common.PORT);
+  // We are getting the PORT through the process
+  // message in the master process => cluster.fork().send(port);
+  process.on('message', common.mustCall((port, info) => {
+    socket.bind(port);
+  }));
 }
