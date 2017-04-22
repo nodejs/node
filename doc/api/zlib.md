@@ -69,7 +69,7 @@ const request = http.get({ host: 'example.com',
                            port: 80,
                            headers: { 'Accept-Encoding': 'gzip,deflate' } });
 request.on('response', (response) => {
-  var output = fs.createWriteStream('example.com_index.html');
+  const output = fs.createWriteStream('example.com_index.html');
 
   switch (response.headers['content-encoding']) {
     // or, just use zlib.createUnzip() to handle both cases
@@ -94,8 +94,8 @@ const zlib = require('zlib');
 const http = require('http');
 const fs = require('fs');
 http.createServer((request, response) => {
-  var raw = fs.createReadStream('index.html');
-  var acceptEncoding = request.headers['accept-encoding'];
+  const raw = fs.createReadStream('index.html');
+  let acceptEncoding = request.headers['accept-encoding'];
   if (!acceptEncoding) {
     acceptEncoding = '';
   }
