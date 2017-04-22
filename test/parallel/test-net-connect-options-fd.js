@@ -2,6 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
+const path = require('path');
 const Pipe = process.binding('pipe_wrap').Pipe;
 
 if (common.isWindows) {
@@ -32,7 +33,9 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
 
 // Test Pipe fd is wrapped correctly
 {
-  const prefix = `${common.PIPE}-net-connect-options-fd`;
+  // Use relative path to avoid hitting 108-char length limit
+  // for socket paths in libuv.
+  const prefix = path.relative('.', `${common.PIPE}-net-connect-options-fd`);
   const serverPath = `${prefix}-server`;
   let counter = 0;
   let socketCounter = 0;
