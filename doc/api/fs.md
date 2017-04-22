@@ -599,6 +599,48 @@ Returns an object containing commonly used constants for file system
 operations. The specific constants currently defined are described in
 [FS Constants][].
 
+## fs.copy(path1, path2, overwrite_mode, callback)
+
+* `path1` {string}
+* `path2` {string}
+* `overwrite_mode` {string|Boolean|function}
+* `callback` {function}
+
+Asynchronous copying of file or recursively copying directory's, including
+ownership, permissions and times. If `path1` is a file, it will be copied
+to `path2`, if `path1` is a directory it will be recursively copied
+retaining it's file structure with the root of the `path1` directory
+being the root of the `path2` directory.
+
+If `overwrite_mode` is a function, any time a file in `path2` already
+exists it will be called with the arguments (`file1`,`file2`,`callback`)
+where `file1` and `file2` are full paths of the files being copied,
+`file1` being the source and `file2` being the destination that already
+exists. The callback will take 1 argument, which is the mode to be used
+for this file only. This can be used for prompting the user whether or
+not they want to overwrite specific files etc.
+
+If `overwrite_mode` (this also can be the value passed via the
+callback of `overwrite_mode`) is a number greater than 1 or true,
+any files that already exist within `path2` will be overwritten, if
+`overwrite_mode` is 1 or false, existing file will not be
+overwritten however if it is acting recursively, it will continue
+copying. If `overwrite_mode` is a number less than 1 it will throw
+an error if a file already exists.
+
+No arguments other than a possible exception are given to the completion
+callback.
+
+## fs.copySync(path1, path2, overwrite_mode)
+
+* `path1` {string}
+* `path2` {string}
+* `overwrite_mode` {string|Boolean|function}
+
+Synchronous version of [`fs.copy()`][]. However if `overwrite_mode` is
+a function, it should return the mode rather then pass it to a callback.
+`overwrite_mode` will not be called with a callback.
+
 ## fs.createReadStream(path[, options])
 <!-- YAML
 added: v0.1.31
@@ -723,6 +765,28 @@ Like [`ReadStream`][], if `fd` is specified, `WriteStream` will ignore the
 `fd`s should be passed to [`net.Socket`][].
 
 If `options` is a string, then it specifies the encoding.
+
+## fs.delete(path, callback)
+
+* `path` {string|Buffer}
+* `callback` {function}
+
+If `path` us a file, it is the equivalent of [`fs.unlink()`][], however if `path`
+is a directory, it will recursively delete it, it does this be recursively
+calling [`fs.delete()`][] on all the directory contents and after all of them
+have completed call [`fs.rmdir()`][] on the directory.
+
+You should use [`fs.unlink()`][] any time you know you are going to be deleting
+a file.
+
+No arguments other than a possible exception are given to the completion
+callback.
+
+## fs.deleteSync(path)
+
+* `path` {string|Buffer}
+
+Synchronous version of [`fs.delete()`][].
 
 ## fs.exists(path, callback)
 <!-- YAML
