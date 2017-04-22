@@ -3612,6 +3612,8 @@ static void PrintHelp() {
          "  --inspect-brk[=[host:]port]\n"
          "                             activate inspector on host:port\n"
          "                             and break at start of user script\n"
+         "  --inspect-port=[host:]port\n"
+         "                             set host:port for inspector\n"
 #endif
          "  --no-deprecation           silence deprecation warnings\n"
          "  --trace-deprecation        show stack traces on deprecations\n"
@@ -3798,7 +3800,7 @@ static void ParseArgs(int* argc,
 
     CheckIfAllowedInEnv(argv[0], is_env, arg);
 
-    if (debug_options.ParseOption(arg)) {
+    if (debug_options.ParseOption(argv[0], arg)) {
       // Done, consumed by DebugOptions::ParseOption().
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);

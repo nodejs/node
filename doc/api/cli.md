@@ -112,6 +112,18 @@ added: v7.6.0
 -->
 
 Activate inspector on host:port and break at start of user script.
+Default host:port is 127.0.0.1:9229.
+
+
+### `--inspect-port=[host:]port`
+<!-- YAML
+added: v7.6.0
+-->
+
+Set the host:port to be used when the inspector is activated.
+Useful when activating the inspector by sending the `SIGUSR1` signal.
+
+Default host is 127.0.0.1.
 
 
 ### `--no-deprecation`
