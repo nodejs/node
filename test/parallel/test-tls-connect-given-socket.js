@@ -33,7 +33,6 @@ const net = require('net');
 const fs = require('fs');
 const path = require('path');
 
-let serverConnected = 0;
 let clientConnected = 0;
 
 const options = {
@@ -41,10 +40,9 @@ const options = {
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };
 
-const server = tls.createServer(options, (socket) => {
-  serverConnected++;
+const server = tls.createServer(options, common.mustCall((socket) => {
   socket.end('Hello');
-}).listen(0, () => {
+}, 2)).listen(0, common.mustCall(() => {
   let waiting = 2;
   function establish(socket) {
     const client = tls.connect({
@@ -91,9 +89,8 @@ const server = tls.createServer(options, (socket) => {
     const connecting = net.connect(port);
     establish(connecting);
   }
-});
+}));
 
 process.on('exit', () => {
-  assert.strictEqual(serverConnected, 2);
   assert.strictEqual(clientConnected, 2);
 });
