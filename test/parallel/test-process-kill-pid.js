@@ -17,16 +17,20 @@ const assert = require('assert');
 //
 // process.pid, String(process.pid): ourself
 
-assert.throws(function() { process.kill('SIGTERM'); }, TypeError);
-assert.throws(function() { process.kill(null); }, TypeError);
-assert.throws(function() { process.kill(undefined); }, TypeError);
-assert.throws(function() { process.kill(+'not a number'); }, TypeError);
-assert.throws(function() { process.kill(1 / 0); }, TypeError);
-assert.throws(function() { process.kill(-1 / 0); }, TypeError);
+assert.throws(function() { process.kill('SIGTERM'); },
+              /^TypeError: invalid pid$/);
+assert.throws(function() { process.kill(null); }, /^TypeError: invalid pid$/);
+assert.throws(function() { process.kill(undefined); },
+              /^TypeError: invalid pid$/);
+assert.throws(function() { process.kill(+'not a number'); },
+              /^TypeError: invalid pid$/);
+assert.throws(function() { process.kill(1 / 0); }, /^TypeError: invalid pid$/);
+assert.throws(function() { process.kill(-1 / 0); }, /^TypeError: invalid pid$/);
 
 // Test that kill throws an error for invalid signal
 
-assert.throws(function() { process.kill(1, 'test'); }, Error);
+assert.throws(function() { process.kill(1, 'test'); },
+              /^Error: Unknown signal: test$/);
 
 // Test kill argument processing in valid cases.
 //
