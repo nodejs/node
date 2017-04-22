@@ -1,7 +1,5 @@
 'use strict';
 
-const readline = require('readline');
-
 function pad(input, minLength, fill) {
   var result = String(input);
   var padding = fill.repeat(Math.max(0, minLength - result.length));
@@ -25,7 +23,7 @@ function getTime(diff) {
 // A run is an item in the job queue: { binary, filename, iter }
 // A config is an item in the subqueue: { binary, filename, iter, configs }
 class BenchmarkProgress {
-  constructor(queue, benchmarks) {
+  constructor(queue, benchmarks, showAlways) {
     this.queue = queue;  // Scheduled runs.
     this.benchmarks = benchmarks;  // Filenames of scheduled benchmarks.
     this.completedRuns = 0;  // Number of completed runs.
@@ -41,6 +39,7 @@ class BenchmarkProgress {
     // Total number of configurations for the current file
     this.scheduledConfig = 0;
     this.interval = 0;  // result of setInterval for updating the elapsed time
+    this.showAlways = showAlways; // show even if stdout is TTY
   }
 
   startQueue(index) {
@@ -110,11 +109,11 @@ class BenchmarkProgress {
   }
 
   updateProgress(finished) {
-    if (!process.stderr.isTTY || process.stdout.isTTY) {
+    if ((!process.stderr.isTTY || process.stdout.isTTY) && !this.showAlways) {
       return;
     }
-    readline.clearLine(process.stderr);
-    readline.cursorTo(process.stderr, 0);
+    process.stderr.clearLine();
+    process.stderr.cursorTo(0);
     process.stderr.write(this.getProgress());
   }
 }
