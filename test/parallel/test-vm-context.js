@@ -25,7 +25,7 @@ assert.strictEqual('lala', context.thing);
 // Issue GH-227:
 assert.throws(function() {
   vm.runInNewContext('', null, 'some.js');
-}, TypeError);
+}, /^TypeError: sandbox must be an object$/);
 
 // Issue GH-1140:
 console.error('test runInContext signature');
@@ -41,9 +41,18 @@ assert.ok(gh1140Exception,
           'expected exception from runInContext signature test');
 
 // GH-558, non-context argument segfaults / raises assertion
-[undefined, null, 0, 0.0, '', {}, []].forEach(function(e) {
-  assert.throws(function() { script.runInContext(e); }, TypeError);
-  assert.throws(function() { vm.runInContext('', e); }, TypeError);
+const nonContextualSandboxErrorMsg =
+  /^TypeError: contextifiedSandbox argument must be an object\.$/;
+const contextifiedSandboxErrorMsg =
+    /^TypeError: sandbox argument must have been converted to a context\.$/;
+[
+  [undefined, nonContextualSandboxErrorMsg],
+  [null, nonContextualSandboxErrorMsg], [0, nonContextualSandboxErrorMsg],
+  [0.0, nonContextualSandboxErrorMsg], ['', nonContextualSandboxErrorMsg],
+  [{}, contextifiedSandboxErrorMsg], [[], contextifiedSandboxErrorMsg]
+].forEach((e) => {
+  assert.throws(() => { script.runInContext(e[0]); }, e[1]);
+  assert.throws(() => { vm.runInContext('', e[0]); }, e[1]);
 });
 
 // Issue GH-693:
