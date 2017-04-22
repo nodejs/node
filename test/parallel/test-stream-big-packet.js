@@ -22,7 +22,7 @@ util.inherits(TestStream, stream.Transform);
 TestStream.prototype._transform = function(chunk, encoding, done) {
   if (!passed) {
     // Char 'a' only exists in the last write
-    passed = chunk.toString().indexOf('a') >= 0;
+    passed = chunk.toString().includes('a');
   }
   done();
 };
