@@ -82,7 +82,7 @@ assert.doesNotThrow(
     function() {
       const watcher = fs.watch(testsubdir, function(event, filename) {
         const renameEv = common.isSunOS || common.isAix ? 'change' : 'rename';
-        assert.strictEqual(renameEv, event);
+        assert.strictEqual(event, renameEv);
         if (expectFilePath) {
           assert.strictEqual(filename, 'newfile.txt');
         } else {
