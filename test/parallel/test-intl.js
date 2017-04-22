@@ -16,7 +16,7 @@ const haveIntl = (global.Intl !== undefined);
 // Else, returns false
 function haveLocale(loc) {
   const locs = process.config.variables.icu_locales.split(',');
-  return locs.indexOf(loc) !== -1;
+  return locs.includes(loc);
 }
 
 if (!haveIntl) {
