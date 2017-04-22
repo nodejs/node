@@ -43,11 +43,11 @@ if (process.argv[2] === 'child') {
   d.on('error', function(err) {
     // Swallowing the error on purpose if 'throwInDomainErrHandler' is not
     // set
-    if (process.argv.indexOf('throwInDomainErrHandler') !== -1) {
+    if (process.argv.includes('throwInDomainErrHandler')) {
       // If useTryCatch is set, wrap the throw in a try/catch block.
       // This is to make sure that a caught exception does not trigger
       // an abort.
-      if (process.argv.indexOf('useTryCatch') !== -1) {
+      if (process.argv.includes('useTryCatch')) {
         try {
           throw new Error(domainErrHandlerExMessage);
         } catch (e) {
