@@ -94,18 +94,18 @@ bool DebugOptions::ParseOption(const std::string& option) {
     argument = option.substr(pos + 1);
   }
 
+  // Note that --debug-port and --debug-brk are undocumented, but to be
+  // supported until 7.x is no longer supported, not even in LTS (see #12364).
   if (option_name == "--inspect") {
     debugger_enabled_ = true;
     enable_inspector = true;
-  } else if (option_name == "--inspect-brk") {
+  } else if (option_name == "--inspect-brk" || option_name == "--debug-brk") {
     debugger_enabled_ = true;
     enable_inspector = true;
     wait_connect_ = true;
-  } else if ((option_name != "--debug-port" &&
-              option_name != "--inspect-port") ||
-              !has_argument) {
-    // only other valid possibility is --inspect-port,
-    // which requires an argument
+  } else if (option_name == "--inspect-port" || option_name == "--debug-port") {
+    if (!has_argument) return false;
+  } else {
     return false;
   }
 

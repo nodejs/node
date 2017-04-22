@@ -40,7 +40,7 @@ class DebugOptions {
 #if HAVE_INSPECTOR
   bool inspector_enabled_;
 #endif  // HAVE_INSPECTOR
-  bool wait_connect_;
+  bool wait_connect_;  // --inspect-brk
   bool http_enabled_;
   std::string host_name_;
   int port_;
