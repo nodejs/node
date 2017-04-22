@@ -36,7 +36,7 @@ function errExec(script, callback) {
     assert.ok(stderr.split('\n').length > 2);
 
     // Assert the script is mentioned in error output.
-    assert.ok(stderr.indexOf(script) >= 0);
+    assert.ok(stderr.includes(script));
 
     // Proxy the args for more tests.
     callback(err, stdout, stderr);

@@ -30,7 +30,7 @@ const server2 = net.createServer(function(socket) {
 });
 server1.listen(0, function() {
   server2.on('error', function(error) {
-    assert.strictEqual(true, error.message.indexOf('EADDRINUSE') >= 0);
+    assert.strictEqual(true, error.message.includes('EADDRINUSE'));
     server1.close();
   });
   server2.listen(this.address().port);

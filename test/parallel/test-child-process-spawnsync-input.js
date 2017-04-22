@@ -52,7 +52,7 @@ function verifyBufOutput(ret) {
   assert.deepStrictEqual(ret.stderr, msgErrBuf);
 }
 
-if (process.argv.indexOf('spawnchild') !== -1) {
+if (process.argv.includes('spawnchild')) {
   switch (process.argv[3]) {
     case '1':
       ret = spawnSync(process.execPath, args, { stdio: 'inherit' });

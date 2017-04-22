@@ -34,7 +34,7 @@ if (enablei18n === undefined) {
 // Else, returns false
 function haveLocale(loc) {
   const locs = process.config.variables.icu_locales.split(',');
-  return locs.indexOf(loc) !== -1;
+  return locs.includes(loc);
 }
 
 // Always run these. They should always pass, even if the locale

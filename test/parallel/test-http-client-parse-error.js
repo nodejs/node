@@ -47,7 +47,7 @@ net.createServer(function(c) {
       path: '/'
     }).on('error', function(e) {
       console.log('got error from client');
-      assert.ok(e.message.indexOf('Parse Error') >= 0);
+      assert.ok(e.message.includes('Parse Error'));
       assert.strictEqual(e.code, 'HPE_INVALID_CONSTANT');
       parseErrors++;
     }).end();
