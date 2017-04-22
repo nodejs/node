@@ -15,11 +15,6 @@ port = port.port;
 
 server.listen(128);
 
-let sliceCount = 0, eofCount = 0;
-
-let writeCount = 0;
-let recvCount = 0;
-
 server.onconnection = (err, client) => {
   assert.strictEqual(0, client.writeQueueSize);
   console.log('got connection');
@@ -33,7 +28,7 @@ server.onconnection = (err, client) => {
 
   client.readStart();
   client.pendingWrites = [];
-  client.onread = (err, buffer) => {
+  client.onread = common.mustCall((err, buffer) => {
     if (buffer) {
       assert.ok(buffer.length > 0);
 
@@ -50,7 +45,7 @@ server.onconnection = (err, client) => {
       assert.strictEqual(0, client.writeQueueSize);
 
       if (req.async)
-        req.oncomplete = done;
+        req.oncomplete = common.mustCall(done);
       else
         process.nextTick(done.bind(null, 0, client, req));
 
@@ -65,20 +60,16 @@ server.onconnection = (err, client) => {
         console.log('client.writeQueueSize: ' + client.writeQueueSize);
         assert.strictEqual(0, client.writeQueueSize);
 
-        writeCount++;
-        console.log('write ' + writeCount);
         maybeCloseClient();
       }
 
-      sliceCount++;
     } else {
       console.log('eof');
       client.gotEOF = true;
       server.close();
-      eofCount++;
       maybeCloseClient();
     }
-  };
+  }, 2);
 };
 
 const net = require('net');
@@ -88,18 +79,10 @@ const c = net.createConnection(port);
 c.on('connect', common.mustCall(() => { c.end('hello world'); }));
 
 c.setEncoding('utf8');
-c.on('data', (d) => {
+c.on('data', common.mustCall((d) => {
   assert.strictEqual('hello world', d);
-  recvCount++;
-});
+}));
 
 c.on('close', () => {
   console.error('client closed');
-});
-
-process.on('exit', () => {
-  assert.strictEqual(1, sliceCount);
-  assert.strictEqual(1, eofCount);
-  assert.strictEqual(1, writeCount);
-  assert.strictEqual(1, recvCount);
 });
