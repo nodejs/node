@@ -2,8 +2,7 @@
 // Checks that setInterval timers keep running even when they're
 // unrefed within their callback.
 
-require('../common');
-const assert = require('assert');
+const common = require('../common');
 const net = require('net');
 
 let counter1 = 0;
@@ -28,7 +27,7 @@ function Test1() {
   // server only for maintaining event loop
   const server = net.createServer().listen(0);
 
-  const timer1 = setInterval(() => {
+  const timer1 = setInterval(common.mustCall(() => {
     timer1.unref();
     if (counter1++ === 3) {
       clearInterval(timer1);
@@ -36,7 +35,7 @@ function Test1() {
         Test2();
       });
     }
-  }, 1);
+  }, 4), 1);
 }
 
 
@@ -47,15 +46,11 @@ function Test2() {
   // server only for maintaining event loop
   const server = net.createServer().listen(0);
 
-  const timer2 = setInterval(() => {
+  const timer2 = setInterval(common.mustCall(() => {
     timer2.unref();
     if (counter2++ === 3)
       server.close();
-  }, 1);
+  }, 4), 1);
 }
-
-process.on('exit', () => {
-  assert.strictEqual(counter1, 4);
-});
 
 Test1();
