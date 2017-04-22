@@ -46,11 +46,11 @@ function Test2() {
   // server only for maintaining event loop
   const server = net.createServer().listen(0);
 
-  const timer2 = setInterval(common.mustCall(() => {
+  const timer2 = setInterval(() => {
     timer2.unref();
     if (counter2++ === 3)
       server.close();
-  }, 4), 1);
+  }, 1);
 }
 
 Test1();
