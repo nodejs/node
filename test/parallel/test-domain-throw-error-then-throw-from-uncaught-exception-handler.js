@@ -17,7 +17,7 @@ const RAN_UNCAUGHT_EXCEPTION_HANDLER_EXIT_CODE = 42;
 
 if (process.argv[2] === 'child') {
   process.on('uncaughtException', common.mustCall(function onUncaught() {
-    if (process.execArgv.indexOf('--abort-on-uncaught-exception') !== -1) {
+    if (process.execArgv.includes('--abort-on-uncaught-exception')) {
       // When passing --abort-on-uncaught-exception to the child process,
       // we want to make sure that this handler (the process' uncaughtException
       // event handler) wasn't called. Unfortunately we can't parse the child

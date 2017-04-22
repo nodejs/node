@@ -44,6 +44,6 @@ child.stdout.on('data', function(chunk) {
 });
 
 process.on('exit', function() {
-  assert.ok(response.indexOf('HELLO=WORLD') >= 0,
+  assert.ok(response.includes('HELLO=WORLD'),
             'spawn did not use process.env as default');
 });

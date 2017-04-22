@@ -50,7 +50,7 @@ function test() {
   let json = '';
   parent.stdout.on('data', function(c) {
     json += c.toString();
-    if (json.indexOf('\n') !== -1) next();
+    if (json.includes('\n')) next();
   });
   function next() {
     console.error('output from parent = %s', json);

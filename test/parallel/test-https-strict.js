@@ -132,11 +132,11 @@ function makeReq(path, port, error, host, ca) {
     options.agent = agent0;
   } else {
     if (!Array.isArray(ca)) ca = [ca];
-    if (-1 !== ca.indexOf(ca1) && -1 !== ca.indexOf(ca2)) {
+    if (ca.includes(ca1) && ca.includes(ca2)) {
       options.agent = agent3;
-    } else if (-1 !== ca.indexOf(ca1)) {
+    } else if (ca.includes(ca1)) {
       options.agent = agent1;
-    } else if (-1 !== ca.indexOf(ca2)) {
+    } else if (ca.includes(ca2)) {
       options.agent = agent2;
     } else {
       options.agent = agent0;
