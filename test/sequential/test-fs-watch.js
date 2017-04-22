@@ -36,10 +36,10 @@ assert.doesNotThrow(
     function() {
       const watcher = fs.watch(filepathOne);
       watcher.on('change', function(event, filename) {
-        assert.strictEqual('change', event);
+        assert.strictEqual(event, 'change');
 
         if (expectFilePath) {
-          assert.strictEqual('watch.txt', filename);
+          assert.strictEqual(filename, 'watch.txt');
         }
         watcher.close();
         ++watchSeenOne;
@@ -59,10 +59,10 @@ fs.writeFileSync(filepathTwoAbs, 'howdy');
 assert.doesNotThrow(
     function() {
       const watcher = fs.watch(filepathTwo, function(event, filename) {
-        assert.strictEqual('change', event);
+        assert.strictEqual(event, 'change');
 
         if (expectFilePath) {
-          assert.strictEqual('hasOwnProperty', filename);
+          assert.strictEqual(filename, 'hasOwnProperty');
         }
         watcher.close();
         ++watchSeenTwo;
@@ -82,11 +82,11 @@ assert.doesNotThrow(
     function() {
       const watcher = fs.watch(testsubdir, function(event, filename) {
         const renameEv = common.isSunOS || common.isAix ? 'change' : 'rename';
-        assert.strictEqual(renameEv, event);
+        assert.strictEqual(event, renameEv);
         if (expectFilePath) {
-          assert.strictEqual('newfile.txt', filename);
+          assert.strictEqual(filename, 'newfile.txt');
         } else {
-          assert.strictEqual(null, filename);
+          assert.strictEqual(filename, null);
         }
         watcher.close();
         ++watchSeenThree;
@@ -113,7 +113,7 @@ assert.throws(function() {
   oldhandle = w._handle;
   w._handle = { close: w._handle.close };
   w.close();
-}, TypeError);
+}, /^TypeError: Illegal invocation$/);
 oldhandle.close(); // clean up
 
 assert.throws(function() {
@@ -121,5 +121,5 @@ assert.throws(function() {
   oldhandle = w._handle;
   w._handle = { stop: w._handle.stop };
   w.stop();
-}, TypeError);
+}, /^TypeError: Illegal invocation$/);
 oldhandle.stop(); // clean up
