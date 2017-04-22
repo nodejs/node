@@ -46,7 +46,7 @@ assert.strictEqual('lala', context.thing);
 // Issue GH-227:
 assert.throws(function() {
   vm.runInNewContext('', null, 'some.js');
-}, TypeError);
+}, /^TypeError: sandbox must be an object$/);
 
 // Issue GH-1140:
 console.error('test runInContext signature');
