@@ -116,7 +116,7 @@ const sandbox = {
 const script = new vm.Script('count += 1; name = "kitty";');
 
 const context = new vm.createContext(sandbox);
-for (var i = 0; i < 10; ++i) {
+for (let i = 0; i < 10; ++i) {
   script.runInContext(context);
 }
 
@@ -203,7 +203,7 @@ global.globalVar = 0;
 
 const script = new vm.Script('globalVar += 1', { filename: 'myfile.vm' });
 
-for (var i = 0; i < 1000; ++i) {
+for (let i = 0; i < 1000; ++i) {
   script.runInThisContext();
 }
 
@@ -231,14 +231,14 @@ will remain unchanged.
 const util = require('util');
 const vm = require('vm');
 
-var globalVar = 3;
+global.globalVar = 3;
 
 const sandbox = { globalVar: 1 };
 vm.createContext(sandbox);
 
 vm.runInContext('globalVar *= 2;', sandbox);
 
-console.log(util.inspect(sandbox)); // 2
+console.log(util.inspect(sandbox)); // { globalVar: 2 }
 
 console.log(util.inspect(globalVar)); // 3
 ```
@@ -296,7 +296,7 @@ const vm = require('vm');
 const sandbox = { globalVar: 1 };
 vm.createContext(sandbox);
 
-for (var i = 0; i < 10; ++i) {
+for (let i = 0; i < 10; ++i) {
   vm.runInContext('globalVar *= 2;', sandbox);
 }
 console.log(util.inspect(sandbox));
@@ -399,9 +399,10 @@ local scope, but does have access to the current `global` object.
 The following example illustrates using both `vm.runInThisContext()` and
 the JavaScript [`eval()`][] function to run the same code:
 
+<!-- eslint-disable prefer-const -->
 ```js
 const vm = require('vm');
-var localVar = 'initial value';
+let localVar = 'initial value';
 
 const vmResult = vm.runInThisContext('localVar = "vm";');
 console.log('vmResult:', vmResult);
