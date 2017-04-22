@@ -87,7 +87,7 @@ All pull requests that modify executable code should be subjected to
 continuous integration tests on the
 [project CI server](https://ci.nodejs.org/).
 
-Here are some useful CI jobs:
+#### Useful CI Jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
 is the standard CI run we do to check Pull Requests. It triggers `node-test-commit`, 
@@ -98,7 +98,7 @@ only runs the linter targets, which is useful for changes that only affect comme
 or documentation.
 
 * [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
-uses [CitGM](https://github.com/nodejs/citgm) to allow you to run `npm install && npm test` 
+uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run `npm install && npm test` 
 on a large selection of common modules. This is useful to check whether a change will 
 cause breakage in the ecosystem. To test node ABI changes you can run [`citgm-abi-smoker`](https://ci.nodejs.org/job/citgm-abi-smoker/).
 
@@ -337,7 +337,7 @@ information regarding the change process:
 
 - A `PR-URL:` line that references the *full* GitHub URL of the original
   pull request being merged so it's easy to trace a commit back to the
-  conversation that led up to that change.   
+  conversation that led up to that change.
 - A `Fixes: X` line, where _X_ either includes the *full* GitHub URL
   for an issue, and/or the hash and commit message if the commit fixes
   a bug in a previous commit. Multiple `Fixes:` lines may be added if
