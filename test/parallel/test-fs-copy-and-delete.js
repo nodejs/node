@@ -5,6 +5,10 @@ const fs = require('fs');
 const assert = require('assert');
 common.refreshTmpDir();
 const testDir = common.tmpDir + '/copyanddeletetest';
+
+console.log('process.platform =', process.platform);
+console.log('os.platform() =', require('os').platform());
+
 if (!fs.existsSync(testDir)) {
   fs.mkdirSync(testDir);
 }
