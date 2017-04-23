@@ -414,12 +414,12 @@ function tcp_test() {
         { client: client_tcp, send: '',
           expect: prompt_tcp },
         { client: client_tcp, send: 'invoke_me(333)',
-          expect: ('\'' + 'invoked 333' + '\'\n' + prompt_tcp) },
+          expect: (`'invoked 333'\n${prompt_tcp}`) },
         { client: client_tcp, send: 'a += 1',
-          expect: ('12346' + '\n' + prompt_tcp) },
+          expect: (`12346\n${prompt_tcp}`) },
         { client: client_tcp,
           send: 'require(' + JSON.stringify(moduleFilename) + ').number',
-          expect: ('42' + '\n' + prompt_tcp) }
+          expect: (`42\n${prompt_tcp}`) }
       ]);
     });
 
@@ -483,13 +483,13 @@ function unix_test() {
         { client: client_unix, send: '',
           expect: prompt_unix },
         { client: client_unix, send: 'message',
-          expect: ('\'' + message + '\'\n' + prompt_unix) },
+          expect: (`'${message}'\n${prompt_unix}`) },
         { client: client_unix, send: 'invoke_me(987)',
-          expect: ('\'' + 'invoked 987' + '\'\n' + prompt_unix) },
+          expect: (`'invoked 987'\n${prompt_unix}`) },
         { client: client_unix, send: 'a = 12345',
-          expect: ('12345' + '\n' + prompt_unix) },
+          expect: (`12345\n${prompt_unix}`) },
         { client: client_unix, send: '{a:1}',
-          expect: ('{ a: 1 }' + '\n' + prompt_unix) }
+          expect: (`{ a: 1 }\n${prompt_unix}`) }
       ]);
     });
 

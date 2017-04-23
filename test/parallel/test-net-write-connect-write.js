@@ -12,7 +12,7 @@ const server = net.createServer(function(socket) {
   conn.setEncoding('utf8');
   conn.write('before');
   conn.on('connect', function() {
-    conn.write('after');
+    conn.write(' after');
   });
   conn.on('data', function(buf) {
     received += buf;
@@ -20,6 +20,6 @@ const server = net.createServer(function(socket) {
   });
   conn.on('end', common.mustCall(function() {
     server.close();
-    assert.strictEqual(received, 'before' + 'after');
+    assert.strictEqual(received, 'before after');
   }));
 }));
