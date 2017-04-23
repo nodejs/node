@@ -58,14 +58,6 @@ function checkProps(p1, p2) {
                 'mtimes are not correct.',
                 '<');
 
-  } if (Math.abs(fs.statSync(p1).atime.getTime() -
-               fs.statSync(p2).atime.getTime()) > 1000) {
-
-    assert.fail(Math.abs(fs.statSync(p1).atime.getTime() -
-                         fs.statSync(p2).atime.getTime()), 1000,
-                'atimes are not correct.',
-                '<');
-
   }
 
 }
