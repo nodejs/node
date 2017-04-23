@@ -8,6 +8,9 @@ const testDir = common.tmpDir + '/copyanddeletetest';
 
 function setUpDir(path) {
 
+  if (!fs.existsSync(path)) {
+    fs.mkdirSync(path);
+  }
   fs.mkdirSync(path + '/test1');
   fs.mkdirSync(path + '/test2');
   fs.mkdirSync(path + '/test3');
