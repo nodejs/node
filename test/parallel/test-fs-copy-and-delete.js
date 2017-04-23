@@ -79,7 +79,7 @@ fs.copy(testDir + '/test1', testDir + '/test1-copied', (err) => {
 
   if (err) {
 
-    throw err;
+    assert.ifError(err);
 
   } else {
 
@@ -116,7 +116,7 @@ fs.copy(testDir + '/test1', testDir + '/test1-copied', (err) => {
 
       if (err) {
 
-        throw err;
+        assert.ifError(err);
 
       } else {
 
