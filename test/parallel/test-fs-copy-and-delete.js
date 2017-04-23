@@ -5,6 +5,9 @@ const fs = require('fs');
 const assert = require('assert');
 common.refreshTmpDir();
 const testDir = common.tmpDir + '/copyanddeletetest';
+if (!fs.existsSync(testDir)) {
+  fs.mkdirSync(testDir);
+}
 
 function setUpDir(path) {
 
