@@ -50,7 +50,23 @@ function checkProps(p1, p2) {
   assert.strictEqual(fs.statSync(p1).uid, fs.statSync(p2).uid);
   assert.strictEqual(fs.statSync(p1).gid, fs.statSync(p2).gid);
   assert.strictEqual(fs.statSync(p1).size, fs.statSync(p2).size);
-  assert.strictEqual(fs.statSync(p1).mtime, fs.statSync(p2).mtime);
+  if (Math.abs(fs.statSync(p1).mtime.getTime() -
+               fs.statSync(p2).mtime.getTime()) > 1000) {
+
+    assert.fail(Math.abs(fs.statSync(p1).mtime.getTime() -
+                         fs.statSync(p2).mtime.getTime()), 1000,
+                'mtimes are not correct.',
+                '<');
+
+  } if (Math.abs(fs.statSync(p1).atime.getTime() -
+               fs.statSync(p2).atime.getTime()) > 1000) {
+
+    assert.fail(Math.abs(fs.statSync(p1).atime.getTime() -
+                         fs.statSync(p2).atime.getTime()), 1000,
+                'atimes are not correct.',
+                '<');
+
+  }
 
 }
 
