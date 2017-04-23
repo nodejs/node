@@ -65,14 +65,14 @@ TTest.prototype.gamma = function(x) {
 TTest.prototype.logGamma = function(n) {
   if (n <= 0) {
     throw new RangeError('logGamma(x): x must be positive.');
-	}
+  }
   return Math.log(Math.abs(this.gamma(n)));
 };
 
 TTest.prototype.log1p = function(n) {
   if (n <= -1) {
     throw new RangeError('log1p(x): x must be extrictly greater than -1');
-  }  
+  }
   return Math.log(n + 1);
 };
 
