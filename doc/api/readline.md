@@ -396,8 +396,8 @@ a `'resize'` event on the `output` if or when the columns ever change
 
 ### Use of the `completer` Function
 
-When called, the `completer` function is provided the current line entered by
-the user, and is expected to return an Array with 2 entries:
+The `completer` function takes the current line entered by the user
+as an argument, and returns an Array with 2 entries:
 
 * An Array with matching entries for the completion.
 * The substring that was used for the matching.
