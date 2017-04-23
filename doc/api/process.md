@@ -1594,7 +1594,7 @@ These behaviours are partly for historical reasons, as changing them would
 create backwards incompatibility, but they are also expected by some users.
 
 Synchronous writes avoid problems such as output written with `console.log()` or
-`console.write()` being unexpectedly interleaved, or not written at all if
+`console.error()` being unexpectedly interleaved, or not written at all if
 `process.exit()` is called before an asynchronous write completes. See
 [`process.exit()`][] for more information.
 
