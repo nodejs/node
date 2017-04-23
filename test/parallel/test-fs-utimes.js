@@ -39,12 +39,18 @@ function stat_resource(resource) {
 }
 
 function check_mtime(resource, mtime) {
-  mtime = fs._toUnixTimestamp(mtime);
   const stats = stat_resource(resource);
-  const real_mtime = fs._toUnixTimestamp(stats.mtime);
-  // check up to single-second precision
-  // sub-second precision is OS and fs dependant
-  return mtime - real_mtime < 2;
+  if (process.platform === 'win32') {
+    // check ms precision on windows.
+    return Math.floor(mtime) === Math.floor(stats.mtime);
+  } else {
+    mtime = fs._toUnixTimestamp(mtime);
+    const real_mtime = fs._toUnixTimestamp(stats.mtime);
+
+    // check up to single-second precision
+    // sub-second precision is OS and fs dependant
+    return mtime - real_mtime < 2;
+  }
 }
 
 function expect_errno(syscall, resource, err, errno) {
@@ -143,15 +149,17 @@ function testIt(atime, mtime, callback) {
 const stats = fs.statSync(__filename);
 
 // run tests
-const runTest = common.mustCall(testIt, 5);
+const runTest = common.mustCall(testIt, 6);
 
 runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
   runTest(new Date(), new Date(), function() {
     runTest(123456.789, 123456.789, function() {
       runTest(stats.mtime, stats.mtime, function() {
-        runTest('123456', -1, common.mustCall(function() {
-          // done
-        }));
+        runTest('123456', -1, function() {
+          runTest(1491674378008, 1491674378008, common.mustCall(function() {
+            // done
+          }));
+        });
       });
     });
   });
