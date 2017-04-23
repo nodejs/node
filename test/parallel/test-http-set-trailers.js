@@ -9,7 +9,7 @@ let outstanding_reqs = 0;
 const server = http.createServer(function(req, res) {
   res.writeHead(200, [['content-type', 'text/plain']]);
   res.addTrailers({'x-foo': 'bar'});
-  res.end('stuff' + '\n');
+  res.end('stuff\n');
 });
 server.listen(0);
 
