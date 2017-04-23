@@ -209,6 +209,8 @@ function calculateStats() {
     // If there are more benchmarks execute the next
     if (i + 1 < queue.length) {
       recursive(i + 1);
+    } else {
+      calculateStats();
     }
   });
 })(kStartOfQueue);
