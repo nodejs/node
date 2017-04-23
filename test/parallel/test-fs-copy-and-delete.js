@@ -138,6 +138,8 @@ fs.copy(testDir + '/test1', testDir + '/test1-copied', (err) => {
         assert.strictEqual(common
           .fileExists(`${testDir}/test1-copied/test3/file5`), false);
 
+        fs.deleteSync(`${testDir}/test1`);
+
       }
 
     });
