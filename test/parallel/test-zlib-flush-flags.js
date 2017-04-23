@@ -20,8 +20,8 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_OUT_OF_RANGE',
   type: RangeError,
-  message: `flush is out of range` +
-    ` [${zlib.constants.Z_NO_FLUSH} to ${zlib.constants.Z_BLOCK}]` }));
+  message: '"flush" is out of range. It should be between ' +
+    `${zlib.constants.Z_NO_FLUSH} and ${zlib.constants.Z_BLOCK}.` }));
 
 assert.doesNotThrow(() => {
   zlib.createGzip({ finishFlush: zlib.constants.Z_SYNC_FLUSH });
@@ -39,5 +39,5 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_OUT_OF_RANGE',
   type: RangeError,
-  message: `finishFlush is out of range` +
-    ` [${zlib.constants.Z_NO_FLUSH} to ${zlib.constants.Z_BLOCK}]` }));
+  message: '"finishFlush" is out of range. It should be between ' +
+    `${zlib.constants.Z_NO_FLUSH} and ${zlib.constants.Z_BLOCK}.` }));
