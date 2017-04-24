@@ -50,10 +50,13 @@ environment variable. For example: `NODE_DEBUG=fs,net,tls`.
 ## util.deprecate(function, string)
 <!-- YAML
 added: v0.8.0
+deprecated: REPLACEMENT
 -->
 
-The `util.deprecate()` method wraps the given `function` or class in such a way that
-it is marked as deprecated.
+> Stability: 0 - Deprecated: Use a userland alternative instead.
+
+The `util.deprecate()` method wraps the given `function` or class in such a way
+that it is marked as deprecated.
 
 ```js
 const util = require('util');

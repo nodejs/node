@@ -590,6 +590,27 @@ Type: Runtime
 `node debug` corresponds to the legacy CLI debugger which has been replaced with
 a V8-inspector based CLI debugger available through `node inspect`.
 
+<a id="DEP00XX"></a>
+### DEP00XX: util.deprecate()
+
+Type: Runtime
+
+The `util.deprecate()` method has been deprecated. Please use a userland
+alternative, such as [depd](https://www.npmjs.com/package/depd), instead.
+
+Alternatively, the `process.emitWarning()` API can also be used:
+
+```js
+let depWarn = true;
+function deprecationWarning(msg) {
+  if (depWarn) {
+    process.emitWarning(msg, 'DeprecationWarning');
+    depWarn = false;
+  }
+}
+deprecationWarning('This function is deprecated');
+```
+
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
