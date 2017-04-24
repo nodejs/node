@@ -12,6 +12,7 @@
 #include "libplatform/libplatform.h"
 
 #include <string.h>
+#include <sstream>
 #include <unordered_map>
 #include <vector>
 
@@ -500,6 +501,7 @@ class NodeInspectorClient : public V8InspectorClient {
                                                 terminated_(false),
                                                 running_nested_loop_(false) {
     client_ = V8Inspector::create(env->isolate(), this);
+    contextCreated(env->context(), "Node.js Main Context");
   }
 
   void runMessageLoopOnPause(int context_group_id) override {
@@ -627,7 +629,8 @@ class NodeInspectorClient : public V8InspectorClient {
 Agent::Agent(Environment* env) : parent_env_(env),
                                  client_(nullptr),
                                  platform_(nullptr),
-                                 enabled_(false) {}
+                                 enabled_(false),
+                                 next_context_number_(1) {}
 
 // Destructor needs to be defined here in implementation file as the header
 // does not have full definition of some classes.
@@ -641,7 +644,6 @@ bool Agent::Start(v8::Platform* platform, const char* path,
   client_ =
       std::unique_ptr<NodeInspectorClient>(
           new NodeInspectorClient(parent_env_, platform));
-  client_->contextCreated(parent_env_->context(), "Node.js Main Context");
   platform_ = platform;
   CHECK_EQ(0, uv_async_init(uv_default_loop(),
                             &start_io_thread_async,
@@ -839,6 +841,14 @@ void Agent::RequestIoThreadStart() {
   platform_->CallOnForegroundThread(isolate, new StartIoTask(this));
   isolate->RequestInterrupt(StartIoInterrupt, this);
   uv_async_send(&start_io_thread_async);
+}
+
+void Agent::ContextCreated(Local<Context> context) {
+  if (client_ == nullptr)  // This happens for a main context
+    return;
+  std::ostringstream name;
+  name << "VM Context " << next_context_number_++;
+  client_->contextCreated(context, name.str());
 }
 
 }  // namespace inspector
