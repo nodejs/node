@@ -3616,6 +3616,15 @@ static bool ParseDebugOpt(const char* arg) {
     use_debug_agent = true;
     use_inspector = true;
     port = arg + sizeof("--inspect=") - 1;
+  } else if (!strcmp(arg, "--inspect-brk")) {
+    use_debug_agent = true;
+    use_inspector = true;
+    debug_wait_connect = true;
+  } else if (!strncmp(arg, "--inspect-brk=", sizeof("--inspect-brk=") - 1)) {
+    use_debug_agent = true;
+    use_inspector = true;
+    debug_wait_connect = true;
+    port = arg + sizeof("--inspect-brk=") - 1;
 #else
   } else if (!strncmp(arg, "--inspect", sizeof("--inspect") - 1)) {
     fprintf(stderr,
