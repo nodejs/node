@@ -2842,18 +2842,8 @@ N-API provides an ABI-stable interface for these
 supporting functions which covers the most common asynchronous use cases.
 
 N-API defines the `napi_work` structure which is used to manage
-asynchronous workers. Instances are created/deleted with the following methods:
-
-```C
-NAPI_EXTERN
-napi_status napi_create_async_work(napi_env env,
-                                   napi_async_execute_callback execute,
-                                   napi_async_complete_callback complete,
-                                   void* data,
-                                   napi_async_work* result);
-NAPI_EXTERN napi_status napi_delete_async_work(napi_env env,
-                                               napi_async_work work);
-```
+asynchronous workers. Instances are created/deleted with
+[`napi_create_async_work`][] and [`napi_delete_async_work`][]. 
 
 The `execute` and `complete` callbacks are functions that will be
 invoked when the executor is ready to execute and when it completes its
@@ -2873,19 +2863,15 @@ addon-provided void* data that was passed into the
 `napi_create_async_work` call.
 
 Once created the async worker can be queued
-for execution using the `napi_async_queue_worker` function:
+for execution using the [`napi_queue_async_work`][] function:
 
 ```C
 NAPI_EXTERN napi_status napi_queue_async_work(napi_env env,
                                               napi_async_work work);
 ```
 
-If the work needs to be cancelled before the work has
-started execution, the following function can be called:
-
-```
-NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
-                                               napi_async_work work);
+[`napi_cancel_async_work`][] can be used if  the work needs
+to be cancelled before the work has started execution.
 ```
 
 After calling [`napi_cancel_async_work`][], the `complete` callback
@@ -2999,6 +2985,7 @@ callback invocation, even when it was cancelled.
 [`napi_cancel_async_work`]: #n_api_napi_cancel_async_work
 [`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
 [`napi_close_handle_scope`]: #n_api_napi_close_handle_scope
+[`napi_create_async_work`]: #n_api_napi_create_async_work
 [`napi_create_error`]: #n_api_napi_create_error
 [`napi_create_external_arraybuffer`][]: #n_api_napi_create_external_arraybuffer
 [`napi_create_range_error`]: #n_api_napi_create_range_error
@@ -3022,6 +3009,7 @@ callback invocation, even when it was cancelled.
 [`napi_open_escapable_handle_scope`]: #n_api_napi_open_escapable_handle_scope
 [`napi_open_handle_scope`]: #n_api_napi_open_handle_scope
 [`napi_property_descriptor`]: #n_api_napi_property_descriptor
+[`napi_queue_async_work`]: #n_api_napi_queue_async_work
 [`napi_reference_ref`]: #n_api_napi_reference_ref
 [`napi_reference_unref`]: #n_api_napi_reference_unref
 [`napi_throw_error`]: #n_api_napi_throw_error
@@ -3029,3 +3017,4 @@ callback invocation, even when it was cancelled.
 [`napi_throw_type_error`]: #n_api_napi_throw_type_error
 [`napi_unwrap`]: #n_api_napi_unwrap
 [`napi_wrap`]: #n_api_napi_wrap
+
