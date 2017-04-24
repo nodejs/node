@@ -229,7 +229,6 @@ bool v8_initialized = false;
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
 static bool debugger_running;
-static uv_async_t dispatch_debug_messages_async;
 
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
@@ -3912,72 +3911,12 @@ static void ParseArgs(int* argc,
 }
 
 
-// Called from V8 Debug Agent TCP thread.
-static void DispatchMessagesDebugAgentCallback(Environment* env) {
-  // TODO(indutny): move async handle to environment
-  uv_async_send(&dispatch_debug_messages_async);
-}
-
-
 static void StartDebug(Environment* env, const char* path,
                        DebugOptions debug_options) {
   CHECK(!debugger_running);
-  if (debug_options.debugger_enabled()) {
-    env->debugger_agent()->set_dispatch_handler(
-          DispatchMessagesDebugAgentCallback);
-    debugger_running = env->debugger_agent()->Start(debug_options);
-    if (debugger_running == false) {
-      fprintf(stderr, "Starting debugger on %s:%d failed\n",
-              debug_options.host_name().c_str(), debug_options.port());
-      fflush(stderr);
-    }
 #if HAVE_INSPECTOR
-  } else {
-    debugger_running = v8_platform.StartInspector(env, path, debug_options);
+  debugger_running = v8_platform.StartInspector(env, path, debug_options);
 #endif  // HAVE_INSPECTOR
-  }
-}
-
-
-// Called from the main thread.
-static void EnableDebug(Environment* env) {
-  CHECK(debugger_running);
-
-  // Send message to enable debug in workers
-  HandleScope handle_scope(env->isolate());
-
-  Local<Object> message = Object::New(env->isolate());
-  message->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "cmd"),
-               FIXED_ONE_BYTE_STRING(env->isolate(), "NODE_DEBUG_ENABLED"));
-  Local<Value> argv[] = {
-    FIXED_ONE_BYTE_STRING(env->isolate(), "internalMessage"),
-    message
-  };
-  MakeCallback(env, env->process_object(), "emit", arraysize(argv), argv);
-
-  // Enabled debugger, possibly making it wait on a semaphore
-  env->debugger_agent()->Enable();
-}
-
-
-// Called from the main thread.
-static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
-  Mutex::ScopedLock scoped_lock(node_isolate_mutex);
-  if (auto isolate = node_isolate) {
-    if (debugger_running == false) {
-      fprintf(stderr, "Starting debugger agent.\n");
-
-      HandleScope scope(isolate);
-      Environment* env = Environment::GetCurrent(isolate);
-      Context::Scope context_scope(env->context());
-      debug_options.EnableDebugAgent(DebugAgentType::kDebugger);
-      StartDebug(env, nullptr, debug_options);
-      EnableDebug(env);
-    }
-
-    Isolate::Scope isolate_scope(isolate);
-    v8::Debug::ProcessDebugMessages(isolate);
-  }
 }
 
 
@@ -4122,15 +4061,9 @@ static void DebugPause(const FunctionCallbackInfo<Value>& args) {
 
 static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
   if (debugger_running) {
+#if HAVE_INSPECTOR
     Environment* env = Environment::GetCurrent(args);
-#if HAVE_INSPECTOR
-    if (!debug_options.debugger_enabled()) {
-      env->inspector_agent()->Stop();
-    } else {
-#endif
-      env->debugger_agent()->Stop();
-#if HAVE_INSPECTOR
-    }
+    env->inspector_agent()->Stop();
 #endif
     debugger_running = false;
   }
@@ -4276,13 +4209,6 @@ void Init(int* argc,
 
   // Make inherited handles noninheritable.
   uv_disable_stdio_inheritance();
-
-  // init async debug messages dispatching
-  // Main thread uses uv_default_loop
-  CHECK_EQ(0, uv_async_init(uv_default_loop(),
-                            &dispatch_debug_messages_async,
-                            DispatchDebugMessagesAsyncCallback));
-  uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_debug_messages_async));
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
   // Set the ICU casing flag early
@@ -4474,9 +4400,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   const char* path = argc > 1 ? argv[1] : nullptr;
   StartDebug(&env, path, debug_options);
 
-  bool debugger_enabled =
-      debug_options.debugger_enabled() || debug_options.inspector_enabled();
-  if (debugger_enabled && !debugger_running)
+  if (debug_options.inspector_enabled() && !debugger_running)
     return 12;  // Signal internal error.
 
   {
@@ -4485,10 +4409,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   }
 
   env.set_trace_sync_io(trace_sync_io);
-
-  // Enable debugger
-  if (debug_options.debugger_enabled())
-    EnableDebug(&env);
 
   if (load_napi_modules) {
     ProcessEmitWarning(&env, "N-API is an experimental feature "

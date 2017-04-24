@@ -25,7 +25,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "ares.h"
-#include "debug-agent.h"
 #if HAVE_INSPECTOR
 #include "inspector_agent.h"
 #endif
@@ -553,10 +552,6 @@ class Environment {
   ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)
 #undef V
 
-  inline debugger::Agent* debugger_agent() {
-    return &debugger_agent_;
-  }
-
 #if HAVE_INSPECTOR
   inline inspector::Agent* inspector_agent() {
     return &inspector_agent_;
@@ -596,7 +591,6 @@ class Environment {
   size_t makecallback_cntr_;
   int64_t async_wrap_uid_;
   std::vector<int64_t> destroy_ids_list_;
-  debugger::Agent debugger_agent_;
 #if HAVE_INSPECTOR
   inspector::Agent inspector_agent_;
 #endif
