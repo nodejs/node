@@ -125,8 +125,8 @@ scope. For any invocations of code outside the execution of a native method
 create a scope before invoking any functions that can result in the creation
 of JavaScript values.
 
-Handle scopes are created using `napi_open_handle_scope` and are destroyed 
-using `napi_close_handle_scope`. Closing the scope can indicate to the GC that 
+Handle scopes are created using [`napi_open_handle_scope`][] and are destroyed 
+using [`napi_close_handle_scope`][]. Closing the scope can indicate to the GC that 
 all `napi_value`s created during the lifetime of the handle scope are no longer 
 referenced from the current stack frame.
 
@@ -237,7 +237,7 @@ struct napi_extended_error_info {
 };
 ```
 
-`napi_get_last_error_info()` returns the information for the last
+[`napi_get_last_error_info`][] returns the information for the last
 N-API call that was made. The `error_code` will match the
 `napi_status` returned by that call. The `error_message` will
 be a textual representation of the error that occurred.
@@ -272,7 +272,6 @@ exception is pending and no additional action is required. If the
 `napi_pending_exception`, in order to try to recover and continue
 instead of simply returning immediately, [`napi_is_exception_pending`][]
 must be called in order to determine if an exception is pending or not.
-and then check the value of `result`:
 
 When an exception is pending one of two approaches can be employed.
 
@@ -290,20 +289,20 @@ and then continue. This is only recommended in specific cases
 where it is known that the exception can be safely handled. In these
 cases [`napi_get_and_clear_last_exception`][] can be used to get and
 clear the exception.  On success, result will contain the handle to
-the last JavaScript Object thrown. If it is determinted, after
+the last JavaScript Object thrown. If it is determined, after
 retrieving the exception, the exception cannot be handled after all
-it can be re-thrown it with `napi_throw` where error is the
+it can be re-thrown it with [`napi_throw`][] where error is the
 JavaScript Error object to be thrown.
 
 The following utility functions are also available in case native code
 needs to throw an exception or determine if a `napi_value` is an instance
-of a JavaScript `Error` object.  [`napi_throw_error`][], 
-[`napi_throw_type_error`][], [`napi_throw_range_error`][]
+of a JavaScript `Error` object:  [`napi_throw_error`][], 
+[`napi_throw_type_error`][], [`napi_throw_range_error`][] and
 [`napi_is_error`][].
 
 The following utility functions are also available in case native
 code needs to create an Error object: [`napi_create_error`][],
-[`napi_create_type_error`][], [`napi_create_range_error`][].
+[`napi_create_type_error`][], and [`napi_create_range_error`][].
 where result is the napi_value that refers to the newly created
 JavaScript Error object.
 
@@ -619,12 +618,12 @@ references. Any count greater than 0 will prevent the object
 from being collected.
 
 References can be created with an initial reference count. The count can
-then be modified through `napi_reference_ref()` and
-`napi_reference_unref()`. If an object is collected while the count
+then be modified through [`napi_reference_ref`][] and
+[`napi_reference_unref`][]. If an object is collected while the count
 for a reference is 0, all subsequent calls to
-get the object associated with the reference (`napi_get_reference_value()`)
+get the object associated with the reference [`napi_get_reference_value`][]
 will return NULL for the returned `napi_value`. An attempt to call
-`napi_reference_ref()` for a reference whose object has been collected
+[`napi_reference_ref`][] for a reference whose object has been collected
 will result in an error.
 
 References must be deleted once they are no longer required by the addon. When
@@ -2776,30 +2775,32 @@ the `complete` callback will be invoked with a status value of
 callback invocation, even when it was cancelled.
 
 
+[Aynchronous Operations]: #n_api_asynchronous_operations
 [Basic N-API Data Types]: #n_api_basic_n_api_data_types
+[ECMAScript Language Specification]: https://tc39.github.io/ecma262/
 [Error Handling]: #n_api_error_handling
-[Object Lifetime Management]: #n_api_object_lifetime_management
 [Module Registration]: #n_api_module_registration
+[Native Abstractions for Node.js]: https://github.com/nodejs/nan
+[Object Lifetime Management]: #n_api_object_lifetime_management
+[Object Wrap]: #n_api_object_wrap
+[Working with JavaScript Functions]: #n_api_working_with_javascript_functions
+[Working with JavaScript Properties]: #n_api_working_with_javascript_properties
 [Working with JavaScript Values]: #n_api_working_with_javascript_values
 [Working with JavaScript Values - Abstract Operations]: #n_api_working_with_javascript_values_abstract_operations
-[Working with JavaScript Properties]: #n_api_working_with_javascript_properties
-[Working with JavaScript Functions]: #n_api_working_with_javascript_functions
-
-[Object Wrap]: #n_api_object_wrap
-[Aynchronous Operations]: #n_api_asynchronous_operations
-[Native Abstractions for Node.js]: https://github.com/nodejs/nan
-[ECMAScript Language Specification]: https://tc39.github.io/ecma262/
-
-[`napi_get_and_clear_last_exception`]: #n_api_napi_get_and_clear_last_exception
+[`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
+[`napi_close_handle_scope`]: #n_api_napi_close_handle_scope
+[`napi_create_error`]: #n_api_napi_create_error
+[`napi_create_range_error`]: #n_api_napi_create_range_error
+[`napi_create_type_error`]: #n_api_napi_create_type_error
+[`napi_escape_handle`]: #n_api_napi_escape_handle
+[`napi_get_reference_value`]: #n_api_napi_get_reference_value
+[`napi_is_error`]: #n_api_napi_is_error
 [`napi_is_exception_pending`]: #n_api_napi_is_exception_pending
+[`napi_get_last_error_info`]: #n_api_napi_get_last_error_info
+[`napi_get_and_clear_last_exception`]: #n_api_napi_get_and_clear_last_exception
+[`napi_open_escapable_handle_scope`]: #n_api_napi_open_escapable_handle_scope
+[`napi_open_handle_scope`]: #n_api_napi_open_handle_scope
+[`napi_reference_unref`]: #n_api_napi_reference_unref
 [`napi_throw_error`]: #n_api_napi_throw_error
 [`napi_throw_range_error`]: #n_api_napi_throw_range_error
-[`napi_is_error`]: #n_api_napi_is_error
-[`napi_create_error`: #n_api_napi_create_error
-[`napi_create_type_error`]: #n_api_napi_create_type_error
-[`napi_create_range_error`]: #n_api_napi_create_range_error
-[`napi_open_handle_scope`]: #n_api_napi_open_handle_scope
-[`napi_close_handle_scope`]: #n_api_napi_close_handle_scope
-[`napi_open_escapable_handle_scope`]: #n_api_napi_open_escapable_handle_scope
-[`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
-[`napi_escape_handle`]: #n_api_napi_escape_handle
+[`napi_throw_type_error`]: #n_api_napi_throw_type_error
