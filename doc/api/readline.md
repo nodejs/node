@@ -158,7 +158,7 @@ For example:
 
 ```js
 rl.on('SIGINT', () => {
-  rl.question('Are you sure you want to exit?', (answer) => {
+  rl.question('Are you sure you want to exit? ', (answer) => {
     if (answer.match(/^y(es)?$/i)) rl.pause();
   });
 });
@@ -255,7 +255,7 @@ If the `readline.Interface` was created with `output` set to `null` or
 Example usage:
 
 ```js
-rl.question('What is your favorite food?', (answer) => {
+rl.question('What is your favorite food? ', (answer) => {
   console.log(`Oh, so your favorite food is ${answer}`);
 });
 ```
@@ -414,7 +414,7 @@ For instance: `[[substr1, substr2, ...], originalsubstring]`.
 ```js
 function completer(line) {
   const completions = '.help .error .exit .quit .q'.split(' ');
-  const hits = completions.filter((c) => c.indexOf(line) === 0);
+  const hits = completions.filter((c) => c.startsWith(line));
   // show all completions if none found
   return [hits.length ? hits : completions, line];
 }
