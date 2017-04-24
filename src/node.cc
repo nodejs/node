@@ -53,7 +53,7 @@
 #endif
 
 #include <errno.h>
-#include <fcntl.h>. // _O_RDWR
+#include <fcntl.h>  // _O_RDWR
 #include <limits.h>  // PATH_MAX
 #include <locale.h>
 #include <signal.h>
