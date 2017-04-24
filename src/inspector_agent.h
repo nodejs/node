@@ -96,6 +96,7 @@ class Agent {
   void RequestIoThreadStart();
 
   DebugOptions& options() { return debug_options_; }
+  void ContextCreated(v8::Local<v8::Context> context);
 
  private:
   node::Environment* parent_env_;
@@ -105,6 +106,7 @@ class Agent {
   bool enabled_;
   std::string path_;
   DebugOptions debug_options_;
+  int next_context_number_;
 };
 
 }  // namespace inspector
