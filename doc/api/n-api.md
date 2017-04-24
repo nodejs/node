@@ -4,7 +4,7 @@
 
 
 N-API is an API for building native Addons. It is independent from
-the underlying JavaScript runtime (ex v8) and is maintained as part of
+the underlying JavaScript runtime (ex V8) and is maintained as part of
 Node.js itself. This API will be Application Binary Interface (ABI) stable
 across versions of Node.js. It is intended to insulate Addons from
 changes in the underlying JavaScript engine and allow modules
@@ -18,7 +18,7 @@ Instead of using the V8 or [Native Abstractions for Node.js][] APIs,
 the functions available in the N-API are used.
 
 
-APIs exposed by N-AP are generally used to create and manipulate
+APIs exposed by N-API are generally used to create and manipulate
 JavaScript values. Concepts and operations generally map to ideas specified 
 in the ECMA262 Language Specification. The APIs have the following 
 properties:
@@ -46,7 +46,7 @@ The documentation for N-API is structured as follows:
 
 The N-API is a C API that ensures ABI stability
 across Node.js versions and different compiler levels. However, we also
-understand that a C++ API can be easier/faster to use in many
+understand that a C++ API can be easier to use in many
 cases. To support these cases we expect there to be one or more
 C++ wrapper modules that provide an inlineable C++ API. Binaries built
 with these wrapper modules will depend on the symbols for the N-API C based
@@ -130,7 +130,7 @@ using `napi_close_handle_scope`. Closing the scope can indicate to the GC that
 all `napi_value`s created during the lifetime of the handle scope are no longer 
 referenced from the current stack frame.
 
-For more details, review the [Object Lifetime Management section](TODO://path).
+For more details, review the [Object Lifetime Management][].
 
 #### *napi_escapable_handle_scope*
 Escapable handle scopes are a special type of handle scope to return values
@@ -141,7 +141,7 @@ This is the abstraction to use to reference a `napi_value`. This allows for
 users to manage the lifetimes of JavaScript values, including defining their 
 minimum lifetimes explicitly.
 
-For more details, review the [Object Lifetime Management section](TODO://path).
+For more details, review the [Object Lifetime Management][].
 
 ### N-API Callback types
 
@@ -205,8 +205,8 @@ will be returned. If an exception was thrown, and no error occurred,
 `napi_pending_exception` will be returned.
 
 In cases where a return value other than `napi_ok` or
-`napi_pending_exception` is returned, you must call
-`napi_is_exception_pending()` to check if an exception is pending.
+`napi_pending_exception` is returned, `napi_is_exception_pending()`
+must be called to check if an exception is pending.
 See the section on exceptions for more details.
 
 The full set of possible napi_status values is defined
@@ -215,10 +215,11 @@ in `napi_api_types.h`.
 The `napi_status` return value provides a VM-independent representation of
 the error which occurred. In some cases it is useful to be able to get
 more detailed information, including a string representing the error as well as
-VM (engine)-specific information. **NOTE:**  you should not rely on the
-content or format of any of the extended information as it is
-not subject to SemVer and may change at any time. It is intended
-only for logging purposes.
+VM (engine)-specific information. 
+
+**Note:** Do not rely on the content or format of any of the extended
+information as it is not subject to SemVer and may change at any time.
+It is intended only for logging purposes.
 
 In order to retrieve this information, the following method is provided:
 
@@ -237,7 +238,7 @@ struct napi_extended_error_info {
 ```
 
 `napi_get_last_error_info()` returns the information for the last
-N-API call that was made. Tthe  `error_code` will match the
+N-API call that was made. The `error_code` will match the
 `napi_status` returned by that call. The `error_message` will
 be a textual representation of the error that occurred.
 
@@ -250,7 +251,7 @@ napi_get_last_error_info(napi_env env,
                          const napi_extended_error_info** result);
 ```
 ##### Parameters
-- `[in]  env `: The environment that the API is invoked under
+- `[in]  env`: The environment that the API is invoked under
 - `[out]  result`: The `napi_extended_error_info` structure with more
 information about the error.
 
@@ -259,29 +260,25 @@ information about the error.
 
 ##### Description
 This API retrieves a `napi_extended_error_info` structure with information
-about the last error tha occured.
+about the last error that occured.
 
 
 ### Exceptions
 
-Any N-API function may result in a pending JavaScript exception. This is
-obviously the case for any function that may cause the execution of JavaScript
-but N-API specifies that an exception may be pending on return from any
-of the API functions.
+Any N-API function call may result in a pending JavaScript exception. This is
+obviously the case for any function that may cause the execution of
+JavaScript, but N-API specifies that an exception may be pending
+on return from any of the API functions.
 
 If the `napi_status` returned by a function is `napi_ok` then no
 exception is pending and no additional action is required. If the
 `napi_status` returned is anything other than `napi_ok` or
-`napi_pending_exception`, and you want to try to recover and continue
-instead of simply returning immediately, then you must call the
-following function in order to determine if an exception is pending or not
+`napi_pending_exception`, in order to try to recover and continue
+instead of simply returning immediately, `[napi_is_exception_pending][]
+must be called in order to determine if an exception is pending or not.
 and then check the value of `result`:
 
-```C
-napi_is_exception_pending()
-```
-
-When an exception is pending you will generally follow one of two approaches.
+When an exception is pending one of two approaches can be employed.
 
 The first appoach is to do any appropriate cleanup and then return so that
 execution will return to JavaScript. As part of the transition back to
@@ -293,23 +290,14 @@ and then return to JavaScript where the exception can be handled.
 
 The second approach is to try to handle the exception. There will be cases
 where the native code can catch the exception, take the appropriate action,
-and then continue. It is recommended that you only do this in specific cases
-where you know you can safely handle the exception. In these cases you can
-use the following function to get and clear the exception:
-
-```C
-napi_get_and_clear_last_exception()
-```
-
-On success, result will contain the handle to the last JavaScript Object
-thrown. If you determine after retrieving the exception that you cannot
-handle it after all, you can re-throw it with the following function:
-
-```C
-napi_throw()
-```
-
-where error is the JavaScript Error object to be thrown.
+and then continue. This is only recommended in specific cases
+where it is known that the exception can be safely handled. In these
+cases `napi_get_and_clear_last_exception` can be used to get and
+clear the exception.  On success, result will contain the handle to
+the last JavaScript Object thrown. If it is determinted, after
+retrieving the exception, the exception cannot be handled after all
+it can be re-thrown it with `napi_throw` where error is the
+JavaScript Error object to be thrown.
 
 The following utility functions are also available in case native code
 needs to throw an exception or determine if a `napi_value` is an instance
@@ -340,7 +328,7 @@ JavaScript Error object.
 NODE_EXTERN napi_status napi_throw(napi_env e, napi_value error);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under.
+- `[in] env`: The environment that the API is invoked under.
 - `[in] error`: The `napi_value` for the Error to be thrown.
 
 ##### Return value
@@ -356,7 +344,7 @@ This API throws the JavaScript Error provided.
 NODE_EXTERN napi_status napi_throw_error(napi_env e, const char* msg);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] msg`: C string representing the text to be associated with
 the error.
 
@@ -372,7 +360,7 @@ This API throws a JavaScript Error with the text provided.
 NODE_EXTERN napi_status napi_throw_type_error(napi_env e, const char* msg);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] msg`: C string representing the text to be associated with
 the error.
 
@@ -388,7 +376,7 @@ This API throws a JavaScript TypeError with the text provided.
 NODE_EXTERN napi_status napi_throw_range_error(napi_env e, const char* msg);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] msg`: C string representing the text to be associated with
 the error.
 
@@ -407,7 +395,7 @@ NODE_EXTERN napi_status napi_is_error(napi_env e,
                                       bool* result);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] msg`: `napi_value` to be checked
 - `[out] result`: boolean value. Set to true if `napi_value` represents
 an error, false otherwise
@@ -425,7 +413,7 @@ This API queries a `napi_value` to check if it represents an error object.
 NODE_EXTERN napi_status napi_create_error(napi_env e, const char* msg);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] msg`: C string representing the text to be associated with
 - `[out] result`: `napi_value` representing the error created .
 
@@ -441,7 +429,7 @@ This API returns a JavaScript Error with the text provided.
 NODE_EXTERN napi_status napi_create_type_error(napi_env e, const char* msg);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] msg`: C string representing the text to be associated with
 - `[out] result`: `napi_value` representing the error created 
 
@@ -458,7 +446,7 @@ This API returns a JavaScript TypeError with the text provided.
 NODE_EXTERN napi_status napi_create_range_error(napi_env e, const char* msg);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] msg`: C string representing the text to be associated with
 - `[out] result`: `napi_value` representing the error created .
 
@@ -495,14 +483,14 @@ the lifespan of a native method. For example, consider a native method
 that has a loop which iterates through the elements in a large array:
 
 ```C
-  for (int i = 0; i < 1000000; i++) {
-    napi_value result;
-    napi_status status = napi_get_element(e object, i, &result);
-    if (status != napi_ok) {
-      break;
-    }
-    // do something with element
+for (int i = 0; i < 1000000; i++) {
+  napi_value result;
+  napi_status status = napi_get_element(e object, i, &result);
+  if (status != napi_ok) {
+    break;
   }
+  // do something with element
+}
 ```
 
 This would result in a large number of handles being created, consuming
@@ -550,8 +538,8 @@ for (int i = 0; i < 1000000; i++) {napi_
 }
 ```
 
-When nesting scopes, there are cases where you want a handle from an
-inner scope to live beyond the lifespan of that scope. N-API supports an
+When nesting scopes, there are cases where a handle from an
+inner scope needs  to live beyond the lifespan of that scope. N-API supports an
 'escapable scope' in order to support this case. An escapable scope
 allows one or more handles to be 'promoted' so that they 'escape' the
 current scope and the lifespan of the handle(s) changes from the current
@@ -578,7 +566,7 @@ NODE_EXTERN napi_status napi_open_handle_scope(napi_env e,
                                                napi_handle_scope* result);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[out] result`: `napi_value` representing the new scope
 
 ##### Return value
@@ -594,7 +582,7 @@ NODE_EXTERN napi_status napi_close_handle_scope(napi_env e,
                                                 napi_handle_scope scope);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] scope`: `napi_value` representing the scope to be closed
 
 ##### Return value
@@ -602,7 +590,7 @@ NODE_EXTERN napi_status napi_close_handle_scope(napi_env e,
 
 ##### Description
 This API closes the scope passed in. Scopes must be closed in the
-reverse order from which they were created.o
+reverse order from which they were created.
 
 #### napi_open_escapable_handle_scope
 ##### Signature
@@ -612,7 +600,7 @@ NODE_EXTERN napi_status
                                      napi_handle_scope* result);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[out] result`: `napi_value` representing the new scope
 
 ##### Return value
@@ -630,7 +618,7 @@ NODE_EXTERN napi_status
                                       napi_handle_scope scope);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] scope`: `napi_value` representing the scope to be closed
 
 ##### Return value
@@ -650,7 +638,7 @@ NAPI_EXTERN napi_status napi_escape_handle(napi_env env,
 ```
 
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] scope`: `napi_value` representing the current scope
 - `[in] escapee`: `napi_value` representing the JavaScript Object to be escaped
 - `[out] result`: `napi_value` handle to the escaped Object in the outer scope
@@ -667,8 +655,8 @@ for the lifetime of the outer scope.
 
 In some cases an addon will need to be able to create and reference objects
 with a lifespan longer than that of a single native method invocation. For
-example, if you want to create a constructor and later use that constructor
-in a request to creates instances, you will need to be able to reference
+example, to create a constructor and later use that constructor
+in a request to creates instances, it must be possible to reference
 the constructor object across many different instance creation requests. This
 would not be possible with a normal handle returned as a `napi_value` as
 described in the earlier section. The lifespan of a normal handle is
@@ -689,7 +677,7 @@ then be modified through `napi_reference_ref()` and
 for a reference is 0, all subsequent calls to
 get the object associated with the reference (`napi_get_reference_value()`)
 will return NULL for the returned `napi_value`. An attempt to call
-`napi_reference_ref()` for a reference whose object has been collected,
+`napi_reference_ref()` for a reference whose object has been collected
 will result in an error.
 
 References must be deleted once they are no longer required by the addon. When
@@ -712,7 +700,7 @@ NODE_EXTERN napi_status napi_create_reference(napi_env e,
 ```
 
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] value`: `napi_value` representing the Object to which we want
 a reference
 - `[in] initial_refcount`: initial reference count for the new reference
@@ -732,7 +720,7 @@ NODE_EXTERN napi_status napi_delete_reference(napi_env e, napi_ref ref);
 ```
 
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] ref`: `napi_ref` to be deleted
 
 ##### Return value
@@ -749,7 +737,7 @@ NODE_EXTERN napi_status napi_reference_ref(napi_env e,
                                            int* result);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] ref`: `napi_ref` to which we'll increment the reference count
 - `[out] result`: the new reference count
 
@@ -769,7 +757,7 @@ NODE_EXTERN napi_status napi_reference_unref(napi_env e,
                                              int* result);
 ```
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] ref`: `napi_ref` to which we'll decrement the reference count
 - `[out] result`: the new reference count
 
@@ -792,7 +780,7 @@ NODE_EXTERN napi_status napi_get_reference_value(napi_env e,
 the `napi_value passed` in or out of these methods is a handle to the
 object to which the reference is related.
 ##### Parameters
-- `[in] env `: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[in] ref`: `napi_ref` for which we requesting the corresponding Object
 - `[out] result`: the `napi_value` for the Object referenced by the
 `napi_ref`
@@ -808,7 +796,8 @@ will be NULL.
 ## Module registration
 
 N-API modules are registered in the same manner as other modules
-except that instead of using the `NODE_MODULE` macro you use:
+except that instead of using the `NODE_MODULE` macro the following
+is used:
 
 ```C
 NAPI_MODULE(addon, Init)
@@ -848,28 +837,28 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
 ```
 
 For example, to define a class so that new instances can be created
-(often used with [object wrap]()):
+(often used with [Object Wrap][]):
 
 ```C
-  // NOTE: partial example, not all referenced code is included
+// NOTE: partial example, not all referenced code is included
 
-  napi_status status;
-  napi_property_descriptor properties[] = {
-      { "value", nullptr, GetValue, SetValue, 0, napi_default, 0 },
-      DECLARE_NAPI_METHOD("plusOne", PlusOne),
-      DECLARE_NAPI_METHOD("multiply", Multiply),
-  };
+napi_status status;
+napi_property_descriptor properties[] = {
+    { "value", nullptr, GetValue, SetValue, 0, napi_default, 0 },
+    DECLARE_NAPI_METHOD("plusOne", PlusOne),
+    DECLARE_NAPI_METHOD("multiply", Multiply),
+};
 
-  napi_value cons;
-  status =
-      napi_define_class(env, "MyObject", New, nullptr, 3, properties, &cons);
-  if (status != napi_ok) return;
+napi_value cons;
+status =
+    napi_define_class(env, "MyObject", New, nullptr, 3, properties, &cons);
+if (status != napi_ok) return;
 
-  status = napi_create_reference(env, cons, 1, &constructor);
-  if (status != napi_ok) return;
+status = napi_create_reference(env, cons, 1, &constructor);
+if (status != napi_ok) return;
 
-  status = napi_set_named_property(env, exports, "MyObject", cons);
-  if (status != napi_ok) return;
+status = napi_set_named_property(env, exports, "MyObject", cons);
+if (status != napi_ok) return;
 ```
 
 For more details on setting properties on either the `exports` or `module`
@@ -882,13 +871,13 @@ For more details on building addon modules in general, refer to the existing API
 N-API exposes a set of APIs to create all types of JavaScript values. 
 Some of these types are documented under 
 [Section 6](https://tc39.github.io/ecma262/#sec-ecmascript-data-types-and-values) 
-of the [ECMAScript Language Specification](https://tc39.github.io/ecma262/).
+of the [ECMAScript Language Specification][].
 
 Fundamentally, these APIs are used to do one of the following:
 1. Create a new JavaScript object
-2. Convert from a primitive C++ type to an N-API value
-3. Convert from N-API value to a primitive C++ type
-4. Get global instances including Undefined and Null
+2. Convert from a primitive C type to an N-API value
+3. Convert from N-API value to a primitive C type
+4. Get global instances including `undefined` and `null`
 
 N-API values are represented by the type `napi_value`.
 Any N-API call that requires a JavaScript value takes in a `napi_value`.
@@ -945,7 +934,7 @@ typedef enum {
 This represents the underlying binary scalar datatype of the TypedArray.
 Elements of this enum correspond to 
 [Section 22.2](https://tc39.github.io/ecma262/#sec-typedarray-objects)
-of the [ECMAScript Language Specification](https://tc39.github.io/ecma262/).
+of the [ECMAScript Language Specification][].
 
 ### Object Creation Functions
 
@@ -992,8 +981,8 @@ The Array's length property is set to the passed-in length parameter.
 However, the underlying buffer is not guaranteed to be pre-allocated by the VM
 when the array is created - that behavior is left to the underlying VM
 implementation. 
-If you need the buffer to be a contiguous block of memory that can be 
-directly read and/or written via C++, consider using 
+if the buffer must be a contiguous block of memory that can be 
+directly read and/or written via C, consider using 
 `napi_create_external_arraybuffer`.
 
 JavaScript arrays are described in 
@@ -1182,6 +1171,8 @@ This API allocates a `node::Buffer` object and initializes it with data
 backed by the passed in buffer. While this is still a fully-supported data
 structure, in most cases using a TypedArray will suffice.
 
+**Note:** For Node.js >=4 `Buffers` are Uint8Arrays.
+
 #### *napi_create_function*
 
 ##### Signature
@@ -1255,7 +1246,7 @@ UTF8-encoded string to describe the symbol
 - `napi_ok` if the API succeeded.
 
 ##### Description
-This API creates a JavaScript Symbol object from a UTF8-encoded C++ string
+This API creates a JavaScript Symbol object from a UTF8-encoded C string
 
 The JavaScript Symbol type is described in 
 [Section 19.4](https://tc39.github.io/ecma262/#sec-symbol-objects) 
@@ -1291,14 +1282,14 @@ TypedArray objects provide an array-like view over an underlying data buffer
 where each element has the same underlying binary scalar datatype.
 
 It's required that (length * size_of_element) + byte_offset should 
-be <= ArrayBuffer.ArrayBufferByteLength. If not, a RangeError exception is 
+be <= the size in bytes of the array passed in. If not, a RangeError exception is 
 raised.
 
 JavaScript TypedArray Objects are described in
 [Section 22.2](https://tc39.github.io/ecma262/#sec-typedarray-objects) 
 of the ECMAScript Language Specification.
 
-### Functions to convert from C++ types to N-API
+### Functions to convert from C types to N-API
 
 #### *napi_create_number*
 
@@ -1316,7 +1307,7 @@ napi_status napi_create_number(napi_env env, double value, napi_value* result)
 - `napi_ok` if the API succeeded.
 
 ##### Description
-This API is used to convert from the C++ double type to the JavaScript 
+This API is used to convert from the C double type to the JavaScript 
 Number type.
 
 The JavaScript Number type is described in
@@ -1344,7 +1335,7 @@ null-terminated.
 - `napi_ok` if the API succeeded.
 
 ##### Description
-This API creates a JavaScript String object from a UTF16-LE-encoded C++ string
+This API creates a JavaScript String object from a UTF16-LE-encoded C string
 
 The JavaScript String type is described in
 [Section 6.1.4](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type) 
@@ -1371,13 +1362,13 @@ null-terminated.
 - `napi_ok` if the API succeeded.
 
 ##### Description
-This API creates a JavaScript String object from a UTF8-encoded C++ string
+This API creates a JavaScript String object from a UTF8-encoded C string
 
 The JavaScript String type is described in
 [Section 6.1.4](https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type)
 of the ECMAScript Language Specification.
 
-### Functions to convert from N-API to C++ types
+### Functions to convert from N-API to C types
 
 #### *napi_get_array_length*
 
@@ -1427,13 +1418,11 @@ napi_status napi_get_arraybuffer_info(napi_env env,
 This API is used to retrieve the underlying data buffer of an ArrayBuffer and
 its length.
 WARNING: Use caution while using this API. The lifetime of the underlying data
-buffer is managed by the ArrayBuffer even after it's returned to you. A
+buffer is managed by the ArrayBuffer even after it's returned. A
 possible safe way to use this API is in conjunction with napi_create_reference,
-which can be used to guarantee that you control the lifetime of the
+which can be used to guarantee control over the lifetime of the
 ArrayBuffer. It's also safe to use the returned data buffer within the same
-callback as long as you don't call any other APIs that might trigger a GC.
-
-<TODO: What happens to this buffer in case of a compacting GC?>
+callback as long as there are no calls to other APIs that might trigger a GC.
 
 #### *napi_get_buffer_info*
 
@@ -1520,7 +1509,7 @@ napi_status napi_get_value_bool(napi_env env, napi_value value, bool* result)
 ##### Parameters
 - `[in]  env`: The environment that the API is invoked under
 - `[in]  value`: `napi_value` representing JavaScript Boolean
-- `[out] result`: C++ boolean primitive equivalent of the given JavaScript
+- `[out] result`: C boolean primitive equivalent of the given JavaScript
 Boolean
 
 ##### Return value
@@ -1528,7 +1517,7 @@ Boolean
 - `napi_boolean_expected` if a non-boolean `napi_value` is passed in
 
 ##### Description
-This API retuns C++ boolean primitive equivalent of the given JavaScript
+This API returns C boolean primitive equivalent of the given JavaScript
 Boolea
 
 #### *napi_get_value_double*
@@ -1543,7 +1532,7 @@ napi_status napi_get_value_double(napi_env env,
 ##### Parameters
 - `[in]  env`: The environment that the API is invoked under
 - `[in]  value`: `napi_value` representing JavaScript Number
-- `[out] result`: C++ double primitive equivalent of the given JavaScript
+- `[out] result`: C double primitive equivalent of the given JavaScript
 Number
 
 ##### Return value
@@ -1551,7 +1540,7 @@ Number
 - `napi_number_expected` if a non-number `napi_value` is passed in
 
 ##### Description
-This API returns the C++ double primitive equivalent of the given JavaScript
+This API returns the C double primitive equivalent of the given JavaScript
 Number.
 
 
@@ -1574,7 +1563,7 @@ napi_status napi_get_value_external(napi_env env,
 - `napi_invalid_arg` if a non-external `napi_value` is passed in
 
 ##### Description
-This API returns the Pointer to the data wrapped by the JavaScript
+This API returns the pointer to the data wrapped by the JavaScript
 External value
 
 #### *napi_get_value_int32*
@@ -1589,14 +1578,14 @@ napi_status napi_get_value_int32(napi_env env,
 ##### Parameters
 - `[in]  env`: The environment that the API is invoked under
 - `[in]  value`: `napi_value` representing JavaScript Number
-- `[out] result`: C++ int32 primitive equivalent of the given JavaScript Number
+- `[out] result`: C int32 primitive equivalent of the given JavaScript Number
 
 ##### Return value
 - `napi_ok` if the API succeeded.
 - `napi_number_expected` if a non-number `napi_value` is passed in
 
 ##### Description
-This API returns the C++ int32 primitive equivalent
+This API returns the C int32 primitive equivalent
 of the given JavaScript Number
 
 #### *napi_get_value_int64*
@@ -1611,14 +1600,14 @@ napi_status napi_get_value_int64(napi_env env,
 ##### Parameters
 - `[in]  env`: The environment that the API is invoked under
 - `[in]  value`: `napi_value` representing JavaScript Number
-- `[out] result`: C++ int64 primitive equivalent of the given JavaScript Number
+- `[out] result`: C int64 primitive equivalent of the given JavaScript Number
 
 ##### Return value
 - `napi_ok` if the API succeeded.
 - `napi_number_expected` if a non-number `napi_value` is passed in
 
 ##### Description
-This API returns the C++ int64 primitive equivalent of the given
+This API returns the C int64 primitive equivalent of the given
 JavaScript Number
 
 #### *napi_get_value_string_length*
@@ -1710,7 +1699,7 @@ napi_status napi_get_value_uint32(napi_env env,
 ##### Parameters
 - `[in]  env`: The environment that the API is invoked under
 - `[in]  value`: `napi_value` representing JavaScript Number
-- `[out] result`: C++ primitive equivalent of the given `napi_value` as a 
+- `[out] result`: C primitive equivalent of the given `napi_value` as a 
 `uint32_t`
 
 ##### Return value
@@ -1718,7 +1707,7 @@ napi_status napi_get_value_uint32(napi_env env,
 - `napi_number_expected` if a non-number `napi_value` is passed in
 
 ##### Description
-This API returns the C++ primitive equivalent of the given `napi_value` as a
+This API returns the C primitive equivalent of the given `napi_value` as a
 `uint32_t`.
 
 ### Functions to get global instances
@@ -1801,7 +1790,7 @@ values. Some of these operations are documented under
 [Section 7](https://tc39.github.io/ecma262/#sec-abstract-operations)
 of the [ECMAScript Language Specification](https://tc39.github.io/ecma262/).
 
-These APIs allow you to do one of the following:
+These APIs support doing one of the following:
 1. Coerce JavaScript values to specific JavaScript types (such as Number or
    String)
 2. Check the type of a JavaScript value
@@ -2087,7 +2076,7 @@ Any N-API call that requires a JavaScript value takes in a `napi_value`.
 However, it's the caller's responsibility to make sure that the 
 `napi_value` in question is of the JavaScript type expected by the API.
 
-The APIs documented in this section provide a simple interface to allow you to 
+The APIs documented in this section provide a simple interface to
 get and set properties on arbitrary JavaScript objects represented by 
 `napi_value`.
 
@@ -2159,7 +2148,7 @@ status = napi_get_element(env, arr, 123, &value);
 if (status != napi_ok) return status;
 ```
 
-Finally, you can also define multiple properties on an object for performance
+Finally, multiple properties can also be defined on an object for performance
 reasons. Consider the following JavaScript:
 ```js
 var obj = {};
@@ -2221,7 +2210,7 @@ be one or more of the following bitflags:
 
 - `napi_default` - Used to indicate that no explicit attributes are set on the 
 given property. By default, a property is Writable, Enumerable, and
- Configurable. Note that this is a deviation from the ECMAScript specification,
+ Configurable. This is a deviation from the ECMAScript specification,
  where generally the values for a property descriptor attribute default to 
  false if they're not provided.
 - `napi_read_only` - Used to indicate that a given property is not Writable
@@ -2267,7 +2256,7 @@ If this is passed in, set `value` and `method` to `NULL` (since these members
 won't be used). The given function is called implicitly by the runtime when the
 property is set from JavaScript code (or if a set on the property is 
 performed using a N-API call).
-- `method`: Set this if you want the property descriptor object's `value`
+- `method`: Set this to make the property descriptor object's `value`
 property to be a JavaScript function represented by `method`. If this is
 passed in, set `value`, `getter` and `setter` to `NULL` (since these members
 won't be used).
@@ -2522,7 +2511,7 @@ napi_status napi_define_properties(napi_env env,
 - `napi_ok` if the API succeeded.
 
 ##### Description
-This method allows you to efficiently define multiple properties on a given 
+This method allows the efficient definition of multiple properties on a given 
 object. The properties are defined using property descriptors (See 
 `napi_property_descriptor`). Given an array of such property descriptors, this
 API will set the properties on the object one at a time, as defined by
@@ -2562,7 +2551,7 @@ napi_status napi_call_function(napi_env env,
 ```
 
 #### Parameters
-- `[in]  env `: The environment that the API is invoked under
+- `[in]  env`: The environment that the API is invoked under
 - `[in]  recv`: The `this` object passed to the called function
 - `[in]  func`: `napi_value` representing the JavaScript function
 to be invoked
@@ -2575,7 +2564,7 @@ in as arguments to the function.
 - `napi_ok` if the API succeeded.
 
 #### Description
-This method allows you to call a JavaScript function object from a native 
+This method allows a JavaScript function object to be called from a native 
 add-on. This is an primary mechanism of calling back *from* the add-on's
 native code *into* JavaScript. For special cases like calling into JavaScript
 after an async operation, see [`napi_make_callback`](#napi_make_callback).
@@ -2630,7 +2619,7 @@ napi_status napi_create_function(napi_env env,
 ```
 
 #### Parameters
-- `[in]  env `: The environment that the API is invoked under
+- `[in]  env`: The environment that the API is invoked under
 - `[in]  utf8Name`: The name of the function encoded as UTF8. This is visible
 within JavaScript as the new function object's `name` property.
 - `[in]  cb`: The native function which should be called when this function 
@@ -2648,11 +2637,13 @@ This API allows an add-on author to create a function object in native code.
 This is the primary mechanism to allow calling *into* the add-on's native code
 *from* Javascript.
 
-Note however, the newly created function is not automatically visible from
-script after this call. Instead, you must explicitly set a property on any
+**Note:** The newly created function is not automatically visible from
+script after this call. Instead, a property must be explicitly set on any
 object that is visible to JavaScript, in order for the function to be accessible
-from script. For instance, if you wish to expose a function as part of the
-add-on's module exports, you can set the newly created function on the exports
+from script.
+
+In order to expose a function as part of the
+add-on's module exports, set the newly created function on the exports
 object. A sample module might look as follows:
 ```C
 void SayHello(napi_env env, napi_callback_info info) {
@@ -2679,7 +2670,7 @@ var myaddon = require('./addon');
 myaddon.sayHello();
 ```
 
-Note that the string passed to require is not necessarily the name passed into
+**Note:**  The string passed to require is not necessarily the name passed into
 `NAPI_MODULE` in the earlier snippet but the name of the target in `binding.gyp`
 responsible for creating the `.node` file.
 
@@ -2809,7 +2800,7 @@ napi_status napi_make_callback(napi_env env,
 ```
 
 #### Parameters
-- `[in]  env `: The environment that the API is invoked under
+- `[in]  env`: The environment that the API is invoked under
 - `[in]  recv`: The `this` object passed to the called function
 - `[in]  func`: `napi_value` representing the JavaScript function
 to be invoked
@@ -2822,7 +2813,7 @@ representing the arguments to the function.
 - `napi_ok` if the API succeeded.
 
 #### Description
-This method allows you to call a JavaScript function object from a native 
+This method allows a JavaScript function object to be called from a native
 add-on. This API is similar to `napi_call_function`. However, it is used to call
 *from* native code back *into* JavaScript *after* returning from an async 
 operation (when there is no other script on the stack). It is a fairly simple
@@ -3042,7 +3033,7 @@ will be invoked with a status value of `napi_cancelled`.
 The work should not be deleted before the `complete`
 callback invocation, even when it was cancelled.
 
-Note that as mentioned in the section on memory management, if
+**Note:** As mentioned in the section on memory management, if
 the code to be run in the callbacks will create N-API values, then
 N-API handle scope functions must be used to create/destroy a
 `napi_handle_scope` such that the scope is active when
@@ -3061,7 +3052,7 @@ napi_status napi_create_async_work(napi_env env,
 ```
 
 #### Parameters
-- `[in]  env `: The environment that the API is invoked under.
+- `[in]  env`: The environment that the API is invoked under.
 - `[in]  execute`: The native function which should be called to excute
 the logic asynchronously.
 - `[in]  complete`: The native function which will be called when the
@@ -3087,7 +3078,7 @@ NAPI_EXTERN napi_status napi_delete_async_work(napi_env env,
 ```
 
 #### Parameters
-- `[in]  env `: The environment that the API is invoked under
+- `[in]  env`: The environment that the API is invoked under
 - `[in]  work`: The handle returned by the call to `napi_create_async_work`.
 
 #### Return value
@@ -3104,7 +3095,7 @@ NAPI_EXTERN napi_status napi_queue_async_work(napi_env env,
 ```
 
 #### Parameters
-- `[in]  env `: The environment that the API is invoked under
+- `[in]  env`: The environment that the API is invoked under
 - `[in]  work`: The handle returned by the call to `napi_create_async_work`.
 
 #### Return value
@@ -3122,14 +3113,14 @@ NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
 ```
 
 #### Parameters
-- `[in]  env `: The environment that the API is invoked under
+- `[in]  env`: The environment that the API is invoked under
 - `[in]  work`: The handle returned by the call to `napi_create_async_work`.
 
 #### Return value
 - `napi_ok` if the API succeeded.
 
 #### Description
-This API allows you to cancel a previously allocated work, provided
+This API cancels a previously allocated work, provided
 it has not yet been queued for execution. After this function is called
 the `complete` callback will be invoked with a status value of
 `napi_cancelled`. The work should not be deleted before the `complete`
@@ -3148,3 +3139,4 @@ callback invocation, even when it was cancelled.
 [Object Wrap]: #n_api_object_wrap
 [Aynchronous Operations]: #n_api_asynchronous_operations
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
+[ECMAScript Language Specification]: https://tc39.github.io/ecma262/
