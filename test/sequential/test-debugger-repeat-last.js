@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+common.skipIfInspectorDisabled();
 const path = require('path');
 const spawn = require('child_process').spawn;
 const assert = require('assert');
@@ -9,7 +10,7 @@ const fixture = path.join(
 );
 
 const args = [
-  'debug',
+  'inspect',
   `--port=${common.PORT}`,
   fixture
 ];
