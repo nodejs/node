@@ -193,7 +193,6 @@ inline Environment::Environment(IsolateData* isolate_data,
       trace_sync_io_(false),
       makecallback_cntr_(0),
       async_wrap_uid_(0),
-      debugger_agent_(this),
 #if HAVE_INSPECTOR
       inspector_agent_(this),
 #endif
