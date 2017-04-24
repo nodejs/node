@@ -644,8 +644,8 @@ exports.expectsError = function expectsError({code, type, message}) {
 };
 
 exports.skipIfInspectorDisabled = function skipIfInspectorDisabled() {
-  if (!exports.hasCrypto) {
-    exports.skip('missing ssl support so inspector is disabled');
+  if (process.config.variables.v8_enable_inspector === 0) {
+    exports.skip('V8 inspector is disabled');
     process.exit(0);
   }
 };
