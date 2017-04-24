@@ -899,7 +899,7 @@ when the array is created - that behavior is left to the underlying VM
 implementation. 
 if the buffer must be a contiguous block of memory that can be 
 directly read and/or written via C, consider using 
-`napi_create_external_arraybuffer`.
+[`napi_create_external_arraybuffer`][].
 
 JavaScript arrays are described in 
 [Section 22.1](https://tc39.github.io/ecma262/#sec-array-objects) of the 
@@ -1275,7 +1275,7 @@ This API is used to retrieve the underlying data buffer of an ArrayBuffer and
 its length.
 WARNING: Use caution while using this API. The lifetime of the underlying data
 buffer is managed by the ArrayBuffer even after it's returned. A
-possible safe way to use this API is in conjunction with napi_create_reference,
+possible safe way to use this API is in conjunction with [`napi_create_reference`][],
 which can be used to guarantee control over the lifetime of the
 ArrayBuffer. It's also safe to use the returned data buffer within the same
 callback as long as there are no calls to other APIs that might trigger a GC.
@@ -1965,7 +1965,7 @@ Configurable, as defined in
 [ECMAScript Language Specification](https://tc39.github.io/ecma262/).
 - `napi_static_property` - Used to indicate that the property will be defined as
 a static property on a class as opposed to an instance property, which is the
-default. This is used only by `napi_define_class`. It is ignored by 
+default. This is used only by [`napi_define_class`][]. It is ignored by 
 `napi_define_properties`
 
 #### *napi_property_descriptor*
@@ -2023,7 +2023,7 @@ napi_status napi_get_property_names(napi_env env,
 - `[in]  object`: The object from which to retrieve the properties
 - `[out] result`: A `napi_value` representing an array of JavaScript values 
 that represent the property names of the object. You can iterate over `result`
-using `napi_get_array_length` and `napi_get_element`.
+using [`napi_get_array_length`][] and [`napi_get_element`][].
 
 Returns `napi_ok` if the API succeeded.
 
@@ -2099,7 +2099,7 @@ napi_status napi_set_named_property(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This method is equivalent to calling `napi_set_property` with a `napi_value`
+This method is equivalent to calling [`napi_set_property`][] with a `napi_value`
 created from the string passed in as `utf8Name`
 
 #### *napi_get_named_property*
@@ -2118,7 +2118,7 @@ napi_status napi_get_named_property(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This method is equivalent to calling `napi_get_property` with a `napi_value`
+This method is equivalent to calling [`napi_get_property`][] with a `napi_value`
 created from the string passed in as `utf8Name`
 
 #### *napi_has_named_property*
@@ -2137,7 +2137,7 @@ napi_status napi_has_named_property(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This method is equivalent to calling `napi_has_property` with a `napi_value`
+This method is equivalent to calling [`napi_has_property`][] with a `napi_value`
 created from the string passed in as `utf8Name`
 
 #### *napi_set_element*
@@ -2213,7 +2213,7 @@ Returns `napi_ok` if the API succeeded.
 
 This method allows the efficient definition of multiple properties on a given 
 object. The properties are defined using property descriptors (See 
-`napi_property_descriptor`). Given an array of such property descriptors, this
+[`napi_property_descriptor`][]). Given an array of such property descriptors, this
 API will set the properties on the object one at a time, as defined by
 DefineOwnProperty (described in 
 [Section 9.1.6](https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc) 
@@ -2263,7 +2263,7 @@ Returns `napi_ok` if the API succeeded.
 This method allows a JavaScript function object to be called from a native 
 add-on. This is an primary mechanism of calling back *from* the add-on's
 native code *into* JavaScript. For special cases like calling into JavaScript
-after an async operation, see [`napi_make_callback`](#napi_make_callback).
+after an async operation, see [`napi_make_callback`][].
 
 A sample use case might look as follows. Consider the following JavaScript
 snippet:
@@ -2495,23 +2495,23 @@ add-on. This API is similar to `napi_call_function`. However, it is used to call
 operation (when there is no other script on the stack). It is a fairly simple
 wrapper around `node::MakeCallback`.
 
-For an example on how to use `napi_make_callback`, see the 
-[Async Helpers](/napi_async.md) 
+For an example on how to use `napi_make_callback`, see the section on
+[Asynchronous Operations][].
 
 ## Object Wrap
 
 N-API offers a way to "wrap" C++ classes and instances so that the class
 constructor and methods can be called from JavaScript.
 
- 1. The `napi_define_class()` API defines a JavaScript class with constructor,
+ 1. The [`napi_define_class`][] API defines a JavaScript class with constructor,
     static properties and methods, and instance properties and methods that
     correspond to the The C++ class.
  2. When JavaScript code invokes the constructor, the constructor callback
-    uses `napi_wrap()` to wrap a new C++ instance in a JavaScript object,
+    uses [`napi_wrap`][] to wrap a new C++ instance in a JavaScript object,
     then returns the wrapper object.
  3. When JavaScript code invokes a method or property accessor on the class,
     the corresponding `napi_callback` C++ function is invoked. For an instance
-    callback, `napi_unwrap()` obtains the C++ instance that is the target of
+    callback, [`napi_unwrap`][] obtains the C++ instance that is the target of
     the call.
 
 ### *napi_define_class*
@@ -2558,11 +2558,11 @@ The C++ constructor callback should be a static method on the class that calls
 the actual class constructor, then wraps the new C++ instance in a JavaScript
 object, and returns the wrapper object. See `napi_wrap()` for details.
 
-The JavaScript constructor function returned from `napi_define_class()` is
+The JavaScript constructor function returned from [`napi_define_class`][] is
 often saved and used later, to construct new instances of the class from native
 code, and/or check whether provided values are instances of the class. In that
 case, to prevent the function value from being garbage-collected, create a
-persistent reference to it using `napi_create_reference()` and ensure the
+persistent reference to it using [`napi_create_reference`][] and ensure the
 reference count is kept >= 1.
 
 ### *napi_wrap*
@@ -2609,7 +2609,7 @@ has a reference count of 0. Typically this reference count would be incremented
 temporarily during async operations that require the instance to remain valid.
 
 Caution: The optional returned reference (if obtained) should be deleted via
-`napi_delete_reference()` ONLY in response to the finalize callback invocation.
+[`napi_delete_reference`][] ONLY in response to the finalize callback invocation.
 (If it is deleted before then, then the finalize callback may never be
 invoked.) Therefore when obtaining a reference a finalize callback is also
 required in order to enable correct proper of the reference.
@@ -2692,7 +2692,7 @@ NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
                                                napi_async_work work);
 ```
 
-After calling `napi_cancel_async_work()`, the `complete` callback
+After calling [`napi_cancel_async_work`][], the `complete` callback
 will be invoked with a status value of `napi_cancelled`.
 The work should not be deleted before the `complete`
 callback invocation, even when it was cancelled.
@@ -2727,7 +2727,7 @@ async work.
 Returns `napi_ok` if the API succeeded.
 
 This API allocates a work object that is used to execute logic asynchronously.
-It should be freed using `napi_delete_async_work` once the work is no longer
+It should be freed using [`napi_delete_async_work`][] once the work is no longer
 required.
 
 ### napi_delete_async_work
@@ -2787,20 +2787,37 @@ callback invocation, even when it was cancelled.
 [Working with JavaScript Properties]: #n_api_working_with_javascript_properties
 [Working with JavaScript Values]: #n_api_working_with_javascript_values
 [Working with JavaScript Values - Abstract Operations]: #n_api_working_with_javascript_values_abstract_operations
+
+[`napi_cancel_async_work`]: #n_api_napi_cancel_async_work
 [`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
 [`napi_close_handle_scope`]: #n_api_napi_close_handle_scope
 [`napi_create_error`]: #n_api_napi_create_error
+[`napi_create_external_arraybuffer`][]: #n_api_napi_create_external_arraybuffer
 [`napi_create_range_error`]: #n_api_napi_create_range_error
 [`napi_create_type_error`]: #n_api_napi_create_type_error
+[`napi_define_class`]: #n_api_napi_define_class
+[`napi_delete_async_work`]: #n_api_napi_delete_async_work
+[`napi_define_class`][]: #n_api_napi_define_class
+[`napi_delete_reference`]: #n_api_napi_delete_reference
 [`napi_escape_handle`]: #n_api_napi_escape_handle
+[`napi_get_array_length`]: #n_api_napi_get_array_length
+[`napi_get_element`]: #n_api_napi_get_element
+[`napi_get_property`]: #n_api_napi_get_property
+[`napi_has_property`]: #n_api_napi_has_property
+[`napi_set_property`]: #n_api_napi_set_property
 [`napi_get_reference_value`]: #n_api_napi_get_reference_value
 [`napi_is_error`]: #n_api_napi_is_error
 [`napi_is_exception_pending`]: #n_api_napi_is_exception_pending
 [`napi_get_last_error_info`]: #n_api_napi_get_last_error_info
 [`napi_get_and_clear_last_exception`]: #n_api_napi_get_and_clear_last_exception
+[`napi_make_callback`]: #n_api_napi_make_callback
 [`napi_open_escapable_handle_scope`]: #n_api_napi_open_escapable_handle_scope
 [`napi_open_handle_scope`]: #n_api_napi_open_handle_scope
+[`napi_property_descriptor`]: #n_api_napi_property_descriptor
+[`napi_reference_ref`]: #n_api_napi_reference_ref
 [`napi_reference_unref`]: #n_api_napi_reference_unref
 [`napi_throw_error`]: #n_api_napi_throw_error
 [`napi_throw_range_error`]: #n_api_napi_throw_range_error
 [`napi_throw_type_error`]: #n_api_napi_throw_type_error
+[`napi_unwrap`]: #n_api_napi_unwrap
+[`napi_wrap`]: #n_api_napi_wrap
