@@ -1077,7 +1077,7 @@ The API allows the caller to pass in a finalize callback, in case the
 underlying native resource needs to be cleaned up when the wrapper 
 JavaScript object gets collected.
 
-#### *napi_create_external_arraybuffer*
+#### napi_create_external_arraybuffe
 
 ```C
 <!-- YAML
@@ -2989,6 +2989,7 @@ callback invocation, even when it was cancelled.
 [`napi_create_error`]: #n_api_napi_create_error
 [`napi_create_external_arraybuffer`][]: #n_api_napi_create_external_arraybuffer
 [`napi_create_range_error`]: #n_api_napi_create_range_error
+[`napi_create_reference`]: #n_api_napi_create_reference
 [`napi_create_type_error`]: #n_api_napi_create_type_error
 [`napi_define_class`]: #n_api_napi_define_class
 [`napi_delete_async_work`]: #n_api_napi_delete_async_work
