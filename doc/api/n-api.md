@@ -205,7 +205,7 @@ will be returned. If an exception was thrown, and no error occurred,
 `napi_pending_exception` will be returned.
 
 In cases where a return value other than `napi_ok` or
-`napi_pending_exception` is returned, `napi_is_exception_pending()`
+`napi_pending_exception` is returned, [`napi_is_exception_pending`][]
 must be called to check if an exception is pending.
 See the section on exceptions for more details.
 
@@ -274,7 +274,7 @@ If the `napi_status` returned by a function is `napi_ok` then no
 exception is pending and no additional action is required. If the
 `napi_status` returned is anything other than `napi_ok` or
 `napi_pending_exception`, in order to try to recover and continue
-instead of simply returning immediately, `[napi_is_exception_pending][]
+instead of simply returning immediately, [`napi_is_exception_pending`][]
 must be called in order to determine if an exception is pending or not.
 and then check the value of `result`:
 
@@ -292,7 +292,7 @@ The second approach is to try to handle the exception. There will be cases
 where the native code can catch the exception, take the appropriate action,
 and then continue. This is only recommended in specific cases
 where it is known that the exception can be safely handled. In these
-cases `napi_get_and_clear_last_exception` can be used to get and
+cases [`napi_get_and_clear_last_exception`][] can be used to get and
 clear the exception.  On success, result will contain the handle to
 the last JavaScript Object thrown. If it is determinted, after
 retrieving the exception, the exception cannot be handled after all
@@ -301,24 +301,13 @@ JavaScript Error object to be thrown.
 
 The following utility functions are also available in case native code
 needs to throw an exception or determine if a `napi_value` is an instance
-of a JavaScript `Error` object.
-
-```C
-napi_throw_error()
-napi_throw_type_error()
-napi_throw_range_error()
-napi_status napi_is_error()
-```
+of a JavaScript `Error` object.  [`napi_throw_error`][], 
+[`napi_throw_type_error`][], [`napi_throw_range_error`][]
+[`napi_is_error`][].
 
 The following utility functions are also available in case native
-code needs to create an Error object:
-
-```
-napi_create_error()
-napi_create_type_error()
-napi_create_range_error()
-```
-
+code needs to create an Error object: [`napi_create_error`][],
+[`napi_create_type_error`][], [`napi_create_range_error`][].
 where result is the napi_value that refers to the newly created
 JavaScript Error object.
 
@@ -455,6 +444,41 @@ NODE_EXTERN napi_status napi_create_range_error(napi_env env, const char* msg);
 
 ##### Description
 This API returns a JavaScript RangeError with the text provided.
+
+
+#### napi_get_and_clear_last_exception
+##### Signature
+```C
+NAPI_EXTERN napi_status napi_get_and_clear_last_exception(napi_env env,
+                                                          napi_value* result);
+```
+
+##### Parameters
+- `[in] env`: The environment that the API is invoked under
+- `[out] result`: the exception if one is pending, NULL otherwise
+
+##### Return value
+- `napi_ok` if the API succeeded.
+
+##### Description
+This API returns true if an exception is pending.
+
+#### napi_is_exception_pending
+
+##### Signature
+```C
+NAPI_EXTERN napi_status napi_is_exception_pending(napi_env env, bool* result);
+```
+
+##### Parameters
+- `[in] env`: The environment that the API is invoked under
+- `[out] result`: true if an exception is pending.
+
+##### Return value
+- `napi_ok` if the API succeeded.
+
+##### Description
+This API returns true if an exception is pending.
 
 
 ## Object Lifetime management
@@ -3140,3 +3164,13 @@ callback invocation, even when it was cancelled.
 [Aynchronous Operations]: #n_api_asynchronous_operations
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [ECMAScript Language Specification]: https://tc39.github.io/ecma262/
+
+[`napi_get_and_clear_last_exception`]: #n_api_napi_get_and_clear_last_exception
+[`napi_is_exception_pending`]: #n_api_napi_is_exception_pending
+
+[`napi_throw_error`]: #n_api_napi_throw_error
+[`napi_throw_range_error`]: #n_api_napi_throw_range_error
+[`napi_is_error`]: #n_api_napi_is_error
+[`napi_create_error`: #n_api_napi_create_error
+[`napi_create_type_error`]: #n_api_napi_create_type_error
+[`napi_create_range_error`]: #n_api_napi_create_range_error
