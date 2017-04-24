@@ -414,7 +414,7 @@ For instance: `[[substr1, substr2, ...], originalsubstring]`.
 ```js
 function completer(line) {
   const completions = '.help .error .exit .quit .q'.split(' ');
-  const hits = completions.filter((c) => c.indexOf(line) === 0);
+  const hits = completions.filter((c) => c.startsWith(line));
   // show all completions if none found
   return [hits.length ? hits : completions, line];
 }
