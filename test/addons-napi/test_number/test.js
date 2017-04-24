@@ -37,3 +37,11 @@ assert.strictEqual(num7, test_number.Test(num7));
 
 const num8 = Number.NEGATIVE_INFINITY;
 assert.strictEqual(num8, test_number.Test(num8));
+
+
+// validate documented behaviour when value is retrieved
+// as 32 bit integer with napi_get_value_int32
+assert.strictEqual(1, test_number.TestInt32Truncation(4294967297));
+assert.strictEqual(0, test_number.TestInt32Truncation(4294967296));
+assert.strictEqual(-1, test_number.TestInt32Truncation(4294967295));
+assert.strictEqual(3, test_number.TestInt32Truncation(4294967296 * 5 + 3));
