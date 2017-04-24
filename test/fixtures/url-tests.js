@@ -5996,5 +5996,19 @@ module.exports =
     "pathname": "d3958f5c-0777-0845-9dcf-2cb28783acaf",
     "search": "",
     "hash": ""
+  },
+  {
+    "input": "file://example.net:81/foo",
+    "base": "about:blank",
+    "href": "file://example.net:81/foo",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "example.net:81",
+    "hostname": "example.net:81",
+    "port": "",
+    "pathname": "/foo",
+    "search": "",
+    "hash": ""
   }
 ]
