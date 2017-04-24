@@ -325,7 +325,7 @@ JavaScript Error object.
 #### napi_throw
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_throw(napi_env e, napi_value error);
+NODE_EXTERN napi_status napi_throw(napi_env env, napi_value error);
 ```
 ##### Parameters
 - `[in] env`: The environment that the API is invoked under.
@@ -341,7 +341,7 @@ This API throws the JavaScript Error provided.
 #### napi_throw_error
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_throw_error(napi_env e, const char* msg);
+NODE_EXTERN napi_status napi_throw_error(napi_env env, const char* msg);
 ```
 ##### Parameters
 - `[in] env`: The environment that the API is invoked under
@@ -357,7 +357,7 @@ This API throws a JavaScript Error with the text provided.
 #### napi_throw_type_error
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_throw_type_error(napi_env e, const char* msg);
+NODE_EXTERN napi_status napi_throw_type_error(napi_env env, const char* msg);
 ```
 ##### Parameters
 - `[in] env`: The environment that the API is invoked under
@@ -373,7 +373,7 @@ This API throws a JavaScript TypeError with the text provided.
 #### napi_throw_range_error
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_throw_range_error(napi_env e, const char* msg);
+NODE_EXTERN napi_status napi_throw_range_error(napi_env env, const char* msg);
 ```
 ##### Parameters
 - `[in] env`: The environment that the API is invoked under
@@ -390,7 +390,7 @@ This API throws a JavaScript RangeError with the text provided.
 #### napi_is_error
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_is_error(napi_env e,
+NODE_EXTERN napi_status napi_is_error(napi_env env,
                                       napi_value value,
                                       bool* result);
 ```
@@ -410,7 +410,7 @@ This API queries a `napi_value` to check if it represents an error object.
 #### napi_create_error
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_create_error(napi_env e, const char* msg);
+NODE_EXTERN napi_status napi_create_error(napi_env env, const char* msg);
 ```
 ##### Parameters
 - `[in] env`: The environment that the API is invoked under
@@ -426,7 +426,7 @@ This API returns a JavaScript Error with the text provided.
 #### napi_create_type_error
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_create_type_error(napi_env e, const char* msg);
+NODE_EXTERN napi_status napi_create_type_error(napi_env env, const char* msg);
 ```
 ##### Parameters
 - `[in] env`: The environment that the API is invoked under
@@ -443,7 +443,7 @@ This API returns a JavaScript TypeError with the text provided.
 #### napi_create_range_error
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_create_range_error(napi_env e, const char* msg);
+NODE_EXTERN napi_status napi_create_range_error(napi_env env, const char* msg);
 ```
 ##### Parameters
 - `[in] env`: The environment that the API is invoked under
@@ -562,7 +562,7 @@ napi_escape_handle()
 #### napi_open_handle_scope 
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_open_handle_scope(napi_env e,
+NODE_EXTERN napi_status napi_open_handle_scope(napi_env env,
                                                napi_handle_scope* result);
 ```
 ##### Parameters
@@ -578,7 +578,7 @@ This API open a new scope.
 #### napi_close_handle_scope
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_close_handle_scope(napi_env e,
+NODE_EXTERN napi_status napi_close_handle_scope(napi_env env,
                                                 napi_handle_scope scope);
 ```
 ##### Parameters
@@ -596,7 +596,7 @@ reverse order from which they were created.
 ##### Signature
 ```C
 NODE_EXTERN napi_status
-    napi_open_escapable_handle_scope(napi_env e,
+    napi_open_escapable_handle_scope(napi_env env,
                                      napi_handle_scope* result);
 ```
 ##### Parameters
@@ -614,7 +614,7 @@ to the outer scope.
 ##### Signature
 ```C
 NODE_EXTERN napi_status
-    napi_close_escapable_handle_scope(napi_env e,
+    napi_close_escapable_handle_scope(napi_env env,
                                       napi_handle_scope scope);
 ```
 ##### Parameters
@@ -693,7 +693,7 @@ individual count.
 #### napi_create_reference
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_create_reference(napi_env e,
+NODE_EXTERN napi_status napi_create_reference(napi_env env,
                                               napi_value value,
                                               int initial_refcount,
                                               ndapi_ref* result);
@@ -716,7 +716,7 @@ to the Object passed in.
 #### napi_delete_reference
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_delete_reference(napi_env e, napi_ref ref);
+NODE_EXTERN napi_status napi_delete_reference(napi_env env, napi_ref ref);
 ```
 
 ##### Parameters
@@ -732,7 +732,7 @@ This API deletes the reference passed in.
 #### napi_reference_ref
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_reference_ref(napi_env e,
+NODE_EXTERN napi_status napi_reference_ref(napi_env env,
                                            napi_ref ref,
                                            int* result);
 ```
@@ -752,7 +752,7 @@ passed in and returns the resulting reference count.
 #### napi_reference_unref
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_reference_unref(napi_env e,
+NODE_EXTERN napi_status napi_reference_unref(napi_env env,
                                              napi_ref ref,
                                              int* result);
 ```
@@ -772,7 +772,7 @@ passed in and returns the resulting reference count.
 #### napi_get_reference_value
 ##### Signature
 ```C
-NODE_EXTERN napi_status napi_get_reference_value(napi_env e,
+NODE_EXTERN napi_status napi_get_reference_value(napi_env env,
                                                  napi_ref ref,
                                                  napi_value* result);
 ```
