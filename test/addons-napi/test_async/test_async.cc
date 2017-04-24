@@ -144,9 +144,9 @@ void CancelComplete(napi_env env, napi_status status, void* data) {
 
 void CancelExecute(napi_env env, void* data) {
 #if defined _WIN32
-  Sleep(2000);
+  Sleep(1000);
 #else
-  sleep(2);
+  sleep(1);
 #endif
 }
 
