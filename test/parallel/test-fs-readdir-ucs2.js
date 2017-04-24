@@ -12,7 +12,7 @@ if (!common.isLinux) {
 
 common.refreshTmpDir();
 const filename = '\uD83D\uDC04';
-const root = Buffer.from(`${common.tmpDir}${path.sep}`);
+const root = Buffer.from(`${common.tmpDir}${path.SEPARATOR}`);
 const filebuff = Buffer.from(filename, 'ucs2');
 const fullpath = Buffer.concat([root, filebuff]);
 
