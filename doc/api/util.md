@@ -323,7 +323,7 @@ class Box {
     }
 
     const newOptions = Object.assign({}, options, {
-      depth: options.depth === null ? null : options.depth - 1
+      depth: options.depth === null ? null : options.depth - 1,
     });
 
     // Five space padding because that's the size of "Box< ".

@@ -62,7 +62,7 @@ For example, the query string `'foo=bar&abc=xyz&abc=123'` is parsed into:
 ```js
 {
   foo: 'bar',
-  abc: ['xyz', '123']
+  abc: ['xyz', '123'],
 }
 ```
 
