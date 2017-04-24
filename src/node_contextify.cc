@@ -357,6 +357,8 @@ class ContextifyContext {
 
   static void WeakCallback(const WeakCallbackInfo<ContextifyContext>& data) {
     ContextifyContext* context = data.GetParameter();
+    context->env()->UnassignFromContext(context->context());
+
     delete context;
   }
 

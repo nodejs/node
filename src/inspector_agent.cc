@@ -12,6 +12,7 @@
 #include "libplatform/libplatform.h"
 
 #include <string.h>
+#include <sstream>
 #include <vector>
 
 #ifdef __POSIX__
@@ -539,7 +540,8 @@ class NodeInspectorClient : public v8_inspector::V8InspectorClient {
 Agent::Agent(Environment* env) : parent_env_(env),
                                  client_(nullptr),
                                  platform_(nullptr),
-                                 enabled_(false) {}
+                                 enabled_(false),
+                                 next_context_number_(1) {}
 
 // Destructor needs to be defined here in implementation file as the header
 // does not have full definition of some classes.
@@ -667,6 +669,19 @@ void Agent::PauseOnNextJavascriptStatement(const std::string& reason) {
   ChannelImpl* channel = client_->channel();
   if (channel != nullptr)
     channel->schedulePauseOnNextStatement(reason);
+}
+
+void Agent::ContextCreated(Local<Context> context) {
+  if (!IsStarted()) // This happens for a main context
+    return;
+  std::ostringstream name;
+  name << "VM Context " << next_context_number_++;
+  client_->contextCreated(context, name.str());
+}
+
+void Agent::ContextDestroyed(Local<Context> context) {
+  CHECK_NE(client_, nullptr);
+  client_->contextDestroyed(context);
 }
 
 void Open(const FunctionCallbackInfo<Value>& args) {

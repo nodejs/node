@@ -79,6 +79,9 @@ class Agent {
   bool enabled() { return enabled_; }
   void PauseOnNextJavascriptStatement(const std::string& reason);
 
+  void ContextCreated(v8::Local<v8::Context> context);
+  void ContextDestroyed(v8::Local<v8::Context> context);
+
   // Initialize 'inspector' module bindings
   static void InitInspector(v8::Local<v8::Object> target,
                             v8::Local<v8::Value> unused,
@@ -105,6 +108,7 @@ class Agent {
   bool enabled_;
   std::string path_;
   DebugOptions debug_options_;
+  int next_context_number_;
 };
 
 }  // namespace inspector
