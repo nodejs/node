@@ -21,7 +21,7 @@ vals.forEach((v) => {
 // These values are OK and should not throw synchronously
 ['', undefined, null].forEach((v) => {
   assert.doesNotThrow(() => {
-    http.request({hostname: v}).on('error', common.noop);
-    http.request({host: v}).on('error', common.noop);
+    http.request({hostname: v}).on('error', common.noop).end();
+    http.request({host: v}).on('error', common.noop).end();
   });
 });
