@@ -678,5 +678,6 @@ exports.getArrayBufferViews = function getArrayBufferViews(buf) {
 
 // Crash the process on unhandled rejections.
 exports.crashOnUnhandledRejection = function() {
-  process.on('unhandledRejection', (err) => setImmediate(() => { throw err; }));
+  process.on('unhandledRejection',
+             (err) => process.nextTick(() => { throw err; }));
 };
