@@ -525,12 +525,8 @@ kept alive since they all share the same scope.
 To handle this case, N-API provides the ability to establish a new 'scope' to
 which newly created handles will be associated. Once those handles
 are no longer required, the scope can be 'closed' and any handles associated
-with the scope are invalidated. The methods available to open/close scopes are:
-
-```C
-napi_open_handle_scope()
-napi_close_handle_scope()
-```
+with the scope are invalidated. The methods available to open/close scopes are
+[`napi_open_handle_scope`][] and [`napi_close_handle_scope`][].
 
 N-API only supports a single nested hiearchy of scopes. There is only one
 active scope at any time, and all new handles will be associated with that
@@ -538,8 +534,8 @@ scope while it is active. Scopes must be closed in the reverse order from
 which they are opened. In addition, all scopes created within a native method
 must be closed before returning from that method.
 
-Taking the earlier example, adding calls to `napi_open_handle_scope()` and
-`napi_close_handle_scope()`  would ensure that at most a single handle
+Taking the earlier example, adding calls to [`napi_open_handle_scope`][] and
+[`napi_close_handle_scope`][]  would ensure that at most a single handle
 is valid throughout the execution of the loop:
 
 ```C
@@ -569,19 +565,10 @@ allows one or more handles to be 'promoted' so that they 'escape' the
 current scope and the lifespan of the handle(s) changes from the current
 scope to that of the outer scope.
 
-The methods available to open/close escapable scopes are:
+The methods available to open/close escapable scopes are 
+[`napi_open_escapable_handle_scope`][] and [`napi_close_escapable_handle_scope`][].
 
-```C
-napi_open_escapable_handle_scope()
-napi_close_escapable_handle_scope()
-```
-
-The request to promote a handle is made through the `napi_escape_handle`
-function:
-
-```C
-napi_escape_handle()
-```
+The request to promote a handle is made through the [`napi_escape_handle`][].
 
 #### napi_open_handle_scope 
 ##### Signature
@@ -3167,10 +3154,14 @@ callback invocation, even when it was cancelled.
 
 [`napi_get_and_clear_last_exception`]: #n_api_napi_get_and_clear_last_exception
 [`napi_is_exception_pending`]: #n_api_napi_is_exception_pending
-
 [`napi_throw_error`]: #n_api_napi_throw_error
 [`napi_throw_range_error`]: #n_api_napi_throw_range_error
 [`napi_is_error`]: #n_api_napi_is_error
 [`napi_create_error`: #n_api_napi_create_error
 [`napi_create_type_error`]: #n_api_napi_create_type_error
 [`napi_create_range_error`]: #n_api_napi_create_range_error
+[`napi_open_handle_scope`]: #n_api_napi_open_handle_scope
+[`napi_close_handle_scope`]: #n_api_napi_close_handle_scope
+[`napi_open_escapable_handle_scope`]: #n_api_napi_open_escapable_handle_scope
+[`napi_close_escapable_handle_scope`]: #n_api_napi_close_escapable_handle_scope
+[`napi_escape_handle`]: #n_api_napi_escape_handle
