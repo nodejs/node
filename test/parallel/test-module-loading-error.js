@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const error_desc = {
@@ -44,10 +44,14 @@ assert.throws(
 
 assert.throws(
   require,
-  /^AssertionError: missing path$/
-);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^missing path$/
+  }));
 
 assert.throws(
   () => { require({}); },
-  /^AssertionError: path must be a string$/
-);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^path must be a string$/
+  }));
