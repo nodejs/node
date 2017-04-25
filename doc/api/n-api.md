@@ -2466,7 +2466,7 @@ if (status != napi_ok) return;
 status = napi_get_named_property(env, global, "AddTwo", &add_two);
 if (status != napi_ok) return;
 
-// var arg = 1337
+// const arg = 1337
 status = napi_create_number(env, 1337, &arg);
 if (status != napi_ok) return;
 
