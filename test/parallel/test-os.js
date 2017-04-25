@@ -191,3 +191,12 @@ is.string(pwd.username);
 assert.ok(pwd.homedir.includes(path.sep));
 assert.strictEqual(pwd.username, pwdBuf.username.toString('utf8'));
 assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));
+
+// Test that the Symbol.toPrimitive functions work correctly
+[
+  [`${os.hostname}`, os.hostname()],
+  [`${os.homedir}`, os.homedir()],
+  [`${os.release}`, os.release()],
+  [`${os.type}`, os.type()],
+  [`${os.endianness}`, os.endianness()]
+].forEach((set) => assert.strictEqual(set[0], set[1]));
