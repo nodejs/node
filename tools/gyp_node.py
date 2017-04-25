@@ -13,14 +13,6 @@ import gyp
 output_dir = os.path.join(os.path.abspath(node_root), 'out')
 
 def run_gyp(args):
-  rc = gyp.main(args)
-  if rc != 0:
-    print 'Error running GYP'
-    sys.exit(rc)
-
-if __name__ == '__main__':
-  args = sys.argv[1:]
-
   # GYP bug.
   # On msvs it will crash if it gets an absolute path.
   # On Mac/make it will crash if it doesn't get an absolute path.
@@ -58,5 +50,11 @@ if __name__ == '__main__':
   args.append('-Dlinux_use_bundled_gold=0')
   args.append('-Dlinux_use_gold_flags=0')
 
-  gyp_args = list(args)
-  run_gyp(gyp_args)
+  rc = gyp.main(args)
+  if rc != 0:
+    print 'Error running GYP'
+    sys.exit(rc)
+
+
+if __name__ == '__main__':
+  run_gyp(sys.argv[1:])
