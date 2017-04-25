@@ -151,7 +151,10 @@ assert.strictEqual(errStrings.length, 0);
 
 assert.throws(() => {
   console.assert(false, 'should throw');
-}, /^AssertionError: should throw$/);
+}, common.expectsError({
+  code: 'ERR_ASSERTION',
+  message: /^should throw$/
+}));
 
 assert.doesNotThrow(() => {
   console.assert(true, 'this should not throw');
