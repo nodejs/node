@@ -2053,7 +2053,7 @@ napi_status napi_create_reference(napi_env env,
       env, v8impl::V8LocalValueFromJsValue(value), initial_refcount, false);
 
   *result = reinterpret_cast<napi_ref>(reference);
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 // Deletes a reference. The referenced value is released, and may be GC'd unless
@@ -2087,7 +2087,7 @@ napi_status napi_reference_ref(napi_env env, napi_ref ref, uint32_t* result) {
     *result = count;
   }
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 // Decrements the reference count, optionally returning the resulting count. If
@@ -2112,7 +2112,7 @@ napi_status napi_reference_unref(napi_env env, napi_ref ref, uint32_t* result) {
     *result = count;
   }
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 // Attempts to get a referenced value. If the reference is weak, the value might
@@ -2130,7 +2130,7 @@ napi_status napi_get_reference_value(napi_env env,
   v8impl::Reference* reference = reinterpret_cast<v8impl::Reference*>(ref);
   *result = v8impl::JsValueFromV8LocalValue(reference->Get());
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_open_handle_scope(napi_env env, napi_handle_scope* result) {
@@ -2141,7 +2141,7 @@ napi_status napi_open_handle_scope(napi_env env, napi_handle_scope* result) {
 
   *result = v8impl::JsHandleScopeFromV8HandleScope(
       new v8impl::HandleScopeWrapper(env->isolate));
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_close_handle_scope(napi_env env, napi_handle_scope scope) {
@@ -2151,7 +2151,7 @@ napi_status napi_close_handle_scope(napi_env env, napi_handle_scope scope) {
   CHECK_ARG(env, scope);
 
   delete v8impl::V8HandleScopeFromJsHandleScope(scope);
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_open_escapable_handle_scope(
@@ -2164,7 +2164,7 @@ napi_status napi_open_escapable_handle_scope(
 
   *result = v8impl::JsEscapableHandleScopeFromV8EscapableHandleScope(
       new v8impl::EscapableHandleScopeWrapper(env->isolate));
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_close_escapable_handle_scope(
@@ -2176,7 +2176,7 @@ napi_status napi_close_escapable_handle_scope(
   CHECK_ARG(env, scope);
 
   delete v8impl::V8EscapableHandleScopeFromJsEscapableHandleScope(scope);
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_escape_handle(napi_env env,
@@ -2194,7 +2194,7 @@ napi_status napi_escape_handle(napi_env env,
       v8impl::V8EscapableHandleScopeFromJsEscapableHandleScope(scope);
   *result = v8impl::JsValueFromV8LocalValue(
       s->Escape(v8impl::V8LocalValueFromJsValue(escapee)));
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_new_instance(napi_env env,
