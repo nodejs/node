@@ -27,6 +27,8 @@ napi_value CreateExternal(napi_env env, napi_callback_info info) {
                          NULL, /* finalize_cb */
                          NULL, /* finalize_hint */
                          &result));
+
+  finalize_count = 0;
   return result;
 }
 
@@ -41,6 +43,8 @@ napi_value CreateExternalWithFinalize(napi_env env, napi_callback_info info) {
                          FinalizeExternal,
                          NULL, /* finalize_hint */
                          &result));
+
+  finalize_count = 0;
   return result;
 }
 
