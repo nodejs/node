@@ -64,15 +64,21 @@ introspectable only with other N-API calls.
 Integral status code indicating the success or failure of a N-API call.
 Currently, the following status codes are supported.
 ```C
+typedef enum {
   napi_ok,
   napi_invalid_arg,
   napi_object_expected,
   napi_string_expected,
+  napi_name_expected,
   napi_function_expected,
   napi_number_expected,
   napi_boolean_expected,
+  napi_array_expected,
   napi_generic_failure,
-  napi_pending_exception
+  napi_pending_exception,
+  napi_cancelled,
+  napi_status_last
+} napi_status;
 ```
 If additional information is required upon an API returning a failed status, 
 it can be obtained by calling `napi_get_last_error_info`.
@@ -252,8 +258,8 @@ NAPI_EXTERN napi_status
 napi_get_last_error_info(napi_env env,
                          const napi_extended_error_info** result);
 ```
-- `[in]  env`: The environment that the API is invoked under
-- `[out]  result`: The `napi_extended_error_info` structure with more
+- `[in] env`: The environment that the API is invoked under
+- `[out] result`: The `napi_extended_error_info` structure with more
 information about the error.
 
 Returns `napi_ok` if the API succeeded.
@@ -522,7 +528,7 @@ which they are opened. In addition, all scopes created within a native method
 must be closed before returning from that method.
 
 Taking the earlier example, adding calls to [`napi_open_handle_scope`][] and
-[`napi_close_handle_scope`][]  would ensure that at most a single handle
+[`napi_close_handle_scope`][] would ensure that at most a single handle
 is valid throughout the execution of the loop:
 
 ```C
@@ -932,7 +938,7 @@ added: v8.0.0
 napi_status napi_create_array(napi_env env, napi_value* result)
 ```
 
-- `[in]  env`: The environment that the N-API call is invoked under
+- `[in] env`: The environment that the N-API call is invoked under
 - `[out] result`: A `napi_value` representing a JavaScript Array
 
 Returns `napi_ok` if the API succeeded.
@@ -952,8 +958,8 @@ napi_status napi_create_array_with_length(napi_env env,
                                           napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  length`: The initial length of the Array
+- `[in] env`: The environment that the API is invoked under
+- `[in] length`: The initial length of the Array
 - `[out] result`: A `napi_value` representing a JavaScript Array
 
 Returns `napi_ok` if the API succeeded.
@@ -982,8 +988,8 @@ napi_status napi_create_arraybuffer(napi_env env,
                                     napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  length`: The length in bytes of the array buffer to create
+- `[in] env`: The environment that the API is invoked under
+- `[in] length`: The length in bytes of the array buffer to create
 - `[out] data`: Pointer to the underlying byte buffer of the ArrayBuffer
 - `[out] result`: A `napi_value` representing a JavaScript ArrayBuffer
 
@@ -1014,8 +1020,8 @@ napi_status napi_create_buffer(napi_env env,
                                napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  size`: Size in bytes of the underlying buffer
+- `[in] env`: The environment that the API is invoked under
+- `[in] size`: Size in bytes of the underlying buffer
 - `[out] data`: Raw pointer to the underlying buffer
 - `[out] result`: A `napi_value` representing a `node::Buffer`
 
@@ -1036,10 +1042,10 @@ napi_status napi_create_buffer_copy(napi_env env,
                                     napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  size`: Size in bytes of the input buffer (should be the same as the
+- `[in] env`: The environment that the API is invoked under
+- `[in] size`: Size in bytes of the input buffer (should be the same as the
  size of the new buffer)
-- `[in]  data`: Raw pointer to the underlying buffer to copy from
+- `[in] data`: Raw pointer to the underlying buffer to copy from
 - `[out] result_data`: Pointer to the new Buffer's underlying data buffer
 - `[out] result`: A `napi_value` representing a `node::Buffer`
 
@@ -1061,11 +1067,11 @@ napi_status napi_create_external(napi_env env,
                                  napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  data`: Raw pointer to the external data being wrapped
-- `[in]  finalize_cb`: Optional callback to call when the wrapped object
+- `[in] env`: The environment that the API is invoked under
+- `[in] data`: Raw pointer to the external data being wrapped
+- `[in] finalize_cb`: Optional callback to call when the wrapped object
 is being collected
-- `[in]  finalize_hint`: Optional hint to pass to the finalize callback
+- `[in] finalize_hint`: Optional hint to pass to the finalize callback
 during collection
 - `[out] result`: A `napi_value` representing an external object
 
@@ -1092,13 +1098,13 @@ napi_create_external_arraybuffer(napi_env env,
                                  napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  external_data`: Pointer to the underlying byte buffer of the 
+- `[in] env`: The environment that the API is invoked under
+- `[in] external_data`: Pointer to the underlying byte buffer of the 
 ArrayBuffer
-- `[in]  byte_length`: The length in bytes of the underlying buffer
-- `[in]  finalize_cb`: Optional callback to call when the ArrayBuffer is 
+- `[in] byte_length`: The length in bytes of the underlying buffer
+- `[in] finalize_cb`: Optional callback to call when the ArrayBuffer is 
 being collected
-- `[in]  finalize_hint`: Optional hint to pass to the finalize callback 
+- `[in] finalize_hint`: Optional hint to pass to the finalize callback 
 during collection
 - `[out] result`: A `napi_value` representing a JavaScript ArrayBuffer
 
@@ -1126,13 +1132,13 @@ napi_status napi_create_external_buffer(napi_env env,
                                         napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  length`: Size in bytes of the input buffer (should be the same as 
+- `[in] env`: The environment that the API is invoked under
+- `[in] length`: Size in bytes of the input buffer (should be the same as 
 the size of the new buffer)
-- `[in]  data`: Raw pointer to the underlying buffer to copy from
-- `[in]  finalize_cb`: Optional callback to call when the ArrayBuffer is
+- `[in] data`: Raw pointer to the underlying buffer to copy from
+- `[in] finalize_cb`: Optional callback to call when the ArrayBuffer is
 being collected
-- `[in]  finalize_hint`: Optional hint to pass to the finalize callback
+- `[in] finalize_hint`: Optional hint to pass to the finalize callback
 during collection
 - `[out] result`: A `napi_value` representing a `node::Buffer`
 
@@ -1156,12 +1162,12 @@ napi_status napi_create_function(napi_env env,
                                  napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  utf8name`: A string representing the name of the function encoded as 
+- `[in] env`: The environment that the API is invoked under
+- `[in] utf8name`: A string representing the name of the function encoded as 
 UTF8
-- `[in]  cb`: A function pointer to the native function to be invoked when the
+- `[in] cb`: A function pointer to the native function to be invoked when the
 created function is invoked from JavaScript
-- `[in]  data`: Optional arbitrary context data to be passed into the native
+- `[in] data`: Optional arbitrary context data to be passed into the native
 function when it is invoked
 - `[out] result`: A `napi_value` representing a JavaScript Function
 
@@ -1182,7 +1188,7 @@ added: v8.0.0
 napi_status napi_create_object(napi_env env, napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[out] result`: A `napi_value` representing a JavaScript Object
 
 Returns `napi_ok` if the API succeeded.
@@ -1204,8 +1210,8 @@ napi_status napi_create_symbol(napi_env env,
                                napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  description`: Null-terminated character buffer representing a 
+- `[in] env`: The environment that the API is invoked under
+- `[in] description`: Null-terminated character buffer representing a 
 UTF8-encoded string to describe the symbol
 - `[out] result`: A `napi_value` representing a JavaScript Symbol
 
@@ -1230,11 +1236,11 @@ napi_status napi_create_typedarray(napi_env env,
                                    napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  type`: Scalar datatype of the elements within the TypedArray
-- `[in]  length`: Number of elements in the TypedArray
-- `[in]  arraybuffer`: ArrayBuffer underlying the typed array
-- `[in]  byte_offset`: The byte offset within the ArrayBuffer from which to
+- `[in] env`: The environment that the API is invoked under
+- `[in] type`: Scalar datatype of the elements within the TypedArray
+- `[in] length`: Number of elements in the TypedArray
+- `[in] arraybuffer`: ArrayBuffer underlying the typed array
+- `[in] byte_offset`: The byte offset within the ArrayBuffer from which to
 start projecting the TypedArray
 - `[out] result`: A `napi_value` representing a JavaScript TypedArray
 
@@ -1262,8 +1268,8 @@ added: v8.0.0
 napi_status napi_create_number(napi_env env, double value, napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: Double-precision value to be represented in JavaScript
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: Double-precision value to be represented in JavaScript
 - `[out] result`: A `napi_value` representing a JavaScript Number
 
 Returns `napi_ok` if the API succeeded.
@@ -1286,9 +1292,9 @@ napi_status napi_create_string_utf16(napi_env env,
                                      napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  str`: Character buffer representing a UTF16-LE-encoded string
-- `[in]  length`: The length of the string in characters, or -1 if it is
+- `[in] env`: The environment that the API is invoked under
+- `[in] str`: Character buffer representing a UTF16-LE-encoded string
+- `[in] length`: The length of the string in characters, or -1 if it is
 null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String
 
@@ -1311,9 +1317,9 @@ napi_status napi_create_string_utf8(napi_env env,
                                     napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  s`: Character buffer representing a UTF8-encoded string
-- `[in]  length`: The length of the string in characters, or -1 if it is
+- `[in] env`: The environment that the API is invoked under
+- `[in] s`: Character buffer representing a UTF8-encoded string
+- `[in] length`: The length of the string in characters, or -1 if it is
 null-terminated.
 - `[out] result`: A `napi_value` representing a JavaScript String
 
@@ -1337,8 +1343,8 @@ napi_status napi_get_array_length(napi_env env,
                                   uint32_t* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: `napi_value` representing the JavaScript Array whose length is
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: `napi_value` representing the JavaScript Array whose length is
 being queried
 - `[out] result`: `uint32` representing length of the array
 
@@ -1361,8 +1367,8 @@ napi_status napi_get_arraybuffer_info(napi_env env,
                                       size_t* byte_length)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  arraybuffer`: `napi_value` representing the ArrayBuffer being queried
+- `[in] env`: The environment that the API is invoked under
+- `[in] arraybuffer`: `napi_value` representing the ArrayBuffer being queried
 - `[out] data`: The underlying data buffer of the ArrayBuffer
 - `[out] byte_length`: Length in bytes of the underlying data buffer
 
@@ -1388,8 +1394,8 @@ napi_status napi_get_buffer_info(napi_env env,
                                  size_t* length)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: `napi_value` representing the `node::Buffer` being queried
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: `napi_value` representing the `node::Buffer` being queried
 - `[out] data`: The underlying data buffer of the `node::Buffer`
 - `[out] length`: Length in bytes of the underlying data buffer
 
@@ -1410,8 +1416,8 @@ napi_status napi_get_prototype(napi_env env,
                                napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  object`: `napi_value` representing JavaScript Object whose prototype
+- `[in] env`: The environment that the API is invoked under
+- `[in] object`: `napi_value` representing JavaScript Object whose prototype
 to return. This returns the equivalent of `Object.getPrototypeOf` (which is
 not the same as the function's `prototype` property)
 - `[out] result`: `napi_value` representing prototype of the given object
@@ -1432,8 +1438,8 @@ napi_status napi_get_typedarray_info(napi_env env,
                                      size_t* byte_offset)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  typedarray`: `napi_value` representing the TypedArray whose 
+- `[in] env`: The environment that the API is invoked under
+- `[in] typedarray`: `napi_value` representing the TypedArray whose 
 properties to query
 - `[out] type`: Scalar datatype of the elements within the TypedArray
 - `[out] length`: Number of elements in the TypedArray
@@ -1455,8 +1461,8 @@ added: v8.0.0
 napi_status napi_get_value_bool(napi_env env, napi_value value, bool* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: `napi_value` representing JavaScript Boolean
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: `napi_value` representing JavaScript Boolean
 - `[out] result`: C boolean primitive equivalent of the given JavaScript
 Boolean
 
@@ -1476,8 +1482,8 @@ napi_status napi_get_value_double(napi_env env,
                                   double* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: `napi_value` representing JavaScript Number
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: `napi_value` representing JavaScript Number
 - `[out] result`: C double primitive equivalent of the given JavaScript
 Number
 
@@ -1498,8 +1504,8 @@ napi_status napi_get_value_external(napi_env env,
                                     void** result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: `napi_value` representing JavaScript External value
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: `napi_value` representing JavaScript External value
 - `[out] result`: Pointer to the data wrapped by the JavaScript External value
 
 Returns `napi_ok` if the API succeeded. If a non-external `napi_value` is
@@ -1518,8 +1524,8 @@ napi_status napi_get_value_int32(napi_env env,
                                  int32_t* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: `napi_value` representing JavaScript Number
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: `napi_value` representing JavaScript Number
 - `[out] result`: C int32 primitive equivalent of the given JavaScript Number
 
 Returns `napi_ok` if the API succeeded. If a non-number `napi_value` 
@@ -1541,8 +1547,8 @@ napi_status napi_get_value_int64(napi_env env,
                                  int64_t* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: `napi_value` representing JavaScript Number
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: `napi_value` representing JavaScript Number
 - `[out] result`: C int64 primitive equivalent of the given JavaScript Number
 
 Returns `napi_ok` if the API succeeded. If a non-number `napi_value`
@@ -1561,8 +1567,8 @@ napi_status napi_get_value_string_length(napi_env env,
                                          int* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: `napi_value` representing JavaScript string
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: `napi_value` representing JavaScript string
 - `[out] result`: Number of characters in the given JavaScript string
 
 Returns `napi_ok` if the API succeeded. If a non-String `napi_value`
@@ -1582,11 +1588,11 @@ napi_status napi_get_value_string_utf8(napi_env env,
                                        size_t* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: `napi_value` representing JavaScript string
-- `[in]  buf`: Buffer to write the UTF8-encoded string into. If NULL is passed
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: `napi_value` representing JavaScript string
+- `[in] buf`: Buffer to write the UTF8-encoded string into. If NULL is passed
  in, the length of the string (in bytes) is returned
-- `[in]  bufsize`: Size of the destination buffer. 
+- `[in] bufsize`: Size of the destination buffer. 
 - `[out] result`: Number of bytes copied into the buffer including the null
 terminator. If the buffer size is insufficient, the string will be truncated
 including a null terminator.
@@ -1608,11 +1614,11 @@ napi_status napi_get_value_string_utf16(napi_env env,
                                         size_t* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: `napi_value` representing JavaScript string
-- `[in]  buf`: Buffer to write the UTF16-LE-encoded string into. If NULL is 
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: `napi_value` representing JavaScript string
+- `[in] buf`: Buffer to write the UTF16-LE-encoded string into. If NULL is 
 passed in, the length of the string (in 2-byte code units) is returned
-- `[in]  bufsize`: Size of the destination buffer. 
+- `[in] bufsize`: Size of the destination buffer. 
 - `[out] result`: Number of 2-byte code units copied into the buffer including
 the null terminateor. If the buffer size is insufficient, the string will be
 truncated including a null terminator.
@@ -1632,8 +1638,8 @@ napi_status napi_get_value_uint32(napi_env env,
                                   uint32_t* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: `napi_value` representing JavaScript Number
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: `napi_value` representing JavaScript Number
 - `[out] result`: C primitive equivalent of the given `napi_value` as a 
 `uint32_t`
 
@@ -1653,8 +1659,8 @@ added: v8.0.0
 napi_status napi_get_boolean(napi_env env, bool value, napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: The value of the boolean to retrieve
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: The value of the boolean to retrieve
 - `[out] result`: `napi_value` representing JavaScript Boolean singleton to
 retrieve
 
@@ -1671,7 +1677,7 @@ added: v8.0.0
 napi_status napi_get_global(napi_env env, napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[out] result`: `napi_value` representing JavaScript Global Object
 
 Returns `napi_ok` if the API succeeded.
@@ -1686,7 +1692,7 @@ added: v8.0.0
 napi_status napi_get_null(napi_env env, napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[out] result`: `napi_value` representing JavaScript Null Object
 
 Returns `napi_ok` if the API succeeded.
@@ -1701,7 +1707,7 @@ added: v8.0.0
 napi_status napi_get_undefined(napi_env env, napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
+- `[in] env`: The environment that the API is invoked under
 - `[out] result`: `napi_value` representing JavaScript Undefined value
 
 Returns `napi_ok` if the API succeeded.
@@ -1731,8 +1737,8 @@ napi_status napi_coerce_to_bool(napi_env env,
                                 napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: The JavaScript value to coerce
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: The JavaScript value to coerce
 - `[out] result`: `napi_value` representing the coerced JavaScript Boolean
 
 Returns `napi_ok` if the API succeeded.
@@ -1752,8 +1758,8 @@ napi_status napi_coerce_to_number(napi_env env,
                                   napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: The JavaScript value to coerce
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: The JavaScript value to coerce
 - `[out] result`: `napi_value` representing the coerced JavaScript Number
 
 Returns `napi_ok` if the API succeeded.
@@ -1773,8 +1779,8 @@ napi_status napi_coerce_to_object(napi_env env,
                                   napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: The JavaScript value to coerce
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: The JavaScript value to coerce
 - `[out] result`: `napi_value` representing the coerced JavaScript Object
 
 Returns `napi_ok` if the API succeeded.
@@ -1794,8 +1800,8 @@ napi_status napi_coerce_to_string(napi_env env,
                                   napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: The JavaScript value to coerce
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: The JavaScript value to coerce
 - `[out] result`: `napi_value` representing the coerced JavaScript String
 
 Returns `napi_ok` if the API succeeded.
@@ -1813,8 +1819,8 @@ added: v8.0.0
 napi_status napi_typeof(napi_env env, napi_value value, napi_valuetype* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: The JavaScript value whose type to query
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: The JavaScript value whose type to query
 - `[out] result`: The type of the JavaScript value
 
 Returns `napi_ok` if the API succeeded.
@@ -1839,9 +1845,9 @@ napi_status napi_instanceof(napi_env env,
                             bool* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  object`: The JavaScript value to check
-- `[in]  constructor`: The JavaScript function object of the constructor
+- `[in] env`: The environment that the API is invoked under
+- `[in] object`: The JavaScript value to check
+- `[in] constructor`: The JavaScript function object of the constructor
 function to check against
 - `[out] result`: Whether `object instanceof constructor` is true.
 
@@ -1860,8 +1866,8 @@ added: v8.0.0
 napi_status napi_is_array(napi_env env, napi_value value, bool* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: The JavaScript value to check
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: The JavaScript value to check
 - `[out] result`: Whether the given object is an array
 
 Returns `napi_ok` if the API succeeded.
@@ -1878,8 +1884,8 @@ added: v8.0.0
 napi_status napi_is_arraybuffer(napi_env env, napi_value value, bool* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: The JavaScript value to check
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: The JavaScript value to check
 - `[out] result`: Whether the given object is an ArrayBuffer
 
 Returns `napi_ok` if the API succeeded.
@@ -1894,8 +1900,8 @@ added: v8.0.0
 napi_status napi_is_buffer(napi_env env, napi_value value, bool* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: The JavaScript value to check
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: The JavaScript value to check
 - `[out] result`: Whether the given `napi_value` represents a `node::Buffer`
 object
 
@@ -1911,8 +1917,8 @@ added: v8.0.0
 napi_status napi_is_error(napi_env env, napi_value value, bool* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: The JavaScript value to check
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: The JavaScript value to check
 - `[out] result`: Whether the given `napi_value` represents an Error object
 
 Returns `napi_ok` if the API succeeded.
@@ -1927,8 +1933,8 @@ added: v8.0.0
 napi_status napi_is_typedarray(napi_env env, napi_value value, bool* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  value`: The JavaScript value to check
+- `[in] env`: The environment that the API is invoked under
+- `[in] value`: The JavaScript value to check
 - `[out] result`: Whether the given `napi_value` represents a TypedArray
 
 Returns `napi_ok` if the API succeeded.
@@ -1946,9 +1952,9 @@ napi_status napi_strict_equals(napi_env env,
                                bool* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  lhs`: The JavaScript value to check
-- `[in]  rhs`: The JavaScript value to check against
+- `[in] env`: The environment that the API is invoked under
+- `[in] lhs`: The JavaScript value to check
+- `[in] rhs`: The JavaScript value to check against
 - `[out] result`: Whether the two `napi_value` objects are equal
 
 Returns `napi_ok` if the API succeeded.
@@ -2178,8 +2184,8 @@ napi_status napi_get_property_names(napi_env env,
                                     napi_value* result);
 ```
 
-- `[in]  env`: The environment that the N-API call is invoked under
-- `[in]  object`: The object from which to retrieve the properties
+- `[in] env`: The environment that the N-API call is invoked under
+- `[in] object`: The object from which to retrieve the properties
 - `[out] result`: A `napi_value` representing an array of JavaScript values 
 that represent the property names of the object. You can iterate over `result`
 using [`napi_get_array_length`][] and [`napi_get_element`][].
@@ -2199,10 +2205,10 @@ napi_status napi_set_property(napi_env env,
                               napi_value value);
 ```
 
-- `[in]  env`: The environment that the N-API call is invoked under
-- `[in]  object`: The object on which to set the property
-- `[in]  key`: The name of the property to set
-- `[in]  value`: The property value
+- `[in] env`: The environment that the N-API call is invoked under
+- `[in] object`: The object on which to set the property
+- `[in] key`: The name of the property to set
+- `[in] value`: The property value
 
 Returns `napi_ok` if the API succeeded.
 
@@ -2219,9 +2225,9 @@ napi_status napi_get_property(napi_env env,
                               napi_value* result);
 ```
 
-- `[in]  env`: The environment that the N-API call is invoked under
-- `[in]  object`: The object from which to retrieve the property
-- `[in]  key`: The name of the property to retrieve
+- `[in] env`: The environment that the N-API call is invoked under
+- `[in] object`: The object from which to retrieve the property
+- `[in] key`: The name of the property to retrieve
 - `[out] result`: The value of the property
 
 Returns `napi_ok` if the API succeeded.
@@ -2240,9 +2246,9 @@ napi_status napi_has_property(napi_env env,
                               bool* result);
 ```
 
-- `[in]  env`: The environment that the N-API call is invoked under
-- `[in]  object`: The object to query
-- `[in]  key`: The name of the property whose existence to check
+- `[in] env`: The environment that the N-API call is invoked under
+- `[in] object`: The object to query
+- `[in] key`: The name of the property whose existence to check
 - `[out] result`: Whether the property exists on the object or not
 
 Returns `napi_ok` if the API succeeded.
@@ -2261,10 +2267,10 @@ napi_status napi_set_named_property(napi_env env,
                                     napi_value value);
 ```
 
-- `[in]  env`: The environment that the N-API call is invoked under
-- `[in]  object`: The object on which to set the property
-- `[in]  utf8Name`: The name of the property to set
-- `[in]  value`: The property value
+- `[in] env`: The environment that the N-API call is invoked under
+- `[in] object`: The object on which to set the property
+- `[in] utf8Name`: The name of the property to set
+- `[in] value`: The property value
 
 Returns `napi_ok` if the API succeeded.
 
@@ -2282,9 +2288,9 @@ napi_status napi_get_named_property(napi_env env,
                                     napi_value* result);
 ```
 
-- `[in]  env`: The environment that the N-API call is invoked under
-- `[in]  object`: The object from which to retrieve the property
-- `[in]  utf8Name`: The name of the property to get
+- `[in] env`: The environment that the N-API call is invoked under
+- `[in] object`: The object from which to retrieve the property
+- `[in] utf8Name`: The name of the property to get
 - `[out] result`: The value of the property
 
 Returns `napi_ok` if the API succeeded.
@@ -2303,9 +2309,9 @@ napi_status napi_has_named_property(napi_env env,
                                     bool* result);
 ```
 
-- `[in]  env`: The environment that the N-API call is invoked under
-- `[in]  object`: The object to query
-- `[in]  utf8Name`: The name of the property whose existence to check
+- `[in] env`: The environment that the N-API call is invoked under
+- `[in] object`: The object to query
+- `[in] utf8Name`: The name of the property whose existence to check
 - `[out] result`: Whether the property exists on the object or not
 
 Returns `napi_ok` if the API succeeded.
@@ -2324,10 +2330,10 @@ napi_status napi_set_element(napi_env env,
                              napi_value value);
 ```
 
-- `[in]  env`: The environment that the N-API call is invoked under
-- `[in]  object`: The object from which to set the properties
-- `[in]  index`: The index of the property to set
-- `[in]  value`: The property value
+- `[in] env`: The environment that the N-API call is invoked under
+- `[in] object`: The object from which to set the properties
+- `[in] index`: The index of the property to set
+- `[in] value`: The property value
 
 Returns `napi_ok` if the API succeeded.
 
@@ -2344,9 +2350,9 @@ napi_status napi_get_element(napi_env env,
                              napi_value* result);
 ```
 
-- `[in]  env`: The environment that the N-API call is invoked under
-- `[in]  object`: The object from which to retrieve the property
-- `[in]  index`: The index of the property to get
+- `[in] env`: The environment that the N-API call is invoked under
+- `[in] object`: The object from which to retrieve the property
+- `[in] index`: The index of the property to get
 - `[out] result`: The value of the property
 
 Returns `napi_ok` if the API succeeded.
@@ -2364,9 +2370,9 @@ napi_status napi_has_element(napi_env env,
                              bool* result);
 ```
 
-- `[in]  env`: The environment that the N-API call is invoked under
-- `[in]  object`: The object to query
-- `[in]  index`: The index of the property whose existence to check
+- `[in] env`: The environment that the N-API call is invoked under
+- `[in] object`: The object to query
+- `[in] index`: The index of the property whose existence to check
 - `[out] result`: Whether the property exists on the object or not
 
 Returns `napi_ok` if the API succeeded.
@@ -2385,10 +2391,10 @@ napi_status napi_define_properties(napi_env env,
                                    const napi_property_descriptor* properties);
 ```
 
-- `[in]  env`: The environment that the N-API call is invoked under
-- `[in]  object`: The object from which to retrieve the properties
-- `[in]  property_count`: The number of elements in the `properties` array
-- `[in]  properties`: The array of property descriptors
+- `[in] env`: The environment that the N-API call is invoked under
+- `[in] object`: The object from which to retrieve the properties
+- `[in] property_count`: The number of elements in the `properties` array
+- `[in] properties`: The array of property descriptors
 
 Returns `napi_ok` if the API succeeded.
 
@@ -2432,12 +2438,12 @@ napi_status napi_call_function(napi_env env,
                                napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  recv`: The `this` object passed to the called function
-- `[in]  func`: `napi_value` representing the JavaScript function
+- `[in] env`: The environment that the API is invoked under
+- `[in] recv`: The `this` object passed to the called function
+- `[in] func`: `napi_value` representing the JavaScript function
 to be invoked
-- `[in]  argc`: The count of elements in the `argv` array
-- `[in]  argv`: Array of `napi_values` representing JavaScript values passed 
+- `[in] argc`: The count of elements in the `argv` array
+- `[in] argv`: Array of `napi_values` representing JavaScript values passed 
 in as arguments to the function.
 - `[out] result`: `napi_value` representing the JavaScript object returned
 
@@ -2497,12 +2503,12 @@ napi_status napi_create_function(napi_env env,
                                  napi_value* result);
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  utf8Name`: The name of the function encoded as UTF8. This is visible
+- `[in] env`: The environment that the API is invoked under
+- `[in] utf8Name`: The name of the function encoded as UTF8. This is visible
 within JavaScript as the new function object's `name` property.
-- `[in]  cb`: The native function which should be called when this function 
+- `[in] cb`: The native function which should be called when this function 
 object is invoked
-- `[in]  data`: User-provided data context. This will be passed back into the 
+- `[in] data`: User-provided data context. This will be passed back into the 
 function when invoked later.
 - `[out] result`: `napi_value` representing the JavaScript function object for
 the newly created function
@@ -2563,8 +2569,8 @@ napi_status napi_get_cb_info(napi_env env,
                              void** data)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  cbinfo`: The callback info passed into the callback function
+- `[in] env`: The environment that the API is invoked under
+- `[in] cbinfo`: The callback info passed into the callback function
 - `[in-out] argc`: Specifies the size of the provided `argv` array
 and receives the actual count of arguments.
 - `[out] argv`: Buffer to which the `napi_value` representing the
@@ -2590,8 +2596,8 @@ napi_status napi_is_construct_call(napi_env env,
                                    bool* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  cbinfo`: The callback info passed into the callback function
+- `[in] env`: The environment that the API is invoked under
+- `[in] cbinfo`: The callback info passed into the callback function
 - `[out] result`: Whether the native function is being invoked as 
 a constructor call
 
@@ -2612,11 +2618,11 @@ napi_status napi_new_instance(napi_env env,
                               napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  cons`: `napi_value` representing the JavaScript function
+- `[in] env`: The environment that the API is invoked under
+- `[in] cons`: `napi_value` representing the JavaScript function
 to be invoked as a constructor
-- `[in]  argc`: The count of elements in the `argv` array
-- `[in]  argv`: Array of JavaScript values as `napi_value` 
+- `[in] argc`: The count of elements in the `argv` array
+- `[in] argv`: Array of JavaScript values as `napi_value` 
 representing the arguments to the constructor
 - `[out] result`: `napi_value` representing the JavaScript object returned, 
 which in this case is the constructed object
@@ -2669,12 +2675,12 @@ napi_status napi_make_callback(napi_env env,
                                napi_value* result)
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  recv`: The `this` object passed to the called function
-- `[in]  func`: `napi_value` representing the JavaScript function
+- `[in] env`: The environment that the API is invoked under
+- `[in] recv`: The `this` object passed to the called function
+- `[in] func`: `napi_value` representing the JavaScript function
 to be invoked
-- `[in]  argc`: The count of elements in the `argv` array
-- `[in]  argv`: Array of JavaScript values as `napi_value` 
+- `[in] argc`: The count of elements in the `argv` array
+- `[in] argv`: Array of JavaScript values as `napi_value` 
 representing the arguments to the function.
 - `[out] result`: `napi_value` representing the JavaScript object returned
 
@@ -2719,17 +2725,17 @@ napi_status napi_define_class(napi_env env,
                               napi_value* result);
 ```
 
- - `[in]  env`: The environment that the API is invoked under
- - `[in]  utf8name`: Name of the JavaScript constructor function; this is
+ - `[in] env`: The environment that the API is invoked under
+ - `[in] utf8name`: Name of the JavaScript constructor function; this is
    not required to be the same as the C++ class name, though it is recommended
    for clarity
- - `[in]  constructor`: Callback function that handles constructing instances
+ - `[in] constructor`: Callback function that handles constructing instances
    of the class. (This should be a static method on the class, not an actual
    C++ constructor function.)
- - `[in]  data`: Optional data to be passed to the constructor callback as
+ - `[in] data`: Optional data to be passed to the constructor callback as
    the `data` property of the callback info
- - `[in]  property_count`: Number of items in the `properties` array argument
- - `[in]  properties`: Array of property descriptors describing static and
+ - `[in] property_count`: Number of items in the `properties` array argument
+ - `[in] properties`: Array of property descriptors describing static and
    instance data properties, accessors, and methods on the class
    See `napi_property_descriptor`
  - `[out] result`: A `napi_value` representing the constructor function for
@@ -2771,15 +2777,15 @@ napi_status napi_wrap(napi_env env,
                       napi_ref* result);
 ```
 
- - `[in]  env`: The environment that the API is invoked under
- - `[in]  js_object`: The JavaScript object that will be the wrapper for the
+ - `[in] env`: The environment that the API is invoked under
+ - `[in] js_object`: The JavaScript object that will be the wrapper for the
    native object. This object _must_ have been created from the `prototype` of
    a constructor that was created using `napi_define_class()`.
- - `[in]  native_object`: The native instance that will be wrapped in the
+ - `[in] native_object`: The native instance that will be wrapped in the
    JavaScript object.
- - `[in]  finalize_cb`: Optional native callback that can be used to free the
+ - `[in] finalize_cb`: Optional native callback that can be used to free the
    native instance when the JavaScript object is ready for garbage-collection
- - `[in]  finalize_hint`: Optional contextual hint that is passed to the
+ - `[in] finalize_hint`: Optional contextual hint that is passed to the
    finalize callback.
  - `[out] result`: Optional reference to the wrapped object
 
@@ -2819,8 +2825,8 @@ napi_status napi_unwrap(napi_env env,
                         void** result);
 ```
 
- - `[in]  env`: The environment that the API is invoked under
- - `[in]  js_object`:
+ - `[in] env`: The environment that the API is invoked under
+ - `[in] js_object`:
  - `[out] result`:
 
 Returns `napi_ok` if the API succeeded.
@@ -2900,12 +2906,12 @@ napi_status napi_create_async_work(napi_env env,
                                    napi_async_work* result);
 ```
 
-- `[in]  env`: The environment that the API is invoked under.
-- `[in]  execute`: The native function which should be called to excute
+- `[in] env`: The environment that the API is invoked under.
+- `[in] execute`: The native function which should be called to excute
 the logic asynchronously.
-- `[in]  complete`: The native function which will be called when the
+- `[in] complete`: The native function which will be called when the
 asynchronous logic is comple or is cancelled.
-- `[in]  data`: User-provided data context. This will be passed back into the
+- `[in] data`: User-provided data context. This will be passed back into the
 execute and complete functions.
 - `[out] result`: `napi_async_work*` which is the handle to the newly created
 async work.
@@ -2925,8 +2931,8 @@ NAPI_EXTERN napi_status napi_delete_async_work(napi_env env,
                                                napi_async_work work);
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  work`: The handle returned by the call to `napi_create_async_work`.
+- `[in] env`: The environment that the API is invoked under
+- `[in] work`: The handle returned by the call to `napi_create_async_work`.
 
 Returns `napi_ok` if the API succeeded.
 
@@ -2941,8 +2947,8 @@ NAPI_EXTERN napi_status napi_queue_async_work(napi_env env,
                                               napi_async_work work);
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  work`: The handle returned by the call to `napi_create_async_work`.
+- `[in] env`: The environment that the API is invoked under
+- `[in] work`: The handle returned by the call to `napi_create_async_work`.
 
 Returns `napi_ok` if the API succeeded.
 
@@ -2958,8 +2964,8 @@ NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
                                                napi_async_work work);
 ```
 
-- `[in]  env`: The environment that the API is invoked under
-- `[in]  work`: The handle returned by the call to `napi_create_async_work`.
+- `[in] env`: The environment that the API is invoked under
+- `[in] work`: The handle returned by the call to `napi_create_async_work`.
 
 Returns `napi_ok` if the API succeeded.
 
