@@ -225,7 +225,6 @@ NODE_EXTERN void RunAtExit(Environment* env);
     1000 * static_cast<double>(t))
 #define NODE_V8_UNIXTIME(v) (static_cast<double>((v)->NumberValue())/1000.0);
 
-// Used to be a macro, hence the uppercase name.
 #define NODE_DEFINE_CONSTANT(target, constant)                                \
   do {                                                                        \
     v8::Isolate* isolate = target->GetIsolate();                              \
