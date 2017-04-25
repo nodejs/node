@@ -428,7 +428,7 @@ goto exit
 
 :jslint-ci
 echo running jslint-ci
-%config%\node tools\jslint.js -J -f tap -o test-eslint.tap benchmark lib test tools
+%config%\node tools\jslint.js -J -f tap -o test-eslint.tap benchmark doc lib test tools
 goto exit
 
 :no-lint
