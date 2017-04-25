@@ -31,12 +31,12 @@ assert.throws(() => {
 }, common.expectsError({
   code: 'ERR_INVALID_THIS',
   type: TypeError,
-  message: 'Value of this must be of type URLSearchParamsIterator'
+  message: 'Value of "this" must be of type URLSearchParamsIterator'
 }));
 assert.throws(() => {
   params.entries.call(undefined);
 }, common.expectsError({
   code: 'ERR_INVALID_THIS',
   type: TypeError,
-  message: 'Value of this must be of type URLSearchParams'
+  message: 'Value of "this" must be of type URLSearchParams'
 }));

@@ -196,7 +196,7 @@ test(() => {
   const tupleError = common.expectsError({
     code: 'ERR_INVALID_TUPLE',
     type: TypeError,
-    message: 'Each query pair must be an iterable name/value tuple'
+    message: 'Each query pair must be an iterable [name, value] tuple'
   });
 
   let params;

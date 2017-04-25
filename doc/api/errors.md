@@ -602,10 +602,7 @@ semantics for determining whether a path can be used is platform-dependent.
 ### ERR_INVALID_THIS
 
 The `'ERR_INVALID_THIS'` error code is used generically to identify that a
-Node.js API function is called with an incompatible `this` value. Its use is
-currently limited to the [WHATWG URL API][] to satisfy specification
-requirements, but may be expanded to other areas of the Node.js API in the
-future.
+Node.js API function is called with an incompatible `this` value.
 
 Example:
 
@@ -623,9 +620,9 @@ urlSearchParams.has.call(buf, 'foo');
 
 An error with code `'ERR_INVALID_TUPLE'` is thrown when an element in the
 `iterable` provided to the [WHATWG][WHATWG URL API] [`URLSearchParams`
-constructor][`new URLSearchParams(iterable)`] does not represent a name/value
-tuple -- that is, if an element is not iterable, or does not consist of exactly
-two elements.
+constructor][`new URLSearchParams(iterable)`] does not represent a `[name,
+value]` tuple – that is, if an element is not iterable, or does not consist of
+exactly two elements.
 
 <a id="ERR_INVALID_URL"></a>
 ### ERR_INVALID_URL
