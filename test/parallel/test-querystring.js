@@ -254,7 +254,7 @@ qsWeirdObjects.forEach(function(testCase) {
 // invalid surrogate pair throws URIError
 assert.throws(function() {
   qs.stringify({ foo: '\udc00' });
-}, URIError);
+}, /^URIError: URI malformed$/);
 
 // coerce numbers to string
 assert.strictEqual('foo=0', qs.stringify({ foo: 0 }));
