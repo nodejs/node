@@ -40,6 +40,7 @@ import nodedownload
 # imports in tools/
 sys.path.insert(0, os.path.join(root_dir, 'tools'))
 import getmoduleversion
+from gyp_node import run_gyp
 
 # parse our options
 parser = optparse.OptionParser()
@@ -1380,7 +1381,7 @@ config = '\n'.join(map('='.join, config.iteritems())) + '\n'
 
 write('config.mk', do_not_edit + config)
 
-gyp_args = [sys.executable, 'tools/gyp_node.py', '--no-parallel']
+gyp_args = ['--no-parallel']
 
 if options.use_xcode:
   gyp_args += ['-f', 'xcode']
@@ -1399,4 +1400,4 @@ gyp_args += args
 if warn.warned:
   warn('warnings were emitted in the configure phase')
 
-sys.exit(subprocess.call(gyp_args))
+run_gyp(gyp_args)
