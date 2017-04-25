@@ -84,7 +84,6 @@ If additional information is required upon an API returning a failed status,
 it can be obtained by calling `napi_get_last_error_info`.
 
 ### *napi_extended_error_info*
-#### Definition
 ```C
 typedef struct {
   const char* error_message;
@@ -94,7 +93,6 @@ typedef struct {
 } napi_extended_error_info;
 ```
 
-#### Members
 - error_message: UTF8-encoded string containing a VM-neutral description of 
   the error
 - engine_reserved: Reserved for VM-specific error details. This is currently
@@ -883,7 +881,6 @@ the `napi_value` in question is of the JavaScript type expected by the API.
 
 #### *napi_valuetype*
 
-##### Definition
 ```C
 typedef enum {
   // ES6 types (corresponds to typeof)
@@ -908,7 +905,6 @@ Functions and Objects with external data.
 
 #### *napi_typedarray_type*
 
-##### Definition
 ```C
 typedef enum {
   napi_int8_array,
@@ -2098,7 +2094,6 @@ if (status != napi_ok) return status;
 
 #### *napi_property_attributes*
 
-##### Definition
 ```C
 typedef enum {
   napi_default = 0,
@@ -2132,8 +2127,6 @@ default. This is used only by [`napi_define_class`][]. It is ignored by
 `napi_define_properties`
 
 #### *napi_property_descriptor*
-
-##### Definition
 ```C
 typedef struct {
   const char* utf8name;
@@ -2148,7 +2141,6 @@ typedef struct {
 } napi_property_descriptor;
 ```
 
-##### Members
 - `utf8name`: String describing the key for the property, encoded as UTF8.
 - `value`: The value that's retrieved by a get access of the property if the
  property is a data property. If this is passed in, set `getter`, `setter`,
