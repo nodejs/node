@@ -1984,14 +1984,14 @@ get and set properties on arbitrary JavaScript objects represented by
 
 For instance, consider the following JavaScript code snippet:
 ```js
-var obj = {};
+const obj = {};
 obj.myProp = 123;
 ```
 You can do the equivalent using N-API values with the following snippet:
 ```C
 napi_status status = napi_generic_failure;
 
-// var obj = {}
+// const obj = {}
 napi_value obj, value;
 status = napi_create_object(env, &obj);
 if (status != napi_ok) return status;
@@ -2008,14 +2008,14 @@ if (status != napi_ok) return status;
 You can also set indexed properties in a similar manner. Consider the following
 JavaScript snippet:
 ```js
-var arr = [];
+const arr = [];
 arr[123] = 'hello';
 ```
 You can do the equivalent using N-API values with the following snippet:
 ```C
 napi_status status = napi_generic_failure;
 
-// var arr = [];
+// const arr = [];
 napi_value arr, value;
 status = napi_create_array(env, &arr);
 if (status != napi_ok) return status;
@@ -2032,20 +2032,20 @@ if (status != napi_ok) return status;
 You can also get properties using the APIs described in this section.
 Consider the following JavaScript snippet:
 ```js
-var arr = [];
-var value = arr[123];
+const arr = [];
+const value = arr[123];
 ```
 
 The following is the approximate equivalent of the N-API counterpart:
 ```C
 napi_status status = napi_generic_failure;
 
-// var arr = []
+// const arr = []
 napi_value arr, value;
 status = napi_create_array(env, &arr);
 if (status != napi_ok) return status;
 
-// value = arr[123]
+// const value = arr[123]
 status = napi_get_element(env, arr, 123, &value);
 if (status != napi_ok) return status;
 ```
@@ -2053,7 +2053,7 @@ if (status != napi_ok) return status;
 Finally, multiple properties can also be defined on an object for performance
 reasons. Consider the following JavaScript:
 ```js
-var obj = {};
+const obj = {};
 Object.defineProperties(obj, {
   'foo': { value: 123, writable: true, configurable: true, enumerable: true },
   'bar': { value: 456, writable: true, configurable: true, enumerable: true }
@@ -2064,7 +2064,7 @@ The following is the approximate equivalent of the N-API counterpart:
 ```C
 napi_status status = napi_status_generic_failure;
 
-// var obj = {};
+// const obj = {};
 napi_value obj;
 status = napi_create_obj(env, &obj);
 if (status != napi_ok) return status;
@@ -2451,9 +2451,8 @@ after an async operation, see [`napi_make_callback`][].
 A sample use case might look as follows. Consider the following JavaScript
 snippet:
 ```js
-function AddTwo(num)
-{
-    return num + 2;
+function AddTwo(num) {
+  return num + 2;
 }
 ```
 
@@ -2543,7 +2542,7 @@ NAPI_MODULE(addon, Init)
 
 Given the above code, the add-on can be used from JavaScript as follows:
 ```js
-var myaddon = require('./addon');
+const myaddon = require('./addon');
 myaddon.sayHello();
 ```
 
@@ -2626,13 +2625,12 @@ This method is used to instantiate a new JavaScript value using a given
 `napi_value` that represents the constructor for the object. For example, 
 consider the following snippet:
 ```js
-function MyObject(param)
-{
-    this.param = param;
+function MyObject(param) {
+  this.param = param;
 }
 
-var arg = "hello";
-var value = new MyObject(arg);
+const arg = 'hello';
+const value = new MyObject(arg);
 ```
 
 The following can be approximated in N-API using the following snippet:
@@ -2645,14 +2643,14 @@ if (status != napi_ok) return;
 status = napi_get_named_property(env, global, "MyObject", &constructor);
 if (status != napi_ok) return;
 
-// var arg = "hello"
+// const arg = "hello"
 status = napi_create_string_utf8(env, "hello", -1, &arg);
 if (status != napi_ok) return;
 
 napi_value* argv = &arg;
 size_t argc = 1;
 
-// var value = new MyObject(arg)
+// const value = new MyObject(arg)
 status = napi_new_instance(env, constructor, argc, argv, &value);
 ```
 
