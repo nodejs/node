@@ -70,32 +70,26 @@ if (common.isWindows) {
 }
 
 const endianness = os.endianness();
-console.log('endianness = %s', endianness);
 is.string(endianness);
 assert.ok(/[BL]E/.test(endianness));
 
 const hostname = os.hostname();
-console.log('hostname = %s', hostname);
 is.string(hostname);
 assert.ok(hostname.length > 0);
 
 const uptime = os.uptime();
-console.log('uptime = %d', uptime);
 is.number(uptime);
 assert.ok(uptime > 0);
 
 const cpus = os.cpus();
-console.log('cpus = ', cpus);
 is.array(cpus);
 assert.ok(cpus.length > 0);
 
 const type = os.type();
-console.log('type = ', type);
 is.string(type);
 assert.ok(type.length > 0);
 
 const release = os.release();
-console.log('release = ', release);
 is.string(release);
 assert.ok(release.length > 0);
 //TODO: Check format on more than just AIX
@@ -103,12 +97,10 @@ if (common.isAix)
   assert.ok(/^\d+\.\d+$/.test(release));
 
 const platform = os.platform();
-console.log('platform = ', platform);
 is.string(platform);
 assert.ok(platform.length > 0);
 
 const arch = os.arch();
-console.log('arch = ', arch);
 is.string(arch);
 assert.ok(arch.length > 0);
 
@@ -121,7 +113,6 @@ if (!common.isSunOS) {
 
 
 const interfaces = os.networkInterfaces();
-console.error(interfaces);
 switch (platform) {
   case 'linux':
     {
@@ -151,7 +142,6 @@ assert.ok(EOL.length > 0);
 
 const home = os.homedir();
 
-console.log('homedir = ' + home);
 is.string(home);
 assert.ok(home.includes(path.sep));
 
