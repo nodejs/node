@@ -17,11 +17,13 @@ class Environment;
 }  // namespace node
 
 namespace v8 {
+class Context;
 template <typename V>
 class FunctionCallbackInfo;
 template<typename T>
 class Local;
 class Message;
+class Object;
 class Platform;
 class Value;
 }  // namespace v8
@@ -61,19 +63,21 @@ class Agent {
   void Disconnect();
   void Dispatch(const v8_inspector::StringView& message);
   void RunMessageLoop();
+  bool enabled() {
+    return enabled_;
+  }
+  void PauseOnNextJavascriptStatement(const std::string& reason);
+  static void InitJSBindings(v8::Local<v8::Object> target,
+                             v8::Local<v8::Value> unused,
+                             v8::Local<v8::Context> context,
+                             void* priv);
 
  private:
-  static void CallAndPauseOnStart(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void InspectorConsoleCall(
-      const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void InspectorWrapConsoleCall(
-      const v8::FunctionCallbackInfo<v8::Value>& info);
-
   node::Environment* parent_env_;
   std::unique_ptr<NodeInspectorClient> inspector_;
   std::unique_ptr<InspectorIo> io_;
   v8::Platform* platform_;
-  bool inspector_console_;
+  bool enabled_;
   std::string path_;
   DebugOptions debug_options_;
 };
