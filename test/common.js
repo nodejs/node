@@ -253,6 +253,28 @@ exports.childShouldThrowAndAbort = function() {
   });
 };
 
+
+// This function makes sure that when using --abort-on-uncaught-exception and
+// when throwing an error from within a domain that has an error handler
+// setup, the process _does not_ abort.
+
+exports.childShouldNotThrowAndAbort = () => {
+  let testCmd = '';
+  if (!exports.isWindows) {
+    testCmd += 'ulimit -c 0 && ';
+  }
+
+  testCmd += `${process.argv[0]} --abort-on-uncaught-exception`;
+  testCmd += ` ${process.argv[1]} child`;
+
+  const child = child_process.exec(testCmd);
+  child.on('exit', (code, signal) => {
+    const errorMsg = `Test should have exited with exit code 0 but instead
+      exited with ${code} and signal ${signal}`;
+    assert.strictEqual(code, 0, errorMsg);
+  });
+};
+
 exports.ddCommand = function(filename, kilobytes) {
   if (exports.isWindows) {
     const p = path.resolve(exports.fixturesDir, 'create-file.js');
