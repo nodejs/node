@@ -861,7 +861,7 @@ jslint:
 jslint-ci:
 	@echo "Running JS linter..."
 	$(NODE) tools/jslint.js $(PARALLEL_ARGS) -f tap -o test-eslint.tap \
-		benchmark lib test tools
+		benchmark doc lib test tools
 
 CPPLINT_EXCLUDE ?=
 CPPLINT_EXCLUDE += src/node_root_certs.h
