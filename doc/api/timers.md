@@ -164,11 +164,9 @@ Cancels a `Timeout` object created by [`setTimeout()`][].
 
 ## Manual Timers
 
-It is possible, but not recommended, to make any object a timer. Under special
-circumstances this can be advantageous. However, in general practice, using
-this API is strongly discouraged. This is due to the fact that when using this API
-it is important to track timer enrollment state. A memory leak will occur if a
-timer is enrolled but never unenrolled.
+It is possible (but not recommended) to make any object a timer. In general
+practice, however, using this API is **strongly discouraged** due to the potential
+for memory leaks should such timers fail to be properly unenrolled.
 
 *Note*: This API is considered *unsafe*. Despite being public, it is subject
 to change at any time.
@@ -182,6 +180,7 @@ const timers = require('timers');
 const atimer = {
   _onTimeout: function() {
     console.log('timeout');
+    timers.unenroll(atimer); // remove the timer from the queue
   }
 };
 
