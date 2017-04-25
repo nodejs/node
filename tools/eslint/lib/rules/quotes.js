@@ -33,6 +33,9 @@ const QUOTE_SETTINGS = {
     }
 };
 
+// An unescaped newline is a newline preceded by an even number of backslashes.
+const UNESCAPED_LINEBREAK_PATTERN = new RegExp(String.raw`(^|[^\\])(\\\\)*[${Array.from(astUtils.LINEBREAKS).join("")}]`);
+
 /**
  * Switches quoting of javascript string between ' " and `
  * escaping and unescaping as necessary.
@@ -206,6 +209,7 @@ module.exports = {
 
                 // LiteralPropertyName.
                 case "Property":
+                case "MethodDefinition":
                     return parent.key === node && !parent.computed;
 
                 // ModuleSpecifier.
@@ -254,22 +258,23 @@ module.exports = {
             TemplateLiteral(node) {
 
                 // If backticks are expected or it's a tagged template, then this shouldn't throw an errors
-                if (allowTemplateLiterals || quoteOption === "backtick" || node.parent.type === "TaggedTemplateExpression") {
+                if (
+                    allowTemplateLiterals ||
+                    quoteOption === "backtick" ||
+                    node.parent.type === "TaggedTemplateExpression" && node === node.parent.quasi
+                ) {
                     return;
                 }
 
-                /*
-                 * A warning should be produced if the template literal only has one TemplateElement, and has no unescaped newlines.
-                 * An unescaped newline is a newline preceded by an even number of backslashes.
-                 */
-                const shouldWarn = node.quasis.length === 1 && !/(^|[^\\])(\\\\)*[\r\n\u2028\u2029]/.test(node.quasis[0].value.raw);
+                // A warning should be produced if the template literal only has one TemplateElement, and has no unescaped newlines.
+                const shouldWarn = node.quasis.length === 1 && !UNESCAPED_LINEBREAK_PATTERN.test(node.quasis[0].value.raw);
 
                 if (shouldWarn) {
                     context.report({
                         node,
                         message: "Strings must use {{description}}.",
                         data: {
-                            description: settings.description,
+                            description: settings.description
                         },
                         fix(fixer) {
                             if (isPartOfDirectivePrologue(node)) {

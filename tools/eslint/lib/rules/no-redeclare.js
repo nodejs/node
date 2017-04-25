@@ -89,13 +89,13 @@ module.exports = {
                 BlockStatement: checkForBlock,
                 SwitchStatement: checkForBlock
             };
-        } else {
-            return {
-                Program: checkForGlobal,
-                FunctionDeclaration: checkForBlock,
-                FunctionExpression: checkForBlock,
-                ArrowFunctionExpression: checkForBlock
-            };
         }
+        return {
+            Program: checkForGlobal,
+            FunctionDeclaration: checkForBlock,
+            FunctionExpression: checkForBlock,
+            ArrowFunctionExpression: checkForBlock
+        };
+
     }
 };

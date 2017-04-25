@@ -48,32 +48,20 @@ pp.getToken = function() {
 
 // If we're in an ES6 environment, make parsers iterable
 if (typeof Symbol !== "undefined")
-  pp[Symbol.iterator] = function () {
-    let self = this
-    return {next: function () {
-      let token = self.getToken()
-      return {
-        done: token.type === tt.eof,
-        value: token
+  pp[Symbol.iterator] = function() {
+    return {
+      next: () => {
+        let token = this.getToken()
+        return {
+          done: token.type === tt.eof,
+          value: token
+        }
       }
-    }}
+    }
   }
 
 // Toggle strict mode. Re-reads the next number or string to please
 // pedantic tests (`"use strict"; 010;` should fail).
-
-pp.setStrict = function(strict) {
-  this.strict = strict
-  if (this.type !== tt.num && this.type !== tt.string) return
-  this.pos = this.start
-  if (this.options.locations) {
-    while (this.pos < this.lineStart) {
-      this.lineStart = this.input.lastIndexOf("\n", this.lineStart - 2) + 1
-      --this.curLine
-    }
-  }
-  this.nextToken()
-}
 
 pp.curContext = function() {
   return this.context[this.context.length - 1]
@@ -131,7 +119,7 @@ pp.skipBlockComment = function() {
 pp.skipLineComment = function(startSkip) {
   let start = this.pos
   let startLoc = this.options.onComment && this.curPosition()
-  let ch = this.input.charCodeAt(this.pos+=startSkip)
+  let ch = this.input.charCodeAt(this.pos += startSkip)
   while (this.pos < this.input.length && ch !== 10 && ch !== 13 && ch !== 8232 && ch !== 8233) {
     ++this.pos
     ch = this.input.charCodeAt(this.pos)
@@ -148,38 +136,38 @@ pp.skipSpace = function() {
   loop: while (this.pos < this.input.length) {
     let ch = this.input.charCodeAt(this.pos)
     switch (ch) {
-      case 32: case 160: // ' '
+    case 32: case 160: // ' '
+      ++this.pos
+      break
+    case 13:
+      if (this.input.charCodeAt(this.pos + 1) === 10) {
         ++this.pos
+      }
+    case 10: case 8232: case 8233:
+      ++this.pos
+      if (this.options.locations) {
+        ++this.curLine
+        this.lineStart = this.pos
+      }
+      break
+    case 47: // '/'
+      switch (this.input.charCodeAt(this.pos + 1)) {
+      case 42: // '*'
+        this.skipBlockComment()
         break
-      case 13:
-        if (this.input.charCodeAt(this.pos + 1) === 10) {
-          ++this.pos
-        }
-      case 10: case 8232: case 8233:
-        ++this.pos
-        if (this.options.locations) {
-          ++this.curLine
-          this.lineStart = this.pos
-        }
-        break
-      case 47: // '/'
-        switch (this.input.charCodeAt(this.pos + 1)) {
-          case 42: // '*'
-            this.skipBlockComment()
-            break
-          case 47:
-            this.skipLineComment(2)
-            break
-          default:
-            break loop
-        }
+      case 47:
+        this.skipLineComment(2)
         break
       default:
-        if (ch > 8 && ch < 14 || ch >= 5760 && nonASCIIwhitespace.test(String.fromCharCode(ch))) {
-          ++this.pos
-        } else {
-          break loop
-        }
+        break loop
+      }
+      break
+    default:
+      if (ch > 8 && ch < 14 || ch >= 5760 && nonASCIIwhitespace.test(String.fromCharCode(ch))) {
+        ++this.pos
+      } else {
+        break loop
+      }
     }
   }
 }
@@ -223,7 +211,7 @@ pp.readToken_dot = function() {
 
 pp.readToken_slash = function() { // '/'
   let next = this.input.charCodeAt(this.pos + 1)
-  if (this.exprAllowed) {++this.pos; return this.readRegexp()}
+  if (this.exprAllowed) { ++this.pos; return this.readRegexp() }
   if (next === 61) return this.finishOp(tt.assign, 2)
   return this.finishOp(tt.slash, 1)
 }
@@ -396,7 +384,7 @@ function tryCreateRegexp(src, flags, throwErrorAt, parser) {
   }
 }
 
-var regexpUnicodeSupport = !!tryCreateRegexp("\uffff", "u")
+const regexpUnicodeSupport = !!tryCreateRegexp("\uffff", "u")
 
 pp.readRegexp = function() {
   let escaped, inClass, start = this.pos
@@ -523,7 +511,7 @@ pp.readCodePoint = function() {
   if (ch === 123) {
     if (this.options.ecmaVersion < 6) this.unexpected()
     let codePos = ++this.pos
-    code = this.readHexChar(this.input.indexOf('}', this.pos) - this.pos)
+    code = this.readHexChar(this.input.indexOf("}", this.pos) - this.pos)
     ++this.pos
     if (code > 0x10FFFF) this.raise(codePos, "Code point out of bounds")
   } else {
@@ -586,14 +574,14 @@ pp.readTmplToken = function() {
       out += this.input.slice(chunkStart, this.pos)
       ++this.pos
       switch (ch) {
-        case 13:
-          if (this.input.charCodeAt(this.pos) === 10) ++this.pos
-        case 10:
-          out += "\n"
-          break
-        default:
-          out += String.fromCharCode(ch)
-          break
+      case 13:
+        if (this.input.charCodeAt(this.pos) === 10) ++this.pos
+      case 10:
+        out += "\n"
+        break
+      default:
+        out += String.fromCharCode(ch)
+        break
       }
       if (this.options.locations) {
         ++this.curLine
@@ -691,7 +679,9 @@ pp.readWord1 = function() {
 pp.readWord = function() {
   let word = this.readWord1()
   let type = tt.name
-  if ((this.options.ecmaVersion >= 6 || !this.containsEsc) && this.keywords.test(word))
+  if (this.keywords.test(word)) {
+    if (this.containsEsc) this.raiseRecoverable(this.start, "Escape sequence in keyword " + word)
     type = keywordTypes[word]
+  }
   return this.finishToken(type, word)
 }

@@ -56,7 +56,7 @@ function formatMessage(message, parentResult) {
         `${type}:`,
         `${msg}`,
         ruleId ? `${ruleId}` : "",
-        sourceCode ? `at ${filePath}:` : `at ${filePath}`,
+        sourceCode ? `at ${filePath}:` : `at ${filePath}`
     ].filter(String).join(" ");
 
     const result = [firstLine];
@@ -101,15 +101,10 @@ module.exports = function(results) {
     const resultsWithMessages = results.filter(result => result.messages.length > 0);
 
     let output = resultsWithMessages.reduce((resultsOutput, result) => {
-        const messages = result.messages.map(message => {
-            if (message.fatal || message.severity === 2) {
-                errors++;
-            } else {
-                warnings++;
-            }
+        const messages = result.messages.map(message => `${formatMessage(message, result)}\n\n`);
 
-            return `${formatMessage(message, result)}\n\n`;
-        });
+        errors += result.errorCount;
+        warnings += result.warningCount;
 
         return resultsOutput.concat(messages);
     }, []).join("\n");

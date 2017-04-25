@@ -38,6 +38,7 @@ function _mv(options, sources, dest) {
   } else if (typeof sources === 'string') {
     sources = [sources];
   } else {
+    // TODO(nate): figure out if we actually need this line
     common.error('invalid arguments');
   }
 
@@ -82,9 +83,12 @@ function _mv(options, sources, dest) {
     try {
       fs.renameSync(src, thisDest);
     } catch (e) {
-      if (e.code === 'EXDEV') { // external partition
-        // if either of these fails, the appropriate error message will bubble
-        // up to the top level automatically
+      /* istanbul ignore next */
+      if (e.code === 'EXDEV') {
+        // If we're trying to `mv` to an external partition, we'll actually need
+        // to perform a copy and then clean up the original file. If either the
+        // copy or the rm fails with an exception, we should allow this
+        // exception to pass up to the top level.
         cp('-r', src, thisDest);
         rm('-rf', src);
       }

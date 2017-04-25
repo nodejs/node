@@ -5,8 +5,6 @@
  */
 "use strict";
 
-const astUtils = require("../ast-utils");
-
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -114,8 +112,8 @@ module.exports = {
                                 data: { max: maxAllowed, pluralizedLines: maxAllowed === 1 ? "line" : "lines" },
                                 fix(fixer) {
                                     return fixer.removeRange([
-                                        astUtils.getRangeIndexFromLocation(sourceCode, { line: lastLineNumber + 1, column: 0 }),
-                                        astUtils.getRangeIndexFromLocation(sourceCode, { line: lineNumber - maxAllowed, column: 0 })
+                                        sourceCode.getIndexFromLoc({ line: lastLineNumber + 1, column: 0 }),
+                                        sourceCode.getIndexFromLoc({ line: lineNumber - maxAllowed, column: 0 })
                                     ]);
                                 }
                             });
