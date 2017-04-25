@@ -93,13 +93,13 @@ typedef struct {
 } napi_extended_error_info;
 ```
 
-- error_message: UTF8-encoded string containing a VM-neutral description of 
+- `error_message`: UTF8-encoded string containing a VM-neutral description of 
   the error.
-- engine_reserved: Reserved for VM-specific error details. This is currently
+- `engine_reserved`: Reserved for VM-specific error details. This is currently
   not implemented for any VM.
-- engine_error_code: VM-specific error code. This is currently
+- `engine_error_code`: VM-specific error code. This is currently
   not implemented for any VM.
-- error_code: The N-API status code that originated with the last error.
+- `error_code`: The N-API status code that originated with the last error.
 
 See the [Error Handling][] section for additional information.
 
@@ -221,31 +221,29 @@ the error which occurred. In some cases it is useful to be able to get
 more detailed information, including a string representing the error as well as
 VM (engine)-specific information. 
 
-**Note:** Do not rely on the content or format of any of the extended
-information as it is not subject to SemVer and may change at any time.
-It is intended only for logging purposes.
-
-In order to retrieve this information, the following method is provided:
-
-```C
-NODE_EXTERN const napi_extended_error_info* napi_get_last_error_info();
-```
+In order to retrieve this information [`napi_get_last_error_info`][]
+is provided which returns a `napi_extended_error_info` structure. 
 The format of the `napi_extended_error_info` structure is as follows:
 
 ```C
-struct napi_extended_error_info {
+typedef struct napi_extended_error_info {
   const char* error_message;
   void* engine_reserved;
   uint32_t engine_error_code;
   napi_status error_code;
 };
 ```
+- `error_message`: Textual representation of the error that occured.
+- `engine_reserved`: Opaque handle reserved for engine use only.
+- `engine_error_code`: VM specific error code.
+- `error_code`: n-api status code for the last error.
 
 [`napi_get_last_error_info`][] returns the information for the last
-N-API call that was made. The `error_code` will match the
-`napi_status` returned by that call. The `error_message` will
-be a textual representation of the error that occurred.
+N-API call that was made.
 
+**Note:** Do not rely on the content or format of any of the extended
+information as it is not subject to SemVer and may change at any time.
+It is intended only for logging purposes.
 
 #### napi_get_last_error_info
 <!-- YAML
@@ -264,6 +262,10 @@ Returns `napi_ok` if the API succeeded.
 
 This API retrieves a `napi_extended_error_info` structure with information
 about the last error that occured.
+
+**Note:** Do not rely on the content or format of any of the extended
+information as it is not subject to SemVer and may change at any time.
+It is intended only for logging purposes.
 
 
 ### Exceptions
