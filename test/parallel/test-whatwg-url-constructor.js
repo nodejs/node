@@ -45,7 +45,7 @@ function runURLTests(urltests) {
 
     test(function() {
       if (expected.failure) {
-        assert_throws(new TypeError(), function() {
+        assert_throws(TypeError, function() {
           bURL(expected.input, expected.base)
         })
         return
@@ -97,7 +97,7 @@ function runURLSearchParamTests() {
     'use strict'
     var urlString = 'http://example.org'
     var url = bURL(urlString)
-    assert_throws(TypeError(), function() { url.searchParams = new URLSearchParams(urlString) })
+    assert_throws(TypeError, function() { url.searchParams = new URLSearchParams(urlString) })
   }, 'URL.searchParams setter, invalid values')
 
   test(function() {
