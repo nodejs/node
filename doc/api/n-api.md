@@ -1080,12 +1080,11 @@ The API allows the caller to pass in a finalize callback, in case the
 underlying native resource needs to be cleaned up when the wrapper 
 JavaScript object gets collected.
 
-#### napi_create_external_arraybuffe
-
-```C
+#### napi_create_external_arraybuffer
 <!-- YAML
 added: v8.0.0
 -->
+```C
 napi_status
 napi_create_external_arraybuffer(napi_env env,
                                  void* external_data,
@@ -2873,7 +2872,6 @@ NAPI_EXTERN napi_status napi_queue_async_work(napi_env env,
 
 [`napi_cancel_async_work`][] can be used if  the work needs
 to be cancelled before the work has started execution.
-```
 
 After calling [`napi_cancel_async_work`][], the `complete` callback
 will be invoked with a status value of `napi_cancelled`.
