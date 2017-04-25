@@ -14,7 +14,7 @@ module.exports = {
       const bTokens = sourceCode.getTokens(nodeB);
 
       return aTokens.length === bTokens.length &&
-        aTokens.every((token, index) => {
+        aTokens.every(function(token, index) {
           return token.type === bTokens[index].type &&
             token.value === bTokens[index].value;
         });
