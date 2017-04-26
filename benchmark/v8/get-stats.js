@@ -8,8 +8,7 @@ const bench = common.createBenchmark(main, {
     'getHeapStatistics',
     'getHeapSpaceStatistics'
   ],
-  n: [1e6],
-  flags: ['--ignition --turbo', '']
+  n: [1e6]
 });
 
 function main(conf) {
