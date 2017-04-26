@@ -557,7 +557,7 @@ changes:
 
 Initiate a connection on a given socket. Normally this method is not needed,
 the socket should be created and opened with [`net.createConnection()`][]. Use
-this only if you are implementing a custom Socket.
+this only when implementing a custom Socket.
 
 For TCP connections, available `options` are:
 
@@ -650,8 +650,9 @@ added: v0.9.6
 -->
 
 The string representation of the local IP address the remote client is
-connecting on. For example, if you are listening on `'0.0.0.0'` and the
-client connects on `'192.168.1.1'`, the value would be `'192.168.1.1'`.
+connecting on. For example, in a server listening on `'0.0.0.0'`, if a client
+connects on `'192.168.1.1'`, the value of `socket.localAddress` would be
+`'192.168.1.1'`.
 
 ### socket.localPort
 <!-- YAML
