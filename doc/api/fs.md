@@ -14,7 +14,8 @@ first argument is always reserved for an exception. If the operation was
 completed successfully, then the first argument will be `null` or `undefined`.
 
 When using the synchronous form any exceptions are immediately thrown.
-You can use try/catch to handle exceptions or allow them to bubble up.
+Exceptions may be handled using `try`/`catch`, or they may be allowed to
+bubble up.
 
 Here is an example of the asynchronous version:
 
@@ -70,9 +71,13 @@ the entire process until they complete--halting all connections.
 The relative path to a filename can be used. Remember, however, that this path
 will be relative to `process.cwd()`.
 
-Most fs functions let you omit the callback argument. If you do, a default
-callback is used that rethrows errors. To get a trace to the original call
-site, set the `NODE_DEBUG` environment variable:
+While it is not recommended, most fs functions allow the callback argument to
+be omitted, in which case a default callback is used that rethrows errors. To
+get a trace to the original call site, set the `NODE_DEBUG` environment
+variable:
+
+*Note*: Omitting the callback function on asynchronous fs functions is
+deprecated and may result in an error being thrown in the future.
 
 ```txt
 $ cat script.js
@@ -236,14 +241,13 @@ Stats {
 ```
 
 Please note that `atime`, `mtime`, `birthtime`, and `ctime` are
-instances of [`Date`][MDN-Date] object and to compare the values of
-these objects you should use appropriate methods. For most general
-uses [`getTime()`][MDN-Date-getTime] will return the number of
-milliseconds elapsed since _1 January 1970 00:00:00 UTC_ and this
-integer should be sufficient for any comparison, however there are
-additional methods which can be used for displaying fuzzy information.
-More details can be found in the [MDN JavaScript Reference][MDN-Date]
-page.
+instances of [`Date`][MDN-Date] object and appropriate methods should be used
+to compare the values of these objects. For most general uses
+[`getTime()`][MDN-Date-getTime] will return the number of milliseconds elapsed
+since _1 January 1970 00:00:00 UTC_ and this integer should be sufficient for
+any comparison, however there are additional methods which can be used for
+displaying fuzzy information. More details can be found in the
+[MDN JavaScript Reference][MDN-Date] page.
 
 ### Stat Time Values
 
@@ -651,8 +655,8 @@ emitted. Note that `fd` should be blocking; non-blocking `fd`s should be passed
 to [`net.Socket`][].
 
 If `autoClose` is false, then the file descriptor won't be closed, even if
-there's an error.  It is your responsibility to close it and make sure
-there's no file descriptor leak.  If `autoClose` is set to true (default
+there's an error. It is the application's responsibility to close it and make
+sure there's no file descriptor leak. If `autoClose` is set to true (default
 behavior), on `error` or `end` the file descriptor will be closed
 automatically.
 
@@ -714,8 +718,8 @@ default mode `w`. The `defaultEncoding` can be any one of those accepted by
 If `autoClose` is set to true (default behavior) on `error` or `end`
 the file descriptor will be closed automatically. If `autoClose` is false,
 then the file descriptor won't be closed, even if there's an error.
-It is your responsibility to close it and make sure
-there's no file descriptor leak.
+It is the application's responsibility to close it and make sure there's no
+file descriptor leak.
 
 Like [`ReadStream`][], if `fd` is specified, `WriteStream` will ignore the
 `path` argument and will use the specified file descriptor. This means that no
@@ -1327,12 +1331,12 @@ An exception occurs if the file does not exist.
 * `'rs+'` - Open file for reading and writing in synchronous mode. Instructs
   the operating system to bypass the local file system cache.
 
-  This is primarily useful for opening files on NFS mounts as it allows you to
-  skip the potentially stale local cache. It has a very real impact on I/O
-  performance so don't use this flag unless you need it.
+  This is primarily useful for opening files on NFS mounts as it allows skipping
+  the potentially stale local cache. It has a very real impact on I/O
+  performance so using this flag is not recommended unless it is needed.
 
   Note that this doesn't turn `fs.open()` into a synchronous blocking call.
-  If that's what you want then you should be using `fs.openSync()`
+  If synchronous operation is desired `fs.openSync()` should be used.
 
 * `'w'` - Open file for writing.
 The file is created (if it does not exist) or truncated (if it exists).
@@ -1845,8 +1849,8 @@ added: v0.1.31
 * `listener` {Function}
 
 Stop watching for changes on `filename`. If `listener` is specified, only that
-particular listener is removed. Otherwise, *all* listeners are removed and you
-have effectively stopped watching `filename`.
+particular listener is removed. Otherwise, *all* listeners are removed,
+effectively stopping watching of `filename`.
 
 Calling `fs.unwatchFile()` with a filename that is not being watched is a
 no-op, not an error.
@@ -1968,8 +1972,8 @@ directories can be unreliable, and in some cases impossible, on network file
 systems (NFS, SMB, etc), or host file systems when using virtualization software
 such as Vagrant, Docker, etc.
 
-You can still use `fs.watchFile`, which uses stat polling, but it is slower and
-less reliable.
+It is still possible to use `fs.watchFile()`, which uses stat polling, but
+this method is slower and less reliable.
 
 #### Inodes
 
@@ -2041,8 +2045,8 @@ fs.watchFile('message.text', (curr, prev) => {
 
 These stat objects are instances of `fs.Stat`.
 
-If you want to be notified when the file was modified, not just accessed,
-you need to compare `curr.mtime` and `prev.mtime`.
+To be notified when the file was modified, not just accessed, it is necessary
+to compare `curr.mtime` and `prev.mtime`.
 
 _Note: when an `fs.watchFile` operation results in an `ENOENT` error, it will
  invoke the listener once, with all the fields zeroed (or, for dates, the Unix

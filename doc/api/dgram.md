@@ -301,9 +301,9 @@ The only way to know for sure that the datagram has been sent is by using a
 passed as the first argument to the `callback`. If a `callback` is not given,
 the error is emitted as an `'error'` event on the `socket` object.
 
-Offset and length are optional, but if you specify one you would need to
-specify the other. Also, they are supported only when the first
-argument is a `Buffer` or `Uint8Array`.
+Offset and length are optional but both *must* be set if either are used.
+Also, they are supported only when the first argument is a `Buffer` or
+`Uint8Array`.
 
 Example of sending a UDP packet to a random port on `localhost`;
 
@@ -329,8 +329,10 @@ client.send([buf1, buf2], 41234, (err) => {
 });
 ```
 
-Sending multiple buffers might be faster or slower depending on your
-application and operating system: benchmark it. Usually it is faster.
+Sending multiple buffers might be faster or slower depending on the
+application and operating system. It is important to run benchmarks to
+determine the optimal strategy on a case-by-case basis. Generally speaking,
+however, sending multiple buffers is faster.
 
 **A Note about UDP datagram size**
 
