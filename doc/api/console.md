@@ -155,6 +155,76 @@ console.assert(false, 'this message will print, but no error thrown');
 console.log('this will also print');
 ```
 
+### console.clear()
+<!-- YAML
+added: REPLACEME
+-->
+
+When `stdout` is a TTY, calling `console.clear()` will attempt to clear the
+TTY. When `stdout` is not a TTY, this method does nothing.
+
+*Note*: The specific operation of `console.clear()` can vary across operating
+systems and terminal types. For most Linux operating systems, `console.clear()`
+operates similarly to the `clear` shell command. On Windows, `console.clear()`
+will clear only the output in the current terminal viewport for the Node.js
+binary.
+
+### console.count([label])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `label` {string} The display label for the counter. Defaults to `'default'`.
+
+Maintains an internal counter specific to `label` and outputs to `stdout` the
+number of times `console.count()` has been called with the given `label`.
+
+<!-- eslint-skip -->
+```js
+> console.count()
+default: 1
+undefined
+> console.count('default')
+default: 2
+undefined
+> console.count('abc')
+abc: 1
+undefined
+> console.count('xyz')
+xyz: 1
+undefined
+> console.count('abc')
+abc: 2
+undefined
+> console.count()
+default: 3
+undefined
+>
+```
+
+### console.countReset([label = 'default'])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `label` {string} The display label for the counter. Defaults to `'default'`.
+
+Resets the internal counter specific to `label`.
+
+<!-- eslint-skip -->
+```js
+> console.count('abc');
+abc: 1
+undefined
+> console.countReset('abc');
+undefined
+> console.count('abc');
+abc: 1
+undefined
+>
+```
+<!-- eslint-enable -->
+
 ### console.dir(obj[, options])
 <!-- YAML
 added: v0.1.101
