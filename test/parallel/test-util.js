@@ -31,8 +31,7 @@ assert.strictEqual(false, util.isRegExp(Object.create(RegExp.prototype)));
 // isDate
 assert.strictEqual(true, util.isDate(new Date()));
 assert.strictEqual(true, util.isDate(new Date(0)));
-// eslint-disable-next-line new-parens
-assert.strictEqual(true, util.isDate(new (context('Date'))));
+assert.strictEqual(true, util.isDate(new (context('Date'))()));
 assert.strictEqual(false, util.isDate(Date()));
 assert.strictEqual(false, util.isDate({}));
 assert.strictEqual(false, util.isDate([]));
@@ -43,11 +42,9 @@ assert.strictEqual(false, util.isDate(Object.create(Date.prototype)));
 assert.strictEqual(true, util.isError(new Error()));
 assert.strictEqual(true, util.isError(new TypeError()));
 assert.strictEqual(true, util.isError(new SyntaxError()));
-/* eslint-disable new-parens */
-assert.strictEqual(true, util.isError(new (context('Error'))));
-assert.strictEqual(true, util.isError(new (context('TypeError'))));
-assert.strictEqual(true, util.isError(new (context('SyntaxError'))));
-/* eslint-enable */
+assert.strictEqual(true, util.isError(new (context('Error'))()));
+assert.strictEqual(true, util.isError(new (context('TypeError'))()));
+assert.strictEqual(true, util.isError(new (context('SyntaxError'))()));
 assert.strictEqual(false, util.isError({}));
 assert.strictEqual(false, util.isError({ name: 'Error', message: '' }));
 assert.strictEqual(false, util.isError([]));
