@@ -64,15 +64,12 @@ if (cluster.isMaster) {
 
   socket1.bind({
     address: 'localhost',
-    port: 0,
+    port: common.PORT,
     exclusive: false
-  }, common.mustCall(() => {
-    socket2.bind({
-      port: socket1.address().port + 1,
-      exclusive: true
-    }, () => {
+  }, () => {
+    socket2.bind({ port: common.PORT + 1, exclusive: true }, () => {
       // the first worker should succeed
       process.send('success');
     });
-  }));
+  });
 }
