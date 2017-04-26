@@ -61,7 +61,8 @@ DebugOptions::DebugOptions() : debugger_enabled_(false),
                                inspector_enabled_(false),
 #endif  // HAVE_INSPECTOR
                                wait_connect_(false), http_enabled_(false),
-                               host_name_("127.0.0.1"), port_(-1) { }
+                               host_name_("127.0.0.1"), port_(-1),
+                               out_(stderr) { }
 
 void DebugOptions::EnableDebugAgent(DebugAgentType tool) {
   switch (tool) {
@@ -101,6 +102,10 @@ bool DebugOptions::ParseOption(const std::string& option) {
     debugger_enabled_ = true;
     enable_inspector = true;
     wait_connect_ = true;
+  } else if (option_name == "--inspect-silent") {
+    debugger_enabled_ = true;
+    enable_inspector = true;
+    out_ = NULL;
   } else if ((option_name != "--debug-port" &&
               option_name != "--inspect-port") ||
               !has_argument) {

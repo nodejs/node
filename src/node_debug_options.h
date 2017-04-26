@@ -34,6 +34,7 @@ class DebugOptions {
   std::string host_name() const { return host_name_; }
   int port() const;
   void set_port(int port) { port_ = port; }
+  FILE* out() const { return out_; }
 
  private:
   bool debugger_enabled_;
@@ -44,6 +45,9 @@ class DebugOptions {
   bool http_enabled_;
   std::string host_name_;
   int port_;
+#if HAVE_INSPECTOR
+  FILE* out_;
+#endif  // HAVE_INSPECTOR
 };
 
 }  // namespace node
