@@ -27,7 +27,7 @@ exit immediately with an error code.
 
 <!-- type=misc -->
 
-Domain error handlers are not a substitute for closing down your
+Domain error handlers are not a substitute for closing down a
 process when an error occurs.
 
 By the very nature of how [`throw`][] works in JavaScript, there is almost
@@ -35,8 +35,8 @@ never any way to safely "pick up where you left off", without leaking
 references, or creating some other sort of undefined brittle state.
 
 The safest way to respond to a thrown error is to shut down the
-process.  Of course, in a normal web server, you might have many
-connections open, and it is not reasonable to abruptly shut those down
+process. Of course, in a normal web server, there may be many
+open connections, and it is not reasonable to abruptly shut those down
 because an error was triggered by someone else.
 
 The better approach is to send an error response to the request that
@@ -80,11 +80,11 @@ const cluster = require('cluster');
 const PORT = +process.env.PORT || 1337;
 
 if (cluster.isMaster) {
-  // In real life, you'd probably use more than just 2 workers,
+  // A more realistic scenario would have more than 2 workers,
   // and perhaps not put the master and worker in the same file.
   //
-  // You can also of course get a bit fancier about logging, and
-  // implement whatever custom logic you need to prevent DoS
+  // It is also possible to get a bit fancier about logging, and
+  // implement whatever custom logic is needed to prevent DoS
   // attacks and other bad behavior.
   //
   // See the options in the cluster documentation.
@@ -161,7 +161,7 @@ if (cluster.isMaster) {
 }
 
 // This part is not important.  Just an example routing thing.
-// You'd put your fancy application logic here.
+// Put fancy application logic here.
 function handleRequest(req, res) {
   switch (req.url) {
     case '/error':
@@ -202,7 +202,7 @@ the active domain at the time of their creation.
 
 Additionally, callbacks passed to lowlevel event loop requests (such as
 to fs.open, or other callback-taking methods) will automatically be
-bound to the active domain.  If they throw, then the domain will catch
+bound to the active domain. If they throw, then the domain will catch
 the error.
 
 In order to prevent excessive memory usage, Domain objects themselves
@@ -210,8 +210,8 @@ are not implicitly added as children of the active domain.  If they
 were, then it would be too easy to prevent request and response objects
 from being properly garbage collected.
 
-If you *want* to nest Domain objects as children of a parent Domain,
-then you must explicitly add them.
+To nest Domain objects as children of a parent Domain they must be explicitly
+added.
 
 Implicit binding routes thrown errors and `'error'` events to the
 Domain's `'error'` event, but does not register the EventEmitter on the

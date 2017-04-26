@@ -37,7 +37,7 @@ involving knowledge of several components and APIs :
    See [Linking to Node.js' own dependencies][] for additional information.
 
 All of the following examples are available for [download][] and may
-be used as a starting-point for your own Addon.
+be used as the starting-point for an Addon.
 
 ## Hello world
 
@@ -98,7 +98,7 @@ Addon module name is `addon`.
 
 Once the source code has been written, it must be compiled into the binary
 `addon.node` file. To do so, create a file called `binding.gyp` in the
-top-level of the project describing the build configuration of your module
+top-level of the project describing the build configuration of the module
 using a JSON-like format. This file is used by [node-gyp][] -- a tool written
 specifically to compile Node.js Addons.
 

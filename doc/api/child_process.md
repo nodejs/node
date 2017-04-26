@@ -808,8 +808,8 @@ The `'error'` event is emitted whenever:
 2. The process could not be killed, or
 3. Sending a message to the child process failed.
 
-Note that the `'exit'` event may or may not fire after an error has occurred.
-If you are listening to both the `'exit'` and `'error'` events, it is important
+*Note*: The `'exit'` event may or may not fire after an error has occurred.
+When listening to both the `'exit'` and `'error'` events, it is important
 to guard against accidentally invoking handler functions multiple times.
 
 See also [`child.kill()`][] and [`child.send()`][].
