@@ -70,8 +70,6 @@ server2.listen(0, listening());
 server3.listen(0, listening());
 
 const responseErrors = {};
-let expectResponseCount = 0;
-let responseCount = 0;
 let pending = 0;
 
 
@@ -126,17 +124,14 @@ function makeReq(path, port, error, host, ca) {
     options.headers = { host: host };
   }
   const req = https.get(options);
-  expectResponseCount++;
   const server = port === server1.address().port ? server1 :
       port === server2.address().port ? server2 :
       port === server3.address().port ? server3 :
       null;
-
   if (!server) throw new Error('invalid port: ' + port);
   server.expectCount++;
 
-  req.on('response', (res) => {
-    responseCount++;
+  req.on('response', common.mustCall((res) => {
     assert.strictEqual(res.connection.authorizationError, error);
     responseErrors[path] = res.connection.authorizationError;
     pending--;
@@ -146,7 +141,7 @@ function makeReq(path, port, error, host, ca) {
       server3.close();
     }
     res.resume();
-  });
+  }));
 }
 
 function allListening() {
@@ -199,5 +194,4 @@ process.on('exit', () => {
   assert.strictEqual(server1.requests.length, server1.expectCount);
   assert.strictEqual(server2.requests.length, server2.expectCount);
   assert.strictEqual(server3.requests.length, server3.expectCount);
-  assert.strictEqual(responseCount, expectResponseCount);
 });
