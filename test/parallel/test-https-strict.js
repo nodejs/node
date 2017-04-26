@@ -91,8 +91,6 @@ server2.listen(0, listening());
 server3.listen(0, listening());
 
 const responseErrors = {};
-let expectResponseCount = 0;
-let responseCount = 0;
 let pending = 0;
 
 
@@ -147,12 +145,10 @@ function makeReq(path, port, error, host, ca) {
     options.headers = { host: host };
   }
   const req = https.get(options);
-  expectResponseCount++;
   const server = port === server1.address().port ? server1 :
       port === server2.address().port ? server2 :
       port === server3.address().port ? server3 :
       null;
-
   if (!server) throw new Error('invalid port: ' + port);
   server.expectCount++;
 
