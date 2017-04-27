@@ -221,4 +221,31 @@ assert.throws(
   common.expectsError({
     code: 'ERR_ASSERTION',
     message: /^At least one arg needs to be specified$/
-  }));
+  })
+);
+
+// Tests ERR RANGE
+assert.strictEqual(errors.message('ERR_ZLIB_BINDING_CLOSED'),
+                   'zlib binding closed');
+
+assert.throws(() => errors.message('ERR_OUT_OF_RANGE', [null]),
+              /name is required/);
+
+assert.throws(() => errors.message('ERR_OUT_OF_RANGE', ['a', null]),
+              /min is required/);
+
+assert.throws(() => errors.message('ERR_OUT_OF_RANGE', ['a', 1, null]),
+              /max is required/);
+
+assert.strictEqual(errors.message('ERR_OUT_OF_RANGE', ['a', 1, 5]),
+                   '"a" is out of range. It should be between 1 and 5.');
+
+assert.throws(() => errors.message('ERR_LESS_THAN_MIN', [null]),
+              /name is required/);
+
+assert.throws(() => errors.message('ERR_LESS_THAN_MIN', ['a', null]),
+              /min is required/);
+
+assert.strictEqual(errors.message('ERR_LESS_THAN_MIN', ['a', 10]),
+                   '"a" is out of range. It should be equal or ' +
+                   'greater than 10.');

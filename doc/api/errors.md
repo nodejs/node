@@ -750,6 +750,29 @@ an attempt is made to launch a Node.js process with an unknown `stdout` or
 in user code, although it is not impossible. Occurrences of this error are most
 likely an indication of a bug within Node.js itself.
 
+<a id="ERR_OUT_OF_RANGE"></a>
+### ERR_OUT_OF_RANGE
+
+The `'ERR_OUT_OF_RANGE'` code is used to show the value set to a variable is not
+between in range of acceptable values.
+
+<a id="ERR_LESS_THAN_MIN"></a>
+### ERR_LESS_THAN_MIN
+
+The `'ERR_LESS_THAN_MIN'` code is used to show the value set to a variable is less
+than the minimum acceptable value.
+
+<a id="ERR_ZLIB_BINDING_CLOSED"></a>
+### ERR_ZLIB_BINDING_CLOSED
+
+The `'ERR_ZLIB_BINDING_CLOSED'` code is used when the binding object is not accessible
+anymore. e.g.: cause something it happened like connection was closed unexpectedly.
+
+<a id="ERR_INVALID_RANGE"></a>
+### ERR_INVALID_RANGE
+
+The `'ERR_INVALID_RANGE'` error code is used generically to identify that
+a range value is out.
 
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`child.kill()`]: child_process.html#child_process_child_kill_signal
