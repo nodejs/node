@@ -58,21 +58,17 @@ if (common.canCreateSymLink()) {
   );
 }
 
-if (!common.isAix) {
-  // TODO(thefourtheye) Remove this guard once
-  // https://github.com/nodejs/node/issues/5085 is fixed
-  {
-    let watch;
-    assert.doesNotThrow(() => {
-      watch = fs.watch(__filename, options, common.noop);
-    });
-    watch.close();
-  }
+{
+  let watch;
+  assert.doesNotThrow(() => {
+    watch = fs.watch(__filename, options, common.noop);
+  });
+  watch.close();
+}
 
-  {
-    assert.doesNotThrow(() => fs.watchFile(__filename, options, common.noop));
-    fs.unwatchFile(__filename);
-  }
+{
+  assert.doesNotThrow(() => fs.watchFile(__filename, options, common.noop));
+  fs.unwatchFile(__filename);
 }
 
 {
