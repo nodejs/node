@@ -33,8 +33,9 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
 
 // Test Pipe fd is wrapped correctly
 {
-  const prefix = path.relative(`${common.PIPE}-net-connect-options-fd`,
-                               `${__dirname}-net-connect-options-fd`);
+  // Using relative path on osx if the path is greaterthan 108 chars
+  // an AssertionError: -48 is thrown
+  const prefix = path.relative('.', `${common.PIPE}-net-connect-options-fd`);
   const serverPath = `${prefix}-server`;
   let counter = 0;
   let socketCounter = 0;
