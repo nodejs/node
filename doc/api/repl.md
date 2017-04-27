@@ -335,7 +335,7 @@ replServer.defineCommand('sayhello', {
     this.displayPrompt();
   }
 });
-replServer.defineCommand('saybye', () => {
+replServer.defineCommand('saybye', function saybye() {
   console.log('Goodbye!');
   this.close();
 });
@@ -440,6 +440,8 @@ without passing any arguments (or by passing the `-i` argument):
 ```js
 $ node
 > const a = [1, 2, 3];
+undefined
+> a
 [ 1, 2, 3 ]
 > a.forEach((v) => {
 ...   console.log(v);
