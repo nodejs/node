@@ -131,6 +131,50 @@ The `slashes` property is a `boolean` with a value of `true` if two ASCII
 forward-slash characters (`/`) are required following the colon in the
 `protocol`.
 
+## url.domainToASCII(domain)
+
+> Stability: 1 - Experimental
+
+* `domain` {string}
+* Returns: {string}
+
+Returns the [Punycode][] ASCII serialization of the `domain`. If `domain` is an
+invalid domain, the empty string is returned.
+
+It performs the inverse operation to [`url.domainToUnicode()`][].
+
+```js
+const url = require('url');
+console.log(url.domainToASCII('español.com'));
+  // Prints xn--espaol-zwa.com
+console.log(url.domainToASCII('中文.com'));
+  // Prints xn--fiq228c.com
+console.log(url.domainToASCII('xn--iñvalid.com'));
+  // Prints an empty string
+```
+
+## url.domainToUnicode(domain)
+
+> Stability: 1 - Experimental
+
+* `domain` {string}
+* Returns: {string}
+
+Returns the Unicode serialization of the `domain`. If `domain` is an invalid
+domain, the empty string is returned.
+
+It performs the inverse operation to [`url.domainToASCII()`][].
+
+```js
+const url = require('url');
+console.log(url.domainToUnicode('xn--espaol-zwa.com'));
+  // Prints español.com
+console.log(url.domainToUnicode('xn--fiq228c.com'));
+  // Prints 中文.com
+console.log(url.domainToUnicode('xn--iñvalid.com'));
+  // Prints an empty string
+```
+
 ## url.format(urlObject)
 <!-- YAML
 added: v0.1.25
@@ -993,52 +1037,6 @@ for (const [name, value] of params) {
   // xyz baz
 ```
 
-### require('url').domainToASCII(domain)
-
-* `domain` {string}
-* Returns: {string}
-
-Returns the [Punycode][] ASCII serialization of the `domain`. If `domain` is an
-invalid domain, the empty string is returned.
-
-It performs the inverse operation to [`require('url').domainToUnicode()`][].
-
-```js
-const url = require('url');
-console.log(url.domainToASCII('español.com'));
-  // Prints xn--espaol-zwa.com
-console.log(url.domainToASCII('中文.com'));
-  // Prints xn--fiq228c.com
-console.log(url.domainToASCII('xn--iñvalid.com'));
-  // Prints an empty string
-```
-
-*Note*: The `require('url').domainToASCII()` method is introduced as part of
-the new `URL` implementation but is not part of the WHATWG URL standard.
-
-### require('url').domainToUnicode(domain)
-
-* `domain` {string}
-* Returns: {string}
-
-Returns the Unicode serialization of the `domain`. If `domain` is an invalid
-domain, the empty string is returned.
-
-It performs the inverse operation to [`require('url').domainToASCII()`][].
-
-```js
-const url = require('url');
-console.log(url.domainToUnicode('xn--espaol-zwa.com'));
-  // Prints español.com
-console.log(url.domainToUnicode('xn--fiq228c.com'));
-  // Prints 中文.com
-console.log(url.domainToUnicode('xn--iñvalid.com'));
-  // Prints an empty string
-```
-
-*Note*: The `require('url').domainToUnicode()` API is introduced as part of the
-the new `URL` implementation but is not part of the WHATWG URL standard.
-
 <a id="whatwg-percent-encoding"></a>
 ### Percent-Encoding in the WHATWG URL Standard
 
@@ -1088,6 +1086,8 @@ console.log(myURL.origin);
 [`TypeError`]: errors.html#errors_class_typeerror
 [WHATWG URL Standard]: https://url.spec.whatwg.org/
 [examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
+[`url.domainToASCII()`]: #url_url_domaintoascii_domain
+[`url.domainToUnicode()`]: #url_url_domaintounicode_domain
 [`url.parse()`]: #url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [`url.format()`]: #url_url_format_urlobject
 [`require('url').format()`]: #url_url_format_url_options
@@ -1103,8 +1103,6 @@ console.log(myURL.origin);
 [`URLSearchParams`]: #url_class_urlsearchparams
 [`urlSearchParams.entries()`]: #url_urlsearchparams_entries
 [`urlSearchParams@@iterator()`]: #url_urlsearchparams_iterator
-[`require('url').domainToASCII()`]: #url_require_url_domaintoascii_domain
-[`require('url').domainToUnicode()`]: #url_require_url_domaintounicode_domain
 [stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability
 [`JSON.stringify()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`url.toJSON()`]: #url_url_tojson
