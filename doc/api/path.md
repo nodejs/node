@@ -416,6 +416,16 @@ added: v0.11.15
 The `path.posix` property provides access to POSIX specific implementations
 of the `path` methods.
 
+### path.posix.normalize(path)
+The `path.posix.normalize()` method will not attempt to convert / (Windows) to \ (POSIX), as / is not recognized by 
+POSIX as a valid directory separator.  
+
+For example:
+```js
+path.posix.normalize("/some/thing/like/this")
+//Returns '/some/thing/like/this'
+```
+
 ## path.relative(from, to)
 <!-- YAML
 added: v0.5.0
