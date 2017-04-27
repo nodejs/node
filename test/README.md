@@ -186,6 +186,13 @@ doesn't have privileges to create symlinks (specifically
 [SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716(v=vs.85).aspx)).
 On non-Windows platforms, this currently returns true.
 
+### crashOnUnhandledRejection()
+
+Installs a `process.on('unhandledRejection')` handler that crashes the process
+after a tick. This is useful for tests that use Promises and need to make sure
+no unexpected rejections occur, because currently they result in silent
+failures.
+
 ### ddCommand(filename, kilobytes)
 * return [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
 
