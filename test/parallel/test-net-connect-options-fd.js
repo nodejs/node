@@ -33,8 +33,8 @@ const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
 
 // Test Pipe fd is wrapped correctly
 {
-  // Using relative path on osx if the path is greaterthan 108 chars
-  // an AssertionError: -48 is thrown
+  // Use relative path to avoid hitting 108-char length limit
+  // for socket paths in libuv.
   const prefix = path.relative('.', `${common.PIPE}-net-connect-options-fd`);
   const serverPath = `${prefix}-server`;
   let counter = 0;
