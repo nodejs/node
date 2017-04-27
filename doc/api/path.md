@@ -330,6 +330,15 @@ For example on POSIX:
 path.normalize('/foo/bar//baz/asdf/quux/..');
 // Returns: '/foo/bar/baz/asdf'
 ```
+*Note*: The `path.posix.normalize()` method will not attempt to convert \ 
+(Windows) to / (POSIX), as \ is not recognized by POSIX as a valid directory 
+separator.  
+
+For example:
+```js
+path.posix.normalize("\\some\\thing\\like\\this")
+//Returns '\some\thing\like\this'
+```
 
 On Windows:
 
@@ -415,16 +424,6 @@ added: v0.11.15
 
 The `path.posix` property provides access to POSIX specific implementations
 of the `path` methods.
-
-### path.posix.normalize(path)
-The `path.posix.normalize()` method will not attempt to convert / (Windows) to 
-\ (POSIX), as / is not recognized by POSIX as a valid directory separator.  
-
-For example:
-```js
-path.posix.normalize("/some/thing/like/this")
-//Returns '/some/thing/like/this'
-```
 
 ## path.relative(from, to)
 <!-- YAML
