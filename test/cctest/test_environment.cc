@@ -42,6 +42,7 @@ class EnvironmentTest : public NodeTestFixture {
 
     ~Env() {
       FreeIsolateData(isolate_data_);
+      environment_->CleanupHandles();
       FreeEnvironment(environment_);
     }
 
