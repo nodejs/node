@@ -1209,14 +1209,14 @@ napi_status napi_define_properties(napi_env env,
 }
 
 napi_status napi_is_array(napi_env env, napi_value value, bool* result) {
-  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
 
   *result = val->IsArray();
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_get_array_length(napi_env env,
@@ -1777,7 +1777,7 @@ napi_status napi_get_value_string_latin1(napi_env env,
                                          char* buf,
                                          size_t bufsize,
                                          size_t* result) {
-  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
   CHECK_ARG(env, value);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
@@ -1797,7 +1797,7 @@ napi_status napi_get_value_string_latin1(napi_env env,
     }
   }
 
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 // Copies a JavaScript string into a UTF-8 string buffer. The result is the
@@ -1813,7 +1813,7 @@ napi_status napi_get_value_string_utf8(napi_env env,
                                        char* buf,
                                        size_t bufsize,
                                        size_t* result) {
-  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
   CHECK_ARG(env, value);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
@@ -1833,7 +1833,7 @@ napi_status napi_get_value_string_utf8(napi_env env,
     }
   }
 
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 // Copies a JavaScript string into a UTF-16 string buffer. The result is the
@@ -1849,7 +1849,7 @@ napi_status napi_get_value_string_utf16(napi_env env,
                                         char16_t* buf,
                                         size_t bufsize,
                                         size_t* result) {
-  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
   CHECK_ARG(env, value);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
@@ -1870,7 +1870,7 @@ napi_status napi_get_value_string_utf16(napi_env env,
     }
   }
 
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_coerce_to_object(napi_env env,
@@ -2024,13 +2024,13 @@ napi_status napi_create_external(napi_env env,
 
   *result = v8impl::JsValueFromV8LocalValue(external_value);
 
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_get_value_external(napi_env env,
                                     napi_value value,
                                     void** result) {
-  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
@@ -2040,7 +2040,7 @@ napi_status napi_get_value_external(napi_env env,
   v8::Local<v8::External> external_value = val.As<v8::External>();
   *result = external_value->Value();
 
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 // Set initial_refcount to 0 for a weak reference, >0 for a strong reference.
@@ -2481,12 +2481,12 @@ napi_status napi_create_buffer_copy(napi_env env,
 }
 
 napi_status napi_is_buffer(napi_env env, napi_value value, bool* result) {
-  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   *result = node::Buffer::HasInstance(v8impl::V8LocalValueFromJsValue(value));
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_get_buffer_info(napi_env env,
@@ -2510,14 +2510,14 @@ napi_status napi_get_buffer_info(napi_env env,
 }
 
 napi_status napi_is_arraybuffer(napi_env env, napi_value value, bool* result) {
-  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
   *result = val->IsArrayBuffer();
 
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_create_arraybuffer(napi_env env,
@@ -2574,7 +2574,7 @@ napi_status napi_get_arraybuffer_info(napi_env env,
                                       napi_value arraybuffer,
                                       void** data,
                                       size_t* byte_length) {
-  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
   CHECK_ARG(env, arraybuffer);
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
@@ -2591,18 +2591,18 @@ napi_status napi_get_arraybuffer_info(napi_env env,
     *byte_length = contents.ByteLength();
   }
 
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_is_typedarray(napi_env env, napi_value value, bool* result) {
-  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
   *result = val->IsTypedArray();
 
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_create_typedarray(napi_env env,
@@ -2664,7 +2664,7 @@ napi_status napi_get_typedarray_info(napi_env env,
                                      void** data,
                                      napi_value* arraybuffer,
                                      size_t* byte_offset) {
-  NAPI_PREAMBLE(env);
+  CHECK_ENV(env);
   CHECK_ARG(env, typedarray);
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(typedarray);
@@ -2712,7 +2712,7 @@ napi_status napi_get_typedarray_info(napi_env env,
     *byte_offset = array->ByteOffset();
   }
 
-  return GET_RETURN_STATUS(env);
+  return napi_clear_last_error(env);
 }
 
 namespace uvimpl {
