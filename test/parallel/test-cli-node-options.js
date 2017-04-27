@@ -50,9 +50,11 @@ expect('--track-heap-objects', 'B\n');
 expect('--throw-deprecation', 'B\n');
 expect('--zero-fill-buffers', 'B\n');
 expect('--v8-pool-size=10', 'B\n');
-expect('--use-openssl-ca', 'B\n');
-expect('--use-bundled-ca', 'B\n');
-expect('--openssl-config=_ossl_cfg', 'B\n');
+if (common.hasCrypto) {
+  expect('--use-openssl-ca', 'B\n');
+  expect('--use-bundled-ca', 'B\n');
+  expect('--openssl-config=_ossl_cfg', 'B\n');
+}
 expect('--icu-data-dir=_d', 'B\n');
 
     // V8 options
