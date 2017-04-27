@@ -3225,11 +3225,6 @@ struct ValueSerializer::PrivateData {
   i::ValueSerializer serializer;
 };
 
-// static
-uint32_t ValueSerializer::GetCurrentDataFormatVersion() {
-  return i::ValueSerializer::GetCurrentDataFormatVersion();
-}
-
 ValueSerializer::ValueSerializer(Isolate* isolate)
     : ValueSerializer(isolate, nullptr) {}
 
