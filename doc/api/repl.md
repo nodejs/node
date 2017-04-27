@@ -335,7 +335,6 @@ const replServer = repl.start({prompt: '> '});
 replServer.defineCommand('sayhello', {
   help: 'Say hello',
   action(name) {
-    this.lineParser.reset();
     this.bufferedCommand = '';
     console.log(`Hello, ${name}!`);
     this.displayPrompt();
