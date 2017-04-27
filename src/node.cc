@@ -3890,7 +3890,7 @@ static void ParseArgs(int* argc,
 #if HAVE_OPENSSL
   bool use_bundled_ca = false;
   bool use_openssl_ca = false;
-#endif  // HAVE_INSPECTOR
+#endif  // HAVE_OPENSSL
 
   for (unsigned int i = 0; i < nargs; ++i) {
     new_exec_argv[i] = nullptr;
