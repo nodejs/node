@@ -1019,6 +1019,7 @@ v8_header_set("v8_version") {
   configs = [ ":internal_config" ]
 
   sources = [
+    "include/v8-value-serializer-version.h",
     "include/v8-version-string.h",
     "include/v8-version.h",
   ]
