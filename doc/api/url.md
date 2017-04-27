@@ -132,6 +132,9 @@ forward-slash characters (`/`) are required following the colon in the
 `protocol`.
 
 ## url.domainToASCII(domain)
+<!-- YAML
+added: v7.4.0
+-->
 
 > Stability: 1 - Experimental
 
@@ -154,6 +157,9 @@ console.log(url.domainToASCII('xn--iñvalid.com'));
 ```
 
 ## url.domainToUnicode(domain)
+<!-- YAML
+added: v7.4.0
+-->
 
 > Stability: 1 - Experimental
 
@@ -243,6 +249,9 @@ The formatting process operates as follows:
 * `result` is returned.
 
 ## url.format(URL[, options])
+<!-- YAML
+added: v7.6.0
+-->
 
 > Stability: 1 - Experimental
 
@@ -254,7 +263,7 @@ The formatting process operates as follows:
     fragment, `false` otherwise. Defaults to `true`.
   * `search` {boolean} `true` if the serialized URL string should include the
     search query, `false` otherwise. Defaults to `true`.
-  * `unicode` (Boolean) `true` if Unicode characters appearing in the host
+  * `unicode` {boolean} `true` if Unicode characters appearing in the host
     component of the URL string should be encoded directly as opposed to being
     Punycode encoded. Defaults to `false`.
 
@@ -348,6 +357,9 @@ For example, the ASCII space character (`' '`) is encoded as `%20`. The ASCII
 forward slash (`/`) character is encoded as `%3C`.
 
 ## The WHATWG URL API
+<!-- YAML
+added: v7.0.0
+-->
 
 > Stability: 1 - Experimental
 
@@ -735,6 +747,9 @@ console.log(JSON.stringify(myURLs));
 ```
 
 ### Class: URLSearchParams
+<!-- YAML
+added: v7.5.0
+-->
 
 The `URLSearchParams` API provides read and write access to the query of a
 `URL`. The `URLSearchParams` class can also be used standalone with one of the
@@ -807,6 +822,9 @@ console.log(params.toString());
 ```
 
 #### Constructor: new URLSearchParams(obj)
+<!-- YAML
+added: v7.10.0
+-->
 
 * `obj` {Object} An object representing a collection of key-value pairs
 
@@ -830,6 +848,9 @@ console.log(params.toString());
 ```
 
 #### Constructor: new URLSearchParams(iterable)
+<!-- YAML
+added: v7.10.0
+-->
 
 * `iterable` {Iterable} An iterable object whose elements are key-value pairs
 
@@ -989,6 +1010,9 @@ console.log(params.toString());
 ```
 
 #### urlSearchParams.sort()
+<!-- YAML
+added: v7.7.0
+-->
 
 Sort all existing name-value pairs in-place by their names. Sorting is done
 with a [stable sorting algorithm][], so relative order between name-value pairs
