@@ -174,6 +174,13 @@ A stream to push an array into a REPL
 
 Blocks for `time` amount of time.
 
+### crashOnUnhandledRejection()
+
+Installs a `process.on('unhandledRejection')` handler that crashes the process
+after a tick. This is useful for tests that use Promises and need to make sure
+no unexpected rejections occur, because currently they result in silent
+failures.
+
 ### ddCommand(filename, kilobytes)
 * return [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
 
