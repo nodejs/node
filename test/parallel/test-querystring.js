@@ -107,7 +107,7 @@ const qsColonTestCases = [
 ];
 
 // [wonkyObj, qs, canonicalObj]
-const extendedFunction = function() {};
+function extendedFunction() {}
 extendedFunction.prototype = {a: 'b'};
 const qsWeirdObjects = [
   // eslint-disable-next-line no-unescaped-regexp-dot

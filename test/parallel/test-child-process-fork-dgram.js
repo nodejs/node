@@ -78,7 +78,7 @@ if (process.argv[2] === 'child') {
     });
   });
 
-  const sendMessages = function() {
+  function sendMessages() {
     const serverPort = parentServer.address().port;
 
     const timer = setInterval(function() {
@@ -102,7 +102,7 @@ if (process.argv[2] === 'child') {
         );
       }
     }, 1);
-  };
+  }
 
   parentServer.bind(0, '127.0.0.1');
 

@@ -87,7 +87,7 @@ if (process.argv[2] === 'child') {
   }));
 
   // send net.Server to child and test by connecting
-  const testServer = function(callback) {
+  function testServer(callback) {
 
     // destroy server execute callback when done
     const progress = new ProgressTracker(2, function() {
@@ -116,7 +116,7 @@ if (process.argv[2] === 'child') {
     server.listen(0);
 
     // handle client messages
-    const messageHandlers = function(msg) {
+    function messageHandlers(msg) {
 
       if (msg.what === 'listening') {
         // make connections
@@ -138,13 +138,13 @@ if (process.argv[2] === 'child') {
         child.removeListener('message', messageHandlers);
         callback();
       }
-    };
+    }
 
     child.on('message', messageHandlers);
-  };
+  }
 
   // send net.Socket to child
-  const testSocket = function(callback) {
+  function testSocket(callback) {
 
     // create a new server and connect to it,
     // but the socket will be handled by the child
@@ -179,7 +179,7 @@ if (process.argv[2] === 'child') {
         server.close();
       });
     });
-  };
+  }
 
   // create server and send it to child
   let serverSuccess = false;
