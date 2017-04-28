@@ -9,5 +9,5 @@ c.on('connect', common.mustNotCall());
 
 c.on('error', common.mustCall(function(e) {
   assert.strictEqual(e.code, 'ENOENT');
-  assert.strictEqual(e.message, 'connect ENOENT ' + fp);
+  assert.strictEqual(e.message, `connect ENOENT ${fp}`);
 }));

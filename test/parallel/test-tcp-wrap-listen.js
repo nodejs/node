@@ -40,7 +40,7 @@ server.onconnection = (err, client) => {
       assert.strictEqual(returnCode, 0);
       client.pendingWrites.push(req);
 
-      console.log('client.writeQueueSize: ' + client.writeQueueSize);
+      console.log(`client.writeQueueSize: ${client.writeQueueSize}`);
       // 11 bytes should flush
       assert.strictEqual(0, client.writeQueueSize);
 
@@ -57,7 +57,7 @@ server.onconnection = (err, client) => {
         assert.strictEqual(client, client_);
         assert.strictEqual(req, req_);
 
-        console.log('client.writeQueueSize: ' + client.writeQueueSize);
+        console.log(`client.writeQueueSize: ${client.writeQueueSize}`);
         assert.strictEqual(0, client.writeQueueSize);
 
         maybeCloseClient();

@@ -51,7 +51,7 @@ if (process.argv[2] === 'child') {
         child_process.execFileSync(testExecPath, [ __filename, 'child' ],
                                    { encoding: 'utf8', env: env });
       },
-      new RegExp('Cannot find module \'' + pkgName + '\''));
+      new RegExp(`Cannot find module '${pkgName}'`));
 
   // Test module in $HOME/.node_modules.
   const modHomeDir = path.join(testFixturesDir, 'home-pkg-in-node_modules');
@@ -75,8 +75,8 @@ if (process.argv[2] === 'child') {
   fs.mkdirSync(prefixLibPath);
   const prefixLibNodePath = path.join(prefixLibPath, 'node');
   fs.mkdirSync(prefixLibNodePath);
-  const pkgPath = path.join(prefixLibNodePath, pkgName + '.js');
-  fs.writeFileSync(pkgPath, 'exports.string = \'' + expectedString + '\';');
+  const pkgPath = path.join(prefixLibNodePath, `${pkgName}.js`);
+  fs.writeFileSync(pkgPath, `exports.string = '${expectedString}';`);
 
   env['HOME'] = env['USERPROFILE'] = noPkgHomeDir;
   runTest(expectedString, env);

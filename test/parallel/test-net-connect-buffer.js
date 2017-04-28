@@ -24,7 +24,7 @@ const tcp = net.Server(function(s) {
   });
 
   s.on('error', function(e) {
-    console.log('tcp server-side error: ' + e.message);
+    console.log(`tcp server-side error: ${e.message}`);
     process.exit(1);
   });
 });
@@ -39,7 +39,7 @@ tcp.listen(0, function() {
     connectHappened = true;
   });
 
-  console.log('connecting = ' + socket.connecting);
+  console.log(`connecting = ${socket.connecting}`);
 
   assert.strictEqual('opening', socket.readyState);
 

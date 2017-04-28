@@ -6,8 +6,8 @@ const fs = require('fs');
 const tls = require('tls');
 
 const sslcontext = tls.createSecureContext({
-  cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem'),
-  key: fs.readFileSync(common.fixturesDir + '/test_key.pem')
+  cert: fs.readFileSync(`${common.fixturesDir}/test_cert.pem`),
+  key: fs.readFileSync(`${common.fixturesDir}/test_key.pem`)
 });
 
 let catchedServername;
@@ -18,7 +18,7 @@ const pair = tls.createSecurePair(sslcontext, true, false, false, {
 });
 
 // captured traffic from browser's request to https://www.google.com
-const sslHello = fs.readFileSync(common.fixturesDir + '/google_ssl_hello.bin');
+const sslHello = fs.readFileSync(`${common.fixturesDir}/google_ssl_hello.bin`);
 
 pair.encrypted.write(sslHello);
 

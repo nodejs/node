@@ -15,7 +15,7 @@ s.listen(0, function() {
 
   const request =
       http.request({ port: this.address().port }, function(response) {
-        console.log('STATUS: ' + response.statusCode);
+        console.log(`STATUS: ${response.statusCode}`);
         s.close();
         response.resume();
       });

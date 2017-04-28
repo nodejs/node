@@ -75,9 +75,9 @@ process.on('exit', function() {
   let expectedConnectionKey1;
 
   if (address1.family === 'IPv6')
-    expectedConnectionKey1 = '6::::' + address1.port;
+    expectedConnectionKey1 = `6::::${address1.port}`;
   else
-    expectedConnectionKey1 = '4:0.0.0.0:' + address1.port;
+    expectedConnectionKey1 = `4:0.0.0.0:${address1.port}`;
 
   assert.strictEqual(connectionKey1, expectedConnectionKey1);
   assert.strictEqual(common.PORT + 1, address2.port);

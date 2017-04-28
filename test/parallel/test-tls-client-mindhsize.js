@@ -9,8 +9,8 @@ if (!common.hasCrypto) {
 const tls = require('tls');
 
 const fs = require('fs');
-const key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
-const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
+const key = fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`);
+const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`);
 
 let nsuccess = 0;
 let nerror = 0;
@@ -18,7 +18,7 @@ let nerror = 0;
 function loadDHParam(n) {
   let path = common.fixturesDir;
   if (n !== 'error') path += '/keys';
-  return fs.readFileSync(path + '/dh' + n + '.pem');
+  return fs.readFileSync(`${path}/dh${n}.pem`);
 }
 
 function test(size, err, next) {

@@ -35,7 +35,7 @@ if (common.isWindows) {
 
 // pipe echo | grep
 echo.stdout.on('data', function(data) {
-  console.error('grep stdin write ' + data.length);
+  console.error(`grep stdin write ${data.length}`);
   if (!grep.stdin.write(data)) {
     echo.stdout.pause();
   }
@@ -65,7 +65,7 @@ sed.on('exit', function() {
 
 // pipe grep | sed
 grep.stdout.on('data', function(data) {
-  console.error('grep stdout ' + data.length);
+  console.error(`grep stdout ${data.length}`);
   if (!sed.stdin.write(data)) {
     grep.stdout.pause();
   }

@@ -32,7 +32,7 @@ function produce(source, count) {
     console.log(data);
   `, source]);
 
-  assert.strictEqual(out.status, 0, out.stderr + '');
+  assert.strictEqual(out.status, 0, String(out.stderr));
 
   return Buffer.from(out.stdout.toString(), 'base64');
 }

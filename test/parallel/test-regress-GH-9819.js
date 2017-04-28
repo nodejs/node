@@ -17,7 +17,7 @@ const scripts = [
 
 scripts.forEach((script) => {
   const node = process.execPath;
-  const code = setup + ';' + script;
+  const code = `${setup};${script}`;
   execFile(node, [ '-e', code ], common.mustCall((err, stdout, stderr) => {
     assert(stderr.includes('Error: xyz'), 'digest crashes');
   }));
