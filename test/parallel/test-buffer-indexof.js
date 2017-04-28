@@ -12,7 +12,6 @@ const buf_z = Buffer.from('z');
 const buf_empty = Buffer.from('');
 
 const s = 'abcdef';
-
 assert.strictEqual(b.indexOf('a'), 0);
 assert.strictEqual(b.indexOf('a', 1), -1);
 assert.strictEqual(b.indexOf('a', -1), -1);

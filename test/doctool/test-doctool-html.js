@@ -115,15 +115,15 @@ testData.forEach((item) => {
           const actual = output.replace(/\s/g, '');
           // Assert that the input stripped of all whitespace contains the
           // expected list
-          assert.notStrictEqual(actual.indexOf(expected), -1);
+          assert.notStrictEqual(actual.includes(expected), -1);
 
           // Testing the insertion of Google Analytics script when
           // an analytics id is provided. Should not be present by default
           if (includeAnalytics) {
-            assert.notStrictEqual(actual.indexOf('google-analytics.com'), -1,
+            assert.notStrictEqual(actual.includes('google-analytics.com'), -1,
                                   'Google Analytics script was not present');
           } else {
-            assert.strictEqual(actual.indexOf('google-analytics.com'), -1,
+            assert.strictEqual(actual.includes('google-analytics.com'), -1,
                                'Google Analytics script was present');
           }
         }));

@@ -35,7 +35,7 @@ function checkBadPath(err, response) {
 function expectMainScriptSource(result) {
   const expected = helper.mainScriptSource();
   const source = result['scriptSource'];
-  assert(source && (source.indexOf(expected) >= 0),
+  assert(source && (source.includes(expected) >= 0),
          'Script source is wrong: ' + source);
 }
 

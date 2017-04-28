@@ -88,7 +88,7 @@ function error_test() {
                   client_unix.expect :
                   JSON.stringify(client_unix.expect)));
 
-    if (read_buffer.indexOf(prompt_unix) !== -1) {
+    if (read_buffer.includes(prompt_unix) !== -1) {
       // if it's an exact match, then don't do the regexp
       if (read_buffer !== client_unix.expect) {
         let expect = client_unix.expect;
@@ -109,7 +109,7 @@ function error_test() {
         tcp_test();
       }
 
-    } else if (read_buffer.indexOf(prompt_multiline) !== -1) {
+    } else if (read_buffer.includes(prompt_multiline) !== -1) {
       // Check that you meant to send a multiline test
       assert.strictEqual(prompt_multiline, client_unix.expect);
       read_buffer = '';
@@ -454,7 +454,7 @@ function tcp_test() {
       read_buffer += data.toString('ascii', 0, data.length);
       console.error('TCP data: ' + JSON.stringify(read_buffer) +
                    ', expecting ' + JSON.stringify(client_tcp.expect));
-      if (read_buffer.indexOf(prompt_tcp) !== -1) {
+      if (read_buffer.includes(prompt_tcp) !== -1) {
         assert.strictEqual(client_tcp.expect, read_buffer);
         console.error('match');
         read_buffer = '';
@@ -524,7 +524,7 @@ function unix_test() {
       read_buffer += data.toString('ascii', 0, data.length);
       console.error('Unix data: ' + JSON.stringify(read_buffer) +
                    ', expecting ' + JSON.stringify(client_unix.expect));
-      if (read_buffer.indexOf(prompt_unix) !== -1) {
+      if (read_buffer.includes(prompt_unix) !== -1) {
         assert.strictEqual(client_unix.expect, read_buffer);
         console.error('match');
         read_buffer = '';
