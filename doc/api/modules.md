@@ -35,7 +35,8 @@ Variables local to the module will be private, because the module is wrapped
 in a function by Node.js (see [module wrapper](#modules_the_module_wrapper)).
 In this example, the variable `PI` is private to `circle.js`.
 
-The `module.exports` can be assigned a new value (such as a function or object).
+The `module.exports` property can be assigned a new value (such as a function
+or object).
 
 Below, `bar.js` makes use of the `square` module, which exports a constructor:
 
@@ -89,9 +90,9 @@ Let's say that we wanted to have the folder at
 specific version of a package.
 
 Packages can depend on one another. In order to install package `foo`, it
-may be necessary to install a specific version of package `bar`.  The `bar`
-package may itself have dependencies, and in some cases, these dependencies may
-even collide or form cycles.
+may be necessary to install a specific version of package `bar`. The `bar`
+package may itself have dependencies, and in some cases, these may even collide
+or form cyclic dependencies.
 
 Since Node.js looks up the `realpath` of any modules it loads (that is,
 resolves symlinks), and then looks for their dependencies in the `node_modules`
@@ -200,7 +201,7 @@ executed multiple times.  This is an important feature.  With it,
 "partially done" objects can be returned, thus allowing transitive
 dependencies to be loaded even when they would cause cycles.
 
-To have a module execute code multiple times, then export a function, and call
+To have a module execute code multiple times, export a function, and call
 that function.
 
 ### Module Caching Caveats
@@ -294,8 +295,8 @@ a done
 in main, a.done=true, b.done=true
 ```
 
-Careful planning is required to allow cyclic module dependencies within an
-application.
+Careful planning is required to allow cyclic module dependencies to work
+correctly within an application.
 
 ## File Modules
 
@@ -424,8 +425,8 @@ configured `node_prefix`.
 
 These are mostly for historic reasons.
 
-*Note*: It is strongly encouraged to place dependencies locally in
-`node_modules` folders. These will be loaded faster, and more reliably.
+*Note*: It is strongly encouraged to place dependencies in the local
+`node_modules` folder. These will be loaded faster, and more reliably.
 
 ## The module wrapper
 

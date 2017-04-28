@@ -105,7 +105,7 @@ workers.  As long as there are some workers still alive, the server will
 continue to accept connections.  If no workers are alive, existing connections
 will be dropped and new connections will be refused. Node.js does not
 automatically manage the number of workers, however. It is the application's
-responsibility to manage the worker pool based on it's own needs.
+responsibility to manage the worker pool based on its own needs.
 
 
 
@@ -368,8 +368,8 @@ added: v0.11.14
 -->
 
 This function returns `true` if the worker is connected to its master via its
-IPC channel, `false` otherwise. A worker is connected to its master after it's
-been created. It is disconnected after the `'disconnect'` event is emitted.
+IPC channel, `false` otherwise. A worker is connected to its master after it
+has been created. It is disconnected after the `'disconnect'` event is emitted.
 
 ### worker.isDead()
 <!-- YAML
@@ -467,7 +467,7 @@ An alias to [`worker.exitedAfterDisconnect`][].
 
 Set by calling `.kill()` or `.disconnect()`. Until then, it is `undefined`.
 
-The boolean `worker.suicide` allows distinguishs between voluntary
+The boolean `worker.suicide` is used to distinguish between voluntary
 and accidental exit, the master may choose not to respawn a worker based on
 this value.
 
@@ -567,7 +567,7 @@ added: v0.7.0
 * `address` {Object}
 
 After calling `listen()` from a worker, when the `'listening'` event is emitted
-on the server, a `'listening'` event will also be emitted on `cluster` in the
+on the server a `'listening'` event will also be emitted on `cluster` in the
 master.
 
 The event handler is executed with two arguments, the `worker` contains the

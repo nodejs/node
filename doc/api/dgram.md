@@ -302,8 +302,7 @@ passed as the first argument to the `callback`. If a `callback` is not given,
 the error is emitted as an `'error'` event on the `socket` object.
 
 Offset and length are optional but both *must* be set if either are used.
-Also, they are supported only when the first argument is a `Buffer` or
-`Uint8Array`.
+They are supported only when the first argument is a `Buffer` or `Uint8Array`.
 
 Example of sending a UDP packet to a random port on `localhost`;
 
