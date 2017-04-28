@@ -10,7 +10,7 @@ if (common.isSunOS || common.isWindows || common.isAix) {
   return;
 }
 
-const dirname = common.tmpDir + '/cwd-does-not-exist-' + process.pid;
+const dirname = `${common.tmpDir}/cwd-does-not-exist-${process.pid}`;
 const abspathFile = require('path').join(common.fixturesDir, 'a.js');
 common.refreshTmpDir();
 fs.mkdirSync(dirname);

@@ -31,19 +31,18 @@ function addToEnv(newVar, value) {
 }
 
 function testHelper(stream, args, expectedOutput, cmd, env) {
-  const fullArgs = args.concat(['-e', 'console.log(' + cmd + ')']);
+  const fullArgs = args.concat(['-e', `console.log(${cmd})`]);
   const child = spawnSync(process.execPath, fullArgs, {
     cwd: path.dirname(process.execPath),
     env: env
   });
 
-  console.error('Spawned child [pid:' + child.pid + '] with cmd \'' +
-      cmd + '\' expect %j with args \'' + args + '\'' +
-      ' OPENSSL_CONF=%j', expectedOutput, env.OPENSSL_CONF);
+  console.error(
+    `Spawned child [pid:${child.pid}] with cmd '${cmd}' expect %j with args '${
+    args}' OPENSSL_CONF=%j`, expectedOutput, env.OPENSSL_CONF);
 
   function childOk(child) {
-    console.error('Child #' + ++num_children_ok +
-        ' [pid:' + child.pid + '] OK.');
+    console.error(`Child #${++num_children_ok} [pid:${child.pid}] OK.`);
   }
 
   function responseHandler(buffer, expectedOutput) {

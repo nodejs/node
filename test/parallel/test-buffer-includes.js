@@ -199,7 +199,7 @@ const longBufferString = Buffer.from(longString);
 let pattern = 'ABACABADABACABA';
 for (let i = 0; i < longBufferString.length - pattern.length; i += 7) {
   const includes = longBufferString.includes(pattern, i);
-  assert(includes, 'Long ABACABA...-string at index ' + i);
+  assert(includes, `Long ABACABA...-string at index ${i}`);
 }
 assert(longBufferString.includes('AJABACA'), 'Long AJABACA, First J');
 assert(longBufferString.includes('AJABACA', 511), 'Long AJABACA, Second J');

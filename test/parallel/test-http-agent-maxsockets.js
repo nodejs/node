@@ -30,7 +30,7 @@ function done() {
   }
   const freepool = agent.freeSockets[Object.keys(agent.freeSockets)[0]];
   assert.strictEqual(freepool.length, 2,
-                     'expect keep 2 free sockets, but got ' + freepool.length);
+                     `expect keep 2 free sockets, but got ${freepool.length}`);
   agent.destroy();
   server.close();
 }

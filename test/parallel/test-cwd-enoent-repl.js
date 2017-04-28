@@ -10,7 +10,7 @@ if (common.isSunOS || common.isWindows || common.isAix) {
   return;
 }
 
-const dirname = common.tmpDir + '/cwd-does-not-exist-' + process.pid;
+const dirname = `${common.tmpDir}/cwd-does-not-exist-${process.pid}`;
 common.refreshTmpDir();
 fs.mkdirSync(dirname);
 process.chdir(dirname);

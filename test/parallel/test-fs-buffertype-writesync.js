@@ -16,5 +16,5 @@ common.refreshTmpDir();
 v.forEach((value) => {
   const fd = fs.openSync(filePath, 'w');
   fs.writeSync(fd, value);
-  assert.strictEqual(fs.readFileSync(filePath).toString(), value + '');
+  assert.strictEqual(fs.readFileSync(filePath).toString(), String(value));
 });

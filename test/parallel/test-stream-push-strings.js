@@ -35,7 +35,7 @@ const results = [];
 ms.on('readable', function() {
   let chunk;
   while (null !== (chunk = ms.read()))
-    results.push(chunk + '');
+    results.push(String(chunk));
 });
 
 const expect = [ 'first chunksecond to last chunk', 'last chunk' ];

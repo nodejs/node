@@ -4,7 +4,7 @@ const assert = require('assert');
 const fork = require('child_process').fork;
 const args = ['foo', 'bar'];
 
-const n = fork(common.fixturesDir + '/child-process-spawn-node.js', args);
+const n = fork(`${common.fixturesDir}/child-process-spawn-node.js`, args);
 assert.deepStrictEqual(args, ['foo', 'bar']);
 
 n.on('message', function(m) {
