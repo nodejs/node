@@ -206,7 +206,7 @@ test('write callbacks', function(t) {
       callbacks._called[i] = chunk;
     }];
   }).reduce(function(set, x) {
-    set['callback-' + x[0]] = x[1];
+    set[`callback-${x[0]}`] = x[1];
     return set;
   }, {});
   callbacks._called = [];
@@ -224,7 +224,7 @@ test('write callbacks', function(t) {
   });
 
   chunks.forEach(function(chunk, i) {
-    tw.write(chunk, callbacks['callback-' + i]);
+    tw.write(chunk, callbacks[`callback-${i}`]);
   });
   tw.end();
 });

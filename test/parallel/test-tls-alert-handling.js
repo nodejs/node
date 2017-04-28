@@ -16,7 +16,7 @@ const net = require('net');
 const fs = require('fs');
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
+  return require('path').join(common.fixturesDir, 'keys', `${n}.pem`);
 }
 
 function loadPEM(n) {

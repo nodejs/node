@@ -48,7 +48,7 @@ server.listen(0, function() {
         return process.nextTick(send);
       }
       sent += bufSize;
-      console.error('sent: ' + sent);
+      console.error(`sent: ${sent}`);
       resumed = true;
       client.resume();
       console.error('resumed', client);
@@ -61,7 +61,7 @@ server.listen(0, function() {
     console.error('received', received);
     console.error('sent', sent);
     if (received >= sent) {
-      console.error('received: ' + received);
+      console.error(`received: ${received}`);
       client.end();
       server.close();
     }

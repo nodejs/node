@@ -54,7 +54,7 @@ function test1() {
   function flow() {
     let chunk;
     while (null !== (chunk = r.read()))
-      results.push(chunk + '');
+      results.push(String(chunk));
   }
   r.on('readable', flow);
   r.on('end', function() {
@@ -82,7 +82,7 @@ function test2() {
   function flow() {
     let chunk;
     while (null !== (chunk = r.read()))
-      results.push(chunk + '');
+      results.push(String(chunk));
   }
   r.on('readable', flow);
   r.on('end', function() {

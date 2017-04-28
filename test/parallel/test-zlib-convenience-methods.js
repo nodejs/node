@@ -23,8 +23,8 @@ const opts = {
   zlib[method[0]](expect, opts, function(err, result) {
     zlib[method[1]](result, opts, function(err, result) {
       assert.strictEqual(result.toString(), expect,
-                         'Should get original string after ' +
-                   method[0] + '/' + method[1] + ' with options.');
+                         `Should get original string after ${
+                          method[0]}/${method[1]} with options.`);
       hadRun++;
     });
   });
@@ -32,24 +32,24 @@ const opts = {
   zlib[method[0]](expect, function(err, result) {
     zlib[method[1]](result, function(err, result) {
       assert.strictEqual(result.toString(), expect,
-                         'Should get original string after ' +
-                   method[0] + '/' + method[1] + ' without options.');
+                         `Should get original string after ${
+                          method[0]}/${method[1]} without options.`);
       hadRun++;
     });
   });
 
-  let result = zlib[method[0] + 'Sync'](expect, opts);
-  result = zlib[method[1] + 'Sync'](result, opts);
+  let result = zlib[`${method[0]}Sync`](expect, opts);
+  result = zlib[`${method[1]}Sync`](result, opts);
   assert.strictEqual(result.toString(), expect,
-                     'Should get original string after ' +
-               method[0] + '/' + method[1] + ' with options.');
+                     `Should get original string after ${
+                      method[0]}/${method[1]} with options.`);
   hadRun++;
 
-  result = zlib[method[0] + 'Sync'](expect);
-  result = zlib[method[1] + 'Sync'](result);
+  result = zlib[`${method[0]}Sync`](expect);
+  result = zlib[`${method[1]}Sync`](result);
   assert.strictEqual(result.toString(), expect,
-                     'Should get original string after ' +
-               method[0] + '/' + method[1] + ' without options.');
+                     `Should get original string after ${
+                      method[0]}/${method[1]} without options.`);
   hadRun++;
 
 });

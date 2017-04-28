@@ -19,8 +19,8 @@ assert.strictEqual(
 );
 
 tls.createServer({
-  cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem'),
-  key: fs.readFileSync(common.fixturesDir + '/test_key.pem')
+  cert: fs.readFileSync(`${common.fixturesDir}/test_cert.pem`),
+  key: fs.readFileSync(`${common.fixturesDir}/test_key.pem`)
 }).listen(common.PORT);
 
 {

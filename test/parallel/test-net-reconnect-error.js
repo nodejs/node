@@ -15,7 +15,7 @@ c.on('connect', function() {
 });
 
 c.on('error', function(e) {
-  console.error('CLIENT error: ' + e.code);
+  console.error(`CLIENT error: ${e.code}`);
   client_error_count++;
   assert.strictEqual('ECONNREFUSED', e.code);
 });

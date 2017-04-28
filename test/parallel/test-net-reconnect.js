@@ -22,7 +22,7 @@ const server = net.createServer(function(socket) {
   });
 
   socket.on('close', function(had_error) {
-    console.log('SERVER had_error: ' + JSON.stringify(had_error));
+    console.log(`SERVER had_error: ${JSON.stringify(had_error)}`);
     assert.strictEqual(false, had_error);
   });
 });
@@ -39,7 +39,7 @@ server.listen(0, function() {
 
   client.on('data', function(chunk) {
     client_recv_count += 1;
-    console.log('client_recv_count ' + client_recv_count);
+    console.log(`client_recv_count ${client_recv_count}`);
     assert.strictEqual('hello\r\n', chunk);
     console.error('CLIENT: calling end', client._writableState);
     client.end();
