@@ -423,7 +423,7 @@ try {
 
   AnotherErrorType = class extends Error {};
 
-  const functionThatThrows = function() {
+  const functionThatThrows = () => {
     throw new AnotherErrorType('foo');
   };
 
@@ -466,6 +466,7 @@ a.throws(makeBlock(a.deepEqual, args, []));
 
 // more checking that arguments objects are handled correctly
 {
+  // eslint-disable-next-line func-style
   const returnArguments = function() { return arguments; };
 
   const someArgs = returnArguments('a');

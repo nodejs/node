@@ -252,9 +252,11 @@ Object.defineProperty(
 assert.strictEqual(util.inspect(value), '[ 1, 2, 3, growingLength: [Getter] ]');
 
 // Function with properties
-value = function() {};
-value.aprop = 42;
-assert.strictEqual(util.inspect(value), '{ [Function: value] aprop: 42 }');
+{
+  const value = () => {};
+  value.aprop = 42;
+  assert.strictEqual(util.inspect(value), '{ [Function: value] aprop: 42 }');
+}
 
 // Anonymous function with properties
 value = (() => function() {})();
@@ -595,9 +597,7 @@ assert.doesNotThrow(function() {
 
 // util.inspect with "colors" option should produce as many lines as without it
 function test_lines(input) {
-  const count_lines = function(str) {
-    return (str.match(/\n/g) || []).length;
-  };
+  const count_lines = (str) => (str.match(/\n/g) || []).length;
 
   const without_color = util.inspect(input);
   const with_color = util.inspect(input, {colors: true});

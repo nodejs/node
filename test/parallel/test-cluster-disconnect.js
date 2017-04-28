@@ -17,7 +17,7 @@ if (cluster.isWorker) {
   const servers = 2;
 
   // test a single TCP server
-  const testConnection = function(port, cb) {
+  const testConnection = (port, cb) => {
     const socket = net.connect(port, '127.0.0.1', () => {
       // buffer result
       let result = '';
@@ -31,7 +31,7 @@ if (cluster.isWorker) {
   };
 
   // test both servers created in the cluster
-  const testCluster = function(cb) {
+  const testCluster = (cb) => {
     let done = 0;
 
     for (let i = 0; i < servers; i++) {
@@ -46,7 +46,7 @@ if (cluster.isWorker) {
   };
 
   // start two workers and execute callback when both is listening
-  const startCluster = function(cb) {
+  const startCluster = (cb) => {
     const workers = 8;
     let online = 0;
 
@@ -60,7 +60,7 @@ if (cluster.isWorker) {
     }
   };
 
-  const test = function(again) {
+  const test = (again) => {
     //1. start cluster
     startCluster(common.mustCall(() => {
       //2. test cluster

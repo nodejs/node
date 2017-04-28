@@ -7,7 +7,7 @@ const doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
 const readOnlyFile = path.join(common.tmpDir, 'read_only_file');
 const readWriteFile = path.join(common.tmpDir, 'read_write_file');
 
-const removeFile = function(file) {
+const removeFile = (file) => {
   try {
     fs.unlinkSync(file);
   } catch (err) {
@@ -15,11 +15,11 @@ const removeFile = function(file) {
   }
 };
 
-const createFileWithPerms = function(file, mode) {
+function createFileWithPerms(file, mode) {
   removeFile(file);
   fs.writeFileSync(file, '');
   fs.chmodSync(file, mode);
-};
+}
 
 common.refreshTmpDir();
 createFileWithPerms(readOnlyFile, 0o444);
