@@ -253,8 +253,6 @@ The formatting process operates as follows:
 added: v7.6.0
 -->
 
-> Stability: 1 - Experimental
-
 * `URL` {URL} A [WHATWG URL][] object
 * `options` {Object}
   * `auth` {boolean} `true` if the serialized URL string should include the
@@ -289,9 +287,6 @@ console.log(myURL.toString());
 console.log(url.format(myURL, {fragment: false, unicode: true, auth: false}));
   // Prints 'https://你好你好?abc'
 ```
-
-*Note*: This variation of the `url.format()` method is currently considered to
-be experimental.
 
 ## url.parse(urlString[, parseQueryString[, slashesDenoteHost]])
 <!-- YAML
@@ -365,10 +360,8 @@ forward slash (`/`) character is encoded as `%3C`.
 added: v7.0.0
 -->
 
-> Stability: 1 - Experimental
-
-The `url` module provides an *experimental* implementation of the
-[WHATWG URL Standard][] as an alternative to the existing `url.parse()` API.
+The `url` module provides an implementation of the [WHATWG URL Standard][] as
+an alternative to the existing `url.parse()` API.
 
 ```js
 const URL = require('url').URL;
