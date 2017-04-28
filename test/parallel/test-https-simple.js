@@ -39,7 +39,7 @@ const options = {
 const tests = 2;
 let successful = 0;
 
-const testSucceeded = function() {
+const testSucceeded = () => {
   successful = successful + 1;
   if (successful === tests) {
     server.close();

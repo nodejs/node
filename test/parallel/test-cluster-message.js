@@ -80,7 +80,7 @@ if (cluster.isWorker) {
 
 
   let client;
-  const check = function(type, result) {
+  const check = (type, result) => {
     checks[type].receive = true;
     checks[type].correct = result;
     console.error('check', checks);

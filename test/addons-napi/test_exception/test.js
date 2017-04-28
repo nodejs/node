@@ -4,12 +4,12 @@ const common = require('../../common');
 const test_exception = require(`./build/${common.buildType}/test_exception`);
 const assert = require('assert');
 const theError = new Error('Some error');
-const throwTheError = function() {
+function throwTheError() {
   throw theError;
-};
+}
 let caughtError;
 
-const throwNoError = function() {};
+const throwNoError = common.noop;
 
 // Test that the native side successfully captures the exception
 let returnedError = test_exception.returnException(throwTheError);

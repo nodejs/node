@@ -144,7 +144,7 @@ if (process.argv[2] === 'child') {
 
   server.listen(0, '127.0.0.1');
 
-  const closeServer = function() {
+  function closeServer() {
     server.close();
 
     setTimeout(function() {
@@ -153,7 +153,7 @@ if (process.argv[2] === 'child') {
       child2.send('close');
       child3.disconnect();
     }, 200);
-  };
+  }
 
   process.on('exit', function() {
     assert.strictEqual(disconnected, count);
