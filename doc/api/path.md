@@ -319,8 +319,8 @@ The `path.normalize()` method normalizes the given `path`, resolving `'..'` and
 
 When multiple, sequential path segment separation characters are found (e.g.
 `/` on POSIX and either `\` or `/` on Windows), they are replaced by a single 
-instance of the platform specific path segment separator. Trailing separators 
-are preserved.
+instance of the platform specific path segment separator (`/` on POSIX and 
+`\` on Windows). Trailing separators are preserved.
 
 If the `path` is a zero-length string, `'.'` is returned, representing the
 current working directory.
