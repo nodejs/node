@@ -1286,6 +1286,21 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
       FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupPromises")).FromJust();
 }
 
+void PromiseFatal(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsPromise());
+
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  Local<Promise> promise = args[0].As<Promise>();
+
+  CHECK(promise->State() == Promise::PromiseState::kRejected);
+  Local<Value> err = promise->Result();
+  Local<Message> message = Exception::CreateMessage(isolate, err);
+
+  InternalFatalException(isolate, err, message, true);
+}
+
 }  // anonymous namespace
 
 
@@ -1719,10 +1734,9 @@ void AppendExceptionLine(Environment* env,
             arrow_str).FromMaybe(false));
 }
 
-
-static void ReportException(Environment* env,
-                            Local<Value> er,
-                            Local<Message> message) {
+void ReportException(Environment* env,
+                     Local<Value> er,
+                     Local<Message> message) {
   HandleScope scope(env->isolate());
 
   AppendExceptionLine(env, er, message, FATAL_ERROR);
@@ -2615,6 +2629,14 @@ NO_RETURN void FatalError(const char* location, const char* message) {
 void FatalException(Isolate* isolate,
                     Local<Value> error,
                     Local<Message> message) {
+  InternalFatalException(isolate, error, message, false);
+}
+
+
+void InternalFatalException(Isolate* isolate,
+                            Local<Value> error,
+                            Local<Message> message,
+                            bool from_promise) {
   HandleScope scope(isolate);
 
   Environment* env = Environment::GetCurrent(isolate);
@@ -2637,9 +2659,12 @@ void FatalException(Isolate* isolate,
     // Do not call FatalException when _fatalException handler throws
     fatal_try_catch.SetVerbose(false);
 
+    Local<Value> argv[2] = { error,
+                             Boolean::New(env->isolate(), from_promise) };
+
     // this will return true if the JS layer handled it, false otherwise
     Local<Value> caught =
-        fatal_exception_function->Call(process_object, 1, &error);
+        fatal_exception_function->Call(process_object, 2, argv);
 
     if (fatal_try_catch.HasCaught()) {
       // the fatal exception function threw, so we must exit
@@ -3494,6 +3519,8 @@ void SetupProcessObject(Environment* env,
   env->SetMethod(process, "_setupNextTick", SetupNextTick);
   env->SetMethod(process, "_setupPromises", SetupPromises);
   env->SetMethod(process, "_setupDomainUse", SetupDomainUse);
+
+  env->SetMethod(process, "promiseFatal", PromiseFatal);
 
   // pre-set _events object for faster emit checks
   Local<Object> events_obj = Object::New(env->isolate());
