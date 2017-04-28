@@ -4,14 +4,14 @@
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
- - [Internal vs. Public API](#internal-vs-public-api)
- - [Breaking Changes](#breaking-changes)
- - [Deprecations](#deprecations)
- - [Involving the CTC](#involving-the-ctc)
+   - [Internal vs. Public API](#internal-vs-public-api)
+   - [Breaking Changes](#breaking-changes)
+   - [Deprecations](#deprecations)
+   - [Involving the CTC](#involving-the-ctc)
 * [Landing Pull Requests](#landing-pull-requests)
- - [Technical HOWTO](#technical-howto)
- - [I Just Made a Mistake](#i-just-made-a-mistake)
- - [Long Term Support](#long-term-support)
+   - [Technical HOWTO](#technical-howto)
+   - [I Just Made a Mistake](#i-just-made-a-mistake)
+   - [Long Term Support](#long-term-support)
 
 This document contains information for Collaborators of the Node.js
 project regarding maintaining the code, documentation and issues.
