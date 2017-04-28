@@ -637,6 +637,52 @@ process's [`ChildProcess.disconnect()`][].
 If the Node.js process was not spawned with an IPC channel,
 `process.disconnect()` will be `undefined`.
 
+## process.emitWarning(warning[, options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `warning` {string|Error} The warning to emit.
+* `options` {Object}
+  * `type` {string} When `warning` is a String, `type` is the name to use
+    for the *type* of warning being emitted. Default: `Warning`.
+  * `code` {string} A unique identifier for the warning instance being emitted.
+  * `ctor` {Function} When `warning` is a String, `ctor` is an optional
+    function used to limit the generated stack trace. Default
+    `process.emitWarning`
+  * `detail` {string} Additional text to include with the error.
+
+The `process.emitWarning()` method can be used to emit custom or application
+specific process warnings. These can be listened for by adding a handler to the
+[`process.on('warning')`][process_warning] event.
+
+```js
+// Emit a warning with a code and additional detail.
+process.emitWarning('Something happened!', {
+  code: 'MY_WARNING',
+  detail: 'This is some additional information'
+});
+// Emits:
+// (node:56338) [MY_WARNING] Warning: Something happened!
+// This is some additional information
+```
+
+In this example, an `Error` object is generated internally by
+`process.emitWarning()` and passed through to the
+[`process.on('warning')`][process_warning] event.
+
+```js
+process.on('warning', (warning) => {
+  console.warn(warning.name);    // 'Warning'
+  console.warn(warning.message); // 'Something happened!'
+  console.warn(warning.code);    // 'MY_WARNING'
+  console.warn(warning.stack);   // Stack trace
+  console.warn(warning.detail);  // 'This is some additional information'
+});
+```
+
+If `warning` is passed as an `Error` object, the `options` argument is ignored.
+
 ## process.emitWarning(warning[, type[, code]][, ctor])
 <!-- YAML
 added: v6.0.0
@@ -655,13 +701,13 @@ specific process warnings. These can be listened for by adding a handler to the
 [`process.on('warning')`][process_warning] event.
 
 ```js
-// Emit a warning using a string...
+// Emit a warning using a string.
 process.emitWarning('Something happened!');
 // Emits: (node: 56338) Warning: Something happened!
 ```
 
 ```js
-// Emit a warning using a string and a type...
+// Emit a warning using a string and a type.
 process.emitWarning('Something Happened!', 'CustomWarning');
 // Emits: (node:56338) CustomWarning: Something Happened!
 ```
@@ -689,14 +735,14 @@ If `warning` is passed as an `Error` object, it will be passed through to the
 `code` and `ctor` arguments will be ignored):
 
 ```js
-// Emit a warning using an Error object...
-const myWarning = new Error('Warning! Something happened!');
+// Emit a warning using an Error object.
+const myWarning = new Error('Something happened!');
 // Use the Error name property to specify the type name
 myWarning.name = 'CustomWarning';
 myWarning.code = 'WARN001';
 
 process.emitWarning(myWarning);
-// Emits: (node:56338) [WARN001] CustomWarning: Warning! Something happened!
+// Emits: (node:56338) [WARN001] CustomWarning: Something happened!
 ```
 
 A `TypeError` is thrown if `warning` is anything other than a string or `Error`
