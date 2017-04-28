@@ -55,3 +55,37 @@ assert.strictEqual(test_error.checkError({}), false,
 // Test that non-error primitive is correctly classed
 assert.strictEqual(test_error.checkError('non-object'), false,
                    'Non-error primitive correctly classed by napi_is_error');
+
+assert.throws(() => {
+  test_error.throwExistingError();
+}, /^Error: existing error$/);
+
+assert.throws(() => {
+  test_error.throwError();
+}, /^Error: error$/);
+
+assert.throws(() => {
+  test_error.throwRangeError();
+}, /^RangeError: range error$/);
+
+assert.throws(() => {
+  test_error.throwTypeError();
+}, /^TypeError: type error$/);
+
+let error = test_error.createError();
+assert.ok(error instanceof Error, 'expected error to be an instance of Error');
+assert.strictEqual(error.message, 'error', 'expected message to be "error"');
+
+error = test_error.createRangeError();
+assert.ok(error instanceof RangeError,
+          'expected error to be an instance of RangeError');
+assert.strictEqual(error.message,
+                   'range error',
+                   'expected message to be "range error"');
+
+error = test_error.createTypeError();
+assert.ok(error instanceof TypeError,
+          'expected error to be an instance of TypeError');
+assert.strictEqual(error.message,
+                   'type error',
+                   'expected message to be "type error"');
