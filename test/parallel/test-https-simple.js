@@ -36,16 +36,6 @@ const options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-const tests = 2;
-let successful = 0;
-
-const testSucceeded = function() {
-  successful = successful + 1;
-  if (successful === tests) {
-    server.close();
-  }
-};
-
 const body = 'hello world\n';
 
 const serverCallback = common.mustCall(function(req, res) {
@@ -55,7 +45,7 @@ const serverCallback = common.mustCall(function(req, res) {
 
 const server = https.createServer(options, serverCallback);
 
-server.listen(0, function() {
+server.listen(0, function(){
   // Do a request ignoring the unauthorized server certs
   const noCertCheckOptions = {
     hostname: '127.0.0.1',
@@ -66,16 +56,15 @@ server.listen(0, function() {
   };
   noCertCheckOptions.Agent = new https.Agent(noCertCheckOptions);
 
-  const req = https.request(noCertCheckOptions, function(res) {
+  const req = https.request(noCertCheckOptions, function(res){
     let responseBody = '';
     res.on('data', function(d) {
       responseBody = responseBody + d;
     });
 
-    res.on('end', function() {
+    res.on('end', common.mustCall(() => {
       assert.strictEqual(responseBody, body);
-      testSucceeded();
-    });
+    }));
   });
   req.end();
 
@@ -108,6 +97,6 @@ server.listen(0, function() {
   });
 });
 
-process.on('exit', function() {
-  assert.strictEqual(successful, tests);
-});
+function testSucceeded (){
+  server.close();
+};
