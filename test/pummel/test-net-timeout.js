@@ -34,7 +34,7 @@ const echo_server = net.createServer(function(socket) {
 });
 
 echo_server.listen(common.PORT, function() {
-  console.log('server listening at ' + common.PORT);
+  console.log(`server listening at ${common.PORT}`);
 
   const client = net.createConnection(common.PORT);
   client.setEncoding('UTF8');
@@ -53,7 +53,7 @@ echo_server.listen(common.PORT, function() {
       }, 500);
 
       if (exchanges === 5) {
-        console.log('wait for timeout - should come in ' + timeout + ' ms');
+        console.log(`wait for timeout - should come in ${timeout} ms`);
         starttime = new Date();
         console.dir(starttime);
       }
@@ -80,7 +80,7 @@ process.on('exit', function() {
   assert.ok(timeouttime != null);
 
   const diff = timeouttime - starttime;
-  console.log('diff = ' + diff);
+  console.log(`diff = ${diff}`);
 
   assert.ok(timeout < diff);
 

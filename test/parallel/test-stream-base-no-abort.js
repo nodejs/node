@@ -37,8 +37,8 @@ async_wrap.enable();
 
 const checkTLS = common.mustCall(function checkTLS() {
   const options = {
-    key: fs.readFileSync(common.fixturesDir + '/keys/ec-key.pem'),
-    cert: fs.readFileSync(common.fixturesDir + '/keys/ec-cert.pem')
+    key: fs.readFileSync(`${common.fixturesDir}/keys/ec-key.pem`),
+    cert: fs.readFileSync(`${common.fixturesDir}/keys/ec-cert.pem`)
   };
   const server = tls.createServer(options, () => {})
     .listen(0, function() {

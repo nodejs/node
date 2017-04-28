@@ -17,7 +17,7 @@ setTimeout(common.mustCall(function() {
 
   const diff = endtime - starttime;
   assert.ok(diff > 0);
-  console.error('diff: ' + diff);
+  console.error(`diff: ${diff}`);
 
   assert.strictEqual(true, 1000 - WINDOW < diff && diff < 1000 + WINDOW);
 }), 1000);
@@ -32,7 +32,7 @@ setInterval(function() {
 
   const diff = endtime - starttime;
   assert.ok(diff > 0);
-  console.error('diff: ' + diff);
+  console.error(`diff: ${diff}`);
 
   const t = interval_count * 1000;
 

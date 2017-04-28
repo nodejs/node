@@ -9,7 +9,7 @@ switch (process.argv[2]) {
   case undefined:
     return parent();
   default:
-    throw new Error('wtf? ' + process.argv[2]);
+    throw new Error(`wtf? ${process.argv[2]}`);
 }
 
 function parent() {
@@ -25,7 +25,7 @@ function parent() {
   child.stderr.setEncoding('utf8');
 
   child.stderr.on('end', function() {
-    assert.strictEqual(output, 'I can still debug!' + os.EOL);
+    assert.strictEqual(output, `I can still debug!${os.EOL}`);
     console.log('ok - got expected message');
   });
 

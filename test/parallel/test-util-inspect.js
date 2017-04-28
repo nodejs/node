@@ -443,8 +443,7 @@ function test_color_style(style, input, implicit) {
 
   const without_color = util.inspect(input, false, 0, false);
   const with_color = util.inspect(input, false, 0, true);
-  const expect = '\u001b[' + color[0] + 'm' + without_color +
-                 '\u001b[' + color[1] + 'm';
+  const expect = `\u001b[${color[0]}m${without_color}\u001b[${color[1]}m`;
   assert.strictEqual(
     with_color,
     expect,

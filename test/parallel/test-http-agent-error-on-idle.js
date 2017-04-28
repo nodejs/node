@@ -29,7 +29,7 @@ server.listen(0, function() {
       process.nextTick(function() {
         const freeSockets = agent.freeSockets[socketKey];
         assert.strictEqual(freeSockets.length, 1,
-                           'expect a free socket on ' + socketKey);
+                           `expect a free socket on ${socketKey}`);
 
         //generate a random error on the free socket
         const freeSocket = freeSockets[0];

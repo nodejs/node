@@ -31,7 +31,7 @@ function parent() {
   });
   c1.stderr.setEncoding('utf8');
   c1.stderr.on('data', function(chunk) {
-    console.error('c1err: ' + chunk.split('\n').join('\nc1err: '));
+    console.error(`c1err: ${chunk.split('\n').join('\nc1err: ')}`);
   });
   c1.on('close', common.mustCall(function(code, signal) {
     assert(!code);
@@ -48,7 +48,7 @@ function parent() {
   });
   c1.stderr.setEncoding('utf8');
   c1.stderr.on('data', function(chunk) {
-    console.error('c1err: ' + chunk.split('\n').join('\nc1err: '));
+    console.error(`c1err: ${chunk.split('\n').join('\nc1err: ')}`);
   });
   c2.on('close', common.mustCall(function(code, signal) {
     assert(!code);

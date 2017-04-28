@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 function filenamePEM(n) {
-  return path.join(common.fixturesDir, 'keys', n + '.pem');
+  return path.join(common.fixturesDir, 'keys', `${n}.pem`);
 }
 
 function loadPEM(n) {

@@ -45,7 +45,7 @@ assert.throws(function() {
 }, /Command failed: iamabadcommand/);
 
 const msg = 'foobar';
-const msgBuf = Buffer.from(msg + '\n');
+const msgBuf = Buffer.from(`${msg}\n`);
 
 // console.log ends every line with just '\n', even on Windows.
 
@@ -58,7 +58,7 @@ assert.deepStrictEqual(ret, msgBuf, 'execSync result buffer should match');
 
 ret = execSync(cmd, { encoding: 'utf8' });
 
-assert.strictEqual(ret, msg + '\n', 'execSync encoding result should match');
+assert.strictEqual(ret, `${msg}\n`, 'execSync encoding result should match');
 
 const args = [
   '-e',
@@ -70,7 +70,7 @@ assert.deepStrictEqual(ret, msgBuf);
 
 ret = execFileSync(process.execPath, args, { encoding: 'utf8' });
 
-assert.strictEqual(ret, msg + '\n',
+assert.strictEqual(ret, `${msg}\n`,
                    'execFileSync encoding result should match');
 
 // Verify that the cwd option works - GH #7824

@@ -11,8 +11,8 @@ const tls = require('tls');
 const fs = require('fs');
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/ec-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/ec-cert.pem')
+  key: fs.readFileSync(`${common.fixturesDir}/keys/ec-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/ec-cert.pem`)
 };
 
 const server = tls.createServer(options, function(conn) {

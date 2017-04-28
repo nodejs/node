@@ -30,7 +30,7 @@ const server = http.Server(function(req, res) {
 
   req.on('end', function() {
     res.writeHead(200, {'Content-Type': 'text/plain'});
-    res.write('The path was ' + url.parse(req.url).pathname);
+    res.write(`The path was ${url.parse(req.url).pathname}`);
     res.end();
     responses_sent += 1;
   });

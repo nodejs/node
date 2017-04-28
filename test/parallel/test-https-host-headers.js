@@ -10,19 +10,19 @@ const https = require('https');
 
 const fs = require('fs');
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
 };
 const httpsServer = https.createServer(options, reqHandler);
 
 function reqHandler(req, res) {
-  console.log('Got request: ' + req.headers.host + ' ' + req.url);
+  console.log(`Got request: ${req.headers.host} ${req.url}`);
   if (req.url === '/setHostFalse5') {
     assert.strictEqual(req.headers.host, undefined);
   } else {
-    assert.strictEqual(req.headers.host, `localhost:${this.address().port}`,
-                       'Wrong host header for req[' + req.url + ']: ' +
-                 req.headers.host);
+    assert.strictEqual(
+      req.headers.host, `localhost:${this.address().port}`,
+      `Wrong host header for req[${req.url}]: ${req.headers.host}`);
   }
   res.writeHead(200, {});
   //process.nextTick(function() { res.end('ok'); });
@@ -41,7 +41,7 @@ function testHttps() {
 
   function cb(res) {
     counter--;
-    console.log('back from https request. counter = ' + counter);
+    console.log(`back from https request. counter = ${counter}`);
     if (counter === 0) {
       httpsServer.close();
       console.log('ok');
@@ -56,7 +56,7 @@ function testHttps() {
 
     https.get({
       method: 'GET',
-      path: '/' + (counter++),
+      path: `/${counter++}`,
       host: 'localhost',
       //agent: false,
       port: this.address().port,
@@ -65,7 +65,7 @@ function testHttps() {
 
     https.request({
       method: 'GET',
-      path: '/' + (counter++),
+      path: `/${counter++}`,
       host: 'localhost',
       //agent: false,
       port: this.address().port,
@@ -74,7 +74,7 @@ function testHttps() {
 
     https.request({
       method: 'POST',
-      path: '/' + (counter++),
+      path: `/${counter++}`,
       host: 'localhost',
       //agent: false,
       port: this.address().port,
@@ -83,7 +83,7 @@ function testHttps() {
 
     https.request({
       method: 'PUT',
-      path: '/' + (counter++),
+      path: `/${counter++}`,
       host: 'localhost',
       //agent: false,
       port: this.address().port,
@@ -92,7 +92,7 @@ function testHttps() {
 
     https.request({
       method: 'DELETE',
-      path: '/' + (counter++),
+      path: `/${counter++}`,
       host: 'localhost',
       //agent: false,
       port: this.address().port,
@@ -101,7 +101,7 @@ function testHttps() {
 
     https.get({
       method: 'GET',
-      path: '/setHostFalse' + (counter++),
+      path: `/setHostFalse${counter++}`,
       host: 'localhost',
       setHost: false,
       port: this.address().port,

@@ -60,7 +60,7 @@ function doTest() {
   function Client(cb) {
     const flags = [
       's_client',
-      '-connect', 'localhost:' + common.PORT,
+      '-connect', `localhost:${common.PORT}`,
       '-sess_in', sessionFileName,
       '-sess_out', sessionFileName
     ];
