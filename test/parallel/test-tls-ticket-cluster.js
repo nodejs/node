@@ -41,10 +41,11 @@ if (cluster.isMaster) {
   let reqCount = 0;
   let lastSession = null;
   let shootOnce = false;
+  let workerPort = null;
 
   function shoot() {
-    console.error('[master] connecting');
-    const c = tls.connect(common.PORT, {
+    console.error('[master] connecting', workerPort);
+    const c = tls.connect(workerPort, {
       session: lastSession,
       rejectUnauthorized: false
     }, function() {
@@ -63,11 +64,12 @@ if (cluster.isMaster) {
 
   function fork() {
     const worker = cluster.fork();
-    worker.on('message', function(msg) {
+    worker.on('message', function({ msg, port }) {
       console.error('[master] got %j', msg);
       if (msg === 'reused') {
         ++reusedCount;
       } else if (msg === 'listening' && !shootOnce) {
+        workerPort = port || workerPort;
         shootOnce = true;
         shoot();
       }
@@ -99,15 +101,19 @@ const options = {
 
 const server = tls.createServer(options, function(c) {
   if (c.isSessionReused()) {
-    process.send('reused');
+    process.send({ msg: 'reused' });
   } else {
-    process.send('not-reused');
+    process.send({ msg: 'not-reused' });
   }
   c.end();
 });
 
-server.listen(common.PORT, function() {
-  process.send('listening');
+server.listen(0, function() {
+  const { port } = server.address();
+  process.send({
+    msg: 'listening',
+    port,
+  });
 });
 
 process.on('message', function listener(msg) {
