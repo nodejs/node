@@ -16,6 +16,8 @@ assert.throws(() => { Buffer.byteLength({}, 'latin1'); },
 assert.throws(() => { Buffer.byteLength(); },
               /"string" must be a string, Buffer, or ArrayBuffer/);
 
+assert.strictEqual(Buffer.byteLength('', undefined, true), -1);
+
 assert(ArrayBuffer.isView(new Buffer(10)));
 assert(ArrayBuffer.isView(new SlowBuffer(10)));
 assert(ArrayBuffer.isView(Buffer.alloc(10)));
@@ -76,6 +78,7 @@ assert.strictEqual(Buffer.byteLength('ßœ∑≈', 'unkn0wn enc0ding'), 10);
 
 // base64
 assert.strictEqual(Buffer.byteLength('aGVsbG8gd29ybGQ=', 'base64'), 11);
+assert.strictEqual(Buffer.byteLength('aGVsbG8gd29ybGQ=', 'BASE64'), 11);
 assert.strictEqual(Buffer.byteLength('bm9kZS5qcyByb2NrcyE=', 'base64'), 14);
 assert.strictEqual(Buffer.byteLength('aGkk', 'base64'), 3);
 assert.strictEqual(
@@ -87,12 +90,18 @@ assert.strictEqual(Buffer.byteLength('aaaa==', 'base64'), 3);
 
 assert.strictEqual(Buffer.byteLength('Il était tué'), 14);
 assert.strictEqual(Buffer.byteLength('Il était tué', 'utf8'), 14);
-assert.strictEqual(Buffer.byteLength('Il était tué', 'ascii'), 12);
-assert.strictEqual(Buffer.byteLength('Il était tué', 'latin1'), 12);
-assert.strictEqual(Buffer.byteLength('Il était tué', 'binary'), 12);
-['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach(function(encoding) {
-  assert.strictEqual(24, Buffer.byteLength('Il était tué', encoding));
-});
+
+['ascii', 'latin1', 'binary']
+  .reduce((es, e) => es.concat(e, e.toUpperCase()), [])
+  .forEach((encoding) => {
+    assert.strictEqual(Buffer.byteLength('Il était tué', encoding), 12);
+  });
+
+['ucs2', 'ucs-2', 'utf16le', 'utf-16le']
+  .reduce((es, e) => es.concat(e, e.toUpperCase()), [])
+  .forEach((encoding) => {
+    assert.strictEqual(Buffer.byteLength('Il était tué', encoding), 24);
+  });
 
 // Test that ArrayBuffer from a different context is detected correctly
 const arrayBuf = vm.runInNewContext('new ArrayBuffer()');
