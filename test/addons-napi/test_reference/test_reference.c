@@ -60,10 +60,10 @@ napi_value CheckExternal(napi_env env, napi_callback_info info) {
 
   NAPI_ASSERT(env, argtype == napi_external, "Expected an external value.")
 
-  int* data;
+  void* data;
   NAPI_CALL(env, napi_get_value_external(env, arg, &data));
 
-  NAPI_ASSERT(env, data != NULL && *data == test_value,
+  NAPI_ASSERT(env, data != NULL && *(int*)data == test_value,
     "An external data value of 1 was expected.")
 
   return NULL;
