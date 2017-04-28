@@ -7,7 +7,7 @@ let stopped = true;
 let server1Sock;
 
 
-const server1ConnHandler = function(socket) {
+const server1ConnHandler = (socket) => {
   socket.on('data', function(data) {
     if (stopped) {
       common.fail('data event should not have happened yet');
@@ -23,7 +23,7 @@ const server1ConnHandler = function(socket) {
 
 const server1 = net.createServer({pauseOnConnect: true}, server1ConnHandler);
 
-const server2ConnHandler = function(socket) {
+const server2ConnHandler = (socket) => {
   socket.on('data', function(data) {
     assert.strictEqual(data.toString(), msg, 'invalid data received');
     socket.end();

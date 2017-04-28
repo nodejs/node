@@ -12,9 +12,9 @@ e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 
-const remove = function() {
+function remove() {
   common.fail('once->foo should not be emitted');
-};
+}
 
 e.once('foo', remove);
 e.removeListener('foo', remove);

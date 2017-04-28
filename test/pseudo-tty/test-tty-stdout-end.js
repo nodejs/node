@@ -2,11 +2,11 @@
 require('../common');
 const assert = require('assert');
 
-const shouldThrow = function() {
+const shouldThrow = () => {
   process.stdout.end();
 };
 
-const validateError = function(e) {
+const validateError = (e) => {
   return e instanceof Error &&
     e.message === 'process.stdout cannot be closed.';
 };

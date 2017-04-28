@@ -13,7 +13,7 @@ if (common.isSunOS) {
 
 const nodeBinary = process.argv[0];
 
-const preloadOption = function(preloads) {
+const preloadOption = (preloads) => {
   let option = '';
   preloads.forEach(function(preload, index) {
     option += '-r ' + preload + ' ';
@@ -21,9 +21,7 @@ const preloadOption = function(preloads) {
   return option;
 };
 
-const fixture = function(name) {
-  return path.join(common.fixturesDir, name);
-};
+const fixture = (name) => path.join(common.fixturesDir, name);
 
 const fixtureA = fixture('printA.js');
 const fixtureB = fixture('printB.js');

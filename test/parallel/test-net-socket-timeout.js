@@ -4,7 +4,7 @@ const net = require('net');
 const assert = require('assert');
 
 // Verify that invalid delays throw
-const noop = function() {};
+const noop = () => {};
 const s = new net.Socket();
 const nonNumericDelays = [
   '100', true, false, undefined, null, '', {}, noop, []
