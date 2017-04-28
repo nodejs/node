@@ -1259,23 +1259,8 @@ void SetupNextTick(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
 }
 
-void PromiseRejectCallback(PromiseRejectMessage message) {
-  Local<Promise> promise = message.GetPromise();
-  Isolate* isolate = promise->GetIsolate();
-  Local<Value> value = message.GetValue();
-  Local<Integer> event = Integer::New(isolate, message.GetEvent());
+}  // anonymous namespace
 
-  Environment* env = Environment::GetCurrent(isolate);
-  Local<Function> callback = env->promise_unhandled_rejection_function();
-
-  if (value.IsEmpty())
-    value = Undefined(isolate);
-
-  Local<Value> args[] = { event, promise, value };
-  Local<Object> process = env->process_object();
-
-  callback->Call(process, arraysize(args), args);
-}
 
 Local<Value> GetPromiseReason(Environment* env, Local<Value> promise) {
   Local<Function> fn = env->promise_unhandled_rejection();
@@ -1288,6 +1273,7 @@ Local<Value> GetPromiseReason(Environment* env, Local<Value> promise) {
   return fn->Call(env->context(), Null(env->isolate()), 1,
                        &internal_props).ToLocalChecked();
 }
+
 
 void TrackPromise(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1309,6 +1295,7 @@ void TrackPromise(const FunctionCallbackInfo<Value>& args) {
   env->promise_tracker_.TrackPromise(promise);
 }
 
+
 void UntrackPromise(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1317,6 +1304,26 @@ void UntrackPromise(const FunctionCallbackInfo<Value>& args) {
 
   env->promise_tracker_.UntrackPromise(promise);
 }
+
+
+void PromiseRejectCallback(PromiseRejectMessage message) {
+  Local<Promise> promise = message.GetPromise();
+  Isolate* isolate = promise->GetIsolate();
+  Local<Value> value = message.GetValue();
+  Local<Integer> event = Integer::New(isolate, message.GetEvent());
+
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<Function> callback = env->promise_unhandled_rejection_function();
+
+  if (value.IsEmpty())
+    value = Undefined(isolate);
+
+  Local<Value> args[] = { event, promise, value };
+  Local<Object> process = env->process_object();
+
+  callback->Call(process, arraysize(args), args);
+}
+
 
 void SetupPromises(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1337,8 +1344,6 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
       env->context(),
       FIXED_ONE_BYTE_STRING(args.GetIsolate(), "_setupPromises")).FromJust();
 }
-
-}  // anonymous namespace
 
 
 void AddPromiseHook(v8::Isolate* isolate, promise_hook_func fn, void* arg) {
@@ -4661,7 +4666,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   });
 
   if (!oldest_rejected_promise.IsEmpty()) {
-    Local<Value> err = GetPromiseReason(&env, oldest_rejected_promise);
+    Local<Value> orp = oldest_rejected_promise.As<Value>();
+    Local<Value> err = GetPromiseReason(&env, orp);
     Local<Message> message = Exception::CreateMessage(isolate, err);
 
     // XXX(Fishrock123): Should this just call ReportException and

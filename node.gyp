@@ -626,6 +626,7 @@
         '<(OBJ_TRACING_PATH)/node_trace_buffer.<(OBJ_SUFFIX)',
         '<(OBJ_TRACING_PATH)/node_trace_writer.<(OBJ_SUFFIX)',
         '<(OBJ_TRACING_PATH)/trace_event.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)/track-promise.<(OBJ_SUFFIX)',
       ],
 
       'defines': [
