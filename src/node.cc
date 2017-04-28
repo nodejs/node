@@ -3736,6 +3736,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--force-fips",
     "--openssl-config",
     "--icu-data-dir",
+    "--napi-modules",
 
     // V8 options
     "--max_old_space_size",
