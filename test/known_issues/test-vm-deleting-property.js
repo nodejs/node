@@ -12,4 +12,4 @@ const res = vm.runInContext(`
   Object.getOwnPropertyDescriptor(this, 'x');
 `, context);
 
-assert.strictEqual(res, undefined);
+assert.strictEqual(res.value, undefined);
