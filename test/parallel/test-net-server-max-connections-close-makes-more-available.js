@@ -17,7 +17,7 @@ const connections = [];
 const received = [];
 const sent = [];
 
-const createConnection = function(index) {
+function createConnection(index) {
   console.error('creating connection ' + index);
 
   return new Promise(function(resolve, reject) {
@@ -45,9 +45,9 @@ const createConnection = function(index) {
 
     connections[index] = connection;
   });
-};
+}
 
-const closeConnection = function(index) {
+function closeConnection(index) {
   console.error('closing connection ' + index);
   return new Promise(function(resolve, reject) {
     connections[index].on('end', function() {
@@ -55,7 +55,7 @@ const closeConnection = function(index) {
     });
     connections[index].end();
   });
-};
+}
 
 const server = net.createServer(function(socket) {
   socket.on('data', function(data) {

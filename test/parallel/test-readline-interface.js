@@ -288,9 +288,7 @@ function isWarned(emitter) {
 
   // \t does not become part of the input when there is a completer function
   fi = new FakeInput();
-  const completer = function(line) {
-    return [[], line];
-  };
+  const completer = (line) => [[], line];
   rli = new readline.Interface({
     input: fi,
     output: fi,

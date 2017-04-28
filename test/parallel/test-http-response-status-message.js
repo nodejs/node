@@ -59,7 +59,7 @@ const server = net.createServer(function(connection) {
   });
 });
 
-const runTest = function(testCaseIndex) {
+function runTest(testCaseIndex) {
   const testCase = testCases[testCaseIndex];
 
   http.get({
@@ -82,7 +82,7 @@ const runTest = function(testCaseIndex) {
 
     response.resume();
   });
-};
+}
 
 server.listen(0, function() { runTest(0); });
 

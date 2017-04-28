@@ -296,7 +296,7 @@ assert.strictEqual(
 
 // Function with properties
 {
-  const value = function() {};
+  const value = () => {};
   value.aprop = 42;
   assert.strictEqual(util.inspect(value), '{ [Function: value] aprop: 42 }');
 }

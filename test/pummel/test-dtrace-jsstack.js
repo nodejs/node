@@ -34,18 +34,18 @@ if (!common.isSunOS) {
  */
 const frames = [ 'stalloogle', 'bagnoogle', 'doogle' ];
 
-const stalloogle = function(str) {
+const stalloogle = (str) => {
   global.expected = str;
   os.loadavg();
 };
 
-const bagnoogle = function(arg0, arg1) {
+const bagnoogle = (arg0, arg1) => {
   stalloogle(arg0 + ' is ' + arg1 + ' except that it is read-only');
 };
 
 let done = false;
 
-const doogle = function() {
+const doogle = () => {
   if (!done)
     setTimeout(doogle, 10);
 

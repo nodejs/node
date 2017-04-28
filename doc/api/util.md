@@ -592,7 +592,7 @@ Returns `true` if the given `object` is a `Function`. Otherwise, returns
 const util = require('util');
 
 function Foo() {}
-const Bar = function() {};
+const Bar = () => {};
 
 util.isFunction({});
 // Returns: false

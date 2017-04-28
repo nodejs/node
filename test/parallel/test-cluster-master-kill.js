@@ -68,7 +68,7 @@ if (cluster.isWorker) {
     assert.strictEqual(code, 0);
 
     // check worker process status
-    const pollWorker = function() {
+    const pollWorker = () => {
       alive = common.isAlive(pid);
       if (alive) {
         setTimeout(pollWorker, 50);

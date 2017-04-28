@@ -122,7 +122,7 @@ function timeout(message, multiplicator) {
                     TIMEOUT * (multiplicator || 1));
 }
 
-const TestSession = function(socket, harness) {
+function TestSession(socket, harness) {
   this.mainScriptPath = harness.mainScriptPath;
   this.mainScriptId = null;
 
@@ -147,7 +147,7 @@ const TestSession = function(socket, harness) {
         buffer = buffer.slice(consumed);
     } while (consumed);
   }).on('close', () => assert(this.expectClose_, 'Socket closed prematurely'));
-};
+}
 
 TestSession.prototype.scriptUrlForId = function(id) {
   return this.scripts_[id];
@@ -304,7 +304,7 @@ TestSession.prototype.testHttpResponse = function(path, check) {
 };
 
 
-const Harness = function(port, childProcess) {
+function Harness(port, childProcess) {
   this.port = port;
   this.mainScriptPath = mainScript;
   this.stderrFilters_ = [];
@@ -329,7 +329,7 @@ const Harness = function(port, childProcess) {
     this.returnCode_ = code;
     this.running_ = false;
   });
-};
+}
 
 Harness.prototype.addStderrFilter = function(regexp, callback) {
   this.stderrFilters_.push((message) => {

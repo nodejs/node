@@ -57,14 +57,14 @@ if (typeof Symbol !== 'undefined' && 'hasInstance' in Symbol &&
       (theObject instanceof theConstructor));
   }
 
-  const MyClass = function MyClass() {};
+  function MyClass() {}
   Object.defineProperty(MyClass, Symbol.hasInstance, {
     value: function(candidate) {
       return 'mark' in candidate;
     }
   });
 
-  const MySubClass = function MySubClass() {};
+  function MySubClass() {}
   MySubClass.prototype = new MyClass();
 
   let x = new MySubClass();
