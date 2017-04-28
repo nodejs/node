@@ -207,7 +207,7 @@ putIn.run(['.clear']);
 testMe.complete('require(\'', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
   repl._builtinLibs.forEach(function(lib) {
-    assert.notStrictEqual(data[0].indexOf(lib), -1, lib + ' not found');
+    assert.notStrictEqual(data[0].indexOf(lib), -1, `${lib} not found`);
   });
 }));
 

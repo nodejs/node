@@ -13,11 +13,11 @@ const crypto = require('crypto');
 const fs = require('fs');
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
 };
 
-const ca = fs.readFileSync(common.fixturesDir + '/keys/ca1-cert.pem');
+const ca = fs.readFileSync(`${common.fixturesDir}/keys/ca1-cert.pem`);
 
 const clientSessions = {};
 let serverRequests = 0;

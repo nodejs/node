@@ -10,8 +10,8 @@ const tls = require('tls');
 const fs = require('fs');
 const net = require('net');
 
-const key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
-const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
+const key = fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`);
+const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`);
 
 let tlsSocket;
 // tls server

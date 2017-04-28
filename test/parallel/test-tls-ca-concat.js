@@ -12,7 +12,7 @@ const {
 connect({
   client: {
     checkServerIdentity: (servername, cert) => { },
-    ca: keys.agent1.cert + '\n' + keys.agent6.ca,
+    ca: `${keys.agent1.cert}\n${keys.agent6.ca}`,
   },
   server: {
     cert: keys.agent6.cert,

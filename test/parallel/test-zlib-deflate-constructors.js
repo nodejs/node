@@ -88,7 +88,7 @@ assert.doesNotThrow(
 
 // Throws if opt.strategy is the wrong type.
 assert.throws(
-  () => { new zlib.Deflate({strategy: '' + zlib.constants.Z_RLE }); },
+  () => { new zlib.Deflate({ strategy: String(zlib.constants.Z_RLE) }); },
   /^TypeError: Invalid strategy: 3$/
 );
 

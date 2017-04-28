@@ -58,11 +58,11 @@ function flow(stream, size, callback) {
     callback(chunk);
 
   depth -= 1;
-  console.log('flow(' + depth + '): exit');
+  console.log(`flow(${depth}): exit`);
 }
 
 flow(stream, 5000, function() {
-  console.log('complete (' + depth + ')');
+  console.log(`complete (${depth})`);
 });
 
 process.on('exit', function(code) {

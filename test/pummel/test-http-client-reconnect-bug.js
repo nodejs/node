@@ -37,7 +37,7 @@ server.on('listening', common.mustCall(function() {
   const request = client.request('GET', '/', {'host': 'localhost'});
   request.end();
   request.on('response', function(response) {
-    console.log('STATUS: ' + response.statusCode);
+    console.log(`STATUS: ${response.statusCode}`);
   });
 }));
 

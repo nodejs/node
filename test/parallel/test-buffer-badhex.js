@@ -44,6 +44,6 @@ const Buffer = require('buffer').Buffer;
   const hex = buf.toString('hex');
   assert.deepStrictEqual(Buffer.from(hex, 'hex'), buf);
 
-  const badHex = hex.slice(0, 256) + 'xx' + hex.slice(256, 510);
+  const badHex = `${hex.slice(0, 256)}xx${hex.slice(256, 510)}`;
   assert.deepStrictEqual(Buffer.from(badHex, 'hex'), buf.slice(0, 128));
 }

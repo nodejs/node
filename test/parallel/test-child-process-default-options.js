@@ -39,7 +39,7 @@ let response = '';
 child.stdout.setEncoding('utf8');
 
 child.stdout.on('data', function(chunk) {
-  console.log('stdout: ' + chunk);
+  console.log(`stdout: ${chunk}`);
   response += chunk;
 });
 

@@ -45,11 +45,11 @@ const saveFileName = join(common.tmpDir, 'test.save.js');
 putIn.run(testFile);
 
 // save it to a file
-putIn.run(['.save ' + saveFileName]);
+putIn.run([`.save ${saveFileName}`]);
 
 // the file should have what I wrote
-assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'), testFile.join('\n') +
-                   '\n');
+assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
+                   `${testFile.join('\n')}\n`);
 
 {
   // save .editor mode code
@@ -81,7 +81,7 @@ testMe.complete('inner.o', function(error, data) {
 putIn.run(['.clear']);
 
 // Load the file back in
-putIn.run(['.load ' + saveFileName]);
+putIn.run([`.load ${saveFileName}`]);
 
 // make sure that the REPL data is "correct"
 testMe.complete('inner.o', function(error, data) {
@@ -96,20 +96,19 @@ let loadFile = join(common.tmpDir, 'file.does.not.exist');
 // should not break
 putIn.write = function(data) {
   // make sure I get a failed to load message and not some crazy error
-  assert.strictEqual(data, 'Failed to load:' + loadFile + '\n');
+  assert.strictEqual(data, `Failed to load:${loadFile}\n`);
   // eat me to avoid work
   putIn.write = common.noop;
 };
-putIn.run(['.load ' + loadFile]);
+putIn.run([`.load ${loadFile}`]);
 
 // throw error on loading directory
 loadFile = common.tmpDir;
 putIn.write = function(data) {
-  assert.strictEqual(data, 'Failed to load:' + loadFile +
-                     ' is not a valid file\n');
+  assert.strictEqual(data, `Failed to load:${loadFile} is not a valid file\n`);
   putIn.write = common.noop;
 };
-putIn.run(['.load ' + loadFile]);
+putIn.run([`.load ${loadFile}`]);
 
 // clear the REPL
 putIn.run(['.clear']);
@@ -121,10 +120,10 @@ const invalidFileName = join(common.tmpDir, '\0\0\0\0\0');
 // should not break
 putIn.write = function(data) {
   // make sure I get a failed to save message and not some other error
-  assert.strictEqual(data, 'Failed to save:' + invalidFileName + '\n');
+  assert.strictEqual(data, `Failed to save:${invalidFileName}\n`);
   // reset to no-op
   putIn.write = common.noop;
 };
 
 // save it to a file
-putIn.run(['.save ' + invalidFileName]);
+putIn.run([`.save ${invalidFileName}`]);

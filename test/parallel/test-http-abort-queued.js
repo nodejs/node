@@ -80,11 +80,11 @@ server.listen(0, function() {
     assert.strictEqual(Object.keys(agent.sockets).length, 1);
     assert.strictEqual(Object.keys(agent.requests).length, 1);
 
-    console.log('Got res: ' + res1.statusCode);
+    console.log(`Got res: ${res1.statusCode}`);
     console.dir(res1.headers);
 
     res1.on('data', function(chunk) {
-      console.log('Read ' + chunk.length + ' bytes');
+      console.log(`Read ${chunk.length} bytes`);
       console.log(' chunk=%j', chunk.toString());
       complete();
     });

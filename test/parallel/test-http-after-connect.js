@@ -64,7 +64,7 @@ server.listen(0, function() {
 function doRequest(i) {
   http.get({
     port: server.address().port,
-    path: '/request' + i
+    path: `/request${i}`
   }, common.mustCall(function(res) {
     console.error('Client got GET response');
     let data = '';
@@ -73,7 +73,7 @@ function doRequest(i) {
       data += chunk;
     });
     res.on('end', function() {
-      assert.strictEqual(data, '/request' + i);
+      assert.strictEqual(data, `/request${i}`);
       ++clientResponses;
       if (clientResponses === 2) {
         server.close();

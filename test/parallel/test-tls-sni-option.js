@@ -37,7 +37,7 @@ if (!common.hasCrypto) {
 const tls = require('tls');
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
+  return require('path').join(common.fixturesDir, 'keys', `${n}.pem`);
 }
 
 function loadPEM(n) {

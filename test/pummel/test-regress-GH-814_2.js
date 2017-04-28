@@ -28,7 +28,7 @@ const assert = require('assert');
 const fs = require('fs');
 const testFileName = require('path').join(common.tmpDir, 'GH-814_test.txt');
 const testFD = fs.openSync(testFileName, 'w');
-console.error(testFileName + '\n');
+console.error(`${testFileName}\n`);
 
 
 const tailProc = require('child_process').spawn('tail', ['-f', testFileName]);

@@ -24,7 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 
 process.on('uncaughtException', function(err) {
-  console.log('Caught exception: ' + err);
+  console.log(`Caught exception: ${err}`);
 });
 
 setTimeout(common.mustCall(function() {

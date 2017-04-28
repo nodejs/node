@@ -125,9 +125,8 @@ function checkResults(expected_results, results) {
     const actual = results[k];
     const expected = expected_results[k];
 
-    assert.strictEqual(actual,
-                       expected && expected.length ? expected[0] : expected,
-                       (expected[1] || '') +
-                         ` [expected: ${expected[0]} / actual: ${actual}]`);
+    assert.strictEqual(
+      actual, expected && expected.length ? expected[0] : expected,
+      `${expected[1] || ''} [expected: ${expected[0]} / actual: ${actual}]`);
   }
 }

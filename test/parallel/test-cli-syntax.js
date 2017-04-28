@@ -31,7 +31,7 @@ const syntaxArgs = [
     // no output should be produced
     assert.strictEqual(c.stdout, '', 'stdout produced');
     assert.strictEqual(c.stderr, '', 'stderr produced');
-    assert.strictEqual(c.status, 0, 'code === ' + c.status);
+    assert.strictEqual(c.status, 0, `code === ${c.status}`);
   });
 });
 
@@ -59,7 +59,7 @@ const syntaxArgs = [
     const match = c.stderr.match(/^SyntaxError: Unexpected identifier$/m);
     assert(match, 'stderr incorrect');
 
-    assert.strictEqual(c.status, 1, 'code === ' + c.status);
+    assert.strictEqual(c.status, 1, `code === ${c.status}`);
   });
 });
 
@@ -82,7 +82,7 @@ const syntaxArgs = [
     const match = c.stderr.match(/^Error: Cannot find module/m);
     assert(match, 'stderr incorrect');
 
-    assert.strictEqual(c.status, 1, 'code === ' + c.status);
+    assert.strictEqual(c.status, 1, `code === ${c.status}`);
   });
 });
 
@@ -96,7 +96,7 @@ syntaxArgs.forEach(function(args) {
   assert.strictEqual(c.stdout, '', 'stdout produced');
   assert.strictEqual(c.stderr, '', 'stderr produced');
 
-  assert.strictEqual(c.status, 0, 'code === ' + c.status);
+  assert.strictEqual(c.status, 0, `code === ${c.status}`);
 });
 
 // should throw if code piped from stdin with --check has bad syntax
@@ -115,7 +115,7 @@ syntaxArgs.forEach(function(args) {
   const match = c.stderr.match(/^SyntaxError: Unexpected identifier$/m);
   assert(match, 'stderr incorrect');
 
-  assert.strictEqual(c.status, 1, 'code === ' + c.status);
+  assert.strictEqual(c.status, 1, `code === ${c.status}`);
 });
 
 // should throw if -c and -e flags are both passed
@@ -130,6 +130,6 @@ syntaxArgs.forEach(function(args) {
       )
     );
 
-    assert.strictEqual(c.status, 9, 'code === ' + c.status);
+    assert.strictEqual(c.status, 9, `code === ${c.status}`);
   });
 });

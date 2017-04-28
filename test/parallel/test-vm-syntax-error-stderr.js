@@ -13,7 +13,7 @@ const p = child_process.spawn(process.execPath, [
 ]);
 
 p.stdout.on('data', function(data) {
-  assert.fail('Unexpected stdout data: ' + data);
+  assert.fail(`Unexpected stdout data: ${data}`);
 });
 
 let output = '';

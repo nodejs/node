@@ -31,7 +31,7 @@ child.stdout.once('data', function() {
   setTimeout(fsTest, 50);
   function fsTest() {
     const f = JSON.stringify(__filename);
-    child.stdin.write('fs.readFile(' + f + ', thrower);\n');
+    child.stdin.write(`fs.readFile(${f}, thrower);\n`);
     setTimeout(eeTest, 50);
   }
 

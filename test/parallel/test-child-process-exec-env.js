@@ -31,9 +31,9 @@ let child;
 function after(err, stdout, stderr) {
   if (err) {
     error_count++;
-    console.log('error!: ' + err.code);
-    console.log('stdout: ' + JSON.stringify(stdout));
-    console.log('stderr: ' + JSON.stringify(stderr));
+    console.log(`error!: ${err.code}`);
+    console.log(`stdout: ${JSON.stringify(stdout)}`);
+    console.log(`stderr: ${JSON.stringify(stderr)}`);
     assert.strictEqual(false, err.killed);
   } else {
     success_count++;
