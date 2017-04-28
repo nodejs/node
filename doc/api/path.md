@@ -318,8 +318,9 @@ The `path.normalize()` method normalizes the given `path`, resolving `'..'` and
 `'.'` segments.
 
 When multiple, sequential path segment separation characters are found (e.g.
-`/` on POSIX and `\` on Windows), they are replaced by a single instance of the
-platform specific path segment separator. Trailing separators are preserved.
+`/` on POSIX and either `\` or `/` on Windows), they are replaced by a single 
+instance of the platform specific path segment separator. Trailing separators 
+are preserved.
 
 If the `path` is a zero-length string, `'.'` is returned, representing the
 current working directory.
@@ -330,21 +331,20 @@ For example on POSIX:
 path.normalize('/foo/bar//baz/asdf/quux/..');
 // Returns: '/foo/bar/baz/asdf'
 ```
-*Note*: The `path.posix.normalize()` method will not attempt to convert `\ ` 
-(Windows) to `/` (POSIX), as `\ ` is not recognized by POSIX as a valid 
-directory separator.  
-
-For example:
-```js
-path.posix.normalize("\\..\\some\\thing\\like\\this")
-//Returns '\..\some\thing\like\this'
-```
 
 On Windows:
 
 ```js
 path.normalize('C:\\temp\\\\foo\\bar\\..\\');
 // Returns: 'C:\\temp\\foo\\'
+```
+
+Since Windows recognizes multiple path separators, both separators will be
+replaced by instances of the Windows preferred separator (`\`):
+
+```js
+path.win32.normalize("C:////temp\\\\/\\/\\\/foo/bar")
+// Returns: 'C:\\temp\\foo\\bar'
 ```
 
 A [`TypeError`][] is thrown if `path` is not a string.
