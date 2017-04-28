@@ -3,7 +3,7 @@
 <!-- type=misc -->
 
 The goal of this documentation is to comprehensively explain the Node.js
-API, both from a reference as well as a conceptual point of view.  Each
+API, both from a reference as well as a conceptual point of view. Each
 section describes a built-in module or high-level concept.
 
 Where appropriate, property types, method arguments, and the arguments
@@ -11,12 +11,12 @@ provided to event handlers are detailed in a list underneath the topic
 heading.
 
 Every `.html` document has a corresponding `.json` document presenting
-the same information in a structured manner.  This feature is
+the same information in a structured manner. This feature is
 experimental, and added for the benefit of IDEs and other utilities that
 wish to do programmatic things with the documentation.
 
 Every `.html` and `.json` file is generated based on the corresponding
-`.md` file in the `doc/api/` folder in Node.js's source tree.  The
+`.md` file in the `doc/api/` folder in Node.js's source tree. The
 documentation is generated using the `tools/doc/generate.js` program.
 The HTML template is located at `doc/template.html`.
 
@@ -39,16 +39,28 @@ The stability indices are as follows:
 
 ```txt
 Stability: 0 - Deprecated
-This feature is known to be problematic, and changes are
-planned.  Do not rely on it.  Use of the feature may cause warnings.  Backwards
-compatibility should not be expected.
+This feature is known to be problematic, and changes may be planned. Do
+not rely on it. Use of the feature may cause warnings to be emitted.
+Backwards compatibility across major versions should not be expected.
 ```
 
 ```txt
 Stability: 1 - Experimental
-This feature is subject to change, and is gated by a command line flag.
-It may change or be removed in future versions.
+This feature is still under active development and subject to non-backwards
+compatible changes, or even removal, in any future version. Use of the feature
+is not recommended in production environments. Experimental features are not
+subject to the Node.js Semantic Versioning model.
 ```
+
+*Note*: Caution must be used when making use of `Experimental` features,
+particularly within modules that may be used as dependencies (or dependencies
+of dependencies) within a Node.js application. End users may not be aware that
+experimental features are being used, and therefore may experience unexpected
+failures or behavioral changes when changes occur. To help avoid such surprises,
+`Experimental` features may require a command-line flag to explicitly enable
+them, or may cause a process warning to be emitted. By default, such warnings
+are printed to `stderr` and may be handled by attaching a listener to the
+`process.on('warning')` event.
 
 ```txt
 Stability: 2 - Stable
@@ -63,7 +75,7 @@ is a high priority, and will not be broken unless absolutely necessary.
 Every HTML file in the markdown has a corresponding JSON file with the
 same data.
 
-This feature was added in Node.js v0.6.12.  It is experimental.
+This feature was added in Node.js v0.6.12. It is experimental.
 
 ## Syscalls and man pages
 
@@ -72,7 +84,7 @@ and the underlying operating system. Node functions which simply wrap a syscall,
 like `fs.open()`, will document that. The docs link to the corresponding man
 pages (short for manual pages) which describe how the syscalls work.
 
-**Caveat:** some syscalls, like lchown(2), are BSD-specific. That means, for
+**Note:** some syscalls, like lchown(2), are BSD-specific. That means, for
 example, that `fs.lchown()` only works on macOS and other BSD-derived systems,
 and is not available on Linux.
 
