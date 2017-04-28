@@ -35,7 +35,7 @@ const s = http.createServer(function(req, res) {
 s.listen(0, function() {
 
   const request = http.request({ port: this.address().port }, (response) => {
-    console.log('STATUS: ' + response.statusCode);
+    console.log(`STATUS: ${response.statusCode}`);
     s.close();
     response.resume();
   });

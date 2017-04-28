@@ -33,7 +33,7 @@ const c = net.createConnection(common.PORT);
 c.on('connect', common.mustNotCall('client should not have connected'));
 
 c.on('error', function(e) {
-  console.error('CLIENT error: ' + e.code);
+  console.error(`CLIENT error: ${e.code}`);
   client_error_count++;
   assert.strictEqual('ECONNREFUSED', e.code);
 });

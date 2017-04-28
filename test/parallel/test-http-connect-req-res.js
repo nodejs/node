@@ -39,7 +39,7 @@ server.listen(0, common.mustCall(function() {
     console.error('Client got CONNECT request');
 
     // Make sure this request got removed from the pool.
-    const name = 'localhost:' + server.address().port;
+    const name = `localhost:${server.address().port}`;
     assert(!http.globalAgent.sockets.hasOwnProperty(name));
     assert(!http.globalAgent.requests.hasOwnProperty(name));
 

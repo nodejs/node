@@ -36,8 +36,8 @@ const tls = require('tls');
 const fs = require('fs');
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`)
 };
 
 // create server

@@ -54,9 +54,10 @@ server.listen(common.PORT, '127.0.0.1', function() {
 
     assert.strictEqual(req.agent, agent);
 
-    console.log('Socket: ' + agent.sockets[addrString].length + '/' +
-                agent.maxSockets + ' queued: ' + (agent.requests[addrString] ?
-                agent.requests[addrString].length : 0));
+    console.log(
+      `Socket: ${agent.sockets[addrString].length}/${
+      agent.maxSockets} queued: ${
+      agent.requests[addrString] ? agent.requests[addrString].length : 0}`);
 
     const agentRequests = agent.requests[addrString] ?
         agent.requests[addrString].length : 0;

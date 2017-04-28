@@ -334,7 +334,7 @@ for (const i in TEST_CASES) {
   const test = TEST_CASES[i];
 
   if (!ciphers.includes(test.algo)) {
-    common.skip('unsupported ' + test.algo + ' test');
+    common.skip(`unsupported ${test.algo} test`);
     continue;
   }
 

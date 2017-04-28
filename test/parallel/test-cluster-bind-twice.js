@@ -54,14 +54,14 @@ if (!id) {
   a.on('exit', common.mustCall((c) => {
     if (c) {
       b.send('QUIT');
-      throw new Error('A exited with ' + c);
+      throw new Error(`A exited with ${c}`);
     }
   }));
 
   b.on('exit', common.mustCall((c) => {
     if (c) {
       a.send('QUIT');
-      throw new Error('B exited with ' + c);
+      throw new Error(`B exited with ${c}`);
     }
   }));
 

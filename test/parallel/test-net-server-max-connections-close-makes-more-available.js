@@ -18,12 +18,12 @@ const received = [];
 const sent = [];
 
 function createConnection(index) {
-  console.error('creating connection ' + index);
+  console.error(`creating connection ${index}`);
 
   return new Promise(function(resolve, reject) {
     const connection = net.createConnection(server.address().port, function() {
-      const msg = '' + index;
-      console.error('sending message: ' + msg);
+      const msg = String(index);
+      console.error(`sending message: ${msg}`);
       this.write(msg);
       sent.push(msg);
     });
@@ -34,12 +34,12 @@ function createConnection(index) {
     });
 
     connection.on('data', function(e) {
-      console.error('connection ' + index + ' received response');
+      console.error(`connection ${index} received response`);
       resolve();
     });
 
     connection.on('end', function() {
-      console.error('ending ' + index);
+      console.error(`ending ${index}`);
       resolve();
     });
 
@@ -48,7 +48,7 @@ function createConnection(index) {
 }
 
 function closeConnection(index) {
-  console.error('closing connection ' + index);
+  console.error(`closing connection ${index}`);
   return new Promise(function(resolve, reject) {
     connections[index].on('end', function() {
       resolve();
@@ -59,8 +59,8 @@ function closeConnection(index) {
 
 const server = net.createServer(function(socket) {
   socket.on('data', function(data) {
-    console.error('received message: ' + data);
-    received.push('' + data);
+    console.error(`received message: ${data}`);
+    received.push(String(data));
     socket.write('acknowledged');
   });
 });

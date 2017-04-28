@@ -12,7 +12,7 @@ common.refreshTmpDir();
 
 // Create the necessary files
 files.forEach(function(currentFile) {
-  fs.closeSync(fs.openSync(readdirDir + '/' + currentFile, 'w'));
+  fs.closeSync(fs.openSync(`${readdirDir}/${currentFile}`, 'w'));
 });
 
 // Check the readdir Sync version

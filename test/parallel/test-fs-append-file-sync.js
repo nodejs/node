@@ -83,7 +83,7 @@ if (!common.isWindows) {
 
 const fileData4 = fs.readFileSync(filename4);
 
-assert.strictEqual(Buffer.byteLength('' + num) + currentFileData.length,
+assert.strictEqual(Buffer.byteLength(String(num)) + currentFileData.length,
                    fileData4.length);
 
 // test that appendFile accepts file descriptors

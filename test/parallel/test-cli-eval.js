@@ -203,7 +203,7 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
   const opt = ' --eval "console.log(process.argv.slice(1).join(\' \'))"';
   const cmd = `${nodejs}${opt} -- ${args}`;
   child.exec(cmd, common.mustCall(function(err, stdout, stderr) {
-    assert.strictEqual(stdout, args + '\n');
+    assert.strictEqual(stdout, `${args}\n`);
     assert.strictEqual(stderr, '');
     assert.strictEqual(err, null);
   }));
@@ -212,7 +212,7 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
   const popt = ' --print "process.argv.slice(1).join(\' \')"';
   const pcmd = `${nodejs}${popt} -- ${args}`;
   child.exec(pcmd, common.mustCall(function(err, stdout, stderr) {
-    assert.strictEqual(stdout, args + '\n');
+    assert.strictEqual(stdout, `${args}\n`);
     assert.strictEqual(stderr, '');
     assert.strictEqual(err, null);
   }));
@@ -222,7 +222,7 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
   // filename.
   const filecmd = `${nodejs} -- ${__filename} ${args}`;
   child.exec(filecmd, common.mustCall(function(err, stdout, stderr) {
-    assert.strictEqual(stdout, args + '\n');
+    assert.strictEqual(stdout, `${args}\n`);
     assert.strictEqual(stderr, '');
     assert.strictEqual(err, null);
   }));

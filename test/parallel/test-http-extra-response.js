@@ -65,7 +65,7 @@ const server = net.createServer(function(socket) {
 server.listen(0, common.mustCall(function() {
   http.get({ port: this.address().port }, common.mustCall(function(res) {
     let buffer = '';
-    console.log('Got res code: ' + res.statusCode);
+    console.log(`Got res code: ${res.statusCode}`);
 
     res.setEncoding('utf8');
     res.on('data', function(chunk) {
@@ -73,7 +73,7 @@ server.listen(0, common.mustCall(function() {
     });
 
     res.on('end', common.mustCall(function() {
-      console.log('Response ended, read ' + buffer.length + ' bytes');
+      console.log(`Response ended, read ${buffer.length} bytes`);
       assert.strictEqual(body, buffer);
       server.close();
     }));

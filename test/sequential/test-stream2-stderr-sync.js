@@ -29,7 +29,7 @@ function parent() {
   const assert = require('assert');
   let i = 0;
   children.forEach(function(_, c) {
-    const child = spawn(process.execPath, [__filename, '' + c]);
+    const child = spawn(process.execPath, [__filename, String(c)]);
     let err = '';
 
     child.stderr.on('data', function(c) {
@@ -37,10 +37,10 @@ function parent() {
     });
 
     child.on('close', function() {
-      assert.strictEqual(err, 'child ' + c + '\nfoo\nbar\nbaz\n');
+      assert.strictEqual(err, `child ${c}\nfoo\nbar\nbaz\n`);
       console.log('ok %d child #%d', ++i, c);
       if (i === children.length)
-        console.log('1..' + i);
+        console.log(`1..${i}`);
     });
   });
 }

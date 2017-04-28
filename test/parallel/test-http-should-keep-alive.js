@@ -51,10 +51,10 @@ const server = net.createServer(function(socket) {
 }).listen(0, function() {
   function makeRequest() {
     const req = http.get({port: server.address().port}, function(res) {
-      assert.strictEqual(req.shouldKeepAlive, SHOULD_KEEP_ALIVE[responses],
-                         SERVER_RESPONSES[responses] + ' should ' +
-                   (SHOULD_KEEP_ALIVE[responses] ? '' : 'not ') +
-                   'Keep-Alive');
+      assert.strictEqual(
+        req.shouldKeepAlive, SHOULD_KEEP_ALIVE[responses],
+        `${SERVER_RESPONSES[responses]} should ${
+        SHOULD_KEEP_ALIVE[responses] ? '' : 'not '}Keep-Alive`);
       ++responses;
       if (responses < SHOULD_KEEP_ALIVE.length) {
         makeRequest();

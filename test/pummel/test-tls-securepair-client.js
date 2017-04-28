@@ -166,15 +166,15 @@ function test(keyfn, certfn, check, next) {
     });
 
     pair.encrypted.on('error', function(err) {
-      console.log('encrypted error: ' + err);
+      console.log(`encrypted error: ${err}`);
     });
 
     s.on('error', function(err) {
-      console.log('socket error: ' + err);
+      console.log(`socket error: ${err}`);
     });
 
     pair.on('error', function(err) {
-      console.log('secure error: ' + err);
+      console.log(`secure error: ${err}`);
     });
   }
 

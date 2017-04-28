@@ -84,7 +84,7 @@ server.listen(0, function() {
   function makeReq(i, cb) {
     http.request({
       port: server.address().port,
-      path: '/' + i,
+      path: `/${i}`,
       agent: agent
     }, function(res) {
       let data = '';
@@ -93,7 +93,7 @@ server.listen(0, function() {
         data += c;
       });
       res.on('end', function() {
-        assert.strictEqual(data, '/' + i);
+        assert.strictEqual(data, `/${i}`);
         cb();
       });
     }).end();

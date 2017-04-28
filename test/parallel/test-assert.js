@@ -177,7 +177,7 @@ assert.doesNotThrow(makeBlock(a.deepEqual, a1, a2));
 
 // having an identical prototype property
 const nbRoot = {
-  toString: function() { return this.first + ' ' + this.last; }
+  toString: function() { return `${this.first} ${this.last}`; }
 };
 
 function nameBuilder(first, last) {

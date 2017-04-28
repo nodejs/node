@@ -251,10 +251,8 @@ for (const u in formatTests) {
   const actual = url.format(u);
   const actualObj = url.format(formatTests[u]);
   assert.strictEqual(actual, expect,
-                     'wonky format(' + u + ') == ' + expect +
-                     '\nactual:' + actual);
+                     `wonky format(${u}) == ${expect}\nactual:${actual}`);
   assert.strictEqual(actualObj, expect,
-                     'wonky format(' + JSON.stringify(formatTests[u]) +
-                     ') == ' + expect +
-                     '\nactual: ' + actualObj);
+                     `wonky format(${JSON.stringify(formatTests[u])}) == ${
+                     expect}\nactual: ${actualObj}`);
 }

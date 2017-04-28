@@ -82,7 +82,7 @@ cp.exec(ddcmd, function(err, stdout, stderr) {
     // End the response on exit (and log errors)
     cat.on('exit', (code) => {
       if (code !== 0) {
-        console.error('subprocess exited with code ' + code);
+        console.error(`subprocess exited with code ${code}`);
         process.exit(1);
       }
     });

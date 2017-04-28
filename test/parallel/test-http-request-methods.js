@@ -44,7 +44,7 @@ const http = require('http');
     c.setEncoding('utf8');
 
     c.on('connect', function() {
-      c.write(method + ' / HTTP/1.0\r\n\r\n');
+      c.write(`${method} / HTTP/1.0\r\n\r\n`);
     });
 
     c.on('data', function(chunk) {

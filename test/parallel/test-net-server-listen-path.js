@@ -15,7 +15,7 @@ let counter = 0;
 
 // Avoid conflict with listen-handle
 function randomPipePath() {
-  return common.PIPE + '-listen-path-' + (counter++);
+  return `${common.PIPE}-listen-path-${counter++}`;
 }
 
 // Test listen(path)

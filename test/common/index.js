@@ -55,9 +55,8 @@ exports.isLinux = process.platform === 'linux';
 exports.isOSX = process.platform === 'darwin';
 
 exports.enoughTestMem = os.totalmem() > 0x40000000; /* 1 Gb */
-exports.bufferMaxSizeMsg = new RegExp('^RangeError: "size" argument' +
-                                      ' must not be larger than ' +
-                                      buffer.kMaxLength + '$');
+exports.bufferMaxSizeMsg = new RegExp(
+  `^RangeError: "size" argument must not be larger than ${buffer.kMaxLength}$`);
 const cpus = os.cpus();
 exports.enoughTestCpu = Array.isArray(cpus) &&
                         (cpus.length > 1 || cpus[0].speed > 999);
@@ -118,7 +117,7 @@ exports.refreshTmpDir = function() {
 
 if (process.env.TEST_THREAD_ID) {
   exports.PORT += process.env.TEST_THREAD_ID * 100;
-  exports.tmpDirName += '.' + process.env.TEST_THREAD_ID;
+  exports.tmpDirName += `.${process.env.TEST_THREAD_ID}`;
 }
 exports.tmpDir = path.join(testRoot, exports.tmpDirName);
 
@@ -217,10 +216,10 @@ Object.defineProperty(exports, 'hasFipsCrypto', {
 if (exports.isWindows) {
   exports.PIPE = '\\\\.\\pipe\\libuv-test';
   if (process.env.TEST_THREAD_ID) {
-    exports.PIPE += '.' + process.env.TEST_THREAD_ID;
+    exports.PIPE += `.${process.env.TEST_THREAD_ID}`;
   }
 } else {
-  exports.PIPE = exports.tmpDir + '/test.sock';
+  exports.PIPE = `${exports.tmpDir}/test.sock`;
 }
 
 const ifaces = os.networkInterfaces();
@@ -256,10 +255,9 @@ exports.childShouldThrowAndAbort = function() {
 exports.ddCommand = function(filename, kilobytes) {
   if (exports.isWindows) {
     const p = path.resolve(exports.fixturesDir, 'create-file.js');
-    return '"' + process.argv[0] + '" "' + p + '" "' +
-           filename + '" ' + (kilobytes * 1024);
+    return `"${process.argv[0]}" "${p}" "${filename}" ${kilobytes * 1024}`;
   } else {
-    return 'dd if=/dev/zero of="' + filename + '" bs=1024 count=' + kilobytes;
+    return `dd if=/dev/zero of="${filename}" bs=1024 count=${kilobytes}`;
   }
 };
 
@@ -495,7 +493,7 @@ exports.canCreateSymLink = function() {
     let output = '';
 
     try {
-      output = execSync(whoamiPath + ' /priv', { timout: 1000 });
+      output = execSync(`${whoamiPath} /priv`, { timout: 1000 });
     } catch (e) {
       err = true;
     } finally {
@@ -522,7 +520,7 @@ exports.skip = function(msg) {
 function ArrayStream() {
   this.run = function(data) {
     data.forEach((line) => {
-      this.emit('data', line + '\n');
+      this.emit('data', `${line}\n`);
     });
   };
 }
