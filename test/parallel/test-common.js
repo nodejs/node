@@ -40,6 +40,11 @@ assert.throws(function() {
 }, /^TypeError: Invalid expected value: \/foo\/$/);
 
 
+// common.noop() tests
+assert.strictEqual(common.noop(), undefined);
+assert.notStrictEqual(common.noop, common.noop);
+
+
 // assert.fail() tests
 assert.throws(
   () => { assert.fail('fhqwhgads'); },

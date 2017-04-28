@@ -24,7 +24,6 @@ const common = require('../common');
 const assert = require('assert');
 const events = require('events');
 
-
 function expect(expected) {
   const actual = [];
   process.on('exit', function() {
@@ -38,24 +37,28 @@ function expect(expected) {
 
 {
   const ee = new events.EventEmitter();
-  ee.on('foo', common.noop);
-  ee.on('bar', common.noop);
-  ee.on('baz', common.noop);
-  ee.on('baz', common.noop);
+  const fooListener = common.noop;
+  const barListener = common.noop;
+  const bazListener1 = common.noop;
+  const bazListener2 = common.noop;
+  ee.on('foo', fooListener);
+  ee.on('bar', barListener);
+  ee.on('baz', bazListener1);
+  ee.on('baz', bazListener2);
   const fooListeners = ee.listeners('foo');
   const barListeners = ee.listeners('bar');
   const bazListeners = ee.listeners('baz');
   ee.on('removeListener', expect(['bar', 'baz', 'baz']));
   ee.removeAllListeners('bar');
   ee.removeAllListeners('baz');
-  assert.deepStrictEqual(ee.listeners('foo'), [common.noop]);
+  assert.deepStrictEqual(ee.listeners('foo'), [fooListener]);
   assert.deepStrictEqual(ee.listeners('bar'), []);
   assert.deepStrictEqual(ee.listeners('baz'), []);
   // After calling removeAllListeners(),
   // the old listeners array should stay unchanged.
-  assert.deepStrictEqual(fooListeners, [common.noop]);
-  assert.deepStrictEqual(barListeners, [common.noop]);
-  assert.deepStrictEqual(bazListeners, [common.noop, common.noop]);
+  assert.deepStrictEqual(fooListeners, [fooListener]);
+  assert.deepStrictEqual(barListeners, [barListener]);
+  assert.deepStrictEqual(bazListeners, [bazListener1, bazListener2]);
   // After calling removeAllListeners(),
   // new listeners arrays is different from the old.
   assert.notStrictEqual(ee.listeners('bar'), barListeners);
