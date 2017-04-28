@@ -24,6 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 const events = require('events');
 
+
 function expect(expected) {
   const actual = [];
   process.on('exit', function() {
