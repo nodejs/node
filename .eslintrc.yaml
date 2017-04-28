@@ -97,6 +97,7 @@ rules:
   eol-last: 2
   func-call-spacing: 2
   func-name-matching: 2
+  func-style: [2, declaration, {allowArrowFunctions: true}]
   indent: [2, 2, {ArrayExpression: first,
                   CallExpression: {arguments: first},
                   MemberExpression: 1,
