@@ -8,7 +8,7 @@ const N = 30;
 let last_i = 0;
 let last_ts = 0;
 
-const f = function(i) {
+function f(i) {
   if (i <= N) {
     // check order
     assert.strictEqual(i, last_i + 1, 'order is broken: ' + i + ' != ' +
@@ -25,5 +25,5 @@ const f = function(i) {
     // schedule next iteration
     setTimeout(f, 1, i + 1);
   }
-};
+}
 f(1);

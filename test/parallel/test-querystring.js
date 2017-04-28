@@ -67,7 +67,7 @@ const qsColonTestCases = [
 ];
 
 // [wonkyObj, qs, canonicalObj]
-const extendedFunction = function() {};
+function extendedFunction() {}
 extendedFunction.prototype = {a: 'b'};
 const qsWeirdObjects = [
   [{regexp: /./g}, 'regexp=', {'regexp': ''}],
