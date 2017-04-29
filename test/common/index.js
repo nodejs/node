@@ -10,9 +10,9 @@ const util = require('util');
 const Timer = process.binding('timer_wrap').Timer;
 
 const testRoot = process.env.NODE_TEST_DIR ?
-                   fs.realpathSync(process.env.NODE_TEST_DIR) : __dirname;
+  fs.realpathSync(process.env.NODE_TEST_DIR) : path.resolve(__dirname, '..');
 
-exports.fixturesDir = path.join(__dirname, 'fixtures');
+exports.fixturesDir = path.join(__dirname, '..', 'fixtures');
 exports.tmpDirName = 'tmp';
 // PORT should match the definition in test/testpy/__init__.py.
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;

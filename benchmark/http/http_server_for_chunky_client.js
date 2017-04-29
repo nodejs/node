@@ -5,8 +5,8 @@ var http = require('http');
 var fs = require('fs');
 var spawn = require('child_process').spawn;
 require('../common.js');
-var test = require('../../test/common.js');
-var pep = path.dirname(process.argv[1]) + '/_chunky_http_client.js';
+var test = require('../../test/common');
+var pep = `${path.dirname(process.argv[1])}/_chunky_http_client.js`;
 var PIPE = test.PIPE;
 
 try {
