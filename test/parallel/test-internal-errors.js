@@ -228,24 +228,33 @@ assert.throws(
 assert.strictEqual(errors.message('ERR_ZLIB_BINDING_CLOSED'),
                    'zlib binding closed');
 
-assert.throws(() => errors.message('ERR_OUT_OF_RANGE', [null]),
-              /name is required/);
+assert.throws(
+  () => errors.message('ERR_OUT_OF_RANGE', [null]),
+  /name is required/
+);
 
-assert.throws(() => errors.message('ERR_OUT_OF_RANGE', ['a', null]),
-              /min is required/);
+assert.throws(
+  () => errors.message('ERR_OUT_OF_RANGE', ['a', null]),
+  /min must be a number/
+);
 
-assert.throws(() => errors.message('ERR_OUT_OF_RANGE', ['a', 1, null]),
-              /max is required/);
+assert.throws(
+  () => errors.message('ERR_OUT_OF_RANGE', ['a', 1, null]),
+  /max must be a number/
+);
 
 assert.strictEqual(errors.message('ERR_OUT_OF_RANGE', ['a', 1, 5]),
                    '"a" is out of range. It should be between 1 and 5.');
 
-assert.throws(() => errors.message('ERR_LESS_THAN_MIN', [null]),
-              /name is required/);
+assert.throws(
+  () => errors.message('ERR_LESS_THAN_MIN', [null]),
+  /name is required/
+);
 
-assert.throws(() => errors.message('ERR_LESS_THAN_MIN', ['a', null]),
-              /min is required/);
+assert.throws(
+  () => errors.message('ERR_LESS_THAN_MIN', ['a', null]),
+  /min must be a number/
+);
 
 assert.strictEqual(errors.message('ERR_LESS_THAN_MIN', ['a', 10]),
-                   '"a" is out of range. It should be equal or ' +
-                   'greater than 10.');
+                   '"a" must be a number equal or greater than 10.');

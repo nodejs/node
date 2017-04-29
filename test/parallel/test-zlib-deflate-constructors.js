@@ -18,8 +18,8 @@ assert.throws(
   common.expectsError({
     code: 'ERR_LESS_THAN_MIN',
     type: RangeError,
-    message: '"chunkSize" is out of range. It should be equal or greater ' +
-    `than ${zlib.constants.Z_MIN_CHUNK}.`
+    message: '"chunkSize" must be a number equal or ' +
+    `greater than ${zlib.constants.Z_MIN_CHUNK}.`
   })
 );
 

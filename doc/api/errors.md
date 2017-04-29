@@ -612,6 +612,12 @@ process. See [`child.send()`] and [`process.send()`] for more information.
 The `'ERR_INVALID_OPT_VALUE'` error code is used generically to identify when
 an invalid or unexpected value has been passed in an options object.
 
+<a id="ERR_INVALID_RANGE"></a>
+### ERR_INVALID_RANGE
+
+The `'ERR_INVALID_RANGE'` error code is used generically to identify that
+a range value is out.
+
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
 ### ERR_INVALID_SYNC_FORK_INPUT
 
@@ -693,6 +699,12 @@ an IPC communication channel with a synchronous forked Node.js process.
 See the documentation for the [`child_process`](child_process.html)
 module for more information.
 
+<a id="ERR_LESS_THAN_MIN"></a>
+### ERR_LESS_THAN_MIN
+
+The `'ERR_LESS_THAN_MIN'` code is used to show the value set to a variable is less
+than the minimum acceptable value.
+
 <a id="ERR_MISSING_ARGS"></a>
 ### ERR_MISSING_ARGS
 
@@ -702,6 +714,12 @@ in the [WHATWG URL API][] for strict compliance with the specification (which
 in some cases may accept `func(undefined)` but not `func()`). In most native
 Node.js APIs, `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
+
+<a id="ERR_OUT_OF_RANGE"></a>
+### ERR_OUT_OF_RANGE
+
+The `'ERR_OUT_OF_RANGE'` code is used to show the value set to a variable is not
+between in range of acceptable values.
 
 <a id="ERR_STDERR_CLOSE"></a>
 ### ERR_STDERR_CLOSE
@@ -750,29 +768,11 @@ an attempt is made to launch a Node.js process with an unknown `stdout` or
 in user code, although it is not impossible. Occurrences of this error are most
 likely an indication of a bug within Node.js itself.
 
-<a id="ERR_OUT_OF_RANGE"></a>
-### ERR_OUT_OF_RANGE
-
-The `'ERR_OUT_OF_RANGE'` code is used to show the value set to a variable is not
-between in range of acceptable values.
-
-<a id="ERR_LESS_THAN_MIN"></a>
-### ERR_LESS_THAN_MIN
-
-The `'ERR_LESS_THAN_MIN'` code is used to show the value set to a variable is less
-than the minimum acceptable value.
-
 <a id="ERR_ZLIB_BINDING_CLOSED"></a>
 ### ERR_ZLIB_BINDING_CLOSED
 
 The `'ERR_ZLIB_BINDING_CLOSED'` code is used when the binding object is not accessible
 anymore. e.g.: cause something it happened like connection was closed unexpectedly.
-
-<a id="ERR_INVALID_RANGE"></a>
-### ERR_INVALID_RANGE
-
-The `'ERR_INVALID_RANGE'` error code is used generically to identify that
-a range value is out.
 
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`child.kill()`]: child_process.html#child_process_child_kill_signal
