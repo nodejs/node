@@ -49,7 +49,7 @@ Stability: 1 - Experimental
 This feature is still under active development and subject to non-backwards
 compatible changes, or even removal, in any future version. Use of the feature
 is not recommended in production environments. The feature may only be usable
-only after using a command-line flag to enable it. Use of the feature may cause
+after using a command-line flag to enable it. Use of the feature may cause
 warnings to be emitted.
 ```
 
