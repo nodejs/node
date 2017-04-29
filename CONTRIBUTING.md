@@ -55,8 +55,8 @@ This document will guide you through the contribution process.
    use Google's cpplint (with some ajustments) so following their [style-guide](https://github.com/google/styleguide)
    should keep you in line.  
    For JS we use this [ruleset](https://github.com/nodejs/node/blob/master/.eslintrc.yaml)
-   for ESLint plus some of [our own custom rules](https://github.com/nodejs/node/tree/master/tools/eslint-rules)  
-   For markdown we have a [style guide](https://github.com/nodejs/node/blob/master/doc/STYLE_GUIDE.md)
+   for ESLint plus some of [our own custom rules](https://github.com/nodejs/node/tree/master/tools/eslint-rules).  
+   For markdown we have a [style guide](https://github.com/nodejs/node/blob/master/doc/STYLE_GUIDE.md).
 
 ### Step 1: Fork
 
