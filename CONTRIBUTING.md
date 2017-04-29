@@ -30,6 +30,34 @@ works.
 
 This document will guide you through the contribution process.
 
+### Rules of thumb
+
+1. #### Provide motivation for the change
+   Why will this change make the code better; does it fix a bug, is it a new
+   feature, etc. This should be in the commit messages as well as in the PR
+   description.
+2. #### Don't make _unnecessary_ code changes
+   Things that are changed because of personal preference or style, like:
+   renaming of variables or functions, adding or removing white spaces,
+   reordering lines or whole code blocks. These sort of changes should have
+   a good reason since they cause unnecessary ["code churn"](https://blog.gitprime.com/why-code-churn-matters).
+   As part of the project's strategy we maintain multiple release lines, code
+   churn might hinder back-porting changes to other lines. Also when you
+   change a line, your name will come up in `git blame` and might hide the
+   previous writer of the code.
+3. #### Keep your change-set self contained but at a reasonable size
+   Use your good judgment when making a big change. If you can't think of a
+   good reason but need to make a very big PR, try to break it into smaller
+   pieces (still as self-contained as possible), and cross-reference them.
+   You can also mark some of them as `blocked` pending the others.   
+4. #### Be aware of our style rules
+   As part of acceptance of a PR the changes must pass our linters. For C++ we
+   use Google's cpplint (with some ajustments) so following their [style-guide](https://github.com/google/styleguide)
+   should keep you in line.  
+   For JS we use this [ruleset](https://github.com/nodejs/node/blob/master/.eslintrc.yaml)
+   for ESLint plus some of [our own custom rules](https://github.com/nodejs/node/tree/master/tools/eslint-rules)  
+   For markdown we have a [style guide](https://github.com/nodejs/node/blob/master/doc/STYLE_GUIDE.md)
+
 ### Step 1: Fork
 
 Fork the project [on GitHub](https://github.com/nodejs/node) and check out your
