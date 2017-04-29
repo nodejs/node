@@ -51,11 +51,11 @@ change a line, your name will come up in `git blame` and shadow the name of
 the previous author of that line.
 </details>
 <details>
-<summary><strong>Keep your change-set self contained but at a reasonable size</strong></summary>
-Use your good judgment when making a big change. If you can't think of a
-good reason but need to make a very big PR, try to break it into smaller
-pieces (still as self-contained as possible), and cross-reference them.
-You can also mark some of them as `blocked` pending the others.   
+<summary><strong>Keep the change-set self contained but at a reasonable size</strong></summary>
+Use good judgment when making a big change. If a reason doesn't come to mid
+but a very big chage needs to be made, try to break it into smaller
+pieces (still as self-contained as possible), and cross-reference them, and 
+marking some of them as `blocked` pending the others.   
 </details>
 <details>
 <summary><strong>Be aware of our style rules</strong></summary>
@@ -164,7 +164,7 @@ changed and why. Follow these guidelines when writing one:
     Refs: http://eslint.org/docs/rules/space-in-parens.html
     Refs: https://github.com/nodejs/node/pull/3615
     ```
-    - It's it's not a fix, you should document the motivation for the change
+    - If its not a bug fix, document the motivation for the change.
 
 A good commit log can look something like this:
 
