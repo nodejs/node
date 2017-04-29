@@ -225,6 +225,10 @@ assert.throws(
 );
 
 // Tests ERR RANGE
+assert.strictEqual(errors.message('ERR_EXCEEDS_MAX_BUFFER_LENGTH',
+                   [84947843812734]),
+                   'Exceeds the max buffer length of 0x4d42760e0d7e bytes');
+
 assert.strictEqual(errors.message('ERR_ZLIB_BINDING_CLOSED'),
                    'zlib binding closed');
 

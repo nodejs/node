@@ -570,6 +570,12 @@ The `'ERR_ARG_NOT_ITERABLE'` error code is used generically to identify that an
 iterable argument (i.e. a value that works with `for...of` loops) is required,
 but not provided to a Node.js API.
 
+<a id="ERR_EXCEEDS_MAX_BUFFER_LENGTH"></a>
+### ERR_EXCEEDS_MAX_BUFFER_LENGTH
+
+The `'ERR_EXCEEDS_MAX_BUFFER_LENGTH'` error code is used to show the buffer
+exceeds the maximum length supported.
+
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
 
@@ -611,12 +617,6 @@ process. See [`child.send()`] and [`process.send()`] for more information.
 
 The `'ERR_INVALID_OPT_VALUE'` error code is used generically to identify when
 an invalid or unexpected value has been passed in an options object.
-
-<a id="ERR_INVALID_RANGE"></a>
-### ERR_INVALID_RANGE
-
-The `'ERR_INVALID_RANGE'` error code is used generically to identify that
-a range value is out.
 
 <a id="ERR_INVALID_SYNC_FORK_INPUT"></a>
 ### ERR_INVALID_SYNC_FORK_INPUT
