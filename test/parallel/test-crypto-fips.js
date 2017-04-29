@@ -37,8 +37,9 @@ function testHelper(stream, args, expectedOutput, cmd, env) {
     env: env
   });
 
-  console.error('Spawned child [pid:' + child.pid + '] with cmd ' +
-      cmd + ' and args \'' + args + '\'');
+  console.error('Spawned child [pid:' + child.pid + '] with cmd \'' +
+      cmd + '\' expect %j with args \'' + args + '\'' +
+      ' OPENSSL_CONF=%j', expectedOutput, env.OPENSSL_CONF);
 
   function childOk(child) {
     console.error('Child #' + ++num_children_ok +
@@ -92,10 +93,26 @@ testHelper(
   compiledWithFips() ? FIPS_ENABLED : FIPS_DISABLED,
   'require("crypto").fips',
   process.env);
-// OPENSSL_CONF should _not_ be able to turn on FIPS mode
+
+// OPENSSL_CONF should be able to turn on FIPS mode
 testHelper(
   'stdout',
   [],
+  compiledWithFips() ? FIPS_ENABLED : FIPS_DISABLED,
+  'require("crypto").fips',
+  addToEnv('OPENSSL_CONF', CNF_FIPS_ON));
+
+// --openssl-config option should override OPENSSL_CONF
+testHelper(
+  'stdout',
+  [`--openssl-config=${CNF_FIPS_ON}`],
+  compiledWithFips() ? FIPS_ENABLED : FIPS_DISABLED,
+  'require("crypto").fips',
+  addToEnv('OPENSSL_CONF', CNF_FIPS_OFF));
+
+testHelper(
+  'stdout',
+  [`--openssl-config=${CNF_FIPS_OFF}`],
   FIPS_DISABLED,
   'require("crypto").fips',
   addToEnv('OPENSSL_CONF', CNF_FIPS_ON));
@@ -107,6 +124,7 @@ testHelper(
   compiledWithFips() ? FIPS_ENABLED : OPTION_ERROR_STRING,
   'require("crypto").fips',
   process.env);
+
 // OPENSSL_CONF should _not_ make a difference to --enable-fips
 testHelper(
   compiledWithFips() ? 'stdout' : 'stderr',
@@ -122,6 +140,7 @@ testHelper(
   compiledWithFips() ? FIPS_ENABLED : OPTION_ERROR_STRING,
   'require("crypto").fips',
   process.env);
+
 // Using OPENSSL_CONF should not make a difference to --force-fips
 testHelper(
   compiledWithFips() ? 'stdout' : 'stderr',

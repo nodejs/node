@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <string>
+
 struct sockaddr;
 
 // Variation on NODE_DEFINE_CONSTANT that sets a String value.
@@ -34,7 +36,7 @@ namespace node {
 
 // Set in node.cc by ParseArgs with the value of --openssl-config.
 // Used in node_crypto.cc when initializing OpenSSL.
-extern const char* openssl_config;
+extern std::string openssl_config;
 
 // Set in node.cc by ParseArgs when --preserve-symlinks is used.
 // Used in node_config.cc to set a constant on process.binding('config')
@@ -109,6 +111,8 @@ void RegisterSignalHandler(int signal,
                            void (*handler)(int signal),
                            bool reset_handler = false);
 #endif
+
+bool SafeGetenv(const char* key, std::string* text);
 
 template <typename T, size_t N>
 constexpr size_t arraysize(const T(&)[N]) { return N; }
