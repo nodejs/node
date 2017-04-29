@@ -45,18 +45,21 @@ const serverCallback = common.mustCall(function(req, res) {
 
 const server = https.createServer(options, serverCallback);
 
-server.listen(0, function(){
+server.listen(0, common.mustCall(() => {
   // Do a request ignoring the unauthorized server certs
+  const port = server.address().port;
+
   const noCertCheckOptions = {
     hostname: '127.0.0.1',
-    port: this.address().port,
+    port: port,
     path: '/',
     method: 'GET',
     rejectUnauthorized: false
   };
+
   noCertCheckOptions.Agent = new https.Agent(noCertCheckOptions);
 
-  const req = https.request(noCertCheckOptions, function(res){
+  const req = https.request(noCertCheckOptions, common.mustCall((res) => {
     let responseBody = '';
     res.on('data', function(d) {
       responseBody = responseBody + d;
@@ -65,7 +68,7 @@ server.listen(0, function(){
     res.on('end', common.mustCall(() => {
       assert.strictEqual(responseBody, body);
     }));
-  });
+  }));
   req.end();
 
   req.on('error', function(e) {
@@ -75,7 +78,7 @@ server.listen(0, function(){
   // Do a request that throws error due to the invalid server certs
   const checkCertOptions = {
     hostname: '127.0.0.1',
-    port: this.address().port,
+    port: port,
     path: '/',
     method: 'GET'
   };
@@ -93,10 +96,6 @@ server.listen(0, function(){
 
   checkCertReq.on('error', function(e) {
     assert.strictEqual(e.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
-    testSucceeded();
+    server.close();
   });
-});
-
-function testSucceeded (){
-  server.close();
-};
+}));
