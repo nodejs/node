@@ -3798,6 +3798,10 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
     encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
   }
 
+  if (encoding == UCS2) {
+    return env->ThrowError("hmac.digest() does not support UTF-16");
+  }
+
   unsigned char* md_value = nullptr;
   unsigned int md_len = 0;
 
@@ -3919,6 +3923,10 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() >= 1) {
     CHECK(args[0]->IsString());
     encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
+  }
+
+  if (encoding == UCS2) {
+    return env->ThrowError("hash.digest() does not support UTF-16");
   }
 
   unsigned char md_value[EVP_MAX_MD_SIZE];
