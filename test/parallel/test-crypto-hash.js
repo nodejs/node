@@ -108,10 +108,12 @@ const h3 = crypto.createHash('sha256');
 h3.digest();
 assert.throws(function() {
   h3.digest();
-},
-              /Digest already called/);
+}, /Digest already called/);
 
 assert.throws(function() {
   h3.update('foo');
-},
-              /Digest already called/);
+}, /Digest already called/);
+
+assert.throws(function() {
+  crypto.createHash('sha256').digest('ucs2');
+}, /^Error: hash\.digest\(\) does not support UTF-16$/);
