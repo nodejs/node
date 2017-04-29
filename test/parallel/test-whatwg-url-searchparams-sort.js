@@ -1,8 +1,8 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const { URL, URLSearchParams } = require('url');
-const { test, assert_array_equals } = common.WPT;
+const { test, assert_array_equals } = require('../common/wpt');
 
 /* eslint-disable */
 /* WPT Refs:

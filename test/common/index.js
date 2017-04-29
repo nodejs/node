@@ -33,12 +33,12 @@ const Timer = process.binding('timer_wrap').Timer;
 const execSync = require('child_process').execSync;
 
 const testRoot = process.env.NODE_TEST_DIR ?
-                   fs.realpathSync(process.env.NODE_TEST_DIR) : __dirname;
+  fs.realpathSync(process.env.NODE_TEST_DIR) : path.resolve(__dirname, '..');
 
 const noop = () => {};
 
 exports.noop = noop;
-exports.fixturesDir = path.join(__dirname, 'fixtures');
+exports.fixturesDir = path.join(__dirname, '..', 'fixtures');
 exports.tmpDirName = 'tmp';
 // PORT should match the definition in test/testpy/__init__.py.
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
@@ -630,32 +630,6 @@ Object.defineProperty(exports, 'hasIntl', {
     return process.binding('config').hasIntl;
   }
 });
-
-// https://github.com/w3c/testharness.js/blob/master/testharness.js
-exports.WPT = {
-  test: (fn, desc) => {
-    try {
-      fn();
-    } catch (err) {
-      console.error(`In ${desc}:`);
-      throw err;
-    }
-  },
-  assert_equals: assert.strictEqual,
-  assert_true: (value, message) => assert.strictEqual(value, true, message),
-  assert_false: (value, message) => assert.strictEqual(value, false, message),
-  assert_throws: (code, func, desc) => {
-    assert.throws(func, (err) => {
-      return typeof err === 'object' &&
-             'name' in err &&
-             err.name.startsWith(code.name);
-    }, desc);
-  },
-  assert_array_equals: assert.deepStrictEqual,
-  assert_unreached(desc) {
-    assert.fail(`Reached unreachable code: ${desc}`);
-  }
-};
 
 // Useful for testing expected internal/error objects
 exports.expectsError = function expectsError({code, type, message}) {

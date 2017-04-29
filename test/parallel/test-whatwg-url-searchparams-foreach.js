@@ -3,7 +3,8 @@
 const common = require('../common');
 const assert = require('assert');
 const { URL, URLSearchParams } = require('url');
-const { test, assert_array_equals, assert_unreached } = common.WPT;
+const { test, assert_array_equals, assert_unreached } =
+  require('../common/wpt');
 
 /* eslint-disable */
 var i;  // Strict mode fix for WPT.
