@@ -40,11 +40,12 @@ This document will guide you through the contribution process.
    Things that are changed because of personal preference or style, like:
    renaming of variables or functions, adding or removing white spaces,
    reordering lines or whole code blocks. These sort of changes should have
-   a good reason since they cause unnecessary ["code churn"](https://blog.gitprime.com/why-code-churn-matters).
+   a good reason since they cause unnecessary
+   ["code churn"](https://blog.gitprime.com/why-code-churn-matters).
    As part of the project's strategy we maintain multiple release lines, code
    churn might hinder back-porting changes to other lines. Also when you
-   change a line, your name will come up in `git blame` and might hide the
-   previous writer of the code.
+   change a line, your name will come up in `git blame` and shadow the name of
+   the previous author of that line.
 3. #### Keep your change-set self contained but at a reasonable size
    Use your good judgment when making a big change. If you can't think of a
    good reason but need to make a very big PR, try to break it into smaller
@@ -52,11 +53,14 @@ This document will guide you through the contribution process.
    You can also mark some of them as `blocked` pending the others.   
 4. #### Be aware of our style rules
    As part of acceptance of a PR the changes must pass our linters. For C++ we
-   use Google's cpplint (with some ajustments) so following their [style-guide](https://github.com/google/styleguide)
-   should keep you in line.  
-   For JS we use this [ruleset](https://github.com/nodejs/node/blob/master/.eslintrc.yaml)
-   for ESLint plus some of [our own custom rules](https://github.com/nodejs/node/tree/master/tools/eslint-rules).  
-   For markdown we have a [style guide](https://github.com/nodejs/node/blob/master/doc/STYLE_GUIDE.md).
+   use Google's `cpplint` (with some adjustments) so following their
+   [style-guide](https://github.com/google/styleguide) should keep you in line.  
+   For JS we use this
+   [rule-set](https://github.com/nodejs/node/blob/master/.eslintrc.yaml)
+   for ESLint plus some of
+   [our own custom rules](https://github.com/nodejs/node/tree/master/tools/eslint-rules).  
+   For markdown we have a
+   [style guide](https://github.com/nodejs/node/blob/master/doc/STYLE_GUIDE.md).
 
 ### Step 1: Fork
 
