@@ -125,6 +125,10 @@ console.log(util.inspect(sandbox));
 // { animal: 'cat', count: 12, name: 'kitty' }
 ```
 
+*Note*: Using the `timeout` or `breakOnSigint` options will result in new
+event loops and corresponding threads being started, which have a non-zero
+performance overhead.
+
 ### script.runInNewContext([sandbox][, options])
 <!-- YAML
 added: v0.3.1
