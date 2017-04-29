@@ -50,6 +50,6 @@ child.stdout.on('data', function(chunk) {
 });
 
 process.on('exit', function() {
-  assert.ok(response.indexOf('HELLO=WORLD') >= 0);
-  assert.ok(response.indexOf('FOO=BAR') >= 0);
+  assert.ok(response.includes('HELLO=WORLD') >= 0);
+  assert.ok(response.includes('FOO=BAR') >= 0);
 });

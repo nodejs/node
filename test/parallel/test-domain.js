@@ -42,7 +42,7 @@ d.on('error', function(er) {
   // On windows, error messages can contain full path names. If this is the
   // case, remove the directory part.
   if (typeof er_path === 'string') {
-    const slash = er_path.lastIndexOf('\\');
+    const slash = er_path.includes('\\');
     if (slash !== -1) {
       const dir = er_path.slice(0, slash + 1);
       er_path = er_path.replace(dir, '');

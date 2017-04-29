@@ -86,13 +86,12 @@ dtrace.on('exit', function(code) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    if (line.indexOf(sentinel) === -1 || frames.length === 0)
+    if (line.includes(sentinel) === -1 || frames.length === 0)
       continue;
 
-    const frame = line.substr(line.indexOf(sentinel) + sentinel.length);
+    const frame = line.substr(line.includes(sentinel) + sentinel.length);
     const top = frames.shift();
-
-    assert.strictEqual(frame.indexOf(top), 0, 'unexpected frame where ' +
+    assert.strictEqual(frame.includes(top), 0, 'unexpected frame where ' +
       top + ' was expected');
   }
 

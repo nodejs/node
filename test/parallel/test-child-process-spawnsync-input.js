@@ -51,7 +51,6 @@ function verifyBufOutput(ret) {
   assert.deepStrictEqual(ret.stdout, msgOutBuf);
   assert.deepStrictEqual(ret.stderr, msgErrBuf);
 }
-
 if (process.argv.indexOf('spawnchild') !== -1) {
   switch (process.argv[3]) {
     case '1':
