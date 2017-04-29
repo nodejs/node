@@ -33,14 +33,14 @@ This document will guide you through the contribution process.
 ### Rules of thumb
 
 1. #### Provide motivation for the change
-   Why will this change make the code better; does it fix a bug, is it a new
-   feature, etc. This should be in the commit messages as well as in the PR
-   description.
+   Try to explain why this change will make the code better. For example, does
+   it fix a bug, or is it a new feature, etc. This should expressed in the 
+   commit messages as well as in the PR description.
 2. #### Don't make _unnecessary_ code changes
-   Things that are changed because of personal preference or style, like:
-   renaming of variables or functions, adding or removing white spaces,
-   reordering lines or whole code blocks. These sort of changes should have
-   a good reason since they cause unnecessary
+   _Unnecessary_ code changes are changes made because of personal preference
+   or style. For example, renaming of variables or functions, adding or removing
+   white spaces, and reordering lines or whole code blocks. These sort of 
+   changes should have a good reason since otherwise they cause unnecessary
    ["code churn"](https://blog.gitprime.com/why-code-churn-matters).
    As part of the project's strategy we maintain multiple release lines, code
    churn might hinder back-porting changes to other lines. Also when you
@@ -154,6 +154,7 @@ changed and why. Follow these guidelines when writing one:
     Refs: http://eslint.org/docs/rules/space-in-parens.html
     Refs: https://github.com/nodejs/node/pull/3615
     ```
+    - It's it's not a fix, you should document the motivation for the change
 
 A good commit log can look something like this:
 
