@@ -32,36 +32,45 @@ This document will guide you through the contribution process.
 
 ### Rules of thumb
 
-1. #### Provide motivation for the change
-   Try to explain why this change will make the code better. For example, does
-   it fix a bug, or is it a new feature, etc. This should expressed in the 
-   commit messages as well as in the PR description.
-2. #### Don't make _unnecessary_ code changes
-   _Unnecessary_ code changes are changes made because of personal preference
-   or style. For example, renaming of variables or functions, adding or removing
-   white spaces, and reordering lines or whole code blocks. These sort of 
-   changes should have a good reason since otherwise they cause unnecessary
-   ["code churn"](https://blog.gitprime.com/why-code-churn-matters).
-   As part of the project's strategy we maintain multiple release lines, code
-   churn might hinder back-porting changes to other lines. Also when you
-   change a line, your name will come up in `git blame` and shadow the name of
-   the previous author of that line.
-3. #### Keep your change-set self contained but at a reasonable size
-   Use your good judgment when making a big change. If you can't think of a
-   good reason but need to make a very big PR, try to break it into smaller
-   pieces (still as self-contained as possible), and cross-reference them.
-   You can also mark some of them as `blocked` pending the others.   
-4. #### Be aware of our style rules
-   As part of accepting a PR the changes __must__ pass our linters.
-   * For C++ we use Google's `cpplint` (with some adjustments) so following their
-   [style-guide](https://github.com/google/styleguide) should make your code
-   compliant with our linter.  
-   * For JS we use this
-   [rule-set](https://github.com/nodejs/node/blob/master/.eslintrc.yaml)
-   for ESLint plus some of
-   [our own custom rules](https://github.com/nodejs/node/tree/master/tools/eslint-rules).  
-   * For markdown we have a
-   [style guide](https://github.com/nodejs/node/blob/master/doc/STYLE_GUIDE.md).
+<details>
+<summary><strong>Provide motivation for the change</strong></summary>
+Try to explain why this change will make the code better. For example, does
+it fix a bug, or is it a new feature, etc. This should expressed in the 
+commit messages as well as in the PR description.
+</details>
+<details>
+<summary><strong>Don't make <em>unnecessary</em> code changes</strong></summary>
+<em>Unnecessary</em> code changes are changes made because of personal preference
+or style. For example, renaming of variables or functions, adding or removing
+white spaces, and reordering lines or whole code blocks. These sort of 
+changes should have a good reason since otherwise they cause unnecessary
+<a href="https://blog.gitprime.com/why-code-churn-matters">"code churn"</a>.
+As part of the project's strategy we maintain multiple release lines, code
+churn might hinder back-porting changes to other lines. Also when you
+change a line, your name will come up in `git blame` and shadow the name of
+the previous author of that line.
+</details>
+<details>
+<summary><strong>Keep your change-set self contained but at a reasonable size</strong></summary>
+Use your good judgment when making a big change. If you can't think of a
+good reason but need to make a very big PR, try to break it into smaller
+pieces (still as self-contained as possible), and cross-reference them.
+You can also mark some of them as `blocked` pending the others.   
+</details>
+<details>
+<summary><strong>Be aware of our style rules</strong></summary>
+As part of accepting a PR the changes <strong>must</strong> pass our linters.
+<ul>
+<li>For C++ we use Google's `cpplint` (with some adjustments) so following their
+<a href="https://github.com/google/styleguide">style-guide</a> should make your code
+compliant with our linter.</li>
+<li>For JS we use this
+<a hreaf="https://github.com/nodejs/node/blob/master/.eslintrc.yaml">rule-set</a>
+for ESLint plus some of
+<a href="https://github.com/nodejs/node/tree/master/tools/eslint-rules">our own custom rules</a>.</li>
+<li>For markdown we have a <a href="https://github.com/nodejs/node/blob/master/doc/STYLE_GUIDE.md">style guide</a></li>
+</ul>
+</details>
 
 ### Step 1: Fork
 
