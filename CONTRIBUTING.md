@@ -164,7 +164,7 @@ changed and why. Follow these guidelines when writing one:
     Refs: http://eslint.org/docs/rules/space-in-parens.html
     Refs: https://github.com/nodejs/node/pull/3615
     ```
-    - If its not a bug fix, document the motivation for the change.
+    - If it is not a bug fix, document the motivation for the change.
 
 A good commit log can look something like this:
 
