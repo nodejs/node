@@ -195,6 +195,7 @@
         'src/stream_wrap.cc',
         'src/tcp_wrap.cc',
         'src/timer_wrap.cc',
+        'src/track-promise.cc',
         'src/tracing/agent.cc',
         'src/tracing/node_trace_buffer.cc',
         'src/tracing/node_trace_writer.cc',
@@ -228,6 +229,8 @@
         'src/node_revert.h',
         'src/node_i18n.h',
         'src/pipe_wrap.h',
+        'src/track-promise.h',
+        'src/track-promise-inl.h',
         'src/tty_wrap.h',
         'src/tcp_wrap.h',
         'src/udp_wrap.h',
@@ -620,6 +623,7 @@
         '<(OBJ_TRACING_PATH)/node_trace_buffer.<(OBJ_SUFFIX)',
         '<(OBJ_TRACING_PATH)/node_trace_writer.<(OBJ_SUFFIX)',
         '<(OBJ_TRACING_PATH)/trace_event.<(OBJ_SUFFIX)',
+        '<(OBJ_PATH)/track-promise.<(OBJ_SUFFIX)',
       ],
 
       'defines': [

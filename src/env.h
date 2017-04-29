@@ -30,6 +30,7 @@
 #endif
 #include "handle_wrap.h"
 #include "req-wrap.h"
+#include "track-promise.h"
 #include "tree.h"
 #include "util.h"
 #include "uv.h"
@@ -39,6 +40,7 @@
 #include <list>
 #include <stdint.h>
 #include <vector>
+#include <unordered_map>
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
 // hopefully justifies the means. We have a lot of per-context properties
@@ -191,6 +193,7 @@ namespace node {
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
   V(produce_cached_data_string, "produceCachedData")                          \
+  V(promise_rejection_index_string, "_promiseRejectionIndex")                 \
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
   V(readable_string, "readable")                                              \
@@ -247,6 +250,7 @@ namespace node {
   V(zero_return_string, "ZERO_RETURN")                                        \
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
+  V(array_from, v8::Function)                                                 \
   V(as_external, v8::External)                                                \
   V(async_hooks_destroy_function, v8::Function)                               \
   V(async_hooks_init_function, v8::Function)                                  \
@@ -263,7 +267,8 @@ namespace node {
   V(module_load_list_array, v8::Array)                                        \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
   V(process_object, v8::Object)                                               \
-  V(promise_reject_function, v8::Function)                                    \
+  V(promise_unhandled_rejection_function, v8::Function)                       \
+  V(promise_unhandled_rejection, v8::Function)                                \
   V(push_values_to_array_function, v8::Function)                              \
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
@@ -569,6 +574,9 @@ class Environment {
   static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
 
   void AddPromiseHook(promise_hook_func fn, void* arg);
+
+  PromiseTracker promise_tracker_;
+  int64_t promise_tracker_index_ = 0;
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),

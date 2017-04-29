@@ -185,7 +185,8 @@ inline Environment* Environment::GetCurrent(
 
 inline Environment::Environment(IsolateData* isolate_data,
                                 v8::Local<v8::Context> context)
-    : isolate_(context->GetIsolate()),
+    : promise_tracker_(this),
+      isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
       timer_base_(uv_now(isolate_data->event_loop())),
       using_domains_(false),
