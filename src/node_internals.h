@@ -168,6 +168,11 @@ void AppendExceptionLine(Environment* env,
                          v8::Local<v8::Message> message,
                          enum ErrorHandlingMode mode);
 
+void InternalFatalException(v8::Isolate* isolate,
+                            v8::Local<v8::Value> error,
+                            v8::Local<v8::Message> message,
+                            bool from_promise);
+
 NO_RETURN void FatalError(const char* location, const char* message);
 
 void ProcessEmitWarning(Environment* env, const char* fmt, ...);

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const domain = require('domain');
 
@@ -673,6 +673,8 @@ asyncTest('Throwing an error inside a rejectionHandled handler goes to' +
     tearDownException();
     done();
   });
+  // Prevent fatal unhandled error.
+  process.on('unhandledRejection', common.noop);
   process.on('rejectionHandled', function() {
     throw e2;
   });
