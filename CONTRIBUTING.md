@@ -155,7 +155,7 @@ Bug fixes and features **should come with tests**. Add your tests in the
 project, see this [guide](./doc/guides/writing-tests.md). Looking at other tests
 to see how they should be structured can also help.
 
-To run the tests on Unix / OS X:
+To run the tests on Unix / macOS:
 
 ```text
 $ ./configure && make -j4 test
