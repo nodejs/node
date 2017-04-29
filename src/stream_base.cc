@@ -189,8 +189,13 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
 int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
-  CHECK(Buffer::HasInstance(args[1]));
+
   Environment* env = Environment::GetCurrent(args);
+
+  if (!args[1]->IsUint8Array()) {
+    env->ThrowTypeError("Second argument must be a buffer");
+    return 0;
+  }
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   const char* data = Buffer::Data(args[1]);
