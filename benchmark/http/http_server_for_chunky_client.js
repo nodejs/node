@@ -5,7 +5,7 @@ var http = require('http');
 var fs = require('fs');
 var fork = require('child_process').fork;
 var common = require('../common.js');
-var test = require('../../test/common.js');
+var test = require('../../test/common');
 var pep = `${path.dirname(process.argv[1])}/_chunky_http_client.js`;
 var PIPE = test.PIPE;
 

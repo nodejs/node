@@ -6,7 +6,7 @@ const URLSearchParams = require('url').URLSearchParams;
 const {
   test, assert_equals, assert_true,
   assert_false, assert_throws, assert_array_equals
-} = common.WPT;
+} = require('../common/wpt');
 
 /* eslint-disable */
 var params;  // Strict mode fix for WPT.

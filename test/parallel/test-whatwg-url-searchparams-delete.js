@@ -3,7 +3,8 @@
 const common = require('../common');
 const assert = require('assert');
 const { URL, URLSearchParams } = require('url');
-const { test, assert_equals, assert_true, assert_false } = common.WPT;
+const { test, assert_equals, assert_true, assert_false } =
+  require('../common/wpt');
 
 /* eslint-disable */
 /* WPT Refs:

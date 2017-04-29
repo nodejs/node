@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const URL = require('url').URL;
-const { test, assert_equals } = common.WPT;
+const { test, assert_equals } = require('../common/wpt');
 const additionalTestCases = require(
     path.join(common.fixturesDir, 'url-setter-tests-additional.js'));
 
