@@ -62,7 +62,7 @@ class SimpleTestCase(test.TestCase):
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
-      # PORT should match the definition in test/common.js.
+      # PORT should match the definition in test/common/index.js.
       env = { 'PORT': int(os.getenv('NODE_COMMON_PORT', '12346')) }
       env['PORT'] += self.thread_id * 100
       flag = flags_match.group(1).strip().format(**env).split()
