@@ -575,3 +575,10 @@ exports.crashOnUnhandledRejection = function() {
   process.on('unhandledRejection',
              (err) => process.nextTick(() => { throw err; }));
 };
+
+exports.skipIfInspectorDisabled = function skipIfInspectorDisabled() {
+  if (!exports.hasCrypto) {
+    exports.skip('missing ssl support so inspector is disabled');
+    process.exit(0);
+  }
+};
