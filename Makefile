@@ -804,7 +804,7 @@ $(TARBALL): release-only $(NODE_EXE) doc
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/{doc,demos,test}
 	$(RM) -r $(TARNAME)/deps/zlib/contrib # too big, unused
 	$(RM) -r $(TARNAME)/.{editorconfig,git*,mailmap}
-	$(RM) -r $(TARNAME)/tools/{eslint,eslint-rules,osx-pkg.pmdoc,pkgsrc}
+	$(RM) -r $(TARNAME)/tools/{eslint,eslint-rules,osx-pkg.pmdoc,pkgsrc,remark-cli,remark-preset-lint-node}
 	$(RM) -r $(TARNAME)/tools/{osx-*,license-builder.sh,cpplint.py}
 	$(RM) -r $(TARNAME)/test*.tap
 	find $(TARNAME)/ -name ".eslint*" -maxdepth 2 | xargs $(RM)
@@ -945,6 +945,11 @@ bench: bench-net bench-http bench-fs bench-tls
 
 bench-ci: bench
 
+lint-md:
+	@echo "Running Markdown linter..."
+	$(NODE) tools/remark-cli/cli.js -q -f \
+		./*.md doc src lib benchmark tools/doc/ tools/icu/
+
 LINT_JS_TARGETS = benchmark doc lib test tools
 
 lint-js:
@@ -1002,9 +1007,10 @@ lint:
 	@EXIT_STATUS=0 ; \
 	$(MAKE) lint-js || EXIT_STATUS=$$? ; \
 	$(MAKE) lint-cpp || EXIT_STATUS=$$? ; \
+	$(MAKE) lint-md || EXIT_STATUS=$$? ; \
 	exit $$EXIT_STATUS
 CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
-lint-ci: lint-js-ci lint-cpp
+lint-ci: lint-js-ci lint-cpp lint-md
 	@if ! ( grep -IEqrs "$(CONFLICT_RE)" benchmark deps doc lib src test tools ) \
 		&& ! ( find . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
 		exit 0 ; \
@@ -1067,6 +1073,7 @@ endif
   lint-js \
   lint-js-ci \
   list-gtests \
+  lint-md \
   pkg \
   release-only \
   run-ci \
