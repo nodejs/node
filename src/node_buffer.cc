@@ -516,36 +516,6 @@ void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void Latin1Slice(const FunctionCallbackInfo<Value>& args) {
-  StringSlice<LATIN1>(args);
-}
-
-
-void AsciiSlice(const FunctionCallbackInfo<Value>& args) {
-  StringSlice<ASCII>(args);
-}
-
-
-void Utf8Slice(const FunctionCallbackInfo<Value>& args) {
-  StringSlice<UTF8>(args);
-}
-
-
-void Ucs2Slice(const FunctionCallbackInfo<Value>& args) {
-  StringSlice<UCS2>(args);
-}
-
-
-void HexSlice(const FunctionCallbackInfo<Value>& args) {
-  StringSlice<HEX>(args);
-}
-
-
-void Base64Slice(const FunctionCallbackInfo<Value>& args) {
-  StringSlice<BASE64>(args);
-}
-
-
 // bytesCopied = copy(buffer, target[, targetStart][, sourceStart][, sourceEnd])
 void Copy(const FunctionCallbackInfo<Value> &args) {
   Environment* env = Environment::GetCurrent(args);
@@ -709,36 +679,6 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
                                         encoding,
                                         nullptr);
   args.GetReturnValue().Set(written);
-}
-
-
-void Base64Write(const FunctionCallbackInfo<Value>& args) {
-  StringWrite<BASE64>(args);
-}
-
-
-void Latin1Write(const FunctionCallbackInfo<Value>& args) {
-  StringWrite<LATIN1>(args);
-}
-
-
-void Utf8Write(const FunctionCallbackInfo<Value>& args) {
-  StringWrite<UTF8>(args);
-}
-
-
-void Ucs2Write(const FunctionCallbackInfo<Value>& args) {
-  StringWrite<UCS2>(args);
-}
-
-
-void HexWrite(const FunctionCallbackInfo<Value>& args) {
-  StringWrite<HEX>(args);
-}
-
-
-void AsciiWrite(const FunctionCallbackInfo<Value>& args) {
-  StringWrite<ASCII>(args);
 }
 
 
@@ -1222,19 +1162,19 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   Local<Object> proto = args[0].As<Object>();
   env->set_buffer_prototype_object(proto);
 
-  env->SetMethod(proto, "asciiSlice", AsciiSlice);
-  env->SetMethod(proto, "base64Slice", Base64Slice);
-  env->SetMethod(proto, "latin1Slice", Latin1Slice);
-  env->SetMethod(proto, "hexSlice", HexSlice);
-  env->SetMethod(proto, "ucs2Slice", Ucs2Slice);
-  env->SetMethod(proto, "utf8Slice", Utf8Slice);
+  env->SetMethod(proto, "asciiSlice", StringSlice<ASCII>);
+  env->SetMethod(proto, "base64Slice", StringSlice<BASE64>);
+  env->SetMethod(proto, "latin1Slice", StringSlice<LATIN1>);
+  env->SetMethod(proto, "hexSlice", StringSlice<HEX>);
+  env->SetMethod(proto, "ucs2Slice", StringSlice<UCS2>);
+  env->SetMethod(proto, "utf8Slice", StringSlice<UTF8>);
 
-  env->SetMethod(proto, "asciiWrite", AsciiWrite);
-  env->SetMethod(proto, "base64Write", Base64Write);
-  env->SetMethod(proto, "latin1Write", Latin1Write);
-  env->SetMethod(proto, "hexWrite", HexWrite);
-  env->SetMethod(proto, "ucs2Write", Ucs2Write);
-  env->SetMethod(proto, "utf8Write", Utf8Write);
+  env->SetMethod(proto, "asciiWrite", StringWrite<ASCII>);
+  env->SetMethod(proto, "base64Write", StringWrite<BASE64>);
+  env->SetMethod(proto, "latin1Write", StringWrite<LATIN1>);
+  env->SetMethod(proto, "hexWrite", StringWrite<HEX>);
+  env->SetMethod(proto, "ucs2Write", StringWrite<UCS2>);
+  env->SetMethod(proto, "utf8Write", StringWrite<UTF8>);
 
   if (auto zero_fill_field = env->isolate_data()->zero_fill_field()) {
     CHECK(args[1]->IsObject());
