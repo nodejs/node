@@ -104,6 +104,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Null;
 using v8::Object;
 using v8::Persistent;
@@ -3807,12 +3808,18 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
     md_len = 0;
   }
 
-  Local<Value> rc = StringBytes::Encode(env->isolate(),
-                                        reinterpret_cast<const char*>(md_value),
-                                        md_len,
-                                        encoding);
+  Local<Value> error;
+  MaybeLocal<Value> rc =
+      StringBytes::Encode(env->isolate(),
+                          reinterpret_cast<const char*>(md_value),
+                          md_len,
+                          encoding,
+                          &error);
   delete[] md_value;
-  args.GetReturnValue().Set(rc);
+  // TODO(addaleax): Throw `error` here. This isn't so terribly important,
+  // hashes are very short so creating the corresponding strings is very
+  // unlikely to fail.
+  args.GetReturnValue().Set(rc.ToLocalChecked());
 }
 
 
@@ -3928,11 +3935,17 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
   EVP_MD_CTX_cleanup(&hash->mdctx_);
   hash->finalized_ = true;
 
-  Local<Value> rc = StringBytes::Encode(env->isolate(),
-                                        reinterpret_cast<const char*>(md_value),
-                                        md_len,
-                                        encoding);
-  args.GetReturnValue().Set(rc);
+  Local<Value> error;
+  MaybeLocal<Value> rc =
+      StringBytes::Encode(env->isolate(),
+                          reinterpret_cast<const char*>(md_value),
+                          md_len,
+                          encoding,
+                          &error);
+  // TODO(addaleax): Throw `error` here. This isn't so terribly important,
+  // hashes are very short so creating the corresponding strings is very
+  // unlikely to fail.
+  args.GetReturnValue().Set(rc.ToLocalChecked());
 }
 
 

@@ -465,14 +465,26 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
 
   SLICE_START_END(args[0], args[1], ts_obj_length)
 
-  args.GetReturnValue().Set(
-      StringBytes::Encode(isolate, ts_obj_data + start, length, encoding));
+  Local<Value> error;
+  MaybeLocal<Value> ret =
+      StringBytes::Encode(isolate,
+                          ts_obj_data + start,
+                          length,
+                          encoding,
+                          &error);
+  if (ret.IsEmpty()) {
+    CHECK(!error.IsEmpty());
+    isolate->ThrowException(error);
+    return;
+  }
+  args.GetReturnValue().Set(ret.ToLocalChecked());
 }
 
 
 template <>
 void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(isolate);
 
   THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
   SPREAD_BUFFER_ARG(args.This(), ts_obj);
@@ -509,10 +521,22 @@ void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
     buf = reinterpret_cast<const uint16_t*>(data);
   }
 
-  args.GetReturnValue().Set(StringBytes::Encode(env->isolate(), buf, length));
+  Local<Value> error;
+  MaybeLocal<Value> ret =
+      StringBytes::Encode(isolate,
+                          buf,
+                          length,
+                          &error);
 
   if (release)
     delete[] buf;
+
+  if (ret.IsEmpty()) {
+    CHECK(!error.IsEmpty());
+    isolate->ThrowException(error);
+    return;
+  }
+  args.GetReturnValue().Set(ret.ToLocalChecked());
 }
 
 
