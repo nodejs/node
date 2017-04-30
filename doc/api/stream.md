@@ -915,9 +915,14 @@ getReadableStreamSomehow()
 ##### readable.setEncoding(encoding)
 <!-- YAML
 added: v0.9.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12766
+    description: If `encoding` is `null` or `'buffer'`, this will reset the stream
+                 to the default of returning `Buffer` objects.
 -->
 
-* `encoding` {string} The encoding to use.
+* `encoding` {string|null} The encoding to use.
 * Returns: `this`
 
 The `readable.setEncoding()` method sets the default character encoding for
@@ -934,9 +939,8 @@ The Readable stream will properly handle multi-byte characters delivered through
 the stream that would otherwise become improperly decoded if simply pulled from
 the stream as `Buffer` objects.
 
-Encoding can be disabled by calling `readable.setEncoding(null)`. This approach
-is useful when working with binary data or with large multi-byte strings spread
-out over multiple chunks.
+Decoding can be disabled by calling `readable.setEncoding(null)` or
+`readable.setEncoding('buffer')`.
 
 ```js
 const readable = getReadableStreamSomehow();
