@@ -465,8 +465,14 @@ parser.add_option('--no-browser-globals',
 
 parser.add_option('--without-inspector',
     action='store_true',
-    dest='without_inspector',
-    help='disable experimental V8 inspector support')
+    dest='without_debugger',
+    help='disable V8 inspector support, the only node debugger API')
+
+# more explicit alias to --without-inspector
+parser.add_option('--without-debugger',
+    action='store_true',
+    dest='without_debugger',
+    help='disable V8 inspector support, the only node debugger API')
 
 parser.add_option('--shared',
     action='store_true',
@@ -495,6 +501,8 @@ parser.add_option('-C',
     help=optparse.SUPPRESS_HELP)
 
 (options, args) = parser.parse_args()
+
+
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
 options.prefix = os.path.expanduser(options.prefix or '')
@@ -1296,11 +1304,15 @@ def configure_intl(o):
         pprint.pformat(icu_config, indent=2) + '\n')
   return  # end of configure_intl
 
-def configure_inspector(o):
-  disable_inspector = (options.without_inspector or
-                       options.with_intl in (None, 'none') or
-                       options.without_ssl)
-  o['variables']['v8_enable_inspector'] = 0 if disable_inspector else 1
+def configure_debugger(o):
+  implicit_disable = (options.with_intl in (None, 'none') or
+                      options.without_ssl)
+  if implicit_disable and not options.without_debugger:
+    raise Exception('Setting --without_ssl or --without-intl will disable the '
+                    '`inspector` protocol. Ever since the removal of the '
+                    '`debug` protocol this is the only available debugger '
+                    'API, so it will leave the binary with no debug interfacehence --without-debugger must be set explicitly.')
+  o['variables']['v8_enable_inspector'] = 0 if options.without_debugger else 1
 
 output = {
   'variables': {},
@@ -1332,7 +1344,7 @@ configure_v8(output)
 configure_openssl(output)
 configure_intl(output)
 configure_static(output)
-configure_inspector(output)
+configure_debugger(output)
 
 # variables should be a root level element,
 # move everything else to target_defaults
