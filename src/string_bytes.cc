@@ -696,7 +696,6 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   }
 
   MaybeLocal<String> val;
-  char* out = nullptr;
 
   switch (encoding) {
     case BUFFER:
@@ -711,9 +710,8 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
 
     case ASCII:
       if (contains_non_ascii(buf, buflen)) {
-        out = node::UncheckedMalloc(buflen);
+        char* out = node::UncheckedMalloc(buflen);
         if (out == nullptr) {
-        malloc_failed:
           *error = SB_MALLOC_FAILED_ERROR;
           return MaybeLocal<Value>();
         }
@@ -741,7 +739,8 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       size_t dlen = base64_encoded_size(buflen);
       char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
-        goto malloc_failed;
+        *error = SB_MALLOC_FAILED_ERROR;
+        return MaybeLocal<Value>();
       }
 
       size_t written = base64_encode(buf, buflen, dst, dlen);
@@ -754,7 +753,8 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       size_t dlen = buflen * 2;
       char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
-        goto malloc_failed;
+        *error = SB_MALLOC_FAILED_ERROR;
+        return MaybeLocal<Value>();
       }
       size_t written = hex_encode(buf, buflen, dst, dlen);
       CHECK_EQ(written, dlen);
