@@ -78,6 +78,8 @@ const emptyHistoryPath = path.join(fixtures, '.empty-repl-history-file');
 const defaultHistoryPath = path.join(common.tmpDir, '.node_repl_history');
 const emptyHiddenHistoryPath = path.join(fixtures,
                                          '.empty-hidden-repl-history-file');
+const devNullHistoryPath = path.join(common.tmpDir,
+                                     '.dev-null-repl-history-file');
 
 const tests = [
   {
@@ -175,6 +177,15 @@ const tests = [
       }
     },
     env: { NODE_REPL_HISTORY: emptyHiddenHistoryPath },
+    test: [UP],
+    expected: [prompt]
+  },
+  {
+    before: function before() {
+      if (!common.isWindows)
+        fs.symlinkSync('/dev/null', devNullHistoryPath);
+    },
+    env: { NODE_REPL_HISTORY: devNullHistoryPath },
     test: [UP],
     expected: [prompt]
   },
