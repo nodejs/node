@@ -28,12 +28,12 @@ let openCount = 0;
 let mode;
 let content;
 
-// Need to hijack fs.open/close to make sure that things
-// get closed once they're opened.
-fs._openSync = fs.openSync;
-fs.openSync = openSync;
-fs._closeSync = fs.closeSync;
-fs.closeSync = closeSync;
+// Need to hijack binding to make sure that things get closed once they're
+// opened.
+const open = process.binding('fs').open;
+process.binding('fs').open = openSync;
+const close = process.binding('fs').close;
+process.binding('fs').close = closeSync;
 
 // Reset the umask for testing
 process.umask(0o000);
@@ -85,10 +85,10 @@ assert.strictEqual(openCount, 0);
 
 function openSync() {
   openCount++;
-  return fs._openSync.apply(fs, arguments);
+  return open.apply(null, arguments);
 }
 
 function closeSync() {
   openCount--;
-  return fs._closeSync.apply(fs, arguments);
+  return close.apply(null, arguments);
 }

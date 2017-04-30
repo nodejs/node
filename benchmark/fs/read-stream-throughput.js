@@ -1,16 +1,17 @@
-// test the throughput of the fs.WriteStream class.
 'use strict';
 
-var path = require('path');
-var common = require('../common.js');
-var filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
-var fs = require('fs');
-var filesize = 1000 * 1024 * 1024;
-var assert = require('assert');
+const path = require('path');
+const common = require('../common.js');
+const filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
+const fs = require('fs');
+const filesize = 1000 * 1024 * 1024;
+const assert = require('assert');
 
-var type, encoding, size;
+var type;
+var encoding;
+var size;
 
-var bench = common.createBenchmark(main, {
+const bench = common.createBenchmark(main, {
   type: ['buf', 'asc', 'utf'],
   size: [1024, 4096, 65535, 1024 * 1024]
 });
@@ -53,9 +54,9 @@ function runTest() {
   });
 
   rs.on('end', function() {
-    try { fs.unlinkSync(filename); } catch (e) {}
     // MB/sec
     bench.end(bytes / (1024 * 1024));
+    try { fs.unlinkSync(filename); } catch (e) {}
   });
 }
 
@@ -81,7 +82,7 @@ function makeFile() {
   function write() {
     do {
       w--;
-    } while (false !== ws.write(buf) && w > 0);
+    } while (ws.write(buf) !== false && w > 0);
     if (w === 0)
       ws.end();
   }

@@ -24,21 +24,20 @@ require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-// ensure that (read|write|append)FileSync() closes the file descriptor
-fs.openSync = function() {
+process.binding('fs').open = function() {
   return 42;
 };
-fs.closeSync = function(fd) {
+// ensure that (read|write|append)FileSync() closes the file descriptor
+process.binding('fs').close = function(fd) {
   assert.strictEqual(fd, 42);
   close_called++;
 };
-fs.readSync = function() {
+process.binding('fs').read = function() {
   throw new Error('BAM');
 };
-fs.writeSync = function() {
+process.binding('fs').writeBuffer = function() {
   throw new Error('BAM');
 };
-
 process.binding('fs').fstat = function() {
   throw new Error('BAM');
 };
