@@ -2,13 +2,18 @@
 
 import errno
 import json
+import logging
 import os
 import re
 import shutil
 import sys
 from getmoduleversion import get_version
 
+logging.basicConfig(format='%(message)s',
+                    level=os.environ.get('LOGLEVEL', 'INFO'))
+
 # set at init time
+headers_only = os.environ.get('HEADERS_ONLY')
 node_prefix = '/usr/local' # PREFIX variable from Makefile
 install_path = None # base target directory (DESTDIR + PREFIX from Makefile)
 target_defaults = None
@@ -31,7 +36,7 @@ def try_unlink(path):
     if e.errno != errno.ENOENT: raise
 
 def try_symlink(source_path, link_path):
-  print 'symlinking %s -> %s' % (source_path, link_path)
+  logging.info('symlinking %s -> %s', source_path, link_path)
   try_unlink(link_path)
   os.symlink(source_path, link_path)
 
@@ -61,14 +66,15 @@ def mkpaths(path, dst):
 
 def try_copy(path, dst):
   source_path, target_path = mkpaths(path, dst)
-  print 'installing %s' % target_path
+  logging.info('installing %s', target_path)
   try_mkdir_r(os.path.dirname(target_path))
-  try_unlink(target_path) # prevent ETXTBSY errors
+  if not headers_only:
+    try_unlink(target_path)  # Prevent ETXTBSY errors.
   return shutil.copy2(source_path, target_path)
 
 def try_remove(path, dst):
   source_path, target_path = mkpaths(path, dst)
-  print 'removing %s' % target_path
+  logging.info('removing %s', target_path)
   try_unlink(target_path)
   try_rmdir_r(os.path.dirname(target_path))
 
@@ -161,6 +167,9 @@ def headers(action):
   if sys.platform.startswith('aix'):
     action(['out/Release/node.exp'], 'include/node/')
 
+  if sys.platform == 'win32':
+    action(['Release/node.lib'], 'Release/')
+
   subdir_files('deps/v8/include', 'include/node/', action)
 
   if 'false' == variables.get('node_shared_libuv'):
@@ -201,7 +210,7 @@ def run(args):
 
   cmd = args[1] if len(args) > 1 else 'install'
 
-  if os.environ.get('HEADERS_ONLY'):
+  if headers_only:
     if cmd == 'install': return headers(install)
     if cmd == 'uninstall': return headers(uninstall)
   else:

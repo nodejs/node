@@ -1,5 +1,3 @@
-.buildstamp
-.docbuildstamp
 Makefile
 *.Makefile
 *.mk

@@ -70,7 +70,6 @@ endif
 # otherwise $(NODE_EXE) being a .PHONY target means it is always re-run.
 # Without the check there is a race condition between the link being deleted
 # and recreated which can break the addons build when running test-ci
-# See comments on the build-addons target for some more info
 $(NODE_EXE): config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Release V=$(V)
 	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
@@ -193,7 +192,6 @@ v8:
 
 test: all
 	$(MAKE) build-addons
-	$(MAKE) build-addons-napi
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
 		doctool inspector known_issues message pseudo-tty parallel sequential $(CI_NATIVE_SUITES)
@@ -205,98 +203,9 @@ test-parallel: all
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
 
-# Implicitly depends on $(NODE_EXE).  We don't depend on it explicitly because
-# it always triggers a rebuild due to it being a .PHONY rule.  See the comment
-# near the build-addons rule for more background.
-test/gc/build/Release/binding.node: test/gc/binding.cc test/gc/binding.gyp
-	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
-		--python="$(PYTHON)" \
-		--directory="$(shell pwd)/test/gc" \
-		--nodedir="$(shell pwd)"
-
-# Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
-DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.js doc/api/addons.md
-
-ifeq ($(OSTYPE),aix)
-DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
-endif
-
-test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS)
-	$(RM) -r test/addons/??_*/
-	$(NODE) $<
-	touch $@
-
-ADDONS_BINDING_GYPS := \
-	$(filter-out test/addons/??_*/binding.gyp, \
-		$(wildcard test/addons/*/binding.gyp))
-
-ADDONS_BINDING_SOURCES := \
-	$(filter-out test/addons/??_*/*.cc, $(wildcard test/addons/*/*.cc)) \
-	$(filter-out test/addons/??_*/*.h, $(wildcard test/addons/*/*.h))
-
-# Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
-# Depends on node-gyp package.json so that build-addons is (re)executed when
-# node-gyp is updated as part of an npm update.
-test/addons/.buildstamp: config.gypi \
-	deps/npm/node_modules/node-gyp/package.json \
-	$(ADDONS_BINDING_GYPS) $(ADDONS_BINDING_SOURCES) \
-	deps/uv/include/*.h deps/v8/include/*.h \
-	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
-	test/addons/.docbuildstamp
-#	Cannot use $(wildcard test/addons/*/) here, it's evaluated before
-#	embedded addons have been generated from the documentation.
-	@for dirname in test/addons/*/; do \
-		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
-		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
-		        --loglevel=$(LOGLEVEL) rebuild \
-			--python="$(PYTHON)" \
-			--directory="$$PWD/$$dirname" \
-			--nodedir="$$PWD" || exit 1 ; \
-	done
-	touch $@
-
-# .buildstamp and .docbuildstamp need $(NODE_EXE) but cannot depend on it
-# directly because it calls make recursively.  The parent make cannot know
-# if the subprocess touched anything so it pessimistically assumes that
-# .buildstamp and .docbuildstamp are out of date and need a rebuild.
-# Just goes to show that recursive make really is harmful...
-# TODO(bnoordhuis) Force rebuild after gyp update.
-build-addons: $(NODE_EXE) test/addons/.buildstamp
-
-ADDONS_NAPI_BINDING_GYPS := \
-	$(filter-out test/addons-napi/??_*/binding.gyp, \
-		$(wildcard test/addons-napi/*/binding.gyp))
-
-ADDONS_NAPI_BINDING_SOURCES := \
-	$(filter-out test/addons-napi/??_*/*.cc, $(wildcard test/addons-napi/*/*.cc)) \
-	$(filter-out test/addons-napi/??_*/*.h, $(wildcard test/addons-napi/*/*.h))
-
-# Implicitly depends on $(NODE_EXE), see the build-addons-napi rule for rationale.
-test/addons-napi/.buildstamp: config.gypi \
-	deps/npm/node_modules/node-gyp/package.json \
-	$(ADDONS_NAPI_BINDING_GYPS) $(ADDONS_NAPI_BINDING_SOURCES) \
-	deps/uv/include/*.h deps/v8/include/*.h \
-	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h \
-	src/node_api.h src/node_api_types.h
-#	Cannot use $(wildcard test/addons-napi/*/) here, it's evaluated before
-#	embedded addons have been generated from the documentation.
-	@for dirname in test/addons-napi/*/; do \
-		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
-		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
-		        --loglevel=$(LOGLEVEL) rebuild \
-			--python="$(PYTHON)" \
-			--directory="$$PWD/$$dirname" \
-			--nodedir="$$PWD" || exit 1 ; \
-	done
-	touch $@
-
-# .buildstamp and .docbuildstamp need $(NODE_EXE) but cannot depend on it
-# directly because it calls make recursively.  The parent make cannot know
-# if the subprocess touched anything so it pessimistically assumes that
-# .buildstamp and .docbuildstamp are out of date and need a rebuild.
-# Just goes to show that recursive make really is harmful...
-# TODO(bnoordhuis) Force rebuild after gyp or node-gyp update.
-build-addons-napi: $(NODE_EXE) test/addons-napi/.buildstamp
+# Builds test/addons, test/addons-napi and test/gc.
+build-addons: $(NODE_EXE)
+	./$< tools/build-addons.js
 
 clear-stalled:
 	# Clean up any leftover processes but don't error if found.
@@ -306,17 +215,15 @@ clear-stalled:
 		echo $${PS_OUT} | xargs kill; \
 	fi
 
-test-gc: all test/gc/build/Release/binding.node
+test-gc: test-build
 	$(PYTHON) tools/test.py --mode=release gc
 
 test-gc-clean:
 	$(RM) -r test/gc/build
 
-test-build: | all build-addons build-addons-napi
+test-build: | all build-addons
 
-test-build-addons-napi: all build-addons-napi
-
-test-all: test-build test/gc/build/Release/binding.node
+test-all: test-build
 	$(PYTHON) tools/test.py --mode=debug,release
 
 test-all-valgrind: test-build
@@ -327,7 +234,7 @@ CI_JS_SUITES := doctool inspector known_issues message parallel pseudo-tty seque
 
 # Build and test addons without building anything else
 test-ci-native: LOGLEVEL := info
-test-ci-native: | test/addons/.buildstamp test/addons-napi/.buildstamp
+test-ci-native: | build-addons
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
@@ -345,7 +252,7 @@ test-ci-js: | clear-stalled
 	fi
 
 test-ci: LOGLEVEL := info
-test-ci: | clear-stalled build-addons build-addons-napi
+test-ci: | clear-stalled build-addons
 	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
@@ -397,16 +304,17 @@ test-npm: $(NODE_EXE)
 test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
 
-test-addons-napi: test-build-addons-napi
-	$(PYTHON) tools/test.py --mode=release addons-napi
-
-test-addons: test-build test-addons-napi
+test-addons: test-build
 	$(PYTHON) tools/test.py --mode=release addons
+
+test-addons-napi: test-build
+	$(PYTHON) tools/test.py --mode=release addons-napi
 
 test-addons-clean:
 	$(RM) -rf test/addons/??_*/
 	$(RM) -rf test/addons/*/build
-	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp
+	$(RM) -rf test/addons/Release/
+	$(RM) -rf test/addons/include/
 
 test-timers:
 	$(MAKE) --directory=tools faketime
@@ -934,7 +842,6 @@ endif
   blog \
   blogclean \
   build-addons \
-  build-addons-napi \
   build-ci \
   cctest \
   check \
