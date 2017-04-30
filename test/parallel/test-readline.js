@@ -25,7 +25,7 @@ const assert = require('assert');
     input: input
   });
 
-  rl.on('line', () => assert.fail('must not be called before newline'));
+  rl.on('line', common.mustNotCall('must not be called before newline'));
 
   input.write('abc');
 }
