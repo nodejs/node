@@ -3816,9 +3816,11 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
                           encoding,
                           &error);
   delete[] md_value;
-  // TODO(addaleax): Throw `error` here. This isn't so terribly important,
-  // hashes are very short so creating the corresponding strings is very
-  // unlikely to fail.
+  if (rc.IsEmpty()) {
+    CHECK(!error.IsEmpty());
+    env->isolate()->ThrowException(error);
+    return;
+  }
   args.GetReturnValue().Set(rc.ToLocalChecked());
 }
 
@@ -3942,9 +3944,11 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
                           md_len,
                           encoding,
                           &error);
-  // TODO(addaleax): Throw `error` here. This isn't so terribly important,
-  // hashes are very short so creating the corresponding strings is very
-  // unlikely to fail.
+  if (rc.IsEmpty()) {
+    CHECK(!error.IsEmpty());
+    env->isolate()->ThrowException(error);
+    return;
+  }
   args.GetReturnValue().Set(rc.ToLocalChecked());
 }
 
