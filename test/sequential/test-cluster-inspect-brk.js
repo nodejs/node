@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+common.skipIfInspectorDisabled();
 
 // A test to ensure that cluster properly interoperates with the
 // --inspect-brk option.
