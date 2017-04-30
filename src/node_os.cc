@@ -357,36 +357,43 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowUVException(err, "uv_os_get_passwd");
   }
 
+  Local<Value> error;
+
   Local<Value> uid = Number::New(env->isolate(), pwd.uid);
   Local<Value> gid = Number::New(env->isolate(), pwd.gid);
-  Local<Value> username = StringBytes::Encode(env->isolate(),
-                                              pwd.username,
-                                              encoding);
-  Local<Value> homedir = StringBytes::Encode(env->isolate(),
-                                             pwd.homedir,
-                                             encoding);
-  Local<Value> shell;
+  MaybeLocal<Value> username = StringBytes::Encode(env->isolate(),
+                                                   pwd.username,
+                                                   encoding,
+                                                   &error);
+  MaybeLocal<Value> homedir = StringBytes::Encode(env->isolate(),
+                                                  pwd.homedir,
+                                                  encoding,
+                                                  &error);
+  MaybeLocal<Value> shell;
 
   if (pwd.shell == NULL)
     shell = Null(env->isolate());
   else
-    shell = StringBytes::Encode(env->isolate(), pwd.shell, encoding);
+    shell = StringBytes::Encode(env->isolate(), pwd.shell, encoding, &error);
 
   uv_os_free_passwd(&pwd);
 
   if (username.IsEmpty()) {
+    // TODO(addaleax): Use `error` itself here.
     return env->ThrowUVException(UV_EINVAL,
                                  "uv_os_get_passwd",
                                  "Invalid character encoding for username");
   }
 
   if (homedir.IsEmpty()) {
+    // TODO(addaleax): Use `error` itself here.
     return env->ThrowUVException(UV_EINVAL,
                                  "uv_os_get_passwd",
                                  "Invalid character encoding for homedir");
   }
 
   if (shell.IsEmpty()) {
+    // TODO(addaleax): Use `error` itself here.
     return env->ThrowUVException(UV_EINVAL,
                                  "uv_os_get_passwd",
                                  "Invalid character encoding for shell");
@@ -396,9 +403,9 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   entry->Set(env->uid_string(), uid);
   entry->Set(env->gid_string(), gid);
-  entry->Set(env->username_string(), username);
-  entry->Set(env->homedir_string(), homedir);
-  entry->Set(env->shell_string(), shell);
+  entry->Set(env->username_string(), username.ToLocalChecked());
+  entry->Set(env->homedir_string(), homedir.ToLocalChecked());
+  entry->Set(env->shell_string(), shell.ToLocalChecked());
 
   args.GetReturnValue().Set(entry);
 }
