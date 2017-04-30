@@ -3623,6 +3623,7 @@ static void PrintHelp() {
          "  --no-deprecation           silence deprecation warnings\n"
          "  --trace-deprecation        show stack traces on deprecations\n"
          "  --throw-deprecation        throw an exception on deprecations\n"
+         "  --pending-deprecation      emit pending deprecation warnings\n"
          "  --no-warnings              silence all process warnings\n"
          "  --napi-modules             load N-API modules\n"
          "  --trace-warnings           show stack traces on process warnings\n"
