@@ -461,6 +461,13 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
                                   &status);
   }
 
+  // UTS #46's ToUnicode operation applies no validation of domain name length
+  // (nor a flag requesting it to do so, like VerifyDnsLength for ToASCII). For
+  // that reason, unlike ToASCII below, ICU4C correctly accepts long domain
+  // names. However, ICU4C still sets the EMPTY_LABEL error in contrary to UTS
+  // #46. Therefore, explicitly filters out that error here.
+  info.errors &= ~UIDNA_ERROR_EMPTY_LABEL;
+
   if (U_FAILURE(status) || (!lenient && info.errors != 0)) {
     len = -1;
     buf->SetLength(0);
@@ -499,6 +506,16 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
                                  &info,
                                  &status);
   }
+
+  // The WHATWG URL "domain to ASCII" algorithm explicitly sets the
+  // VerifyDnsLength flag to false, which disables the domain name length
+  // verification step in ToASCII (as specified by UTS #46). Unfortunately,
+  // ICU4C's IDNA module does not support disabling this flag through `options`,
+  // so just filter out the errors that may be caused by the verification step
+  // afterwards.
+  info.errors &= ~UIDNA_ERROR_EMPTY_LABEL;
+  info.errors &= ~UIDNA_ERROR_LABEL_TOO_LONG;
+  info.errors &= ~UIDNA_ERROR_DOMAIN_NAME_TOO_LONG;
 
   if (U_FAILURE(status) || (!lenient && info.errors != 0)) {
     len = -1;

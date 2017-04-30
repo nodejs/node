@@ -182,23 +182,18 @@ module.exports = {
       ascii: 'xn--vitnam-jk8b.icom.museum',
       unicode: 'việtnam.icom.museum'
     },
+    // long label
+    {
+      ascii: `${'a'.repeat(64)}.com`,
+      unicode: `${'a'.repeat(64)}.com`,
+    },
     // long URL
     {
-      ascii: `${`${'a'.repeat(63)}.`.repeat(3)}com`,
-      unicode: `${`${'a'.repeat(63)}.`.repeat(3)}com`
+      ascii: `${`${'a'.repeat(64)}.`.repeat(4)}com`,
+      unicode: `${`${'a'.repeat(64)}.`.repeat(4)}com`
     }
   ],
   invalid: [
-    // long label
-    {
-      url: `${'a'.repeat(64)}.com`,
-      mode: 'ascii'
-    },
-    // long URL
-    {
-      url: `${`${'a'.repeat(63)}.`.repeat(4)}com`,
-      mode: 'ascii'
-    },
     // invalid character
     {
       url: '\ufffd.com',
