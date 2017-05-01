@@ -27,6 +27,7 @@ class SocketServerDelegate {
   virtual std::vector<std::string> GetTargetIds() = 0;
   virtual std::string GetTargetTitle(const std::string& id) = 0;
   virtual std::string GetTargetUrl(const std::string& id) = 0;
+  virtual void ServerDone() = 0;
 };
 
 class InspectorSocketServer {
@@ -39,7 +40,7 @@ class InspectorSocketServer {
   bool Start(uv_loop_t* loop);
   void Stop(ServerCallback callback);
   void Send(int session_id, const std::string& message);
-  void TerminateConnections(ServerCallback callback);
+  void TerminateConnections();
   int port() {
     return port_;
   }
@@ -59,11 +60,11 @@ class InspectorSocketServer {
   void SendListResponse(InspectorSocket* socket);
   void ReadCallback(InspectorSocket* socket, ssize_t read, const uv_buf_t* buf);
   bool SessionStarted(SocketSession* session, const std::string& id);
-  void SessionTerminated(int id);
+  void SessionTerminated(SocketSession* session);
   bool TargetExists(const std::string& id);
-  static void SocketSessionDeleter(SocketSession*);
   SocketServerDelegate* Delegate() { return delegate_; }
 
+  enum class ServerState {kNew, kRunning, kStopping, kStopped};
   uv_loop_t* loop_;
   SocketServerDelegate* const delegate_;
   const std::string host_;
@@ -74,6 +75,7 @@ class InspectorSocketServer {
   std::map<int, SocketSession*> connected_sessions_;
   int next_session_id_;
   FILE* out_;
+  ServerState state_;
 
   friend class SocketSession;
   friend class Closer;

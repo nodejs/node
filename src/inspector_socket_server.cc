@@ -212,7 +212,7 @@ class Closer {
 class SocketSession {
  public:
   SocketSession(InspectorSocketServer* server, int id);
-  void Close(bool socket_cleanup, Closer* closer);
+  void Close();
   void Declined() { state_ = State::kDeclined; }
   static SocketSession* From(InspectorSocket* socket) {
     return node::ContainerOf(&SocketSession::socket_, socket);
@@ -233,10 +233,8 @@ class SocketSession {
   static void CloseCallback_(InspectorSocket* socket, int code);
   static void ReadCallback_(uv_stream_t* stream, ssize_t read,
                             const uv_buf_t* buf);
-  void OnRemoteDataIO(InspectorSocket* socket, ssize_t read,
-                      const uv_buf_t* buf);
+  void OnRemoteDataIO(ssize_t read, const uv_buf_t* buf);
   const int id_;
-  Closer* closer_;
   InspectorSocket socket_;
   InspectorSocketServer* server_;
   std::string target_id_;
@@ -253,7 +251,9 @@ InspectorSocketServer::InspectorSocketServer(SocketServerDelegate* delegate,
                                                           server_(uv_tcp_t()),
                                                           closer_(nullptr),
                                                           next_session_id_(0),
-                                                          out_(out) { }
+                                                          out_(out) {
+  state_ = ServerState::kNew;
+}
 
 
 // static
@@ -271,7 +271,7 @@ bool InspectorSocketServer::HandshakeCallback(InspectorSocket* socket,
     SocketSession::From(socket)->FrontendConnected();
     return true;
   case kInspectorHandshakeFailed:
-    SocketSession::From(socket)->Close(false, nullptr);
+    server->SessionTerminated(SocketSession::From(socket));
     return false;
   default:
     UNREACHABLE();
@@ -294,15 +294,21 @@ bool InspectorSocketServer::SessionStarted(SocketSession* session,
   return connected;
 }
 
-void InspectorSocketServer::SessionTerminated(int session_id) {
-  if (connected_sessions_.erase(session_id) == 0) {
-    return;
+void InspectorSocketServer::SessionTerminated(SocketSession* session) {
+  int id = session->Id();
+  if (connected_sessions_.erase(id) != 0) {
+    delegate_->EndSession(id);
+    if (connected_sessions_.empty()) {
+      if (state_ == ServerState::kRunning) {
+        PrintDebuggerReadyMessage(host_, port_,
+                                  delegate_->GetTargetIds(), out_);
+      }
+      if (state_ == ServerState::kStopped) {
+        delegate_->ServerDone();
+      }
+    }
   }
-  delegate_->EndSession(session_id);
-  if (connected_sessions_.empty() &&
-      uv_is_active(reinterpret_cast<uv_handle_t*>(&server_))) {
-    PrintDebuggerReadyMessage(host_, port_, delegate_->GetTargetIds(), out_);
-  }
+  delete session;
 }
 
 bool InspectorSocketServer::RespondToGet(InspectorSocket* socket,
@@ -369,6 +375,7 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket) {
 }
 
 bool InspectorSocketServer::Start(uv_loop_t* loop) {
+  CHECK_EQ(state_, ServerState::kNew);
   loop_ = loop;
   sockaddr_in addr;
   uv_tcp_init(loop_, &server_);
@@ -382,6 +389,7 @@ bool InspectorSocketServer::Start(uv_loop_t* loop) {
                     SocketConnectedCallback);
   }
   if (err == 0 && connected_sessions_.empty()) {
+    state_ = ServerState::kRunning;
     PrintDebuggerReadyMessage(host_, port_, delegate_->GetTargetIds(), out_);
   }
   if (err != 0 && connected_sessions_.empty()) {
@@ -397,32 +405,21 @@ bool InspectorSocketServer::Start(uv_loop_t* loop) {
 }
 
 void InspectorSocketServer::Stop(ServerCallback cb) {
+  CHECK_EQ(state_, ServerState::kRunning);
   if (closer_ == nullptr) {
     closer_ = new Closer(this);
   }
   closer_->AddCallback(cb);
-
-  uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&server_);
-  if (uv_is_active(handle)) {
-    closer_->IncreaseExpectedCount();
-    uv_close(reinterpret_cast<uv_handle_t*>(&server_), ServerClosedCallback);
-  }
+  closer_->IncreaseExpectedCount();
+  state_ = ServerState::kStopping;
+  uv_close(reinterpret_cast<uv_handle_t*>(&server_), ServerClosedCallback);
   closer_->NotifyIfDone();
 }
 
-void InspectorSocketServer::TerminateConnections(ServerCallback cb) {
-  if (closer_ == nullptr) {
-    closer_ = new Closer(this);
+void InspectorSocketServer::TerminateConnections() {
+  for (const auto& session : connected_sessions_) {
+    session.second->Close();
   }
-  closer_->AddCallback(cb);
-  std::map<int, SocketSession*> sessions;
-  std::swap(sessions, connected_sessions_);
-  for (const auto& session : sessions) {
-    int id = session.second->Id();
-    session.second->Close(true, closer_);
-    delegate_->EndSession(id);
-  }
-  closer_->NotifyIfDone();
 }
 
 bool InspectorSocketServer::TargetExists(const std::string& id) {
@@ -441,8 +438,14 @@ void InspectorSocketServer::Send(int session_id, const std::string& message) {
 // static
 void InspectorSocketServer::ServerClosedCallback(uv_handle_t* server) {
   InspectorSocketServer* socket_server = InspectorSocketServer::From(server);
-  if (socket_server->closer_)
+  CHECK_EQ(socket_server->state_, ServerState::kStopping);
+  if (socket_server->closer_) {
     socket_server->closer_->DecreaseExpectedCount();
+  }
+  if (socket_server->connected_sessions_.empty()) {
+    socket_server->delegate_->ServerDone();
+  }
+  socket_server->state_ = ServerState::kStopped;
 }
 
 // static
@@ -461,32 +464,20 @@ void InspectorSocketServer::SocketConnectedCallback(uv_stream_t* server,
 
 // InspectorSession tracking
 SocketSession::SocketSession(InspectorSocketServer* server, int id)
-                             : id_(id), closer_(nullptr), server_(server),
+                             : id_(id), server_(server),
                                state_(State::kHttp) { }
 
-void SocketSession::Close(bool socket_cleanup, Closer* closer) {
-  CHECK_EQ(closer_, nullptr);
+void SocketSession::Close() {
   CHECK_NE(state_, State::kClosing);
-  server_->SessionTerminated(id_);
-  if (socket_cleanup) {
-    state_ = State::kClosing;
-    closer_ = closer;
-    if (closer_ != nullptr)
-      closer->IncreaseExpectedCount();
-    inspector_close(&socket_, CloseCallback_);
-  } else {
-    delete this;
-  }
+  state_ = State::kClosing;
+  inspector_close(&socket_, CloseCallback_);
 }
 
 // static
 void SocketSession::CloseCallback_(InspectorSocket* socket, int code) {
   SocketSession* session = SocketSession::From(socket);
   CHECK_EQ(State::kClosing, session->state_);
-  Closer* closer = session->closer_;
-  if (closer != nullptr)
-    closer->DecreaseExpectedCount();
-  delete session;
+  session->server_->SessionTerminated(session);
 }
 
 void SocketSession::FrontendConnected() {
@@ -499,16 +490,14 @@ void SocketSession::FrontendConnected() {
 void SocketSession::ReadCallback_(uv_stream_t* stream, ssize_t read,
                                   const uv_buf_t* buf) {
   InspectorSocket* socket = inspector_from_stream(stream);
-  SocketSession::From(socket)->OnRemoteDataIO(socket, read, buf);
+  SocketSession::From(socket)->OnRemoteDataIO(read, buf);
 }
 
-void SocketSession::OnRemoteDataIO(InspectorSocket* socket, ssize_t read,
-                                   const uv_buf_t* buf) {
+void SocketSession::OnRemoteDataIO(ssize_t read, const uv_buf_t* buf) {
   if (read > 0) {
     server_->Delegate()->MessageReceived(id_, std::string(buf->base, read));
   } else {
-    server_->SessionTerminated(id_);
-    Close(true, nullptr);
+    Close();
   }
   if (buf != nullptr && buf->base != nullptr)
     delete[] buf->base;

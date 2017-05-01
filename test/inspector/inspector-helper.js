@@ -8,9 +8,8 @@ const spawn = require('child_process').spawn;
 const url = require('url');
 
 const DEBUG = false;
-
 const TIMEOUT = 15 * 1000;
-
+const EXPECT_ALIVE_SYMBOL = Symbol('isAlive');
 const mainScript = path.join(common.fixturesDir, 'loop.js');
 
 function send(socket, message, id, callback) {
@@ -24,6 +23,7 @@ function send(socket, message, id, callback) {
   wsHeaderBuf.writeUInt8(0x81, 0);
   let byte2 = 0x80;
   const bodyLen = messageBuf.length;
+
   let maskOffset = 2;
   if (bodyLen < 126) {
     byte2 = 0x80 + bodyLen;
@@ -47,9 +47,17 @@ function send(socket, message, id, callback) {
       callback);
 }
 
+function sendEnd(socket) {
+  socket.write(Buffer.from([0x88, 0x80, 0x2D, 0x0E, 0x1E, 0xFA]));
+}
+
 function parseWSFrame(buffer, handler) {
   if (buffer.length < 2)
     return 0;
+  if (buffer[0] === 0x88 && buffer[1] === 0x00) {
+    handler(null);
+    return 2;
+  }
   assert.strictEqual(0x81, buffer[0]);
   let dataLen = 0x7F & buffer[1];
   let bodyOffset = 2;
@@ -136,6 +144,7 @@ function TestSession(socket, harness) {
   this.messages_ = {};
   this.expectedId_ = 1;
   this.lastMessageResponseCallback_ = null;
+  this.closeCallback_ = null;
 
   let buffer = Buffer.alloc(0);
   socket.on('data', (data) => {
@@ -146,7 +155,10 @@ function TestSession(socket, harness) {
       if (consumed)
         buffer = buffer.slice(consumed);
     } while (consumed);
-  }).on('close', () => assert(this.expectClose_, 'Socket closed prematurely'));
+  }).on('close', () => {
+    assert(this.expectClose_, 'Socket closed prematurely');
+    this.closeCallback_ && this.closeCallback_();
+  });
 }
 
 TestSession.prototype.scriptUrlForId = function(id) {
@@ -154,6 +166,11 @@ TestSession.prototype.scriptUrlForId = function(id) {
 };
 
 TestSession.prototype.processMessage_ = function(message) {
+  if (message === null) {
+    sendEnd(this.socket_);
+    return;
+  }
+
   const method = message['method'];
   if (method === 'Debugger.scriptParsed') {
     const script = message['params'];
@@ -222,6 +239,27 @@ TestSession.prototype.sendInspectorCommands = function(commands) {
   });
 };
 
+TestSession.prototype.sendCommandsAndExpectClose = function(commands) {
+  if (!(commands instanceof Array))
+    commands = [commands];
+  return this.enqueue((callback) => {
+    let timeoutId = null;
+    let done = false;
+    this.expectClose_ = true;
+    this.closeCallback_ = function() {
+      if (timeoutId)
+        clearTimeout(timeoutId);
+      done = true;
+      callback();
+    };
+    this.sendAll_(commands, () => {
+      if (!done) {
+        timeoutId = timeout('Session still open');
+      }
+    });
+  });
+};
+
 TestSession.prototype.createCallbackWithTimeout_ = function(message) {
   const promise = new Promise((resolve) => {
     this.enqueue((callback) => {
@@ -285,10 +323,22 @@ TestSession.prototype.enqueue = function(task) {
 TestSession.prototype.disconnect = function(childDone) {
   return this.enqueue((callback) => {
     this.expectClose_ = true;
-    this.harness_.childInstanceDone =
-        this.harness_.childInstanceDone || childDone;
     this.socket_.destroy();
     console.log('[test]', 'Connection terminated');
+    callback();
+  }, childDone);
+};
+
+TestSession.prototype.expectClose = function() {
+  return this.enqueue((callback) => {
+    this.expectClose_ = true;
+    callback();
+  });
+};
+
+TestSession.prototype.assertClosed = function() {
+  return this.enqueue((callback) => {
+    assert.strictEqual(this.closed_, true);
     callback();
   });
 };
@@ -307,8 +357,7 @@ function Harness(port, childProcess) {
   this.mainScriptPath = mainScript;
   this.stderrFilters_ = [];
   this.process_ = childProcess;
-  this.childInstanceDone = false;
-  this.returnCode_ = null;
+  this.result_ = {};
   this.running_ = true;
 
   childProcess.stdout.on('data', makeBufferingDataCallback(
@@ -323,8 +372,7 @@ function Harness(port, childProcess) {
     this.stderrFilters_ = pending;
   }));
   childProcess.on('exit', (code, signal) => {
-    assert(this.childInstanceDone, 'Child instance died prematurely');
-    this.returnCode_ = code;
+    this.result_ = {code, signal};
     this.running_ = false;
   });
 }
@@ -338,8 +386,15 @@ Harness.prototype.addStderrFilter = function(regexp, callback) {
   });
 };
 
+Harness.prototype.assertStillAlive = function() {
+  assert.strictEqual(this.running_, true,
+                     'Child died: ' + JSON.stringify(this.result_));
+};
+
 Harness.prototype.run_ = function() {
   setImmediate(() => {
+    if (!this.task_[EXPECT_ALIVE_SYMBOL])
+      this.assertStillAlive();
     this.task_(() => {
       this.task_ = this.task_.next_;
       if (this.task_)
@@ -348,7 +403,8 @@ Harness.prototype.run_ = function() {
   });
 };
 
-Harness.prototype.enqueue_ = function(task) {
+Harness.prototype.enqueue_ = function(task, expectAlive) {
+  task[EXPECT_ALIVE_SYMBOL] = !!expectAlive;
   if (!this.task_) {
     this.task_ = task;
     this.run_();
@@ -420,16 +476,16 @@ Harness.prototype.expectShutDown = function(errorCode) {
   this.enqueue_((callback) => {
     if (this.running_) {
       const timeoutId = timeout('Have not terminated');
-      this.process_.on('exit', (code) => {
+      this.process_.on('exit', (code, signal) => {
         clearTimeout(timeoutId);
-        assert.strictEqual(errorCode, code);
+        assert.strictEqual(errorCode, code, JSON.stringify({code, signal}));
         callback();
       });
     } else {
-      assert.strictEqual(errorCode, this.returnCode_);
+      assert.strictEqual(errorCode, this.result_.code);
       callback();
     }
-  });
+  }, true);
 };
 
 Harness.prototype.kill = function() {

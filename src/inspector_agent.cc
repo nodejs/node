@@ -38,6 +38,18 @@ using v8_inspector::V8Inspector;
 static uv_sem_t inspector_io_thread_semaphore;
 static uv_async_t start_inspector_thread_async;
 
+class StartIoTask : public v8::Task {
+ public:
+  explicit StartIoTask(Agent* agent) : agent(agent) {}
+
+  void Run() override {
+    agent->StartIoThread(false);
+  }
+
+ private:
+  Agent* agent;
+};
+
 std::unique_ptr<StringBuffer> ToProtocolString(Isolate* isolate,
                                                Local<Value> value) {
   TwoByteValue buffer(isolate, value);
@@ -46,8 +58,13 @@ std::unique_ptr<StringBuffer> ToProtocolString(Isolate* isolate,
 
 // Called from the main thread.
 void StartInspectorIoThreadAsyncCallback(uv_async_t* handle) {
-  static_cast<Agent*>(handle->data)->StartIoThread();
+  static_cast<Agent*>(handle->data)->StartIoThread(false);
 }
+
+void StartIoCallback(Isolate* isolate, void* agent) {
+  static_cast<Agent*>(agent)->StartIoThread(false);
+}
+
 
 #ifdef __POSIX__
 static void EnableInspectorIOThreadSignalHandler(int signo) {
@@ -57,7 +74,9 @@ static void EnableInspectorIOThreadSignalHandler(int signo) {
 inline void* InspectorIoThreadSignalThreadMain(void* unused) {
   for (;;) {
     uv_sem_wait(&inspector_io_thread_semaphore);
-    uv_async_send(&start_inspector_thread_async);
+    Agent* agent = static_cast<Agent*>(start_inspector_thread_async.data);
+    if (agent != nullptr)
+      agent->RequestIoStart();
   }
   return nullptr;
 }
@@ -103,7 +122,9 @@ static int RegisterDebugSignalHandler() {
 
 #ifdef _WIN32
 DWORD WINAPI EnableDebugThreadProc(void* arg) {
-  uv_async_send(&start_inspector_thread_async);
+  Agent* agent = static_cast<Agent*>(start_inspector_thread_async.data);
+  if (agent != nullptr)
+    agent->RequestIoStart();
   return 0;
 }
 
@@ -387,21 +408,20 @@ bool Agent::Start(v8::Platform* platform, const char* path,
           new NodeInspectorClient(parent_env_, platform));
   inspector_->contextCreated(parent_env_->context(), "Node.js Main Context");
   platform_ = platform;
-  if (options.inspector_enabled()) {
-    return StartIoThread();
-  } else {
-    CHECK_EQ(0, uv_async_init(uv_default_loop(),
-                              &start_inspector_thread_async,
-                              StartInspectorIoThreadAsyncCallback));
-    start_inspector_thread_async.data = this;
-    uv_unref(reinterpret_cast<uv_handle_t*>(&start_inspector_thread_async));
+  CHECK_EQ(0, uv_async_init(uv_default_loop(),
+                            &start_inspector_thread_async,
+                            StartInspectorIoThreadAsyncCallback));
+  start_inspector_thread_async.data = this;
+  uv_unref(reinterpret_cast<uv_handle_t*>(&start_inspector_thread_async));
 
-    RegisterDebugSignalHandler();
-    return true;
+  RegisterDebugSignalHandler();
+  if (options.inspector_enabled()) {
+    return StartIoThread(options.wait_for_connect());
   }
+  return true;
 }
 
-bool Agent::StartIoThread() {
+bool Agent::StartIoThread(bool wait_for_connect) {
   if (io_ != nullptr)
     return true;
 
@@ -409,7 +429,8 @@ bool Agent::StartIoThread() {
 
   enabled_ = true;
   io_ = std::unique_ptr<InspectorIo>(
-      new InspectorIo(parent_env_, platform_, path_, debug_options_));
+      new InspectorIo(parent_env_, platform_, path_, debug_options_,
+                      wait_for_connect));
   if (!io_->Start()) {
     inspector_.reset();
     return false;
@@ -440,8 +461,10 @@ bool Agent::StartIoThread() {
 }
 
 void Agent::Stop() {
-  if (io_ != nullptr)
+  if (io_ != nullptr) {
     io_->Stop();
+    io_.reset();
+  }
 }
 
 void Agent::Connect(InspectorSessionDelegate* delegate) {
@@ -502,6 +525,18 @@ void Agent::InitJSBindings(Local<Object> target, Local<Value> unused,
   if (agent->debug_options_.wait_for_connect())
     env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
 }
+
+void Agent::RequestIoStart() {
+  // We need to attempt to interrupt V8 flow (in case Node is running
+  // continuous JS code) and to wake up libuv thread (in case Node is wating
+  // for IO events)
+  uv_async_send(&start_inspector_thread_async);
+  v8::Isolate* isolate = parent_env_->isolate();
+  platform_->CallOnForegroundThread(isolate, new StartIoTask(this));
+  isolate->RequestInterrupt(StartIoCallback, this);
+  uv_async_send(&start_inspector_thread_async);
+}
+
 }  // namespace inspector
 }  // namespace node
 
