@@ -56,45 +56,21 @@ assert.strictEqual(test_error.checkError({}), false,
 assert.strictEqual(test_error.checkError('non-object'), false,
                    'Non-error primitive correctly classed by napi_is_error');
 
-try {
+assert.throws(() => {
   test_error.throwExistingError();
-} catch (error) {
-  assert.ok(error instanceof Error,
-            'expected error to be an instance of Error');
-  assert.strictEqual(error.message,
-                     'existing error',
-                     'expected message to be "existing error"');
-}
+}, /Error: existing error/);
 
-try {
+assert.throws(() => {
   test_error.throwError();
-} catch (error) {
-  assert.ok(error instanceof Error,
-            'expected error to be an instance of Error');
-  assert.strictEqual(error.message,
-                     'error',
-                     'expected message to be "error"');
-}
+}, /Error: error/);
 
-try {
+assert.throws(() => {
   test_error.throwRangeError();
-} catch (error) {
-  assert.ok(error instanceof RangeError,
-            'expected error to be an instance of RangeError');
-  assert.strictEqual(error.message,
-                     'range error',
-                     'expected message to be "range error"');
-}
+}, /RangeError: range error/);
 
-try {
+assert.throws(() => {
   test_error.throwTypeError();
-} catch (error) {
-  assert.ok(error instanceof TypeError,
-            'expected error to be an instance of TypeError');
-  assert.strictEqual(error.message,
-                     'type error',
-                     'expected message to be "type error"');
-}
+}, /TypeError: type error/);
 
 let error = test_error.createError();
 assert.ok(error instanceof Error, 'expected error to be an instance of Error');
@@ -109,7 +85,7 @@ assert.strictEqual(error.message,
 
 error = test_error.createTypeError();
 assert.ok(error instanceof TypeError,
-          'expected error to be an instance of TypeeError');
+          'expected error to be an instance of TypeError');
 assert.strictEqual(error.message,
                    'type error',
                    'expected message to be "type error"');
