@@ -232,7 +232,6 @@ bool v8_initialized = false;
 
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
-static bool debugger_running;
 
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
@@ -260,6 +259,10 @@ static struct {
   bool StartInspector(Environment *env, const char* script_path,
                       const node::DebugOptions& options) {
     return env->inspector_agent()->Start(platform_, script_path, options);
+  }
+
+  bool InspectorStarted(Environment *env) {
+    return env->inspector_agent()->IsStarted();
   }
 #endif  // HAVE_INSPECTOR
 
@@ -290,6 +293,9 @@ static struct {
                     "so event tracing is not available.\n");
   }
   void StopTracingAgent() {}
+  bool InspectorStarted(Environment *env) {
+    return false;
+  }
 #endif  // !NODE_USE_V8_PLATFORM
 } v8_platform;
 
@@ -3972,9 +3978,9 @@ static void ParseArgs(int* argc,
 
 static void StartDebug(Environment* env, const char* path,
                        DebugOptions debug_options) {
-  CHECK(!debugger_running);
 #if HAVE_INSPECTOR
-  debugger_running = v8_platform.StartInspector(env, path, debug_options);
+  CHECK(!env->inspector_agent()->IsStarted());
+  v8_platform.StartInspector(env, path, debug_options);
 #endif  // HAVE_INSPECTOR
 }
 
@@ -4119,13 +4125,12 @@ static void DebugPause(const FunctionCallbackInfo<Value>& args) {
 
 
 static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
-  if (debugger_running) {
 #if HAVE_INSPECTOR
-    Environment* env = Environment::GetCurrent(args);
+  Environment* env = Environment::GetCurrent(args);
+  if (env->inspector_agent()->IsStarted()) {
     env->inspector_agent()->Stop();
-#endif
-    debugger_running = false;
   }
+#endif
 }
 
 
@@ -4462,7 +4467,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   const char* path = argc > 1 ? argv[1] : nullptr;
   StartDebug(&env, path, debug_options);
 
-  if (debug_options.inspector_enabled() && !debugger_running)
+  if (debug_options.inspector_enabled() && !v8_platform.InspectorStarted(&env))
     return 12;  // Signal internal error.
 
   env.set_abort_on_uncaught_exception(abort_on_uncaught_exception);
