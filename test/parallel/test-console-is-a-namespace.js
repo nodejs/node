@@ -17,6 +17,7 @@ assert.doesNotThrow(() => {
 // avoid to modify them
 
 /* eslint-disable */
+/* The following tests are copied from. Do not modify. */
 /* WPT Refs:
    https://github.com/w3c/web-platform-tests/blob/40e451c/console/console-is-a-namespace.any.js
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
