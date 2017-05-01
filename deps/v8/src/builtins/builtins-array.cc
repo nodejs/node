@@ -407,14 +407,18 @@ namespace {
  */
 class ArrayConcatVisitor {
  public:
-  ArrayConcatVisitor(Isolate* isolate, Handle<Object> storage,
+  ArrayConcatVisitor(Isolate* isolate, Handle<HeapObject> storage,
                      bool fast_elements)
       : isolate_(isolate),
         storage_(isolate->global_handles()->Create(*storage)),
         index_offset_(0u),
-        bit_field_(FastElementsField::encode(fast_elements) |
-                   ExceedsLimitField::encode(false) |
-                   IsFixedArrayField::encode(storage->IsFixedArray())) {
+        bit_field_(
+            FastElementsField::encode(fast_elements) |
+            ExceedsLimitField::encode(false) |
+            IsFixedArrayField::encode(storage->IsFixedArray()) |
+            HasSimpleElementsField::encode(storage->IsFixedArray() ||
+                                           storage->map()->instance_type() >
+                                               LAST_CUSTOM_ELEMENTS_RECEIVER)) {
     DCHECK(!(this->fast_elements() && !is_fixed_array()));
   }
 
@@ -503,11 +507,15 @@ class ArrayConcatVisitor {
   // (otherwise)
   Handle<FixedArray> storage_fixed_array() {
     DCHECK(is_fixed_array());
+    DCHECK(has_simple_elements());
     return Handle<FixedArray>::cast(storage_);
   }
   Handle<JSReceiver> storage_jsreceiver() {
     DCHECK(!is_fixed_array());
     return Handle<JSReceiver>::cast(storage_);
+  }
+  bool has_simple_elements() const {
+    return HasSimpleElementsField::decode(bit_field_);
   }
 
  private:
@@ -541,12 +549,14 @@ class ArrayConcatVisitor {
 
   inline void set_storage(FixedArray* storage) {
     DCHECK(is_fixed_array());
+    DCHECK(has_simple_elements());
     storage_ = isolate_->global_handles()->Create(storage);
   }
 
   class FastElementsField : public BitField<bool, 0, 1> {};
   class ExceedsLimitField : public BitField<bool, 1, 1> {};
   class IsFixedArrayField : public BitField<bool, 2, 1> {};
+  class HasSimpleElementsField : public BitField<bool, 3, 1> {};
 
   bool fast_elements() const { return FastElementsField::decode(bit_field_); }
   void set_fast_elements(bool fast) {
@@ -772,7 +782,6 @@ bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
   visitor->increase_index_offset(length);
   return true;
 }
-
 /**
  * A helper function that visits "array" elements of a JSReceiver in numerical
  * order.
@@ -802,7 +811,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
 
-  if (!HasOnlySimpleElements(isolate, *receiver)) {
+  if (!HasOnlySimpleElements(isolate, *receiver) ||
+      !visitor->has_simple_elements()) {
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
   Handle<JSObject> array = Handle<JSObject>::cast(receiver);
@@ -1071,7 +1081,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     // In case of failure, fall through.
   }
 
-  Handle<Object> storage;
+  Handle<HeapObject> storage;
   if (fast_case) {
     // The backing storage array must have non-existing elements to preserve
     // holes across concat operations.
@@ -1089,7 +1099,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, storage_object,
         Execution::New(isolate, species, species, 1, &length));
-    storage = storage_object;
+    storage = Handle<HeapObject>::cast(storage_object);
   }
 
   ArrayConcatVisitor visitor(isolate, storage, fast_case);
