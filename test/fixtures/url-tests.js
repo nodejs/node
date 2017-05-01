@@ -1,7 +1,7 @@
 'use strict';
 
 /* WPT Refs:
-   https://github.com/w3c/web-platform-tests/blob/3eff1bd/url/urltestdata.json
+   https://github.com/w3c/web-platform-tests/blob/3afae94/url/urltestdata.json
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
 module.exports =
@@ -3784,6 +3784,52 @@ module.exports =
     "password": "",
     "host": "192.168.0.1",
     "hostname": "192.168.0.1",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  "Domains with empty labels",
+  {
+    "input": "http://./",
+    "base": "about:blank",
+    "href": "http://./",
+    "origin": "http://.",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": ".",
+    "hostname": ".",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "http://../",
+    "base": "about:blank",
+    "href": "http://../",
+    "origin": "http://..",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "..",
+    "hostname": "..",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "http://0..0x300/",
+    "base": "about:blank",
+    "href": "http://0..0x300/",
+    "origin": "http://0..0x300",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "0..0x300",
+    "hostname": "0..0x300",
     "port": "",
     "pathname": "/",
     "search": "",
