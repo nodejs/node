@@ -13,7 +13,8 @@ assert.doesNotThrow(() => {
 });
 
 // Tests above are not from WPT.
-// avoid to modify it
+// Tests below are from WPT.
+// avoid to modify them
 
 /* eslint-disable */
 /* WPT Refs:
