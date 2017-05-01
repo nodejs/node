@@ -51,7 +51,6 @@ class Agent {
 
   bool Start(v8::Platform* platform, const char* path,
              const DebugOptions& options);
-  bool StartIoThread();
   void Stop();
 
   bool IsStarted();
@@ -71,6 +70,13 @@ class Agent {
                              v8::Local<v8::Value> unused,
                              v8::Local<v8::Context> context,
                              void* priv);
+
+  bool StartIoThread(bool wait_for_connect);
+  InspectorIo* io() {
+    return io_.get();
+  }
+  // Can be called from any thread
+  void RequestIoStart();
 
  private:
   node::Environment* parent_env_;

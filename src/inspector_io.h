@@ -31,18 +31,25 @@ namespace inspector {
 class InspectorIoDelegate;
 
 enum class InspectorAction {
-  kStartSession, kEndSession, kSendMessage
+  kStartSession,
+  kEndSession,
+  kSendMessage
 };
 
+// kKill closes connections and stops the server, kStop only stops the server
 enum class TransportAction {
-  kSendMessage, kStop
+  kKill,
+  kSendMessage,
+  kStop
 };
 
 class InspectorIo {
  public:
   InspectorIo(node::Environment* env, v8::Platform* platform,
-              const std::string& path, const DebugOptions& options);
+              const std::string& path, const DebugOptions& options,
+              bool wait_for_connect);
 
+  ~InspectorIo();
   // Start the inspector agent thread
   bool Start();
   // Stop the inspector agent
@@ -57,13 +64,23 @@ class InspectorIo {
   void ResumeStartup() {
     uv_sem_post(&start_sem_);
   }
+  void ServerDone() {
+    uv_close(reinterpret_cast<uv_handle_t*>(&io_thread_req_), nullptr);
+  }
 
  private:
   template <typename Action>
   using MessageQueue =
       std::vector<std::tuple<Action, int,
                   std::unique_ptr<v8_inspector::StringBuffer>>>;
-  enum class State { kNew, kAccepting, kConnected, kDone, kError };
+  enum class State {
+    kNew,
+    kAccepting,
+    kConnected,
+    kDone,
+    kError,
+    kShutDown
+  };
 
   static void ThreadCbIO(void* agent);
   static void MainThreadAsyncCb(uv_async_t* req);
@@ -94,12 +111,13 @@ class InspectorIo {
   uv_thread_t thread_;
 
   InspectorIoDelegate* delegate_;
-  bool shutting_down_;
   State state_;
   node::Environment* parent_env_;
 
   uv_async_t io_thread_req_;
-  uv_async_t main_thread_req_;
+  // Note that this will live while the async is being closed - likely, past
+  // the parent object lifespan
+  std::pair<uv_async_t, Agent*>* main_thread_req_;
   std::unique_ptr<InspectorSessionDelegate> session_delegate_;
   v8::Platform* platform_;
   MessageQueue<InspectorAction> incoming_message_queue_;
@@ -110,8 +128,9 @@ class InspectorIo {
   std::string script_name_;
   std::string script_path_;
   const std::string id_;
+  const bool wait_for_connect_;
 
-  friend class DispatchOnInspectorBackendTask;
+  friend class DispatchMessagesTask;
   friend class IoSessionDelegate;
   friend void InterruptCallback(v8::Isolate*, void* agent);
 };
