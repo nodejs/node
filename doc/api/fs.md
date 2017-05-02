@@ -492,8 +492,8 @@ fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 
 Any specified file descriptor has to have been opened for appending.
 
-_Note: If a file descriptor is specified as the `file`, it will not be closed
-automatically._
+*Note*: If a file descriptor is specified as the `file`, it will not be closed
+automatically.
 
 ## fs.appendFileSync(file, data[, options])
 <!-- YAML
@@ -1377,10 +1377,10 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-_Note: The behavior of `fs.open()` is platform specific for some flags. As such,
+*Note*: The behavior of `fs.open()` is platform-specific for some flags. As such,
 opening a directory on macOS and Linux with the `'a+'` flag - see example
 below - will return an error. In contrast, on Windows and FreeBSD, a file
-descriptor will be returned._
+descriptor will be returned.
 
 ```js
 // macOS and Linux
@@ -1524,11 +1524,27 @@ If `options` is a string, then it specifies the encoding. Example:
 ```js
 fs.readFile('/etc/passwd', 'utf8', callback);
 ```
+*Note*: When the path is a directory, the behavior of
+`fs.readFile()` and [`fs.readFileSync()`][] is platform-specific. On macOS,
+Linux, and Windows, an error will be returned. On FreeBSD, a representation
+of the directory's contents will be returned.
+
+```js
+// macOS, Linux and Windows
+fs.readFile('<directory>', (err, data) => {
+  // => [Error: EISDIR: illegal operation on a directory, read <directory>]
+});
+
+//  FreeBSD
+fs.readFile('<directory>', (err, data) => {
+  // => null, <data>
+});
+```
 
 Any specified file descriptor has to support reading.
 
-_Note: If a file descriptor is specified as the `file`, it will not be closed
-automatically._
+*Note*: If a file descriptor is specified as the `file`, it will not be closed
+automatically.
 
 ## fs.readFileSync(file[, options])
 <!-- YAML
@@ -1548,6 +1564,18 @@ Synchronous version of [`fs.readFile`][]. Returns the contents of the `file`.
 
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
+
+*Note*: Similar to [`fs.readFile()`][], when the path is a directory, the
+behavior of `fs.readFileSync()` is platform-specific.
+
+```js
+// macOS, Linux and Windows
+fs.readFileSync('<directory>');
+// => [Error: EISDIR: illegal operation on a directory, read <directory>]
+
+//  FreeBSD
+fs.readFileSync('<directory>'); // => null, <data>
+```
 
 ## fs.readlink(path[, options], callback)
 <!-- YAML
@@ -1855,9 +1883,9 @@ effectively stopping watching of `filename`.
 Calling `fs.unwatchFile()` with a filename that is not being watched is a
 no-op, not an error.
 
-_Note: [`fs.watch()`][] is more efficient than `fs.watchFile()` and `fs.unwatchFile()`.
+*Note*: [`fs.watch()`][] is more efficient than `fs.watchFile()` and `fs.unwatchFile()`.
 `fs.watch()` should be used instead of `fs.watchFile()` and `fs.unwatchFile()`
-when possible._
+when possible.
 
 ## fs.utimes(path, atime, mtime, callback)
 <!-- YAML
@@ -2048,15 +2076,15 @@ These stat objects are instances of `fs.Stat`.
 To be notified when the file was modified, not just accessed, it is necessary
 to compare `curr.mtime` and `prev.mtime`.
 
-_Note: when an `fs.watchFile` operation results in an `ENOENT` error, it will
+*Note*: when an `fs.watchFile` operation results in an `ENOENT` error, it will
  invoke the listener once, with all the fields zeroed (or, for dates, the Unix
  Epoch). In Windows, `blksize` and `blocks` fields will be `undefined`, instead
  of zero. If the file is created later on, the listener will be called again,
- with the latest stat objects. This is a change in functionality since v0.10._
+ with the latest stat objects. This is a change in functionality since v0.10.
 
-_Note: [`fs.watch()`][] is more efficient than `fs.watchFile` and
+*Note*: [`fs.watch()`][] is more efficient than `fs.watchFile` and
 `fs.unwatchFile`. `fs.watch` should be used instead of `fs.watchFile` and
-`fs.unwatchFile` when possible._
+`fs.unwatchFile` when possible.
 
 ## fs.write(fd, buffer[, offset[, length[, position]]], callback)
 <!-- YAML
@@ -2196,8 +2224,8 @@ Note that it is unsafe to use `fs.writeFile` multiple times on the same file
 without waiting for the callback. For this scenario,
 `fs.createWriteStream` is strongly recommended.
 
-_Note: If a file descriptor is specified as the `file`, it will not be closed
-automatically._
+*Note*: If a file descriptor is specified as the `file`, it will not be closed
+automatically.
 
 ## fs.writeFileSync(file, data[, options])
 <!-- YAML
