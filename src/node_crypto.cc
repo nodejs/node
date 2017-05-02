@@ -228,6 +228,8 @@ static void crypto_lock_cb(int mode, int n, const char* file, int line) {
 }
 
 
+// This callback is used by OpenSSL when it needs to query for the passphrase
+// which may be used for encrypted PEM structures.
 static int PasswordCallback(char *buf, int size, int rwflag, void *u) {
   if (u) {
     size_t buflen = static_cast<size_t>(size);
