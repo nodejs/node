@@ -8,12 +8,12 @@
    You may find it to be much faster then `MSBuild` and less eager to rebuild unchanged sub-targets.  
    P.S. non-windows dev might find it better then `make` aswell.
 
-
+<!--
 ## Tricks
 
 TDB
 
-
+-->
 ## Troubleshooting
 
 1. Python crashes with `LookupError: unknown encoding: cp65001`
