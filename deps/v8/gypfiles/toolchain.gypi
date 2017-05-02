@@ -315,6 +315,8 @@
             'defines': [
               'V8_TARGET_ARCH_S390_LE_SIM',
             ],
+          }, {
+            'cflags': [ '-march=z196' ],
           }],
           ],
       }],  # s390

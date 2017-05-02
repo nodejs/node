@@ -534,13 +534,21 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Conversions.
   Node* BitcastTaggedToWord(Node* a) {
+#ifdef ENABLE_VERIFY_CSA
     return AddNode(machine()->BitcastTaggedToWord(), a);
+#else
+    return a;
+#endif
   }
   Node* BitcastWordToTagged(Node* a) {
     return AddNode(machine()->BitcastWordToTagged(), a);
   }
   Node* BitcastWordToTaggedSigned(Node* a) {
+#ifdef ENABLE_VERIFY_CSA
     return AddNode(machine()->BitcastWordToTaggedSigned(), a);
+#else
+    return a;
+#endif
   }
   Node* TruncateFloat64ToWord32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToWord32(), a);
@@ -761,6 +769,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
   void DebugBreak();
+  void Unreachable();
   void Comment(const char* msg);
 
   // Add success / exception successor blocks and ends the current block ending

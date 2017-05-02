@@ -6,10 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/assembler-inl.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/utils.h"
 #include "src/wasm/wasm-macro-gen.h"
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -1047,6 +1047,9 @@ WASM_EXEC_TEST(I32ReinterpretF32) {
   }
 }
 
+// Do not run this test in a simulator because of signalling NaN issues on ia32.
+#ifndef USE_SIMULATOR
+
 WASM_EXEC_TEST(SignallingNanSurvivesI32ReinterpretF32) {
   WasmRunner<int32_t> r(execution_mode);
 
@@ -1056,6 +1059,8 @@ WASM_EXEC_TEST(SignallingNanSurvivesI32ReinterpretF32) {
   // This is a signalling nan.
   CHECK_EQ(0x7fa00000, r.Call());
 }
+
+#endif
 
 WASM_EXEC_TEST_WITH_TRAP(LoadMaxUint32Offset) {
   WasmRunner<int32_t> r(execution_mode);

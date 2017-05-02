@@ -367,6 +367,67 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   }
 }
 
+namespace {
+
+template <typename T>
+bool CompareNum(T x, T y) {
+  if (x < y) {
+    return true;
+  } else if (x > y) {
+    return false;
+  } else if (!std::is_integral<T>::value) {
+    double _x = x, _y = y;
+    if (x == 0 && x == y) {
+      /* -0.0 is less than +0.0 */
+      return std::signbit(_x) && !std::signbit(_y);
+    } else if (!std::isnan(_x) && std::isnan(_y)) {
+      /* number is less than NaN */
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, target_obj, 0);
+
+  Handle<JSTypedArray> array;
+  const char* method = "%TypedArray%.prototype.sort";
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, array, JSTypedArray::Validate(isolate, target_obj, method));
+
+  // This line can be removed when JSTypedArray::Validate throws
+  // if array.[[ViewedArrayBuffer]] is neutered(v8:4648)
+  if (V8_UNLIKELY(array->WasNeutered())) return *array;
+
+  size_t length = array->length_value();
+  if (length <= 1) return *array;
+
+  Handle<FixedTypedArrayBase> elements(
+      FixedTypedArrayBase::cast(array->elements()));
+  switch (array->type()) {
+#define TYPED_ARRAY_SORT(Type, type, TYPE, ctype, size)     \
+  case kExternal##Type##Array: {                            \
+    ctype* data = static_cast<ctype*>(elements->DataPtr()); \
+    if (kExternal##Type##Array == kExternalFloat64Array ||  \
+        kExternal##Type##Array == kExternalFloat32Array)    \
+      std::sort(data, data + length, CompareNum<ctype>);    \
+    else                                                    \
+      std::sort(data, data + length);                       \
+    break;                                                  \
+  }
+
+    TYPED_ARRAYS(TYPED_ARRAY_SORT)
+#undef TYPED_ARRAY_SORT
+  }
+
+  return *array;
+}
 
 RUNTIME_FUNCTION(Runtime_TypedArrayMaxSizeInHeap) {
   DCHECK_EQ(0, args.length());

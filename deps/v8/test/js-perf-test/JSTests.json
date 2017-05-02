@@ -274,6 +274,59 @@
         {"name": "Object.hasOwnProperty--el-str"},
         {"name": "Object.hasOwnProperty--NE-el"}
       ]
+    },
+    {
+      "name": "TypedArrays",
+      "path": ["TypedArrays"],
+      "results_regexp": "^TypedArrays\\-%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "CopyWithin",
+          "main": "run.js",
+          "test_flags": ["copywithin"]
+        },
+        {
+          "name": "Constructor",
+          "main": "run.js",
+          "test_flags": ["constructor"]
+        },
+        {
+          "name": "Constructor--Future",
+          "flags": ["--future"],
+          "results_regexp": "^TypedArrays\\-Constructor\\(Score\\): (.+)$",
+          "main": "run.js",
+          "test_flags": ["constructor"]
+        },
+        {
+          "name": "ConstructWithBuffer",
+          "main": "run.js",
+          "test_flags": ["construct-buffer"]
+        },
+        {
+          "name": "ConstructWithBuffer--Future",
+          "flags": ["--future"],
+          "results_regexp": "^TypedArrays\\-ConstructWithBuffer\\(Score\\): (.+)$",
+          "main": "run.js",
+          "test_flags": ["construct-buffer"]
+        },
+        {
+          "name": "ConstructArrayLike",
+          "main": "run.js",
+          "test_flags": ["construct-arraylike"]
+        },
+        {
+          "name": "ConstructArrayLike--Future",
+          "flags": ["--future"],
+          "results_regexp": "^TypedArrays\\-ConstructArrayLike\\(Score\\): (.+)$",
+          "main": "run.js",
+          "test_flags": ["construct-arraylike"]
+        },
+        {
+          "name": "Sort",
+          "main": "run.js",
+          "test_flags": ["sort"]
+        }
+      ]
     }
   ]
 }

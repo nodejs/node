@@ -11,7 +11,7 @@
 
 #include "include/v8-experimental.h"
 #include "src/base/macros.h"
-#include "src/handles.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +19,8 @@ namespace internal {
 class Code;
 class CodeStubAssembler;
 class Isolate;
-class Zone;
+template <typename T>
+class MaybeHandle;
 
 namespace compiler {
 class Node;

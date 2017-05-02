@@ -60,7 +60,7 @@ function test(value_track, value_break) {
   access(value_track, value_break(), deopt);
 
   // Clear type feedback of the access function for next run.
-  %ClearFunctionTypeFeedback(access);
+  %ClearFunctionFeedback(access);
 
   // Also make sure the initial map of the constructor is reset.
   constructor.prototype = {};

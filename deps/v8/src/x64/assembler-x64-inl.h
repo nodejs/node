@@ -9,6 +9,7 @@
 
 #include "src/base/cpu.h"
 #include "src/debug/debug.h"
+#include "src/objects-inl.h"
 #include "src/v8memory.h"
 
 namespace v8 {
@@ -23,8 +24,6 @@ bool CpuFeatures::SupportsSimd128() { return true; }
 
 
 static const byte kCallOpcode = 0xE8;
-// The length of pushq(rbp), movp(rbp, rsp), Push(rsi) and Push(rdi).
-static const int kNoCodeAgeSequenceLength = kPointerSize == kInt64Size ? 6 : 17;
 
 
 void Assembler::emitl(uint32_t x) {
@@ -83,6 +82,12 @@ void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
       entry - isolate()->heap()->memory_allocator()->code_range()->start()));
 }
 
+void Assembler::emit(Immediate x) {
+  if (!RelocInfo::IsNone(x.rmode_)) {
+    RecordRelocInfo(x.rmode_);
+  }
+  emitl(x.value_);
+}
 
 void Assembler::emit_rex_64(Register reg, Register rm_reg) {
   emit(0x48 | reg.high_bit() << 2 | rm_reg.high_bit());
@@ -281,6 +286,17 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
   }
 }
 
+Address Assembler::target_address_at(Address pc, Code* code) {
+  Address constant_pool = code ? code->constant_pool() : NULL;
+  return target_address_at(pc, constant_pool);
+}
+
+void Assembler::set_target_address_at(Isolate* isolate, Address pc, Code* code,
+                                      Address target,
+                                      ICacheFlushMode icache_flush_mode) {
+  Address constant_pool = code ? code->constant_pool() : NULL;
+  set_target_address_at(isolate, pc, constant_pool, target, icache_flush_mode);
+}
 
 void Assembler::deserialization_set_target_internal_reference_at(
     Isolate* isolate, Address pc, Address target, RelocInfo::Mode mode) {
@@ -292,6 +308,10 @@ Address Assembler::target_address_from_return_address(Address pc) {
   return pc - kCallTargetAddressOffset;
 }
 
+void Assembler::deserialization_set_special_target_at(
+    Isolate* isolate, Address instruction_payload, Code* code, Address target) {
+  set_target_address_at(isolate, instruction_payload, code, target);
+}
 
 Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
   return code_targets_[Memory::int32_at(pc)];

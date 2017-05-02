@@ -620,12 +620,15 @@ void Thread::Start() {
   result = pthread_attr_init(&attr);
   DCHECK_EQ(0, result);
   size_t stack_size = stack_size_;
-#if V8_OS_AIX
   if (stack_size == 0) {
-    // Default on AIX is 96KB -- bump up to 2MB
+#if V8_OS_MACOSX
+    // Default on Mac OS X is 512kB -- bump up to 1MB
+    stack_size = 1 * 1024 * 1024;
+#elif V8_OS_AIX
+    // Default on AIX is 96kB -- bump up to 2MB
     stack_size = 2 * 1024 * 1024;
-  }
 #endif
+  }
   if (stack_size > 0) {
     result = pthread_attr_setstacksize(&attr, stack_size);
     DCHECK_EQ(0, result);

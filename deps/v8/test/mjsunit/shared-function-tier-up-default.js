@@ -2,7 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --mark-shared-functions-for-tier-up --allow-natives-syntax --no-ignition --no-ignition-staging --no-turbo
+// Flags: --mark-shared-functions-for-tier-up --allow-natives-syntax
+// Flags: --no-ignition --no-ignition-staging --no-turbo
+// Flags: --crankshaft --no-always-opt
+
+// If we are always or never optimizing it is useless.
+assertFalse(isAlwaysOptimize());
+assertFalse(isNeverOptimize());
 
 (function() {
   var sum = 0;
@@ -13,20 +19,15 @@
     }
     sum += f(i);
 
-    if (%GetOptimizationStatus(f) == 3 || %GetOptimizationStatus(f) == 4) {
-      // If we are always or never optimizing f, just exit, this test is useless.
-      return;
-    }
-
     if (i == 1) {
       // f must be baseline code.
-      assertEquals(2, %GetOptimizationStatus(f));
+      assertTrue(isBaselined(f));
 
       // Run twice (i = 0, 1), then tier-up.
       %OptimizeFunctionOnNextCall(f);
     } else if (i == 2) {
       // Tier-up at i = 2 should go up to crankshaft.
-      assertEquals(1, %GetOptimizationStatus(f));
+      assertTrue(isCrankshafted(f));
     }
   }
 })()

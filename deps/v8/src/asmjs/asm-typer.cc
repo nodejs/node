@@ -19,6 +19,7 @@
 #include "src/codegen.h"
 #include "src/globals.h"
 #include "src/messages.h"
+#include "src/objects-inl.h"
 #include "src/utils.h"
 #include "src/vector.h"
 
@@ -385,6 +386,10 @@ AsmTyper::VariableInfo* AsmTyper::ImportLookup(Property* import) {
     return obj_info;
   }
 
+  if (!key->IsPropertyName()) {
+    return nullptr;
+  }
+
   std::unique_ptr<char[]> aname = key->AsPropertyName()->ToCString();
   ObjectTypeMap::iterator i = stdlib->find(std::string(aname.get()));
   if (i == stdlib->end()) {
@@ -568,6 +573,8 @@ bool AsmTyper::ValidateAfterFunctionsPhase() {
 }
 
 void AsmTyper::ClearFunctionNodeTypes() { function_node_types_.clear(); }
+
+AsmType* AsmTyper::TriggerParsingError() { FAIL(root_, "Parsing error"); }
 
 namespace {
 bool IsUseAsmDirective(Statement* first_statement) {
@@ -1219,10 +1226,12 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
       if (as_block != nullptr) {
         statements = as_block->statements();
       } else {
-        // We don't check whether AsReturnStatement() below returns non-null --
-        // we leave that to the ReturnTypeAnnotations method.
-        RECURSE(return_type_ =
-                    ReturnTypeAnnotations(last_statement->AsReturnStatement()));
+        if (auto* ret_statement = last_statement->AsReturnStatement()) {
+          RECURSE(return_type_ =
+                      ReturnTypeAnnotations(ret_statement->expression()));
+        } else {
+          return_type_ = AsmType::Void();
+        }
       }
     }
   } while (return_type_ == AsmType::None());
@@ -2741,15 +2750,8 @@ AsmType* AsmTyper::ParameterTypeAnnotations(Variable* parameter,
 }
 
 // 5.2 ReturnTypeAnnotations
-AsmType* AsmTyper::ReturnTypeAnnotations(ReturnStatement* statement) {
-  if (statement == nullptr) {
-    return AsmType::Void();
-  }
-
-  auto* ret_expr = statement->expression();
-  if (ret_expr == nullptr) {
-    return AsmType::Void();
-  }
+AsmType* AsmTyper::ReturnTypeAnnotations(Expression* ret_expr) {
+  DCHECK_NOT_NULL(ret_expr);
 
   if (auto* binop = ret_expr->AsBinaryOperation()) {
     if (IsDoubleAnnotation(binop)) {
@@ -2757,14 +2759,14 @@ AsmType* AsmTyper::ReturnTypeAnnotations(ReturnStatement* statement) {
     } else if (IsIntAnnotation(binop)) {
       return AsmType::Signed();
     }
-    FAIL(statement, "Invalid return type annotation.");
+    FAIL(ret_expr, "Invalid return type annotation.");
   }
 
   if (auto* call = ret_expr->AsCall()) {
     if (IsCallToFround(call)) {
       return AsmType::Float();
     }
-    FAIL(statement, "Invalid function call in return statement.");
+    FAIL(ret_expr, "Invalid function call in return statement.");
   }
 
   if (auto* literal = ret_expr->AsLiteral()) {
@@ -2783,28 +2785,46 @@ AsmType* AsmTyper::ReturnTypeAnnotations(ReturnStatement* statement) {
       // return undefined
       return AsmType::Void();
     }
-    FAIL(statement, "Invalid literal in return statement.");
+    FAIL(ret_expr, "Invalid literal in return statement.");
   }
 
   if (auto* proxy = ret_expr->AsVariableProxy()) {
     auto* var_info = Lookup(proxy->var());
 
     if (var_info == nullptr) {
-      FAIL(statement, "Undeclared identifier in return statement.");
+      FAIL(ret_expr, "Undeclared identifier in return statement.");
     }
 
     if (var_info->mutability() != VariableInfo::kConstGlobal) {
-      FAIL(statement, "Identifier in return statement is not const.");
+      FAIL(ret_expr, "Identifier in return statement is not const.");
     }
 
     if (!var_info->type()->IsReturnType()) {
-      FAIL(statement, "Constant in return must be signed, float, or double.");
+      FAIL(ret_expr, "Constant in return must be signed, float, or double.");
     }
 
     return var_info->type();
   }
 
-  FAIL(statement, "Invalid return type expression.");
+  // NOTE: This is not strictly valid asm.js, but is emitted by some versions of
+  // Emscripten.
+  if (auto* cond = ret_expr->AsConditional()) {
+    AsmType* a = AsmType::None();
+    AsmType* b = AsmType::None();
+    RECURSE(a = ReturnTypeAnnotations(cond->then_expression()));
+    if (a->IsA(AsmType::None())) {
+      return a;
+    }
+    RECURSE(b = ReturnTypeAnnotations(cond->else_expression()));
+    if (b->IsA(AsmType::None())) {
+      return b;
+    }
+    if (a->IsExactly(b)) {
+      return a;
+    }
+  }
+
+  FAIL(ret_expr, "Invalid return type expression.");
 }
 
 // 5.4 VariableTypeAnnotations

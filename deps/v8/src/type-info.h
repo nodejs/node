@@ -26,37 +26,36 @@ class TypeFeedbackOracle: public ZoneObject {
                      Handle<FeedbackVector> feedback_vector,
                      Handle<Context> native_context);
 
-  InlineCacheState LoadInlineCacheState(FeedbackVectorSlot slot);
-  bool StoreIsUninitialized(FeedbackVectorSlot slot);
-  bool CallIsUninitialized(FeedbackVectorSlot slot);
-  bool CallIsMonomorphic(FeedbackVectorSlot slot);
-  bool CallNewIsMonomorphic(FeedbackVectorSlot slot);
+  InlineCacheState LoadInlineCacheState(FeedbackSlot slot);
+  bool StoreIsUninitialized(FeedbackSlot slot);
+  bool CallIsUninitialized(FeedbackSlot slot);
+  bool CallIsMonomorphic(FeedbackSlot slot);
+  bool CallNewIsMonomorphic(FeedbackSlot slot);
 
   // TODO(1571) We can't use ForInStatement::ForInType as the return value due
   // to various cycles in our headers.
   // TODO(rossberg): once all oracle access is removed from ast.cc, it should
   // be possible.
-  byte ForInType(FeedbackVectorSlot feedback_vector_slot);
+  byte ForInType(FeedbackSlot feedback_vector_slot);
 
-  void GetStoreModeAndKeyType(FeedbackVectorSlot slot,
+  void GetStoreModeAndKeyType(FeedbackSlot slot,
                               KeyedAccessStoreMode* store_mode,
                               IcCheckType* key_type);
 
-  void PropertyReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
+  void PropertyReceiverTypes(FeedbackSlot slot, Handle<Name> name,
                              SmallMapList* receiver_types);
-  void KeyedPropertyReceiverTypes(FeedbackVectorSlot slot,
+  void KeyedPropertyReceiverTypes(FeedbackSlot slot,
                                   SmallMapList* receiver_types, bool* is_string,
                                   IcCheckType* key_type);
-  void AssignmentReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
+  void AssignmentReceiverTypes(FeedbackSlot slot, Handle<Name> name,
                                SmallMapList* receiver_types);
-  void KeyedAssignmentReceiverTypes(FeedbackVectorSlot slot,
+  void KeyedAssignmentReceiverTypes(FeedbackSlot slot,
                                     SmallMapList* receiver_types,
                                     KeyedAccessStoreMode* store_mode,
                                     IcCheckType* key_type);
-  void CountReceiverTypes(FeedbackVectorSlot slot,
-                          SmallMapList* receiver_types);
+  void CountReceiverTypes(FeedbackSlot slot, SmallMapList* receiver_types);
 
-  void CollectReceiverTypes(FeedbackVectorSlot slot, SmallMapList* types);
+  void CollectReceiverTypes(FeedbackSlot slot, SmallMapList* types);
   void CollectReceiverTypes(FeedbackNexus* nexus, SmallMapList* types);
 
   static bool IsRelevantFeedback(Map* map, Context* native_context) {
@@ -66,10 +65,10 @@ class TypeFeedbackOracle: public ZoneObject {
                native_context;
   }
 
-  Handle<JSFunction> GetCallTarget(FeedbackVectorSlot slot);
-  Handle<AllocationSite> GetCallAllocationSite(FeedbackVectorSlot slot);
-  Handle<JSFunction> GetCallNewTarget(FeedbackVectorSlot slot);
-  Handle<AllocationSite> GetCallNewAllocationSite(FeedbackVectorSlot slot);
+  Handle<JSFunction> GetCallTarget(FeedbackSlot slot);
+  Handle<AllocationSite> GetCallAllocationSite(FeedbackSlot slot);
+  Handle<JSFunction> GetCallNewTarget(FeedbackSlot slot);
+  Handle<AllocationSite> GetCallNewAllocationSite(FeedbackSlot slot);
 
   // TODO(1571) We can't use ToBooleanICStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in
@@ -77,22 +76,22 @@ class TypeFeedbackOracle: public ZoneObject {
   uint16_t ToBooleanTypes(TypeFeedbackId id);
 
   // Get type information for arithmetic operations and compares.
-  void BinaryType(TypeFeedbackId id, FeedbackVectorSlot slot, AstType** left,
+  void BinaryType(TypeFeedbackId id, FeedbackSlot slot, AstType** left,
                   AstType** right, AstType** result,
                   Maybe<int>* fixed_right_arg,
                   Handle<AllocationSite>* allocation_site,
                   Token::Value operation);
 
-  void CompareType(TypeFeedbackId id, FeedbackVectorSlot slot, AstType** left,
+  void CompareType(TypeFeedbackId id, FeedbackSlot slot, AstType** left,
                    AstType** right, AstType** combined);
 
-  AstType* CountType(TypeFeedbackId id, FeedbackVectorSlot slot);
+  AstType* CountType(TypeFeedbackId id, FeedbackSlot slot);
 
   Zone* zone() const { return zone_; }
   Isolate* isolate() const { return isolate_; }
 
  private:
-  void CollectReceiverTypes(StubCache* stub_cache, FeedbackVectorSlot slot,
+  void CollectReceiverTypes(StubCache* stub_cache, FeedbackSlot slot,
                             Handle<Name> name, SmallMapList* types);
   void CollectReceiverTypes(StubCache* stub_cache, FeedbackNexus* nexus,
                             Handle<Name> name, SmallMapList* types);
@@ -117,7 +116,7 @@ class TypeFeedbackOracle: public ZoneObject {
 
   // Returns an element from the type feedback vector. Returns undefined
   // if there is no information.
-  Handle<Object> GetInfo(FeedbackVectorSlot slot);
+  Handle<Object> GetInfo(FeedbackSlot slot);
 
  private:
   Handle<Context> native_context_;

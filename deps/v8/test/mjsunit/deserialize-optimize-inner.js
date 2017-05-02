@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --cache=code --no-lazy --serialize-inner
+// Flags: --crankshaft
 
 function f(x, y) { return x + y; }
 

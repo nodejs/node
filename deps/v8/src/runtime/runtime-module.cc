@@ -5,9 +5,18 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/counters.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
+
+RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  // TODO(gsathya): Implement ImportCall.
+  return isolate->heap()->undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {
   HandleScope scope(isolate);

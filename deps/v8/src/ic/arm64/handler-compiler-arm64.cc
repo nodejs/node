@@ -83,19 +83,6 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
   __ DecrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
 }
 
-void NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(
-    MacroAssembler* masm, Register receiver, Register scratch1,
-    Register scratch2, Label* miss_label) {
-  __ TryGetFunctionPrototype(receiver, scratch1, scratch2, miss_label);
-  // TryGetFunctionPrototype can't put the result directly in x0 because the
-  // 3 inputs registers can't alias and we call this function from
-  // LoadIC::GenerateFunctionPrototype, where receiver is x0. So we explicitly
-  // move the result in x0.
-  __ Mov(x0, scratch1);
-  __ Ret();
-}
-
-
 // Generate code to check that a global property cell is empty. Create
 // the property cell at compilation time if no cell exists for the
 // property.
@@ -112,25 +99,18 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
   __ JumpIfNotRoot(scratch, Heap::kTheHoleValueRootIndex, miss);
 }
 
-
-static void PushInterceptorArguments(MacroAssembler* masm, Register receiver,
-                                     Register holder, Register name,
-                                     Handle<JSObject> holder_obj) {
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 1);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 2);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 3);
-
-  __ Push(name, receiver, holder);
-}
-
-
 static void CompileCallLoadPropertyWithInterceptor(
     MacroAssembler* masm, Register receiver, Register holder, Register name,
     Handle<JSObject> holder_obj, Runtime::FunctionId id) {
   DCHECK(NamedLoadHandlerCompiler::kInterceptorArgsLength ==
          Runtime::FunctionForId(id)->nargs);
-  PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
+
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 1);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 2);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 3);
+  __ Push(name, receiver, holder);
+
   __ CallRuntime(id);
 }
 
@@ -566,8 +546,18 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
   // Call the runtime system to load the interceptor.
   DCHECK(holder()->HasNamedInterceptor());
   DCHECK(!holder()->GetNamedInterceptor()->getter()->IsUndefined(isolate()));
-  PushInterceptorArguments(masm(), receiver(), holder_reg, this->name(),
-                           holder());
+
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 1);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 2);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 3);
+  __ Push(name(), receiver(), holder_reg);
+  // See NamedLoadHandlerCompiler::InterceptorVectorSlotPop() for details.
+  if (holder_reg.is(receiver())) {
+    __ Push(slot(), vector());
+  } else {
+    __ Push(scratch3(), scratch2());  // slot, vector
+  }
 
   __ TailCallRuntime(Runtime::kLoadPropertyWithInterceptor);
 }

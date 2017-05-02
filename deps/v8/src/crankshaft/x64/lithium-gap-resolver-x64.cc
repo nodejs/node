@@ -7,6 +7,7 @@
 #include "src/crankshaft/x64/lithium-gap-resolver-x64.h"
 
 #include "src/crankshaft/x64/lithium-codegen-x64.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

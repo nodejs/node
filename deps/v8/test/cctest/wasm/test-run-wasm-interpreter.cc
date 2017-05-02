@@ -8,10 +8,9 @@
 
 #include <memory>
 
-#include "src/wasm/wasm-macro-gen.h"
-
+#include "src/assembler-inl.h"
 #include "src/wasm/wasm-interpreter.h"
-
+#include "src/wasm/wasm-macro-gen.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -219,7 +218,7 @@ TEST(Breakpoint_I32Add) {
 }
 
 TEST(Step_I32Mul) {
-  static const int kTraceLength = 5;
+  static const int kTraceLength = 4;
   byte code[] = {WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
 
   WasmRunner<int32_t, uint32_t, uint32_t> r(kExecuteInterpreted);
@@ -343,57 +342,59 @@ TEST(GrowMemoryInvalidSize) {
 
 TEST(TestPossibleNondeterminism) {
   {
-    // F32Div may produced NaN
-    WasmRunner<float, float, float> r(kExecuteInterpreted);
-    BUILD(r, WASM_F32_DIV(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-    r.Call(1048575.5f, 2.5f);
+    WasmRunner<int32_t, float> r(kExecuteInterpreted);
+    BUILD(r, WASM_I32_REINTERPRET_F32(WASM_GET_LOCAL(0)));
+    r.Call(1048575.5f);
     CHECK(!r.possible_nondeterminism());
-    r.Call(0.0f, 0.0f);
+    r.Call(std::numeric_limits<float>::quiet_NaN());
     CHECK(r.possible_nondeterminism());
   }
   {
-    // F32Sqrt may produced NaN
+    WasmRunner<int64_t, double> r(kExecuteInterpreted);
+    BUILD(r, WASM_I64_REINTERPRET_F64(WASM_GET_LOCAL(0)));
+    r.Call(16.0);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(std::numeric_limits<double>::quiet_NaN());
+    CHECK(r.possible_nondeterminism());
+  }
+  {
     WasmRunner<float, float> r(kExecuteInterpreted);
-    BUILD(r, WASM_F32_SQRT(WASM_GET_LOCAL(0)));
+    BUILD(r, WASM_F32_COPYSIGN(WASM_F32(42.0f), WASM_GET_LOCAL(0)));
     r.Call(16.0f);
     CHECK(!r.possible_nondeterminism());
-    r.Call(-1048575.5f);
+    r.Call(std::numeric_limits<double>::quiet_NaN());
     CHECK(r.possible_nondeterminism());
   }
   {
-    // F32Mul may produced NaN
-    WasmRunner<float, float, float> r(kExecuteInterpreted);
-    BUILD(r, WASM_F32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-    r.Call(1048575.5f, 2.5f);
-    CHECK(!r.possible_nondeterminism());
-    r.Call(std::numeric_limits<float>::infinity(), 0.0f);
-    CHECK(r.possible_nondeterminism());
-  }
-  {
-    // F64Div may produced NaN
-    WasmRunner<double, double, double> r(kExecuteInterpreted);
-    BUILD(r, WASM_F64_DIV(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-    r.Call(1048575.5, 2.5);
-    CHECK(!r.possible_nondeterminism());
-    r.Call(0.0, 0.0);
-    CHECK(r.possible_nondeterminism());
-  }
-  {
-    // F64Sqrt may produced NaN
     WasmRunner<double, double> r(kExecuteInterpreted);
-    BUILD(r, WASM_F64_SQRT(WASM_GET_LOCAL(0)));
-    r.Call(1048575.5);
+    BUILD(r, WASM_F64_COPYSIGN(WASM_F64(42.0), WASM_GET_LOCAL(0)));
+    r.Call(16.0);
     CHECK(!r.possible_nondeterminism());
-    r.Call(-1048575.5);
+    r.Call(std::numeric_limits<double>::quiet_NaN());
     CHECK(r.possible_nondeterminism());
   }
   {
-    // F64Mul may produced NaN
-    WasmRunner<double, double, double> r(kExecuteInterpreted);
-    BUILD(r, WASM_F64_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-    r.Call(1048575.5, 2.5);
+    int32_t index = 16;
+    WasmRunner<int32_t, float> r(kExecuteInterpreted);
+    r.module().AddMemory(WasmModule::kPageSize);
+    BUILD(r, WASM_STORE_MEM(MachineType::Float32(), WASM_I32V(index),
+                            WASM_GET_LOCAL(0)),
+          WASM_I32V(index));
+    r.Call(1345.3456f);
     CHECK(!r.possible_nondeterminism());
-    r.Call(std::numeric_limits<double>::infinity(), 0.0);
+    r.Call(std::numeric_limits<float>::quiet_NaN());
+    CHECK(r.possible_nondeterminism());
+  }
+  {
+    int32_t index = 16;
+    WasmRunner<int32_t, double> r(kExecuteInterpreted);
+    r.module().AddMemory(WasmModule::kPageSize);
+    BUILD(r, WASM_STORE_MEM(MachineType::Float64(), WASM_I32V(index),
+                            WASM_GET_LOCAL(0)),
+          WASM_I32V(index));
+    r.Call(1345.3456);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(std::numeric_limits<double>::quiet_NaN());
     CHECK(r.possible_nondeterminism());
   }
 }

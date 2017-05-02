@@ -22,7 +22,7 @@ namespace compiler {
 namespace {
 
 int CollectFunctions(Node* node, Handle<JSFunction>* functions,
-                     int functions_size) {
+                     int functions_size, Handle<SharedFunctionInfo>& shared) {
   DCHECK_NE(0, functions_size);
   HeapObjectMatcher m(node);
   if (m.HasValue() && m.Value()->IsJSFunction()) {
@@ -39,23 +39,29 @@ int CollectFunctions(Node* node, Handle<JSFunction>* functions,
     }
     return value_input_count;
   }
+  if (m.IsJSCreateClosure()) {
+    CreateClosureParameters const& p = CreateClosureParametersOf(m.op());
+    functions[0] = Handle<JSFunction>::null();
+    shared = p.shared_info();
+    return 1;
+  }
   return 0;
 }
 
-bool CanInlineFunction(Handle<JSFunction> function) {
+bool CanInlineFunction(Handle<SharedFunctionInfo> shared) {
   // Built-in functions are handled by the JSBuiltinReducer.
-  if (function->shared()->HasBuiltinFunctionId()) return false;
+  if (shared->HasBuiltinFunctionId()) return false;
 
   // Only choose user code for inlining.
-  if (!function->shared()->IsUserJavaScript()) return false;
+  if (!shared->IsUserJavaScript()) return false;
 
   // Quick check on the size of the AST to avoid parsing large candidate.
-  if (function->shared()->ast_node_count() > FLAG_max_inlined_nodes) {
+  if (shared->ast_node_count() > FLAG_max_inlined_nodes) {
     return false;
   }
 
   // Avoid inlining across the boundary of asm.js code.
-  if (function->shared()->asm_function()) return false;
+  if (shared->asm_function()) return false;
   return true;
 }
 
@@ -72,8 +78,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   Node* callee = node->InputAt(0);
   Candidate candidate;
   candidate.node = node;
-  candidate.num_functions =
-      CollectFunctions(callee, candidate.functions, kMaxCallPolymorphism);
+  candidate.num_functions = CollectFunctions(
+      callee, candidate.functions, kMaxCallPolymorphism, candidate.shared_info);
   if (candidate.num_functions == 0) {
     return NoChange();
   } else if (candidate.num_functions > 1 && !FLAG_polymorphic_inlining) {
@@ -87,11 +93,14 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   // Functions marked with %SetForceInlineFlag are immediately inlined.
   bool can_inline = false, force_inline = true;
   for (int i = 0; i < candidate.num_functions; ++i) {
-    Handle<JSFunction> function = candidate.functions[i];
-    if (!function->shared()->force_inline()) {
+    Handle<SharedFunctionInfo> shared =
+        candidate.functions[i].is_null()
+            ? candidate.shared_info
+            : handle(candidate.functions[i]->shared());
+    if (!shared->force_inline()) {
       force_inline = false;
     }
-    if (CanInlineFunction(function)) {
+    if (CanInlineFunction(shared)) {
       can_inline = true;
     }
   }
@@ -117,11 +126,11 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   }
 
   // Gather feedback on how often this call site has been hit before.
-  if (node->opcode() == IrOpcode::kJSCallFunction) {
-    CallFunctionParameters const p = CallFunctionParametersOf(node->op());
+  if (node->opcode() == IrOpcode::kJSCall) {
+    CallParameters const p = CallParametersOf(node->op());
     candidate.frequency = p.frequency();
   } else {
-    CallConstructParameters const p = CallConstructParametersOf(node->op());
+    ConstructParameters const p = ConstructParametersOf(node->op());
     candidate.frequency = p.frequency();
   }
 
@@ -167,15 +176,18 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
   int const num_calls = candidate.num_functions;
   Node* const node = candidate.node;
   if (num_calls == 1) {
-    Handle<JSFunction> function = candidate.functions[0];
-    Reduction const reduction = inliner_.ReduceJSCall(node, function);
+    Handle<SharedFunctionInfo> shared =
+        candidate.functions[0].is_null()
+            ? candidate.shared_info
+            : handle(candidate.functions[0]->shared());
+    Reduction const reduction = inliner_.ReduceJSCall(node);
     if (reduction.Changed()) {
-      cumulative_count_ += function->shared()->ast_node_count();
+      cumulative_count_ += shared->ast_node_count();
     }
     return reduction;
   }
 
-  // Expand the JSCallFunction/JSCallConstruct node to a subgraph first if
+  // Expand the JSCall/JSConstruct node to a subgraph first if
   // we have multiple known target functions.
   DCHECK_LT(1, num_calls);
   Node* calls[kMaxCallPolymorphism + 1];
@@ -192,6 +204,8 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
 
   // Create the appropriate control flow to dispatch to the cloned calls.
   for (int i = 0; i < num_calls; ++i) {
+    // TODO(2206): Make comparison be based on underlying SharedFunctionInfo
+    // instead of the target JSFunction reference directly.
     Node* target = jsgraph()->HeapConstant(candidate.functions[i]);
     if (i != (num_calls - 1)) {
       Node* check =
@@ -255,7 +269,7 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
   for (int i = 0; i < num_calls; ++i) {
     Handle<JSFunction> function = candidate.functions[i];
     Node* node = calls[i];
-    Reduction const reduction = inliner_.ReduceJSCall(node, function);
+    Reduction const reduction = inliner_.ReduceJSCall(node);
     if (reduction.Changed()) {
       cumulative_count_ += function->shared()->ast_node_count();
     }
@@ -281,9 +295,12 @@ void JSInliningHeuristic::PrintCandidates() {
     PrintF("  #%d:%s, frequency:%g\n", candidate.node->id(),
            candidate.node->op()->mnemonic(), candidate.frequency);
     for (int i = 0; i < candidate.num_functions; ++i) {
-      Handle<JSFunction> function = candidate.functions[i];
-      PrintF("  - size:%d, name: %s\n", function->shared()->ast_node_count(),
-             function->shared()->DebugName()->ToCString().get());
+      Handle<SharedFunctionInfo> shared =
+          candidate.functions[i].is_null()
+              ? candidate.shared_info
+              : handle(candidate.functions[i]->shared());
+      PrintF("  - size:%d, name: %s\n", shared->ast_node_count(),
+             shared->DebugName()->ToCString().get());
     }
   }
 }

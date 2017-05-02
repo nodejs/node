@@ -175,16 +175,19 @@ Bytecode GetJumpWithConstantOperand(Bytecode jump_bytecode) {
 void BytecodeArrayWriter::PatchJumpWith8BitOperand(size_t jump_location,
                                                    int delta) {
   Bytecode jump_bytecode = Bytecodes::FromByte(bytecodes()->at(jump_location));
+  DCHECK(Bytecodes::IsForwardJump(jump_bytecode));
   DCHECK(Bytecodes::IsJumpImmediate(jump_bytecode));
+  DCHECK_EQ(Bytecodes::GetOperandType(jump_bytecode, 0), OperandType::kUImm);
+  DCHECK_GT(delta, 0);
   size_t operand_location = jump_location + 1;
   DCHECK_EQ(bytecodes()->at(operand_location), k8BitJumpPlaceholder);
-  if (Bytecodes::ScaleForSignedOperand(delta) == OperandScale::kSingle) {
-    // The jump fits within the range of an Imm8 operand, so cancel
+  if (Bytecodes::ScaleForUnsignedOperand(delta) == OperandScale::kSingle) {
+    // The jump fits within the range of an UImm8 operand, so cancel
     // the reservation and jump directly.
     constant_array_builder()->DiscardReservedEntry(OperandSize::kByte);
     bytecodes()->at(operand_location) = static_cast<uint8_t>(delta);
   } else {
-    // The jump does not fit within the range of an Imm8 operand, so
+    // The jump does not fit within the range of an UImm8 operand, so
     // commit reservation putting the offset into the constant pool,
     // and update the jump instruction and operand.
     size_t entry = constant_array_builder()->CommitReservedEntry(
@@ -200,10 +203,13 @@ void BytecodeArrayWriter::PatchJumpWith8BitOperand(size_t jump_location,
 void BytecodeArrayWriter::PatchJumpWith16BitOperand(size_t jump_location,
                                                     int delta) {
   Bytecode jump_bytecode = Bytecodes::FromByte(bytecodes()->at(jump_location));
+  DCHECK(Bytecodes::IsForwardJump(jump_bytecode));
   DCHECK(Bytecodes::IsJumpImmediate(jump_bytecode));
+  DCHECK_EQ(Bytecodes::GetOperandType(jump_bytecode, 0), OperandType::kUImm);
+  DCHECK_GT(delta, 0);
   size_t operand_location = jump_location + 1;
   uint8_t operand_bytes[2];
-  if (Bytecodes::ScaleForSignedOperand(delta) <= OperandScale::kDouble) {
+  if (Bytecodes::ScaleForUnsignedOperand(delta) <= OperandScale::kDouble) {
     // The jump fits within the range of an Imm16 operand, so cancel
     // the reservation and jump directly.
     constant_array_builder()->DiscardReservedEntry(OperandSize::kShort);
@@ -282,15 +288,13 @@ void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
 
   if (label->is_bound()) {
     CHECK_GE(current_offset, label->offset());
-    CHECK_LE(current_offset, static_cast<size_t>(kMaxInt));
+    CHECK_LE(current_offset, static_cast<size_t>(kMaxUInt32));
     // Label has been bound already so this is a backwards jump.
-    size_t abs_delta = current_offset - label->offset();
-    int delta = -static_cast<int>(abs_delta);
-    OperandScale operand_scale = Bytecodes::ScaleForSignedOperand(delta);
+    uint32_t delta = static_cast<uint32_t>(current_offset - label->offset());
+    OperandScale operand_scale = Bytecodes::ScaleForUnsignedOperand(delta);
     if (operand_scale > OperandScale::kSingle) {
       // Adjust for scaling byte prefix for wide jump offset.
-      DCHECK_LE(delta, 0);
-      delta -= 1;
+      delta += 1;
     }
     DCHECK_EQ(Bytecode::kJumpLoop, node->bytecode());
     node->update_operand0(delta);

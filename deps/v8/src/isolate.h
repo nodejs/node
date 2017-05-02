@@ -533,6 +533,8 @@ class Isolate {
   // for legacy API reasons.
   void TearDown();
 
+  void ReleaseManagedObjects();
+
   static void GlobalTearDown();
 
   void ClearSerializerData();
@@ -914,6 +916,11 @@ class Isolate {
 
   RegExpStack* regexp_stack() { return regexp_stack_; }
 
+  size_t total_regexp_code_generated() { return total_regexp_code_generated_; }
+  void IncreaseTotalRegexpCodeGenerated(int size) {
+    total_regexp_code_generated_ += size;
+  }
+
   List<int>* regexp_indices() { return &regexp_indices_; }
 
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
@@ -962,11 +969,14 @@ class Isolate {
   bool IsDead() { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
 
-  bool use_crankshaft() const;
+  bool use_crankshaft();
 
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
   bool NeedsSourcePositionsForProfiling() const;
+
+  bool IsCodeCoverageEnabled();
+  void SetCodeCoverageList(Object* value);
 
   double time_millis_since_init() {
     return heap_.MonotonicallyIncreasingTimeInMs() - time_millis_at_init_;
@@ -990,7 +1000,6 @@ class Isolate {
 
   bool IsFastArrayConstructorPrototypeChainIntact();
   inline bool IsArraySpeciesLookupChainIntact();
-  inline bool IsHasInstanceLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
   inline bool IsStringLengthOverflowIntact();
@@ -1017,7 +1026,6 @@ class Isolate {
     UpdateArrayProtectorOnSetElement(object);
   }
   void InvalidateArraySpeciesProtector();
-  void InvalidateHasInstanceProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();
@@ -1124,9 +1132,12 @@ class Isolate {
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
 #endif
 
-  Address promise_hook_address() {
-    return reinterpret_cast<Address>(&promise_hook_);
+  Address promise_hook_or_debug_is_active_address() {
+    return reinterpret_cast<Address>(&promise_hook_or_debug_is_active_);
   }
+
+  void DebugStateUpdated();
+
   void SetPromiseHook(PromiseHook hook);
   void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                       Handle<Object> parent);
@@ -1158,7 +1169,7 @@ class Isolate {
     return cancelable_task_manager_;
   }
 
-  AstStringConstants* ast_string_constants() const {
+  const AstStringConstants* ast_string_constants() const {
     return ast_string_constants_;
   }
 
@@ -1195,6 +1206,42 @@ class Isolate {
 #ifdef USE_SIMULATOR
   base::Mutex* simulator_i_cache_mutex() { return &simulator_i_cache_mutex_; }
 #endif
+
+  void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
+  bool allow_atomics_wait() { return allow_atomics_wait_; }
+
+  // List of native heap values allocated by the runtime as part of its
+  // implementation that must be freed at isolate deinit.
+  class ManagedObjectFinalizer final {
+   public:
+    typedef void (*Deleter)(void*);
+    void Dispose() { deleter_(value_); }
+
+   private:
+    friend class Isolate;
+
+    ManagedObjectFinalizer() {
+      DCHECK_EQ(reinterpret_cast<void*>(this),
+                reinterpret_cast<void*>(&value_));
+    }
+
+    // value_ must be the first member
+    void* value_ = nullptr;
+    Deleter deleter_ = nullptr;
+    ManagedObjectFinalizer* prev_ = nullptr;
+    ManagedObjectFinalizer* next_ = nullptr;
+  };
+
+  // Register a native value for destruction at isolate teardown.
+  ManagedObjectFinalizer* RegisterForReleaseAtTeardown(
+      void* value, ManagedObjectFinalizer::Deleter deleter);
+
+  // Unregister a previously registered value from release at
+  // isolate teardown, deleting the ManagedObjectFinalizer.
+  // This transfers the responsibility of the previously managed value's
+  // deletion to the caller. Pass by pointer, because *finalizer_ptr gets
+  // reset to nullptr.
+  void UnregisterFromReleaseAtTeardown(ManagedObjectFinalizer** finalizer_ptr);
 
  protected:
   explicit Isolate(bool enable_serializer);
@@ -1369,6 +1416,7 @@ class Isolate {
   AccessCompilerData* access_compiler_data_;
   base::RandomNumberGenerator* random_number_generator_;
   base::AtomicValue<RAILMode> rail_mode_;
+  bool promise_hook_or_debug_is_active_;
   PromiseHook promise_hook_;
   base::Mutex rail_mutex_;
   double load_start_time_ms_;
@@ -1404,7 +1452,7 @@ class Isolate {
   std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
   FunctionEntryHook function_entry_hook_;
 
-  AstStringConstants* ast_string_constants_;
+  const AstStringConstants* ast_string_constants_;
 
   interpreter::Interpreter* interpreter_;
 
@@ -1473,6 +1521,12 @@ class Isolate {
 #ifdef USE_SIMULATOR
   base::Mutex simulator_i_cache_mutex_;
 #endif
+
+  bool allow_atomics_wait_;
+
+  ManagedObjectFinalizer managed_object_finalizers_list_;
+
+  size_t total_regexp_code_generated_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

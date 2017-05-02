@@ -6,6 +6,7 @@
 
 #include "include/v8.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/zone/accounting-allocator.h"

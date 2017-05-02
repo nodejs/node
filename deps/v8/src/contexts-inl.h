@@ -7,6 +7,7 @@
 
 #include "src/contexts.h"
 #include "src/objects-inl.h"
+#include "src/objects/regexp-match-info.h"
 
 namespace v8 {
 namespace internal {

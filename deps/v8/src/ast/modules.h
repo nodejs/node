@@ -6,7 +6,6 @@
 #define V8_AST_MODULES_H_
 
 #include "src/parsing/scanner.h"  // Only for Scanner::Location.
-#include "src/pending-compilation-error-handler.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -16,6 +15,7 @@ namespace internal {
 class AstRawString;
 class ModuleInfo;
 class ModuleInfoEntry;
+class PendingCompilationErrorHandler;
 
 class ModuleDescriptor : public ZoneObject {
  public:

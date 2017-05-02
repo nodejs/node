@@ -292,19 +292,10 @@ assertErrorMessage(
 
 let customSectionModuleBinary2 = (() => {
   let builder = new WasmModuleBuilder();
-  builder.addExplicitSection([kUnknownSectionCode, 3, 1, 'x'.charCodeAt(0), 2]);
-  builder.addExplicitSection([
-    kUnknownSectionCode, 6, 3, 'f'.charCodeAt(0), 'o'.charCodeAt(0),
-    'o'.charCodeAt(0), 66, 77
-  ]);
-  builder.addExplicitSection([
-    kUnknownSectionCode, 7, 3, 'f'.charCodeAt(0), 'o'.charCodeAt(0),
-    'o'.charCodeAt(0), 91, 92, 93
-  ]);
-  builder.addExplicitSection([
-    kUnknownSectionCode, 7, 3, 'f'.charCodeAt(0), 'o'.charCodeAt(0),
-    'x'.charCodeAt(0), 99, 99, 99
-  ]);
+  builder.addCustomSection('x', [2]);
+  builder.addCustomSection('foo', [66, 77]);
+  builder.addCustomSection('foo', [91, 92, 93]);
+  builder.addCustomSection('fox', [99, 99, 99]);
   return new Int8Array(builder.toBuffer());
 })();
 var arr = moduleCustomSections(new Module(customSectionModuleBinary2), 'x');
@@ -370,6 +361,12 @@ assertEq(typeof instanceExportsDesc.value, "object");
 assertTrue(instanceExportsDesc.writable);
 assertTrue(instanceExportsDesc.enumerable);
 assertTrue(instanceExportsDesc.configurable);
+
+exportsObj = exportingInstance.exports;
+assertEq(typeof exportsObj, 'object');
+assertFalse(Object.isExtensible(exportsObj));
+assertEq(Object.getPrototypeOf(exportsObj), null);
+assertEq(Object.keys(exportsObj).join(), 'f');
 
 // Exported WebAssembly functions
 let f = exportingInstance.exports.f;
@@ -457,14 +454,13 @@ var mem = new Memory({initial:1, maximum:2});
 var buf = mem.buffer;
 assertEq(buf.byteLength, kPageSize);
 assertEq(mem.grow(0), 1);
-// TODO(gdeepti): Pending spec clarification
-// assertTrue(buf !== mem.buffer);
-// assertEq(buf.byteLength, 0);
+assertTrue(buf !== mem.buffer);
+assertEq(buf.byteLength, 0);
 buf = mem.buffer;
 assertEq(buf.byteLength, kPageSize);
 assertEq(mem.grow(1), 1);
-// TODO(gdeepti): assertTrue(buf !== mem.buffer);
-// TODO(gdeepti): assertEq(buf.byteLength, 0);
+assertTrue(buf !== mem.buffer);
+assertEq(buf.byteLength, 0);
 buf = mem.buffer;
 assertEq(buf.byteLength, 2 * kPageSize);
 assertErrorMessage(() => mem.grow(1), Error, /failed to grow memory/);
@@ -622,8 +618,8 @@ function assertCompileError(args, err, msg) {
   compile(...args).catch(e => error = e);
   drainJobQueue();
   assertTrue(error instanceof err);
-  assertTrue(Boolean(error.stack.match("js-api.js")));
-//TODO  assertEq(Boolean(error.message.match(msg)), true);
+  assertTrue(Boolean(error.stack.match('js-api.js')));
+  // TODO  assertTrue(Boolean(error.message.match(msg)));
 }
 assertCompileError([], TypeError, /requires more than 0 arguments/);
 assertCompileError([undefined], TypeError, /first argument must be an ArrayBuffer or typed array object/);

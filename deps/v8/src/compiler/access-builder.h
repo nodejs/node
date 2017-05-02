@@ -52,6 +52,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForJSObjectOffset(
       int offset, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 
+  // Provides access to JSCollecton::table() field.
+  static FieldAccess ForJSCollectionTable();
+
   // Provides access to JSFunction::prototype_or_initial_map() field.
   static FieldAccess ForJSFunctionPrototypeOrInitialMap();
 
@@ -61,8 +64,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSFunction::shared() field.
   static FieldAccess ForJSFunctionSharedFunctionInfo();
 
-  // Provides access to JSFunction::literals() field.
-  static FieldAccess ForJSFunctionLiterals();
+  // Provides access to JSFunction::feedback_vector() field.
+  static FieldAccess ForJSFunctionFeedbackVector();
 
   // Provides access to JSFunction::code() field.
   static FieldAccess ForJSFunctionCodeEntry();
@@ -171,6 +174,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to ConsString::second() field.
   static FieldAccess ForConsStringSecond();
+
+  // Provides access to ThinString::actual() field.
+  static FieldAccess ForThinStringActual();
 
   // Provides access to SlicedString::offset() field.
   static FieldAccess ForSlicedStringOffset();

@@ -6,6 +6,8 @@
 
 #include <sstream>
 
+#include "src/objects-inl.h"
+
 #if V8_TARGET_ARCH_IA32
 #include "src/crankshaft/ia32/lithium-ia32.h"  // NOLINT
 #include "src/crankshaft/ia32/lithium-codegen-ia32.h"  // NOLINT
@@ -237,7 +239,8 @@ void LCodeGenBase::WriteTranslationFrame(LEnvironment* environment,
       int shared_id = DefineDeoptimizationLiteral(
           environment->entry() ? environment->entry()->shared()
                                : info()->shared_info());
-      translation->BeginConstructStubFrame(shared_id, translation_size);
+      translation->BeginConstructStubFrame(BailoutId::ConstructStubInvoke(),
+                                           shared_id, translation_size);
       if (info()->closure().is_identical_to(environment->closure())) {
         translation->StoreJSFrameFunction();
       } else {

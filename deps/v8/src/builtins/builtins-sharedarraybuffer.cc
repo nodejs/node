@@ -78,7 +78,7 @@ void ValidateSharedTypedArray(CodeStubAssembler* a, compiler::Node* tagged,
   a->Bind(&invalid);
   a->CallRuntime(Runtime::kThrowNotIntegerSharedTypedArrayError, context,
                  tagged);
-  a->Return(a->UndefinedConstant());
+  a->Unreachable();
 
   a->Bind(&not_float_or_clamped);
   *out_instance_type = elements_instance_type;
@@ -129,8 +129,8 @@ compiler::Node* ConvertTaggedAtomicIndexToWord32(CodeStubAssembler* a,
     }
 
     a->Bind(&if_indexesarenotequal);
-    a->Return(
-        a->CallRuntime(Runtime::kThrowInvalidAtomicAccessIndexError, context));
+    a->CallRuntime(Runtime::kThrowInvalidAtomicAccessIndexError, context);
+    a->Unreachable();
   }
 
   a->Bind(&done);
@@ -149,8 +149,8 @@ void ValidateAtomicIndex(CodeStubAssembler* a, compiler::Node* index_word,
                   a->Int32GreaterThanOrEqual(index_word, array_length_word)),
       &if_notinbounds, &if_inbounds);
   a->Bind(&if_notinbounds);
-  a->Return(
-      a->CallRuntime(Runtime::kThrowInvalidAtomicAccessIndexError, context));
+  a->CallRuntime(Runtime::kThrowInvalidAtomicAccessIndexError, context);
+  a->Unreachable();
   a->Bind(&if_inbounds);
 }
 

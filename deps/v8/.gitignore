@@ -54,7 +54,6 @@ shell_g
 /test/promises-aplus/promises-tests
 /test/promises-aplus/promises-tests.tar.gz
 /test/promises-aplus/sinon
-/test/simdjs/data
 /test/test262/data
 /test/test262/data.tar
 /test/test262/harness
@@ -102,5 +101,6 @@ v8.ignition_dispatches_table.json
 /test/fuzzer/wasm_asmjs.tar.gz
 /src/inspector/build/closure-compiler.tar.gz
 /src/inspector/build/closure-compiler
+/test/wasm-js
 !/third_party/jinja2
 !/third_party/markupsafe

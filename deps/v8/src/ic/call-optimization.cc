@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/ic/call-optimization.h"
-
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

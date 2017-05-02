@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/api.h"
 #include "src/assembler.h"
 #include "src/base/once.h"
 #include "src/base/platform/platform.h"
@@ -15,7 +16,7 @@
 #include "src/frames.h"
 #include "src/isolate.h"
 #include "src/libsampler/sampler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/natives.h"

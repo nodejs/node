@@ -43,7 +43,7 @@ parameter count: 1
 bytecode array length: 7
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   15 S> */ B(LdaSmi), U8(10),
+  /*   15 S> */ B(LdaSmi), I8(10),
   /*   17 E> */ B(StaLookupSlotSloppy), U8(0),
                 B(LdaUndefined),
   /*   23 S> */ B(Return),
@@ -68,7 +68,7 @@ parameter count: 1
 bytecode array length: 7
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   29 S> */ B(LdaSmi), U8(10),
+  /*   29 S> */ B(LdaSmi), I8(10),
   /*   31 E> */ B(StaLookupSlotStrict), U8(0),
                 B(LdaUndefined),
   /*   37 S> */ B(Return),

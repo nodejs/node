@@ -110,13 +110,10 @@ TEST(WeakSet_Weakness) {
       0, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
 
   // Make the global reference to the key weak.
-  {
-    HandleScope scope(isolate);
-    std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
-    GlobalHandles::MakeWeak(
-        key.location(), reinterpret_cast<void*>(&handle_and_id),
-        &WeakPointerCallback, v8::WeakCallbackType::kParameter);
-  }
+  std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
+  GlobalHandles::MakeWeak(
+      key.location(), reinterpret_cast<void*>(&handle_and_id),
+      &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   CHECK(global_handles->IsWeak(key.location()));
 
   CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);

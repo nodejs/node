@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/assembler-inl.h"
 #include "src/base/platform/elapsed-timer.h"
 
 #include "src/wasm/wasm-macro-gen.h"

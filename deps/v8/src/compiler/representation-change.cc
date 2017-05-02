@@ -10,6 +10,7 @@
 #include "src/code-factory.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -169,9 +170,10 @@ Node* RepresentationChanger::GetRepresentationFor(
     case MachineRepresentation::kWord64:
       DCHECK(use_info.type_check() == TypeCheckKind::kNone);
       return GetWord64RepresentationFor(node, output_rep, output_type);
-    case MachineRepresentation::kSimd128:  // Fall through.
-      // TODO(bbudge) Handle conversions between tagged and untagged.
-      break;
+    case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd1x4:
+    case MachineRepresentation::kSimd1x8:
+    case MachineRepresentation::kSimd1x16:
     case MachineRepresentation::kNone:
       return node;
   }
@@ -271,9 +273,15 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedSigned);
     }
-  } else if (CanBeTaggedPointer(output_rep) &&
-             use_info.type_check() == TypeCheckKind::kSignedSmall) {
-    op = simplified()->CheckedTaggedToTaggedSigned();
+  } else if (CanBeTaggedPointer(output_rep)) {
+    if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
+      op = simplified()->CheckedTaggedToTaggedSigned();
+    } else if (output_type->Is(Type::SignedSmall())) {
+      op = simplified()->ChangeTaggedToTaggedSigned();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kTaggedSigned);
+    }
   } else if (output_rep == MachineRepresentation::kBit &&
              use_info.type_check() == TypeCheckKind::kSignedSmall) {
     // TODO(turbofan): Consider adding a Bailout operator that just deopts.

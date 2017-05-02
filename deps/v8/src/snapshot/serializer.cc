@@ -4,6 +4,8 @@
 
 #include "src/snapshot/serializer.h"
 
+#include "src/assembler-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/macro-assembler.h"
 #include "src/snapshot/natives.h"
 

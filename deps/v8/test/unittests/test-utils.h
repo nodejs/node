@@ -24,6 +24,10 @@ class TestWithIsolate : public virtual ::testing::Test {
 
   Isolate* isolate() const { return isolate_; }
 
+  v8::internal::Isolate* i_isolate() const {
+    return reinterpret_cast<v8::internal::Isolate*>(isolate());
+  }
+
   static void SetUpTestCase();
   static void TearDownTestCase();
 
@@ -43,10 +47,6 @@ class TestWithContext : public virtual TestWithIsolate {
   virtual ~TestWithContext();
 
   const Local<Context>& context() const { return context_; }
-
-  v8::internal::Isolate* i_isolate() const {
-    return reinterpret_cast<v8::internal::Isolate*>(isolate());
-  }
 
  private:
   Local<Context> context_;

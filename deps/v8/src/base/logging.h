@@ -43,13 +43,13 @@ namespace base {
 //
 // We make sure CHECK et al. always evaluates their arguments, as
 // doing CHECK(FunctionWithSideEffect()) is a common idiom.
-#define CHECK(condition)                                             \
-  do {                                                               \
-    if (V8_UNLIKELY(!(condition))) {                                 \
-      V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", #condition); \
-    }                                                                \
+#define CHECK_WITH_MSG(condition, message)                        \
+  do {                                                            \
+    if (V8_UNLIKELY(!(condition))) {                              \
+      V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", message); \
+    }                                                             \
   } while (0)
-
+#define CHECK(condition) CHECK_WITH_MSG(condition, #condition)
 
 #ifdef DEBUG
 
@@ -70,7 +70,12 @@ namespace base {
 // Make all CHECK functions discard their log strings to reduce code
 // bloat for official release builds.
 
-#define CHECK_OP(name, op, lhs, rhs) CHECK((lhs)op(rhs))
+#define CHECK_OP(name, op, lhs, rhs)                                         \
+  do {                                                                       \
+    bool _cmp =                                                              \
+        ::v8::base::Cmp##name##Impl<decltype(lhs), decltype(rhs)>(lhs, rhs); \
+    CHECK_WITH_MSG(_cmp, #lhs " " #op " " #rhs);                             \
+  } while (0)
 
 #endif
 
@@ -199,7 +204,8 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define CHECK_GT(lhs, rhs) CHECK_OP(GT, >, lhs, rhs)
 #define CHECK_NULL(val) CHECK((val) == nullptr)
 #define CHECK_NOT_NULL(val) CHECK((val) != nullptr)
-#define CHECK_IMPLIES(lhs, rhs) CHECK(!(lhs) || (rhs))
+#define CHECK_IMPLIES(lhs, rhs) \
+  CHECK_WITH_MSG(!(lhs) || (rhs), #lhs " implies " #rhs)
 
 }  // namespace base
 }  // namespace v8

@@ -408,8 +408,7 @@ OptimizationReason RuntimeProfiler::ShouldOptimizeIgnition(
     int typeinfo, generic, total, type_percentage, generic_percentage;
     GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
                 &generic_percentage);
-    if (type_percentage >= FLAG_type_info_threshold &&
-        generic_percentage <= FLAG_generic_ic_threshold) {
+    if (type_percentage >= FLAG_type_info_threshold) {
       // If this particular function hasn't had any ICs patched for enough
       // ticks, optimize it now.
       return OptimizationReason::kHotAndStable;
@@ -431,8 +430,7 @@ OptimizationReason RuntimeProfiler::ShouldOptimizeIgnition(
     int typeinfo, generic, total, type_percentage, generic_percentage;
     GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
                 &generic_percentage);
-    if (type_percentage >= FLAG_type_info_threshold &&
-        generic_percentage <= FLAG_generic_ic_threshold) {
+    if (type_percentage >= FLAG_type_info_threshold) {
       return OptimizationReason::kSmallFunction;
     }
   }

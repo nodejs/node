@@ -158,12 +158,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                           no_reg);
   }
 
-  static void GenerateLoadFunctionPrototype(MacroAssembler* masm,
-                                            Register receiver,
-                                            Register scratch1,
-                                            Register scratch2,
-                                            Label* miss_label);
-
   // These constants describe the structure of the interceptor arguments on the
   // stack. The arguments are pushed by the (platform-specific)
   // PushInterceptorArguments and read by LoadPropertyWithInterceptorOnly and

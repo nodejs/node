@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "src/globals.h"
+
 namespace v8 {
 namespace debug {
 
@@ -16,7 +18,7 @@ namespace debug {
  * Defines location inside script.
  * Lines and columns are 0-based.
  */
-class Location {
+class V8_EXPORT_PRIVATE Location {
  public:
   Location(int line_number, int column_number);
   /**
@@ -60,10 +62,10 @@ struct WasmDisassembly {
 };
 
 enum PromiseDebugActionType {
+  kDebugPromiseCreated,
   kDebugEnqueueAsyncFunction,
   kDebugEnqueuePromiseResolve,
   kDebugEnqueuePromiseReject,
-  kDebugEnqueuePromiseResolveThenableJob,
   kDebugPromiseCollected,
   kDebugWillHandle,
   kDebugDidHandle,

@@ -22,24 +22,17 @@ static bool IsPropertyNameFeedback(Object* feedback) {
          symbol != heap->megamorphic_symbol();
 }
 
-std::ostream& operator<<(std::ostream& os, FeedbackVectorSlotKind kind) {
+std::ostream& operator<<(std::ostream& os, FeedbackSlotKind kind) {
   return os << FeedbackMetadata::Kind2String(kind);
 }
 
-FeedbackVectorSlotKind FeedbackMetadata::GetKind(
-    FeedbackVectorSlot slot) const {
+FeedbackSlotKind FeedbackMetadata::GetKind(FeedbackSlot slot) const {
   int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
   int data = Smi::cast(get(index))->value();
   return VectorICComputer::decode(data, slot.ToInt());
 }
 
-int FeedbackMetadata::GetParameter(int parameter_index) const {
-  FixedArray* parameters = FixedArray::cast(get(kParametersTableIndex));
-  return Smi::cast(parameters->get(parameter_index))->value();
-}
-
-void FeedbackMetadata::SetKind(FeedbackVectorSlot slot,
-                               FeedbackVectorSlotKind kind) {
+void FeedbackMetadata::SetKind(FeedbackSlot slot, FeedbackSlotKind kind) {
   int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
   int data = Smi::cast(get(index))->value();
   int new_data = VectorICComputer::encode(data, slot.ToInt(), kind);
@@ -65,11 +58,11 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
   }
 #ifdef DEBUG
   for (int i = 0; i < slot_count;) {
-    FeedbackVectorSlotKind kind = spec->GetKind(i);
+    FeedbackSlotKind kind = spec->GetKind(FeedbackSlot(i));
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
     for (int j = 1; j < entry_size; j++) {
-      FeedbackVectorSlotKind kind = spec->GetKind(i + j);
-      DCHECK_EQ(FeedbackVectorSlotKind::INVALID, kind);
+      FeedbackSlotKind kind = spec->GetKind(FeedbackSlot(i + j));
+      DCHECK_EQ(FeedbackSlotKind::kInvalid, kind);
     }
     i += entry_size;
   }
@@ -85,20 +78,9 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
   Handle<FeedbackMetadata> metadata = Handle<FeedbackMetadata>::cast(array);
 
   for (int i = 0; i < slot_count; i++) {
-    FeedbackVectorSlotKind kind = spec->GetKind(i);
-    metadata->SetKind(FeedbackVectorSlot(i), kind);
-  }
-
-  if (spec->parameters_count() > 0) {
-    const int parameters_count = spec->parameters_count();
-    Handle<FixedArray> params_array =
-        factory->NewFixedArray(parameters_count, TENURED);
-    for (int i = 0; i < parameters_count; i++) {
-      params_array->set(i, Smi::FromInt(spec->GetParameter(i)));
-    }
-    metadata->set(kParametersTableIndex, *params_array);
-  } else {
-    metadata->set(kParametersTableIndex, *factory->empty_fixed_array());
+    FeedbackSlot slot(i);
+    FeedbackSlotKind kind = spec->GetKind(slot);
+    metadata->SetKind(slot, kind);
   }
 
   // It's important that the FeedbackMetadata have a COW map, since it's
@@ -118,180 +100,144 @@ bool FeedbackMetadata::SpecDiffersFrom(
   }
 
   int slots = slot_count();
-  int parameter_index = 0;
   for (int i = 0; i < slots;) {
-    FeedbackVectorSlot slot(i);
-    FeedbackVectorSlotKind kind = GetKind(slot);
+    FeedbackSlot slot(i);
+    FeedbackSlotKind kind = GetKind(slot);
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
 
-    if (kind != other_spec->GetKind(i)) {
+    if (kind != other_spec->GetKind(slot)) {
       return true;
-    }
-    if (SlotRequiresParameter(kind)) {
-      int parameter = GetParameter(parameter_index);
-      int other_parameter = other_spec->GetParameter(parameter_index);
-      if (parameter != other_parameter) {
-        return true;
-      }
-      parameter_index++;
     }
     i += entry_size;
   }
   return false;
 }
 
-bool FeedbackMetadata::DiffersFrom(
-    const FeedbackMetadata* other_metadata) const {
-  if (other_metadata->slot_count() != slot_count()) {
-    return true;
-  }
-
-  int slots = slot_count();
-  int parameter_index = 0;
-  for (int i = 0; i < slots;) {
-    FeedbackVectorSlot slot(i);
-    FeedbackVectorSlotKind kind = GetKind(slot);
-    int entry_size = FeedbackMetadata::GetSlotSize(kind);
-    if (GetKind(slot) != other_metadata->GetKind(slot)) {
-      return true;
-    }
-    if (SlotRequiresParameter(kind)) {
-      if (GetParameter(parameter_index) !=
-          other_metadata->GetParameter(parameter_index)) {
-        return true;
-      }
-      parameter_index++;
-    }
-    i += entry_size;
-  }
-  return false;
-}
-
-const char* FeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
+const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
   switch (kind) {
-    case FeedbackVectorSlotKind::INVALID:
+    case FeedbackSlotKind::kInvalid:
       return "INVALID";
-    case FeedbackVectorSlotKind::CALL_IC:
+    case FeedbackSlotKind::kCall:
       return "CALL_IC";
-    case FeedbackVectorSlotKind::LOAD_IC:
+    case FeedbackSlotKind::kLoadProperty:
       return "LOAD_IC";
-    case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
-      return "LOAD_GLOBAL_IC";
-    case FeedbackVectorSlotKind::KEYED_LOAD_IC:
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+      return "LOAD_GLOBAL_INSIDE_TYPEOF_IC";
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+      return "LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC";
+    case FeedbackSlotKind::kLoadKeyed:
       return "KEYED_LOAD_IC";
-    case FeedbackVectorSlotKind::STORE_IC:
-      return "STORE_IC";
-    case FeedbackVectorSlotKind::KEYED_STORE_IC:
-      return "KEYED_STORE_IC";
-    case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
+    case FeedbackSlotKind::kStoreNamedSloppy:
+      return "STORE_SLOPPY_IC";
+    case FeedbackSlotKind::kStoreNamedStrict:
+      return "STORE_STRICT_IC";
+    case FeedbackSlotKind::kStoreOwnNamed:
+      return "STORE_OWN_IC";
+    case FeedbackSlotKind::kStoreKeyedSloppy:
+      return "KEYED_STORE_SLOPPY_IC";
+    case FeedbackSlotKind::kStoreKeyedStrict:
+      return "KEYED_STORE_STRICT_IC";
+    case FeedbackSlotKind::kBinaryOp:
       return "INTERPRETER_BINARYOP_IC";
-    case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
+    case FeedbackSlotKind::kCompareOp:
       return "INTERPRETER_COMPARE_IC";
-    case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
+    case FeedbackSlotKind::kToBoolean:
+      return "TO_BOOLEAN_IC";
+    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       return "STORE_DATA_PROPERTY_IN_LITERAL_IC";
-    case FeedbackVectorSlotKind::CREATE_CLOSURE:
-      return "CREATE_CLOSURE";
-    case FeedbackVectorSlotKind::GENERAL:
+    case FeedbackSlotKind::kCreateClosure:
+      return "kCreateClosure";
+    case FeedbackSlotKind::kLiteral:
+      return "LITERAL";
+    case FeedbackSlotKind::kGeneral:
       return "STUB";
-    case FeedbackVectorSlotKind::KINDS_NUMBER:
+    case FeedbackSlotKind::kKindsNumber:
       break;
   }
   UNREACHABLE();
   return "?";
 }
 
-FeedbackVectorSlotKind FeedbackVector::GetKind(FeedbackVectorSlot slot) const {
+FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
   DCHECK(!is_empty());
   return metadata()->GetKind(slot);
 }
 
-int FeedbackVector::GetParameter(FeedbackVectorSlot slot) const {
-  DCHECK(!is_empty());
-  DCHECK(
-      FeedbackMetadata::SlotRequiresParameter(metadata()->GetKind(slot)));
-  return FixedArray::cast(Get(slot))->length();
-}
-
 // static
 Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
-                                           Handle<FeedbackMetadata> metadata) {
+                                           Handle<SharedFunctionInfo> shared) {
   Factory* factory = isolate->factory();
 
-  const int slot_count = metadata->slot_count();
+  const int slot_count = shared->feedback_metadata()->slot_count();
   const int length = slot_count + kReservedIndexCount;
-  if (length == kReservedIndexCount) {
-    return Handle<FeedbackVector>::cast(factory->empty_feedback_vector());
-  }
 
   Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
   array->set_map_no_write_barrier(isolate->heap()->feedback_vector_map());
-  array->set(kMetadataIndex, *metadata);
+  array->set(kSharedFunctionInfoIndex, *shared);
   array->set(kInvocationCountIndex, Smi::kZero);
-  int parameter_index = 0;
-  for (int i = 0; i < slot_count;) {
-    FeedbackVectorSlot slot(i);
-    FeedbackVectorSlotKind kind = metadata->GetKind(slot);
-    int index = FeedbackVector::GetIndex(slot);
-    int entry_size = FeedbackMetadata::GetSlotSize(kind);
-
-    if (kind == FeedbackVectorSlotKind::CREATE_CLOSURE) {
-      // This fixed array is filled with undefined.
-      int length = metadata->GetParameter(parameter_index++);
-      if (length == 0) {
-        // This is a native function literal. We can always point to
-        // the empty literals array here.
-        array->set(index, *factory->empty_literals_array(), SKIP_WRITE_BARRIER);
-      } else {
-        // TODO(mvstanton): Create the array.
-        // Handle<FixedArray> value = factory->NewFixedArray(length);
-        // array->set(index, *value);
-        array->set(index, *factory->empty_literals_array(), SKIP_WRITE_BARRIER);
-      }
-    }
-    i += entry_size;
-  }
-
-  DisallowHeapAllocation no_gc;
 
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
   DCHECK_EQ(isolate->heap()->uninitialized_symbol(), *uninitialized_sentinel);
+  Handle<Oddball> undefined_value = factory->undefined_value();
   for (int i = 0; i < slot_count;) {
-    FeedbackVectorSlot slot(i);
-    FeedbackVectorSlotKind kind = metadata->GetKind(slot);
+    FeedbackSlot slot(i);
+    FeedbackSlotKind kind = shared->feedback_metadata()->GetKind(slot);
     int index = FeedbackVector::GetIndex(slot);
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
 
-    Object* value;
-    if (kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC) {
-      value = isolate->heap()->empty_weak_cell();
-    } else if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
-               kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC) {
-      value = Smi::kZero;
-    } else {
-      value = *uninitialized_sentinel;
-    }
-
-    if (kind != FeedbackVectorSlotKind::CREATE_CLOSURE) {
-      array->set(index, value, SKIP_WRITE_BARRIER);
-      value = kind == FeedbackVectorSlotKind::CALL_IC ? Smi::kZero
-                                                      : *uninitialized_sentinel;
-      for (int j = 1; j < entry_size; j++) {
-        array->set(index + j, value, SKIP_WRITE_BARRIER);
+    Object* extra_value = *uninitialized_sentinel;
+    switch (kind) {
+      case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+      case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+        array->set(index, isolate->heap()->empty_weak_cell(),
+                   SKIP_WRITE_BARRIER);
+        break;
+      case FeedbackSlotKind::kCompareOp:
+      case FeedbackSlotKind::kBinaryOp:
+      case FeedbackSlotKind::kToBoolean:
+        array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
+        break;
+      case FeedbackSlotKind::kCreateClosure: {
+        Handle<Cell> cell = factory->NewNoClosuresCell(undefined_value);
+        array->set(index, *cell);
+        break;
       }
+      case FeedbackSlotKind::kLiteral:
+        array->set(index, *undefined_value, SKIP_WRITE_BARRIER);
+        break;
+      case FeedbackSlotKind::kCall:
+        array->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
+        extra_value = Smi::kZero;
+        break;
+      case FeedbackSlotKind::kLoadProperty:
+      case FeedbackSlotKind::kLoadKeyed:
+      case FeedbackSlotKind::kStoreNamedSloppy:
+      case FeedbackSlotKind::kStoreNamedStrict:
+      case FeedbackSlotKind::kStoreOwnNamed:
+      case FeedbackSlotKind::kStoreKeyedSloppy:
+      case FeedbackSlotKind::kStoreKeyedStrict:
+      case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+      case FeedbackSlotKind::kGeneral:
+        array->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
+        break;
+
+      case FeedbackSlotKind::kInvalid:
+      case FeedbackSlotKind::kKindsNumber:
+        UNREACHABLE();
+        array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
+        break;
+    }
+    for (int j = 1; j < entry_size; j++) {
+      array->set(index + j, extra_value, SKIP_WRITE_BARRIER);
     }
     i += entry_size;
   }
-  return Handle<FeedbackVector>::cast(array);
+
+  Handle<FeedbackVector> result = Handle<FeedbackVector>::cast(array);
+  if (isolate->IsCodeCoverageEnabled()) AddToCodeCoverageList(isolate, result);
+  return result;
 }
-
-
-// static
-int FeedbackVector::GetIndexFromSpec(const FeedbackVectorSpec* spec,
-                                     FeedbackVectorSlot slot) {
-  return kReservedIndexCount + slot.ToInt();
-}
-
 
 // static
 Handle<FeedbackVector> FeedbackVector::Copy(Isolate* isolate,
@@ -299,81 +245,100 @@ Handle<FeedbackVector> FeedbackVector::Copy(Isolate* isolate,
   Handle<FeedbackVector> result;
   result = Handle<FeedbackVector>::cast(
       isolate->factory()->CopyFixedArray(Handle<FixedArray>::cast(vector)));
+  if (isolate->IsCodeCoverageEnabled()) AddToCodeCoverageList(isolate, result);
   return result;
 }
 
-
-// This logic is copied from
-// StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget.
-static bool ClearLogic(Isolate* isolate) {
-  return FLAG_cleanup_code_caches_at_gc && isolate->serializer_enabled();
+// static
+void FeedbackVector::AddToCodeCoverageList(Isolate* isolate,
+                                           Handle<FeedbackVector> vector) {
+  DCHECK(isolate->IsCodeCoverageEnabled());
+  if (!vector->shared_function_info()->IsSubjectToDebugging()) return;
+  Handle<ArrayList> list =
+      Handle<ArrayList>::cast(isolate->factory()->code_coverage_list());
+  list = ArrayList::Add(list, vector);
+  isolate->SetCodeCoverageList(*list);
 }
 
-
-void FeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
-                                    bool force_clear) {
+void FeedbackVector::ClearSlots(JSFunction* host_function) {
   Isolate* isolate = GetIsolate();
-  if (!force_clear && !ClearLogic(isolate)) return;
-
-  if (this == isolate->heap()->empty_feedback_vector()) return;
 
   Object* uninitialized_sentinel =
       FeedbackVector::RawUninitializedSentinel(isolate);
+  Oddball* undefined_value = isolate->heap()->undefined_value();
 
+  bool feedback_updated = false;
   FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
-    FeedbackVectorSlot slot = iter.Next();
-    FeedbackVectorSlotKind kind = iter.kind();
+    FeedbackSlot slot = iter.Next();
+    FeedbackSlotKind kind = iter.kind();
 
     Object* obj = Get(slot);
     if (obj != uninitialized_sentinel) {
       switch (kind) {
-        case FeedbackVectorSlotKind::CALL_IC: {
+        case FeedbackSlotKind::kCall: {
           CallICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
-        case FeedbackVectorSlotKind::LOAD_IC: {
+        case FeedbackSlotKind::kLoadProperty: {
           LoadICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
-        case FeedbackVectorSlotKind::LOAD_GLOBAL_IC: {
+        case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+        case FeedbackSlotKind::kLoadGlobalNotInsideTypeof: {
           LoadGlobalICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
-        case FeedbackVectorSlotKind::KEYED_LOAD_IC: {
+        case FeedbackSlotKind::kLoadKeyed: {
           KeyedLoadICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
-        case FeedbackVectorSlotKind::STORE_IC: {
+        case FeedbackSlotKind::kStoreNamedSloppy:
+        case FeedbackSlotKind::kStoreNamedStrict:
+        case FeedbackSlotKind::kStoreOwnNamed: {
           StoreICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
-        case FeedbackVectorSlotKind::KEYED_STORE_IC: {
+        case FeedbackSlotKind::kStoreKeyedSloppy:
+        case FeedbackSlotKind::kStoreKeyedStrict: {
           KeyedStoreICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
-        case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
-        case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC: {
+        case FeedbackSlotKind::kBinaryOp:
+        case FeedbackSlotKind::kCompareOp: {
           DCHECK(Get(slot)->IsSmi());
           // don't clear these smi slots.
           // Set(slot, Smi::kZero);
           break;
         }
-        case FeedbackVectorSlotKind::CREATE_CLOSURE: {
-          // Fill the array with undefined.
-          FixedArray* array = FixedArray::cast(Get(slot));
-          for (int i = 1; i < array->length(); i++) {
-            array->set_undefined(i);
-          }
+        case FeedbackSlotKind::kCreateClosure: {
           break;
         }
-        case FeedbackVectorSlotKind::GENERAL: {
+        case FeedbackSlotKind::kGeneral: {
           if (obj->IsHeapObject()) {
             InstanceType instance_type =
                 HeapObject::cast(obj)->map()->instance_type();
@@ -382,30 +347,36 @@ void FeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
             // regularly.
             if (instance_type != ALLOCATION_SITE_TYPE) {
               Set(slot, uninitialized_sentinel, SKIP_WRITE_BARRIER);
+              feedback_updated = true;
             }
           }
           break;
         }
-        case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {
-          StoreDataPropertyInLiteralICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+        case FeedbackSlotKind::kLiteral: {
+          Set(slot, undefined_value, SKIP_WRITE_BARRIER);
+          feedback_updated = true;
           break;
         }
-        case FeedbackVectorSlotKind::INVALID:
-        case FeedbackVectorSlotKind::KINDS_NUMBER:
+        case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
+          StoreDataPropertyInLiteralICNexus nexus(this, slot);
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
+          break;
+        }
+        case FeedbackSlotKind::kToBoolean:
+        case FeedbackSlotKind::kInvalid:
+        case FeedbackSlotKind::kKindsNumber:
           UNREACHABLE();
           break;
       }
     }
   }
+  if (feedback_updated) {
+    IC::OnFeedbackChanged(isolate, host_function);
+  }
 }
-
-
-// static
-Handle<FeedbackVector> FeedbackVector::DummyVector(Isolate* isolate) {
-  return isolate->factory()->dummy_vector();
-}
-
 
 Handle<FixedArray> FeedbackNexus::EnsureArrayOfSize(int length) {
   Isolate* isolate = GetIsolate();
@@ -459,8 +430,8 @@ void FeedbackNexus::ConfigurePremonomorphic() {
 
 void FeedbackNexus::ConfigureMegamorphic() {
   // Keyed ICs must use ConfigureMegamorphicKeyed.
-  DCHECK_NE(FeedbackVectorSlotKind::KEYED_LOAD_IC, vector()->GetKind(slot()));
-  DCHECK_NE(FeedbackVectorSlotKind::KEYED_STORE_IC, vector()->GetKind(slot()));
+  DCHECK(!vector()->IsKeyedLoadIC(slot()));
+  DCHECK(!vector()->IsKeyedStoreIC(slot()));
 
   Isolate* isolate = GetIsolate();
   SetFeedback(*FeedbackVector::MegamorphicSentinel(isolate),
@@ -622,8 +593,6 @@ float CallICNexus::ComputeCallFrequency() {
   double const call_count = ExtractCallCount();
   return static_cast<float>(call_count / invocation_count);
 }
-
-void CallICNexus::Clear(Code* host) { CallIC::Clear(GetIsolate(), host, this); }
 
 void CallICNexus::ConfigureUninitialized() {
   Isolate* isolate = GetIsolate();
@@ -929,16 +898,6 @@ bool FeedbackNexus::FindHandlers(List<Handle<Object>>* code_list,
   return count == length;
 }
 
-void LoadICNexus::Clear(Code* host) { LoadIC::Clear(GetIsolate(), host, this); }
-
-void LoadGlobalICNexus::Clear(Code* host) {
-  LoadGlobalIC::Clear(GetIsolate(), host, this);
-}
-
-void KeyedLoadICNexus::Clear(Code* host) {
-  KeyedLoadIC::Clear(GetIsolate(), host, this);
-}
-
 Name* KeyedLoadICNexus::FindFirstName() const {
   Object* feedback = GetFeedback();
   if (IsPropertyNameFeedback(feedback)) {
@@ -953,14 +912,6 @@ Name* KeyedStoreICNexus::FindFirstName() const {
     return Name::cast(feedback);
   }
   return NULL;
-}
-
-void StoreICNexus::Clear(Code* host) {
-  StoreIC::Clear(GetIsolate(), host, this);
-}
-
-void KeyedStoreICNexus::Clear(Code* host) {
-  KeyedStoreIC::Clear(GetIsolate(), host, this);
 }
 
 KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
@@ -986,7 +937,7 @@ KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
     uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());
     CHECK(major_key == CodeStub::KeyedStoreSloppyArguments ||
           major_key == CodeStub::StoreFastElement ||
-          major_key == CodeStub::StoreElement ||
+          major_key == CodeStub::StoreSlowElement ||
           major_key == CodeStub::ElementsTransitionAndStore ||
           major_key == CodeStub::NoCache);
     if (major_key != CodeStub::NoCache) {

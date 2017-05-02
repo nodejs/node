@@ -270,7 +270,7 @@ bool LCodeGen::GenerateDeferredCode() {
         DCHECK(!frame_is_built_);
         DCHECK(info()->IsStub());
         frame_is_built_ = true;
-        __ Move(scratch0(), Smi::FromInt(StackFrame::STUB));
+        __ mov(scratch0(), Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
         __ PushCommonFrame(scratch0());
         Comment(";;; Deferred code");
       }
@@ -344,7 +344,7 @@ bool LCodeGen::GenerateJumpTable() {
       // This variant of deopt can only be used with stubs. Since we don't
       // have a function pointer to install in the stack frame that we're
       // building, install a special marker there instead.
-      __ mov(ip, Operand(Smi::FromInt(StackFrame::STUB)));
+      __ mov(ip, Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
       __ push(ip);
       DCHECK(info()->IsStub());
     }
@@ -688,7 +688,7 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
   // Block literal pool emission to ensure nop indicating no inlined smi code
   // is in the correct position.
   Assembler::BlockConstPoolScope block_const_pool(masm());
-  __ Call(code, mode, TypeFeedbackId::None(), al, storage_mode);
+  __ Call(code, mode, TypeFeedbackId::None(), al, storage_mode, false);
   RecordSafepointWithLazyDeopt(instr, safepoint_mode);
 
   // Signal that we don't inline smi code before these stubs in the
@@ -2130,12 +2130,6 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ b(eq, instr->TrueLabel(chunk_));
       }
 
-      if (expected & ToBooleanHint::kSimdValue) {
-        // SIMD value -> true.
-        __ CompareInstanceType(map, ip, SIMD128_VALUE_TYPE);
-        __ b(eq, instr->TrueLabel(chunk_));
-      }
-
       if (expected & ToBooleanHint::kHeapNumber) {
         // heap number -> false iff +0, -0, or NaN.
         DwVfpRegister dbl_scratch = double_scratch0();
@@ -2941,7 +2935,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
     __ ldr(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ ldr(result, MemOperand(scratch,
                               CommonFrameConstants::kContextOrFrameTypeOffset));
-    __ cmp(result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+    __ cmp(result,
+           Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
 
     // Result is the frame pointer for the frame if not adapted and for the real
     // frame below the adaptor frame if adapted.
@@ -3505,7 +3500,8 @@ void LCodeGen::PrepareForTailCall(const ParameterCount& actual,
   __ ldr(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(scratch3,
          MemOperand(scratch2, StandardFrameConstants::kContextOffset));
-  __ cmp(scratch3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ cmp(scratch3,
+         Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(ne, &no_arguments_adaptor);
 
   // Drop current frame and load arguments count from arguments adaptor frame.
@@ -4763,6 +4759,13 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
 
 
 void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
+  Label deopt, done;
+  // If the map is not deprecated the migration attempt does not make sense.
+  __ ldr(scratch0(), FieldMemOperand(object, HeapObject::kMapOffset));
+  __ ldr(scratch0(), FieldMemOperand(scratch0(), Map::kBitField3Offset));
+  __ tst(scratch0(), Operand(Map::Deprecated::kMask));
+  __ b(eq, &deopt);
+
   {
     PushSafepointRegistersScope scope(this);
     __ push(object);
@@ -4773,7 +4776,12 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
     __ StoreToSafepointRegisterSlot(r0, scratch0());
   }
   __ tst(scratch0(), Operand(kSmiTagMask));
-  DeoptimizeIf(eq, instr, DeoptimizeReason::kInstanceMigrationFailed);
+  __ b(ne, &done);
+
+  __ bind(&deopt);
+  DeoptimizeIf(al, instr, DeoptimizeReason::kInstanceMigrationFailed);
+
+  __ bind(&done);
 }
 
 
@@ -5124,17 +5132,6 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
            Operand((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
     final_branch_condition = eq;
 
-// clang-format off
-#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)        \
-  } else if (String::Equals(type_name, factory->type##_string())) {  \
-    __ JumpIfSmi(input, false_label);                                \
-    __ ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset)); \
-    __ CompareRoot(scratch, Heap::k##Type##MapRootIndex);            \
-    final_branch_condition = eq;
-  SIMD128_TYPES(SIMD128_TYPE)
-#undef SIMD128_TYPE
-    // clang-format on
-
   } else {
     __ b(false_label);
   }
@@ -5231,6 +5228,7 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ cmp(sp, Operand(ip));
     __ b(hs, &done);
     Handle<Code> stack_check = isolate()->builtins()->StackCheck();
+    masm()->MaybeCheckConstPool();
     PredictableCodeSizeScope predictable(masm());
     predictable.ExpectSize(CallCodeSize(stack_check, RelocInfo::CODE_TARGET));
     DCHECK(instr->context()->IsRegister());

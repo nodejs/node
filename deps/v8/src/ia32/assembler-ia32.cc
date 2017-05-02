@@ -835,7 +835,7 @@ void Assembler::cmpb(Register reg, const Operand& op) {
 
 
 void Assembler::cmpw(const Operand& op, Immediate imm16) {
-  DCHECK(imm16.is_int16());
+  DCHECK(imm16.is_int16() || imm16.is_uint16());
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x81);

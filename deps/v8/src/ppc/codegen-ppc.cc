@@ -77,6 +77,9 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 void StringCharLoadGenerator::Generate(MacroAssembler* masm, Register string,
                                        Register index, Register result,
                                        Label* call_runtime) {
+  Label indirect_string_loaded;
+  __ bind(&indirect_string_loaded);
+
   // Fetch the instance type of the receiver into result register.
   __ LoadP(result, FieldMemOperand(string, HeapObject::kMapOffset));
   __ lbz(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
@@ -86,18 +89,24 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm, Register string,
   __ andi(r0, result, Operand(kIsIndirectStringMask));
   __ beq(&check_sequential, cr0);
 
-  // Dispatch on the indirect string shape: slice or cons.
-  Label cons_string;
-  __ mov(ip, Operand(kSlicedNotConsMask));
-  __ and_(r0, result, ip, SetRC);
-  __ beq(&cons_string, cr0);
+  // Dispatch on the indirect string shape: slice or cons or thin.
+  Label cons_string, thin_string;
+  __ andi(ip, result, Operand(kStringRepresentationMask));
+  __ cmpi(ip, Operand(kConsStringTag));
+  __ beq(&cons_string);
+  __ cmpi(ip, Operand(kThinStringTag));
+  __ beq(&thin_string);
 
   // Handle slices.
-  Label indirect_string_loaded;
   __ LoadP(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
   __ LoadP(string, FieldMemOperand(string, SlicedString::kParentOffset));
   __ SmiUntag(ip, result);
   __ add(index, index, ip);
+  __ b(&indirect_string_loaded);
+
+  // Handle thin strings.
+  __ bind(&thin_string);
+  __ LoadP(string, FieldMemOperand(string, ThinString::kActualOffset));
   __ b(&indirect_string_loaded);
 
   // Handle cons strings.
@@ -111,10 +120,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm, Register string,
   __ bne(call_runtime);
   // Get the first of the two strings and load its instance type.
   __ LoadP(string, FieldMemOperand(string, ConsString::kFirstOffset));
-
-  __ bind(&indirect_string_loaded);
-  __ LoadP(result, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ lbz(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
+  __ b(&indirect_string_loaded);
 
   // Distinguish sequential and external strings. Only these two string
   // representations can reach here (slices and flat cons strings have been

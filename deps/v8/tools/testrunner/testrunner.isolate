@@ -27,5 +27,12 @@
         ],
       },
     }],
+    ['lsan==1', {
+      'variables': {
+        'files': [
+          '../memory/lsan/suppressions.txt',
+        ],
+      },
+    }],
   ],
 }

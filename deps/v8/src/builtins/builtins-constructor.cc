@@ -8,7 +8,9 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
 #include "src/interface-descriptors.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -47,7 +49,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   Node* is_not_normal =
       Word32And(compiler_hints,
                 Int32Constant(SharedFunctionInfo::kAllFunctionKindBitsMask));
-  GotoUnless(is_not_normal, &if_normal);
+  GotoIfNot(is_not_normal, &if_normal);
 
   Node* is_generator = Word32And(
       compiler_hints, Int32Constant(FunctionKind::kGeneratorFunction
@@ -120,13 +122,34 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
   // Initialize the rest of the function.
   Node* empty_fixed_array = HeapConstant(factory->empty_fixed_array());
-  Node* empty_literals_array = HeapConstant(factory->empty_literals_array());
   StoreObjectFieldNoWriteBarrier(result, JSObject::kPropertiesOffset,
                                  empty_fixed_array);
   StoreObjectFieldNoWriteBarrier(result, JSObject::kElementsOffset,
                                  empty_fixed_array);
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kLiteralsOffset,
-                                 empty_literals_array);
+  Node* literals_cell = LoadFixedArrayElement(
+      feedback_vector, slot, 0, CodeStubAssembler::SMI_PARAMETERS);
+  {
+    // Bump the closure counter encoded in the cell's map.
+    Node* cell_map = LoadMap(literals_cell);
+    Label no_closures(this), one_closure(this), cell_done(this);
+
+    GotoIf(IsNoClosuresCellMap(cell_map), &no_closures);
+    GotoIf(IsOneClosureCellMap(cell_map), &one_closure);
+    CSA_ASSERT(this, IsManyClosuresCellMap(cell_map));
+    Goto(&cell_done);
+
+    Bind(&no_closures);
+    StoreMapNoWriteBarrier(literals_cell, Heap::kOneClosureCellMapRootIndex);
+    Goto(&cell_done);
+
+    Bind(&one_closure);
+    StoreMapNoWriteBarrier(literals_cell, Heap::kManyClosuresCellMapRootIndex);
+    Goto(&cell_done);
+
+    Bind(&cell_done);
+  }
+  StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackVectorOffset,
+                                 literals_cell);
   StoreObjectFieldNoWriteBarrier(
       result, JSFunction::kPrototypeOrInitialMapOffset, TheHoleConstant());
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
@@ -400,11 +423,10 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
 
   Variable result(this, MachineRepresentation::kTagged);
 
-  Node* literals_array = LoadObjectField(closure, JSFunction::kLiteralsOffset);
-  Node* boilerplate =
-      LoadFixedArrayElement(literals_array, literal_index,
-                            LiteralsArray::kFirstLiteralIndex * kPointerSize,
-                            CodeStubAssembler::SMI_PARAMETERS);
+  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
+  Node* boilerplate = LoadFixedArrayElement(feedback_vector, literal_index, 0,
+                                            CodeStubAssembler::SMI_PARAMETERS);
   GotoIf(IsUndefined(boilerplate), &call_runtime);
 
   {
@@ -484,17 +506,14 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
       return_result(this);
   Variable result(this, MachineRepresentation::kTagged);
 
-  Node* literals_array = LoadObjectField(closure, JSFunction::kLiteralsOffset);
-  Node* allocation_site =
-      LoadFixedArrayElement(literals_array, literal_index,
-                            LiteralsArray::kFirstLiteralIndex * kPointerSize,
-                            CodeStubAssembler::SMI_PARAMETERS);
+  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
+  Node* allocation_site = LoadFixedArrayElement(
+      feedback_vector, literal_index, 0, CodeStubAssembler::SMI_PARAMETERS);
 
   GotoIf(IsUndefined(allocation_site), call_runtime);
-  allocation_site =
-      LoadFixedArrayElement(literals_array, literal_index,
-                            LiteralsArray::kFirstLiteralIndex * kPointerSize,
-                            CodeStubAssembler::SMI_PARAMETERS);
+  allocation_site = LoadFixedArrayElement(feedback_vector, literal_index, 0,
+                                          CodeStubAssembler::SMI_PARAMETERS);
 
   Node* boilerplate =
       LoadObjectField(allocation_site, AllocationSite::kTransitionInfoOffset);
@@ -645,11 +664,10 @@ int ConstructorBuiltinsAssembler::FastCloneShallowObjectPropertiesCount(
 Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     CodeAssemblerLabel* call_runtime, Node* closure, Node* literals_index,
     Node* properties_count) {
-  Node* literals_array = LoadObjectField(closure, JSFunction::kLiteralsOffset);
-  Node* allocation_site =
-      LoadFixedArrayElement(literals_array, literals_index,
-                            LiteralsArray::kFirstLiteralIndex * kPointerSize,
-                            CodeStubAssembler::SMI_PARAMETERS);
+  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
+  Node* allocation_site = LoadFixedArrayElement(
+      feedback_vector, literals_index, 0, CodeStubAssembler::SMI_PARAMETERS);
   GotoIf(IsUndefined(allocation_site), call_runtime);
 
   // Calculate the object and allocation size based on the properties count.
@@ -665,7 +683,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
   Node* boilerplate_map = LoadMap(boilerplate);
   Node* instance_size = LoadMapInstanceSize(boilerplate_map);
   Node* size_in_words = WordShr(object_size, kPointerSizeLog2);
-  GotoUnless(WordEqual(instance_size, size_in_words), call_runtime);
+  GotoIfNot(WordEqual(instance_size, size_in_words), call_runtime);
 
   Node* copy = Allocate(allocation_size);
 
@@ -689,8 +707,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
   Bind(&loop_check);
   {
     offset.Bind(IntPtrAdd(offset.value(), IntPtrConstant(kPointerSize)));
-    GotoUnless(IntPtrGreaterThanOrEqual(offset.value(), end_offset),
-               &loop_body);
+    GotoIfNot(IntPtrGreaterThanOrEqual(offset.value(), end_offset), &loop_body);
   }
 
   if (FLAG_allocation_site_pretenuring) {

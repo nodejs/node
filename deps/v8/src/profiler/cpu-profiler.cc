@@ -277,6 +277,21 @@ void CpuProfiler::ResetProfiles() {
   profiles_->set_cpu_profiler(this);
 }
 
+void CpuProfiler::CreateEntriesForRuntimeCallStats() {
+  static_entries_.clear();
+  RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
+  CodeMap* code_map = generator_->code_map();
+  for (int i = 0; i < RuntimeCallStats::counters_count; ++i) {
+    RuntimeCallCounter* counter = &(rcs->*(RuntimeCallStats::counters[i]));
+    DCHECK(counter->name());
+    std::unique_ptr<CodeEntry> entry(
+        new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
+                      CodeEntry::kEmptyNamePrefix, "native V8Runtime"));
+    code_map->AddCode(reinterpret_cast<Address>(counter), entry.get(), 1);
+    static_entries_.push_back(std::move(entry));
+  }
+}
+
 void CpuProfiler::CollectSample() {
   if (processor_) {
     processor_->AddCurrentStack(isolate_);
@@ -305,9 +320,10 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   // Disable logging when using the new implementation.
   saved_is_logging_ = logger->is_logging_;
   logger->is_logging_ = false;
-  generator_.reset(new ProfileGenerator(isolate_, profiles_.get()));
+  generator_.reset(new ProfileGenerator(profiles_.get()));
   processor_.reset(new ProfilerEventsProcessor(isolate_, generator_.get(),
                                                sampling_interval_));
+  CreateEntriesForRuntimeCallStats();
   logger->SetUpProfilerListener();
   ProfilerListener* profiler_listener = logger->profiler_listener();
   profiler_listener->AddObserver(this);

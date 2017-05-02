@@ -337,7 +337,7 @@ bool decodeString(const Char* start, const Char* end, StringBuilder* output)
     while (start < end) {
         uint16_t c = *start++;
         if ('\\' != c) {
-            output->append(c);
+            StringUtil::builderAppend(*output, c);
             continue;
         }
 	if (start == end)
@@ -382,7 +382,7 @@ bool decodeString(const Char* start, const Char* end, StringBuilder* output)
         default:
             return false;
         }
-        output->append(c);
+        StringUtil::builderAppend(*output, c);
     }
     return true;
 }
@@ -400,7 +400,7 @@ bool decodeString(const Char* start, const Char* end, String* output)
     StringUtil::builderReserve(buffer, end - start);
     if (!decodeString(start, end, &buffer))
         return false;
-    *output = buffer.toString();
+    *output = StringUtil::builderToString(buffer);
     return true;
 }
 

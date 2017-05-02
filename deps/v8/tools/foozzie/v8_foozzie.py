@@ -20,14 +20,17 @@ import v8_commands
 import v8_suppressions
 
 CONFIGS = dict(
-  default=[],
-  validate_asm=['--validate-asm'], # Maybe add , '--disable-asm-warnings'
-  fullcode=['--nocrankshaft', '--turbo-filter=~', '--novalidate-asm'],
-  noturbo=['--turbo-filter=~', '--noturbo-asm'],
-  noturbo_opt=['--always-opt', '--turbo-filter=~', '--noturbo-asm'],
-  ignition_staging=['--ignition-staging'],
-  ignition_turbo=['--ignition-staging', '--turbo'],
-  ignition_turbo_opt=['--ignition-staging', '--turbo', '--always-opt'],
+  default=['--validate-asm'],
+  fullcode=['--nocrankshaft', '--turbo-filter=~', '--validate-asm'],
+  ignition=['--ignition', '--turbo-filter=~', '--hydrogen-filter=~',
+            '--validate-asm', '--nocrankshaft'],
+  ignition_eager=['--ignition', '--turbo-filter=~', '--hydrogen-filter=~',
+                  '--validate-asm', '--nocrankshaft', '--no-lazy',
+                  '--no-lazy-inner-functions'],
+  ignition_staging=['--ignition-staging', '--validate-asm'],
+  ignition_turbo=['--ignition-staging', '--turbo', '--validate-asm'],
+  ignition_turbo_opt=['--ignition-staging', '--turbo', '--always-opt',
+                      '--validate-asm'],
 )
 
 # Timeout in seconds for one d8 run.
@@ -42,6 +45,7 @@ PREAMBLE = [
   os.path.join(BASE_PATH, 'v8_mock.js'),
   os.path.join(BASE_PATH, 'v8_suppressions.js'),
 ]
+ARCH_MOCKS = os.path.join(BASE_PATH, 'v8_mock_archs.js')
 
 FLAGS = ['--abort_on_stack_overflow', '--expose-gc', '--allow-natives-syntax',
          '--invoke-weak-callbacks', '--omit-quit', '--es-staging']
@@ -92,19 +96,25 @@ ORIGINAL_SOURCE_HASH_LENGTH = 3
 # Placeholder string if no original source file could be determined.
 ORIGINAL_SOURCE_DEFAULT = 'none'
 
+
+def infer_arch(d8):
+  """Infer the V8 architecture from the build configuration next to the
+  executable.
+  """
+  with open(os.path.join(os.path.dirname(d8), 'v8_build_config.json')) as f:
+    arch = json.load(f)['v8_current_cpu']
+  return 'ia32' if arch == 'x86' else arch
+
+
 def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument(
     '--random-seed', type=int, required=True,
     help='random seed passed to both runs')
   parser.add_argument(
-      '--first-arch', help='first architecture', default='x64')
+      '--first-config', help='first configuration', default='ignition')
   parser.add_argument(
-      '--second-arch', help='second architecture', default='x64')
-  parser.add_argument(
-      '--first-config', help='first configuration', default='fullcode')
-  parser.add_argument(
-      '--second-config', help='second configuration', default='fullcode')
+      '--second-config', help='second configuration', default='ignition_turbo')
   parser.add_argument(
       '--first-d8', default='d8',
       help='optional path to first d8 executable, '
@@ -114,15 +124,6 @@ def parse_args():
       help='optional path to second d8 executable, default: same as first')
   parser.add_argument('testcase', help='path to test case')
   options = parser.parse_args()
-
-  # Ensure we make a sane comparison.
-  assert (options.first_arch != options.second_arch or
-          options.first_config != options.second_config) , (
-      'Need either arch or config difference.')
-  assert options.first_arch in SUPPORTED_ARCHS
-  assert options.second_arch in SUPPORTED_ARCHS
-  assert options.first_config in CONFIGS
-  assert options.second_config in CONFIGS
 
   # Ensure we have a test case.
   assert (os.path.exists(options.testcase) and
@@ -142,11 +143,18 @@ def parse_args():
   assert os.path.exists(options.first_d8)
   assert os.path.exists(options.second_d8)
 
-  # Ensure we use different executables when we claim we compare
-  # different architectures.
-  # TODO(machenbach): Infer arch from gn's build output.
-  if options.first_arch != options.second_arch:
-    assert options.first_d8 != options.second_d8
+  # Infer architecture from build artifacts.
+  options.first_arch = infer_arch(options.first_d8)
+  options.second_arch = infer_arch(options.second_d8)
+
+  # Ensure we make a sane comparison.
+  assert (options.first_arch != options.second_arch or
+          options.first_config != options.second_config), (
+      'Need either arch or config difference.')
+  assert options.first_arch in SUPPORTED_ARCHS
+  assert options.second_arch in SUPPORTED_ARCHS
+  assert options.first_config in CONFIGS
+  assert options.second_config in CONFIGS
 
   return options
 
@@ -217,7 +225,11 @@ def main():
   second_config_flags = common_flags + CONFIGS[options.second_config]
 
   def run_d8(d8, config_flags):
-    args = [d8] + config_flags + PREAMBLE + [options.testcase]
+    preamble = PREAMBLE[:]
+    if options.first_arch != options.second_arch:
+      preamble.append(ARCH_MOCKS)
+    args = [d8] + config_flags + preamble + [options.testcase]
+    print " ".join(args)
     if d8.endswith('.py'):
       # Wrap with python in tests.
       args = [sys.executable] + args
@@ -232,16 +244,12 @@ def main():
   # Early bailout based on first run's output.
   if pass_bailout(first_config_output, 1):
     return RETURN_PASS
-  if fail_bailout(first_config_output, suppress.ignore_by_output1):
-    return RETURN_FAIL
 
   second_config_output = run_d8(options.second_d8, second_config_flags)
 
   # Bailout based on second run's output.
   if pass_bailout(second_config_output, 2):
     return RETURN_PASS
-  if fail_bailout(second_config_output, suppress.ignore_by_output2):
-    return RETURN_FAIL
 
   difference, source = suppress.diff(
       first_config_output.stdout, second_config_output.stdout)
@@ -253,11 +261,19 @@ def main():
     source_key = ORIGINAL_SOURCE_DEFAULT
 
   if difference:
+    # Only bail out due to suppressed output if there was a difference. If a
+    # suppression doesn't show up anymore in the statistics, we might want to
+    # remove it.
+    if fail_bailout(first_config_output, suppress.ignore_by_output1):
+      return RETURN_FAIL
+    if fail_bailout(second_config_output, suppress.ignore_by_output2):
+      return RETURN_FAIL
+
     # The first three entries will be parsed by clusterfuzz. Format changes
     # will require changes on the clusterfuzz side.
     first_config_label = '%s,%s' % (options.first_arch, options.first_config)
     second_config_label = '%s,%s' % (options.second_arch, options.second_config)
-    print FAILURE_TEMPLATE % dict(
+    print (FAILURE_TEMPLATE % dict(
         configs='%s:%s' % (first_config_label, second_config_label),
         source_key=source_key,
         suppression='', # We can't tie bugs to differences.
@@ -265,11 +281,13 @@ def main():
         second_config_label=second_config_label,
         first_config_flags=' '.join(first_config_flags),
         second_config_flags=' '.join(second_config_flags),
-        first_config_output=first_config_output.stdout,
-        second_config_output=second_config_output.stdout,
+        first_config_output=
+            first_config_output.stdout.decode('utf-8', 'replace'),
+        second_config_output=
+            second_config_output.stdout.decode('utf-8', 'replace'),
         source=source,
-        difference=difference,
-    )
+        difference=difference.decode('utf-8', 'replace'),
+    )).encode('utf-8', 'replace')
     return RETURN_FAIL
 
   # TODO(machenbach): Figure out if we could also return a bug in case there's
@@ -289,6 +307,10 @@ if __name__ == "__main__":
     print FAILURE_HEADER_TEMPLATE % dict(
         configs='', source_key='', suppression='wrong_usage')
     result = RETURN_FAIL
+  except MemoryError:
+    # Running out of memory happens occasionally but is not actionable.
+    print '# V8 correctness - pass'
+    result = RETURN_PASS
   except Exception as e:
     print FAILURE_HEADER_TEMPLATE % dict(
         configs='', source_key='', suppression='internal_error')

@@ -88,11 +88,11 @@ TEST(BitSetComputer) {
   uint32_t data = 0;
   data = BoolComputer::encode(data, 1, true);
   data = BoolComputer::encode(data, 4, true);
-  CHECK_EQ(true, BoolComputer::decode(data, 1));
-  CHECK_EQ(true, BoolComputer::decode(data, 4));
-  CHECK_EQ(false, BoolComputer::decode(data, 0));
-  CHECK_EQ(false, BoolComputer::decode(data, 2));
-  CHECK_EQ(false, BoolComputer::decode(data, 3));
+  CHECK(BoolComputer::decode(data, 1));
+  CHECK(BoolComputer::decode(data, 4));
+  CHECK(!BoolComputer::decode(data, 0));
+  CHECK(!BoolComputer::decode(data, 2));
+  CHECK(!BoolComputer::decode(data, 3));
 
   // Lets store 2 bits per item with 3000 items and verify the values are
   // correct.

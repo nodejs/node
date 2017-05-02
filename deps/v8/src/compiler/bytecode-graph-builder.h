@@ -111,9 +111,14 @@ class BytecodeGraphBuilder {
 
   Node* ProcessCallArguments(const Operator* call_op, Node* callee,
                              interpreter::Register receiver, size_t arity);
-  Node* ProcessCallNewArguments(const Operator* call_new_op, Node* callee,
-                                Node* new_target,
-                                interpreter::Register first_arg, size_t arity);
+  Node* ProcessConstructArguments(const Operator* call_new_op, Node* callee,
+                                  Node* new_target,
+                                  interpreter::Register first_arg,
+                                  size_t arity);
+  Node* ProcessConstructWithSpreadArguments(const Operator* op, Node* callee,
+                                            Node* new_target,
+                                            interpreter::Register first_arg,
+                                            size_t arity);
   Node* ProcessCallRuntimeArguments(const Operator* call_runtime_op,
                                     interpreter::Register first_arg,
                                     size_t arity);
@@ -132,7 +137,14 @@ class BytecodeGraphBuilder {
   Node* BuildLoadGlobal(Handle<Name> name, uint32_t feedback_slot_index,
                         TypeofMode typeof_mode);
   void BuildStoreGlobal(LanguageMode language_mode);
-  void BuildNamedStore(LanguageMode language_mode);
+
+  enum class StoreMode {
+    // Check the prototype chain before storing.
+    kNormal,
+    // Store value to the receiver without checking the prototype chain.
+    kOwn,
+  };
+  void BuildNamedStore(LanguageMode language_mode, StoreMode store_mode);
   void BuildKeyedStore(LanguageMode language_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
@@ -140,7 +152,6 @@ class BytecodeGraphBuilder {
   void BuildStaLookupSlot(LanguageMode language_mode);
   void BuildCall(TailCallMode tail_call_mode,
                  ConvertReceiverMode receiver_hint);
-  void BuildThrow();
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);
@@ -149,6 +160,13 @@ class BytecodeGraphBuilder {
   void BuildForInPrepare();
   void BuildForInNext();
   void BuildInvokeIntrinsic();
+
+  // Optional early lowering to the simplified operator level. Returns the node
+  // representing the lowered operation or {nullptr} if no lowering available.
+  // Note that the result has already been wired into the environment just like
+  // any other invocation of {NewNode} would do.
+  Node* TryBuildSimplifiedBinaryOp(const Operator* op, Node* left, Node* right,
+                                   FeedbackSlot slot);
 
   // Check the context chain for extensions, for lookup fast paths.
   Environment* CheckContextExtensions(uint32_t depth);
@@ -257,8 +275,9 @@ class BytecodeGraphBuilder {
     bytecode_analysis_ = bytecode_analysis;
   }
 
-  bool IsLivenessAnalysisEnabled() const {
-    return this->is_liveness_analysis_enabled_;
+  bool needs_eager_checkpoint() const { return needs_eager_checkpoint_; }
+  void mark_as_needing_eager_checkpoint(bool value) {
+    needs_eager_checkpoint_ = value;
   }
 
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
@@ -291,6 +310,11 @@ class BytecodeGraphBuilder {
   int input_buffer_size_;
   Node** input_buffer_;
 
+  // Optimization to only create checkpoints when the current position in the
+  // control-flow is not effect-dominated by another checkpoint already. All
+  // operations that do not have observable side-effects can be re-evaluated.
+  bool needs_eager_checkpoint_;
+
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_context_;
   SetOncePointer<Node> function_closure_;
@@ -298,8 +322,6 @@ class BytecodeGraphBuilder {
 
   // Control nodes that exit the function body.
   ZoneVector<Node*> exit_controls_;
-
-  bool const is_liveness_analysis_enabled_;
 
   StateValuesCache state_values_cache_;
 

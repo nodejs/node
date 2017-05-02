@@ -4,7 +4,7 @@ Running test: testZeroLimit
 foo1 (test.js:11:2)
 
 
-Running test: testOneLimit
+Running test: testTwoLimit
 foo1 (test.js:11:2)
 -- Promise.resolve --
 promise (test.js:23:2)
@@ -17,11 +17,14 @@ foo1 (test.js:11:2)
 foo2 (test.js:15:2)
 
 
-Running test: testTwoLimitTwoPromises
+Running test: testFourLimitTwoPromises
 foo1 (test.js:11:2)
--- Promise.resolve --
-twoPromises (test.js:34:2)
-(anonymous) (expr.js:0:0)
+
+foo2 (test.js:15:2)
+
+
+Running test: testSixLimitTwoPromises
+foo1 (test.js:11:2)
 
 foo2 (test.js:15:2)
 -- Promise.resolve --
@@ -29,7 +32,7 @@ twoPromises (test.js:35:2)
 (anonymous) (expr.js:0:0)
 
 
-Running test: testOneLimitTwoSetTimeouts
+Running test: testTwoLimitTwoSetTimeouts
 foo1 (test.js:11:2)
 
 foo2 (test.js:15:2)
@@ -38,7 +41,7 @@ twoSetTimeout (test.js:41:2)
 (anonymous) (expr.js:0:0)
 
 
-Running test: testTwoLimitTwoSetTimeouts
+Running test: testThreeLimitTwoSetTimeouts
 foo1 (test.js:11:2)
 -- setTimeout --
 twoSetTimeout (test.js:40:2)
@@ -84,54 +87,54 @@ foo10 (:0:18)
 foo11 (:0:18)
 (anonymous) (:0:29)
 -- setTimeout --
-twentySetTimeout (test.js:55:4)
+twentySetTimeout (test.js:49:4)
 (anonymous) (expr.js:0:0)
 
 foo12 (:0:18)
 (anonymous) (:0:29)
 -- setTimeout --
-twentySetTimeout (test.js:55:4)
+twentySetTimeout (test.js:49:4)
 (anonymous) (expr.js:0:0)
 
 foo13 (:0:18)
 (anonymous) (:0:29)
 -- setTimeout --
-twentySetTimeout (test.js:55:4)
+twentySetTimeout (test.js:49:4)
 (anonymous) (expr.js:0:0)
 
 foo14 (:0:18)
 (anonymous) (:0:29)
 -- setTimeout --
-twentySetTimeout (test.js:55:4)
+twentySetTimeout (test.js:49:4)
 (anonymous) (expr.js:0:0)
 
 foo15 (:0:18)
 (anonymous) (:0:29)
 -- setTimeout --
-twentySetTimeout (test.js:55:4)
+twentySetTimeout (test.js:49:4)
 (anonymous) (expr.js:0:0)
 
 foo16 (:0:18)
 (anonymous) (:0:29)
 -- setTimeout --
-twentySetTimeout (test.js:55:4)
+twentySetTimeout (test.js:49:4)
 (anonymous) (expr.js:0:0)
 
 foo17 (:0:18)
 (anonymous) (:0:29)
 -- setTimeout --
-twentySetTimeout (test.js:55:4)
+twentySetTimeout (test.js:49:4)
 (anonymous) (expr.js:0:0)
 
 foo18 (:0:18)
 (anonymous) (:0:29)
 -- setTimeout --
-twentySetTimeout (test.js:55:4)
+twentySetTimeout (test.js:49:4)
 (anonymous) (expr.js:0:0)
 
 foo19 (:0:18)
 (anonymous) (:0:29)
 -- setTimeout --
-twentySetTimeout (test.js:55:4)
+twentySetTimeout (test.js:49:4)
 (anonymous) (expr.js:0:0)
 

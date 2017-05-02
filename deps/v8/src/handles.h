@@ -331,7 +331,7 @@ class HandleScope {
 
 
 // Forward declarations for CanonicalHandleScope.
-template <typename V>
+template <typename V, class AllocationPolicy>
 class IdentityMap;
 class RootIndexMap;
 
@@ -352,7 +352,7 @@ class V8_EXPORT_PRIVATE CanonicalHandleScope final {
   Isolate* isolate_;
   Zone zone_;
   RootIndexMap* root_index_map_;
-  IdentityMap<Object**>* identity_map_;
+  IdentityMap<Object**, ZoneAllocationPolicy>* identity_map_;
   // Ordinary nested handle scopes within the current one are not canonical.
   int canonical_level_;
   // We may have nested canonical scopes. Handles are canonical within each one.
@@ -361,8 +361,7 @@ class V8_EXPORT_PRIVATE CanonicalHandleScope final {
   friend class HandleScope;
 };
 
-
-class DeferredHandleScope final {
+class V8_EXPORT_PRIVATE DeferredHandleScope final {
  public:
   explicit DeferredHandleScope(Isolate* isolate);
   // The DeferredHandles object returned stores the Handles created

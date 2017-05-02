@@ -8,6 +8,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
 #include "src/macro-assembler.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

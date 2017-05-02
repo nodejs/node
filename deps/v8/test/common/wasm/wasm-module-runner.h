@@ -5,7 +5,6 @@
 #ifndef V8_WASM_MODULE_RUNNER_H_
 #define V8_WASM_MODULE_RUNNER_H_
 
-#include "src/handles.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/wasm/wasm-interpreter.h"
@@ -16,6 +15,10 @@
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Handle;
+
 namespace wasm {
 namespace testing {
 

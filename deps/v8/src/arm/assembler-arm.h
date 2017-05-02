@@ -150,6 +150,7 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 const Register no_reg = {Register::kCode_no_reg};
 
 static const bool kSimpleFPAliasing = false;
+static const bool kSimdMaskRegisters = false;
 
 // Single word VFP register.
 struct SwVfpRegister {
@@ -728,17 +729,10 @@ class Assembler : public AssemblerBase {
   INLINE(static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(static Address target_address_at(Address pc, Code* code)) {
-    Address constant_pool = code ? code->constant_pool() : NULL;
-    return target_address_at(pc, constant_pool);
-  }
+  INLINE(static Address target_address_at(Address pc, Code* code));
   INLINE(static void set_target_address_at(
       Isolate* isolate, Address pc, Code* code, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
-    Address constant_pool = code ? code->constant_pool() : NULL;
-    set_target_address_at(isolate, pc, constant_pool, target,
-                          icache_flush_mode);
-  }
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
@@ -1371,47 +1365,44 @@ class Assembler : public AssemblerBase {
   void vbsl(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void veor(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vorr(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
-  void vadd(const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vadd(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vsub(const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vsub(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vmul(const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vmul(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vmin(const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vmin(NeonDataType dt, const QwNeonRegister dst,
-            const QwNeonRegister src1, const QwNeonRegister src2);
-  void vmax(const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vmax(NeonDataType dt, const QwNeonRegister dst,
-            const QwNeonRegister src1, const QwNeonRegister src2);
+  void vadd(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vadd(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
+            QwNeonRegister src2);
+  void vqadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+             QwNeonRegister src2);
+  void vsub(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vsub(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
+            QwNeonRegister src2);
+  void vqsub(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+             QwNeonRegister src2);
+  void vmul(QwNeonRegister dst, QwNeonRegister src1,
+            QwNeonRegister src2);
+  void vmul(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
+            QwNeonRegister src2);
+  void vmin(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vmin(NeonDataType dt, QwNeonRegister dst,
+            QwNeonRegister src1, QwNeonRegister src2);
+  void vmax(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vmax(NeonDataType dt, QwNeonRegister dst,
+            QwNeonRegister src1, QwNeonRegister src2);
+  void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
+  void vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
   // vrecpe and vrsqrte only support floating point lanes.
-  void vrecpe(const QwNeonRegister dst, const QwNeonRegister src);
-  void vrsqrte(const QwNeonRegister dst, const QwNeonRegister src);
-  void vrecps(const QwNeonRegister dst, const QwNeonRegister src1,
-              const QwNeonRegister src2);
-  void vrsqrts(const QwNeonRegister dst, const QwNeonRegister src1,
-               const QwNeonRegister src2);
-  void vtst(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vceq(const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vceq(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vcge(const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vcge(NeonDataType dt, const QwNeonRegister dst,
-            const QwNeonRegister src1, const QwNeonRegister src2);
-  void vcgt(const QwNeonRegister dst, const QwNeonRegister src1,
-            const QwNeonRegister src2);
-  void vcgt(NeonDataType dt, const QwNeonRegister dst,
-            const QwNeonRegister src1, const QwNeonRegister src2);
+  void vrecpe(QwNeonRegister dst, QwNeonRegister src);
+  void vrsqrte(QwNeonRegister dst, QwNeonRegister src);
+  void vrecps(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vrsqrts(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vtst(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
+            QwNeonRegister src2);
+  void vceq(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vceq(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
+            QwNeonRegister src2);
+  void vcge(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vcge(NeonDataType dt, QwNeonRegister dst,
+            QwNeonRegister src1, QwNeonRegister src2);
+  void vcgt(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vcgt(NeonDataType dt, QwNeonRegister dst,
+            QwNeonRegister src1, QwNeonRegister src2);
   void vext(const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2, int bytes);
   void vzip(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src);

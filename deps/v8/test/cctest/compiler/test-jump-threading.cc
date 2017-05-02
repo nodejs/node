@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/instruction.h"
 #include "src/compiler/instruction-codes.h"
+#include "src/compiler/instruction.h"
 #include "src/compiler/jump-threading.h"
+#include "src/source-position.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

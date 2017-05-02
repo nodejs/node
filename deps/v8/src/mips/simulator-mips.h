@@ -293,6 +293,9 @@ class Simulator {
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
 
+  // Helpers for data value tracing.
+  enum TraceType { BYTE, HALF, WORD, DWORD, FLOAT, DOUBLE, FLOAT_DOUBLE };
+
   // Read and write memory.
   inline uint32_t ReadBU(int32_t addr);
   inline int32_t ReadB(int32_t addr);
@@ -305,24 +308,18 @@ class Simulator {
   inline void WriteH(int32_t addr, uint16_t value, Instruction* instr);
   inline void WriteH(int32_t addr, int16_t value, Instruction* instr);
 
-  inline int ReadW(int32_t addr, Instruction* instr);
+  inline int ReadW(int32_t addr, Instruction* instr, TraceType t = WORD);
   inline void WriteW(int32_t addr, int value, Instruction* instr);
 
   inline double ReadD(int32_t addr, Instruction* instr);
   inline void WriteD(int32_t addr, double value, Instruction* instr);
 
-  // Helpers for data value tracing.
-  enum TraceType {
-    BYTE,
-    HALF,
-    WORD
-    // DWORD,
-    // DFLOAT - Floats may have printing issues due to paired lwc1's
-  };
-
-  void TraceRegWr(int32_t value);
-  void TraceMemWr(int32_t addr, int32_t value, TraceType t);
-  void TraceMemRd(int32_t addr, int32_t value);
+  void TraceRegWr(int32_t value, TraceType t = WORD);
+  void TraceRegWr(int64_t value, TraceType t = DWORD);
+  void TraceMemWr(int32_t addr, int32_t value, TraceType t = WORD);
+  void TraceMemRd(int32_t addr, int32_t value, TraceType t = WORD);
+  void TraceMemWr(int32_t addr, int64_t value, TraceType t = DWORD);
+  void TraceMemRd(int32_t addr, int64_t value, TraceType t = DWORD);
   EmbeddedVector<char, 128> trace_buf_;
 
   // Operations depending on endianness.
@@ -379,6 +376,26 @@ class Simulator {
   inline void SetResult(int32_t rd_reg, int32_t alu_out) {
     set_register(rd_reg, alu_out);
     TraceRegWr(alu_out);
+  }
+
+  inline void SetFPUWordResult(int32_t fd_reg, int32_t alu_out) {
+    set_fpu_register_word(fd_reg, alu_out);
+    TraceRegWr(get_fpu_register_word(fd_reg));
+  }
+
+  inline void SetFPUResult(int32_t fd_reg, int64_t alu_out) {
+    set_fpu_register(fd_reg, alu_out);
+    TraceRegWr(get_fpu_register(fd_reg));
+  }
+
+  inline void SetFPUFloatResult(int32_t fd_reg, float alu_out) {
+    set_fpu_register_float(fd_reg, alu_out);
+    TraceRegWr(get_fpu_register_word(fd_reg), FLOAT);
+  }
+
+  inline void SetFPUDoubleResult(int32_t fd_reg, double alu_out) {
+    set_fpu_register_double(fd_reg, alu_out);
+    TraceRegWr(get_fpu_register(fd_reg), DOUBLE);
   }
 
   void DecodeTypeImmediate();

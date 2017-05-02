@@ -2,24 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo --turbo-escape --allow-natives-syntax
+// Flags: --turbo --turbo-escape --allow-natives-syntax --no-always-opt
 
 "use strict";
-
-const kDeoptimized = 2;
-const kTurbofanned = 7;
-const kInterpreted = 8;
-
-function GetOptimizationStatus(fn) {
-  let status = %GetOptimizationStatus(fn);
-  switch (status) {
-  case kInterpreted: // Treat interpreted frames as unoptimized
-    status = kDeoptimized;
-    break;
-  }
-
-  return status;
-}
 
 let global = this;
 let tests = {
@@ -118,15 +103,27 @@ let tests = {
 
       // TODO(bmeurer): FAST_HOLEY_DOUBLE_ELEMENTS maps generally deopt when
       // a hole is encountered. Test should be fixed once that is corrected.
-      let status = /HOLEY_DOUBLE/.test(key) ? kDeoptimized : kTurbofanned;
+      let expect_deopt = /HOLEY_DOUBLE/.test(key);
 
-      assertEquals(status, GetOptimizationStatus(fn), key);
+      if (expect_deopt) {
+        assertUnoptimized(fn, '', key);
+      } else {
+        assertOptimized(fn, '', key);
+      }
       assertEquals(expected, fn(array), key);
-      assertEquals(status, GetOptimizationStatus(fn), key);
+      if (expect_deopt) {
+        assertUnoptimized(fn, '', key);
+      } else {
+        assertOptimized(fn, '', key);
+      }
 
-      // Check no deopt when another arra with the same map is used
+      // Check no deopt when another array with the same map is used
       assertTrue(%HaveSameMap(array, array2), key);
-      assertEquals(status, GetOptimizationStatus(fn), key);
+      if (expect_deopt) {
+        assertUnoptimized(fn, '', key);
+      } else {
+        assertOptimized(fn, '', key);
+      }
       assertEquals(expected2, fn(array2), key);
 
       // CheckMaps bailout
@@ -134,7 +131,7 @@ let tests = {
           [1, 2, 3], 2, { enumerable: false, configurable: false,
                           get() { return 7; } });
       fn(newArray);
-      assertEquals(kDeoptimized, GetOptimizationStatus(fn), key);
+      assertUnoptimized(fn, '', key);
     }
   },
 
@@ -222,12 +219,12 @@ let tests = {
       %OptimizeFunctionOnNextCall(sum);
       assertEquals(expected, sum(array), key);
 
-      assertEquals(kTurbofanned, GetOptimizationStatus(sum), key);
+      assertOptimized(sum, '', key);
 
       // Not deoptimized when called on typed array of same type / map
       assertTrue(%HaveSameMap(array, array2));
       assertEquals(expected2, sum(array2), key);
-      assertEquals(kTurbofanned, GetOptimizationStatus(sum), key);
+      assertOptimized(sum, '', key);
 
       // Throw when detached
       let clone = new array.constructor(array);

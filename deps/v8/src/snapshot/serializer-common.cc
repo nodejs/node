@@ -7,6 +7,7 @@
 #include "src/external-reference-table.h"
 #include "src/ic/stub-cache.h"
 #include "src/list-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -21,6 +22,8 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
+    // Ignore duplicate API references.
+    if (table->is_api_reference(i) && !map_->Get(addr).IsNothing()) continue;
     DCHECK(map_->Get(addr).IsNothing());
     map_->Set(addr, i);
     DCHECK(map_->Get(addr).IsJust());

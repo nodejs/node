@@ -1461,6 +1461,25 @@ TEST_F(WasmModuleVerifyTest, Names_two_empty) {
   EXPECT_VERIFIES(data);
 }
 
+TEST_F(WasmModuleVerifyTest, Regression684855) {
+  static const byte data[] = {
+      SECTION_NAMES(12),
+      0xfb,  // functions count
+      0x27,  // |
+      0x00,  // function name length
+      0xff,  // local names count
+      0xff,  // |
+      0xff,  // |
+      0xff,  // |
+      0xff,  // |
+      0xff,  // error: "varint too large"
+      0xff,  // |
+      0x00,  // --
+      0x00   // --
+  };
+  EXPECT_VERIFIES(data);
+}
+
 #define EXPECT_INIT_EXPR(Type, type, value, ...)                 \
   {                                                              \
     static const byte data[] = {__VA_ARGS__, kExprEnd};          \

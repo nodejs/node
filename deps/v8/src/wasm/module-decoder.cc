@@ -3,12 +3,15 @@
 // found in the LICENSE file.
 
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/function-body-decoder-impl.h"
 
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
+#include "src/counters.h"
 #include "src/flags.h"
 #include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
+#include "src/ostreams.h"
 #include "src/v8.h"
 
 #include "src/wasm/decoder.h"
@@ -26,6 +29,39 @@ namespace wasm {
 #else
 #define TRACE(...)
 #endif
+
+const char* SectionName(WasmSectionCode code) {
+  switch (code) {
+    case kUnknownSectionCode:
+      return "Unknown";
+    case kTypeSectionCode:
+      return "Type";
+    case kImportSectionCode:
+      return "Import";
+    case kFunctionSectionCode:
+      return "Function";
+    case kTableSectionCode:
+      return "Table";
+    case kMemorySectionCode:
+      return "Memory";
+    case kGlobalSectionCode:
+      return "Global";
+    case kExportSectionCode:
+      return "Export";
+    case kStartSectionCode:
+      return "Start";
+    case kCodeSectionCode:
+      return "Code";
+    case kElementSectionCode:
+      return "Element";
+    case kDataSectionCode:
+      return "Data";
+    case kNameSectionCode:
+      return "Name";
+    default:
+      return "<unknown>";
+  }
+}
 
 namespace {
 
@@ -178,7 +214,9 @@ class ModuleDecoder : public Decoder {
  public:
   ModuleDecoder(Zone* zone, const byte* module_start, const byte* module_end,
                 ModuleOrigin origin)
-      : Decoder(module_start, module_end), module_zone(zone), origin_(origin) {
+      : Decoder(module_start, module_end),
+        module_zone(zone),
+        origin_(FLAG_assume_asmjs_origin ? kAsmJsOrigin : origin) {
     result_.start = start_;
     if (end_ < start_) {
       error(start_, "end is less than start");
@@ -313,8 +351,8 @@ class ModuleDecoder : public Decoder {
             expect_u8("element type", kWasmAnyFunctionTypeForm);
             WasmIndirectFunctionTable* table = &module->function_tables.back();
             consume_resizable_limits("element count", "elements",
-                                     kV8MaxWasmTableSize, &table->min_size,
-                                     &table->has_max, kV8MaxWasmTableSize,
+                                     FLAG_wasm_max_table_size, &table->min_size,
+                                     &table->has_max, FLAG_wasm_max_table_size,
                                      &table->max_size);
             break;
           }
@@ -322,7 +360,7 @@ class ModuleDecoder : public Decoder {
             // ===== Imported memory =========================================
             if (!AddMemory(module)) break;
             consume_resizable_limits(
-                "memory", "pages", kV8MaxWasmMemoryPages,
+                "memory", "pages", FLAG_wasm_max_mem_pages,
                 &module->min_mem_pages, &module->has_max_mem,
                 kSpecMaxWasmMemoryPages, &module->max_mem_pages);
             break;
@@ -381,9 +419,10 @@ class ModuleDecoder : public Decoder {
                                            false, false, SignatureMap()});
         WasmIndirectFunctionTable* table = &module->function_tables.back();
         expect_u8("table type", kWasmAnyFunctionTypeForm);
-        consume_resizable_limits(
-            "table elements", "elements", kV8MaxWasmTableSize, &table->min_size,
-            &table->has_max, kV8MaxWasmTableSize, &table->max_size);
+        consume_resizable_limits("table elements", "elements",
+                                 FLAG_wasm_max_table_size, &table->min_size,
+                                 &table->has_max, FLAG_wasm_max_table_size,
+                                 &table->max_size);
       }
       section_iter.advance();
     }
@@ -394,7 +433,7 @@ class ModuleDecoder : public Decoder {
 
       for (uint32_t i = 0; ok() && i < memory_count; i++) {
         if (!AddMemory(module)) break;
-        consume_resizable_limits("memory", "pages", kV8MaxWasmMemoryPages,
+        consume_resizable_limits("memory", "pages", FLAG_wasm_max_mem_pages,
                                  &module->min_mem_pages, &module->has_max_mem,
                                  kSpecMaxWasmMemoryPages,
                                  &module->max_mem_pages);
@@ -526,7 +565,7 @@ class ModuleDecoder : public Decoder {
     // ===== Elements section ================================================
     if (section_iter.section_code() == kElementSectionCode) {
       uint32_t element_count =
-          consume_count("element count", kV8MaxWasmTableSize);
+          consume_count("element count", FLAG_wasm_max_table_size);
       for (uint32_t i = 0; ok() && i < element_count; ++i) {
         const byte* pos = pc();
         uint32_t table_index = consume_u32v("table index");
@@ -625,7 +664,7 @@ class ModuleDecoder : public Decoder {
         }
 
         uint32_t local_names_count = inner.consume_u32v("local names count");
-        for (uint32_t j = 0; ok() && j < local_names_count; j++) {
+        for (uint32_t j = 0; inner.ok() && j < local_names_count; j++) {
           uint32_t length = inner.consume_u32v("string length");
           inner.consume_bytes(length, "string");
         }
@@ -787,21 +826,22 @@ class ModuleDecoder : public Decoder {
   // Verifies the body (code) of a given function.
   void VerifyFunctionBody(uint32_t func_num, ModuleBytesEnv* menv,
                           WasmFunction* function) {
+    WasmFunctionName func_name(function,
+                               menv->wire_bytes.GetNameOrNull(function));
     if (FLAG_trace_wasm_decoder || FLAG_trace_wasm_decode_time) {
       OFStream os(stdout);
-      os << "Verifying WASM function " << WasmFunctionName(function, menv)
-         << std::endl;
+      os << "Verifying WASM function " << func_name << std::endl;
     }
     FunctionBody body = {function->sig, start_,
                          start_ + function->code_start_offset,
                          start_ + function->code_end_offset};
-    DecodeResult result =
-        VerifyWasmCode(module_zone->allocator(),
-                       menv == nullptr ? nullptr : menv->module, body);
+    DecodeResult result = VerifyWasmCode(
+        module_zone->allocator(),
+        menv == nullptr ? nullptr : menv->module_env.module, body);
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream str;
-      str << "in function " << WasmFunctionName(function, menv) << ": ";
+      str << "in function " << func_name << ": ";
       str << result;
       std::string strval = str.str();
       const char* raw = strval.c_str();
@@ -1024,14 +1064,21 @@ class ModuleDecoder : public Decoder {
         return kWasmF32;
       case kLocalF64:
         return kWasmF64;
-      case kLocalS128:
-        if (origin_ != kAsmJsOrigin && FLAG_wasm_simd_prototype) {
-          return kWasmS128;
-        } else {
-          error(pc_ - 1, "invalid local type");
-          return kWasmStmt;
-        }
       default:
+        if (origin_ != kAsmJsOrigin && FLAG_wasm_simd_prototype) {
+          switch (t) {
+            case kLocalS128:
+              return kWasmS128;
+            case kLocalS1x4:
+              return kWasmS1x4;
+            case kLocalS1x8:
+              return kWasmS1x8;
+            case kLocalS1x16:
+              return kWasmS1x16;
+            default:
+              break;
+          }
+        }
         error(pc_ - 1, "invalid local type");
         return kWasmStmt;
     }
@@ -1207,7 +1254,7 @@ FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
   for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
     uint32_t size = decoder.consume_u32v("body size");
     int offset = static_cast<int>(section_offset + decoder.pc_offset());
-    table.push_back(std::make_pair(offset, static_cast<int>(size)));
+    table.emplace_back(offset, static_cast<int>(size));
     DCHECK(table.back().first >= 0 && table.back().second >= 0);
     decoder.consume_bytes(size);
   }
@@ -1230,7 +1277,7 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
   for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
     uint32_t size = decoder.consume_u32v("table size");
     if (size == 0) {
-      table.push_back(std::vector<AsmJsOffsetEntry>());
+      table.emplace_back();
       continue;
     }
     if (!decoder.checkAvailable(size)) {

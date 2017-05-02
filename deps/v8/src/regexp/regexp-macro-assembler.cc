@@ -134,6 +134,9 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
     start_index += SlicedString::cast(subject)->offset();
     subject = SlicedString::cast(subject)->parent();
   }
+  if (subject->IsThinString()) {
+    subject = ThinString::cast(subject)->actual();
+  }
   DCHECK(start_index >= 0);
   DCHECK(start_index <= subject->length());
   if (subject->IsSeqOneByteString()) {
@@ -146,6 +149,7 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
     return reinterpret_cast<const byte*>(
         ExternalOneByteString::cast(subject)->GetChars() + start_index);
   } else {
+    DCHECK(subject->IsExternalTwoByteString());
     return reinterpret_cast<const byte*>(
         ExternalTwoByteString::cast(subject)->GetChars() + start_index);
   }
@@ -238,6 +242,9 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
     SlicedString* slice = SlicedString::cast(subject_ptr);
     subject_ptr = slice->parent();
     slice_offset = slice->offset();
+  }
+  if (StringShape(subject_ptr).IsThin()) {
+    subject_ptr = ThinString::cast(subject_ptr)->actual();
   }
   // Ensure that an underlying string has the same representation.
   bool is_one_byte = subject_ptr->IsOneByteRepresentation();

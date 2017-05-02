@@ -216,7 +216,9 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           RegExpCapture* capture = GetCapture(capture_index);
           capture->set_body(body);
           body = capture;
-        } else if (group_type != GROUPING) {
+        } else if (group_type == GROUPING) {
+          body = new (zone()) RegExpGroup(body);
+        } else {
           DCHECK(group_type == POSITIVE_LOOKAROUND ||
                  group_type == NEGATIVE_LOOKAROUND);
           bool is_positive = (group_type == POSITIVE_LOOKAROUND);

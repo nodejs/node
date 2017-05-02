@@ -37,7 +37,6 @@
 #include "src/compiler/js-create-lowering.h"
 #include "src/compiler/js-frame-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
-#include "src/compiler/js-global-object-specialization.h"
 #include "src/compiler/js-inlining-heuristic.h"
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-native-context-specialization.h"
@@ -546,14 +545,13 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
 
 class PipelineCompilationJob final : public CompilationJob {
  public:
-  PipelineCompilationJob(Isolate* isolate, Handle<JSFunction> function)
+  PipelineCompilationJob(ParseInfo* parse_info, Handle<JSFunction> function)
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
-      : CompilationJob(isolate, &info_, "TurboFan"),
-        zone_(isolate->allocator(), ZONE_NAME),
-        zone_stats_(isolate->allocator()),
-        parse_info_(&zone_, handle(function->shared())),
-        info_(&parse_info_, function),
+      : CompilationJob(parse_info->isolate(), &info_, "TurboFan"),
+        parse_info_(parse_info),
+        zone_stats_(parse_info->isolate()->allocator()),
+        info_(parse_info_.get()->zone(), parse_info_.get(), function),
         pipeline_statistics_(CreatePipelineStatistics(info(), &zone_stats_)),
         data_(&zone_stats_, info(), pipeline_statistics_.get()),
         pipeline_(&data_),
@@ -565,9 +563,8 @@ class PipelineCompilationJob final : public CompilationJob {
   Status FinalizeJobImpl() final;
 
  private:
-  Zone zone_;
+  std::unique_ptr<ParseInfo> parse_info_;
   ZoneStats zone_stats_;
-  ParseInfo parse_info_;
   CompilationInfo info_;
   std::unique_ptr<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
@@ -597,6 +594,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     if (FLAG_inline_accessors) {
       info()->MarkAsAccessorInliningEnabled();
     }
+    if (info()->closure()->feedback_vector_cell()->map() ==
+        isolate()->heap()->one_closure_cell_map()) {
+      info()->MarkAsFunctionContextSpecializing();
+    }
   }
   if (!info()->is_optimizing_from_bytecode()) {
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
@@ -604,7 +605,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     info()->MarkAsInliningEnabled();
   }
 
-  linkage_ = new (&zone_) Linkage(Linkage::ComputeIncoming(&zone_, info()));
+  linkage_ = new (info()->zone())
+      Linkage(Linkage::ComputeIncoming(info()->zone(), info()));
 
   if (!pipeline_.CreateGraph()) {
     if (isolate()->has_pending_exception()) return FAILED;  // Stack overflowed.
@@ -778,6 +780,7 @@ struct InliningPhase {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
+    CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     JSCallReducer::Flags call_reducer_flags = JSCallReducer::kNoFlags;
@@ -785,7 +788,8 @@ struct InliningPhase {
       call_reducer_flags |= JSCallReducer::kDeoptimizationEnabled;
     }
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(),
-                               call_reducer_flags, data->native_context());
+                               call_reducer_flags, data->native_context(),
+                               data->info()->dependencies());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
         data->info()->is_function_context_specializing()
@@ -793,9 +797,6 @@ struct InliningPhase {
             : MaybeHandle<Context>());
     JSFrameSpecialization frame_specialization(
         &graph_reducer, data->info()->osr_frame(), data->jsgraph());
-    JSGlobalObjectSpecialization global_object_specialization(
-        &graph_reducer, data->jsgraph(), data->global_object(),
-        data->info()->dependencies());
     JSNativeContextSpecialization::Flags flags =
         JSNativeContextSpecialization::kNoFlags;
     if (data->info()->is_accessor_inlining_enabled()) {
@@ -821,12 +822,10 @@ struct InliningPhase {
             ? JSIntrinsicLowering::kDeoptimizationEnabled
             : JSIntrinsicLowering::kDeoptimizationDisabled);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
+    AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     if (data->info()->is_frame_specializing()) {
       AddReducer(data, &graph_reducer, &frame_specialization);
-    }
-    if (data->info()->is_deoptimization_enabled()) {
-      AddReducer(data, &graph_reducer, &global_object_specialization);
     }
     AddReducer(data, &graph_reducer, &native_context_specialization);
     AddReducer(data, &graph_reducer, &context_specialization);
@@ -907,10 +906,11 @@ struct TypedLoweringPhase {
             ? JSBuiltinReducer::kDeoptimizationEnabled
             : JSBuiltinReducer::kNoFlags,
         data->info()->dependencies(), data->native_context());
-    Handle<LiteralsArray> literals_array(data->info()->closure()->literals());
+    Handle<FeedbackVector> feedback_vector(
+        data->info()->closure()->feedback_vector());
     JSCreateLowering create_lowering(
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),
-        literals_array, data->native_context(), temp_zone);
+        feedback_vector, data->native_context(), temp_zone);
     JSTypedLowering::Flags typed_lowering_flags = JSTypedLowering::kNoFlags;
     if (data->info()->is_deoptimization_enabled()) {
       typed_lowering_flags |= JSTypedLowering::kDeoptimizationEnabled;
@@ -949,7 +949,7 @@ struct EscapeAnalysisPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     EscapeAnalysis escape_analysis(data->graph(), data->jsgraph()->common(),
                                    temp_zone);
-    escape_analysis.Run();
+    if (!escape_analysis.Run()) return;
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     EscapeAnalysisReducer escape_reducer(&graph_reducer, data->jsgraph(),
                                          &escape_analysis, temp_zone);
@@ -1425,7 +1425,7 @@ struct GenerateCodePhase {
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
     CodeGenerator generator(data->frame(), linkage, data->sequence(),
-                            data->info(), data->protected_instructions());
+                            data->info());
     data->set_code(generator.GenerateCode());
   }
 };
@@ -1666,7 +1666,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   ZoneStats zone_stats(isolate->allocator());
   SourcePositionTable source_positions(graph);
   PipelineData data(&zone_stats, &info, graph, schedule, &source_positions);
-  data.set_verify_graph(FLAG_csa_verify);
+  data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(&info, &zone_stats));
@@ -1750,8 +1750,16 @@ Handle<Code> Pipeline::GenerateCodeForTesting(
 }
 
 // static
-CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function) {
-  return new PipelineCompilationJob(function->GetIsolate(), function);
+CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function,
+                                            bool has_script) {
+  Handle<SharedFunctionInfo> shared = handle(function->shared());
+  ParseInfo* parse_info;
+  if (!has_script) {
+    parse_info = ParseInfo::AllocateWithoutScript(shared);
+  } else {
+    parse_info = new ParseInfo(shared);
+  }
+  return new PipelineCompilationJob(parse_info, function);
 }
 
 // static
@@ -1802,7 +1810,7 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
       (FLAG_turbo_verify_machine_graph != nullptr &&
        (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
         !strcmp(FLAG_turbo_verify_machine_graph, data->debug_name())))) {
-    if (FLAG_trace_csa_verify) {
+    if (FLAG_trace_verify_csa) {
       AllowHandleDereference allow_deref;
       CompilationInfo* info = data->info();
       CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());

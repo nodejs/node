@@ -1396,8 +1396,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
 
   // A marker value is used in place of the context.
   output_offset -= kPointerSize;
-  intptr_t context = reinterpret_cast<intptr_t>(
-      Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  intptr_t context = StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR);
   output_frame->SetFrameSlot(output_offset, context);
   DebugPrintOutputSlot(context, frame_index, output_offset,
                        "context (adaptor sentinel)\n");
@@ -1453,8 +1452,8 @@ void Deoptimizer::DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
   Address adaptor_fp_address =
       Memory::Address_at(fp_address + CommonFrameConstants::kCallerFPOffset);
 
-  if (Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR) !=
-      Memory::Object_at(adaptor_fp_address +
+  if (StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR) !=
+      Memory::intptr_at(adaptor_fp_address +
                         CommonFrameConstants::kContextOrFrameTypeOffset)) {
     return;
   }
@@ -1508,6 +1507,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   Builtins* builtins = isolate_->builtins();
   Code* construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
+  BailoutId bailout_id = translated_frame->node_id();
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
 
@@ -1520,12 +1520,15 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     height_in_bytes += kPointerSize;
   }
 
-  // Skip function.
+  JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
   value_iterator++;
   input_index++;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
-           "  translating construct stub => height=%d\n", height_in_bytes);
+           "  translating construct stub => bailout_id=%d (%s), height=%d\n",
+           bailout_id.ToInt(),
+           bailout_id == BailoutId::ConstructStubCreate() ? "create" : "invoke",
+           height_in_bytes);
   }
 
   unsigned fixed_frame_size = ConstructFrameConstants::kFixedFrameSize;
@@ -1589,7 +1592,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   // A marker value is used to mark the frame.
   output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(Smi::FromInt(StackFrame::CONSTRUCT));
+  value = StackFrame::TypeToMarker(StackFrame::CONSTRUCT);
   output_frame->SetFrameSlot(output_offset, value);
   DebugPrintOutputSlot(value, frame_index, output_offset,
                        "typed frame marker\n");
@@ -1609,13 +1612,21 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     PrintF(trace_scope_->file(), "(%d)\n", height - 1);
   }
 
-  // The newly allocated object was passed as receiver in the artificial
-  // constructor stub environment created by HEnvironment::CopyForInlining().
-  output_offset -= kPointerSize;
-  value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset,
-                       "allocated receiver\n");
+  if (bailout_id == BailoutId::ConstructStubCreate()) {
+    // The function was mentioned explicitly in the CONSTRUCT_STUB_FRAME.
+    output_offset -= kPointerSize;
+    value = reinterpret_cast<intptr_t>(function);
+    WriteValueToOutput(function, 0, frame_index, output_offset, "function ");
+  } else {
+    DCHECK(bailout_id == BailoutId::ConstructStubInvoke());
+    // The newly allocated object was passed as receiver in the artificial
+    // constructor stub environment created by HEnvironment::CopyForInlining().
+    output_offset -= kPointerSize;
+    value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
+    output_frame->SetFrameSlot(output_offset, value);
+    DebugPrintOutputSlot(value, frame_index, output_offset,
+                         "allocated receiver\n");
+  }
 
   if (is_topmost) {
     // Ensure the result is restored back when we return to the stub.
@@ -1632,10 +1643,17 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   CHECK_EQ(0u, output_offset);
 
-  intptr_t pc = reinterpret_cast<intptr_t>(
-      construct_stub->instruction_start() +
-      isolate_->heap()->construct_stub_deopt_pc_offset()->value());
-  output_frame->SetPc(pc);
+  // Compute this frame's PC.
+  DCHECK(bailout_id.IsValidForConstructStub());
+  Address start = construct_stub->instruction_start();
+  int pc_offset =
+      bailout_id == BailoutId::ConstructStubCreate()
+          ? isolate_->heap()->construct_stub_create_deopt_pc_offset()->value()
+          : isolate_->heap()->construct_stub_invoke_deopt_pc_offset()->value();
+  intptr_t pc_value = reinterpret_cast<intptr_t>(start + pc_offset);
+  output_frame->SetPc(pc_value);
+
+  // Update constant pool.
   if (FLAG_enable_embedded_constant_pool) {
     intptr_t constant_pool_value =
         reinterpret_cast<intptr_t>(construct_stub->constant_pool());
@@ -1761,7 +1779,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
 
   // Set the frame type.
   output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(Smi::FromInt(StackFrame::INTERNAL));
+  value = StackFrame::TypeToMarker(StackFrame::INTERNAL);
   output_frame->SetFrameSlot(output_offset, value);
   DebugPrintOutputSlot(value, frame_index, output_offset, "frame type ");
   if (trace_scope_ != nullptr) {
@@ -1820,6 +1838,8 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   intptr_t pc = reinterpret_cast<intptr_t>(
       accessor_stub->instruction_start() + offset->value());
   output_frame->SetPc(pc);
+
+  // Update constant pool.
   if (FLAG_enable_embedded_constant_pool) {
     intptr_t constant_pool_value =
         reinterpret_cast<intptr_t>(accessor_stub->constant_pool());
@@ -1956,8 +1976,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslatedFrame* translated_frame,
 
   // The marker for the typed stack frame
   output_frame_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(
-      Smi::FromInt(StackFrame::STUB_FAILURE_TRAMPOLINE));
+  value = StackFrame::TypeToMarker(StackFrame::STUB_FAILURE_TRAMPOLINE);
   output_frame->SetFrameSlot(output_frame_offset, value);
   DebugPrintOutputSlot(value, frame_index, output_frame_offset,
                        "function (stub failure sentinel)\n");
@@ -2319,9 +2338,10 @@ Handle<ByteArray> TranslationBuffer::CreateByteArray(Factory* factory) {
   return result;
 }
 
-
-void Translation::BeginConstructStubFrame(int literal_id, unsigned height) {
+void Translation::BeginConstructStubFrame(BailoutId bailout_id, int literal_id,
+                                          unsigned height) {
   buffer_->Add(CONSTRUCT_STUB_FRAME);
+  buffer_->Add(bailout_id.ToInt());
   buffer_->Add(literal_id);
   buffer_->Add(height);
 }
@@ -2350,8 +2370,7 @@ void Translation::BeginTailCallerFrame(int literal_id) {
   buffer_->Add(literal_id);
 }
 
-void Translation::BeginJSFrame(BailoutId node_id,
-                               int literal_id,
+void Translation::BeginJSFrame(BailoutId node_id, int literal_id,
                                unsigned height) {
   buffer_->Add(JS_FRAME);
   buffer_->Add(node_id.ToInt());
@@ -2508,10 +2527,10 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
       return 1;
     case BEGIN:
     case ARGUMENTS_ADAPTOR_FRAME:
-    case CONSTRUCT_STUB_FRAME:
       return 2;
     case JS_FRAME:
     case INTERPRETED_FRAME:
+    case CONSTRUCT_STUB_FRAME:
       return 3;
   }
   FATAL("Unexpected translation type");
@@ -2793,7 +2812,7 @@ TranslatedValue TranslatedValue::NewDuplicateObject(TranslatedState* container,
 
 // static
 TranslatedValue TranslatedValue::NewFloat(TranslatedState* container,
-                                          float value) {
+                                          Float32 value) {
   TranslatedValue slot(container, kFloat);
   slot.float_value_ = value;
   return slot;
@@ -2801,7 +2820,7 @@ TranslatedValue TranslatedValue::NewFloat(TranslatedState* container,
 
 // static
 TranslatedValue TranslatedValue::NewDouble(TranslatedState* container,
-                                           double value) {
+                                           Float64 value) {
   TranslatedValue slot(container, kDouble);
   slot.double_value_ = value;
   return slot;
@@ -2870,12 +2889,12 @@ uint32_t TranslatedValue::uint32_value() const {
   return uint32_value_;
 }
 
-float TranslatedValue::float_value() const {
+Float32 TranslatedValue::float_value() const {
   DCHECK_EQ(kFloat, kind());
   return float_value_;
 }
 
-double TranslatedValue::double_value() const {
+Float64 TranslatedValue::double_value() const {
   DCHECK_EQ(kDouble, kind());
   return double_value_;
 }
@@ -2985,22 +3004,29 @@ void TranslatedValue::MaterializeSimple() {
   }
 
   switch (kind()) {
-    case kInt32: {
+    case kInt32:
       value_ = Handle<Object>(isolate()->factory()->NewNumber(int32_value()));
       return;
-    }
 
     case kUInt32:
       value_ = Handle<Object>(isolate()->factory()->NewNumber(uint32_value()));
       return;
 
-    case kFloat:
-      value_ = Handle<Object>(isolate()->factory()->NewNumber(float_value()));
+    case kFloat: {
+      double scalar_value = float_value().get_scalar();
+      value_ = Handle<Object>(isolate()->factory()->NewNumber(scalar_value));
       return;
+    }
 
-    case kDouble:
-      value_ = Handle<Object>(isolate()->factory()->NewNumber(double_value()));
+    case kDouble: {
+      if (double_value().is_hole_nan()) {
+        value_ = isolate()->factory()->hole_nan_value();
+        return;
+      }
+      double scalar_value = double_value().get_scalar();
+      value_ = Handle<Object>(isolate()->factory()->NewNumber(scalar_value));
       return;
+    }
 
     case kCapturedObject:
     case kDuplicatedObject:
@@ -3048,6 +3074,13 @@ uint32_t TranslatedState::GetUInt32Slot(Address fp, int slot_offset) {
 #endif
 }
 
+Float32 TranslatedState::GetFloatSlot(Address fp, int slot_offset) {
+  return Float32::FromBits(GetUInt32Slot(fp, slot_offset));
+}
+
+Float64 TranslatedState::GetDoubleSlot(Address fp, int slot_offset) {
+  return Float64::FromBits(Memory::uint64_at(fp + slot_offset));
+}
 
 void TranslatedValue::Handlify() {
   if (kind() == kTagged) {
@@ -3096,9 +3129,11 @@ TranslatedFrame TranslatedFrame::TailCallerFrame(
 }
 
 TranslatedFrame TranslatedFrame::ConstructStubFrame(
-    SharedFunctionInfo* shared_info, int height) {
-  return TranslatedFrame(kConstructStub, shared_info->GetIsolate(), shared_info,
-                         height);
+    BailoutId bailout_id, SharedFunctionInfo* shared_info, int height) {
+  TranslatedFrame frame(kConstructStub, shared_info->GetIsolate(), shared_info,
+                        height);
+  frame.node_id_ = bailout_id;
+  return frame;
 }
 
 
@@ -3216,15 +3251,18 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
 
     case Translation::CONSTRUCT_STUB_FRAME: {
+      BailoutId bailout_id = BailoutId(iterator->Next());
       SharedFunctionInfo* shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading construct stub frame %s", name.get());
-        PrintF(trace_file, " => height=%d; inputs:\n", height);
+        PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
+               bailout_id.ToInt(), height);
       }
-      return TranslatedFrame::ConstructStubFrame(shared_info, height);
+      return TranslatedFrame::ConstructStubFrame(bailout_id, shared_info,
+                                                 height);
     }
 
     case Translation::GETTER_STUB_FRAME: {
@@ -3403,9 +3441,9 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     case Translation::FLOAT_REGISTER: {
       int input_reg = iterator->Next();
       if (registers == nullptr) return TranslatedValue::NewInvalid(this);
-      float value = registers->GetFloatRegister(input_reg);
+      Float32 value = registers->GetFloatRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; %s (float)", value,
+        PrintF(trace_file, "%e ; %s (float)", value.get_scalar(),
                RegisterConfiguration::Crankshaft()->GetFloatRegisterName(
                    input_reg));
       }
@@ -3415,9 +3453,9 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     case Translation::DOUBLE_REGISTER: {
       int input_reg = iterator->Next();
       if (registers == nullptr) return TranslatedValue::NewInvalid(this);
-      double value = registers->GetDoubleRegister(input_reg);
+      Float64 value = registers->GetDoubleRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; %s (double)", value,
+        PrintF(trace_file, "%e ; %s (double)", value.get_scalar(),
                RegisterConfiguration::Crankshaft()->GetDoubleRegisterName(
                    input_reg));
       }
@@ -3473,9 +3511,9 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     case Translation::FLOAT_STACK_SLOT: {
       int slot_offset =
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
-      float value = ReadFloatValue(fp + slot_offset);
+      Float32 value = GetFloatSlot(fp, slot_offset);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; (float) [fp %c %d] ", value,
+        PrintF(trace_file, "%e ; (float) [fp %c %d] ", value.get_scalar(),
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
       return TranslatedValue::NewFloat(this, value);
@@ -3484,9 +3522,9 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     case Translation::DOUBLE_STACK_SLOT: {
       int slot_offset =
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
-      double value = ReadDoubleValue(fp + slot_offset);
+      Float64 value = GetDoubleSlot(fp, slot_offset);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; (double) [fp %c %d] ", value,
+        PrintF(trace_file, "%e ; (double) [fp %c %d] ", value.get_scalar(),
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
       return TranslatedValue::NewDouble(this, value);
@@ -3724,6 +3762,8 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<JSArrayIterator> object = Handle<JSArrayIterator>::cast(
           isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
       slot->value_ = object;
+      // Initialize the index to zero to make the heap verifier happy.
+      object->set_index(Smi::FromInt(0));
       Handle<Object> properties = materializer.FieldAt(value_index);
       Handle<Object> elements = materializer.FieldAt(value_index);
       Handle<Object> iterated_object = materializer.FieldAt(value_index);
@@ -3734,6 +3774,37 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_object(*iterated_object);
       object->set_index(*next_index);
       object->set_object_map(*iterated_object_map);
+      return object;
+    }
+    case JS_STRING_ITERATOR_TYPE: {
+      Handle<JSStringIterator> object = Handle<JSStringIterator>::cast(
+          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
+      slot->value_ = object;
+      // Initialize the index to zero to make the heap verifier happy.
+      object->set_index(0);
+      Handle<Object> properties = materializer.FieldAt(value_index);
+      Handle<Object> elements = materializer.FieldAt(value_index);
+      Handle<Object> iterated_string = materializer.FieldAt(value_index);
+      Handle<Object> next_index = materializer.FieldAt(value_index);
+      object->set_properties(FixedArray::cast(*properties));
+      object->set_elements(FixedArrayBase::cast(*elements));
+      CHECK(iterated_string->IsString());
+      object->set_string(String::cast(*iterated_string));
+      CHECK(next_index->IsSmi());
+      object->set_index(Smi::cast(*next_index)->value());
+      return object;
+    }
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE: {
+      Handle<JSAsyncFromSyncIterator> object =
+          Handle<JSAsyncFromSyncIterator>::cast(
+              isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
+      slot->value_ = object;
+      Handle<Object> properties = materializer.FieldAt(value_index);
+      Handle<Object> elements = materializer.FieldAt(value_index);
+      Handle<Object> sync_iterator = materializer.FieldAt(value_index);
+      object->set_properties(FixedArray::cast(*properties));
+      object->set_elements(FixedArrayBase::cast(*elements));
+      object->set_sync_iterator(JSReceiver::cast(*sync_iterator));
       return object;
     }
     case JS_ARRAY_TYPE: {
@@ -3762,7 +3833,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> prototype = materializer.FieldAt(value_index);
       Handle<Object> shared = materializer.FieldAt(value_index);
       Handle<Object> context = materializer.FieldAt(value_index);
-      Handle<Object> literals = materializer.FieldAt(value_index);
+      Handle<Object> vector_cell = materializer.FieldAt(value_index);
       Handle<Object> entry = materializer.FieldAt(value_index);
       Handle<Object> next_link = materializer.FieldAt(value_index);
       object->ReplaceCode(*isolate_->builtins()->CompileLazy());
@@ -3772,7 +3843,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_prototype_or_initial_map(*prototype);
       object->set_shared(SharedFunctionInfo::cast(*shared));
       object->set_context(Context::cast(*context));
-      object->set_literals(LiteralsArray::cast(*literals));
+      object->set_feedback_vector_cell(Cell::cast(*vector_cell));
       CHECK(entry->IsNumber());  // Entry to compile lazy stub.
       CHECK(next_link->IsUndefined(isolate_));
       return object;
@@ -3837,7 +3908,11 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
         for (int i = 0; i < length; ++i) {
           Handle<Object> value = materializer.FieldAt(value_index);
           CHECK(value->IsNumber());
-          double_array->set(i, value->Number());
+          if (value.is_identical_to(isolate_->factory()->hole_nan_value())) {
+            double_array->set_the_hole(isolate_, i);
+          } else {
+            double_array->set(i, value->Number());
+          }
         }
       }
       return object;
@@ -3853,6 +3928,8 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case SHORT_EXTERNAL_STRING_TYPE:
     case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+    case THIN_STRING_TYPE:
+    case THIN_ONE_BYTE_STRING_TYPE:
     case INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
@@ -3863,7 +3940,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case SYMBOL_TYPE:
     case ODDBALL_TYPE:
-    case SIMD128_VALUE_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:
@@ -3882,7 +3958,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case JS_MAP_TYPE:
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
-    case JS_STRING_ITERATOR_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_CAPABILITY_TYPE:
@@ -3917,7 +3992,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case ALLOCATION_MEMENTO_TYPE:
     case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
-    case BOX_TYPE:
     case PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE:
     case PROMISE_REACTION_JOB_INFO_TYPE:
     case DEBUG_INFO_TYPE:

@@ -79,7 +79,7 @@ def _V8PresubmitChecks(input_api, output_api):
         "Copyright header, trailing whitespaces and two empty lines " \
         "between declarations check failed"))
   if not StatusFilesProcessor().RunOnFiles(
-      input_api.AffectedFiles(include_deletes=False)):
+      input_api.AffectedFiles(include_deletes=True)):
     results.append(output_api.PresubmitError("Status file check failed"))
   results.extend(input_api.canned_checks.CheckAuthorizedAuthor(
       input_api, output_api))

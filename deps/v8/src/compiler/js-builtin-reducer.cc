@@ -5,9 +5,11 @@
 #include "src/compiler/js-builtin-reducer.h"
 
 #include "src/base/bits.h"
+#include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -19,17 +21,16 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-
-// Helper class to access JSCallFunction nodes that are potential candidates
+// Helper class to access JSCall nodes that are potential candidates
 // for reduction when they have a BuiltinFunctionId associated with them.
 class JSCallReduction {
  public:
   explicit JSCallReduction(Node* node) : node_(node) {}
 
-  // Determines whether the node is a JSCallFunction operation that targets a
+  // Determines whether the node is a JSCall operation that targets a
   // constant callee being a well-known builtin with a BuiltinFunctionId.
   bool HasBuiltinFunctionId() {
-    if (node_->opcode() != IrOpcode::kJSCallFunction) return false;
+    if (node_->opcode() != IrOpcode::kJSCall) return false;
     HeapObjectMatcher m(NodeProperties::GetValueInput(node_, 0));
     if (!m.HasValue() || !m.Value()->IsJSFunction()) return false;
     Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
@@ -38,7 +39,7 @@ class JSCallReduction {
 
   // Retrieves the BuiltinFunctionId as described above.
   BuiltinFunctionId GetBuiltinFunctionId() {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
+    DCHECK_EQ(IrOpcode::kJSCall, node_->opcode());
     HeapObjectMatcher m(NodeProperties::GetValueInput(node_, 0));
     Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
     return function->shared()->builtin_function_id();
@@ -79,13 +80,13 @@ class JSCallReduction {
   Node* right() { return GetJSCallInput(1); }
 
   int GetJSCallArity() {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
+    DCHECK_EQ(IrOpcode::kJSCall, node_->opcode());
     // Skip first (i.e. callee) and second (i.e. receiver) operand.
     return node_->op()->ValueInputCount() - 2;
   }
 
   Node* GetJSCallInput(int index) {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
+    DCHECK_EQ(IrOpcode::kJSCall, node_->opcode());
     DCHECK_LT(index, GetJSCallArity());
     // Skip first (i.e. callee) and second (i.e. receiver) operand.
     return NodeProperties::GetValueInput(node_, index + 2);
@@ -108,38 +109,14 @@ JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
 
 namespace {
 
-// TODO(turbofan): Shall we move this to the NodeProperties? Or some (untyped)
-// alias analyzer?
-bool IsSame(Node* a, Node* b) {
-  if (a == b) {
-    return true;
-  } else if (a->opcode() == IrOpcode::kCheckHeapObject) {
-    return IsSame(a->InputAt(0), b);
-  } else if (b->opcode() == IrOpcode::kCheckHeapObject) {
-    return IsSame(a, b->InputAt(0));
-  }
-  return false;
-}
-
 MaybeHandle<Map> GetMapWitness(Node* node) {
+  ZoneHandleSet<Map> maps;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
-  // Check if the {node} is dominated by a CheckMaps with a single map
-  // for the {receiver}, and if so use that map for the lowering below.
-  for (Node* dominator = effect;;) {
-    if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        IsSame(dominator->InputAt(0), receiver)) {
-      ZoneHandleSet<Map> const& maps =
-          CheckMapsParametersOf(dominator->op()).maps();
-      return (maps.size() == 1) ? MaybeHandle<Map>(maps[0])
-                                : MaybeHandle<Map>();
-    }
-    if (dominator->op()->EffectInputCount() != 1) {
-      // Didn't find any appropriate CheckMaps node.
-      return MaybeHandle<Map>();
-    }
-    dominator = NodeProperties::GetEffectInput(dominator);
+  if (NodeProperties::InferReceiverMaps(receiver, effect, &maps)) {
+    if (maps.size() == 1) return MaybeHandle<Map>(maps[0]);
   }
+  return MaybeHandle<Map>();
 }
 
 // TODO(turbofan): This was copied from Crankshaft, might be too restrictive.
@@ -838,19 +815,41 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
 
 // ES6 section 22.1.3.18 Array.prototype.push ( )
 Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
-  Handle<Map> receiver_map;
   // We need exactly target, receiver and value parameters.
   if (node->op()->ValueInputCount() != 3) return NoChange();
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* value = NodeProperties::GetValueInput(node, 2);
-  if (GetMapWitness(node).ToHandle(&receiver_map) &&
-      CanInlineArrayResizeOperation(receiver_map)) {
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (receiver_maps.size() != 1) return NoChange();
+  DCHECK_NE(NodeProperties::kNoReceiverMaps, result);
+
+  // TODO(turbofan): Relax this to deal with multiple {receiver} maps.
+  Handle<Map> receiver_map = receiver_maps[0];
+  if (CanInlineArrayResizeOperation(receiver_map)) {
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
     dependencies()->AssumePropertyCell(factory()->array_protector());
     dependencies()->AssumePrototypeMapsStable(receiver_map);
+
+    // If the {receiver_maps} information is not reliable, we need
+    // to check that the {receiver} still has one of these maps.
+    if (result == NodeProperties::kUnreliableReceiverMaps) {
+      if (receiver_map->is_stable()) {
+        dependencies()->AssumeMapStable(receiver_map);
+      } else {
+        // TODO(turbofan): This is a potential - yet unlikely - deoptimization
+        // loop, since we might not learn from this deoptimization in baseline
+        // code. We need a way to learn from deoptimizations in optimized to
+        // address these problems.
+        effect = graph()->NewNode(
+            simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps),
+            receiver, effect, control);
+      }
+    }
 
     // TODO(turbofan): Perform type checks on the {value}. We are not guaranteed
     // to learn from these checks in case they fail, as the witness (i.e. the
@@ -915,7 +914,7 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
                             InstanceType instance_type) {
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        IsSame(dominator->InputAt(0), receiver)) {
+        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       ZoneHandleSet<Map> const& maps =
           CheckMapsParametersOf(dominator->op()).maps();
       // Check if all maps have the given {instance_type}.
@@ -924,27 +923,15 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
       }
       return true;
     }
-    switch (dominator->opcode()) {
-      case IrOpcode::kStoreField: {
-        FieldAccess const& access = FieldAccessOf(dominator->op());
-        if (access.base_is_tagged == kTaggedBase &&
-            access.offset == HeapObject::kMapOffset) {
-          return false;
-        }
-        break;
-      }
-      case IrOpcode::kStoreElement:
-      case IrOpcode::kStoreTypedElement:
-        break;
-      default: {
-        DCHECK_EQ(1, dominator->op()->EffectOutputCount());
-        if (dominator->op()->EffectInputCount() != 1 ||
-            !dominator->op()->HasProperty(Operator::kNoWrite)) {
-          // Didn't find any appropriate CheckMaps node.
-          return false;
-        }
-        break;
-      }
+    // The instance type doesn't change for JSReceiver values, so we
+    // don't need to pay attention to potentially side-effecting nodes
+    // here. Strings and internal structures like FixedArray and
+    // FixedDoubleArray are weird here, but we don't use this function then.
+    DCHECK_LE(FIRST_JS_RECEIVER_TYPE, instance_type);
+    DCHECK_EQ(1, dominator->op()->EffectOutputCount());
+    if (dominator->op()->EffectInputCount() != 1) {
+      // Didn't find any appropriate CheckMaps node.
+      return false;
     }
     dominator = NodeProperties::GetEffectInput(dominator);
   }
@@ -1622,7 +1609,7 @@ Node* GetStringWitness(Node* node) {
   // the lowering below.
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckString &&
-        IsSame(dominator->InputAt(0), receiver)) {
+        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       return dominator;
     }
     if (dominator->op()->EffectInputCount() != 1) {
@@ -1740,6 +1727,34 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
     }
   }
 
+  return NoChange();
+}
+
+// ES6 String.prototype.indexOf(searchString [, position])
+// #sec-string.prototype.indexof
+Reduction JSBuiltinReducer::ReduceStringIndexOf(Node* node) {
+  // We need at least target, receiver and search_string parameters.
+  if (node->op()->ValueInputCount() >= 3) {
+    Node* search_string = NodeProperties::GetValueInput(node, 2);
+    Type* search_string_type = NodeProperties::GetType(search_string);
+    Node* position = (node->op()->ValueInputCount() >= 4)
+                         ? NodeProperties::GetValueInput(node, 3)
+                         : jsgraph()->ZeroConstant();
+    Type* position_type = NodeProperties::GetType(position);
+
+    if (search_string_type->Is(Type::String()) &&
+        position_type->Is(Type::SignedSmall())) {
+      if (Node* receiver = GetStringWitness(node)) {
+        RelaxEffectsAndControls(node);
+        node->ReplaceInput(0, receiver);
+        node->ReplaceInput(1, search_string);
+        node->ReplaceInput(2, position);
+        node->TrimInputCount(3);
+        NodeProperties::ChangeOp(node, simplified()->StringIndexOf());
+        return Changed(node);
+      }
+    }
+  }
   return NoChange();
 }
 
@@ -2114,6 +2129,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringCharAt(node);
     case kStringCharCodeAt:
       return ReduceStringCharCodeAt(node);
+    case kStringIndexOf:
+      return ReduceStringIndexOf(node);
     case kStringIterator:
       return ReduceStringIterator(node);
     case kStringIteratorNext:

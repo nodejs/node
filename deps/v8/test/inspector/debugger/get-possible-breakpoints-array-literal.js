@@ -9,4 +9,4 @@ Protocol.Debugger.onceScriptParsed().then(message => message.params.scriptId)
   .then(InspectorTest.logMessage)
   .then(InspectorTest.completeTest);
 
-compileAndRunWithOrigin("() => []", "", 0, 0);
+InspectorTest.addScript("() => []");
