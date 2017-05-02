@@ -153,6 +153,11 @@ parser.add_option('--openssl-fips',
     dest='openssl_fips',
     help='Build OpenSSL using FIPS canister .o file in supplied folder')
 
+parser.add_option('--openssl-use-def-ca-store',
+    action='store_true',
+    dest='use_openssl_ca_store',
+    help='Use OpenSSL supplied CA store instead of compiled-in Mozilla CA copy.')
+
 shared_optgroup.add_option('--shared-http-parser',
     action='store_true',
     dest='shared_http_parser',
@@ -953,6 +958,8 @@ def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
   o['variables']['node_shared_openssl'] = b(options.shared_openssl)
   o['variables']['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
+  if options.use_openssl_ca_store:
+    o['defines'] += ['NODE_OPENSSL_CERT_STORE']
   if options.openssl_fips:
     o['variables']['openssl_fips'] = options.openssl_fips
     fips_dir = os.path.join(root_dir, 'deps', 'openssl', 'fips')
