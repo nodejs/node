@@ -8169,6 +8169,11 @@ class V8_EXPORT TryCatch {
   void SetVerbose(bool value);
 
   /**
+   * Returns true if verbosity is enabled.
+   */
+  bool IsVerbose() const;
+
+  /**
    * Set whether or not this TryCatch should capture a Message object
    * which holds source information about where the exception
    * occurred.  True by default.

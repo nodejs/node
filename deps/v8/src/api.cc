@@ -2709,6 +2709,10 @@ void v8::TryCatch::SetVerbose(bool value) {
   is_verbose_ = value;
 }
 
+bool v8::TryCatch::IsVerbose() const {
+  return is_verbose_;
+}
+
 
 void v8::TryCatch::SetCaptureMessage(bool value) {
   capture_message_ = value;
