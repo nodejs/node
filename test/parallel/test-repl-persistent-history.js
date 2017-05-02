@@ -204,12 +204,6 @@ const tests = [
 const numtests = tests.length;
 
 
-let testsNotRan = tests.length;
-
-process.on('beforeExit', () =>
-  assert.strictEqual(testsNotRan, 0)
-);
-
 function cleanupTmpFile() {
   try {
     // Write over the file, clearing any history
@@ -224,6 +218,8 @@ function cleanupTmpFile() {
 // Copy our fixture to the tmp directory
 fs.createReadStream(historyFixturePath)
   .pipe(fs.createWriteStream(historyPath)).on('unpipe', () => runTest());
+
+const runTestWrap = common.mustCall(runTest, numtests);
 
 function runTest(assertCleaned) {
   const opts = tests.shift();
@@ -294,8 +290,7 @@ function runTest(assertCleaned) {
       try {
         // Ensure everything that we expected was output
         assert.strictEqual(expected.length, 0);
-        testsNotRan--;
-        setImmediate(runTest, cleaned);
+        setImmediate(runTestWrap, cleaned);
       } catch (err) {
         console.error(`Failed test # ${numtests - tests.length}`);
         throw err;
