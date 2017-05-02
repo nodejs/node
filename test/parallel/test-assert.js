@@ -641,4 +641,86 @@ assert.throws(() => {
   assert.strictEqual('A'.repeat(1000), '');
 }, new RegExp(`^AssertionError: '${'A'.repeat(127)} === ''$`));
 
+var objA = {
+  string: '',
+  integer: 0,
+  aFloat: 0.5,
+  aBoolean: true,
+  regex: /./g,
+  null: null,
+  undefined: undefined,
+  array: [
+    {
+      string: '',
+      integer: 0,
+      aFloat: 0.5,
+      aBoolean: true,
+      regex: /./g,
+      null: null,
+      undefined: undefined
+    }, {
+      string: '',
+      integer: 0,
+      aFloat: 0.5,
+      aBoolean: true,
+      regex: /./g,
+      null: null,
+      undefined: undefined
+    }
+  ],
+  object: {
+    string: '',
+    integer: 0,
+    aFloat: 0.5,
+    aBoolean: true,
+    regex: /./g,
+    null: null,
+    undefined: undefined
+  }
+};
+
+var objB = {
+  string: 'abc',
+  integer: 1,
+  aFloat: 1.5,
+  aBoolean: false,
+  regex: /abc/g,
+  null: null,
+  undefined: undefined,
+  array: [
+    {
+      string: 'abc',
+      integer: 1,
+      aFloat: 1.5,
+      aBoolean: false,
+      regex: /abc/g,
+      null: null,
+      undefined: undefined
+    }, {
+      string: 'abc',
+      integer: 1,
+      aFloat: 1.5,
+      aBoolean: false,
+      regex: /abc/g,
+      null: null,
+      undefined: undefined
+    }
+  ],
+  object: {
+    string: 'abc',
+    integer: 1,
+    aFloat: 1.5,
+    aBoolean: false,
+    regex: /abc/g,
+    null: null,
+    undefined: undefined
+  }
+};
+
+assert.doesNotThrow(makeBlock(a.objStrctEqual, objA, objB));
+
+objA.object.string = 0;
+
+assert.throws(makeBlock(a.objStrctEqual, objA, objB));
+
 console.log('All OK');
