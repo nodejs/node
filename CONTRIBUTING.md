@@ -35,14 +35,14 @@ This document will guide you through the contribution process.
 <details>
 <summary><strong>Provide motivation for the change</strong></summary>
 Try to explain why this change will make the code better. For example, does
-it fix a bug, or is it a new feature, etc. This should expressed in the 
+it fix a bug, or is it a new feature, etc. This should be expressed in the
 commit messages as well as in the PR description.
 </details>
 <details>
 <summary><strong>Don't make <em>unnecessary</em> code changes</strong></summary>
 <em>Unnecessary</em> code changes are changes made because of personal preference
 or style. For example, renaming of variables or functions, adding or removing
-white spaces, and reordering lines or whole code blocks. These sort of 
+white spaces, and reordering lines or whole code blocks. These sort of
 changes should have a good reason since otherwise they cause unnecessary
 <a href="https://blog.gitprime.com/why-code-churn-matters">"code churn"</a>.
 As part of the project's strategy we maintain multiple release lines, code
@@ -52,10 +52,10 @@ the previous author of that line.
 </details>
 <details>
 <summary><strong>Keep the change-set self contained but at a reasonable size</strong></summary>
-Use good judgment when making a big change. If a reason doesn't come to mid
-but a very big chage needs to be made, try to break it into smaller
-pieces (still as self-contained as possible), and cross-reference them, and 
-marking some of them as `blocked` pending the others.   
+Use good judgment when making a big change. If a reason doesn't come to mind
+but a very big change needs to be made, try to break it into smaller
+pieces (still as self-contained as possible), and cross-reference them,
+explicitly stating that they are dependent on each other.
 </details>
 <details>
 <summary><strong>Be aware of our style rules</strong></summary>
