@@ -36,6 +36,16 @@ const options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
+const tests = 2;
+let successful = 0;
+
+const testSucceeded = function() {
+  successful = successful + 1;
+  if (successful === tests) {
+    server.close();
+  }
+};
+
 const body = 'hello world\n';
 
 const serverCallback = common.mustCall(function(req, res) {
@@ -67,6 +77,7 @@ server.listen(0, common.mustCall(() => {
 
     res.on('end', common.mustCall(() => {
       assert.strictEqual(responseBody, body);
+      testSucceeded();
     }));
   }));
   req.end();
@@ -94,8 +105,12 @@ server.listen(0, common.mustCall(() => {
   });
   checkCertReq.end();
 
-  checkCertReq.on('error', function(e) {
+  checkCertReq.on('error', common.mustCall((e) => {
     assert.strictEqual(e.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
-    server.close();
-  });
+    testSucceeded();
+  }));
 }));
+
+process.on('exit', function() {
+  assert.strictEqual(successful, tests);
+});
