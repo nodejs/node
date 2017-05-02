@@ -473,6 +473,39 @@ within which it can operate. The process of creating the V8 Context and
 associating it with the `sandbox` object is what this document refers to as
 "contextifying" the `sandbox`.
 
+## Example: Run a Server within a VM
+
+The context of `.runInThisContext()` refers to the V8 context. The code passed
+to this VM context will have it's own isolated scope. To run a simple web server
+using the `http` module, for instance, the code passed to the context must either
+call `require('http')` on its own, or have a reference to the `http` module passed
+to it. For instance:
+
+```js
+'use strict';
+const vm = require('vm');
+
+let code =
+`(function(require) {
+
+   const http = require('http');
+
+   http.createServer( (request, response) => {
+     response.writeHead(200, {'Content-Type': 'text/plain'});
+     response.end('Hello World\\n');
+   }).listen(8124);
+
+   console.log('Server running at http://127.0.0.1:8124/');
+ })`;
+
+ vm.runInThisContext(code)(require);
+ ```   
+
+_Note: `require()` in the above case shares the state with context it is passed
+from. This might introduce risks when unknown code is executed, e.g. altering
+objects from the calling thread's context in unwanted ways. It is advisable to
+run `vm` code in a separate process._
+
 [indirect `eval()` call]: https://es5.github.io/#x10.4.2
 [global object]: https://es5.github.io/#x15.1
 [`Error`]: errors.html#errors_class_error
