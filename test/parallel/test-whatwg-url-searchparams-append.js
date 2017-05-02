@@ -1,3 +1,4 @@
+// whatwg test should not be modified.
 'use strict';
 
 const common = require('../common');
