@@ -92,6 +92,30 @@ void Environment::Start(int argc,
   LoadAsyncWrapperInfo(this);
 }
 
+void Environment::CleanupHandles() {
+  while (HandleCleanup* hc = handle_cleanup_queue_.PopFront()) {
+    handle_cleanup_waiting_++;
+    hc->cb_(this, hc->handle_, hc->arg_);
+    delete hc;
+  }
+
+  while (handle_cleanup_waiting_ != 0)
+    uv_run(event_loop(), UV_RUN_ONCE);
+
+  // Closing the destroy_ids_idle_handle_ within the handle cleanup queue
+  // prevents the async wrap destroy hook from being called.
+  uv_handle_t* handle =
+    reinterpret_cast<uv_handle_t*>(&destroy_ids_idle_handle_);
+  handle->data = this;
+  handle_cleanup_waiting_ = 1;
+  uv_close(handle, [](uv_handle_t* handle) {
+    static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
+  });
+
+  while (handle_cleanup_waiting_ != 0)
+    uv_run(event_loop(), UV_RUN_ONCE);
+}
+
 void Environment::StartProfilerIdleNotifier() {
   uv_prepare_start(&idle_prepare_handle_, [](uv_prepare_t* handle) {
     Environment* env = ContainerOf(&Environment::idle_prepare_handle_, handle);
@@ -151,6 +175,17 @@ void Environment::PrintSyncTrace() const {
     }
   }
   fflush(stderr);
+}
+
+void Environment::RunAtExitCallbacks() {
+  for (AtExitCallback at_exit : at_exit_functions_) {
+    at_exit.cb_(at_exit.arg_);
+  }
+  at_exit_functions_.clear();
+}
+
+void Environment::AtExit(void (*cb)(void* arg), void* arg) {
+  at_exit_functions_.push_back(AtExitCallback{cb, arg});
 }
 
 }  // namespace node

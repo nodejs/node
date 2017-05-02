@@ -38,6 +38,8 @@
       ['OS == "win"', {
         'os_posix': 0,
         'v8_postmortem_support%': 'false',
+        'OBJ_DIR': '<(PRODUCT_DIR)/obj',
+        'V8_BASE': '<(PRODUCT_DIR)/lib/v8_libbase.lib',
       }, {
         'os_posix': 1,
         'v8_postmortem_support%': 'true',
@@ -51,8 +53,8 @@
             'OBJ_DIR': '<(PRODUCT_DIR)/obj',
             'V8_BASE': '<(PRODUCT_DIR)/obj/deps/v8/src/libv8_base.a',
           }, {
-            'OBJ_DIR': '<(PRODUCT_DIR)/obj.target',
-            'V8_BASE': '<(PRODUCT_DIR)/obj.target/deps/v8/src/libv8_base.a',
+            'OBJ_DIR%': '<(PRODUCT_DIR)/obj.target',
+            'V8_BASE%': '<(PRODUCT_DIR)/obj.target/deps/v8/src/libv8_base.a',
           }],
         ],
       }],
