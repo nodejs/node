@@ -9,7 +9,6 @@
 #include "src/base/hashmap.h"
 #include "src/globals.h"
 #include "src/objects.h"
-#include "src/objects/scope-info.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -20,6 +19,7 @@ class AstValueFactory;
 class AstRawString;
 class Declaration;
 class ParseInfo;
+class PreParsedScopeData;
 class SloppyBlockFunctionStatement;
 class Statement;
 class StringSet;
@@ -39,7 +39,8 @@ class VariableMap: public ZoneHashMap {
 
   // Records that "name" exists (if not recorded yet) but doesn't create a
   // Variable. Useful for preparsing.
-  void DeclareName(Zone* zone, const AstRawString* name, VariableMode mode);
+  Variable* DeclareName(Zone* zone, const AstRawString* name,
+                        VariableMode mode);
 
   Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
@@ -180,7 +181,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                             bool* sloppy_mode_block_scope_function_redefinition,
                             bool* ok);
 
-  void DeclareVariableName(const AstRawString* name, VariableMode mode);
+  // The return value is meaningful only if FLAG_preparser_scope_analysis is on.
+  Variable* DeclareVariableName(const AstRawString* name, VariableMode mode);
 
   // Declarations list.
   ThreadedList<Declaration>* declarations() { return &decls_; }
@@ -409,7 +411,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Scope* GetOuterScopeWithContext();
 
   // Analyze() must have been called once to create the ScopeInfo.
-  Handle<ScopeInfo> scope_info() {
+  Handle<ScopeInfo> scope_info() const {
     DCHECK(!scope_info_.is_null());
     return scope_info_;
   }
@@ -481,6 +483,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // should also be invoked after resolution.
   bool NeedsScopeInfo() const;
 
+  Variable* NewTemporary(const AstRawString* name,
+                         MaybeAssignedFlag maybe_assigned);
   Zone* zone_;
 
   // Scope tree.
@@ -586,6 +590,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void AllocateDebuggerScopeInfos(Isolate* isolate,
                                   MaybeHandle<ScopeInfo> outer_scope);
 
+  void CollectVariableData(PreParsedScopeData* data);
+
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
 
@@ -605,7 +611,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   friend class ScopeTestHelper;
 };
 
-class DeclarationScope : public Scope {
+class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
  public:
   DeclarationScope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
                    FunctionKind function_kind = kNormalFunction);
@@ -687,6 +693,11 @@ class DeclarationScope : public Scope {
   Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
                              bool is_optional, bool is_rest, bool* is_duplicate,
                              AstValueFactory* ast_value_factory);
+
+  // Declares that a parameter with the name exists. Creates a Variable and
+  // returns it if FLAG_preparser_scope_analysis is on.
+  Variable* DeclareParameterName(const AstRawString* name, bool is_rest,
+                                 AstValueFactory* ast_value_factory);
 
   // Declare an implicit global variable in this scope which must be a
   // script scope.  The variable was introduced (possibly from an inner
@@ -807,7 +818,8 @@ class DeclarationScope : public Scope {
   // records variables which cannot be resolved inside the Scope (we don't yet
   // know what they will resolve to since the outer Scopes are incomplete) and
   // migrates them into migrate_to.
-  void AnalyzePartially(AstNodeFactory* ast_node_factory);
+  void AnalyzePartially(AstNodeFactory* ast_node_factory,
+                        PreParsedScopeData* preparsed_scope_data);
 
   Handle<StringSet> CollectNonLocals(ParseInfo* info,
                                      Handle<StringSet> non_locals);
@@ -887,8 +899,6 @@ class DeclarationScope : public Scope {
   Variable* arguments_;
 
   struct RareData : public ZoneObject {
-    void* operator new(size_t size, Zone* zone) { return zone->New(size); }
-
     // Convenience variable; Subclass constructor only
     Variable* this_function = nullptr;
 

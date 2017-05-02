@@ -166,16 +166,16 @@ inline Address StandardFrame::ComputeConstantPoolAddress(Address fp) {
 
 
 inline bool StandardFrame::IsArgumentsAdaptorFrame(Address fp) {
-  Object* frame_type =
-      Memory::Object_at(fp + TypedFrameConstants::kFrameTypeOffset);
-  return frame_type == Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR);
+  intptr_t frame_type =
+      Memory::intptr_at(fp + TypedFrameConstants::kFrameTypeOffset);
+  return frame_type == StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR);
 }
 
 
 inline bool StandardFrame::IsConstructFrame(Address fp) {
-  Object* frame_type =
-      Memory::Object_at(fp + TypedFrameConstants::kFrameTypeOffset);
-  return frame_type == Smi::FromInt(StackFrame::CONSTRUCT);
+  intptr_t frame_type =
+      Memory::intptr_at(fp + TypedFrameConstants::kFrameTypeOffset);
+  return frame_type == StackFrame::TypeToMarker(StackFrame::CONSTRUCT);
 }
 
 inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)

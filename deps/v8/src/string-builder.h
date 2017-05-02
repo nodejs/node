@@ -310,6 +310,8 @@ class IncrementalStringBuilder {
 
   INLINE(bool HasOverflowed()) const { return overflowed_; }
 
+  INLINE(int Length()) const { return accumulator_->length() + current_index_; }
+
   // Change encoding to two-byte.
   void ChangeEncoding() {
     DCHECK_EQ(String::ONE_BYTE_ENCODING, encoding_);

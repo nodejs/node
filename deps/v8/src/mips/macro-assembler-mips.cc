@@ -3885,16 +3885,15 @@ void MacroAssembler::Push(Handle<Object> handle) {
   push(at);
 }
 
-
-void MacroAssembler::DebugBreak() {
-  PrepareCEntryArgs(0);
-  PrepareCEntryFunction(
-      ExternalReference(Runtime::kHandleDebuggerStatement, isolate()));
-  CEntryStub ces(isolate(), 1);
-  DCHECK(AllowThisStubCall(&ces));
-  Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
+void MacroAssembler::MaybeDropFrames() {
+  // Check whether we need to drop frames to restart a function on the stack.
+  ExternalReference restart_fp =
+      ExternalReference::debug_restart_fp_address(isolate());
+  li(a1, Operand(restart_fp));
+  lw(a1, MemOperand(a1));
+  Jump(isolate()->builtins()->FrameDropperTrampoline(), RelocInfo::CODE_TARGET,
+       ne, a1, Operand(zero_reg));
 }
-
 
 // ---------------------------------------------------------------------------
 // Exception handling.
@@ -4737,32 +4736,6 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   bind(&done);
 }
 
-
-void MacroAssembler::TryGetFunctionPrototype(Register function, Register result,
-                                             Register scratch, Label* miss) {
-  // Get the prototype or initial map from the function.
-  lw(result,
-     FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // If the prototype or initial map is the hole, don't return it and
-  // simply miss the cache instead. This will allow us to allocate a
-  // prototype object on-demand in the runtime system.
-  LoadRoot(t8, Heap::kTheHoleValueRootIndex);
-  Branch(miss, eq, result, Operand(t8));
-
-  // If the function does not have an initial map, we're done.
-  Label done;
-  GetObjectType(result, scratch, scratch);
-  Branch(&done, ne, scratch, Operand(MAP_TYPE));
-
-  // Get the prototype from the initial map.
-  lw(result, FieldMemOperand(result, Map::kPrototypeOffset));
-
-  // All done.
-  bind(&done);
-}
-
-
 void MacroAssembler::GetObjectType(Register object,
                                    Register map,
                                    Register type_reg) {
@@ -5311,7 +5284,7 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
 }
 
 void MacroAssembler::StubPrologue(StackFrame::Type type) {
-  li(at, Operand(Smi::FromInt(type)));
+  li(at, Operand(StackFrame::TypeToMarker(type)));
   PushCommonFrame(at);
 }
 
@@ -5342,8 +5315,8 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
 
 void MacroAssembler::EmitLoadFeedbackVector(Register vector) {
   lw(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  lw(vector, FieldMemOperand(vector, JSFunction::kLiteralsOffset));
-  lw(vector, FieldMemOperand(vector, LiteralsArray::kFeedbackVectorOffset));
+  lw(vector, FieldMemOperand(vector, JSFunction::kFeedbackVectorOffset));
+  lw(vector, FieldMemOperand(vector, Cell::kValueOffset));
 }
 
 
@@ -5369,7 +5342,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   stack_offset -= kPointerSize;
   sw(fp, MemOperand(sp, stack_offset));
   stack_offset -= kPointerSize;
-  li(t9, Operand(Smi::FromInt(type)));
+  li(t9, Operand(StackFrame::TypeToMarker(type)));
   sw(t9, MemOperand(sp, stack_offset));
   if (type == StackFrame::INTERNAL) {
     DCHECK_EQ(stack_offset, kPointerSize);
@@ -5426,7 +5399,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   addiu(sp, sp, -2 * kPointerSize - ExitFrameConstants::kFixedFrameSizeFromFp);
   sw(ra, MemOperand(sp, 4 * kPointerSize));
   sw(fp, MemOperand(sp, 3 * kPointerSize));
-  li(at, Operand(Smi::FromInt(frame_type)));
+  li(at, Operand(StackFrame::TypeToMarker(frame_type)));
   sw(at, MemOperand(sp, 2 * kPointerSize));
   // Set up new frame pointer.
   addiu(fp, sp, ExitFrameConstants::kFixedFrameSizeFromFp);
@@ -5525,21 +5498,6 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   }
   addiu(sp, sp, 8);
 }
-
-
-void MacroAssembler::InitializeNewString(Register string,
-                                         Register length,
-                                         Heap::RootListIndex map_index,
-                                         Register scratch1,
-                                         Register scratch2) {
-  sll(scratch1, length, kSmiTagSize);
-  LoadRoot(scratch2, map_index);
-  sw(scratch1, FieldMemOperand(string, String::kLengthOffset));
-  li(scratch1, Operand(String::kEmptyHashField));
-  sw(scratch2, FieldMemOperand(string, HeapObject::kMapOffset));
-  sw(scratch1, FieldMemOperand(string, String::kHashFieldOffset));
-}
-
 
 int MacroAssembler::ActivationFrameAlignment() {
 #if V8_HOST_ARCH_MIPS

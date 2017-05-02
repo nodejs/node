@@ -31,7 +31,9 @@ class AtomicNumber {
         &value_, -static_cast<base::AtomicWord>(decrement)));
   }
 
-  V8_INLINE T Value() { return static_cast<T>(base::Acquire_Load(&value_)); }
+  V8_INLINE T Value() const {
+    return static_cast<T>(base::Acquire_Load(&value_));
+  }
 
   V8_INLINE void SetValue(T new_value) {
     base::Release_Store(&value_, static_cast<base::AtomicWord>(new_value));

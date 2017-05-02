@@ -67,6 +67,14 @@ class InstructionOperandConverter {
     return static_cast<int16_t>(InputInt32(index));
   }
 
+  uint8_t InputInt3(size_t index) {
+    return static_cast<uint8_t>(InputInt32(index) & 0x7);
+  }
+
+  uint8_t InputInt4(size_t index) {
+    return static_cast<uint8_t>(InputInt32(index) & 0xF);
+  }
+
   uint8_t InputInt5(size_t index) {
     return static_cast<uint8_t>(InputInt32(index) & 0x1F);
   }

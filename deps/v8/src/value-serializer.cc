@@ -157,8 +157,9 @@ ValueSerializer::ValueSerializer(Isolate* isolate,
     : isolate_(isolate),
       delegate_(delegate),
       zone_(isolate->allocator(), ZONE_NAME),
-      id_map_(isolate->heap(), &zone_),
-      array_buffer_transfer_map_(isolate->heap(), &zone_) {}
+      id_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
+      array_buffer_transfer_map_(isolate->heap(),
+                                 ZoneAllocationPolicy(&zone_)) {}
 
 ValueSerializer::~ValueSerializer() {
   if (buffer_) {
@@ -1177,8 +1178,9 @@ MaybeHandle<String> ValueDeserializer::ReadUtf8String() {
   if (!ReadVarint<uint32_t>().To(&utf8_length) ||
       utf8_length >
           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
-      !ReadRawBytes(utf8_length).To(&utf8_bytes))
+      !ReadRawBytes(utf8_length).To(&utf8_bytes)) {
     return MaybeHandle<String>();
+  }
   return isolate_->factory()->NewStringFromUtf8(
       Vector<const char>::cast(utf8_bytes), pretenure_);
 }
@@ -1201,16 +1203,20 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
   if (!ReadVarint<uint32_t>().To(&byte_length) ||
       byte_length >
           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
-      byte_length % sizeof(uc16) != 0 || !ReadRawBytes(byte_length).To(&bytes))
+      byte_length % sizeof(uc16) != 0 ||
+      !ReadRawBytes(byte_length).To(&bytes)) {
     return MaybeHandle<String>();
+  }
 
   // Allocate an uninitialized string so that we can do a raw memcpy into the
   // string on the heap (regardless of alignment).
+  if (byte_length == 0) return isolate_->factory()->empty_string();
   Handle<SeqTwoByteString> string;
   if (!isolate_->factory()
            ->NewRawTwoByteString(byte_length / sizeof(uc16), pretenure_)
-           .ToHandle(&string))
+           .ToHandle(&string)) {
     return MaybeHandle<String>();
+  }
 
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
@@ -1630,10 +1636,8 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   MaybeHandle<JSObject> result;
   {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
-    result = wasm::CreateModuleObjectFromBytes(
-        isolate_, wire_bytes.begin(), wire_bytes.end(), &thrower,
-        wasm::ModuleOrigin::kWasmOrigin, Handle<Script>::null(),
-        Vector<const byte>::empty());
+    result = wasm::SyncCompile(isolate_, &thrower,
+                               wasm::ModuleWireBytes(wire_bytes));
   }
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSObject);
   return result;
@@ -1742,8 +1746,8 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
                    ->NowContains(value)) {
             Handle<FieldType> value_type =
                 value->OptimalType(isolate_, expected_representation);
-            Map::GeneralizeField(target, descriptor, expected_representation,
-                                 value_type);
+            Map::GeneralizeField(target, descriptor, details.constness(),
+                                 expected_representation, value_type);
           }
           DCHECK(target->instance_descriptors()
                      ->GetFieldType(descriptor)

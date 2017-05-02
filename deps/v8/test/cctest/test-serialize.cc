@@ -31,13 +31,15 @@
 
 #include "src/v8.h"
 
+#include "src/api.h"
+#include "src/assembler-inl.h"
 #include "src/bootstrapper.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/heap/spaces.h"
 #include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/deserializer.h"
@@ -262,10 +264,9 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
         isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
-    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
-                            i::GarbageCollectionReason::kTesting);
-    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
-                            i::GarbageCollectionReason::kTesting);
+
+    heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
+    heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
 
     Object* raw_foo;
     {
@@ -370,10 +371,10 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
         isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
+
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
-                            i::GarbageCollectionReason::kTesting);
+    heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
 
     {
       v8::HandleScope handle_scope(v8_isolate);
@@ -931,7 +932,7 @@ static Handle<SharedFunctionInfo> CompileScript(
   return Compiler::GetSharedFunctionInfoForScript(
       source, name, 0, 0, v8::ScriptOriginOptions(), Handle<Object>(),
       Handle<Context>(isolate->native_context()), NULL, cached_data, options,
-      NOT_NATIVES_CODE, false);
+      NOT_NATIVES_CODE);
 }
 
 TEST(CodeSerializerOnePlusOne) {
@@ -1005,11 +1006,11 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   Handle<SharedFunctionInfo> copy = CompileScript(
       isolate, src, src, &cache, v8::ScriptCompiler::kConsumeCodeCache);
 
-  CHECK(isolate->compilation_cache()
-            ->LookupScript(src, src, 0, 0, v8::ScriptOriginOptions(),
-                           isolate->native_context(), SLOPPY)
-            .ToHandleChecked()
-            .is_identical_to(copy));
+  InfoVectorPair pair = isolate->compilation_cache()->LookupScript(
+      src, src, 0, 0, v8::ScriptOriginOptions(), isolate->native_context(),
+      SLOPPY);
+
+  CHECK(pair.shared() == *copy);
 
   delete cache;
 }
@@ -1687,96 +1688,6 @@ TEST(CodeSerializerWithHarmonyScoping) {
   isolate2->Dispose();
 }
 
-TEST(CodeSerializerInternalReference) {
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
-  return;
-#endif
-  // In ignition there are only relative jumps, so the following code
-  // would not have any internal references. This test is not relevant
-  // for ignition.
-  if (FLAG_ignition || FLAG_turbo) {
-    return;
-  }
-  // Disable experimental natives that are loaded after deserialization.
-  FLAG_function_context_specialization = false;
-  FLAG_always_opt = true;
-  const char* flag = "--turbo-filter=foo";
-  FlagList::SetFlagsFromString(flag, StrLength(flag));
-
-  const char* source =
-      "var foo = (function(stdlib, foreign, heap) {"
-      "  function foo(i) {"
-      "    i = i|0;"
-      "    var j = 0;"
-      "    switch (i) {"
-      "      case 0:"
-      "      case 1: j = 1; break;"
-      "      case 2:"
-      "      case 3: j = 2; break;"
-      "      case 4:"
-      "      case 5: j = foo(3) + 1; break;"
-      "      default: j = 0; break;"
-      "    }"
-      "    return j + 10;"
-      "  }"
-      "  return { foo: foo };"
-      "})(this, {}, undefined).foo;"
-      "foo(1);";
-
-  v8::StartupData data = v8::V8::CreateSnapshotDataBlob(source);
-  CHECK(data.data);
-
-  v8::Isolate::CreateParams params;
-  params.snapshot_blob = &data;
-  params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(params);
-  {
-    v8::Isolate::Scope i_scope(isolate);
-    v8::HandleScope h_scope(isolate);
-    v8::Local<v8::Context> context = v8::Context::New(isolate);
-    delete[] data.data;  // We can dispose of the snapshot blob now.
-    v8::Context::Scope c_scope(context);
-    v8::Local<v8::Function> foo =
-        v8::Local<v8::Function>::Cast(CompileRun("foo"));
-
-    // There are at least 6 internal references.
-    int mask = RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-               RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-    RelocIterator it(
-        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*foo))->code(), mask);
-    for (int i = 0; i < 6; ++i) {
-      CHECK(!it.done());
-      it.next();
-    }
-
-    CHECK(Handle<JSFunction>::cast(v8::Utils::OpenHandle(*foo))
-              ->code()
-              ->is_turbofanned());
-    CHECK_EQ(11, CompileRun("foo(0)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-    CHECK_EQ(11, CompileRun("foo(1)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-    CHECK_EQ(12, CompileRun("foo(2)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-    CHECK_EQ(12, CompileRun("foo(3)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-    CHECK_EQ(23, CompileRun("foo(4)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-    CHECK_EQ(23, CompileRun("foo(5)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-    CHECK_EQ(10, CompileRun("foo(6)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-  }
-  isolate->Dispose();
-}
-
 TEST(CodeSerializerEagerCompilationAndPreAge) {
   if (FLAG_ignition || FLAG_turbo) return;
 
@@ -1846,8 +1757,7 @@ TEST(Regress503552) {
   Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfoForScript(
       source, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
       Handle<Object>(), Handle<Context>(isolate->native_context()), NULL,
-      &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE,
-      false);
+      &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
   delete script_data;
 
   heap::SimulateIncrementalMarking(isolate->heap());
@@ -2078,6 +1988,7 @@ intptr_t original_external_references[] = {
     reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
     reinterpret_cast<intptr_t>(&AccessorForSerialization),
     reinterpret_cast<intptr_t>(&SerializedExtension::FunctionCallback),
+    reinterpret_cast<intptr_t>(&serialized_static_field),  // duplicate entry
     0};
 
 intptr_t replaced_external_references[] = {
@@ -2086,6 +1997,7 @@ intptr_t replaced_external_references[] = {
     reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
     reinterpret_cast<intptr_t>(&AccessorForSerialization),
     reinterpret_cast<intptr_t>(&SerializedExtension::FunctionCallback),
+    reinterpret_cast<intptr_t>(&serialized_static_field),
     0};
 
 TEST(SnapshotCreatorExternalReferences) {

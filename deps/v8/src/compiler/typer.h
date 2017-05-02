@@ -50,9 +50,9 @@ class V8_EXPORT_PRIVATE Typer {
   TypeCache const& cache_;
   OperationTyper operation_typer_;
 
+  Type* singleton_empty_string_;
   Type* singleton_false_;
   Type* singleton_true_;
-  Type* singleton_the_hole_;
   Type* falsish_;
   Type* truish_;
 

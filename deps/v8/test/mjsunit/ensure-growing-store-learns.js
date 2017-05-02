@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
- // Flags: --allow-natives-syntax --noverify-heap --noenable-slow-asserts
+// Flags: --allow-natives-syntax --noverify-heap --noenable-slow-asserts
+// Flags: --crankshaft --no-always-opt
 
- // --noverify-heap and --noenable-slow-asserts are set because the test is too
- // slow with it on.
+// --noverify-heap and --noenable-slow-asserts are set because the test is too
+// slow with it on.
 
- // Ensure that keyed stores work, and optimized functions learn if the
- // store required change to dictionary mode. Verify that stores that grow
- // the array into large object space don't cause a deopt.
+// Ensure that keyed stores work, and optimized functions learn if the
+// store required change to dictionary mode. Verify that stores that grow
+// the array into large object space don't cause a deopt.
 (function() {
   var a = [];
 
@@ -42,7 +43,7 @@
 
   // Clearing feedback for the StoreIC in foo is important for runs with
   // flag --stress-opt.
-  %ClearFunctionTypeFeedback(foo);
+  %ClearFunctionFeedback(foo);
 })();
 
 
@@ -60,27 +61,24 @@
   %OptimizeFunctionOnNextCall(foo2);
   foo2(a, 40);
 
-  // This test is way too slow without crankshaft.
-  if (4 != %GetOptimizationStatus(foo2)) {
-    assertOptimized(foo2);
-    assertTrue(%HasFastSmiElements(a));
+  assertOptimized(foo2);
+  assertTrue(%HasFastSmiElements(a));
 
-    // Grow a large array into large object space through the keyed store
-    // without deoptimizing. Grow by 10s. If we set elements too sparsely, the
-    // array will convert to dictionary mode.
-    a = new Array(99999);
-    assertTrue(%HasFastSmiElements(a));
-    for (var i = 0; i < 263000; i += 10) {
-      foo2(a, i);
-    }
-
-    // Verify that we are over 1 page in size, and foo2 remains optimized.
-    // This means we've smoothly transitioned to allocating in large object
-    // space.
-    assertTrue(%HasFastSmiElements(a));
-    assertTrue(a.length * 4 > (1024 * 1024));
-    assertOptimized(foo2);
+  // Grow a large array into large object space through the keyed store
+  // without deoptimizing. Grow by 10s. If we set elements too sparsely, the
+  // array will convert to dictionary mode.
+  a = new Array(99999);
+  assertTrue(%HasFastSmiElements(a));
+  for (var i = 0; i < 263000; i += 10) {
+    foo2(a, i);
   }
 
-  %ClearFunctionTypeFeedback(foo2);
+  // Verify that we are over 1 page in size, and foo2 remains optimized.
+  // This means we've smoothly transitioned to allocating in large object
+  // space.
+  assertTrue(%HasFastSmiElements(a));
+  assertTrue(a.length * 4 > (1024 * 1024));
+  assertOptimized(foo2);
+
+  %ClearFunctionFeedback(foo2);
 })();

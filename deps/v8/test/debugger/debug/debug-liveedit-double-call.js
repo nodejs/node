@@ -25,9 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --noalways-opt
 
 Debug = debug.Debug
-
 
 function TestCase(test_scenario, expected_output) {
   // Global variable, accessed from eval'd script.

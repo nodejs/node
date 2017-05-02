@@ -84,7 +84,7 @@ class Deserializer : public SerializerDeserializer {
     DCHECK_EQ(kWordAligned, next_alignment_);
     int alignment = data - (kAlignmentPrefix - 1);
     DCHECK_LE(kWordAligned, alignment);
-    DCHECK_LE(alignment, kSimd128Unaligned);
+    DCHECK_LE(alignment, kDoubleUnaligned);
     next_alignment_ = static_cast<AllocationAlignment>(alignment);
   }
 

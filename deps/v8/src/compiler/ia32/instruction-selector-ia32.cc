@@ -234,6 +234,9 @@ void InstructionSelector::VisitLoad(Node* node) {
       break;
     case MachineRepresentation::kWord64:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kSimd1x4:  // Fall through.
+    case MachineRepresentation::kSimd1x8:  // Fall through.
+    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -324,6 +327,9 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
       case MachineRepresentation::kWord64:   // Fall through.
       case MachineRepresentation::kSimd128:  // Fall through.
+      case MachineRepresentation::kSimd1x4:  // Fall through.
+      case MachineRepresentation::kSimd1x8:  // Fall through.
+      case MachineRepresentation::kSimd1x16:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -391,9 +397,36 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kTagged:         // Fall through.
     case MachineRepresentation::kWord64:         // Fall through.
     case MachineRepresentation::kSimd128:        // Fall through.
+    case MachineRepresentation::kSimd1x4:        // Fall through.
+    case MachineRepresentation::kSimd1x8:        // Fall through.
+    case MachineRepresentation::kSimd1x16:       // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
+  }
+  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
+    Int32BinopMatcher moffset(offset);
+    InstructionOperand buffer_operand = g.CanBeImmediate(buffer)
+                                            ? g.UseImmediate(buffer)
+                                            : g.UseRegister(buffer);
+    Int32Matcher mlength(length);
+    if (mlength.HasValue() && moffset.right().HasValue() &&
+        moffset.right().Value() >= 0 &&
+        mlength.Value() >= moffset.right().Value()) {
+      Emit(opcode, g.DefineAsRegister(node),
+           g.UseImmediate(moffset.right().node()), g.UseImmediate(length),
+           g.UseRegister(moffset.left().node()), buffer_operand);
+      return;
+    }
+    IntMatcher<int32_t, IrOpcode::kRelocatableInt32Constant> mmlength(length);
+    if (mmlength.HasValue() && moffset.right().HasValue() &&
+        moffset.right().Value() >= 0 &&
+        mmlength.Value() >= moffset.right().Value()) {
+      Emit(opcode, g.DefineAsRegister(node),
+           g.UseImmediate(moffset.right().node()), g.UseImmediate(length),
+           g.UseRegister(moffset.left().node()), buffer_operand);
+      return;
+    }
   }
   InstructionOperand offset_operand = g.UseRegister(offset);
   InstructionOperand length_operand =
@@ -440,6 +473,9 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kTagged:         // Fall through.
     case MachineRepresentation::kWord64:         // Fall through.
     case MachineRepresentation::kSimd128:        // Fall through.
+    case MachineRepresentation::kSimd1x4:        // Fall through.
+    case MachineRepresentation::kSimd1x8:        // Fall through.
+    case MachineRepresentation::kSimd1x16:       // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -450,6 +486,30 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
                                   rep == MachineRepresentation::kBit)
                                      ? g.UseByteRegister(value)
                                      : g.UseRegister(value));
+  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
+    Int32BinopMatcher moffset(offset);
+    InstructionOperand buffer_operand = g.CanBeImmediate(buffer)
+                                            ? g.UseImmediate(buffer)
+                                            : g.UseRegister(buffer);
+    Int32Matcher mlength(length);
+    if (mlength.HasValue() && moffset.right().HasValue() &&
+        moffset.right().Value() >= 0 &&
+        mlength.Value() >= moffset.right().Value()) {
+      Emit(opcode, g.NoOutput(), g.UseImmediate(moffset.right().node()),
+           g.UseImmediate(length), value_operand,
+           g.UseRegister(moffset.left().node()), buffer_operand);
+      return;
+    }
+    IntMatcher<int32_t, IrOpcode::kRelocatableInt32Constant> mmlength(length);
+    if (mmlength.HasValue() && moffset.right().HasValue() &&
+        moffset.right().Value() >= 0 &&
+        mmlength.Value() >= moffset.right().Value()) {
+      Emit(opcode, g.NoOutput(), g.UseImmediate(moffset.right().node()),
+           g.UseImmediate(length), value_operand,
+           g.UseRegister(moffset.left().node()), buffer_operand);
+      return;
+    }
+  }
   InstructionOperand offset_operand = g.UseRegister(offset);
   InstructionOperand length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
@@ -520,7 +580,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   opcode = cont->Encode(opcode);
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->reason(), cont->frame_state());
+                             cont->kind(), cont->reason(), cont->frame_state());
   } else {
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
   }
@@ -771,30 +831,89 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitShift(this, node, kIA32Ror);
 }
 
+#define RO_OP_LIST(V)                                     \
+  V(Word32Clz, kIA32Lzcnt)                                \
+  V(Word32Ctz, kIA32Tzcnt)                                \
+  V(Word32Popcnt, kIA32Popcnt)                            \
+  V(ChangeFloat32ToFloat64, kSSEFloat32ToFloat64)         \
+  V(RoundInt32ToFloat32, kSSEInt32ToFloat32)              \
+  V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)             \
+  V(ChangeUint32ToFloat64, kSSEUint32ToFloat64)           \
+  V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)           \
+  V(TruncateFloat32ToUint32, kSSEFloat32ToUint32)         \
+  V(ChangeFloat64ToInt32, kSSEFloat64ToInt32)             \
+  V(ChangeFloat64ToUint32, kSSEFloat64ToUint32)           \
+  V(TruncateFloat64ToUint32, kSSEFloat64ToUint32)         \
+  V(TruncateFloat64ToFloat32, kSSEFloat64ToFloat32)       \
+  V(RoundFloat64ToInt32, kSSEFloat64ToInt32)              \
+  V(BitcastFloat32ToInt32, kIA32BitcastFI)                \
+  V(BitcastInt32ToFloat32, kIA32BitcastIF)                \
+  V(Float32Sqrt, kSSEFloat32Sqrt)                         \
+  V(Float64Sqrt, kSSEFloat64Sqrt)                         \
+  V(Float64ExtractLowWord32, kSSEFloat64ExtractLowWord32) \
+  V(Float64ExtractHighWord32, kSSEFloat64ExtractHighWord32)
 
-void InstructionSelector::VisitWord32Clz(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kIA32Lzcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
-}
+#define RR_OP_LIST(V)                                                         \
+  V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)                          \
+  V(Float32RoundDown, kSSEFloat32Round | MiscField::encode(kRoundDown))       \
+  V(Float64RoundDown, kSSEFloat64Round | MiscField::encode(kRoundDown))       \
+  V(Float32RoundUp, kSSEFloat32Round | MiscField::encode(kRoundUp))           \
+  V(Float64RoundUp, kSSEFloat64Round | MiscField::encode(kRoundUp))           \
+  V(Float32RoundTruncate, kSSEFloat32Round | MiscField::encode(kRoundToZero)) \
+  V(Float64RoundTruncate, kSSEFloat64Round | MiscField::encode(kRoundToZero)) \
+  V(Float32RoundTiesEven,                                                     \
+    kSSEFloat32Round | MiscField::encode(kRoundToNearest))                    \
+  V(Float64RoundTiesEven, kSSEFloat64Round | MiscField::encode(kRoundToNearest))
 
+#define RRO_FLOAT_OP_LIST(V)                    \
+  V(Float32Add, kAVXFloat32Add, kSSEFloat32Add) \
+  V(Float64Add, kAVXFloat64Add, kSSEFloat64Add) \
+  V(Float32Sub, kAVXFloat32Sub, kSSEFloat32Sub) \
+  V(Float64Sub, kAVXFloat64Sub, kSSEFloat64Sub) \
+  V(Float32Mul, kAVXFloat32Mul, kSSEFloat32Mul) \
+  V(Float64Mul, kAVXFloat64Mul, kSSEFloat64Mul) \
+  V(Float32Div, kAVXFloat32Div, kSSEFloat32Div) \
+  V(Float64Div, kAVXFloat64Div, kSSEFloat64Div)
 
-void InstructionSelector::VisitWord32Ctz(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kIA32Tzcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
-}
+#define FLOAT_UNOP_LIST(V)                      \
+  V(Float32Abs, kAVXFloat32Abs, kSSEFloat32Abs) \
+  V(Float64Abs, kAVXFloat64Abs, kSSEFloat64Abs) \
+  V(Float32Neg, kAVXFloat32Neg, kSSEFloat32Neg) \
+  V(Float64Neg, kAVXFloat64Neg, kSSEFloat64Neg)
 
+#define RO_VISITOR(Name, opcode)                      \
+  void InstructionSelector::Visit##Name(Node* node) { \
+    VisitRO(this, node, opcode);                      \
+  }
+RO_OP_LIST(RO_VISITOR)
+#undef RO_VISITOR
+
+#define RR_VISITOR(Name, opcode)                      \
+  void InstructionSelector::Visit##Name(Node* node) { \
+    VisitRR(this, node, opcode);                      \
+  }
+RR_OP_LIST(RR_VISITOR)
+#undef RR_VISITOR
+
+#define RRO_FLOAT_VISITOR(Name, avx, sse)             \
+  void InstructionSelector::Visit##Name(Node* node) { \
+    VisitRROFloat(this, node, avx, sse);              \
+  }
+RRO_FLOAT_OP_LIST(RRO_FLOAT_VISITOR)
+#undef RRO_FLOAT_VISITOR
+
+#define FLOAT_UNOP_VISITOR(Name, avx, sse)                  \
+  void InstructionSelector::Visit##Name(Node* node) {       \
+    VisitFloatUnop(this, node, node->InputAt(0), avx, sse); \
+  }
+FLOAT_UNOP_LIST(FLOAT_UNOP_VISITOR)
+#undef FLOAT_UNOP_VISITOR
 
 void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord32ReverseBytes(Node* node) { UNREACHABLE(); }
-
-void InstructionSelector::VisitWord32Popcnt(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kIA32Popcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
-}
-
 
 void InstructionSelector::VisitInt32Add(Node* node) {
   IA32OperandGenerator g(this);
@@ -890,119 +1009,12 @@ void InstructionSelector::VisitUint32Mod(Node* node) {
 }
 
 
-void InstructionSelector::VisitChangeFloat32ToFloat64(Node* node) {
-  VisitRO(this, node, kSSEFloat32ToFloat64);
-}
-
-
-void InstructionSelector::VisitRoundInt32ToFloat32(Node* node) {
-  VisitRO(this, node, kSSEInt32ToFloat32);
-}
-
-
 void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
   Emit(kSSEUint32ToFloat32, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
        arraysize(temps), temps);
 }
-
-
-void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
-  VisitRO(this, node, kSSEInt32ToFloat64);
-}
-
-
-void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
-  VisitRO(this, node, kSSEUint32ToFloat64);
-}
-
-
-void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
-  VisitRO(this, node, kSSEFloat32ToInt32);
-}
-
-
-void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
-  VisitRO(this, node, kSSEFloat32ToUint32);
-}
-
-
-void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
-  VisitRO(this, node, kSSEFloat64ToInt32);
-}
-
-
-void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
-  VisitRO(this, node, kSSEFloat64ToUint32);
-}
-
-void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
-  VisitRO(this, node, kSSEFloat64ToUint32);
-}
-
-void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
-  VisitRO(this, node, kSSEFloat64ToFloat32);
-}
-
-void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
-  VisitRR(this, node, kArchTruncateDoubleToI);
-}
-
-void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
-  VisitRO(this, node, kSSEFloat64ToInt32);
-}
-
-
-void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kIA32BitcastFI, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
-}
-
-
-void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kIA32BitcastIF, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
-}
-
-
-void InstructionSelector::VisitFloat32Add(Node* node) {
-  VisitRROFloat(this, node, kAVXFloat32Add, kSSEFloat32Add);
-}
-
-
-void InstructionSelector::VisitFloat64Add(Node* node) {
-  VisitRROFloat(this, node, kAVXFloat64Add, kSSEFloat64Add);
-}
-
-
-void InstructionSelector::VisitFloat32Sub(Node* node) {
-  VisitRROFloat(this, node, kAVXFloat32Sub, kSSEFloat32Sub);
-}
-
-void InstructionSelector::VisitFloat64Sub(Node* node) {
-  VisitRROFloat(this, node, kAVXFloat64Sub, kSSEFloat64Sub);
-}
-
-void InstructionSelector::VisitFloat32Mul(Node* node) {
-  VisitRROFloat(this, node, kAVXFloat32Mul, kSSEFloat32Mul);
-}
-
-
-void InstructionSelector::VisitFloat64Mul(Node* node) {
-  VisitRROFloat(this, node, kAVXFloat64Mul, kSSEFloat64Mul);
-}
-
-
-void InstructionSelector::VisitFloat32Div(Node* node) {
-  VisitRROFloat(this, node, kAVXFloat32Div, kSSEFloat32Div);
-}
-
-
-void InstructionSelector::VisitFloat64Div(Node* node) {
-  VisitRROFloat(this, node, kAVXFloat64Div, kSSEFloat64Div);
-}
-
 
 void InstructionSelector::VisitFloat64Mod(Node* node) {
   IA32OperandGenerator g(this);
@@ -1044,78 +1056,8 @@ void InstructionSelector::VisitFloat64Min(Node* node) {
        arraysize(temps), temps);
 }
 
-
-void InstructionSelector::VisitFloat32Abs(Node* node) {
-  IA32OperandGenerator g(this);
-  VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat32Abs, kSSEFloat32Abs);
-}
-
-
-void InstructionSelector::VisitFloat64Abs(Node* node) {
-  IA32OperandGenerator g(this);
-  VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat64Abs, kSSEFloat64Abs);
-}
-
-void InstructionSelector::VisitFloat32Sqrt(Node* node) {
-  VisitRO(this, node, kSSEFloat32Sqrt);
-}
-
-
-void InstructionSelector::VisitFloat64Sqrt(Node* node) {
-  VisitRO(this, node, kSSEFloat64Sqrt);
-}
-
-
-void InstructionSelector::VisitFloat32RoundDown(Node* node) {
-  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundDown));
-}
-
-
-void InstructionSelector::VisitFloat64RoundDown(Node* node) {
-  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundDown));
-}
-
-
-void InstructionSelector::VisitFloat32RoundUp(Node* node) {
-  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundUp));
-}
-
-
-void InstructionSelector::VisitFloat64RoundUp(Node* node) {
-  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundUp));
-}
-
-
-void InstructionSelector::VisitFloat32RoundTruncate(Node* node) {
-  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundToZero));
-}
-
-
-void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
-  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundToZero));
-}
-
-
 void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
   UNREACHABLE();
-}
-
-
-void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
-  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundToNearest));
-}
-
-
-void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
-  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundToNearest));
-}
-
-void InstructionSelector::VisitFloat32Neg(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat32Neg, kSSEFloat32Neg);
-}
-
-void InstructionSelector::VisitFloat64Neg(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat64Neg, kSSEFloat64Neg);
 }
 
 void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
@@ -1159,22 +1101,35 @@ void InstructionSelector::EmitPrepareArguments(
     }
   } else {
     // Push any stack arguments.
+    int effect_level = GetEffectLevel(node);
     for (PushParameter input : base::Reversed(*arguments)) {
       // Skip any alignment holes in pushed nodes.
+      Node* input_node = input.node();
       if (input.node() == nullptr) continue;
-      InstructionOperand value =
-          g.CanBeImmediate(input.node())
-              ? g.UseImmediate(input.node())
-              : IsSupported(ATOM) ||
-                        sequence()->IsFP(GetVirtualRegister(input.node()))
-                    ? g.UseRegister(input.node())
-                    : g.Use(input.node());
-      if (input.type() == MachineType::Float32()) {
-        Emit(kIA32PushFloat32, g.NoOutput(), value);
-      } else if (input.type() == MachineType::Float64()) {
-        Emit(kIA32PushFloat64, g.NoOutput(), value);
+      if (g.CanBeMemoryOperand(kIA32Push, node, input_node, effect_level)) {
+        InstructionOperand outputs[1];
+        InstructionOperand inputs[4];
+        size_t input_count = 0;
+        InstructionCode opcode = kIA32Push;
+        AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
+            input_node, inputs, &input_count);
+        opcode |= AddressingModeField::encode(mode);
+        Emit(opcode, 0, outputs, input_count, inputs);
       } else {
-        Emit(kIA32Push, g.NoOutput(), value);
+        InstructionOperand value =
+            g.CanBeImmediate(input.node())
+                ? g.UseImmediate(input.node())
+                : IsSupported(ATOM) ||
+                          sequence()->IsFP(GetVirtualRegister(input.node()))
+                      ? g.UseRegister(input.node())
+                      : g.Use(input.node());
+        if (input.type() == MachineType::Float32()) {
+          Emit(kIA32PushFloat32, g.NoOutput(), value);
+        } else if (input.type() == MachineType::Float64()) {
+          Emit(kIA32PushFloat64, g.NoOutput(), value);
+        } else {
+          Emit(kIA32Push, g.NoOutput(), value);
+        }
       }
     }
   }
@@ -1207,7 +1162,7 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
     selector->Emit(opcode, 0, nullptr, input_count, inputs);
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, 0, nullptr, input_count, inputs,
-                             cont->reason(), cont->frame_state());
+                             cont->kind(), cont->reason(), cont->frame_state());
   } else if (cont->IsSet()) {
     InstructionOperand output = g.DefineAsRegister(cont->result());
     selector->Emit(opcode, 1, &output, input_count, inputs);
@@ -1228,8 +1183,8 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
     selector->Emit(opcode, g.NoOutput(), left, right,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->reason(),
-                             cont->frame_state());
+    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->kind(),
+                             cont->reason(), cont->frame_state());
   } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsByteRegister(cont->result()), left, right);
   } else {
@@ -1414,8 +1369,8 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
         selector->Emit(opcode, g.NoOutput(), g.Label(cont->true_block()),
                        g.Label(cont->false_block()));
       } else if (cont->IsDeoptimize()) {
-        selector->EmitDeoptimize(opcode, 0, nullptr, 0, nullptr, cont->reason(),
-                                 cont->frame_state());
+        selector->EmitDeoptimize(opcode, 0, nullptr, 0, nullptr, cont->kind(),
+                                 cont->reason(), cont->frame_state());
       } else {
         DCHECK(cont->IsSet());
         selector->Emit(opcode, g.DefineAsRegister(cont->result()));
@@ -1527,14 +1482,16 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 }
 
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
+  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+      kNotEqual, p.kind(), p.reason(), node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
+  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+      kEqual, p.kind(), p.reason(), node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
@@ -1682,19 +1639,6 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
   VisitFloat64Compare(this, node, &cont);
 }
 
-
-void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kSSEFloat64ExtractLowWord32, g.DefineAsRegister(node),
-       g.Use(node->InputAt(0)));
-}
-
-
-void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kSSEFloat64ExtractHighWord32, g.DefineAsRegister(node),
-       g.Use(node->InputAt(0)));
-}
 
 
 void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {

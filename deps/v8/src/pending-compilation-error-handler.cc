@@ -9,6 +9,7 @@
 #include "src/handles.h"
 #include "src/isolate.h"
 #include "src/messages.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +22,6 @@ Handle<String> PendingCompilationErrorHandler::ArgumentString(
         ->NewStringFromUtf8(CStrVector(char_arg_))
         .ToHandleChecked();
   }
-  if (!handle_arg_.is_null()) return handle_arg_;
   return isolate->factory()->undefined_string();
 }
 

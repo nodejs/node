@@ -33,6 +33,7 @@
 #include "src/code-stubs.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"

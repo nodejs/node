@@ -56,13 +56,12 @@ class PreParserLogger final {
         num_inner_functions_(-1) {}
 
   void LogFunction(int end, int num_parameters, int function_length,
-                   bool has_duplicate_parameters, int literals, int properties,
+                   bool has_duplicate_parameters, int properties,
                    int num_inner_functions) {
     end_ = end;
     num_parameters_ = num_parameters;
     function_length_ = function_length;
     has_duplicate_parameters_ = has_duplicate_parameters;
-    literals_ = literals;
     properties_ = properties;
     num_inner_functions_ = num_inner_functions;
   }
@@ -77,9 +76,6 @@ class PreParserLogger final {
   bool has_duplicate_parameters() const {
     return has_duplicate_parameters_;
   }
-  int literals() const {
-    return literals_;
-  }
   int properties() const {
     return properties_;
   }
@@ -91,7 +87,6 @@ class PreParserLogger final {
   int num_parameters_;
   int function_length_;
   bool has_duplicate_parameters_;
-  int literals_;
   int properties_;
   int num_inner_functions_;
 };
@@ -101,7 +96,7 @@ class ParserLogger final {
   ParserLogger();
 
   void LogFunction(int start, int end, int num_parameters, int function_length,
-                   bool has_duplicate_parameters, int literals, int properties,
+                   bool has_duplicate_parameters, int properties,
                    LanguageMode language_mode, bool uses_super_property,
                    bool calls_eval, int num_inner_functions);
 

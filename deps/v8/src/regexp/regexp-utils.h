@@ -10,6 +10,8 @@
 namespace v8 {
 namespace internal {
 
+class RegExpMatchInfo;
+
 // Helper methods for C++ regexp builtins.
 class RegExpUtils : public AllStatic {
  public:

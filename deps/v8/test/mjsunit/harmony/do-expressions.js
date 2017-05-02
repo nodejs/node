@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-do-expressions --allow-natives-syntax
+// Flags: --harmony-do-expressions --allow-natives-syntax --no-always-opt
+// Flags: --crankshaft
 
 function returnValue(v) { return v; }
 function MyError() {}

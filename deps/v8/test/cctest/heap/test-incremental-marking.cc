@@ -18,6 +18,9 @@
 
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
+#include "src/heap/incremental-marking.h"
+#include "src/heap/spaces.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 

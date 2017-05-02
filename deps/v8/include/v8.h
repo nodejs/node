@@ -962,20 +962,31 @@ class V8_EXPORT Data {
 class ScriptOriginOptions {
  public:
   V8_INLINE ScriptOriginOptions(bool is_shared_cross_origin = false,
-                                bool is_opaque = false, bool is_wasm = false)
+                                bool is_opaque = false, bool is_wasm = false,
+                                bool is_module = false)
       : flags_((is_shared_cross_origin ? kIsSharedCrossOrigin : 0) |
-               (is_wasm ? kIsWasm : 0) | (is_opaque ? kIsOpaque : 0)) {}
+               (is_wasm ? kIsWasm : 0) | (is_opaque ? kIsOpaque : 0) |
+               (is_module ? kIsModule : 0)) {}
   V8_INLINE ScriptOriginOptions(int flags)
-      : flags_(flags & (kIsSharedCrossOrigin | kIsOpaque | kIsWasm)) {}
+      : flags_(flags &
+               (kIsSharedCrossOrigin | kIsOpaque | kIsWasm | kIsModule)) {}
+
   bool IsSharedCrossOrigin() const {
     return (flags_ & kIsSharedCrossOrigin) != 0;
   }
   bool IsOpaque() const { return (flags_ & kIsOpaque) != 0; }
   bool IsWasm() const { return (flags_ & kIsWasm) != 0; }
+  bool IsModule() const { return (flags_ & kIsModule) != 0; }
+
   int Flags() const { return flags_; }
 
  private:
-  enum { kIsSharedCrossOrigin = 1, kIsOpaque = 1 << 1, kIsWasm = 1 << 2 };
+  enum {
+    kIsSharedCrossOrigin = 1,
+    kIsOpaque = 1 << 1,
+    kIsWasm = 1 << 2,
+    kIsModule = 1 << 3
+  };
   const int flags_;
 };
 
@@ -992,7 +1003,8 @@ class ScriptOrigin {
       Local<Integer> script_id = Local<Integer>(),
       Local<Value> source_map_url = Local<Value>(),
       Local<Boolean> resource_is_opaque = Local<Boolean>(),
-      Local<Boolean> is_wasm = Local<Boolean>());
+      Local<Boolean> is_wasm = Local<Boolean>(),
+      Local<Boolean> is_module = Local<Boolean>());
 
   V8_INLINE Local<Value> ResourceName() const;
   V8_INLINE Local<Integer> ResourceLineOffset() const;
@@ -1182,6 +1194,8 @@ class V8_EXPORT ScriptCompiler {
     // caller. The CachedData object is alive as long as the Source object is
     // alive.
     V8_INLINE const CachedData* GetCachedData() const;
+
+    V8_INLINE const ScriptOriginOptions& GetResourceOptions() const;
 
     // Prevent copying.
     Source(const Source&) = delete;
@@ -1425,7 +1439,7 @@ class V8_EXPORT ScriptCompiler {
 
  private:
   static V8_WARN_UNUSED_RESULT MaybeLocal<UnboundScript> CompileUnboundInternal(
-      Isolate* isolate, Source* source, CompileOptions options, bool is_module);
+      Isolate* isolate, Source* source, CompileOptions options);
 };
 
 
@@ -1771,7 +1785,7 @@ class V8_EXPORT ValueSerializer {
 
   /*
    * Marks an ArrayBuffer as havings its contents transferred out of band.
-   * Pass the corresponding JSArrayBuffer in the deserializing context to
+   * Pass the corresponding ArrayBuffer in the deserializing context to
    * ValueDeserializer::TransferArrayBuffer.
    */
   void TransferArrayBuffer(uint32_t transfer_id,
@@ -2159,12 +2173,6 @@ class V8_EXPORT Value : public Data {
   bool IsFloat64Array() const;
 
   /**
-   * Returns true if this value is a SIMD Float32x4.
-   * This is an experimental feature.
-   */
-  bool IsFloat32x4() const;
-
-  /**
    * Returns true if this value is a DataView.
    */
   bool IsDataView() const;
@@ -2326,7 +2334,7 @@ class V8_EXPORT String : public Name {
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,
     TWO_BYTE_ENCODING = 0x0,
-    ONE_BYTE_ENCODING = 0x4
+    ONE_BYTE_ENCODING = 0x8
   };
   /**
    * Returns the number of characters in this string.
@@ -2442,6 +2450,7 @@ class V8_EXPORT String : public Name {
 
    private:
     friend class internal::Heap;
+    friend class v8::String;
   };
 
   /**
@@ -4613,8 +4622,11 @@ class V8_EXPORT External : public Value {
   static void CheckCast(v8::Value* obj);
 };
 
-
-#define V8_INTRINSICS_LIST(F) F(ArrayProto_values, array_values_iterator)
+#define V8_INTRINSICS_LIST(F)                    \
+  F(ArrayProto_entries, array_entries_iterator)  \
+  F(ArrayProto_forEach, array_for_each_iterator) \
+  F(ArrayProto_keys, array_keys_iterator)        \
+  F(ArrayProto_values, array_values_iterator)
 
 enum Intrinsic {
 #define V8_DECL_INTRINSIC(name, iname) k##name,
@@ -6360,7 +6372,8 @@ class V8_EXPORT Isolate {
           create_histogram_callback(nullptr),
           add_histogram_sample_callback(nullptr),
           array_buffer_allocator(nullptr),
-          external_references(nullptr) {}
+          external_references(nullptr),
+          allow_atomics_wait(true) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -6416,6 +6429,12 @@ class V8_EXPORT Isolate {
      * entire lifetime of the isolate.
      */
     intptr_t* external_references;
+
+    /**
+     * Whether calling Atomics.wait (a function that may block) is allowed in
+     * this isolate.
+     */
+    bool allow_atomics_wait;
   };
 
 
@@ -6790,6 +6809,14 @@ class V8_EXPORT Isolate {
   Local<Context> GetEnteredContext();
 
   /**
+   * Returns either the last context entered through V8's C++ API, or the
+   * context of the currently running microtask while processing microtasks.
+   * If a context is entered while executing a microtask, that context is
+   * returned.
+   */
+  Local<Context> GetEnteredOrMicrotaskContext();
+
+  /**
    * Schedules an exception to be thrown when returning to JavaScript.  When an
    * exception has been scheduled it is illegal to invoke any JavaScript
    * operation; the caller must return immediately and only after the exception
@@ -6809,9 +6836,9 @@ class V8_EXPORT Isolate {
    * for partially dependent handles only.
    */
   template <typename T>
-  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
-                    void SetObjectGroupId(const Persistent<T>& object,
-                                          UniqueId id));
+  V8_DEPRECATED("Use EmbedderHeapTracer",
+                void SetObjectGroupId(const Persistent<T>& object,
+                                      UniqueId id));
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -6821,9 +6848,9 @@ class V8_EXPORT Isolate {
    * callback function.
    */
   template <typename T>
-  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
-                    void SetReferenceFromGroup(UniqueId id,
-                                               const Persistent<T>& child));
+  V8_DEPRECATED("Use EmbedderHeapTracer",
+                void SetReferenceFromGroup(UniqueId id,
+                                           const Persistent<T>& child));
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -6832,9 +6859,9 @@ class V8_EXPORT Isolate {
    * is intended to be used in the before-garbage-collection callback function.
    */
   template <typename T, typename S>
-  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
-                    void SetReference(const Persistent<T>& parent,
-                                      const Persistent<S>& child));
+  V8_DEPRECATED("Use EmbedderHeapTracer",
+                void SetReference(const Persistent<T>& parent,
+                                  const Persistent<S>& child));
 
   typedef void (*GCCallback)(Isolate* isolate, GCType type,
                              GCCallbackFlags flags);
@@ -8476,10 +8503,10 @@ class Internals {
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
   static const int kContextEmbedderDataIndex = 5;
-  static const int kFullStringRepresentationMask = 0x07;
-  static const int kStringEncodingMask = 0x4;
+  static const int kFullStringRepresentationMask = 0x0f;
+  static const int kStringEncodingMask = 0x8;
   static const int kExternalTwoByteRepresentationTag = 0x02;
-  static const int kExternalOneByteRepresentationTag = 0x06;
+  static const int kExternalOneByteRepresentationTag = 0x0a;
 
   static const int kIsolateEmbedderDataOffset = 0 * kApiPointerSize;
   static const int kExternalMemoryOffset = 4 * kApiPointerSize;
@@ -8504,11 +8531,11 @@ class Internals {
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsActiveShift = 4;
 
-  static const int kJSApiObjectType = 0xbb;
-  static const int kJSObjectType = 0xbc;
+  static const int kJSApiObjectType = 0xb9;
+  static const int kJSObjectType = 0xba;
   static const int kFirstNonstringType = 0x80;
-  static const int kOddballType = 0x83;
-  static const int kForeignType = 0x87;
+  static const int kOddballType = 0x82;
+  static const int kForeignType = 0x86;
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
@@ -9026,14 +9053,15 @@ ScriptOrigin::ScriptOrigin(Local<Value> resource_name,
                            Local<Integer> script_id,
                            Local<Value> source_map_url,
                            Local<Boolean> resource_is_opaque,
-                           Local<Boolean> is_wasm)
+                           Local<Boolean> is_wasm, Local<Boolean> is_module)
     : resource_name_(resource_name),
       resource_line_offset_(resource_line_offset),
       resource_column_offset_(resource_column_offset),
       options_(!resource_is_shared_cross_origin.IsEmpty() &&
                    resource_is_shared_cross_origin->IsTrue(),
                !resource_is_opaque.IsEmpty() && resource_is_opaque->IsTrue(),
-               !is_wasm.IsEmpty() && is_wasm->IsTrue()),
+               !is_wasm.IsEmpty() && is_wasm->IsTrue(),
+               !is_module.IsEmpty() && is_module->IsTrue()),
       script_id_(script_id),
       source_map_url_(source_map_url) {}
 
@@ -9082,13 +9110,16 @@ const ScriptCompiler::CachedData* ScriptCompiler::Source::GetCachedData()
   return cached_data;
 }
 
+const ScriptOriginOptions& ScriptCompiler::Source::GetResourceOptions() const {
+  return resource_options;
+}
 
 Local<Boolean> Boolean::New(Isolate* isolate, bool value) {
   return value ? True(isolate) : False(isolate);
 }
 
 void Template::Set(Isolate* isolate, const char* name, Local<Data> value) {
-  Set(String::NewFromUtf8(isolate, name, NewStringType::kNormal)
+  Set(String::NewFromUtf8(isolate, name, NewStringType::kInternalized)
           .ToLocalChecked(),
       value);
 }

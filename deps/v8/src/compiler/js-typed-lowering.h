@@ -70,8 +70,9 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSToString(Node* node);
   Reduction ReduceJSToObject(Node* node);
   Reduction ReduceJSConvertReceiver(Node* node);
-  Reduction ReduceJSCallConstruct(Node* node);
-  Reduction ReduceJSCallFunction(Node* node);
+  Reduction ReduceJSConstruct(Node* node);
+  Reduction ReduceJSCallForwardVarargs(Node* node);
+  Reduction ReduceJSCall(Node* node);
   Reduction ReduceJSForInNext(Node* node);
   Reduction ReduceJSLoadMessage(Node* node);
   Reduction ReduceJSStoreMessage(Node* node);
@@ -83,6 +84,8 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceInt32Binop(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness signedness);
   Reduction ReduceCreateConsString(Node* node);
+  Reduction ReduceSpeculativeNumberAdd(Node* node);
+  Reduction ReduceSpeculativeNumberBinop(Node* node);
 
   Factory* factory() const;
   Graph* graph() const;
@@ -98,6 +101,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Flags flags_;
   JSGraph* jsgraph_;
   Type* shifted_int32_ranges_[4];
+  Type* pointer_comparable_type_;
   TypeCache const& type_cache_;
 };
 

@@ -8,6 +8,8 @@
 #include "src/arguments.h"
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
+#include "src/factory.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -121,13 +123,13 @@ class BuiltinArguments : public Arguments {
    public:                                                              \
     explicit Name##Assembler(compiler::CodeAssemblerState* state)       \
         : AssemblerBase(state) {}                                       \
-    void Generate##NameImpl();                                          \
+    void Generate##Name##Impl();                                        \
   };                                                                    \
   void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) { \
     Name##Assembler assembler(state);                                   \
-    assembler.Generate##NameImpl();                                     \
+    assembler.Generate##Name##Impl();                                   \
   }                                                                     \
-  void Name##Assembler::Generate##NameImpl()
+  void Name##Assembler::Generate##Name##Impl()
 
 // ----------------------------------------------------------------------------
 

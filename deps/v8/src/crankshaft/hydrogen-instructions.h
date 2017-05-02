@@ -3086,11 +3086,8 @@ class HConstant final : public HTemplateInstruction<0> {
     return double_value_;
   }
   uint64_t DoubleValueAsBits() const {
-    uint64_t bits;
     DCHECK(HasDoubleValue());
-    STATIC_ASSERT(sizeof(bits) == sizeof(double_value_));
-    std::memcpy(&bits, &double_value_, sizeof(bits));
-    return bits;
+    return bit_cast<uint64_t>(double_value_);
   }
   bool IsTheHole() const {
     if (HasDoubleValue() && DoubleValueAsBits() == kHoleNanInt64) {
@@ -5123,10 +5120,6 @@ class HObjectAccess final {
 
   static HObjectAccess ForElementsPointer() {
     return HObjectAccess(kElementsPointer, JSObject::kElementsOffset);
-  }
-
-  static HObjectAccess ForLiteralsPointer() {
-    return HObjectAccess(kInobject, JSFunction::kLiteralsOffset);
   }
 
   static HObjectAccess ForNextFunctionLinkPointer() {

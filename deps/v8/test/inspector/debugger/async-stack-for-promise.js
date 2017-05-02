@@ -222,12 +222,7 @@ function reject() {
 InspectorTest.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
   InspectorTest.logCallFrames(message.params.callFrames);
-  var asyncStackTrace = message.params.asyncStackTrace;
-  while (asyncStackTrace) {
-    InspectorTest.log(`-- ${asyncStackTrace.description} --`);
-    InspectorTest.logCallFrames(asyncStackTrace.callFrames);
-    asyncStackTrace = asyncStackTrace.parent;
-  }
+  InspectorTest.logAsyncStackTrace(message.params.asyncStackTrace);
   InspectorTest.log('');
   Protocol.Debugger.resume();
 });

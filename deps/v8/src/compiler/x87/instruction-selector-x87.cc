@@ -195,6 +195,9 @@ void InstructionSelector::VisitLoad(Node* node) {
       break;
     case MachineRepresentation::kWord64:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kSimd1x4:  // Fall through.
+    case MachineRepresentation::kSimd1x8:  // Fall through.
+    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -285,6 +288,9 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
       case MachineRepresentation::kWord64:   // Fall through.
       case MachineRepresentation::kSimd128:  // Fall through.
+      case MachineRepresentation::kSimd1x4:  // Fall through.
+      case MachineRepresentation::kSimd1x8:  // Fall through.
+      case MachineRepresentation::kSimd1x16:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -352,6 +358,9 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kTagged:         // Fall through.
     case MachineRepresentation::kWord64:         // Fall through.
     case MachineRepresentation::kSimd128:        // Fall through.
+    case MachineRepresentation::kSimd1x4:        // Fall through.
+    case MachineRepresentation::kSimd1x8:        // Fall through.
+    case MachineRepresentation::kSimd1x16:       // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -401,6 +410,9 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kTagged:         // Fall through.
     case MachineRepresentation::kWord64:         // Fall through.
     case MachineRepresentation::kSimd128:        // Fall through.
+    case MachineRepresentation::kSimd1x4:        // Fall through.
+    case MachineRepresentation::kSimd1x8:        // Fall through.
+    case MachineRepresentation::kSimd1x16:       // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -481,7 +493,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   opcode = cont->Encode(opcode);
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->reason(), cont->frame_state());
+                             cont->kind(), cont->reason(), cont->frame_state());
   } else {
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
   }
@@ -1223,11 +1235,14 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
     selector->Emit(opcode, 0, nullptr, input_count, inputs);
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, 0, nullptr, input_count, inputs,
-                             cont->reason(), cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+                             cont->kind(), cont->reason(), cont->frame_state());
+  } else if (cont->IsSet()) {
     InstructionOperand output = g.DefineAsRegister(cont->result());
     selector->Emit(opcode, 1, &output, input_count, inputs);
+  } else {
+    DCHECK(cont->IsTrap());
+    inputs[input_count++] = g.UseImmediate(cont->trap_id());
+    selector->Emit(opcode, 0, nullptr, input_count, inputs);
   }
 }
 
@@ -1241,11 +1256,14 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
     selector->Emit(opcode, g.NoOutput(), left, right,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->reason(),
-                             cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->kind(),
+                             cont->reason(), cont->frame_state());
+  } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsByteRegister(cont->result()), left, right);
+  } else {
+    DCHECK(cont->IsTrap());
+    selector->Emit(opcode, g.NoOutput(), left, right,
+                   g.UseImmediate(cont->trap_id()));
   }
 }
 
@@ -1261,21 +1279,54 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   VisitCompare(selector, opcode, g.UseRegister(left), g.Use(right), cont);
 }
 
+MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
+  if (hint_node->opcode() == IrOpcode::kLoad) {
+    MachineType hint = LoadRepresentationOf(hint_node->op());
+    if (node->opcode() == IrOpcode::kInt32Constant ||
+        node->opcode() == IrOpcode::kInt64Constant) {
+      int64_t constant = node->opcode() == IrOpcode::kInt32Constant
+                             ? OpParameter<int32_t>(node)
+                             : OpParameter<int64_t>(node);
+      if (hint == MachineType::Int8()) {
+        if (constant >= std::numeric_limits<int8_t>::min() &&
+            constant <= std::numeric_limits<int8_t>::max()) {
+          return hint;
+        }
+      } else if (hint == MachineType::Uint8()) {
+        if (constant >= std::numeric_limits<uint8_t>::min() &&
+            constant <= std::numeric_limits<uint8_t>::max()) {
+          return hint;
+        }
+      } else if (hint == MachineType::Int16()) {
+        if (constant >= std::numeric_limits<int16_t>::min() &&
+            constant <= std::numeric_limits<int16_t>::max()) {
+          return hint;
+        }
+      } else if (hint == MachineType::Uint16()) {
+        if (constant >= std::numeric_limits<uint16_t>::min() &&
+            constant <= std::numeric_limits<uint16_t>::max()) {
+          return hint;
+        }
+      } else if (hint == MachineType::Int32()) {
+        return hint;
+      } else if (hint == MachineType::Uint32()) {
+        if (constant >= 0) return hint;
+      }
+    }
+  }
+  return node->opcode() == IrOpcode::kLoad ? LoadRepresentationOf(node->op())
+                                           : MachineType::None();
+}
+
 // Tries to match the size of the given opcode to that of the operands, if
 // possible.
 InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
                                     Node* right, FlagsContinuation* cont) {
-  // Currently, if one of the two operands is not a Load, we don't know what its
-  // machine representation is, so we bail out.
-  // TODO(epertoso): we can probably get some size information out of immediates
-  // and phi nodes.
-  if (left->opcode() != IrOpcode::kLoad || right->opcode() != IrOpcode::kLoad) {
-    return opcode;
-  }
+  // TODO(epertoso): we can probably get some size information out of phi nodes.
   // If the load representations don't match, both operands will be
   // zero/sign-extended to 32bit.
-  MachineType left_type = LoadRepresentationOf(left->op());
-  MachineType right_type = LoadRepresentationOf(right->op());
+  MachineType left_type = MachineTypeForNarrow(left, right);
+  MachineType right_type = MachineTypeForNarrow(right, left);
   if (left_type == right_type) {
     switch (left_type.representation()) {
       case MachineRepresentation::kBit:
@@ -1321,11 +1372,14 @@ void VisitFloat32Compare(InstructionSelector* selector, Node* node,
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(cont->Encode(kX87Float32Cmp), g.NoOutput(),
                              g.Use(node->InputAt(0)), g.Use(node->InputAt(1)),
-                             cont->reason(), cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+                             cont->kind(), cont->reason(), cont->frame_state());
+  } else if (cont->IsSet()) {
     selector->Emit(cont->Encode(kX87Float32Cmp),
                    g.DefineAsByteRegister(cont->result()));
+  } else {
+    DCHECK(cont->IsTrap());
+    selector->Emit(cont->Encode(kX87Float32Cmp), g.NoOutput(),
+                   g.UseImmediate(cont->trap_id()));
   }
 }
 
@@ -1342,11 +1396,14 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(cont->Encode(kX87Float64Cmp), g.NoOutput(),
                              g.Use(node->InputAt(0)), g.Use(node->InputAt(1)),
-                             cont->reason(), cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+                             cont->kind(), cont->reason(), cont->frame_state());
+  } else if (cont->IsSet()) {
     selector->Emit(cont->Encode(kX87Float64Cmp),
                    g.DefineAsByteRegister(cont->result()));
+  } else {
+    DCHECK(cont->IsTrap());
+    selector->Emit(cont->Encode(kX87Float64Cmp), g.NoOutput(),
+                   g.UseImmediate(cont->trap_id()));
   }
 }
 
@@ -1377,10 +1434,8 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
   // Match immediates on right side of comparison.
   if (g.CanBeImmediate(right)) {
-    if (g.CanBeMemoryOperand(opcode, node, left, effect_level)) {
-      // TODO(epertoso): we should use `narrowed_opcode' here once we match
-      // immediates too.
-      return VisitCompareWithMemoryOperand(selector, opcode, left,
+    if (g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level)) {
+      return VisitCompareWithMemoryOperand(selector, narrowed_opcode, left,
                                            g.UseImmediate(right), cont);
     }
     return VisitCompare(selector, opcode, g.Use(left), g.UseImmediate(right),
@@ -1422,8 +1477,8 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
         selector->Emit(opcode, g.NoOutput(), g.Label(cont->true_block()),
                        g.Label(cont->false_block()));
       } else if (cont->IsDeoptimize()) {
-        selector->EmitDeoptimize(opcode, 0, nullptr, 0, nullptr, cont->reason(),
-                                 cont->frame_state());
+        selector->EmitDeoptimize(opcode, 0, nullptr, 0, nullptr, cont->kind(),
+                                 cont->reason(), cont->frame_state());
       } else {
         DCHECK(cont->IsSet());
         selector->Emit(opcode, g.DefineAsRegister(cont->result()));
@@ -1536,24 +1591,30 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 }
 
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
+  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+      kNotEqual, p.kind(), p.reason(), node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
+  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+      kEqual, p.kind(), p.reason(), node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
-  UNREACHABLE();
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kNotEqual, func_id, node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitTrapUnless(Node* node,
                                           Runtime::FunctionId func_id) {
-  UNREACHABLE();
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kEqual, func_id, node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {

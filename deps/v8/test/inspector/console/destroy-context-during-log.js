@@ -6,6 +6,7 @@ const expression = `
   Object.defineProperty(Object.prototype, 'RemoteObject', {
     configurable: true,
     set(v) {
+      console.log("Should never be called");
       delete Object.prototype.RemoteObject;
       this.RemoteObject = v;
 
@@ -25,6 +26,7 @@ const expression = `
   detachInspector();
   attachInspector();
   console.log("First inspector activity after attaching inspector");
+  console.log("End of test");
 `;
 
 Protocol.Runtime.enable();

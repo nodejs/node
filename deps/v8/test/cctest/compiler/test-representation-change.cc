@@ -4,13 +4,13 @@
 
 #include <limits>
 
+#include "src/compiler/node-matchers.h"
+#include "src/compiler/representation-change.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
-
-#include "src/compiler/node-matchers.h"
-#include "src/compiler/representation-change.h"
 
 namespace v8 {
 namespace internal {

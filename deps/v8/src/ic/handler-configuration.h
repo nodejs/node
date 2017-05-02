@@ -121,8 +121,10 @@ class StoreHandler {
   enum Kind {
     kStoreElement,
     kStoreField,
+    kStoreConstField,
     kTransitionToField,
-    kTransitionToConstant
+    // TODO(ishell): remove once constant field tracking is done.
+    kTransitionToConstant = kStoreConstField
   };
   class KindBits : public BitField<Kind, 0, 2> {};
 
@@ -175,6 +177,7 @@ class StoreHandler {
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Object> StoreField(Isolate* isolate, int descriptor,
                                           FieldIndex field_index,
+                                          PropertyConstness constness,
                                           Representation representation);
 
   // Creates a Smi-handler for transitioning store to a field.

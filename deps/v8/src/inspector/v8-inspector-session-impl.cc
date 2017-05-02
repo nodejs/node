@@ -37,6 +37,11 @@ bool V8InspectorSession::canDispatchMethod(const StringView& method) {
                               protocol::Schema::Metainfo::commandPrefix);
 }
 
+// static
+int V8ContextInfo::executionContextId(v8::Local<v8::Context> context) {
+  return InspectedContext::contextId(context);
+}
+
 std::unique_ptr<V8InspectorSessionImpl> V8InspectorSessionImpl::create(
     V8InspectorImpl* inspector, int contextGroupId,
     V8Inspector::Channel* channel, const StringView& state) {

@@ -9,6 +9,7 @@
 #include "src/compiler.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 
@@ -33,11 +34,11 @@ void DisposeCompilationJob(CompilationJob* job, bool restore_function_code) {
 
 class OptimizingCompileDispatcher::CompileTask : public v8::Task {
  public:
-  explicit CompileTask(Isolate* isolate) : isolate_(isolate) {
-    OptimizingCompileDispatcher* dispatcher =
-        isolate_->optimizing_compile_dispatcher();
-    base::LockGuard<base::Mutex> lock_guard(&dispatcher->ref_count_mutex_);
-    ++dispatcher->ref_count_;
+  explicit CompileTask(Isolate* isolate,
+                       OptimizingCompileDispatcher* dispatcher)
+      : isolate_(isolate), dispatcher_(dispatcher) {
+    base::LockGuard<base::Mutex> lock_guard(&dispatcher_->ref_count_mutex_);
+    ++dispatcher_->ref_count_;
   }
 
   virtual ~CompileTask() {}
@@ -49,30 +50,29 @@ class OptimizingCompileDispatcher::CompileTask : public v8::Task {
     DisallowHandleAllocation no_handles;
     DisallowHandleDereference no_deref;
 
-    OptimizingCompileDispatcher* dispatcher =
-        isolate_->optimizing_compile_dispatcher();
     {
       TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
 
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.RecompileConcurrent");
 
-      if (dispatcher->recompilation_delay_ != 0) {
+      if (dispatcher_->recompilation_delay_ != 0) {
         base::OS::Sleep(base::TimeDelta::FromMilliseconds(
-            dispatcher->recompilation_delay_));
+            dispatcher_->recompilation_delay_));
       }
 
-      dispatcher->CompileNext(dispatcher->NextInput(true));
+      dispatcher_->CompileNext(dispatcher_->NextInput(true));
     }
     {
-      base::LockGuard<base::Mutex> lock_guard(&dispatcher->ref_count_mutex_);
-      if (--dispatcher->ref_count_ == 0) {
-        dispatcher->ref_count_zero_.NotifyOne();
+      base::LockGuard<base::Mutex> lock_guard(&dispatcher_->ref_count_mutex_);
+      if (--dispatcher_->ref_count_ == 0) {
+        dispatcher_->ref_count_zero_.NotifyOne();
       }
     }
   }
 
   Isolate* isolate_;
+  OptimizingCompileDispatcher* dispatcher_;
 
   DISALLOW_COPY_AND_ASSIGN(CompileTask);
 };
@@ -222,14 +222,14 @@ void OptimizingCompileDispatcher::QueueForOptimization(CompilationJob* job) {
     blocked_jobs_++;
   } else {
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new CompileTask(isolate_), v8::Platform::kShortRunningTask);
+        new CompileTask(isolate_, this), v8::Platform::kShortRunningTask);
   }
 }
 
 void OptimizingCompileDispatcher::Unblock() {
   while (blocked_jobs_ > 0) {
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new CompileTask(isolate_), v8::Platform::kShortRunningTask);
+        new CompileTask(isolate_, this), v8::Platform::kShortRunningTask);
     blocked_jobs_--;
   }
 }

@@ -32,7 +32,7 @@ class Signature : public ZoneObject {
     return reps_[index];
   }
 
-  bool Equals(Signature* that) {
+  bool Equals(const Signature* that) const {
     if (this == that) return true;
     if (this->parameter_count() != that->parameter_count()) return false;
     if (this->return_count() != that->return_count()) return false;

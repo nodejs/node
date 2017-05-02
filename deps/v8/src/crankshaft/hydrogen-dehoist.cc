@@ -5,6 +5,7 @@
 #include "src/crankshaft/hydrogen-dehoist.h"
 
 #include "src/base/safe_math.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

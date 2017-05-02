@@ -6,6 +6,7 @@
 #define V8_UTIL_H_
 
 #include "v8.h"  // NOLINT(build/include)
+#include <assert.h>
 #include <map>
 #include <vector>
 
@@ -210,7 +211,7 @@ class PersistentValueMapBase {
    * key.
    */
   void RegisterExternallyReferencedObject(K& key) {
-    DCHECK(Contains(key));
+    assert(Contains(key));
     V8::RegisterExternallyReferencedObject(
         reinterpret_cast<internal::Object**>(FromVal(Traits::Get(&impl_, key))),
         reinterpret_cast<internal::Isolate*>(GetIsolate()));

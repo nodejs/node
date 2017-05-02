@@ -2,25 +2,41 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-object.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
+#include "src/keys.h"
+#include "src/lookup.h"
+#include "src/objects-inl.h"
 #include "src/property-descriptor.h"
 
 namespace v8 {
 namespace internal {
 
-class ObjectBuiltinsAssembler : public CodeStubAssembler {
- public:
-  explicit ObjectBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+typedef compiler::Node Node;
 
- protected:
-  void IsString(Node* object, Label* if_string, Label* if_notstring);
-  void ReturnToStringFormat(Node* context, Node* string);
-};
+std::tuple<Node*, Node*, Node*> ObjectBuiltinsAssembler::EmitForInPrepare(
+    Node* object, Node* context, Label* call_runtime,
+    Label* nothing_to_iterate) {
+  Label use_cache(this);
+  CSA_ASSERT(this, IsJSReceiver(object));
 
+  CheckEnumCache(object, &use_cache, call_runtime);
+  Bind(&use_cache);
+  Node* map = LoadMap(object);
+  Node* enum_length = EnumLength(map);
+  GotoIf(WordEqual(enum_length, SmiConstant(0)), nothing_to_iterate);
+  Node* descriptors = LoadMapDescriptors(map);
+  Node* cache_offset =
+      LoadObjectField(descriptors, DescriptorArray::kEnumCacheOffset);
+  Node* enum_cache = LoadObjectField(
+      cache_offset, DescriptorArray::kEnumCacheBridgeCacheOffset);
+
+  return std::make_tuple(map, enum_cache, enum_length);
+}
 // -----------------------------------------------------------------------------
 // ES6 section 19.1 Object Objects
 
@@ -39,21 +55,24 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
   Node* map = LoadMap(object);
   Node* instance_type = LoadMapInstanceType(map);
 
-  Variable var_index(this, MachineType::PointerRepresentation());
+  {
+    Variable var_index(this, MachineType::PointerRepresentation());
+    Variable var_unique(this, MachineRepresentation::kTagged);
 
-  Label keyisindex(this), if_iskeyunique(this);
-  TryToName(key, &keyisindex, &var_index, &if_iskeyunique, &call_runtime);
+    Label keyisindex(this), if_iskeyunique(this);
+    TryToName(key, &keyisindex, &var_index, &if_iskeyunique, &var_unique,
+              &call_runtime);
 
-  Bind(&if_iskeyunique);
-  TryHasOwnProperty(object, map, instance_type, key, &return_true,
-                    &return_false, &call_runtime);
+    Bind(&if_iskeyunique);
+    TryHasOwnProperty(object, map, instance_type, var_unique.value(),
+                      &return_true, &return_false, &call_runtime);
 
-  Bind(&keyisindex);
-  // Handle negative keys in the runtime.
-  GotoIf(IntPtrLessThan(var_index.value(), IntPtrConstant(0)), &call_runtime);
-  TryLookupElement(object, map, instance_type, var_index.value(), &return_true,
-                   &return_false, &call_runtime);
-
+    Bind(&keyisindex);
+    // Handle negative keys in the runtime.
+    GotoIf(IntPtrLessThan(var_index.value(), IntPtrConstant(0)), &call_runtime);
+    TryLookupElement(object, map, instance_type, var_index.value(),
+                     &return_true, &return_false, &call_runtime);
+  }
   Bind(&return_true);
   Return(BooleanConstant(true));
 
@@ -80,9 +99,8 @@ BUILTIN(ObjectAssign) {
   // 4. For each element nextSource of sources, in ascending index order,
   for (int i = 2; i < args.length(); ++i) {
     Handle<Object> next_source = args.at(i);
-    MAYBE_RETURN(
-        JSReceiver::SetOrCopyDataProperties(isolate, to, next_source, true),
-        isolate->heap()->exception());
+    MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, to, next_source),
+                 isolate->heap()->exception());
   }
   // 5. Return to.
   return *to;
@@ -315,9 +333,9 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     Node* properties_map = LoadMap(properties);
     GotoIf(IsSpecialReceiverMap(properties_map), &call_runtime);
     // Stay on the fast path only if there are no elements.
-    GotoUnless(WordEqual(LoadElements(properties),
-                         LoadRoot(Heap::kEmptyFixedArrayRootIndex)),
-               &call_runtime);
+    GotoIfNot(WordEqual(LoadElements(properties),
+                        LoadRoot(Heap::kEmptyFixedArrayRootIndex)),
+              &call_runtime);
     // Handle dictionary objects or fast objects with properties in runtime.
     Node* bit_field3 = LoadMapBitField3(properties_map);
     GotoIf(IsSetWord32<Map::DictionaryMap>(bit_field3), &call_runtime);
@@ -906,6 +924,49 @@ TF_BUILTIN(ForInFilter, ObjectBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   Return(ForInFilter(key, object, context));
+}
+
+TF_BUILTIN(ForInNext, ObjectBuiltinsAssembler) {
+  typedef ForInNextDescriptor Descriptor;
+
+  Label filter(this);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* cache_array = Parameter(Descriptor::kCacheArray);
+  Node* cache_type = Parameter(Descriptor::kCacheType);
+  Node* index = Parameter(Descriptor::kIndex);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Node* key = LoadFixedArrayElement(cache_array, SmiUntag(index));
+  Node* map = LoadMap(object);
+  GotoIfNot(WordEqual(map, cache_type), &filter);
+  Return(key);
+  Bind(&filter);
+  Return(ForInFilter(key, object, context));
+}
+
+TF_BUILTIN(ForInPrepare, ObjectBuiltinsAssembler) {
+  typedef ForInPrepareDescriptor Descriptor;
+
+  Label call_runtime(this), nothing_to_iterate(this);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Node* cache_type;
+  Node* cache_array;
+  Node* cache_length;
+  std::tie(cache_type, cache_array, cache_length) =
+      EmitForInPrepare(object, context, &call_runtime, &nothing_to_iterate);
+
+  Return(cache_type, cache_array, cache_length);
+
+  Bind(&call_runtime);
+  TailCallRuntime(Runtime::kForInPrepare, context, object);
+
+  Bind(&nothing_to_iterate);
+  {
+    Node* zero = SmiConstant(0);
+    Return(zero, zero, zero);
+  }
 }
 
 TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {

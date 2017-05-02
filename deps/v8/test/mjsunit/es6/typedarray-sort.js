@@ -52,4 +52,12 @@ for (var constructor of typedArrayConstructors) {
   assertEquals(a.length, 1);
   // Method doesn't work on other objects
   assertThrows(function() { a.sort.call([]); }, TypeError);
+
+  // Do not touch elements out of byte offset
+  var buf = new ArrayBuffer(constructor.BYTES_PER_ELEMENT * 3);
+  var a = new constructor(buf, constructor.BYTES_PER_ELEMENT);
+  var b = new constructor(buf);
+  b[0] = 3; b[1] = 2; b[2] = 1;
+  a.sort();
+  assertArrayLikeEquals(a, [1, 2], constructor);
 }

@@ -19,6 +19,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/utils.h"
 #include "src/zone/zone.h"
 
@@ -187,6 +188,10 @@ Node* CodeAssembler::HeapConstant(Handle<HeapObject> object) {
   return raw_assembler()->HeapConstant(object);
 }
 
+Node* CodeAssembler::CStringConstant(const char* str) {
+  return HeapConstant(factory()->NewStringFromAsciiChecked(str, TENURED));
+}
+
 Node* CodeAssembler::BooleanConstant(bool value) {
   return raw_assembler()->BooleanConstant(value);
 }
@@ -249,8 +254,23 @@ Node* CodeAssembler::Parameter(int value) {
   return raw_assembler()->Parameter(value);
 }
 
+Node* CodeAssembler::GetJSContextParameter() {
+  CallDescriptor* desc = raw_assembler()->call_descriptor();
+  DCHECK(desc->IsJSFunctionCall());
+  return Parameter(Linkage::GetJSCallContextParamIndex(
+      static_cast<int>(desc->JSParameterCount())));
+}
+
 void CodeAssembler::Return(Node* value) {
   return raw_assembler()->Return(value);
+}
+
+void CodeAssembler::Return(Node* value1, Node* value2) {
+  return raw_assembler()->Return(value1, value2);
+}
+
+void CodeAssembler::Return(Node* value1, Node* value2, Node* value3) {
+  return raw_assembler()->Return(value1, value2, value3);
 }
 
 void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
@@ -258,6 +278,11 @@ void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
 }
 
 void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }
+
+void CodeAssembler::Unreachable() {
+  DebugBreak();
+  raw_assembler()->Unreachable();
+}
 
 void CodeAssembler::Comment(const char* format, ...) {
   if (!FLAG_code_comments) return;
@@ -602,6 +627,12 @@ template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallBytecodeDispatch(
     const CallInterfaceDescriptor& descriptor, Node* target, Node*, Node*,
     Node*, Node*);
 
+Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
+                                    int input_count, Node* const* inputs) {
+  CallDescriptor* desc = Linkage::GetSimplifiedCDescriptor(zone(), signature);
+  return raw_assembler()->CallN(desc, input_count, inputs);
+}
+
 Node* CodeAssembler::CallCFunction2(MachineType return_type,
                                     MachineType arg0_type,
                                     MachineType arg1_type, Node* function,
@@ -630,7 +661,7 @@ void CodeAssembler::GotoIf(Node* condition, Label* true_label) {
   Bind(&false_label);
 }
 
-void CodeAssembler::GotoUnless(Node* condition, Label* false_label) {
+void CodeAssembler::GotoIfNot(Node* condition, Label* false_label) {
   Label true_label(this);
   Branch(condition, &true_label, false_label);
   Bind(&true_label);
@@ -687,6 +718,13 @@ CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
   state_->variables_.insert(impl_);
 }
 
+CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
+                                             MachineRepresentation rep,
+                                             Node* initial_value)
+    : CodeAssemblerVariable(assembler, rep) {
+  Bind(initial_value);
+}
+
 CodeAssemblerVariable::~CodeAssemblerVariable() {
   state_->variables_.erase(impl_);
 }
@@ -718,6 +756,8 @@ CodeAssemblerLabel::CodeAssemblerLabel(CodeAssembler* assembler,
     variable_phis_[vars[i]->impl_] = nullptr;
   }
 }
+
+CodeAssemblerLabel::~CodeAssemblerLabel() { label_->~RawMachineLabel(); }
 
 void CodeAssemblerLabel::MergeVariables() {
   ++merge_count_;

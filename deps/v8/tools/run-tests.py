@@ -65,9 +65,9 @@ ARCH_GUESS = utils.DefaultArch()
 TEST_MAP = {
   # This needs to stay in sync with test/bot_default.isolate.
   "bot_default": [
+    "debugger",
     "mjsunit",
     "cctest",
-    "debugger",
     "inspector",
     "webkit",
     "fuzzer",
@@ -78,9 +78,9 @@ TEST_MAP = {
   ],
   # This needs to stay in sync with test/default.isolate.
   "default": [
+    "debugger",
     "mjsunit",
     "cctest",
-    "debugger",
     "inspector",
     "fuzzer",
     "message",
@@ -90,9 +90,9 @@ TEST_MAP = {
   ],
   # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
+    "debugger",
     "mjsunit",
     "cctest",
-    "debugger",
     "inspector",
     "webkit",
     "intl",
@@ -104,17 +104,18 @@ TEST_MAP = {
 
 TIMEOUT_DEFAULT = 60
 
-VARIANTS = ["default", "turbofan", "ignition_staging"]
+# Variants ordered by expected runtime (slowest first).
+VARIANTS = ["ignition_staging", "default", "turbofan"]
 
 MORE_VARIANTS = [
-  "ignition",
   "stress",
   "turbofan_opt",
+  "ignition",
   "asm_wasm",
   "wasm_traps",
 ]
 
-EXHAUSTIVE_VARIANTS = VARIANTS + MORE_VARIANTS
+EXHAUSTIVE_VARIANTS = MORE_VARIANTS + VARIANTS
 
 VARIANT_ALIASES = {
   # The default for developer workstations.
@@ -403,7 +404,15 @@ def SetupEnvironment(options):
   )
 
   if options.asan:
-    os.environ['ASAN_OPTIONS'] = symbolizer
+    asan_options = [symbolizer]
+    if not utils.GuessOS() == 'macos':
+      # LSAN is not available on mac.
+      asan_options.append('detect_leaks=1')
+      os.environ['LSAN_OPTIONS'] = ":".join([
+        'suppressions=%s' % os.path.join(
+            BASE_DIR, 'tools', 'memory', 'lsan', 'suppressions.txt'),
+      ])
+    os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
 
   if options.sancov_dir:
     assert os.path.exists(options.sancov_dir)

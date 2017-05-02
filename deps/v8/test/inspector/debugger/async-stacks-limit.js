@@ -42,12 +42,6 @@ function twoSetTimeout() {
   return new Promise(resolve => resolveTest = resolve);
 }
 
-function threeSetTimeout() {
-  setTimeout(foo1, 0);
-  setTimeout(foo2, 0);
-  return new Promise(resolve => resolveTest = resolve);
-}
-
 function twentySetTimeout() {
   var resolve1;
   var p1 = new Promise(resolve => resolve1 = resolve);
@@ -85,14 +79,16 @@ InspectorTest.runTestSuite([
       .then(next);
   },
 
-  function testOneLimit(next) {
-    Protocol.Runtime.evaluate({
-        expression: 'setMaxAsyncTaskStacks(1)//# sourceURL=expr.js'})
-      .then(() => Protocol.Runtime.evaluate({
-        expression: 'promise()//# sourceURL=expr.js', awaitPromise: true
-      }))
-      .then(() => cancelAllAsyncTasks())
-      .then(next);
+  function testTwoLimit(next) {
+    // we need one stack for parent task and one for next task.
+    Protocol.Runtime
+        .evaluate({expression: 'setMaxAsyncTaskStacks(2)//# sourceURL=expr.js'})
+        .then(() => Protocol.Runtime.evaluate({
+          expression: 'promise()//# sourceURL=expr.js',
+          awaitPromise: true
+        }))
+        .then(() => cancelAllAsyncTasks())
+        .then(next);
   },
 
   function testOneLimitTwoPromises(next) {
@@ -108,19 +104,31 @@ InspectorTest.runTestSuite([
       .then(next);
   },
 
-  function testTwoLimitTwoPromises(next) {
-    Protocol.Runtime.evaluate({
-        expression: 'setMaxAsyncTaskStacks(2)//# sourceURL=expr.js'})
-      .then(() => Protocol.Runtime.evaluate({
-        expression: 'twoPromises()//# sourceURL=expr.js', awaitPromise: true
-      }))
-      .then(() => cancelAllAsyncTasks())
-      .then(next);
+  function testFourLimitTwoPromises(next) {
+    Protocol.Runtime
+        .evaluate({expression: 'setMaxAsyncTaskStacks(4)//# sourceURL=expr.js'})
+        .then(() => Protocol.Runtime.evaluate({
+          expression: 'twoPromises()//# sourceURL=expr.js',
+          awaitPromise: true
+        }))
+        .then(() => cancelAllAsyncTasks())
+        .then(next);
   },
 
-  function testOneLimitTwoSetTimeouts(next) {
+  function testSixLimitTwoPromises(next) {
+    Protocol.Runtime
+        .evaluate({expression: 'setMaxAsyncTaskStacks(6)//# sourceURL=expr.js'})
+        .then(() => Protocol.Runtime.evaluate({
+          expression: 'twoPromises()//# sourceURL=expr.js',
+          awaitPromise: true
+        }))
+        .then(() => cancelAllAsyncTasks())
+        .then(next);
+  },
+
+  function testTwoLimitTwoSetTimeouts(next) {
     Protocol.Runtime.evaluate({
-        expression: 'setMaxAsyncTaskStacks(1)//# sourceURL=expr.js'})
+        expression: 'setMaxAsyncTaskStacks(2)//# sourceURL=expr.js'})
       .then(() => Protocol.Runtime.evaluate({
         expression: 'twoSetTimeout()//# sourceURL=expr.js', awaitPromise: true
       }))
@@ -128,9 +136,9 @@ InspectorTest.runTestSuite([
       .then(next);
   },
 
-  function testTwoLimitTwoSetTimeouts(next) {
+  function testThreeLimitTwoSetTimeouts(next) {
     Protocol.Runtime.evaluate({
-        expression: 'setMaxAsyncTaskStacks(2)//# sourceURL=expr.js'})
+        expression: 'setMaxAsyncTaskStacks(3)//# sourceURL=expr.js'})
       .then(() => Protocol.Runtime.evaluate({
         expression: 'twoSetTimeout()//# sourceURL=expr.js', awaitPromise: true
       }))

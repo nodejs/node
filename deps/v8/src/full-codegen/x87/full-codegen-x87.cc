@@ -121,12 +121,12 @@ void FullCodeGenerator::Generate() {
   // Increment invocation count for the function.
   {
     Comment cmnt(masm_, "[ Increment invocation count");
-    __ mov(ecx, FieldOperand(edi, JSFunction::kLiteralsOffset));
-    __ mov(ecx, FieldOperand(ecx, LiteralsArray::kFeedbackVectorOffset));
-    __ add(FieldOperand(
-               ecx, FeedbackVector::kInvocationCountIndex * kPointerSize +
-                        FeedbackVector::kHeaderSize),
-           Immediate(Smi::FromInt(1)));
+    __ mov(ecx, FieldOperand(edi, JSFunction::kFeedbackVectorOffset));
+    __ mov(ecx, FieldOperand(ecx, Cell::kValueOffset));
+    __ add(
+        FieldOperand(ecx, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                              FeedbackVector::kHeaderSize),
+        Immediate(Smi::FromInt(1)));
   }
 
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -702,9 +702,10 @@ void FullCodeGenerator::VisitVariableDeclaration(
     case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
       globals_->Add(variable->name(), zone());
-      FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
+      FeedbackSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals_->Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
+      globals_->Add(isolate()->factory()->undefined_value(), zone());
       globals_->Add(isolate()->factory()->undefined_value(), zone());
       break;
     }
@@ -741,9 +742,15 @@ void FullCodeGenerator::VisitFunctionDeclaration(
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       globals_->Add(variable->name(), zone());
-      FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
+      FeedbackSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals_->Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
+
+      // We need the slot where the literals array lives, too.
+      slot = declaration->fun()->LiteralFeedbackSlot();
+      DCHECK(!slot.IsInvalid());
+      globals_->Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
+
       Handle<SharedFunctionInfo> function =
           Compiler::GetSharedFunctionInfo(declaration->fun(), script(), info_);
       // Check for stack-overflow exception.
@@ -888,7 +895,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Comment cmnt(masm_, "[ ForInStatement");
   SetStatementPosition(stmt, SKIP_BREAK);
 
-  FeedbackVectorSlot slot = stmt->ForInFeedbackSlot();
+  FeedbackSlot slot = stmt->ForInFeedbackSlot();
 
   // Get the object to enumerate over.
   SetExpressionAsStatementPosition(stmt->enumerable());
@@ -1040,19 +1047,17 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   decrement_loop_depth();
 }
 
-
 void FullCodeGenerator::EmitSetHomeObject(Expression* initializer, int offset,
-                                          FeedbackVectorSlot slot) {
+                                          FeedbackSlot slot) {
   DCHECK(NeedsHomeObject(initializer));
   __ mov(StoreDescriptor::ReceiverRegister(), Operand(esp, 0));
   __ mov(StoreDescriptor::ValueRegister(), Operand(esp, offset * kPointerSize));
   CallStoreIC(slot, isolate()->factory()->home_object_symbol());
 }
 
-
 void FullCodeGenerator::EmitSetHomeObjectAccumulator(Expression* initializer,
                                                      int offset,
-                                                     FeedbackVectorSlot slot) {
+                                                     FeedbackSlot slot) {
   DCHECK(NeedsHomeObject(initializer));
   __ mov(StoreDescriptor::ReceiverRegister(), eax);
   __ mov(StoreDescriptor::ValueRegister(), Operand(esp, offset * kPointerSize));
@@ -1124,7 +1129,7 @@ void FullCodeGenerator::EmitAccessor(ObjectLiteralProperty* property) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  Handle<FixedArray> constant_properties =
+  Handle<BoilerplateDescription> constant_properties =
       expr->GetOrBuildConstantProperties(isolate());
   int flags = expr->ComputeFlags();
   // If any of the keys would store to the elements array, then we shouldn't
@@ -1179,7 +1184,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             VisitForAccumulatorValue(value);
             DCHECK(StoreDescriptor::ValueRegister().is(eax));
             __ mov(StoreDescriptor::ReceiverRegister(), Operand(esp, 0));
-            CallStoreIC(property->GetSlot(0), key->value());
+            CallStoreIC(property->GetSlot(0), key->value(), true);
             PrepareForBailoutForId(key->id(), BailoutState::NO_REGISTERS);
             if (NeedsHomeObject(value)) {
               EmitSetHomeObjectAccumulator(value, 0, property->GetSlot(1));
@@ -1256,15 +1261,6 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
   Handle<ConstantElementsPair> constant_elements =
       expr->GetOrBuildConstantElements(isolate());
-  bool has_constant_fast_elements =
-      IsFastObjectElementsKind(expr->constant_elements_kind());
-
-  AllocationSiteMode allocation_site_mode = TRACK_ALLOCATION_SITE;
-  if (has_constant_fast_elements && !FLAG_allocation_site_pretenuring) {
-    // If the only customer of allocation sites is transitioning, then
-    // we can turn it off if we don't have anywhere else to transition to.
-    allocation_site_mode = DONT_TRACK_ALLOCATION_SITE;
-  }
 
   if (MustCreateArrayLiteralWithRuntime(expr)) {
     __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
@@ -1277,7 +1273,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ mov(ebx, Immediate(Smi::FromInt(expr->literal_index())));
     __ mov(ecx, Immediate(constant_elements));
     Callable callable =
-        CodeFactory::FastCloneShallowArray(isolate(), allocation_site_mode);
+        CodeFactory::FastCloneShallowArray(isolate(), TRACK_ALLOCATION_SITE);
     __ Call(callable.code(), RelocInfo::CODE_TARGET);
     RestoreContext();
   }
@@ -1581,9 +1577,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, Token::Value op) {
   context()->Plug(eax);
 }
 
-
-void FullCodeGenerator::EmitAssignment(Expression* expr,
-                                       FeedbackVectorSlot slot) {
+void FullCodeGenerator::EmitAssignment(Expression* expr, FeedbackSlot slot) {
   DCHECK(expr->IsValidReferenceExpressionOrThis());
 
   Property* prop = expr->AsProperty();
@@ -1635,7 +1629,7 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
 }
 
 void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
-                                               FeedbackVectorSlot slot,
+                                               FeedbackSlot slot,
                                                HoleCheckMode hole_check_mode) {
   if (var->IsUnallocated()) {
     // Global var, const, or let.
@@ -1800,7 +1794,8 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
     EmitProfilingCounterHandlingForReturnSequence(true);
   }
   Handle<Code> code =
-      CodeFactory::CallIC(isolate(), mode, expr->tail_call_mode()).code();
+      CodeFactory::CallICTrampoline(isolate(), mode, expr->tail_call_mode())
+          .code();
   __ Move(edx, Immediate(SmiFromSlot(expr->CallFeedbackICSlot())));
   __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
   __ Move(eax, Immediate(arg_count));
@@ -2528,16 +2523,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ test_b(FieldOperand(edx, Map::kBitFieldOffset),
               Immediate((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
     Split(zero, if_true, if_false, fall_through);
-// clang-format off
-#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)   \
-  } else if (String::Equals(check, factory->type##_string())) { \
-    __ JumpIfSmi(eax, if_false);                                \
-    __ cmp(FieldOperand(eax, HeapObject::kMapOffset),           \
-           isolate()->factory()->type##_map());                 \
-    Split(equal, if_true, if_false, fall_through);
-  SIMD128_TYPES(SIMD128_TYPE)
-#undef SIMD128_TYPE
-    // clang-format on
   } else {
     if (if_false != fall_through) __ jmp(if_false);
   }
@@ -2578,6 +2563,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       SetExpressionPosition(expr);
       PopOperand(edx);
       __ Call(isolate()->builtins()->InstanceOf(), RelocInfo::CODE_TARGET);
+      RestoreContext();
       PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ cmp(eax, isolate()->factory()->true_value());
       Split(equal, if_true, if_false, fall_through);

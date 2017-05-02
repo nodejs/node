@@ -53,9 +53,9 @@ parameter count: 1
 bytecode array length: 15
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   15 S> */ B(LdaSmi), U8(1),
+  /*   15 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-                B(LdaSmi), U8(2),
+                B(LdaSmi), I8(2),
                 B(Star), R(1),
                 B(CallRuntime), U16(Runtime::kAdd), R(0), U8(2),
   /*   33 S> */ B(Return),
@@ -77,7 +77,7 @@ bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   15 S> */ B(LdaUndefined),
                 B(Star), R(0),
-                B(CreateArrayLiteral), U8(0), U8(0), U8(9),
+                B(CreateArrayLiteral), U8(0), U8(2), U8(9),
                 B(Star), R(1),
                 B(CallJSRuntime), U8(%spread_iterable), R(0), U8(2),
   /*   44 S> */ B(Return),

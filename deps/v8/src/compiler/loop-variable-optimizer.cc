@@ -303,9 +303,11 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
   Node* initial = phi->InputAt(0);
   Node* arith = phi->InputAt(1);
   InductionVariable::ArithmeticType arithmeticType;
-  if (arith->opcode() == IrOpcode::kJSAdd) {
+  if (arith->opcode() == IrOpcode::kJSAdd ||
+      arith->opcode() == IrOpcode::kSpeculativeNumberAdd) {
     arithmeticType = InductionVariable::ArithmeticType::kAddition;
-  } else if (arith->opcode() == IrOpcode::kJSSubtract) {
+  } else if (arith->opcode() == IrOpcode::kJSSubtract ||
+             arith->opcode() == IrOpcode::kSpeculativeNumberSubtract) {
     arithmeticType = InductionVariable::ArithmeticType::kSubtraction;
   } else {
     return nullptr;

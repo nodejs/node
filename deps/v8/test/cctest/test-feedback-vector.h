@@ -21,7 +21,7 @@ class FeedbackVectorHelper {
     slots_.reserve(slot_count);
     FeedbackMetadataIterator iter(vector->metadata());
     while (iter.HasNext()) {
-      FeedbackVectorSlot slot = iter.Next();
+      FeedbackSlot slot = iter.Next();
       slots_.push_back(slot);
     }
   }
@@ -29,22 +29,29 @@ class FeedbackVectorHelper {
   Handle<FeedbackVector> vector() { return vector_; }
 
   // Returns slot identifier by numerical index.
-  FeedbackVectorSlot slot(int index) const { return slots_[index]; }
+  FeedbackSlot slot(int index) const { return slots_[index]; }
 
   // Returns the number of slots in the feedback vector.
   int slot_count() const { return static_cast<int>(slots_.size()); }
 
  private:
   Handle<FeedbackVector> vector_;
-  std::vector<FeedbackVectorSlot> slots_;
+  std::vector<FeedbackSlot> slots_;
 };
 
 template <typename Spec>
 Handle<FeedbackVector> NewFeedbackVector(Isolate* isolate, Spec* spec) {
   Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate, spec);
-  return FeedbackVector::New(isolate, metadata);
+  Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
+      isolate->factory()->empty_string(), MaybeHandle<Code>(), false);
+  shared->set_feedback_metadata(*metadata);
+  return FeedbackVector::New(isolate, shared);
 }
 
+template <typename Spec>
+Handle<FeedbackMetadata> NewFeedbackMetadata(Isolate* isolate, Spec* spec) {
+  return FeedbackMetadata::New(isolate, spec);
+}
 
 }  // namespace internal
 }  // namespace v8

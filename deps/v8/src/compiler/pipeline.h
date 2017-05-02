@@ -34,7 +34,8 @@ class SourcePositionTable;
 class Pipeline : public AllStatic {
  public:
   // Returns a new compilation job for the given function.
-  static CompilationJob* NewCompilationJob(Handle<JSFunction> function);
+  static CompilationJob* NewCompilationJob(Handle<JSFunction> function,
+                                           bool has_script);
 
   // Returns a new compilation job for the WebAssembly compilation info.
   static CompilationJob* NewWasmCompilationJob(

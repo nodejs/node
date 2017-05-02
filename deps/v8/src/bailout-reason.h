@@ -186,6 +186,7 @@ namespace internal {
     "Sloppy function expects JSReceiver as receiver.")                         \
   V(kSmiAdditionOverflow, "Smi addition overflow")                             \
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
+  V(kSpreadCall, "Call with spread argument")                                  \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
   V(kSuperReference, "Super reference")                                        \
@@ -212,14 +213,10 @@ namespace internal {
     "Unexpected ElementsKind in array constructor")                            \
   V(kUnexpectedFallthroughFromCharCodeAtSlowCase,                              \
     "Unexpected fallthrough from CharCodeAt slow case")                        \
-  V(kUnexpectedFallthroughFromCharFromCodeSlowCase,                            \
-    "Unexpected fallthrough from CharFromCode slow case")                      \
   V(kUnexpectedFallThroughFromStringComparison,                                \
     "Unexpected fall-through from string comparison")                          \
   V(kUnexpectedFallthroughToCharCodeAtSlowCase,                                \
     "Unexpected fallthrough to CharCodeAt slow case")                          \
-  V(kUnexpectedFallthroughToCharFromCodeSlowCase,                              \
-    "Unexpected fallthrough to CharFromCode slow case")                        \
   V(kUnexpectedFPUStackDepthAfterInstruction,                                  \
     "Unexpected FPU stack depth after instruction")                            \
   V(kUnexpectedInitialMapForArrayFunction1,                                    \
@@ -252,6 +249,8 @@ namespace internal {
   V(kUnsupportedPhiUseOfArguments, "Unsupported phi use of arguments")         \
   V(kUnsupportedPhiUseOfConstVariable,                                         \
     "Unsupported phi use of const or let variable")                            \
+  V(kUnexpectedReturnFromFrameDropper,                                         \
+    "Unexpectedly returned from dropping frames")                              \
   V(kUnexpectedReturnFromThrow, "Unexpectedly returned from a throw")          \
   V(kUnsupportedSwitchStatement, "Unsupported switch statement")               \
   V(kUnsupportedTaggedImmediate, "Unsupported tagged immediate")               \

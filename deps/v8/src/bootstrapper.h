@@ -121,8 +121,6 @@ class Bootstrapper final {
   static bool CompileExperimentalExtraBuiltin(Isolate* isolate, int index);
 
   static void ExportFromRuntime(Isolate* isolate, Handle<JSObject> container);
-  static void ExportExperimentalFromRuntime(Isolate* isolate,
-                                            Handle<JSObject> container);
 
  private:
   Isolate* isolate_;

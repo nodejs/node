@@ -21,6 +21,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
         next_id_(BailoutId::FirstUsable().ToInt()),
         yield_count_(0),
         properties_(zone),
+        language_mode_(SLOPPY),
         slot_cache_(zone),
         disable_crankshaft_reason_(kNoReason),
         dont_optimize_reason_(kNoReason),
@@ -36,10 +37,12 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 
+  void VisitVariableProxy(VariableProxy* node, TypeofMode typeof_mode);
   void VisitVariableProxyReference(VariableProxy* node);
   void VisitPropertyReference(Property* node);
   void VisitReference(Expression* expr);
 
+  void VisitStatementsAndDeclarations(Block* node);
   void VisitStatements(ZoneList<Statement*>* statements);
   void VisitDeclarations(Declaration::List* declarations);
   void VisitArguments(ZoneList<Expression*>* arguments);
@@ -66,8 +69,22 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
 
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {
-    node->AssignFeedbackVectorSlots(properties_.get_spec(), &slot_cache_);
+    node->AssignFeedbackSlots(properties_.get_spec(), language_mode_,
+                              &slot_cache_);
   }
+
+  class LanguageModeScope {
+   public:
+    LanguageModeScope(AstNumberingVisitor* visitor, LanguageMode language_mode)
+        : visitor_(visitor), outer_language_mode_(visitor->language_mode_) {
+      visitor_->language_mode_ = language_mode;
+    }
+    ~LanguageModeScope() { visitor_->language_mode_ = outer_language_mode_; }
+
+   private:
+    AstNumberingVisitor* visitor_;
+    LanguageMode outer_language_mode_;
+  };
 
   BailoutReason dont_optimize_reason() const { return dont_optimize_reason_; }
 
@@ -78,8 +95,9 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   int next_id_;
   int yield_count_;
   AstProperties properties_;
-  // The slot cache allows us to reuse certain feedback vector slots.
-  FeedbackVectorSlotCache slot_cache_;
+  LanguageMode language_mode_;
+  // The slot cache allows us to reuse certain feedback slots.
+  FeedbackSlotCache slot_cache_;
   BailoutReason disable_crankshaft_reason_;
   BailoutReason dont_optimize_reason_;
   HandlerTable::CatchPrediction catch_prediction_;
@@ -119,8 +137,7 @@ void AstNumberingVisitor::VisitBreakStatement(BreakStatement* node) {
 
 void AstNumberingVisitor::VisitDebuggerStatement(DebuggerStatement* node) {
   IncrementNodeCount();
-  DisableOptimization(kDebuggerStatement);
-  node->set_base_id(ReserveIdRange(DebuggerStatement::num_ids()));
+  DisableFullCodegenAndCrankshaft(kDebuggerStatement);
 }
 
 
@@ -150,6 +167,7 @@ void AstNumberingVisitor::VisitLiteral(Literal* node) {
 void AstNumberingVisitor::VisitRegExpLiteral(RegExpLiteral* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(RegExpLiteral::num_ids()));
+  ReserveFeedbackSlots(node);
 }
 
 
@@ -169,10 +187,14 @@ void AstNumberingVisitor::VisitVariableProxyReference(VariableProxy* node) {
   node->set_base_id(ReserveIdRange(VariableProxy::num_ids()));
 }
 
+void AstNumberingVisitor::VisitVariableProxy(VariableProxy* node,
+                                             TypeofMode typeof_mode) {
+  VisitVariableProxyReference(node);
+  node->AssignFeedbackSlots(properties_.get_spec(), typeof_mode, &slot_cache_);
+}
 
 void AstNumberingVisitor::VisitVariableProxy(VariableProxy* node) {
-  VisitVariableProxyReference(node);
-  ReserveFeedbackSlots(node);
+  VisitVariableProxy(node, NOT_INSIDE_TYPEOF);
 }
 
 
@@ -237,7 +259,12 @@ void AstNumberingVisitor::VisitThrow(Throw* node) {
 void AstNumberingVisitor::VisitUnaryOperation(UnaryOperation* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(UnaryOperation::num_ids()));
-  Visit(node->expression());
+  if ((node->op() == Token::TYPEOF) && node->expression()->IsVariableProxy()) {
+    VariableProxy* proxy = node->expression()->AsVariableProxy();
+    VisitVariableProxy(proxy, INSIDE_TYPEOF);
+  } else {
+    Visit(node->expression());
+  }
 }
 
 
@@ -252,10 +279,21 @@ void AstNumberingVisitor::VisitCountOperation(CountOperation* node) {
 void AstNumberingVisitor::VisitBlock(Block* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(Block::num_ids()));
-  if (node->scope() != NULL) VisitDeclarations(node->scope()->declarations());
-  VisitStatements(node->statements());
+  Scope* scope = node->scope();
+  if (scope != nullptr) {
+    LanguageModeScope language_mode_scope(this, scope->language_mode());
+    VisitStatementsAndDeclarations(node);
+  } else {
+    VisitStatementsAndDeclarations(node);
+  }
 }
 
+void AstNumberingVisitor::VisitStatementsAndDeclarations(Block* node) {
+  Scope* scope = node->scope();
+  DCHECK(scope == nullptr || !scope->HasBeenRemoved());
+  if (scope) VisitDeclarations(scope->declarations());
+  VisitStatements(node->statements());
+}
 
 void AstNumberingVisitor::VisitFunctionDeclaration(FunctionDeclaration* node) {
   IncrementNodeCount();
@@ -323,6 +361,7 @@ void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
 
 
 void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
+  DCHECK(node->scope() == nullptr || !node->scope()->HasBeenRemoved());
   IncrementNodeCount();
   DisableFullCodegenAndCrankshaft(kTryCatchStatement);
   {
@@ -406,8 +445,8 @@ void AstNumberingVisitor::VisitCompareOperation(CompareOperation* node) {
 
 void AstNumberingVisitor::VisitSpread(Spread* node) {
   IncrementNodeCount();
-  // We can only get here from super calls currently.
-  DisableFullCodegenAndCrankshaft(kSuperReference);
+  // We can only get here from spread calls currently.
+  DisableFullCodegenAndCrankshaft(kSpreadCall);
   node->set_base_id(ReserveIdRange(Spread::num_ids()));
   Visit(node->expression());
 }
@@ -595,12 +634,19 @@ void AstNumberingVisitor::VisitArguments(ZoneList<Expression*>* arguments) {
 void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(FunctionLiteral::num_ids()));
-  if (eager_literals_ && node->ShouldEagerCompile()) {
-    eager_literals_->Add(new (zone())
-                             ThreadedListZoneEntry<FunctionLiteral*>(node));
+  if (node->ShouldEagerCompile()) {
+    if (eager_literals_) {
+      eager_literals_->Add(new (zone())
+                               ThreadedListZoneEntry<FunctionLiteral*>(node));
+    }
+
+    // If the function literal is being eagerly compiled, recurse into the
+    // declarations and body of the function literal.
+    if (!AstNumbering::Renumber(stack_limit_, zone_, node, eager_literals_)) {
+      SetStackOverflow();
+      return;
+    }
   }
-  // We don't recurse into the declarations or body of the function literal:
-  // you have to separately Renumber() each FunctionLiteral that you compile.
   ReserveFeedbackSlots(node);
 }
 
@@ -615,6 +661,8 @@ void AstNumberingVisitor::VisitRewritableExpression(
 
 bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   DeclarationScope* scope = node->scope();
+  DCHECK(!scope->HasBeenRemoved());
+
   if (scope->new_target_var() != nullptr ||
       scope->this_function_var() != nullptr) {
     DisableFullCodegenAndCrankshaft(kSuperReference);
@@ -637,6 +685,8 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
     DisableFullCodegenAndCrankshaft(kClassConstructorFunction);
   }
 
+  LanguageModeScope language_mode_scope(this, node->language_mode());
+
   VisitDeclarations(scope->declarations());
   VisitStatements(node->body());
 
@@ -646,6 +696,13 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
 
   if (FLAG_trace_opt) {
     if (disable_crankshaft_reason_ != kNoReason) {
+      // TODO(leszeks): This is a quick'n'dirty fix to allow the debug name of
+      // the function to be accessed in the below print. This DCHECK will fail
+      // if we move ast numbering off the main thread, but that won't be before
+      // we remove FCG, in which case this entire check isn't necessary anyway.
+      AllowHandleDereference allow_deref;
+      DCHECK(!node->debug_name().is_null());
+
       PrintF("[enforcing Ignition and TurboFan for %s because: %s\n",
              node->debug_name()->ToCString().get(),
              GetBailoutReason(disable_crankshaft_reason_));

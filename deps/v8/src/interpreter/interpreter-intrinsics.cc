@@ -5,6 +5,7 @@
 #include "src/interpreter/interpreter-intrinsics.h"
 
 #include "src/code-factory.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -242,18 +243,6 @@ Node* IntrinsicsHelper::HasProperty(Node* input, Node* arg_count,
                              CodeFactory::HasProperty(isolate()));
 }
 
-Node* IntrinsicsHelper::NumberToString(Node* input, Node* arg_count,
-                                       Node* context) {
-  return IntrinsicAsStubCall(input, context,
-                             CodeFactory::NumberToString(isolate()));
-}
-
-Node* IntrinsicsHelper::RegExpExec(Node* input, Node* arg_count,
-                                   Node* context) {
-  return IntrinsicAsStubCall(input, context,
-                             CodeFactory::RegExpExec(isolate()));
-}
-
 Node* IntrinsicsHelper::SubString(Node* input, Node* arg_count, Node* context) {
   return IntrinsicAsStubCall(input, context, CodeFactory::SubString(isolate()));
 }
@@ -293,7 +282,7 @@ Node* IntrinsicsHelper::Call(Node* args_reg, Node* arg_count, Node* context) {
   if (FLAG_debug_code) {
     InterpreterAssembler::Label arg_count_positive(assembler_);
     Node* comparison = __ Int32LessThan(target_args_count, __ Int32Constant(0));
-    __ GotoUnless(comparison, &arg_count_positive);
+    __ GotoIfNot(comparison, &arg_count_positive);
     __ Abort(kWrongArgumentCountForInvokeIntrinsic);
     __ Goto(&arg_count_positive);
     __ Bind(&arg_count_positive);
@@ -304,84 +293,43 @@ Node* IntrinsicsHelper::Call(Node* args_reg, Node* arg_count, Node* context) {
   return result;
 }
 
-Node* IntrinsicsHelper::ValueOf(Node* args_reg, Node* arg_count,
-                                Node* context) {
-  InterpreterAssembler::Variable return_value(assembler_,
-                                              MachineRepresentation::kTagged);
-  InterpreterAssembler::Label done(assembler_);
-
-  Node* object = __ LoadRegister(args_reg);
-  return_value.Bind(object);
-
-  // If the object is a smi return the object.
-  __ GotoIf(__ TaggedIsSmi(object), &done);
-
-  // If the object is not a value type, return the object.
-  Node* condition =
-      CompareInstanceType(object, JS_VALUE_TYPE, kInstanceTypeEqual);
-  __ GotoUnless(condition, &done);
-
-  // If the object is a value type, return the value field.
-  return_value.Bind(__ LoadObjectField(object, JSValue::kValueOffset));
-  __ Goto(&done);
-
-  __ Bind(&done);
-  return return_value.value();
-}
-
 Node* IntrinsicsHelper::ClassOf(Node* args_reg, Node* arg_count,
                                 Node* context) {
+  Node* value = __ LoadRegister(args_reg);
+  return __ ClassOf(value);
+}
+
+Node* IntrinsicsHelper::CreateAsyncFromSyncIterator(Node* args_reg,
+                                                    Node* arg_count,
+                                                    Node* context) {
+  InterpreterAssembler::Label not_receiver(
+      assembler_, InterpreterAssembler::Label::kDeferred);
+  InterpreterAssembler::Label done(assembler_);
   InterpreterAssembler::Variable return_value(assembler_,
                                               MachineRepresentation::kTagged);
-  InterpreterAssembler::Label done(assembler_), null(assembler_),
-      function(assembler_), non_function_constructor(assembler_);
 
-  Node* object = __ LoadRegister(args_reg);
+  Node* sync_iterator = __ LoadRegister(args_reg);
 
-  // If the object is not a JSReceiver, we return null.
-  __ GotoIf(__ TaggedIsSmi(object), &null);
-  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-  Node* is_js_receiver = CompareInstanceType(object, FIRST_JS_RECEIVER_TYPE,
-                                             kInstanceTypeGreaterThanOrEqual);
-  __ GotoUnless(is_js_receiver, &null);
+  __ GotoIf(__ TaggedIsSmi(sync_iterator), &not_receiver);
+  __ GotoIfNot(__ IsJSReceiver(sync_iterator), &not_receiver);
 
-  // Return 'Function' for JSFunction and JSBoundFunction objects.
-  Node* is_function = CompareInstanceType(object, FIRST_FUNCTION_TYPE,
-                                          kInstanceTypeGreaterThanOrEqual);
-  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
-  __ GotoIf(is_function, &function);
+  Node* const native_context = __ LoadNativeContext(context);
+  Node* const map = __ LoadContextElement(
+      native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX);
+  Node* const iterator = __ AllocateJSObjectFromMap(map);
 
-  // Check if the constructor in the map is a JS function.
-  Node* constructor = __ LoadMapConstructor(__ LoadMap(object));
-  Node* constructor_is_js_function =
-      CompareInstanceType(constructor, JS_FUNCTION_TYPE, kInstanceTypeEqual);
-  __ GotoUnless(constructor_is_js_function, &non_function_constructor);
+  __ StoreObjectFieldNoWriteBarrier(
+      iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset, sync_iterator);
 
-  // Grab the instance class name from the constructor function.
-  Node* shared =
-      __ LoadObjectField(constructor, JSFunction::kSharedFunctionInfoOffset);
-  return_value.Bind(
-      __ LoadObjectField(shared, SharedFunctionInfo::kInstanceClassNameOffset));
+  return_value.Bind(iterator);
   __ Goto(&done);
 
-  // Non-JS objects have class null.
-  __ Bind(&null);
+  __ Bind(&not_receiver);
   {
-    return_value.Bind(__ LoadRoot(Heap::kNullValueRootIndex));
-    __ Goto(&done);
-  }
+    return_value.Bind(
+        __ CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context));
 
-  // Functions have class 'Function'.
-  __ Bind(&function);
-  {
-    return_value.Bind(__ LoadRoot(Heap::kFunction_stringRootIndex));
-    __ Goto(&done);
-  }
-
-  // Objects with a non-function constructor have class 'Object'.
-  __ Bind(&non_function_constructor);
-  {
-    return_value.Bind(__ LoadRoot(Heap::kObject_stringRootIndex));
+    // Unreachable due to the Throw in runtime call.
     __ Goto(&done);
   }
 

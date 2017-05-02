@@ -2,13 +2,14 @@ Checks that async chains for promises are correct.
 
 Running test: testPromise
 foo1 (test.js:9:2)
--- Promise.resolve --
+-- Promise.resolve (test.js:19:14)--
 promise (test.js:20:2)
 (anonymous) (testPromise.js:0:0)
 
 
 Running test: testPromiseResolvedBySetTimeout
 foo1 (test.js:9:2)
+-- Promise.resolve (test.js:27:14)--
 -- setTimeout --
 promiseResolvedBySetTimeout (test.js:28:2)
 (anonymous) (testPromiseResolvedBySetTimeout.js:0:0)
@@ -16,96 +17,103 @@ promiseResolvedBySetTimeout (test.js:28:2)
 
 Running test: testPromiseAll
 foo1 (test.js:9:2)
--- Promise.resolve --
+-- Promise.resolve (test.js:37:35)--
+-- Promise.resolve (test.js:37:19)--
 promiseAll (test.js:39:2)
 (anonymous) (testPromiseAll.js:0:0)
 
 
 Running test: testPromiseAllReverseOrder
 foo1 (test.js:9:2)
--- Promise.resolve --
+-- Promise.resolve (test.js:48:35)--
+-- Promise.resolve (test.js:48:19)--
 promiseAllReverseOrder (test.js:50:2)
 (anonymous) (testPromiseAllReverseOrder.js:0:0)
 
 
 Running test: testPromiseRace
 foo1 (test.js:9:2)
--- Promise.resolve --
+-- Promise.resolve (test.js:59:36)--
+-- Promise.resolve (test.js:59:19)--
 promiseRace (test.js:60:2)
 (anonymous) (testPromiseRace.js:0:0)
 
 
 Running test: testTwoChainedCallbacks
 foo1 (test.js:9:2)
--- Promise.resolve --
+-- Promise.resolve (test.js:68:14)--
 twoChainedCallbacks (test.js:69:2)
 (anonymous) (testTwoChainedCallbacks.js:0:0)
 
 foo2 (test.js:13:2)
--- Promise.resolve --
+-- Promise.resolve (test.js:68:25)--
+-- Promise.resolve (test.js:68:14)--
 twoChainedCallbacks (test.js:69:2)
 (anonymous) (testTwoChainedCallbacks.js:0:0)
 
 
 Running test: testPromiseResolve
 foo1 (test.js:9:2)
--- Promise.resolve --
+-- Promise.resolve (test.js:74:27)--
 promiseResolve (test.js:74:17)
 (anonymous) (testPromiseResolve.js:0:0)
 
 foo2 (test.js:13:2)
--- Promise.resolve --
+-- Promise.resolve (test.js:74:38)--
+-- Promise.resolve (test.js:74:27)--
 promiseResolve (test.js:74:17)
 (anonymous) (testPromiseResolve.js:0:0)
 
 
 Running test: testThenableJobResolvedInSetTimeout
 foo1 (test.js:9:2)
+-- Promise.resolve (test.js:86:40)--
 -- setTimeout --
 thenableJob (test.js:81:4)
 p1.then (test.js:86:25)
--- Promise.resolve --
+-- Promise.resolve (test.js:86:14)--
 thenableJobResolvedInSetTimeout (test.js:87:2)
 (anonymous) (testThenableJobResolvedInSetTimeout.js:0:0)
 
 
 Running test: testThenableJobResolvedInSetTimeoutWithStack
 foo1 (test.js:9:2)
--- Promise.resolve --
+-- Promise.resolve (test.js:104:40)--
 inner (test.js:94:6)
 -- setTimeout --
 thenableJob (test.js:99:4)
 p1.then (test.js:104:25)
--- Promise.resolve --
+-- Promise.resolve (test.js:104:14)--
 thenableJobResolvedInSetTimeoutWithStack (test.js:105:2)
 (anonymous) (testThenableJobResolvedInSetTimeoutWithStack.js:0:0)
 
 
 Running test: testThenableJobResolvedByPromise
 foo1 (test.js:9:2)
--- Promise.resolve --
+-- Promise.resolve (test.js:118:40)--
+-- Promise.resolve (test.js:113:22)--
 thenableJob (test.js:113:12)
 p1.then (test.js:118:25)
--- Promise.resolve --
+-- Promise.resolve (test.js:118:14)--
 thenableJobResolvedByPromise (test.js:119:2)
 (anonymous) (testThenableJobResolvedByPromise.js:0:0)
 
 
 Running test: testThenableJobResolvedByPromiseWithStack
 foo1 (test.js:9:2)
--- Promise.resolve --
+-- Promise.resolve (test.js:136:40)--
 inner (test.js:126:6)
--- Promise.resolve --
+-- Promise.resolve (test.js:131:22)--
 thenableJob (test.js:131:12)
 p1.then (test.js:136:25)
--- Promise.resolve --
+-- Promise.resolve (test.js:136:14)--
 thenableJobResolvedByPromiseWithStack (test.js:137:2)
 (anonymous) (testThenableJobResolvedByPromiseWithStack.js:0:0)
 
 
 Running test: testLateThenCallback
 foo1 (test.js:9:2)
--- Promise.resolve --
+-- Promise.resolve (test.js:145:12)--
 lateThenCallback (test.js:144:2)
 (anonymous) (testLateThenCallback.js:0:0)
 
@@ -113,43 +121,54 @@ lateThenCallback (test.js:144:2)
 Running test: testComplex
 inner1 (test.js:154:6)
 foo1 (test.js:156:4)
--- Promise.resolve --
+-- Promise.resolve (test.js:202:5)--
 inner2 (test.js:162:6)
--- Promise.resolve --
+-- Promise.resolve (test.js:165:22)--
 foo2 (test.js:165:12)
--- Promise.resolve --
+-- Promise.resolve (test.js:201:5)--
 inner3 (test.js:172:6)
 -- setTimeout --
 foo3 (test.js:175:4)
--- Promise.resolve --
+-- Promise.resolve (test.js:200:5)--
+-- Promise.resolve (test.js:199:5)--
+-- Promise.resolve (test.js:188:7)--
+-- Promise.resolve (test.js:187:19)--
 foo5 (test.js:187:52)
--- Promise.resolve --
+-- Promise.resolve (test.js:198:5)--
+-- Promise.resolve (test.js:193:7)--
+-- Promise.resolve (test.js:192:19)--
 foo6 (test.js:192:34)
--- Promise.resolve --
+-- Promise.resolve (test.js:197:5)--
 complex (test.js:196:18)
 (anonymous) (testComplex.js:0:0)
 
 p.then (test.js:207:8)
--- Promise.resolve --
+-- Promise.resolve (test.js:206:8)--
+-- Promise.resolve (test.js:202:5)--
 inner2 (test.js:162:6)
--- Promise.resolve --
+-- Promise.resolve (test.js:165:22)--
 foo2 (test.js:165:12)
--- Promise.resolve --
+-- Promise.resolve (test.js:201:5)--
 inner3 (test.js:172:6)
 -- setTimeout --
 foo3 (test.js:175:4)
--- Promise.resolve --
+-- Promise.resolve (test.js:200:5)--
+-- Promise.resolve (test.js:199:5)--
+-- Promise.resolve (test.js:188:7)--
+-- Promise.resolve (test.js:187:19)--
 foo5 (test.js:187:52)
--- Promise.resolve --
+-- Promise.resolve (test.js:198:5)--
+-- Promise.resolve (test.js:193:7)--
+-- Promise.resolve (test.js:192:19)--
 foo6 (test.js:192:34)
--- Promise.resolve --
+-- Promise.resolve (test.js:197:5)--
 complex (test.js:196:18)
 (anonymous) (testComplex.js:0:0)
 
 
 Running test: testReject
 foo1 (test.js:9:2)
--- Promise.reject --
+-- Promise.reject (test.js:217:31)--
 reject (test.js:217:17)
 (anonymous) (testReject.js:0:0)
 

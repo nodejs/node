@@ -30,6 +30,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/sys-info.h"
 #include "src/basic-block-profiler.h"
+#include "src/debug/debug-interface.h"
 #include "src/interpreter/interpreter.h"
 #include "src/list-inl.h"
 #include "src/msan.h"
@@ -65,6 +66,7 @@ namespace {
 
 const int MB = 1024 * 1024;
 const int kMaxWorkers = 50;
+const int kMaxSerializerMemoryUsage = 1 * MB;  // Arbitrary maximum for testing.
 
 #define USE_VM 1
 #define VM_THRESHOLD 65536
@@ -407,10 +409,7 @@ Global<Function> Shell::stringify_function_;
 base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 i::List<Worker*> Shell::workers_;
-std::unordered_set<SharedArrayBuffer::Contents,
-                   Shell::SharedArrayBufferContentsHash,
-                   Shell::SharedArrayBufferContentsIsEqual>
-    Shell::externalized_shared_contents_;
+std::vector<ExternalizedContents> Shell::externalized_contents_;
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
@@ -694,7 +693,9 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
   }
   ScriptOrigin origin(
       String::NewFromUtf8(isolate, file_name.c_str(), NewStringType::kNormal)
-          .ToLocalChecked());
+          .ToLocalChecked(),
+      Local<Integer>(), Local<Integer>(), Local<Boolean>(), Local<Integer>(),
+      Local<Value>(), Local<Boolean>(), Local<Boolean>(), True(isolate));
   ScriptCompiler::Source source(source_text, origin);
   Local<Module> module;
   if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {
@@ -1230,6 +1231,7 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
                       ->Int32Value(args->GetIsolate()->GetCurrentContext())
                       .FromMaybe(0);
   CleanupWorkers();
+  args->GetIsolate()->Exit();
   OnExit(args->GetIsolate());
   Exit(exit_code);
 }
@@ -1690,8 +1692,68 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
       JSON::Stringify(context, dispatch_counters).ToLocalChecked());
 }
 
+// Write coverage data in LCOV format. See man page for geninfo(1).
+void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
+  if (!file) return;
+  HandleScope handle_scope(isolate);
+  debug::Coverage coverage = debug::Coverage::Collect(isolate, false);
+  std::ofstream sink(file, std::ofstream::app);
+  for (size_t i = 0; i < coverage.ScriptCount(); i++) {
+    debug::Coverage::ScriptData script_data = coverage.GetScriptData(i);
+    Local<debug::Script> script = script_data.GetScript();
+    // Skip unnamed scripts.
+    Local<String> name;
+    if (!script->Name().ToLocal(&name)) continue;
+    std::string file_name = ToSTLString(name);
+    // Skip scripts not backed by a file.
+    if (!std::ifstream(file_name).good()) continue;
+    sink << "SF:";
+    sink << NormalizePath(file_name, GetWorkingDirectory()) << std::endl;
+    std::vector<uint32_t> lines;
+    for (size_t j = 0; j < script_data.FunctionCount(); j++) {
+      debug::Coverage::FunctionData function_data =
+          script_data.GetFunctionData(j);
+      int start_line = function_data.Start().GetLineNumber();
+      int end_line = function_data.End().GetLineNumber();
+      uint32_t count = function_data.Count();
+      // Ensure space in the array.
+      lines.resize(std::max(static_cast<size_t>(end_line + 1), lines.size()),
+                   0);
+      // Boundary lines could be shared between two functions with different
+      // invocation counts. Take the maximum.
+      lines[start_line] = std::max(lines[start_line], count);
+      lines[end_line] = std::max(lines[end_line], count);
+      // Invocation counts for non-boundary lines are overwritten.
+      for (int k = start_line + 1; k < end_line; k++) lines[k] = count;
+      // Write function stats.
+      Local<String> name;
+      std::stringstream name_stream;
+      if (function_data.Name().ToLocal(&name)) {
+        name_stream << ToSTLString(name);
+      } else {
+        name_stream << "<" << start_line + 1 << "-";
+        name_stream << function_data.Start().GetColumnNumber() << ">";
+      }
+      sink << "FN:" << start_line + 1 << "," << name_stream.str() << std::endl;
+      sink << "FNDA:" << count << "," << name_stream.str() << std::endl;
+    }
+    // Write per-line coverage. LCOV uses 1-based line numbers.
+    for (size_t i = 0; i < lines.size(); i++) {
+      sink << "DA:" << (i + 1) << "," << lines[i] << std::endl;
+    }
+    sink << "end_of_record" << std::endl;
+  }
+}
 
 void Shell::OnExit(v8::Isolate* isolate) {
+  // Dump basic block profiling data.
+  if (i::BasicBlockProfiler* profiler =
+          reinterpret_cast<i::Isolate*>(isolate)->basic_block_profiler()) {
+    i::OFStream os(stdout);
+    os << *profiler;
+  }
+  isolate->Dispose();
+
   if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {
     int number_of_counters = 0;
     for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
@@ -1748,7 +1810,6 @@ void Shell::OnExit(v8::Isolate* isolate) {
   delete counters_file_;
   delete counter_map_;
 }
-
 
 
 static FILE* FOpen(const char* path, const char* mode) {
@@ -2148,21 +2209,8 @@ void SourceGroup::JoinThread() {
   thread_->Join();
 }
 
-SerializationData::~SerializationData() {
-  // Any ArrayBuffer::Contents are owned by this SerializationData object if
-  // ownership hasn't been transferred out.
-  // SharedArrayBuffer::Contents may be used by multiple threads, so must be
-  // cleaned up by the main thread in Shell::CleanupWorkers().
-  for (const auto& contents : array_buffer_contents_) {
-    if (contents.Data()) {
-      Shell::array_buffer_allocator->Free(contents.Data(),
-                                          contents.ByteLength());
-    }
-  }
-}
-
-void SerializationData::ClearTransferredArrayBuffers() {
-  array_buffer_contents_.clear();
+ExternalizedContents::~ExternalizedContents() {
+  Shell::array_buffer_allocator->Free(data_, size_);
 }
 
 void SerializationDataQueue::Enqueue(std::unique_ptr<SerializationData> data) {
@@ -2360,7 +2408,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     if (strcmp(argv[i], "--stress-opt") == 0) {
       options.stress_opt = true;
       argv[i] = NULL;
-    } else if (strcmp(argv[i], "--nostress-opt") == 0) {
+    } else if (strcmp(argv[i], "--nostress-opt") == 0 ||
+               strcmp(argv[i], "--no-stress-opt") == 0) {
       options.stress_opt = false;
       argv[i] = NULL;
     } else if (strcmp(argv[i], "--stress-deopt") == 0) {
@@ -2369,7 +2418,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--mock-arraybuffer-allocator") == 0) {
       options.mock_arraybuffer_allocator = true;
       argv[i] = NULL;
-    } else if (strcmp(argv[i], "--noalways-opt") == 0) {
+    } else if (strcmp(argv[i], "--noalways-opt") == 0 ||
+               strcmp(argv[i], "--no-always-opt") == 0) {
       // No support for stressing if we can't use --always-opt.
       options.stress_opt = false;
       options.stress_deopt = false;
@@ -2443,6 +2493,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--enable-inspector") == 0) {
       options.enable_inspector = true;
       argv[i] = NULL;
+    } else if (strncmp(argv[i], "--lcov=", 7) == 0) {
+      options.lcov_file = argv[i] + 7;
+      argv[i] = NULL;
     }
   }
 
@@ -2484,6 +2537,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     options.isolate_sources[i].StartExecuteInThread();
   }
   {
+    if (options.lcov_file) debug::Coverage::TogglePrecise(isolate, true);
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
     if (last_run && options.use_interactive_shell()) {
@@ -2497,6 +2551,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
       options.isolate_sources[0].Execute(isolate);
     }
     DisposeModuleEmbedderData(context);
+    WriteLcovData(isolate, options.lcov_file);
   }
   CollectGarbage(isolate);
   for (int i = 1; i < options.num_isolates; ++i) {
@@ -2538,7 +2593,9 @@ void Shell::EmptyMessageQueues(Isolate* isolate) {
 class Serializer : public ValueSerializer::Delegate {
  public:
   explicit Serializer(Isolate* isolate)
-      : isolate_(isolate), serializer_(isolate, this) {}
+      : isolate_(isolate),
+        serializer_(isolate, this),
+        current_memory_usage_(0) {}
 
   Maybe<bool> WriteValue(Local<Context> context, Local<Value> value,
                          Local<Value> transfer) {
@@ -2589,6 +2646,11 @@ class Serializer : public ValueSerializer::Delegate {
 
   void* ReallocateBufferMemory(void* old_buffer, size_t size,
                                size_t* actual_size) override {
+    // Not accurate, because we don't take into account reallocated buffers,
+    // but this is fine for testing.
+    current_memory_usage_ += size;
+    if (current_memory_usage_ > kMaxSerializerMemoryUsage) return nullptr;
+
     void* result = realloc(old_buffer, size);
     *actual_size = result ? size : 0;
     return result;
@@ -2626,6 +2688,17 @@ class Serializer : public ValueSerializer::Delegate {
     }
   }
 
+  template <typename T>
+  typename T::Contents MaybeExternalize(Local<T> array_buffer) {
+    if (array_buffer->IsExternal()) {
+      return array_buffer->GetContents();
+    } else {
+      typename T::Contents contents = array_buffer->Externalize();
+      data_->externalized_contents_.emplace_back(contents);
+      return contents;
+    }
+  }
+
   Maybe<bool> FinalizeTransfer() {
     for (const auto& global_array_buffer : array_buffers_) {
       Local<ArrayBuffer> array_buffer =
@@ -2635,10 +2708,7 @@ class Serializer : public ValueSerializer::Delegate {
         return Nothing<bool>();
       }
 
-      if (!array_buffer->IsExternal()) {
-        array_buffer->Externalize();
-      }
-      ArrayBuffer::Contents contents = array_buffer->GetContents();
+      ArrayBuffer::Contents contents = MaybeExternalize(array_buffer);
       array_buffer->Neuter();
       data_->array_buffer_contents_.push_back(contents);
     }
@@ -2646,11 +2716,8 @@ class Serializer : public ValueSerializer::Delegate {
     for (const auto& global_shared_array_buffer : shared_array_buffers_) {
       Local<SharedArrayBuffer> shared_array_buffer =
           Local<SharedArrayBuffer>::New(isolate_, global_shared_array_buffer);
-      if (!shared_array_buffer->IsExternal()) {
-        shared_array_buffer->Externalize();
-      }
       data_->shared_array_buffer_contents_.push_back(
-          shared_array_buffer->GetContents());
+          MaybeExternalize(shared_array_buffer));
     }
 
     return Just(true);
@@ -2661,6 +2728,7 @@ class Serializer : public ValueSerializer::Delegate {
   std::unique_ptr<SerializationData> data_;
   std::vector<Global<ArrayBuffer>> array_buffers_;
   std::vector<Global<SharedArrayBuffer>> shared_array_buffers_;
+  size_t current_memory_usage_;
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
@@ -2694,11 +2762,7 @@ class Deserializer : public ValueDeserializer::Delegate {
       deserializer_.TransferSharedArrayBuffer(index++, shared_array_buffer);
     }
 
-    MaybeLocal<Value> result = deserializer_.ReadValue(context);
-    if (!result.IsEmpty()) {
-      data_->ClearTransferredArrayBuffers();
-    }
-    return result;
+    return deserializer_.ReadValue(context);
   }
 
  private:
@@ -2717,9 +2781,7 @@ std::unique_ptr<SerializationData> Shell::SerializeValue(
   if (serializer.WriteValue(context, value, transfer).To(&ok)) {
     std::unique_ptr<SerializationData> data = serializer.Release();
     base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
-    for (const auto& contents : data->shared_array_buffer_contents()) {
-      externalized_shared_contents_.insert(contents);
-    }
+    data->AppendExternalizedContentsTo(&externalized_contents_);
     return data;
   }
   return nullptr;
@@ -2755,11 +2817,7 @@ void Shell::CleanupWorkers() {
   // Now that all workers are terminated, we can re-enable Worker creation.
   base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
   allow_new_workers_ = true;
-
-  for (const auto& contents : externalized_shared_contents_) {
-    Shell::array_buffer_allocator->Free(contents.Data(), contents.ByteLength());
-  }
-  externalized_shared_contents_.clear();
+  externalized_contents_.clear();
 }
 
 
@@ -2962,13 +3020,6 @@ int Shell::Main(int argc, char* argv[]) {
     CollectGarbage(isolate);
   }
   OnExit(isolate);
-  // Dump basic block profiling data.
-  if (i::BasicBlockProfiler* profiler =
-          reinterpret_cast<i::Isolate*>(isolate)->basic_block_profiler()) {
-    i::OFStream os(stdout);
-    os << *profiler;
-  }
-  isolate->Dispose();
   V8::Dispose();
   V8::ShutdownPlatform();
   delete g_platform;

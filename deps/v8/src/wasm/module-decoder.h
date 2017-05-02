@@ -14,6 +14,34 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+const uint32_t kWasmMagic = 0x6d736100;
+const uint32_t kWasmVersion = 0x01;
+const uint8_t kWasmFunctionTypeForm = 0x60;
+const uint8_t kWasmAnyFunctionTypeForm = 0x70;
+const uint8_t kResizableMaximumFlag = 1;
+
+enum WasmSectionCode {
+  kUnknownSectionCode = 0,   // code for unknown sections
+  kTypeSectionCode = 1,      // Function signature declarations
+  kImportSectionCode = 2,    // Import declarations
+  kFunctionSectionCode = 3,  // Function declarations
+  kTableSectionCode = 4,     // Indirect function table and other tables
+  kMemorySectionCode = 5,    // Memory attributes
+  kGlobalSectionCode = 6,    // Global declarations
+  kExportSectionCode = 7,    // Exports
+  kStartSectionCode = 8,     // Start function declaration
+  kElementSectionCode = 9,   // Elements section
+  kCodeSectionCode = 10,     // Function code
+  kDataSectionCode = 11,     // Data segments
+  kNameSectionCode = 12,     // Name section (encoded as a string)
+};
+
+inline bool IsValidSectionCode(uint8_t byte) {
+  return kTypeSectionCode <= byte && byte <= kDataSectionCode;
+}
+
+const char* SectionName(WasmSectionCode code);
+
 typedef Result<const WasmModule*> ModuleResult;
 typedef Result<WasmFunction*> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;

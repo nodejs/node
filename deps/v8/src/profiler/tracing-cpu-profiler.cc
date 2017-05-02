@@ -8,9 +8,6 @@
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
 
-#define PROFILER_TRACE_CATEGORY_ENABLED(cat) \
-  (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT(cat)))
-
 namespace v8 {
 
 std::unique_ptr<TracingCpuProfiler> TracingCpuProfiler::Create(
@@ -25,8 +22,9 @@ namespace internal {
 TracingCpuProfilerImpl::TracingCpuProfilerImpl(Isolate* isolate)
     : isolate_(isolate), profiling_enabled_(false) {
   // Make sure tracing system notices profiler categories.
-  PROFILER_TRACE_CATEGORY_ENABLED("v8.cpu_profiler");
-  PROFILER_TRACE_CATEGORY_ENABLED("v8.cpu_profiler.hires");
+  TRACE_EVENT_WARMUP_CATEGORY(TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"));
+  TRACE_EVENT_WARMUP_CATEGORY(
+      TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler.hires"));
   V8::GetCurrentPlatform()->AddTraceStateObserver(this);
 }
 
@@ -36,7 +34,10 @@ TracingCpuProfilerImpl::~TracingCpuProfilerImpl() {
 }
 
 void TracingCpuProfilerImpl::OnTraceEnabled() {
-  if (!PROFILER_TRACE_CATEGORY_ENABLED("v8.cpu_profiler")) return;
+  bool enabled;
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(
+      TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"), &enabled);
+  if (!enabled) return;
   profiling_enabled_ = true;
   isolate_->RequestInterrupt(
       [](v8::Isolate*, void* data) {
@@ -59,8 +60,10 @@ void TracingCpuProfilerImpl::OnTraceDisabled() {
 void TracingCpuProfilerImpl::StartProfiling() {
   base::LockGuard<base::Mutex> lock(&mutex_);
   if (!profiling_enabled_ || profiler_) return;
-  int sampling_interval_us =
-      PROFILER_TRACE_CATEGORY_ENABLED("v8.cpu_profiler.hires") ? 100 : 1000;
+  bool enabled;
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(
+      TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler.hires"), &enabled);
+  int sampling_interval_us = enabled ? 100 : 1000;
   profiler_.reset(new CpuProfiler(isolate_));
   profiler_->set_sampling_interval(
       base::TimeDelta::FromMicroseconds(sampling_interval_us));

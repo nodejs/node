@@ -6,7 +6,6 @@
 #ifndef V8_I18N_H_
 #define V8_I18N_H_
 
-#include "src/handles.h"
 #include "src/objects.h"
 #include "unicode/uversion.h"
 
@@ -19,6 +18,9 @@ class SimpleDateFormat;
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Handle;
 
 class DateFormat {
  public:

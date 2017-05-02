@@ -47,7 +47,7 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   void PrepareReplacements(Node* node);
   void PushNode(Node* node);
   void LowerNode(Node* node);
-  bool DefaultLowering(Node* node);
+  bool DefaultLowering(Node* node, bool low_word_only = false);
   void LowerComparison(Node* node, const Operator* signed_op,
                        const Operator* unsigned_op);
   void PrepareProjectionReplacements(Node* node);

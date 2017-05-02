@@ -35,6 +35,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_RotLeftAndClear64:
     case kS390_RotLeftAndClearLeft64:
     case kS390_RotLeftAndClearRight64:
+    case kS390_Lay:
     case kS390_Add32:
     case kS390_Add64:
     case kS390_AddPair:
@@ -47,7 +48,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_SubFloat:
     case kS390_SubDouble:
     case kS390_Mul32:
-    case kS390_Mul32WithHigh32:
+    case kS390_Mul32WithOverflow:
     case kS390_Mul64:
     case kS390_MulHigh32:
     case kS390_MulHighU32:
@@ -129,6 +130,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kS390_LoadReverse16RR:
     case kS390_LoadReverse32RR:
     case kS390_LoadReverse64RR:
+    case kS390_LoadAndTestWord32:
+    case kS390_LoadAndTestWord64:
+    case kS390_LoadAndTestFloat32:
+    case kS390_LoadAndTestFloat64:
       return kNoOpcodeFlags;
 
     case kS390_LoadWordS8:

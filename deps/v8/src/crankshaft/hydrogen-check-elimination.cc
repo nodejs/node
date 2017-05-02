@@ -6,6 +6,7 @@
 
 #include "src/crankshaft/hydrogen-alias-analysis.h"
 #include "src/crankshaft/hydrogen-flow-engine.h"
+#include "src/objects-inl.h"
 
 #define GLOBAL 1
 

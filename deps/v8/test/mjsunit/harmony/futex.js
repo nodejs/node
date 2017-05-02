@@ -95,6 +95,20 @@
   assertEquals("timed-out", Atomics.wait(i32a, 0, 0, -Infinity));
 })();
 
+(function TestWaitNotAllowed() {
+  %SetAllowAtomicsWait(false);
+  var i32a = new Int32Array(new SharedArrayBuffer(16));
+  assertThrows(function() {
+    Atomics.wait(i32a, 0, 0, -1);
+  });
+  %SetAllowAtomicsWait(true);
+})();
+
+(function TestWakePositiveInfinity() {
+  var i32a = new Int32Array(new SharedArrayBuffer(16));
+  Atomics.wake(i32a, 0, Number.POSITIVE_INFINITY);
+})();
+
 //// WORKER ONLY TESTS
 
 if (this.Worker) {

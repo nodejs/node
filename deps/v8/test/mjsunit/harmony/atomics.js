@@ -386,6 +386,15 @@ function clearArray(sab) {
 })();
 
 (function TestIsLockFree() {
+  // Various invalid cases.
+  var valueOf = {valueOf: function(){ return 3;}};
+  var toString = {toString: function(){ return '3';}};
+  var invalid = [3.14, 'foo', Infinity, NaN, false, undefined, valueOf,
+                 toString];
+  invalid.forEach(function(v) {
+    assertEquals(false, Atomics.isLockFree(v), JSON.stringify(v));
+  });
+
   // For all platforms we support, 1, 2 and 4 bytes should be lock-free.
   assertEquals(true, Atomics.isLockFree(1));
   assertEquals(true, Atomics.isLockFree(2));

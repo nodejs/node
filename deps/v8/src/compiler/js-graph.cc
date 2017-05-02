@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/code-stubs.h"
 #include "src/compiler/js-graph.h"
+
+#include "src/code-stubs.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/typer.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -64,11 +66,6 @@ Node* JSGraph::CEntryStubConstant(int result_size, SaveFPRegsMode save_doubles,
 Node* JSGraph::EmptyFixedArrayConstant() {
   return CACHED(kEmptyFixedArrayConstant,
                 HeapConstant(factory()->empty_fixed_array()));
-}
-
-Node* JSGraph::EmptyLiteralsArrayConstant() {
-  return CACHED(kEmptyLiteralsArrayConstant,
-                HeapConstant(factory()->empty_literals_array()));
 }
 
 Node* JSGraph::EmptyStringConstant() {

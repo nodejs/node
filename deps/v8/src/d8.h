@@ -5,13 +5,12 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
+#include <iterator>
 #include <memory>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "src/allocation.h"
-#include "src/base/functional.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/time.h"
 #include "src/list.h"
@@ -147,11 +146,40 @@ class SourceGroup {
   int end_offset_;
 };
 
+// The backing store of an ArrayBuffer or SharedArrayBuffer, after
+// Externalize() has been called on it.
+class ExternalizedContents {
+ public:
+  explicit ExternalizedContents(const ArrayBuffer::Contents& contents)
+      : data_(contents.Data()), size_(contents.ByteLength()) {}
+  explicit ExternalizedContents(const SharedArrayBuffer::Contents& contents)
+      : data_(contents.Data()), size_(contents.ByteLength()) {}
+  ExternalizedContents(ExternalizedContents&& other)
+      : data_(other.data_), size_(other.size_) {
+    other.data_ = nullptr;
+    other.size_ = 0;
+  }
+  ExternalizedContents& operator=(ExternalizedContents&& other) {
+    if (this != &other) {
+      data_ = other.data_;
+      size_ = other.size_;
+      other.data_ = nullptr;
+      other.size_ = 0;
+    }
+    return *this;
+  }
+  ~ExternalizedContents();
+
+ private:
+  void* data_;
+  size_t size_;
+
+  DISALLOW_COPY_AND_ASSIGN(ExternalizedContents);
+};
 
 class SerializationData {
  public:
-  SerializationData() : data_(nullptr), size_(0) {}
-  ~SerializationData();
+  SerializationData() : size_(0) {}
 
   uint8_t* data() { return data_.get(); }
   size_t size() { return size_; }
@@ -163,7 +191,12 @@ class SerializationData {
     return shared_array_buffer_contents_;
   }
 
-  void ClearTransferredArrayBuffers();
+  void AppendExternalizedContentsTo(std::vector<ExternalizedContents>* to) {
+    to->insert(to->end(),
+               std::make_move_iterator(externalized_contents_.begin()),
+               std::make_move_iterator(externalized_contents_.end()));
+    externalized_contents_.clear();
+  }
 
  private:
   struct DataDeleter {
@@ -174,6 +207,7 @@ class SerializationData {
   size_t size_;
   std::vector<ArrayBuffer::Contents> array_buffer_contents_;
   std::vector<SharedArrayBuffer::Contents> shared_array_buffer_contents_;
+  std::vector<ExternalizedContents> externalized_contents_;
 
  private:
   friend class Serializer;
@@ -270,7 +304,8 @@ class ShellOptions {
         natives_blob(NULL),
         snapshot_blob(NULL),
         trace_enabled(false),
-        trace_config(NULL) {}
+        trace_config(NULL),
+        lcov_file(NULL) {}
 
   ~ShellOptions() {
     delete[] isolate_sources;
@@ -301,6 +336,7 @@ class ShellOptions {
   const char* snapshot_blob;
   bool trace_enabled;
   const char* trace_config;
+  const char* lcov_file;
 };
 
 class Shell : public i::AllStatic {
@@ -425,28 +461,14 @@ class Shell : public i::AllStatic {
   static base::LazyMutex context_mutex_;
   static const base::TimeTicks kInitialTicks;
 
-  struct SharedArrayBufferContentsHash {
-    size_t operator()(const v8::SharedArrayBuffer::Contents& contents) const {
-      return base::hash_combine(contents.Data(), contents.ByteLength());
-    }
-  };
-
-  struct SharedArrayBufferContentsIsEqual {
-    bool operator()(const SharedArrayBuffer::Contents& a,
-                    const SharedArrayBuffer::Contents& b) const {
-      return a.Data() == b.Data() && a.ByteLength() == b.ByteLength();
-    }
-  };
-
   static base::LazyMutex workers_mutex_;
   static bool allow_new_workers_;
   static i::List<Worker*> workers_;
-  static std::unordered_set<SharedArrayBuffer::Contents,
-                            SharedArrayBufferContentsHash,
-                            SharedArrayBufferContentsIsEqual>
-      externalized_shared_contents_;
+  static std::vector<ExternalizedContents> externalized_contents_;
 
   static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);
+  // Append LCOV coverage data to file.
+  static void WriteLcovData(v8::Isolate* isolate, const char* file);
   static Counter* GetCounter(const char* name, bool is_histogram);
   static Local<String> Stringify(Isolate* isolate, Local<Value> value);
   static void Initialize(Isolate* isolate);

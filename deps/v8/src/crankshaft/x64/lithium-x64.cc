@@ -11,6 +11,7 @@
 #include "src/crankshaft/hydrogen-osr.h"
 #include "src/crankshaft/lithium-inl.h"
 #include "src/crankshaft/x64/lithium-codegen-x64.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

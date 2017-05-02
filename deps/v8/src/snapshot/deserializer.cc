@@ -4,13 +4,17 @@
 
 #include "src/snapshot/deserializer.h"
 
+#include "src/api.h"
+#include "src/assembler-inl.h"
 #include "src/bootstrapper.h"
 #include "src/external-reference-table.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/snapshot/natives.h"
 #include "src/v8.h"
+#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {

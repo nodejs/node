@@ -279,7 +279,7 @@ bool LCodeGen::GenerateDeferredCode() {
         DCHECK(!frame_is_built_);
         DCHECK(info()->IsStub());
         frame_is_built_ = true;
-        __ li(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
+        __ li(scratch0(), Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
         __ PushCommonFrame(scratch0());
         Comment(";;; Deferred code");
       }
@@ -347,7 +347,7 @@ bool LCodeGen::GenerateJumpTable() {
       // This variant of deopt can only be used with stubs. Since we don't
       // have a function pointer to install in the stack frame that we're
       // building, install a special marker there instead.
-      __ li(at, Operand(Smi::FromInt(StackFrame::STUB)));
+      __ li(at, Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
       __ push(at);
       DCHECK(info()->IsStub());
     }
@@ -2146,14 +2146,6 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ Branch(instr->TrueLabel(chunk_), eq, scratch, Operand(SYMBOL_TYPE));
       }
 
-      if (expected & ToBooleanHint::kSimdValue) {
-        // SIMD value -> true.
-        const Register scratch = scratch1();
-        __ lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-        __ Branch(instr->TrueLabel(chunk_), eq, scratch,
-                  Operand(SIMD128_VALUE_TYPE));
-      }
-
       if (expected & ToBooleanHint::kHeapNumber) {
         // heap number -> false iff +0, -0, or NaN.
         DoubleRegister dbl_scratch = double_scratch0();
@@ -3056,7 +3048,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
     __ ld(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ ld(result,
           MemOperand(scratch, CommonFrameConstants::kContextOrFrameTypeOffset));
-    __ Xor(temp, result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+    __ Xor(temp, result,
+           Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
 
     // Result is the frame pointer for the frame if not adapted and for the real
     // frame below the adaptor frame if adapted.
@@ -3692,7 +3685,7 @@ void LCodeGen::PrepareForTailCall(const ParameterCount& actual,
   __ ld(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ld(scratch3, MemOperand(scratch2, StandardFrameConstants::kContextOffset));
   __ Branch(&no_arguments_adaptor, ne, scratch3,
-            Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+            Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // Drop current frame and load arguments count from arguments adaptor frame.
   __ mov(fp, scratch2);
@@ -4959,6 +4952,13 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
 
 
 void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
+  Label deopt, done;
+  // If the map is not deprecated the migration attempt does not make sense.
+  __ ld(scratch0(), FieldMemOperand(object, HeapObject::kMapOffset));
+  __ lwu(scratch0(), FieldMemOperand(scratch0(), Map::kBitField3Offset));
+  __ And(at, scratch0(), Operand(Map::Deprecated::kMask));
+  __ Branch(&deopt, eq, at, Operand(zero_reg));
+
   {
     PushSafepointRegistersScope scope(this);
     __ push(object);
@@ -4969,8 +4969,15 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
     __ StoreToSafepointRegisterSlot(v0, scratch0());
   }
   __ SmiTst(scratch0(), at);
-  DeoptimizeIf(eq, instr, DeoptimizeReason::kInstanceMigrationFailed, at,
+  __ Branch(&done, ne, at, Operand(zero_reg));
+
+  __ bind(&deopt);
+  // In case of "al" condition the operands are not used so just pass zero_reg
+  // there.
+  DeoptimizeIf(al, instr, DeoptimizeReason::kInstanceMigrationFailed, zero_reg,
                Operand(zero_reg));
+
+  __ bind(&done);
 }
 
 
@@ -5348,20 +5355,6 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     *cmp1 = at;
     *cmp2 = Operand(zero_reg);
     final_branch_condition = eq;
-
-// clang-format off
-#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)        \
-  } else if (String::Equals(type_name, factory->type##_string())) {  \
-    __ JumpIfSmi(input, false_label);                                \
-    __ ld(input, FieldMemOperand(input, HeapObject::kMapOffset));    \
-    __ LoadRoot(at, Heap::k##Type##MapRootIndex);                    \
-    *cmp1 = input;                                                   \
-    *cmp2 = Operand(at);                                             \
-    final_branch_condition = eq;
-  SIMD128_TYPES(SIMD128_TYPE)
-#undef SIMD128_TYPE
-    // clang-format on
-
 
   } else {
     *cmp1 = at;

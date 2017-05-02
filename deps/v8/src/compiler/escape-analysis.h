@@ -26,9 +26,10 @@ class V8_EXPORT_PRIVATE EscapeAnalysis {
   EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common, Zone* zone);
   ~EscapeAnalysis();
 
-  void Run();
+  bool Run();
 
   Node* GetReplacement(Node* node);
+  Node* ResolveReplacement(Node* node);
   bool IsVirtual(Node* node);
   bool IsEscaped(Node* node);
   bool CompareVirtualObjects(Node* left, Node* right);
@@ -59,7 +60,6 @@ class V8_EXPORT_PRIVATE EscapeAnalysis {
                                        Node* node);
 
   Node* replacement(Node* node);
-  Node* ResolveReplacement(Node* node);
   bool UpdateReplacement(VirtualState* state, Node* node, Node* rep);
 
   VirtualObject* GetVirtualObject(VirtualState* state, Node* node);

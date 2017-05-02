@@ -55,6 +55,9 @@ v8::Local<v8::Object> V8InjectedScriptHost::create(
   USE(success);
   v8::Local<v8::External> debuggerExternal =
       v8::External::New(isolate, inspector);
+  setFunctionProperty(context, injectedScriptHost, "nullifyPrototype",
+                      V8InjectedScriptHost::nullifyPrototypeCallback,
+                      debuggerExternal);
   setFunctionProperty(context, injectedScriptHost, "internalConstructorName",
                       V8InjectedScriptHost::internalConstructorNameCallback,
                       debuggerExternal);
@@ -75,6 +78,16 @@ v8::Local<v8::Object> V8InjectedScriptHost::create(
                       V8InjectedScriptHost::proxyTargetValueCallback,
                       debuggerExternal);
   return injectedScriptHost;
+}
+
+void V8InjectedScriptHost::nullifyPrototypeCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(info.Length() == 1 && info[0]->IsObject());
+  v8::Isolate* isolate = info.GetIsolate();
+  info[0]
+      .As<v8::Object>()
+      ->SetPrototype(isolate->GetCurrentContext(), v8::Null(isolate))
+      .ToChecked();
 }
 
 void V8InjectedScriptHost::internalConstructorNameCallback(

@@ -208,8 +208,9 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
 }
 
 Page* Page::ConvertNewToOld(Page* old_page) {
-  OldSpace* old_space = old_page->heap()->old_space();
+  DCHECK(!old_page->is_anchor());
   DCHECK(old_page->InNewSpace());
+  OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
   old_page->SetFlags(0, ~0);
   old_space->AccountCommitted(old_page->size());

@@ -6,6 +6,7 @@
 
 #include "src/ast/scopes.h"
 #include "src/codegen.h"
+#include "src/objects-inl.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/crankshaft/ia32/lithium-ia32.h"  // NOLINT

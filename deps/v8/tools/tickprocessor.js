@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 function inherits(childCtor, parentCtor) {
   childCtor.prototype.__proto__ = parentCtor.prototype;
 };
@@ -41,7 +40,7 @@ inherits(V8Profile, Profile);
 
 
 V8Profile.IC_RE =
-    /^(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Call|Load|Store)IC_)/;
+    /^(LoadGlobalIC: )|(Handler: )|(Stub: )|(Builtin: )|(BytecodeHandler: )|(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Load|Store)IC_)/;
 
 
 /**

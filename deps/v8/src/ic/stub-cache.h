@@ -74,7 +74,7 @@ class StubCache {
         return StubCache::secondary_;
     }
     UNREACHABLE();
-    return NULL;
+    return nullptr;
   }
 
   Isolate* isolate() { return isolate_; }
@@ -92,7 +92,7 @@ class StubCache {
 
   // Some magic number used in primary and secondary hash computations.
   static const int kPrimaryMagic = 0x3d532433;
-  static const int kSecondaryMagic = 0xb16b00b5;
+  static const int kSecondaryMagic = 0xb16ca6e5;
 
   static int PrimaryOffsetForTesting(Name* name, Map* map) {
     return PrimaryOffset(name, map);

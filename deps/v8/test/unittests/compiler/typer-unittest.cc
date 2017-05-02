@@ -8,6 +8,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
+#include "src/objects-inl.h"
 #include "test/cctest/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
@@ -245,47 +246,47 @@ TEST_F(TyperTest, TypeJSAdd) {
 
 
 TEST_F(TyperTest, TypeJSSubtract) {
-  TestBinaryArithOp(javascript_.Subtract(hints_), std::minus<double>());
+  TestBinaryArithOp(javascript_.Subtract(), std::minus<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSMultiply) {
-  TestBinaryArithOp(javascript_.Multiply(hints_), std::multiplies<double>());
+  TestBinaryArithOp(javascript_.Multiply(), std::multiplies<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSDivide) {
-  TestBinaryArithOp(javascript_.Divide(hints_), std::divides<double>());
+  TestBinaryArithOp(javascript_.Divide(), std::divides<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSModulus) {
-  TestBinaryArithOp(javascript_.Modulus(hints_), modulo);
+  TestBinaryArithOp(javascript_.Modulus(), modulo);
 }
 
 
 TEST_F(TyperTest, TypeJSBitwiseOr) {
-  TestBinaryBitOp(javascript_.BitwiseOr(hints_), bit_or);
+  TestBinaryBitOp(javascript_.BitwiseOr(), bit_or);
 }
 
 
 TEST_F(TyperTest, TypeJSBitwiseAnd) {
-  TestBinaryBitOp(javascript_.BitwiseAnd(hints_), bit_and);
+  TestBinaryBitOp(javascript_.BitwiseAnd(), bit_and);
 }
 
 
 TEST_F(TyperTest, TypeJSBitwiseXor) {
-  TestBinaryBitOp(javascript_.BitwiseXor(hints_), bit_xor);
+  TestBinaryBitOp(javascript_.BitwiseXor(), bit_xor);
 }
 
 
 TEST_F(TyperTest, TypeJSShiftLeft) {
-  TestBinaryBitOp(javascript_.ShiftLeft(hints_), shift_left);
+  TestBinaryBitOp(javascript_.ShiftLeft(), shift_left);
 }
 
 
 TEST_F(TyperTest, TypeJSShiftRight) {
-  TestBinaryBitOp(javascript_.ShiftRight(hints_), shift_right);
+  TestBinaryBitOp(javascript_.ShiftRight(), shift_right);
 }
 
 
@@ -356,9 +357,9 @@ TEST_BINARY_MONOTONICITY(LessThanOrEqual)
 TEST_BINARY_MONOTONICITY(GreaterThanOrEqual)
 #undef TEST_BINARY_MONOTONICITY
 
-#define TEST_BINARY_MONOTONICITY(name)                                   \
-  TEST_F(TyperTest, Monotonicity_##name) {                               \
-    TestBinaryMonotonicity(javascript_.name(BinaryOperationHint::kAny)); \
+#define TEST_BINARY_MONOTONICITY(name)          \
+  TEST_F(TyperTest, Monotonicity_##name) {      \
+    TestBinaryMonotonicity(javascript_.name()); \
   }
 TEST_BINARY_MONOTONICITY(BitwiseOr)
 TEST_BINARY_MONOTONICITY(BitwiseXor)
@@ -366,11 +367,17 @@ TEST_BINARY_MONOTONICITY(BitwiseAnd)
 TEST_BINARY_MONOTONICITY(ShiftLeft)
 TEST_BINARY_MONOTONICITY(ShiftRight)
 TEST_BINARY_MONOTONICITY(ShiftRightLogical)
-TEST_BINARY_MONOTONICITY(Add)
 TEST_BINARY_MONOTONICITY(Subtract)
 TEST_BINARY_MONOTONICITY(Multiply)
 TEST_BINARY_MONOTONICITY(Divide)
 TEST_BINARY_MONOTONICITY(Modulus)
+#undef TEST_BINARY_MONOTONICITY
+
+#define TEST_BINARY_MONOTONICITY(name)                                   \
+  TEST_F(TyperTest, Monotonicity_##name) {                               \
+    TestBinaryMonotonicity(javascript_.name(BinaryOperationHint::kAny)); \
+  }
+TEST_BINARY_MONOTONICITY(Add)
 #undef TEST_BINARY_MONOTONICITY
 
 }  // namespace compiler

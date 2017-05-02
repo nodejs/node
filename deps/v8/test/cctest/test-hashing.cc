@@ -32,7 +32,7 @@
 #include "src/code-stubs.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 #ifdef USE_SIMULATOR

@@ -773,7 +773,7 @@
     this.scope_info = raw_array[4];
     this.outer_index = raw_array[5];
     this.shared_function_info = raw_array[6];
-    this.function_literal_id = raw_array[8];
+    this.function_literal_id = raw_array[7];
     this.next_sibling_index = null;
     this.raw_array = raw_array;
   }

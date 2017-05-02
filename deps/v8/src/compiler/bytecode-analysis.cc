@@ -98,9 +98,8 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
                       const BytecodeArrayAccessor& accessor) {
   int num_operands = Bytecodes::NumberOfOperands(bytecode);
   const OperandType* operand_types = Bytecodes::GetOperandTypes(bytecode);
-  AccumulatorUse accumulator_use = Bytecodes::GetAccumulatorUse(bytecode);
 
-  if (accumulator_use == AccumulatorUse::kWrite) {
+  if (Bytecodes::WritesAccumulator(bytecode)) {
     in_liveness.MarkAccumulatorDead();
   }
   for (int i = 0; i < num_operands; ++i) {
@@ -138,7 +137,7 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
     }
   }
 
-  if (accumulator_use == AccumulatorUse::kRead) {
+  if (Bytecodes::ReadsAccumulator(bytecode)) {
     in_liveness.MarkAccumulatorLive();
   }
   for (int i = 0; i < num_operands; ++i) {
