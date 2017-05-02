@@ -2,11 +2,17 @@
 
 ## Tips
 
-TBD
+### Windows
+
+1. If you regularly build on windows, you should check out [`ninja`](./building-node-with-ninja.md).
+   You may find it to be much faster then `MSBuild` and less eager to rebuild unchanged sub-targets.  
+   P.S. non-windows dev might find it better then `make` aswell.
+
 
 ## Tricks
 
 TDB
+
 
 ## Troubleshooting
 
