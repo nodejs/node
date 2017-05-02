@@ -1,3 +1,4 @@
+// whatwg url test should not be modified.
 'use strict';
 
 require('../common');
