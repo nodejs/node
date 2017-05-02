@@ -9,7 +9,7 @@ If you consistently can reproduce a test failure, search for it in the
 file a new issue.
 
 
-### Unix / OS X
+### Unix / macOS
 
 Prerequisites:
 
@@ -18,7 +18,7 @@ Prerequisites:
 * Python 2.6 or 2.7
 * GNU Make 3.81 or newer
 
-On OS X, you will also need:
+On macOS, you will also need:
 * [Xcode](https://developer.apple.com/xcode/download/)
   * You also need to install the `Command Line Tools` via Xcode. You can find
     this under the menu `Xcode -> Preferences -> Downloads`
@@ -171,7 +171,7 @@ With the `--download=all`, this may download ICU if you don't have an
 ICU in `deps/icu`. (The embedded `small-icu` included in the default
 Node.js source does not include all locales.)
 
-##### Unix / OS X:
+##### Unix / macOS:
 
 ```console
 $ ./configure --with-intl=full-icu --download=all
@@ -188,7 +188,7 @@ $ ./configure --with-intl=full-icu --download=all
 The `Intl` object will not be available, nor some other APIs such as
 `String.normalize`.
 
-##### Unix / OS X:
+##### Unix / macOS:
 
 ```console
 $ ./configure --without-intl
@@ -200,7 +200,7 @@ $ ./configure --without-intl
 > .\vcbuild nosign without-intl
 ```
 
-#### Use existing installed ICU (Unix / OS X only):
+#### Use existing installed ICU (Unix / macOS only):
 
 ```console
 $ pkg-config --modversion icu-i18n && ./configure --with-intl=system-icu
@@ -216,7 +216,7 @@ You can find other ICU releases at
 Download the file named something like `icu4c-**##.#**-src.tgz` (or
 `.zip`).
 
-##### Unix / OS X
+##### Unix / macOS
 
 From an already-unpacked ICU:
 ```console

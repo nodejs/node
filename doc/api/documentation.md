@@ -73,11 +73,11 @@ like `fs.open()`, will document that. The docs link to the corresponding man
 pages (short for manual pages) which describe how the syscalls work.
 
 **Caveat:** some syscalls, like lchown(2), are BSD-specific. That means, for
-example, that `fs.lchown()` only works on Mac OS X and other BSD-derived systems,
+example, that `fs.lchown()` only works on macOS and other BSD-derived systems,
 and is not available on Linux.
 
 Most Unix syscalls have Windows equivalents, but behavior may differ on Windows
-relative to Linux and OS X. For an example of the subtle ways in which it's
+relative to Linux and macOS. For an example of the subtle ways in which it's
 sometimes impossible to replace Unix syscall semantics on Windows, see [Node
 issue 4760](https://github.com/nodejs/node/issues/4760).
 
