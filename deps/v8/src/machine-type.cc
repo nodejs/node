@@ -32,6 +32,12 @@ const char* MachineReprToString(MachineRepresentation rep) {
       return "kRepFloat64";
     case MachineRepresentation::kSimd128:
       return "kRepSimd128";
+    case MachineRepresentation::kSimd1x4:
+      return "kRepSimd1x4";
+    case MachineRepresentation::kSimd1x8:
+      return "kRepSimd1x8";
+    case MachineRepresentation::kSimd1x16:
+      return "kRepSimd1x16";
     case MachineRepresentation::kTaggedSigned:
       return "kRepTaggedSigned";
     case MachineRepresentation::kTaggedPointer:

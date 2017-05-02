@@ -148,10 +148,8 @@ class Interpreter {
                        InterpreterAssembler* assembler);
 
   // Generates code to load a global.
-  compiler::Node* BuildLoadGlobal(Callable ic, compiler::Node* context,
-                                  compiler::Node* name_index,
-                                  compiler::Node* feedback_slot,
-                                  InterpreterAssembler* assembler);
+  void BuildLoadGlobal(int slot_operand_index, int name_operand_index,
+                       TypeofMode typeof_mode, InterpreterAssembler* assembler);
 
   // Generates code to prepare the result for ForInPrepare. Cache data
   // are placed into the consecutive series of registers starting at

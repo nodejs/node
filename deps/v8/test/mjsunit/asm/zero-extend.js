@@ -10,8 +10,8 @@ var foreign = {}
 var zext8 = (function Module(stdlib, foreign, heap) {
   "use asm";
   function zext8(i) {
-    i = i|0;
-    return i & 0xff;
+    i = i | 0;
+    return (i & 0xff) | 0;
   }
   return { zext8: zext8 };
 })(stdlib, foreign, buffer).zext8;
@@ -25,8 +25,8 @@ assertEquals(0xff, zext8(0xff));
 var zext16 = (function Module(stdlib, foreign, heap) {
   "use asm";
   function zext16(i) {
-    i = i|0;
-    return i & 0xffff;
+    i = i | 0;
+    return (i & 0xffff) | 0;
   }
   return { zext16: zext16 };
 })(stdlib, foreign, buffer).zext16;

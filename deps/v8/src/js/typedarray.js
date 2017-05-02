@@ -20,7 +20,6 @@ var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalArrayBufferPrototype = GlobalArrayBuffer.prototype;
 var GlobalObject = global.Object;
-var InnerArrayCopyWithin;
 var InnerArrayEvery;
 var InnerArrayFill;
 var InnerArrayFilter;
@@ -68,7 +67,6 @@ utils.Import(function(from) {
   ArrayValues = from.ArrayValues;
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
-  InnerArrayCopyWithin = from.InnerArrayCopyWithin;
   InnerArrayEvery = from.InnerArrayEvery;
   InnerArrayFill = from.InnerArrayFill;
   InnerArrayFilter = from.InnerArrayFilter;
@@ -163,8 +161,7 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
     }
     newByteLength = bufferByteLength - offset;
     if (newByteLength < 0) {
-      throw %make_range_error(kInvalidTypedArrayAlignment,
-                           "byte length", "NAME", ELEMENT_SIZE);
+      throw %make_range_error(kInvalidOffset, offset);
     }
   } else {
     newByteLength = length * ELEMENT_SIZE;
@@ -438,17 +435,6 @@ function TypedArrayGetToStringTag() {
 }
 
 
-function TypedArrayCopyWithin(target, start, end) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
-
-  var length = %_TypedArrayGetLength(this);
-
-  // TODO(littledan): Replace with a memcpy for better performance
-  return InnerArrayCopyWithin(target, start, end, this, length);
-}
-%FunctionSetLength(TypedArrayCopyWithin, 2);
-
-
 // ES6 draft 05-05-15, section 22.2.3.7
 function TypedArrayEvery(f, receiver) {
   if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
@@ -531,25 +517,6 @@ function TypedArrayReverse() {
   return PackedArrayReverse(this, length);
 }
 
-
-function TypedArrayComparefn(x, y) {
-  if (x === 0 && x === y) {
-    x = 1 / x;
-    y = 1 / y;
-  }
-  if (x < y) {
-    return -1;
-  } else if (x > y) {
-    return 1;
-  } else if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) {
-    return NUMBER_IS_NAN(y) ? 0 : 1;
-  } else if (NUMBER_IS_NAN(x)) {
-    return 1;
-  }
-  return 0;
-}
-
-
 // ES6 draft 05-18-15, section 22.2.3.25
 function TypedArraySort(comparefn) {
   if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
@@ -557,7 +524,7 @@ function TypedArraySort(comparefn) {
   var length = %_TypedArrayGetLength(this);
 
   if (IS_UNDEFINED(comparefn)) {
-    comparefn = TypedArrayComparefn;
+    return %TypedArraySortFast(this);
   }
 
   return InnerArraySort(this, length, comparefn);
@@ -858,7 +825,6 @@ utils.InstallGetter(GlobalTypedArray.prototype, toStringTagSymbol,
 utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
   "subarray", TypedArraySubArray,
   "set", TypedArraySet,
-  "copyWithin", TypedArrayCopyWithin,
   "every", TypedArrayEvery,
   "fill", TypedArrayFill,
   "filter", TypedArrayFilter,

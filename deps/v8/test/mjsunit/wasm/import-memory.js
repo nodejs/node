@@ -397,3 +397,17 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   // no maximum
   assertThrows(() => builder.instantiate({m: {m: new WebAssembly.Memory({initial: 1})}}));
 })();
+
+(function TestMemoryGrowDetachBuffer() {
+  print("TestMemoryGrowDetachBuffer");
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 5});
+  var builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "imported_mem");
+  let instance = builder.instantiate({m: {imported_mem: memory}});
+  let buffer = memory.buffer;
+  assertEquals(kPageSize, buffer.byteLength);
+  assertEquals(1, memory.grow(2));
+  assertTrue(buffer !== memory.buffer);
+  assertEquals(0, buffer.byteLength);
+  assertEquals(3*kPageSize, memory.buffer.byteLength);
+})();

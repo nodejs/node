@@ -28,10 +28,11 @@
 #ifndef V8_AST_AST_VALUE_FACTORY_H_
 #define V8_AST_AST_VALUE_FACTORY_H_
 
-#include "src/api.h"
 #include "src/base/hashmap.h"
 #include "src/conversions.h"
+#include "src/factory.h"
 #include "src/globals.h"
+#include "src/isolate.h"
 #include "src/utils.h"
 
 // AstString, AstValue and AstValueFactory are for storing strings and values
@@ -105,6 +106,8 @@ class AstRawString final : public AstString {
     return *c;
   }
 
+  static bool Compare(void* a, void* b);
+
   // For storing AstRawStrings in a hash map.
   uint32_t hash() const {
     return hash_;
@@ -151,14 +154,17 @@ class AstConsString final : public AstString {
   const AstString* right_;
 };
 
+enum class AstSymbol : uint8_t { kHomeObjectSymbol };
 
-// AstValue is either a string, a number, a string array, a boolean, or a
-// special value (null, undefined, the hole).
+// AstValue is either a string, a symbol, a number, a string array, a boolean,
+// or a special value (null, undefined, the hole).
 class AstValue : public ZoneObject {
  public:
   bool IsString() const {
     return type_ == STRING;
   }
+
+  bool IsSymbol() const { return type_ == SYMBOL; }
 
   bool IsNumber() const { return IsSmi() || IsHeapNumber(); }
 
@@ -169,6 +175,11 @@ class AstValue : public ZoneObject {
   const AstRawString* AsString() const {
     CHECK_EQ(STRING, type_);
     return string_;
+  }
+
+  AstSymbol AsSymbol() const {
+    CHECK_EQ(SYMBOL, type_);
+    return symbol_;
   }
 
   double AsNumber() const {
@@ -248,8 +259,8 @@ class AstValue : public ZoneObject {
     string_ = s;
   }
 
-  explicit AstValue(const char* name) : type_(SYMBOL), next_(nullptr) {
-    symbol_name_ = name;
+  explicit AstValue(AstSymbol symbol) : type_(SYMBOL), next_(nullptr) {
+    symbol_ = symbol;
   }
 
   explicit AstValue(double n, bool with_dot) : next_(nullptr) {
@@ -289,7 +300,7 @@ class AstValue : public ZoneObject {
     double number_;
     int smi_;
     bool bool_;
-    const char* symbol_name_;
+    AstSymbol symbol_;
   };
 };
 
@@ -335,7 +346,9 @@ class AstValue : public ZoneObject {
 class AstStringConstants final {
  public:
   AstStringConstants(Isolate* isolate, uint32_t hash_seed)
-      : zone_(isolate->allocator(), ZONE_NAME), hash_seed_(hash_seed) {
+      : zone_(isolate->allocator(), ZONE_NAME),
+        string_table_(AstRawString::Compare),
+        hash_seed_(hash_seed) {
     DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
 #define F(name, str)                                                      \
   {                                                                       \
@@ -348,20 +361,28 @@ class AstStringConstants final {
     /* The Handle returned by the factory is located on the roots */      \
     /* array, not on the temporary HandleScope, so this is safe.  */      \
     name##_string_->set_string(isolate->factory()->name##_string());      \
+    base::HashMap::Entry* entry =                                         \
+        string_table_.InsertNew(name##_string_, name##_string_->hash());  \
+    DCHECK(entry->value == nullptr);                                      \
+    entry->value = reinterpret_cast<void*>(1);                            \
   }
     STRING_CONSTANTS(F)
 #undef F
   }
 
 #define F(name, str) \
-  AstRawString* name##_string() { return name##_string_; }
+  const AstRawString* name##_string() const { return name##_string_; }
   STRING_CONSTANTS(F)
 #undef F
 
   uint32_t hash_seed() const { return hash_seed_; }
+  const base::CustomMatcherHashMap* string_table() const {
+    return &string_table_;
+  }
 
  private:
   Zone zone_;
+  base::CustomMatcherHashMap string_table_;
   uint32_t hash_seed_;
 
 #define F(name, str) AstRawString* name##_string_;
@@ -380,9 +401,9 @@ class AstStringConstants final {
 
 class AstValueFactory {
  public:
-  AstValueFactory(Zone* zone, AstStringConstants* string_constants,
+  AstValueFactory(Zone* zone, const AstStringConstants* string_constants,
                   uint32_t hash_seed)
-      : string_table_(AstRawStringCompare),
+      : string_table_(string_constants->string_table()),
         values_(nullptr),
         strings_(nullptr),
         strings_end_(&strings_),
@@ -397,7 +418,6 @@ class AstValueFactory {
     std::fill(one_character_strings_,
               one_character_strings_ + arraysize(one_character_strings_),
               nullptr);
-    InitializeStringConstants();
   }
 
   Zone* zone() const { return zone_; }
@@ -416,7 +436,7 @@ class AstValueFactory {
   const AstConsString* NewConsString(const AstString* left,
                                      const AstString* right);
 
-  void Internalize(Isolate* isolate);
+  V8_EXPORT_PRIVATE void Internalize(Isolate* isolate);
 
 #define F(name, str)                           \
   const AstRawString* name##_string() {        \
@@ -425,10 +445,11 @@ class AstValueFactory {
   STRING_CONSTANTS(F)
 #undef F
 
-  const AstValue* NewString(const AstRawString* string);
+  V8_EXPORT_PRIVATE const AstValue* NewString(const AstRawString* string);
   // A JavaScript symbol (ECMA-262 edition 6).
-  const AstValue* NewSymbol(const char* name);
-  const AstValue* NewNumber(double number, bool with_dot = false);
+  const AstValue* NewSymbol(AstSymbol symbol);
+  V8_EXPORT_PRIVATE const AstValue* NewNumber(double number,
+                                              bool with_dot = false);
   const AstValue* NewSmi(uint32_t number);
   const AstValue* NewBoolean(bool b);
   const AstValue* NewStringList(ZoneList<const AstRawString*>* strings);
@@ -461,19 +482,6 @@ class AstValueFactory {
   AstRawString* GetString(uint32_t hash, bool is_one_byte,
                           Vector<const byte> literal_bytes);
 
-  void InitializeStringConstants() {
-#define F(name, str)                                                    \
-  AstRawString* raw_string_##name = string_constants_->name##_string(); \
-  base::HashMap::Entry* entry_##name = string_table_.LookupOrInsert(    \
-      raw_string_##name, raw_string_##name->hash());                    \
-  DCHECK(entry_##name->value == nullptr);                               \
-  entry_##name->value = reinterpret_cast<void*>(1);
-    STRING_CONSTANTS(F)
-#undef F
-  }
-
-  static bool AstRawStringCompare(void* a, void* b);
-
   // All strings are copied here, one after another (no NULLs inbetween).
   base::CustomMatcherHashMap string_table_;
   // For keeping track of all AstValues and AstRawStrings we've created (so that
@@ -486,7 +494,7 @@ class AstValueFactory {
   AstString** strings_end_;
 
   // Holds constant string values which are shared across the isolate.
-  AstStringConstants* string_constants_;
+  const AstStringConstants* string_constants_;
 
   // Caches for faster access: small numbers, one character lowercase strings
   // (for minified code).

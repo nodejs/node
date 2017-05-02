@@ -405,7 +405,7 @@ void AstTyper::VisitObjectLiteral(ObjectLiteral* expr) {
           prop->key()->AsLiteral()->value()->IsInternalizedString() &&
           prop->emit_store()) {
         // Record type feed back for the property.
-        FeedbackVectorSlot slot = prop->GetSlot();
+        FeedbackSlot slot = prop->GetSlot();
         SmallMapList maps;
         oracle()->CollectReceiverTypes(slot, &maps);
         prop->set_receiver_type(maps.length() == 1 ? maps.at(0)
@@ -435,7 +435,7 @@ void AstTyper::VisitAssignment(Assignment* expr) {
   // Collect type feedback.
   Property* prop = expr->target()->AsProperty();
   if (prop != NULL) {
-    FeedbackVectorSlot slot = expr->AssignmentSlot();
+    FeedbackSlot slot = expr->AssignmentSlot();
     expr->set_is_uninitialized(oracle()->StoreIsUninitialized(slot));
     if (!expr->IsUninitialized()) {
       SmallMapList* receiver_types = expr->GetReceiverTypes();
@@ -486,7 +486,7 @@ void AstTyper::VisitThrow(Throw* expr) {
 
 void AstTyper::VisitProperty(Property* expr) {
   // Collect type feedback.
-  FeedbackVectorSlot slot = expr->PropertyFeedbackSlot();
+  FeedbackSlot slot = expr->PropertyFeedbackSlot();
   expr->set_inline_cache_state(oracle()->LoadInlineCacheState(slot));
 
   if (!expr->IsUninitialized()) {
@@ -515,7 +515,7 @@ void AstTyper::VisitProperty(Property* expr) {
 void AstTyper::VisitCall(Call* expr) {
   // Collect type feedback.
   RECURSE(Visit(expr->expression()));
-  FeedbackVectorSlot slot = expr->CallFeedbackICSlot();
+  FeedbackSlot slot = expr->CallFeedbackICSlot();
   bool is_uninitialized = oracle()->CallIsUninitialized(slot);
   if (!expr->expression()->IsProperty() && oracle()->CallIsMonomorphic(slot)) {
     expr->set_target(oracle()->GetCallTarget(slot));
@@ -541,8 +541,7 @@ void AstTyper::VisitCall(Call* expr) {
 
 void AstTyper::VisitCallNew(CallNew* expr) {
   // Collect type feedback.
-  FeedbackVectorSlot allocation_site_feedback_slot =
-      expr->CallNewFeedbackSlot();
+  FeedbackSlot allocation_site_feedback_slot = expr->CallNewFeedbackSlot();
   expr->set_allocation_site(
       oracle()->GetCallNewAllocationSite(allocation_site_feedback_slot));
   bool monomorphic =
@@ -602,7 +601,7 @@ void AstTyper::VisitUnaryOperation(UnaryOperation* expr) {
 
 void AstTyper::VisitCountOperation(CountOperation* expr) {
   // Collect type feedback.
-  FeedbackVectorSlot slot = expr->CountSlot();
+  FeedbackSlot slot = expr->CountSlot();
   KeyedAccessStoreMode store_mode;
   IcCheckType key_type;
   oracle()->GetStoreModeAndKeyType(slot, &store_mode, &key_type);

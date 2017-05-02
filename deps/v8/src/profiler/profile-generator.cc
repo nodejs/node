@@ -8,6 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
+#include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
 #include "src/tracing/trace-event.h"
@@ -635,18 +636,8 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
   current_profiles_semaphore_.Signal();
 }
 
-ProfileGenerator::ProfileGenerator(Isolate* isolate,
-                                   CpuProfilesCollection* profiles)
-    : isolate_(isolate), profiles_(profiles) {
-  RuntimeCallStats* rcs = isolate_->counters()->runtime_call_stats();
-  for (int i = 0; i < RuntimeCallStats::counters_count; ++i) {
-    RuntimeCallCounter* counter = &(rcs->*(RuntimeCallStats::counters[i]));
-    DCHECK(counter->name());
-    auto entry = new CodeEntry(CodeEventListener::FUNCTION_TAG, counter->name(),
-                               CodeEntry::kEmptyNamePrefix, "native V8Runtime");
-    code_map_.AddCode(reinterpret_cast<Address>(counter), entry, 1);
-  }
-}
+ProfileGenerator::ProfileGenerator(CpuProfilesCollection* profiles)
+    : profiles_(profiles) {}
 
 void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   std::vector<CodeEntry*> entries;

@@ -869,7 +869,7 @@ typedef uint64_t SixByteInstr;
   V(dsg, DSG, 0xE30D)   /* type = RXY_A DIVIDE SINGLE (64)  */                 \
   V(cvbg, CVBG, 0xE30E) /* type = RXY_A CONVERT TO BINARY (64)  */             \
   V(lrvg, LRVG, 0xE30F) /* type = RXY_A LOAD REVERSED (64)  */                 \
-  V(lt, LT, 0xE312)     /* type = RXY_A LOAD AND TEST (32)  */                 \
+  V(lt_z, LT, 0xE312)   /* type = RXY_A LOAD AND TEST (32)  */                 \
   V(lray, LRAY, 0xE313) /* type = RXY_A LOAD REAL ADDRESS (32)  */             \
   V(lgf, LGF, 0xE314)   /* type = RXY_A LOAD (64<-32)  */                      \
   V(lgh, LGH, 0xE315)   /* type = RXY_A LOAD HALFWORD (64<-16)  */             \
@@ -1144,7 +1144,7 @@ typedef uint64_t SixByteInstr;
   V(ex, EX, 0x44)     /* type = RX_A  EXECUTE  */                           \
   V(bal, BAL, 0x45)   /* type = RX_A  BRANCH AND LINK  */                   \
   V(bct, BCT, 0x46)   /* type = RX_A  BRANCH ON COUNT (32)  */              \
-  V(bc, BC, 0x47)     /* type = RX_A  BRANCH ON CONDITION  */               \
+  V(lh, LH, 0x48)     /* type = RX_A  LOAD HALFWORD (32<-16)  */            \
   V(ch, CH, 0x49)     /* type = RX_A  COMPARE HALFWORD (32<-16)  */         \
   V(ah, AH, 0x4A)     /* type = RX_A  ADD HALFWORD (32<-16)  */             \
   V(sh, SH, 0x4B)     /* type = RX_A  SUBTRACT HALFWORD (32<-16)  */        \
@@ -1164,7 +1164,7 @@ typedef uint64_t SixByteInstr;
   V(s, S, 0x5B)       /* type = RX_A  SUBTRACT (32)  */                     \
   V(m, M, 0x5C)       /* type = RX_A  MULTIPLY (64<-32)  */                 \
   V(d, D, 0x5D)       /* type = RX_A  DIVIDE (32<-64)  */                   \
-  V(al, AL, 0x5E)     /* type = RX_A  ADD LOGICAL (32)  */                  \
+  V(al_z, AL, 0x5E)   /* type = RX_A  ADD LOGICAL (32)  */                  \
   V(sl, SL, 0x5F)     /* type = RX_A  SUBTRACT LOGICAL (32)  */             \
   V(std, STD, 0x60)   /* type = RX_A  STORE (long)  */                      \
   V(mxd, MXD, 0x67)   /* type = RX_A  MULTIPLY (long to extended HFP)  */   \
@@ -1178,7 +1178,7 @@ typedef uint64_t SixByteInstr;
   V(sw, SW, 0x6F)     /* type = RX_A  SUBTRACT UNNORMALIZED (long HFP)  */  \
   V(ste, STE, 0x70)   /* type = RX_A  STORE (short)  */                     \
   V(ms, MS, 0x71)     /* type = RX_A  MULTIPLY SINGLE (32)  */              \
-  V(le, LE, 0x78)     /* type = RX_A  LOAD (short)  */                      \
+  V(le_z, LE, 0x78)   /* type = RX_A  LOAD (short)  */                      \
   V(ce, CE, 0x79)     /* type = RX_A  COMPARE (short HFP)  */               \
   V(ae, AE, 0x7A)     /* type = RX_A  ADD NORMALIZED (short HFP)  */        \
   V(se, SE, 0x7B)     /* type = RX_A  SUBTRACT NORMALIZED (short HFP)  */   \
@@ -1188,10 +1188,11 @@ typedef uint64_t SixByteInstr;
   V(au, AU, 0x7E)     /* type = RX_A  ADD UNNORMALIZED (short HFP)  */      \
   V(su, SU, 0x7F)     /* type = RX_A  SUBTRACT UNNORMALIZED (short HFP)  */ \
   V(ssm, SSM, 0x80)   /* type = RX_A  SET SYSTEM MASK  */                   \
-  V(lra, LRA, 0xB1)   /* type = RX_A  LOAD REAL ADDRESS (32)  */
+  V(lra, LRA, 0xB1)   /* type = RX_A  LOAD REAL ADDRESS (32)  */            \
+  V(sth, STH, 0x40)   /* type = RX_A  STORE HALFWORD (16)  */
 
 #define S390_RX_B_OPCODE_LIST(V) \
-  V(lh, LH, 0x48) /* type = RX_B  LOAD HALFWORD (32<-16)  */
+  V(bc, BC, 0x47)     /* type = RX_B  BRANCH ON CONDITION  */
 
 #define S390_RIE_A_OPCODE_LIST(V)                                              \
   V(cgit, CGIT, 0xEC70) /* type = RIE_A COMPARE IMMEDIATE AND TRAP (64<-16) */ \
@@ -1587,8 +1588,7 @@ typedef uint64_t SixByteInstr;
   V(mer, MER, 0x3C)     /* type = RR    MULTIPLY (short to long HFP)  */       \
   V(der, DER, 0x3D)     /* type = RR    DIVIDE (short HFP)  */                 \
   V(aur, AUR, 0x3E)     /* type = RR    ADD UNNORMALIZED (short HFP)  */       \
-  V(sur, SUR, 0x3F)     /* type = RR    SUBTRACT UNNORMALIZED (short HFP)  */  \
-  V(sth, STH, 0x40)     /* type = RR    STORE HALFWORD (16)  */
+  V(sur, SUR, 0x3F)     /* type = RR    SUBTRACT UNNORMALIZED (short HFP)  */
 
 #define S390_RIE_F_OPCODE_LIST(V)                                              \
   V(risblg, RISBLG,                                                            \

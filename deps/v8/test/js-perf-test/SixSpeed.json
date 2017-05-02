@@ -8,47 +8,124 @@
   "total": true,
   "resources": ["base.js"],
   "tests": [
-        {
+    {
       "name": "Array pattern destructuring",
-      "path": ["SixSpeed/array_destructuring"],
-      "main": "run.js",
-      "resources": [
-        "run.js",
-        "array_destructuring.js"
-      ],
+      "path": ["SixSpeed"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
       "tests": [
-        {"name": "ArrayDestructuring-ES5"},
-        {"name": "ArrayDestructuring-ES6"}
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "test_flags": ["array_destructuring/es5"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "test_flags": ["array_destructuring/es6"]
+        }
       ]
     },
     {
       "name": "Computed property names in object literals",
-      "path": ["SixSpeed/object_literals"],
-      "main": "run.js",
-      "resources": [
-        "run.js",
-        "object_literals.js"
-      ],
+      "path": ["SixSpeed"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
       "tests": [
-        {"name": "ObjectLiterals-ES5"},
-        {"name": "ObjectLiterals-ES6"}
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "test_flags": ["object_literals/es5"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "test_flags": ["object_literals/es6"]
+        }
+      ]
+    },
+    {
+      "name": "Defaults",
+      "path": ["SixSpeed"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "test_flags": ["defaults/es5"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "test_flags": ["defaults/es6"]
+        }
       ]
     },
     {
       "name": "Spread",
-      "path": ["SixSpeed/spread"],
-      "main": "run.js",
-      "resources": [
-        "run.js",
-        "spread.js"
-      ],
+      "path": ["SixSpeed"],
+      "flags": ["--future"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
       "tests": [
-        {"name": "Spread-ES5"},
-        {"name": "Spread-Traceur"},
-        {"name": "Spread-ES6"}
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "test_flags": ["spread/es5"]
+        },
+        {
+          "name": "Babel",
+          "main": "run.js",
+          "test_flags": ["spread/babel"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "test_flags": ["spread/es6"]
+        }
+      ]
+    },
+    {
+      "name": "SuperSpread",
+      "path": ["SixSpeed"],
+      "flags": ["--future"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "test_flags": ["super_spread/es5"]
+        },
+        {
+          "name": "Babel",
+          "main": "run.js",
+          "test_flags": ["super_spread/babel"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "test_flags": ["super_spread/es6"]
+        }
+      ]
+    },
+    {
+      "name": "SpreadLiteral",
+      "path": ["SixSpeed"],
+      "flags": ["--future"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "test_flags": ["spread_literal/es5"]
+        },
+        {
+          "name": "Babel",
+          "main": "run.js",
+          "test_flags": ["spread_literal/babel"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "test_flags": ["spread_literal/es6"]
+        }
       ]
     }
   ]

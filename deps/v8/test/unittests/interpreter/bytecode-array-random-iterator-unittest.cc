@@ -23,9 +23,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, 0);
-  Factory* factory = isolate()->factory();
-  Handle<HeapObject> heap_num_0 = factory->NewHeapNumber(2.718);
-  Handle<HeapObject> heap_num_1 = factory->NewHeapNumber(2147483647);
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
+  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
+  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -34,7 +35,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
   RegisterList pair(0, 2);
   RegisterList triple(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
-  Handle<String> name = factory->NewStringFromStaticChars("abc");
+  const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t feedback_slot = 97;
 
   builder.LoadLiteral(heap_num_0)
@@ -62,6 +63,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
       .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
       .Return();
 
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> bytecodeArray = builder.ToBytecodeArray(isolate());
   BytecodeArrayRandomIterator iterator(bytecodeArray, zone());
 
@@ -75,9 +77,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidAfterEnd) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, 0);
-  Factory* factory = isolate()->factory();
-  Handle<HeapObject> heap_num_0 = factory->NewHeapNumber(2.718);
-  Handle<HeapObject> heap_num_1 = factory->NewHeapNumber(2147483647);
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
+  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
+  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -86,7 +89,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidAfterEnd) {
   RegisterList pair(0, 2);
   RegisterList triple(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
-  Handle<String> name = factory->NewStringFromStaticChars("abc");
+  const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t feedback_slot = 97;
 
   builder.LoadLiteral(heap_num_0)
@@ -114,6 +117,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidAfterEnd) {
       .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
       .Return();
 
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> bytecodeArray = builder.ToBytecodeArray(isolate());
   BytecodeArrayRandomIterator iterator(bytecodeArray, zone());
 
@@ -127,9 +131,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, 0);
-  Factory* factory = isolate()->factory();
-  Handle<HeapObject> heap_num_0 = factory->NewHeapNumber(2.718);
-  Handle<HeapObject> heap_num_1 = factory->NewHeapNumber(2147483647);
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
+  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
+  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -138,7 +143,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
   RegisterList pair(0, 2);
   RegisterList triple(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
-  Handle<String> name = factory->NewStringFromStaticChars("abc");
+  const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t feedback_slot = 97;
 
   builder.LoadLiteral(heap_num_0)
@@ -166,6 +171,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
       .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
       .Return();
 
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> bytecodeArray = builder.ToBytecodeArray(isolate());
   BytecodeArrayRandomIterator iterator(bytecodeArray, zone());
 
@@ -175,8 +181,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), 0);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_TRUE(
-      iterator.GetConstantForIndexOperand(0).is_identical_to(heap_num_0));
+  EXPECT_TRUE(iterator.GetConstantForIndexOperand(0).is_identical_to(
+      heap_num_0->value()));
   ASSERT_TRUE(iterator.IsValid());
 }
 
@@ -184,9 +190,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesLast) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, 0);
-  Factory* factory = isolate()->factory();
-  Handle<HeapObject> heap_num_0 = factory->NewHeapNumber(2.718);
-  Handle<HeapObject> heap_num_1 = factory->NewHeapNumber(2147483647);
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
+  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
+  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -195,7 +202,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesLast) {
   RegisterList pair(0, 2);
   RegisterList triple(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
-  Handle<String> name = factory->NewStringFromStaticChars("abc");
+  const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t feedback_slot = 97;
 
   builder.LoadLiteral(heap_num_0)
@@ -223,6 +230,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesLast) {
       .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
       .Return();
 
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> bytecodeArray = builder.ToBytecodeArray(isolate());
   BytecodeArrayRandomIterator iterator(bytecodeArray, zone());
 
@@ -241,9 +249,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, 0);
-  Factory* factory = isolate()->factory();
-  Handle<HeapObject> heap_num_0 = factory->NewHeapNumber(2.718);
-  Handle<HeapObject> heap_num_1 = factory->NewHeapNumber(2147483647);
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
+  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
+  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -252,7 +261,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   RegisterList pair(0, 2);
   RegisterList triple(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
-  Handle<String> name = factory->NewStringFromStaticChars("abc");
+  const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;
   uint32_t feedback_slot = 97;
 
@@ -282,6 +291,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
       .Return();
 
   // Test iterator sees the expected output from the builder.
+  ast_factory.Internalize(isolate());
   BytecodeArrayRandomIterator iterator(builder.ToBytecodeArray(isolate()),
                                        zone());
   const int kPrefixByteSize = 1;
@@ -319,8 +329,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_TRUE(
-      iterator.GetConstantForIndexOperand(0).is_identical_to(heap_num_1));
+  EXPECT_TRUE(iterator.GetConstantForIndexOperand(0).is_identical_to(
+      heap_num_1->value()));
   ASSERT_TRUE(iterator.IsValid());
 
   iterator.GoToIndex(18);
@@ -427,9 +437,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, 0);
-  Factory* factory = isolate()->factory();
-  Handle<HeapObject> heap_num_0 = factory->NewHeapNumber(2.718);
-  Handle<HeapObject> heap_num_1 = factory->NewHeapNumber(2147483647);
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
+  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
+  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -438,7 +449,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   RegisterList pair(0, 2);
   RegisterList triple(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
-  Handle<String> name = factory->NewStringFromStaticChars("abc");
+  const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;
   uint32_t feedback_slot = 97;
 
@@ -468,6 +479,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
       .Return();
 
   // Test iterator sees the expected output from the builder.
+  ast_factory.Internalize(isolate());
   BytecodeArrayRandomIterator iterator(builder.ToBytecodeArray(isolate()),
                                        zone());
   const int kPrefixByteSize = 1;
@@ -477,8 +489,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_TRUE(
-      iterator.GetConstantForIndexOperand(0).is_identical_to(heap_num_0));
+  EXPECT_TRUE(iterator.GetConstantForIndexOperand(0).is_identical_to(
+      heap_num_0->value()));
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   ++iterator;
@@ -497,8 +509,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_TRUE(
-      iterator.GetConstantForIndexOperand(0).is_identical_to(heap_num_1));
+  EXPECT_TRUE(iterator.GetConstantForIndexOperand(0).is_identical_to(
+      heap_num_1->value()));
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   ++iterator;
@@ -717,9 +729,10 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, 0);
-  Factory* factory = isolate()->factory();
-  Handle<HeapObject> heap_num_0 = factory->NewHeapNumber(2.718);
-  Handle<HeapObject> heap_num_1 = factory->NewHeapNumber(2147483647);
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
+  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
+  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -728,7 +741,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   RegisterList pair(0, 2);
   RegisterList triple(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
-  Handle<String> name = factory->NewStringFromStaticChars("abc");
+  const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;
   uint32_t feedback_slot = 97;
 
@@ -758,6 +771,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
       .Return();
 
   // Test iterator sees the expected output from the builder.
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> bytecodeArray = builder.ToBytecodeArray(isolate());
   BytecodeArrayRandomIterator iterator(bytecodeArray, zone());
   const int kPrefixByteSize = 1;
@@ -979,8 +993,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_TRUE(
-      iterator.GetConstantForIndexOperand(0).is_identical_to(heap_num_1));
+  EXPECT_TRUE(iterator.GetConstantForIndexOperand(0).is_identical_to(
+      heap_num_1->value()));
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
@@ -999,8 +1013,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_TRUE(
-      iterator.GetConstantForIndexOperand(0).is_identical_to(heap_num_0));
+  EXPECT_TRUE(iterator.GetConstantForIndexOperand(0).is_identical_to(
+      heap_num_0->value()));
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
   ASSERT_FALSE(iterator.IsValid());

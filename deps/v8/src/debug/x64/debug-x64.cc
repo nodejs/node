@@ -9,6 +9,7 @@
 #include "src/assembler.h"
 #include "src/codegen.h"
 #include "src/debug/liveedit.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -64,12 +65,6 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Load padding words on stack.
-    for (int i = 0; i < LiveEdit::kFramePaddingInitialSize; i++) {
-      __ Push(Smi::FromInt(LiveEdit::kFramePaddingValue));
-    }
-    __ Push(Smi::FromInt(LiveEdit::kFramePaddingInitialSize));
-
     // Push arguments for DebugBreak call.
     if (mode == SAVE_RESULT_REGISTER) {
       // Break on return.
@@ -78,12 +73,8 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
       // Non-return breaks.
       __ Push(masm->isolate()->factory()->the_hole_value());
     }
-    __ Set(rax, 1);
-    __ Move(rbx, ExternalReference(Runtime::FunctionForId(Runtime::kDebugBreak),
-                                   masm->isolate()));
 
-    CEntryStub ceb(masm->isolate(), 1);
-    __ CallStub(&ceb);
+    __ CallRuntime(Runtime::kDebugBreak, 1, kDontSaveFPRegs);
 
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; ++i) {
@@ -95,55 +86,43 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
         }
       }
     }
-
-    // Read current padding counter and skip corresponding number of words.
-    __ Pop(kScratchRegister);
-    __ SmiToInteger32(kScratchRegister, kScratchRegister);
-    __ leap(rsp, Operand(rsp, kScratchRegister, times_pointer_size, 0));
-
     // Get rid of the internal frame.
   }
 
-  // This call did not replace a call , so there will be an unwanted
-  // return address left on the stack. Here we get rid of that.
-  __ addp(rsp, Immediate(kPCOnStackSize));
+  __ MaybeDropFrames();
 
-  // Now that the break point has been handled, resume normal execution by
-  // jumping to the target address intended by the caller and that was
-  // overwritten by the address of DebugBreakXXX.
-  ExternalReference after_break_target =
-      ExternalReference::debug_after_break_target_address(masm->isolate());
-  __ Move(kScratchRegister, after_break_target);
-  __ Jump(Operand(kScratchRegister, 0));
+  // Return to caller.
+  __ ret(0);
 }
 
+void DebugCodegen::GenerateHandleDebuggerStatement(MacroAssembler* masm) {
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kHandleDebuggerStatement, 0);
+  }
+  __ MaybeDropFrames();
 
-void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  // We do not know our frame height, but set rsp based on rbp.
-  __ leap(rsp, Operand(rbp, FrameDropperFrameConstants::kFunctionOffset));
-  __ Pop(rdi);  // Function.
-  __ addp(rsp,
-          Immediate(-FrameDropperFrameConstants::kCodeOffset));  // INTERNAL
-                                                                 // frame marker
-                                                                 // and code
-  __ popq(rbp);
+  // Return to caller.
+  __ ret(0);
+}
 
-  ParameterCount dummy(0);
-  __ CheckDebugHook(rdi, no_reg, dummy, dummy);
+void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
+  // Frame is being dropped:
+  // - Drop to the target frame specified by rbx.
+  // - Look up current function on the frame.
+  // - Leave the frame.
+  // - Restart the frame by calling the function.
+  __ movp(rbp, rbx);
+  __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ leave();
 
-  // Load context from the function.
-  __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-
-  // Clear new.target as a safety measure.
-  __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
-
-  // Get function code.
   __ movp(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(rbx, FieldOperand(rbx, SharedFunctionInfo::kCodeOffset));
-  __ leap(rbx, FieldOperand(rbx, Code::kHeaderSize));
+  __ LoadSharedFunctionInfoSpecialField(
+      rbx, rbx, SharedFunctionInfo::kFormalParameterCountOffset);
 
-  // Re-run JSFunction, rdi is function, rsi is context.
-  __ jmp(rbx);
+  ParameterCount dummy(rbx);
+  __ InvokeFunction(rdi, no_reg, dummy, dummy, JUMP_FUNCTION,
+                    CheckDebugStepCallWrapper());
 }
 
 const bool LiveEdit::kFrameDropperSupported = true;

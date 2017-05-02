@@ -121,7 +121,8 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   // Building methods.
   void SetSignature(FunctionSig* sig);
   uint32_t AddLocal(ValueType type);
-  void EmitVarInt(uint32_t val);
+  void EmitVarInt(int32_t val);
+  void EmitVarUint(uint32_t val);
   void EmitCode(const byte* code, uint32_t code_size);
   void Emit(WasmOpcode opcode);
   void EmitGetLocal(uint32_t index);
@@ -130,7 +131,8 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitI32Const(int32_t val);
   void EmitWithU8(WasmOpcode opcode, const byte immediate);
   void EmitWithU8U8(WasmOpcode opcode, const byte imm1, const byte imm2);
-  void EmitWithVarInt(WasmOpcode opcode, uint32_t immediate);
+  void EmitWithVarInt(WasmOpcode opcode, int32_t immediate);
+  void EmitWithVarUint(WasmOpcode opcode, uint32_t immediate);
   void EmitDirectCallIndex(uint32_t index);
   void ExportAs(Vector<const char> name);
   void SetName(Vector<const char> name);

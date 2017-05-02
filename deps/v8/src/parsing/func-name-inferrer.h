@@ -5,7 +5,6 @@
 #ifndef V8_PARSING_FUNC_NAME_INFERRER_H_
 #define V8_PARSING_FUNC_NAME_INFERRER_H_
 
-#include "src/handles.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

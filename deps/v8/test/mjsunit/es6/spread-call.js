@@ -49,6 +49,9 @@
     return sum;
   }
 
+  assertThrows(function() {
+    sum(...0);
+  }, TypeError);
   assertEquals(void 0, sum(...""));
   assertEquals(void 0, sum(...[]));
   assertEquals(void 0, sum(...new Set));
@@ -201,6 +204,9 @@
     return sum;
   }
 
+  assertThrows(function() {
+    sum(...0);
+  }, TypeError);
   assertEquals(void 0, sum(...""));
   assertEquals(void 0, sum(...[]));
   assertEquals(void 0, sum(...new Set));

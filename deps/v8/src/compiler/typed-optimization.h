@@ -50,6 +50,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceNumberRoundop(Node* node);
   Reduction ReduceNumberToUint8Clamped(Node* node);
   Reduction ReducePhi(Node* node);
+  Reduction ReduceReferenceEqual(Node* node);
   Reduction ReduceSelect(Node* node);
 
   CompilationDependencies* dependencies() const { return dependencies_; }

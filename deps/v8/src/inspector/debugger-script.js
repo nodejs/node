@@ -102,56 +102,13 @@ DebuggerScript.getGeneratorScopes = function(gen)
 }
 
 /**
- * @param {Object} object
- * @return {?RawLocation}
- */
-DebuggerScript.getGeneratorObjectLocation = function(object)
-{
-    var mirror = MakeMirror(object, true /* transient */);
-    if (!mirror.isGenerator())
-        return null;
-    var generatorMirror = /** @type {!GeneratorMirror} */(mirror);
-    var funcMirror = generatorMirror.func();
-    if (!funcMirror.resolved())
-        return null;
-    var location = generatorMirror.sourceLocation() || funcMirror.sourceLocation();
-    var script = funcMirror.script();
-    if (script && location) {
-        return {
-            scriptId: "" + script.id(),
-            lineNumber: location.line,
-            columnNumber: location.column
-        };
-    }
-    return null;
-}
-
-/**
- * @param {Object} object
- * @return {!Array<!{value: *}>|undefined}
- */
-DebuggerScript.getCollectionEntries = function(object)
-{
-    var mirror = MakeMirror(object, true /* transient */);
-    if (mirror.isMap())
-        return /** @type {!MapMirror} */(mirror).entries();
-    if (mirror.isSet() || mirror.isIterator()) {
-        var result = [];
-        var values = mirror.isSet() ? /** @type {!SetMirror} */(mirror).values() : /** @type {!IteratorMirror} */(mirror).preview();
-        for (var i = 0; i < values.length; ++i)
-            result.push({ value: values[i] });
-        return result;
-    }
-}
-
-/**
  * @param {!ExecutionState} execState
  * @param {!BreakpointInfo} info
  * @return {string|undefined}
  */
 DebuggerScript.setBreakpoint = function(execState, info)
 {
-    var breakId = Debug.setScriptBreakPointById(info.sourceID, info.lineNumber, info.columnNumber, info.condition, undefined, Debug.BreakPositionAlignment.Statement);
+    var breakId = Debug.setScriptBreakPointById(info.sourceID, info.lineNumber, info.columnNumber, info.condition, undefined, Debug.BreakPositionAlignment.BreakPosition);
     var locations = Debug.findBreakPointActualLocations(breakId);
     if (!locations.length)
         return undefined;
@@ -230,20 +187,10 @@ DebuggerScript.clearBreakpoints = function(execState)
 }
 
 /**
- * @param {!ExecutionState} execState
- * @param {!{enabled: boolean}} info
+ * @param {!Array<!BreakPoint>|undefined} breakpoints
  */
-DebuggerScript.setBreakpointsActivated = function(execState, info)
+DebuggerScript.getBreakpointNumbers = function(breakpoints)
 {
-    Debug.debuggerFlags().breakPointsActive.setValue(info.enabled);
-}
-
-/**
- * @param {!BreakEvent} eventData
- */
-DebuggerScript.getBreakpointNumbers = function(eventData)
-{
-    var breakpoints = eventData.breakPointsHit();
     var numbers = [];
     if (!breakpoints)
         return numbers;
@@ -391,8 +338,8 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
             details = {
                 "functionName": ensureFuncMirror().debugName(),
                 "location": {
-                    "lineNumber": line(),
-                    "columnNumber": column(),
+                    "lineNumber": ensureLocation().line,
+                    "columnNumber": ensureLocation().column,
                     "scriptId": String(script.id())
                 },
                 "this": thisObject,
@@ -453,22 +400,6 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     /**
      * @return {number}
      */
-    function line()
-    {
-        return ensureLocation().line;
-    }
-
-    /**
-     * @return {number}
-     */
-    function column()
-    {
-        return ensureLocation().column;
-    }
-
-    /**
-     * @return {number}
-     */
     function contextId()
     {
         var mirror = ensureFuncMirror();
@@ -479,21 +410,13 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     }
 
     /**
-     * @return {number}
-     */
-    function sourceID()
-    {
-        var script = ensureScriptMirror();
-        return script.id();
-    }
-
-    /**
      * @param {string} expression
+     * @param {boolean} throwOnSideEffect
      * @return {*}
      */
-    function evaluate(expression)
+    function evaluate(expression, throwOnSideEffect)
     {
-        return frameMirror.evaluate(expression).value();
+        return frameMirror.evaluate(expression, throwOnSideEffect).value();
     }
 
     /** @return {undefined} */
@@ -516,9 +439,6 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     }
 
     return {
-        "sourceID": sourceID,
-        "line": line,
-        "column": column,
         "contextId": contextId,
         "thisObject": thisObject,
         "evaluate": evaluate,
@@ -549,7 +469,7 @@ DebuggerScript._buildScopeObject = function(scopeType, scopeObject)
         // the same properties.
         // Reset scope object prototype to null so that the proto properties
         // don't appear in the local scope section.
-        var properties = /** @type {!ObjectMirror} */(MakeMirror(scopeObject, true /* transient */)).properties();
+        var properties = /** @type {!ObjectMirror} */(MakeMirror(scopeObject)).properties();
         // Almost always Script scope will be empty, so just filter out that noise.
         // Also drop empty Block, Eval and Script scopes, should we get any.
         if (!properties.length && (scopeType === ScopeType.Script ||
@@ -573,9 +493,6 @@ DebuggerScript._buildScopeObject = function(scopeType, scopeObject)
     }
     return result;
 }
-
-// We never resolve Mirror by its handle so to avoid memory leaks caused by Mirrors in the cache we disable it.
-ToggleMirrorCache(false);
 
 return DebuggerScript;
 })();

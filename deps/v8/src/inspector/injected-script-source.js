@@ -157,11 +157,11 @@ function isSymbol(obj)
  * @type {!Object<string, !Object<string, boolean>>}
  * @const
  */
-var domAttributesWithObservableSideEffectOnGet = nullifyObjectProto({});
-domAttributesWithObservableSideEffectOnGet["Request"] = nullifyObjectProto({});
-domAttributesWithObservableSideEffectOnGet["Request"]["body"] = true;
-domAttributesWithObservableSideEffectOnGet["Response"] = nullifyObjectProto({});
-domAttributesWithObservableSideEffectOnGet["Response"]["body"] = true;
+var domAttributesWithObservableSideEffectOnGet = {
+    Request: { body: true, __proto__: null },
+    Response: { body: true, __proto__: null },
+    __proto__: null
+}
 
 /**
  * @param {!Object} object
@@ -186,6 +186,7 @@ function doesAttributeHaveObservableSideEffectOnGet(object, attribute)
 var InjectedScript = function()
 {
 }
+InjectedScriptHost.nullifyPrototype(InjectedScript);
 
 /**
  * @type {!Object.<string, boolean>}

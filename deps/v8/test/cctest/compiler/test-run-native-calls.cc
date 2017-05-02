@@ -7,6 +7,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/machine-type.h"
+#include "src/objects-inl.h"
 #include "src/register-configuration.h"
 
 #include "test/cctest/cctest.h"

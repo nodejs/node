@@ -6,119 +6,110 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-namespace {
+typedef compiler::CodeAssemblerState CodeAssemblerState;
 
-void Generate_GeneratorPrototypeResume(
-    CodeStubAssembler* assembler, JSGeneratorObject::ResumeMode resume_mode,
-    char const* const method_name) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
+class GeneratorBuiltinsAssembler : public CodeStubAssembler {
+ public:
+  explicit GeneratorBuiltinsAssembler(CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
 
-  Node* receiver = assembler->Parameter(0);
-  Node* value = assembler->Parameter(1);
-  Node* context = assembler->Parameter(4);
-  Node* closed =
-      assembler->SmiConstant(Smi::FromInt(JSGeneratorObject::kGeneratorClosed));
+ protected:
+  void GeneratorPrototypeResume(JSGeneratorObject::ResumeMode resume_mode,
+                                char const* const method_name);
+};
+
+void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
+    JSGeneratorObject::ResumeMode resume_mode, char const* const method_name) {
+  Node* receiver = Parameter(0);
+  Node* value = Parameter(1);
+  Node* context = Parameter(4);
+  Node* closed = SmiConstant(JSGeneratorObject::kGeneratorClosed);
 
   // Check if the {receiver} is actually a JSGeneratorObject.
-  Label if_receiverisincompatible(assembler, Label::kDeferred);
-  assembler->GotoIf(assembler->TaggedIsSmi(receiver),
-                    &if_receiverisincompatible);
-  Node* receiver_instance_type = assembler->LoadInstanceType(receiver);
-  assembler->GotoUnless(assembler->Word32Equal(
-                            receiver_instance_type,
-                            assembler->Int32Constant(JS_GENERATOR_OBJECT_TYPE)),
-                        &if_receiverisincompatible);
+  Label if_receiverisincompatible(this, Label::kDeferred);
+  GotoIf(TaggedIsSmi(receiver), &if_receiverisincompatible);
+  Node* receiver_instance_type = LoadInstanceType(receiver);
+  GotoIfNot(Word32Equal(receiver_instance_type,
+                        Int32Constant(JS_GENERATOR_OBJECT_TYPE)),
+            &if_receiverisincompatible);
 
   // Check if the {receiver} is running or already closed.
-  Node* receiver_continuation = assembler->LoadObjectField(
-      receiver, JSGeneratorObject::kContinuationOffset);
-  Label if_receiverisclosed(assembler, Label::kDeferred),
-      if_receiverisrunning(assembler, Label::kDeferred);
-  assembler->GotoIf(assembler->SmiEqual(receiver_continuation, closed),
-                    &if_receiverisclosed);
+  Node* receiver_continuation =
+      LoadObjectField(receiver, JSGeneratorObject::kContinuationOffset);
+  Label if_receiverisclosed(this, Label::kDeferred),
+      if_receiverisrunning(this, Label::kDeferred);
+  GotoIf(SmiEqual(receiver_continuation, closed), &if_receiverisclosed);
   DCHECK_LT(JSGeneratorObject::kGeneratorExecuting,
             JSGeneratorObject::kGeneratorClosed);
-  assembler->GotoIf(assembler->SmiLessThan(receiver_continuation, closed),
-                    &if_receiverisrunning);
+  GotoIf(SmiLessThan(receiver_continuation, closed), &if_receiverisrunning);
 
   // Resume the {receiver} using our trampoline.
-  Node* result = assembler->CallStub(
-      CodeFactory::ResumeGenerator(assembler->isolate()), context, value,
-      receiver, assembler->SmiConstant(Smi::FromInt(resume_mode)));
-  assembler->Return(result);
+  Node* result = CallStub(CodeFactory::ResumeGenerator(isolate()), context,
+                          value, receiver, SmiConstant(resume_mode));
+  Return(result);
 
-  assembler->Bind(&if_receiverisincompatible);
+  Bind(&if_receiverisincompatible);
   {
     // The {receiver} is not a valid JSGeneratorObject.
-    Node* result = assembler->CallRuntime(
-        Runtime::kThrowIncompatibleMethodReceiver, context,
-        assembler->HeapConstant(assembler->factory()->NewStringFromAsciiChecked(
-            method_name, TENURED)),
-        receiver);
-    assembler->Return(result);  // Never reached.
+    CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
+                HeapConstant(
+                    factory()->NewStringFromAsciiChecked(method_name, TENURED)),
+                receiver);
+    Unreachable();
   }
 
-  assembler->Bind(&if_receiverisclosed);
+  Bind(&if_receiverisclosed);
   {
     Callable create_iter_result_object =
-        CodeFactory::CreateIterResultObject(assembler->isolate());
+        CodeFactory::CreateIterResultObject(isolate());
 
     // The {receiver} is closed already.
     Node* result = nullptr;
     switch (resume_mode) {
       case JSGeneratorObject::kNext:
-        result = assembler->CallStub(create_iter_result_object, context,
-                                     assembler->UndefinedConstant(),
-                                     assembler->TrueConstant());
+        result = CallStub(create_iter_result_object, context,
+                          UndefinedConstant(), TrueConstant());
         break;
       case JSGeneratorObject::kReturn:
-        result = assembler->CallStub(create_iter_result_object, context, value,
-                                     assembler->TrueConstant());
+        result =
+            CallStub(create_iter_result_object, context, value, TrueConstant());
         break;
       case JSGeneratorObject::kThrow:
-        result = assembler->CallRuntime(Runtime::kThrow, context, value);
+        result = CallRuntime(Runtime::kThrow, context, value);
         break;
     }
-    assembler->Return(result);
+    Return(result);
   }
 
-  assembler->Bind(&if_receiverisrunning);
+  Bind(&if_receiverisrunning);
   {
-    Node* result =
-        assembler->CallRuntime(Runtime::kThrowGeneratorRunning, context);
-    assembler->Return(result);  // Never reached.
+    CallRuntime(Runtime::kThrowGeneratorRunning, context);
+    Unreachable();
   }
 }
 
-}  // anonymous namespace
-
 // ES6 section 25.3.1.2 Generator.prototype.next ( value )
-void Builtins::Generate_GeneratorPrototypeNext(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_GeneratorPrototypeResume(&assembler, JSGeneratorObject::kNext,
-                                    "[Generator].prototype.next");
+TF_BUILTIN(GeneratorPrototypeNext, GeneratorBuiltinsAssembler) {
+  GeneratorPrototypeResume(JSGeneratorObject::kNext,
+                           "[Generator].prototype.next");
 }
 
 // ES6 section 25.3.1.3 Generator.prototype.return ( value )
-void Builtins::Generate_GeneratorPrototypeReturn(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_GeneratorPrototypeResume(&assembler, JSGeneratorObject::kReturn,
-                                    "[Generator].prototype.return");
+TF_BUILTIN(GeneratorPrototypeReturn, GeneratorBuiltinsAssembler) {
+  GeneratorPrototypeResume(JSGeneratorObject::kReturn,
+                           "[Generator].prototype.return");
 }
 
 // ES6 section 25.3.1.4 Generator.prototype.throw ( exception )
-void Builtins::Generate_GeneratorPrototypeThrow(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_GeneratorPrototypeResume(&assembler, JSGeneratorObject::kThrow,
-                                    "[Generator].prototype.throw");
+TF_BUILTIN(GeneratorPrototypeThrow, GeneratorBuiltinsAssembler) {
+  GeneratorPrototypeResume(JSGeneratorObject::kThrow,
+                           "[Generator].prototype.throw");
 }
 
 }  // namespace internal

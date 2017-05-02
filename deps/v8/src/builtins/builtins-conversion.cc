@@ -6,6 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -24,6 +25,7 @@ Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
 }
 
 namespace {
+
 // ES6 section 7.1.1 ToPrimitive ( input [ , PreferredType ] )
 void Generate_NonPrimitiveToPrimitive(CodeStubAssembler* assembler,
                                       ToPrimitiveHint hint) {
@@ -52,7 +54,8 @@ void Generate_NonPrimitiveToPrimitive(CodeStubAssembler* assembler,
   {
     // Invoke the {exotic_to_prim} method on the {input} with a string
     // representation of the {hint}.
-    Callable callable = CodeFactory::Call(assembler->isolate());
+    Callable callable = CodeFactory::Call(
+        assembler->isolate(), ConvertReceiverMode::kNotNullOrUndefined);
     Node* hint_string = assembler->HeapConstant(
         assembler->factory()->ToPrimitiveHintString(hint));
     Node* result = assembler->CallJS(callable, context, exotic_to_prim, input,
@@ -93,7 +96,8 @@ void Generate_NonPrimitiveToPrimitive(CodeStubAssembler* assembler,
     assembler->TailCallStub(callable, context, input);
   }
 }
-}  // anonymous namespace
+
+}  // namespace
 
 void Builtins::Generate_NonPrimitiveToPrimitive_Default(
     compiler::CodeAssemblerState* state) {
@@ -177,16 +181,15 @@ void Builtins::Generate_ToString(compiler::CodeAssemblerState* state) {
   Node* input_instance_type = assembler.LoadMapInstanceType(input_map);
 
   Label not_string(&assembler);
-  assembler.GotoUnless(assembler.IsStringInstanceType(input_instance_type),
-                       &not_string);
+  assembler.GotoIfNot(assembler.IsStringInstanceType(input_instance_type),
+                      &not_string);
   assembler.Return(input);
 
   Label not_heap_number(&assembler);
 
   assembler.Bind(&not_string);
   {
-    assembler.GotoUnless(assembler.IsHeapNumberMap(input_map),
-                         &not_heap_number);
+    assembler.GotoIfNot(assembler.IsHeapNumberMap(input_map), &not_heap_number);
     assembler.Goto(&is_number);
   }
 
@@ -221,6 +224,7 @@ Handle<Code> Builtins::OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint) {
 }
 
 namespace {
+
 // 7.1.1.1 OrdinaryToPrimitive ( O, hint )
 void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
                                   OrdinaryToPrimitiveHint hint) {
@@ -263,7 +267,8 @@ void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
     assembler->Bind(&if_methodiscallable);
     {
       // Call the {method} on the {input}.
-      Callable callable = CodeFactory::Call(assembler->isolate());
+      Callable callable = CodeFactory::Call(
+          assembler->isolate(), ConvertReceiverMode::kNotNullOrUndefined);
       Node* result = assembler->CallJS(callable, context, method, input);
       var_result.Bind(result);
 
@@ -287,7 +292,8 @@ void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
   assembler->Bind(&return_result);
   assembler->Return(var_result.value());
 }
-}  // anonymous namespace
+
+}  // namespace
 
 void Builtins::Generate_OrdinaryToPrimitive_Number(
     compiler::CodeAssemblerState* state) {
@@ -361,9 +367,9 @@ void Builtins::Generate_ToLength(compiler::CodeAssemblerState* state) {
       Node* len_value = assembler.LoadHeapNumberValue(len);
 
       // Check if {len} is not greater than zero.
-      assembler.GotoUnless(assembler.Float64GreaterThan(
-                               len_value, assembler.Float64Constant(0.0)),
-                           &return_zero);
+      assembler.GotoIfNot(assembler.Float64GreaterThan(
+                              len_value, assembler.Float64Constant(0.0)),
+                          &return_zero);
 
       // Check if {len} is greater than or equal to 2^53-1.
       assembler.GotoIf(
@@ -472,6 +478,17 @@ void Builtins::Generate_ToObject(compiler::CodeAssemblerState* state) {
 
   assembler.Bind(&if_jsreceiver);
   assembler.Return(object);
+}
+
+// Deprecated ES5 [[Class]] internal property (used to implement %_ClassOf).
+void Builtins::Generate_ClassOf(compiler::CodeAssemblerState* state) {
+  typedef compiler::Node Node;
+  typedef TypeofDescriptor Descriptor;
+  CodeStubAssembler assembler(state);
+
+  Node* object = assembler.Parameter(Descriptor::kObject);
+
+  assembler.Return(assembler.ClassOf(object));
 }
 
 // ES6 section 12.5.5 typeof operator

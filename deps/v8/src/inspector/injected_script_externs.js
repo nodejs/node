@@ -9,6 +9,11 @@ function InjectedScriptHostClass()
 
 /**
  * @param {*} obj
+ */
+InjectedScriptHostClass.prototype.nullifyPrototype = function(obj) {}
+
+/**
+ * @param {*} obj
  * @return {string}
  */
 InjectedScriptHostClass.prototype.internalConstructorName = function(obj) {}

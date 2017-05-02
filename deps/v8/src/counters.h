@@ -546,7 +546,6 @@ class RuntimeCallTimer final {
   V(Date_New)                                              \
   V(Date_NumberValue)                                      \
   V(Debug_Call)                                            \
-  V(Debug_GetMirror)                                       \
   V(Error_New)                                             \
   V(External_New)                                          \
   V(Float32Array_New)                                      \
@@ -702,7 +701,7 @@ class RuntimeCallTimer final {
   V(CompileScopeAnalysis)                           \
   V(CompileScript)                                  \
   V(CompileSerialize)                               \
-  V(CompilerDispatcher)                             \
+  V(CompileWaitForDispatcher)                       \
   V(DeoptimizeCode)                                 \
   V(FunctionCallback)                               \
   V(GC)                                             \
@@ -942,6 +941,7 @@ class RuntimeCallTimerScope {
   HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)    \
   HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                  \
   HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                         \
+  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)        \
   /* Asm/Wasm. */                                                             \
   HR(wasm_functions_per_module, V8.WasmFunctionsPerModule, 1, 10000, 51)
 
@@ -983,6 +983,8 @@ class RuntimeCallTimerScope {
   HT(wasm_compile_module_time, V8.WasmCompileModuleMicroSeconds, 1000000,      \
      MICROSECOND)                                                              \
   HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000,  \
+     MICROSECOND)                                                              \
+  HT(asm_wasm_translation_time, V8.AsmWasmTranslationMicroSeconds, 1000000,    \
      MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
@@ -1146,10 +1148,6 @@ class RuntimeCallTimerScope {
   SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)                 \
   SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)                 \
   SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)                           \
-  SC(turbo_escape_allocs_replaced, V8.TurboEscapeAllocsReplaced)               \
-  SC(crankshaft_escape_allocs_replaced, V8.CrankshaftEscapeAllocsReplaced)     \
-  SC(turbo_escape_loads_replaced, V8.TurboEscapeLoadsReplaced)                 \
-  SC(crankshaft_escape_loads_replaced, V8.CrankshaftEscapeLoadsReplaced)       \
   /* Total code size (including metadata) of baseline code or bytecode. */     \
   SC(total_baseline_code_size, V8.TotalBaselineCodeSize)                       \
   /* Total count of functions compiled using the baseline compiler. */         \

@@ -66,6 +66,11 @@ class HeapProfiler {
                                                       Object** wrapper);
   void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
 
+  void SetGetRetainerInfosCallback(
+      v8::HeapProfiler::GetRetainerInfosCallback callback);
+
+  v8::HeapProfiler::RetainerInfos GetRetainerInfos(Isolate* isolate);
+
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
   bool is_tracking_allocations() const { return !!allocation_tracker_; }
 
@@ -86,6 +91,7 @@ class HeapProfiler {
   bool is_tracking_object_moves_;
   base::Mutex profiler_mutex_;
   std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
+  v8::HeapProfiler::GetRetainerInfosCallback get_retainer_infos_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapProfiler);
 };

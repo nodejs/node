@@ -29,6 +29,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsWait) {
   CHECK_EQ(sta->type(), kExternalInt32Array);
   CHECK(timeout == V8_INFINITY || !std::isnan(timeout));
 
+  if (!isolate->allow_atomics_wait()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kAtomicsWaitNotAllowed));
+  }
+
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
   size_t addr = (index << 2) + NumberToSize(sta->byte_offset());
 
@@ -40,7 +45,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsWake) {
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);
   CONVERT_SIZE_ARG_CHECKED(index, 1);
-  CONVERT_INT32_ARG_CHECKED(count, 2);
+  CONVERT_UINT32_ARG_CHECKED(count, 2);
   CHECK(sta->GetBuffer()->is_shared());
   CHECK_LT(index, NumberToSize(sta->length()));
   CHECK_EQ(sta->type(), kExternalInt32Array);
@@ -64,6 +69,15 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   size_t addr = (index << 2) + NumberToSize(sta->byte_offset());
 
   return FutexEmulation::NumWaitersForTesting(isolate, array_buffer, addr);
+}
+
+RUNTIME_FUNCTION(Runtime_SetAllowAtomicsWait) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_BOOLEAN_ARG_CHECKED(set, 0);
+
+  isolate->set_allow_atomics_wait(set);
+  return isolate->heap()->undefined_value();
 }
 }  // namespace internal
 }  // namespace v8

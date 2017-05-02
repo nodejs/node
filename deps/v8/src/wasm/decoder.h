@@ -382,8 +382,10 @@ class Decoder {
 
       int length = static_cast<int>(pc_ - pos);
       if (pc_ == end && (b & 0x80)) {
+        TRACE("\n");
         error(pc_ - 1, "varint too large");
       } else if (length == 0) {
+        TRACE("\n");
         error(pc_, "varint of length 0");
       } else if (is_signed) {
         if (length < kMaxLength) {

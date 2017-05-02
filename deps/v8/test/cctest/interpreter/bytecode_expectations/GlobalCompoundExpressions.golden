@@ -19,7 +19,7 @@ bytecodes: [
   /*   26 E> */ B(StackCheck),
   /*   31 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(0),
-                B(BitwiseAndSmi), U8(1), R(0), U8(4),
+                B(BitwiseAndSmi), I8(1), R(0), U8(4),
   /*   45 E> */ B(StaGlobalSloppy), U8(0), U8(5),
   /*   51 S> */ B(Return),
 ]
@@ -42,7 +42,7 @@ bytecodes: [
   /*   27 E> */ B(StackCheck),
   /*   32 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(0),
-                B(AddSmi), U8(1), R(0), U8(4),
+                B(AddSmi), I8(1), R(0), U8(4),
   /*   51 E> */ B(StaGlobalSloppy), U8(0), U8(5),
   /*   57 S> */ B(Return),
 ]

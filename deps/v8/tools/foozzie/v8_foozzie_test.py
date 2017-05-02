@@ -85,12 +85,17 @@ otherfile.js: TypeError: undefined is not a constructor
     self.assertEquals(diff, suppress.diff(one, two))
 
 
+def cut_verbose_output(stdout):
+  return '\n'.join(stdout.split('\n')[2:])
+
+
 def run_foozzie(first_d8, second_d8):
   return subprocess.check_output([
     sys.executable, FOOZZIE,
     '--random-seed', '12345',
     '--first-d8', os.path.join(TEST_DATA, first_d8),
     '--second-d8', os.path.join(TEST_DATA, second_d8),
+    '--first-config', 'ignition',
     '--second-config', 'ignition_staging',
     os.path.join(TEST_DATA, 'fuzz-123.js'),
   ])
@@ -99,7 +104,7 @@ def run_foozzie(first_d8, second_d8):
 class SystemTest(unittest.TestCase):
   def testSyntaxErrorDiffPass(self):
     stdout = run_foozzie('test_d8_1.py', 'test_d8_2.py')
-    self.assertEquals('# V8 correctness - pass\n', stdout)
+    self.assertEquals('# V8 correctness - pass\n', cut_verbose_output(stdout))
 
   def testDifferentOutputFail(self):
     with open(os.path.join(TEST_DATA, 'failure_output.txt')) as f:
@@ -108,4 +113,4 @@ class SystemTest(unittest.TestCase):
       run_foozzie('test_d8_1.py', 'test_d8_3.py')
     e = ctx.exception
     self.assertEquals(v8_foozzie.RETURN_FAIL, e.returncode)
-    self.assertEquals(expected_output, e.output)
+    self.assertEquals(expected_output, cut_verbose_output(e.output))

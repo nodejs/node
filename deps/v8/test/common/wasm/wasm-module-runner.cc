@@ -6,6 +6,7 @@
 
 #include "src/handles.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/property-descriptor.h"
 #include "src/wasm/module-decoder.h"
@@ -58,17 +59,15 @@ const Handle<WasmInstanceObject> InstantiateModuleForTesting(
   // Although we decoded the module for some pre-validation, run the bytes
   // again through the normal pipeline.
   // TODO(wasm): Use {module} instead of decoding the module bytes again.
-  MaybeHandle<WasmModuleObject> module_object = CreateModuleObjectFromBytes(
-      isolate, wire_bytes.module_bytes.start(), wire_bytes.module_bytes.end(),
-      thrower, ModuleOrigin::kWasmOrigin, Handle<Script>::null(),
-      Vector<const byte>::empty());
+  MaybeHandle<WasmModuleObject> module_object =
+      SyncCompile(isolate, thrower, wire_bytes);
   if (module_object.is_null()) {
     thrower->CompileError("Module pre-validation failed.");
     return Handle<WasmInstanceObject>::null();
   }
   MaybeHandle<WasmInstanceObject> maybe_instance =
-      WasmModule::Instantiate(isolate, thrower, module_object.ToHandleChecked(),
-                              Handle<JSReceiver>::null());
+      SyncInstantiate(isolate, thrower, module_object.ToHandleChecked(),
+                      Handle<JSReceiver>::null(), MaybeHandle<JSArrayBuffer>());
   Handle<WasmInstanceObject> instance;
   if (!maybe_instance.ToHandle(&instance)) {
     return Handle<WasmInstanceObject>::null();

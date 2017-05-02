@@ -8,11 +8,13 @@
 // problem is fixed.
 
 // Suppress http://crbug.com/662429
-var __real_Math_pow = Math.pow
-Math.pow = function(a, b){
-  if (b < 0) {
-    return 0.000017;
-  } else {
-    return __real_Math_pow(a, b);
+(function () {
+  var __real_Math_pow = Math.pow
+  Math.pow = function(a, b){
+    if (b < 0) {
+      return 0.000017;
+    } else {
+      return __real_Math_pow(a, b);
+    }
   }
-}
+})();

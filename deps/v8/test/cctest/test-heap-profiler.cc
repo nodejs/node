@@ -34,9 +34,11 @@
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
+#include "src/api.h"
 #include "src/base/hashmap.h"
 #include "src/collector.h"
 #include "src/debug/debug.h"
+#include "src/objects-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
@@ -475,48 +477,6 @@ TEST(HeapSnapshotSymbol) {
   CHECK(name);
   CHECK(v8_str("mySymbol")->Equals(env.local(), name->GetName()).FromJust());
 }
-
-
-void CheckSimdSnapshot(const char* program, const char* var_name) {
-  i::FLAG_harmony_simd = true;
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-
-  CompileRun(program);
-  // The TakeHeapSnapshot function does not do enough GCs to ensure
-  // that all garbage is collected. We perform addition GC here
-  // to reclaim a floating AllocationSite and to fix the following failure:
-  // # Check failed: ValidateSnapshot(snapshot).
-  // Stdout:
-  //     28 @ 13523   entry with no retainer: /hidden/ system / AllocationSite
-  //     44 @   767    $map: /hidden/ system / Map
-  //     44 @    59      $map: /hidden/ system / Map
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-
-  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
-  CHECK(ValidateSnapshot(snapshot));
-  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* var =
-      GetProperty(global, v8::HeapGraphEdge::kProperty, var_name);
-  CHECK(var);
-  CHECK_EQ(var->GetType(), v8::HeapGraphNode::kSimdValue);
-}
-
-
-TEST(HeapSnapshotSimd) {
-  CheckSimdSnapshot("a = SIMD.Float32x4();\n", "a");
-  CheckSimdSnapshot("a = SIMD.Int32x4();\n", "a");
-  CheckSimdSnapshot("a = SIMD.Uint32x4();\n", "a");
-  CheckSimdSnapshot("a = SIMD.Bool32x4();\n", "a");
-  CheckSimdSnapshot("a = SIMD.Int16x8();\n", "a");
-  CheckSimdSnapshot("a = SIMD.Uint16x8();\n", "a");
-  CheckSimdSnapshot("a = SIMD.Bool16x8();\n", "a");
-  CheckSimdSnapshot("a = SIMD.Int8x16();\n", "a");
-  CheckSimdSnapshot("a = SIMD.Uint8x16();\n", "a");
-  CheckSimdSnapshot("a = SIMD.Bool8x16();\n", "a");
-}
-
 
 TEST(HeapSnapshotWeakCollection) {
   LocalContext env;
@@ -2252,15 +2212,19 @@ TEST(AllocationSitesAreVisible) {
   const v8::HeapGraphNode* fun_code =
       GetProperty(global, v8::HeapGraphEdge::kProperty, "fun");
   CHECK(fun_code);
-  const v8::HeapGraphNode* literals =
-      GetProperty(fun_code, v8::HeapGraphEdge::kInternal, "literals");
-  CHECK(literals);
-  CHECK_EQ(v8::HeapGraphNode::kArray, literals->GetType());
-  CHECK_EQ(1, literals->GetChildrenCount());
+  const v8::HeapGraphNode* vector_cell = GetProperty(
+      fun_code, v8::HeapGraphEdge::kInternal, "feedback_vector_cell");
+  // TODO(mvstanton): I'm not sure if this is the best way to expose
+  // literals. Is it too much to expose the Cell?
+  CHECK(vector_cell);
+  const v8::HeapGraphNode* vector =
+      GetProperty(vector_cell, v8::HeapGraphEdge::kInternal, "value");
+  CHECK_EQ(v8::HeapGraphNode::kArray, vector->GetType());
+  CHECK_EQ(3, vector->GetChildrenCount());
 
-  // The first value in the literals array should be the boilerplate,
+  // The first value in the feedback vector should be the boilerplate,
   // after an AllocationSite.
-  const v8::HeapGraphEdge* prop = literals->GetChild(0);
+  const v8::HeapGraphEdge* prop = vector->GetChild(2);
   const v8::HeapGraphNode* allocation_site = prop->GetToNode();
   v8::String::Utf8Value name(allocation_site->GetName());
   CHECK_EQ(0, strcmp("system / AllocationSite", *name));
@@ -2700,33 +2664,6 @@ TEST(ArrayBufferSharedBackingStore) {
   CHECK_EQ(ab1_data, ab2_data);
   CHECK_EQ(2, GetRetainersCount(snapshot, ab1_data));
   free(data);
-}
-
-
-TEST(BoxObject) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  LocalContext env;
-  v8::Local<v8::Object> global_proxy = env->Global();
-  v8::Local<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
-
-  i::Factory* factory = CcTest::i_isolate()->factory();
-  i::Handle<i::String> string = factory->NewStringFromStaticChars("string");
-  i::Handle<i::Object> box = factory->NewBox(string);
-  global->Set(env.local(), 0, v8::ToApiHandle<v8::Object>(box)).FromJust();
-
-  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
-  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
-  CHECK(ValidateSnapshot(snapshot));
-  const v8::HeapGraphNode* global_node = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* box_node =
-      GetProperty(global_node, v8::HeapGraphEdge::kElement, "0");
-  CHECK(box_node);
-  v8::String::Utf8Value box_node_name(box_node->GetName());
-  CHECK_EQ(0, strcmp("system / Box", *box_node_name));
-  const v8::HeapGraphNode* box_value =
-      GetProperty(box_node, v8::HeapGraphEdge::kInternal, "value");
-  CHECK(box_value);
 }
 
 

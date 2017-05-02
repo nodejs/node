@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/ast/ast-value-factory.h"
 #include "src/factory.h"
 #include "src/handles-inl.h"
 #include "src/interpreter/constant-array-builder.h"
@@ -31,68 +32,91 @@ STATIC_CONST_MEMBER_DEFINITION const size_t
 
 TEST_F(ConstantArrayBuilderTest, AllocateAllEntries) {
   CanonicalHandleScope canonical(isolate());
-  ConstantArrayBuilder builder(zone(), isolate()->factory()->the_hole_value());
+  ConstantArrayBuilder builder(zone());
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
   for (size_t i = 0; i < k16BitCapacity; i++) {
-    builder.Insert(handle(Smi::FromInt(static_cast<int>(i)), isolate()));
+    builder.Insert(ast_factory.NewNumber(i + 0.5));
   }
   CHECK_EQ(builder.size(), k16BitCapacity);
+  ast_factory.Internalize(isolate());
   for (size_t i = 0; i < k16BitCapacity; i++) {
-    CHECK_EQ(Handle<Smi>::cast(builder.At(i))->value(), static_cast<int>(i));
+    CHECK_EQ(
+        Handle<HeapNumber>::cast(builder.At(i, isolate()).ToHandleChecked())
+            ->value(),
+        i + 0.5);
   }
 }
 
 TEST_F(ConstantArrayBuilderTest, ToFixedArray) {
   CanonicalHandleScope canonical(isolate());
-  ConstantArrayBuilder builder(zone(), isolate()->factory()->the_hole_value());
+  ConstantArrayBuilder builder(zone());
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
   static const size_t kNumberOfElements = 37;
   for (size_t i = 0; i < kNumberOfElements; i++) {
-    Handle<Object> object = isolate()->factory()->NewNumberFromSize(i);
-    builder.Insert(object);
-    CHECK(builder.At(i)->SameValue(*object));
+    const AstValue* value = ast_factory.NewNumber(i + 0.5);
+    builder.Insert(value);
+    ast_factory.Internalize(isolate());
+    CHECK(
+        builder.At(i, isolate()).ToHandleChecked()->SameValue(*value->value()));
   }
+  ast_factory.Internalize(isolate());
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), static_cast<int>(kNumberOfElements));
   for (size_t i = 0; i < kNumberOfElements; i++) {
-    CHECK(constant_array->get(static_cast<int>(i))->SameValue(*builder.At(i)));
+    CHECK(constant_array->get(static_cast<int>(i))
+              ->SameValue(*builder.At(i, isolate()).ToHandleChecked()));
   }
 }
 
 TEST_F(ConstantArrayBuilderTest, ToLargeFixedArray) {
   CanonicalHandleScope canonical(isolate());
-  ConstantArrayBuilder builder(zone(), isolate()->factory()->the_hole_value());
+  ConstantArrayBuilder builder(zone());
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
   static const size_t kNumberOfElements = 37373;
   for (size_t i = 0; i < kNumberOfElements; i++) {
-    Handle<Object> object = isolate()->factory()->NewNumberFromSize(i);
-    builder.Insert(object);
-    CHECK(builder.At(i)->SameValue(*object));
+    const AstValue* value = ast_factory.NewNumber(i + 0.5);
+    builder.Insert(value);
+    ast_factory.Internalize(isolate());
+    CHECK(
+        builder.At(i, isolate()).ToHandleChecked()->SameValue(*value->value()));
   }
+  ast_factory.Internalize(isolate());
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), static_cast<int>(kNumberOfElements));
   for (size_t i = 0; i < kNumberOfElements; i++) {
-    CHECK(constant_array->get(static_cast<int>(i))->SameValue(*builder.At(i)));
+    CHECK(constant_array->get(static_cast<int>(i))
+              ->SameValue(*builder.At(i, isolate()).ToHandleChecked()));
   }
 }
 
 TEST_F(ConstantArrayBuilderTest, ToLargeFixedArrayWithReservations) {
   CanonicalHandleScope canonical(isolate());
-  ConstantArrayBuilder builder(zone(), isolate()->factory()->the_hole_value());
+  ConstantArrayBuilder builder(zone());
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
   static const size_t kNumberOfElements = 37373;
   for (size_t i = 0; i < kNumberOfElements; i++) {
     builder.CommitReservedEntry(builder.CreateReservedEntry(),
                                 Smi::FromInt(static_cast<int>(i)));
   }
+  ast_factory.Internalize(isolate());
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), static_cast<int>(kNumberOfElements));
   for (size_t i = 0; i < kNumberOfElements; i++) {
-    CHECK(constant_array->get(static_cast<int>(i))->SameValue(*builder.At(i)));
+    CHECK(constant_array->get(static_cast<int>(i))
+              ->SameValue(*builder.At(i, isolate()).ToHandleChecked()));
   }
 }
 
 TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
   CanonicalHandleScope canonical(isolate());
   for (size_t reserved = 1; reserved < k8BitCapacity; reserved *= 3) {
-    ConstantArrayBuilder builder(zone(),
-                                 isolate()->factory()->the_hole_value());
+    ConstantArrayBuilder builder(zone());
+    AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                                isolate()->heap()->HashSeed());
     for (size_t i = 0; i < reserved; i++) {
       OperandSize operand_size = builder.CreateReservedEntry();
       CHECK(operand_size == OperandSize::kByte);
@@ -109,12 +133,6 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
       }
     }
     CHECK_EQ(builder.size(), 2 * k8BitCapacity + reserved);
-
-    // Check reserved values represented by the hole.
-    for (size_t i = 0; i < reserved; i++) {
-      Handle<Object> empty = builder.At(k8BitCapacity - reserved + i);
-      CHECK(empty->SameValue(isolate()->heap()->the_hole_value()));
-    }
 
     // Commit reserved entries with duplicates and check size does not change.
     DCHECK_EQ(reserved + 2 * k8BitCapacity, builder.size());
@@ -137,6 +155,12 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
       CHECK_EQ(index, k8BitCapacity - reserved + i);
     }
 
+    // Clear any remaining uncommited reservations.
+    for (size_t i = 0; i < reserved - duplicates_in_idx8_space; i++) {
+      builder.DiscardReservedEntry(OperandSize::kByte);
+    }
+
+    ast_factory.Internalize(isolate());
     Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
     CHECK_EQ(constant_array->length(),
              static_cast<int>(2 * k8BitCapacity + reserved));
@@ -158,8 +182,9 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
 TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
   CanonicalHandleScope canonical(isolate());
   for (size_t reserved = 1; reserved < k8BitCapacity; reserved *= 3) {
-    ConstantArrayBuilder builder(zone(),
-                                 isolate()->factory()->the_hole_value());
+    ConstantArrayBuilder builder(zone());
+    AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                                isolate()->heap()->HashSeed());
     for (size_t i = 0; i < k8BitCapacity; i++) {
       builder.CommitReservedEntry(builder.CreateReservedEntry(),
                                   Smi::FromInt(static_cast<int>(i)));
@@ -189,6 +214,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
       CHECK_EQ(builder.size(), i + 1);
     }
 
+    ast_factory.Internalize(isolate());
     Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
     CHECK_EQ(constant_array->length(),
              static_cast<int>(k8BitCapacity + reserved));
@@ -201,7 +227,9 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
 
 TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
   CanonicalHandleScope canonical(isolate());
-  ConstantArrayBuilder builder(zone(), isolate()->factory()->the_hole_value());
+  ConstantArrayBuilder builder(zone());
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
   for (size_t i = 0; i < k8BitCapacity; i++) {
     OperandSize operand_size = builder.CreateReservedEntry();
     CHECK(OperandSize::kByte == operand_size);
@@ -217,6 +245,7 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
                                 Smi::FromInt(static_cast<int>(i)));
     CHECK_EQ(builder.size(), 2 * k8BitCapacity);
   }
+  ast_factory.Internalize(isolate());
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), static_cast<int>(2 * k8BitCapacity));
   for (size_t i = 0; i < k8BitCapacity; i++) {
@@ -230,59 +259,81 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
 
 TEST_F(ConstantArrayBuilderTest, GapNotFilledWhenLowReservationDiscarded) {
   CanonicalHandleScope canonical(isolate());
-  ConstantArrayBuilder builder(zone(), isolate()->factory()->the_hole_value());
+  ConstantArrayBuilder builder(zone());
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
   for (size_t i = 0; i < k8BitCapacity; i++) {
     OperandSize operand_size = builder.CreateReservedEntry();
     CHECK(OperandSize::kByte == operand_size);
     CHECK_EQ(builder.size(), 0u);
   }
+  const AstValue* ast_values[k8BitCapacity];
   for (size_t i = 0; i < k8BitCapacity; i++) {
-    Handle<Object> object = isolate()->factory()->NewNumberFromSize(i);
-    builder.Insert(object);
+    ast_values[i] = ast_factory.NewNumber(i + 0.5);
+  }
+
+  for (size_t i = 0; i < k8BitCapacity; i++) {
+    builder.Insert(ast_values[i]);
     CHECK_EQ(builder.size(), i + k8BitCapacity + 1);
   }
   for (size_t i = 0; i < k8BitCapacity; i++) {
     builder.DiscardReservedEntry(OperandSize::kByte);
-    builder.Insert(builder.At(i + k8BitCapacity));
+    builder.Insert(ast_values[i]);
     CHECK_EQ(builder.size(), 2 * k8BitCapacity);
   }
+  ast_factory.Internalize(isolate());
   for (size_t i = 0; i < k8BitCapacity; i++) {
-    Handle<Object> reference = isolate()->factory()->NewNumberFromSize(i);
-    Handle<Object> original = builder.At(k8BitCapacity + i);
+    Handle<Object> reference = isolate()->factory()->NewNumber(i + 0.5);
+    Handle<Object> original =
+        builder.At(k8BitCapacity + i, isolate()).ToHandleChecked();
     CHECK(original->SameValue(*reference));
-    Handle<Object> duplicate = builder.At(i);
-    CHECK(duplicate->SameValue(*isolate()->factory()->the_hole_value()));
+    MaybeHandle<Object> duplicate = builder.At(i, isolate());
+    CHECK(duplicate.is_null());
   }
 }
 
 TEST_F(ConstantArrayBuilderTest, HolesWithUnusedReservations) {
   CanonicalHandleScope canonical(isolate());
   static int kNumberOfHoles = 128;
-  ConstantArrayBuilder builder(zone(), isolate()->factory()->the_hole_value());
+  static int k8BitCapacity = ConstantArrayBuilder::k8BitCapacity;
+  ConstantArrayBuilder builder(zone());
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
   for (int i = 0; i < kNumberOfHoles; ++i) {
     CHECK_EQ(builder.CreateReservedEntry(), OperandSize::kByte);
   }
-  for (int i = 0; i < 128; ++i) {
-    CHECK_EQ(builder.Insert(isolate()->factory()->NewNumber(i)),
+  // Values are placed before the reserved entries in the same slice.
+  for (int i = 0; i < k8BitCapacity - kNumberOfHoles; ++i) {
+    CHECK_EQ(builder.Insert(ast_factory.NewNumber(i + 0.5)),
              static_cast<size_t>(i));
   }
-  CHECK_EQ(builder.Insert(isolate()->factory()->NewNumber(256)), 256u);
+  // The next value is pushed into the next slice.
+  CHECK_EQ(builder.Insert(ast_factory.NewNumber(k8BitCapacity + 0.5)),
+           k8BitCapacity);
 
+  // Discard the reserved entries.
+  for (int i = 0; i < kNumberOfHoles; ++i) {
+    builder.DiscardReservedEntry(OperandSize::kByte);
+  }
+
+  ast_factory.Internalize(isolate());
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
-  CHECK_EQ(constant_array->length(), 257);
-  for (int i = 128; i < 256; i++) {
+  CHECK_EQ(constant_array->length(), k8BitCapacity + 1);
+  for (int i = kNumberOfHoles; i < k8BitCapacity; i++) {
     CHECK(constant_array->get(i)->SameValue(
         *isolate()->factory()->the_hole_value()));
   }
-  CHECK(!constant_array->get(127)->SameValue(
-      *isolate()->factory()->the_hole_value()));
-  CHECK(!constant_array->get(256)->SameValue(
-      *isolate()->factory()->the_hole_value()));
+  CHECK(!constant_array->get(kNumberOfHoles - 1)
+             ->SameValue(*isolate()->factory()->the_hole_value()));
+  CHECK(!constant_array->get(k8BitCapacity)
+             ->SameValue(*isolate()->factory()->the_hole_value()));
 }
 
 TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
   CanonicalHandleScope canonical(isolate());
-  ConstantArrayBuilder builder(zone(), isolate()->factory()->the_hole_value());
+  ConstantArrayBuilder builder(zone());
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
   for (int i = 0; i < 256; i++) {
     CHECK_EQ(builder.CreateReservedEntry(), OperandSize::kByte);
   }
@@ -298,6 +349,17 @@ TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
            256u);
   CHECK_EQ(builder.CommitReservedEntry(OperandSize::kQuad, Smi::FromInt(3)),
            65536u);
+  for (int i = 1; i < 256; i++) {
+    builder.DiscardReservedEntry(OperandSize::kByte);
+  }
+  for (int i = 257; i < 65536; ++i) {
+    builder.DiscardReservedEntry(OperandSize::kShort);
+  }
+  for (int i = 65537; i < 131072; ++i) {
+    builder.DiscardReservedEntry(OperandSize::kQuad);
+  }
+
+  ast_factory.Internalize(isolate());
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), 65537);
   int count = 1;
@@ -314,12 +376,12 @@ TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
 
 TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithFixedReservations) {
   CanonicalHandleScope canonical(isolate());
-  ConstantArrayBuilder builder(zone(), isolate()->factory()->the_hole_value());
+  ConstantArrayBuilder builder(zone());
   for (size_t i = 0; i < k16BitCapacity; i++) {
     if ((i % 2) == 0) {
-      CHECK_EQ(i, builder.AllocateEntry());
+      CHECK_EQ(i, builder.InsertDeferred());
     } else {
-      builder.Insert(handle(Smi::FromInt(static_cast<int>(i)), isolate()));
+      builder.Insert(Smi::FromInt(static_cast<int>(i)));
     }
   }
   CHECK_EQ(builder.size(), k16BitCapacity);
@@ -327,23 +389,27 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithFixedReservations) {
   // Check values before reserved entries are inserted.
   for (size_t i = 0; i < k16BitCapacity; i++) {
     if ((i % 2) == 0) {
-      // Check reserved values are the hole.
-      Handle<Object> empty = builder.At(i);
-      CHECK(empty->SameValue(isolate()->heap()->the_hole_value()));
+      // Check reserved values are null.
+      MaybeHandle<Object> empty = builder.At(i, isolate());
+      CHECK(empty.is_null());
     } else {
-      CHECK_EQ(Handle<Smi>::cast(builder.At(i))->value(), static_cast<int>(i));
+      CHECK_EQ(Handle<Smi>::cast(builder.At(i, isolate()).ToHandleChecked())
+                   ->value(),
+               static_cast<int>(i));
     }
   }
 
   // Insert reserved entries.
   for (size_t i = 0; i < k16BitCapacity; i += 2) {
-    builder.InsertAllocatedEntry(
-        i, handle(Smi::FromInt(static_cast<int>(i)), isolate()));
+    builder.SetDeferredAt(i,
+                          handle(Smi::FromInt(static_cast<int>(i)), isolate()));
   }
 
   // Check values after reserved entries are inserted.
   for (size_t i = 0; i < k16BitCapacity; i++) {
-    CHECK_EQ(Handle<Smi>::cast(builder.At(i))->value(), static_cast<int>(i));
+    CHECK_EQ(
+        Handle<Smi>::cast(builder.At(i, isolate()).ToHandleChecked())->value(),
+        static_cast<int>(i));
   }
 }
 

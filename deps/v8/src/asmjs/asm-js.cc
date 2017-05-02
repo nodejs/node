@@ -9,11 +9,13 @@
 #include "src/asmjs/asm-typer.h"
 #include "src/asmjs/asm-wasm-builder.h"
 #include "src/assert-scope.h"
+#include "src/base/platform/elapsed-timer.h"
 #include "src/compilation-info.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/handles.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
 
@@ -186,11 +188,14 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
 
   base::ElapsedTimer compile_timer;
   compile_timer.Start();
-  MaybeHandle<JSObject> compiled = wasm::CreateModuleObjectFromBytes(
-      info->isolate(), module->begin(), module->end(), &thrower,
-      internal::wasm::kAsmJsOrigin, info->script(), asm_offsets_vec);
+  MaybeHandle<JSObject> compiled = SyncCompileTranslatedAsmJs(
+      info->isolate(), &thrower,
+      wasm::ModuleWireBytes(module->begin(), module->end()), info->script(),
+      asm_offsets_vec);
   DCHECK(!compiled.is_null());
   double compile_time = compile_timer.Elapsed().InMillisecondsF();
+  DCHECK_GE(module->end(), module->begin());
+  uintptr_t wasm_size = module->end() - module->begin();
 
   wasm::AsmTyper::StdlibSet uses = builder.typer()->StdlibUses();
   Handle<FixedArray> uses_array =
@@ -216,10 +221,10 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   if (FLAG_predictable) {
     length = base::OS::SNPrintF(text, arraysize(text), "success");
   } else {
-    length =
-        base::OS::SNPrintF(text, arraysize(text),
-                           "success, asm->wasm: %0.3f ms, compile: %0.3f ms",
-                           asm_wasm_time, compile_time);
+    length = base::OS::SNPrintF(
+        text, arraysize(text),
+        "success, asm->wasm: %0.3f ms, compile: %0.3f ms, %" PRIuPTR " bytes",
+        asm_wasm_time, compile_time, wasm_size);
   }
   DCHECK_NE(-1, length);
   USE(length);
@@ -271,22 +276,18 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
                           foreign, NONE);
   }
 
-  i::MaybeHandle<i::JSObject> maybe_module_object =
-      i::wasm::WasmModule::Instantiate(isolate, &thrower, module, ffi_object,
-                                       memory);
+  i::MaybeHandle<i::Object> maybe_module_object =
+      i::wasm::SyncInstantiate(isolate, &thrower, module, ffi_object, memory);
   if (maybe_module_object.is_null()) {
     return MaybeHandle<Object>();
   }
+  i::Handle<i::Object> module_object = maybe_module_object.ToHandleChecked();
 
   i::Handle<i::Name> init_name(isolate->factory()->InternalizeUtf8String(
       wasm::AsmWasmBuilder::foreign_init_name));
+  i::Handle<i::Object> init =
+      i::Object::GetProperty(module_object, init_name).ToHandleChecked();
 
-  i::Handle<i::Object> module_object = maybe_module_object.ToHandleChecked();
-  i::MaybeHandle<i::Object> maybe_init =
-      i::Object::GetProperty(module_object, init_name);
-  DCHECK(!maybe_init.is_null());
-
-  i::Handle<i::Object> init = maybe_init.ToHandleChecked();
   i::Handle<i::Object> undefined(isolate->heap()->undefined_value(), isolate);
   i::Handle<i::Object>* foreign_args_array =
       new i::Handle<i::Object>[foreign_globals->length()];
@@ -345,7 +346,9 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
     MessageHandler::ReportMessage(isolate, &location, message);
   }
 
-  return module_object;
+  Handle<String> exports_name =
+      isolate->factory()->InternalizeUtf8String("exports");
+  return i::Object::GetProperty(module_object, exports_name);
 }
 
 }  // namespace internal

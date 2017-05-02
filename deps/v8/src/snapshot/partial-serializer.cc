@@ -93,10 +93,6 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   // Clear literal boilerplates.
   if (obj->IsJSFunction()) {
     JSFunction* function = JSFunction::cast(obj);
-    LiteralsArray* literals = function->literals();
-    for (int i = 0; i < literals->literals_count(); i++) {
-      literals->set_literal_undefined(i);
-    }
     function->ClearTypeFeedbackInfo();
   }
 

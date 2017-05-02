@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BUILTINS_BUILTINS_PROMISE_H_
+#define V8_BUILTINS_BUILTINS_PROMISE_H_
+
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
 
@@ -31,6 +34,18 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
     kCapabilitySlot = Context::MIN_CONTEXT_SLOTS,
 
     kCapabilitiesContextLength,
+  };
+
+  // This is used by the PromiseThenFinally and PromiseCatchFinally
+  // builtins to store the onFinally in the onFinallySlot.
+  //
+  // This is also used by the PromiseValueThunkFinally to store the
+  // value in the onFinallySlot and PromiseThrowerFinally to store the
+  // reason in the onFinallySlot.
+  enum PromiseFinallyContextSlot {
+    kOnFinallySlot = Context::MIN_CONTEXT_SLOTS,
+
+    kOnFinallyContextLength,
   };
 
   explicit PromiseBuiltinsAssembler(CodeAssemblerState* state)
@@ -78,6 +93,7 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                            Node* default_constructor);
 
   void PromiseSetHasHandler(Node* promise);
+  void PromiseSetHandledHint(Node* promise);
 
   void AppendPromiseCallback(int offset, compiler::Node* promise,
                              compiler::Node* value);
@@ -111,6 +127,15 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                              bool debug_event);
   void InternalPromiseReject(Node* context, Node* promise, Node* value,
                              Node* debug_event);
+  std::pair<Node*, Node*> CreatePromiseFinallyFunctions(Node* on_finally,
+                                                        Node* native_context);
+  Node* CreatePromiseFinallyContext(Node* on_finally, Node* native_context);
+
+  Node* CreateValueThunkFunction(Node* value, Node* native_context);
+  Node* CreateValueThunkFunctionContext(Node* value, Node* native_context);
+
+  Node* CreateThrowerFunctionContext(Node* reason, Node* native_context);
+  Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
  private:
   Node* AllocateJSPromise(Node* context);
@@ -118,3 +143,5 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_BUILTINS_BUILTINS_PROMISE_H_

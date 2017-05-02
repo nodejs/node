@@ -133,28 +133,23 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
          Smi::cast(species_cell->value())->value() == kProtectorValid;
 }
 
-bool Isolate::IsHasInstanceLookupChainIntact() {
-  PropertyCell* has_instance_cell = heap()->has_instance_protector();
-  return has_instance_cell->value() == Smi::FromInt(kProtectorValid);
-}
-
 bool Isolate::IsStringLengthOverflowIntact() {
-  PropertyCell* has_instance_cell = heap()->string_length_protector();
-  return has_instance_cell->value() == Smi::FromInt(kProtectorValid);
+  PropertyCell* string_length_cell = heap()->string_length_protector();
+  return string_length_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsFastArrayIterationIntact() {
-  Cell* fast_iteration = heap()->fast_array_iteration_protector();
-  return fast_iteration->value() == Smi::FromInt(kProtectorValid);
+  Cell* fast_iteration_cell = heap()->fast_array_iteration_protector();
+  return fast_iteration_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsArrayBufferNeuteringIntact() {
-  PropertyCell* fast_iteration = heap()->array_buffer_neutering_protector();
-  return fast_iteration->value() == Smi::FromInt(kProtectorValid);
+  PropertyCell* buffer_neutering = heap()->array_buffer_neutering_protector();
+  return buffer_neutering->value() == Smi::FromInt(kProtectorValid);
 }
 
 bool Isolate::IsArrayIteratorLookupChainIntact() {
-  Cell* array_iterator_cell = heap()->array_iterator_protector();
+  PropertyCell* array_iterator_cell = heap()->array_iterator_protector();
   return array_iterator_cell->value() == Smi::FromInt(kProtectorValid);
 }
 

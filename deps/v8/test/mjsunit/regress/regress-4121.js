@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --no-always-opt
 
 function literals_sharing_test(warmup, optimize) {
   function closure() {
@@ -39,10 +39,4 @@ function test() {
   literals_sharing_test(warmup, true);
 }
 
-
-function stress_opt_test() {}
-stress_opt_test();
-if (%GetOptimizationStatus(stress_opt_test) == 2) {
-  // This test is not suitable for --always-opt mode.
-  test();
-}
+test();

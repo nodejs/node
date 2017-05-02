@@ -13,50 +13,26 @@ namespace v8 {
 namespace internal {
 
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(obj)));
-  if (marking_deque()->Push(obj)) {
-    MemoryChunk::IncrementLiveBytes(obj, obj->Size());
-  } else {
-    MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
-    Marking::BlackToGrey(mark_bit);
+  DCHECK(ObjectMarking::IsBlack(obj));
+  if (!marking_deque()->Push(obj)) {
+    ObjectMarking::BlackToGrey(obj);
   }
 }
 
 
 void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
-  DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(obj)));
+  DCHECK(ObjectMarking::IsBlack(obj));
   if (!marking_deque()->Unshift(obj)) {
-    MemoryChunk::IncrementLiveBytes(obj, -obj->Size());
-    MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
-    Marking::BlackToGrey(mark_bit);
+    ObjectMarking::BlackToGrey(obj);
   }
 }
 
-
-void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
-  DCHECK(ObjectMarking::MarkBitFrom(obj) == mark_bit);
-  if (Marking::IsWhite(mark_bit)) {
-    Marking::WhiteToBlack(mark_bit);
-    DCHECK(obj->GetIsolate()->heap()->Contains(obj));
+void MarkCompactCollector::MarkObject(HeapObject* obj) {
+  if (ObjectMarking::IsWhite(obj)) {
+    ObjectMarking::WhiteToBlack(obj);
     PushBlack(obj);
   }
 }
-
-
-void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
-  DCHECK(Marking::IsWhite(mark_bit));
-  DCHECK(ObjectMarking::MarkBitFrom(obj) == mark_bit);
-  Marking::WhiteToBlack(mark_bit);
-  MemoryChunk::IncrementLiveBytes(obj, obj->Size());
-}
-
-
-bool MarkCompactCollector::IsMarked(Object* obj) {
-  DCHECK(obj->IsHeapObject());
-  HeapObject* heap_object = HeapObject::cast(obj);
-  return Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(heap_object));
-}
-
 
 void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
                                       Object* target) {
@@ -64,7 +40,7 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
   if (target_page->IsEvacuationCandidate() &&
       !ShouldSkipEvacuationSlotRecording(object)) {
-    DCHECK(Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(object)));
+    DCHECK(ObjectMarking::IsBlackOrGrey(object));
     RememberedSet<OLD_TO_OLD>::Insert(source_page,
                                       reinterpret_cast<Address>(slot));
   }

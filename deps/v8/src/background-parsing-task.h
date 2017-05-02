@@ -38,7 +38,6 @@ struct StreamedSource {
   // between parsing and compilation. These need to be initialized before the
   // compilation starts.
   UnicodeCache unicode_cache;
-  std::unique_ptr<Zone> zone;
   std::unique_ptr<ParseInfo> info;
   std::unique_ptr<Parser> parser;
 

@@ -104,6 +104,15 @@ FieldAccess AccessBuilder::ForJSObjectOffset(
 }
 
 // static
+FieldAccess AccessBuilder::ForJSCollectionTable() {
+  FieldAccess access = {kTaggedBase,           JSCollection::kTableOffset,
+                        MaybeHandle<Name>(),   MaybeHandle<Map>(),
+                        Type::OtherInternal(), MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSFunctionPrototypeOrInitialMap() {
   FieldAccess access = {
       kTaggedBase,         JSFunction::kPrototypeOrInitialMapOffset,
@@ -134,8 +143,8 @@ FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSFunctionLiterals() {
-  FieldAccess access = {kTaggedBase,         JSFunction::kLiteralsOffset,
+FieldAccess AccessBuilder::ForJSFunctionFeedbackVector() {
+  FieldAccess access = {kTaggedBase,         JSFunction::kFeedbackVectorOffset,
                         Handle<Name>(),      MaybeHandle<Map>(),
                         Type::Internal(),    MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
@@ -483,9 +492,9 @@ FieldAccess AccessBuilder::ForModuleRegularImports() {
 
 // static
 FieldAccess AccessBuilder::ForNameHashField() {
-  FieldAccess access = {kTaggedBase,      Name::kHashFieldOffset,
-                        Handle<Name>(),   MaybeHandle<Map>(),
-                        Type::Internal(), MachineType::Uint32(),
+  FieldAccess access = {kTaggedBase,        Name::kHashFieldOffset,
+                        Handle<Name>(),     MaybeHandle<Map>(),
+                        Type::Unsigned32(), MachineType::Uint32(),
                         kNoWriteBarrier};
   return access;
 }
@@ -514,6 +523,15 @@ FieldAccess AccessBuilder::ForConsStringFirst() {
 // static
 FieldAccess AccessBuilder::ForConsStringSecond() {
   FieldAccess access = {kTaggedBase,         ConsString::kSecondOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::String(),      MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForThinStringActual() {
+  FieldAccess access = {kTaggedBase,         ThinString::kActualOffset,
                         Handle<Name>(),      MaybeHandle<Map>(),
                         Type::String(),      MachineType::TaggedPointer(),
                         kPointerWriteBarrier};

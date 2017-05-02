@@ -4,6 +4,7 @@
 
 #include "src/heap/objects-visiting.h"
 
+#include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting-inl.h"
 
@@ -41,6 +42,9 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
       case kExternalStringTag:
         return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
                                    instance_size, has_unboxed_fields);
+
+      case kThinStringTag:
+        return kVisitThinString;
     }
     UNREACHABLE();
   }
@@ -105,6 +109,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
     case JS_ARGUMENTS_TYPE:
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
@@ -177,7 +182,6 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
-    case SIMD128_VALUE_TYPE:
       return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
                                  instance_size, has_unboxed_fields);
 

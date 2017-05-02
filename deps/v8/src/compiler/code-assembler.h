@@ -216,6 +216,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* SmiConstant(Smi* value);
   Node* SmiConstant(int value);
   Node* HeapConstant(Handle<HeapObject> object);
+  Node* CStringConstant(const char* str);
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
   Node* Float64Constant(double value);
@@ -227,16 +228,20 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool ToIntPtrConstant(Node* node, intptr_t& out_value);
 
   Node* Parameter(int value);
+  Node* GetJSContextParameter();
   void Return(Node* value);
+  void Return(Node* value1, Node* value2);
+  void Return(Node* value1, Node* value2, Node* value3);
   void PopAndReturn(Node* pop, Node* value);
 
   void DebugBreak();
+  void Unreachable();
   void Comment(const char* format, ...);
 
   void Bind(Label* label);
   void Goto(Label* label);
   void GotoIf(Node* condition, Label* true_label);
-  void GotoUnless(Node* condition, Label* false_label);
+  void GotoIfNot(Node* condition, Label* false_label);
   void Branch(Node* condition, Label* true_label, Label* false_label);
 
   void Switch(Node* index, Label* default_label, const int32_t* case_values,
@@ -364,6 +369,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                     args...);
   }
 
+  Node* CallCFunctionN(Signature<MachineType>* signature, int input_count,
+                       Node* const* inputs);
+
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, Node* function, Node* arg0,
@@ -409,6 +417,8 @@ class CodeAssemblerVariable {
  public:
   explicit CodeAssemblerVariable(CodeAssembler* assembler,
                                  MachineRepresentation rep);
+  CodeAssemblerVariable(CodeAssembler* assembler, MachineRepresentation rep,
+                        Node* initial_value);
   ~CodeAssemblerVariable();
   void Bind(Node* value);
   Node* value() const;
@@ -444,7 +454,7 @@ class CodeAssemblerLabel {
       CodeAssembler* assembler, CodeAssemblerVariable* merged_variable,
       CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
       : CodeAssemblerLabel(assembler, 1, &merged_variable, type) {}
-  ~CodeAssemblerLabel() {}
+  ~CodeAssemblerLabel();
 
  private:
   friend class CodeAssembler;

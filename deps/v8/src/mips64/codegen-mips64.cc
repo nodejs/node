@@ -612,6 +612,9 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                        Register index,
                                        Register result,
                                        Label* call_runtime) {
+  Label indirect_string_loaded;
+  __ bind(&indirect_string_loaded);
+
   // Fetch the instance type of the receiver into result register.
   __ ld(result, FieldMemOperand(string, HeapObject::kMapOffset));
   __ lbu(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
@@ -622,16 +625,21 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ Branch(&check_sequential, eq, at, Operand(zero_reg));
 
   // Dispatch on the indirect string shape: slice or cons.
-  Label cons_string;
-  __ And(at, result, Operand(kSlicedNotConsMask));
-  __ Branch(&cons_string, eq, at, Operand(zero_reg));
+  Label cons_string, thin_string;
+  __ And(at, result, Operand(kStringRepresentationMask));
+  __ Branch(&cons_string, eq, at, Operand(kConsStringTag));
+  __ Branch(&thin_string, eq, at, Operand(kThinStringTag));
 
   // Handle slices.
-  Label indirect_string_loaded;
   __ ld(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
   __ ld(string, FieldMemOperand(string, SlicedString::kParentOffset));
   __ dsra32(at, result, 0);
   __ Daddu(index, index, at);
+  __ jmp(&indirect_string_loaded);
+
+  // Handle thin strings.
+  __ bind(&thin_string);
+  __ ld(string, FieldMemOperand(string, ThinString::kActualOffset));
   __ jmp(&indirect_string_loaded);
 
   // Handle cons strings.
@@ -645,10 +653,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ Branch(call_runtime, ne, result, Operand(at));
   // Get the first of the two strings and load its instance type.
   __ ld(string, FieldMemOperand(string, ConsString::kFirstOffset));
-
-  __ bind(&indirect_string_loaded);
-  __ ld(result, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ lbu(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
+  __ jmp(&indirect_string_loaded);
 
   // Distinguish sequential and external strings. Only these two string
   // representations can reach here (slices and flat cons strings have been

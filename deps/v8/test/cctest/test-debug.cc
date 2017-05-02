@@ -35,6 +35,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frames.h"
+#include "src/objects-inl.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 
@@ -3756,43 +3757,6 @@ TEST(TryFinallyOriginalMessage) {
 }
 
 
-TEST(EvalJSInDebugEventListenerOnNativeReThrownException) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  env.ExposeDebug();
-
-  // Create functions for testing break on exception.
-  v8::Local<v8::Function> noThrowJS = CompileFunction(
-      &env, "function noThrowJS(){var a=[1]; a.push(2); return a.length;}",
-      "noThrowJS");
-
-  debug_event_listener_callback = noThrowJS;
-  debug_event_listener_callback_result = 2;
-
-  env->GetIsolate()->AddMessageListener(MessageCallbackCount);
-  v8::Debug::SetDebugEventListener(env->GetIsolate(), DebugEventCounter);
-  // Break on uncaught exception
-  ChangeBreakOnException(false, true);
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-
-  // ReThrow native error
-  {
-    v8::TryCatch tryCatch(env->GetIsolate());
-    env->GetIsolate()->ThrowException(
-        v8::Exception::TypeError(v8_str(env->GetIsolate(), "Type error")));
-    CHECK(tryCatch.HasCaught());
-    tryCatch.ReThrow();
-  }
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);  // FIXME: Should it be 1 ?
-  CHECK(!debug_event_listener_callback.IsEmpty());
-
-  debug_event_listener_callback.Clear();
-}
-
-
 // Test break on exception from compiler errors. When compiling using
 // v8::Script::Compile there is no JavaScript stack whereas when compiling using
 // eval there are JavaScript frames.
@@ -3822,16 +3786,18 @@ TEST(BreakOnCompileException) {
   // Throws SyntaxError: Unexpected end of input
   CHECK(
       v8::Script::Compile(context, v8_str(env->GetIsolate(), "+++")).IsEmpty());
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
+  // Exceptions with no stack are skipped.
+  CHECK_EQ(0, exception_hit_count);
+  CHECK_EQ(0, uncaught_exception_hit_count);
   CHECK_EQ(1, message_callback_count);
   CHECK_EQ(0, last_js_stack_height);  // No JavaScript stack.
 
   // Throws SyntaxError: Unexpected identifier
   CHECK(
       v8::Script::Compile(context, v8_str(env->GetIsolate(), "x x")).IsEmpty());
-  CHECK_EQ(2, exception_hit_count);
-  CHECK_EQ(2, uncaught_exception_hit_count);
+  // Exceptions with no stack are skipped.
+  CHECK_EQ(0, exception_hit_count);
+  CHECK_EQ(0, uncaught_exception_hit_count);
   CHECK_EQ(2, message_callback_count);
   CHECK_EQ(0, last_js_stack_height);  // No JavaScript stack.
 
@@ -3840,8 +3806,8 @@ TEST(BreakOnCompileException) {
             .ToLocalChecked()
             ->Run(context)
             .IsEmpty());
-  CHECK_EQ(3, exception_hit_count);
-  CHECK_EQ(3, uncaught_exception_hit_count);
+  CHECK_EQ(1, exception_hit_count);
+  CHECK_EQ(1, uncaught_exception_hit_count);
   CHECK_EQ(3, message_callback_count);
   CHECK_EQ(1, last_js_stack_height);
 
@@ -3850,8 +3816,8 @@ TEST(BreakOnCompileException) {
             .ToLocalChecked()
             ->Run(context)
             .IsEmpty());
-  CHECK_EQ(4, exception_hit_count);
-  CHECK_EQ(4, uncaught_exception_hit_count);
+  CHECK_EQ(2, exception_hit_count);
+  CHECK_EQ(2, uncaught_exception_hit_count);
   CHECK_EQ(4, message_callback_count);
   CHECK_EQ(1, last_js_stack_height);
 }
@@ -4422,7 +4388,7 @@ TEST(HiddenPrototypePropertyMirror) {
             .FromJust());
 
   // The prototype (__proto__) for o0 should be o3 as o1 and o2 are hidden.
-  CHECK(CompileRun("o0_mirror.protoObject() == o3_mirror")
+  CHECK(CompileRun("o0_mirror.protoObject().value() == o3_mirror.value()")
             ->BooleanValue(context)
             .FromJust());
 }
@@ -6456,14 +6422,13 @@ TEST(BreakLocationIterator) {
   Handle<i::SharedFunctionInfo> shared(function->shared());
 
   EnableDebugger(isolate);
-  CHECK(i_isolate->debug()->EnsureDebugInfo(shared, function));
+  CHECK(i_isolate->debug()->EnsureDebugInfo(shared));
 
   Handle<i::DebugInfo> debug_info(shared->GetDebugInfo());
   Handle<i::AbstractCode> abstract_code(shared->abstract_code());
 
   {
-    auto iterator = i::BreakIterator::GetIterator(debug_info, abstract_code,
-                                                  i::ALL_BREAK_LOCATIONS);
+    auto iterator = i::BreakIterator::GetIterator(debug_info, abstract_code);
     CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
     CHECK_EQ(17, iterator->GetBreakLocation().position());
     iterator->Next();
@@ -6475,18 +6440,6 @@ TEST(BreakLocationIterator) {
     iterator->Next();
     CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
     CHECK_EQ(47, iterator->GetBreakLocation().position());
-    iterator->Next();
-    CHECK(iterator->GetBreakLocation().IsReturn());
-    CHECK_EQ(60, iterator->GetBreakLocation().position());
-    iterator->Next();
-    CHECK(iterator->Done());
-  }
-
-  {
-    auto iterator = i::BreakIterator::GetIterator(debug_info, abstract_code,
-                                                  i::CALLS_AND_RETURNS);
-    CHECK(iterator->GetBreakLocation().IsCall());
-    CHECK_EQ(32, iterator->GetBreakLocation().position());
     iterator->Next();
     CHECK(iterator->GetBreakLocation().IsReturn());
     CHECK_EQ(60, iterator->GetBreakLocation().position());
@@ -6642,7 +6595,7 @@ TEST(DebugStepOverFunctionWithCaughtException) {
       "foo();\n");
 
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
-  CHECK_EQ(break_point_hit_count, 4);
+  CHECK_EQ(4, break_point_hit_count);
 }
 
 bool out_of_memory_callback_called = false;
@@ -6671,4 +6624,42 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
     CHECK(out_of_memory_callback_called);
   }
   isolate->Dispose();
+}
+
+TEST(DebugCoverage) {
+  i::FLAG_always_opt = false;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::debug::Coverage::TogglePrecise(isolate, true);
+  v8::Local<v8::String> source = v8_str(
+      "function f() {\n"
+      "}\n"
+      "f();\n"
+      "f();");
+  CompileRun(source);
+  v8::debug::Coverage coverage = v8::debug::Coverage::Collect(isolate, false);
+  CHECK_EQ(1u, coverage.ScriptCount());
+  v8::debug::Coverage::ScriptData script_data = coverage.GetScriptData(0);
+  v8::Local<v8::debug::Script> script = script_data.GetScript();
+  CHECK(script->Source()
+            .ToLocalChecked()
+            ->Equals(env.local(), source)
+            .FromMaybe(false));
+
+  CHECK_EQ(2u, script_data.FunctionCount());
+  v8::debug::Coverage::FunctionData function_data =
+      script_data.GetFunctionData(0);
+  CHECK_EQ(0, function_data.Start().GetLineNumber());
+  CHECK_EQ(0, function_data.Start().GetColumnNumber());
+  CHECK_EQ(3, function_data.End().GetLineNumber());
+  CHECK_EQ(4, function_data.End().GetColumnNumber());
+  CHECK_EQ(1, function_data.Count());
+
+  function_data = script_data.GetFunctionData(1);
+  CHECK_EQ(0, function_data.Start().GetLineNumber());
+  CHECK_EQ(0, function_data.Start().GetColumnNumber());
+  CHECK_EQ(1, function_data.End().GetLineNumber());
+  CHECK_EQ(1, function_data.End().GetColumnNumber());
+  CHECK_EQ(2, function_data.Count());
 }

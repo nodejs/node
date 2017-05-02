@@ -440,9 +440,9 @@ void CallPrinter::PrintLiteral(const AstRawString* value, bool quote) {
 
 #ifdef DEBUG
 
-// A helper for ast nodes that use FeedbackVectorSlots.
+// A helper for ast nodes that use FeedbackSlots.
 static int FormatSlotNode(Vector<char>* buf, Expression* node,
-                          const char* node_name, FeedbackVectorSlot slot) {
+                          const char* node_name, FeedbackSlot slot) {
   int pos = SNPrintF(*buf, "%s", node_name);
   if (!slot.IsInvalid()) {
     pos += SNPrintF(*buf + pos, " Slot(%d)", slot.ToInt());
@@ -978,7 +978,7 @@ void AstPrinter::VisitLiteral(Literal* node) {
 void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   IndentedScope indent(this, "REGEXP LITERAL", node->position());
   EmbeddedVector<char, 128> buf;
-  SNPrintF(buf, "literal_index = %d\n", node->literal_index());
+  SNPrintF(buf, "literal_slot = %d\n", node->literal_slot().ToInt());
   PrintIndented(buf.start());
   PrintLiteralIndented("PATTERN", node->pattern(), false);
   int i = 0;
@@ -997,7 +997,7 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
 void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
   IndentedScope indent(this, "OBJ LITERAL", node->position());
   EmbeddedVector<char, 128> buf;
-  SNPrintF(buf, "literal_index = %d\n", node->literal_index());
+  SNPrintF(buf, "literal_slot = %d\n", node->literal_slot().ToInt());
   PrintIndented(buf.start());
   PrintObjectProperties(node->properties());
 }
@@ -1043,7 +1043,7 @@ void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
   IndentedScope indent(this, "ARRAY LITERAL", node->position());
 
   EmbeddedVector<char, 128> buf;
-  SNPrintF(buf, "literal_index = %d\n", node->literal_index());
+  SNPrintF(buf, "literal_slot = %d\n", node->literal_slot().ToInt());
   PrintIndented(buf.start());
   if (node->values()->length() > 0) {
     IndentedScope indent(this, "VALUES", node->position());

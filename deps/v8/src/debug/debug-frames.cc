@@ -15,7 +15,6 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
                                Isolate* isolate)
     : frame_(frame),
       frame_summary_(FrameSummary::Get(frame, inlined_frame_index)),
-      deoptimized_frame_(nullptr),
       isolate_(isolate) {
   JavaScriptFrame* js_frame =
       frame->is_java_script() ? javascript_frame() : nullptr;
@@ -35,21 +34,28 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
       return;
     }
 
-    deoptimized_frame_ = Deoptimizer::DebuggerInspectableFrame(
-        js_frame, inlined_frame_index, isolate);
+    deoptimized_frame_.reset(Deoptimizer::DebuggerInspectableFrame(
+        js_frame, inlined_frame_index, isolate));
+  } else if (frame_->is_wasm_interpreter_entry()) {
+    wasm_interpreted_frame_ =
+        frame_summary_.AsWasm()
+            .wasm_instance()
+            ->debug_info()
+            ->GetInterpretedFrame(frame_->fp(), inlined_frame_index);
+    DCHECK(wasm_interpreted_frame_);
   }
 }
 
 FrameInspector::~FrameInspector() {
-  // Get rid of the calculated deoptimized frame if any.
-  if (deoptimized_frame_ != nullptr) {
-    delete deoptimized_frame_;
-  }
+  // Destructor needs to be defined in the .cc file, because it instantiates
+  // std::unique_ptr destructors but the types are not known in the header.
 }
 
 int FrameInspector::GetParametersCount() {
-  return is_optimized_ ? deoptimized_frame_->parameters_count()
-                       : frame_->ComputeParametersCount();
+  if (is_optimized_) return deoptimized_frame_->parameters_count();
+  if (wasm_interpreted_frame_)
+    return wasm_interpreted_frame_->GetParameterCount();
+  return frame_->ComputeParametersCount();
 }
 
 Handle<Script> FrameInspector::GetScript() {
@@ -61,8 +67,9 @@ Handle<JSFunction> FrameInspector::GetFunction() {
 }
 
 Handle<Object> FrameInspector::GetParameter(int index) {
-  return is_optimized_ ? deoptimized_frame_->GetParameter(index)
-                       : handle(frame_->GetParameter(index), isolate_);
+  if (is_optimized_) return deoptimized_frame_->GetParameter(index);
+  // TODO(clemensh): Handle wasm_interpreted_frame_.
+  return handle(frame_->GetParameter(index), isolate_);
 }
 
 Handle<Object> FrameInspector::GetExpression(int index) {

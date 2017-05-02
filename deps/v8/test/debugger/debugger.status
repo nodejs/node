@@ -11,10 +11,6 @@
   # not work, but we expect it to not crash.
   'debug/debug-step-turbofan': [PASS, FAIL],
 
-  # Issue 5587: The eval'ed code is piped through Ignition and fails when being
-  # live edited. This needs investigation.
-  'debug/debug-liveedit-double-call': [SKIP],
-
   # Issue 3641: The new 'then' semantics suppress some exceptions.
   # These tests may be changed or removed when 'chain' is deprecated.
   'debug/es6/debug-promises/reject-with-throw-in-reject': [FAIL],
@@ -37,6 +33,9 @@
   # TODO(jarin/mstarzinger): Functions with eval or debugger now get optimized
   # with Turbofan, which has issues with the debugger issues.
   'debug/debug-evaluate-locals': [FAIL],
+
+  # Very slow in stress mode.
+  'regress/regress-2318': [SKIP],
 }],  # 'stress == True'
 
 ##############################################################################
@@ -66,28 +65,9 @@
 
 ##############################################################################
 ['variant == turbofan_opt', {
-  # TODO(mstarzinger): Debugger cannot materialize de-materialized functions.
-  'debug/regress/regress-crbug-323936': [FAIL],
-
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
-  'debug/debug-evaluate-closure': [FAIL],
   'debug/debug-evaluate-locals': [FAIL],
-  'debug/debug-liveedit-double-call': [FAIL],
-  'debug/debug-set-variable-value': [FAIL],
-  'debug/es6/debug-evaluate-blockscopes': [FAIL],
 }],  # variant == turbofan_opt
-
-##############################################################################
-['variant == ignition or variant == ignition_staging', {
-  # TODO(5587): fails to liveedit evaled code.
-  'debug/debug-liveedit-double-call': [FAIL],
-}],  # variant == ignition
-
-##############################################################################
-['variant == ignition_turbofan', {
-  # TODO(5587): fails to liveedit evaled code.
-  'debug/debug-liveedit-double-call': [FAIL],
-}],  # variant == ignition_turbofan
 
 ##############################################################################
 ['variant == asm_wasm', {

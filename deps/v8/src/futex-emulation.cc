@@ -188,10 +188,9 @@ Object* FutexEmulation::Wait(Isolate* isolate,
   return result;
 }
 
-
 Object* FutexEmulation::Wake(Isolate* isolate,
                              Handle<JSArrayBuffer> array_buffer, size_t addr,
-                             int num_waiters_to_wake) {
+                             uint32_t num_waiters_to_wake) {
   DCHECK(addr < NumberToSize(array_buffer->byte_length()));
 
   int waiters_woken = 0;
@@ -203,7 +202,9 @@ Object* FutexEmulation::Wake(Isolate* isolate,
     if (backing_store == node->backing_store_ && addr == node->wait_addr_) {
       node->waiting_ = false;
       node->cond_.NotifyOne();
-      --num_waiters_to_wake;
+      if (num_waiters_to_wake != kWakeAll) {
+        --num_waiters_to_wake;
+      }
       waiters_woken++;
     }
 

@@ -220,12 +220,14 @@ class CpuProfiler : public CodeEventObserver {
   void StopProcessor();
   void ResetProfiles();
   void LogBuiltins();
+  void CreateEntriesForRuntimeCallStats();
 
   Isolate* const isolate_;
   base::TimeDelta sampling_interval_;
   std::unique_ptr<CpuProfilesCollection> profiles_;
   std::unique_ptr<ProfileGenerator> generator_;
   std::unique_ptr<ProfilerEventsProcessor> processor_;
+  std::vector<std::unique_ptr<CodeEntry>> static_entries_;
   bool saved_is_logging_;
   bool is_profiling_;
 

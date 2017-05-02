@@ -1623,7 +1623,8 @@ void Simulator::ExecuteBranchConditional(Instruction* instr, BCType type) {
 
 // Handle execution based on instruction types.
 void Simulator::ExecuteExt1(Instruction* instr) {
-  switch (instr->Bits(10, 1) << 1) {
+  uint32_t opcode = EXT1 | instr->BitField(10, 1);
+  switch (opcode) {
     case MCRF:
       UNIMPLEMENTED();  // Not used by V8.
     case BCLRX:
@@ -1678,7 +1679,7 @@ void Simulator::ExecuteExt1(Instruction* instr) {
 bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
   bool found = true;
 
-  int opcode = instr->Bits(10, 1) << 1;
+  uint32_t opcode = EXT2 | instr->BitField(10, 1);
   switch (opcode) {
     case SRWX: {
       int rs = instr->RSValue();
@@ -1949,7 +1950,7 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
   if (found) return found;
 
   found = true;
-  opcode = instr->Bits(10, 2) << 2;
+  opcode = EXT2 | instr->BitField(10, 2);
   switch (opcode) {
     case SRADIX: {
       int ra = instr->RAValue();
@@ -1976,7 +1977,7 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
 bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
   bool found = true;
 
-  int opcode = instr->Bits(9, 1) << 1;
+  uint32_t opcode = EXT2 | instr->BitField(9, 1);
   switch (opcode) {
     case TW: {
       // used for call redirection in simulation mode
@@ -2234,7 +2235,7 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
 
 bool Simulator::ExecuteExt2_9bit_part2(Instruction* instr) {
   bool found = true;
-  int opcode = instr->Bits(9, 1) << 1;
+  uint32_t opcode = EXT2 | instr->BitField(9, 1);
   switch (opcode) {
     case CNTLZWX: {
       int rs = instr->RSValue();
@@ -2752,7 +2753,7 @@ bool Simulator::ExecuteExt2_9bit_part2(Instruction* instr) {
 
 
 void Simulator::ExecuteExt2_5bit(Instruction* instr) {
-  int opcode = instr->Bits(5, 1) << 1;
+  uint32_t opcode = EXT2 | instr->BitField(5, 1);
   switch (opcode) {
     case ISEL: {
       int rt = instr->RTValue();
@@ -2785,9 +2786,9 @@ void Simulator::ExecuteExt2(Instruction* instr) {
 
 
 void Simulator::ExecuteExt3(Instruction* instr) {
-  int opcode = instr->Bits(10, 1) << 1;
+  uint32_t opcode = EXT3 | instr->BitField(10, 1);
   switch (opcode) {
-    case FCFID: {
+    case FCFIDS: {
       // fcfids
       int frt = instr->RTValue();
       int frb = instr->RBValue();
@@ -2796,7 +2797,7 @@ void Simulator::ExecuteExt3(Instruction* instr) {
       set_d_register_from_double(frt, frt_val);
       return;
     }
-    case FCFIDU: {
+    case FCFIDUS: {
       // fcfidus
       int frt = instr->RTValue();
       int frb = instr->RBValue();
@@ -2811,7 +2812,8 @@ void Simulator::ExecuteExt3(Instruction* instr) {
 
 
 void Simulator::ExecuteExt4(Instruction* instr) {
-  switch (instr->Bits(5, 1) << 1) {
+  uint32_t opcode = EXT4 | instr->BitField(5, 1);
+  switch (opcode) {
     case FDIV: {
       int frt = instr->RTValue();
       int fra = instr->RAValue();
@@ -2898,7 +2900,7 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       return;
     }
   }
-  int opcode = instr->Bits(10, 1) << 1;
+  opcode = EXT4 | instr->BitField(10, 1);
   switch (opcode) {
     case FCMPU: {
       int fra = instr->RAValue();
@@ -3236,7 +3238,8 @@ void Simulator::ExecuteExt4(Instruction* instr) {
 
 #if V8_TARGET_ARCH_PPC64
 void Simulator::ExecuteExt5(Instruction* instr) {
-  switch (instr->Bits(4, 2) << 2) {
+  uint32_t opcode = EXT5 | instr->BitField(4, 2);
+  switch (opcode) {
     case RLDICL: {
       int ra = instr->RAValue();
       int rs = instr->RSValue();
@@ -3324,7 +3327,8 @@ void Simulator::ExecuteExt5(Instruction* instr) {
       return;
     }
   }
-  switch (instr->Bits(4, 1) << 1) {
+  opcode = EXT5 | instr->BitField(4, 1);
+  switch (opcode) {
     case RLDCL: {
       int ra = instr->RAValue();
       int rs = instr->RSValue();
@@ -3350,7 +3354,8 @@ void Simulator::ExecuteExt5(Instruction* instr) {
 #endif
 
 void Simulator::ExecuteExt6(Instruction* instr) {
-  switch (instr->Bits(10, 3) << 3) {
+  uint32_t opcode = EXT6 | instr->BitField(10, 3);
+  switch (opcode) {
     case XSADDDP: {
       int frt = instr->RTValue();
       int fra = instr->RAValue();
@@ -3396,7 +3401,7 @@ void Simulator::ExecuteExt6(Instruction* instr) {
 }
 
 void Simulator::ExecuteGeneric(Instruction* instr) {
-  int opcode = instr->OpcodeValue() << 26;
+  uint32_t opcode = instr->OpcodeField();
   switch (opcode) {
     case SUBFIC: {
       int rt = instr->RTValue();
@@ -3963,7 +3968,7 @@ void Simulator::ExecuteInstruction(Instruction* instr) {
   if (::v8::internal::FLAG_trace_sim) {
     Trace(instr);
   }
-  int opcode = instr->OpcodeValue() << 26;
+  uint32_t opcode = instr->OpcodeField();
   if (opcode == TWI) {
     SoftwareInterrupt(instr);
   } else {

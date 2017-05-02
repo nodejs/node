@@ -166,6 +166,13 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2,
 
 void RawMachineAssembler::DebugBreak() { AddNode(machine()->DebugBreak()); }
 
+void RawMachineAssembler::Unreachable() {
+  Node* values[] = {UndefinedConstant()};  // Unused.
+  Node* ret = MakeNode(common()->Throw(), 1, values);
+  schedule()->AddThrow(CurrentBlock(), ret);
+  current_block_ = nullptr;
+}
+
 void RawMachineAssembler::Comment(const char* msg) {
   AddNode(machine()->Comment(msg));
 }
@@ -332,7 +339,11 @@ Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
   return graph()->NewNodeUnchecked(op, input_count, inputs);
 }
 
-RawMachineLabel::~RawMachineLabel() { DCHECK(bound_ || !used_); }
+RawMachineLabel::~RawMachineLabel() {
+  // If this DCHECK fails, it means that the label has been bound but it's not
+  // used, or the opposite. This would cause the register allocator to crash.
+  DCHECK_EQ(bound_, used_);
+}
 
 }  // namespace compiler
 }  // namespace internal

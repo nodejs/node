@@ -33,24 +33,25 @@ class Descriptor final BASE_EMBEDDED {
                               Representation representation);
 
   static Descriptor DataField(Handle<Name> key, int field_index,
-                              Handle<Object> wrapped_field_type,
                               PropertyAttributes attributes,
-                              Representation representation) {
-    DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeakCell());
-    return Descriptor(key, wrapped_field_type, kData, attributes, kField,
-                      representation, field_index);
-  }
+                              PropertyConstness constness,
+                              Representation representation,
+                              Handle<Object> wrapped_field_type);
 
   static Descriptor DataConstant(Handle<Name> key, Handle<Object> value,
                                  PropertyAttributes attributes) {
-    return Descriptor(key, value, kData, attributes, kDescriptor,
-                      value->OptimalRepresentation());
+    return Descriptor(key, value, kData, attributes, kDescriptor, kConst,
+                      value->OptimalRepresentation(), 0);
   }
+
+  static Descriptor DataConstant(Handle<Name> key, int field_index,
+                                 Handle<Object> value,
+                                 PropertyAttributes attributes);
 
   static Descriptor AccessorConstant(Handle<Name> key, Handle<Object> foreign,
                                      PropertyAttributes attributes) {
-    return Descriptor(key, foreign, kAccessor, attributes, kDescriptor,
-                      Representation::Tagged());
+    return Descriptor(key, foreign, kAccessor, attributes, kDescriptor, kConst,
+                      Representation::Tagged(), 0);
   }
 
  private:
@@ -75,10 +76,12 @@ class Descriptor final BASE_EMBEDDED {
 
   Descriptor(Handle<Name> key, Handle<Object> value, PropertyKind kind,
              PropertyAttributes attributes, PropertyLocation location,
-             Representation representation, int field_index = 0)
+             PropertyConstness constness, Representation representation,
+             int field_index)
       : key_(key),
         value_(value),
-        details_(kind, attributes, location, representation, field_index) {
+        details_(kind, attributes, location, constness, representation,
+                 field_index) {
     DCHECK(key->IsUniqueName());
     DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
   }

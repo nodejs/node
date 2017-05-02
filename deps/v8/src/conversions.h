@@ -8,12 +8,13 @@
 #include <limits>
 
 #include "src/base/logging.h"
-#include "src/handles.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
 
+template <typename T>
+class Handle;
 class UnicodeCache;
 
 // Maximum number of significant digits in decimal representation.

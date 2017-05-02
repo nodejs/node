@@ -410,6 +410,22 @@ function TestContinueInNamedWhile() {
 assertWasm(20, TestContinueInNamedWhile);
 
 
+function TestContinueInDoWhileFalse() {
+  "use asm";
+
+  function caller() {
+    do {
+      continue;
+    } while (false);
+    return 47;
+  }
+
+  return {caller: caller};
+}
+
+assertWasm(47, TestContinueInDoWhileFalse);
+
+
 function TestNot() {
   "use asm";
 

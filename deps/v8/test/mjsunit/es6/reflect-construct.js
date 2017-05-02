@@ -17,6 +17,30 @@
 })();
 
 
+(function testReflectConstructArg1NonConstructor() {
+  try {
+    Reflect.construct(() => {}, []);
+  } catch (e) {
+    assertInstanceof(e, TypeError);
+    assertEquals("() => {} is not a constructor", e.message);
+    return;
+  }
+  assertUnreachable("Exception expected");
+})();
+
+
+(function testReflectConstructArg3NonConstructor() {
+  try {
+    Reflect.construct(function() {}, [], () => {});
+  } catch (e) {
+    assertInstanceof(e, TypeError);
+    assertEquals("() => {} is not a constructor", e.message);
+    return;
+  }
+  assertUnreachable("Exception expected");
+})();
+
+
 (function testReflectConstructBasic() {
   function Constructor() { "use strict"; }
   assertInstanceof(Reflect.construct(Constructor, []), Constructor);

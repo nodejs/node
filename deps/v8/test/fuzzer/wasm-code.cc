@@ -7,6 +7,7 @@
 
 #include "include/v8.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
 #include "src/wasm/wasm-interpreter.h"
@@ -38,7 +39,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     os << std::endl;
     os << "(function() {" << std::endl;
     os << "  var builder = new WasmModuleBuilder();" << std::endl;
-    os << "  builder.addMemory(32, 32, false);" << std::endl;
+    os << "  builder.addMemory(16, 32, false);" << std::endl;
     os << "  builder.addFunction(\"test\", kSig_i_iii)" << std::endl;
     os << "    .addBodyWithEnd([" << std::endl;
   }
@@ -136,15 +137,23 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         i_isolate, instance, &compiler_thrower, "main", arraysize(arguments),
         arguments, v8::internal::wasm::ModuleOrigin::kWasmOrigin);
   }
+
+  // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
+  // This sign bit may cause result_interpreted to be different than
+  // result_compiled. Therefore we do not check the equality of the results
+  // if the execution may have produced a NaN at some point.
+  if (possible_nondeterminism) return 0;
+
   if (result_interpreted == bit_cast<int32_t>(0xdeadbeef)) {
     CHECK(i_isolate->has_pending_exception());
     i_isolate->clear_pending_exception();
   } else {
+    CHECK(!i_isolate->has_pending_exception());
     // The WebAssembly spec allows the sign bit of NaN to be non-deterministic.
     // This sign bit may cause result_interpreted to be different than
     // result_compiled. Therefore we do not check the equality of the results
     // if the execution may have produced a NaN at some point.
-    if (!possible_nondeterminism && (result_interpreted != result_compiled)) {
+    if (result_interpreted != result_compiled) {
       V8_Fatal(__FILE__, __LINE__, "WasmCodeFuzzerHash=%x",
                v8::internal::StringHasher::HashSequentialString(
                    data, static_cast<int>(size), WASM_CODE_FUZZER_HASH_SEED));

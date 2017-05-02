@@ -8,6 +8,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/code-stubs.h"  // For CallApiCallbackStub.
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"  // For FAA::LoadInternalField impl.
 
 namespace v8 {
@@ -184,12 +185,7 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::Call(
   CallInterfaceDescriptor descriptor = stub.GetCallInterfaceDescriptor();
   DCHECK_EQ(4, descriptor.GetParameterCount());
   DCHECK_EQ(0, descriptor.GetStackParameterCount());
-  // TODO(vogelheim): There is currently no clean way to retrieve the context
-  //     parameter for a stub and the implementation details are hidden in
-  //     compiler/*. The context_paramter is computed as:
-  //       Linkage::GetJSCallContextParamIndex(descriptor->JSParameterCount())
-  const int kContextParameter = 3;
-  Node* context = assembler_->Parameter(kContextParameter);
+  Node* context = assembler_->GetJSContextParameter();
   Node* target = assembler_->HeapConstant(stub.GetCode());
 
   Node* call = assembler_->CallStub(
@@ -218,7 +214,7 @@ void FastAccessorAssembler::CheckIsJSObjectOrJump(ValueId value_id,
       &is_jsobject);
 
   // JSApiObject?.
-  assembler_->GotoUnless(
+  assembler_->GotoIfNot(
       assembler_->Word32Equal(instance_type, assembler_->Int32Constant(
                                                  Internals::kJSApiObjectType)),
       FromId(label_id));

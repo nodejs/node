@@ -19,14 +19,6 @@ var promiseForwardingHandlerSymbol =
 var GlobalPromise = global.Promise;
 
 // -------------------------------------------------------------------
-
-// Core functionality.
-
-function PromiseIdResolveHandler(x) { return x; }
-function PromiseIdRejectHandler(r) { %_ReThrow(r); }
-SET_PRIVATE(PromiseIdRejectHandler, promiseForwardingHandlerSymbol, true);
-
-// -------------------------------------------------------------------
 // Define exported functions.
 
 // Combinators.
@@ -135,11 +127,6 @@ function PromiseRace(iterable) {
 utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
   "all", PromiseAll,
   "race", PromiseRace,
-]);
-
-%InstallToContext([
-  "promise_id_resolve_handler", PromiseIdResolveHandler,
-  "promise_id_reject_handler", PromiseIdRejectHandler
 ]);
 
 })

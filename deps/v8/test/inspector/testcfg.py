@@ -71,7 +71,7 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
 
     def ExpIterator():
       for line in expected_lines:
-        if line.startswith("#") or not line.strip(): continue
+        if not line.strip(): continue
         yield line.strip()
 
     def ActIterator(lines):

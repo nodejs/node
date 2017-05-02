@@ -69,47 +69,49 @@ class RegisteredExtension {
   static RegisteredExtension* first_extension_;
 };
 
-#define OPEN_HANDLE_LIST(V)                  \
-  V(Template, TemplateInfo)                  \
-  V(FunctionTemplate, FunctionTemplateInfo)  \
-  V(ObjectTemplate, ObjectTemplateInfo)      \
-  V(Signature, FunctionTemplateInfo)         \
-  V(AccessorSignature, FunctionTemplateInfo) \
-  V(Data, Object)                            \
-  V(RegExp, JSRegExp)                        \
-  V(Object, JSReceiver)                      \
-  V(Array, JSArray)                          \
-  V(Map, JSMap)                              \
-  V(Set, JSSet)                              \
-  V(ArrayBuffer, JSArrayBuffer)              \
-  V(ArrayBufferView, JSArrayBufferView)      \
-  V(TypedArray, JSTypedArray)                \
-  V(Uint8Array, JSTypedArray)                \
-  V(Uint8ClampedArray, JSTypedArray)         \
-  V(Int8Array, JSTypedArray)                 \
-  V(Uint16Array, JSTypedArray)               \
-  V(Int16Array, JSTypedArray)                \
-  V(Uint32Array, JSTypedArray)               \
-  V(Int32Array, JSTypedArray)                \
-  V(Float32Array, JSTypedArray)              \
-  V(Float64Array, JSTypedArray)              \
-  V(DataView, JSDataView)                    \
-  V(SharedArrayBuffer, JSArrayBuffer)        \
-  V(Name, Name)                              \
-  V(String, String)                          \
-  V(Symbol, Symbol)                          \
-  V(Script, JSFunction)                      \
-  V(UnboundScript, SharedFunctionInfo)       \
-  V(Module, Module)                          \
-  V(Function, JSReceiver)                    \
-  V(Message, JSMessageObject)                \
-  V(Context, Context)                        \
-  V(External, Object)                        \
-  V(StackTrace, JSArray)                     \
-  V(StackFrame, JSObject)                    \
-  V(Proxy, JSProxy)                          \
-  V(NativeWeakMap, JSWeakMap)                \
-  V(debug::Script, Script)
+#define OPEN_HANDLE_LIST(V)                    \
+  V(Template, TemplateInfo)                    \
+  V(FunctionTemplate, FunctionTemplateInfo)    \
+  V(ObjectTemplate, ObjectTemplateInfo)        \
+  V(Signature, FunctionTemplateInfo)           \
+  V(AccessorSignature, FunctionTemplateInfo)   \
+  V(Data, Object)                              \
+  V(RegExp, JSRegExp)                          \
+  V(Object, JSReceiver)                        \
+  V(Array, JSArray)                            \
+  V(Map, JSMap)                                \
+  V(Set, JSSet)                                \
+  V(ArrayBuffer, JSArrayBuffer)                \
+  V(ArrayBufferView, JSArrayBufferView)        \
+  V(TypedArray, JSTypedArray)                  \
+  V(Uint8Array, JSTypedArray)                  \
+  V(Uint8ClampedArray, JSTypedArray)           \
+  V(Int8Array, JSTypedArray)                   \
+  V(Uint16Array, JSTypedArray)                 \
+  V(Int16Array, JSTypedArray)                  \
+  V(Uint32Array, JSTypedArray)                 \
+  V(Int32Array, JSTypedArray)                  \
+  V(Float32Array, JSTypedArray)                \
+  V(Float64Array, JSTypedArray)                \
+  V(DataView, JSDataView)                      \
+  V(SharedArrayBuffer, JSArrayBuffer)          \
+  V(Name, Name)                                \
+  V(String, String)                            \
+  V(Symbol, Symbol)                            \
+  V(Script, JSFunction)                        \
+  V(UnboundScript, SharedFunctionInfo)         \
+  V(Module, Module)                            \
+  V(Function, JSReceiver)                      \
+  V(Message, JSMessageObject)                  \
+  V(Context, Context)                          \
+  V(External, Object)                          \
+  V(StackTrace, JSArray)                       \
+  V(StackFrame, JSObject)                      \
+  V(Proxy, JSProxy)                            \
+  V(NativeWeakMap, JSWeakMap)                  \
+  V(debug::GeneratorObject, JSGeneratorObject) \
+  V(debug::Script, Script)                     \
+  V(Promise, JSPromise)
 
 class Utils {
  public:
@@ -348,8 +350,7 @@ OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 
 namespace internal {
 
-
-class DeferredHandles {
+class V8_EXPORT_PRIVATE DeferredHandles {
  public:
   ~DeferredHandles();
 

@@ -18,15 +18,15 @@ assertThrows("/(?<ab>a)\\k<a>/u");  // Invalid reference.
 assertThrows("/\\k<a>(?<ab>a)/u");  // Invalid reference.
 
 // Fallback behavior in non-unicode mode.
-assertThrows("/(?<>a)/");
-assertThrows("/(?<aa)/");
-assertThrows("/(?<42a>a)/");
-assertThrows("/(?<:a>a)/");
-assertThrows("/(?<a:>a)/");
-assertThrows("/(?<a>a)(?<a>a)/");
-assertThrows("/(?<a>a)(?<b>b)(?<a>a)/");
-assertThrows("/(?<a>a)\\k<ab>/");
-assertThrows("/(?<ab>a)\\k<a>/");
+assertThrows("/(?<>a)/", SyntaxError);
+assertThrows("/(?<aa)/", SyntaxError);
+assertThrows("/(?<42a>a)/", SyntaxError);
+assertThrows("/(?<:a>a)/", SyntaxError);
+assertThrows("/(?<a:>a)/", SyntaxError);
+assertThrows("/(?<a>a)(?<a>a)/", SyntaxError);
+assertThrows("/(?<a>a)(?<b>b)(?<a>a)/", SyntaxError);
+assertThrows("/(?<a>a)\\k<ab>/", SyntaxError);
+assertThrows("/(?<ab>a)\\k<a>/", SyntaxError);
 
 assertEquals(["k<a>"], "xxxk<a>xxx".match(/\k<a>/));
 assertEquals(["k<a"], "xxxk<a>xxx".match(/\k<a/));
@@ -74,3 +74,25 @@ assertEquals(["bab", "b"], "bab".match(/(?<a>\k<a>\w)../u));
 // Reference before group.
 assertEquals(["bab", "b"], "bab".match(/\k<a>(?<a>b)\w\k<a>/u));
 assertEquals(["bab", "b", "a"], "bab".match(/(?<b>b)\k<a>(?<a>a)\k<b>/u));
+
+// Reference properties.
+assertEquals("a", /(?<a>a)(?<b>b)\k<a>/u.exec("aba").group.a);
+assertEquals("b", /(?<a>a)(?<b>b)\k<a>/u.exec("aba").group.b);
+assertEquals(undefined, /(?<a>a)(?<b>b)\k<a>/u.exec("aba").group.c);
+assertEquals(undefined, /(?<a>a)(?<b>b)\k<a>|(?<c>c)/u.exec("aba").group.c);
+
+// Unicode names.
+assertEquals("a", /(?<π>a)/u.exec("bab").group.π);
+assertEquals("a", /(?<\u{03C0}>a)/u.exec("bab").group.\u03C0);
+assertEquals("a", /(?<$>a)/u.exec("bab").group.$);
+assertEquals("a", /(?<_>a)/u.exec("bab").group._);
+assertEquals("a", /(?<$𐒤>a)/u.exec("bab").group.$𐒤);
+assertEquals("a", /(?<_\u200C>a)/u.exec("bab").group._\u200C);
+assertEquals("a", /(?<_\u200D>a)/u.exec("bab").group._\u200D);
+assertEquals("a", /(?<ಠ_ಠ>a)/u.exec("bab").group.ಠ_ಠ);
+assertThrows('/(?<❤>a)/u', SyntaxError);
+assertThrows('/(?<𐒤>a)/u', SyntaxError);  // ID_Continue but not ID_Start.
+
+// The '__proto__' property on the groups object.
+assertEquals(undefined, /(?<a>.)/u.exec("a").group.__proto__);
+assertEquals("a", /(?<__proto__>a)/u.exec("a").group.__proto__);

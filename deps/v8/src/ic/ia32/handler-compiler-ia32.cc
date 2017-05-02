@@ -122,15 +122,6 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
   __ DecrementCounter(counters->negative_lookups_miss(), 1);
 }
 
-void NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(
-    MacroAssembler* masm, Register receiver, Register scratch1,
-    Register scratch2, Label* miss_label) {
-  // TODO(mvstanton): This isn't used on ia32. Move all the other
-  // platform implementations into a code stub so this method can be removed.
-  UNREACHABLE();
-}
-
-
 // Generate call to api function.
 // This function uses push() to generate smaller, faster code than
 // the version above. It is an optimization that should will be removed
@@ -302,10 +293,12 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   }
 }
 
+static void CompileCallLoadPropertyWithInterceptor(
+    MacroAssembler* masm, Register receiver, Register holder, Register name,
+    Handle<JSObject> holder_obj, Runtime::FunctionId id) {
+  DCHECK(NamedLoadHandlerCompiler::kInterceptorArgsLength ==
+         Runtime::FunctionForId(id)->nargs);
 
-static void PushInterceptorArguments(MacroAssembler* masm, Register receiver,
-                                     Register holder, Register name,
-                                     Handle<JSObject> holder_obj) {
   STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
   STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 1);
   STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 2);
@@ -313,15 +306,7 @@ static void PushInterceptorArguments(MacroAssembler* masm, Register receiver,
   __ push(name);
   __ push(receiver);
   __ push(holder);
-}
 
-
-static void CompileCallLoadPropertyWithInterceptor(
-    MacroAssembler* masm, Register receiver, Register holder, Register name,
-    Handle<JSObject> holder_obj, Runtime::FunctionId id) {
-  DCHECK(NamedLoadHandlerCompiler::kInterceptorArgsLength ==
-         Runtime::FunctionForId(id)->nargs);
-  PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
   __ CallRuntime(id);
 }
 
@@ -538,10 +523,26 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
   DCHECK(holder()->HasNamedInterceptor());
   DCHECK(!holder()->GetNamedInterceptor()->getter()->IsUndefined(isolate()));
   // Call the runtime system to load the interceptor.
-  __ pop(scratch2());  // save old return address
-  PushInterceptorArguments(masm(), receiver(), holder_reg, this->name(),
-                           holder());
-  __ push(scratch2());  // restore old return address
+
+  // Stack:
+  //   return address
+
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 1);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 2);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 3);
+  __ push(receiver());
+  __ push(holder_reg);
+  // See NamedLoadHandlerCompiler::InterceptorVectorSlotPop() for details.
+  if (holder_reg.is(receiver())) {
+    __ push(slot());
+    __ push(vector());
+  } else {
+    __ push(scratch3());  // slot
+    __ push(scratch2());  // vector
+  }
+  __ push(Operand(esp, 4 * kPointerSize));  // return address
+  __ mov(Operand(esp, 5 * kPointerSize), name());
 
   __ TailCallRuntime(Runtime::kLoadPropertyWithInterceptor);
 }

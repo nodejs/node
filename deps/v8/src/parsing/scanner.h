@@ -209,9 +209,26 @@ class Scanner {
   // (the token last returned by Next()).
   Location location() const { return current_.location; }
 
+  // This error is specifically an invalid hex or unicode escape sequence.
   bool has_error() const { return scanner_error_ != MessageTemplate::kNone; }
   MessageTemplate::Template error() const { return scanner_error_; }
   Location error_location() const { return scanner_error_location_; }
+
+  bool has_invalid_template_escape() const {
+    return invalid_template_escape_message_ != MessageTemplate::kNone;
+  }
+  MessageTemplate::Template invalid_template_escape_message() const {
+    return invalid_template_escape_message_;
+  }
+  Location invalid_template_escape_location() const {
+    return invalid_template_escape_location_;
+  }
+
+  void clear_invalid_template_escape() {
+    DCHECK(has_invalid_template_escape());
+    invalid_template_escape_message_ = MessageTemplate::kNone;
+    invalid_template_escape_location_ = Location::invalid();
+  }
 
   // Similar functions for the upcoming token.
 
@@ -466,6 +483,7 @@ class Scanner {
     next_next_.raw_literal_chars = NULL;
     found_html_comment_ = false;
     scanner_error_ = MessageTemplate::kNone;
+    invalid_template_escape_message_ = MessageTemplate::kNone;
   }
 
   void ReportScannerError(const Location& location,
@@ -756,6 +774,9 @@ class Scanner {
 
   MessageTemplate::Template scanner_error_;
   Location scanner_error_location_;
+
+  MessageTemplate::Template invalid_template_escape_message_;
+  Location invalid_template_escape_location_;
 };
 
 }  // namespace internal

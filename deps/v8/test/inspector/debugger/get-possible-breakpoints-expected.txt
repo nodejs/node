@@ -18,1092 +18,254 @@ Test not existing scriptId.
     id : <messageId>
 }
 Test end < start.
-{
-    id : <messageId>
-    result : {
-        locations : [
-        ]
-    }
-}
+function foo(){ return Promise.resolve(); }
+function boo(){ return Promise.resolve().then(() => 42); }
+
+
 Test empty range in first line.
-{
-    id : <messageId>
-    result : {
-        locations : [
-        ]
-    }
-}
+function foo(){ return Promise.resolve(); }
+function boo(){ return Promise.resolve().then(() => 42); }
+
+
 Test one character range in first line.
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 16
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo(){ #return Promise.resolve(); }
+function boo(){ return Promise.resolve().then(() => 42); }
+
+
 Test empty range in not first line.
-{
-    id : <messageId>
-    result : {
-        locations : [
-        ]
-    }
-}
+function foo(){ return Promise.resolve(); }
+function boo(){ return Promise.resolve().then(() => 42); }
+
+
 Test one character range in not first line.
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 16
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo(){ return Promise.resolve(); }
+function boo(){ #return Promise.resolve().then(() => 42); }
+
+
 Test end is undefined
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 16
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 42
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 16
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [3] : {
-                columnNumber : 52
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [4] : {
-                columnNumber : 54
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [5] : {
-                columnNumber : 57
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [6] : {
-                columnNumber : 0
-                lineNumber : 2
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo(){ #return Promise.#resolve(); #}
+function boo(){ #return Promise.#resolve().#then(() => #42#); #}
+#
+
 Test end.lineNumber > scripts.lineCount()
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 16
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 42
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 16
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [3] : {
-                columnNumber : 52
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [4] : {
-                columnNumber : 54
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [5] : {
-                columnNumber : 57
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [6] : {
-                columnNumber : 0
-                lineNumber : 2
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo(){ #return Promise.#resolve(); #}
+function boo(){ #return Promise.#resolve().#then(() => #42#); #}
+#
+
 Test one string
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 16
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 42
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo(){ #return Promise.#resolve(); #}
+function boo(){ return Promise.resolve().then(() => 42); }
+
+
 Test end.columnNumber > end.line.length(), should be the same as previous.
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 16
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 42
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo(){ #return Promise.#resolve(); #}
+function boo(){ return Promise.resolve().then(() => 42); }
+
+
 
 Running test: getPossibleBreakpointsInArrow
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 17
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 53
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 56
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [3] : {
-                columnNumber : 69
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [4] : {
-                columnNumber : 71
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [5] : {
-                columnNumber : 84
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [6] : {
-                columnNumber : 90
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [7] : {
-                columnNumber : 92
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [8] : {
-                columnNumber : 94
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo() { #return Promise.#resolve().#then(() => #239#).#then(() => #42#).#then(() => #() => #42#) #}
 
 Running test: arrowFunctionFirstLine
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 18
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 47
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 49
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [3] : {
-                columnNumber : 51
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 18
-            lineNumber : 0
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 47
-            lineNumber : 0
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 49
-            lineNumber : 0
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 51
-            lineNumber : 0
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
+function foo1() { #Promise.#resolve().#then(() => #42#) #}
+function foo2() { Promise.resolve().then(() => 42) }
 paused in foo1
-{
-    columnNumber : 18
-    lineNumber : 0
-    scriptId : <scriptId>
-}
+function foo1() { ^Promise.resolve().then(() => 42) }
+function foo2() { Promise.resolve().then(() => 42) }
 paused in foo1
-{
-    columnNumber : 51
-    lineNumber : 0
-    scriptId : <scriptId>
-}
+function foo1() { Promise.^resolve().then(() => 42) }
+function foo2() { Promise.resolve().then(() => 42) }
+paused in foo1
+function foo1() { Promise.resolve().^then(() => 42) }
+function foo2() { Promise.resolve().then(() => 42) }
+paused in foo1
+function foo1() { Promise.resolve().then(() => 42) ^}
+function foo2() { Promise.resolve().then(() => 42) }
 paused in Promise.resolve.then
-{
-    columnNumber : 47
-    lineNumber : 0
-    scriptId : <scriptId>
-}
+function foo1() { Promise.resolve().then(() => ^42) }
+function foo2() { Promise.resolve().then(() => 42) }
 paused in Promise.resolve.then
-{
-    columnNumber : 49
-    lineNumber : 0
-    scriptId : <scriptId>
-}
+function foo1() { Promise.resolve().then(() => 42^) }
+function foo2() { Promise.resolve().then(() => 42) }
 
 Running test: arrowFunctionOnPause
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 0
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 28
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 57
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [3] : {
-                columnNumber : 59
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [4] : {
-                columnNumber : 61
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [5] : {
-                columnNumber : 18
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [6] : {
-                columnNumber : 47
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [7] : {
-                columnNumber : 49
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [8] : {
-                columnNumber : 51
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [9] : {
-                columnNumber : 0
-                lineNumber : 2
-                scriptId : <scriptId>
-            }
-            [10] : {
-                columnNumber : 0
-                lineNumber : 3
-                scriptId : <scriptId>
-            }
-            [11] : {
-                columnNumber : 6
-                lineNumber : 3
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 0
-            lineNumber : 0
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 28
-            lineNumber : 0
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 57
-            lineNumber : 0
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 59
-            lineNumber : 0
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 61
-            lineNumber : 0
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 18
-            lineNumber : 1
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 47
-            lineNumber : 1
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 49
-            lineNumber : 1
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 51
-            lineNumber : 1
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 0
-            lineNumber : 2
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 0
-            lineNumber : 3
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 6
-            lineNumber : 3
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
+#debugger; function foo3() { #Promise.#resolve().#then(() => #42#) #}
+function foo4() { #Promise.#resolve().#then(() => #42#) #};
+#foo3();
+#foo4()#;
 paused in 
-{
-    columnNumber : 0
-    lineNumber : 2
-    scriptId : <scriptId>
-}
+debugger; function foo3() { Promise.resolve().then(() => 42) }
+function foo4() { Promise.resolve().then(() => 42) };
+^foo3();
+foo4();
 paused in foo3
-{
-    columnNumber : 28
-    lineNumber : 0
-    scriptId : <scriptId>
-}
+debugger; function foo3() { ^Promise.resolve().then(() => 42) }
+function foo4() { Promise.resolve().then(() => 42) };
+foo3();
+foo4();
 paused in foo3
-{
-    columnNumber : 61
-    lineNumber : 0
-    scriptId : <scriptId>
-}
+debugger; function foo3() { Promise.^resolve().then(() => 42) }
+function foo4() { Promise.resolve().then(() => 42) };
+foo3();
+foo4();
+paused in foo3
+debugger; function foo3() { Promise.resolve().^then(() => 42) }
+function foo4() { Promise.resolve().then(() => 42) };
+foo3();
+foo4();
+paused in foo3
+debugger; function foo3() { Promise.resolve().then(() => 42) ^}
+function foo4() { Promise.resolve().then(() => 42) };
+foo3();
+foo4();
 paused in 
-{
-    columnNumber : 0
-    lineNumber : 3
-    scriptId : <scriptId>
-}
+debugger; function foo3() { Promise.resolve().then(() => 42) }
+function foo4() { Promise.resolve().then(() => 42) };
+foo3();
+^foo4();
 paused in foo4
-{
-    columnNumber : 18
-    lineNumber : 1
-    scriptId : <scriptId>
-}
+debugger; function foo3() { Promise.resolve().then(() => 42) }
+function foo4() { ^Promise.resolve().then(() => 42) };
+foo3();
+foo4();
 paused in foo4
-{
-    columnNumber : 51
-    lineNumber : 1
-    scriptId : <scriptId>
-}
+debugger; function foo3() { Promise.resolve().then(() => 42) }
+function foo4() { Promise.^resolve().then(() => 42) };
+foo3();
+foo4();
+paused in foo4
+debugger; function foo3() { Promise.resolve().then(() => 42) }
+function foo4() { Promise.resolve().^then(() => 42) };
+foo3();
+foo4();
+paused in foo4
+debugger; function foo3() { Promise.resolve().then(() => 42) }
+function foo4() { Promise.resolve().then(() => 42) ^};
+foo3();
+foo4();
 paused in 
-{
-    columnNumber : 6
-    lineNumber : 3
-    scriptId : <scriptId>
-}
+debugger; function foo3() { Promise.resolve().then(() => 42) }
+function foo4() { Promise.resolve().then(() => 42) };
+foo3();
+foo4()^;
 paused in Promise.resolve.then
-{
-    columnNumber : 57
-    lineNumber : 0
-    scriptId : <scriptId>
-}
+debugger; function foo3() { Promise.resolve().then(() => ^42) }
+function foo4() { Promise.resolve().then(() => 42) };
+foo3();
+foo4();
 paused in Promise.resolve.then
-{
-    columnNumber : 59
-    lineNumber : 0
-    scriptId : <scriptId>
-}
+debugger; function foo3() { Promise.resolve().then(() => 42^) }
+function foo4() { Promise.resolve().then(() => 42) };
+foo3();
+foo4();
 paused in Promise.resolve.then
-{
-    columnNumber : 47
-    lineNumber : 1
-    scriptId : <scriptId>
-}
+debugger; function foo3() { Promise.resolve().then(() => 42) }
+function foo4() { Promise.resolve().then(() => ^42) };
+foo3();
+foo4();
 paused in Promise.resolve.then
-{
-    columnNumber : 49
-    lineNumber : 1
-    scriptId : <scriptId>
-}
+debugger; function foo3() { Promise.resolve().then(() => 42) }
+function foo4() { Promise.resolve().then(() => 42^) };
+foo3();
+foo4();
 
 Running test: getPossibleBreakpointsInRangeWithOffset
 Test empty range in first line.
-{
-    id : <messageId>
-    result : {
-        locations : [
-        ]
-    }
-}
+function foo(){ return Promise.resolve(); }
+function boo(){ return Promise.resolve().then(() => 42); }
+
+
 Test one character range in first line.
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 17
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo(){ #return Promise.resolve(); }
+function boo(){ return Promise.resolve().then(() => 42); }
+
+
 Test empty range in not first line.
-{
-    id : <messageId>
-    result : {
-        locations : [
-        ]
-    }
-}
+function foo(){ return Promise.resolve(); }
+function boo(){ return Promise.resolve().then(() => 42); }
+
+
 Test one character range in not first line.
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 16
-                lineNumber : 2
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo(){ return Promise.resolve(); }
+function boo(){ #return Promise.resolve().then(() => 42); }
+
+
 Test end is undefined
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 17
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 43
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 16
-                lineNumber : 2
-                scriptId : <scriptId>
-            }
-            [3] : {
-                columnNumber : 52
-                lineNumber : 2
-                scriptId : <scriptId>
-            }
-            [4] : {
-                columnNumber : 54
-                lineNumber : 2
-                scriptId : <scriptId>
-            }
-            [5] : {
-                columnNumber : 57
-                lineNumber : 2
-                scriptId : <scriptId>
-            }
-            [6] : {
-                columnNumber : 0
-                lineNumber : 3
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo(){ #return Promise.#resolve(); #}
+function boo(){ #return Promise.#resolve().#then(() => #42#); #}
+#
+
 Test end.lineNumber > scripts.lineCount()
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 17
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 43
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 16
-                lineNumber : 2
-                scriptId : <scriptId>
-            }
-            [3] : {
-                columnNumber : 52
-                lineNumber : 2
-                scriptId : <scriptId>
-            }
-            [4] : {
-                columnNumber : 54
-                lineNumber : 2
-                scriptId : <scriptId>
-            }
-            [5] : {
-                columnNumber : 57
-                lineNumber : 2
-                scriptId : <scriptId>
-            }
-            [6] : {
-                columnNumber : 0
-                lineNumber : 3
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo(){ #return Promise.#resolve(); #}
+function boo(){ #return Promise.#resolve().#then(() => #42#); #}
+#
+
 Test one string
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 17
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 43
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo(){ #return Promise.#resolve(); #}
+function boo(){ return Promise.resolve().then(() => 42); }
+
+
 Test end.columnNumber > end.line.length(), should be the same as previous.
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 17
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 43
-                lineNumber : 1
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+function foo(){ #return Promise.#resolve(); #}
+function boo(){ return Promise.resolve().then(() => 42); }
+
+
 
 Running test: withOffset
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 36
-                lineNumber : 3
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 65
-                lineNumber : 3
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 67
-                lineNumber : 3
-                scriptId : <scriptId>
-            }
-            [3] : {
-                columnNumber : 69
-                lineNumber : 3
-                scriptId : <scriptId>
-            }
-            [4] : {
-                columnNumber : 18
-                lineNumber : 4
-                scriptId : <scriptId>
-            }
-            [5] : {
-                columnNumber : 47
-                lineNumber : 4
-                scriptId : <scriptId>
-            }
-            [6] : {
-                columnNumber : 49
-                lineNumber : 4
-                scriptId : <scriptId>
-            }
-            [7] : {
-                columnNumber : 51
-                lineNumber : 4
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 36
-            lineNumber : 3
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 65
-            lineNumber : 3
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 67
-            lineNumber : 3
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 69
-            lineNumber : 3
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 18
-            lineNumber : 4
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 47
-            lineNumber : 4
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 49
-            lineNumber : 4
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
-{
-    id : <messageId>
-    result : {
-        actualLocation : {
-            columnNumber : 51
-            lineNumber : 4
-            scriptId : <scriptId>
-        }
-        breakpointId : <breakpointId>
-    }
-}
+function foo5() { #Promise.#resolve().#then(() => #42#) #}
+function foo6() { #Promise.#resolve().#then(() => #42#) #}
 paused in foo5
-{
-    columnNumber : 36
-    lineNumber : 3
-    scriptId : <scriptId>
-}
+function foo5() { ^Promise.resolve().then(() => 42) }
+function foo6() { Promise.resolve().then(() => 42) }
 paused in foo5
-{
-    columnNumber : 69
-    lineNumber : 3
-    scriptId : <scriptId>
-}
+function foo5() { Promise.^resolve().then(() => 42) }
+function foo6() { Promise.resolve().then(() => 42) }
+paused in foo5
+function foo5() { Promise.resolve().^then(() => 42) }
+function foo6() { Promise.resolve().then(() => 42) }
+paused in foo5
+function foo5() { Promise.resolve().then(() => 42) ^}
+function foo6() { Promise.resolve().then(() => 42) }
 paused in foo6
-{
-    columnNumber : 18
-    lineNumber : 4
-    scriptId : <scriptId>
-}
+function foo5() { Promise.resolve().then(() => 42) }
+function foo6() { ^Promise.resolve().then(() => 42) }
 paused in foo6
-{
-    columnNumber : 51
-    lineNumber : 4
-    scriptId : <scriptId>
-}
+function foo5() { Promise.resolve().then(() => 42) }
+function foo6() { Promise.^resolve().then(() => 42) }
+paused in foo6
+function foo5() { Promise.resolve().then(() => 42) }
+function foo6() { Promise.resolve().^then(() => 42) }
+paused in foo6
+function foo5() { Promise.resolve().then(() => 42) }
+function foo6() { Promise.resolve().then(() => 42) ^}
 paused in Promise.resolve.then
-{
-    columnNumber : 65
-    lineNumber : 3
-    scriptId : <scriptId>
-}
+function foo5() { Promise.resolve().then(() => ^42) }
+function foo6() { Promise.resolve().then(() => 42) }
 paused in Promise.resolve.then
-{
-    columnNumber : 67
-    lineNumber : 3
-    scriptId : <scriptId>
-}
+function foo5() { Promise.resolve().then(() => 42^) }
+function foo6() { Promise.resolve().then(() => 42) }
 paused in Promise.resolve.then
-{
-    columnNumber : 47
-    lineNumber : 4
-    scriptId : <scriptId>
-}
+function foo5() { Promise.resolve().then(() => 42) }
+function foo6() { Promise.resolve().then(() => ^42) }
 paused in Promise.resolve.then
-{
-    columnNumber : 49
-    lineNumber : 4
-    scriptId : <scriptId>
-}
+function foo5() { Promise.resolve().then(() => 42) }
+function foo6() { Promise.resolve().then(() => 42^) }
 
 Running test: arrowFunctionReturn
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 0
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 6
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 9
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 34
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 45
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 48
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [3] : {
-                columnNumber : 49
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 0
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 8
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 12
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [3] : {
-                columnNumber : 13
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 17
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 21
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 22
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 0
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 6
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 8
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [3] : {
-                columnNumber : 9
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
-{
-    id : <messageId>
-    result : {
-        locations : [
-            [0] : {
-                columnNumber : 0
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [1] : {
-                columnNumber : 8
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-            [2] : {
-                columnNumber : 19
-                lineNumber : 0
-                scriptId : <scriptId>
-            }
-        ]
-    }
-}
+#() => #239#
+
+function foo() { function boo() { #return 239 #}  #}#
+
+#() => { #239 #}#
+
+function foo() { #239 #}#
+
+#() => #23#9#
+#() => { #return 239 #}
+
+Running test: argumentsAsCalls
+function foo(){#}
+function boo(){#}
+function main(f1,f2){#}
+#main(#foo(), #boo());#
+

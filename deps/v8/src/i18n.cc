@@ -30,7 +30,12 @@
 #include "unicode/ucol.h"
 #include "unicode/ucurr.h"
 #include "unicode/unum.h"
+#include "unicode/uvernum.h"
 #include "unicode/uversion.h"
+
+#if U_ICU_VERSION_MAJOR_NUM >= 59
+#include "unicode/char16ptr.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -270,8 +275,13 @@ icu::DecimalFormat* CreateICUNumberFormat(
       }
 
       UErrorCode status_digits = U_ZERO_ERROR;
+#if U_ICU_VERSION_MAJOR_NUM >= 59
       uint32_t fraction_digits = ucurr_getDefaultFractionDigits(
-        currency.getTerminatedBuffer(), &status_digits);
+          icu::toUCharPtr(currency.getTerminatedBuffer()), &status_digits);
+#else
+      uint32_t fraction_digits = ucurr_getDefaultFractionDigits(
+          currency.getTerminatedBuffer(), &status_digits);
+#endif
       if (U_SUCCESS(status_digits)) {
         number_format->setMinimumFractionDigits(fraction_digits);
         number_format->setMaximumFractionDigits(fraction_digits);

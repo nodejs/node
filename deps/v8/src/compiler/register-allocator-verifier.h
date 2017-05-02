@@ -5,13 +5,14 @@
 #ifndef V8_REGISTER_ALLOCATOR_VERIFIER_H_
 #define V8_REGISTER_ALLOCATOR_VERIFIER_H_
 
+#include "src/compiler/instruction.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class InstructionOperand;
+class InstructionBlock;
 class InstructionSequence;
 
 // The register allocator validator traverses instructions in the instruction

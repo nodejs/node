@@ -12,6 +12,7 @@
 #include "src/compiler/node-properties.h"
 
 #include "src/compiler/node.h"
+#include "src/objects-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/zone/zone.h"
 
@@ -237,7 +238,7 @@ void Int64Lowering::LowerNode(Node* node) {
         NodeProperties::ChangeOp(node, store_op);
         ReplaceNode(node, node, high_node);
       } else {
-        DefaultLowering(node);
+        DefaultLowering(node, true);
       }
       break;
     }
@@ -826,7 +827,7 @@ void Int64Lowering::LowerComparison(Node* node, const Operator* high_word_op,
   ReplaceNode(node, replacement, nullptr);
 }
 
-bool Int64Lowering::DefaultLowering(Node* node) {
+bool Int64Lowering::DefaultLowering(Node* node, bool low_word_only) {
   bool something_changed = false;
   for (int i = NodeProperties::PastValueIndex(node) - 1; i >= 0; i--) {
     Node* input = node->InputAt(i);
@@ -834,7 +835,7 @@ bool Int64Lowering::DefaultLowering(Node* node) {
       something_changed = true;
       node->ReplaceInput(i, GetReplacementLow(input));
     }
-    if (HasReplacementHigh(input)) {
+    if (!low_word_only && HasReplacementHigh(input)) {
       something_changed = true;
       node->InsertInput(zone(), i + 1, GetReplacementHigh(input));
     }

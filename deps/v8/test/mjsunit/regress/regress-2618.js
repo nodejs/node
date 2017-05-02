@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --use-osr --allow-natives-syntax --ignition-osr
+// Flags: --use-osr --allow-natives-syntax --ignition-osr --crankshaft
 
 function f() {
   do {
@@ -36,7 +36,7 @@ function f() {
 }
 
 f();
-assertTrue(%GetOptimizationCount(f) > 0 || %GetOptimizationStatus(f) == 4);
+assertTrue(%GetOptimizationCount(f) > 0);
 
 function g() {
   for (var i = 0; i < 1; i++) { }
@@ -67,4 +67,4 @@ function g() {
 }
 
 g();
-assertTrue(%GetOptimizationCount(g) > 0 || %GetOptimizationStatus(g) == 4);
+assertTrue(%GetOptimizationCount(g) > 0);

@@ -413,3 +413,86 @@ function assertValidAsm(func) {
   Module();
   assertFalse(%IsAsmWasmCode(Module));
 })();
+
+(function TestConditionalReturn() {
+  function Module() {
+    'use asm';
+    function foo(a, b) {
+      a = +a;
+      b = +b;
+      // Allowed, despite not matching the spec, as emscripten emits this in
+      // practice.
+      return a == b ? +a : +b;
+    }
+    return foo;
+  }
+  var m = Module();
+  assertEquals(4, m(4, 4));
+  assertEquals(5, m(4, 5));
+  assertEquals(4, m(5, 4));
+  assertValidAsm(Module);
+})();
+
+(function TestMismatchedConditionalReturn() {
+  function Module() {
+    'use asm';
+    function foo(a, b) {
+      a = +a;
+      return a == 0.0 ? 0 : +a;
+    }
+    return foo;
+  }
+  Module();
+  assertFalse(% IsAsmWasmCode(Module));
+})();
+
+(function TestBadIntConditionalReturn() {
+  function Module() {
+    'use asm';
+    function foo(a, b) {
+      a = a | 0;
+      b = b | 0;
+      // Disallowed because signature must be signed, but these will be int.
+      return 1 ? a : b;
+    }
+    return foo;
+  }
+  Module();
+  assertFalse(% IsAsmWasmCode(Module));
+})();
+
+(function TestBadSignedConditionalReturn() {
+  function Module() {
+    'use asm';
+    function foo(a, b) {
+      a = a | 0;
+      b = b | 0;
+      // Disallowed because conditional yields int, even when both sides
+      // are signed.
+      return 1 ? a | 0 : b | 0;
+    }
+    return foo;
+  }
+  Module();
+  assertFalse(% IsAsmWasmCode(Module));
+})();
+
+(function TestAsmIsRegular() {
+  function Module() {
+    'use asm';
+    var g = 123;
+    function foo() {
+      return g | 0;
+    }
+    return {x: foo};
+  }
+  var o = Module();
+  assertValidAsm(Module);
+  assertFalse(o instanceof WebAssembly.Instance);
+  assertTrue(o instanceof Object);
+  assertTrue(o.__proto__ === Object.prototype);
+  o.x = 5;
+  assertTrue(typeof o.x === 'number');
+  assertTrue(o.__single_function__ === undefined);
+  assertTrue(o.__foreign_init__ === undefined);
+})();

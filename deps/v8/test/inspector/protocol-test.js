@@ -20,7 +20,8 @@ Protocol = new Proxy({}, {
           var eventName = match[2];
           eventName = eventName.charAt(0).toLowerCase() + eventName.slice(1);
           if (match[1])
-            return (args) => InspectorTest._waitForEventPromise(`${agentName}.${eventName}`, args || {});
+            return () => InspectorTest._waitForEventPromise(
+                       `${agentName}.${eventName}`);
           else
             return (listener) => { InspectorTest._eventHandler[`${agentName}.${eventName}`] = listener };
         }
@@ -112,6 +113,21 @@ InspectorTest.logCallFrames = function(callFrames)
   }
 }
 
+InspectorTest.logAsyncStackTrace = function(asyncStackTrace)
+{
+  while (asyncStackTrace) {
+    if (asyncStackTrace.promiseCreationFrame) {
+      var frame = asyncStackTrace.promiseCreationFrame;
+      InspectorTest.log(`-- ${asyncStackTrace.description} (${frame.url
+                        }:${frame.lineNumber}:${frame.columnNumber})--`);
+    } else {
+      InspectorTest.log(`-- ${asyncStackTrace.description} --`);
+    }
+    InspectorTest.logCallFrames(asyncStackTrace.callFrames);
+    asyncStackTrace = asyncStackTrace.parent;
+  }
+}
+
 InspectorTest.completeTest = function()
 {
   Protocol.Debugger.disable().then(() => quit());
@@ -119,13 +135,17 @@ InspectorTest.completeTest = function()
 
 InspectorTest.completeTestAfterPendingTimeouts = function()
 {
-  Protocol.Runtime.evaluate({
-    expression: "new Promise(resolve => setTimeout(resolve, 0))",
-    awaitPromise: true }).then(InspectorTest.completeTest);
+  InspectorTest.waitPendingTasks().then(InspectorTest.completeTest);
 }
 
-InspectorTest.addScript = (string, lineOffset, columnOffset) => compileAndRunWithOrigin(string, "", lineOffset || 0, columnOffset || 0);
-InspectorTest.addScriptWithUrl = (string, url) => compileAndRunWithOrigin(string, url, 0, 0);
+InspectorTest.waitPendingTasks = function()
+{
+  return Protocol.Runtime.evaluate({ expression: "new Promise(r => setTimeout(r, 0))//# sourceURL=wait-pending-tasks.js", awaitPromise: true });
+}
+
+InspectorTest.addScript = (string, lineOffset, columnOffset) => compileAndRunWithOrigin(string, "", lineOffset || 0, columnOffset || 0, false);
+InspectorTest.addScriptWithUrl = (string, url) => compileAndRunWithOrigin(string, url, 0, 0, false);
+InspectorTest.addModule = (string, url, lineOffset, columnOffset) => compileAndRunWithOrigin(string, url, lineOffset || 0, columnOffset || 0, true);
 
 InspectorTest.startDumpingProtocolMessages = function()
 {
@@ -213,6 +233,8 @@ InspectorTest._dispatchMessage = function(messageObject)
       var eventHandler = InspectorTest._eventHandler[eventName];
       if (InspectorTest._scriptMap && eventName === "Debugger.scriptParsed")
         InspectorTest._scriptMap.set(messageObject.params.scriptId, JSON.parse(JSON.stringify(messageObject.params)));
+      if (eventName === "Debugger.scriptParsed" && messageObject.params.url === "wait-pending-tasks.js")
+        return;
       if (eventHandler)
         eventHandler(messageObject);
     }

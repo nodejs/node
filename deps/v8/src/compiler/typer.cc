@@ -43,13 +43,14 @@ Typer::Typer(Isolate* isolate, Flags flags, Graph* graph)
   Zone* zone = this->zone();
   Factory* const factory = isolate->factory();
 
-  singleton_false_ = Type::HeapConstant(factory->false_value(), zone);
-  singleton_true_ = Type::HeapConstant(factory->true_value(), zone);
-  singleton_the_hole_ = Type::HeapConstant(factory->the_hole_value(), zone);
+  singleton_empty_string_ = Type::HeapConstant(factory->empty_string(), zone);
+  singleton_false_ = operation_typer_.singleton_false();
+  singleton_true_ = operation_typer_.singleton_true();
   falsish_ = Type::Union(
       Type::Undetectable(),
       Type::Union(Type::Union(singleton_false_, cache_.kZeroish, zone),
-                  singleton_the_hole_, zone),
+                  Type::Union(singleton_empty_string_, Type::Hole(), zone),
+                  zone),
       zone);
   truish_ = Type::Union(
       singleton_true_,
@@ -283,7 +284,8 @@ class Typer::Visitor : public Reducer {
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
-  static Type* ObjectIsCallable(Type*, Typer*);
+  static Type* ObjectIsDetectableCallable(Type*, Typer*);
+  static Type* ObjectIsNonCallable(Type*, Typer*);
   static Type* ObjectIsNumber(Type*, Typer*);
   static Type* ObjectIsReceiver(Type*, Typer*);
   static Type* ObjectIsSmi(Type*, Typer*);
@@ -296,7 +298,7 @@ class Typer::Visitor : public Reducer {
   JS_SIMPLE_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
-  static Type* JSCallFunctionTyper(Type*, Typer*);
+  static Type* JSCallTyper(Type*, Typer*);
 
   static Type* ReferenceEqualTyper(Type*, Type*, Typer*);
   static Type* StringFromCharCodeTyper(Type*, Typer*);
@@ -501,9 +503,15 @@ Type* Typer::Visitor::ToString(Type* type, Typer* t) {
 
 // Type checks.
 
-Type* Typer::Visitor::ObjectIsCallable(Type* type, Typer* t) {
-  if (type->Is(Type::Function())) return t->singleton_true_;
-  if (type->Is(Type::Primitive())) return t->singleton_false_;
+Type* Typer::Visitor::ObjectIsDetectableCallable(Type* type, Typer* t) {
+  if (type->Is(Type::DetectableCallable())) return t->singleton_true_;
+  if (!type->Maybe(Type::DetectableCallable())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::ObjectIsNonCallable(Type* type, Typer* t) {
+  if (type->Is(Type::NonCallable())) return t->singleton_true_;
+  if (!type->Maybe(Type::NonCallable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
@@ -826,6 +834,10 @@ Type* Typer::Visitor::TypeTypedStateValues(Node* node) {
   return Type::Internal();
 }
 
+Type* Typer::Visitor::TypeArgumentsObjectState(Node* node) {
+  return Type::Internal();
+}
+
 Type* Typer::Visitor::TypeObjectState(Node* node) { return Type::Internal(); }
 
 Type* Typer::Visitor::TypeTypedObjectState(Node* node) {
@@ -897,8 +909,7 @@ Type* Typer::Visitor::JSStrictEqualTyper(Type* lhs, Type* rhs, Typer* t) {
       (lhs->Max() < rhs->Min() || lhs->Min() > rhs->Max())) {
     return t->singleton_false_;
   }
-  if ((lhs->Is(t->singleton_the_hole_) || rhs->Is(t->singleton_the_hole_)) &&
-      !lhs->Maybe(rhs)) {
+  if ((lhs->Is(Type::Hole()) || rhs->Is(Type::Hole())) && !lhs->Maybe(rhs)) {
     return t->singleton_false_;
   }
   if (lhs->IsHeapConstant() && rhs->Is(lhs)) {
@@ -1045,6 +1056,9 @@ Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
 
 // JS unary operators.
 
+Type* Typer::Visitor::TypeJSClassOf(Node* node) {
+  return Type::InternalizedStringOrNull();
+}
 
 Type* Typer::Visitor::TypeJSTypeOf(Node* node) {
   return Type::InternalizedString();
@@ -1237,6 +1251,11 @@ Type* Typer::Visitor::TypeJSStoreGlobal(Node* node) {
   return nullptr;
 }
 
+Type* Typer::Visitor::TypeJSStoreNamedOwn(Node* node) {
+  UNREACHABLE();
+  return nullptr;
+}
+
 Type* Typer::Visitor::TypeJSStoreDataPropertyInLiteral(Node* node) {
   UNREACHABLE();
   return nullptr;
@@ -1308,16 +1327,13 @@ Type* Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
 
 // JS other operators.
 
+Type* Typer::Visitor::TypeJSConstruct(Node* node) { return Type::Receiver(); }
 
-Type* Typer::Visitor::TypeJSCallConstruct(Node* node) {
+Type* Typer::Visitor::TypeJSConstructWithSpread(Node* node) {
   return Type::Receiver();
 }
 
-Type* Typer::Visitor::TypeJSCallConstructWithSpread(Node* node) {
-  return Type::Receiver();
-}
-
-Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
+Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
   if (fun->IsHeapConstant() && fun->AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(fun->AsHeapConstant()->Value());
@@ -1450,6 +1466,8 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
           return Type::OtherObject();
 
         // Array functions.
+        case kArrayIsArray:
+          return Type::Boolean();
         case kArrayConcat:
           return Type::Receiver();
         case kArrayEvery:
@@ -1484,8 +1502,13 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
           return t->cache_.kPositiveSafeInteger;
 
         // Object functions.
+        case kObjectAssign:
+        case kObjectCreate:
+          return Type::OtherObject();
         case kObjectHasOwnProperty:
           return Type::Boolean();
+        case kObjectToString:
+          return Type::String();
 
         // RegExp functions.
         case kRegExpCompile:
@@ -1512,6 +1535,46 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kGlobalIsFinite:
         case kGlobalIsNaN:
           return Type::Boolean();
+
+        // Map functions.
+        case kMapClear:
+        case kMapForEach:
+          return Type::Undefined();
+        case kMapDelete:
+        case kMapHas:
+          return Type::Boolean();
+        case kMapEntries:
+        case kMapKeys:
+        case kMapSet:
+        case kMapValues:
+          return Type::OtherObject();
+
+        // Set functions.
+        case kSetAdd:
+        case kSetEntries:
+        case kSetKeys:
+        case kSetValues:
+          return Type::OtherObject();
+        case kSetClear:
+        case kSetForEach:
+          return Type::Undefined();
+        case kSetDelete:
+        case kSetHas:
+          return Type::Boolean();
+
+        // WeakMap functions.
+        case kWeakMapDelete:
+        case kWeakMapHas:
+          return Type::Boolean();
+        case kWeakMapSet:
+          return Type::OtherObject();
+
+        // WeakSet functions.
+        case kWeakSetAdd:
+          return Type::OtherObject();
+        case kWeakSetDelete:
+        case kWeakSetHas:
+          return Type::Boolean();
         default:
           break;
       }
@@ -1520,13 +1583,19 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
   return Type::NonInternal();
 }
 
-
-Type* Typer::Visitor::TypeJSCallFunction(Node* node) {
-  // TODO(bmeurer): We could infer better types if we wouldn't ignore the
-  // argument types for the JSCallFunctionTyper above.
-  return TypeUnaryOp(node, JSCallFunctionTyper);
+Type* Typer::Visitor::TypeJSCallForwardVarargs(Node* node) {
+  return TypeUnaryOp(node, JSCallTyper);
 }
 
+Type* Typer::Visitor::TypeJSCall(Node* node) {
+  // TODO(bmeurer): We could infer better types if we wouldn't ignore the
+  // argument types for the JSCallTyper above.
+  return TypeUnaryOp(node, JSCallTyper);
+}
+
+Type* Typer::Visitor::TypeJSCallWithSpread(Node* node) {
+  return TypeUnaryOp(node, JSCallTyper);
+}
 
 Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
   switch (CallRuntimeParametersOf(node->op()).id()) {
@@ -1554,6 +1623,8 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return TypeUnaryOp(node, ToObject);
     case Runtime::kInlineToString:
       return TypeUnaryOp(node, ToString);
+    case Runtime::kInlineClassOf:
+      return Type::InternalizedStringOrNull();
     case Runtime::kHasInPrototypeChain:
       return Type::Boolean();
     default:
@@ -1572,7 +1643,7 @@ Type* Typer::Visitor::TypeJSConvertReceiver(Node* node) {
 
 
 Type* Typer::Visitor::TypeJSForInNext(Node* node) {
-  return Type::Union(Type::Name(), Type::Undefined(), zone());
+  return Type::Union(Type::String(), Type::Undefined(), zone());
 }
 
 
@@ -1615,6 +1686,8 @@ Type* Typer::Visitor::TypeJSGeneratorRestoreRegister(Node* node) {
 }
 
 Type* Typer::Visitor::TypeJSStackCheck(Node* node) { return Type::Any(); }
+
+Type* Typer::Visitor::TypeJSDebugger(Node* node) { return Type::Any(); }
 
 // Simplified operators.
 
@@ -1695,6 +1768,10 @@ Type* Typer::Visitor::TypeStringFromCodePoint(Node* node) {
   return TypeUnaryOp(node, StringFromCodePointTyper);
 }
 
+Type* Typer::Visitor::TypeStringIndexOf(Node* node) {
+  return Type::Range(-1.0, String::kMaxLength - 1.0, zone());
+}
+
 Type* Typer::Visitor::TypeCheckBounds(Node* node) {
   Type* index = Operand(node, 0);
   Type* length = Operand(node, 1);
@@ -1729,6 +1806,11 @@ Type* Typer::Visitor::TypeCheckMaps(Node* node) {
 Type* Typer::Visitor::TypeCheckNumber(Node* node) {
   Type* arg = Operand(node, 0);
   return Type::Intersect(arg, Type::Number(), zone());
+}
+
+Type* Typer::Visitor::TypeCheckReceiver(Node* node) {
+  Type* arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::Receiver(), zone());
 }
 
 Type* Typer::Visitor::TypeCheckSmi(Node* node) {
@@ -1819,8 +1901,12 @@ Type* Typer::Visitor::TypeStoreTypedElement(Node* node) {
   return nullptr;
 }
 
-Type* Typer::Visitor::TypeObjectIsCallable(Node* node) {
-  return TypeUnaryOp(node, ObjectIsCallable);
+Type* Typer::Visitor::TypeObjectIsDetectableCallable(Node* node) {
+  return TypeUnaryOp(node, ObjectIsDetectableCallable);
+}
+
+Type* Typer::Visitor::TypeObjectIsNonCallable(Node* node) {
+  return TypeUnaryOp(node, ObjectIsNonCallable);
 }
 
 Type* Typer::Visitor::TypeObjectIsNumber(Node* node) {

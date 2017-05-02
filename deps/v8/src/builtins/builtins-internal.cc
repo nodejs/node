@@ -5,8 +5,10 @@
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
 #include "src/interface-descriptors.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -247,11 +249,9 @@ void Builtins::Generate_NewUnmappedArgumentsElements(
       assembler.Load(MachineType::AnyTagged(), parent_frame,
                      assembler.IntPtrConstant(
                          CommonFrameConstants::kContextOrFrameTypeOffset));
-  assembler.GotoUnless(
-      assembler.WordEqual(
-          parent_frame_type,
-          assembler.SmiConstant(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR))),
-      &done);
+  assembler.GotoIfNot(assembler.MarkerIsFrameType(
+                          parent_frame_type, StackFrame::ARGUMENTS_ADAPTOR),
+                      &done);
   {
     // Determine the length from the ArgumentsAdaptorFrame.
     Node* length = assembler.LoadAndUntagSmi(
@@ -289,9 +289,8 @@ void Builtins::Generate_NewRestParameterElements(
       assembler.Load(MachineType::AnyTagged(), frame,
                      assembler.IntPtrConstant(
                          CommonFrameConstants::kContextOrFrameTypeOffset));
-  assembler.GotoUnless(
-      assembler.WordEqual(frame_type, assembler.SmiConstant(Smi::FromInt(
-                                          StackFrame::ARGUMENTS_ADAPTOR))),
+  assembler.GotoIfNot(
+      assembler.MarkerIsFrameType(frame_type, StackFrame::ARGUMENTS_ADAPTOR),
       &if_empty);
 
   // Determine the length from the ArgumentsAdaptorFrame.

@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
+#include "src/builtins/builtins.h"
+#include "src/isolate.h"
+#include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -145,6 +148,15 @@ void Builtins::Generate_TailCall_ReceiverIsNotNullOrUndefined(
 
 void Builtins::Generate_TailCall_ReceiverIsAny(MacroAssembler* masm) {
   Generate_Call(masm, ConvertReceiverMode::kAny, TailCallMode::kAllow);
+}
+
+void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm) {
+  Generate_CallForwardVarargs(masm, masm->isolate()->builtins()->Call());
+}
+
+void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
+  Generate_CallForwardVarargs(masm,
+                              masm->isolate()->builtins()->CallFunction());
 }
 
 }  // namespace internal

@@ -30,6 +30,7 @@
 
 #include "src/inspector/v8-runtime-agent-impl.h"
 
+#include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"

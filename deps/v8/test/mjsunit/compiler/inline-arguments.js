@@ -253,9 +253,9 @@ test_toarr(toarr2);
     %DeoptimizeFunction(outer);
     %DeoptimizeFunction(middle);
     %DeoptimizeFunction(inner);
-    %ClearFunctionTypeFeedback(outer);
-    %ClearFunctionTypeFeedback(middle);
-    %ClearFunctionTypeFeedback(inner);
+    %ClearFunctionFeedback(outer);
+    %ClearFunctionFeedback(middle);
+    %ClearFunctionFeedback(inner);
   }
 
   for (var a = 1; a <= 3; a++) {

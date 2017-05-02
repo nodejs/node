@@ -94,7 +94,6 @@ Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   return result;
 }
 
-
 Object** HandleScope::CreateHandle(Isolate* isolate, Object* value) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   HandleScopeData* data = isolate->handle_scope_data();

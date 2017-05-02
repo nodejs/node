@@ -169,11 +169,9 @@ function PostNatives(utils) {
   var expose_list = [
     "FormatDateToParts",
     "MapEntries",
-    "MapIterator",
     "MapIteratorNext",
     "MaxSimple",
     "MinSimple",
-    "SetIterator",
     "SetIteratorNext",
     "SetValues",
     "ToLocaleLowerCaseI18N",
@@ -203,7 +201,6 @@ function PostNatives(utils) {
 
 function PostExperimentals(utils) {
   %CheckIsBootstrapping();
-  %ExportExperimentalFromRuntime(exports_container);
   for ( ; !IS_UNDEFINED(imports); imports = imports.next) {
     imports(exports_container);
   }

@@ -49,7 +49,6 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
                            ArgvMode argv_mode = kArgvOnStack,
                            bool builtin_exit_frame = false);
   Node* EmptyFixedArrayConstant();
-  Node* EmptyLiteralsArrayConstant();
   Node* EmptyStringConstant();
   Node* FixedArrayMapConstant();
   Node* FixedDoubleArrayMapConstant();
@@ -167,7 +166,6 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
     kCEntryStub3Constant,
     kCEntryStub1WithBuiltinExitFrameConstant,
     kEmptyFixedArrayConstant,
-    kEmptyLiteralsArrayConstant,
     kEmptyStringConstant,
     kFixedArrayMapConstant,
     kFixedDoubleArrayMapConstant,

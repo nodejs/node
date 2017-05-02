@@ -673,12 +673,14 @@ void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
   bind(&done);
 }
 
-void MacroAssembler::DebugBreak() {
-  Move(eax, Immediate(0));
-  mov(ebx, Immediate(ExternalReference(Runtime::kHandleDebuggerStatement,
-                                       isolate())));
-  CEntryStub ces(isolate(), 1);
-  call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
+void MacroAssembler::MaybeDropFrames() {
+  // Check whether we need to drop frames to restart a function on the stack.
+  ExternalReference restart_fp =
+      ExternalReference::debug_restart_fp_address(isolate());
+  mov(ebx, Operand::StaticVariable(restart_fp));
+  test(ebx, ebx);
+  j(not_zero, isolate()->builtins()->FrameDropperTrampoline(),
+    RelocInfo::CODE_TARGET);
 }
 
 void MacroAssembler::Cvtsi2sd(XMMRegister dst, const Operand& src) {
@@ -997,7 +999,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
 void MacroAssembler::StubPrologue(StackFrame::Type type) {
   push(ebp);  // Caller's frame pointer.
   mov(ebp, esp);
-  push(Immediate(Smi::FromInt(type)));
+  push(Immediate(StackFrame::TypeToMarker(type)));
 }
 
 void MacroAssembler::Prologue(bool code_pre_aging) {
@@ -1018,8 +1020,8 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
 
 void MacroAssembler::EmitLoadFeedbackVector(Register vector) {
   mov(vector, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-  mov(vector, FieldOperand(vector, JSFunction::kLiteralsOffset));
-  mov(vector, FieldOperand(vector, LiteralsArray::kFeedbackVectorOffset));
+  mov(vector, FieldOperand(vector, JSFunction::kFeedbackVectorOffset));
+  mov(vector, FieldOperand(vector, Cell::kValueOffset));
 }
 
 
@@ -1033,7 +1035,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, esp);
-  push(Immediate(Smi::FromInt(type)));
+  push(Immediate(StackFrame::TypeToMarker(type)));
   if (type == StackFrame::INTERNAL) {
     push(Immediate(CodeObject()));
   }
@@ -1047,7 +1049,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   if (emit_debug_code()) {
     cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
-        Immediate(Smi::FromInt(type)));
+        Immediate(StackFrame::TypeToMarker(type)));
     Check(equal, kStackFrameTypesMustMatch);
   }
   leave();
@@ -1082,7 +1084,7 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type) {
   mov(ebp, esp);
 
   // Reserve room for entry stack pointer and push the code object.
-  push(Immediate(Smi::FromInt(frame_type)));
+  push(Immediate(StackFrame::TypeToMarker(frame_type)));
   DCHECK_EQ(-2 * kPointerSize, ExitFrameConstants::kSPOffset);
   push(Immediate(0));  // Saved entry sp, patched before call.
   DCHECK_EQ(-3 * kPointerSize, ExitFrameConstants::kCodeOffset);
@@ -1680,32 +1682,6 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   bind(&done);
 }
 
-
-void MacroAssembler::TryGetFunctionPrototype(Register function, Register result,
-                                             Register scratch, Label* miss) {
-  // Get the prototype or initial map from the function.
-  mov(result,
-      FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // If the prototype or initial map is the hole, don't return it and
-  // simply miss the cache instead. This will allow us to allocate a
-  // prototype object on-demand in the runtime system.
-  cmp(result, Immediate(isolate()->factory()->the_hole_value()));
-  j(equal, miss);
-
-  // If the function does not have an initial map, we're done.
-  Label done;
-  CmpObjectType(result, MAP_TYPE, scratch);
-  j(not_equal, &done, Label::kNear);
-
-  // Get the prototype from the initial map.
-  mov(result, FieldOperand(result, Map::kPrototypeOffset));
-
-  // All done.
-  bind(&done);
-}
-
-
 void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
   DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.
   call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
@@ -1915,6 +1891,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       DCHECK(actual.reg().is(eax));
       DCHECK(expected.reg().is(ebx));
     } else {
+      definitely_matches = true;
       Move(eax, actual.reg());
     }
   }
@@ -2563,11 +2540,13 @@ void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(Register object1,
   const int kFlatOneByteStringTag =
       kStringTag | kOneByteStringTag | kSeqStringTag;
   // Interleave bits from both instance types and compare them in one check.
-  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << 3));
+  const int kShift = 8;
+  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << kShift));
   and_(scratch1, kFlatOneByteStringMask);
   and_(scratch2, kFlatOneByteStringMask);
-  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
-  cmp(scratch1, kFlatOneByteStringTag | (kFlatOneByteStringTag << 3));
+  shl(scratch2, kShift);
+  or_(scratch1, scratch2);
+  cmp(scratch1, kFlatOneByteStringTag | (kFlatOneByteStringTag << kShift));
   j(not_equal, failure);
 }
 

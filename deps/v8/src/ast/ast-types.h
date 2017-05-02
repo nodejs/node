@@ -156,15 +156,15 @@ namespace internal {
 #define AST_REPRESENTATION(k) ((k) & AstBitsetType::kRepresentation)
 #define AST_SEMANTIC(k)       ((k) & AstBitsetType::kSemantic)
 
+// Bits 21-22 are available.
 #define AST_REPRESENTATION_BITSET_TYPE_LIST(V)    \
   V(None,               0)                    \
-  V(UntaggedBit,        1u << 22 | kSemantic) \
-  V(UntaggedIntegral8,  1u << 23 | kSemantic) \
-  V(UntaggedIntegral16, 1u << 24 | kSemantic) \
-  V(UntaggedIntegral32, 1u << 25 | kSemantic) \
-  V(UntaggedFloat32,    1u << 26 | kSemantic) \
-  V(UntaggedFloat64,    1u << 27 | kSemantic) \
-  V(UntaggedSimd128,    1u << 28 | kSemantic) \
+  V(UntaggedBit,        1u << 23 | kSemantic) \
+  V(UntaggedIntegral8,  1u << 24 | kSemantic) \
+  V(UntaggedIntegral16, 1u << 25 | kSemantic) \
+  V(UntaggedIntegral32, 1u << 26 | kSemantic) \
+  V(UntaggedFloat32,    1u << 27 | kSemantic) \
+  V(UntaggedFloat64,    1u << 28 | kSemantic) \
   V(UntaggedPointer,    1u << 29 | kSemantic) \
   V(TaggedSigned,       1u << 30 | kSemantic) \
   V(TaggedPointer,      1u << 31 | kSemantic) \
@@ -197,13 +197,12 @@ namespace internal {
   V(Symbol,              1u << 12 | AST_REPRESENTATION(kTaggedPointer)) \
   V(InternalizedString,  1u << 13 | AST_REPRESENTATION(kTaggedPointer)) \
   V(OtherString,         1u << 14 | AST_REPRESENTATION(kTaggedPointer)) \
-  V(Simd,                1u << 15 | AST_REPRESENTATION(kTaggedPointer)) \
-  V(OtherObject,         1u << 17 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(OtherObject,         1u << 15 | AST_REPRESENTATION(kTaggedPointer)) \
   V(OtherUndetectable,   1u << 16 | AST_REPRESENTATION(kTaggedPointer)) \
-  V(Proxy,               1u << 18 | AST_REPRESENTATION(kTaggedPointer)) \
-  V(Function,            1u << 19 | AST_REPRESENTATION(kTaggedPointer)) \
-  V(Hole,                1u << 20 | AST_REPRESENTATION(kTaggedPointer)) \
-  V(OtherInternal,       1u << 21 |                                     \
+  V(Proxy,               1u << 17 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(Function,            1u << 18 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(Hole,                1u << 19 | AST_REPRESENTATION(kTaggedPointer)) \
+  V(OtherInternal,       1u << 20 |                                     \
                          AST_REPRESENTATION(kTagged | kUntagged))       \
   \
   V(Signed31,                   kUnsigned30 | kNegative31) \
@@ -232,11 +231,10 @@ namespace internal {
   V(NullOrUndefined,            kNull | kUndefined) \
   V(Undetectable,               kNullOrUndefined | kOtherUndetectable) \
   V(NumberOrOddball,            kNumber | kNullOrUndefined | kBoolean | kHole) \
-  V(NumberOrSimdOrString,       kNumber | kSimd | kString) \
   V(NumberOrString,             kNumber | kString) \
   V(NumberOrUndefined,          kNumber | kUndefined) \
   V(PlainPrimitive,             kNumberOrString | kBoolean | kNullOrUndefined) \
-  V(Primitive,                  kSymbol | kSimd | kPlainPrimitive) \
+  V(Primitive,                  kSymbol | kPlainPrimitive) \
   V(DetectableReceiver,         kFunction | kOtherObject | kProxy) \
   V(Object,                     kFunction | kOtherObject | kOtherUndetectable) \
   V(Receiver,                   kObject | kProxy) \
@@ -769,11 +767,6 @@ class AstType {
     tuple->AsTuple()->InitElement(2, third);
     return tuple;
   }
-
-#define CONSTRUCT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
-  static AstType* Name(Isolate* isolate, Zone* zone);
-  SIMD128_TYPES(CONSTRUCT_SIMD_TYPE)
-#undef CONSTRUCT_SIMD_TYPE
 
   static AstType* Union(AstType* type1, AstType* type2, Zone* zone);
   static AstType* Intersect(AstType* type1, AstType* type2, Zone* zone);

@@ -35,6 +35,7 @@
 #include "src/disassembler.h"
 #include "src/isolate.h"
 #include "src/log.h"
+#include "src/objects-inl.h"
 #include "src/v8.h"
 #include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"

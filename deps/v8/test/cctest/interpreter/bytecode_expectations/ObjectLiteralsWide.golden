@@ -783,7 +783,7 @@ bytecodes: [
                 B(Star), R(0),
   /* 2591 S> */ B(LdaConstant), U8(255),
                 B(Star), R(0),
-  /* 2601 S> */ B(Wide), B(CreateObjectLiteral), U16(256), U16(0), U8(1), R16(1),
+  /* 2601 S> */ B(Wide), B(CreateObjectLiteral), U16(256), U16(2), U8(1), R16(1),
                 B(Ldar), R(1),
   /* 2638 S> */ B(Return),
 ]

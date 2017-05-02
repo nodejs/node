@@ -2,10 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <type_traits>
+
 #include "src/wasm/wasm-interpreter.h"
 
+#include "src/conversions.h"
+#include "src/objects-inl.h"
 #include "src/utils.h"
 #include "src/wasm/decoder.h"
+#include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-limits.h"
@@ -77,12 +82,10 @@ namespace wasm {
   V(F64Lt, double, <)           \
   V(F64Le, double, <=)          \
   V(F64Gt, double, >)           \
-  V(F64Ge, double, >=)
-
-#define FOREACH_SIMPLE_BINOP_NAN(V) \
-  V(F32Mul, float, *)               \
-  V(F64Mul, double, *)              \
-  V(F32Div, float, /)               \
+  V(F64Ge, double, >=)          \
+  V(F32Mul, float, *)           \
+  V(F64Mul, double, *)          \
+  V(F32Div, float, /)           \
   V(F64Div, double, /)
 
 #define FOREACH_OTHER_BINOP(V) \
@@ -106,10 +109,8 @@ namespace wasm {
   V(I64Rol, int64_t)           \
   V(F32Min, float)             \
   V(F32Max, float)             \
-  V(F32CopySign, float)        \
   V(F64Min, double)            \
   V(F64Max, double)            \
-  V(F64CopySign, double)       \
   V(I32AsmjsDivS, int32_t)     \
   V(I32AsmjsDivU, uint32_t)    \
   V(I32AsmjsRemS, int32_t)     \
@@ -162,10 +163,8 @@ namespace wasm {
   V(I32AsmjsSConvertF32, float)  \
   V(I32AsmjsUConvertF32, float)  \
   V(I32AsmjsSConvertF64, double) \
-  V(I32AsmjsUConvertF64, double)
-
-#define FOREACH_OTHER_UNOP_NAN(V) \
-  V(F32Sqrt, float)               \
+  V(I32AsmjsUConvertF64, double) \
+  V(F32Sqrt, float)              \
   V(F64Sqrt, double)
 
 static inline int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
@@ -616,7 +615,7 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
                                         WasmInstance* instance) {
   // TODO(ahaas): Move memory allocation to wasm-module.cc for better
   // encapsulation.
-  if (delta_pages > wasm::kV8MaxWasmMemoryPages ||
+  if (delta_pages > FLAG_wasm_max_mem_pages ||
       delta_pages > instance->module->max_mem_pages) {
     return -1;
   }
@@ -633,7 +632,7 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
   } else {
     DCHECK_NOT_NULL(instance->mem_start);
     new_size = old_size + delta_pages * wasm::WasmModule::kPageSize;
-    if (new_size / wasm::WasmModule::kPageSize > wasm::kV8MaxWasmMemoryPages ||
+    if (new_size / wasm::WasmModule::kPageSize > FLAG_wasm_max_mem_pages ||
         new_size / wasm::WasmModule::kPageSize >
             instance->module->max_mem_pages) {
       return -1;
@@ -916,31 +915,27 @@ class CodeMap {
   }
 };
 
+namespace {
 // Responsible for executing code directly.
-class ThreadImpl : public WasmInterpreter::Thread {
+class ThreadImpl {
  public:
   ThreadImpl(Zone* zone, CodeMap* codemap, WasmInstance* instance)
       : codemap_(codemap),
         instance_(instance),
         stack_(zone),
         frames_(zone),
-        blocks_(zone),
-        state_(WasmInterpreter::STOPPED),
-        break_pc_(kInvalidPc),
-        trap_reason_(kTrapCount),
-        possible_nondeterminism_(false) {}
-
-  virtual ~ThreadImpl() {}
+        blocks_(zone) {}
 
   //==========================================================================
   // Implementation of public interface for WasmInterpreter::Thread.
   //==========================================================================
 
-  virtual WasmInterpreter::State state() { return state_; }
+  WasmInterpreter::State state() { return state_; }
 
-  virtual void PushFrame(const WasmFunction* function, WasmVal* args) {
+  void PushFrame(const WasmFunction* function, WasmVal* args) {
     InterpreterCode* code = codemap()->FindCode(function);
     CHECK_NOT_NULL(code);
+    ++num_interpreted_calls_;
     frames_.push_back({code, 0, 0, stack_.size()});
     for (size_t i = 0; i < function->sig->parameter_count(); ++i) {
       stack_.push_back(args[i]);
@@ -953,7 +948,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
           frames_.back().ret_pc);
   }
 
-  virtual WasmInterpreter::State Run() {
+  WasmInterpreter::State Run() {
     do {
       TRACE("  => Run()\n");
       if (state_ == WasmInterpreter::STOPPED ||
@@ -965,7 +960,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
     return state_;
   }
 
-  virtual WasmInterpreter::State Step() {
+  WasmInterpreter::State Step() {
     TRACE("  => Step()\n");
     if (state_ == WasmInterpreter::STOPPED ||
         state_ == WasmInterpreter::PAUSED) {
@@ -975,9 +970,9 @@ class ThreadImpl : public WasmInterpreter::Thread {
     return state_;
   }
 
-  virtual void Pause() { UNIMPLEMENTED(); }
+  void Pause() { UNIMPLEMENTED(); }
 
-  virtual void Reset() {
+  void Reset() {
     TRACE("----- RESET -----\n");
     stack_.clear();
     frames_.clear();
@@ -986,33 +981,40 @@ class ThreadImpl : public WasmInterpreter::Thread {
     possible_nondeterminism_ = false;
   }
 
-  virtual int GetFrameCount() { return static_cast<int>(frames_.size()); }
-
-  virtual const WasmFrame* GetFrame(int index) {
-    UNIMPLEMENTED();
-    return nullptr;
+  int GetFrameCount() {
+    DCHECK_GE(kMaxInt, frames_.size());
+    return static_cast<int>(frames_.size());
   }
 
-  virtual WasmFrame* GetMutableFrame(int index) {
-    UNIMPLEMENTED();
-    return nullptr;
+  template <typename FrameCons>
+  InterpretedFrame GetMutableFrame(int index, FrameCons frame_cons) {
+    DCHECK_LE(0, index);
+    DCHECK_GT(frames_.size(), index);
+    Frame* frame = &frames_[index];
+    DCHECK_GE(kMaxInt, frame->ret_pc);
+    DCHECK_GE(kMaxInt, frame->sp);
+    DCHECK_GE(kMaxInt, frame->llimit());
+    return frame_cons(frame->code->function, static_cast<int>(frame->ret_pc),
+                      static_cast<int>(frame->sp),
+                      static_cast<int>(frame->llimit()));
   }
 
-  virtual WasmVal GetReturnValue(int index) {
+  WasmVal GetReturnValue(int index) {
     if (state_ == WasmInterpreter::TRAPPED) return WasmVal(0xdeadbeef);
     CHECK_EQ(WasmInterpreter::FINISHED, state_);
     CHECK_LT(static_cast<size_t>(index), stack_.size());
     return stack_[index];
   }
 
-  virtual pc_t GetBreakpointPc() { return break_pc_; }
+  pc_t GetBreakpointPc() { return break_pc_; }
 
-  virtual bool PossibleNondeterminism() { return possible_nondeterminism_; }
+  bool PossibleNondeterminism() { return possible_nondeterminism_; }
 
-  bool Terminated() {
-    return state_ == WasmInterpreter::TRAPPED ||
-           state_ == WasmInterpreter::FINISHED;
-  }
+  uint64_t NumInterpretedCalls() { return num_interpreted_calls_; }
+
+  void AddBreakFlags(uint8_t flags) { break_flags_ |= flags; }
+
+  void ClearBreakFlags() { break_flags_ = WasmInterpreter::BreakFlag::None; }
 
  private:
   // Entries on the stack of functions being evaluated.
@@ -1040,10 +1042,12 @@ class ThreadImpl : public WasmInterpreter::Thread {
   ZoneVector<WasmVal> stack_;
   ZoneVector<Frame> frames_;
   ZoneVector<Block> blocks_;
-  WasmInterpreter::State state_;
-  pc_t break_pc_;
-  TrapReason trap_reason_;
-  bool possible_nondeterminism_;
+  WasmInterpreter::State state_ = WasmInterpreter::STOPPED;
+  pc_t break_pc_ = kInvalidPc;
+  TrapReason trap_reason_ = kTrapCount;
+  bool possible_nondeterminism_ = false;
+  uint8_t break_flags_ = 0;  // a combination of WasmInterpreter::BreakFlag
+  uint64_t num_interpreted_calls_ = 0;
 
   CodeMap* codemap() { return codemap_; }
   WasmInstance* instance() { return instance_; }
@@ -1059,6 +1063,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
   void PushFrame(InterpreterCode* code, pc_t call_pc, pc_t ret_pc) {
     CHECK_NOT_NULL(code);
     DCHECK(!frames_.empty());
+    ++num_interpreted_calls_;
     frames_.back().call_pc = call_pc;
     frames_.back().ret_pc = ret_pc;
     size_t arity = code->function->sig->parameter_count();
@@ -1175,42 +1180,73 @@ class ThreadImpl : public WasmInterpreter::Thread {
     stack_.resize(stack_.size() - pop_count);
   }
 
+  template <typename ctype, typename mtype>
+  bool ExecuteLoad(Decoder* decoder, InterpreterCode* code, pc_t pc, int& len) {
+    MemoryAccessOperand operand(decoder, code->at(pc), sizeof(ctype));
+    uint32_t index = Pop().to<uint32_t>();
+    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);
+    if (operand.offset > effective_mem_size ||
+        index > (effective_mem_size - operand.offset)) {
+      DoTrap(kTrapMemOutOfBounds, pc);
+      return false;
+    }
+    byte* addr = instance()->mem_start + operand.offset + index;
+    WasmVal result(static_cast<ctype>(ReadLittleEndianValue<mtype>(addr)));
+
+    Push(pc, result);
+    len = 1 + operand.length;
+    return true;
+  }
+
+  template <typename ctype, typename mtype>
+  bool ExecuteStore(Decoder* decoder, InterpreterCode* code, pc_t pc,
+                    int& len) {
+    MemoryAccessOperand operand(decoder, code->at(pc), sizeof(ctype));
+    WasmVal val = Pop();
+
+    uint32_t index = Pop().to<uint32_t>();
+    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);
+    if (operand.offset > effective_mem_size ||
+        index > (effective_mem_size - operand.offset)) {
+      DoTrap(kTrapMemOutOfBounds, pc);
+      return false;
+    }
+    byte* addr = instance()->mem_start + operand.offset + index;
+    WriteLittleEndianValue<mtype>(addr, static_cast<mtype>(val.to<ctype>()));
+    len = 1 + operand.length;
+
+    if (std::is_same<float, ctype>::value) {
+      possible_nondeterminism_ |= std::isnan(val.to<float>());
+    } else if (std::is_same<double, ctype>::value) {
+      possible_nondeterminism_ |= std::isnan(val.to<double>());
+    }
+    return true;
+  }
+
   void Execute(InterpreterCode* code, pc_t pc, int max) {
     Decoder decoder(code->start, code->end);
     pc_t limit = code->end - code->start;
-    while (true) {
-      if (max-- <= 0) {
-        // Maximum number of instructions reached.
-        state_ = WasmInterpreter::PAUSED;
-        return CommitPc(pc);
-      }
+    while (--max >= 0) {
+#define PAUSE_IF_BREAK_FLAG(flag) \
+  if (V8_UNLIKELY(break_flags_ & WasmInterpreter::BreakFlag::flag)) max = 0;
 
-      if (pc >= limit) {
-        // Fell off end of code; do an implicit return.
-        TRACE("@%-3zu: ImplicitReturn\n", pc);
-        if (!DoReturn(&code, &pc, &limit, code->function->sig->return_count()))
-          return;
-        decoder.Reset(code->start, code->end);
-        continue;
-      }
+      DCHECK_GT(limit, pc);
 
       const char* skip = "        ";
       int len = 1;
       byte opcode = code->start[pc];
       byte orig = opcode;
-      if (opcode == kInternalBreakpoint) {
+      if (V8_UNLIKELY(opcode == kInternalBreakpoint)) {
         orig = code->orig_start[pc];
         if (SkipBreakpoint(code, pc)) {
           // skip breakpoint by switching on original code.
           skip = "[skip]  ";
         } else {
-          state_ = WasmInterpreter::PAUSED;
           TRACE("@%-3zu: [break] %-24s:", pc,
                 WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(orig)));
           TraceValueStack();
           TRACE("\n");
-          break_pc_ = pc;
-          return CommitPc(pc);
+          break;
         }
       }
 
@@ -1300,6 +1336,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
           size_t arity = code->function->sig->return_count();
           if (!DoReturn(&code, &pc, &limit, arity)) return;
           decoder.Reset(code->start, code->end);
+          PAUSE_IF_BREAK_FLAG(AfterReturn);
           continue;
         }
         case kExprUnreachable: {
@@ -1365,6 +1402,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
           DoCall(target, &pc, pc + 1 + operand.length, &limit);
           code = target;
           decoder.Reset(code->start, code->end);
+          PAUSE_IF_BREAK_FLAG(AfterCall);
           continue;
         }
         case kExprCallIndirect: {
@@ -1391,6 +1429,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
           DoCall(target, &pc, pc + 1 + operand.length, &limit);
           code = target;
           decoder.Reset(code->start, code->end);
+          PAUSE_IF_BREAK_FLAG(AfterCall);
           continue;
         }
         case kExprGetGlobal: {
@@ -1435,20 +1474,10 @@ class ThreadImpl : public WasmInterpreter::Thread {
           break;
         }
 
-#define LOAD_CASE(name, ctype, mtype)                                       \
-  case kExpr##name: {                                                       \
-    MemoryAccessOperand operand(&decoder, code->at(pc), sizeof(ctype));     \
-    uint32_t index = Pop().to<uint32_t>();                                  \
-    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);       \
-    if (operand.offset > effective_mem_size ||                              \
-        index > (effective_mem_size - operand.offset)) {                    \
-      return DoTrap(kTrapMemOutOfBounds, pc);                               \
-    }                                                                       \
-    byte* addr = instance()->mem_start + operand.offset + index;            \
-    WasmVal result(static_cast<ctype>(ReadLittleEndianValue<mtype>(addr))); \
-    Push(pc, result);                                                       \
-    len = 1 + operand.length;                                               \
-    break;                                                                  \
+#define LOAD_CASE(name, ctype, mtype)                                \
+  case kExpr##name: {                                                \
+    if (!ExecuteLoad<ctype, mtype>(&decoder, code, pc, len)) return; \
+    break;                                                           \
   }
 
           LOAD_CASE(I32LoadMem8S, int32_t, int8_t);
@@ -1467,20 +1496,10 @@ class ThreadImpl : public WasmInterpreter::Thread {
           LOAD_CASE(F64LoadMem, double, double);
 #undef LOAD_CASE
 
-#define STORE_CASE(name, ctype, mtype)                                        \
-  case kExpr##name: {                                                         \
-    MemoryAccessOperand operand(&decoder, code->at(pc), sizeof(ctype));       \
-    WasmVal val = Pop();                                                      \
-    uint32_t index = Pop().to<uint32_t>();                                    \
-    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);         \
-    if (operand.offset > effective_mem_size ||                                \
-        index > (effective_mem_size - operand.offset)) {                      \
-      return DoTrap(kTrapMemOutOfBounds, pc);                                 \
-    }                                                                         \
-    byte* addr = instance()->mem_start + operand.offset + index;              \
-    WriteLittleEndianValue<mtype>(addr, static_cast<mtype>(val.to<ctype>())); \
-    len = 1 + operand.length;                                                 \
-    break;                                                                    \
+#define STORE_CASE(name, ctype, mtype)                                \
+  case kExpr##name: {                                                 \
+    if (!ExecuteStore<ctype, mtype>(&decoder, code, pc, len)) return; \
+    break;                                                            \
   }
 
           STORE_CASE(I32StoreMem8, int32_t, int8_t);
@@ -1556,13 +1575,17 @@ class ThreadImpl : public WasmInterpreter::Thread {
         // specially to guarantee that the quiet bit of a NaN is preserved on
         // ia32 by the reinterpret casts.
         case kExprI32ReinterpretF32: {
-          WasmVal result(ExecuteI32ReinterpretF32(Pop()));
+          WasmVal val = Pop();
+          WasmVal result(ExecuteI32ReinterpretF32(val));
           Push(pc, result);
+          possible_nondeterminism_ |= std::isnan(val.to<float>());
           break;
         }
         case kExprI64ReinterpretF64: {
-          WasmVal result(ExecuteI64ReinterpretF64(Pop()));
+          WasmVal val = Pop();
+          WasmVal result(ExecuteI64ReinterpretF64(val));
           Push(pc, result);
+          possible_nondeterminism_ |= std::isnan(val.to<double>());
           break;
         }
 #define EXECUTE_SIMPLE_BINOP(name, ctype, op)             \
@@ -1575,19 +1598,6 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
           FOREACH_SIMPLE_BINOP(EXECUTE_SIMPLE_BINOP)
 #undef EXECUTE_SIMPLE_BINOP
-
-#define EXECUTE_SIMPLE_BINOP_NAN(name, ctype, op)        \
-  case kExpr##name: {                                    \
-    WasmVal rval = Pop();                                \
-    WasmVal lval = Pop();                                \
-    ctype result = lval.to<ctype>() op rval.to<ctype>(); \
-    possible_nondeterminism_ |= std::isnan(result);      \
-    WasmVal result_val(result);                          \
-    Push(pc, result_val);                                \
-    break;                                               \
-  }
-          FOREACH_SIMPLE_BINOP_NAN(EXECUTE_SIMPLE_BINOP_NAN)
-#undef EXECUTE_SIMPLE_BINOP_NAN
 
 #define EXECUTE_OTHER_BINOP(name, ctype)              \
   case kExpr##name: {                                 \
@@ -1602,6 +1612,28 @@ class ThreadImpl : public WasmInterpreter::Thread {
           FOREACH_OTHER_BINOP(EXECUTE_OTHER_BINOP)
 #undef EXECUTE_OTHER_BINOP
 
+        case kExprF32CopySign: {
+          // Handle kExprF32CopySign separately because it may introduce
+          // observable non-determinism.
+          TrapReason trap = kTrapCount;
+          volatile float rval = Pop().to<float>();
+          volatile float lval = Pop().to<float>();
+          WasmVal result(ExecuteF32CopySign(lval, rval, &trap));
+          Push(pc, result);
+          possible_nondeterminism_ |= std::isnan(rval);
+          break;
+        }
+        case kExprF64CopySign: {
+          // Handle kExprF32CopySign separately because it may introduce
+          // observable non-determinism.
+          TrapReason trap = kTrapCount;
+          volatile double rval = Pop().to<double>();
+          volatile double lval = Pop().to<double>();
+          WasmVal result(ExecuteF64CopySign(lval, rval, &trap));
+          Push(pc, result);
+          possible_nondeterminism_ |= std::isnan(rval);
+          break;
+        }
 #define EXECUTE_OTHER_UNOP(name, ctype)              \
   case kExpr##name: {                                \
     TrapReason trap = kTrapCount;                    \
@@ -1614,20 +1646,6 @@ class ThreadImpl : public WasmInterpreter::Thread {
           FOREACH_OTHER_UNOP(EXECUTE_OTHER_UNOP)
 #undef EXECUTE_OTHER_UNOP
 
-#define EXECUTE_OTHER_UNOP_NAN(name, ctype)          \
-  case kExpr##name: {                                \
-    TrapReason trap = kTrapCount;                    \
-    volatile ctype val = Pop().to<ctype>();          \
-    ctype result = Execute##name(val, &trap);        \
-    possible_nondeterminism_ |= std::isnan(result);  \
-    WasmVal result_val(result);                      \
-    if (trap != kTrapCount) return DoTrap(trap, pc); \
-    Push(pc, result_val);                            \
-    break;                                           \
-  }
-          FOREACH_OTHER_UNOP_NAN(EXECUTE_OTHER_UNOP_NAN)
-#undef EXECUTE_OTHER_UNOP_NAN
-
         default:
           V8_Fatal(__FILE__, __LINE__, "Unknown or unimplemented opcode #%d:%s",
                    code->start[pc], OpcodeName(code->start[pc]));
@@ -1635,8 +1653,20 @@ class ThreadImpl : public WasmInterpreter::Thread {
       }
 
       pc += len;
+      if (pc == limit) {
+        // Fell off end of code; do an implicit return.
+        TRACE("@%-3zu: ImplicitReturn\n", pc);
+        if (!DoReturn(&code, &pc, &limit, code->function->sig->return_count()))
+          return;
+        decoder.Reset(code->start, code->end);
+        PAUSE_IF_BREAK_FLAG(AfterReturn);
+      }
     }
-    UNREACHABLE();  // above decoding loop should run forever.
+    // Set break_pc_, even though we might have stopped because max was reached.
+    // We don't want to stop after executing zero instructions next time.
+    break_pc_ = pc;
+    state_ = WasmInterpreter::PAUSED;
+    CommitPc(pc);
   }
 
   WasmVal Pop() {
@@ -1676,6 +1706,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
 
   void TraceValueStack() {
+#ifdef DEBUG
     Frame* top = frames_.size() > 0 ? &frames_.back() : nullptr;
     sp_t sp = top ? top->sp : 0;
     sp_t plimit = top ? top->plimit() : 0;
@@ -1711,8 +1742,75 @@ class ThreadImpl : public WasmInterpreter::Thread {
         }
       }
     }
+#endif  // DEBUG
   }
 };
+
+// Converters between WasmInterpreter::Thread and WasmInterpreter::ThreadImpl.
+// Thread* is the public interface, without knowledge of the object layout.
+// This cast is potentially risky, but as long as we always cast it back before
+// accessing any data, it should be fine. UBSan is not complaining.
+WasmInterpreter::Thread* ToThread(ThreadImpl* impl) {
+  return reinterpret_cast<WasmInterpreter::Thread*>(impl);
+}
+static ThreadImpl* ToImpl(WasmInterpreter::Thread* thread) {
+  return reinterpret_cast<ThreadImpl*>(thread);
+}
+}  // namespace
+
+//============================================================================
+// Implementation of the pimpl idiom for WasmInterpreter::Thread.
+// Instead of placing a pointer to the ThreadImpl inside of the Thread object,
+// we just reinterpret_cast them. ThreadImpls are only allocated inside this
+// translation unit anyway.
+//============================================================================
+WasmInterpreter::State WasmInterpreter::Thread::state() {
+  return ToImpl(this)->state();
+}
+void WasmInterpreter::Thread::PushFrame(const WasmFunction* function,
+                                        WasmVal* args) {
+  return ToImpl(this)->PushFrame(function, args);
+}
+WasmInterpreter::State WasmInterpreter::Thread::Run() {
+  return ToImpl(this)->Run();
+}
+WasmInterpreter::State WasmInterpreter::Thread::Step() {
+  return ToImpl(this)->Step();
+}
+void WasmInterpreter::Thread::Pause() { return ToImpl(this)->Pause(); }
+void WasmInterpreter::Thread::Reset() { return ToImpl(this)->Reset(); }
+pc_t WasmInterpreter::Thread::GetBreakpointPc() {
+  return ToImpl(this)->GetBreakpointPc();
+}
+int WasmInterpreter::Thread::GetFrameCount() {
+  return ToImpl(this)->GetFrameCount();
+}
+const InterpretedFrame WasmInterpreter::Thread::GetFrame(int index) {
+  return GetMutableFrame(index);
+}
+InterpretedFrame WasmInterpreter::Thread::GetMutableFrame(int index) {
+  // We have access to the constructor of InterpretedFrame, but ThreadImpl has
+  // not. So pass it as a lambda (should all get inlined).
+  auto frame_cons = [](const WasmFunction* function, int pc, int fp, int sp) {
+    return InterpretedFrame(function, pc, fp, sp);
+  };
+  return ToImpl(this)->GetMutableFrame(index, frame_cons);
+}
+WasmVal WasmInterpreter::Thread::GetReturnValue(int index) {
+  return ToImpl(this)->GetReturnValue(index);
+}
+bool WasmInterpreter::Thread::PossibleNondeterminism() {
+  return ToImpl(this)->PossibleNondeterminism();
+}
+uint64_t WasmInterpreter::Thread::NumInterpretedCalls() {
+  return ToImpl(this)->NumInterpretedCalls();
+}
+void WasmInterpreter::Thread::AddBreakFlags(uint8_t flags) {
+  ToImpl(this)->AddBreakFlags(flags);
+}
+void WasmInterpreter::Thread::ClearBreakFlags() {
+  ToImpl(this)->ClearBreakFlags();
+}
 
 //============================================================================
 // The implementation details of the interpreter.
@@ -1724,22 +1822,19 @@ class WasmInterpreterInternals : public ZoneObject {
   // pointer might be invalidated after constructing the interpreter.
   const ZoneVector<uint8_t> module_bytes_;
   CodeMap codemap_;
-  ZoneVector<ThreadImpl*> threads_;
+  ZoneVector<ThreadImpl> threads_;
 
   WasmInterpreterInternals(Zone* zone, const ModuleBytesEnv& env)
-      : instance_(env.instance),
-        module_bytes_(env.module_bytes.start(), env.module_bytes.end(), zone),
-        codemap_(env.instance ? env.instance->module : nullptr,
-                 module_bytes_.data(), zone),
+      : instance_(env.module_env.instance),
+        module_bytes_(env.wire_bytes.start(), env.wire_bytes.end(), zone),
+        codemap_(
+            env.module_env.instance ? env.module_env.instance->module : nullptr,
+            module_bytes_.data(), zone),
         threads_(zone) {
-    threads_.push_back(new ThreadImpl(zone, &codemap_, env.instance));
+    threads_.emplace_back(zone, &codemap_, env.module_env.instance);
   }
 
-  void Delete() {
-    // TODO(titzer): CFI doesn't like threads in the ZoneVector.
-    for (auto t : threads_) delete t;
-    threads_.resize(0);
-  }
+  void Delete() { threads_.clear(); }
 };
 
 //============================================================================
@@ -1752,9 +1847,9 @@ WasmInterpreter::WasmInterpreter(const ModuleBytesEnv& env,
 
 WasmInterpreter::~WasmInterpreter() { internals_->Delete(); }
 
-void WasmInterpreter::Run() { internals_->threads_[0]->Run(); }
+void WasmInterpreter::Run() { internals_->threads_[0].Run(); }
 
-void WasmInterpreter::Pause() { internals_->threads_[0]->Pause(); }
+void WasmInterpreter::Pause() { internals_->threads_[0].Pause(); }
 
 bool WasmInterpreter::SetBreakpoint(const WasmFunction* function, pc_t pc,
                                     bool enabled) {
@@ -1799,30 +1894,7 @@ int WasmInterpreter::GetThreadCount() {
 
 WasmInterpreter::Thread* WasmInterpreter::GetThread(int id) {
   CHECK_EQ(0, id);  // only one thread for now.
-  return internals_->threads_[id];
-}
-
-WasmVal WasmInterpreter::GetLocalVal(const WasmFrame* frame, int index) {
-  CHECK_GE(index, 0);
-  UNIMPLEMENTED();
-  WasmVal none;
-  none.type = kWasmStmt;
-  return none;
-}
-
-WasmVal WasmInterpreter::GetExprVal(const WasmFrame* frame, int pc) {
-  UNIMPLEMENTED();
-  WasmVal none;
-  none.type = kWasmStmt;
-  return none;
-}
-
-void WasmInterpreter::SetLocalVal(WasmFrame* frame, int index, WasmVal val) {
-  UNIMPLEMENTED();
-}
-
-void WasmInterpreter::SetExprVal(WasmFrame* frame, int pc, WasmVal val) {
-  UNIMPLEMENTED();
+  return ToThread(&internals_->threads_[id]);
 }
 
 size_t WasmInterpreter::GetMemorySize() {
@@ -1853,6 +1925,35 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
   ControlTransfers targets(zone, nullptr, start, end);
   return targets.map_;
 }
+
+//============================================================================
+// Implementation of the frame inspection interface.
+//============================================================================
+int InterpretedFrame::GetParameterCount() const {
+  USE(fp_);
+  USE(sp_);
+  // TODO(clemensh): Return the correct number of parameters.
+  return 0;
+}
+
+WasmVal InterpretedFrame::GetLocalVal(int index) const {
+  CHECK_GE(index, 0);
+  UNIMPLEMENTED();
+  WasmVal none;
+  none.type = kWasmStmt;
+  return none;
+}
+
+WasmVal InterpretedFrame::GetExprVal(int pc) const {
+  UNIMPLEMENTED();
+  WasmVal none;
+  none.type = kWasmStmt;
+  return none;
+}
+
+void InterpretedFrame::SetLocalVal(int index, WasmVal val) { UNIMPLEMENTED(); }
+
+void InterpretedFrame::SetExprVal(int pc, WasmVal val) { UNIMPLEMENTED(); }
 
 }  // namespace wasm
 }  // namespace internal
