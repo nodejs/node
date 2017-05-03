@@ -13,7 +13,7 @@ const assert = require('assert');
 
 common.refreshTmpDir();
 
-const warnmod = require.resolve(common.fixturesDir + '/warnings.js');
+const warnmod = require.resolve(`${common.fixturesDir}/warnings.js`);
 const warnpath = path.join(common.tmpDir, 'warnings.txt');
 
 fork(warnmod, {env: {NODE_REDIRECT_WARNINGS: warnpath}})
