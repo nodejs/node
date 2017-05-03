@@ -355,7 +355,10 @@ Returns `true` if the exit code `exitCode` and/or signal name `signal` represent
 
 ### noop
 
-A non-op `Function` that can be used for a variety of scenarios.
+A getter that returns a non-op `Function` which can be used for a variety of
+scenarios. A new function object is always created, so the result of
+`common.noop` must be saved in a variable if it is intended to be used in
+assertions.
 
 For instance,
 
