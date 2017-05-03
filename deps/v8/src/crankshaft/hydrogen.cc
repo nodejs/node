@@ -2541,6 +2541,9 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(
   IfBuilder if_createcons(this);
   if_createcons.If<HCompareNumericAndBranch>(
       length, Add<HConstant>(ConsString::kMinLength), Token::GTE);
+  if_createcons.And();
+  if_createcons.If<HCompareNumericAndBranch>(
+      length, Add<HConstant>(ConsString::kMaxLength), Token::LTE);
   if_createcons.Then();
   {
     // Create a cons string.
