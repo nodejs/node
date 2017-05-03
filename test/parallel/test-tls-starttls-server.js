@@ -15,8 +15,8 @@ const fs = require('fs');
 const net = require('net');
 const tls = require('tls');
 
-const key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
-const cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
+const key = fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`);
+const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`);
 
 const server = net.createServer(common.mustCall((s) => {
   const tlsSocket = new tls.TLSSocket(s, {
