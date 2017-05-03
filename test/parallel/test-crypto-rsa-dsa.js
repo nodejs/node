@@ -10,21 +10,19 @@ if (!common.hasCrypto) {
 const constants = require('crypto').constants;
 const crypto = require('crypto');
 
+const fixtDir = common.fixturesDir;
+
 // Test certificates
-const certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
-const keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
-const rsaPubPem = fs.readFileSync(common.fixturesDir + '/test_rsa_pubkey.pem',
-                                  'ascii');
-const rsaKeyPem = fs.readFileSync(common.fixturesDir + '/test_rsa_privkey.pem',
-                                  'ascii');
+const certPem = fs.readFileSync(`${fixtDir}/test_cert.pem`, 'ascii');
+const keyPem = fs.readFileSync(`${fixtDir}/test_key.pem`, 'ascii');
+const rsaPubPem = fs.readFileSync(`${fixtDir}/test_rsa_pubkey.pem`, 'ascii');
+const rsaKeyPem = fs.readFileSync(`${fixtDir}/test_rsa_privkey.pem`, 'ascii');
 const rsaKeyPemEncrypted = fs.readFileSync(
-  common.fixturesDir + '/test_rsa_privkey_encrypted.pem', 'ascii');
-const dsaPubPem = fs.readFileSync(common.fixturesDir + '/test_dsa_pubkey.pem',
-                                  'ascii');
-const dsaKeyPem = fs.readFileSync(common.fixturesDir + '/test_dsa_privkey.pem',
-                                  'ascii');
+  `${fixtDir}/test_rsa_privkey_encrypted.pem`, 'ascii');
+const dsaPubPem = fs.readFileSync(`${fixtDir}/test_dsa_pubkey.pem`, 'ascii');
+const dsaKeyPem = fs.readFileSync(`${fixtDir}/test_dsa_privkey.pem`, 'ascii');
 const dsaKeyPemEncrypted = fs.readFileSync(
-  common.fixturesDir + '/test_dsa_privkey_encrypted.pem', 'ascii');
+  `${fixtDir}/test_dsa_privkey_encrypted.pem`, 'ascii');
 
 const decryptError =
   /^Error: error:06065064:digital envelope routines:EVP_DecryptFinal_ex:bad decrypt$/;
@@ -178,11 +176,9 @@ assert.throws(() => {
 // Test RSA signing and verification
 //
 {
-  const privateKey = fs.readFileSync(
-      common.fixturesDir + '/test_rsa_privkey_2.pem');
+  const privateKey = fs.readFileSync(`${fixtDir}/test_rsa_privkey_2.pem`);
 
-  const publicKey = fs.readFileSync(
-      common.fixturesDir + '/test_rsa_pubkey_2.pem');
+  const publicKey = fs.readFileSync(`${fixtDir}/test_rsa_pubkey_2.pem`);
 
   const input = 'I AM THE WALRUS';
 

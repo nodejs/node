@@ -123,13 +123,13 @@ const expectedStrings = [
 ];
 
 for (const expected of expectedStrings) {
-  assert.strictEqual(expected + '\n', strings.shift());
-  assert.strictEqual(expected + '\n', errStrings.shift());
+  assert.strictEqual(`${expected}\n`, strings.shift());
+  assert.strictEqual(`${expected}\n`, errStrings.shift());
 }
 
 for (const expected of expectedStrings) {
-  assert.strictEqual(expected + '\n', strings.shift());
-  assert.strictEqual(expected + '\n', errStrings.shift());
+  assert.strictEqual(`${expected}\n`, strings.shift());
+  assert.strictEqual(`${expected}\n`, errStrings.shift());
 }
 
 assert.strictEqual("{ foo: 'bar', inspect: [Function: inspect] }\n",

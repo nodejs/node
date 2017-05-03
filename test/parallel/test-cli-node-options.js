@@ -31,8 +31,7 @@ function disallow(opt) {
   const options = {env: {NODE_OPTIONS: opt}};
   exec(process.execPath, options, common.mustCall(function(err) {
     const message = err.message.split(/\r?\n/)[1];
-    const expect = process.execPath + ': ' + opt +
-                   ' is not allowed in NODE_OPTIONS';
+    const expect = `${process.execPath}: ${opt} is not allowed in NODE_OPTIONS`;
 
     assert.strictEqual(err.code, 9);
     assert.strictEqual(message, expect);
@@ -41,7 +40,7 @@ function disallow(opt) {
 
 const printA = require.resolve('../fixtures/printA.js');
 
-expect('-r ' + printA, 'A\nB\n');
+expect(`-r ${printA}`, 'A\nB\n');
 expect('--no-deprecation', 'B\n');
 expect('--no-warnings', 'B\n');
 expect('--trace-warnings', 'B\n');
@@ -75,7 +74,7 @@ function expect(opt, want) {
     if (!RegExp(want).test(stdout)) {
       console.error('For %j, failed to find %j in: <\n%s\n>',
                     opt, expect, stdout);
-      assert(false, 'Expected ' + expect);
+      assert(false, `Expected ${expect}`);
     }
   }));
 }
