@@ -1169,6 +1169,7 @@ void URL::Parse(const char* input,
 
   while (p <= end) {
     const char ch = p < end ? p[0] : kEOL;
+    const size_t remaining = end == p ? 0 : (end - p - 1);
 
     if (IsASCIITabOrNewline(ch)) {
       if (state == kAuthority) {
@@ -1653,9 +1654,10 @@ void URL::Parse(const char* input,
               state = kFragment;
               break;
             default:
-              if ((!IsWindowsDriveLetter(ch, p[1]) ||
-                   end - p == 1 ||
-                   (p[2] != '/' &&
+              if ((remaining == 0 ||
+                   !IsWindowsDriveLetter(ch, p[1]) ||
+                   (remaining >= 2 &&
+                    p[2] != '/' &&
                     p[2] != '\\' &&
                     p[2] != '?' &&
                     p[2] != '#'))) {
