@@ -58,19 +58,19 @@ assert.strictEqual(test_error.checkError('non-object'), false,
 
 assert.throws(() => {
   test_error.throwExistingError();
-}, /Error: existing error/);
+}, /^Error: existing error$/);
 
 assert.throws(() => {
   test_error.throwError();
-}, /Error: error/);
+}, /^Error: error$/);
 
 assert.throws(() => {
   test_error.throwRangeError();
-}, /RangeError: range error/);
+}, /^RangeError: range error$/);
 
 assert.throws(() => {
   test_error.throwTypeError();
-}, /TypeError: type error/);
+}, /^TypeError: type error$/);
 
 let error = test_error.createError();
 assert.ok(error instanceof Error, 'expected error to be an instance of Error');
