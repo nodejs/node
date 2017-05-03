@@ -94,8 +94,8 @@ process.on('SIGINT', () => process.exit());
 // Run from closed net server above.
 function checkTLS() {
   const options = {
-    key: fs.readFileSync(common.fixturesDir + '/keys/ec-key.pem'),
-    cert: fs.readFileSync(common.fixturesDir + '/keys/ec-cert.pem')
+    key: fs.readFileSync(`${common.fixturesDir}/keys/ec-key.pem`),
+    cert: fs.readFileSync(`${common.fixturesDir}/keys/ec-cert.pem`)
   };
   const server = tls.createServer(options, common.noop)
     .listen(0, function() {
