@@ -34,8 +34,8 @@ const tls = require('tls');
 const fs = require('fs');
 
 const server = tls.createServer({
-  key: fs.readFileSync(common.fixturesDir + '/0-dns/0-dns-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/0-dns/0-dns-cert.pem')
+  key: fs.readFileSync(`${common.fixturesDir}/0-dns/0-dns-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/0-dns/0-dns-cert.pem`)
 }, function(c) {
   c.once('data', function() {
     c.destroy();
