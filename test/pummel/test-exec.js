@@ -40,13 +40,13 @@ let error_count = 0;
 
 
 exec(
-  '"' + process.execPath + '" -p -e process.versions',
+  `"${process.execPath}" -p -e process.versions`,
   function(err, stdout, stderr) {
     if (err) {
       error_count++;
-      console.log('error!: ' + err.code);
-      console.log('stdout: ' + JSON.stringify(stdout));
-      console.log('stderr: ' + JSON.stringify(stderr));
+      console.log(`error!: ${err.code}`);
+      console.log(`stdout: ${JSON.stringify(stdout)}`);
+      console.log(`stderr: ${JSON.stringify(stderr)}`);
       assert.strictEqual(false, err.killed);
     } else {
       success_count++;
@@ -64,9 +64,9 @@ exec('thisisnotavalidcommand', function(err, stdout, stderr) {
     assert.notStrictEqual(err.code, 0);
     assert.strictEqual(false, err.killed);
     assert.strictEqual(null, err.signal);
-    console.log('error code: ' + err.code);
-    console.log('stdout: ' + JSON.stringify(stdout));
-    console.log('stderr: ' + JSON.stringify(stderr));
+    console.log(`error code: ${err.code}`);
+    console.log(`stdout: ${JSON.stringify(stdout)}`);
+    console.log(`stderr: ${JSON.stringify(stderr)}`);
   } else {
     success_count++;
     console.dir(stdout);
