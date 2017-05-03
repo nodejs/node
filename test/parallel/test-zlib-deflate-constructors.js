@@ -107,6 +107,5 @@ assert.throws(
 // Throws if opts.dictionary is not a Buffer
 assert.throws(
   () => { new zlib.Deflate({dictionary: 'not a buffer'}); },
-  new RegExp('^TypeError: Invalid dictionary: it should be a Buffer, ' +
-             'TypedArray, or DataView$')
+  /^TypeError: Invalid dictionary: it should be a Buffer, TypedArray, or DataView$/
 );

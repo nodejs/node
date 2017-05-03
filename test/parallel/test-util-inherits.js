@@ -4,8 +4,7 @@ require('../common');
 const assert = require('assert');
 const inherits = require('util').inherits;
 const errCheck =
-  new RegExp('^TypeError: The super constructor to "inherits" must not be ' +
-                      'null or undefined$');
+  /^TypeError: The super constructor to "inherits" must not be null or undefined$/;
 
 
 // super constructor
