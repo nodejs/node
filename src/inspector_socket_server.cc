@@ -86,7 +86,7 @@ void PrintDebuggerReadyMessage(const std::string& host,
             GetWsUrl(host, port, id).c_str());
   }
   fprintf(out, "For help see %s\n",
-          "https://nodejs.org/en/docs/guides/debugging_getting_started");
+          "https://nodejs.org/en/docs/inspector");
   fflush(out);
 }
 
