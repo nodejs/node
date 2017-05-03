@@ -39,7 +39,7 @@ process.on('exit', function() {
 
 const lines = [
   // This line shouldn't cause an assertion error.
-  'require(\'' + buildPath + '\')' +
+  `require('${buildPath}')` +
   // Log output to double check callback ran.
   '.method(function() { console.log(\'cb_ran\'); });',
 ];
