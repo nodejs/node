@@ -38,8 +38,8 @@ const tls = require('tls');
 
 const spawn = require('child_process').spawn;
 const fs = require('fs');
-const key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
-const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
+const key = fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`);
+const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`);
 let nsuccess = 0;
 let ntests = 0;
 const ciphers = 'DHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
@@ -51,7 +51,7 @@ common.expectWarning('SecurityWarning',
 function loadDHParam(n) {
   let path = common.fixturesDir;
   if (n !== 'error') path += '/keys';
-  return fs.readFileSync(path + '/dh' + n + '.pem');
+  return fs.readFileSync(`${path}/dh${n}.pem`);
 }
 
 function test(keylen, expectedCipher, cb) {
@@ -88,7 +88,7 @@ function test(keylen, expectedCipher, cb) {
     client.stdout.on('end', function() {
       // DHE key length can be checked -brief option in s_client but it
       // is only supported in openssl 1.0.2 so we cannot check it.
-      const reg = new RegExp('Cipher    : ' + expectedCipher);
+      const reg = new RegExp(`Cipher    : ${expectedCipher}`);
       if (reg.test(out)) {
         nsuccess++;
         server.close();

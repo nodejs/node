@@ -19,7 +19,7 @@ if (process.env.CHILD) {
 
 const env = {
   CHILD: 'yes',
-  NODE_EXTRA_CA_CERTS: common.fixturesDir + '/no-such-file-exists',
+  NODE_EXTRA_CA_CERTS: `${common.fixturesDir}/no-such-file-exists`,
 };
 
 const opts = {

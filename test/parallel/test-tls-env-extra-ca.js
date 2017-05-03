@@ -25,8 +25,8 @@ if (process.env.CHILD) {
 }
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`),
 };
 
 const server = tls.createServer(options, function(s) {
@@ -36,7 +36,7 @@ const server = tls.createServer(options, function(s) {
   const env = {
     CHILD: 'yes',
     PORT: this.address().port,
-    NODE_EXTRA_CA_CERTS: common.fixturesDir + '/keys/ca1-cert.pem',
+    NODE_EXTRA_CA_CERTS: `${common.fixturesDir}/keys/ca1-cert.pem`,
   };
 
   fork(__filename, {env: env}).on('exit', common.mustCall(function(status) {
