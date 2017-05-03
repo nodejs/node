@@ -2648,9 +2648,9 @@ void FatalException(Isolate* isolate,
 
 void FatalException(Isolate* isolate, const TryCatch& try_catch) {
   HandleScope scope(isolate);
-  // TODO(bajtos) do not call FatalException if try_catch is verbose
-  // (requires V8 API to expose getter for try_catch.is_verbose_)
-  FatalException(isolate, try_catch.Exception(), try_catch.Message());
+  if (!try_catch.IsVerbose()) {
+    FatalException(isolate, try_catch.Exception(), try_catch.Message());
+  }
 }
 
 
