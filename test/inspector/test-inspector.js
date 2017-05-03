@@ -87,6 +87,13 @@ function setupExpectValue(value) {
   };
 }
 
+function setupExpectContextDestroyed(id) {
+  return function(message) {
+    if ('Runtime.executionContextDestroyed' === message['method'])
+      return message['params']['executionContextId'] === id;
+  };
+}
+
 function testBreakpointOnStart(session) {
   console.log('[test]',
               'Verifying debugger stops on start (--inspect-brk option)');
@@ -203,6 +210,7 @@ function testI18NCharacters(session) {
 function testWaitsForFrontendDisconnect(session, harness) {
   console.log('[test]', 'Verify node waits for the frontend to disconnect');
   session.sendInspectorCommands({ 'method': 'Debugger.resume'})
+    .expectMessages(setupExpectContextDestroyed(1))
     .expectStderrOutput('Waiting for the debugger to disconnect...')
     .disconnect(true);
 }

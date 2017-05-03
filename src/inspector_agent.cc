@@ -271,11 +271,6 @@ class NodeInspectorClient : public v8_inspector::V8InspectorClient {
                                                 terminated_(false),
                                                 running_nested_loop_(false) {
     inspector_ = V8Inspector::create(env->isolate(), this);
-    const uint8_t CONTEXT_NAME[] = "Node.js Main Context";
-    StringView context_name(CONTEXT_NAME, sizeof(CONTEXT_NAME) - 1);
-    v8_inspector::V8ContextInfo info(env->context(), CONTEXT_GROUP_ID,
-                                     context_name);
-    inspector_->contextCreated(info);
   }
 
   void runMessageLoopOnPause(int context_group_id) override {
@@ -294,6 +289,17 @@ class NodeInspectorClient : public v8_inspector::V8InspectorClient {
 
   double currentTimeMS() override {
     return uv_hrtime() * 1.0 / NANOS_PER_MSEC;
+  }
+
+  void contextCreated(Local<Context> context, const std::string& name) {
+    std::unique_ptr<StringBuffer> name_buffer = Utf8ToStringView(name);
+    v8_inspector::V8ContextInfo info(context, CONTEXT_GROUP_ID,
+                                     name_buffer->string());
+    inspector_->contextCreated(info);
+  }
+
+  void contextDestroyed(Local<Context> context) {
+    inspector_->contextDestroyed(context);
   }
 
   void quitMessageLoopOnPause() override {
@@ -379,6 +385,7 @@ bool Agent::Start(v8::Platform* platform, const char* path,
   inspector_ =
       std::unique_ptr<NodeInspectorClient>(
           new NodeInspectorClient(parent_env_, platform));
+  inspector_->contextCreated(parent_env_->context(), "Node.js Main Context");
   platform_ = platform;
   if (options.inspector_enabled()) {
     return StartIoThread();
@@ -451,6 +458,8 @@ bool Agent::IsStarted() {
 }
 
 void Agent::WaitForDisconnect() {
+  CHECK_NE(inspector_, nullptr);
+  inspector_->contextDestroyed(parent_env_->context());
   if (io_ != nullptr) {
     io_->WaitForDisconnect();
   }
