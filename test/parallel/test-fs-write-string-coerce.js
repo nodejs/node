@@ -9,7 +9,7 @@ common.refreshTmpDir();
 
 const fn = path.join(common.tmpDir, 'write-string-coerce.txt');
 const data = true;
-const expected = data + '';
+const expected = String(data);
 
 fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
   assert.ifError(err);

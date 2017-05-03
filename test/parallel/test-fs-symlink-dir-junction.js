@@ -31,8 +31,8 @@ const linkPath = path.join(common.tmpDir, 'cycles_link');
 
 common.refreshTmpDir();
 
-console.log('linkData: ' + linkData);
-console.log('linkPath: ' + linkPath);
+console.log(`linkData: ${linkData}`);
+console.log(`linkPath: ${linkPath}`);
 
 fs.symlink(linkData, linkPath, 'junction', common.mustCall(function(err) {
   assert.ifError(err);

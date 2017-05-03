@@ -29,6 +29,7 @@ assert.throws(function() {
               "start as string didn't throw an error for createWriteStream");
 
 saneEmitter.on('data', common.mustCall(function(data) {
-  assert.strictEqual(sanity, data.toString('utf8'), 'read ' +
-                     data.toString('utf8') + ' instead of ' + sanity);
+  assert.strictEqual(
+    sanity, data.toString('utf8'),
+    `read ${data.toString('utf8')} instead of ${sanity}`);
 }));

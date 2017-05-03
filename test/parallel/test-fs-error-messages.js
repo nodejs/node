@@ -225,7 +225,8 @@ try {
 }
 
 process.on('exit', function() {
-  assert.strictEqual(expected, errors.length,
-                     'Test fs sync exceptions raised, got ' + errors.length +
-               ' expected ' + expected);
+  assert.strictEqual(
+    expected, errors.length,
+    `Test fs sync exceptions raised, got ${errors.length} expected ${expected}`
+  );
 });
