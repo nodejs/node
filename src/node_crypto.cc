@@ -228,17 +228,18 @@ static void crypto_lock_cb(int mode, int n, const char* file, int line) {
 }
 
 
-// This callback is used by OpenSSL when it needs to query for the passphrase
-// which may be used for encrypted PEM structures.
 static int PasswordCallback(char *buf, int size, int rwflag, void *u) {
-  if (u) {
-    size_t buflen = static_cast<size_t>(size);
-    size_t len = strlen(static_cast<const char*>(u));
-    len = len > buflen ? buflen : len;
-    memcpy(buf, u, len);
-    return len;
-  }
+  CHECK_NE(u, nullptr);
+  size_t buflen = static_cast<size_t>(size);
+  size_t len = strlen(static_cast<const char*>(u));
+  len = len > buflen ? buflen : len;
+  memcpy(buf, u, len);
+  return len;
+}
 
+// This callback is used to avoid the default passphrase callback in OpenSSL
+// which will typically prompt for the passphrase.
+static int NoPasswordCallback(char *buf, int size, int rwflag, void *u) {
   return 0;
 }
 
@@ -462,6 +463,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
+  bool has_password = true;
   unsigned int len = args.Length();
   if (len < 1) {
     return env->ThrowError("Private key argument is mandatory");
@@ -473,7 +475,7 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
 
   if (len == 2) {
     if (args[1]->IsUndefined() || args[1]->IsNull())
-      len = 1;
+      has_password = false;
     else
       THROW_AND_RETURN_IF_NOT_STRING(args[1], "Pass phrase");
   }
@@ -482,12 +484,13 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   if (!bio)
     return;
 
-  node::Utf8Value passphrase(env->isolate(), args[1]);
-
+  auto callback = has_password ? PasswordCallback : NoPasswordCallback;
+  auto passphrase = has_password ?
+      *node::Utf8Value{env->isolate(), args[1]} : nullptr;
   EVP_PKEY* key = PEM_read_bio_PrivateKey(bio,
                                           nullptr,
-                                          PasswordCallback,
-                                          len == 1 ? nullptr : *passphrase);
+                                          callback,
+                                          passphrase);
 
   if (!key) {
     BIO_free_all(bio);
@@ -612,7 +615,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
   // that we are interested in
   ERR_clear_error();
 
-  x = PEM_read_bio_X509_AUX(in, nullptr, PasswordCallback, nullptr);
+  x = PEM_read_bio_X509_AUX(in, nullptr, NoPasswordCallback, nullptr);
 
   if (x == nullptr) {
     SSLerr(SSL_F_SSL_CTX_USE_CERTIFICATE_CHAIN_FILE, ERR_R_PEM_LIB);
@@ -630,7 +633,10 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
     goto done;
   }
 
-  while ((extra = PEM_read_bio_X509(in, nullptr, PasswordCallback, nullptr))) {
+  while ((extra = PEM_read_bio_X509(in,
+                                    nullptr,
+                                    NoPasswordCallback,
+                                    nullptr))) {
     if (sk_X509_push(extra_certs, extra))
       continue;
 
@@ -727,7 +733,7 @@ static X509_STORE* NewRootCertStore() {
   if (root_certs_vector.empty()) {
     for (size_t i = 0; i < arraysize(root_certs); i++) {
       BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
-      X509 *x509 = PEM_read_bio_X509(bp, nullptr, PasswordCallback, nullptr);
+      X509 *x509 = PEM_read_bio_X509(bp, nullptr, NoPasswordCallback, nullptr);
       BIO_free(bp);
 
       // Parse errors from the built-in roots are fatal.
@@ -770,7 +776,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
 
   X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_);
   while (X509* x509 =
-             PEM_read_bio_X509(bio, nullptr, PasswordCallback, nullptr)) {
+             PEM_read_bio_X509(bio, nullptr, NoPasswordCallback, nullptr)) {
     if (cert_store == root_cert_store) {
       cert_store = NewRootCertStore();
       SSL_CTX_set_cert_store(sc->ctx_, cert_store);
@@ -802,7 +808,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
     return;
 
   X509_CRL* crl =
-      PEM_read_bio_X509_CRL(bio, nullptr, PasswordCallback, nullptr);
+      PEM_read_bio_X509_CRL(bio, nullptr, NoPasswordCallback, nullptr);
 
   if (crl == nullptr) {
     BIO_free_all(bio);
@@ -841,7 +847,7 @@ static unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
   }
 
   while (X509* x509 =
-      PEM_read_bio_X509(bio, nullptr, PasswordCallback, nullptr)) {
+      PEM_read_bio_X509(bio, nullptr, NoPasswordCallback, nullptr)) {
     X509_STORE_add_cert(store, x509);
     X509_free(x509);
   }
@@ -4385,7 +4391,7 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
   // Split this out into a separate function once we have more than one
   // consumer of public keys.
   if (strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
-    pkey = PEM_read_bio_PUBKEY(bp, nullptr, PasswordCallback, nullptr);
+    pkey = PEM_read_bio_PUBKEY(bp, nullptr, NoPasswordCallback, nullptr);
     if (pkey == nullptr)
       goto exit;
   } else if (strncmp(key_pem, PUBRSA_KEY_PFX, PUBRSA_KEY_PFX_LEN) == 0) {
@@ -4401,7 +4407,7 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
       goto exit;
   } else {
     // X.509 fallback
-    x509 = PEM_read_bio_X509(bp, nullptr, PasswordCallback, nullptr);
+    x509 = PEM_read_bio_X509(bp, nullptr, NoPasswordCallback, nullptr);
     if (x509 == nullptr)
       goto exit;
 
@@ -4528,7 +4534,7 @@ bool PublicKeyCipher::Cipher(const char* key_pem,
       goto exit;
   } else if (operation == kPublic &&
              strncmp(key_pem, CERTIFICATE_PFX, CERTIFICATE_PFX_LEN) == 0) {
-    x509 = PEM_read_bio_X509(bp, nullptr, PasswordCallback, nullptr);
+    x509 = PEM_read_bio_X509(bp, nullptr, NoPasswordCallback, nullptr);
     if (x509 == nullptr)
       goto exit;
 
