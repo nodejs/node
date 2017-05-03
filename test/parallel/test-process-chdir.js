@@ -5,6 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
+process.chdir('..');
 assert.notStrictEqual(process.cwd(), __dirname);
 process.chdir(__dirname);
 assert.strictEqual(process.cwd(), __dirname);

@@ -94,6 +94,8 @@ child.exec(`${nodejs} --print "os.platform()"`,
            }));
 
 // Module path resolve bug regression test.
+const cwd = process.cwd();
+process.chdir(path.resolve(__dirname, '../../'));
 child.exec(`${nodejs} --eval "require('./test/parallel/test-cli-eval.js')"`,
            common.mustCall((err, stdout, stderr) => {
              assert.strictEqual(err.code, 42);
@@ -101,6 +103,7 @@ child.exec(`${nodejs} --eval "require('./test/parallel/test-cli-eval.js')"`,
                stdout, 'Loaded as a module, exiting with status code 42.\n');
              assert.strictEqual(stderr, '');
            }));
+process.chdir(cwd);
 
 // Missing argument should not crash.
 child.exec(`${nodejs} -e`, common.mustCall((err, stdout, stderr) => {
