@@ -4,11 +4,11 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const numberError = new RegExp('^TypeError: "options" must be a string ' +
-                               'or an object, got number instead\\.$');
+const numberError =
+  /^TypeError: "options" must be a string or an object, got number instead\.$/;
 
-const booleanError = new RegExp('^TypeError: "options" must be a string ' +
-                                'or an object, got boolean instead\\.$');
+const booleanError =
+  /^TypeError: "options" must be a string or an object, got boolean instead\.$/;
 
 const example = path.join(common.tmpDir, 'dummy');
 

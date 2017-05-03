@@ -26,8 +26,8 @@ const dsaKeyPem = fs.readFileSync(common.fixturesDir + '/test_dsa_privkey.pem',
 const dsaKeyPemEncrypted = fs.readFileSync(
   common.fixturesDir + '/test_dsa_privkey_encrypted.pem', 'ascii');
 
-const decryptError = new RegExp('^Error: error:06065064:digital envelope ' +
-                                'routines:EVP_DecryptFinal_ex:bad decrypt$');
+const decryptError =
+  /^Error: error:06065064:digital envelope routines:EVP_DecryptFinal_ex:bad decrypt$/;
 
 // Test RSA encryption/decryption
 {
