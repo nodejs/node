@@ -29,7 +29,7 @@ const cmd = [
   `"${process.execPath}"`, '-e',
   '"console.error(process.argv)"',
   'foo', 'bar'].join(' ');
-const expected = util.format([process.execPath, 'foo', 'bar']) + '\n';
+const expected = `${util.format([process.execPath, 'foo', 'bar'])}\n`;
 exec(cmd, common.mustCall((err, stdout, stderr) => {
   assert.ifError(err);
   assert.strictEqual(stderr, expected);

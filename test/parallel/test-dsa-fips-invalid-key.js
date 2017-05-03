@@ -12,8 +12,8 @@ const fs = require('fs');
 
 const input = 'hello';
 
-const dsapri = fs.readFileSync(common.fixturesDir +
-                             '/keys/dsa_private_1025.pem');
+const dsapri = fs.readFileSync(
+  `${common.fixturesDir}/keys/dsa_private_1025.pem`);
 const sign = crypto.createSign('DSS1');
 sign.update(input);
 
