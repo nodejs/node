@@ -35,7 +35,7 @@ function check(request) {
   assert.strictEqual(request.url, '/');
   // the host header should use the url.parse.hostname
   assert.strictEqual(request.headers.host,
-                     testURL.hostname + ':' + testURL.port);
+                     `${testURL.hostname}:${testURL.port}`);
 }
 
 const server = http.createServer(function(request, response) {
