@@ -631,6 +631,12 @@ Object.defineProperty(exports, 'hasIntl', {
   }
 });
 
+Object.defineProperty(exports, 'hasSmallICU', {
+  get: function() {
+    return process.binding('config').hasSmallICU;
+  }
+});
+
 // https://github.com/w3c/testharness.js/blob/master/testharness.js
 exports.WPT = {
   test: (fn, desc) => {
