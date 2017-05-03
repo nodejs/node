@@ -94,7 +94,7 @@ testData.forEach((item) => {
         {
           input: preprocessed,
           filename: 'foo',
-          template: 'doc/template.html',
+          template: path.resolve(__dirname, '../../doc/template.html'),
           nodeVersion: process.version,
           analytics: item.analyticsId,
         },
