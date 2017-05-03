@@ -30,7 +30,7 @@ if (!common.hasCrypto) {
 }
 const https = require('https');
 
-const pfx = fs.readFileSync(common.fixturesDir + '/test_cert.pfx');
+const pfx = fs.readFileSync(`${common.fixturesDir}/test_cert.pfx`);
 
 const options = {
   host: '127.0.0.1',
