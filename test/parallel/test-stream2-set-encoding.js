@@ -22,7 +22,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const R = require('_stream_readable');
+const R = require('stream').Readable;
 const util = require('util');
 
 // tiny node-tap lookalike.

@@ -590,6 +590,22 @@ Type: Runtime
 `node debug` corresponds to the legacy CLI debugger which has been replaced with
 a V8-inspector based CLI debugger available through `node inspect`.
 
+<a id="DEP00XX"></a>
+### DEP00XX: Usage of _stream_*
+
+Type: Runtime
+
+Using `require('_stream_readable')`,
+`require('_stream_writable')`, `require('_stream_duplex')`
+`require('_stream_transform')`, `require('_stream_passthrough')`
+is now deprecated. The same content are available through:
+`require('stream').Readable`, `require('stream').Writable`,
+`require('stream').Duplex`, `require('stream').Transform`,
+`require('stream').PassThrough`.
+
+*Note*: The usage of `_stream` prefixed modules from core was never
+documented.
+
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
