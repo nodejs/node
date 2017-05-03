@@ -919,5 +919,5 @@ for (const u in parseTests) {
   actual = url.format(parseTests[u]);
 
   assert.strictEqual(actual, expected,
-                     'format(' + u + ') == ' + u + '\nactual:' + actual);
+                     `format(${u}) == ${u}\nactual:${actual}`);
 }

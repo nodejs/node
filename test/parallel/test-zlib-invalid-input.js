@@ -47,14 +47,14 @@ const unzips = [ zlib.Unzip(),
                  zlib.InflateRaw() ];
 const hadError = [];
 unzips.forEach(function(uz, i) {
-  console.error('Error for ' + uz.constructor.name);
+  console.error(`Error for ${uz.constructor.name}`);
   uz.on('error', function(er) {
     console.error('Error event', er);
     hadError[i] = true;
   });
 
   uz.on('end', function(er) {
-    throw new Error('end event should not be emitted ' + uz.constructor.name);
+    throw new Error(`end event should not be emitted ${uz.constructor.name}`);
   });
 
   // this will trigger error event
