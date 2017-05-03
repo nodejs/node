@@ -30,7 +30,7 @@ let counter = 0;
 
 // Avoid conflict with listen-path
 function randomPipePath() {
-  return common.PIPE + '-listen-handle-' + (counter++);
+  return `${common.PIPE}-listen-handle-${counter++}`;
 }
 
 function randomHandle(type) {
@@ -146,7 +146,7 @@ if (!common.isWindows) {  // Windows doesn't support {fd: <n>}
   net.createServer()
     .listen({fd: fd}, common.mustNotCall())
     .on('error', common.mustCall(function(err) {
-      assert.strictEqual(err + '', 'Error: listen EINVAL');
+      assert.strictEqual(String(err), 'Error: listen EINVAL');
       this.close();
     }));
 }

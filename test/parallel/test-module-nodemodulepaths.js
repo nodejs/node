@@ -121,6 +121,7 @@ node-gyp/node_modules/glob/node_modules',
 const platformCases = common.isWindows ? cases.WIN : cases.POSIX;
 platformCases.forEach((c) => {
   const paths = _module._nodeModulePaths(c.file);
-  assert.deepStrictEqual(c.expect, paths, 'case ' + c.file +
-    ' failed, actual paths is ' + JSON.stringify(paths));
+  assert.deepStrictEqual(
+    c.expect, paths,
+    `case ${c.file} failed, actual paths is ${JSON.stringify(paths)}`);
 });

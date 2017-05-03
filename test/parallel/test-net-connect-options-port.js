@@ -88,8 +88,8 @@ const net = require('net');
 
     // Total connections = 3 * 4(canConnect) * 6(doConnect) = 72
     canConnect(port);
-    canConnect(port + '');
-    canConnect('0x' + port.toString(16));
+    canConnect(String(port));
+    canConnect(`0x${port.toString(16)}`);
   }));
 
   // Try connecting to random ports, but do so once the server is closed
@@ -191,7 +191,7 @@ function canConnect(port) {
 function asyncFailToConnect(port) {
   const onError = () => common.mustCall(function(err) {
     const regexp = /^Error: connect (E\w+)(.+)$/;
-    assert(regexp.test(err + ''), err + '');
+    assert(regexp.test(String(err)), String(err));
   });
 
   const dont = () => common.mustNotCall();
