@@ -98,5 +98,21 @@ fs.stat(__filename, common.mustCall(function(err, s) {
   console.log(`isSymbolicLink: ${JSON.stringify(s.isSymbolicLink())}`);
   assert.strictEqual(false, s.isSymbolicLink());
 
+  assert.ok(s.atime instanceof Date);
   assert.ok(s.mtime instanceof Date);
+  assert.ok(s.ctime instanceof Date);
+  assert.ok(s.birthtime instanceof Date);
+}));
+
+fs.stat(__filename, common.mustCall(function(err, s) {
+  const json = JSON.parse(JSON.stringify(s));
+  const keys = [
+    'dev', 'mode', 'nlink', 'uid',
+    'gid', 'rdev', 'blksize', 'ino',
+    'size', 'blocks', 'atime', 'mtime',
+    'ctime', 'birthtime'
+  ];
+  keys.forEach(function(k) {
+    assert.ok(json[k] !== undefined && json[k] !== null);
+  });
 }));
