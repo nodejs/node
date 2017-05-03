@@ -69,7 +69,7 @@ const responses = [];
 
 function afterPing(result) {
   responses.push(result);
-  console.error('afterPing. responses.length = ' + responses.length);
+  console.error(`afterPing. responses.length = ${responses.length}`);
   switch (responses.length) {
     case 2:
       assert.ok(/ECONNREFUSED/.test(responses[0]));
@@ -130,7 +130,7 @@ function ping() {
   let hadError = false;
 
   req.on('error', function(error) {
-    console.log('Error making ping req: ' + error);
+    console.log(`Error making ping req: ${error}`);
     hadError = true;
     assert.ok(!gotEnd);
     afterPing(error.message);
