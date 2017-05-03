@@ -906,6 +906,11 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
   Environment* env = sc->env();
 
+#if defined(OPENSSL_NO_ECDH)
+  return env->ThrowError(
+      "Node was built without OpenSSL Elliptic Curve support.");
+#else
+
   if (args.Length() != 1)
     return env->ThrowTypeError("ECDH curve name argument is mandatory");
 
@@ -927,6 +932,7 @@ void SecureContext::SetECDHCurve(const FunctionCallbackInfo<Value>& args) {
   SSL_CTX_set_tmp_ecdh(sc->ctx_, ecdh);
 
   EC_KEY_free(ecdh);
+#endif
 }
 
 
@@ -1977,6 +1983,7 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
         info->Set(env->size_string(),
                   Integer::New(env->isolate(), EVP_PKEY_bits(key)));
         break;
+#if !defined(OPENSSL_NO_EC)
       case EVP_PKEY_EC:
         {
           EC_KEY* ec = EVP_PKEY_get1_EC_KEY(key);
@@ -1989,6 +1996,7 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
           info->Set(env->size_string(),
                     Integer::New(env->isolate(), EVP_PKEY_bits(key)));
         }
+#endif
     }
     EVP_PKEY_free(key);
   }
@@ -5030,6 +5038,7 @@ bool DiffieHellman::VerifyContext() {
 }
 
 
+#if !defined(OPENSSL_NO_ECDH)
 void ECDH::Initialize(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
@@ -5298,6 +5307,7 @@ bool ECDH::IsKeyPairValid() {
   (void) &mark_pop_error_on_return;  // Silence compiler warning.
   return 1 == EC_KEY_check_key(key_);
 }
+#endif
 
 
 class PBKDF2Request : public AsyncWrap {
@@ -5881,6 +5891,10 @@ void GetHashes(const FunctionCallbackInfo<Value>& args) {
 
 void GetCurves(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+#if defined(OPENSSL_NO_EC)
+  return env->ThrowError(
+      "Node was built without OpenSSL Elliptic Curve support");
+#else
   const size_t num_curves = EC_get_builtin_curves(nullptr, 0);
   Local<Array> arr = Array::New(env->isolate(), num_curves);
   EC_builtin_curve* curves;
@@ -5898,6 +5912,7 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(arr);
+#endif
 }
 
 
@@ -6211,7 +6226,9 @@ void InitCrypto(Local<Object> target,
   Connection::Initialize(env, target);
   CipherBase::Initialize(env, target);
   DiffieHellman::Initialize(env, target);
+#if !defined(OPENSSL_NO_ECDH)
   ECDH::Initialize(env, target);
+#endif
   Hmac::Initialize(env, target);
   Hash::Initialize(env, target);
   Sign::Initialize(env, target);

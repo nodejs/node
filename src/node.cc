@@ -203,6 +203,13 @@ bool force_fips_crypto = false;
 std::string openssl_config;  // NOLINT(runtime/string)
 #endif  // HAVE_OPENSSL
 
+bool config_openssl_ec =
+# if defined(OPENSSL_NO_EC)
+        false;
+# else
+        true;
+#endif
+
 // true if process warnings should be suppressed
 bool no_process_warnings = false;
 bool trace_warnings = false;

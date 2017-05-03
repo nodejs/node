@@ -21,8 +21,10 @@ assert.throws(() => tls.createSecureContext({key: 'dummykey', passphrase: 1}),
 assert.throws(() => tls.createServer({key: 'dummykey', passphrase: 1}),
               /TypeError: Pass phrase must be a string/);
 
-assert.throws(() => tls.createServer({ecdhCurve: 1}),
-              /TypeError: ECDH curve name must be a string/);
+if (common.hasCryptoEC) {
+  assert.throws(() => tls.createServer({ecdhCurve: 1}),
+                /TypeError: ECDH curve name must be a string/);
+}
 
 assert.throws(() => tls.createServer({handshakeTimeout: 'abcd'}),
               /TypeError: handshakeTimeout must be a number/);

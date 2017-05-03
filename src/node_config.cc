@@ -15,6 +15,8 @@ using v8::ReadOnly;
 using v8::String;
 using v8::Value;
 
+extern bool config_openssl_ec;
+
 // The config binding is used to provide an internal view of compile or runtime
 // config options that are required internally by lib/*.js code. This is an
 // alternative to dropping additional properties onto the process object as
@@ -64,6 +66,9 @@ static void InitConfig(Local<Object> target,
 
   if (config_expose_internals)
     READONLY_BOOLEAN_PROPERTY("exposeInternals");
+
+  if (!config_openssl_ec)
+    READONLY_BOOLEAN_PROPERTY("openssl_no_ec");
 }  // InitConfig
 
 }  // namespace node

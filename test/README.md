@@ -238,6 +238,11 @@ Returns an instance of all possible `ArrayBufferView`s of the provided Buffer.
 
 Checks for 'openssl'.
 
+### hasCryptoEC
+* return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
+
+Checks for 'openssl elliptic curve support'.
+
 ### hasFipsCrypto
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
 

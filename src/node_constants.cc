@@ -37,8 +37,10 @@
 #include <limits>
 
 #if HAVE_OPENSSL
-# include <openssl/ec.h>
 # include <openssl/ssl.h>
+# if !defined(OPENSSL_NO_EC)
+#  include <openssl/ec.h>
+# endif
 # ifndef OPENSSL_NO_ENGINE
 #  include <openssl/engine.h>
 # endif  // !OPENSSL_NO_ENGINE
@@ -1012,12 +1014,14 @@ void DefineOpenSSLConstants(Local<Object> target) {
 #endif
 
 #if HAVE_OPENSSL
+# if !defined(OPENSSL_NO_EC)
   // NOTE: These are not defines
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_COMPRESSED);
 
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_UNCOMPRESSED);
 
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_HYBRID);
+# endif
 #endif
 }
 

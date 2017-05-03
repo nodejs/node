@@ -39,8 +39,12 @@
 #include "v8.h"
 
 #include <openssl/ssl.h>
+#if !defined(OPENSSL_NO_EC)
 #include <openssl/ec.h>
+#endif
+#if !defined(OPENSSL_NO_ECDH)
 #include <openssl/ecdh.h>
+#endif
 #ifndef OPENSSL_NO_ENGINE
 # include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
@@ -708,6 +712,7 @@ class DiffieHellman : public BaseObject {
   DH* dh;
 };
 
+#if !defined(OPENSSL_NO_ECDH)
 class ECDH : public BaseObject {
  public:
   ~ECDH() override {
@@ -744,6 +749,7 @@ class ECDH : public BaseObject {
   EC_KEY* key_;
   const EC_GROUP* group_;
 };
+#endif
 
 bool EntropySource(unsigned char* buffer, size_t length);
 #ifndef OPENSSL_NO_ENGINE

@@ -174,6 +174,19 @@ assert.strictEqual(bad_dh.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 const availableCurves = new Set(crypto.getCurves());
+// Test ECDH
+if (!common.hasCryptoEC) {
+  common.skip('missing crypto/elliptic curve support');
+  return;
+}
+const ecdh1 = crypto.createECDH('prime256v1');
+const ecdh2 = crypto.createECDH('prime256v1');
+key1 = ecdh1.generateKeys();
+key2 = ecdh2.generateKeys('hex');
+secret1 = ecdh1.computeSecret(key2, 'hex', 'base64');
+secret2 = ecdh2.computeSecret(key1, 'latin1', 'buffer');
+
+assert.strictEqual(secret1, secret2.toString('base64'));
 
 // Oakley curves do not clean up ERR stack, it was causing unexpected failure
 // when accessing other OpenSSL APIs afterwards.

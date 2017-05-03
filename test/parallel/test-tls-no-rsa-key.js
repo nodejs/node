@@ -23,8 +23,8 @@
 const common = require('../common');
 const assert = require('assert');
 
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
+if (!common.hasCryptoEC) {
+  common.skip('missing crypto/elliptic curve support');
   return;
 }
 const tls = require('tls');
