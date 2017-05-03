@@ -51,27 +51,27 @@ server.listen(0, options.host, function() {
   let req;
 
   for (requests_sent = 0; requests_sent < 30; requests_sent += 1) {
-    options.path = '/' + requests_sent;
+    options.path = `/${requests_sent}`;
     req = http.request(options);
     req.id = requests_sent;
     req.on('response', function(res) {
       res.on('data', function(data) {
-        console.log('res#' + this.req.id + ' data:' + data);
+        console.log(`res#${this.req.id} data:${data}`);
       });
       res.on('end', function(data) {
-        console.log('res#' + this.req.id + ' end');
+        console.log(`res#${this.req.id} end`);
         requests_done += 1;
       });
     });
     req.on('close', function() {
-      console.log('req#' + this.id + ' close');
+      console.log(`req#${this.id} close`);
     });
     req.on('error', function() {
-      console.log('req#' + this.id + ' error');
+      console.log(`req#${this.id} error`);
       this.destroy();
     });
     req.setTimeout(50, function() {
-      console.log('req#' + this.id + ' timeout');
+      console.log(`req#${this.id} timeout`);
       this.abort();
       requests_done += 1;
     });

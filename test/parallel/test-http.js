@@ -54,7 +54,7 @@ const server = http.Server(common.mustCall(function(req, res) {
 
   req.on('end', function() {
     res.writeHead(200, {'Content-Type': 'text/plain'});
-    res.write('The path was ' + url.parse(req.url).pathname);
+    res.write(`The path was ${url.parse(req.url).pathname}`);
     res.end();
   });
   req.resume();

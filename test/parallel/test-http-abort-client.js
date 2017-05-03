@@ -38,11 +38,11 @@ server.listen(0, common.mustCall(function() {
   }, common.mustCall(function(res) {
     server.close();
 
-    console.log('Got res: ' + res.statusCode);
+    console.log(`Got res: ${res.statusCode}`);
     console.dir(res.headers);
 
     res.on('data', function(chunk) {
-      console.log('Read ' + chunk.length + ' bytes');
+      console.log(`Read ${chunk.length} bytes`);
       console.log(' chunk=%j', chunk.toString());
     });
 
