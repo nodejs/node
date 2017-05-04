@@ -4,10 +4,9 @@ const net = require('net');
 const assert = require('assert');
 
 // Verify that invalid delays throw
-const noop = () => {};
 const s = new net.Socket();
 const nonNumericDelays = [
-  '100', true, false, undefined, null, '', {}, noop, []
+  '100', true, false, undefined, null, '', {}, () => {}, []
 ];
 const badRangeDelays = [-0.001, -1, -Infinity, Infinity, NaN];
 const validDelays = [0, 0.001, 1, 1e6];
@@ -15,19 +14,19 @@ const validDelays = [0, 0.001, 1, 1e6];
 
 for (let i = 0; i < nonNumericDelays.length; i++) {
   assert.throws(function() {
-    s.setTimeout(nonNumericDelays[i], noop);
+    s.setTimeout(nonNumericDelays[i], () => {});
   }, TypeError);
 }
 
 for (let i = 0; i < badRangeDelays.length; i++) {
   assert.throws(function() {
-    s.setTimeout(badRangeDelays[i], noop);
+    s.setTimeout(badRangeDelays[i], () => {});
   }, RangeError);
 }
 
 for (let i = 0; i < validDelays.length; i++) {
   assert.doesNotThrow(function() {
-    s.setTimeout(validDelays[i], noop);
+    s.setTimeout(validDelays[i], () => {});
   });
 }
 

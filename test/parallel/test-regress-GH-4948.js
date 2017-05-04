@@ -22,10 +22,10 @@ const server = http.createServer(function(serverReq, serverRes) {
     serverRes.end();
 
     // required for test to fail
-    res.on('data', function(data) { });
+    res.on('data', () => {});
 
   });
-  r.on('error', function(e) {});
+  r.on('error', () => {});
   r.end();
 
   serverRes.write('some data');

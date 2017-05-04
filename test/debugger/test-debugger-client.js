@@ -129,7 +129,7 @@ addTest(function(client, done) {
 
 let connectCount = 0;
 const script = 'setTimeout(function() { console.log("blah"); });' +
-               'setInterval(common.noop, 1000000);';
+               'setInterval(() => {}, 1000000);';
 
 let nodeProcess;
 
@@ -172,7 +172,7 @@ function doTest(cb, done) {
         console.error('>>> connecting...');
         c.connect(debug.port);
         c.on('break', function() {
-          c.reqContinue(common.noop);
+          c.reqContinue(() => {});
         });
         c.on('ready', function() {
           connectCount++;

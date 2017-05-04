@@ -183,7 +183,7 @@ Gets IP of localhost
 Array of IPV6 hosts.
 
 ### mustCall([fn][, exact])
-* `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) default = `common.noop`
+* `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) default = () => {}
 * `exact` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
 * return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
 
@@ -191,10 +191,10 @@ Returns a function that calls `fn`. If the returned function has not been called
 exactly `expected` number of times when the test is complete, then the test will
 fail.
 
-If `fn` is not provided, `common.noop` will be used.
+If `fn` is not provided, an empty function will be used.
 
 ### mustCallAtLeast([fn][, minimum])
-* `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) default = `common.noop`
+* `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) default = () => {}
 * `minimum` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
 * return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
 
@@ -202,7 +202,7 @@ Returns a function that calls `fn`. If the returned function has not been called
 at least `minimum` number of times when the test is complete, then the test will
 fail.
 
-If `fn` is not provided, `common.noop` will be used.
+If `fn` is not provided, an empty function will be used.
 
 ### mustNotCall([msg])
 * `msg` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) default = 'function should not have been called'
@@ -216,19 +216,6 @@ Returns a function that triggers an `AssertionError` if it is invoked. `msg` is 
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
 
 Returns `true` if the exit code `exitCode` and/or signal name `signal` represent the exit code and/or signal name of a node process that aborted, `false` otherwise.
-
-### noop
-
-A non-op `Function` that can be used for a variety of scenarios.
-
-For instance,
-
-<!-- eslint-disable strict, no-undef -->
-```js
-const common = require('../common');
-
-someAsyncAPI('foo', common.mustCall(common.noop));
-```
 
 ### opensslCli
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)

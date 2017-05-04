@@ -52,7 +52,7 @@ function testAutoMode() {
 
 function initRepl(mode) {
   const input = new Stream();
-  input.write = input.pause = input.resume = common.noop;
+  input.write = input.pause = input.resume = () => {};
   input.readable = true;
 
   const output = new Stream();

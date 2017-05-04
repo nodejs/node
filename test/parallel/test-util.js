@@ -12,7 +12,7 @@ assert.strictEqual(true, util.isArray(new Array(5)));
 assert.strictEqual(true, util.isArray(new Array('with', 'some', 'entries')));
 assert.strictEqual(true, util.isArray(context('Array')()));
 assert.strictEqual(false, util.isArray({}));
-assert.strictEqual(false, util.isArray({ push: common.noop }));
+assert.strictEqual(false, util.isArray({ push: () => {} }));
 assert.strictEqual(false, util.isArray(/regexp/));
 assert.strictEqual(false, util.isArray(new Error()));
 assert.strictEqual(false, util.isArray(Object.create(Array.prototype)));
@@ -61,7 +61,7 @@ assert.strictEqual(false, util.isPrimitive(new Error()));
 assert.strictEqual(false, util.isPrimitive(new Date()));
 assert.strictEqual(false, util.isPrimitive([]));
 assert.strictEqual(false, util.isPrimitive(/regexp/));
-assert.strictEqual(false, util.isPrimitive(common.noop));
+assert.strictEqual(false, util.isPrimitive(() => {}));
 assert.strictEqual(false, util.isPrimitive(new Number(1)));
 assert.strictEqual(false, util.isPrimitive(new String('bla')));
 assert.strictEqual(false, util.isPrimitive(new Boolean(true)));
@@ -117,7 +117,7 @@ assert.strictEqual(util.isSymbol(), false);
 assert.strictEqual(util.isSymbol('string'), false);
 
 assert.strictEqual(util.isFunction(() => {}), true);
-assert.strictEqual(util.isFunction(common.noop), true);
+assert.strictEqual(util.isFunction(() => {}), true);
 assert.strictEqual(util.isFunction(), false);
 assert.strictEqual(util.isFunction('string'), false);
 

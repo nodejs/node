@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 // test using assert
@@ -72,7 +72,7 @@ extendedFunction.prototype = {a: 'b'};
 const qsWeirdObjects = [
   [{regexp: /./g}, 'regexp=', {'regexp': ''}],
   [{regexp: new RegExp('.', 'g')}, 'regexp=', {'regexp': ''}],
-  [{fn: common.noop}, 'fn=', {'fn': ''}],
+  [{fn: () => {}}, 'fn=', {'fn': ''}],
   [{fn: new Function('')}, 'fn=', {'fn': ''}],
   [{math: Math}, 'math=', {'math': ''}],
   [{e: extendedFunction}, 'e=', {'e': ''}],
