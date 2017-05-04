@@ -475,7 +475,7 @@ void FillStatsArray(double* fields, const uv_stat_t* s) {
   fields[9] = -1;
 #endif
   // Dates.
-#define X(idx, name)                                                               \
+#define X(idx, name)                          \
   fields[idx] = (s->st_##name.tv_sec * 1e3) + \
                 (s->st_##name.tv_nsec / 1e6); \
 

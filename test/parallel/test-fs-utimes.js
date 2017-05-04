@@ -40,13 +40,12 @@ function stat_resource(resource) {
 
 function check_mtime(resource, mtime) {
   const stats = stat_resource(resource);
+  mtime = fs._toUnixTimestamp(mtime);
+  const real_mtime = fs._toUnixTimestamp(stats.mtime);
   if (common.isWindows) {
     // check ms precision on windows.
-    return Math.floor(mtime) === Math.floor(stats.mtime);
+    return mtime === real_mtime;
   } else {
-    mtime = fs._toUnixTimestamp(mtime);
-    const real_mtime = fs._toUnixTimestamp(stats.mtime);
-
     // check up to single-second precision
     // sub-second precision is OS and fs dependant
     return mtime - real_mtime < 2;
