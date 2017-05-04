@@ -40,7 +40,7 @@ function stat_resource(resource) {
 
 function check_mtime(resource, mtime) {
   const stats = stat_resource(resource);
-  if (process.platform === 'win32') {
+  if (common.isWindows) {
     // check ms precision on windows.
     return Math.floor(mtime) === Math.floor(stats.mtime);
   } else {
