@@ -4,7 +4,7 @@
 
 // Flags: --expose_gc
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const HTTPParser = process.binding('http_parser').HTTPParser;
 
@@ -39,7 +39,7 @@ function demoBug(part1, part2) {
     console.log('url', info.url);
   };
 
-  parser[kOnBody] = common.noop;
+  parser[kOnBody] = () => {};
 
   parser[kOnMessageComplete] = function() {
     messagesComplete++;

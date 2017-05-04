@@ -4,7 +4,7 @@ const stream = require('stream');
 const assert = require('assert');
 
 const readable = new stream.Readable({
-  read: common.noop
+  read: () => {}
 });
 
 const writables = [];

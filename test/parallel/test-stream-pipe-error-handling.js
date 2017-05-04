@@ -101,10 +101,10 @@ const Stream = require('stream').Stream;
   });
 
   w.on('error', common.mustCall());
-  w._write = common.noop;
+  w._write = () => {};
 
   r.pipe(w);
   // Removing some OTHER random listener should not do anything
-  w.removeListener('error', common.noop);
+  w.removeListener('error', () => {});
   removed = true;
 }
