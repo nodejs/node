@@ -2777,7 +2777,7 @@ class Work {
       // Note: Don't access `work` after this point because it was
       // likely deleted by the complete callback.
 
-      // If there was an unhnadled exception in the complete callback,
+      // If there was an unhandled exception in the complete callback,
       // report it as a fatal exception. (There is no JavaScript on the
       // callstack that can possibly handle it.)
       if (!env->last_exception.IsEmpty()) {

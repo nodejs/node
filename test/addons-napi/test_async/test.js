@@ -8,14 +8,14 @@ const testException = 'test_async_cb_exception';
 
 // Exception thrown from async completion callback.
 // (Tested in a spawned process because the exception is fatal.)
-if (process.argv[2] === testException) {
+if (process.argv[2] === 'child') {
   test_async.Test(1, common.mustCall(function(err, val) {
     throw new Error(testException);
   }));
   return;
 }
 const p = child_process.spawnSync(
-  process.execPath, [ '--napi-modules', __filename, testException ]);
+  process.execPath, [ '--napi-modules', __filename, 'child' ]);
 assert.ifError(p.error);
 assert.ok(p.stderr.toString().includes(testException));
 
