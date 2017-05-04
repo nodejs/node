@@ -69,47 +69,50 @@ class RegisteredExtension {
   static RegisteredExtension* first_extension_;
 };
 
-#define OPEN_HANDLE_LIST(V)                  \
-  V(Template, TemplateInfo)                  \
-  V(FunctionTemplate, FunctionTemplateInfo)  \
-  V(ObjectTemplate, ObjectTemplateInfo)      \
-  V(Signature, FunctionTemplateInfo)         \
-  V(AccessorSignature, FunctionTemplateInfo) \
-  V(Data, Object)                            \
-  V(RegExp, JSRegExp)                        \
-  V(Object, JSReceiver)                      \
-  V(Array, JSArray)                          \
-  V(Map, JSMap)                              \
-  V(Set, JSSet)                              \
-  V(ArrayBuffer, JSArrayBuffer)              \
-  V(ArrayBufferView, JSArrayBufferView)      \
-  V(TypedArray, JSTypedArray)                \
-  V(Uint8Array, JSTypedArray)                \
-  V(Uint8ClampedArray, JSTypedArray)         \
-  V(Int8Array, JSTypedArray)                 \
-  V(Uint16Array, JSTypedArray)               \
-  V(Int16Array, JSTypedArray)                \
-  V(Uint32Array, JSTypedArray)               \
-  V(Int32Array, JSTypedArray)                \
-  V(Float32Array, JSTypedArray)              \
-  V(Float64Array, JSTypedArray)              \
-  V(DataView, JSDataView)                    \
-  V(SharedArrayBuffer, JSArrayBuffer)        \
-  V(Name, Name)                              \
-  V(String, String)                          \
-  V(Symbol, Symbol)                          \
-  V(Script, JSFunction)                      \
-  V(UnboundScript, SharedFunctionInfo)       \
-  V(Module, Module)                          \
-  V(Function, JSReceiver)                    \
-  V(Message, JSMessageObject)                \
-  V(Context, Context)                        \
-  V(External, Object)                        \
-  V(StackTrace, JSArray)                     \
-  V(StackFrame, JSObject)                    \
-  V(Proxy, JSProxy)                          \
-  V(NativeWeakMap, JSWeakMap)                \
-  V(debug::Script, Script)
+#define OPEN_HANDLE_LIST(V)                    \
+  V(Template, TemplateInfo)                    \
+  V(FunctionTemplate, FunctionTemplateInfo)    \
+  V(ObjectTemplate, ObjectTemplateInfo)        \
+  V(Signature, FunctionTemplateInfo)           \
+  V(AccessorSignature, FunctionTemplateInfo)   \
+  V(Data, Object)                              \
+  V(RegExp, JSRegExp)                          \
+  V(Object, JSReceiver)                        \
+  V(Array, JSArray)                            \
+  V(Map, JSMap)                                \
+  V(Set, JSSet)                                \
+  V(ArrayBuffer, JSArrayBuffer)                \
+  V(ArrayBufferView, JSArrayBufferView)        \
+  V(TypedArray, JSTypedArray)                  \
+  V(Uint8Array, JSTypedArray)                  \
+  V(Uint8ClampedArray, JSTypedArray)           \
+  V(Int8Array, JSTypedArray)                   \
+  V(Uint16Array, JSTypedArray)                 \
+  V(Int16Array, JSTypedArray)                  \
+  V(Uint32Array, JSTypedArray)                 \
+  V(Int32Array, JSTypedArray)                  \
+  V(Float32Array, JSTypedArray)                \
+  V(Float64Array, JSTypedArray)                \
+  V(DataView, JSDataView)                      \
+  V(SharedArrayBuffer, JSArrayBuffer)          \
+  V(Name, Name)                                \
+  V(String, String)                            \
+  V(Symbol, Symbol)                            \
+  V(Script, JSFunction)                        \
+  V(UnboundScript, SharedFunctionInfo)         \
+  V(Module, Module)                            \
+  V(Function, JSReceiver)                      \
+  V(Message, JSMessageObject)                  \
+  V(Context, Context)                          \
+  V(External, Object)                          \
+  V(StackTrace, FixedArray)                    \
+  V(StackFrame, StackFrameInfo)                \
+  V(Proxy, JSProxy)                            \
+  V(NativeWeakMap, JSWeakMap)                  \
+  V(debug::GeneratorObject, JSGeneratorObject) \
+  V(debug::Script, Script)                     \
+  V(Promise, JSPromise)                        \
+  V(DynamicImportResult, JSPromise)
 
 class Utils {
  public:
@@ -183,10 +186,12 @@ class Utils {
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<Promise> PromiseToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
+  static inline Local<DynamicImportResult> PromiseToDynamicImportResult(
+      v8::internal::Handle<v8::internal::JSPromise> obj);
   static inline Local<StackTrace> StackTraceToLocal(
-      v8::internal::Handle<v8::internal::JSArray> obj);
+      v8::internal::Handle<v8::internal::FixedArray> obj);
   static inline Local<StackFrame> StackFrameToLocal(
-      v8::internal::Handle<v8::internal::JSObject> obj);
+      v8::internal::Handle<v8::internal::StackFrameInfo> obj);
   static inline Local<Number> NumberToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<Integer> IntegerToLocal(
@@ -315,8 +320,9 @@ MAKE_TO_LOCAL(SignatureToLocal, FunctionTemplateInfo, Signature)
 MAKE_TO_LOCAL(AccessorSignatureToLocal, FunctionTemplateInfo, AccessorSignature)
 MAKE_TO_LOCAL(MessageToLocal, Object, Message)
 MAKE_TO_LOCAL(PromiseToLocal, JSObject, Promise)
-MAKE_TO_LOCAL(StackTraceToLocal, JSArray, StackTrace)
-MAKE_TO_LOCAL(StackFrameToLocal, JSObject, StackFrame)
+MAKE_TO_LOCAL(PromiseToDynamicImportResult, JSPromise, DynamicImportResult)
+MAKE_TO_LOCAL(StackTraceToLocal, FixedArray, StackTrace)
+MAKE_TO_LOCAL(StackFrameToLocal, StackFrameInfo, StackFrame)
 MAKE_TO_LOCAL(NumberToLocal, Object, Number)
 MAKE_TO_LOCAL(IntegerToLocal, Object, Integer)
 MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
@@ -345,11 +351,12 @@ OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 #undef MAKE_OPEN_HANDLE
 #undef OPEN_HANDLE_LIST
 
+extern Isolate* IsolateNewImpl(internal::Isolate* isolate,
+                               const Isolate::CreateParams& params);
 
 namespace internal {
 
-
-class DeferredHandles {
+class V8_EXPORT_PRIVATE DeferredHandles {
  public:
   ~DeferredHandles();
 
@@ -362,7 +369,7 @@ class DeferredHandles {
     isolate->LinkDeferredHandles(this);
   }
 
-  void Iterate(ObjectVisitor* v);
+  void Iterate(RootVisitor* v);
 
   List<Object**> blocks_;
   DeferredHandles* next_;
@@ -414,9 +421,8 @@ class HandleScopeImplementer {
   void FreeThreadResources();
 
   // Garbage collection support.
-  void Iterate(v8::internal::ObjectVisitor* v);
-  static char* Iterate(v8::internal::ObjectVisitor* v, char* data);
-
+  void Iterate(v8::internal::RootVisitor* v);
+  static char* Iterate(v8::internal::RootVisitor* v, char* data);
 
   inline internal::Object** GetSpareOrNewBlock();
   inline void DeleteExtensions(internal::Object** prev_limit);
@@ -531,7 +537,7 @@ class HandleScopeImplementer {
   // This is only used for threading support.
   HandleScopeData handle_scope_data_;
 
-  void IterateThis(ObjectVisitor* v);
+  void IterateThis(RootVisitor* v);
   char* RestoreThreadHelper(char* from);
   char* ArchiveThreadHelper(char* to);
 
@@ -643,7 +649,6 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
   DCHECK((blocks_.is_empty() && prev_limit == NULL) ||
          (!blocks_.is_empty() && prev_limit != NULL));
 }
-
 
 // Interceptor functions called from generated inline caches to notify
 // CPU profiler that external callbacks are invoked.

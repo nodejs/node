@@ -14,6 +14,7 @@ function testSuspendedGenerator()
   g.next();
 
   debugger;
+  return g;
 }`);
 
 Protocol.Debugger.enable().then(testSuite);

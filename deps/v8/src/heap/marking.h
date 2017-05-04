@@ -5,6 +5,7 @@
 #ifndef V8_MARKING_H
 #define V8_MARKING_H
 
+#include "src/base/atomic-utils.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -13,8 +14,13 @@ namespace internal {
 class MarkBit {
  public:
   typedef uint32_t CellType;
+  STATIC_ASSERT(sizeof(CellType) == sizeof(base::Atomic32));
 
-  inline MarkBit(CellType* cell, CellType mask) : cell_(cell), mask_(mask) {}
+  enum AccessMode { ATOMIC, NON_ATOMIC };
+
+  inline MarkBit(base::Atomic32* cell, CellType mask) : cell_(cell) {
+    mask_ = static_cast<base::Atomic32>(mask);
+  }
 
 #ifdef DEBUG
   bool operator==(const MarkBit& other) {
@@ -23,9 +29,6 @@ class MarkBit {
 #endif
 
  private:
-  inline CellType* cell() { return cell_; }
-  inline CellType mask() { return mask_; }
-
   inline MarkBit Next() {
     CellType new_mask = mask_ << 1;
     if (new_mask == 0) {
@@ -35,16 +38,76 @@ class MarkBit {
     }
   }
 
-  inline void Set() { *cell_ |= mask_; }
-  inline bool Get() { return (*cell_ & mask_) != 0; }
-  inline void Clear() { *cell_ &= ~mask_; }
+  // The function returns true if it succeeded to
+  // transition the bit from 0 to 1.
+  template <AccessMode mode = NON_ATOMIC>
+  inline bool Set();
 
-  CellType* cell_;
-  CellType mask_;
+  template <AccessMode mode = NON_ATOMIC>
+  inline bool Get();
+
+  // The function returns true if it succeeded to
+  // transition the bit from 1 to 0.
+  template <AccessMode mode = NON_ATOMIC>
+  inline bool Clear();
+
+  base::Atomic32* cell_;
+  base::Atomic32 mask_;
 
   friend class IncrementalMarking;
+  friend class ConcurrentMarkingMarkbits;
   friend class Marking;
 };
+
+template <>
+inline bool MarkBit::Set<MarkBit::NON_ATOMIC>() {
+  base::Atomic32 old_value = *cell_;
+  *cell_ = old_value | mask_;
+  return (old_value & mask_) == 0;
+}
+
+template <>
+inline bool MarkBit::Set<MarkBit::ATOMIC>() {
+  base::Atomic32 old_value;
+  base::Atomic32 new_value;
+  do {
+    old_value = base::NoBarrier_Load(cell_);
+    if (old_value & mask_) return false;
+    new_value = old_value | mask_;
+  } while (base::Release_CompareAndSwap(cell_, old_value, new_value) !=
+           old_value);
+  return true;
+}
+
+template <>
+inline bool MarkBit::Get<MarkBit::NON_ATOMIC>() {
+  return (base::NoBarrier_Load(cell_) & mask_) != 0;
+}
+
+template <>
+inline bool MarkBit::Get<MarkBit::ATOMIC>() {
+  return (base::Acquire_Load(cell_) & mask_) != 0;
+}
+
+template <>
+inline bool MarkBit::Clear<MarkBit::NON_ATOMIC>() {
+  base::Atomic32 old_value = *cell_;
+  *cell_ = old_value & ~mask_;
+  return (old_value & mask_) == mask_;
+}
+
+template <>
+inline bool MarkBit::Clear<MarkBit::ATOMIC>() {
+  base::Atomic32 old_value;
+  base::Atomic32 new_value;
+  do {
+    old_value = base::NoBarrier_Load(cell_);
+    if (!(old_value & mask_)) return false;
+    new_value = old_value & ~mask_;
+  } while (base::Release_CompareAndSwap(cell_, old_value, new_value) !=
+           old_value);
+  return true;
+}
 
 // Bitmap is a sequence of cells each containing fixed number of bits.
 class Bitmap {
@@ -99,7 +162,7 @@ class Bitmap {
   inline MarkBit MarkBitFromIndex(uint32_t index) {
     MarkBit::CellType mask = 1u << IndexInCell(index);
     MarkBit::CellType* cell = this->cells() + (index >> kBitsPerCellLog2);
-    return MarkBit(cell, mask);
+    return MarkBit(reinterpret_cast<base::Atomic32*>(cell), mask);
   }
 
   void Clear() {
@@ -170,10 +233,16 @@ class Bitmap {
         if (cells()[i] != ~0u) return false;
       }
       matching_mask = (end_index_mask - 1);
-      return ((cells()[end_cell_index] & matching_mask) == matching_mask);
+      // Check against a mask of 0 to avoid dereferencing the cell after the
+      // end of the bitmap.
+      return (matching_mask == 0) ||
+             ((cells()[end_cell_index] & matching_mask) == matching_mask);
     } else {
       matching_mask = end_index_mask - start_index_mask;
-      return (cells()[end_cell_index] & matching_mask) == matching_mask;
+      // Check against a mask of 0 to avoid dereferencing the cell after the
+      // end of the bitmap.
+      return (matching_mask == 0) ||
+             (cells()[end_cell_index] & matching_mask) == matching_mask;
     }
   }
 
@@ -193,10 +262,14 @@ class Bitmap {
         if (cells()[i]) return false;
       }
       matching_mask = (end_index_mask - 1);
-      return !(cells()[end_cell_index] & matching_mask);
+      // Check against a mask of 0 to avoid dereferencing the cell after the
+      // end of the bitmap.
+      return (matching_mask == 0) || !(cells()[end_cell_index] & matching_mask);
     } else {
       matching_mask = end_index_mask - start_index_mask;
-      return !(cells()[end_cell_index] & matching_mask);
+      // Check against a mask of 0 to avoid dereferencing the cell after the
+      // end of the bitmap.
+      return (matching_mask == 0) || !(cells()[end_cell_index] & matching_mask);
     }
   }
 
@@ -269,81 +342,93 @@ class Bitmap {
 
 class Marking : public AllStatic {
  public:
+  // TODO(hpayer): The current mark bit operations use as default NON_ATOMIC
+  // mode for access. We should remove the default value or switch it with
+  // ATOMIC as soon we add concurrency.
+
   // Impossible markbits: 01
   static const char* kImpossibleBitPattern;
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
   INLINE(static bool IsImpossible(MarkBit mark_bit)) {
-    return !mark_bit.Get() && mark_bit.Next().Get();
+    if (mode == MarkBit::NON_ATOMIC) {
+      return !mark_bit.Get<mode>() && mark_bit.Next().Get<mode>();
+    }
+    // If we are in concurrent mode we can only tell if an object has the
+    // impossible bit pattern if we read the first bit again after reading
+    // the first and the second bit. If the first bit is till zero and the
+    // second bit is one then the object has the impossible bit pattern.
+    bool is_impossible = !mark_bit.Get<mode>() && mark_bit.Next().Get<mode>();
+    if (is_impossible) {
+      return !mark_bit.Get<mode>();
+    }
+    return false;
   }
 
   // Black markbits: 11
   static const char* kBlackBitPattern;
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
   INLINE(static bool IsBlack(MarkBit mark_bit)) {
-    return mark_bit.Get() && mark_bit.Next().Get();
+    return mark_bit.Get<mode>() && mark_bit.Next().Get<mode>();
   }
 
   // White markbits: 00 - this is required by the mark bit clearer.
   static const char* kWhiteBitPattern;
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
   INLINE(static bool IsWhite(MarkBit mark_bit)) {
     DCHECK(!IsImpossible(mark_bit));
-    return !mark_bit.Get();
+    return !mark_bit.Get<mode>();
   }
 
   // Grey markbits: 10
   static const char* kGreyBitPattern;
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
   INLINE(static bool IsGrey(MarkBit mark_bit)) {
-    return mark_bit.Get() && !mark_bit.Next().Get();
+    return mark_bit.Get<mode>() && !mark_bit.Next().Get<mode>();
   }
 
   // IsBlackOrGrey assumes that the first bit is set for black or grey
   // objects.
-  INLINE(static bool IsBlackOrGrey(MarkBit mark_bit)) { return mark_bit.Get(); }
-
-  INLINE(static void MarkBlack(MarkBit mark_bit)) {
-    mark_bit.Set();
-    mark_bit.Next().Set();
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  INLINE(static bool IsBlackOrGrey(MarkBit mark_bit)) {
+    return mark_bit.Get<mode>();
   }
 
-  INLINE(static void MarkWhite(MarkBit mark_bit)) {
-    mark_bit.Clear();
-    mark_bit.Next().Clear();
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  INLINE(static void MarkWhite(MarkBit markbit)) {
+    STATIC_ASSERT(mode == MarkBit::NON_ATOMIC);
+    markbit.Clear<mode>();
+    markbit.Next().Clear<mode>();
   }
 
-  INLINE(static void BlackToWhite(MarkBit markbit)) {
+  // Warning: this method is not safe in general in concurrent scenarios.
+  // If you know that nobody else will change the bits on the given location
+  // then you may use it.
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  INLINE(static void MarkBlack(MarkBit markbit)) {
+    markbit.Set<mode>();
+    markbit.Next().Set<mode>();
+  }
+
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  INLINE(static bool BlackToGrey(MarkBit markbit)) {
+    STATIC_ASSERT(mode == MarkBit::NON_ATOMIC);
     DCHECK(IsBlack(markbit));
-    markbit.Clear();
-    markbit.Next().Clear();
+    return markbit.Next().Clear<mode>();
   }
 
-  INLINE(static void GreyToWhite(MarkBit markbit)) {
-    DCHECK(IsGrey(markbit));
-    markbit.Clear();
-    markbit.Next().Clear();
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  INLINE(static bool WhiteToGrey(MarkBit markbit)) {
+    return markbit.Set<mode>();
   }
 
-  INLINE(static void BlackToGrey(MarkBit markbit)) {
-    DCHECK(IsBlack(markbit));
-    markbit.Next().Clear();
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  INLINE(static bool WhiteToBlack(MarkBit markbit)) {
+    return markbit.Set<mode>() && markbit.Next().Set<mode>();
   }
 
-  INLINE(static void WhiteToGrey(MarkBit markbit)) {
-    DCHECK(IsWhite(markbit));
-    markbit.Set();
-  }
-
-  INLINE(static void WhiteToBlack(MarkBit markbit)) {
-    DCHECK(IsWhite(markbit));
-    markbit.Set();
-    markbit.Next().Set();
-  }
-
-  INLINE(static void GreyToBlack(MarkBit markbit)) {
-    DCHECK(IsGrey(markbit));
-    markbit.Next().Set();
-  }
-
-  INLINE(static void AnyToGrey(MarkBit markbit)) {
-    markbit.Set();
-    markbit.Next().Clear();
+  template <MarkBit::AccessMode mode = MarkBit::NON_ATOMIC>
+  INLINE(static bool GreyToBlack(MarkBit markbit)) {
+    return markbit.Get<mode>() && markbit.Next().Set<mode>();
   }
 
   enum ObjectColor {

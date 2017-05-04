@@ -69,9 +69,10 @@ namespace internal {
  *              Address start,
  *              Address end,
  *              int* capture_output_array,
- *              bool at_start,
+ *              int num_capture_registers,
  *              byte* stack_area_base,
- *              bool direct_call)
+ *              bool direct_call = false,
+ *              Isolate* isolate);
  */
 
 #define __ ACCESS_MASM(masm_)
@@ -297,11 +298,11 @@ void RegExpMacroAssemblerX87::CheckNotBackReferenceIgnoreCase(
 //   Isolate* isolate or 0 if unicode flag.
 
     // Set isolate.
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
     if (unicode) {
       __ mov(Operand(esp, 3 * kPointerSize), Immediate(0));
     } else  // NOLINT
-#endif      // V8_I18N_SUPPORT
+#endif      // V8_INTL_SUPPORT
     {
       __ mov(Operand(esp, 3 * kPointerSize),
              Immediate(ExternalReference::isolate_address(isolate())));

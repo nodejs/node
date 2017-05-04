@@ -7,6 +7,7 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
+#include "src/debug/debug.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/runtime-profiler.h"
@@ -469,8 +470,8 @@ Object* StackGuard::HandleInterrupts() {
     isolate_->heap()->HandleGCRequest();
   }
 
-  if (CheckDebugBreak() || CheckDebugCommand()) {
-    isolate_->debug()->HandleDebugBreak();
+  if (CheckDebugBreak()) {
+    isolate_->debug()->HandleDebugBreak(kIgnoreIfTopFrameBlackboxed);
   }
 
   if (CheckAndClearInterrupt(TERMINATE_EXECUTION)) {

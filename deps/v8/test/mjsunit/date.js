@@ -193,110 +193,112 @@ assertEquals(-8640000000000000, Date.UTC(1970, 0, 1 - 100000001, 24));
 
 
 // Parsing ES5 ISO-8601 dates.
-// When TZ is omitted, it defaults to 'Z' meaning UTC.
+// When TZ is omitted, it defaults to the local timezone if there is
+// no time, and to UTC if a time is provided. This file tests the
+// "timezone present" case; timezone absent is tested by test/mjsunit/date-parse.js
 
 // Check epoch.
 assertEquals(0, Date.parse("1970-01-01T00:00:00.000+00:00"));
 assertEquals(0, Date.parse("1970-01-01T00:00:00.000-00:00"));
 assertEquals(0, Date.parse("1970-01-01T00:00:00.000Z"));
-assertEquals(0, Date.parse("1970-01-01T00:00:00.000"));
-assertEquals(0, Date.parse("1970-01-01T00:00:00"));
-assertEquals(0, Date.parse("1970-01-01T00:00"));
-assertEquals(0, Date.parse("1970-01-01"));
+assertEquals(0, Date.parse("1970-01-01T00:00:00.000Z"));
+assertEquals(0, Date.parse("1970-01-01T00:00:00Z"));
+assertEquals(0, Date.parse("1970-01-01T00:00Z"));
+assertEquals(0, Date.parse("1970-01-01Z"));
 
 assertEquals(0, Date.parse("1970-01T00:00:00.000+00:00"));
 assertEquals(0, Date.parse("1970-01T00:00:00.000-00:00"));
 assertEquals(0, Date.parse("1970-01T00:00:00.000Z"));
-assertEquals(0, Date.parse("1970-01T00:00:00.000"));
-assertEquals(0, Date.parse("1970-01T00:00:00"));
-assertEquals(0, Date.parse("1970-01T00:00"));
-assertEquals(0, Date.parse("1970-01"));
+assertEquals(0, Date.parse("1970-01T00:00:00.000Z"));
+assertEquals(0, Date.parse("1970-01T00:00:00Z"));
+assertEquals(0, Date.parse("1970-01T00:00Z"));
+assertEquals(0, Date.parse("1970-01Z"));
 
 assertEquals(0, Date.parse("1970T00:00:00.000+00:00"));
 assertEquals(0, Date.parse("1970T00:00:00.000-00:00"));
 assertEquals(0, Date.parse("1970T00:00:00.000Z"));
-assertEquals(0, Date.parse("1970T00:00:00.000"));
-assertEquals(0, Date.parse("1970T00:00:00"));
-assertEquals(0, Date.parse("1970T00:00"));
-assertEquals(0, Date.parse("1970"));
+assertEquals(0, Date.parse("1970T00:00:00.000Z"));
+assertEquals(0, Date.parse("1970T00:00:00Z"));
+assertEquals(0, Date.parse("1970T00:00Z"));
+assertEquals(0, Date.parse("1970Z"));
 
 assertEquals(0, Date.parse("+001970-01-01T00:00:00.000+00:00"));
 assertEquals(0, Date.parse("+001970-01-01T00:00:00.000-00:00"));
 assertEquals(0, Date.parse("+001970-01-01T00:00:00.000Z"));
-assertEquals(0, Date.parse("+001970-01-01T00:00:00.000"));
-assertEquals(0, Date.parse("+001970-01-01T00:00:00"));
-assertEquals(0, Date.parse("+001970-01-01T00:00"));
-assertEquals(0, Date.parse("+001970-01-01"));
+assertEquals(0, Date.parse("+001970-01-01T00:00:00.000Z"));
+assertEquals(0, Date.parse("+001970-01-01T00:00:00Z"));
+assertEquals(0, Date.parse("+001970-01-01T00:00Z"));
+assertEquals(0, Date.parse("+001970-01-01Z"));
 
 assertEquals(0, Date.parse("+001970-01T00:00:00.000+00:00"));
 assertEquals(0, Date.parse("+001970-01T00:00:00.000-00:00"));
 assertEquals(0, Date.parse("+001970-01T00:00:00.000Z"));
-assertEquals(0, Date.parse("+001970-01T00:00:00.000"));
-assertEquals(0, Date.parse("+001970-01T00:00:00"));
-assertEquals(0, Date.parse("+001970-01T00:00"));
-assertEquals(0, Date.parse("+001970-01"));
+assertEquals(0, Date.parse("+001970-01T00:00:00.000Z"));
+assertEquals(0, Date.parse("+001970-01T00:00:00Z"));
+assertEquals(0, Date.parse("+001970-01T00:00Z"));
+assertEquals(0, Date.parse("+001970-01Z"));
 
 assertEquals(0, Date.parse("+001970T00:00:00.000+00:00"));
 assertEquals(0, Date.parse("+001970T00:00:00.000-00:00"));
 assertEquals(0, Date.parse("+001970T00:00:00.000Z"));
-assertEquals(0, Date.parse("+001970T00:00:00.000"));
-assertEquals(0, Date.parse("+001970T00:00:00"));
-assertEquals(0, Date.parse("+001970T00:00"));
-assertEquals(0, Date.parse("+001970"));
+assertEquals(0, Date.parse("+001970T00:00:00.000Z"));
+assertEquals(0, Date.parse("+001970T00:00:00Z"));
+assertEquals(0, Date.parse("+001970T00:00Z"));
+assertEquals(0, Date.parse("+001970Z"));
 
 // Check random date.
 assertEquals(70671003500, Date.parse("1972-03-28T23:50:03.500+01:00"));
 assertEquals(70674603500, Date.parse("1972-03-28T23:50:03.500Z"));
-assertEquals(70674603500, Date.parse("1972-03-28T23:50:03.500"));
-assertEquals(70674603000, Date.parse("1972-03-28T23:50:03"));
-assertEquals(70674600000, Date.parse("1972-03-28T23:50"));
-assertEquals(70588800000, Date.parse("1972-03-28"));
+assertEquals(70674603500, Date.parse("1972-03-28T23:50:03.500Z"));
+assertEquals(70674603000, Date.parse("1972-03-28T23:50:03Z"));
+assertEquals(70674600000, Date.parse("1972-03-28T23:50Z"));
+assertEquals(70588800000, Date.parse("1972-03-28Z"));
 
 assertEquals(68338203500, Date.parse("1972-03T23:50:03.500+01:00"));
 assertEquals(68341803500, Date.parse("1972-03T23:50:03.500Z"));
-assertEquals(68341803500, Date.parse("1972-03T23:50:03.500"));
-assertEquals(68341803000, Date.parse("1972-03T23:50:03"));
-assertEquals(68341800000, Date.parse("1972-03T23:50"));
-assertEquals(68256000000, Date.parse("1972-03"));
+assertEquals(68341803500, Date.parse("1972-03T23:50:03.500Z"));
+assertEquals(68341803000, Date.parse("1972-03T23:50:03Z"));
+assertEquals(68341800000, Date.parse("1972-03T23:50Z"));
+assertEquals(68256000000, Date.parse("1972-03Z"));
 
 assertEquals(63154203500, Date.parse("1972T23:50:03.500+01:00"));
 assertEquals(63157803500, Date.parse("1972T23:50:03.500Z"));
-assertEquals(63157803500, Date.parse("1972T23:50:03.500"));
-assertEquals(63157803000, Date.parse("1972T23:50:03"));
-assertEquals(63072000000, Date.parse("1972"));
+assertEquals(63157803500, Date.parse("1972T23:50:03.500Z"));
+assertEquals(63157803000, Date.parse("1972T23:50:03Z"));
+assertEquals(63072000000, Date.parse("1972Z"));
 
 assertEquals(70671003500, Date.parse("+001972-03-28T23:50:03.500+01:00"));
 assertEquals(70674603500, Date.parse("+001972-03-28T23:50:03.500Z"));
-assertEquals(70674603500, Date.parse("+001972-03-28T23:50:03.500"));
-assertEquals(70674603000, Date.parse("+001972-03-28T23:50:03"));
-assertEquals(70674600000, Date.parse("+001972-03-28T23:50"));
-assertEquals(70588800000, Date.parse("+001972-03-28"));
+assertEquals(70674603500, Date.parse("+001972-03-28T23:50:03.500Z"));
+assertEquals(70674603000, Date.parse("+001972-03-28T23:50:03Z"));
+assertEquals(70674600000, Date.parse("+001972-03-28T23:50Z"));
+assertEquals(70588800000, Date.parse("+001972-03-28Z"));
 
 assertEquals(68338203500, Date.parse("+001972-03T23:50:03.500+01:00"));
 assertEquals(68341803500, Date.parse("+001972-03T23:50:03.500Z"));
-assertEquals(68341803500, Date.parse("+001972-03T23:50:03.500"));
-assertEquals(68341803000, Date.parse("+001972-03T23:50:03"));
-assertEquals(68341800000, Date.parse("+001972-03T23:50"));
-assertEquals(68256000000, Date.parse("+001972-03"));
+assertEquals(68341803500, Date.parse("+001972-03T23:50:03.500Z"));
+assertEquals(68341803000, Date.parse("+001972-03T23:50:03Z"));
+assertEquals(68341800000, Date.parse("+001972-03T23:50Z"));
+assertEquals(68256000000, Date.parse("+001972-03Z"));
 
 assertEquals(63154203500, Date.parse("+001972T23:50:03.500+01:00"));
 assertEquals(63157803500, Date.parse("+001972T23:50:03.500Z"));
-assertEquals(63157803500, Date.parse("+001972T23:50:03.500"));
-assertEquals(63157803000, Date.parse("+001972T23:50:03"));
-assertEquals(63072000000, Date.parse("+001972"));
+assertEquals(63157803500, Date.parse("+001972T23:50:03.500Z"));
+assertEquals(63157803000, Date.parse("+001972T23:50:03Z"));
+assertEquals(63072000000, Date.parse("+001972Z"));
 
 
 // Ensure that ISO-years in the range 00-99 aren't translated to the range
 // 1950..2049.
-assertEquals(-60904915200000, Date.parse("0040-01-01"));
-assertEquals(-60273763200000, Date.parse("0060-01-01"));
-assertEquals(-62167219200000, Date.parse("0000-01-01"));
-assertEquals(-62167219200000, Date.parse("+000000-01-01"));
+assertEquals(-60904915200000, Date.parse("0040-01-01T00:00Z"));
+assertEquals(-60273763200000, Date.parse("0060-01-01T00:00Z"));
+assertEquals(-62167219200000, Date.parse("0000-01-01T00:00Z"));
+assertEquals(-62167219200000, Date.parse("+000000-01-01T00:00Z"));
 
 // Test negative years.
-assertEquals(-63429523200000, Date.parse("-000040-01-01"));
-assertEquals(-64060675200000, Date.parse("-000060-01-01"));
-assertEquals(-124397510400000, Date.parse("-001972-01-01"));
+assertEquals(-63429523200000, Date.parse("-000040-01-01Z"));
+assertEquals(-64060675200000, Date.parse("-000060-01-01Z"));
+assertEquals(-124397510400000, Date.parse("-001972-01-01Z"));
 
 // Check time-zones.
 assertEquals(70674603500, Date.parse("1972-03-28T23:50:03.500Z"));

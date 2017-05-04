@@ -4,11 +4,14 @@
 
 #include "src/heap/object-stats.h"
 
+#include "src/assembler-inl.h"
 #include "src/compilation-cache.h"
 #include "src/counters.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
+#include "src/objects/code-cache-inl.h"
+#include "src/objects/compilation-cache-inl.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -268,13 +271,12 @@ void ObjectStatsCollector::CollectStatistics(HeapObject* obj) {
   if (obj->IsScript()) RecordScriptDetails(Script::cast(obj));
 }
 
-class ObjectStatsCollector::CompilationCacheTableVisitor
-    : public ObjectVisitor {
+class ObjectStatsCollector::CompilationCacheTableVisitor : public RootVisitor {
  public:
   explicit CompilationCacheTableVisitor(ObjectStatsCollector* parent)
       : parent_(parent) {}
 
-  void VisitPointers(Object** start, Object** end) override {
+  void VisitRootPointers(Root root, Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       HeapObject* obj = HeapObject::cast(*current);
       if (obj->IsUndefined(parent_->heap_->isolate())) continue;
@@ -330,7 +332,6 @@ static bool CanRecordFixedArray(Heap* heap, FixedArrayBase* array) {
          array->map() != heap->fixed_double_array_map() &&
          array != heap->empty_fixed_array() &&
          array != heap->empty_byte_array() &&
-         array != heap->empty_literals_array() &&
          array != heap->empty_sloppy_arguments_elements() &&
          array != heap->empty_slow_element_dictionary() &&
          array != heap->empty_descriptor_array() &&
@@ -343,7 +344,8 @@ static bool IsCowArray(Heap* heap, FixedArrayBase* array) {
 
 static bool SameLiveness(HeapObject* obj1, HeapObject* obj2) {
   return obj1 == nullptr || obj2 == nullptr ||
-         ObjectMarking::Color(obj1) == ObjectMarking::Color(obj2);
+         ObjectMarking::Color(obj1, MarkingState::Internal(obj1)) ==
+             ObjectMarking::Color(obj2, MarkingState::Internal(obj2));
 }
 
 bool ObjectStatsCollector::RecordFixedArrayHelper(HeapObject* parent,
@@ -545,40 +547,14 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
     RecordFixedArrayHelper(sfi, feedback_metadata, FEEDBACK_METADATA_SUB_TYPE,
                            0);
   }
-
-  if (!sfi->OptimizedCodeMapIsCleared()) {
-    FixedArray* optimized_code_map = sfi->optimized_code_map();
-    RecordFixedArrayHelper(sfi, optimized_code_map, OPTIMIZED_CODE_MAP_SUB_TYPE,
-                           0);
-    // Optimized code map should be small, so skip accounting.
-    int len = optimized_code_map->length();
-    for (int i = SharedFunctionInfo::kEntriesStart; i < len;
-         i += SharedFunctionInfo::kEntryLength) {
-      Object* slot =
-          optimized_code_map->get(i + SharedFunctionInfo::kLiteralsOffset);
-      LiteralsArray* literals = nullptr;
-      if (slot->IsWeakCell()) {
-        WeakCell* cell = WeakCell::cast(slot);
-        if (!cell->cleared()) {
-          literals = LiteralsArray::cast(cell->value());
-        }
-      } else {
-        literals = LiteralsArray::cast(slot);
-      }
-      if (literals != nullptr) {
-        RecordFixedArrayHelper(sfi, literals, LITERALS_ARRAY_SUB_TYPE, 0);
-        RecordFixedArrayHelper(sfi, literals->feedback_vector(),
-                               FEEDBACK_VECTOR_SUB_TYPE, 0);
-      }
-    }
-  }
 }
 
 void ObjectStatsCollector::RecordJSFunctionDetails(JSFunction* function) {
-  LiteralsArray* literals = function->literals();
-  RecordFixedArrayHelper(function, literals, LITERALS_ARRAY_SUB_TYPE, 0);
-  RecordFixedArrayHelper(function, literals->feedback_vector(),
-                         FEEDBACK_VECTOR_SUB_TYPE, 0);
+  if (function->feedback_vector_cell()->value()->IsFeedbackVector()) {
+    FeedbackVector* feedback_vector = function->feedback_vector();
+    RecordFixedArrayHelper(function, feedback_vector, FEEDBACK_VECTOR_SUB_TYPE,
+                           0);
+  }
 }
 
 void ObjectStatsCollector::RecordFixedArrayDetails(FixedArray* array) {

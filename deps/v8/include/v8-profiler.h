@@ -5,6 +5,7 @@
 #ifndef V8_V8_PROFILER_H_
 #define V8_V8_PROFILER_H_
 
+#include <unordered_set>
 #include <vector>
 #include "v8.h"  // NOLINT(build/include)
 
@@ -392,8 +393,7 @@ class V8_EXPORT HeapGraphNode {
                          // snapshot items together.
     kConsString = 10,    // Concatenated string. A pair of pointers to strings.
     kSlicedString = 11,  // Sliced string. A fragment of another string.
-    kSymbol = 12,        // A Symbol (ES6).
-    kSimdValue = 13      // A SIMD value stored in the heap (Proposed ES7).
+    kSymbol = 12         // A Symbol (ES6).
   };
 
   /** Returns node type (see HeapGraphNode::Type). */
@@ -630,6 +630,24 @@ class V8_EXPORT HeapProfiler {
     kSamplingForceGC = 1 << 0,
   };
 
+  typedef std::unordered_set<const v8::PersistentBase<v8::Value>*>
+      RetainerChildren;
+  typedef std::vector<std::pair<v8::RetainedObjectInfo*, RetainerChildren>>
+      RetainerGroups;
+  typedef std::vector<std::pair<const v8::PersistentBase<v8::Value>*,
+                                const v8::PersistentBase<v8::Value>*>>
+      RetainerEdges;
+
+  struct RetainerInfos {
+    RetainerGroups groups;
+    RetainerEdges edges;
+  };
+
+  /**
+   * Callback function invoked to retrieve all RetainerInfos from the embedder.
+   */
+  typedef RetainerInfos (*GetRetainerInfosCallback)(v8::Isolate* isolate);
+
   /**
    * Callback function invoked for obtaining RetainedObjectInfo for
    * the given JavaScript wrapper object. It is prohibited to enter V8
@@ -782,6 +800,8 @@ class V8_EXPORT HeapProfiler {
       uint16_t class_id,
       WrapperInfoCallback callback);
 
+  void SetGetRetainerInfosCallback(GetRetainerInfosCallback callback);
+
   /**
    * Default value of persistent handle class ID. Must not be used to
    * define a class. Can be used to reset a class of a persistent
@@ -791,11 +811,6 @@ class V8_EXPORT HeapProfiler {
 
   /** Returns memory used for profiler internal data and snapshots. */
   size_t GetProfilerMemorySize();
-
-  /**
-   * Sets a RetainedObjectInfo for an object group (see V8::SetObjectGroupId).
-   */
-  void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
 
  private:
   HeapProfiler();

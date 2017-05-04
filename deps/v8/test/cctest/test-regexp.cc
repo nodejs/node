@@ -199,8 +199,8 @@ void TestRegExpParser(bool lookbehind) {
   CheckParseEq("xyz{1,}?", "(: 'xy' (# 1 - n 'z'))");
   CheckParseEq("a\\fb\\nc\\rd\\te\\vf", "'a\\x0cb\\x0ac\\x0dd\\x09e\\x0bf'");
   CheckParseEq("a\\nb\\bc", "(: 'a\\x0ab' @b 'c')");
-  CheckParseEq("(?:foo)", "'foo'");
-  CheckParseEq("(?: foo )", "' foo '");
+  CheckParseEq("(?:foo)", "(?: 'foo')");
+  CheckParseEq("(?: foo )", "(?: ' foo ')");
   CheckParseEq("(foo|bar|baz)", "(^ (| 'foo' 'bar' 'baz'))");
   CheckParseEq("foo|(bar|baz)|quux", "(| 'foo' (^ (| 'bar' 'baz')) 'quux')");
   CheckParseEq("foo(?=bar)baz", "(: 'foo' (-> + 'bar') 'baz')");
@@ -294,7 +294,7 @@ void TestRegExpParser(bool lookbehind) {
   CheckParseEq("(?!\\1(a\\1)\\1)\\1",
                "(: (-> - (: (<- 1) (^ 'a') (<- 1))) (<- 1))");
   CheckParseEq("\\1\\2(a(?:\\1(b\\1\\2))\\2)\\1",
-               "(: (<- 1) (<- 2) (^ (: 'a' (^ 'b') (<- 2))) (<- 1))");
+               "(: (<- 1) (<- 2) (^ (: 'a' (?: (^ 'b')) (<- 2))) (<- 1))");
   if (lookbehind) {
     CheckParseEq("\\1\\2(a(?<=\\1(b\\1\\2))\\2)\\1",
                  "(: (<- 1) (<- 2) (^ (: 'a' (<- + (^ 'b')) (<- 2))) (<- 1))");
@@ -314,6 +314,9 @@ void TestRegExpParser(bool lookbehind) {
   CheckParseEq("\\u0034", "'\x34'");
   CheckParseEq("\\u003z", "'u003z'");
   CheckParseEq("foo[z]*", "(: 'foo' (# 0 - g [z]))");
+  CheckParseEq("^^^$$$\\b\\b\\b\\b", "(: @^i @$i @b)");
+  CheckParseEq("\\b\\b\\b\\b\\B\\B\\B\\B\\b\\b\\b\\b", "(: @b @B @b)");
+  CheckParseEq("\\b\\B\\b", "(: @b @B @b)");
 
   // Unicode regexps
   CheckParseEq("\\u{12345}", "'\\ud808\\udf45'", true);

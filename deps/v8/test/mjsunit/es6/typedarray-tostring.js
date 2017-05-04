@@ -5,6 +5,8 @@
 // Array's toString should call the object's own join method, if one exists and
 // is callable. Otherwise, just use the original Object.toString function.
 
+// Flags: --allow-natives-syntax
+
 var typedArrayConstructors = [
   Uint8Array,
   Int8Array,
@@ -96,4 +98,11 @@ for (var constructor of typedArrayConstructors) {
 
     Number.prototype.toLocaleString = NumberToLocaleString;
   })();
+
+  // Detached Operation
+  var array = new constructor([1, 2, 3]);
+  %ArrayBufferNeuter(array.buffer);
+  assertThrows(() => array.join(), TypeError);
+  assertThrows(() => array.toLocalString(), TypeError);
+  assertThrows(() => array.toString(), TypeError);
 }

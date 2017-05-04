@@ -10,6 +10,7 @@
 #include "src/base/ieee754.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
+#include "src/objects-inl.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
@@ -6162,6 +6163,11 @@ int32_t foo8(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f,
   return a + b + c + d + e + f + g + h;
 }
 
+int32_t foo9(int32_t a, int32_t b, int32_t c, int32_t d, int32_t e, int32_t f,
+             int32_t g, int32_t h, int32_t i) {
+  return a + b + c + d + e + f + g + h + i;
+}
+
 }  // namespace
 
 
@@ -6218,6 +6224,30 @@ TEST(RunCallCFunction8) {
   FOR_INT32_INPUTS(i) {
     int32_t const x = *i;
     CHECK_EQ(x * 8, m.Call(x));
+  }
+}
+
+TEST(RunCallCFunction9) {
+  auto* foo9_ptr = &foo9;
+  RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
+  Node* function = m.LoadFromPointer(&foo9_ptr, MachineType::Pointer());
+  Node* param = m.Parameter(0);
+  m.Return(m.CallCFunction9(
+      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+      MachineType::Int32(), MachineType::Int32(), MachineType::Int32(),
+      MachineType::Int32(), function, param,
+      m.Int32Add(param, m.Int32Constant(1)),
+      m.Int32Add(param, m.Int32Constant(2)),
+      m.Int32Add(param, m.Int32Constant(3)),
+      m.Int32Add(param, m.Int32Constant(4)),
+      m.Int32Add(param, m.Int32Constant(5)),
+      m.Int32Add(param, m.Int32Constant(6)),
+      m.Int32Add(param, m.Int32Constant(7)),
+      m.Int32Add(param, m.Int32Constant(8))));
+  FOR_INT32_INPUTS(i) {
+    int32_t const x = *i;
+    CHECK_EQ(x * 9 + 36, m.Call(x));
   }
 }
 #endif  // USE_SIMULATOR
@@ -6707,6 +6737,82 @@ TEST(ParentFramePointer) {
   Node* phi = r.Phi(MachineRepresentation::kWord32, fa, fb);
   r.Return(phi);
   CHECK_EQ(1, r.Call(1));
+}
+
+#if V8_TARGET_ARCH_64_BIT
+
+TEST(Regression5923) {
+  {
+    BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int64());
+    m.Return(m.Int64Add(
+        m.Word64Shr(m.Parameter(0), m.Int64Constant(4611686018427387888)),
+        m.Parameter(0)));
+    int64_t input = 16;
+    m.Call(input);
+  }
+  {
+    BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int64());
+    m.Return(m.Int64Add(
+        m.Parameter(0),
+        m.Word64Shr(m.Parameter(0), m.Int64Constant(4611686018427387888))));
+    int64_t input = 16;
+    m.Call(input);
+  }
+}
+
+TEST(Regression5951) {
+  BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int64());
+  m.Return(m.Word64And(m.Word64Shr(m.Parameter(0), m.Int64Constant(0)),
+                       m.Int64Constant(0xffffffffffffffffl)));
+  int64_t input = 1234;
+  CHECK_EQ(input, m.Call(input));
+}
+
+TEST(Regression6046a) {
+  BufferedRawMachineAssemblerTester<int64_t> m;
+  m.Return(m.Word64Shr(m.Word64And(m.Int64Constant(0), m.Int64Constant(0)),
+                       m.Int64Constant(64)));
+  CHECK_EQ(0, m.Call());
+}
+
+TEST(Regression6122) {
+  BufferedRawMachineAssemblerTester<int64_t> m;
+  m.Return(m.Word64Shr(m.Word64And(m.Int64Constant(59), m.Int64Constant(-1)),
+                       m.Int64Constant(0)));
+  CHECK_EQ(59, m.Call());
+}
+
+#endif  // V8_TARGET_ARCH_64_BIT
+
+TEST(Regression6046b) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  m.Return(m.Word32Shr(m.Word32And(m.Int32Constant(0), m.Int32Constant(0)),
+                       m.Int32Constant(32)));
+  CHECK_EQ(0, m.Call());
+}
+
+TEST(Regression6122b) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  m.Return(m.Word32Shr(m.Word32And(m.Int32Constant(59), m.Int32Constant(-1)),
+                       m.Int32Constant(0)));
+  CHECK_EQ(59, m.Call());
+}
+
+TEST(Regression6028) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  m.Return(m.Word32Equal(
+      m.Word32And(m.Int32Constant(0x23),
+                  m.Word32Sar(m.Int32Constant(1), m.Int32Constant(18))),
+      m.Int32Constant(0)));
+  CHECK_EQ(1, m.Call());
+}
+
+TEST(Regression5951_32bit) {
+  BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Int32());
+  m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(0)),
+                       m.Int32Constant(0xffffffff)));
+  int32_t input = 1234;
+  CHECK_EQ(input, m.Call(input));
 }
 
 }  // namespace compiler

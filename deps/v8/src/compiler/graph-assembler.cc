@@ -6,6 +6,7 @@
 
 #include "src/code-factory.h"
 #include "src/compiler/linkage.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -55,6 +56,10 @@ Node* GraphAssembler::CEntryStubConstant(int result_size) {
   return jsgraph()->CEntryStubConstant(result_size);
 }
 
+Node* GraphAssembler::LoadFramePointer() {
+  return graph()->NewNode(machine()->LoadFramePointer());
+}
+
 #define SINGLETON_CONST_DEF(Name) \
   Node* GraphAssembler::Name() { return jsgraph()->Name(); }
 JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DEF)
@@ -94,8 +99,8 @@ Node* GraphAssembler::Projection(int index, Node* value) {
 
 Node* GraphAssembler::Allocate(PretenureFlag pretenure, Node* size) {
   return current_effect_ =
-             graph()->NewNode(simplified()->Allocate(NOT_TENURED), size,
-                              current_effect_, current_control_);
+             graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
+                              size, current_effect_, current_control_);
 }
 
 Node* GraphAssembler::LoadField(FieldAccess const& access, Node* object) {
@@ -157,16 +162,23 @@ Node* GraphAssembler::ToNumber(Node* value) {
 
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason, Node* condition,
                                    Node* frame_state) {
-  return current_control_ = current_effect_ =
-             graph()->NewNode(common()->DeoptimizeIf(reason), condition,
-                              frame_state, current_effect_, current_control_);
+  return current_control_ = current_effect_ = graph()->NewNode(
+             common()->DeoptimizeIf(DeoptimizeKind::kEager, reason), condition,
+             frame_state, current_effect_, current_control_);
+}
+
+Node* GraphAssembler::DeoptimizeUnless(DeoptimizeKind kind,
+                                       DeoptimizeReason reason, Node* condition,
+                                       Node* frame_state) {
+  return current_control_ = current_effect_ = graph()->NewNode(
+             common()->DeoptimizeUnless(kind, reason), condition, frame_state,
+             current_effect_, current_control_);
 }
 
 Node* GraphAssembler::DeoptimizeUnless(DeoptimizeReason reason, Node* condition,
                                        Node* frame_state) {
-  return current_control_ = current_effect_ =
-             graph()->NewNode(common()->DeoptimizeUnless(reason), condition,
-                              frame_state, current_effect_, current_control_);
+  return DeoptimizeUnless(DeoptimizeKind::kEager, reason, condition,
+                          frame_state);
 }
 
 void GraphAssembler::Branch(Node* condition,

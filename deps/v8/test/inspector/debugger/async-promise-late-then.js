@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 // Flags: --expose-gc
 
-print('Checks async stack for late .then handlers with gc');
+InspectorTest.log('Checks async stack for late .then handlers with gc');
 
 InspectorTest.addScript(`
 function foo1() {

@@ -27,8 +27,11 @@ BasicBlock::BasicBlock(Zone* zone, Id id)
       nodes_(zone),
       successors_(zone),
       predecessors_(zone),
-      id_(id) {}
-
+#if DEBUG
+      debug_info_(AssemblerDebugInfo(nullptr, nullptr, -1)),
+#endif
+      id_(id) {
+}
 
 bool BasicBlock::LoopContains(BasicBlock* block) const {
   // RPO numbers must be initialized.
@@ -93,6 +96,24 @@ BasicBlock* BasicBlock::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
   return b1;
 }
 
+std::ostream& operator<<(std::ostream& os, const BasicBlock& block) {
+  os << "B" << block.id();
+#if DEBUG
+  AssemblerDebugInfo info = block.debug_info();
+  if (info.name) os << info;
+  // Print predecessor blocks for better debugging.
+  const int kMaxDisplayedBlocks = 4;
+  int i = 0;
+  const BasicBlock* current_block = &block;
+  while (current_block->PredecessorCount() > 0 && i++ < kMaxDisplayedBlocks) {
+    current_block = current_block->predecessors().front();
+    os << " <= B" << current_block->id();
+    info = current_block->debug_info();
+    if (info.name) os << info;
+  }
+#endif
+  return os;
+}
 
 std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
   switch (c) {

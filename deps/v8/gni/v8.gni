@@ -4,11 +4,13 @@
 
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
-import("//build_overrides/v8.gni")
 
 declare_args() {
   # Includes files needed for correctness fuzzing.
   v8_correctness_fuzzer = false
+
+  # Adds additional compile target for building multiple architectures at once.
+  v8_multi_arch_build = false
 
   # Indicate if valgrind was fetched as a custom deps to make it available on
   # swarming.
@@ -35,8 +37,8 @@ declare_args() {
   # add a dependency on the ICU library.
   v8_enable_i18n_support = true
 
-  # Enable inspector. See include/v8-inspector.h.
-  v8_enable_inspector = v8_enable_inspector_override
+  # Use static libraries instead of source_sets.
+  v8_static_library = false
 }
 
 if (v8_use_external_startup_data == "") {
@@ -61,9 +63,8 @@ v8_inspector_js_protocol = v8_path_prefix + "/src/inspector/js_protocol.json"
 #
 
 # Common configs to remove or add in all v8 targets.
-v8_remove_configs = [ "//build/config/compiler:chromium_code" ]
+v8_remove_configs = []
 v8_add_configs = [
-  "//build/config/compiler:no_chromium_code",
   v8_path_prefix + ":features",
   v8_path_prefix + ":toolchain",
 ]
@@ -104,6 +105,15 @@ template("v8_source_set") {
       configs -= v8_remove_configs
       configs += v8_add_configs
     }
+  }
+}
+
+template("v8_header_set") {
+  source_set(target_name) {
+    forward_variables_from(invoker, "*", [ "configs" ])
+    configs += invoker.configs
+    configs -= v8_remove_configs
+    configs += v8_add_configs
   }
 }
 

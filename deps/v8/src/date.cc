@@ -7,6 +7,10 @@
 #include "src/objects.h"
 #include "src/objects-inl.h"
 
+#ifdef V8_INTL_SUPPORT
+#include "src/intl.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -21,6 +25,18 @@ static const int kYearsOffset = 400000;
 static const char kDaysInMonths[] =
     {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
+DateCache::DateCache()
+    : stamp_(0),
+      tz_cache_(
+#ifdef V8_INTL_SUPPORT
+          FLAG_icu_timezone_data ? new ICUTimezoneCache()
+                                 : base::OS::CreateTimezoneCache()
+#else
+          base::OS::CreateTimezoneCache()
+#endif
+              ) {
+  ResetDateCache();
+}
 
 void DateCache::ResetDateCache() {
   static const int kMaxStamp = Smi::kMaxValue;
@@ -38,7 +54,9 @@ void DateCache::ResetDateCache() {
   after_ = &dst_[1];
   local_offset_ms_ = kInvalidLocalOffsetInMs;
   ymd_valid_ = false;
-  base::OS::ClearTimezoneCache(tz_cache_);
+  tz_cache_->Clear();
+  tz_name_ = nullptr;
+  dst_tz_name_ = nullptr;
 }
 
 

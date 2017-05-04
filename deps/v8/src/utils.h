@@ -137,14 +137,19 @@ inline int MostSignificantBit(uint32_t x) {
   return nibble + msb4[x];
 }
 
-
-// The C++ standard leaves the semantics of '>>' undefined for
-// negative signed operands. Most implementations do the right thing,
-// though.
-inline int ArithmeticShiftRight(int x, int s) {
-  return x >> s;
+template <typename T>
+static T ArithmeticShiftRight(T x, int shift) {
+  DCHECK_LE(0, shift);
+  if (x < 0) {
+    // Right shift of signed values is implementation defined. Simulate a
+    // true arithmetic right shift by adding leading sign bits.
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT mask = ~(static_cast<UnsignedT>(~0) >> shift);
+    return (static_cast<UnsignedT>(x) >> shift) | mask;
+  } else {
+    return x >> shift;
+  }
 }
-
 
 template <typename T>
 int Compare(const T& a, const T& b) {
@@ -155,13 +160,6 @@ int Compare(const T& a, const T& b) {
   else
     return 1;
 }
-
-
-template <typename T>
-int PointerValueCompare(const T* a, const T* b) {
-  return Compare<T>(*a, *b);
-}
-
 
 // Compare function to compare the object pointer value of two
 // handlified objects. The handles are passed as pointers to the
@@ -308,7 +306,7 @@ class BitFieldBase {
   static const T kMax = static_cast<T>((kOne << size) - 1);
 
   // Tells whether the provided value fits into the bit field.
-  static bool is_valid(T value) {
+  static constexpr bool is_valid(T value) {
     return (static_cast<U>(value) & ~static_cast<U>(kMax)) == 0;
   }
 
@@ -503,12 +501,21 @@ V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
                                          size_t size) {
   memmove(dest, src, size);
 }
-const int kMinComplexMemCopy = 16 * kPointerSize;
+const int kMinComplexMemCopy = 8;
 #endif  // V8_TARGET_ARCH_IA32
 
 
 // ----------------------------------------------------------------------------
 // Miscellaneous
+
+// Memory offset for lower and higher bits in a 64 bit integer.
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+static const int kInt64LowerHalfMemoryOffset = 0;
+static const int kInt64UpperHalfMemoryOffset = 4;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+static const int kInt64LowerHalfMemoryOffset = 4;
+static const int kInt64UpperHalfMemoryOffset = 0;
+#endif  // V8_TARGET_LITTLE_ENDIAN
 
 // A static resource holds a static instance that can be reserved in
 // a local scope using an instance of Access.  Attempts to re-reserve
@@ -880,24 +887,21 @@ inline bool operator>(TypeFeedbackId lhs, TypeFeedbackId rhs) {
   return lhs.ToInt() > rhs.ToInt();
 }
 
-
-class FeedbackVectorSlot {
+class FeedbackSlot {
  public:
-  FeedbackVectorSlot() : id_(kInvalidSlot) {}
-  explicit FeedbackVectorSlot(int id) : id_(id) {}
+  FeedbackSlot() : id_(kInvalidSlot) {}
+  explicit FeedbackSlot(int id) : id_(id) {}
 
   int ToInt() const { return id_; }
 
-  static FeedbackVectorSlot Invalid() { return FeedbackVectorSlot(); }
+  static FeedbackSlot Invalid() { return FeedbackSlot(); }
   bool IsInvalid() const { return id_ == kInvalidSlot; }
 
-  bool operator==(FeedbackVectorSlot that) const {
-    return this->id_ == that.id_;
-  }
-  bool operator!=(FeedbackVectorSlot that) const { return !(*this == that); }
+  bool operator==(FeedbackSlot that) const { return this->id_ == that.id_; }
+  bool operator!=(FeedbackSlot that) const { return !(*this == that); }
 
-  friend size_t hash_value(FeedbackVectorSlot slot) { return slot.ToInt(); }
-  friend std::ostream& operator<<(std::ostream& os, FeedbackVectorSlot);
+  friend size_t hash_value(FeedbackSlot slot) { return slot.ToInt(); }
+  friend std::ostream& operator<<(std::ostream& os, FeedbackSlot);
 
  private:
   static const int kInvalidSlot = -1;
@@ -918,6 +922,17 @@ class BailoutId {
   static BailoutId Declarations() { return BailoutId(kDeclarationsId); }
   static BailoutId FirstUsable() { return BailoutId(kFirstUsableId); }
   static BailoutId StubEntry() { return BailoutId(kStubEntryId); }
+
+  // Special bailout id support for deopting into the {JSConstructStub} stub.
+  // The following hard-coded deoptimization points are supported by the stub:
+  //  - {ConstructStubCreate} maps to {construct_stub_create_deopt_pc_offset}.
+  //  - {ConstructStubInvoke} maps to {construct_stub_invoke_deopt_pc_offset}.
+  static BailoutId ConstructStubCreate() { return BailoutId(1); }
+  static BailoutId ConstructStubInvoke() { return BailoutId(2); }
+  bool IsValidForConstructStub() const {
+    return id_ == ConstructStubCreate().ToInt() ||
+           id_ == ConstructStubInvoke().ToInt();
+  }
 
   bool IsNone() const { return id_ == kNoneId; }
   bool operator==(const BailoutId& other) const { return id_ == other.id_; }
@@ -964,7 +979,7 @@ void PRINTF_FORMAT(2, 3) PrintIsolate(void* isolate, const char* format, ...);
 // Safe formatting print. Ensures that str is always null-terminated.
 // Returns the number of chars written, or -1 if output was truncated.
 int PRINTF_FORMAT(2, 3) SNPrintF(Vector<char> str, const char* format, ...);
-int PRINTF_FORMAT(2, 0)
+V8_EXPORT_PRIVATE int PRINTF_FORMAT(2, 0)
     VSNPrintF(Vector<char> str, const char* format, va_list args);
 
 void StrNCpy(Vector<char> dest, const char* src, size_t n);
@@ -1613,6 +1628,7 @@ class ThreadedList final {
     }
     bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
     T* operator*() { return *entry_; }
+    T* operator->() { return *entry_; }
     Iterator& operator=(T* entry) {
       T* next = *(*entry_)->next();
       *entry->next() = next;

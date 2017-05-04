@@ -252,10 +252,10 @@ TEST(FlagsRemoveIncomplete) {
   // if the list of arguments ends unexpectedly.
   SetFlagsToDefault();
   int argc = 3;
-  const char* argv[] = {"", "--crankshaft", "--expose-natives-as"};
+  const char* argv[] = {"", "--opt", "--expose-natives-as"};
   CHECK_EQ(2, FlagList::SetFlagsFromCommandLine(&argc,
                                                 const_cast<char **>(argv),
                                                 true));
   CHECK(argv[1]);
-  CHECK_EQ(argc, 2);
+  CHECK_EQ(2, argc);
 }

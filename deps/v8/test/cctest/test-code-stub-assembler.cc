@@ -2,12 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cmath>
+
+#include "src/api.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/builtins/builtins-promise.h"
+#include "src/builtins/builtins-promise-gen.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/compiler/node.h"
+#include "src/debug/debug.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -20,6 +25,148 @@ using compiler::Node;
 using compiler::CodeAssemblerLabel;
 using compiler::CodeAssemblerVariable;
 using compiler::CodeAssemblerVariableList;
+
+namespace {
+
+int sum9(int a0, int a1, int a2, int a3, int a4, int a5, int a6, int a7,
+         int a8) {
+  return a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8;
+}
+
+}  // namespace
+
+TEST(CallCFunction9) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 0;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  {
+    Node* const fun_constant = m.ExternalConstant(
+        ExternalReference(reinterpret_cast<Address>(sum9), isolate));
+
+    MachineType type_intptr = MachineType::IntPtr();
+
+    Node* const result = m.CallCFunction9(
+        type_intptr, type_intptr, type_intptr, type_intptr, type_intptr,
+        type_intptr, type_intptr, type_intptr, type_intptr, type_intptr,
+        fun_constant, m.IntPtrConstant(0), m.IntPtrConstant(1),
+        m.IntPtrConstant(2), m.IntPtrConstant(3), m.IntPtrConstant(4),
+        m.IntPtrConstant(5), m.IntPtrConstant(6), m.IntPtrConstant(7),
+        m.IntPtrConstant(8));
+    m.Return(m.SmiTag(result));
+  }
+
+  Handle<Code> code = data.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  Handle<Object> result = ft.Call().ToHandleChecked();
+  CHECK_EQ(36, Handle<Smi>::cast(result)->value());
+}
+
+namespace {
+
+void CheckToUint32Result(uint32_t expected, Handle<Object> result) {
+  const int64_t result_int64 = NumberToInt64(*result);
+  const uint32_t result_uint32 = NumberToUint32(*result);
+
+  CHECK_EQ(static_cast<int64_t>(result_uint32), result_int64);
+  CHECK_EQ(expected, result_uint32);
+
+  // Ensure that the result is normalized to a Smi, i.e. a HeapNumber is only
+  // returned if the result is not within Smi range.
+  const bool expected_fits_into_intptr =
+      static_cast<int64_t>(expected) <=
+      static_cast<int64_t>(std::numeric_limits<intptr_t>::max());
+  if (expected_fits_into_intptr &&
+      Smi::IsValid(static_cast<intptr_t>(expected))) {
+    CHECK(result->IsSmi());
+  } else {
+    CHECK(result->IsHeapNumber());
+  }
+}
+
+}  // namespace
+
+TEST(ToUint32) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  Factory* factory = isolate->factory();
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  const int kContextOffset = 2;
+  Node* const context = m.Parameter(kNumParams + kContextOffset);
+  Node* const input = m.Parameter(0);
+  m.Return(m.ToUint32(context, input));
+
+  Handle<Code> code = data.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  // clang-format off
+  double inputs[] = {
+     std::nan("-1"), std::nan("1"), std::nan("2"),
+    -std::numeric_limits<double>::infinity(),
+     std::numeric_limits<double>::infinity(),
+    -0.0, -0.001, -0.5, -0.999, -1.0,
+     0.0,  0.001,  0.5,  0.999,  1.0,
+    -2147483647.9, -2147483648.0, -2147483648.5, -2147483648.9,  // SmiMin.
+     2147483646.9,  2147483647.0,  2147483647.5,  2147483647.9,  // SmiMax.
+    -4294967295.9, -4294967296.0, -4294967296.5, -4294967297.0,  // - 2^32.
+     4294967295.9,  4294967296.0,  4294967296.5,  4294967297.0,  //   2^32.
+  };
+
+  uint32_t expectations[] = {
+     0, 0, 0,
+     0,
+     0,
+     0, 0, 0, 0, 4294967295,
+     0, 0, 0, 0, 1,
+     2147483649, 2147483648, 2147483648, 2147483648,
+     2147483646, 2147483647, 2147483647, 2147483647,
+     1, 0, 0, 4294967295,
+     4294967295, 0, 0, 1,
+  };
+  // clang-format on
+
+  STATIC_ASSERT(arraysize(inputs) == arraysize(expectations));
+
+  const int test_count = arraysize(inputs);
+  for (int i = 0; i < test_count; i++) {
+    Handle<Object> input_obj = factory->NewNumber(inputs[i]);
+    Handle<HeapNumber> input_num;
+
+    // Check with Smi input.
+    if (input_obj->IsSmi()) {
+      Handle<Smi> input_smi = Handle<Smi>::cast(input_obj);
+      Handle<Object> result = ft.Call(input_smi).ToHandleChecked();
+      CheckToUint32Result(expectations[i], result);
+      input_num = factory->NewHeapNumber(inputs[i]);
+    } else {
+      input_num = Handle<HeapNumber>::cast(input_obj);
+    }
+
+    // Check with HeapNumber input.
+    {
+      CHECK(input_num->IsHeapNumber());
+      Handle<Object> result = ft.Call(input_num).ToHandleChecked();
+      CheckToUint32Result(expectations[i], result);
+    }
+  }
+
+  // A couple of final cases for ToNumber conversions.
+  CheckToUint32Result(0, ft.Call(factory->undefined_value()).ToHandleChecked());
+  CheckToUint32Result(0, ft.Call(factory->null_value()).ToHandleChecked());
+  CheckToUint32Result(0, ft.Call(factory->false_value()).ToHandleChecked());
+  CheckToUint32Result(1, ft.Call(factory->true_value()).ToHandleChecked());
+  CheckToUint32Result(
+      42,
+      ft.Call(factory->NewStringFromAsciiChecked("0x2A")).ToHandleChecked());
+
+  ft.CheckThrows(factory->match_symbol());
+}
 
 TEST(FixedArrayAccessSmiIndex) {
   Isolate* isolate(CcTest::InitIsolateOnce());
@@ -180,47 +327,6 @@ TEST(ToString) {
   }
 }
 
-TEST(FlattenString) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  const int kNumParams = 1;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
-  m.Return(m.FlattenString(m.Parameter(0)));
-
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code, kNumParams);
-
-  Handle<FixedArray> test_cases(isolate->factory()->NewFixedArray(4));
-  Handle<String> expected(
-      isolate->factory()->InternalizeUtf8String("hello, world!"));
-  test_cases->set(0, *expected);
-
-  Handle<String> string(
-      isolate->factory()->InternalizeUtf8String("filler hello, world! filler"));
-  Handle<String> sub_string(
-      isolate->factory()->NewProperSubString(string, 7, 20));
-  test_cases->set(1, *sub_string);
-
-  Handle<String> hello(isolate->factory()->InternalizeUtf8String("hello,"));
-  Handle<String> world(isolate->factory()->InternalizeUtf8String(" world!"));
-  Handle<String> cons_str(
-      isolate->factory()->NewConsString(hello, world).ToHandleChecked());
-  test_cases->set(2, *cons_str);
-
-  Handle<String> empty(isolate->factory()->InternalizeUtf8String(""));
-  Handle<String> fake_cons_str(
-      isolate->factory()->NewConsString(expected, empty).ToHandleChecked());
-  test_cases->set(3, *fake_cons_str);
-
-  for (int i = 0; i < 4; ++i) {
-    Handle<String> test = handle(String::cast(test_cases->get(i)));
-    Handle<Object> result = ft.Call(test).ToHandleChecked();
-    CHECK(result->IsString());
-    CHECK(Handle<String>::cast(result)->IsFlat());
-    CHECK(String::Equals(Handle<String>::cast(result), expected));
-  }
-}
-
 TEST(TryToName) {
   typedef CodeAssemblerLabel Label;
   typedef CodeAssemblerVariable Variable;
@@ -238,22 +344,26 @@ TEST(TryToName) {
 
     Label passed(&m), failed(&m);
     Label if_keyisindex(&m), if_keyisunique(&m), if_bailout(&m);
-    Variable var_index(&m, MachineType::PointerRepresentation());
+    {
+      Variable var_index(&m, MachineType::PointerRepresentation());
+      Variable var_unique(&m, MachineRepresentation::kTagged);
 
-    m.TryToName(key, &if_keyisindex, &var_index, &if_keyisunique, &if_bailout);
+      m.TryToName(key, &if_keyisindex, &var_index, &if_keyisunique, &var_unique,
+                  &if_bailout);
 
-    m.Bind(&if_keyisindex);
-    m.GotoUnless(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
-        &failed);
-    m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_index.value()), &passed,
-             &failed);
+      m.Bind(&if_keyisindex);
+      m.GotoIfNot(m.WordEqual(expected_result,
+                              m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
+                  &failed);
+      m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_index.value()),
+               &passed, &failed);
 
-    m.Bind(&if_keyisunique);
-    m.GotoUnless(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
-        &failed);
-    m.Branch(m.WordEqual(expected_arg, key), &passed, &failed);
+      m.Bind(&if_keyisunique);
+      m.GotoIfNot(m.WordEqual(expected_result,
+                              m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
+                  &failed);
+      m.Branch(m.WordEqual(expected_arg, var_unique.value()), &passed, &failed);
+    }
 
     m.Bind(&if_bailout);
     m.Branch(
@@ -349,6 +459,23 @@ TEST(TryToName) {
     Handle<Object> key = isolate->factory()->NewStringFromAsciiChecked("test");
     ft.CheckTrue(key, expect_bailout);
   }
+
+  if (FLAG_thin_strings) {
+    // TryToName(<thin string>) => internalized version.
+    Handle<String> s = isolate->factory()->NewStringFromAsciiChecked("foo");
+    Handle<String> internalized = isolate->factory()->InternalizeString(s);
+    ft.CheckTrue(s, expect_unique, internalized);
+  }
+
+  if (FLAG_thin_strings) {
+    // TryToName(<thin two-byte string>) => internalized version.
+    uc16 array1[] = {2001, 2002, 2003};
+    Vector<const uc16> str1(array1);
+    Handle<String> s =
+        isolate->factory()->NewStringFromTwoByte(str1).ToHandleChecked();
+    Handle<String> internalized = isolate->factory()->InternalizeString(s);
+    ft.CheckTrue(s, expect_unique, internalized);
+  }
 }
 
 namespace {
@@ -409,7 +536,7 @@ void TestNameDictionaryLookup() {
     m.NameDictionaryLookup<Dictionary>(dictionary, unique_name, &if_found,
                                        &var_name_index, &if_not_found);
     m.Bind(&if_found);
-    m.GotoUnless(
+    m.GotoIfNot(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
     m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_name_index.value()),
@@ -516,7 +643,7 @@ void TestNumberDictionaryLookup() {
     m.NumberDictionaryLookup<Dictionary>(dictionary, key, &if_found, &var_entry,
                                          &if_not_found);
     m.Bind(&if_found);
-    m.GotoUnless(
+    m.GotoIfNot(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
         &failed);
     m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_entry.value()), &passed,
@@ -1044,23 +1171,27 @@ TEST(TryLookupElement) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  enum Result { kFound, kNotFound, kBailout };
+  enum Result { kFound, kAbsent, kNotFound, kBailout };
   {
     Node* object = m.Parameter(0);
     Node* index = m.SmiUntag(m.Parameter(1));
     Node* expected_result = m.Parameter(2);
 
     Label passed(&m), failed(&m);
-    Label if_found(&m), if_not_found(&m), if_bailout(&m);
+    Label if_found(&m), if_not_found(&m), if_bailout(&m), if_absent(&m);
 
     Node* map = m.LoadMap(object);
     Node* instance_type = m.LoadMapInstanceType(map);
 
-    m.TryLookupElement(object, map, instance_type, index, &if_found,
+    m.TryLookupElement(object, map, instance_type, index, &if_found, &if_absent,
                        &if_not_found, &if_bailout);
 
     m.Bind(&if_found);
     m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
+             &passed, &failed);
+
+    m.Bind(&if_absent);
+    m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kAbsent))),
              &passed, &failed);
 
     m.Bind(&if_not_found);
@@ -1091,6 +1222,7 @@ TEST(TryLookupElement) {
   Handle<Object> smi42(Smi::FromInt(42), isolate);
 
   Handle<Object> expect_found(Smi::FromInt(kFound), isolate);
+  Handle<Object> expect_absent(Smi::FromInt(kAbsent), isolate);
   Handle<Object> expect_not_found(Smi::FromInt(kNotFound), isolate);
   Handle<Object> expect_bailout(Smi::FromInt(kBailout), isolate);
 
@@ -1101,6 +1233,17 @@ TEST(TryLookupElement) {
 #define CHECK_NOT_FOUND(object, index)                      \
   CHECK(!JSReceiver::HasElement(object, index).FromJust()); \
   ft.CheckTrue(object, smi##index, expect_not_found);
+
+#define CHECK_ABSENT(object, index)                                        \
+  {                                                                        \
+    bool success;                                                          \
+    Handle<Smi> smi(Smi::FromInt(index), isolate);                         \
+    LookupIterator it =                                                    \
+        LookupIterator::PropertyOrElement(isolate, object, smi, &success); \
+    CHECK(success);                                                        \
+    CHECK(!JSReceiver::HasProperty(&it).FromJust());                       \
+    ft.CheckTrue(object, smi, expect_absent);                              \
+  }
 
   {
     Handle<JSArray> object = factory->NewJSArray(0, FAST_SMI_ELEMENTS);
@@ -1152,6 +1295,30 @@ TEST(TryLookupElement) {
     CHECK_NOT_FOUND(object, 7);
     CHECK_FOUND(object, 13);
     CHECK_NOT_FOUND(object, 42);
+  }
+
+  {
+    Handle<JSTypedArray> object = factory->NewJSTypedArray(INT32_ELEMENTS, 2);
+    Local<v8::ArrayBuffer> buffer = Utils::ToLocal(object->GetBuffer());
+
+    CHECK_EQ(INT32_ELEMENTS, object->map()->elements_kind());
+
+    CHECK_FOUND(object, 0);
+    CHECK_FOUND(object, 1);
+    CHECK_ABSENT(object, -10);
+    CHECK_ABSENT(object, 13);
+    CHECK_ABSENT(object, 42);
+
+    v8::ArrayBuffer::Contents contents = buffer->Externalize();
+    buffer->Neuter();
+    isolate->array_buffer_allocator()->Free(contents.Data(),
+                                            contents.ByteLength());
+
+    CHECK_ABSENT(object, 0);
+    CHECK_ABSENT(object, 1);
+    CHECK_ABSENT(object, -10);
+    CHECK_ABSENT(object, 13);
+    CHECK_ABSENT(object, 42);
   }
 
   {
@@ -1526,7 +1693,7 @@ TEST(Arguments) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  CodeStubArguments arguments(&m, m.Int32Constant(3));
+  CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
   CSA_ASSERT(
       &m, m.WordEqual(arguments.AtIndex(0), m.SmiConstant(Smi::FromInt(12))));
@@ -1556,7 +1723,7 @@ TEST(ArgumentsForEach) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  CodeStubArguments arguments(&m, m.Int32Constant(3));
+  CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
   CodeAssemblerVariable sum(&m, MachineRepresentation::kTagged);
   CodeAssemblerVariableList list({&sum}, m.zone());
@@ -1599,7 +1766,7 @@ TEST(IsDebugActive) {
   CHECK(!code.is_null());
 
   FunctionTester ft(code, kNumParams);
-  CHECK_EQ(false, isolate->debug()->is_active());
+  CHECK(!isolate->debug()->is_active());
   Handle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(isolate->heap()->false_value(), *result);
@@ -1636,13 +1803,12 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     JSObject::SetElement(isolate, array, 1,
                          Handle<Smi>(Smi::FromInt(2), isolate), SLOPPY)
         .Check();
-    CodeStubArguments args(this, Int32Constant(kNumParams));
+    CodeStubArguments args(this, IntPtrConstant(kNumParams));
     Variable arg_index(this, MachineType::PointerRepresentation());
     Label bailout(this);
     arg_index.Bind(IntPtrConstant(0));
-    Node* length = BuildAppendJSArray(
-        kind_, HeapConstant(Handle<HeapObject>(isolate->context(), isolate)),
-        HeapConstant(array), args, arg_index, &bailout);
+    Node* length = BuildAppendJSArray(kind_, HeapConstant(array), args,
+                                      arg_index, &bailout);
     Return(length);
 
     Bind(&bailout);
@@ -1769,7 +1935,7 @@ TEST(IsPromiseHookEnabled) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  m.Return(m.SelectBooleanConstant(m.IsPromiseHookEnabled()));
+  m.Return(m.SelectBooleanConstant(m.IsPromiseHookEnabledOrDebugIsActive()));
 
   Handle<Code> code = data.GenerateCode();
   CHECK(!code.is_null());
@@ -1867,7 +2033,6 @@ TEST(AllocatePromiseReactionJobInfo) {
   CHECK(promise_info->deferred_on_resolve()->IsUndefined(isolate));
   CHECK(promise_info->deferred_on_reject()->IsUndefined(isolate));
   CHECK(promise_info->context()->IsContext());
-  CHECK_EQ(kDebugPromiseNoID, promise_info->debug_id());
 }
 
 TEST(AllocatePromiseResolveThenableJobInfo) {
@@ -1880,10 +2045,8 @@ TEST(AllocatePromiseResolveThenableJobInfo) {
   Node* const context = p.Parameter(kNumParams + 2);
   Node* const native_context = p.LoadNativeContext(context);
   Node* const thenable = p.AllocateAndInitJSPromise(context);
-  Node* const then_str = p.HeapConstant(isolate->factory()->then_string());
-  Callable getproperty_callable = CodeFactory::GetProperty(isolate);
   Node* const then =
-      p.CallStub(getproperty_callable, context, thenable, then_str);
+      p.GetProperty(context, thenable, isolate->factory()->then_string());
   Node* resolve = nullptr;
   Node* reject = nullptr;
   std::tie(resolve, reject) = p.CreatePromiseResolvingFunctions(
@@ -1906,7 +2069,6 @@ TEST(AllocatePromiseResolveThenableJobInfo) {
   CHECK(promise_info->then()->IsJSFunction());
   CHECK(promise_info->resolve()->IsJSFunction());
   CHECK(promise_info->reject()->IsJSFunction());
-  CHECK_EQ(kDebugPromiseNoID, promise_info->debug_id());
   CHECK(promise_info->context()->IsContext());
 }
 
@@ -2138,7 +2300,7 @@ TEST(AllocateFunctionWithMapAndContext) {
   Handle<JSFunction> fun = Handle<JSFunction>::cast(result_obj);
   CHECK_EQ(isolate->heap()->empty_fixed_array(), fun->properties());
   CHECK_EQ(isolate->heap()->empty_fixed_array(), fun->elements());
-  CHECK_EQ(isolate->heap()->empty_literals_array(), fun->literals());
+  CHECK_EQ(isolate->heap()->undefined_cell(), fun->feedback_vector_cell());
   CHECK_EQ(isolate->heap()->the_hole_value(), fun->prototype_or_initial_map());
   CHECK_EQ(*isolate->promise_resolve_shared_fun(), fun->shared());
   CHECK_EQ(isolate->promise_resolve_shared_fun()->code(), fun->code());

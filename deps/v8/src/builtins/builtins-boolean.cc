@@ -4,7 +4,8 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
+#include "src/counters.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -32,35 +33,6 @@ BUILTIN(BooleanConstructor_ConstructStub) {
   Handle<JSValue>::cast(result)->set_value(
       isolate->heap()->ToBoolean(value->BooleanValue()));
   return *result;
-}
-
-// ES6 section 19.3.3.2 Boolean.prototype.toString ( )
-void Builtins::Generate_BooleanPrototypeToString(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(0);
-  Node* context = assembler.Parameter(3);
-
-  Node* value = assembler.ToThisValue(
-      context, receiver, PrimitiveType::kBoolean, "Boolean.prototype.toString");
-  Node* result = assembler.LoadObjectField(value, Oddball::kToStringOffset);
-  assembler.Return(result);
-}
-
-// ES6 section 19.3.3.3 Boolean.prototype.valueOf ( )
-void Builtins::Generate_BooleanPrototypeValueOf(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(0);
-  Node* context = assembler.Parameter(3);
-
-  Node* result = assembler.ToThisValue(
-      context, receiver, PrimitiveType::kBoolean, "Boolean.prototype.valueOf");
-  assembler.Return(result);
 }
 
 }  // namespace internal

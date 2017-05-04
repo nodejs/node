@@ -233,32 +233,7 @@ RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
   CONVERT_NUMBER_CHECKED(int, max_entries, Int32, args[1]);
   CHECK(max_entries >= 0);
-
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
-  if (max_entries == 0 || max_entries > table->NumberOfElements()) {
-    max_entries = table->NumberOfElements();
-  }
-  Handle<FixedArray> entries =
-      isolate->factory()->NewFixedArray(max_entries * 2);
-  // Allocation can cause GC can delete weak elements. Reload.
-  if (max_entries > table->NumberOfElements()) {
-    max_entries = table->NumberOfElements();
-  }
-
-  {
-    DisallowHeapAllocation no_gc;
-    int count = 0;
-    for (int i = 0; count / 2 < max_entries && i < table->Capacity(); i++) {
-      Handle<Object> key(table->KeyAt(i), isolate);
-      if (table->IsKey(isolate, *key)) {
-        entries->set(count++, *key);
-        Object* value = table->Lookup(key);
-        entries->set(count++, value);
-      }
-    }
-    DCHECK_EQ(max_entries * 2, count);
-  }
-  return *isolate->factory()->NewJSArrayWithElements(entries);
+  return *JSWeakCollection::GetEntries(holder, max_entries);
 }
 
 
@@ -348,26 +323,7 @@ RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
   CONVERT_NUMBER_CHECKED(int, max_values, Int32, args[1]);
   CHECK(max_values >= 0);
-
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
-  if (max_values == 0 || max_values > table->NumberOfElements()) {
-    max_values = table->NumberOfElements();
-  }
-  Handle<FixedArray> values = isolate->factory()->NewFixedArray(max_values);
-  // Recompute max_values because GC could have removed elements from the table.
-  if (max_values > table->NumberOfElements()) {
-    max_values = table->NumberOfElements();
-  }
-  {
-    DisallowHeapAllocation no_gc;
-    int count = 0;
-    for (int i = 0; count < max_values && i < table->Capacity(); i++) {
-      Object* key = table->KeyAt(i);
-      if (table->IsKey(isolate, key)) values->set(count++, key);
-    }
-    DCHECK_EQ(max_values, count);
-  }
-  return *isolate->factory()->NewJSArrayWithElements(values);
+  return *JSWeakCollection::GetEntries(holder, max_values);
 }
 }  // namespace internal
 }  // namespace v8

@@ -18,67 +18,59 @@ Reduction TailCallOptimization::Reduce(Node* node) {
   if (node->opcode() != IrOpcode::kReturn) return NoChange();
   // The value which is returned must be the result of a potential tail call,
   // there must be no try/catch/finally around the Call, and there must be no
-  // other effect between the Call and the Return nodes.
+  // other effect or control between the Call and the Return nodes.
   Node* const call = NodeProperties::GetValueInput(node, 1);
   if (call->opcode() == IrOpcode::kCall &&
       CallDescriptorOf(call->op())->SupportsTailCalls() &&
       NodeProperties::GetEffectInput(node) == call &&
-      !NodeProperties::IsExceptionalCall(call)) {
-    Node* const control = NodeProperties::GetControlInput(node);
+      NodeProperties::GetControlInput(node) == call &&
+      !NodeProperties::IsExceptionalCall(call) && call->UseCount() == 3) {
     // Ensure that no additional arguments are being popped other than those in
     // the CallDescriptor, otherwise the tail call transformation is invalid.
     DCHECK_EQ(0, Int32Matcher(NodeProperties::GetValueInput(node, 0)).Value());
-    if (control->opcode() == IrOpcode::kIfSuccess &&
-        call->OwnedBy(node, control) && control->OwnedBy(node)) {
-      // Furthermore, control has to flow via an IfSuccess from the Call, so
-      // the Return node value and effect depends directly on the Call node,
-      // and indirectly control depends on the Call via an IfSuccess.
+    // Furthermore, the Return node value, effect, and control depends
+    // directly on the Call, no other uses of the Call node exist.
+    //
+    // The input graph looks as follows:
 
-      // Value1 ... ValueN Effect Control
-      //   ^          ^      ^       ^
-      //   |          |      |       |
-      //   |          +--+ +-+       |
-      //   +----------+  | |  +------+
-      //               \ | | /
-      //             Call[Descriptor]
-      //                ^ ^ ^
-      //                | | |
-      //              +-+ | |
-      //              |   | |
-      //              | +-+ |
-      //              | | IfSuccess
-      //              | |  ^
-      //              | |  |
-      //              Return
-      //                ^
-      //                |
+    // Value1 ... ValueN Effect Control
+    //   ^          ^      ^       ^
+    //   |          |      |       |
+    //   |          +--+ +-+       |
+    //   +----------+  | |  +------+
+    //               \ | | /
+    //             Call[Descriptor]
+    //                ^ ^ ^
+    //  Int32(0) <-+  | | |
+    //              \ | | |
+    //               Return
+    //                  ^
+    //                  |
 
-      // The resulting graph looks like this:
+    // The resulting graph looks like this:
 
-      // Value1 ... ValueN Effect Control
-      //   ^          ^      ^       ^
-      //   |          |      |       |
-      //   |          +--+ +-+       |
-      //   +----------+  | |  +------+
-      //               \ | | /
-      //           TailCall[Descriptor]
-      //                 ^
-      //                 |
+    // Value1 ... ValueN Effect Control
+    //   ^          ^      ^       ^
+    //   |          |      |       |
+    //   |          +--+ +-+       |
+    //   +----------+  | |  +------+
+    //               \ | | /
+    //           TailCall[Descriptor]
+    //                 ^
+    //                 |
 
-      DCHECK_EQ(call, NodeProperties::GetControlInput(control, 0));
-      DCHECK_EQ(4, node->InputCount());
-      node->ReplaceInput(0, NodeProperties::GetEffectInput(call));
-      node->ReplaceInput(1, NodeProperties::GetControlInput(call));
-      node->RemoveInput(3);
-      node->RemoveInput(2);
-      for (int index = 0; index < call->op()->ValueInputCount(); ++index) {
-        node->InsertInput(graph()->zone(), index,
-                          NodeProperties::GetValueInput(call, index));
-      }
-      NodeProperties::ChangeOp(
-          node, common()->TailCall(CallDescriptorOf(call->op())));
-      return Changed(node);
+    DCHECK_EQ(4, node->InputCount());
+    node->ReplaceInput(0, NodeProperties::GetEffectInput(call));
+    node->ReplaceInput(1, NodeProperties::GetControlInput(call));
+    node->RemoveInput(3);
+    node->RemoveInput(2);
+    for (int index = 0; index < call->op()->ValueInputCount(); ++index) {
+      node->InsertInput(graph()->zone(), index,
+                        NodeProperties::GetValueInput(call, index));
     }
+    NodeProperties::ChangeOp(node,
+                             common()->TailCall(CallDescriptorOf(call->op())));
+    return Changed(node);
   }
   return NoChange();
 }

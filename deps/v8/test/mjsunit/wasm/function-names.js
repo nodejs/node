@@ -54,16 +54,16 @@ Error.prepareStackTrace = function(error, frames) {
   return frames;
 };
 
-
 (function testFunctionNamesAsCallSites() {
-  var names = expected_names.concat(["testFunctionNamesAsCallSites", null]);
+  var names = expected_names.concat(['testFunctionNamesAsCallSites', null]);
   try {
     module.exports.main();
-    assertFalse("should throw");
+    assertFalse('should throw');
   } catch (e) {
-    assertEquals(names.length, e.stack.length);
+    assertEquals(names.length, e.stack.length, 'stack length');
     for (var i = 0; i < names.length; ++i) {
-      assertEquals(names[i], e.stack[i].getFunctionName());
+      assertEquals(
+          names[i], e.stack[i].getFunctionName(), 'function name at ' + i);
     }
   }
 })();

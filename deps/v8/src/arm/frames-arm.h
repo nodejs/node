@@ -66,23 +66,11 @@ const int kNumDoubleCalleeSaved = 8;
 // TODO(regis): Only 8 registers may actually be sufficient. Revisit.
 const int kNumSafepointRegisters = 16;
 
-// The embedded constant pool pointer (r8/pp) is not included in the safepoint
-// since it is not tagged.  This register is preserved in the stack frame where
-// its value will be updated if GC code movement occurs.  Including it in the
-// safepoint (where it will not be relocated) would cause a stale value to be
-// restored.
-const RegList kConstantPointerRegMask =
-    FLAG_enable_embedded_constant_pool ? (1 << 8) : 0;
-const int kNumConstantPoolPointerReg =
-    FLAG_enable_embedded_constant_pool ? 1 : 0;
-
 // Define the list of registers actually saved at safepoints.
 // Note that the number of saved registers may be smaller than the reserved
 // space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-const RegList kSafepointSavedRegisters =
-    kJSCallerSaved | (kCalleeSaved & ~kConstantPointerRegMask);
-const int kNumSafepointSavedRegisters =
-    kNumJSCallerSaved + kNumCalleeSaved - kNumConstantPoolPointerReg;
+const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
+const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
 
 // ----------------------------------------------------
 

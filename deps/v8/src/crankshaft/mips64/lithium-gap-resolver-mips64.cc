@@ -146,11 +146,11 @@ void LGapResolver::BreakCycle(int index) {
   if (source->IsRegister()) {
     __ mov(kLithiumScratchReg, cgen_->ToRegister(source));
   } else if (source->IsStackSlot()) {
-    __ ld(kLithiumScratchReg, cgen_->ToMemOperand(source));
+    __ Ld(kLithiumScratchReg, cgen_->ToMemOperand(source));
   } else if (source->IsDoubleRegister()) {
     __ mov_d(kLithiumScratchDouble, cgen_->ToDoubleRegister(source));
   } else if (source->IsDoubleStackSlot()) {
-    __ ldc1(kLithiumScratchDouble, cgen_->ToMemOperand(source));
+    __ Ldc1(kLithiumScratchDouble, cgen_->ToMemOperand(source));
   } else {
     UNREACHABLE();
   }
@@ -167,13 +167,12 @@ void LGapResolver::RestoreValue() {
   if (saved_destination_->IsRegister()) {
     __ mov(cgen_->ToRegister(saved_destination_), kLithiumScratchReg);
   } else if (saved_destination_->IsStackSlot()) {
-    __ sd(kLithiumScratchReg, cgen_->ToMemOperand(saved_destination_));
+    __ Sd(kLithiumScratchReg, cgen_->ToMemOperand(saved_destination_));
   } else if (saved_destination_->IsDoubleRegister()) {
     __ mov_d(cgen_->ToDoubleRegister(saved_destination_),
             kLithiumScratchDouble);
   } else if (saved_destination_->IsDoubleStackSlot()) {
-    __ sdc1(kLithiumScratchDouble,
-            cgen_->ToMemOperand(saved_destination_));
+    __ Sdc1(kLithiumScratchDouble, cgen_->ToMemOperand(saved_destination_));
   } else {
     UNREACHABLE();
   }
@@ -196,12 +195,12 @@ void LGapResolver::EmitMove(int index) {
       __ mov(cgen_->ToRegister(destination), source_register);
     } else {
       DCHECK(destination->IsStackSlot());
-      __ sd(source_register, cgen_->ToMemOperand(destination));
+      __ Sd(source_register, cgen_->ToMemOperand(destination));
     }
   } else if (source->IsStackSlot()) {
     MemOperand source_operand = cgen_->ToMemOperand(source);
     if (destination->IsRegister()) {
-      __ ld(cgen_->ToRegister(destination), source_operand);
+      __ Ld(cgen_->ToRegister(destination), source_operand);
     } else {
       DCHECK(destination->IsStackSlot());
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
@@ -211,15 +210,15 @@ void LGapResolver::EmitMove(int index) {
           // Therefore we can't use 'at'.  It is OK if the read from the source
           // destroys 'at', since that happens before the value is read.
           // This uses only a single reg of the double reg-pair.
-          __ ldc1(kLithiumScratchDouble, source_operand);
-          __ sdc1(kLithiumScratchDouble, destination_operand);
+          __ Ldc1(kLithiumScratchDouble, source_operand);
+          __ Sdc1(kLithiumScratchDouble, destination_operand);
         } else {
-          __ ld(at, source_operand);
-          __ sd(at, destination_operand);
+          __ Ld(at, source_operand);
+          __ Sd(at, destination_operand);
         }
       } else {
-        __ ld(kLithiumScratchReg, source_operand);
-        __ sd(kLithiumScratchReg, destination_operand);
+        __ Ld(kLithiumScratchReg, source_operand);
+        __ Sd(kLithiumScratchReg, destination_operand);
       }
     }
 
@@ -243,13 +242,13 @@ void LGapResolver::EmitMove(int index) {
       DCHECK(!in_cycle_);  // Constant moves happen after all cycles are gone.
       if (cgen_->IsSmi(constant_source)) {
          __ li(kLithiumScratchReg, Operand(cgen_->ToSmi(constant_source)));
-         __ sd(kLithiumScratchReg, cgen_->ToMemOperand(destination));
+         __ Sd(kLithiumScratchReg, cgen_->ToMemOperand(destination));
       } else if (cgen_->IsInteger32(constant_source)) {
         __ li(kLithiumScratchReg, Operand(cgen_->ToInteger32(constant_source)));
-        __ sd(kLithiumScratchReg, cgen_->ToMemOperand(destination));
+        __ Sd(kLithiumScratchReg, cgen_->ToMemOperand(destination));
       } else {
         __ li(kLithiumScratchReg, cgen_->ToHandle(constant_source));
-        __ sd(kLithiumScratchReg, cgen_->ToMemOperand(destination));
+        __ Sd(kLithiumScratchReg, cgen_->ToMemOperand(destination));
       }
     }
 
@@ -260,13 +259,13 @@ void LGapResolver::EmitMove(int index) {
     } else {
       DCHECK(destination->IsDoubleStackSlot());
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
-      __ sdc1(source_register, destination_operand);
+      __ Sdc1(source_register, destination_operand);
     }
 
   } else if (source->IsDoubleStackSlot()) {
     MemOperand source_operand = cgen_->ToMemOperand(source);
     if (destination->IsDoubleRegister()) {
-      __ ldc1(cgen_->ToDoubleRegister(destination), source_operand);
+      __ Ldc1(cgen_->ToDoubleRegister(destination), source_operand);
     } else {
       DCHECK(destination->IsDoubleStackSlot());
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
@@ -277,13 +276,13 @@ void LGapResolver::EmitMove(int index) {
             cgen_->ToHighMemOperand(source);
         MemOperand destination_high_operand =
             cgen_->ToHighMemOperand(destination);
-        __ lw(kLithiumScratchReg, source_operand);
-        __ sw(kLithiumScratchReg, destination_operand);
-        __ lw(kLithiumScratchReg, source_high_operand);
-        __ sw(kLithiumScratchReg, destination_high_operand);
+        __ Lw(kLithiumScratchReg, source_operand);
+        __ Sw(kLithiumScratchReg, destination_operand);
+        __ Lw(kLithiumScratchReg, source_high_operand);
+        __ Sw(kLithiumScratchReg, destination_high_operand);
       } else {
-        __ ldc1(kLithiumScratchDouble, source_operand);
-        __ sdc1(kLithiumScratchDouble, destination_operand);
+        __ Ldc1(kLithiumScratchDouble, source_operand);
+        __ Sdc1(kLithiumScratchDouble, destination_operand);
       }
     }
   } else {

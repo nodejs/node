@@ -7,6 +7,8 @@ Array(0)
 Array(2)
 Uint8Array(0)
 Uint8Array(2)
+WeakMap
+WeakSet
 Set(0)
 Set(2)
 Map(0)
@@ -15,3 +17,5 @@ Array(0)
 Array(2)
 Uint8Array(0)
 Uint8Array(2)
+WeakMap
+WeakSet

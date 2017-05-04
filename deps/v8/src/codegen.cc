@@ -13,8 +13,10 @@
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
 #include "src/compilation-info.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/eh-frame.h"
+#include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -67,23 +69,19 @@ UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction)
 #undef UNARY_MATH_FUNCTION
 
 
-#define __ ACCESS_MASM(masm_)
-
 #ifdef DEBUG
 
-Comment::Comment(MacroAssembler* masm, const char* msg)
-    : masm_(masm), msg_(msg) {
-  __ RecordComment(msg);
+Comment::Comment(Assembler* assembler, const char* msg)
+    : assembler_(assembler), msg_(msg) {
+  assembler_->RecordComment(msg);
 }
 
 
 Comment::~Comment() {
-  if (msg_[0] == '[') __ RecordComment("]");
+  if (msg_[0] == '[') assembler_->RecordComment("]");
 }
 
 #endif  // DEBUG
-
-#undef __
 
 
 void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
@@ -131,8 +129,6 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
       desc, flags, self_reference, false, is_crankshafted,
       info->prologue_offset(), info->is_debug() && !is_crankshafted);
   isolate->counters()->total_compiled_code_size()->Increment(
-      code->instruction_size());
-  isolate->heap()->IncrementCodeGeneratedBytes(is_crankshafted,
       code->instruction_size());
   return code;
 }
@@ -239,7 +235,8 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
           ? FLAG_print_builtin_code
           : (FLAG_print_code || (info->IsStub() && FLAG_print_code_stubs) ||
              (info->IsOptimizing() && FLAG_print_opt_code &&
-              info->shared_info()->PassesFilter(FLAG_print_opt_code_filter)));
+              info->shared_info()->PassesFilter(FLAG_print_opt_code_filter)) ||
+             (info->IsWasm() && FLAG_print_wasm_code));
   if (print_code) {
     std::unique_ptr<char[]> debug_name = info->GetDebugName();
     CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());

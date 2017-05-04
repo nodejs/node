@@ -37,7 +37,7 @@ class Node;
 class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
  public:
   AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
-                  float invocation_frequency,
+                  CallFrequency invocation_frequency,
                   LoopAssignmentAnalysis* loop_assignment = nullptr);
   virtual ~AstGraphBuilder() {}
 
@@ -78,7 +78,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   Zone* local_zone_;
   CompilationInfo* info_;
   JSGraph* jsgraph_;
-  float const invocation_frequency_;
+  CallFrequency const invocation_frequency_;
   Environment* environment_;
   AstContext* ast_context_;
 
@@ -246,10 +246,10 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   Node** EnsureInputBufferSize(int size);
 
   // Named and keyed loads require a VectorSlotPair for successful lowering.
-  VectorSlotPair CreateVectorSlotPair(FeedbackVectorSlot slot) const;
+  VectorSlotPair CreateVectorSlotPair(FeedbackSlot slot) const;
 
-  // Computes the frequency for JSCallFunction and JSCallConstruct nodes.
-  float ComputeCallFrequency(FeedbackVectorSlot slot) const;
+  // Computes the frequency for JSCall and JSConstruct nodes.
+  CallFrequency ComputeCallFrequency(FeedbackSlot slot) const;
 
   // ===========================================================================
   // The following build methods all generate graph fragments and return one
@@ -287,6 +287,8 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
                         const VectorSlotPair& feedback);
   Node* BuildNamedStore(Node* receiver, Handle<Name> name, Node* value,
                         const VectorSlotPair& feedback);
+  Node* BuildNamedStoreOwn(Node* receiver, Handle<Name> name, Node* value,
+                           const VectorSlotPair& feedback);
 
   // Builders for global variable loads and stores.
   Node* BuildGlobalLoad(Handle<Name> name, const VectorSlotPair& feedback,
@@ -390,11 +392,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
                               Node* nil_value);
   void VisitLiteralCompareTypeof(CompareOperation* expr, Expression* sub_expr,
                                  Handle<String> check);
-
-  // Dispatched from VisitForInStatement.
-  void VisitForInAssignment(Expression* expr, Node* value,
-                            const VectorSlotPair& feedback,
-                            BailoutId bailout_id);
 
   // Dispatched from VisitObjectLiteral.
   void VisitObjectLiteralAccessor(Node* home_object,
@@ -562,7 +559,8 @@ class AstGraphBuilder::Environment : public ZoneObject {
 class AstGraphBuilderWithPositions final : public AstGraphBuilder {
  public:
   AstGraphBuilderWithPositions(Zone* local_zone, CompilationInfo* info,
-                               JSGraph* jsgraph, float invocation_frequency,
+                               JSGraph* jsgraph,
+                               CallFrequency invocation_frequency,
                                LoopAssignmentAnalysis* loop_assignment,
                                SourcePositionTable* source_positions,
                                int inlining_id = SourcePosition::kNotInlined);

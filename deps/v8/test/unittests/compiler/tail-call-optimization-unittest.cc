@@ -38,10 +38,8 @@ TEST_F(TailCallOptimizationTest, CallCodeObject0) {
   Node* p1 = Parameter(1);
   Node* call = graph()->NewNode(common()->Call(kCallDescriptor), p0, p1,
                                 graph()->start(), graph()->start());
-  Node* if_success = graph()->NewNode(common()->IfSuccess(), call);
   Node* zero = graph()->NewNode(common()->Int32Constant(0));
-  Node* ret =
-      graph()->NewNode(common()->Return(), zero, call, call, if_success);
+  Node* ret = graph()->NewNode(common()->Return(), zero, call, call, call);
   Reduction r = Reduce(ret);
   ASSERT_FALSE(r.Changed());
 }
@@ -85,10 +83,8 @@ TEST_F(TailCallOptimizationTest, CallCodeObject2) {
   Node* p1 = Parameter(1);
   Node* call = graph()->NewNode(common()->Call(kCallDescriptor), p0, p1,
                                 graph()->start(), graph()->start());
-  Node* if_success = graph()->NewNode(common()->IfSuccess(), call);
   Node* zero = graph()->NewNode(common()->Int32Constant(0));
-  Node* ret =
-      graph()->NewNode(common()->Return(), zero, call, call, if_success);
+  Node* ret = graph()->NewNode(common()->Return(), zero, call, call, call);
   Reduction r = Reduce(ret);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTailCall(kCallDescriptor, p0, p1,
@@ -109,10 +105,8 @@ TEST_F(TailCallOptimizationTest, CallJSFunction0) {
   Node* p1 = Parameter(1);
   Node* call = graph()->NewNode(common()->Call(kCallDescriptor), p0, p1,
                                 graph()->start(), graph()->start());
-  Node* if_success = graph()->NewNode(common()->IfSuccess(), call);
   Node* zero = graph()->NewNode(common()->Int32Constant(0));
-  Node* ret =
-      graph()->NewNode(common()->Return(), zero, call, call, if_success);
+  Node* ret = graph()->NewNode(common()->Return(), zero, call, call, call);
   Reduction r = Reduce(ret);
   ASSERT_FALSE(r.Changed());
 }
@@ -155,10 +149,8 @@ TEST_F(TailCallOptimizationTest, CallJSFunction2) {
   Node* p1 = Parameter(1);
   Node* call = graph()->NewNode(common()->Call(kCallDescriptor), p0, p1,
                                 graph()->start(), graph()->start());
-  Node* if_success = graph()->NewNode(common()->IfSuccess(), call);
   Node* zero = graph()->NewNode(common()->Int32Constant(0));
-  Node* ret =
-      graph()->NewNode(common()->Return(), zero, call, call, if_success);
+  Node* ret = graph()->NewNode(common()->Return(), zero, call, call, call);
   Reduction r = Reduce(ret);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTailCall(kCallDescriptor, p0, p1,

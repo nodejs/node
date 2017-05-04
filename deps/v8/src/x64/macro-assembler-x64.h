@@ -5,11 +5,11 @@
 #ifndef V8_X64_MACRO_ASSEMBLER_X64_H_
 #define V8_X64_MACRO_ASSEMBLER_X64_H_
 
-#include "src/assembler.h"
 #include "src/bailout-reason.h"
 #include "src/base/flags.h"
 #include "src/frames.h"
 #include "src/globals.h"
+#include "src/x64/assembler-x64.h"
 #include "src/x64/frames-x64.h"
 
 namespace v8 {
@@ -92,6 +92,8 @@ class MacroAssembler: public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
 
+  int jit_cookie() const { return jit_cookie_; }
+
   // Prevent the use of the RootArray during the lifetime of this
   // scope object.
   class NoRootArrayScope BASE_EMBEDDED {
@@ -108,6 +110,8 @@ class MacroAssembler: public Assembler {
     bool* variable_;
     bool old_value_;
   };
+
+  Isolate* isolate() const { return isolate_; }
 
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
@@ -281,22 +285,6 @@ class MacroAssembler: public Assembler {
                      pointers_to_here_check_for_value);
   }
 
-  // Notify the garbage collector that we wrote a pointer into a fixed array.
-  // |array| is the array being stored into, |value| is the
-  // object being stored.  |index| is the array index represented as a non-smi.
-  // All registers are clobbered by the operation RecordWriteArray
-  // filters out smis so it does not update the write barrier if the
-  // value is a smi.
-  void RecordWriteArray(
-      Register array,
-      Register value,
-      Register index,
-      SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK,
-      PointersToHereCheck pointers_to_here_check_for_value =
-          kPointersToHereMaybeInteresting);
-
   // Notify the garbage collector that we wrote a code entry into a
   // JSFunction. Only scratch is clobbered by the operation.
   void RecordWriteCodeEntryField(Register js_function, Register code_entry,
@@ -323,10 +311,8 @@ class MacroAssembler: public Assembler {
       PointersToHereCheck pointers_to_here_check_for_value =
           kPointersToHereMaybeInteresting);
 
-  // ---------------------------------------------------------------------------
-  // Debugger Support
-
-  void DebugBreak();
+  // Frame restart support.
+  void MaybeDropFrames();
 
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type);
@@ -459,23 +445,6 @@ class MacroAssembler: public Assembler {
                                              Register src,
                                              int power);
 
-  // Divide a positive smi's integer value by a power of two.
-  // Provides result as 32-bit integer value.
-  void PositiveSmiDivPowerOfTwoToInteger32(Register dst,
-                                           Register src,
-                                           int power);
-
-  // Perform the logical or of two smi values and return a smi value.
-  // If either argument is not a smi, jump to on_not_smis and retain
-  // the original values of source registers. The destination register
-  // may be changed if it's not one of the source registers.
-  void SmiOrIfSmis(Register dst,
-                   Register src1,
-                   Register src2,
-                   Label* on_not_smis,
-                   Label::Distance near_jump = Label::kFar);
-
-
   // Simple comparison of smis.  Both sides must be known smis to use these,
   // otherwise use Cmp.
   void SmiCompare(Register smi1, Register smi2);
@@ -484,8 +453,6 @@ class MacroAssembler: public Assembler {
   void SmiCompare(const Operand& dst, Register src);
   void SmiCompare(const Operand& dst, Smi* src);
   // Compare the int32 in src register to the value of the smi stored at dst.
-  void SmiCompareInteger32(const Operand& dst, Register src);
-  // Sets sign and zero flags depending on value of smi in register.
   void SmiTest(Register src);
 
   // Functions performing a check on a known or potential smi. Returns
@@ -517,11 +484,6 @@ class MacroAssembler: public Assembler {
   // conversion to a smi.
   Condition CheckUInteger32ValidSmiValue(Register src);
 
-  // Check whether src is a Smi, and set dst to zero if it is a smi,
-  // and to one if it isn't.
-  void CheckSmiToIndicator(Register dst, Register src);
-  void CheckSmiToIndicator(Register dst, const Operand& src);
-
   // Test-and-jump functions. Typically combines a check function
   // above with a conditional jump.
 
@@ -549,6 +511,10 @@ class MacroAssembler: public Assembler {
   // Jump to label if the value is not a tagged smi.
   void JumpIfNotSmi(Register src,
                     Label* on_not_smi,
+                    Label::Distance near_jump = Label::kFar);
+
+  // Jump to label if the value is not a tagged smi.
+  void JumpIfNotSmi(Operand src, Label* on_not_smi,
                     Label::Distance near_jump = Label::kFar);
 
   // Jump to label if the value is not a non-negative tagged smi.
@@ -788,14 +754,6 @@ class MacroAssembler: public Assembler {
       Register scratch2, Label* on_not_both_flat_one_byte,
       Label::Distance near_jump = Label::kFar);
 
-  // Check whether the instance type represents a flat one-byte string. Jump
-  // to the label if not. If the instance type can be scratched specify same
-  // register for both instance type and scratch.
-  void JumpIfInstanceTypeIsNotSequentialOneByte(
-      Register instance_type, Register scratch,
-      Label* on_not_flat_one_byte_string,
-      Label::Distance near_jump = Label::kFar);
-
   void JumpIfBothInstanceTypesAreNotSequentialOneByte(
       Register first_object_instance_type, Register second_object_instance_type,
       Register scratch1, Register scratch2, Label* on_fail,
@@ -859,10 +817,6 @@ class MacroAssembler: public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
-  // TestBit and Load SharedFunctionInfo special field.
-  void TestBitSharedFunctionInfoSpecialField(Register base,
-                                             int offset,
-                                             int bit_index);
   void LoadSharedFunctionInfoSpecialField(Register dst,
                                           Register base,
                                           int offset);
@@ -879,12 +833,6 @@ class MacroAssembler: public Assembler {
   // Load a heap object and handle the case of new-space objects by
   // indirecting via a global cell.
   void MoveHeapObject(Register result, Handle<Object> object);
-
-  // Load a global cell into a register.
-  void LoadGlobalCell(Register dst, Handle<Cell> cell);
-
-  // Compare the given value and the value of weak cell.
-  void CmpWeakValue(Register value, Handle<WeakCell> cell, Register scratch);
 
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
@@ -1099,9 +1047,6 @@ class MacroAssembler: public Assembler {
   // (kScratchRegister, kRootRegister).
   void Pushad();
   void Popad();
-  // Sets the stack as after performing Popad, without actually loading the
-  // registers.
-  void Dropad();
 
   // Compare object type for heap object.
   // Always use unsigned comparisons: above and below, not less and greater.
@@ -1125,13 +1070,6 @@ class MacroAssembler: public Assembler {
                 Label* fail,
                 SmiCheckType smi_check_type);
 
-  // Check if the map of an object is equal to a specified weak map and branch
-  // to a specified target if equal. Skip the smi check if not required
-  // (object is known to be a heap object)
-  void DispatchWeakMap(Register obj, Register scratch1, Register scratch2,
-                       Handle<WeakCell> cell, Handle<Code> success,
-                       SmiCheckType smi_check_type);
-
   // Check if the object in register heap_object is a string. Afterwards the
   // register map contains the object map and the register instance_type
   // contains the instance_type. The registers map and instance_type can be the
@@ -1140,15 +1078,6 @@ class MacroAssembler: public Assembler {
   Condition IsObjectStringType(Register heap_object,
                                Register map,
                                Register instance_type);
-
-  // Check if the object in register heap_object is a name. Afterwards the
-  // register map contains the object map and the register instance_type
-  // contains the instance_type. The registers map and instance_type can be the
-  // same in which case it contains the instance type afterwards. Either of the
-  // registers map and instance_type can be the same as heap_object.
-  Condition IsObjectNameType(Register heap_object,
-                             Register map,
-                             Register instance_type);
 
   // FCmp compares and pops the two values on top of the FPU stack.
   // The flag results are similar to integer cmp, but requires unsigned
@@ -1210,10 +1139,6 @@ class MacroAssembler: public Assembler {
     }
   }
 
-  // Abort execution if argument is not a number, enabled via --debug-code.
-  void AssertNumber(Register object);
-  void AssertNotNumber(Register object);
-
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
 
@@ -1225,12 +1150,6 @@ class MacroAssembler: public Assembler {
   // have zeros in the top 32 bits, enabled via --debug-code.
   void AssertZeroExtended(Register reg);
 
-  // Abort execution if argument is not a string, enabled via --debug-code.
-  void AssertString(Register object);
-
-  // Abort execution if argument is not a name, enabled via --debug-code.
-  void AssertName(Register object);
-
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
 
@@ -1240,20 +1159,11 @@ class MacroAssembler: public Assembler {
 
   // Abort execution if argument is not a JSGeneratorObject,
   // enabled via --debug-code.
-  void AssertGeneratorObject(Register object);
-
-  // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
-  void AssertReceiver(Register object);
+  void AssertGeneratorObject(Register object, Register suspend_flags);
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object);
-
-  // Abort execution if argument is not the root value with the given index,
-  // enabled via --debug-code.
-  void AssertRootValue(Register src,
-                       Heap::RootListIndex root_value_index,
-                       BailoutReason reason);
 
   // ---------------------------------------------------------------------------
   // Exception handling
@@ -1330,30 +1240,9 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Support functions.
 
-  // Check if result is zero and op is negative.
-  void NegativeZeroTest(Register result, Register op, Label* then_label);
-
-  // Check if result is zero and op is negative in code using jump targets.
-  void NegativeZeroTest(CodeGenerator* cgen,
-                        Register result,
-                        Register op,
-                        JumpTarget* then_target);
-
-  // Check if result is zero and any of op1 and op2 are negative.
-  // Register scratch is destroyed, and it must be different from op2.
-  void NegativeZeroTest(Register result, Register op1, Register op2,
-                        Register scratch, Label* then_label);
-
   // Machine code version of Map::GetConstructor().
   // |temp| holds |result|'s map when done.
   void GetMapConstructor(Register result, Register map, Register temp);
-
-  // Try to get function prototype of a function and puts the value in
-  // the result register. Checks that the function really is a
-  // function and jumps to the miss label if the fast checks fail. The
-  // function register will be untouched; the other register may be
-  // clobbered.
-  void TryGetFunctionPrototype(Register function, Register result, Label* miss);
 
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
@@ -1383,9 +1272,6 @@ class MacroAssembler: public Assembler {
 
   // Tail call a code stub (jump).
   void TailCallStub(CodeStub* stub);
-
-  // Return from a code stub after popping its arguments.
-  void StubReturn(int argc);
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f,
@@ -1483,8 +1369,6 @@ class MacroAssembler: public Assembler {
   // Use --debug_code to enable.
   void Assert(Condition cc, BailoutReason reason);
 
-  void AssertFastElements(Register elements);
-
   // Like Assert(), but always enabled.
   void Check(Condition cc, BailoutReason reason);
 
@@ -1539,7 +1423,9 @@ class MacroAssembler: public Assembler {
 
   bool generating_stub_;
   bool has_frame_;
+  Isolate* isolate_;
   bool root_array_available_;
+  int jit_cookie_;
 
   // Returns a register holding the smi value. The register MUST NOT be
   // modified. It may be the "smi 1 constant" register.

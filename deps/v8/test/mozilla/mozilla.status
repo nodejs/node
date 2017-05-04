@@ -662,7 +662,6 @@
   # than 4Mbytes of stack space.
   'js1_5/Array/regress-350256-02': [FAIL],
 
-
   # This test seems designed to fail (it produces a 700Mbyte string).
   # We fail on out of memory.  The important thing is not to crash.
   'js1_5/Regress/regress-303213': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
@@ -671,13 +670,9 @@
   # is given null or undefined as this argument (and so does firefox nightly).
   'js1_5/Regress/regress-295052': [FAIL],
 
-  # Bug 1202592: New ecma_3/String/15.5.4.11 is failing.
-  'ecma_3/String/15.5.4.11': [FAIL],
-
   # Bug 1202597: New js1_5/Expressions/regress-394673 is failing.
   # Marked as: Will not fix. V8 throws an acceptable RangeError.
   'js1_5/Expressions/regress-394673': [FAIL],
-
 
   # Bug 762: http://code.google.com/p/v8/issues/detail?id=762
   # We do not correctly handle assignments within "with"
@@ -994,10 +989,6 @@
   #BUG(3152): Avoid C stack overflow.
   'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
 }],  # 'arch == arm64 and simulator_run == True'
-
-['variant == asm_wasm', {
-  '*': [SKIP],
-}],  # variant == asm_wasm
 
 ['variant == wasm_traps', {
   '*': [SKIP],

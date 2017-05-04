@@ -168,7 +168,7 @@ void DisableSignalStackDump() {
 // that breaks CaptureStackBackTrace() and prevents StackTrace from working
 // in Release builds (it may still be janky if other frames are using FPO,
 // but at least it will make it further).
-#if defined(COMPILER_MSVC)
+#if defined(V8_CC_MSVC)
 #pragma optimize("", off)
 #endif
 
@@ -177,7 +177,7 @@ StackTrace::StackTrace() {
   count_ = CaptureStackBackTrace(0, arraysize(trace_), trace_, NULL);
 }
 
-#if defined(COMPILER_MSVC)
+#if defined(V8_CC_MSVC)
 #pragma optimize("", on)
 #endif
 

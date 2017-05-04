@@ -117,12 +117,18 @@
 
 ##############################################################################
 ['variant == asm_wasm', {
-  '*': [SKIP],
+  # Stack size too large with asm.js validator.
+  'fast/js/excessive-comma-usage': [SKIP],
 }],  # variant == asm_wasm
 
 ##############################################################################
 ['variant == wasm_traps', {
   '*': [SKIP],
+}],  # variant == wasm_traps
+
+##############################################################################
+['no_i18n == True', {
+  'fast/js/string-capitalization': [FAIL],
 }],  # variant == wasm_traps
 
 ##############################################################################

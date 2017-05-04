@@ -28,81 +28,39 @@
 #ifndef V8_AST_AST_VALUE_FACTORY_H_
 #define V8_AST_AST_VALUE_FACTORY_H_
 
-#include "src/api.h"
 #include "src/base/hashmap.h"
 #include "src/conversions.h"
+#include "src/factory.h"
 #include "src/globals.h"
+#include "src/isolate.h"
 #include "src/utils.h"
 
-// AstString, AstValue and AstValueFactory are for storing strings and values
-// independent of the V8 heap and internalizing them later. During parsing,
-// AstStrings and AstValues are created and stored outside the heap, in
-// AstValueFactory. After parsing, the strings and values are internalized
-// (moved into the V8 heap).
+// Ast(Raw|Cons)String, AstValue and AstValueFactory are for storing strings and
+// values independent of the V8 heap and internalizing them later. During
+// parsing, they are created and stored outside the heap, in AstValueFactory.
+// After parsing, the strings and values are internalized (moved into the V8
+// heap).
 namespace v8 {
 namespace internal {
 
-class AstString : public ZoneObject {
+class AstRawString final : public ZoneObject {
  public:
-  explicit AstString(bool is_raw)
-      : next_(nullptr), bit_field_(IsRawStringBits::encode(is_raw)) {}
-
-  int length() const;
-  bool IsEmpty() const { return length() == 0; }
-
-  // Puts the string into the V8 heap.
-  void Internalize(Isolate* isolate);
-
-  // This function can be called after internalizing.
-  V8_INLINE Handle<String> string() const {
-    DCHECK_NOT_NULL(string_);
-    return Handle<String>(string_);
-  }
-
-  AstString* next() { return next_; }
-  AstString** next_location() { return &next_; }
-
- protected:
-  void set_string(Handle<String> string) { string_ = string.location(); }
-  // {string_} is stored as String** instead of a Handle<String> so it can be
-  // stored in a union with {next_}.
-  union {
-    AstString* next_;
-    String** string_;
-  };
-  // Poor-man's virtual dispatch to AstRawString / AstConsString. Takes less
-  // memory.
-  class IsRawStringBits : public BitField<bool, 0, 1> {};
-  int bit_field_;
-};
-
-
-class AstRawString final : public AstString {
- public:
+  bool IsEmpty() const { return literal_bytes_.length() == 0; }
   int length() const {
-    if (is_one_byte()) return literal_bytes_.length();
-    return literal_bytes_.length() / 2;
+    return is_one_byte() ? literal_bytes_.length()
+                         : literal_bytes_.length() / 2;
   }
-
-  int byte_length() const { return literal_bytes_.length(); }
+  bool AsArrayIndex(uint32_t* index) const;
+  bool IsOneByteEqualTo(const char* data) const;
+  uint16_t FirstCharacter() const;
 
   void Internalize(Isolate* isolate);
 
-  bool AsArrayIndex(uint32_t* index) const;
-
-  // The string is not null-terminated, use length() to find out the length.
+  // Access the physical representation:
+  bool is_one_byte() const { return is_one_byte_; }
+  int byte_length() const { return literal_bytes_.length(); }
   const unsigned char* raw_data() const {
     return literal_bytes_.start();
-  }
-
-  bool is_one_byte() const { return IsOneByteBits::decode(bit_field_); }
-
-  bool IsOneByteEqualTo(const char* data) const;
-  uint16_t FirstCharacter() const {
-    if (is_one_byte()) return literal_bytes_[0];
-    const uint16_t* c =
-        reinterpret_cast<const uint16_t*>(literal_bytes_.start());
-    return *c;
   }
 
   // For storing AstRawStrings in a hash map.
@@ -110,55 +68,124 @@ class AstRawString final : public AstString {
     return hash_;
   }
 
+  // This function can be called after internalizing.
+  V8_INLINE Handle<String> string() const {
+    DCHECK_NOT_NULL(string_);
+    DCHECK(has_string_);
+    return Handle<String>(string_);
+  }
+
  private:
   friend class AstRawStringInternalizationKey;
   friend class AstStringConstants;
   friend class AstValueFactory;
 
+  // Members accessed only by the AstValueFactory & related classes:
+  static bool Compare(void* a, void* b);
   AstRawString(bool is_one_byte, const Vector<const byte>& literal_bytes,
                uint32_t hash)
-      : AstString(true), hash_(hash), literal_bytes_(literal_bytes) {
-    bit_field_ |= IsOneByteBits::encode(is_one_byte);
+      : next_(nullptr),
+        literal_bytes_(literal_bytes),
+        hash_(hash),
+        is_one_byte_(is_one_byte) {}
+  AstRawString* next() {
+    DCHECK(!has_string_);
+    return next_;
+  }
+  AstRawString** next_location() {
+    DCHECK(!has_string_);
+    return &next_;
   }
 
-  AstRawString() : AstString(true), hash_(0) {
-    bit_field_ |= IsOneByteBits::encode(true);
+  void set_string(Handle<String> string) {
+    DCHECK(!string.is_null());
+    DCHECK(!has_string_);
+    string_ = string.location();
+#ifdef DEBUG
+    has_string_ = true;
+#endif
   }
 
-  class IsOneByteBits : public BitField<bool, IsRawStringBits::kNext, 1> {};
+  // {string_} is stored as String** instead of a Handle<String> so it can be
+  // stored in a union with {next_}.
+  union {
+    AstRawString* next_;
+    String** string_;
+  };
 
+  Vector<const byte> literal_bytes_;  // Memory owned by Zone.
   uint32_t hash_;
-  // Points to memory owned by Zone.
-  Vector<const byte> literal_bytes_;
+  bool is_one_byte_;
+#ifdef DEBUG
+  // (Debug-only:) Verify the object life-cylce: Some functions may only be
+  // called after internalization (that is, after a v8::internal::String has
+  // been set); some only before.
+  bool has_string_ = false;
+#endif
 };
 
-
-class AstConsString final : public AstString {
+class AstConsString final : public ZoneObject {
  public:
-  AstConsString(const AstString* left, const AstString* right)
-      : AstString(false),
-        length_(left->length() + right->length()),
-        left_(left),
-        right_(right) {}
+  AstConsString* AddString(Zone* zone, const AstRawString* s) {
+    if (s->IsEmpty()) return this;
+    if (!IsEmpty()) {
+      // We're putting the new string to the head of the list, meaning
+      // the string segments will be in reverse order.
+      Segment* tmp = new (zone->New(sizeof(Segment))) Segment;
+      *tmp = segment_;
+      segment_.next = tmp;
+    }
+    segment_.string = s;
+    return this;
+  }
 
-  int length() const { return length_; }
+  bool IsEmpty() const {
+    DCHECK_IMPLIES(segment_.string == nullptr, segment_.next == nullptr);
+    DCHECK_IMPLIES(segment_.string != nullptr, !segment_.string->IsEmpty());
+    return segment_.string == nullptr;
+  }
 
   void Internalize(Isolate* isolate);
 
+  V8_INLINE Handle<String> string() const {
+    DCHECK_NOT_NULL(string_);
+    return Handle<String>(string_);
+  }
+
  private:
-  const int length_;
-  const AstString* left_;
-  const AstString* right_;
+  friend class AstValueFactory;
+
+  AstConsString() : next_(nullptr), segment_({nullptr, nullptr}) {}
+
+  AstConsString* next() const { return next_; }
+  AstConsString** next_location() { return &next_; }
+
+  // {string_} is stored as String** instead of a Handle<String> so it can be
+  // stored in a union with {next_}.
+  void set_string(Handle<String> string) { string_ = string.location(); }
+  union {
+    AstConsString* next_;
+    String** string_;
+  };
+
+  struct Segment {
+    const AstRawString* string;
+    AstConsString::Segment* next;
+  };
+  Segment segment_;
 };
 
+enum class AstSymbol : uint8_t { kHomeObjectSymbol };
 
-// AstValue is either a string, a number, a string array, a boolean, or a
-// special value (null, undefined, the hole).
+// AstValue is either a string, a symbol, a number, a string array, a boolean,
+// or a special value (null, undefined, the hole).
 class AstValue : public ZoneObject {
  public:
   bool IsString() const {
     return type_ == STRING;
   }
+
+  bool IsSymbol() const { return type_ == SYMBOL; }
 
   bool IsNumber() const { return IsSmi() || IsHeapNumber(); }
 
@@ -169,6 +196,11 @@ class AstValue : public ZoneObject {
   const AstRawString* AsString() const {
     CHECK_EQ(STRING, type_);
     return string_;
+  }
+
+  AstSymbol AsSymbol() const {
+    CHECK_EQ(SYMBOL, type_);
+    return symbol_;
   }
 
   double AsNumber() const {
@@ -248,8 +280,8 @@ class AstValue : public ZoneObject {
     string_ = s;
   }
 
-  explicit AstValue(const char* name) : type_(SYMBOL), next_(nullptr) {
-    symbol_name_ = name;
+  explicit AstValue(AstSymbol symbol) : type_(SYMBOL), next_(nullptr) {
+    symbol_ = symbol;
   }
 
   explicit AstValue(double n, bool with_dot) : next_(nullptr) {
@@ -289,7 +321,7 @@ class AstValue : public ZoneObject {
     double number_;
     int smi_;
     bool bool_;
-    const char* symbol_name_;
+    AstSymbol symbol_;
   };
 };
 
@@ -299,6 +331,7 @@ class AstValue : public ZoneObject {
   F(arguments, "arguments")                     \
   F(async, "async")                             \
   F(await, "await")                             \
+  F(boolean, "boolean")                         \
   F(constructor, "constructor")                 \
   F(default, "default")                         \
   F(done, "done")                               \
@@ -319,11 +352,15 @@ class AstValue : public ZoneObject {
   F(native, "native")                           \
   F(new_target, ".new.target")                  \
   F(next, "next")                               \
+  F(number, "number")                           \
+  F(object, "object")                           \
   F(proto, "__proto__")                         \
   F(prototype, "prototype")                     \
   F(return, "return")                           \
   F(set_space, "set ")                          \
   F(star_default_star, "*default*")             \
+  F(string, "string")                           \
+  F(symbol, "symbol")                           \
   F(this, "this")                               \
   F(this_function, ".this_function")            \
   F(throw, "throw")                             \
@@ -335,7 +372,9 @@ class AstValue : public ZoneObject {
 class AstStringConstants final {
  public:
   AstStringConstants(Isolate* isolate, uint32_t hash_seed)
-      : zone_(isolate->allocator(), ZONE_NAME), hash_seed_(hash_seed) {
+      : zone_(isolate->allocator(), ZONE_NAME),
+        string_table_(AstRawString::Compare),
+        hash_seed_(hash_seed) {
     DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
 #define F(name, str)                                                      \
   {                                                                       \
@@ -348,20 +387,28 @@ class AstStringConstants final {
     /* The Handle returned by the factory is located on the roots */      \
     /* array, not on the temporary HandleScope, so this is safe.  */      \
     name##_string_->set_string(isolate->factory()->name##_string());      \
+    base::HashMap::Entry* entry =                                         \
+        string_table_.InsertNew(name##_string_, name##_string_->hash());  \
+    DCHECK(entry->value == nullptr);                                      \
+    entry->value = reinterpret_cast<void*>(1);                            \
   }
     STRING_CONSTANTS(F)
 #undef F
   }
 
 #define F(name, str) \
-  AstRawString* name##_string() { return name##_string_; }
+  const AstRawString* name##_string() const { return name##_string_; }
   STRING_CONSTANTS(F)
 #undef F
 
   uint32_t hash_seed() const { return hash_seed_; }
+  const base::CustomMatcherHashMap* string_table() const {
+    return &string_table_;
+  }
 
  private:
   Zone zone_;
+  base::CustomMatcherHashMap string_table_;
   uint32_t hash_seed_;
 
 #define F(name, str) AstRawString* name##_string_;
@@ -380,13 +427,16 @@ class AstStringConstants final {
 
 class AstValueFactory {
  public:
-  AstValueFactory(Zone* zone, AstStringConstants* string_constants,
+  AstValueFactory(Zone* zone, const AstStringConstants* string_constants,
                   uint32_t hash_seed)
-      : string_table_(AstRawStringCompare),
+      : string_table_(string_constants->string_table()),
         values_(nullptr),
         strings_(nullptr),
         strings_end_(&strings_),
+        cons_strings_(nullptr),
+        cons_strings_end_(&cons_strings_),
         string_constants_(string_constants),
+        empty_cons_string_(nullptr),
         zone_(zone),
         hash_seed_(hash_seed) {
 #define F(name) name##_ = nullptr;
@@ -397,7 +447,7 @@ class AstValueFactory {
     std::fill(one_character_strings_,
               one_character_strings_ + arraysize(one_character_strings_),
               nullptr);
-    InitializeStringConstants();
+    empty_cons_string_ = NewConsString();
   }
 
   Zone* zone() const { return zone_; }
@@ -413,22 +463,26 @@ class AstValueFactory {
     return GetTwoByteStringInternal(literal);
   }
   const AstRawString* GetString(Handle<String> literal);
-  const AstConsString* NewConsString(const AstString* left,
-                                     const AstString* right);
+  V8_EXPORT_PRIVATE AstConsString* NewConsString();
+  AstConsString* NewConsString(const AstRawString* str);
+  AstConsString* NewConsString(const AstRawString* str1,
+                               const AstRawString* str2);
 
-  void Internalize(Isolate* isolate);
+  V8_EXPORT_PRIVATE void Internalize(Isolate* isolate);
 
 #define F(name, str)                           \
-  const AstRawString* name##_string() {        \
+  const AstRawString* name##_string() const {  \
     return string_constants_->name##_string(); \
   }
   STRING_CONSTANTS(F)
 #undef F
+  const AstConsString* empty_cons_string() const { return empty_cons_string_; }
 
-  const AstValue* NewString(const AstRawString* string);
+  V8_EXPORT_PRIVATE const AstValue* NewString(const AstRawString* string);
   // A JavaScript symbol (ECMA-262 edition 6).
-  const AstValue* NewSymbol(const char* name);
-  const AstValue* NewNumber(double number, bool with_dot = false);
+  const AstValue* NewSymbol(AstSymbol symbol);
+  V8_EXPORT_PRIVATE const AstValue* NewNumber(double number,
+                                              bool with_dot = false);
   const AstValue* NewSmi(uint32_t number);
   const AstValue* NewBoolean(bool b);
   const AstValue* NewStringList(ZoneList<const AstRawString*>* strings);
@@ -446,33 +500,27 @@ class AstValueFactory {
     values_ = value;
     return value;
   }
-  AstString* AddString(AstString* string) {
+  AstRawString* AddString(AstRawString* string) {
     *strings_end_ = string;
     strings_end_ = string->next_location();
+    return string;
+  }
+  AstConsString* AddConsString(AstConsString* string) {
+    *cons_strings_end_ = string;
+    cons_strings_end_ = string->next_location();
     return string;
   }
   void ResetStrings() {
     strings_ = nullptr;
     strings_end_ = &strings_;
+    cons_strings_ = nullptr;
+    cons_strings_end_ = &cons_strings_;
   }
   V8_EXPORT_PRIVATE AstRawString* GetOneByteStringInternal(
       Vector<const uint8_t> literal);
   AstRawString* GetTwoByteStringInternal(Vector<const uint16_t> literal);
   AstRawString* GetString(uint32_t hash, bool is_one_byte,
                           Vector<const byte> literal_bytes);
-
-  void InitializeStringConstants() {
-#define F(name, str)                                                    \
-  AstRawString* raw_string_##name = string_constants_->name##_string(); \
-  base::HashMap::Entry* entry_##name = string_table_.LookupOrInsert(    \
-      raw_string_##name, raw_string_##name->hash());                    \
-  DCHECK(entry_##name->value == nullptr);                               \
-  entry_##name->value = reinterpret_cast<void*>(1);
-    STRING_CONSTANTS(F)
-#undef F
-  }
-
-  static bool AstRawStringCompare(void* a, void* b);
 
   // All strings are copied here, one after another (no NULLs inbetween).
   base::CustomMatcherHashMap string_table_;
@@ -482,11 +530,14 @@ class AstValueFactory {
 
   // We need to keep track of strings_ in order since cons strings require their
   // members to be internalized first.
-  AstString* strings_;
-  AstString** strings_end_;
+  AstRawString* strings_;
+  AstRawString** strings_end_;
+  AstConsString* cons_strings_;
+  AstConsString** cons_strings_end_;
 
   // Holds constant string values which are shared across the isolate.
-  AstStringConstants* string_constants_;
+  const AstStringConstants* string_constants_;
+  const AstConsString* empty_cons_string_;
 
   // Caches for faster access: small numbers, one character lowercase strings
   // (for minified code).

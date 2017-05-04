@@ -101,15 +101,6 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
   return MaybeHandle<Object>();
 }
 
-bool IsInList(Handle<String> key, List<Handle<String> >* list) {
-  // TODO(yangguo): This is O(n^2) for n properties in the list. Deal with this
-  // if this becomes an issue.
-  for (const Handle<String>& existing : *list) {
-    if (String::Equals(existing, key)) return true;
-  }
-  return false;
-}
-
 bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
   DCHECK(property_list_.is_null());
   DCHECK(replacer_function_.is_null());
@@ -117,7 +108,7 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
   if (is_array.IsNothing()) return false;
   if (is_array.FromJust()) {
     HandleScope handle_scope(isolate_);
-    List<Handle<String> > list;
+    Handle<OrderedHashSet> set = factory()->NewOrderedHashSet();
     Handle<Object> length_obj;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, length_obj,
@@ -140,12 +131,12 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
         }
       }
       if (key.is_null()) continue;
-      if (!IsInList(key, &list)) list.Add(key);
+      // Object keys are internalized, so do it here.
+      key = factory()->InternalizeString(key);
+      set = OrderedHashSet::Add(set, key);
     }
-    property_list_ = factory()->NewUninitializedFixedArray(list.length());
-    for (int i = 0; i < list.length(); i++) {
-      property_list_->set(i, *list[i]);
-    }
+    property_list_ = OrderedHashSet::ConvertToKeysArray(
+        set, GetKeysConversion::kKeepNumbers);
     property_list_ = handle_scope.CloseAndEscape(property_list_);
   } else if (replacer->IsCallable()) {
     replacer_function_ = Handle<JSReceiver>::cast(replacer);
@@ -323,7 +314,6 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     case JS_VALUE_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSValue(Handle<JSValue>::cast(object));
-    case SIMD128_VALUE_TYPE:
     case SYMBOL_TYPE:
       return UNCHANGED;
     default:

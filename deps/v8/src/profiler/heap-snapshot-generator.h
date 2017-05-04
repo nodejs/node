@@ -12,6 +12,8 @@
 #include "src/base/platform/time.h"
 #include "src/objects.h"
 #include "src/profiler/strings-storage.h"
+#include "src/string-hasher.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -92,8 +94,7 @@ class HeapEntry BASE_EMBEDDED {
     kSynthetic = v8::HeapGraphNode::kSynthetic,
     kConsString = v8::HeapGraphNode::kConsString,
     kSlicedString = v8::HeapGraphNode::kSlicedString,
-    kSymbol = v8::HeapGraphNode::kSymbol,
-    kSimdValue = v8::HeapGraphNode::kSimdValue
+    kSymbol = v8::HeapGraphNode::kSymbol
   };
   static const int kNoEntry;
 
@@ -386,7 +387,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractAccessorInfoReferences(int entry, AccessorInfo* accessor_info);
   void ExtractAccessorPairReferences(int entry, AccessorPair* accessors);
   void ExtractCodeReferences(int entry, Code* code);
-  void ExtractBoxReferences(int entry, Box* box);
   void ExtractCellReferences(int entry, Cell* cell);
   void ExtractWeakCellReferences(int entry, WeakCell* weak_cell);
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
@@ -496,7 +496,7 @@ class NativeObjectsExplorer {
 
  private:
   void FillRetainedObjects();
-  void FillImplicitReferences();
+  void FillEdges();
   List<HeapObject*>* GetListMaybeDisposeInfo(v8::RetainedObjectInfo* info);
   void SetNativeRootReference(v8::RetainedObjectInfo* info);
   void SetRootNativeRootsReference();
@@ -532,6 +532,7 @@ class NativeObjectsExplorer {
   HeapEntriesAllocator* native_entries_allocator_;
   // Used during references extraction.
   SnapshotFiller* filler_;
+  v8::HeapProfiler::RetainerEdges edges_;
 
   static HeapThing const kNativesRootObject;
 

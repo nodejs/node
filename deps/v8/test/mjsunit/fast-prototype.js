@@ -67,7 +67,7 @@ function test(use_new, add_first, set__proto__) {
   var proto = use_new ? new Super() : {};
 
   // New object is fast.
-  assertTrue(%HasFastProperties(proto));
+  assertTrue(use_new || %HasFastProperties(proto));
 
   if (add_first) {
     AddProps(proto);

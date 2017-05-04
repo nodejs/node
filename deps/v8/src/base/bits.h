@@ -168,13 +168,15 @@ inline bool IsPowerOfTwo64(uint64_t value) {
   return value && !(value & (value - 1));
 }
 
-
 // RoundUpToPowerOfTwo32(value) returns the smallest power of two which is
 // greater than or equal to |value|. If you pass in a |value| that is already a
 // power of two, it is returned as is. |value| must be less than or equal to
-// 0x80000000u. Implementation is from "Hacker's Delight" by Henry S. Warren,
-// Jr., figure 3-3, page 48, where the function is called clp2.
+// 0x80000000u. Uses computation based on leading zeros if we have compiler
+// support for that. Falls back to the implementation from "Hacker's Delight" by
+// Henry S. Warren, Jr., figure 3-3, page 48, where the function is called clp2.
 V8_BASE_EXPORT uint32_t RoundUpToPowerOfTwo32(uint32_t value);
+// Same for 64 bit integers. |value| must be <= 2^63
+V8_BASE_EXPORT uint64_t RoundUpToPowerOfTwo64(uint64_t value);
 
 // RoundDownToPowerOfTwo32(value) returns the greatest power of two which is
 // less than or equal to |value|. If you pass in a |value| that is already a

@@ -53,12 +53,12 @@ class Sampler {
   void DecreaseProfilingDepth();
 
   // Whether the sampler is running (that is, consumes resources).
-  bool IsActive() const { return base::NoBarrier_Load(&active_); }
+  bool IsActive() const { return base::NoBarrier_Load(&active_) != 0; }
 
   // CpuProfiler collects samples by calling DoSample directly
   // without calling Start. To keep it working, we register the sampler
   // with the CpuProfiler.
-  bool IsRegistered() const { return base::NoBarrier_Load(&registered_); }
+  bool IsRegistered() const { return base::NoBarrier_Load(&registered_) != 0; }
 
   void DoSample();
 

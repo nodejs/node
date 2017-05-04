@@ -9,6 +9,18 @@ function InjectedScriptHostClass()
 
 /**
  * @param {*} obj
+ */
+InjectedScriptHostClass.prototype.nullifyPrototype = function(obj) {}
+
+/**
+ * @param {*} obj
+ * @param {string} name
+ * @return {*}
+ */
+InjectedScriptHostClass.prototype.getProperty = function(obj, name) {}
+
+/**
+ * @param {*} obj
  * @return {string}
  */
 InjectedScriptHostClass.prototype.internalConstructorName = function(obj) {}
@@ -57,6 +69,37 @@ InjectedScriptHostClass.prototype.bind = function(value, groupName) {}
  * @return {!Object}
  */
 InjectedScriptHostClass.prototype.proxyTargetValue = function(object) {}
+
+/**
+ * @param {!Object} obj
+ * @return {!Array<string>}
+ */
+InjectedScriptHostClass.prototype.keys = function(obj) {}
+
+/**
+ * @param {!Object} obj
+ * @return {Object}
+ */
+InjectedScriptHostClass.prototype.getPrototypeOf = function(obj) {}
+
+/**
+ * @param {!Object} obj
+ * @param {string} prop
+ * @return {Object}
+ */
+InjectedScriptHostClass.prototype.getOwnPropertyDescriptor = function(obj, prop) {}
+
+/**
+ * @param {!Object} obj
+ * @return {!Array<string>}
+ */
+InjectedScriptHostClass.prototype.getOwnPropertyNames = function(obj) {}
+
+/**
+ * @param {!Object} obj
+ * @return {!Array<symbol>}
+ */
+InjectedScriptHostClass.prototype.getOwnPropertySymbols = function(obj) {}
 
 /** @type {!InjectedScriptHostClass} */
 var InjectedScriptHost;

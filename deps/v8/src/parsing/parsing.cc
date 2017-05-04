@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace parsing {
 
-bool ParseProgram(ParseInfo* info) {
+bool ParseProgram(ParseInfo* info, Isolate* isolate, bool internalize) {
   DCHECK(info->is_toplevel());
   DCHECK_NULL(info->literal());
 
@@ -24,19 +24,23 @@ bool ParseProgram(ParseInfo* info) {
   FunctionLiteral* result = nullptr;
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
-  Isolate* isolate = info->isolate();
 
   parser.SetCachedData(info);
   result = parser.ParseProgram(isolate, info);
   info->set_literal(result);
-  parser.Internalize(isolate, info->script(), result == nullptr);
-  if (result != nullptr) {
+  if (result == nullptr) {
+    parser.ReportErrors(isolate, info->script());
+  } else {
     info->set_language_mode(info->literal()->language_mode());
+  }
+  parser.UpdateStatistics(isolate, info->script());
+  if (internalize) {
+    info->ast_value_factory()->Internalize(isolate);
   }
   return (result != nullptr);
 }
 
-bool ParseFunction(ParseInfo* info) {
+bool ParseFunction(ParseInfo* info, Isolate* isolate, bool internalize) {
   DCHECK(!info->is_toplevel());
   DCHECK_NULL(info->literal());
 
@@ -45,16 +49,22 @@ bool ParseFunction(ParseInfo* info) {
   FunctionLiteral* result = nullptr;
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
-  Isolate* isolate = info->isolate();
 
   result = parser.ParseFunction(isolate, info);
   info->set_literal(result);
-  parser.Internalize(isolate, info->script(), result == nullptr);
+  if (result == nullptr) {
+    parser.ReportErrors(isolate, info->script());
+  }
+  parser.UpdateStatistics(isolate, info->script());
+  if (internalize) {
+    info->ast_value_factory()->Internalize(isolate);
+  }
   return (result != nullptr);
 }
 
-bool ParseAny(ParseInfo* info) {
-  return info->is_toplevel() ? ParseProgram(info) : ParseFunction(info);
+bool ParseAny(ParseInfo* info, Isolate* isolate, bool internalize) {
+  return info->is_toplevel() ? ParseProgram(info, isolate, internalize)
+                             : ParseFunction(info, isolate, internalize);
 }
 
 }  // namespace parsing

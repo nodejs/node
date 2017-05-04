@@ -157,6 +157,8 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case ONE_BYTE_STRING_TYPE:
     case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
+    case THIN_STRING_TYPE:
+    case THIN_ONE_BYTE_STRING_TYPE:
     case SLICED_STRING_TYPE:
     case SLICED_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_STRING_TYPE:
@@ -184,7 +186,6 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
       if (map == heap->boolean_map()) return kBoolean;
       if (map == heap->the_hole_map()) return kHole;
       DCHECK(map == heap->uninitialized_map() ||
-             map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map() ||
              map == heap->optimized_out_map() ||
@@ -193,8 +194,6 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     }
     case HEAP_NUMBER_TYPE:
       return kNumber & kTaggedPointer;
-    case SIMD128_VALUE_TYPE:
-      return kSimd;
     case JS_OBJECT_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
@@ -209,6 +208,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
@@ -220,6 +220,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
 
     case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
     case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:
@@ -286,6 +287,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case PROPERTY_CELL_TYPE:
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
+    case ASYNC_GENERATOR_REQUEST_TYPE:
       return kOtherInternal & kTaggedPointer;
 
     // Remaining instance types are unsupported for now. If any of them do
@@ -300,24 +302,24 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case FILLER_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
-    case CALL_HANDLER_INFO_TYPE:
     case PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE:
     case PROMISE_REACTION_JOB_INFO_TYPE:
     case FUNCTION_TEMPLATE_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
     case ALLOCATION_MEMENTO_TYPE:
-    case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
-    case BOX_TYPE:
     case DEBUG_INFO_TYPE:
-    case BREAK_POINT_INFO_TYPE:
+    case STACK_FRAME_INFO_TYPE:
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
     case CONTEXT_EXTENSION_TYPE:
-    case CONSTANT_ELEMENTS_PAIR_TYPE:
+    case PADDING_TYPE_1:
+    case PADDING_TYPE_2:
+    case PADDING_TYPE_3:
+    case PADDING_TYPE_4:
       UNREACHABLE();
       return kNone;
   }
@@ -1295,13 +1297,6 @@ AstBitsetType::bitset AstBitsetType::SignedSmall() {
 AstBitsetType::bitset AstBitsetType::UnsignedSmall() {
   return i::SmiValuesAre31Bits() ? kUnsigned30 : kUnsigned31;
 }
-
-#define CONSTRUCT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
-  AstType* AstType::Name(Isolate* isolate, Zone* zone) {             \
-    return Class(i::handle(isolate->heap()->name##_map()), zone);    \
-  }
-SIMD128_TYPES(CONSTRUCT_SIMD_TYPE)
-#undef CONSTRUCT_SIMD_TYPE
 
 // -----------------------------------------------------------------------------
 // Instantiations.

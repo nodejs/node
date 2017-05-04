@@ -76,8 +76,7 @@ char* SimpleStringBuilder::Finalize() {
   return buffer_.start();
 }
 
-
-std::ostream& operator<<(std::ostream& os, FeedbackVectorSlot slot) {
+std::ostream& operator<<(std::ostream& os, FeedbackSlot slot) {
   return os << "#" << slot.id_;
 }
 

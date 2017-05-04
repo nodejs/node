@@ -57,6 +57,10 @@ class MacroAssembler: public Assembler {
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
 
+  int jit_cookie() const { return jit_cookie_; }
+
+  Isolate* isolate() const { return isolate_; }
+
   void Load(Register dst, const Operand& src, Representation r);
   void Store(Register src, const Operand& dst, Representation r);
 
@@ -228,10 +232,8 @@ class MacroAssembler: public Assembler {
   void RecordWriteForMap(Register object, Handle<Map> map, Register scratch1,
                          Register scratch2, SaveFPRegsMode save_fp);
 
-  // ---------------------------------------------------------------------------
-  // Debugger Support
-
-  void DebugBreak();
+  // Frame restart support
+  void MaybeDropFrames();
 
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type);
@@ -300,9 +302,6 @@ class MacroAssembler: public Assembler {
       cmp(reg, Immediate(object));
     }
   }
-
-  // Compare the given value and the value of weak cell.
-  void CmpWeakValue(Register value, Handle<WeakCell> cell, Register scratch);
 
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
@@ -392,13 +391,6 @@ class MacroAssembler: public Assembler {
   void CheckMap(Register obj, Handle<Map> map, Label* fail,
                 SmiCheckType smi_check_type);
 
-  // Check if the map of an object is equal to a specified weak map and branch
-  // to a specified target if equal. Skip the smi check if not required
-  // (object is known to be a heap object)
-  void DispatchWeakMap(Register obj, Register scratch1, Register scratch2,
-                       Handle<WeakCell> cell, Handle<Code> success,
-                       SmiCheckType smi_check_type);
-
   // Check if the object in register heap_object is a string. Afterwards the
   // register map contains the object map and the register instance_type
   // contains the instance_type. The registers map and instance_type can be the
@@ -406,14 +398,6 @@ class MacroAssembler: public Assembler {
   // registers map and instance_type can be the same as heap_object.
   Condition IsObjectStringType(Register heap_object, Register map,
                                Register instance_type);
-
-  // Check if the object in register heap_object is a name. Afterwards the
-  // register map contains the object map and the register instance_type
-  // contains the instance_type. The registers map and instance_type can be the
-  // same in which case it contains the instance type afterwards. Either of the
-  // registers map and instance_type can be the same as heap_object.
-  Condition IsObjectNameType(Register heap_object, Register map,
-                             Register instance_type);
 
   // FCmp is similar to integer cmp, but requires unsigned
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
@@ -476,7 +460,12 @@ class MacroAssembler: public Assembler {
     test(value, Immediate(kSmiTagMask));
     j(not_zero, not_smi_label, distance);
   }
-
+  // Jump if the operand is not a smi.
+  inline void JumpIfNotSmi(Operand value, Label* smi_label,
+                           Label::Distance distance = Label::kFar) {
+    test(value, Immediate(kSmiTagMask));
+    j(not_zero, smi_label, distance);
+  }
   // Jump if the value cannot be represented by a smi.
   inline void JumpIfNotValidSmiValue(Register value, Register scratch,
                                      Label* on_invalid,
@@ -526,21 +515,11 @@ class MacroAssembler: public Assembler {
 
   void LoadPowerOf2(XMMRegister dst, Register scratch, int power);
 
-  // Abort execution if argument is not a number, enabled via --debug-code.
-  void AssertNumber(Register object);
-  void AssertNotNumber(Register object);
-
   // Abort execution if argument is not a smi, enabled via --debug-code.
   void AssertSmi(Register object);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
-
-  // Abort execution if argument is not a string, enabled via --debug-code.
-  void AssertString(Register object);
-
-  // Abort execution if argument is not a name, enabled via --debug-code.
-  void AssertName(Register object);
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
   void AssertFunction(Register object);
@@ -551,10 +530,7 @@ class MacroAssembler: public Assembler {
 
   // Abort execution if argument is not a JSGeneratorObject,
   // enabled via --debug-code.
-  void AssertGeneratorObject(Register object);
-
-  // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
-  void AssertReceiver(Register object);
+  void AssertGeneratorObject(Register object, Register suspend_flags);
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
@@ -630,25 +606,9 @@ class MacroAssembler: public Assembler {
   // Check a boolean-bit of a Smi field.
   void BooleanBitTest(Register object, int field_offset, int bit_index);
 
-  // Check if result is zero and op is negative.
-  void NegativeZeroTest(Register result, Register op, Label* then_label);
-
-  // Check if result is zero and any of op1 and op2 are negative.
-  // Register scratch is destroyed, and it must be different from op2.
-  void NegativeZeroTest(Register result, Register op1, Register op2,
-                        Register scratch, Label* then_label);
-
   // Machine code version of Map::GetConstructor().
   // |temp| holds |result|'s map when done.
   void GetMapConstructor(Register result, Register map, Register temp);
-
-  // Try to get function prototype of a function and puts the value in
-  // the result register. Checks that the function really is a
-  // function and jumps to the miss label if the fast checks fail. The
-  // function register will be untouched; the other registers may be
-  // clobbered.
-  void TryGetFunctionPrototype(Register function, Register result,
-                               Register scratch, Label* miss);
 
   // ---------------------------------------------------------------------------
   // Runtime calls
@@ -658,9 +618,6 @@ class MacroAssembler: public Assembler {
 
   // Tail call a code stub (jump).  Generate the code if necessary.
   void TailCallStub(CodeStub* stub);
-
-  // Return from a code stub after popping its arguments.
-  void StubReturn(int argc);
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f, int num_arguments,
@@ -757,10 +714,12 @@ class MacroAssembler: public Assembler {
 
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
-  void Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
-    Pinsrd(dst, Operand(src), imm8);
+  void Pinsrd(XMMRegister dst, Register src, int8_t imm8,
+              bool is_64_bits = false) {
+    Pinsrd(dst, Operand(src), imm8, is_64_bits);
   }
-  void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8);
+  void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8,
+              bool is_64_bits = false);
 
   void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
   void Lzcnt(Register dst, const Operand& src);
@@ -815,8 +774,6 @@ class MacroAssembler: public Assembler {
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.
   void Assert(Condition cc, BailoutReason reason);
-
-  void AssertFastElements(Register elements);
 
   // Like Assert(), but always enabled.
   void Check(Condition cc, BailoutReason reason);
@@ -887,8 +844,10 @@ class MacroAssembler: public Assembler {
  private:
   bool generating_stub_;
   bool has_frame_;
+  Isolate* isolate_;
   // This handle will be patched with the code object on installation.
   Handle<Object> code_object_;
+  int jit_cookie_;
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,

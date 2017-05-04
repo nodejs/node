@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition --side-effect-free-debug-evaluate
+// Flags: --ignition --turbo
 
 Debug = debug.Debug
 
@@ -17,17 +17,21 @@ var array = [4, 5];
 var error = new Error();
 
 function set_a() { a = 2; }
-
 function get_a() { return a; }
+var bound = get_a.bind(0);
+
+var global_eval = eval;
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
     function success(expectation, source) {
-      assertEquals(expectation, exec_state.frame(0).evaluate(source).value());
+      assertEquals(expectation,
+                   exec_state.frame(0).evaluate(source, true).value());
     }
     function fail(source) {
-      assertThrows(() => exec_state.frame(0).evaluate(source), EvalError);
+      assertThrows(() => exec_state.frame(0).evaluate(source, true),
+                   EvalError);
     }
     // Simple test.
     success(3, "1 + 2");
@@ -45,6 +49,8 @@ function listener(event, exec_state, event_data, data) {
     success(5, "array[1]");
     // Call to read-only function.
     success(1, "get_a()");
+    success(1, "bound()");
+    success({}, "new get_a()");
     // Call to read-only function within try-catch.
     success(1, "try { get_a() } catch (e) {}");
     // Call to C++ built-in.
@@ -52,10 +58,16 @@ function listener(event, exec_state, event_data, data) {
     // Call to whitelisted get accessors.
     success(3, "'abc'.length");
     success(2, "array.length");
+    success(1, "'x'.length");
+    success(0, "set_a.length");
+    success("set_a", "set_a.name");
+    success(0, "bound.length");
+    success("bound get_a", "bound.name");
     // Test that non-read-only code fails.
     fail("exception = 1");
     // Test that calling a non-read-only function fails.
     fail("set_a()");
+    fail("new set_a()");
     // Test that implicit call to a non-read-only function fails.
     fail("string2 + 'y'");
     // Test that try-catch does not catch the EvalError.
@@ -64,6 +76,10 @@ function listener(event, exec_state, event_data, data) {
     fail("array.length = 4");
     // Test that call to non-whitelisted get accessor fails.
     fail("error.stack");
+    // Eval is not allowed.
+    fail("eval('Math.sin(1)')");
+    fail("eval('exception = 1')");
+    fail("global_eval('1')");
   } catch (e) {
     exception = e;
     print(e, e.stack);

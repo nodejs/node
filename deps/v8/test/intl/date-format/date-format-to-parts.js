@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --datetime-format-to-parts
-
 var d = new Date(2016, 11, 15, 14, 10, 34);
 var df = Intl.DateTimeFormat("ja",
     {hour: 'numeric', minute: 'numeric', second: 'numeric', year: 'numeric',

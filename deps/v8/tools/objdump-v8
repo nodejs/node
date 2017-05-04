@@ -73,8 +73,11 @@ def main():
             sys.stdout.write(format_line(line))
           elif printing:
             break
-        elif printing and not is_comment(line):
-          break
+        elif printing:
+          if not is_comment(line):
+            break
+          else:
+            sys.stdout.write(line)
   else:
     sys.argv[0] = "objdump"
     sys.exit(subprocess.call(sys.argv))

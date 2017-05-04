@@ -6,14 +6,15 @@ const expression = `
   Object.defineProperty(Object.prototype, 'RemoteObject', {
     configurable: true,
     set(v) {
+      console.log("Should never be called");
       delete Object.prototype.RemoteObject;
       this.RemoteObject = v;
 
-      detachInspector();
+      inspector.detachInspector();
       setTimeout(function() {
         // Attach the inspector again for the sake of establishing a
         // communication channel with the frontend test runner.
-        attachInspector();
+        inspector.attachInspector();
         console.log("End of test");
       }, 0);
     },
@@ -22,9 +23,10 @@ const expression = `
   // Before the whole script runs, the inspector is already attached.
   // Re-attach the inspector and trigger the console API to make sure that the
   // injected inspector script runs again (and triggers the above setter).
-  detachInspector();
-  attachInspector();
+  inspector.detachInspector();
+  inspector.attachInspector();
   console.log("First inspector activity after attaching inspector");
+  console.log("End of test");
 `;
 
 Protocol.Runtime.enable();

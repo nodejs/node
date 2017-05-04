@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks async instrumentation enabled in the middle.');
+InspectorTest.log('Checks async instrumentation enabled in the middle.');
 
 InspectorTest.addScript(`
 function foo() {
@@ -13,10 +13,10 @@ function foo() {
 }
 
 function test() {
+  debugger;
   var resolve1;
   var p1 = new Promise(resolve => resolve1 = resolve);
   var p2 = p1.then(foo);
-  debugger;
   resolve1(); // asyncTaskScheduled
   debugger;
   return p2;

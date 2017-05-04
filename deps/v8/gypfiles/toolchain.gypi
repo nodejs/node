@@ -74,7 +74,6 @@
     # Chrome needs this definition unconditionally. For standalone V8 builds,
     # it's handled in gypfiles/standalone.gypi.
     'want_separate_host_toolset%': 1,
-    'want_separate_host_toolset_mkpeephole%': 1,
 
     # Toolset the shell binary should be compiled for. Possible values are
     # 'host' and 'target'.
@@ -315,6 +314,8 @@
             'defines': [
               'V8_TARGET_ARCH_S390_LE_SIM',
             ],
+          }, {
+            'cflags': [ '-march=z196' ],
           }],
           ],
       }],  # s390

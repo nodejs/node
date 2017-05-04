@@ -6,15 +6,18 @@
 #define V8_PARSING_SCANNER_CHARACTER_STREAMS_H_
 
 #include "include/v8.h"  // for v8::ScriptCompiler
-#include "src/handles.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
 
+template <typename T>
+class Handle;
 class Utf16CharacterStream;
 class RuntimeCallStats;
+class String;
 
-class ScannerStream {
+class V8_EXPORT_PRIVATE ScannerStream {
  public:
   static Utf16CharacterStream* For(Handle<String> data);
   static Utf16CharacterStream* For(Handle<String> data, int start_pos,

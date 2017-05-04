@@ -142,9 +142,9 @@ function test1() {
 }
 
 function clear_ic_state() {
-  %ClearFunctionTypeFeedback(construct_smis);
-  %ClearFunctionTypeFeedback(construct_doubles);
-  %ClearFunctionTypeFeedback(convert_mixed);
+  %ClearFunctionFeedback(construct_smis);
+  %ClearFunctionFeedback(construct_doubles);
+  %ClearFunctionFeedback(convert_mixed);
 }
 
 test1();

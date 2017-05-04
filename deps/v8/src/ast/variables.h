@@ -100,6 +100,12 @@ class Variable final : public ZoneObject {
 
   int index() const { return index_; }
 
+  bool IsReceiver() const {
+    DCHECK(IsParameter());
+
+    return index_ == -1;
+  }
+
   bool IsExport() const {
     DCHECK_EQ(location(), VariableLocation::MODULE);
     DCHECK_NE(index(), 0);

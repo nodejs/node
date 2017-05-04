@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/arm64/assembler-arm64-inl.h"
 #include "src/eh-frame.h"
 
 namespace v8 {

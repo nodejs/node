@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Test accessors on the global object.
+//
+// Flags: --no-harmony-strict-legacy-accessor-builtins
 
 var x_ = 0;
 

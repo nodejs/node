@@ -34,11 +34,9 @@ class PropertyAccessCompiler BASE_EMBEDDED {
   static void TailCallBuiltin(MacroAssembler* masm, Builtins::Name name);
 
  protected:
-  PropertyAccessCompiler(Isolate* isolate, Code::Kind kind,
-                         CacheHolderFlag cache_holder)
+  PropertyAccessCompiler(Isolate* isolate, Code::Kind kind)
       : registers_(GetCallingConvention(isolate, kind)),
         kind_(kind),
-        cache_holder_(cache_holder),
         isolate_(isolate),
         masm_(isolate, NULL, 256, CodeObjectRequired::kYes) {
     // TODO(yangguo): remove this once we can serialize IC stubs.
@@ -46,10 +44,8 @@ class PropertyAccessCompiler BASE_EMBEDDED {
   }
 
   Code::Kind kind() const { return kind_; }
-  CacheHolderFlag cache_holder() const { return cache_holder_; }
   MacroAssembler* masm() { return &masm_; }
   Isolate* isolate() const { return isolate_; }
-  Heap* heap() const { return isolate()->heap(); }
   Factory* factory() const { return isolate()->factory(); }
 
   Register receiver() const { return registers_[0]; }
@@ -63,16 +59,11 @@ class PropertyAccessCompiler BASE_EMBEDDED {
 
   static void GenerateTailCall(MacroAssembler* masm, Handle<Code> code);
 
-  Handle<Code> GetCodeWithFlags(Code::Flags flags, const char* name);
-  Handle<Code> GetCodeWithFlags(Code::Flags flags, Handle<Name> name);
-
  private:
   static Register* GetCallingConvention(Isolate* isolate, Code::Kind kind);
   static void InitializePlatformSpecific(AccessCompilerData* data);
 
   Code::Kind kind_;
-  CacheHolderFlag cache_holder_;
-
   Isolate* isolate_;
   MacroAssembler masm_;
   // Ensure that MacroAssembler has a reasonable size.

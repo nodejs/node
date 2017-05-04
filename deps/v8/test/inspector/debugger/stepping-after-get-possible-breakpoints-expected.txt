@@ -6,6 +6,5 @@ boo
 -- call foo:
 (top)
 (top)
-(top)
 foo
 (top)

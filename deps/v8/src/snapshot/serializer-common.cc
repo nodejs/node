@@ -7,6 +7,7 @@
 #include "src/external-reference-table.h"
 #include "src/ic/stub-cache.h"
 #include "src/list-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -21,6 +22,8 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
+    // Ignore duplicate API references.
+    if (table->is_api_reference(i) && !map_->Get(addr).IsNothing()) continue;
     DCHECK(map_->Get(addr).IsNothing());
     map_->Set(addr, i);
     DCHECK(map_->Get(addr).IsJust());
@@ -64,14 +67,14 @@ void SerializedData::AllocateData(int size) {
 //  - during normal GC to keep its content alive.
 //  - not during serialization. The partial serializer adds to it explicitly.
 DISABLE_CFI_PERF
-void SerializerDeserializer::Iterate(Isolate* isolate, ObjectVisitor* visitor) {
+void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
   List<Object*>* cache = isolate->partial_snapshot_cache();
   for (int i = 0;; ++i) {
     // Extend the array ready to get a value when deserializing.
     if (cache->length() <= i) cache->Add(Smi::kZero);
     // During deserialization, the visitor populates the partial snapshot cache
     // and eventually terminates the cache with undefined.
-    visitor->VisitPointer(&cache->at(i));
+    visitor->VisitRootPointer(Root::kPartialSnapshotCache, &cache->at(i));
     if (cache->at(i)->IsUndefined(isolate)) break;
   }
 }

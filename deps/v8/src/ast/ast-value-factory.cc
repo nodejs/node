@@ -31,6 +31,7 @@
 #include "src/char-predicates-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/string-hasher.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -84,21 +85,8 @@ class AstRawStringInternalizationKey : public HashTableKey {
   const AstRawString* string_;
 };
 
-int AstString::length() const {
-  if (IsRawStringBits::decode(bit_field_)) {
-    return reinterpret_cast<const AstRawString*>(this)->length();
-  }
-  return reinterpret_cast<const AstConsString*>(this)->length();
-}
-
-void AstString::Internalize(Isolate* isolate) {
-  if (IsRawStringBits::decode(bit_field_)) {
-    return reinterpret_cast<AstRawString*>(this)->Internalize(isolate);
-  }
-  return reinterpret_cast<AstConsString*>(this)->Internalize(isolate);
-}
-
 void AstRawString::Internalize(Isolate* isolate) {
+  DCHECK(!has_string_);
   if (literal_bytes_.length() == 0) {
     set_string(isolate->factory()->empty_string());
   } else {
@@ -121,21 +109,68 @@ bool AstRawString::AsArrayIndex(uint32_t* index) const {
 }
 
 bool AstRawString::IsOneByteEqualTo(const char* data) const {
-  int length = static_cast<int>(strlen(data));
-  if (is_one_byte() && literal_bytes_.length() == length) {
-    const char* token = reinterpret_cast<const char*>(literal_bytes_.start());
-    return !strncmp(token, data, length);
-  }
-  return false;
+  if (!is_one_byte()) return false;
+
+  size_t length = static_cast<size_t>(literal_bytes_.length());
+  if (length != strlen(data)) return false;
+
+  return 0 == strncmp(reinterpret_cast<const char*>(literal_bytes_.start()),
+                      data, length);
 }
 
+uint16_t AstRawString::FirstCharacter() const {
+  if (is_one_byte()) return literal_bytes_[0];
+  const uint16_t* c = reinterpret_cast<const uint16_t*>(literal_bytes_.start());
+  return *c;
+}
+
+bool AstRawString::Compare(void* a, void* b) {
+  const AstRawString* lhs = static_cast<AstRawString*>(a);
+  const AstRawString* rhs = static_cast<AstRawString*>(b);
+  DCHECK_EQ(lhs->hash(), rhs->hash());
+
+  if (lhs->length() != rhs->length()) return false;
+  const unsigned char* l = lhs->raw_data();
+  const unsigned char* r = rhs->raw_data();
+  size_t length = rhs->length();
+  if (lhs->is_one_byte()) {
+    if (rhs->is_one_byte()) {
+      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(l),
+                                  reinterpret_cast<const uint8_t*>(r),
+                                  length) == 0;
+    } else {
+      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(l),
+                                  reinterpret_cast<const uint16_t*>(r),
+                                  length) == 0;
+    }
+  } else {
+    if (rhs->is_one_byte()) {
+      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(l),
+                                  reinterpret_cast<const uint8_t*>(r),
+                                  length) == 0;
+    } else {
+      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(l),
+                                  reinterpret_cast<const uint16_t*>(r),
+                                  length) == 0;
+    }
+  }
+}
 
 void AstConsString::Internalize(Isolate* isolate) {
-  // AstRawStrings are internalized before AstConsStrings so left and right are
-  // already internalized.
-  set_string(isolate->factory()
-                 ->NewConsString(left_->string(), right_->string())
-                 .ToHandleChecked());
+  if (IsEmpty()) {
+    set_string(isolate->factory()->empty_string());
+    return;
+  }
+  // AstRawStrings are internalized before AstConsStrings, so
+  // AstRawString::string() will just work.
+  Handle<String> tmp(segment_.string->string());
+  for (AstConsString::Segment* current = segment_.next; current != nullptr;
+       current = current->next) {
+    tmp = isolate->factory()
+              ->NewConsString(current->string->string(), tmp)
+              .ToHandleChecked();
+  }
+  set_string(tmp);
 }
 
 bool AstValue::IsPropertyName() const {
@@ -184,14 +219,10 @@ void AstValue::Internalize(Isolate* isolate) {
       DCHECK(!string_->string().is_null());
       break;
     case SYMBOL:
-      if (symbol_name_[0] == 'i') {
-        DCHECK_EQ(0, strcmp(symbol_name_, "iterator_symbol"));
-        set_value(isolate->factory()->iterator_symbol());
-      } else if (strcmp(symbol_name_, "hasInstance_symbol") == 0) {
-        set_value(isolate->factory()->has_instance_symbol());
-      } else {
-        DCHECK_EQ(0, strcmp(symbol_name_, "home_object_symbol"));
-        set_value(isolate->factory()->home_object_symbol());
+      switch (symbol_) {
+        case AstSymbol::kHomeObjectSymbol:
+          set_value(isolate->factory()->home_object_symbol());
+          break;
       }
       break;
     case NUMBER_WITH_DOT:
@@ -259,22 +290,34 @@ const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
   return result;
 }
 
-
-const AstConsString* AstValueFactory::NewConsString(
-    const AstString* left, const AstString* right) {
-  // This Vector will be valid as long as the Collector is alive (meaning that
-  // the AstRawString will not be moved).
-  AstConsString* new_string = new (zone_) AstConsString(left, right);
-  CHECK(new_string != nullptr);
-  AddString(new_string);
+AstConsString* AstValueFactory::NewConsString() {
+  AstConsString* new_string = new (zone_) AstConsString;
+  DCHECK_NOT_NULL(new_string);
+  AddConsString(new_string);
   return new_string;
+}
+
+AstConsString* AstValueFactory::NewConsString(const AstRawString* str) {
+  return NewConsString()->AddString(zone_, str);
+}
+
+AstConsString* AstValueFactory::NewConsString(const AstRawString* str1,
+                                              const AstRawString* str2) {
+  return NewConsString()->AddString(zone_, str1)->AddString(zone_, str2);
 }
 
 void AstValueFactory::Internalize(Isolate* isolate) {
   // Strings need to be internalized before values, because values refer to
   // strings.
-  for (AstString* current = strings_; current != nullptr;) {
-    AstString* next = current->next();
+  for (AstRawString* current = strings_; current != nullptr;) {
+    AstRawString* next = current->next();
+    current->Internalize(isolate);
+    current = next;
+  }
+
+  // AstConsStrings refer to AstRawStrings.
+  for (AstConsString* current = cons_strings_; current != nullptr;) {
+    AstConsString* next = current->next();
     current->Internalize(isolate);
     current = next;
   }
@@ -295,9 +338,8 @@ const AstValue* AstValueFactory::NewString(const AstRawString* string) {
   return AddValue(value);
 }
 
-
-const AstValue* AstValueFactory::NewSymbol(const char* name) {
-  AstValue* value = new (zone_) AstValue(name);
+const AstValue* AstValueFactory::NewSymbol(AstSymbol symbol) {
+  AstValue* value = new (zone_) AstValue(symbol);
   return AddValue(value);
 }
 
@@ -356,7 +398,7 @@ AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
   // return this AstRawString.
   AstRawString key(is_one_byte, literal_bytes, hash);
   base::HashMap::Entry* entry = string_table_.LookupOrInsert(&key, hash);
-  if (entry->value == NULL) {
+  if (entry->value == nullptr) {
     // Copy literal contents for later comparison.
     int length = literal_bytes.length();
     byte* new_literal_bytes = zone_->NewArray<byte>(length);
@@ -371,36 +413,5 @@ AstRawString* AstValueFactory::GetString(uint32_t hash, bool is_one_byte,
   return reinterpret_cast<AstRawString*>(entry->key);
 }
 
-
-bool AstValueFactory::AstRawStringCompare(void* a, void* b) {
-  const AstRawString* lhs = static_cast<AstRawString*>(a);
-  const AstRawString* rhs = static_cast<AstRawString*>(b);
-  DCHECK_EQ(lhs->hash(), rhs->hash());
-  if (lhs->length() != rhs->length()) return false;
-  const unsigned char* l = lhs->raw_data();
-  const unsigned char* r = rhs->raw_data();
-  size_t length = rhs->length();
-  if (lhs->is_one_byte()) {
-    if (rhs->is_one_byte()) {
-      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(l),
-                                  reinterpret_cast<const uint8_t*>(r),
-                                  length) == 0;
-    } else {
-      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(l),
-                                  reinterpret_cast<const uint16_t*>(r),
-                                  length) == 0;
-    }
-  } else {
-    if (rhs->is_one_byte()) {
-      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(l),
-                                  reinterpret_cast<const uint8_t*>(r),
-                                  length) == 0;
-    } else {
-      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(l),
-                                  reinterpret_cast<const uint16_t*>(r),
-                                  length) == 0;
-    }
-  }
-}
 }  // namespace internal
 }  // namespace v8

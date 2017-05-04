@@ -20,6 +20,37 @@ class DeoptimizedFrameInfo;
 class TranslatedState;
 class RegisterValues;
 
+// Safety wrapper for a 32-bit floating-point value to make sure we don't loose
+// the exact bit pattern during deoptimization when passing this value. Note
+// that there is intentionally no way to construct it from a {float} value.
+class Float32 {
+ public:
+  Float32() : bit_pattern_(0) {}
+  uint32_t get_bits() const { return bit_pattern_; }
+  float get_scalar() const { return bit_cast<float>(bit_pattern_); }
+  static Float32 FromBits(uint32_t bits) { return Float32(bits); }
+
+ private:
+  explicit Float32(uint32_t bit_pattern) : bit_pattern_(bit_pattern) {}
+  uint32_t bit_pattern_;
+};
+
+// Safety wrapper for a 64-bit floating-point value to make sure we don't loose
+// the exact bit pattern during deoptimization when passing this value. Note
+// that there is intentionally no way to construct it from a {double} value.
+class Float64 {
+ public:
+  Float64() : bit_pattern_(0) {}
+  uint64_t get_bits() const { return bit_pattern_; }
+  double get_scalar() const { return bit_cast<double>(bit_pattern_); }
+  bool is_hole_nan() const { return bit_pattern_ == kHoleNanInt64; }
+  static Float64 FromBits(uint64_t bits) { return Float64(bits); }
+
+ private:
+  explicit Float64(uint64_t bit_pattern) : bit_pattern_(bit_pattern) {}
+  uint64_t bit_pattern_;
+};
+
 class TranslatedValue {
  public:
   // Allocation-less getter of the value.
@@ -64,8 +95,8 @@ class TranslatedValue {
   static TranslatedValue NewDeferredObject(TranslatedState* container,
                                            int length, int object_index);
   static TranslatedValue NewDuplicateObject(TranslatedState* container, int id);
-  static TranslatedValue NewFloat(TranslatedState* container, float value);
-  static TranslatedValue NewDouble(TranslatedState* container, double value);
+  static TranslatedValue NewFloat(TranslatedState* container, Float32 value);
+  static TranslatedValue NewDouble(TranslatedState* container, Float64 value);
   static TranslatedValue NewInt32(TranslatedState* container, int32_t value);
   static TranslatedValue NewUInt32(TranslatedState* container, uint32_t value);
   static TranslatedValue NewBool(TranslatedState* container, uint32_t value);
@@ -98,10 +129,11 @@ class TranslatedValue {
     // kind is kInt32.
     int32_t int32_value_;
     // kind is kFloat
-    float float_value_;
+    Float32 float_value_;
     // kind is kDouble
-    double double_value_;
-    // kind is kDuplicatedObject or kArgumentsObject or kCapturedObject.
+    Float64 double_value_;
+    // kind is kDuplicatedObject or kArgumentsObject or
+    // kCapturedObject.
     MaterializedObjectInfo materialization_info_;
   };
 
@@ -109,8 +141,8 @@ class TranslatedValue {
   Object* raw_literal() const;
   int32_t int32_value() const;
   uint32_t uint32_value() const;
-  float float_value() const;
-  double double_value() const;
+  Float32 float_value() const;
+  Float64 double_value() const;
   int object_length() const;
   int object_index() const;
 };
@@ -195,7 +227,8 @@ class TranslatedFrame {
   static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo* shared_info,
                                                int height);
   static TranslatedFrame TailCallerFrame(SharedFunctionInfo* shared_info);
-  static TranslatedFrame ConstructStubFrame(SharedFunctionInfo* shared_info,
+  static TranslatedFrame ConstructStubFrame(BailoutId bailout_id,
+                                            SharedFunctionInfo* shared_info,
                                             int height);
   static TranslatedFrame CompiledStubFrame(int height, Isolate* isolate) {
     return TranslatedFrame(kCompiledStub, isolate, nullptr, height);
@@ -273,7 +306,7 @@ class TranslatedState {
 
   void Init(Address input_frame_pointer, TranslationIterator* iterator,
             FixedArray* literal_array, RegisterValues* registers,
-            FILE* trace_file);
+            FILE* trace_file, int parameter_count);
 
  private:
   friend TranslatedValue;
@@ -282,12 +315,14 @@ class TranslatedState {
                                             FixedArray* literal_array,
                                             Address fp,
                                             FILE* trace_file);
-  TranslatedValue CreateNextTranslatedValue(int frame_index, int value_index,
-                                            TranslationIterator* iterator,
-                                            FixedArray* literal_array,
-                                            Address fp,
-                                            RegisterValues* registers,
-                                            FILE* trace_file);
+  int CreateNextTranslatedValue(int frame_index, TranslationIterator* iterator,
+                                FixedArray* literal_array, Address fp,
+                                RegisterValues* registers, FILE* trace_file);
+  Address ComputeArgumentsPosition(Address input_frame_pointer, bool is_rest,
+                                   int* length);
+  void CreateArgumentsElementsTranslatedValues(int frame_index,
+                                               Address input_frame_pointer,
+                                               bool is_rest, FILE* trace_file);
 
   void UpdateFromPreviouslyMaterializedObjects();
   Handle<Object> MaterializeAt(int frame_index, int* value_index);
@@ -298,11 +333,14 @@ class TranslatedState {
   bool GetAdaptedArguments(Handle<JSObject>* result, int frame_index);
 
   static uint32_t GetUInt32Slot(Address fp, int slot_index);
+  static Float32 GetFloatSlot(Address fp, int slot_index);
+  static Float64 GetDoubleSlot(Address fp, int slot_index);
 
   std::vector<TranslatedFrame> frames_;
   Isolate* isolate_;
   Address stack_frame_pointer_;
   bool has_adapted_arguments_;
+  int formal_parameter_count_;
 
   struct ObjectPosition {
     int frame_index_;
@@ -315,16 +353,7 @@ class TranslatedState {
 class OptimizedFunctionVisitor BASE_EMBEDDED {
  public:
   virtual ~OptimizedFunctionVisitor() {}
-
-  // Function which is called before iteration of any optimized functions
-  // from given native context.
-  virtual void EnterContext(Context* context) = 0;
-
   virtual void VisitFunction(JSFunction* function) = 0;
-
-  // Function which is called after iteration of all optimized functions
-  // from given native context.
-  virtual void LeaveContext(Context* context) = 0;
 };
 
 class Deoptimizer : public Malloced {
@@ -437,6 +466,8 @@ class Deoptimizer : public Malloced {
   // Visit all the known optimized functions in a given isolate.
   static void VisitAllOptimizedFunctions(
       Isolate* isolate, OptimizedFunctionVisitor* visitor);
+
+  static void UnlinkOptimizedCode(Code* code, Context* native_context);
 
   // The size in bytes of the code required at a lazy deopt patch site.
   static int patch_size();
@@ -652,12 +683,12 @@ class RegisterValues {
     return registers_[n];
   }
 
-  float GetFloatRegister(unsigned n) const {
+  Float32 GetFloatRegister(unsigned n) const {
     DCHECK(n < arraysize(float_registers_));
     return float_registers_[n];
   }
 
-  double GetDoubleRegister(unsigned n) const {
+  Float64 GetDoubleRegister(unsigned n) const {
     DCHECK(n < arraysize(double_registers_));
     return double_registers_[n];
   }
@@ -667,19 +698,24 @@ class RegisterValues {
     registers_[n] = value;
   }
 
-  void SetFloatRegister(unsigned n, float value) {
+  void SetFloatRegister(unsigned n, Float32 value) {
     DCHECK(n < arraysize(float_registers_));
     float_registers_[n] = value;
   }
 
-  void SetDoubleRegister(unsigned n, double value) {
+  void SetDoubleRegister(unsigned n, Float64 value) {
     DCHECK(n < arraysize(double_registers_));
     double_registers_[n] = value;
   }
 
+  // Generated code is writing directly into the below arrays, make sure their
+  // element sizes fit what the machine instructions expect.
+  static_assert(sizeof(Float32) == kFloatSize, "size mismatch");
+  static_assert(sizeof(Float64) == kDoubleSize, "size mismatch");
+
   intptr_t registers_[Register::kNumRegisters];
-  float float_registers_[FloatRegister::kMaxNumRegisters];
-  double double_registers_[DoubleRegister::kMaxNumRegisters];
+  Float32 float_registers_[FloatRegister::kMaxNumRegisters];
+  Float64 double_registers_[DoubleRegister::kMaxNumRegisters];
 };
 
 
@@ -732,7 +768,7 @@ class FrameDescription {
     return register_values_.GetRegister(n);
   }
 
-  double GetDoubleRegister(unsigned n) const {
+  Float64 GetDoubleRegister(unsigned n) const {
     return register_values_.GetDoubleRegister(n);
   }
 
@@ -740,7 +776,7 @@ class FrameDescription {
     register_values_.SetRegister(n, value);
   }
 
-  void SetDoubleRegister(unsigned n, double value) {
+  void SetDoubleRegister(unsigned n, Float64 value) {
     register_values_.SetDoubleRegister(n, value);
   }
 
@@ -778,6 +814,10 @@ class FrameDescription {
 
   static int double_registers_offset() {
     return OFFSET_OF(FrameDescription, register_values_.double_registers_);
+  }
+
+  static int float_registers_offset() {
+    return OFFSET_OF(FrameDescription, register_values_.float_registers_);
   }
 
   static int frame_size_offset() {
@@ -893,6 +933,8 @@ class TranslationIterator BASE_EMBEDDED {
   V(COMPILED_STUB_FRAME)           \
   V(DUPLICATED_OBJECT)             \
   V(ARGUMENTS_OBJECT)              \
+  V(ARGUMENTS_ELEMENTS)            \
+  V(ARGUMENTS_LENGTH)              \
   V(CAPTURED_OBJECT)               \
   V(REGISTER)                      \
   V(INT32_REGISTER)                \
@@ -936,10 +978,13 @@ class Translation BASE_EMBEDDED {
   void BeginCompiledStubFrame(int height);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
   void BeginTailCallerFrame(int literal_id);
-  void BeginConstructStubFrame(int literal_id, unsigned height);
+  void BeginConstructStubFrame(BailoutId bailout_id, int literal_id,
+                               unsigned height);
   void BeginGetterStubFrame(int literal_id);
   void BeginSetterStubFrame(int literal_id);
   void BeginArgumentsObject(int args_length);
+  void ArgumentsElements(bool is_rest);
+  void ArgumentsLength(bool is_rest);
   void BeginCapturedObject(int length);
   void DuplicateObject(int object_index);
   void StoreRegister(Register reg);
@@ -983,7 +1028,7 @@ class MaterializedObjectStore {
   bool Remove(Address fp);
 
  private:
-  Isolate* isolate() { return isolate_; }
+  Isolate* isolate() const { return isolate_; }
   Handle<FixedArray> GetStackEntries();
   Handle<FixedArray> EnsureStackEntries(int size);
 

@@ -7,11 +7,14 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
+#include "src/arm64/assembler-arm64-inl.h"
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/arm64/simulator-arm64.h"
 #include "src/arm64/utils-arm64.h"
 #include "src/disassembler.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "test/cctest/compiler/c-signature.h"
 #include "test/cctest/compiler/call-tester.h"
@@ -57,15 +60,10 @@ TEST(WasmRelocationArm64MemoryReference) {
   // Relocating reference by offset
   int mode_mask = (1 << RelocInfo::WASM_MEMORY_REFERENCE);
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (RelocInfo::IsWasmMemoryReference(mode)) {
-      // Dummy values of size used here as the objective of the test is to
-      // verify that the immediate is patched correctly
-      it.rinfo()->update_wasm_memory_reference(
-          it.rinfo()->wasm_memory_reference(),
-          it.rinfo()->wasm_memory_reference() + offset, 1, 2,
-          SKIP_ICACHE_FLUSH);
-    }
+    DCHECK(RelocInfo::IsWasmMemoryReference(it.rinfo()->rmode()));
+    it.rinfo()->update_wasm_memory_reference(
+        isolate, it.rinfo()->wasm_memory_reference(),
+        it.rinfo()->wasm_memory_reference() + offset, SKIP_ICACHE_FLUSH);
   }
 
   // Call into relocated code object
@@ -117,13 +115,10 @@ TEST(WasmRelocationArm64MemorySizeReference) {
 
   int mode_mask = (1 << RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (RelocInfo::IsWasmMemorySizeReference(mode)) {
-      it.rinfo()->update_wasm_memory_reference(
-          reinterpret_cast<Address>(0x1234), reinterpret_cast<Address>(0x1234),
-          it.rinfo()->wasm_memory_size_reference(),
-          it.rinfo()->wasm_memory_size_reference() + diff, SKIP_ICACHE_FLUSH);
-    }
+    DCHECK(RelocInfo::IsWasmMemorySizeReference(it.rinfo()->rmode()));
+    it.rinfo()->update_wasm_memory_size(
+        isolate, it.rinfo()->wasm_memory_size_reference(),
+        it.rinfo()->wasm_memory_size_reference() + diff, SKIP_ICACHE_FLUSH);
   }
 
   ret_value = runnable.Call();

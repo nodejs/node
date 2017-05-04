@@ -56,7 +56,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
@@ -469,7 +469,7 @@ MemMoveFunction CreateMemMoveFunction(Isolate* isolate) {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
   Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
   // TODO(jkummerow): It would be nice to register this code creation event
@@ -491,6 +491,9 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                        Register index,
                                        Register result,
                                        Label* call_runtime) {
+  Label indirect_string_loaded;
+  __ bind(&indirect_string_loaded);
+
   // Fetch the instance type of the receiver into result register.
   __ mov(result, FieldOperand(string, HeapObject::kMapOffset));
   __ movzx_b(result, FieldOperand(result, Map::kInstanceTypeOffset));
@@ -501,17 +504,24 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ j(zero, &check_sequential, Label::kNear);
 
   // Dispatch on the indirect string shape: slice or cons.
-  Label cons_string;
-  __ test(result, Immediate(kSlicedNotConsMask));
-  __ j(zero, &cons_string, Label::kNear);
+  Label cons_string, thin_string;
+  __ and_(result, Immediate(kStringRepresentationMask));
+  __ cmp(result, Immediate(kConsStringTag));
+  __ j(equal, &cons_string, Label::kNear);
+  __ cmp(result, Immediate(kThinStringTag));
+  __ j(equal, &thin_string, Label::kNear);
 
   // Handle slices.
-  Label indirect_string_loaded;
   __ mov(result, FieldOperand(string, SlicedString::kOffsetOffset));
   __ SmiUntag(result);
   __ add(index, result);
   __ mov(string, FieldOperand(string, SlicedString::kParentOffset));
-  __ jmp(&indirect_string_loaded, Label::kNear);
+  __ jmp(&indirect_string_loaded);
+
+  // Handle thin strings.
+  __ bind(&thin_string);
+  __ mov(string, FieldOperand(string, ThinString::kActualOffset));
+  __ jmp(&indirect_string_loaded);
 
   // Handle cons strings.
   // Check whether the right hand side is the empty string (i.e. if
@@ -523,10 +533,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
          Immediate(factory->empty_string()));
   __ j(not_equal, call_runtime);
   __ mov(string, FieldOperand(string, ConsString::kFirstOffset));
-
-  __ bind(&indirect_string_loaded);
-  __ mov(result, FieldOperand(string, HeapObject::kMapOffset));
-  __ movzx_b(result, FieldOperand(result, Map::kInstanceTypeOffset));
+  __ jmp(&indirect_string_loaded);
 
   // Distinguish sequential and external strings. Only these two string
   // representations can reach here (slices and flat cons strings have been

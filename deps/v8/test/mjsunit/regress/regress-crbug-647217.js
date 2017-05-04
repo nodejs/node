@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --stack-size=100 --ignition-staging --turbo
+// Flags: --allow-natives-syntax --stack-size=100 --ignition --turbo
 
 var source = "return 1" + new Array(2048).join(' + a') + "";
 eval("function g(a) {" + source + "}");

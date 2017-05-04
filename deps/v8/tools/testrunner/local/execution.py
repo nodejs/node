@@ -49,11 +49,12 @@ TEST_DIR = os.path.join(BASE_DIR, "test")
 
 
 class Instructions(object):
-  def __init__(self, command, test_id, timeout, verbose):
+  def __init__(self, command, test_id, timeout, verbose, env):
     self.command = command
     self.id = test_id
     self.timeout = timeout
     self.verbose = verbose
+    self.env = env
 
 
 # Structure that keeps global information per worker process.
@@ -111,7 +112,7 @@ def _GetInstructions(test, context):
   # the like.
   if statusfile.IsSlow(test.outcomes or [statusfile.PASS]):
     timeout *= 2
-  return Instructions(command, test.id, timeout, context.verbose)
+  return Instructions(command, test.id, timeout, context.verbose, test.env)
 
 
 class Job(object):
@@ -178,7 +179,8 @@ class TestJob(Job):
       return SetupProblem(e, self.test)
 
     start_time = time.time()
-    output = commands.Execute(instr.command, instr.verbose, instr.timeout)
+    output = commands.Execute(instr.command, instr.verbose, instr.timeout,
+                              instr.env)
     self._rename_coverage_data(output, process_context.context)
     return (instr.id, output, time.time() - start_time)
 
@@ -197,12 +199,17 @@ class Runner(object):
     self.perf_failures = False
     self.printed_allocations = False
     self.tests = [ t for s in suites for t in s.tests ]
+
+    # Always pre-sort by status file, slowest tests first.
+    slow_key = lambda t: statusfile.IsSlow(t.outcomes)
+    self.tests.sort(key=slow_key, reverse=True)
+
+    # Sort by stored duration of not opted out.
     if not context.no_sorting:
       for t in self.tests:
         t.duration = self.perfdata.FetchPerfData(t) or 1.0
-      slow_key = lambda t: statusfile.IsSlow(t.outcomes)
-      self.tests.sort(key=slow_key, reverse=True)
       self.tests.sort(key=lambda t: t.duration, reverse=True)
+
     self._CommonInit(suites, progress_indicator, context)
 
   def _CommonInit(self, suites, progress_indicator, context):

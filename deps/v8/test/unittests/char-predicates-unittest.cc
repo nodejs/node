@@ -17,7 +17,6 @@ TEST(CharPredicatesTest, WhiteSpace) {
   EXPECT_TRUE(WhiteSpace::Is(0x000C));
   EXPECT_TRUE(WhiteSpace::Is(' '));
   EXPECT_TRUE(WhiteSpace::Is(0x00A0));
-  EXPECT_TRUE(WhiteSpace::Is(0x180E));
   EXPECT_TRUE(WhiteSpace::Is(0xFEFF));
 }
 
@@ -31,7 +30,6 @@ TEST(CharPredicatesTest, WhiteSpaceOrLineTerminator) {
   EXPECT_TRUE(WhiteSpaceOrLineTerminator::Is(0x000C));
   EXPECT_TRUE(WhiteSpaceOrLineTerminator::Is(' '));
   EXPECT_TRUE(WhiteSpaceOrLineTerminator::Is(0x00A0));
-  EXPECT_TRUE(WhiteSpaceOrLineTerminator::Is(0x180E));
   EXPECT_TRUE(WhiteSpaceOrLineTerminator::Is(0xFEFF));
   // Line terminators
   EXPECT_TRUE(WhiteSpaceOrLineTerminator::Is(0x000A));
@@ -86,8 +84,7 @@ TEST(CharPredicatesTest, IdentifierPart) {
   EXPECT_FALSE(IdentifierPart::Is(0x2E2F));
 }
 
-
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
 TEST(CharPredicatesTest, SupplementaryPlaneIdentifiers) {
   // Both ID_Start and ID_Continue.
   EXPECT_TRUE(IdentifierStart::Is(0x10403));  // Category Lu
@@ -115,7 +112,7 @@ TEST(CharPredicatesTest, SupplementaryPlaneIdentifiers) {
   EXPECT_FALSE(IdentifierStart::Is(0x1F4A9));  // Category So
   EXPECT_FALSE(IdentifierPart::Is(0x1F4A9));
 }
-#endif  // V8_I18N_SUPPORT
+#endif  // V8_INTL_SUPPORT
 
 }  // namespace internal
 }  // namespace v8

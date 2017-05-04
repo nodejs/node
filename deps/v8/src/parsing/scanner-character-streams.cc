@@ -816,16 +816,20 @@ Utf16CharacterStream* ScannerStream::For(Handle<String> data) {
 Utf16CharacterStream* ScannerStream::For(Handle<String> data, int start_pos,
                                          int end_pos) {
   DCHECK(start_pos >= 0);
+  DCHECK(start_pos <= end_pos);
   DCHECK(end_pos <= data->length());
   if (data->IsExternalOneByteString()) {
     return new ExternalOneByteStringUtf16CharacterStream(
-        Handle<ExternalOneByteString>::cast(data), start_pos, end_pos);
+        Handle<ExternalOneByteString>::cast(data),
+        static_cast<size_t>(start_pos), static_cast<size_t>(end_pos));
   } else if (data->IsExternalTwoByteString()) {
     return new ExternalTwoByteStringUtf16CharacterStream(
-        Handle<ExternalTwoByteString>::cast(data), start_pos, end_pos);
+        Handle<ExternalTwoByteString>::cast(data),
+        static_cast<size_t>(start_pos), static_cast<size_t>(end_pos));
   } else {
     // TODO(vogelheim): Maybe call data.Flatten() first?
-    return new GenericStringUtf16CharacterStream(data, start_pos, end_pos);
+    return new GenericStringUtf16CharacterStream(
+        data, static_cast<size_t>(start_pos), static_cast<size_t>(end_pos));
   }
 }
 

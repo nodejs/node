@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks that async stack contains setTimeout');
+InspectorTest.log('Checks that async stack contains setTimeout');
 
 InspectorTest.addScript(`
 var resolveCallback;

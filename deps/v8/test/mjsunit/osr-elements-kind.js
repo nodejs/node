@@ -116,7 +116,7 @@ function construct_doubles() {
   return a;
 }
 
-// Test transition chain SMI->DOUBLE->FAST (crankshafted function will
+// Test transition chain SMI->DOUBLE->FAST (optimized function will
 // transition to FAST directly).
 function convert_mixed(array, value, kind) {
   array[1] = value;

@@ -5,11 +5,13 @@
 #ifndef V8_INSPECTOR_V8DEBUGGER_H_
 #define V8_INSPECTOR_V8DEBUGGER_H_
 
+#include <list>
 #include <vector>
 
 #include "src/base/macros.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/java-script-call-frame.h"
+#include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/v8-debugger-script.h"
@@ -19,19 +21,25 @@
 
 namespace v8_inspector {
 
+class AsyncStackTrace;
 struct ScriptBreakpoint;
+class StackFrame;
+class V8Debugger;
 class V8DebuggerAgentImpl;
 class V8InspectorImpl;
 class V8StackTraceImpl;
 
 using protocol::Response;
+using ScheduleStepIntoAsyncCallback =
+    protocol::Debugger::Backend::ScheduleStepIntoAsyncCallback;
 
-class V8Debugger {
+class V8Debugger : public v8::debug::DebugDelegate {
  public:
   V8Debugger(v8::Isolate*, V8InspectorImpl*);
   ~V8Debugger();
 
   bool enabled() const;
+  v8::Isolate* isolate() const { return m_isolate; }
 
   String16 setBreakpoint(const ScriptBreakpoint&, int* actualLineNumber,
                          int* actualColumnNumber);
@@ -41,14 +49,17 @@ class V8Debugger {
 
   v8::debug::ExceptionBreakState getPauseOnExceptionsState();
   void setPauseOnExceptionsState(v8::debug::ExceptionBreakState);
-  void setPauseOnNextStatement(bool);
   bool canBreakProgram();
-  void breakProgram();
-  void continueProgram();
-  void stepIntoStatement();
-  void stepOverStatement();
-  void stepOutOfFunction();
-  void clearStepping();
+  bool breakProgram(int targetContextGroupId);
+  void continueProgram(int targetContextGroupId);
+
+  void setPauseOnNextStatement(bool, int targetContextGroupId);
+  void stepIntoStatement(int targetContextGroupId);
+  void stepOverStatement(int targetContextGroupId);
+  void stepOutOfFunction(int targetContextGroupId);
+  void scheduleStepIntoAsync(
+      std::unique_ptr<ScheduleStepIntoAsyncCallback> callback,
+      int targetContextGroupId);
 
   Response setScriptSource(
       const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
@@ -66,12 +77,17 @@ class V8Debugger {
   void enable();
   void disable();
 
-  bool isPaused();
+  bool isPaused() const { return m_pausedContextGroupId; }
   v8::Local<v8::Context> pausedContext() { return m_pausedContext; }
 
   int maxAsyncCallChainDepth() { return m_maxAsyncCallStackDepth; }
-  V8StackTraceImpl* currentAsyncCallChain();
   void setAsyncCallStackDepth(V8DebuggerAgentImpl*, int);
+
+  std::shared_ptr<AsyncStackTrace> currentAsyncParent();
+  std::shared_ptr<AsyncStackTrace> currentAsyncCreation();
+
+  std::shared_ptr<StackFrame> symbolize(v8::Local<v8::StackFrame> v8Frame);
+
   std::unique_ptr<V8StackTraceImpl> createStackTrace(v8::Local<v8::StackTrace>);
   std::unique_ptr<V8StackTraceImpl> captureStackTrace(bool fullStack);
 
@@ -80,7 +96,6 @@ class V8Debugger {
 
   void asyncTaskScheduled(const StringView& taskName, void* task,
                           bool recurring);
-  void asyncTaskScheduled(const String16& taskName, void* task, bool recurring);
   void asyncTaskCanceled(void* task);
   void asyncTaskStarted(void* task);
   void asyncTaskFinished(void* task);
@@ -93,7 +108,8 @@ class V8Debugger {
 
   WasmTranslation* wasmTranslation() { return &m_wasmTranslation; }
 
-  void setMaxAsyncTaskStacksForTest(int limit) { m_maxAsyncCallStacks = limit; }
+  void setMaxAsyncTaskStacksForTest(int limit);
+  void dumpAsyncTaskStacksStateForTest();
 
  private:
   void compileDebuggerScript();
@@ -104,26 +120,14 @@ class V8Debugger {
   v8::Local<v8::Context> debuggerContext() const;
   void clearBreakpoints();
 
-  static void breakProgramCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  static void v8OOMCallback(void* data);
+
   void handleProgramBreak(v8::Local<v8::Context> pausedContext,
                           v8::Local<v8::Object> executionState,
                           v8::Local<v8::Value> exception,
                           v8::Local<v8::Array> hitBreakpoints,
                           bool isPromiseRejection = false,
                           bool isUncaught = false);
-  static void v8DebugEventCallback(const v8::debug::EventDetails&);
-  v8::Local<v8::Value> callInternalGetterFunction(v8::Local<v8::Object>,
-                                                  const char* functionName);
-  void handleV8DebugEvent(const v8::debug::EventDetails&);
-  static void v8AsyncTaskListener(v8::debug::PromiseDebugActionType type,
-                                  int id, void* data);
-
-  v8::Local<v8::Value> collectionEntries(v8::Local<v8::Context>,
-                                         v8::Local<v8::Object>);
-  v8::Local<v8::Value> generatorObjectLocation(v8::Local<v8::Context>,
-                                               v8::Local<v8::Object>);
-  v8::Local<v8::Value> functionLocation(v8::Local<v8::Context>,
-                                        v8::Local<v8::Function>);
 
   enum ScopeTargetKind {
     FUNCTION,
@@ -138,6 +142,36 @@ class V8Debugger {
   v8::MaybeLocal<v8::Value> generatorScopes(v8::Local<v8::Context>,
                                             v8::Local<v8::Value>);
 
+  void asyncTaskCreatedForStack(void* task, void* parentTask);
+  void asyncTaskScheduledForStack(const String16& taskName, void* task,
+                                  bool recurring);
+  void asyncTaskCanceledForStack(void* task);
+  void asyncTaskStartedForStack(void* task);
+  void asyncTaskFinishedForStack(void* task);
+
+  void asyncTaskCandidateForStepping(void* task);
+  void asyncTaskStartedForStepping(void* task);
+  void asyncTaskFinishedForStepping(void* task);
+  void asyncTaskCanceledForStepping(void* task);
+
+  // v8::debug::DebugEventListener implementation.
+  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
+                            int parentId, bool createdByUser) override;
+  void ScriptCompiled(v8::Local<v8::debug::Script> script,
+                      bool has_compile_error) override;
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             v8::Local<v8::Object> exec_state,
+                             v8::Local<v8::Value> break_points_hit) override;
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Object> exec_state,
+                       v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> promise, bool is_uncaught) override;
+  bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
+                            const v8::debug::Location& start,
+                            const v8::debug::Location& end) override;
+
+  int currentContextGroupId();
+
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
   int m_enableCount;
@@ -146,21 +180,37 @@ class V8Debugger {
   v8::Global<v8::Context> m_debuggerContext;
   v8::Local<v8::Object> m_executionState;
   v8::Local<v8::Context> m_pausedContext;
-  bool m_runningNestedMessageLoop;
   int m_ignoreScriptParsedEventsCounter;
+  bool m_scheduledOOMBreak = false;
+  int m_targetContextGroupId = 0;
+  int m_pausedContextGroupId = 0;
 
   using AsyncTaskToStackTrace =
-      protocol::HashMap<void*, std::unique_ptr<V8StackTraceImpl>>;
+      protocol::HashMap<void*, std::weak_ptr<AsyncStackTrace>>;
   AsyncTaskToStackTrace m_asyncTaskStacks;
-  int m_maxAsyncCallStacks;
-  std::map<int, void*> m_idToTask;
-  std::unordered_map<void*, int> m_taskToId;
-  int m_lastTaskId;
+  AsyncTaskToStackTrace m_asyncTaskCreationStacks;
   protocol::HashSet<void*> m_recurringTasks;
+  protocol::HashMap<void*, void*> m_parentTask;
+
+  int m_maxAsyncCallStacks;
   int m_maxAsyncCallStackDepth;
+
   std::vector<void*> m_currentTasks;
-  std::vector<std::unique_ptr<V8StackTraceImpl>> m_currentStacks;
+  std::vector<std::shared_ptr<AsyncStackTrace>> m_currentAsyncParent;
+  std::vector<std::shared_ptr<AsyncStackTrace>> m_currentAsyncCreation;
+
+  void collectOldAsyncStacksIfNeeded();
+  int m_asyncStacksCount = 0;
+  // V8Debugger owns all the async stacks, while most of the other references
+  // are weak, which allows to collect some stacks when there are too many.
+  std::list<std::shared_ptr<AsyncStackTrace>> m_allAsyncStacks;
+  std::map<int, std::weak_ptr<StackFrame>> m_framesCache;
+
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
+  void* m_taskWithScheduledBreak = nullptr;
+
+  std::unique_ptr<ScheduleStepIntoAsyncCallback> m_stepIntoAsyncCallback;
+  bool m_breakRequested = false;
 
   v8::debug::ExceptionBreakState m_pauseOnExceptionsState;
 

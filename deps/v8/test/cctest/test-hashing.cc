@@ -27,12 +27,13 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
-
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/factory.h"
+#include "src/macro-assembler-inl.h"
 #include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
 #ifdef USE_SIMULATOR

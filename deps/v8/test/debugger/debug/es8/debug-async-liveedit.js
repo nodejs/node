@@ -48,6 +48,25 @@ function MakeFunction() {
   assertPromiseValue('Cat', promise);
 })();
 
+function ExecuteInDebugContext(f) {
+  var result;
+  var exception = null;
+  Debug.setListener(function(event) {
+    if (event == Debug.DebugEvent.Break) {
+      try {
+        result = f();
+      } catch (e) {
+        // Rethrow this exception later.
+        exception = e;
+      }
+    }
+  });
+  debugger;
+  Debug.setListener(null);
+  if (exception !== null) throw exception;
+  return result;
+}
+
 function patch(fun, from, to) {
   function debug() {
     var log = new Array();
@@ -61,7 +80,7 @@ function patch(fun, from, to) {
       print("Change log: " + JSON.stringify(log) + "\n");
     }
   }
-  %ExecuteInDebugContext(debug);
+  ExecuteInDebugContext(debug);
 }
 
 // Try to edit a MakeAsyncFunction while it's running, then again while it's

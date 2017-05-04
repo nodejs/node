@@ -2,15 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/crankshaft/arm64/lithium-gap-resolver-arm64.h"
 #include "src/crankshaft/arm64/delayed-masm-arm64-inl.h"
 #include "src/crankshaft/arm64/lithium-codegen-arm64.h"
-#include "src/crankshaft/arm64/lithium-gap-resolver-arm64.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM((&masm_))
 
+DelayedGapMasm::DelayedGapMasm(LCodeGen* owner, MacroAssembler* masm)
+    : DelayedMasm(owner, masm, root) {
+  // We use the root register as an extra scratch register.
+  // The root register has two advantages:
+  //  - It is not in crankshaft allocatable registers list, so it can't
+  //    interfere with the allocatable registers.
+  //  - We don't need to push it on the stack, as we can reload it with its
+  //    value once we have finish.
+}
+
+DelayedGapMasm::~DelayedGapMasm() {}
 
 void DelayedGapMasm::EndDelayedUse() {
   DelayedMasm::EndDelayedUse();

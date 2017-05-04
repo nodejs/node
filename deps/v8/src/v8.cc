@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/api.h"
 #include "src/assembler.h"
 #include "src/base/once.h"
 #include "src/base/platform/platform.h"
@@ -15,7 +16,7 @@
 #include "src/frames.h"
 #include "src/isolate.h"
 #include "src/libsampler/sampler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/natives.h"
@@ -94,6 +95,7 @@ void V8::InitializePlatform(v8::Platform* platform) {
   CHECK(!platform_);
   CHECK(platform);
   platform_ = platform;
+  v8::base::SetPrintStackTrace(platform_->GetStackTracePrinter());
   v8::tracing::TracingCategoryObserver::SetUp();
 }
 
@@ -101,6 +103,7 @@ void V8::InitializePlatform(v8::Platform* platform) {
 void V8::ShutdownPlatform() {
   CHECK(platform_);
   v8::tracing::TracingCategoryObserver::TearDown();
+  v8::base::SetPrintStackTrace(nullptr);
   platform_ = NULL;
 }
 

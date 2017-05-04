@@ -6,6 +6,8 @@
 
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
+#include "src/counters.h"
+#include "src/heap/heap.h"
 #include "src/ic/ic-inl.h"
 #include "src/type-info.h"
 
@@ -40,9 +42,9 @@ bool CommonStubCacheChecks(StubCache* stub_cache, Name* name, Map* map,
     DCHECK(IC::IsHandler(handler));
     if (handler->IsCode()) {
       Code* code = Code::cast(handler);
-      Code::Flags expected_flags = Code::RemoveHolderFromFlags(
-          Code::ComputeHandlerFlags(stub_cache->ic_kind()));
-      Code::Flags flags = Code::RemoveHolderFromFlags(code->flags());
+      Code::Flags expected_flags =
+          Code::ComputeHandlerFlags(stub_cache->ic_kind());
+      Code::Flags flags = code->flags();
       DCHECK_EQ(expected_flags, flags);
       DCHECK_EQ(Code::HANDLER, Code::ExtractKindFromFlags(code->flags()));
     }
@@ -99,53 +101,15 @@ void StubCache::Clear() {
   Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
   for (int i = 0; i < kPrimaryTableSize; i++) {
     primary_[i].key = isolate()->heap()->empty_string();
-    primary_[i].map = NULL;
+    primary_[i].map = nullptr;
     primary_[i].value = empty;
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
     secondary_[j].key = isolate()->heap()->empty_string();
-    secondary_[j].map = NULL;
+    secondary_[j].map = nullptr;
     secondary_[j].value = empty;
   }
 }
 
-
-void StubCache::CollectMatchingMaps(SmallMapList* types, Handle<Name> name,
-                                    Handle<Context> native_context,
-                                    Zone* zone) {
-  for (int i = 0; i < kPrimaryTableSize; i++) {
-    if (primary_[i].key == *name) {
-      Map* map = primary_[i].map;
-      // Map can be NULL, if the stub is constant function call
-      // with a primitive receiver.
-      if (map == NULL) continue;
-
-      int offset = PrimaryOffset(*name, map);
-      if (entry(primary_, offset) == &primary_[i] &&
-          TypeFeedbackOracle::IsRelevantFeedback(map, *native_context)) {
-        types->AddMapIfMissing(Handle<Map>(map), zone);
-      }
-    }
-  }
-
-  for (int i = 0; i < kSecondaryTableSize; i++) {
-    if (secondary_[i].key == *name) {
-      Map* map = secondary_[i].map;
-      // Map can be NULL, if the stub is constant function call
-      // with a primitive receiver.
-      if (map == NULL) continue;
-
-      // Lookup in primary table and skip duplicates.
-      int primary_offset = PrimaryOffset(*name, map);
-
-      // Lookup in secondary table and add matches.
-      int offset = SecondaryOffset(*name, primary_offset);
-      if (entry(secondary_, offset) == &secondary_[i] &&
-          TypeFeedbackOracle::IsRelevantFeedback(map, *native_context)) {
-        types->AddMapIfMissing(Handle<Map>(map), zone);
-      }
-    }
-  }
-}
 }  // namespace internal
 }  // namespace v8

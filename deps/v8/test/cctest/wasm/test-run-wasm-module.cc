@@ -5,10 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/objects-inl.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/version.h"
 #include "src/wasm/module-decoder.h"
-#include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
@@ -16,6 +16,7 @@
 
 #include "test/cctest/cctest.h"
 #include "test/common/wasm/test-signatures.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 #include "test/common/wasm/wasm-module-runner.h"
 
 using namespace v8::base;
@@ -236,14 +237,22 @@ class WasmSerializationTest {
   }
 
   void InvalidateVersion() {
-    uint32_t* buffer = reinterpret_cast<uint32_t*>(
-        const_cast<uint8_t*>(serialized_bytes_.first));
-    buffer[SerializedCodeData::kVersionHashOffset] = Version::Hash() + 1;
+    uint32_t* slot = reinterpret_cast<uint32_t*>(
+        const_cast<uint8_t*>(serialized_bytes_.first) +
+        SerializedCodeData::kVersionHashOffset);
+    *slot = Version::Hash() + 1;
   }
 
   void InvalidateWireBytes() {
     memset(const_cast<uint8_t*>(wire_bytes_.first), '\0',
            wire_bytes_.second / 2);
+  }
+
+  void InvalidateLength() {
+    uint32_t* slot = reinterpret_cast<uint32_t*>(
+        const_cast<uint8_t*>(serialized_bytes_.first) +
+        SerializedCodeData::kPayloadLengthOffset);
+    *slot = 0xfefefefeu;
   }
 
   v8::MaybeLocal<v8::WasmCompiledModule> Deserialize() {
@@ -263,16 +272,16 @@ class WasmSerializationTest {
     {
       DisallowHeapAllocation assume_no_gc;
       Handle<WasmCompiledModule> compiled_part(
-          WasmCompiledModule::cast(module_object->GetInternalField(0)),
+          WasmCompiledModule::cast(module_object->GetEmbedderField(0)),
           current_isolate());
       CHECK_EQ(memcmp(compiled_part->module_bytes()->GetCharsAddress(),
                       wire_bytes().first, wire_bytes().second),
                0);
     }
     Handle<JSObject> instance =
-        WasmModule::Instantiate(current_isolate(), &thrower, module_object,
-                                Handle<JSReceiver>::null(),
-                                Handle<JSArrayBuffer>::null())
+        SyncInstantiate(current_isolate(), &thrower, module_object,
+                        Handle<JSReceiver>::null(),
+                        MaybeHandle<JSArrayBuffer>())
             .ToHandleChecked();
     Handle<Object> params[1] = {
         Handle<Object>(Smi::FromInt(41), current_isolate())};
@@ -306,14 +315,6 @@ class WasmSerializationTest {
   }
 
   void SetUp() {
-    WasmModuleBuilder* builder = new (zone()) WasmModuleBuilder(zone());
-    TestSignatures sigs;
-
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
-    byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add};
-    EMIT_CODE_WITH_END(f, code);
-    f->ExportAs(CStrVector(kFunctionName));
-
     ZoneBuffer buffer(&zone_);
     WasmSerializationTest::BuildWireBytes(zone(), &buffer);
 
@@ -325,19 +326,13 @@ class WasmSerializationTest {
       HandleScope scope(serialization_isolate);
       testing::SetupIsolateForWasmModule(serialization_isolate);
 
-      ModuleResult decoding_result =
-          DecodeWasmModule(serialization_isolate, buffer.begin(), buffer.end(),
-                           false, kWasmOrigin);
-      CHECK(!decoding_result.failed());
+      MaybeHandle<WasmModuleObject> module_object =
+          SyncCompile(serialization_isolate, &thrower,
+                      ModuleWireBytes(buffer.begin(), buffer.end()));
 
-      Handle<WasmModuleWrapper> module_wrapper = WasmModuleWrapper::New(
-          serialization_isolate, const_cast<WasmModule*>(decoding_result.val));
-
-      MaybeHandle<WasmCompiledModule> compiled_module =
-          decoding_result.val->CompileFunctions(
-              serialization_isolate, module_wrapper, &thrower,
-              ModuleWireBytes(buffer.begin(), buffer.end()),
-              Handle<Script>::null(), Vector<const byte>::empty());
+      MaybeHandle<WasmCompiledModule> compiled_module(
+          module_object.ToHandleChecked()->compiled_module(),
+          serialization_isolate);
       CHECK(!compiled_module.is_null());
       Handle<JSObject> module_obj = WasmModuleObject::New(
           serialization_isolate, compiled_module.ToHandleChecked());
@@ -419,6 +414,17 @@ TEST(DeserializeNoSerializedData) {
   Cleanup();
 }
 
+TEST(DeserializeInvalidLength) {
+  WasmSerializationTest test;
+  {
+    HandleScope scope(test.current_isolate());
+    test.InvalidateLength();
+    test.DeserializeAndRun();
+  }
+  Cleanup(test.current_isolate());
+  Cleanup();
+}
+
 TEST(DeserializeWireBytesAndSerializedDataInvalid) {
   WasmSerializationTest test;
   {
@@ -429,6 +435,67 @@ TEST(DeserializeWireBytesAndSerializedDataInvalid) {
   }
   Cleanup(test.current_isolate());
   Cleanup();
+}
+
+std::unique_ptr<const uint8_t[]> CreatePayload(const uint8_t* start,
+                                               size_t size) {
+  uint8_t* ret = new uint8_t[size];
+  memcpy(ret, start, size);
+  return std::unique_ptr<const uint8_t[]>(const_cast<const uint8_t*>(ret));
+}
+
+TEST(ModuleBuilder) {
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+  ZoneBuffer buffer(&zone);
+  WasmSerializationTest::BuildWireBytes(&zone, &buffer);
+  CHECK_GT(buffer.size(), 0);
+  size_t third = buffer.size() / 3;
+  size_t first_mark = third - 2;
+  size_t second_mark = buffer.size() - 2 - third;
+  CHECK(0 < first_mark);
+  CHECK(first_mark < second_mark);
+  CHECK(second_mark < buffer.size());
+  Isolate* i_isolate = CcTest::InitIsolateOnce();
+  v8::WasmModuleObjectBuilder builder(CcTest::isolate());
+  std::unique_ptr<const uint8_t[]> first_part =
+      CreatePayload(buffer.begin(), first_mark);
+  std::unique_ptr<const uint8_t[]> second_part =
+      CreatePayload(buffer.begin() + first_mark, second_mark - first_mark);
+  std::unique_ptr<const uint8_t[]> third_part =
+      CreatePayload(buffer.begin() + second_mark, buffer.size() - second_mark);
+  builder.OnBytesReceived(first_part.get(), first_mark);
+  builder.OnBytesReceived(second_part.get(), second_mark - first_mark);
+  builder.OnBytesReceived(third_part.get(), buffer.size() - second_mark);
+  {
+    HandleScope scope(i_isolate);
+    v8::MaybeLocal<v8::WasmCompiledModule> maybe_module = builder.Finish();
+    CHECK(!maybe_module.IsEmpty());
+  }
+}
+
+TEST(FailingModuleBuilder) {
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+  ZoneBuffer buffer(&zone);
+  WasmSerializationTest::BuildWireBytes(&zone, &buffer);
+  CHECK_GT(buffer.size(), 0);
+  size_t third = buffer.size() / 3;
+  size_t first_mark = third - 2;
+  size_t second_mark = buffer.size() - 2 - third;
+  CHECK(0 < first_mark);
+  CHECK(first_mark < second_mark);
+  CHECK(second_mark < buffer.size());
+  Isolate* i_isolate = CcTest::InitIsolateOnce();
+  v8::WasmModuleObjectBuilder builder(CcTest::isolate());
+  std::unique_ptr<const uint8_t[]> first_part =
+      CreatePayload(buffer.begin(), first_mark);
+  builder.OnBytesReceived(first_part.get(), first_mark);
+  {
+    HandleScope scope(i_isolate);
+    v8::MaybeLocal<v8::WasmCompiledModule> maybe_module = builder.Finish();
+    CHECK(maybe_module.IsEmpty());
+  }
 }
 
 bool False(v8::Local<v8::Context> context) { return false; }
@@ -444,10 +511,8 @@ TEST(BlockWasmCodeGen) {
   CcTest::isolate()->SetAllowCodeGenerationFromStringsCallback(False);
 
   ErrorThrower thrower(isolate, "block codegen");
-  MaybeHandle<WasmModuleObject> ret = wasm::CreateModuleObjectFromBytes(
-      isolate, buffer.begin(), buffer.end(), &thrower,
-      wasm::ModuleOrigin::kWasmOrigin, Handle<v8::internal::Script>::null(),
-      Vector<const byte>::empty());
+  MaybeHandle<WasmModuleObject> ret = wasm::SyncCompile(
+      isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
   CcTest::isolate()->SetAllowCodeGenerationFromStringsCallback(nullptr);
   CHECK(ret.is_null());
   CHECK(thrower.error());
@@ -463,6 +528,43 @@ TEST(BlockWasmCodeGenAtDeserialization) {
   }
   Cleanup(test.current_isolate());
   Cleanup();
+}
+
+TEST(TransferrableWasmModules) {
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneBuffer buffer(&zone);
+  WasmSerializationTest::BuildWireBytes(&zone, &buffer);
+
+  Isolate* from_isolate = CcTest::InitIsolateOnce();
+  ErrorThrower thrower(from_isolate, "");
+  std::vector<v8::WasmCompiledModule::TransferrableModule> store;
+  {
+    HandleScope scope(from_isolate);
+    testing::SetupIsolateForWasmModule(from_isolate);
+
+    MaybeHandle<WasmModuleObject> module_object = SyncCompile(
+        from_isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
+    v8::Local<v8::WasmCompiledModule> v8_module =
+        v8::Local<v8::WasmCompiledModule>::Cast(v8::Utils::ToLocal(
+            Handle<JSObject>::cast(module_object.ToHandleChecked())));
+    store.push_back(v8_module->GetTransferrableModule());
+  }
+
+  {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator =
+        from_isolate->array_buffer_allocator();
+    v8::Isolate* to_isolate = v8::Isolate::New(create_params);
+    v8::HandleScope new_scope(to_isolate);
+    v8::Local<v8::Context> deserialization_context =
+        v8::Context::New(to_isolate);
+    deserialization_context->Enter();
+    v8::MaybeLocal<v8::WasmCompiledModule> mod =
+        v8::WasmCompiledModule::FromTransferrableModule(to_isolate, store[0]);
+    CHECK(!mod.IsEmpty());
+  }
 }
 
 TEST(MemorySize) {
@@ -598,9 +700,7 @@ TEST(TestInterruptLoop) {
             ModuleOrigin::kWasmOrigin);
     CHECK(!instance.is_null());
 
-    MaybeHandle<JSArrayBuffer> maybe_memory =
-        GetInstanceMemory(isolate, instance);
-    Handle<JSArrayBuffer> memory = maybe_memory.ToHandleChecked();
+    Handle<JSArrayBuffer> memory(instance->memory_buffer(), isolate);
     int32_t* memory_array = reinterpret_cast<int32_t*>(memory->backing_store());
 
     InterruptThread thread(isolate, memory_array);
@@ -967,6 +1067,69 @@ TEST(MemoryWithOOBEmptyDataSegment) {
                                                     ModuleOrigin::kWasmOrigin);
     // It should not be possible to instantiate this module.
     CHECK(thrower.error());
+  }
+  Cleanup();
+}
+
+TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
+  {
+    Isolate* isolate = CcTest::InitIsolateOnce();
+    HandleScope scope(isolate);
+    // Initial memory size = 16 + GrowWebAssemblyMemory(4) + GrowMemory(6)
+    static const int kExpectedValue = 26;
+    TestSignatures sigs;
+    v8::internal::AccountingAllocator allocator;
+    Zone zone(&allocator, ZONE_NAME);
+
+    WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
+    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
+    ExportAsMain(f);
+    byte code[] = {WASM_GROW_MEMORY(WASM_I32V_1(6)), WASM_DROP,
+                   WASM_MEMORY_SIZE};
+    EMIT_CODE_WITH_END(f, code);
+
+    ZoneBuffer buffer(&zone);
+    builder->WriteTo(buffer);
+    testing::SetupIsolateForWasmModule(isolate);
+    ErrorThrower thrower(isolate, "Test");
+    const Handle<WasmInstanceObject> instance =
+        testing::CompileInstantiateWasmModuleForTesting(
+            isolate, &thrower, buffer.begin(), buffer.end(),
+            ModuleOrigin::kWasmOrigin);
+    CHECK(!instance.is_null());
+    Handle<JSArrayBuffer> memory(instance->memory_buffer(), isolate);
+
+    // Fake the Embedder flow by creating a memory object, externalize and grow.
+    Handle<WasmMemoryObject> mem_obj =
+        WasmMemoryObject::New(isolate, memory, 100);
+
+    // TODO(eholk): Skipping calls to externalize when guard pages are enabled
+    // for now. This will have to be dealt with when turning on guard pages as
+    // currently gin assumes that it can take ownership of the ArrayBuffer.
+    // Potential for crashes as this might lead to externalizing an already
+    // externalized buffer.
+    if (!memory->has_guard_region()) v8::Utils::ToLocal(memory)->Externalize();
+    void* backing_store = memory->backing_store();
+    uint64_t byte_length = NumberToSize(memory->byte_length());
+    uint32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 4);
+    CHECK_EQ(16, result);
+    if (!memory->has_guard_region()) {
+      isolate->array_buffer_allocator()->Free(backing_store, byte_length);
+    }
+    memory = handle(mem_obj->buffer());
+    byte_length = NumberToSize(memory->byte_length());
+    instance->set_memory_buffer(*memory);
+    // Externalize should make no difference without the JS API as in this case
+    // the buffer is not detached.
+    if (!memory->has_guard_region()) v8::Utils::ToLocal(memory)->Externalize();
+    result = testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr,
+                                              ModuleOrigin::kWasmOrigin);
+    CHECK_EQ(kExpectedValue, result);
+    // Free the buffer as the tracker does not know about it.
+    if (!memory->has_guard_region()) {
+      isolate->array_buffer_allocator()->Free(
+          memory->backing_store(), NumberToSize(memory->byte_length()));
+    }
   }
   Cleanup();
 }

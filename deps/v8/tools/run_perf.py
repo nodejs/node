@@ -42,12 +42,11 @@ A suite's results_regexp is expected to have one string place holder
 defaults.
 
 A suite's results_processor may point to an optional python script. If
-specified, it is called after running the tests like this (with a path
-relatve to the suite level's path):
-<results_processor file> <same flags as for d8> <suite level name> <output>
+specified, it is called after running the tests (with a path relative to the
+suite level's path). It is expected to read the measurement's output text
+on stdin and print the processed output to stdout.
 
-The <output> is a temporary file containing d8 output. The results_regexp will
-be applied to the output of this script.
+The results_regexp will be applied to the processed output.
 
 A suite without "tests" is considered a performance test itself.
 
@@ -238,6 +237,25 @@ def Unzip(iterable):
   return lambda: iter(left), lambda: iter(right)
 
 
+def RunResultsProcessor(results_processor, stdout, count):
+  # Dummy pass through for null-runs.
+  if stdout is None:
+    return None
+
+  # We assume the results processor is relative to the suite.
+  assert os.path.exists(results_processor)
+  p = subprocess.Popen(
+      [sys.executable, results_processor],
+      stdin=subprocess.PIPE,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+  )
+  result, _ = p.communicate(input=stdout)
+  print ">>> Processed stdout (#%d):" % count
+  print result
+  return result
+
+
 def AccumulateResults(
     graph_names, trace_configs, iter_output, trybot, no_patch, calc_total):
   """Iterates over the output of multiple benchmark reruns and accumulates
@@ -361,6 +379,7 @@ class DefaultSentinel(Node):
     self.flags = []
     self.test_flags = []
     self.resources = []
+    self.results_processor = None
     self.results_regexp = None
     self.stddev_regexp = None
     self.units = "score"
@@ -399,6 +418,8 @@ class GraphConfig(Node):
     self.timeout = suite.get("timeout_%s" % arch, self.timeout)
     self.units = suite.get("units", parent.units)
     self.total = suite.get("total", parent.total)
+    self.results_processor = suite.get(
+        "results_processor", parent.results_processor)
 
     # A regular expression for results. If the parent graph provides a
     # regexp and the current suite has none, a string place holder for the
@@ -445,6 +466,15 @@ class RunnableConfig(GraphConfig):
   def main(self):
     return self._suite.get("main", "")
 
+  def PostProcess(self, stdouts_iter):
+    if self.results_processor:
+      def it():
+        for i, stdout in enumerate(stdouts_iter()):
+          yield RunResultsProcessor(self.results_processor, stdout, i + 1)
+      return it
+    else:
+      return stdouts_iter
+
   def ChangeCWD(self, suite_path):
     """Changes the cwd to to path defined in the current graph.
 
@@ -462,6 +492,8 @@ class RunnableConfig(GraphConfig):
     # TODO(machenbach): This requires +.exe if run on windows.
     extra_flags = extra_flags or []
     cmd = [os.path.join(shell_dir, self.binary)]
+    if self.binary.endswith(".py"):
+      cmd = [sys.executable] + cmd
     if self.binary != 'd8' and '--prof' in extra_flags:
       print "Profiler supported only on a benchmark run with d8"
     return cmd + self.GetCommandFlags(extra_flags=extra_flags)
@@ -473,7 +505,7 @@ class RunnableConfig(GraphConfig):
         AccumulateResults(
             self.graphs,
             self._children,
-            iter_output=stdout_with_patch,
+            iter_output=self.PostProcess(stdout_with_patch),
             trybot=trybot,
             no_patch=False,
             calc_total=self.total,
@@ -481,7 +513,7 @@ class RunnableConfig(GraphConfig):
         AccumulateResults(
             self.graphs,
             self._children,
-            iter_output=stdout_no_patch,
+            iter_output=self.PostProcess(stdout_no_patch),
             trybot=trybot,
             no_patch=True,
             calc_total=self.total,
@@ -700,7 +732,8 @@ class AndroidPlatform(Platform):  # pragma: no cover
   def PostExecution(self):
     perf = perf_control.PerfControl(self.device)
     perf.SetDefaultPerfMode()
-    self.device.RunShellCommand(["rm", "-rf", AndroidPlatform.DEVICE_DIR])
+    self.device.RemovePath(
+        AndroidPlatform.DEVICE_DIR, force=True, recursive=True)
 
   def _PushFile(self, host_dir, file_name, target_rel=".",
                 skip_if_missing=False):
@@ -752,12 +785,14 @@ class AndroidPlatform(Platform):  # pragma: no cover
     )
     self._PushFile(
         shell_dir,
-        "snapshot_blob_ignition.bin",
+        "icudtl.dat",
         target_dir,
         skip_if_missing=True,
     )
 
   def PreTests(self, node, path):
+    if isinstance(node, RunnableConfig):
+      node.ChangeCWD(path)
     suite_dir = os.path.abspath(os.path.dirname(path))
     if node.path:
       bench_rel = os.path.normpath(os.path.join(*node.path))
@@ -796,6 +831,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
       output = self.device.RunShellCommand(
           cmd,
           cwd=os.path.join(AndroidPlatform.DEVICE_DIR, bench_rel),
+          check_return=True,
           timeout=runnable.timeout,
           retries=0,
       )
@@ -911,7 +947,6 @@ class CustomMachineConfiguration:
       raise Exception("Could not set CPU governor. Present value is %s"
                       % cur_value )
 
-# TODO: Implement results_processor.
 def Main(args):
   logging.getLogger().setLevel(logging.INFO)
   parser = optparse.OptionParser()
@@ -965,6 +1000,12 @@ def Main(args):
                     "'powersave' for more stable results, or 'performance' "
                     "for shorter completion time of suite, with potentially "
                     "more noise in results.")
+  parser.add_option("--filter",
+                    help="Only run the benchmarks beginning with this string. "
+                    "For example: "
+                    "--filter=JSTests/TypedArrays/ will run only TypedArray "
+                    "benchmarks from the JSTests suite.",
+                    default="")
 
   (options, args) = parser.parse_args(args)
 
@@ -1006,7 +1047,8 @@ def Main(args):
     if options.outdir_no_patch:
       print "specify either binary-override-path or outdir-no-patch"
       return 1
-    options.shell_dir = os.path.dirname(options.binary_override_path)
+    options.shell_dir = os.path.abspath(
+        os.path.dirname(options.binary_override_path))
     default_binary_name = os.path.basename(options.binary_override_path)
 
   if options.outdir_no_patch:
@@ -1014,6 +1056,17 @@ def Main(args):
         workspace, options.outdir_no_patch, build_config)
   else:
     options.shell_dir_no_patch = None
+
+  if options.json_test_results:
+    options.json_test_results = os.path.abspath(options.json_test_results)
+
+  if options.json_test_results_no_patch:
+    options.json_test_results_no_patch = os.path.abspath(
+        options.json_test_results_no_patch)
+
+  # Ensure all arguments have absolute path before we start changing current
+  # directory.
+  args = map(os.path.abspath, args)
 
   prev_aslr = None
   prev_cpu_gov = None
@@ -1024,8 +1077,6 @@ def Main(args):
   with CustomMachineConfiguration(governor = options.cpu_governor,
                                   disable_aslr = options.noaslr) as conf:
     for path in args:
-      path = os.path.abspath(path)
-
       if not os.path.exists(path):  # pragma: no cover
         results.errors.append("Configuration file %s does not exist." % path)
         continue
@@ -1047,9 +1098,12 @@ def Main(args):
       def NodeCB(node):
         platform.PreTests(node, path)
 
-      # Traverse graph/trace tree and interate over all runnables.
+      # Traverse graph/trace tree and iterate over all runnables.
       for runnable in FlattenRunnables(root, NodeCB):
-        print ">>> Running suite: %s" % "/".join(runnable.graphs)
+        runnable_name = "/".join(runnable.graphs)
+        if not runnable_name.startswith(options.filter):
+          continue
+        print ">>> Running suite: %s" % runnable_name
 
         def Runner():
           """Output generator that reruns several times."""

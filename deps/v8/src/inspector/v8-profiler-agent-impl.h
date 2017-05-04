@@ -20,6 +20,7 @@ namespace v8_inspector {
 
 class V8InspectorSessionImpl;
 
+using protocol::Maybe;
 using protocol::Response;
 
 class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
@@ -37,6 +38,15 @@ class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
   Response start() override;
   Response stop(std::unique_ptr<protocol::Profiler::Profile>*) override;
 
+  Response startPreciseCoverage(Maybe<bool> binary) override;
+  Response stopPreciseCoverage() override;
+  Response takePreciseCoverage(
+      std::unique_ptr<protocol::Array<protocol::Profiler::ScriptCoverage>>*
+          out_result) override;
+  Response getBestEffortCoverage(
+      std::unique_ptr<protocol::Array<protocol::Profiler::ScriptCoverage>>*
+          out_result) override;
+
   void consoleProfile(const String16& title);
   void consoleProfileEnd(const String16& title);
 
@@ -50,18 +60,18 @@ class V8ProfilerAgentImpl : public protocol::Profiler::Backend {
   std::unique_ptr<protocol::Profiler::Profile> stopProfiling(
       const String16& title, bool serialize);
 
-  bool isRecording() const;
-
   V8InspectorSessionImpl* m_session;
   v8::Isolate* m_isolate;
-  v8::CpuProfiler* m_profiler;
+  v8::CpuProfiler* m_profiler = nullptr;
   protocol::DictionaryValue* m_state;
   protocol::Profiler::Frontend m_frontend;
-  bool m_enabled;
-  bool m_recordingCPUProfile;
+  bool m_enabled = false;
+  bool m_recordingCPUProfile = false;
   class ProfileDescriptor;
   std::vector<ProfileDescriptor> m_startedProfiles;
   String16 m_frontendInitiatedProfileId;
+  bool m_idle = false;
+  int m_startedProfilesCount = 0;
 
   DISALLOW_COPY_AND_ASSIGN(V8ProfilerAgentImpl);
 };

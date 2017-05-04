@@ -86,7 +86,6 @@ INTERESTING_NEW_GEN_KEYS="\
   old_new \
   code \
   semispace \
-  object_groups \
 "
 
 INTERESTING_OLD_GEN_KEYS="\

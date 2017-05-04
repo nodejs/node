@@ -631,11 +631,12 @@ struct Tests {
 
     CheckSub(T.Object, T.Receiver);
     CheckSub(T.Proxy, T.Receiver);
+    CheckSub(T.Array, T.Object);
     CheckSub(T.OtherObject, T.Object);
     CheckSub(T.OtherUndetectable, T.Object);
-    CheckSub(T.OtherObject, T.Object);
 
     CheckUnordered(T.Object, T.Proxy);
+    CheckUnordered(T.Array, T.Undetectable);
     CheckUnordered(T.OtherObject, T.Undetectable);
 
     // Subtyping between concrete structural types
@@ -646,7 +647,7 @@ struct Tests {
     CheckSub(T.ObjectConstant1, T.Object);
     CheckSub(T.ObjectConstant2, T.Object);
     CheckSub(T.ArrayConstant, T.Object);
-    CheckSub(T.ArrayConstant, T.OtherObject);
+    CheckSub(T.ArrayConstant, T.Array);
     CheckSub(T.ArrayConstant, T.Receiver);
     CheckSub(T.UninitializedConstant, T.Internal);
     CheckUnordered(T.ObjectConstant1, T.ObjectConstant2);

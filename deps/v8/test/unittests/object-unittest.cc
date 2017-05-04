@@ -8,6 +8,7 @@
 
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "test/unittests/test-utils.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -51,6 +52,65 @@ TEST(Object, StructListOrder) {
 
   STRUCT_LIST(TEST_STRUCT)
 #undef TEST_STRUCT
+}
+
+typedef TestWithIsolate ObjectWithIsolate;
+
+TEST_F(ObjectWithIsolate, DictionaryGrowth) {
+  Handle<SeededNumberDictionary> dict =
+      SeededNumberDictionary::New(isolate(), 1);
+  Handle<Object> value = isolate()->factory()->null_value();
+  PropertyDetails details = PropertyDetails::Empty();
+
+  // This test documents the expected growth behavior of a dictionary getting
+  // elements added to it one by one.
+  STATIC_ASSERT(HashTableBase::kMinCapacity == 4);
+  uint32_t i = 1;
+  // 3 elements fit into the initial capacity.
+  for (; i <= 3; i++) {
+    dict = SeededNumberDictionary::Add(dict, i, value, details);
+    CHECK_EQ(4, dict->Capacity());
+  }
+  // 4th element triggers growth.
+  DCHECK_EQ(4, i);
+  for (; i <= 5; i++) {
+    dict = SeededNumberDictionary::Add(dict, i, value, details);
+    CHECK_EQ(8, dict->Capacity());
+  }
+  // 6th element triggers growth.
+  DCHECK_EQ(6, i);
+  for (; i <= 11; i++) {
+    dict = SeededNumberDictionary::Add(dict, i, value, details);
+    CHECK_EQ(16, dict->Capacity());
+  }
+  // 12th element triggers growth.
+  DCHECK_EQ(12, i);
+  for (; i <= 21; i++) {
+    dict = SeededNumberDictionary::Add(dict, i, value, details);
+    CHECK_EQ(32, dict->Capacity());
+  }
+  // 22nd element triggers growth.
+  DCHECK_EQ(22, i);
+  for (; i <= 43; i++) {
+    dict = SeededNumberDictionary::Add(dict, i, value, details);
+    CHECK_EQ(64, dict->Capacity());
+  }
+  // 44th element triggers growth.
+  DCHECK_EQ(44, i);
+  for (; i <= 50; i++) {
+    dict = SeededNumberDictionary::Add(dict, i, value, details);
+    CHECK_EQ(128, dict->Capacity());
+  }
+
+  // If we grow by larger chunks, the next (sufficiently big) power of 2 is
+  // chosen as the capacity.
+  dict = SeededNumberDictionary::New(isolate(), 1);
+  dict = SeededNumberDictionary::EnsureCapacity(dict, 65, 1);
+  CHECK_EQ(128, dict->Capacity());
+
+  dict = SeededNumberDictionary::New(isolate(), 1);
+  dict = SeededNumberDictionary::EnsureCapacity(dict, 30, 1);
+  CHECK_EQ(64, dict->Capacity());
 }
 
 }  // namespace internal

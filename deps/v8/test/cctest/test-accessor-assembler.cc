@@ -5,8 +5,9 @@
 #include "test/cctest/cctest.h"
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/ic/accessor-assembler-impl.h"
+#include "src/ic/accessor-assembler.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -23,7 +24,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 2;
   CodeAssemblerTester data(isolate, kNumParams);
-  AccessorAssemblerImpl m(data.state());
+  AccessorAssembler m(data.state());
 
   {
     Node* name = m.Parameter(0);
@@ -121,7 +122,7 @@ TEST(TryProbeStubCache) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 3;
   CodeAssemblerTester data(isolate, kNumParams);
-  AccessorAssemblerImpl m(data.state());
+  AccessorAssembler m(data.state());
 
   Code::Kind ic_kind = Code::LOAD_IC;
   StubCache stub_cache(isolate, ic_kind);
@@ -203,8 +204,7 @@ TEST(TryProbeStubCache) {
 
   // Generate some number of handlers.
   for (int i = 0; i < 30; i++) {
-    Code::Flags flags =
-        Code::RemoveHolderFromFlags(Code::ComputeHandlerFlags(ic_kind));
+    Code::Flags flags = Code::ComputeHandlerFlags(ic_kind);
     handlers.push_back(CreateCodeWithFlags(flags));
   }
 

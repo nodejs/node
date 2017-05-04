@@ -60,6 +60,17 @@ class Decoder {
   int InstructionDecode(byte* instruction);
 
  private:
+  const uint32_t kMsaI8Mask = ((3U << 24) | ((1 << 6) - 1));
+  const uint32_t kMsaI5Mask = ((7U << 23) | ((1 << 6) - 1));
+  const uint32_t kMsaMI10Mask = (15U << 2);
+  const uint32_t kMsaBITMask = ((7U << 23) | ((1 << 6) - 1));
+  const uint32_t kMsaELMMask = (15U << 22);
+  const uint32_t kMsa3RMask = ((7U << 23) | ((1 << 6) - 1));
+  const uint32_t kMsa3RFMask = ((15U << 22) | ((1 << 6) - 1));
+  const uint32_t kMsaVECMask = (23U << 21);
+  const uint32_t kMsa2RMask = (7U << 18);
+  const uint32_t kMsa2RFMask = (15U << 17);
+
   // Bottleneck functions to print into the out_buffer.
   void PrintChar(const char ch);
   void Print(const char* str);
@@ -67,7 +78,9 @@ class Decoder {
   // Printing of common values.
   void PrintRegister(int reg);
   void PrintFPURegister(int freg);
+  void PrintMSARegister(int wreg);
   void PrintFPUStatusRegister(int freg);
+  void PrintMSAControlRegister(int creg);
   void PrintRs(Instruction* instr);
   void PrintRt(Instruction* instr);
   void PrintRd(Instruction* instr);
@@ -102,12 +115,22 @@ class Decoder {
   void PrintFormat(Instruction* instr);  // For floating format postfix.
   void PrintBp2(Instruction* instr);
   void PrintBp3(Instruction* instr);
+  void PrintMsaDataFormat(Instruction* instr);
+  void PrintMsaXImm8(Instruction* instr);
+  void PrintMsaImm8(Instruction* instr);
+  void PrintMsaImm5(Instruction* instr);
+  void PrintMsaSImm5(Instruction* instr);
+  void PrintMsaSImm10(Instruction* instr, bool is_mi10 = false);
+  void PrintMsaImmBit(Instruction* instr);
+  void PrintMsaImmElm(Instruction* instr);
+  void PrintMsaCopy(Instruction* instr);
   // Printing of instruction name.
   void PrintInstructionName(Instruction* instr);
 
   // Handle formatting of instructions and their options.
   int FormatRegister(Instruction* instr, const char* option);
   int FormatFPURegister(Instruction* instr, const char* option);
+  int FormatMSARegister(Instruction* instr, const char* option);
   int FormatOption(Instruction* instr, const char* option);
   void Format(Instruction* instr, const char* format);
   void Unknown(Instruction* instr);
@@ -131,6 +154,18 @@ class Decoder {
   void DecodeTypeImmediate(Instruction* instr);
 
   void DecodeTypeJump(Instruction* instr);
+
+  void DecodeTypeMsaI8(Instruction* instr);
+  void DecodeTypeMsaI5(Instruction* instr);
+  void DecodeTypeMsaI10(Instruction* instr);
+  void DecodeTypeMsaELM(Instruction* instr);
+  void DecodeTypeMsaBIT(Instruction* instr);
+  void DecodeTypeMsaMI10(Instruction* instr);
+  void DecodeTypeMsa3R(Instruction* instr);
+  void DecodeTypeMsa3RF(Instruction* instr);
+  void DecodeTypeMsaVec(Instruction* instr);
+  void DecodeTypeMsa2R(Instruction* instr);
+  void DecodeTypeMsa2RF(Instruction* instr);
 
   const disasm::NameConverter& converter_;
   v8::internal::Vector<char> out_buffer_;
@@ -191,6 +226,7 @@ void Decoder::PrintFPURegister(int freg) {
   Print(converter_.NameOfXMMRegister(freg));
 }
 
+void Decoder::PrintMSARegister(int wreg) { Print(MSARegisters::Name(wreg)); }
 
 void Decoder::PrintFPUStatusRegister(int freg) {
   switch (freg) {
@@ -202,6 +238,18 @@ void Decoder::PrintFPUStatusRegister(int freg) {
   }
 }
 
+void Decoder::PrintMSAControlRegister(int creg) {
+  switch (creg) {
+    case kMSAIRRegister:
+      Print("MSAIR");
+      break;
+    case kMSACSRRegister:
+      Print("MSACSR");
+      break;
+    default:
+      Print("no_msacreg");
+  }
+}
 
 void Decoder::PrintFs(Instruction* instr) {
   int freg = instr->RsValue();
@@ -457,6 +505,53 @@ void Decoder::PrintCode(Instruction* instr) {
   }
 }
 
+void Decoder::PrintMsaXImm8(Instruction* instr) {
+  int32_t imm = instr->MsaImm8Value();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+}
+
+void Decoder::PrintMsaImm8(Instruction* instr) {
+  int32_t imm = instr->MsaImm8Value();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
+}
+
+void Decoder::PrintMsaImm5(Instruction* instr) {
+  int32_t imm = instr->MsaImm5Value();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", imm);
+}
+
+void Decoder::PrintMsaSImm5(Instruction* instr) {
+  int32_t imm = instr->MsaImm5Value();
+  imm <<= (32 - kMsaImm5Bits);
+  imm >>= (32 - kMsaImm5Bits);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+}
+
+void Decoder::PrintMsaSImm10(Instruction* instr, bool is_mi10) {
+  int32_t imm = is_mi10 ? instr->MsaImmMI10Value() : instr->MsaImm10Value();
+  imm <<= (32 - kMsaImm10Bits);
+  imm >>= (32 - kMsaImm10Bits);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm);
+}
+
+void Decoder::PrintMsaImmBit(Instruction* instr) {
+  int32_t m = instr->MsaBitMValue();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", m);
+}
+
+void Decoder::PrintMsaImmElm(Instruction* instr) {
+  int32_t n = instr->MsaElmNValue();
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%u", n);
+}
+
+void Decoder::PrintMsaCopy(Instruction* instr) {
+  int32_t rd = instr->WdValue();
+  int32_t ws = instr->WsValue();
+  int32_t n = instr->MsaElmNValue();
+  out_buffer_pos_ +=
+      SNPrintF(out_buffer_ + out_buffer_pos_, "%s, %s[%u]",
+               converter_.NameOfCPURegister(rd), MSARegisters::Name(ws), n);
+}
 
 void Decoder::PrintFormat(Instruction* instr) {
   char formatLetter = ' ';
@@ -480,6 +575,84 @@ void Decoder::PrintFormat(Instruction* instr) {
   PrintChar(formatLetter);
 }
 
+void Decoder::PrintMsaDataFormat(Instruction* instr) {
+  DCHECK(instr->IsMSAInstr());
+  char df = ' ';
+  if (instr->IsMSABranchInstr()) {
+    switch (instr->RsFieldRaw()) {
+      case BZ_V:
+      case BNZ_V:
+        df = 'v';
+        break;
+      case BZ_B:
+      case BNZ_B:
+        df = 'b';
+        break;
+      case BZ_H:
+      case BNZ_H:
+        df = 'h';
+        break;
+      case BZ_W:
+      case BNZ_W:
+        df = 'w';
+        break;
+      case BZ_D:
+      case BNZ_D:
+        df = 'd';
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+  } else {
+    char DF[] = {'b', 'h', 'w', 'd'};
+    switch (instr->MSAMinorOpcodeField()) {
+      case kMsaMinorI5:
+      case kMsaMinorI10:
+      case kMsaMinor3R:
+        df = DF[instr->Bits(22, 21)];
+        break;
+      case kMsaMinorMI10:
+        df = DF[instr->Bits(1, 0)];
+        break;
+      case kMsaMinorBIT:
+        df = DF[instr->MsaBitDf()];
+        break;
+      case kMsaMinorELM:
+        df = DF[instr->MsaElmDf()];
+        break;
+      case kMsaMinor3RF: {
+        uint32_t opcode = instr->InstructionBits() & kMsa3RFMask;
+        switch (opcode) {
+          case FEXDO:
+          case FTQ:
+          case MUL_Q:
+          case MADD_Q:
+          case MSUB_Q:
+          case MULR_Q:
+          case MADDR_Q:
+          case MSUBR_Q:
+            df = DF[1 + instr->Bit(21)];
+            break;
+          default:
+            df = DF[2 + instr->Bit(21)];
+            break;
+        }
+      } break;
+      case kMsaMinor2R:
+        df = DF[instr->Bits(17, 16)];
+        break;
+      case kMsaMinor2RF:
+        df = DF[2 + instr->Bit(16)];
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+  }
+
+  PrintChar(df);
+}
 
 // Printing of instruction name.
 void Decoder::PrintInstructionName(Instruction* instr) {
@@ -553,6 +726,27 @@ int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
   return -1;
 }
 
+// Handle all MSARegister based formatting in this function to reduce the
+// complexity of FormatOption.
+int Decoder::FormatMSARegister(Instruction* instr, const char* format) {
+  DCHECK(format[0] == 'w');
+  if (format[1] == 's') {
+    int reg = instr->WsValue();
+    PrintMSARegister(reg);
+    return 2;
+  } else if (format[1] == 't') {
+    int reg = instr->WtValue();
+    PrintMSARegister(reg);
+    return 2;
+  } else if (format[1] == 'd') {
+    int reg = instr->WdValue();
+    PrintMSARegister(reg);
+    return 2;
+  }
+
+  UNREACHABLE();
+  return -1;
+}
 
 // FormatOption takes a formatting string and interprets it based on
 // the current instructions. The format string points to the first
@@ -629,6 +823,16 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
               break;
           }
           return 6;
+        } else if (format[4] == '0' && format[5] == 's') {
+          DCHECK(STRING_STARTS_WITH(format, "imm10s"));
+          if (format[6] == '1') {
+            DCHECK(STRING_STARTS_WITH(format, "imm10s1"));
+            PrintMsaSImm10(instr, false);
+          } else if (format[6] == '2') {
+            DCHECK(STRING_STARTS_WITH(format, "imm10s2"));
+            PrintMsaSImm10(instr, true);
+          }
+          return 7;
         }
       } else if (format[3] == '2' && format[4] == '1') {
         DCHECK(STRING_STARTS_WITH(format, "imm21"));
@@ -697,6 +901,28 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
           }
         }
         return 6;
+      } else if (format[3] == '5') {
+        DCHECK(STRING_STARTS_WITH(format, "imm5"));
+        if (format[4] == 'u') {
+          DCHECK(STRING_STARTS_WITH(format, "imm5u"));
+          PrintMsaImm5(instr);
+        } else if (format[4] == 's') {
+          DCHECK(STRING_STARTS_WITH(format, "imm5s"));
+          PrintMsaSImm5(instr);
+        }
+        return 5;
+      } else if (format[3] == '8') {
+        DCHECK(STRING_STARTS_WITH(format, "imm8"));
+        PrintMsaImm8(instr);
+        return 4;
+      } else if (format[3] == 'b') {
+        DCHECK(STRING_STARTS_WITH(format, "immb"));
+        PrintMsaImmBit(instr);
+        return 4;
+      } else if (format[3] == 'e') {
+        DCHECK(STRING_STARTS_WITH(format, "imme"));
+        PrintMsaImmElm(instr);
+        return 4;
       }
     }
     case 'r': {   // 'r: registers.
@@ -704,6 +930,9 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     case 'f': {   // 'f: FPUregisters.
       return FormatFPURegister(instr, format);
+    }
+    case 'w': {  // 'w: MSA Register
+      return FormatMSARegister(instr, format);
     }
     case 's': {   // 'sa.
       switch (format[1]) {
@@ -765,7 +994,11 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       return 2;
     }
     case 't':
-      PrintFormat(instr);
+      if (instr->IsMSAInstr()) {
+        PrintMsaDataFormat(instr);
+      } else {
+        PrintFormat(instr);
+      }
       return 1;
   }
   UNREACHABLE();
@@ -1473,6 +1706,14 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
       Format(instr, "dext    'rt, 'rs, 'sa, 'ss1");
       break;
     }
+    case DEXTM: {
+      Format(instr, "dextm   'rt, 'rs, 'sa, 'ss1");
+      break;
+    }
+    case DEXTU: {
+      Format(instr, "dextu   'rt, 'rs, 'sa, 'ss1");
+      break;
+    }
     case BSHFL: {
       int sa = instr->SaFieldRaw() >> kSaShift;
       switch (sa) {
@@ -1579,6 +1820,27 @@ int Decoder::DecodeTypeRegister(Instruction* instr) {
     case SPECIAL3:
       DecodeTypeRegisterSPECIAL3(instr);
       break;
+    case MSA:
+      switch (instr->MSAMinorOpcodeField()) {
+        case kMsaMinor3R:
+          DecodeTypeMsa3R(instr);
+          break;
+        case kMsaMinor3RF:
+          DecodeTypeMsa3RF(instr);
+          break;
+        case kMsaMinorVEC:
+          DecodeTypeMsaVec(instr);
+          break;
+        case kMsaMinor2R:
+          DecodeTypeMsa2R(instr);
+          break;
+        case kMsaMinor2RF:
+          DecodeTypeMsa2RF(instr);
+          break;
+        default:
+          UNREACHABLE();
+      }
+      break;
     default:
       UNREACHABLE();
   }
@@ -1600,6 +1862,20 @@ void Decoder::DecodeTypeImmediateCOP1(Instruction* instr) {
       break;
     case BC1NEZ:
       Format(instr, "bc1nez    'ft, 'imm16u -> 'imm16p4s2");
+      break;
+    case BZ_V:
+    case BZ_B:
+    case BZ_H:
+    case BZ_W:
+    case BZ_D:
+      Format(instr, "bz.'t  'wt, 'imm16s -> 'imm16p4s2");
+      break;
+    case BNZ_V:
+    case BNZ_B:
+    case BNZ_H:
+    case BNZ_W:
+    case BNZ_D:
+      Format(instr, "bnz.'t  'wt, 'imm16s -> 'imm16p4s2");
       break;
     default:
       UNREACHABLE();
@@ -1914,6 +2190,31 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
       }
       break;
     }
+    case MSA:
+      switch (instr->MSAMinorOpcodeField()) {
+        case kMsaMinorI8:
+          DecodeTypeMsaI8(instr);
+          break;
+        case kMsaMinorI5:
+          DecodeTypeMsaI5(instr);
+          break;
+        case kMsaMinorI10:
+          DecodeTypeMsaI10(instr);
+          break;
+        case kMsaMinorELM:
+          DecodeTypeMsaELM(instr);
+          break;
+        case kMsaMinorBIT:
+          DecodeTypeMsaBIT(instr);
+          break;
+        case kMsaMinorMI10:
+          DecodeTypeMsaMI10(instr);
+          break;
+        default:
+          UNREACHABLE();
+          break;
+      }
+      break;
     default:
       printf("a 0x%x \n", instr->OpcodeFieldRaw());
       UNREACHABLE();
@@ -1929,6 +2230,637 @@ void Decoder::DecodeTypeJump(Instruction* instr) {
       break;
     case JAL:
       Format(instr, "jal     'imm26x -> 'imm26j");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void Decoder::DecodeTypeMsaI8(Instruction* instr) {
+  uint32_t opcode = instr->InstructionBits() & kMsaI8Mask;
+
+  switch (opcode) {
+    case ANDI_B:
+      Format(instr, "andi.b  'wd, 'ws, 'imm8");
+      break;
+    case ORI_B:
+      Format(instr, "ori.b  'wd, 'ws, 'imm8");
+      break;
+    case NORI_B:
+      Format(instr, "nori.b  'wd, 'ws, 'imm8");
+      break;
+    case XORI_B:
+      Format(instr, "xori.b  'wd, 'ws, 'imm8");
+      break;
+    case BMNZI_B:
+      Format(instr, "bmnzi.b  'wd, 'ws, 'imm8");
+      break;
+    case BMZI_B:
+      Format(instr, "bmzi.b  'wd, 'ws, 'imm8");
+      break;
+    case BSELI_B:
+      Format(instr, "bseli.b  'wd, 'ws, 'imm8");
+      break;
+    case SHF_B:
+      Format(instr, "shf.b  'wd, 'ws, 'imm8");
+      break;
+    case SHF_H:
+      Format(instr, "shf.h  'wd, 'ws, 'imm8");
+      break;
+    case SHF_W:
+      Format(instr, "shf.w  'wd, 'ws, 'imm8");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void Decoder::DecodeTypeMsaI5(Instruction* instr) {
+  uint32_t opcode = instr->InstructionBits() & kMsaI5Mask;
+
+  switch (opcode) {
+    case ADDVI:
+      Format(instr, "addvi.'t  'wd, 'ws, 'imm5u");
+      break;
+    case SUBVI:
+      Format(instr, "subvi.'t  'wd, 'ws, 'imm5u");
+      break;
+    case MAXI_S:
+      Format(instr, "maxi_s.'t  'wd, 'ws, 'imm5s");
+      break;
+    case MAXI_U:
+      Format(instr, "maxi_u.'t  'wd, 'ws, 'imm5u");
+      break;
+    case MINI_S:
+      Format(instr, "mini_s.'t  'wd, 'ws, 'imm5s");
+      break;
+    case MINI_U:
+      Format(instr, "mini_u.'t  'wd, 'ws, 'imm5u");
+      break;
+    case CEQI:
+      Format(instr, "ceqi.'t  'wd, 'ws, 'imm5s");
+      break;
+    case CLTI_S:
+      Format(instr, "clti_s.'t  'wd, 'ws, 'imm5s");
+      break;
+    case CLTI_U:
+      Format(instr, "clti_u.'t  'wd, 'ws, 'imm5u");
+      break;
+    case CLEI_S:
+      Format(instr, "clei_s.'t  'wd, 'ws, 'imm5s");
+      break;
+    case CLEI_U:
+      Format(instr, "clei_u.'t  'wd, 'ws, 'imm5u");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void Decoder::DecodeTypeMsaI10(Instruction* instr) {
+  uint32_t opcode = instr->InstructionBits() & kMsaI5Mask;
+  if (opcode == LDI) {
+    Format(instr, "ldi.'t  'wd, 'imm10s1");
+  } else {
+    UNREACHABLE();
+  }
+}
+
+void Decoder::DecodeTypeMsaELM(Instruction* instr) {
+  uint32_t opcode = instr->InstructionBits() & kMsaELMMask;
+  switch (opcode) {
+    case SLDI:
+      if (instr->Bits(21, 16) == 0x3E) {
+        Format(instr, "ctcmsa  ");
+        PrintMSAControlRegister(instr->WdValue());
+        Print(", ");
+        PrintRegister(instr->WsValue());
+      } else {
+        Format(instr, "sldi.'t  'wd, 'ws['imme]");
+      }
+      break;
+    case SPLATI:
+      if (instr->Bits(21, 16) == 0x3E) {
+        Format(instr, "cfcmsa  ");
+        PrintRegister(instr->WdValue());
+        Print(", ");
+        PrintMSAControlRegister(instr->WsValue());
+      } else {
+        Format(instr, "splati.'t  'wd, 'ws['imme]");
+      }
+      break;
+    case COPY_S:
+      if (instr->Bits(21, 16) == 0x3E) {
+        Format(instr, "move.v  'wd, 'ws");
+      } else {
+        Format(instr, "copy_s.'t  ");
+        PrintMsaCopy(instr);
+      }
+      break;
+    case COPY_U:
+      Format(instr, "copy_u.'t  ");
+      PrintMsaCopy(instr);
+      break;
+    case INSERT:
+      Format(instr, "insert.'t  'wd['imme], ");
+      PrintRegister(instr->WsValue());
+      break;
+    case INSVE:
+      Format(instr, "insve.'t  'wd['imme], 'ws[0]");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void Decoder::DecodeTypeMsaBIT(Instruction* instr) {
+  uint32_t opcode = instr->InstructionBits() & kMsaBITMask;
+
+  switch (opcode) {
+    case SLLI:
+      Format(instr, "slli.'t  'wd, 'ws, 'immb");
+      break;
+    case SRAI:
+      Format(instr, "srai.'t  'wd, 'ws, 'immb");
+      break;
+    case SRLI:
+      Format(instr, "srli.'t  'wd, 'ws, 'immb");
+      break;
+    case BCLRI:
+      Format(instr, "bclri.'t  'wd, 'ws, 'immb");
+      break;
+    case BSETI:
+      Format(instr, "bseti.'t  'wd, 'ws, 'immb");
+      break;
+    case BNEGI:
+      Format(instr, "bnegi.'t  'wd, 'ws, 'immb");
+      break;
+    case BINSLI:
+      Format(instr, "binsli.'t  'wd, 'ws, 'immb");
+      break;
+    case BINSRI:
+      Format(instr, "binsri.'t  'wd, 'ws, 'immb");
+      break;
+    case SAT_S:
+      Format(instr, "sat_s.'t  'wd, 'ws, 'immb");
+      break;
+    case SAT_U:
+      Format(instr, "sat_u.'t  'wd, 'ws, 'immb");
+      break;
+    case SRARI:
+      Format(instr, "srari.'t  'wd, 'ws, 'immb");
+      break;
+    case SRLRI:
+      Format(instr, "srlri.'t  'wd, 'ws, 'immb");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void Decoder::DecodeTypeMsaMI10(Instruction* instr) {
+  uint32_t opcode = instr->InstructionBits() & kMsaMI10Mask;
+  if (opcode == MSA_LD) {
+    Format(instr, "ld.'t  'wd, 'imm10s2(");
+    PrintRegister(instr->WsValue());
+    Print(")");
+  } else if (opcode == MSA_ST) {
+    Format(instr, "st.'t  'wd, 'imm10s2(");
+    PrintRegister(instr->WsValue());
+    Print(")");
+  } else {
+    UNREACHABLE();
+  }
+}
+
+void Decoder::DecodeTypeMsa3R(Instruction* instr) {
+  uint32_t opcode = instr->InstructionBits() & kMsa3RMask;
+  switch (opcode) {
+    case SLL_MSA:
+      Format(instr, "sll.'t  'wd, 'ws, 'wt");
+      break;
+    case SRA_MSA:
+      Format(instr, "sra.'t  'wd, 'ws, 'wt");
+      break;
+    case SRL_MSA:
+      Format(instr, "srl.'t  'wd, 'ws, 'wt");
+      break;
+    case BCLR:
+      Format(instr, "bclr.'t  'wd, 'ws, 'wt");
+      break;
+    case BSET:
+      Format(instr, "bset.'t  'wd, 'ws, 'wt");
+      break;
+    case BNEG:
+      Format(instr, "bneg.'t  'wd, 'ws, 'wt");
+      break;
+    case BINSL:
+      Format(instr, "binsl.'t  'wd, 'ws, 'wt");
+      break;
+    case BINSR:
+      Format(instr, "binsr.'t  'wd, 'ws, 'wt");
+      break;
+    case ADDV:
+      Format(instr, "addv.'t  'wd, 'ws, 'wt");
+      break;
+    case SUBV:
+      Format(instr, "subv.'t  'wd, 'ws, 'wt");
+      break;
+    case MAX_S:
+      Format(instr, "max_s.'t  'wd, 'ws, 'wt");
+      break;
+    case MAX_U:
+      Format(instr, "max_u.'t  'wd, 'ws, 'wt");
+      break;
+    case MIN_S:
+      Format(instr, "min_s.'t  'wd, 'ws, 'wt");
+      break;
+    case MIN_U:
+      Format(instr, "min_u.'t  'wd, 'ws, 'wt");
+      break;
+    case MAX_A:
+      Format(instr, "max_a.'t  'wd, 'ws, 'wt");
+      break;
+    case MIN_A:
+      Format(instr, "min_a.'t  'wd, 'ws, 'wt");
+      break;
+    case CEQ:
+      Format(instr, "ceq.'t  'wd, 'ws, 'wt");
+      break;
+    case CLT_S:
+      Format(instr, "clt_s.'t  'wd, 'ws, 'wt");
+      break;
+    case CLT_U:
+      Format(instr, "clt_u.'t  'wd, 'ws, 'wt");
+      break;
+    case CLE_S:
+      Format(instr, "cle_s.'t  'wd, 'ws, 'wt");
+      break;
+    case CLE_U:
+      Format(instr, "cle_u.'t  'wd, 'ws, 'wt");
+      break;
+    case ADD_A:
+      Format(instr, "add_a.'t  'wd, 'ws, 'wt");
+      break;
+    case ADDS_A:
+      Format(instr, "adds_a.'t  'wd, 'ws, 'wt");
+      break;
+    case ADDS_S:
+      Format(instr, "adds_s.'t  'wd, 'ws, 'wt");
+      break;
+    case ADDS_U:
+      Format(instr, "adds_u.'t  'wd, 'ws, 'wt");
+      break;
+    case AVE_S:
+      Format(instr, "ave_s.'t  'wd, 'ws, 'wt");
+      break;
+    case AVE_U:
+      Format(instr, "ave_u.'t  'wd, 'ws, 'wt");
+      break;
+    case AVER_S:
+      Format(instr, "aver_s.'t  'wd, 'ws, 'wt");
+      break;
+    case AVER_U:
+      Format(instr, "aver_u.'t  'wd, 'ws, 'wt");
+      break;
+    case SUBS_S:
+      Format(instr, "subs_s.'t  'wd, 'ws, 'wt");
+      break;
+    case SUBS_U:
+      Format(instr, "subs_u.'t  'wd, 'ws, 'wt");
+      break;
+    case SUBSUS_U:
+      Format(instr, "subsus_u.'t  'wd, 'ws, 'wt");
+      break;
+    case SUBSUU_S:
+      Format(instr, "subsuu_s.'t  'wd, 'ws, 'wt");
+      break;
+    case ASUB_S:
+      Format(instr, "asub_s.'t  'wd, 'ws, 'wt");
+      break;
+    case ASUB_U:
+      Format(instr, "asub_u.'t  'wd, 'ws, 'wt");
+      break;
+    case MULV:
+      Format(instr, "mulv.'t  'wd, 'ws, 'wt");
+      break;
+    case MADDV:
+      Format(instr, "maddv.'t  'wd, 'ws, 'wt");
+      break;
+    case MSUBV:
+      Format(instr, "msubv.'t  'wd, 'ws, 'wt");
+      break;
+    case DIV_S_MSA:
+      Format(instr, "div_s.'t  'wd, 'ws, 'wt");
+      break;
+    case DIV_U:
+      Format(instr, "div_u.'t  'wd, 'ws, 'wt");
+      break;
+    case MOD_S:
+      Format(instr, "mod_s.'t  'wd, 'ws, 'wt");
+      break;
+    case MOD_U:
+      Format(instr, "mod_u.'t  'wd, 'ws, 'wt");
+      break;
+    case DOTP_S:
+      Format(instr, "dotp_s.'t  'wd, 'ws, 'wt");
+      break;
+    case DOTP_U:
+      Format(instr, "dotp_u.'t  'wd, 'ws, 'wt");
+      break;
+    case DPADD_S:
+      Format(instr, "dpadd_s.'t  'wd, 'ws, 'wt");
+      break;
+    case DPADD_U:
+      Format(instr, "dpadd_u.'t  'wd, 'ws, 'wt");
+      break;
+    case DPSUB_S:
+      Format(instr, "dpsub_s.'t  'wd, 'ws, 'wt");
+      break;
+    case DPSUB_U:
+      Format(instr, "dpsub_u.'t  'wd, 'ws, 'wt");
+      break;
+    case SLD:
+      Format(instr, "sld.'t  'wd, 'ws['rt]");
+      break;
+    case SPLAT:
+      Format(instr, "splat.'t  'wd, 'ws['rt]");
+      break;
+    case PCKEV:
+      Format(instr, "pckev.'t  'wd, 'ws, 'wt");
+      break;
+    case PCKOD:
+      Format(instr, "pckod.'t  'wd, 'ws, 'wt");
+      break;
+    case ILVL:
+      Format(instr, "ilvl.'t  'wd, 'ws, 'wt");
+      break;
+    case ILVR:
+      Format(instr, "ilvr.'t  'wd, 'ws, 'wt");
+      break;
+    case ILVEV:
+      Format(instr, "ilvev.'t  'wd, 'ws, 'wt");
+      break;
+    case ILVOD:
+      Format(instr, "ilvod.'t  'wd, 'ws, 'wt");
+      break;
+    case VSHF:
+      Format(instr, "vshf.'t  'wd, 'ws, 'wt");
+      break;
+    case SRAR:
+      Format(instr, "srar.'t  'wd, 'ws, 'wt");
+      break;
+    case SRLR:
+      Format(instr, "srlr.'t  'wd, 'ws, 'wt");
+      break;
+    case HADD_S:
+      Format(instr, "hadd_s.'t  'wd, 'ws, 'wt");
+      break;
+    case HADD_U:
+      Format(instr, "hadd_u.'t  'wd, 'ws, 'wt");
+      break;
+    case HSUB_S:
+      Format(instr, "hsub_s.'t  'wd, 'ws, 'wt");
+      break;
+    case HSUB_U:
+      Format(instr, "hsub_u.'t  'wd, 'ws, 'wt");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void Decoder::DecodeTypeMsa3RF(Instruction* instr) {
+  uint32_t opcode = instr->InstructionBits() & kMsa3RFMask;
+  switch (opcode) {
+    case FCAF:
+      Format(instr, "fcaf.'t  'wd, 'ws, 'wt");
+      break;
+    case FCUN:
+      Format(instr, "fcun.'t  'wd, 'ws, 'wt");
+      break;
+    case FCEQ:
+      Format(instr, "fceq.'t  'wd, 'ws, 'wt");
+      break;
+    case FCUEQ:
+      Format(instr, "fcueq.'t  'wd, 'ws, 'wt");
+      break;
+    case FCLT:
+      Format(instr, "fclt.'t  'wd, 'ws, 'wt");
+      break;
+    case FCULT:
+      Format(instr, "fcult.'t  'wd, 'ws, 'wt");
+      break;
+    case FCLE:
+      Format(instr, "fcle.'t  'wd, 'ws, 'wt");
+      break;
+    case FCULE:
+      Format(instr, "fcule.'t  'wd, 'ws, 'wt");
+      break;
+    case FSAF:
+      Format(instr, "fsaf.'t  'wd, 'ws, 'wt");
+      break;
+    case FSUN:
+      Format(instr, "fsun.'t  'wd, 'ws, 'wt");
+      break;
+    case FSEQ:
+      Format(instr, "fseq.'t  'wd, 'ws, 'wt");
+      break;
+    case FSUEQ:
+      Format(instr, "fsueq.'t  'wd, 'ws, 'wt");
+      break;
+    case FSLT:
+      Format(instr, "fslt.'t  'wd, 'ws, 'wt");
+      break;
+    case FSULT:
+      Format(instr, "fsult.'t  'wd, 'ws, 'wt");
+      break;
+    case FSLE:
+      Format(instr, "fsle.'t  'wd, 'ws, 'wt");
+      break;
+    case FSULE:
+      Format(instr, "fsule.'t  'wd, 'ws, 'wt");
+      break;
+    case FADD:
+      Format(instr, "fadd.'t  'wd, 'ws, 'wt");
+      break;
+    case FSUB:
+      Format(instr, "fsub.'t  'wd, 'ws, 'wt");
+      break;
+    case FMUL:
+      Format(instr, "fmul.'t  'wd, 'ws, 'wt");
+      break;
+    case FDIV:
+      Format(instr, "fdiv.'t  'wd, 'ws, 'wt");
+      break;
+    case FMADD:
+      Format(instr, "fmadd.'t  'wd, 'ws, 'wt");
+      break;
+    case FMSUB:
+      Format(instr, "fmsub.'t  'wd, 'ws, 'wt");
+      break;
+    case FEXP2:
+      Format(instr, "fexp2.'t  'wd, 'ws, 'wt");
+      break;
+    case FEXDO:
+      Format(instr, "fexdo.'t  'wd, 'ws, 'wt");
+      break;
+    case FTQ:
+      Format(instr, "ftq.'t  'wd, 'ws, 'wt");
+      break;
+    case FMIN:
+      Format(instr, "fmin.'t  'wd, 'ws, 'wt");
+      break;
+    case FMIN_A:
+      Format(instr, "fmin_a.'t  'wd, 'ws, 'wt");
+      break;
+    case FMAX:
+      Format(instr, "fmax.'t  'wd, 'ws, 'wt");
+      break;
+    case FMAX_A:
+      Format(instr, "fmax_a.'t  'wd, 'ws, 'wt");
+      break;
+    case FCOR:
+      Format(instr, "fcor.'t  'wd, 'ws, 'wt");
+      break;
+    case FCUNE:
+      Format(instr, "fcune.'t  'wd, 'ws, 'wt");
+      break;
+    case FCNE:
+      Format(instr, "fcne.'t  'wd, 'ws, 'wt");
+      break;
+    case MUL_Q:
+      Format(instr, "mul_q.'t  'wd, 'ws, 'wt");
+      break;
+    case MADD_Q:
+      Format(instr, "madd_q.'t  'wd, 'ws, 'wt");
+      break;
+    case MSUB_Q:
+      Format(instr, "msub_q.'t  'wd, 'ws, 'wt");
+      break;
+    case FSOR:
+      Format(instr, "fsor.'t  'wd, 'ws, 'wt");
+      break;
+    case FSUNE:
+      Format(instr, "fsune.'t  'wd, 'ws, 'wt");
+      break;
+    case FSNE:
+      Format(instr, "fsne.'t  'wd, 'ws, 'wt");
+      break;
+    case MULR_Q:
+      Format(instr, "mulr_q.'t  'wd, 'ws, 'wt");
+      break;
+    case MADDR_Q:
+      Format(instr, "maddr_q.'t  'wd, 'ws, 'wt");
+      break;
+    case MSUBR_Q:
+      Format(instr, "msubr_q.'t  'wd, 'ws, 'wt");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void Decoder::DecodeTypeMsaVec(Instruction* instr) {
+  uint32_t opcode = instr->InstructionBits() & kMsaVECMask;
+  switch (opcode) {
+    case AND_V:
+      Format(instr, "and.v  'wd, 'ws, 'wt");
+      break;
+    case OR_V:
+      Format(instr, "or.v  'wd, 'ws, 'wt");
+      break;
+    case NOR_V:
+      Format(instr, "nor.v  'wd, 'ws, 'wt");
+      break;
+    case XOR_V:
+      Format(instr, "xor.v  'wd, 'ws, 'wt");
+      break;
+    case BMNZ_V:
+      Format(instr, "bmnz.v  'wd, 'ws, 'wt");
+      break;
+    case BMZ_V:
+      Format(instr, "bmz.v  'wd, 'ws, 'wt");
+      break;
+    case BSEL_V:
+      Format(instr, "bsel.v  'wd, 'ws, 'wt");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void Decoder::DecodeTypeMsa2R(Instruction* instr) {
+  uint32_t opcode = instr->InstructionBits() & kMsa2RMask;
+  switch (opcode) {
+    case FILL: {
+      Format(instr, "fill.'t  'wd, ");
+      PrintRegister(instr->WsValue());  // rs value is in ws field
+    } break;
+    case PCNT:
+      Format(instr, "pcnt.'t  'wd, 'ws");
+      break;
+    case NLOC:
+      Format(instr, "nloc.'t  'wd, 'ws");
+      break;
+    case NLZC:
+      Format(instr, "nlzc.'t  'wd, 'ws");
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+void Decoder::DecodeTypeMsa2RF(Instruction* instr) {
+  uint32_t opcode = instr->InstructionBits() & kMsa2RFMask;
+  switch (opcode) {
+    case FCLASS:
+      Format(instr, "fclass.'t  'wd, 'ws");
+      break;
+    case FTRUNC_S:
+      Format(instr, "ftrunc_s.'t  'wd, 'ws");
+      break;
+    case FTRUNC_U:
+      Format(instr, "ftrunc_u.'t  'wd, 'ws");
+      break;
+    case FSQRT:
+      Format(instr, "fsqrt.'t  'wd, 'ws");
+      break;
+    case FRSQRT:
+      Format(instr, "frsqrt.'t  'wd, 'ws");
+      break;
+    case FRCP:
+      Format(instr, "frcp.'t  'wd, 'ws");
+      break;
+    case FRINT:
+      Format(instr, "frint.'t  'wd, 'ws");
+      break;
+    case FLOG2:
+      Format(instr, "flog2.'t  'wd, 'ws");
+      break;
+    case FEXUPL:
+      Format(instr, "fexupl.'t  'wd, 'ws");
+      break;
+    case FEXUPR:
+      Format(instr, "fexupr.'t  'wd, 'ws");
+      break;
+    case FFQL:
+      Format(instr, "ffql.'t  'wd, 'ws");
+      break;
+    case FFQR:
+      Format(instr, "ffqr.'t  'wd, 'ws");
+      break;
+    case FTINT_S:
+      Format(instr, "ftint_s.'t  'wd, 'ws");
+      break;
+    case FTINT_U:
+      Format(instr, "ftint_u.'t  'wd, 'ws");
+      break;
+    case FFINT_S:
+      Format(instr, "ffint_s.'t  'wd, 'ws");
+      break;
+    case FFINT_U:
+      Format(instr, "ffint_u.'t  'wd, 'ws");
       break;
     default:
       UNREACHABLE();

@@ -11,27 +11,29 @@
 namespace v8 {
 namespace internal {
 
-template <>
-FixedArray* NativesCollection<CORE>::GetSourceCache(Heap* heap) {
-  return heap->natives_source_cache();
-}
-
-
-template <>
-FixedArray* NativesCollection<EXPERIMENTAL>::GetSourceCache(Heap* heap) {
-  return heap->experimental_natives_source_cache();
-}
-
-
-template <>
-FixedArray* NativesCollection<EXTRAS>::GetSourceCache(Heap* heap) {
-  return heap->extra_natives_source_cache();
-}
-
-
-template <>
-FixedArray* NativesCollection<EXPERIMENTAL_EXTRAS>::GetSourceCache(Heap* heap) {
-  return heap->experimental_extra_natives_source_cache();
+NativesExternalStringResource::NativesExternalStringResource(NativeType type,
+                                                             int index)
+    : type_(type), index_(index) {
+  Vector<const char> source;
+  DCHECK(0 <= index);
+  switch (type_) {
+    case CORE:
+      DCHECK(index < Natives::GetBuiltinsCount());
+      source = Natives::GetScriptSource(index);
+      break;
+    case EXTRAS:
+      DCHECK(index < ExtraNatives::GetBuiltinsCount());
+      source = ExtraNatives::GetScriptSource(index);
+      break;
+    case EXPERIMENTAL_EXTRAS:
+      DCHECK(index < ExperimentalExtraNatives::GetBuiltinsCount());
+      source = ExperimentalExtraNatives::GetScriptSource(index);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  data_ = source.start();
+  length_ = source.length();
 }
 
 }  // namespace internal

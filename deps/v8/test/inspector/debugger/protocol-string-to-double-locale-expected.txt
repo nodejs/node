@@ -1,0 +1,7 @@
+This test verifies that we correctly parse doubles with non-US locale
+{
+    a : 0.5
+}
+{
+    a : 1
+}

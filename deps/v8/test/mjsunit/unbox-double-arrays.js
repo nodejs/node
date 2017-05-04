@@ -279,8 +279,8 @@ function testOneArrayType(allocator) {
                       expected_array_value(7));
 
   %DeoptimizeFunction(test_various_loads6);
-  %ClearFunctionTypeFeedback(test_various_stores);
-  %ClearFunctionTypeFeedback(test_various_loads7);
+  %ClearFunctionFeedback(test_various_stores);
+  %ClearFunctionFeedback(test_various_loads7);
 
   // Test stores for non-NaN.
   var large_array = new allocator(large_array_size);

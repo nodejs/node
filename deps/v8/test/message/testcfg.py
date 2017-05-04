@@ -107,6 +107,7 @@ class MessageTestSuite(testsuite.TestSuite):
         expected_lines, actual_lines, fillvalue=''):
       pattern = re.escape(expected.rstrip() % env)
       pattern = pattern.replace("\\*", ".*")
+      pattern = pattern.replace("\\{NUMBER\\}", "\d(?:\.\d*)?")
       pattern = "^%s$" % pattern
       if not re.match(pattern, actual):
         return True

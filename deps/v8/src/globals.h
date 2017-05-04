@@ -118,6 +118,7 @@ namespace internal {
 #define V8_DOUBLE_FIELDS_UNBOXING 0
 #endif
 
+#define V8_CONCURRENT_MARKING 0
 
 typedef uint8_t byte;
 typedef byte* Address;
@@ -339,6 +340,22 @@ const int kNoSourcePosition = -1;
 // This constant is used to indicate missing deoptimization information.
 const int kNoDeoptimizationId = -1;
 
+// Deoptimize bailout kind.
+enum class DeoptimizeKind : uint8_t { kEager, kSoft };
+inline size_t hash_value(DeoptimizeKind kind) {
+  return static_cast<size_t>(kind);
+}
+inline std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
+  switch (kind) {
+    case DeoptimizeKind::kEager:
+      return os << "Eager";
+    case DeoptimizeKind::kSoft:
+      return os << "Soft";
+  }
+  UNREACHABLE();
+  return os;
+}
+
 // Mask for the sign bit in a smi.
 const intptr_t kSmiSignMask = kIntptrSignBit;
 
@@ -353,10 +370,6 @@ const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 // Desired alignment for double values.
 const intptr_t kDoubleAlignment = 8;
 const intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
-
-// Desired alignment for 128 bit SIMD values.
-const intptr_t kSimd128Alignment = 16;
-const intptr_t kSimd128AlignmentMask = kSimd128Alignment - 1;
 
 // Desired alignment for generated code is 32 bytes (to improve cache line
 // utilization).
@@ -500,12 +513,7 @@ enum AllocationSpace {
 const int kSpaceTagSize = 3;
 const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;
 
-enum AllocationAlignment {
-  kWordAligned,
-  kDoubleAligned,
-  kDoubleUnaligned,
-  kSimd128Unaligned
-};
+enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
 // Possible outcomes for decisions.
 enum class Decision : uint8_t { kUnknown, kTrue, kFalse };
@@ -664,14 +672,9 @@ enum InlineCacheState {
   GENERIC,
 };
 
-enum CacheHolderFlag {
-  kCacheOnPrototype,
-  kCacheOnPrototypeReceiverIsDictionary,
-  kCacheOnPrototypeReceiverIsPrimitive,
-  kCacheOnReceiver
-};
-
 enum WhereToStart { kStartAtReceiver, kStartAtPrototype };
+
+enum ResultSentinel { kNotFound = -1, kUnsupported = -2 };
 
 // The Store Buffer (GC).
 typedef enum {
@@ -778,6 +781,7 @@ enum CpuFeature {
   MIPSr1,
   MIPSr2,
   MIPSr6,
+  MIPS_SIMD,  // MSA instructions
   // ARM64
   ALWAYS_ALIGN_CSP,
   // PPC
@@ -1100,7 +1104,11 @@ enum FunctionKind : uint16_t {
   kClassConstructor =
       kBaseConstructor | kDerivedConstructor | kDefaultConstructor,
   kAsyncArrowFunction = kArrowFunction | kAsyncFunction,
-  kAsyncConciseMethod = kAsyncFunction | kConciseMethod
+  kAsyncConciseMethod = kAsyncFunction | kConciseMethod,
+
+  // https://tc39.github.io/proposal-async-iteration/
+  kAsyncConciseGeneratorMethod = kAsyncFunction | kConciseGeneratorMethod,
+  kAsyncGeneratorFunction = kAsyncFunction | kGeneratorFunction
 };
 
 inline bool IsValidFunctionKind(FunctionKind kind) {
@@ -1119,29 +1127,37 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kDerivedConstructor ||
          kind == FunctionKind::kAsyncFunction ||
          kind == FunctionKind::kAsyncArrowFunction ||
-         kind == FunctionKind::kAsyncConciseMethod;
+         kind == FunctionKind::kAsyncConciseMethod ||
+         kind == FunctionKind::kAsyncConciseGeneratorMethod ||
+         kind == FunctionKind::kAsyncGeneratorFunction;
 }
 
 
 inline bool IsArrowFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kArrowFunction;
+  return (kind & FunctionKind::kArrowFunction) != 0;
 }
 
 
 inline bool IsGeneratorFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kGeneratorFunction;
+  return (kind & FunctionKind::kGeneratorFunction) != 0;
 }
 
 inline bool IsModule(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kModule;
+  return (kind & FunctionKind::kModule) != 0;
 }
 
 inline bool IsAsyncFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kAsyncFunction;
+  return (kind & FunctionKind::kAsyncFunction) != 0;
+}
+
+inline bool IsAsyncGeneratorFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  const FunctionKind kMask = FunctionKind::kAsyncGeneratorFunction;
+  return (kind & kMask) == kMask;
 }
 
 inline bool IsResumableFunction(FunctionKind kind) {
@@ -1150,49 +1166,48 @@ inline bool IsResumableFunction(FunctionKind kind) {
 
 inline bool IsConciseMethod(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kConciseMethod;
+  return (kind & FunctionKind::kConciseMethod) != 0;
 }
 
 inline bool IsGetterFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kGetterFunction;
+  return (kind & FunctionKind::kGetterFunction) != 0;
 }
 
 inline bool IsSetterFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kSetterFunction;
+  return (kind & FunctionKind::kSetterFunction) != 0;
 }
 
 inline bool IsAccessorFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kAccessorFunction;
+  return (kind & FunctionKind::kAccessorFunction) != 0;
 }
 
 
 inline bool IsDefaultConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kDefaultConstructor;
+  return (kind & FunctionKind::kDefaultConstructor) != 0;
 }
 
 
 inline bool IsBaseConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kBaseConstructor;
+  return (kind & FunctionKind::kBaseConstructor) != 0;
 }
 
 inline bool IsDerivedConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kDerivedConstructor;
+  return (kind & FunctionKind::kDerivedConstructor) != 0;
 }
 
 
 inline bool IsClassConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kClassConstructor;
+  return (kind & FunctionKind::kClassConstructor) != 0;
 }
 
-
-inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
+inline bool IsConstructable(FunctionKind kind) {
   if (IsAccessorFunction(kind)) return false;
   if (IsConciseMethod(kind)) return false;
   if (IsArrowFunction(kind)) return false;
@@ -1201,16 +1216,25 @@ inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
   return true;
 }
 
-enum class CallableType : unsigned { kJSFunction, kAny };
+enum class InterpreterPushArgsMode : unsigned {
+  kJSFunction,
+  kWithFinalSpread,
+  kOther
+};
 
-inline size_t hash_value(CallableType type) { return bit_cast<unsigned>(type); }
+inline size_t hash_value(InterpreterPushArgsMode mode) {
+  return bit_cast<unsigned>(mode);
+}
 
-inline std::ostream& operator<<(std::ostream& os, CallableType function_type) {
-  switch (function_type) {
-    case CallableType::kJSFunction:
+inline std::ostream& operator<<(std::ostream& os,
+                                InterpreterPushArgsMode mode) {
+  switch (mode) {
+    case InterpreterPushArgsMode::kJSFunction:
       return os << "JSFunction";
-    case CallableType::kAny:
-      return os << "Any";
+    case InterpreterPushArgsMode::kWithFinalSpread:
+      return os << "WithFinalSpread";
+    case InterpreterPushArgsMode::kOther:
+      return os << "Other";
   }
   UNREACHABLE();
   return os;
@@ -1248,8 +1272,9 @@ class BinaryOperationFeedback {
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
-// kSignedSmall        -> kNumber -> kAny
-// kInternalizedString -> kString -> kAny
+// kSignedSmall        -> kNumber   -> kAny
+// kInternalizedString -> kString   -> kAny
+//                        kReceiver -> kAny
 // TODO(epertoso): consider unifying this with BinaryOperationFeedback.
 class CompareOperationFeedback {
  public:
@@ -1260,22 +1285,9 @@ class CompareOperationFeedback {
     kNumberOrOddball = 0x7,
     kInternalizedString = 0x8,
     kString = 0x18,
-    kAny = 0x3F
+    kReceiver = 0x20,
+    kAny = 0x7F
   };
-};
-
-// Describes how exactly a frame has been dropped from stack.
-enum LiveEditFrameDropMode {
-  // No frame has been dropped.
-  LIVE_EDIT_FRAMES_UNTOUCHED,
-  // The top JS frame had been calling debug break slot stub. Patch the
-  // address this stub jumps to in the end.
-  LIVE_EDIT_FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
-  // The top JS frame had been calling some C++ function. The return address
-  // gets patched automatically.
-  LIVE_EDIT_FRAME_DROPPED_IN_DIRECT_CALL,
-  LIVE_EDIT_FRAME_DROPPED_IN_RETURN_CALL,
-  LIVE_EDIT_CURRENTLY_SET_MODE
 };
 
 enum class UnicodeEncoding : uint8_t {
@@ -1324,6 +1336,89 @@ enum class DataPropertyInLiteralFlag {
 };
 typedef base::Flags<DataPropertyInLiteralFlag> DataPropertyInLiteralFlags;
 DEFINE_OPERATORS_FOR_FLAGS(DataPropertyInLiteralFlags)
+
+enum ExternalArrayType {
+  kExternalInt8Array = 1,
+  kExternalUint8Array,
+  kExternalInt16Array,
+  kExternalUint16Array,
+  kExternalInt32Array,
+  kExternalUint32Array,
+  kExternalFloat32Array,
+  kExternalFloat64Array,
+  kExternalUint8ClampedArray,
+};
+
+// Static information used by SuspendGenerator bytecode & GeneratorStore, in
+// order to determine where to store bytecode offset in generator.
+enum class SuspendFlags {
+  kYield = 0,
+  kYieldStar = 1,
+  kAwait = 2,
+  kSuspendTypeMask = 3,
+
+  kGenerator = 0 << 2,
+  kAsyncGenerator = 1 << 2,
+  kGeneratorTypeMask = 1 << 2,
+
+  kBitWidth = 3,
+
+  // Aliases
+  kGeneratorYield = kGenerator | kYield,
+  kGeneratorYieldStar = kGenerator | kYieldStar,
+  kGeneratorAwait = kGenerator | kAwait,
+  kAsyncGeneratorYield = kAsyncGenerator | kYield,
+  kAsyncGeneratorYieldStar = kAsyncGenerator | kYieldStar,
+  kAsyncGeneratorAwait = kAsyncGenerator | kAwait
+};
+
+inline constexpr SuspendFlags operator&(SuspendFlags lhs, SuspendFlags rhs) {
+  return static_cast<SuspendFlags>(static_cast<uint8_t>(lhs) &
+                                   static_cast<uint8_t>(rhs));
+}
+
+inline constexpr SuspendFlags operator|(SuspendFlags lhs, SuspendFlags rhs) {
+  return static_cast<SuspendFlags>(static_cast<uint8_t>(lhs) |
+                                   static_cast<uint8_t>(rhs));
+}
+
+inline SuspendFlags& operator|=(SuspendFlags& lhs, SuspendFlags rhs) {
+  lhs = lhs | rhs;
+  return lhs;
+}
+
+inline SuspendFlags operator~(SuspendFlags lhs) {
+  return static_cast<SuspendFlags>(~static_cast<uint8_t>(lhs));
+}
+
+inline const char* SuspendTypeFor(SuspendFlags flags) {
+  switch (flags & SuspendFlags::kSuspendTypeMask) {
+    case SuspendFlags::kYield:
+      return "yield";
+    case SuspendFlags::kYieldStar:
+      return "yield*";
+    case SuspendFlags::kAwait:
+      return "await";
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return "";
+}
+
+struct AssemblerDebugInfo {
+  AssemblerDebugInfo(const char* name, const char* file, int line)
+      : name(name), file(file), line(line) {}
+  const char* name;
+  const char* file;
+  int line;
+};
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const AssemblerDebugInfo& info) {
+  os << "(" << info.name << ":" << info.file << ":" << info.line << ")";
+  return os;
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -39,14 +39,18 @@
 
 namespace v8_inspector {
 
+// Forward declaration.
+class WasmTranslation;
+
 class V8DebuggerScript {
  public:
   static std::unique_ptr<V8DebuggerScript> Create(
       v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
       bool isLiveEdit);
   static std::unique_ptr<V8DebuggerScript> CreateWasm(
-      v8::Isolate* isolate, v8::Local<v8::debug::WasmScript> underlyingScript,
-      String16 id, String16 url, String16 source);
+      v8::Isolate* isolate, WasmTranslation* wasmTranslation,
+      v8::Local<v8::debug::WasmScript> underlyingScript, String16 id,
+      String16 url, String16 source);
 
   virtual ~V8DebuggerScript();
 
@@ -55,24 +59,32 @@ class V8DebuggerScript {
   bool hasSourceURL() const { return !m_sourceURL.isEmpty(); }
   const String16& sourceURL() const;
   virtual const String16& sourceMappingURL() const = 0;
-  virtual String16 source(v8::Isolate*) const { return m_source; }
-  const String16& hash(v8::Isolate*) const;
+  const String16& source() const { return m_source; }
+  const String16& hash() const;
   int startLine() const { return m_startLine; }
   int startColumn() const { return m_startColumn; }
   int endLine() const { return m_endLine; }
   int endColumn() const { return m_endColumn; }
   int executionContextId() const { return m_executionContextId; }
   virtual bool isLiveEdit() const = 0;
+  virtual bool isModule() const = 0;
 
   void setSourceURL(const String16&);
   virtual void setSourceMappingURL(const String16&) = 0;
-  virtual void setSource(v8::Local<v8::String> source) {
-    m_source = toProtocolString(source);
+  void setSource(const String16& source) {
+    m_source = source;
+    m_hash = String16();
   }
 
   virtual bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
-      std::vector<v8::debug::Location>* locations) = 0;
+      bool ignoreNestedFunctions,
+      std::vector<v8::debug::BreakLocation>* locations) = 0;
+  virtual void resetBlackboxedStateCache() = 0;
+
+  static const int kNoOffset = -1;
+  virtual int offset(int lineNumber, int columnNumber) const = 0;
+  virtual v8::debug::Location location(int offset) const = 0;
 
  protected:
   V8DebuggerScript(v8::Isolate*, String16 id, String16 url);

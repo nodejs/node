@@ -12,11 +12,12 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -42,11 +43,8 @@ class AllocationBuilder final {
     effect_ = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect_);
     allocation_ =
-        graph()->NewNode(simplified()->Allocate(pretenure),
+        graph()->NewNode(simplified()->Allocate(type, pretenure),
                          jsgraph()->Constant(size), effect_, control_);
-    // TODO(turbofan): Maybe we should put the Type* onto the Allocate operator
-    // at some point, or maybe we should have a completely differnt story.
-    NodeProperties::SetType(allocation_, type);
     effect_ = allocation_;
   }
 
@@ -119,6 +117,7 @@ Node* GetArgumentsFrameState(Node* frame_state) {
 bool IsAllocationInlineable(Handle<JSFunction> target,
                             Handle<JSFunction> new_target) {
   return new_target->has_initial_map() &&
+         !new_target->initial_map()->is_dictionary_map() &&
          new_target->initial_map()->constructor_or_backpointer() == *target;
 }
 
@@ -196,9 +195,13 @@ bool IsFastLiteral(Handle<JSObject> boilerplate, int max_depth,
 }
 
 // Maximum depth and total number of elements and properties for literal
-// graphs to be considered for fast deep-copying.
+// graphs to be considered for fast deep-copying. The limit is chosen to
+// match the maximum number of inobject properties, to ensure that the
+// performance of using object literals is not worse than using constructor
+// functions, see crbug.com/v8/6211 for details.
 const int kMaxFastLiteralDepth = 3;
-const int kMaxFastLiteralProperties = 8;
+const int kMaxFastLiteralProperties =
+    (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kPointerSizeLog2;
 
 }  // namespace
 
@@ -210,8 +213,6 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateArguments(node);
     case IrOpcode::kJSCreateArray:
       return ReduceJSCreateArray(node);
-    case IrOpcode::kJSCreateClosure:
-      return ReduceJSCreateClosure(node);
     case IrOpcode::kJSCreateIterResultObject:
       return ReduceJSCreateIterResultObject(node);
     case IrOpcode::kJSCreateKeyValueArray:
@@ -240,6 +241,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
   Node* const new_target = NodeProperties::GetValueInput(node, 1);
   Type* const new_target_type = NodeProperties::GetType(new_target);
   Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
   // Extract constructor and original constructor function.
   if (target_type->IsHeapConstant() && new_target_type->IsHeapConstant() &&
       new_target_type->AsHeapConstant()->Value()->IsJSFunction()) {
@@ -267,7 +269,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
 
       // Emit code to allocate the JSObject instance for the
       // {original_constructor}.
-      AllocationBuilder a(jsgraph(), effect, graph()->start());
+      AllocationBuilder a(jsgraph(), effect, control);
       a.Allocate(instance_size);
       a.Store(AccessBuilder::ForMap(), initial_map);
       a.Store(AccessBuilder::ForJSObjectProperties(),
@@ -278,6 +280,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
         a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
                 jsgraph()->UndefinedConstant());
       }
+      RelaxControls(node);
       a.FinishAndChange(node);
       return Changed(node);
     }
@@ -309,12 +312,14 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
           if (shared_info->internal_formal_parameter_count() == 0) {
             Node* const callee = NodeProperties::GetValueInput(node, 0);
             Node* effect = NodeProperties::GetEffectInput(node);
+            Node* const arguments_frame =
+                graph()->NewNode(simplified()->ArgumentsFrame());
+            Node* const arguments_length = graph()->NewNode(
+                simplified()->ArgumentsLength(0, false), arguments_frame);
             // Allocate the elements backing store.
-            Node* const elements = effect = graph()->NewNode(
-                simplified()->NewUnmappedArgumentsElements(0), effect);
-            Node* const length = effect = graph()->NewNode(
-                simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-                elements, effect, control);
+            Node* const elements = effect =
+                graph()->NewNode(simplified()->NewUnmappedArgumentsElements(),
+                                 arguments_frame, arguments_length, effect);
             // Load the arguments object map.
             Node* const arguments_map = jsgraph()->HeapConstant(
                 handle(native_context()->sloppy_arguments_map(), isolate()));
@@ -326,7 +331,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
             a.Store(AccessBuilder::ForMap(), arguments_map);
             a.Store(AccessBuilder::ForJSObjectProperties(), properties);
             a.Store(AccessBuilder::ForJSObjectElements(), elements);
-            a.Store(AccessBuilder::ForArgumentsLength(), length);
+            a.Store(AccessBuilder::ForArgumentsLength(), arguments_length);
             a.Store(AccessBuilder::ForArgumentsCallee(), callee);
             RelaxControls(node);
             a.FinishAndChange(node);
@@ -350,14 +355,16 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Handle<SharedFunctionInfo> shared_info;
         if (state_info.shared_info().ToHandle(&shared_info)) {
           Node* effect = NodeProperties::GetEffectInput(node);
+          Node* const arguments_frame =
+              graph()->NewNode(simplified()->ArgumentsFrame());
+          Node* const arguments_length = graph()->NewNode(
+              simplified()->ArgumentsLength(
+                  shared_info->internal_formal_parameter_count(), false),
+              arguments_frame);
           // Allocate the elements backing store.
-          Node* const elements = effect = graph()->NewNode(
-              simplified()->NewUnmappedArgumentsElements(
-                  shared_info->internal_formal_parameter_count()),
-              effect);
-          Node* const length = effect = graph()->NewNode(
-              simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-              elements, effect, control);
+          Node* const elements = effect =
+              graph()->NewNode(simplified()->NewUnmappedArgumentsElements(),
+                               arguments_frame, arguments_length, effect);
           // Load the arguments object map.
           Node* const arguments_map = jsgraph()->HeapConstant(
               handle(native_context()->strict_arguments_map(), isolate()));
@@ -369,7 +376,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
           a.Store(AccessBuilder::ForMap(), arguments_map);
           a.Store(AccessBuilder::ForJSObjectProperties(), properties);
           a.Store(AccessBuilder::ForJSObjectElements(), elements);
-          a.Store(AccessBuilder::ForArgumentsLength(), length);
+          a.Store(AccessBuilder::ForArgumentsLength(), arguments_length);
           RelaxControls(node);
           a.FinishAndChange(node);
         } else {
@@ -389,14 +396,19 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Handle<SharedFunctionInfo> shared_info;
         if (state_info.shared_info().ToHandle(&shared_info)) {
           Node* effect = NodeProperties::GetEffectInput(node);
-          // Allocate the elements backing store.
-          Node* const elements = effect = graph()->NewNode(
-              simplified()->NewRestParameterElements(
-                  shared_info->internal_formal_parameter_count()),
-              effect);
-          Node* const length = effect = graph()->NewNode(
-              simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-              elements, effect, control);
+          Node* const arguments_frame =
+              graph()->NewNode(simplified()->ArgumentsFrame());
+          int formal_parameter_count =
+              shared_info->internal_formal_parameter_count();
+          Node* const rest_length = graph()->NewNode(
+              simplified()->ArgumentsLength(formal_parameter_count, true),
+              arguments_frame);
+          // Allocate the elements backing store. Since
+          // NewUnmappedArgumentsElements copies from the end of the arguments
+          // adapter frame, this is a suffix of the actual arguments.
+          Node* const elements = effect =
+              graph()->NewNode(simplified()->NewUnmappedArgumentsElements(),
+                               arguments_frame, rest_length, effect);
           // Load the JSArray object map.
           Node* const jsarray_map = jsgraph()->HeapConstant(handle(
               native_context()->js_array_fast_elements_map_index(), isolate()));
@@ -408,7 +420,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
           a.Store(AccessBuilder::ForMap(), jsarray_map);
           a.Store(AccessBuilder::ForJSObjectProperties(), properties);
           a.Store(AccessBuilder::ForJSObjectElements(), elements);
-          a.Store(AccessBuilder::ForJSArrayLength(FAST_ELEMENTS), length);
+          a.Store(AccessBuilder::ForJSArrayLength(FAST_ELEMENTS), rest_length);
           RelaxControls(node);
           a.FinishAndChange(node);
         } else {
@@ -582,10 +594,73 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   return Changed(node);
 }
 
+Reduction JSCreateLowering::ReduceNewArray(Node* node,
+                                           std::vector<Node*> values,
+                                           Handle<AllocationSite> site) {
+  DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Extract transition and tenuring feedback from the {site} and add
+  // appropriate code dependencies on the {site} if deoptimization is
+  // enabled.
+  PretenureFlag pretenure = site->GetPretenureMode();
+  ElementsKind elements_kind = site->GetElementsKind();
+  DCHECK(IsFastElementsKind(elements_kind));
+  dependencies()->AssumeTenuringDecision(site);
+  dependencies()->AssumeTransitionStable(site);
+
+  // Check {values} based on the {elements_kind}. These checks are guarded
+  // by the {elements_kind} feedback on the {site}, so it's safe to just
+  // deoptimize in this case.
+  if (IsFastSmiElementsKind(elements_kind)) {
+    for (auto& value : values) {
+      if (!NodeProperties::GetType(value)->Is(Type::SignedSmall())) {
+        value = effect =
+            graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
+      }
+    }
+  } else if (IsFastDoubleElementsKind(elements_kind)) {
+    for (auto& value : values) {
+      if (!NodeProperties::GetType(value)->Is(Type::Number())) {
+        value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
+                                          effect, control);
+      }
+      // Make sure we do not store signaling NaNs into double arrays.
+      value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+    }
+  }
+
+  // Retrieve the initial map for the array.
+  int const array_map_index = Context::ArrayMapIndex(elements_kind);
+  Node* js_array_map = jsgraph()->HeapConstant(
+      handle(Map::cast(native_context()->get(array_map_index)), isolate()));
+
+  // Setup elements, properties and length.
+  Node* elements = effect =
+      AllocateElements(effect, control, elements_kind, values, pretenure);
+  Node* properties = jsgraph()->EmptyFixedArrayConstant();
+  Node* length = jsgraph()->Constant(static_cast<int>(values.size()));
+
+  // Perform the allocation of the actual JSArray object.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(JSArray::kSize, pretenure);
+  a.Store(AccessBuilder::ForMap(), js_array_map);
+  a.Store(AccessBuilder::ForJSObjectProperties(), properties);
+  a.Store(AccessBuilder::ForJSObjectElements(), elements);
+  a.Store(AccessBuilder::ForJSArrayLength(elements_kind), length);
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
+}
+
 Reduction JSCreateLowering::ReduceNewArrayToStubCall(
     Node* node, Handle<AllocationSite> site) {
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  Node* new_target = NodeProperties::GetValueInput(node, 1);
+  Type* new_target_type = NodeProperties::GetType(new_target);
 
   ElementsKind elements_kind = site->GetElementsKind();
   AllocationSiteOverrideMode override_mode =
@@ -593,12 +668,19 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
           ? DISABLE_ALLOCATION_SITES
           : DONT_OVERRIDE;
 
+  // The Array constructor can only trigger an observable side-effect
+  // if the new.target may be a proxy.
+  Operator::Properties const properties =
+      (new_target != target || new_target_type->Maybe(Type::Proxy()))
+          ? Operator::kNoDeopt
+          : Operator::kNoDeopt | Operator::kNoWrite;
+
   if (arity == 0) {
     ArrayNoArgumentConstructorStub stub(isolate(), elements_kind,
                                         override_mode);
     CallDescriptor* desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 1,
-        CallDescriptor::kNeedsFrameState);
+        CallDescriptor::kNeedsFrameState, properties);
     node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
     node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(0));
@@ -616,7 +698,7 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
                                               override_mode);
       CallDescriptor* desc = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
-          CallDescriptor::kNeedsFrameState);
+          CallDescriptor::kNeedsFrameState, properties);
       node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
       node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
       node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(1));
@@ -635,8 +717,6 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
         graph()->NewNode(common()->Branch(BranchHint::kFalse), equal, control);
     Node* call_holey;
     Node* call_packed;
-    Node* if_success_packed;
-    Node* if_success_holey;
     Node* context = NodeProperties::GetContextInput(node);
     Node* frame_state = NodeProperties::GetFrameStateInput(node);
     Node* if_equal = graph()->NewNode(common()->IfTrue(), branch);
@@ -645,7 +725,7 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
                                               override_mode);
       CallDescriptor* desc = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
-          CallDescriptor::kNeedsFrameState);
+          CallDescriptor::kNeedsFrameState, properties);
 
       Node* inputs[] = {jsgraph()->HeapConstant(stub.GetCode()),
                         node->InputAt(1),
@@ -660,7 +740,6 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
 
       call_holey =
           graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
-      if_success_holey = graph()->NewNode(common()->IfSuccess(), call_holey);
     }
     Node* if_not_equal = graph()->NewNode(common()->IfFalse(), branch);
     {
@@ -669,7 +748,7 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
           isolate(), GetHoleyElementsKind(elements_kind), override_mode);
       CallDescriptor* desc = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
-          CallDescriptor::kNeedsFrameState);
+          CallDescriptor::kNeedsFrameState, properties);
 
       Node* inputs[] = {jsgraph()->HeapConstant(stub.GetCode()),
                         node->InputAt(1),
@@ -684,10 +763,8 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
 
       call_packed =
           graph()->NewNode(common()->Call(desc), arraysize(inputs), inputs);
-      if_success_packed = graph()->NewNode(common()->IfSuccess(), call_packed);
     }
-    Node* merge = graph()->NewNode(common()->Merge(2), if_success_holey,
-                                   if_success_packed);
+    Node* merge = graph()->NewNode(common()->Merge(2), call_holey, call_packed);
     Node* effect_phi = graph()->NewNode(common()->EffectPhi(2), call_holey,
                                         call_packed, merge);
     Node* phi =
@@ -738,55 +815,29 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
     } else if (p.arity() == 1) {
       Node* length = NodeProperties::GetValueInput(node, 2);
       Type* length_type = NodeProperties::GetType(length);
+      if (!length_type->Maybe(Type::Number())) {
+        // Handle the single argument case, where we know that the value
+        // cannot be a valid Array length.
+        return ReduceNewArray(node, {length}, site);
+      }
       if (length_type->Is(Type::SignedSmall()) && length_type->Min() >= 0 &&
           length_type->Max() <= kElementLoopUnrollLimit &&
           length_type->Min() == length_type->Max()) {
         int capacity = static_cast<int>(length_type->Max());
         return ReduceNewArray(node, length, capacity, site);
       }
+    } else if (p.arity() <= JSArray::kInitialMaxFastElementArray) {
+      std::vector<Node*> values;
+      values.reserve(p.arity());
+      for (size_t i = 0; i < p.arity(); ++i) {
+        values.push_back(
+            NodeProperties::GetValueInput(node, static_cast<int>(2 + i)));
+      }
+      return ReduceNewArray(node, values, site);
     }
   }
 
   return ReduceNewArrayToStubCall(node, site);
-}
-
-Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
-  if (!FLAG_turbo_lower_create_closure) return NoChange();
-  DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
-  CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
-  Handle<SharedFunctionInfo> shared = p.shared_info();
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-
-  int const function_map_index =
-      Context::FunctionMapIndex(shared->language_mode(), shared->kind());
-  Node* function_map = jsgraph()->HeapConstant(
-      handle(Map::cast(native_context()->get(function_map_index)), isolate()));
-
-  // Note that it is only safe to embed the raw entry point of the compile
-  // lazy stub into the code, because that stub is immortal and immovable.
-  Node* compile_entry = jsgraph()->PointerConstant(
-      jsgraph()->isolate()->builtins()->CompileLazy()->entry());
-  Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
-  Node* empty_literals_array = jsgraph()->EmptyLiteralsArrayConstant();
-  Node* the_hole = jsgraph()->TheHoleConstant();
-  Node* undefined = jsgraph()->UndefinedConstant();
-  AllocationBuilder a(jsgraph(), effect, control);
-  STATIC_ASSERT(JSFunction::kSize == 9 * kPointerSize);
-  a.Allocate(JSFunction::kSize, p.pretenure());
-  a.Store(AccessBuilder::ForMap(), function_map);
-  a.Store(AccessBuilder::ForJSObjectProperties(), empty_fixed_array);
-  a.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
-  a.Store(AccessBuilder::ForJSFunctionLiterals(), empty_literals_array);
-  a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(), the_hole);
-  a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
-  a.Store(AccessBuilder::ForJSFunctionContext(), context);
-  a.Store(AccessBuilder::ForJSFunctionCodeEntry(), compile_entry);
-  a.Store(AccessBuilder::ForJSFunctionNextFunctionLink(), undefined);
-  RelaxControls(node);
-  a.FinishAndChange(node);
-  return Changed(node);
 }
 
 Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {
@@ -850,9 +901,10 @@ Reduction JSCreateLowering::ReduceJSCreateLiteral(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  Handle<LiteralsArray> literals_array;
-  if (GetSpecializationLiterals(node).ToHandle(&literals_array)) {
-    Handle<Object> literal(literals_array->literal(p.index()), isolate());
+  Handle<FeedbackVector> feedback_vector;
+  if (GetSpecializationFeedbackVector(node).ToHandle(&feedback_vector)) {
+    FeedbackSlot slot(FeedbackVector::ToSlot(p.index()));
+    Handle<Object> literal(feedback_vector->Get(slot), isolate());
     if (literal->IsAllocationSite()) {
       Handle<AllocationSite> site = Handle<AllocationSite>::cast(literal);
       Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()),
@@ -1134,17 +1186,7 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
   ElementAccess access = IsFastDoubleElementsKind(elements_kind)
                              ? AccessBuilder::ForFixedDoubleArrayElement()
                              : AccessBuilder::ForFixedArrayElement();
-  Node* value;
-  if (IsFastDoubleElementsKind(elements_kind)) {
-    // Load the hole NaN pattern from the canonical location.
-    value = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForExternalDoubleValue()),
-        jsgraph()->ExternalConstant(
-            ExternalReference::address_of_the_hole_nan()),
-        effect, control);
-  } else {
-    value = jsgraph()->TheHoleConstant();
-  }
+  Node* value = jsgraph()->TheHoleConstant();
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
@@ -1152,6 +1194,31 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
   for (int i = 0; i < capacity; ++i) {
     Node* index = jsgraph()->Constant(i);
     a.Store(access, index, value);
+  }
+  return a.Finish();
+}
+
+Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
+                                         ElementsKind elements_kind,
+                                         std::vector<Node*> const& values,
+                                         PretenureFlag pretenure) {
+  int const capacity = static_cast<int>(values.size());
+  DCHECK_LE(1, capacity);
+  DCHECK_LE(capacity, JSArray::kInitialMaxFastElementArray);
+
+  Handle<Map> elements_map = IsFastDoubleElementsKind(elements_kind)
+                                 ? factory()->fixed_double_array_map()
+                                 : factory()->fixed_array_map();
+  ElementAccess access = IsFastDoubleElementsKind(elements_kind)
+                             ? AccessBuilder::ForFixedDoubleArrayElement()
+                             : AccessBuilder::ForFixedArrayElement();
+
+  // Actually allocate the backing store.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.AllocateArray(capacity, elements_map, pretenure);
+  for (int i = 0; i < capacity; ++i) {
+    Node* index = jsgraph()->Constant(i);
+    a.Store(access, index, values[i]);
   }
   return a.Finish();
 }
@@ -1174,11 +1241,6 @@ Node* JSCreateLowering::AllocateFastLiteral(
 
   // Setup the properties backing store.
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
-
-  // Setup the elements backing store.
-  Node* elements = AllocateFastLiteralElements(effect, control, boilerplate,
-                                               pretenure, site_context);
-  if (elements->op()->EffectOutputCount() > 0) effect = elements;
 
   // Compute the in-object properties to store first (might have effects).
   Handle<Map> boilerplate_map(boilerplate->map(), isolate());
@@ -1244,10 +1306,15 @@ Node* JSCreateLowering::AllocateFastLiteral(
     inobject_fields.push_back(std::make_pair(access, value));
   }
 
+  // Setup the elements backing store.
+  Node* elements = AllocateFastLiteralElements(effect, control, boilerplate,
+                                               pretenure, site_context);
+  if (elements->op()->EffectOutputCount() > 0) effect = elements;
+
   // Actually allocate and initialize the object.
   AllocationBuilder builder(jsgraph(), effect, control);
   builder.Allocate(boilerplate_map->instance_size(), pretenure,
-                   Type::OtherObject());
+                   Type::For(boilerplate_map));
   builder.Store(AccessBuilder::ForMap(), boilerplate_map);
   builder.Store(AccessBuilder::ForJSObjectProperties(), properties);
   builder.Store(AccessBuilder::ForJSObjectElements(), elements);
@@ -1292,18 +1359,9 @@ Node* JSCreateLowering::AllocateFastLiteralElements(
   if (elements_map->instance_type() == FIXED_DOUBLE_ARRAY_TYPE) {
     Handle<FixedDoubleArray> elements =
         Handle<FixedDoubleArray>::cast(boilerplate_elements);
-    Node* the_hole_value = nullptr;
     for (int i = 0; i < elements_length; ++i) {
       if (elements->is_the_hole(i)) {
-        if (the_hole_value == nullptr) {
-          // Load the hole NaN pattern from the canonical location.
-          the_hole_value = effect = graph()->NewNode(
-              simplified()->LoadField(AccessBuilder::ForExternalDoubleValue()),
-              jsgraph()->ExternalConstant(
-                  ExternalReference::address_of_the_hole_nan()),
-              effect, control);
-        }
-        elements_values[i] = the_hole_value;
+        elements_values[i] = jsgraph()->TheHoleConstant();
       } else {
         elements_values[i] = jsgraph()->Constant(elements->get_scalar(i));
       }
@@ -1343,13 +1401,13 @@ Node* JSCreateLowering::AllocateFastLiteralElements(
   return builder.Finish();
 }
 
-MaybeHandle<LiteralsArray> JSCreateLowering::GetSpecializationLiterals(
+MaybeHandle<FeedbackVector> JSCreateLowering::GetSpecializationFeedbackVector(
     Node* node) {
   Node* const closure = NodeProperties::GetValueInput(node, 0);
   switch (closure->opcode()) {
     case IrOpcode::kHeapConstant: {
       Handle<HeapObject> object = OpParameter<Handle<HeapObject>>(closure);
-      return handle(Handle<JSFunction>::cast(object)->literals());
+      return handle(Handle<JSFunction>::cast(object)->feedback_vector());
     }
     case IrOpcode::kParameter: {
       int const index = ParameterIndexOf(closure->op());
@@ -1357,14 +1415,14 @@ MaybeHandle<LiteralsArray> JSCreateLowering::GetSpecializationLiterals(
       // {Parameter} indices start at -1, so value outputs of {Start} look like
       // this: closure, receiver, param0, ..., paramN, context.
       if (index == -1) {
-        return literals_array_;
+        return feedback_vector_;
       }
       break;
     }
     default:
       break;
   }
-  return MaybeHandle<LiteralsArray>();
+  return MaybeHandle<FeedbackVector>();
 }
 
 Factory* JSCreateLowering::factory() const { return isolate()->factory(); }

@@ -177,7 +177,7 @@ def run_site(site, domain, args, timeout=None):
           user_data_dir = args.user_data_dir
         else:
           user_data_dir = tempfile.mkdtemp(prefix="chr_")
-        js_flags = "--runtime-call-stats"
+        js_flags = "--runtime-call-stats --noconcurrent-recompilation"
         if args.replay_wpr: js_flags += " --allow-natives-syntax"
         if args.js_flags: js_flags += " " + args.js_flags
         chrome_flags = get_chrome_flags(js_flags, user_data_dir)
@@ -508,8 +508,15 @@ def create_total_page_stats(domains, args):
         sums.extend([0] * (i - len(sums) + 1))
       if item is not None:
         sums[i] += item
-  # Sum up all the entries/metrics from all domains
+  # Exclude adwords and speedometer pages from aggrigate total, since adwords
+  # dominates execution time and speedometer is measured elsewhere.
+  excluded_domains = ['adwords.google.com', 'speedometer-angular',
+                      'speedometer-jquery', 'speedometer-backbone',
+                      'speedometer-ember', 'speedometer-vanilla'];
+  # Sum up all the entries/metrics from all non-excluded domains
   for domain, entries in domains.items():
+    if domain in excluded_domains:
+      continue;
     for key, domain_stats in entries.items():
       if key not in total:
         total[key] = {}

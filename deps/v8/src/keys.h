@@ -53,9 +53,10 @@ class KeyAccumulator final BASE_EMBEDDED {
       Handle<AccessCheckInfo> access_check_info, Handle<JSReceiver> receiver,
       Handle<JSObject> object);
 
+  // Might return directly the object's enum_cache, copy the result before using
+  // as an elements backing store for a JSObject.
   static Handle<FixedArray> GetOwnEnumPropertyKeys(Isolate* isolate,
                                                    Handle<JSObject> object);
-
   void AddKey(Object* key, AddKeyConversion convert = DO_NOT_CONVERT);
   void AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
   void AddKeys(Handle<FixedArray> array, AddKeyConversion convert);
@@ -139,6 +140,8 @@ class FastKeyAccumulator {
   void Prepare();
   MaybeHandle<FixedArray> GetKeysFast(GetKeysConversion convert);
   MaybeHandle<FixedArray> GetKeysSlow(GetKeysConversion convert);
+
+  MaybeHandle<FixedArray> GetOwnKeysWithUninitializedEnumCache();
 
   Isolate* isolate_;
   Handle<JSReceiver> receiver_;

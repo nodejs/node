@@ -80,6 +80,11 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis BASE_EMBEDDED {
   // Get the loop info of the loop header at {header_offset}.
   const LoopInfo& GetLoopInfoFor(int header_offset) const;
 
+  // True if the current analysis has an OSR entry point.
+  bool HasOSREntryPoint() const { return osr_entry_point_ != -1; }
+  // True if {offset} is the OSR entry loop header.
+  bool IsOSREntryPoint(int offset) const { return osr_entry_point_ == offset; }
+
   // Gets the in-liveness for the bytecode at {offset}.
   const BytecodeLivenessState* GetInLivenessFor(int offset) const;
 
@@ -113,6 +118,7 @@ class V8_EXPORT_PRIVATE BytecodeAnalysis BASE_EMBEDDED {
 
   ZoneMap<int, int> end_to_header_;
   ZoneMap<int, LoopInfo> header_to_info_;
+  int osr_entry_point_;
 
   BytecodeLivenessMap liveness_map_;
 

@@ -7,9 +7,11 @@
 # when they are identical to upstreamed tests. It should be run as part of
 # the test262 roll process.
 
-find -f test/test262/local-tests | while read localpath; do
+find test/test262/local-tests -type f | while read localpath; do
   datapath=${localpath/local-tests/data}
-  if diff $localpath $datapath >/dev/null ; then
-    git rm $localpath || exit 1
+  if [ -e $datapath ] ; then
+    if diff $localpath $datapath >/dev/null ; then
+      git rm $localpath || exit 1
+    fi
   fi
 done

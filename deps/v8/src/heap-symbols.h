@@ -27,12 +27,6 @@
   V(regexp_to_string, "[object RegExp]")                           \
   V(string_to_string, "[object String]")                           \
   V(bind_string, "bind")                                           \
-  V(bool16x8_string, "bool16x8")                                   \
-  V(Bool16x8_string, "Bool16x8")                                   \
-  V(bool32x4_string, "bool32x4")                                   \
-  V(Bool32x4_string, "Bool32x4")                                   \
-  V(bool8x16_string, "bool8x16")                                   \
-  V(Bool8x16_string, "Bool8x16")                                   \
   V(boolean_string, "boolean")                                     \
   V(Boolean_string, "Boolean")                                     \
   V(bound__string, "bound ")                                       \
@@ -60,6 +54,7 @@
   V(did_handle_string, "didHandle")                                \
   V(display_name_string, "displayName")                            \
   V(done_string, "done")                                           \
+  V(dotAll_string, "dotAll")                                       \
   V(dot_catch_string, ".catch")                                    \
   V(dot_for_string, ".for")                                        \
   V(dot_generator_object_string, ".generator_object")              \
@@ -77,8 +72,6 @@
   V(EvalError_string, "EvalError")                                 \
   V(false_string, "false")                                         \
   V(flags_string, "flags")                                         \
-  V(float32x4_string, "float32x4")                                 \
-  V(Float32x4_string, "Float32x4")                                 \
   V(function_string, "function")                                   \
   V(Function_string, "Function")                                   \
   V(Generator_string, "Generator")                                 \
@@ -88,6 +81,7 @@
   V(get_string, "get")                                             \
   V(get_space_string, "get ")                                      \
   V(global_string, "global")                                       \
+  V(groups_string, "groups")                                       \
   V(has_string, "has")                                             \
   V(hour_string, "hour")                                           \
   V(ignoreCase_string, "ignoreCase")                               \
@@ -96,12 +90,6 @@
   V(index_string, "index")                                         \
   V(infinity_string, "Infinity")                                   \
   V(input_string, "input")                                         \
-  V(int16x8_string, "int16x8")                                     \
-  V(Int16x8_string, "Int16x8")                                     \
-  V(int32x4_string, "int32x4")                                     \
-  V(Int32x4_string, "Int32x4")                                     \
-  V(int8x16_string, "int8x16")                                     \
-  V(Int8x16_string, "Int8x16")                                     \
   V(isExtensible_string, "isExtensible")                           \
   V(isView_string, "isView")                                       \
   V(KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")           \
@@ -125,6 +113,10 @@
   V(nan_string, "NaN")                                             \
   V(new_target_string, ".new.target")                              \
   V(next_string, "next")                                           \
+  V(NFC_string, "NFC")                                             \
+  V(NFD_string, "NFD")                                             \
+  V(NFKC_string, "NFKC")                                           \
+  V(NFKD_string, "NFKD")                                           \
   V(not_equal, "not-equal")                                        \
   V(null_string, "null")                                           \
   V(null_to_string, "[object Null]")                               \
@@ -184,12 +176,6 @@
   V(CompileError_string, "CompileError")                           \
   V(LinkError_string, "LinkError")                                 \
   V(RuntimeError_string, "RuntimeError")                           \
-  V(uint16x8_string, "uint16x8")                                   \
-  V(Uint16x8_string, "Uint16x8")                                   \
-  V(uint32x4_string, "uint32x4")                                   \
-  V(Uint32x4_string, "Uint32x4")                                   \
-  V(uint8x16_string, "uint8x16")                                   \
-  V(Uint8x16_string, "Uint8x16")                                   \
   V(undefined_string, "undefined")                                 \
   V(undefined_to_string, "[object Undefined]")                     \
   V(unicode_string, "unicode")                                     \
@@ -206,51 +192,52 @@
   V(writable_string, "writable")                                   \
   V(year_string, "year")
 
-#define PRIVATE_SYMBOL_LIST(V)         \
-  V(array_iteration_kind_symbol)       \
-  V(array_iterator_next_symbol)        \
-  V(array_iterator_object_symbol)      \
-  V(call_site_frame_array_symbol)      \
-  V(call_site_frame_index_symbol)      \
-  V(class_end_position_symbol)         \
-  V(class_start_position_symbol)       \
-  V(detailed_stack_trace_symbol)       \
-  V(elements_transition_symbol)        \
-  V(error_end_pos_symbol)              \
-  V(error_script_symbol)               \
-  V(error_start_pos_symbol)            \
-  V(frozen_symbol)                     \
-  V(hash_code_symbol)                  \
-  V(home_object_symbol)                \
-  V(intl_initialized_marker_symbol)    \
-  V(intl_pattern_symbol)               \
-  V(intl_resolved_symbol)              \
-  V(megamorphic_symbol)                \
-  V(native_context_index_symbol)       \
-  V(nonexistent_symbol)                \
-  V(nonextensible_symbol)              \
-  V(normal_ic_symbol)                  \
-  V(not_mapped_symbol)                 \
-  V(premonomorphic_symbol)             \
-  V(promise_async_stack_id_symbol)     \
-  V(promise_debug_marker_symbol)       \
-  V(promise_forwarding_handler_symbol) \
-  V(promise_handled_by_symbol)         \
-  V(promise_async_id_symbol)           \
-  V(sealed_symbol)                     \
-  V(stack_trace_symbol)                \
-  V(strict_function_transition_symbol) \
+#define PRIVATE_SYMBOL_LIST(V)              \
+  V(array_iteration_kind_symbol)            \
+  V(array_iterator_next_symbol)             \
+  V(array_iterator_object_symbol)           \
+  V(call_site_frame_array_symbol)           \
+  V(call_site_frame_index_symbol)           \
+  V(class_end_position_symbol)              \
+  V(class_start_position_symbol)            \
+  V(detailed_stack_trace_symbol)            \
+  V(elements_transition_symbol)             \
+  V(error_end_pos_symbol)                   \
+  V(error_script_symbol)                    \
+  V(error_start_pos_symbol)                 \
+  V(frozen_symbol)                          \
+  V(hash_code_symbol)                       \
+  V(home_object_symbol)                     \
+  V(intl_initialized_marker_symbol)         \
+  V(intl_pattern_symbol)                    \
+  V(intl_resolved_symbol)                   \
+  V(megamorphic_symbol)                     \
+  V(native_context_index_symbol)            \
+  V(nonextensible_symbol)                   \
+  V(not_mapped_symbol)                      \
+  V(premonomorphic_symbol)                  \
+  V(promise_async_stack_id_symbol)          \
+  V(promise_debug_marker_symbol)            \
+  V(promise_forwarding_handler_symbol)      \
+  V(promise_handled_by_symbol)              \
+  V(promise_async_id_symbol)                \
+  V(promise_default_resolve_handler_symbol) \
+  V(promise_default_reject_handler_symbol)  \
+  V(sealed_symbol)                          \
+  V(stack_trace_symbol)                     \
+  V(strict_function_transition_symbol)      \
   V(uninitialized_symbol)
 
-#define PUBLIC_SYMBOL_LIST(V)                \
-  V(iterator_symbol, Symbol.iterator)        \
-  V(intl_fallback_symbol, IntlFallback)      \
-  V(match_symbol, Symbol.match)              \
-  V(replace_symbol, Symbol.replace)          \
-  V(search_symbol, Symbol.search)            \
-  V(species_symbol, Symbol.species)          \
-  V(split_symbol, Symbol.split)              \
-  V(to_primitive_symbol, Symbol.toPrimitive) \
+#define PUBLIC_SYMBOL_LIST(V)                    \
+  V(async_iterator_symbol, Symbol.asyncIterator) \
+  V(iterator_symbol, Symbol.iterator)            \
+  V(intl_fallback_symbol, IntlFallback)          \
+  V(match_symbol, Symbol.match)                  \
+  V(replace_symbol, Symbol.replace)              \
+  V(search_symbol, Symbol.search)                \
+  V(species_symbol, Symbol.species)              \
+  V(split_symbol, Symbol.split)                  \
+  V(to_primitive_symbol, Symbol.toPrimitive)     \
   V(unscopables_symbol, Symbol.unscopables)
 
 // Well-Known Symbols are "Public" symbols, which have a bit set which causes

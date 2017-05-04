@@ -43,19 +43,6 @@ RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ExportExperimentalFromRuntime) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
-  CHECK(isolate->bootstrapper()->IsActive());
-  JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
-                                "ExportExperimentalFromRuntime");
-  Bootstrapper::ExportExperimentalFromRuntime(isolate, container);
-  JSObject::MigrateSlowToFast(container, 0, "ExportExperimentalFromRuntime");
-  return *container;
-}
-
-
 RUNTIME_FUNCTION(Runtime_InstallToContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -101,21 +88,77 @@ RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   return isolate->StackOverflow();
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
+RUNTIME_FUNCTION(Runtime_ThrowSymbolAsyncIteratorInvalid) {
   HandleScope scope(isolate);
-  DCHECK_LE(1, args.length());
-  CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kSymbolAsyncIteratorInvalid));
+}
 
-  Handle<Object> undefined = isolate->factory()->undefined_value();
-  Handle<Object> arg0 = (args.length() > 1) ? args.at(1) : undefined;
-  Handle<Object> arg1 = (args.length() > 2) ? args.at(2) : undefined;
-  Handle<Object> arg2 = (args.length() > 3) ? args.at(3) : undefined;
+#define THROW_ERROR(isolate, args, call)                              \
+  HandleScope scope(isolate);                                         \
+  DCHECK_LE(1, args.length());                                        \
+  CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);                         \
+                                                                      \
+  Handle<Object> undefined = isolate->factory()->undefined_value();   \
+  Handle<Object> arg0 = (args.length() > 1) ? args.at(1) : undefined; \
+  Handle<Object> arg1 = (args.length() > 2) ? args.at(2) : undefined; \
+  Handle<Object> arg2 = (args.length() > 3) ? args.at(3) : undefined; \
+                                                                      \
+  MessageTemplate::Template message_id =                              \
+      static_cast<MessageTemplate::Template>(message_id_smi);         \
+                                                                      \
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate, call(message_id, arg0, arg1, arg2));
 
-  MessageTemplate::Template message_id =
-      static_cast<MessageTemplate::Template>(message_id_smi);
+RUNTIME_FUNCTION(Runtime_ThrowRangeError) {
+  THROW_ERROR(isolate, args, NewRangeError);
+}
 
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                 NewTypeError(message_id, arg0, arg1, arg2));
+RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
+  THROW_ERROR(isolate, args, NewTypeError);
+}
+
+#undef THROW_ERROR
+
+namespace {
+
+const char* ElementsKindToType(ElementsKind fixed_elements_kind) {
+  switch (fixed_elements_kind) {
+#define ELEMENTS_KIND_CASE(Type, type, TYPE, ctype, size) \
+  case TYPE##_ELEMENTS:                                   \
+    return #Type "Array";
+
+    TYPED_ARRAYS(ELEMENTS_KIND_CASE)
+#undef ELEMENTS_KIND_CASE
+
+    default:
+      UNREACHABLE();
+      return "";
+  }
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_ThrowInvalidTypedArrayAlignment) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Map, map, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, problem_string, 1);
+
+  ElementsKind kind = map->elements_kind();
+
+  Handle<String> type =
+      isolate->factory()->NewStringFromAsciiChecked(ElementsKindToType(kind));
+
+  ExternalArrayType external_type =
+      isolate->factory()->GetArrayTypeFromElementsKind(kind);
+  size_t size = isolate->factory()->GetExternalArrayElementSize(external_type);
+  Handle<Object> element_size =
+      handle(Smi::FromInt(static_cast<int>(size)), isolate);
+
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewRangeError(MessageTemplate::kInvalidTypedArrayAlignment,
+                             problem_string, type, element_size));
 }
 
 RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
@@ -225,12 +268,24 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolIteratorInvalid) {
       isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowNotGeneric) {
+RUNTIME_FUNCTION(Runtime_ThrowNonCallableInInstanceOfCheck) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNonCallableInInstanceOfCheck));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowNonObjectInInstanceOfCheck) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNonObjectInInstanceOfCheck));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowNotConstructor) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kNotGeneric, arg0));
+      isolate, NewTypeError(MessageTemplate::kNotConstructor, object));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowGeneratorRunning) {
@@ -299,6 +354,7 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqOneByteString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(length, 0);
+  if (length == 0) return isolate->heap()->empty_string();
   Handle<SeqOneByteString> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewRawOneByteString(length));
@@ -309,6 +365,7 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(length, 0);
+  if (length == 0) return isolate->heap()->empty_string();
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewRawTwoByteString(length));
@@ -350,9 +407,8 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
-    Zone zone(isolate->allocator(), ZONE_NAME);
-    std::unique_ptr<ParseInfo> info(new ParseInfo(&zone, location.shared()));
-    if (parsing::ParseAny(info.get())) {
+    std::unique_ptr<ParseInfo> info(new ParseInfo(location.shared()));
+    if (parsing::ParseAny(info.get(), isolate)) {
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info->literal(), location.start_pos());
       if (str->length() > 0) return str;
@@ -364,7 +420,6 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
 }
 
 }  // namespace
-
 
 RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
   HandleScope scope(isolate);
@@ -392,11 +447,18 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
       isolate, NewTypeError(MessageTemplate::kNotConstructor, callsite));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowDerivedConstructorReturnedNonObject) {
+RUNTIME_FUNCTION(Runtime_ThrowConstructorReturnedNonObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
+  if (FLAG_harmony_restrict_constructor_return) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kClassConstructorReturnedNonObject));
+  }
+
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kDerivedConstructorReturn));
+      isolate,
+      NewTypeError(MessageTemplate::kDerivedConstructorReturnedNonObject));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowUndefinedOrNullToObject) {
@@ -494,6 +556,21 @@ RUNTIME_FUNCTION(Runtime_AllowDynamicFunction) {
   Handle<JSObject> global_proxy(target->global_proxy(), isolate);
   return *isolate->factory()->ToBoolean(
       Builtins::AllowDynamicFunction(isolate, target, global_proxy));
+}
+
+RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, sync_iterator, 0);
+
+  if (!sync_iterator->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
+  }
+
+  return *isolate->factory()->NewJSAsyncFromSyncIterator(
+      Handle<JSReceiver>::cast(sync_iterator));
 }
 
 }  // namespace internal

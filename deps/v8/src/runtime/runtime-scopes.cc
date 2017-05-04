@@ -46,7 +46,7 @@ Object* DeclareGlobal(
     Handle<Object> value, PropertyAttributes attr, bool is_var,
     bool is_function_declaration, RedeclarationType redeclaration_type,
     Handle<FeedbackVector> feedback_vector = Handle<FeedbackVector>(),
-    FeedbackVectorSlot slot = FeedbackVectorSlot::Invalid()) {
+    FeedbackSlot slot = FeedbackSlot::Invalid()) {
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table());
   ScriptContextTable::LookupResult lookup;
@@ -86,8 +86,7 @@ Object* DeclareGlobal(
 
       // Check whether we can reconfigure the existing property into a
       // function.
-      PropertyDetails old_details = it.property_details();
-      if (old_details.IsReadOnly() || old_details.IsDontEnum() ||
+      if (old_attributes & READ_ONLY || old_attributes & DONT_ENUM ||
           (it.state() == LookupIterator::ACCESSOR)) {
         // ECMA-262 section 15.1.11 GlobalDeclarationInstantiation 5.d:
         // If hasRestrictedGlobal is true, throw a SyntaxError exception.
@@ -116,7 +115,8 @@ Object* DeclareGlobal(
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attr));
 
-  if (!feedback_vector.is_null()) {
+  if (!feedback_vector.is_null() &&
+      it.state() != LookupIterator::State::INTERCEPTOR) {
     DCHECK_EQ(*global, *it.GetHolder<Object>());
     // Preinitialize the feedback slot if the global object does not have
     // named interceptor or the interceptor is not masking.
@@ -137,10 +137,11 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
   // Traverse the name/value pairs and set the properties.
   int length = declarations->length();
-  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 3, {
+  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 4, {
     Handle<String> name(String::cast(declarations->get(i)), isolate);
-    FeedbackVectorSlot slot(Smi::cast(declarations->get(i + 1))->value());
-    Handle<Object> initial_value(declarations->get(i + 2), isolate);
+    FeedbackSlot slot(Smi::cast(declarations->get(i + 1))->value());
+    Handle<Object> possibly_literal_slot(declarations->get(i + 2), isolate);
+    Handle<Object> initial_value(declarations->get(i + 3), isolate);
 
     bool is_var = initial_value->IsUndefined(isolate);
     bool is_function = initial_value->IsSharedFunctionInfo();
@@ -148,12 +149,16 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
     Handle<Object> value;
     if (is_function) {
+      DCHECK(possibly_literal_slot->IsSmi());
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(initial_value);
+      FeedbackSlot literals_slot(Smi::cast(*possibly_literal_slot)->value());
+      Handle<Cell> literals(Cell::cast(feedback_vector->Get(literals_slot)),
+                            isolate);
       Handle<JSFunction> function =
-          isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
-                                                                TENURED);
+          isolate->factory()->NewFunctionFromSharedFunctionInfo(
+              shared, context, literals, TENURED);
       value = function;
     } else {
       value = isolate->factory()->undefined_value();
@@ -584,12 +589,29 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
 
 RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
-  Object** parameters = reinterpret_cast<Object**>(args[1]);
-  CONVERT_SMI_ARG_CHECKED(argument_count, 2);
+  StackFrameIterator iterator(isolate);
+
+  // Stub/interpreter handler frame
+  iterator.Advance();
+  DCHECK(iterator.frame()->type() == StackFrame::STUB);
+
+  // Function frame
+  iterator.Advance();
+  JavaScriptFrame* function_frame = JavaScriptFrame::cast(iterator.frame());
+  DCHECK(function_frame->is_java_script());
+  int argc = function_frame->GetArgumentsLength();
+  Address fp = function_frame->fp();
+  if (function_frame->has_adapted_arguments()) {
+    iterator.Advance();
+    fp = iterator.frame()->fp();
+  }
+
+  Object** parameters = reinterpret_cast<Object**>(
+      fp + argc * kPointerSize + StandardFrameConstants::kCallerSPOffset);
   ParameterArguments argument_getter(parameters);
-  return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
+  return *NewSloppyArguments(isolate, callee, argument_getter, argc);
 }
 
 RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
@@ -612,10 +634,14 @@ RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
+  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 1);
+  CONVERT_SMI_ARG_CHECKED(index, 2);
   Handle<Context> context(isolate->context(), isolate);
+  FeedbackSlot slot = FeedbackVector::ToSlot(index);
+  Handle<Cell> vector_cell(Cell::cast(vector->Get(slot)), isolate);
   Handle<JSFunction> function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
-                                                            NOT_TENURED);
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          shared, context, vector_cell, NOT_TENURED);
   return *function;
 }
 
@@ -624,12 +650,16 @@ RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
+  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 1);
+  CONVERT_SMI_ARG_CHECKED(index, 2);
   Handle<Context> context(isolate->context(), isolate);
+  FeedbackSlot slot = FeedbackVector::ToSlot(index);
+  Handle<Cell> vector_cell(Cell::cast(vector->Get(slot)), isolate);
   // The caller ensures that we pretenure closures that are assigned
   // directly to properties.
   Handle<JSFunction> function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
-                                                            TENURED);
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          shared, context, vector_cell, TENURED);
   return *function;
 }
 

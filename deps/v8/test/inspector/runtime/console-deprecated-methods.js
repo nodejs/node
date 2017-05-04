@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Tests checks that deprecation messages for console.")
+InspectorTest.log("Tests checks that deprecation messages for console.")
 
 Protocol.Runtime.onConsoleAPICalled(messageAdded);
 Protocol.Runtime.enable();

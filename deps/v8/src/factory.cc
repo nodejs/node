@@ -13,6 +13,7 @@
 #include "src/conversions.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
+#include "src/objects/frame-array-inl.h"
 #include "src/objects/module-info.h"
 #include "src/objects/scope-info.h"
 
@@ -89,12 +90,6 @@ Handle<HeapObject> Factory::NewFillerObject(int size,
 }
 
 
-Handle<Box> Factory::NewBox(Handle<Object> value) {
-  Handle<Box> result = Handle<Box>::cast(NewStruct(BOX_TYPE));
-  result->set_value(*value);
-  return result;
-}
-
 Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   Handle<PrototypeInfo> result =
       Handle<PrototypeInfo>::cast(NewStruct(PROTOTYPE_INFO_TYPE));
@@ -133,8 +128,8 @@ Handle<ContextExtension> Factory::NewContextExtension(
 
 Handle<ConstantElementsPair> Factory::NewConstantElementsPair(
     ElementsKind elements_kind, Handle<FixedArrayBase> constant_values) {
-  Handle<ConstantElementsPair> result = Handle<ConstantElementsPair>::cast(
-      NewStruct(CONSTANT_ELEMENTS_PAIR_TYPE));
+  Handle<ConstantElementsPair> result =
+      Handle<ConstantElementsPair>::cast(NewStruct(TUPLE2_TYPE));
   result->set_elements_kind(elements_kind);
   result->set_constant_values(*constant_values);
   return result;
@@ -185,6 +180,34 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
       FixedArray);
 }
 
+Handle<BoilerplateDescription> Factory::NewBoilerplateDescription(
+    int boilerplate, int all_properties, int index_keys, bool has_seen_proto) {
+  DCHECK_GE(boilerplate, 0);
+  DCHECK_GE(all_properties, index_keys);
+  DCHECK_GE(index_keys, 0);
+
+  int backing_store_size =
+      all_properties - index_keys - (has_seen_proto ? 1 : 0);
+  DCHECK_GE(backing_store_size, 0);
+  bool has_different_size_backing_store = boilerplate != backing_store_size;
+
+  // Space for name and value for every boilerplate property.
+  int size = 2 * boilerplate;
+
+  if (has_different_size_backing_store) {
+    // An extra entry for the backing store size.
+    size++;
+  }
+
+  Handle<BoilerplateDescription> description =
+      Handle<BoilerplateDescription>::cast(NewFixedArray(size, TENURED));
+
+  if (has_different_size_backing_store) {
+    DCHECK((boilerplate != (all_properties - index_keys)) || has_seen_proto);
+    description->set_backing_store_size(isolate(), backing_store_size);
+  }
+  return description;
+}
 
 Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int size,
                                                     PretenureFlag pretenure) {
@@ -237,7 +260,7 @@ Handle<AccessorPair> Factory::NewAccessorPair() {
 
 Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
   Handle<TypeFeedbackInfo> info =
-      Handle<TypeFeedbackInfo>::cast(NewStruct(TYPE_FEEDBACK_INFO_TYPE));
+      Handle<TypeFeedbackInfo>::cast(NewStruct(TUPLE3_TYPE));
   info->initialize_storage();
   return info;
 }
@@ -278,6 +301,7 @@ Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
 MaybeHandle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
                                                   PretenureFlag pretenure) {
   int length = string.length();
+  if (length == 0) return empty_string();
   if (length == 1) return LookupSingleCharacterStringFromCode(string[0]);
   Handle<SeqOneByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -371,6 +395,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8SubString(
 MaybeHandle<String> Factory::NewStringFromTwoByte(const uc16* string,
                                                   int length,
                                                   PretenureFlag pretenure) {
+  if (length == 0) return empty_string();
   if (String::IsOneByte(string, length)) {
     if (length == 1) return LookupSingleCharacterStringFromCode(string[0]);
     Handle<SeqOneByteString> result;
@@ -455,39 +480,63 @@ Handle<String> Factory::NewInternalizedStringImpl(
       String);
 }
 
+namespace {
+
+MaybeHandle<Map> GetInternalizedStringMap(Factory* f, Handle<String> string) {
+  switch (string->map()->instance_type()) {
+    case STRING_TYPE:
+      return f->internalized_string_map();
+    case ONE_BYTE_STRING_TYPE:
+      return f->one_byte_internalized_string_map();
+    case EXTERNAL_STRING_TYPE:
+      return f->external_internalized_string_map();
+    case EXTERNAL_ONE_BYTE_STRING_TYPE:
+      return f->external_one_byte_internalized_string_map();
+    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+      return f->external_internalized_string_with_one_byte_data_map();
+    case SHORT_EXTERNAL_STRING_TYPE:
+      return f->short_external_internalized_string_map();
+    case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
+      return f->short_external_one_byte_internalized_string_map();
+    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+      return f->short_external_internalized_string_with_one_byte_data_map();
+    default: return MaybeHandle<Map>();  // No match found.
+  }
+}
+
+}  // namespace
+
 MaybeHandle<Map> Factory::InternalizedStringMapForString(
     Handle<String> string) {
   // If the string is in new space it cannot be used as internalized.
   if (isolate()->heap()->InNewSpace(*string)) return MaybeHandle<Map>();
 
-  // Find the corresponding internalized string map for strings.
-  switch (string->map()->instance_type()) {
-    case STRING_TYPE:
-      return internalized_string_map();
-    case ONE_BYTE_STRING_TYPE:
-      return one_byte_internalized_string_map();
-    case EXTERNAL_STRING_TYPE:
-      return external_internalized_string_map();
-    case EXTERNAL_ONE_BYTE_STRING_TYPE:
-      return external_one_byte_internalized_string_map();
-    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return external_internalized_string_with_one_byte_data_map();
-    case SHORT_EXTERNAL_STRING_TYPE:
-      return short_external_internalized_string_map();
-    case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
-      return short_external_one_byte_internalized_string_map();
-    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return short_external_internalized_string_with_one_byte_data_map();
-    default: return MaybeHandle<Map>();  // No match found.
-  }
+  return GetInternalizedStringMap(this, string);
 }
 
+template <class StringClass>
+Handle<StringClass> Factory::InternalizeExternalString(Handle<String> string) {
+  Handle<StringClass> cast_string = Handle<StringClass>::cast(string);
+  Handle<Map> map = GetInternalizedStringMap(this, string).ToHandleChecked();
+  Handle<StringClass> external_string = New<StringClass>(map, OLD_SPACE);
+  external_string->set_length(cast_string->length());
+  external_string->set_hash_field(cast_string->hash_field());
+  external_string->set_resource(nullptr);
+  isolate()->heap()->RegisterExternalString(*external_string);
+  return external_string;
+}
+
+template Handle<ExternalOneByteString>
+    Factory::InternalizeExternalString<ExternalOneByteString>(Handle<String>);
+template Handle<ExternalTwoByteString>
+    Factory::InternalizeExternalString<ExternalTwoByteString>(Handle<String>);
 
 MaybeHandle<SeqOneByteString> Factory::NewRawOneByteString(
     int length, PretenureFlag pretenure) {
   if (length > String::kMaxLength || length < 0) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqOneByteString);
   }
+  DCHECK(length > 0);  // Use Factory::empty_string() instead.
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateRawOneByteString(length, pretenure),
@@ -500,6 +549,7 @@ MaybeHandle<SeqTwoByteString> Factory::NewRawTwoByteString(
   if (length > String::kMaxLength || length < 0) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqTwoByteString);
   }
+  DCHECK(length > 0);  // Use Factory::empty_string() instead.
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateRawTwoByteString(length, pretenure),
@@ -588,6 +638,12 @@ Handle<String> ConcatStringContent(Handle<StringType> result,
 
 MaybeHandle<String> Factory::NewConsString(Handle<String> left,
                                            Handle<String> right) {
+  if (left->IsThinString()) {
+    left = handle(Handle<ThinString>::cast(left)->actual(), isolate());
+  }
+  if (right->IsThinString()) {
+    right = handle(Handle<ThinString>::cast(right)->actual(), isolate());
+  }
   int left_length = left->length();
   if (left_length == 0) return right;
   int right_length = right->length();
@@ -656,10 +712,20 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
             NewRawTwoByteString(length).ToHandleChecked(), left, right);
   }
 
+  bool one_byte = (is_one_byte || is_one_byte_data_in_two_byte_string);
+  return NewConsString(left, right, length, one_byte);
+}
+
+Handle<String> Factory::NewConsString(Handle<String> left, Handle<String> right,
+                                      int length, bool one_byte) {
+  DCHECK(!left->IsThinString());
+  DCHECK(!right->IsThinString());
+  DCHECK_GE(length, ConsString::kMinLength);
+  DCHECK_LE(length, String::kMaxLength);
+
   Handle<ConsString> result =
-      (is_one_byte || is_one_byte_data_in_two_byte_string)
-          ? New<ConsString>(cons_one_byte_string_map(), NEW_SPACE)
-          : New<ConsString>(cons_string_map(), NEW_SPACE);
+      one_byte ? New<ConsString>(cons_one_byte_string_map(), NEW_SPACE)
+               : New<ConsString>(cons_string_map(), NEW_SPACE);
 
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
@@ -734,6 +800,10 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
     str = Handle<String>(slice->parent(), isolate());
     offset += slice->offset();
   }
+  if (str->IsThinString()) {
+    Handle<ThinString> thin = Handle<ThinString>::cast(str);
+    str = handle(thin->actual(), isolate());
+  }
 
   DCHECK(str->IsSeqString() || str->IsExternalString());
   Handle<Map> map = str->IsOneByteRepresentation()
@@ -755,6 +825,7 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
   if (length > static_cast<size_t>(String::kMaxLength)) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
   }
+  if (length == 0) return empty_string();
 
   Handle<Map> map;
   if (resource->IsCompressible()) {
@@ -779,6 +850,7 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
   if (length > static_cast<size_t>(String::kMaxLength)) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
   }
+  if (length == 0) return empty_string();
 
   // For small strings we check whether the resource contains only
   // one byte characters.  If yes, we use a different string map.
@@ -844,6 +916,21 @@ Handle<Symbol> Factory::NewPrivateSymbol() {
   return symbol;
 }
 
+Handle<JSPromise> Factory::NewJSPromise() {
+  Handle<JSFunction> constructor(
+      isolate()->native_context()->promise_function(), isolate());
+  DCHECK(constructor->has_initial_map());
+  Handle<Map> map(constructor->initial_map(), isolate());
+
+  DCHECK(!map->is_prototype_map());
+  Handle<JSObject> promise_obj = NewJSObjectFromMap(map);
+  Handle<JSPromise> promise = Handle<JSPromise>::cast(promise_obj);
+  promise->set_status(v8::Promise::kPending);
+  promise->set_flags(0);
+
+  isolate()->RunPromiseHook(PromiseHookType::kInit, promise, undefined_value());
+  return promise;
+}
 
 Handle<Context> Factory::NewNativeContext() {
   Handle<FixedArray> array =
@@ -1040,6 +1127,8 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_eval_from_position(0);
   script->set_shared_function_infos(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   script->set_flags(0);
+  script->set_preparsed_scope_data(
+      PodArray<uint32_t>::cast(heap->empty_byte_array()));
 
   heap->set_script_list(*WeakFixedArray::Add(script_list(), script));
   return script;
@@ -1098,7 +1187,6 @@ Handle<FixedTypedArrayBase> Factory::NewFixedTypedArray(
                      FixedTypedArrayBase);
 }
 
-
 Handle<Cell> Factory::NewCell(Handle<Object> value) {
   AllowDeferredHandleDereference convert_to_cell;
   CALL_HEAP_FUNCTION(
@@ -1107,6 +1195,23 @@ Handle<Cell> Factory::NewCell(Handle<Object> value) {
       Cell);
 }
 
+Handle<Cell> Factory::NewNoClosuresCell(Handle<Object> value) {
+  Handle<Cell> cell = NewCell(value);
+  cell->set_map_no_write_barrier(*no_closures_cell_map());
+  return cell;
+}
+
+Handle<Cell> Factory::NewOneClosureCell(Handle<Object> value) {
+  Handle<Cell> cell = NewCell(value);
+  cell->set_map_no_write_barrier(*one_closure_cell_map());
+  return cell;
+}
+
+Handle<Cell> Factory::NewManyClosuresCell(Handle<Object> value) {
+  Handle<Cell> cell = NewCell(value);
+  cell->set_map_no_write_barrier(*many_closures_cell_map());
+  return cell;
+}
 
 Handle<PropertyCell> Factory::NewPropertyCell() {
   CALL_HEAP_FUNCTION(
@@ -1250,26 +1355,12 @@ Handle<Object> Factory::NewNumberFromUint(uint32_t value,
   return NewHeapNumber(FastUI2D(value), IMMUTABLE, pretenure);
 }
 
-
-Handle<HeapNumber> Factory::NewHeapNumber(double value,
-                                          MutableMode mode,
+Handle<HeapNumber> Factory::NewHeapNumber(MutableMode mode,
                                           PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateHeapNumber(value, mode, pretenure),
-      HeapNumber);
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateHeapNumber(mode, pretenure),
+                     HeapNumber);
 }
-
-
-#define SIMD128_NEW_DEF(TYPE, Type, type, lane_count, lane_type)               \
-  Handle<Type> Factory::New##Type(lane_type lanes[lane_count],                 \
-                                  PretenureFlag pretenure) {                   \
-    CALL_HEAP_FUNCTION(                                                        \
-        isolate(), isolate()->heap()->Allocate##Type(lanes, pretenure), Type); \
-  }
-SIMD128_TYPES(SIMD128_NEW_DEF)
-#undef SIMD128_NEW_DEF
-
 
 Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
                                  MessageTemplate::Template template_index,
@@ -1360,7 +1451,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   function->set_code(info->code());
   function->set_context(*context_or_undefined);
   function->set_prototype_or_initial_map(*the_hole_value());
-  function->set_literals(LiteralsArray::cast(*empty_literals_array()));
+  function->set_feedback_vector_cell(*undefined_cell());
   function->set_next_function_link(*undefined_value(), SKIP_WRITE_BARRIER);
   isolate()->heap()->InitializeJSObjectBody(*function, *map, JSFunction::kSize);
   return function;
@@ -1384,6 +1475,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
       map.is_identical_to(isolate()->strict_function_without_prototype_map()) ||
       // TODO(titzer): wasm_function_map() could be undefined here. ugly.
       (*map == context->get(Context::WASM_FUNCTION_MAP_INDEX)) ||
+      (*map == context->get(Context::NATIVE_FUNCTION_MAP_INDEX)) ||
       map.is_identical_to(isolate()->proxy_function_map()));
   return NewFunction(map, info, context);
 }
@@ -1455,7 +1547,9 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   // can be from a different context.
   Handle<Context> native_context(function->context()->native_context());
   Handle<Map> new_map;
-  if (IsResumableFunction(function->shared()->kind())) {
+  if (V8_UNLIKELY(IsAsyncGeneratorFunction(function->shared()->kind()))) {
+    new_map = handle(native_context->async_generator_object_prototype_map());
+  } else if (IsResumableFunction(function->shared()->kind())) {
     // Generator and async function prototypes can share maps since they
     // don't have "constructor" properties.
     new_map = handle(native_context->generator_object_prototype_map());
@@ -1492,12 +1586,12 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info, Handle<Context> context,
-    Handle<LiteralsArray> literals, PretenureFlag pretenure) {
+    Handle<Cell> vector, PretenureFlag pretenure) {
   int map_index =
       Context::FunctionMapIndex(info->language_mode(), info->kind());
   Handle<Map> initial_map(Map::cast(context->native_context()->get(map_index)));
 
-  return NewFunctionFromSharedFunctionInfo(initial_map, info, context, literals,
+  return NewFunctionFromSharedFunctionInfo(initial_map, info, context, vector,
                                            pretenure);
 }
 
@@ -1522,13 +1616,29 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
-    Handle<Object> context_or_undefined, Handle<LiteralsArray> literals,
+    Handle<Object> context_or_undefined, Handle<Cell> vector,
     PretenureFlag pretenure) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
   Handle<JSFunction> result =
       NewFunction(initial_map, info, context_or_undefined, pretenure);
 
-  result->set_literals(*literals);
+  // Bump the closure count that is encoded in the vector cell's map.
+  if (vector->map() == *no_closures_cell_map()) {
+    vector->set_map(*one_closure_cell_map());
+  } else if (vector->map() == *one_closure_cell_map()) {
+    vector->set_map(*many_closures_cell_map());
+  } else {
+    DCHECK_EQ(vector->map(), *many_closures_cell_map());
+  }
+
+  // Check that the optimized code in the feedback vector wasn't marked for
+  // deoptimization while not pointed to by any live JSFunction.
+  if (vector->value()->IsFeedbackVector()) {
+    FeedbackVector::cast(vector->value())
+        ->EvictOptimizedCodeMarkedForDeoptimization(
+            *info, "new function from shared function info");
+  }
+  result->set_feedback_vector_cell(*vector);
   if (info->ic_age() != isolate()->heap()->global_ic_age()) {
     info->ResetForNewContext(isolate()->heap()->global_ic_age());
   }
@@ -1557,7 +1667,7 @@ Handle<ModuleInfo> Factory::NewModuleInfo() {
 Handle<JSObject> Factory::NewExternal(void* value) {
   Handle<Foreign> foreign = NewForeign(static_cast<Address>(value));
   Handle<JSObject> external = NewJSObjectFromMap(external_map());
-  external->SetInternalField(0, *foreign);
+  external->SetEmbedderField(0, *foreign);
   return external;
 }
 
@@ -1609,6 +1719,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   code->set_raw_kind_specific_flags1(0);
   code->set_raw_kind_specific_flags2(0);
   code->set_is_crankshafted(crankshafted);
+  code->set_has_tagged_params(true);
   code->set_deoptimization_data(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_raw_type_feedback_info(Smi::kZero);
   code->set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
@@ -1617,10 +1728,18 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   code->set_prologue_offset(prologue_offset);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
   code->set_builtin_index(-1);
-  code->set_protected_instructions(*empty_fixed_array());
+  code->set_trap_handler_index(Smi::FromInt(-1));
 
-  if (code->kind() == Code::OPTIMIZED_FUNCTION) {
-    code->set_marked_for_deoptimization(false);
+  switch (code->kind()) {
+    case Code::OPTIMIZED_FUNCTION:
+      code->set_marked_for_deoptimization(false);
+      break;
+    case Code::JS_TO_WASM_FUNCTION:
+    case Code::WASM_FUNCTION:
+      code->set_has_tagged_params(false);
+      break;
+    default:
+      break;
   }
 
   if (is_debug) {
@@ -1668,9 +1787,9 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
       isolate()->heap()->AllocateJSObject(*constructor, pretenure), JSObject);
 }
 
-
-Handle<JSObject> Factory::NewJSObjectWithNullProto() {
-  Handle<JSObject> result = NewJSObject(isolate()->object_function());
+Handle<JSObject> Factory::NewJSObjectWithNullProto(PretenureFlag pretenure) {
+  Handle<JSObject> result =
+      NewJSObject(isolate()->object_function(), pretenure);
   Handle<Map> new_map =
       Map::Copy(Handle<Map>(result->map()), "ObjectWithNullProto");
   Map::SetPrototype(new_map, null_value());
@@ -1751,6 +1870,15 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
       JSObject);
 }
 
+Handle<JSObject> Factory::NewSlowJSObjectFromMap(Handle<Map> map, int capacity,
+                                                 PretenureFlag pretenure) {
+  DCHECK(map->is_dictionary_map());
+  Handle<FixedArray> object_properties =
+      NameDictionary::New(isolate(), capacity);
+  Handle<JSObject> js_object = NewJSObjectFromMap(map, pretenure);
+  js_object->set_properties(*object_properties);
+  return js_object;
+}
 
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     PretenureFlag pretenure) {
@@ -1838,7 +1966,10 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
   DCHECK(IsResumableFunction(function->shared()->kind()));
   JSFunction::EnsureHasInitialMap(function);
   Handle<Map> map(function->initial_map());
-  DCHECK_EQ(JS_GENERATOR_OBJECT_TYPE, map->instance_type());
+
+  DCHECK(map->instance_type() == JS_GENERATOR_OBJECT_TYPE ||
+         map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE);
+
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObjectFromMap(*map),
@@ -1867,6 +1998,7 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
   module->set_hash(isolate()->GenerateIdentityHash(Smi::kMaxValue));
   module->set_module_namespace(isolate()->heap()->undefined_value());
   module->set_requested_modules(*requested_modules);
+  module->set_status(Module::kUnprepared);
   DCHECK(!module->instantiated());
   DCHECK(!module->evaluated());
   return module;
@@ -1903,6 +2035,16 @@ Handle<JSIteratorResult> Factory::NewJSIteratorResult(Handle<Object> value,
   return js_iter_result;
 }
 
+Handle<JSAsyncFromSyncIterator> Factory::NewJSAsyncFromSyncIterator(
+    Handle<JSReceiver> sync_iterator) {
+  Handle<Map> map(isolate()->native_context()->async_from_sync_iterator_map());
+  Handle<JSAsyncFromSyncIterator> iterator =
+      Handle<JSAsyncFromSyncIterator>::cast(NewJSObjectFromMap(map));
+
+  iterator->set_sync_iterator(*sync_iterator);
+  return iterator;
+}
+
 Handle<JSMap> Factory::NewJSMap() {
   Handle<Map> map(isolate()->native_context()->js_map_map());
   Handle<JSMap> js_map = Handle<JSMap>::cast(NewJSObjectFromMap(map));
@@ -1934,6 +2076,31 @@ Handle<JSSetIterator> Factory::NewJSSetIterator() {
                      JSSetIterator);
 }
 
+ExternalArrayType Factory::GetArrayTypeFromElementsKind(ElementsKind kind) {
+  switch (kind) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case TYPE##_ELEMENTS:                                 \
+    return kExternal##Type##Array;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    default:
+      UNREACHABLE();
+      return kExternalInt8Array;
+  }
+#undef TYPED_ARRAY_CASE
+}
+
+size_t Factory::GetExternalArrayElementSize(ExternalArrayType type) {
+  switch (type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                          \
+    return size;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+    default:
+      UNREACHABLE();
+      return 0;
+  }
+#undef TYPED_ARRAY_CASE
+}
 
 namespace {
 
@@ -1949,21 +2116,6 @@ ElementsKind GetExternalArrayElementsKind(ExternalArrayType type) {
 #undef TYPED_ARRAY_CASE
 }
 
-
-size_t GetExternalArrayElementSize(ExternalArrayType type) {
-  switch (type) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array:                          \
-    return size;
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-      return 0;
-  }
-#undef TYPED_ARRAY_CASE
-}
-
-
 size_t GetFixedTypedArraysElementSize(ElementsKind kind) {
   switch (kind) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
@@ -1973,20 +2125,6 @@ size_t GetFixedTypedArraysElementSize(ElementsKind kind) {
     default:
       UNREACHABLE();
       return 0;
-  }
-#undef TYPED_ARRAY_CASE
-}
-
-
-ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
-  switch (kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  case TYPE##_ELEMENTS:                                 \
-    return kExternal##Type##Array;
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-    default:
-      UNREACHABLE();
-      return kExternalInt8Array;
   }
 #undef TYPED_ARRAY_CASE
 }
@@ -2034,10 +2172,10 @@ void SetupArrayBufferView(i::Isolate* isolate,
   DCHECK(byte_offset + byte_length <=
          static_cast<size_t>(buffer->byte_length()->Number()));
 
-  DCHECK_EQ(obj->GetInternalFieldCount(),
-            v8::ArrayBufferView::kInternalFieldCount);
-  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    obj->SetInternalField(i, Smi::kZero);
+  DCHECK_EQ(obj->GetEmbedderFieldCount(),
+            v8::ArrayBufferView::kEmbedderFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kEmbedderFieldCount; i++) {
+    obj->SetEmbedderField(i, Smi::kZero);
   }
 
   obj->set_buffer(*buffer);
@@ -2109,10 +2247,10 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
                                               size_t number_of_elements,
                                               PretenureFlag pretenure) {
   Handle<JSTypedArray> obj = NewJSTypedArray(elements_kind, pretenure);
-  DCHECK_EQ(obj->GetInternalFieldCount(),
-            v8::ArrayBufferView::kInternalFieldCount);
-  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    obj->SetInternalField(i, Smi::kZero);
+  DCHECK_EQ(obj->GetEmbedderFieldCount(),
+            v8::ArrayBufferView::kEmbedderFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kEmbedderFieldCount; i++) {
+    obj->SetEmbedderField(i, Smi::kZero);
   }
 
   size_t element_size = GetFixedTypedArraysElementSize(elements_kind);
@@ -2274,15 +2412,14 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    Handle<String> name, int number_of_literals, FunctionKind kind,
-    Handle<Code> code, Handle<ScopeInfo> scope_info) {
+    Handle<String> name, FunctionKind kind, Handle<Code> code,
+    Handle<ScopeInfo> scope_info) {
   DCHECK(IsValidFunctionKind(kind));
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      name, code, IsConstructable(kind, scope_info->language_mode()));
+  Handle<SharedFunctionInfo> shared =
+      NewSharedFunctionInfo(name, code, IsConstructable(kind));
   shared->set_scope_info(*scope_info);
   shared->set_outer_scope_info(*the_hole_value());
   shared->set_kind(kind);
-  shared->set_num_literals(number_of_literals);
   if (IsGeneratorFunction(kind)) {
     shared->set_instance_class_name(isolate()->heap()->Generator_string());
   }
@@ -2293,9 +2430,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, Handle<Script> script) {
   Handle<Code> code = isolate()->builtins()->CompileLazy();
   Handle<ScopeInfo> scope_info(ScopeInfo::Empty(isolate()));
-  Handle<SharedFunctionInfo> result = NewSharedFunctionInfo(
-      literal->name(), literal->materialized_literal_count(), literal->kind(),
-      code, scope_info);
+  Handle<SharedFunctionInfo> result =
+      NewSharedFunctionInfo(literal->name(), literal->kind(), code, scope_info);
   SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
   SharedFunctionInfo::SetScript(result, script);
   return result;
@@ -2338,7 +2474,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     code = isolate()->builtins()->Illegal();
   }
   share->set_code(*code);
-  share->set_optimized_code_map(*empty_fixed_array());
   share->set_scope_info(ScopeInfo::Empty(isolate()));
   share->set_outer_scope_info(*the_hole_value());
   Handle<Code> construct_stub =
@@ -2347,7 +2482,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->SetConstructStub(*construct_stub);
   share->set_instance_class_name(*Object_string());
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
-  share->set_debug_info(DebugInfo::uninitialized(), SKIP_WRITE_BARRIER);
+  share->set_debug_info(Smi::kZero, SKIP_WRITE_BARRIER);
   share->set_function_identifier(*undefined_value(), SKIP_WRITE_BARRIER);
   StaticFeedbackVectorSpec empty_spec;
   Handle<FeedbackMetadata> feedback_metadata =
@@ -2365,7 +2500,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_length(0);
   share->set_internal_formal_parameter_count(0);
   share->set_expected_nof_properties(0);
-  share->set_num_literals(0);
   share->set_start_position_and_type(0);
   share->set_end_position(0);
   share->set_function_token_position(0);
@@ -2451,6 +2585,7 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
 
 
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
+  DCHECK(!shared->HasDebugInfo());
   // Allocate initial fixed array for active break points before allocating the
   // debug info object to avoid allocation while setting up the debug info
   // object.
@@ -2470,6 +2605,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   Handle<DebugInfo> debug_info =
       Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE));
   debug_info->set_shared(*shared);
+  debug_info->set_debugger_hints(shared->debugger_hints());
   debug_info->set_debug_bytecode_array(*maybe_debug_bytecode_array);
   debug_info->set_break_points(*break_points);
 
@@ -2479,6 +2615,41 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   return debug_info;
 }
 
+Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
+  Handle<BreakPointInfo> new_break_point_info =
+      Handle<BreakPointInfo>::cast(NewStruct(TUPLE2_TYPE));
+  new_break_point_info->set_source_position(source_position);
+  new_break_point_info->set_break_point_objects(*undefined_value());
+  return new_break_point_info;
+}
+
+Handle<StackFrameInfo> Factory::NewStackFrameInfo() {
+  Handle<StackFrameInfo> stack_frame_info =
+      Handle<StackFrameInfo>::cast(NewStruct(STACK_FRAME_INFO_TYPE));
+  stack_frame_info->set_line_number(0);
+  stack_frame_info->set_column_number(0);
+  stack_frame_info->set_script_id(0);
+  stack_frame_info->set_script_name(Smi::kZero);
+  stack_frame_info->set_script_name_or_source_url(Smi::kZero);
+  stack_frame_info->set_function_name(Smi::kZero);
+  stack_frame_info->set_flag(0);
+  return stack_frame_info;
+}
+
+Handle<SourcePositionTableWithFrameCache>
+Factory::NewSourcePositionTableWithFrameCache(
+    Handle<ByteArray> source_position_table,
+    Handle<UnseededNumberDictionary> stack_frame_cache) {
+  Handle<SourcePositionTableWithFrameCache>
+      source_position_table_with_frame_cache =
+          Handle<SourcePositionTableWithFrameCache>::cast(
+              NewStruct(TUPLE2_TYPE));
+  source_position_table_with_frame_cache->set_source_position_table(
+      *source_position_table);
+  source_position_table_with_frame_cache->set_stack_frame_cache(
+      *stack_frame_cache);
+  return source_position_table_with_frame_cache;
+}
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
@@ -2507,32 +2678,31 @@ Handle<JSWeakMap> Factory::NewJSWeakMap() {
   return Handle<JSWeakMap>::cast(NewJSObjectFromMap(map));
 }
 
-
-Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
-                                               int number_of_properties,
-                                               bool* is_result_from_cache) {
+Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> native_context,
+                                               int number_of_properties) {
+  DCHECK(native_context->IsNativeContext());
   const int kMapCacheSize = 128;
-
   // We do not cache maps for too many properties or when running builtin code.
-  if (number_of_properties > kMapCacheSize ||
-      isolate()->bootstrapper()->IsActive()) {
-    *is_result_from_cache = false;
-    Handle<Map> map = Map::Create(isolate(), number_of_properties);
-    return map;
+  if (isolate()->bootstrapper()->IsActive()) {
+    return Map::Create(isolate(), number_of_properties);
   }
-  *is_result_from_cache = true;
+  // Use initial slow object proto map for too many properties.
+  if (number_of_properties > kMapCacheSize) {
+    return handle(native_context->slow_object_with_object_prototype_map(),
+                  isolate());
+  }
   if (number_of_properties == 0) {
     // Reuse the initial map of the Object function if the literal has no
     // predeclared properties.
-    return handle(context->object_function()->initial_map(), isolate());
+    return handle(native_context->object_function()->initial_map(), isolate());
   }
 
   int cache_index = number_of_properties - 1;
-  Handle<Object> maybe_cache(context->map_cache(), isolate());
+  Handle<Object> maybe_cache(native_context->map_cache(), isolate());
   if (maybe_cache->IsUndefined(isolate())) {
     // Allocate the new map cache for the native context.
     maybe_cache = NewFixedArray(kMapCacheSize, TENURED);
-    context->set_map_cache(*maybe_cache);
+    native_context->set_map_cache(*maybe_cache);
   } else {
     // Check to see whether there is a matching element in the cache.
     Handle<FixedArray> cache = Handle<FixedArray>::cast(maybe_cache);
@@ -2540,13 +2710,16 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
     if (result->IsWeakCell()) {
       WeakCell* cell = WeakCell::cast(result);
       if (!cell->cleared()) {
-        return handle(Map::cast(cell->value()), isolate());
+        Map* map = Map::cast(cell->value());
+        DCHECK(!map->is_dictionary_map());
+        return handle(map, isolate());
       }
     }
   }
   // Create a new map and add it to the cache.
   Handle<FixedArray> cache = Handle<FixedArray>::cast(maybe_cache);
   Handle<Map> map = Map::Create(isolate(), number_of_properties);
+  DCHECK(!map->is_dictionary_map());
   Handle<WeakCell> cell = NewWeakCell(map);
   cache->set(cache_index, *cell);
   return map;

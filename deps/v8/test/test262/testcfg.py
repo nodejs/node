@@ -39,6 +39,13 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
+# TODO(littledan): move the flag mapping into the status file
+FEATURE_FLAGS = {
+  'object-rest': '--harmony-object-rest-spread',
+  'object-spread': '--harmony-object-rest-spread',
+  'async-iteration': '--harmony-async-iteration',
+}
+
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 ARCHIVE = DATA + ".tar"
 
@@ -142,6 +149,8 @@ class Test262TestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     return (testcase.flags + context.mode_flags + self.harness +
+            ([os.path.join(self.root, "harness-agent.js")]
+             if testcase.path.startswith('built-ins/Atomics') else []) +
             self.GetIncludesForTest(testcase) +
             (["--module"] if "module" in self.GetTestRecord(testcase) else []) +
             [self.GetPathForTest(testcase)] +
@@ -151,7 +160,9 @@ class Test262TestSuite(testsuite.TestSuite):
              if "detachArrayBuffer.js" in
                 self.GetTestRecord(testcase).get("includes", [])
              else []) +
-            ([flag for flag in testcase.outcomes if flag.startswith("--")]))
+            ([flag for flag in testcase.outcomes if flag.startswith("--")]) +
+            ([flag for (feature, flag) in FEATURE_FLAGS.items()
+              if feature in self.GetTestRecord(testcase).get("features", [])]))
 
   def _VariantGeneratorFactory(self):
     return Test262VariantGenerator
@@ -201,19 +212,26 @@ class Test262TestSuite(testsuite.TestSuite):
     with open(self.GetPathForTest(testcase)) as f:
       return f.read()
 
-  def _ParseException(self, str):
+  def _ParseException(self, str, testcase):
     # somefile:somelinenumber: someerror[: sometext]
-    match = re.search('^[^: ]*:[0-9]+: ([^ ]+?)($|: )', str, re.MULTILINE)
-    return match.group(1)
+    # somefile might include an optional drive letter on windows e.g. "e:".
+    match = re.search(
+        '^(?:\w:)?[^:]*:[0-9]+: ([^: ]+?)($|: )', str, re.MULTILINE)
+    if match:
+      return match.group(1).strip()
+    else:
+      print "Error parsing exception for %s" % testcase.GetLabel()
+      return None
 
   def IsFailureOutput(self, testcase):
     output = testcase.output
     test_record = self.GetTestRecord(testcase)
     if output.exit_code != 0:
       return True
-    if "negative" in test_record and \
-       "type" in test_record["negative"] and \
-       self._ParseException(output.stdout) != test_record["negative"]["type"]:
+    if ("negative" in test_record and
+        "type" in test_record["negative"] and
+        self._ParseException(output.stdout, testcase) !=
+            test_record["negative"]["type"]):
         return True
     return "FAILED!" in output.stdout
 
@@ -223,13 +241,20 @@ class Test262TestSuite(testsuite.TestSuite):
         "--use-strict" not in testcase.flags):
       return outcome != statusfile.FAIL
     return not outcome in ([outcome for outcome in testcase.outcomes
-                                    if not outcome.startswith('--')]
+                                    if not outcome.startswith('--')
+                                       and outcome != statusfile.FAIL_SLOPPY]
                            or [statusfile.PASS])
 
   def PrepareSources(self):
     # The archive is created only on swarming. Local checkouts have the
     # data folder.
-    if os.path.exists(ARCHIVE) and not os.path.exists(DATA):
+    if (os.path.exists(ARCHIVE) and
+        # Check for a JS file from the archive if we need to unpack. Some other
+        # files from the archive unfortunately exist due to a bug in the
+        # isolate_processor.
+        # TODO(machenbach): Migrate this to GN to avoid using the faulty
+        # isolate_processor: http://crbug.com/669910
+        not os.path.exists(os.path.join(DATA, 'test', 'harness', 'error.js'))):
       print "Extracting archive..."
       tar = tarfile.open(ARCHIVE)
       tar.extractall(path=os.path.dirname(ARCHIVE))

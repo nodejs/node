@@ -46,7 +46,6 @@ class SmallMapList;
   V(ControlInstruction)                       \
   V(Instruction)
 
-
 #define HYDROGEN_CONCRETE_INSTRUCTION_LIST(V) \
   V(AbnormalExit)                             \
   V(AccessArgumentsAt)                        \
@@ -3086,11 +3085,8 @@ class HConstant final : public HTemplateInstruction<0> {
     return double_value_;
   }
   uint64_t DoubleValueAsBits() const {
-    uint64_t bits;
     DCHECK(HasDoubleValue());
-    STATIC_ASSERT(sizeof(bits) == sizeof(double_value_));
-    std::memcpy(&bits, &double_value_, sizeof(bits));
-    return bits;
+    return bit_cast<uint64_t>(double_value_);
   }
   bool IsTheHole() const {
     if (HasDoubleValue() && DoubleValueAsBits() == kHoleNanInt64) {
@@ -4031,12 +4027,10 @@ class HClassOfTestAndBranch final : public HUnaryControlInstruction {
 
  private:
   HClassOfTestAndBranch(HValue* value, Handle<String> class_name)
-      : HUnaryControlInstruction(value, NULL, NULL),
-        class_name_(class_name) { }
+      : HUnaryControlInstruction(value, NULL, NULL), class_name_(class_name) {}
 
   Handle<String> class_name_;
 };
-
 
 class HTypeofIsAndBranch final : public HUnaryControlInstruction {
  public:
@@ -5125,10 +5119,6 @@ class HObjectAccess final {
     return HObjectAccess(kElementsPointer, JSObject::kElementsOffset);
   }
 
-  static HObjectAccess ForLiteralsPointer() {
-    return HObjectAccess(kInobject, JSFunction::kLiteralsOffset);
-  }
-
   static HObjectAccess ForNextFunctionLinkPointer() {
     return HObjectAccess(kInobject, JSFunction::kNextFunctionLinkOffset);
   }
@@ -5206,11 +5196,6 @@ class HObjectAccess final {
 
   static HObjectAccess ForCodeOffset() {
     return HObjectAccess(kInobject, SharedFunctionInfo::kCodeOffset);
-  }
-
-  static HObjectAccess ForOptimizedCodeMap() {
-    return HObjectAccess(kInobject,
-                         SharedFunctionInfo::kOptimizedCodeMapOffset);
   }
 
   static HObjectAccess ForFunctionContextPointer() {

@@ -12,55 +12,21 @@
 #include "include/v8.h"
 
 #include "src/debug/interface-types.h"
+#include "src/globals.h"
 
 namespace v8 {
+
+namespace internal {
+struct CoverageFunction;
+struct CoverageScript;
+class Coverage;
+class Script;
+}
+
 namespace debug {
 
-/**
- * An event details object passed to the debug event listener.
- */
-class EventDetails : public v8::Debug::EventDetails {
- public:
-  /**
-   * Event type.
-   */
-  virtual v8::DebugEvent GetEvent() const = 0;
-
-  /**
-   * Access to execution state and event data of the debug event. Don't store
-   * these cross callbacks as their content becomes invalid.
-   */
-  virtual Local<Object> GetExecutionState() const = 0;
-  virtual Local<Object> GetEventData() const = 0;
-
-  /**
-   * Get the context active when the debug event happened. Note this is not
-   * the current active context as the JavaScript part of the debugger is
-   * running in its own context which is entered at this point.
-   */
-  virtual Local<Context> GetEventContext() const = 0;
-
-  /**
-   * Client data passed with the corresponding callback when it was
-   * registered.
-   */
-  virtual Local<Value> GetCallbackData() const = 0;
-
-  virtual ~EventDetails() {}
-};
-
-/**
- * Debug event callback function.
- *
- * \param event_details object providing information about the debug event
- *
- * A EventCallback does not take possession of the event data,
- * and must not rely on the data persisting after the handler returns.
- */
-typedef void (*EventCallback)(const EventDetails& event_details);
-
-bool SetDebugEventListener(Isolate* isolate, EventCallback that,
-                           Local<Value> data = Local<Value>());
+void SetContextId(Local<Context> context, int id);
+int GetContextId(Local<Context> context);
 
 /**
  * Debugger is running in its own context which is entered while debugger
@@ -98,7 +64,7 @@ MaybeLocal<Value> Call(Local<Context> context, v8::Local<v8::Function> fun,
  * (default Isolate if not provided). V8 will abort if LiveEdit is
  * unexpectedly used. LiveEdit is enabled by default.
  */
-void SetLiveEditEnabled(Isolate* isolate, bool enable);
+V8_EXPORT_PRIVATE void SetLiveEditEnabled(Isolate* isolate, bool enable);
 
 // Schedule a debugger break to happen when JavaScript code is run
 // in the given isolate.
@@ -129,16 +95,20 @@ enum ExceptionBreakState {
  */
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState state);
 
+void SetBreakPointsActive(Isolate* isolate, bool is_active);
+
 enum StepAction {
   StepOut = 0,   // Step out of the current function.
   StepNext = 1,  // Step to the next statement in the current function.
-  StepIn = 2,    // Step into new functions invoked or the next statement
+  StepIn = 2     // Step into new functions invoked or the next statement
                  // in the current function.
-  StepFrame = 3  // Step into a new frame or return to previous frame.
 };
 
 void PrepareStep(Isolate* isolate, StepAction action);
 void ClearStepping(Isolate* isolate);
+void BreakRightNow(Isolate* isolate);
+
+bool AllFramesOnStackAreBlackboxed(Isolate* isolate);
 
 /**
  * Out-of-memory callback function.
@@ -153,12 +123,13 @@ void SetOutOfMemoryCallback(Isolate* isolate, OutOfMemoryCallback callback,
 /**
  * Native wrapper around v8::internal::Script object.
  */
-class Script {
+class V8_EXPORT_PRIVATE Script {
  public:
   v8::Isolate* GetIsolate() const;
 
   ScriptOriginOptions OriginOptions() const;
   bool WasCompiled() const;
+  bool IsEmbedded() const;
   int Id() const;
   int LineOffset() const;
   int ColumnOffset() const;
@@ -166,26 +137,16 @@ class Script {
   MaybeLocal<String> Name() const;
   MaybeLocal<String> SourceURL() const;
   MaybeLocal<String> SourceMappingURL() const;
-  MaybeLocal<Value> ContextData() const;
+  Maybe<int> ContextId() const;
   MaybeLocal<String> Source() const;
   bool IsWasm() const;
-  bool GetPossibleBreakpoints(const debug::Location& start,
-                              const debug::Location& end,
-                              std::vector<debug::Location>* locations) const;
-
-  /**
-   * script parameter is a wrapper v8::internal::JSObject for
-   * v8::internal::Script.
-   * This function gets v8::internal::Script from v8::internal::JSObject and
-   * wraps it with DebugInterface::Script.
-   * Returns empty local if not called with a valid wrapper of
-   * v8::internal::Script.
-   */
-  static MaybeLocal<Script> Wrap(Isolate* isolate,
-                                 v8::Local<v8::Object> script);
-
- private:
-  int GetSourcePosition(const debug::Location& location) const;
+  bool IsModule() const;
+  bool GetPossibleBreakpoints(
+      const debug::Location& start, const debug::Location& end,
+      bool restrict_to_function,
+      std::vector<debug::BreakLocation>* locations) const;
+  int GetSourceOffset(const debug::Location& location) const;
+  v8::debug::Location GetSourceLocation(int offset) const;
 };
 
 // Specialization for wasm Scripts.
@@ -196,6 +157,8 @@ class WasmScript : public Script {
   int NumFunctions() const;
   int NumImportedFunctions() const;
 
+  std::pair<int, int> GetFunctionRange(int function_index) const;
+
   debug::WasmDisassembly DisassembleFunction(int function_index) const;
 };
 
@@ -204,14 +167,132 @@ void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);
 
-typedef std::function<void(debug::PromiseDebugActionType type, int id,
-                           void* data)>
-    AsyncTaskListener;
-void SetAsyncTaskListener(Isolate* isolate, AsyncTaskListener listener,
-                          void* data);
+class DebugDelegate {
+ public:
+  virtual ~DebugDelegate() {}
+  virtual void PromiseEventOccurred(debug::PromiseDebugActionType type, int id,
+                                    int parent_id, bool created_by_user) {}
+  virtual void ScriptCompiled(v8::Local<Script> script,
+                              bool has_compile_error) {}
+  virtual void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                                     v8::Local<v8::Object> exec_state,
+                                     v8::Local<v8::Value> break_points_hit) {}
+  virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                               v8::Local<v8::Object> exec_state,
+                               v8::Local<v8::Value> exception,
+                               v8::Local<v8::Value> promise, bool is_uncaught) {
+  }
+  virtual bool IsFunctionBlackboxed(v8::Local<debug::Script> script,
+                                    const debug::Location& start,
+                                    const debug::Location& end) {
+    return false;
+  }
+};
+
+void SetDebugDelegate(Isolate* isolate, DebugDelegate* listener);
+
+void ResetBlackboxedStateCache(Isolate* isolate,
+                               v8::Local<debug::Script> script);
 
 int EstimatedValueSize(Isolate* isolate, v8::Local<v8::Value> value);
 
+v8::MaybeLocal<v8::Array> EntriesPreview(Isolate* isolate,
+                                         v8::Local<v8::Value> value,
+                                         bool* is_key_value);
+
+enum Builtin {
+  kObjectKeys,
+  kObjectGetPrototypeOf,
+  kObjectGetOwnPropertyDescriptor,
+  kObjectGetOwnPropertyNames,
+  kObjectGetOwnPropertySymbols,
+};
+
+Local<Function> GetBuiltin(Isolate* isolate, Builtin builtin);
+
+V8_EXPORT_PRIVATE void SetConsoleDelegate(Isolate* isolate,
+                                          ConsoleDelegate* delegate);
+
+int GetStackFrameId(v8::Local<v8::StackFrame> frame);
+
+/**
+ * Native wrapper around v8::internal::JSGeneratorObject object.
+ */
+class GeneratorObject {
+ public:
+  v8::MaybeLocal<debug::Script> Script();
+  v8::Local<v8::Function> Function();
+  debug::Location SuspendedLocation();
+  bool IsSuspended();
+
+  static v8::Local<debug::GeneratorObject> Cast(v8::Local<v8::Value> value);
+};
+
+/*
+ * Provide API layer between inspector and code coverage.
+ */
+class V8_EXPORT_PRIVATE Coverage {
+ public:
+  enum Mode {
+    // Make use of existing information in feedback vectors on the heap.
+    // Only return a yes/no result. Optimization and GC are not affected.
+    // Collecting best effort coverage does not reset counters.
+    kBestEffort,
+    // Disable optimization and prevent feedback vectors from being garbage
+    // collected in order to preserve precise invocation counts. Collecting
+    // precise count coverage resets counters to get incremental updates.
+    kPreciseCount,
+    // We are only interested in a yes/no result for the function. Optimization
+    // and GC can be allowed once a function has been invoked. Collecting
+    // precise binary coverage resets counters for incremental updates.
+    kPreciseBinary
+  };
+
+  class ScriptData;  // Forward declaration.
+
+  class V8_EXPORT_PRIVATE FunctionData {
+   public:
+    int StartOffset() const;
+    int EndOffset() const;
+    uint32_t Count() const;
+    MaybeLocal<String> Name() const;
+
+   private:
+    explicit FunctionData(i::CoverageFunction* function)
+        : function_(function) {}
+    i::CoverageFunction* function_;
+
+    friend class v8::debug::Coverage::ScriptData;
+  };
+
+  class V8_EXPORT_PRIVATE ScriptData {
+   public:
+    Local<debug::Script> GetScript() const;
+    size_t FunctionCount() const;
+    FunctionData GetFunctionData(size_t i) const;
+
+   private:
+    explicit ScriptData(i::CoverageScript* script) : script_(script) {}
+    i::CoverageScript* script_;
+
+    friend class v8::debug::Coverage;
+  };
+
+  static Coverage CollectPrecise(Isolate* isolate);
+  static Coverage CollectBestEffort(Isolate* isolate);
+
+  static void SelectMode(Isolate* isolate, Mode mode);
+
+  size_t ScriptCount() const;
+  ScriptData GetScriptData(size_t i) const;
+  bool IsEmpty() const { return coverage_ == nullptr; }
+
+  ~Coverage();
+
+ private:
+  explicit Coverage(i::Coverage* coverage) : coverage_(coverage) {}
+  i::Coverage* coverage_;
+};
 }  // namespace debug
 }  // namespace v8
 

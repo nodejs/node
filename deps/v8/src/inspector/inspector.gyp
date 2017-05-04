@@ -13,13 +13,7 @@
   'targets': [
     { 'target_name': 'inspector_injected_script',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
-        }, {
-          'toolsets': ['target'],
-        }]
-      ],
+      'toolsets': ['target'],
       'actions': [
         {
           'action_name': 'convert_js_to_cpp_char_array',
@@ -44,13 +38,7 @@
     },
     { 'target_name': 'inspector_debugger_script',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
-        }, {
-          'toolsets': ['target'],
-        }]
-      ],
+      'toolsets': ['target'],
       'actions': [
         {
           'action_name': 'convert_js_to_cpp_char_array',
@@ -75,13 +63,7 @@
     },
     { 'target_name': 'protocol_compatibility',
       'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
-        }, {
-          'toolsets': ['target'],
-        }]
-      ],
+      'toolsets': ['target'],
       'actions': [
         {
           'action_name': 'protocol_compatibility',
@@ -104,13 +86,7 @@
     { 'target_name': 'protocol_generated_sources',
       'type': 'none',
       'dependencies': [ 'protocol_compatibility' ],
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
-        }, {
-          'toolsets': ['target'],
-        }]
-      ],
+      'toolsets': ['target'],
       'actions': [
         {
           'action_name': 'protocol_generated_sources',

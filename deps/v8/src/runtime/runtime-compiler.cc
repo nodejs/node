@@ -41,19 +41,6 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   return function->code();
 }
 
-RUNTIME_FUNCTION(Runtime_CompileBaseline) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
-  if (!Compiler::CompileBaseline(function)) {
-    return isolate->heap()->exception();
-  }
-  DCHECK(function->is_compiled());
-  return function->code();
-}
-
 RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -98,12 +85,10 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   if (args[3]->IsJSArrayBuffer()) {
     memory = args.at<JSArrayBuffer>(3);
   }
-  if (function->shared()->HasAsmWasmData() &&
-      AsmJs::IsStdlibValid(isolate, handle(function->shared()->asm_wasm_data()),
-                           stdlib)) {
-    MaybeHandle<Object> result;
-    result = AsmJs::InstantiateAsmWasm(
-        isolate, handle(function->shared()->asm_wasm_data()), memory, foreign);
+  if (function->shared()->HasAsmWasmData()) {
+    Handle<FixedArray> data(function->shared()->asm_wasm_data());
+    MaybeHandle<Object> result =
+        AsmJs::InstantiateAsmWasm(isolate, data, stdlib, foreign, memory);
     if (!result.is_null()) {
       return *result.ToHandleChecked();
     }
@@ -182,6 +167,10 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     JavaScriptFrameIterator top_it(isolate);
     JavaScriptFrame* top_frame = top_it.frame();
     isolate->set_context(Context::cast(top_frame->context()));
+  } else {
+    // TODO(turbofan): We currently need the native context to materialize
+    // the arguments object, but only to get to its map.
+    isolate->set_context(function->native_context());
   }
 
   // Make sure to materialize objects before causing any allocation.
@@ -209,18 +198,20 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   isolate->thread_manager()->IterateArchivedThreads(&activations_finder);
 
   if (!activations_finder.has_code_activations_) {
-    if (function->code() == *optimized_code) {
-      if (FLAG_trace_deopt) {
-        PrintF("[removing optimized code for: ");
-        function->PrintName();
-        PrintF("]\n");
-      }
-      function->ReplaceCode(function->shared()->code());
-    }
+    Deoptimizer::UnlinkOptimizedCode(*optimized_code,
+                                     function->context()->native_context());
+
     // Evict optimized code for this function from the cache so that it
     // doesn't get used for new closures.
-    function->shared()->EvictFromOptimizedCodeMap(*optimized_code,
-                                                  "notify deoptimized");
+    if (function->feedback_vector()->optimized_code() == *optimized_code) {
+      function->ClearOptimizedCodeSlot("notify deoptimized");
+    }
+    // Remove the code from the osr optimized code cache.
+    DeoptimizationInputData* deopt_data =
+        DeoptimizationInputData::cast(optimized_code->deoptimization_data());
+    if (deopt_data->OsrAstId()->value() == BailoutId::None().ToInt()) {
+      isolate->EvictOSROptimizedCode(*optimized_code, "notify deoptimized");
+    }
   } else {
     // TODO(titzer): we should probably do DeoptimizeCodeList(code)
     // unconditionally if the code is not already marked for deoptimization.
@@ -344,9 +335,6 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
         PrintF("[OSR - Entry at AST id %d, offset %d in optimized code]\n",
                ast_id.ToInt(), data->OsrPcOffset()->value());
       }
-      // TODO(titzer): this is a massive hack to make the deopt counts
-      // match. Fix heuristics for reenabling optimizations!
-      function->shared()->increment_deopt_count();
 
       if (result->is_turbofanned()) {
         // When we're waiting for concurrent optimization, set to compile on
@@ -442,9 +430,10 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
   static const ParseRestriction restriction = NO_PARSE_RESTRICTION;
   Handle<JSFunction> compiled;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, compiled, Compiler::GetFunctionFromEval(
-                             source, outer_info, context, language_mode,
-                             restriction, eval_scope_position, eval_position),
+      isolate, compiled,
+      Compiler::GetFunctionFromEval(source, outer_info, context, language_mode,
+                                    restriction, kNoSourcePosition,
+                                    eval_scope_position, eval_position),
       isolate->heap()->exception());
   return *compiled;
 }

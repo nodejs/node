@@ -1069,7 +1069,6 @@ class LClassOfTestAndBranch final : public LControlInstruction<1, 1> {
   void PrintDataTo(StringStream* stream) override;
 };
 
-
 class LCmpT final : public LTemplateInstruction<1, 3, 0> {
  public:
   LCmpT(LOperand* context, LOperand* left, LOperand* right) {

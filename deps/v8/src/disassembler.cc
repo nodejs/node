@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
@@ -13,6 +14,7 @@
 #include "src/disasm.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/string-stream.h"
 
@@ -39,7 +41,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
       code_ == NULL ? NULL : code_->GetIsolate()->builtins()->Lookup(pc);
 
   if (name != NULL) {
-    SNPrintF(v8_buffer_, "%s  (%p)", name, static_cast<void*>(pc));
+    SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc), name);
     return v8_buffer_.start();
   }
 
@@ -47,7 +49,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
     int offs = static_cast<int>(pc - code_->instruction_start());
     // print as code offset, if it seems reasonable
     if (0 <= offs && offs < code_->instruction_size()) {
-      SNPrintF(v8_buffer_, "%d  (%p)", offs, static_cast<void*>(pc));
+      SNPrintF(v8_buffer_, "%p  <+0x%x>", static_cast<void*>(pc), offs);
       return v8_buffer_.start();
     }
   }
@@ -149,7 +151,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     }
 
     // Instruction address and instruction offset.
-    out.AddFormatted("%p  %4" V8PRIdPTRDIFF "  ", static_cast<void*>(prev_pc),
+    out.AddFormatted("%p  %4" V8PRIxPTRDIFF "  ", static_cast<void*>(prev_pc),
                      prev_pc - begin);
 
     // Instruction.
@@ -158,8 +160,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     // Print all the reloc info for this instruction which are not comments.
     for (int i = 0; i < pcs.length(); i++) {
       // Put together the reloc info
-      RelocInfo relocinfo(isolate, pcs[i], rmodes[i], datas[i],
-                          converter.code());
+      RelocInfo relocinfo(pcs[i], rmodes[i], datas[i], converter.code());
 
       // Indent the printing of the reloc info.
       if (i == 0) {
@@ -201,13 +202,9 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
         Code* code = Code::GetCodeFromTargetAddress(relocinfo.target_address());
         Code::Kind kind = code->kind();
         if (code->is_inline_cache_stub()) {
-          if (kind == Code::LOAD_GLOBAL_IC &&
-              LoadGlobalICState::GetTypeofMode(code->extra_ic_state()) ==
-                  INSIDE_TYPEOF) {
-            out.AddFormatted(" inside typeof,");
-          }
           out.AddFormatted(" %s", Code::Kind2String(kind));
-          if (!IC::ICUseVector(kind)) {
+          if (kind == Code::BINARY_OP_IC || kind == Code::TO_BOOLEAN_IC ||
+              kind == Code::COMPARE_IC) {
             InlineCacheState ic_state = IC::StateFromCode(code);
             out.AddFormatted(" %s", Code::ICState2String(ic_state));
           }

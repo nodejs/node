@@ -86,12 +86,24 @@ function assertConversionError(bytes, imports) {
   assertCompileError(builder().addStart(0).toBuffer());
 })();
 
+(function TestTypeError() {
+  let b;
+  b = builder();
+  b.addImport("foo", "bar", kSig_v_v);
+  assertTypeError(b.toBuffer(), {});
+
+  b = builder();
+  b.addImportedGlobal("foo", "bar", kWasmI32);
+  assertTypeError(b.toBuffer(), {});
+
+  b = builder();
+  b.addImportedMemory("foo", "bar");
+  assertTypeError(b.toBuffer(), {});
+})();
+
 (function TestLinkingError() {
   let b;
 
-  b = builder();
-  b.addImport("foo", "bar", kSig_v_v);
-  assertLinkError(b.toBuffer(), {});
   b = builder();
   b.addImport("foo", "bar", kSig_v_v);
   assertLinkError(b.toBuffer(), {foo: {}});
@@ -99,9 +111,6 @@ function assertConversionError(bytes, imports) {
   b.addImport("foo", "bar", kSig_v_v);
   assertLinkError(b.toBuffer(), {foo: {bar: 9}});
 
-  b = builder();
-  b.addImportedGlobal("foo", "bar", kWasmI32);
-  assertLinkError(b.toBuffer(), {});
   b = builder();
   b.addImportedGlobal("foo", "bar", kWasmI32);
   assertLinkError(b.toBuffer(), {foo: {}});
@@ -112,9 +121,6 @@ function assertConversionError(bytes, imports) {
   b.addImportedGlobal("foo", "bar", kWasmI32);
   assertLinkError(b.toBuffer(), {foo: {bar: () => 9}});
 
-  b = builder();
-  b.addImportedMemory("foo", "bar");
-  assertLinkError(b.toBuffer(), {});
   b = builder();
   b.addImportedMemory("foo", "bar");
   assertLinkError(b.toBuffer(), {foo: {}});

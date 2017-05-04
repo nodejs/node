@@ -11,6 +11,7 @@
 #include <unordered_set>
 
 #include "src/allocation.h"
+#include "src/asmjs/asm-names.h"
 #include "src/asmjs/asm-types.h"
 #include "src/ast/ast-type-bounds.h"
 #include "src/ast/ast-types.h"
@@ -39,33 +40,15 @@ class AsmTyper final {
     kNone = 0,
     kInfinity,
     kNaN,
-    kMathAcos,
-    kMathAsin,
-    kMathAtan,
-    kMathCos,
-    kMathSin,
-    kMathTan,
-    kMathExp,
-    kMathLog,
-    kMathCeil,
-    kMathFloor,
-    kMathSqrt,
-    kMathAbs,
-    kMathClz32,
-    kMathMin,
-    kMathMax,
-    kMathAtan2,
-    kMathPow,
-    kMathImul,
-    kMathFround,
-    kMathE,
-    kMathLN10,
-    kMathLN2,
-    kMathLOG2E,
-    kMathLOG10E,
-    kMathPI,
-    kMathSQRT1_2,
-    kMathSQRT2,
+#define V(_unused1, name, _unused2, _unused3) kMath##name,
+    STDLIB_MATH_FUNCTION_LIST(V)
+#undef V
+#define V(name, _unused1) kMath##name,
+        STDLIB_MATH_VALUE_LIST(V)
+#undef V
+#define V(name, _unused1, _unused2, _unused3) k##name,
+            STDLIB_ARRAY_TYPE_LIST(V)
+#undef V
   };
 
   ~AsmTyper() = default;
@@ -81,6 +64,8 @@ class AsmTyper final {
 
   Handle<JSMessageObject> error_message() const { return error_message_; }
   const MessageLocation* message_location() const { return &message_location_; }
+
+  AsmType* TriggerParsingError();
 
   AsmType* TypeOf(AstNode* node) const;
   AsmType* TypeOf(Variable* v) const;
@@ -362,7 +347,7 @@ class AsmTyper final {
   AsmType* ParameterTypeAnnotations(Variable* parameter,
                                     Expression* annotation);
   // 5.2 ReturnTypeAnnotations
-  AsmType* ReturnTypeAnnotations(ReturnStatement* statement);
+  AsmType* ReturnTypeAnnotations(Expression* ret_expr);
   // 5.4 VariableTypeAnnotations
   // 5.5 GlobalVariableTypeAnnotations
   AsmType* VariableTypeAnnotations(

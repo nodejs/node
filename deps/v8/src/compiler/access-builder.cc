@@ -104,6 +104,15 @@ FieldAccess AccessBuilder::ForJSObjectOffset(
 }
 
 // static
+FieldAccess AccessBuilder::ForJSCollectionTable() {
+  FieldAccess access = {kTaggedBase,           JSCollection::kTableOffset,
+                        MaybeHandle<Name>(),   MaybeHandle<Map>(),
+                        Type::OtherInternal(), MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSFunctionPrototypeOrInitialMap() {
   FieldAccess access = {
       kTaggedBase,         JSFunction::kPrototypeOrInitialMapOffset,
@@ -134,8 +143,8 @@ FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSFunctionLiterals() {
-  FieldAccess access = {kTaggedBase,         JSFunction::kLiteralsOffset,
+FieldAccess AccessBuilder::ForJSFunctionFeedbackVector() {
+  FieldAccess access = {kTaggedBase,         JSFunction::kFeedbackVectorOffset,
                         Handle<Name>(),      MaybeHandle<Map>(),
                         Type::Internal(),    MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
@@ -184,6 +193,16 @@ FieldAccess AccessBuilder::ForJSGeneratorObjectContinuation() {
 FieldAccess AccessBuilder::ForJSGeneratorObjectInputOrDebugPos() {
   FieldAccess access = {
       kTaggedBase,         JSGeneratorObject::kInputOrDebugPosOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::NonInternal(), MachineType::AnyTagged(),
+      kFullWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForJSAsyncGeneratorObjectAwaitInputOrDebugPos() {
+  FieldAccess access = {
+      kTaggedBase,         JSAsyncGeneratorObject::kAwaitInputOrDebugPosOffset,
       Handle<Name>(),      MaybeHandle<Map>(),
       Type::NonInternal(), MachineType::AnyTagged(),
       kFullWriteBarrier};
@@ -393,9 +412,9 @@ FieldAccess AccessBuilder::ForFixedTypedArrayBaseExternalPointer() {
 }
 
 // static
-FieldAccess AccessBuilder::ForDescriptorArrayEnumCache() {
+FieldAccess AccessBuilder::ForDescriptorArrayEnumCacheBridge() {
   FieldAccess access = {
-      kTaggedBase,           DescriptorArray::kEnumCacheOffset,
+      kTaggedBase,           DescriptorArray::kEnumCacheBridgeOffset,
       Handle<Name>(),        MaybeHandle<Map>(),
       Type::OtherInternal(), MachineType::TaggedPointer(),
       kPointerWriteBarrier};
@@ -483,9 +502,9 @@ FieldAccess AccessBuilder::ForModuleRegularImports() {
 
 // static
 FieldAccess AccessBuilder::ForNameHashField() {
-  FieldAccess access = {kTaggedBase,      Name::kHashFieldOffset,
-                        Handle<Name>(),   MaybeHandle<Map>(),
-                        Type::Internal(), MachineType::Uint32(),
+  FieldAccess access = {kTaggedBase,        Name::kHashFieldOffset,
+                        Handle<Name>(),     MaybeHandle<Map>(),
+                        Type::Unsigned32(), MachineType::Uint32(),
                         kNoWriteBarrier};
   return access;
 }
@@ -514,6 +533,15 @@ FieldAccess AccessBuilder::ForConsStringFirst() {
 // static
 FieldAccess AccessBuilder::ForConsStringSecond() {
   FieldAccess access = {kTaggedBase,         ConsString::kSecondOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::String(),      MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForThinStringActual() {
+  FieldAccess access = {kTaggedBase,         ThinString::kActualOffset,
                         Handle<Name>(),      MaybeHandle<Map>(),
                         Type::String(),      MachineType::TaggedPointer(),
                         kPointerWriteBarrier};
@@ -709,9 +737,9 @@ FieldAccess AccessBuilder::ForArgumentsCallee() {
 FieldAccess AccessBuilder::ForFixedArraySlot(
     size_t index, WriteBarrierKind write_barrier_kind) {
   int offset = FixedArray::OffsetOfElementAt(static_cast<int>(index));
-  FieldAccess access = {kTaggedBase,         offset,
-                        Handle<Name>(),      MaybeHandle<Map>(),
-                        Type::NonInternal(), MachineType::AnyTagged(),
+  FieldAccess access = {kTaggedBase,       offset,
+                        Handle<Name>(),    MaybeHandle<Map>(),
+                        Type::Any(),       MachineType::AnyTagged(),
                         write_barrier_kind};
   return access;
 }

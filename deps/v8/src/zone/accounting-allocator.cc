@@ -73,7 +73,9 @@ Segment* AccountingAllocator::GetSegment(size_t bytes) {
   Segment* result = GetSegmentFromPool(bytes);
   if (result == nullptr) {
     result = AllocateSegment(bytes);
-    result->Initialize(bytes);
+    if (result != nullptr) {
+      result->Initialize(bytes);
+    }
   }
 
   return result;

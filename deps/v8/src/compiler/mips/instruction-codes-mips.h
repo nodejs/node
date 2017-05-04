@@ -132,7 +132,44 @@ namespace compiler {
   V(MipsByteSwap32)                \
   V(MipsStackClaim)                \
   V(MipsSeb)                       \
-  V(MipsSeh)
+  V(MipsSeh)                       \
+  V(MipsS128Zero)                  \
+  V(MipsI32x4Splat)                \
+  V(MipsI32x4ExtractLane)          \
+  V(MipsI32x4ReplaceLane)          \
+  V(MipsI32x4Add)                  \
+  V(MipsI32x4Sub)                  \
+  V(MipsF32x4Splat)                \
+  V(MipsF32x4ExtractLane)          \
+  V(MipsF32x4ReplaceLane)          \
+  V(MipsF32x4SConvertI32x4)        \
+  V(MipsF32x4UConvertI32x4)        \
+  V(MipsI32x4Mul)                  \
+  V(MipsI32x4MaxS)                 \
+  V(MipsI32x4MinS)                 \
+  V(MipsI32x4Eq)                   \
+  V(MipsI32x4Ne)                   \
+  V(MipsI32x4Shl)                  \
+  V(MipsI32x4ShrS)                 \
+  V(MipsI32x4ShrU)                 \
+  V(MipsI32x4MaxU)                 \
+  V(MipsI32x4MinU)                 \
+  V(MipsS32x4Select)               \
+  V(MipsF32x4Abs)                  \
+  V(MipsF32x4Neg)                  \
+  V(MipsF32x4RecipApprox)          \
+  V(MipsF32x4RecipSqrtApprox)      \
+  V(MipsF32x4Add)                  \
+  V(MipsF32x4Sub)                  \
+  V(MipsF32x4Mul)                  \
+  V(MipsF32x4Max)                  \
+  V(MipsF32x4Min)                  \
+  V(MipsF32x4Eq)                   \
+  V(MipsF32x4Ne)                   \
+  V(MipsF32x4Lt)                   \
+  V(MipsF32x4Le)                   \
+  V(MipsI32x4SConvertF32x4)        \
+  V(MipsI32x4UConvertF32x4)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

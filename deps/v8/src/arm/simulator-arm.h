@@ -14,6 +14,8 @@
 #define V8_ARM_SIMULATOR_ARM_H_
 
 #include "src/allocation.h"
+#include "src/base/lazy-instance.h"
+#include "src/base/platform/mutex.h"
 
 #if !defined(USE_SIMULATOR)
 // Running without a simulator on a native arm platform.
@@ -25,18 +27,14 @@ namespace internal {
 #define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
   (entry(p0, p1, p2, p3, p4))
 
-typedef int (*arm_regexp_matcher)(String*, int, const byte*, const byte*,
-                                  void*, int*, int, Address, int, Isolate*);
-
+typedef int (*arm_regexp_matcher)(String*, int, const byte*, const byte*, int*,
+                                  int, Address, int, Isolate*);
 
 // Call the generated regexp code directly. The code at the entry address
 // should act as a function matching the type arm_regexp_matcher.
-// The fifth argument is a dummy that reserves the space used for
-// the return address added by the ExitFrame in native calls.
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
-  (FUNCTION_CAST<arm_regexp_matcher>(entry)(p0, p1, p2, p3, NULL, p4, p5, p6,  \
-                                            p7, p8))
+  (FUNCTION_CAST<arm_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7, p8))
 
 // The stack limit beyond which we will throw stack overflow errors in
 // generated code. Because generated code on arm uses the C stack, we
@@ -152,10 +150,10 @@ class Simulator {
   void get_d_register(int dreg, uint32_t* value);
   void set_d_register(int dreg, const uint32_t* value);
   // Support for NEON.
-  template <typename T>
-  void get_q_register(int qreg, T* value);
-  template <typename T>
-  void set_q_register(int qreg, const T* value);
+  template <typename T, int SIZE = kSimd128Size>
+  void get_neon_register(int reg, T (&value)[SIZE / sizeof(T)]);
+  template <typename T, int SIZE = kSimd128Size>
+  void set_neon_register(int reg, const T (&value)[SIZE / sizeof(T)]);
 
   void set_s_register(int reg, unsigned int value);
   unsigned int get_s_register(int reg) const;
@@ -302,19 +300,27 @@ class Simulator {
   void PrintStopInfo(uint32_t code);
 
   // Read and write memory.
+  // The *Ex functions are exclusive access. The writes return the strex status:
+  // 0 if the write succeeds, and 1 if the write fails.
   inline uint8_t ReadBU(int32_t addr);
   inline int8_t ReadB(int32_t addr);
+  uint8_t ReadExBU(int32_t addr);
   inline void WriteB(int32_t addr, uint8_t value);
   inline void WriteB(int32_t addr, int8_t value);
+  int WriteExB(int32_t addr, uint8_t value);
 
   inline uint16_t ReadHU(int32_t addr, Instruction* instr);
   inline int16_t ReadH(int32_t addr, Instruction* instr);
+  uint16_t ReadExHU(int32_t addr, Instruction* instr);
   // Note: Overloaded on the sign of the value.
   inline void WriteH(int32_t addr, uint16_t value, Instruction* instr);
   inline void WriteH(int32_t addr, int16_t value, Instruction* instr);
+  int WriteExH(int32_t addr, uint16_t value, Instruction* instr);
 
   inline int ReadW(int32_t addr, Instruction* instr);
+  int ReadExW(int32_t addr, Instruction* instr);
   inline void WriteW(int32_t addr, int value, Instruction* instr);
+  int WriteExW(int32_t addr, int value, Instruction* instr);
 
   int32_t* ReadDW(int32_t addr);
   void WriteDW(int32_t addr, int32_t value1, int32_t value2);
@@ -355,7 +361,7 @@ class Simulator {
   static CachePage* GetCachePage(base::CustomMatcherHashMap* i_cache,
                                  void* page);
 
-  // Runtime call support.
+  // Runtime call support. Uses the isolate in a thread-safe way.
   static void* RedirectExternalReference(
       Isolate* isolate, void* external_function,
       v8::internal::ExternalReference::Type type);
@@ -437,6 +443,94 @@ class Simulator {
     char* desc;
   };
   StopCountAndDesc watched_stops_[kNumOfWatchedStops];
+
+  // Syncronization primitives. See ARM DDI 0406C.b, A2.9.
+  enum class MonitorAccess {
+    Open,
+    Exclusive,
+  };
+
+  enum class TransactionSize {
+    None = 0,
+    Byte = 1,
+    HalfWord = 2,
+    Word = 4,
+  };
+
+  // The least-significant bits of the address are ignored. The number of bits
+  // is implementation-defined, between 3 and 11. See ARM DDI 0406C.b, A3.4.3.
+  static const int32_t kExclusiveTaggedAddrMask = ~((1 << 11) - 1);
+
+  class LocalMonitor {
+   public:
+    LocalMonitor();
+
+    // These functions manage the state machine for the local monitor, but do
+    // not actually perform loads and stores. NotifyStoreExcl only returns
+    // true if the exclusive store is allowed; the global monitor will still
+    // have to be checked to see whether the memory should be updated.
+    void NotifyLoad(int32_t addr);
+    void NotifyLoadExcl(int32_t addr, TransactionSize size);
+    void NotifyStore(int32_t addr);
+    bool NotifyStoreExcl(int32_t addr, TransactionSize size);
+
+   private:
+    void Clear();
+
+    MonitorAccess access_state_;
+    int32_t tagged_addr_;
+    TransactionSize size_;
+  };
+
+  class GlobalMonitor {
+   public:
+    GlobalMonitor();
+
+    class Processor {
+     public:
+      Processor();
+
+     private:
+      friend class GlobalMonitor;
+      // These functions manage the state machine for the global monitor, but do
+      // not actually perform loads and stores.
+      void Clear_Locked();
+      void NotifyLoadExcl_Locked(int32_t addr);
+      void NotifyStore_Locked(int32_t addr, bool is_requesting_processor);
+      bool NotifyStoreExcl_Locked(int32_t addr, bool is_requesting_processor);
+
+      MonitorAccess access_state_;
+      int32_t tagged_addr_;
+      Processor* next_;
+      Processor* prev_;
+      // A strex can fail due to background cache evictions. Rather than
+      // simulating this, we'll just occasionally introduce cases where an
+      // exclusive store fails. This will happen once after every
+      // kMaxFailureCounter exclusive stores.
+      static const int kMaxFailureCounter = 5;
+      int failure_counter_;
+    };
+
+    // Exposed so it can be accessed by Simulator::{Read,Write}Ex*.
+    base::Mutex mutex;
+
+    void NotifyLoadExcl_Locked(int32_t addr, Processor* processor);
+    void NotifyStore_Locked(int32_t addr, Processor* processor);
+    bool NotifyStoreExcl_Locked(int32_t addr, Processor* processor);
+
+    // Called when the simulator is destroyed.
+    void RemoveProcessor(Processor* processor);
+
+   private:
+    bool IsProcessorInLinkedList_Locked(Processor* processor) const;
+    void PrependProcessor_Locked(Processor* processor);
+
+    Processor* head_;
+  };
+
+  LocalMonitor local_monitor_;
+  GlobalMonitor::Processor global_monitor_processor_;
+  static base::LazyInstance<GlobalMonitor>::type global_monitor_;
 };
 
 
@@ -451,9 +545,8 @@ class Simulator {
 
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
-  Simulator::current(isolate)                                                  \
-      ->Call(entry, 10, p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8)
-
+  Simulator::current(isolate)->Call(entry, 9, p0, p1, p2, p3, p4, p5, p6, p7,  \
+                                    p8)
 
 // The simulator has its own stack. Thus it has a different stack limit from
 // the C-based native code.  The JS-based limit normally points near the end of

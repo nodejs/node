@@ -67,6 +67,14 @@ class InstructionOperandConverter {
     return static_cast<int16_t>(InputInt32(index));
   }
 
+  uint8_t InputInt3(size_t index) {
+    return static_cast<uint8_t>(InputInt32(index) & 0x7);
+  }
+
+  uint8_t InputInt4(size_t index) {
+    return static_cast<uint8_t>(InputInt32(index) & 0xF);
+  }
+
   uint8_t InputInt5(size_t index) {
     return static_cast<uint8_t>(InputInt32(index) & 0x1F);
   }
@@ -205,15 +213,6 @@ class OutOfLineCode : public ZoneObject {
   MacroAssembler* const masm_;
   OutOfLineCode* const next_;
 };
-
-
-// TODO(dcarney): generify this on bleeding_edge and replace this call
-// when merged.
-static inline void FinishCode(MacroAssembler* masm) {
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
-  masm->CheckConstPool(true, false);
-#endif
-}
 
 }  // namespace compiler
 }  // namespace internal

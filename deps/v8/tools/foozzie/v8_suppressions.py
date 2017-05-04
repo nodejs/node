@@ -33,28 +33,32 @@ MAX_LINE_LENGTH = 512
 # For ignoring lines before carets and to ignore caret positions.
 CARET_RE = re.compile(r'^\s*\^\s*$')
 
-# Ignore by original source files. Map from bug->relative file paths in V8,
-# e.g. '/v8/test/mjsunit/d8-performance-now.js' including /v8/. A test will
+# Ignore by original source files. Map from bug->list of relative file paths in
+# V8, e.g. '/v8/test/mjsunit/d8-performance-now.js' including /v8/. A test will
 # be suppressed if one of the files below was used to mutate the test.
 IGNORE_SOURCES = {
   # This contains a usage of f.arguments that often fires.
-  'crbug.com/662424': '/v8/test/mjsunit/regress/regress-2989.js',
+  'crbug.com/662424': [
+    '/v8/test/mjsunit/bugs/bug-222.js',
+    '/v8/test/mjsunit/bugs/bug-941049.js',
+    '/v8/test/mjsunit/regress/regress-crbug-668795.js',
+    '/v8/test/mjsunit/regress/regress-1079.js',
+    '/v8/test/mjsunit/regress/regress-2989.js',
+  ],
 
-  # crbug.com/681088
-  'crbug.com/681088': '/v8/test/mjsunit/asm/asm-validation.js',
-  'crbug.com/681088': '/v8/test/mjsunit/asm/b5528-comma.js',
-  'crbug.com/681088': '/v8/test/mjsunit/asm/pointer-masking.js',
-  'crbug.com/681088': '/v8/test/mjsunit/compiler/regress-443744.js',
-  'crbug.com/681088': '/v8/test/mjsunit/regress/regress-599719.js',
-  'crbug.com/681088': '/v8/test/mjsunit/regress/wasm/regression-647649.js',
-  'crbug.com/681088': '/v8/test/mjsunit/wasm/asm-wasm.js',
-  'crbug.com/681088': '/v8/test/mjsunit/wasm/asm-wasm-deopt.js',
-  'crbug.com/681088': '/v8/test/mjsunit/wasm/asm-wasm-heap.js',
-  'crbug.com/681088': '/v8/test/mjsunit/wasm/asm-wasm-literals.js',
-  'crbug.com/681088': '/v8/test/mjsunit/wasm/asm-wasm-stack.js',
+  'crbug.com/688159': [
+    '/v8/test/mjsunit/es7/exponentiation-operator.js',
+  ],
 
-  # crbug.com/681236
-  'crbug.com/681236': '/v8/test/mjsunit/wasm/asm-wasm-switch.js',
+  # TODO(machenbach): Implement blacklisting files for particular configs only,
+  # here ignition_eager.
+  'crbug.com/691589': [
+    '/v8/test/mjsunit/regress/regress-1200351.js',
+  ],
+
+  'crbug.com/691587': [
+    '/v8/test/mjsunit/asm/regress-674089.js',
+  ],
 }
 
 # Ignore by test case pattern. Map from bug->regexp.
@@ -68,8 +72,6 @@ IGNORE_SOURCES = {
 # TODO(machenbach): Insert a JS sentinel between the two parts, because
 # comments are stripped during minimization.
 IGNORE_TEST_CASES = {
-  'crbug.com/679957':
-      re.compile(r'.*performance\.now.*', re.S),
 }
 
 # Ignore by output pattern. Map from config->bug->regexp. Config '' is used
@@ -83,15 +85,11 @@ IGNORE_TEST_CASES = {
 IGNORE_OUTPUT = {
   '': {
     'crbug.com/664068':
-        re.compile(r'RangeError', re.S),
+        re.compile(r'RangeError(?!: byte length)', re.S),
     'crbug.com/667678':
         re.compile(r'\[native code\]', re.S),
-    'crbug.com/681806':
-        re.compile(r'\[object WebAssembly\.Instance\]', re.S),
-  },
-  'validate_asm': {
-    'validate_asm':
-        re.compile(r'TypeError'),
+    'crbug.com/689877':
+        re.compile(r'^.*SyntaxError: .*Stack overflow$', re.M),
   },
 }
 
@@ -118,35 +116,22 @@ ALLOWED_LINE_DIFFS = [
   r'^.* is not a function(.*)$',
   r'^(.*) is not a .*$',
 
-  # Ignore lines of stack traces as character positions might not match.
-  r'^    at (?:new )?([^:]*):\d+:\d+(.*)$',
-  r'^(.*):\d+:(.*)$',
-
-  # crbug.com/662840
-  r"^.*(?:Trying to access ')?(\w*)(?:(?:' through proxy)|"
-  r"(?: is not defined))$",
-
   # crbug.com/680064. This subsumes one of the above expressions.
   r'^(.*)TypeError: .* function$',
 
-  # crbug.com/681326
-  r'^(.*<anonymous>):\d+:\d+(.*)$',
+  # crbug.com/664068
+  r'^(.*)(?:Array buffer allocation failed|Invalid array buffer length)(.*)$',
 ]
 
 # Lines matching any of the following regular expressions will be ignored.
 # Use uncompiled regular expressions - they'll be compiled later.
 IGNORE_LINES = [
-  r'^Validation of asm\.js module failed: .+$',
-  r'^.*:\d+: Invalid asm.js: .*$',
   r'^Warning: unknown flag .*$',
   r'^Warning: .+ is deprecated.*$',
   r'^Try --help for options$',
 
-  # crbug.com/677032
-  r'^.*:\d+:.*asm\.js.*: success$',
-
-  # crbug.com/680064
-  r'^\s*at .* \(<anonymous>\)$',
+  # crbug.com/705962
+  r'^\s\[0x[0-9a-f]+\]$',
 ]
 
 
@@ -298,9 +283,10 @@ class V8Suppression(Suppression):
     return False
 
   def ignore_by_metadata(self, metadata):
-    for bug, source in IGNORE_SOURCES.iteritems():
-      if source in metadata['sources']:
-        return bug
+    for bug, sources in IGNORE_SOURCES.iteritems():
+      for source in sources:
+        if source in metadata['sources']:
+          return bug
     return False
 
   def ignore_by_output1(self, output):

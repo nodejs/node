@@ -9,6 +9,7 @@
 #include "src/ast/scopes.h"
 #include "src/debug/debug.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/source-position.h"
 
@@ -52,10 +53,10 @@ bool CompilationInfo::has_shared_info() const {
   return parse_info_ && !parse_info_->shared_info().is_null();
 }
 
-CompilationInfo::CompilationInfo(ParseInfo* parse_info,
-                                 Handle<JSFunction> closure)
+CompilationInfo::CompilationInfo(Zone* zone, ParseInfo* parse_info,
+                                 Isolate* isolate, Handle<JSFunction> closure)
     : CompilationInfo(parse_info, {}, Code::ComputeFlags(Code::FUNCTION), BASE,
-                      parse_info->isolate(), parse_info->zone()) {
+                      isolate, zone) {
   closure_ = closure;
 
   // Compiling for the snapshot typically results in different code than
@@ -107,7 +108,6 @@ CompilationInfo::~CompilationInfo() {
     shared_info()->DisableOptimization(bailout_reason());
   }
   dependencies()->Rollback();
-  delete deferred_handles_;
 }
 
 int CompilationInfo::num_parameters() const {
@@ -131,8 +131,21 @@ bool CompilationInfo::ShouldSelfOptimize() {
          !shared_info()->optimization_disabled();
 }
 
+void CompilationInfo::set_deferred_handles(
+    std::shared_ptr<DeferredHandles> deferred_handles) {
+  DCHECK(deferred_handles_.get() == nullptr);
+  deferred_handles_.swap(deferred_handles);
+}
+
+void CompilationInfo::set_deferred_handles(DeferredHandles* deferred_handles) {
+  DCHECK(deferred_handles_.get() == nullptr);
+  deferred_handles_.reset(deferred_handles);
+}
+
 void CompilationInfo::ReopenHandlesInNewHandleScope() {
-  closure_ = Handle<JSFunction>(*closure_);
+  if (!closure_.is_null()) {
+    closure_ = Handle<JSFunction>(*closure_);
+  }
 }
 
 bool CompilationInfo::has_simple_parameters() {

@@ -8,13 +8,11 @@
 #include "src/arguments.h"
 #include "src/base/logging.h"
 #include "src/builtins/builtins.h"
+#include "src/factory.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
-
-namespace compiler {
-class CodeAssemblerState;
-}
 
 // Arguments object passed to C++ builtins.
 class BuiltinArguments : public Arguments {
@@ -103,31 +101,6 @@ class BuiltinArguments : public Arguments {
                                                                               \
   MUST_USE_RESULT static Object* Builtin_Impl_##name(BuiltinArguments args,   \
                                                      Isolate* isolate)
-
-// ----------------------------------------------------------------------------
-// Support macro for defining builtins with Turbofan.
-// ----------------------------------------------------------------------------
-//
-// A builtin function is defined by writing:
-//
-//   TF_BUILTIN(name, code_assember_base_class) {
-//     ...
-//   }
-//
-// In the body of the builtin function the arguments can be accessed
-// as "Parameter(n)".
-#define TF_BUILTIN(Name, AssemblerBase)                                 \
-  class Name##Assembler : public AssemblerBase {                        \
-   public:                                                              \
-    explicit Name##Assembler(compiler::CodeAssemblerState* state)       \
-        : AssemblerBase(state) {}                                       \
-    void Generate##NameImpl();                                          \
-  };                                                                    \
-  void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) { \
-    Name##Assembler assembler(state);                                   \
-    assembler.Generate##NameImpl();                                     \
-  }                                                                     \
-  void Name##Assembler::Generate##NameImpl()
 
 // ----------------------------------------------------------------------------
 

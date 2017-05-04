@@ -1284,9 +1284,9 @@ bool ID_Continue::Is(uchar c) {
 // WhiteSpace:           (point.category == 'Zs') or ('JS_White_Space' in
 // point.properties)
 
-static const uint16_t kWhiteSpaceTable0Size = 7;
-static const int32_t kWhiteSpaceTable0[7] = {9,   1073741835, 12,  32,
-                                             160, 5760,       6158};  // NOLINT
+static const uint16_t kWhiteSpaceTable0Size = 6;
+static const int32_t kWhiteSpaceTable0[6] = {9,  1073741835, 12,
+                                             32, 160,        5760};  // NOLINT
 static const uint16_t kWhiteSpaceTable1Size = 5;
 static const int32_t kWhiteSpaceTable1[5] = {
   1073741824, 10, 47, 95, 4096 };  // NOLINT

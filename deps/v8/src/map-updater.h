@@ -48,13 +48,17 @@ class MapUpdater {
         old_map_(old_map),
         old_descriptors_(old_map->instance_descriptors(), isolate_),
         old_nof_(old_map_->NumberOfOwnDescriptors()),
-        new_elements_kind_(old_map_->elements_kind()) {}
+        new_elements_kind_(old_map_->elements_kind()) {
+    // We shouldn't try to update remote objects.
+    DCHECK(!old_map->FindRootMap()->GetConstructor()->IsFunctionTemplateInfo());
+  }
 
   // Prepares for reconfiguring of a property at |descriptor| to data field
   // with given |attributes| and |representation|/|field_type| and
   // performs the steps 1-5.
   Handle<Map> ReconfigureToDataField(int descriptor,
                                      PropertyAttributes attributes,
+                                     PropertyConstness constness,
                                      Representation representation,
                                      Handle<FieldType> field_type);
 
@@ -141,6 +145,11 @@ class MapUpdater {
       Handle<DescriptorArray> descriptors, int descriptor,
       PropertyLocation location, Representation representation);
 
+  void GeneralizeField(Handle<Map> map, int modify_index,
+                       PropertyConstness new_constness,
+                       Representation new_representation,
+                       Handle<FieldType> new_field_type);
+
   Isolate* isolate_;
   Handle<Map> old_map_;
   Handle<DescriptorArray> old_descriptors_;
@@ -157,6 +166,7 @@ class MapUpdater {
   int modified_descriptor_ = -1;
   PropertyKind new_kind_ = kData;
   PropertyAttributes new_attributes_ = NONE;
+  PropertyConstness new_constness_ = kMutable;
   PropertyLocation new_location_ = kField;
   Representation new_representation_ = Representation::None();
 

@@ -271,3 +271,17 @@ assertEquals(117, arg_set(0xFFFFFFFF));
   assertEquals(undefined, args[key]);
   assertEquals(2, args.length);
 })();
+
+(function testSloppyArgumentsLengthMapChange() {
+  function f(a) { return arguments };
+  let args1 = f(1);
+  let args2 = f(1,2);
+  assertTrue(%HaveSameMap(args1, args2));
+  // Changing the length type doesn't causes a map transition.
+  args2.length = 12;
+  assertTrue(%HaveSameMap(args1, args2));
+  args2.length = 12.0;
+  assertTrue(%HaveSameMap(args1, args2));
+  args2.length = "aa"
+  assertTrue(%HaveSameMap(args1, args2));
+})();

@@ -8,7 +8,6 @@
 #include "src/assert-scope.h"
 #include "src/checks.h"
 #include "src/globals.h"
-#include "src/handles.h"
 #include "src/source-position.h"
 #include "src/zone/zone-containers.h"
 
@@ -18,6 +17,8 @@ namespace internal {
 class AbstractCode;
 class BytecodeArray;
 class ByteArray;
+template <typename T>
+class Handle;
 class Isolate;
 class Zone;
 

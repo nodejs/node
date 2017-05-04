@@ -6,9 +6,11 @@
 
 #include "src/regexp/arm64/regexp-macro-assembler-arm64.h"
 
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/unicode.h"
@@ -54,10 +56,7 @@ namespace internal {
  *              (as referred to in
  *              the code)
  *
- *  - fp[104]   isolate            Address of the current isolate.
- *  - fp[96]    return_address     Secondary link/return address
- *                                 used by an exit frame if this is a
- *                                 native call.
+ *  - fp[96]   isolate            Address of the current isolate.
  *  ^^^ csp when called ^^^
  *  - fp[88]    lr                 Return from the RegExp code.
  *  - fp[80]    r29                Old frame pointer (CalleeSaved).
@@ -87,23 +86,18 @@ namespace internal {
  * The data up to the return address must be placed there by the calling
  * code and the remaining arguments are passed in registers, e.g. by calling the
  * code entry as cast to a function with the signature:
- * int (*match)(String* input,
- *              int start_offset,
- *              Address input_start,
- *              Address input_end,
- *              int* output,
- *              int output_size,
- *              Address stack_base,
+ * int (*match)(String* input_string,
+ *              int start_index,
+ *              Address start,
+ *              Address end,
+ *              int* capture_output_array,
+ *              int num_capture_registers,
+ *              byte* stack_area_base,
  *              bool direct_call = false,
- *              Address secondary_return_address,  // Only used by native call.
- *              Isolate* isolate)
+ *              Isolate* isolate);
  * The call is performed by NativeRegExpMacroAssembler::Execute()
  * (in regexp-macro-assembler.cc) via the CALL_GENERATED_REGEXP_CODE macro
  * in arm64/simulator-arm64.h.
- * When calling as a non-direct call (i.e., from C++ code), the return address
- * area is overwritten with the LR register by the RegExp code. When doing a
- * direct call from generated code, the return address is placed there by
- * the calling code, as in a normal exit frame.
  */
 
 #define __ ACCESS_MASM(masm_)
@@ -399,11 +393,11 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
       __ Sub(x1, x1, Operand(capture_length, SXTW));
     }
     // Isolate.
-#ifdef V8_I18N_SUPPORT
+#ifdef V8_INTL_SUPPORT
     if (unicode) {
       __ Mov(x3, Operand(0));
     } else  // NOLINT
-#endif      // V8_I18N_SUPPORT
+#endif      // V8_INTL_SUPPORT
     {
       __ Mov(x3, ExternalReference::isolate_address(isolate()));
     }

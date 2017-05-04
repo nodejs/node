@@ -339,23 +339,6 @@ function assertValidAsm(func) {
   assertFalse(%IsAsmWasmCode(Module));
 })();
 
-(function TestBadishBooleanExprAnnotation() {
-  function Module() {
-    "use asm";
-    function foo(x) {
-      x = x | 0;
-      x = (x + 1) | false;
-      return x | 0;
-    }
-    return { foo: foo };
-  }
-  var m = Module();
-  // We all false here because the parser optimizes expressons like:
-  // !123 to false.
-  assertTrue(%IsAsmWasmCode(Module));
-  assertEquals(4, m.foo(3));
-})();
-
 (function TestBadFroundTrue() {
   function Module(stdlib) {
     "use asm";
@@ -412,4 +395,104 @@ function assertValidAsm(func) {
   }
   Module();
   assertFalse(%IsAsmWasmCode(Module));
+})();
+
+(function TestConditionalReturn() {
+  function Module() {
+    'use asm';
+    function foo(a, b) {
+      a = +a;
+      b = +b;
+      // Allowed, despite not matching the spec, as emscripten emits this in
+      // practice.
+      return a == b ? +a : +b;
+    }
+    return foo;
+  }
+  var m = Module();
+  assertEquals(4, m(4, 4));
+  assertEquals(5, m(4, 5));
+  assertEquals(4, m(5, 4));
+  assertValidAsm(Module);
+})();
+
+(function TestMismatchedConditionalReturn() {
+  function Module() {
+    'use asm';
+    function foo(a, b) {
+      a = +a;
+      return a == 0.0 ? 0 : +a;
+    }
+    return foo;
+  }
+  Module();
+  assertFalse(%IsAsmWasmCode(Module));
+})();
+
+(function TestBadIntConditionalReturn() {
+  function Module() {
+    'use asm';
+    function foo(a, b) {
+      a = a | 0;
+      b = b | 0;
+      // Disallowed because signature must be signed, but these will be int.
+      return 1 ? a : b;
+    }
+    return foo;
+  }
+  Module();
+  assertFalse(%IsAsmWasmCode(Module));
+})();
+
+(function TestBadSignedConditionalReturn() {
+  function Module() {
+    'use asm';
+    function foo(a, b) {
+      a = a | 0;
+      b = b | 0;
+      // Disallowed because conditional yields int, even when both sides
+      // are signed.
+      return 1 ? a | 0 : b | 0;
+    }
+    return foo;
+  }
+  Module();
+  assertFalse(%IsAsmWasmCode(Module));
+})();
+
+(function TestAsmIsRegular() {
+  function Module() {
+    'use asm';
+    var g = 123;
+    function foo() {
+      return g | 0;
+    }
+    return {x: foo};
+  }
+  var o = Module();
+  assertValidAsm(Module);
+  assertFalse(o instanceof WebAssembly.Instance);
+  assertTrue(o instanceof Object);
+  assertTrue(o.__proto__ === Object.prototype);
+  var p = Object.getOwnPropertyDescriptor(o, "x")
+  assertTrue(p.writable);
+  assertTrue(p.enumerable);
+  assertTrue(p.configurable);
+  assertTrue(typeof o.x === 'function');
+  o.x = 5;
+  assertTrue(typeof o.x === 'number');
+  assertTrue(o.__single_function__ === undefined);
+  assertTrue(o.__foreign_init__ === undefined);
+})();
+
+(function TestAsmExportOrderPreserved() {
+  function Module() {
+    "use asm";
+    function f() {}
+    return { a:f, b:f, x:f, c:f, d:f };
+  }
+  var m = Module();
+  assertValidAsm(Module);
+  var props = Object.getOwnPropertyNames(m);
+  assertEquals(["a","b","x","c","d"], props);
 })();

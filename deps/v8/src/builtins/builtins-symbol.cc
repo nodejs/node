@@ -4,7 +4,8 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
+#include "src/counters.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -63,51 +64,6 @@ BUILTIN(SymbolKeyFor) {
   DCHECK_EQ(isolate->heap()->public_symbol_table()->SlowReverseLookup(*symbol),
             result);
   return result;
-}
-
-// ES6 section 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint )
-void Builtins::Generate_SymbolPrototypeToPrimitive(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(0);
-  Node* context = assembler.Parameter(4);
-
-  Node* result =
-      assembler.ToThisValue(context, receiver, PrimitiveType::kSymbol,
-                            "Symbol.prototype [ @@toPrimitive ]");
-  assembler.Return(result);
-}
-
-// ES6 section 19.4.3.2 Symbol.prototype.toString ( )
-void Builtins::Generate_SymbolPrototypeToString(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(0);
-  Node* context = assembler.Parameter(3);
-
-  Node* value = assembler.ToThisValue(context, receiver, PrimitiveType::kSymbol,
-                                      "Symbol.prototype.toString");
-  Node* result =
-      assembler.CallRuntime(Runtime::kSymbolDescriptiveString, context, value);
-  assembler.Return(result);
-}
-
-// ES6 section 19.4.3.3 Symbol.prototype.valueOf ( )
-void Builtins::Generate_SymbolPrototypeValueOf(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(0);
-  Node* context = assembler.Parameter(3);
-
-  Node* result = assembler.ToThisValue(
-      context, receiver, PrimitiveType::kSymbol, "Symbol.prototype.valueOf");
-  assembler.Return(result);
 }
 
 }  // namespace internal

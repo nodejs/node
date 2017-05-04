@@ -115,7 +115,7 @@ void LCodeGen::SaveCallerDoubles() {
   BitVector* doubles = chunk()->allocated_double_registers();
   BitVector::Iterator save_iterator(doubles);
   while (!save_iterator.Done()) {
-    __ sdc1(DoubleRegister::from_code(save_iterator.Current()),
+    __ Sdc1(DoubleRegister::from_code(save_iterator.Current()),
             MemOperand(sp, count * kDoubleSize));
     save_iterator.Advance();
     count++;
@@ -131,7 +131,7 @@ void LCodeGen::RestoreCallerDoubles() {
   BitVector::Iterator save_iterator(doubles);
   int count = 0;
   while (!save_iterator.Done()) {
-    __ ldc1(DoubleRegister::from_code(save_iterator.Current()),
+    __ Ldc1(DoubleRegister::from_code(save_iterator.Current()),
             MemOperand(sp, count * kDoubleSize));
     save_iterator.Advance();
     count++;
@@ -203,8 +203,7 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
       __ CallRuntime(Runtime::kNewScriptContext);
       deopt_mode = Safepoint::kLazyDeopt;
     } else {
-      if (slots <=
-          ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+      if (slots <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
         Callable callable = CodeFactory::FastNewFunctionContext(
             isolate(), info()->scope()->scope_type());
         __ li(FastNewFunctionContextDescriptor::SlotsRegister(),
@@ -303,7 +302,7 @@ bool LCodeGen::GenerateDeferredCode() {
         DCHECK(!frame_is_built_);
         DCHECK(info()->IsStub());
         frame_is_built_ = true;
-        __ li(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
+        __ li(scratch0(), Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
         __ PushCommonFrame(scratch0());
         Comment(";;; Deferred code");
       }
@@ -362,7 +361,7 @@ bool LCodeGen::GenerateJumpTable() {
       // This variant of deopt can only be used with stubs. Since we don't
       // have a function pointer to install in the stack frame that we're
       // building, install a special marker there instead.
-      __ li(at, Operand(Smi::FromInt(StackFrame::STUB)));
+      __ li(at, Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
       __ push(at);
       DCHECK(info()->IsStub());
     }
@@ -376,9 +375,7 @@ bool LCodeGen::GenerateJumpTable() {
     }
 
     // Add the base address to the offset previously loaded in entry_offset.
-    __ Addu(entry_offset, entry_offset,
-            Operand(ExternalReference::ForDeoptEntry(base)));
-    __ Jump(entry_offset);
+    __ Jump(entry_offset, Operand(ExternalReference::ForDeoptEntry(base)));
   }
   __ RecordComment("]");
 
@@ -472,7 +469,7 @@ DoubleRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
     }
   } else if (op->IsStackSlot()) {
     MemOperand mem_op = ToMemOperand(op);
-    __ ldc1(dbl_scratch, mem_op);
+    __ Ldc1(dbl_scratch, mem_op);
     return dbl_scratch;
   }
   UNREACHABLE();
@@ -1949,7 +1946,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
     } else if (type.IsHeapNumber()) {
       DCHECK(!info()->IsStub());
       DoubleRegister dbl_scratch = double_scratch0();
-      __ ldc1(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
+      __ Ldc1(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
       // Test the double value. Zero and NaN are false.
       EmitBranchF(instr, ogl, dbl_scratch, kDoubleRegZero);
     } else if (type.IsString()) {
@@ -2025,21 +2022,13 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ Branch(instr->TrueLabel(chunk_), eq, scratch, Operand(SYMBOL_TYPE));
       }
 
-      if (expected & ToBooleanHint::kSimdValue) {
-        // SIMD value -> true.
-        const Register scratch = scratch1();
-        __ lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-        __ Branch(instr->TrueLabel(chunk_), eq, scratch,
-                  Operand(SIMD128_VALUE_TYPE));
-      }
-
       if (expected & ToBooleanHint::kHeapNumber) {
         // heap number -> false iff +0, -0, or NaN.
         DoubleRegister dbl_scratch = double_scratch0();
         Label not_heap_number;
         __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
         __ Branch(&not_heap_number, ne, map, Operand(at));
-        __ ldc1(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
+        __ Ldc1(dbl_scratch, FieldMemOperand(reg, HeapNumber::kValueOffset));
         __ BranchF(instr->TrueLabel(chunk_), instr->FalseLabel(chunk_),
                    ne, dbl_scratch, kDoubleRegZero);
         // Falls through if dbl_scratch == 0.
@@ -2309,12 +2298,9 @@ void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
 
 // Branches to a label or falls through with the answer in flags.  Trashes
 // the temp registers, but not the input.
-void LCodeGen::EmitClassOfTest(Label* is_true,
-                               Label* is_false,
-                               Handle<String>class_name,
-                               Register input,
-                               Register temp,
-                               Register temp2) {
+void LCodeGen::EmitClassOfTest(Label* is_true, Label* is_false,
+                               Handle<String> class_name, Register input,
+                               Register temp, Register temp2) {
   DCHECK(!input.is(temp));
   DCHECK(!input.is(temp2));
   DCHECK(!temp.is(temp2));
@@ -2343,8 +2329,8 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   // temp now contains the constructor function. Grab the
   // instance class name from there.
   __ lw(temp, FieldMemOperand(temp, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(temp, FieldMemOperand(temp,
-                               SharedFunctionInfo::kInstanceClassNameOffset));
+  __ lw(temp,
+        FieldMemOperand(temp, SharedFunctionInfo::kInstanceClassNameOffset));
   // The class name we are testing against is internalized since it's a literal.
   // The name in the constructor is internalized because of the way the context
   // is booted.  This routine isn't expected to work for random API-created
@@ -2355,7 +2341,6 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   // End with the address of this class_name instance in temp register.
   // On MIPS, the caller must do the comparison with Handle<String>class_name.
 }
-
 
 void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
   Register input = ToRegister(instr->value());
@@ -2368,7 +2353,6 @@ void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
 
   EmitBranch(instr, eq, temp, Operand(class_name));
 }
-
 
 void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
   Register reg = ToRegister(instr->value());
@@ -2551,7 +2535,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
   if (instr->hydrogen()->representation().IsDouble()) {
     DoubleRegister result = ToDoubleRegister(instr->result());
-    __ ldc1(result, FieldMemOperand(object, offset));
+    __ Ldc1(result, FieldMemOperand(object, offset));
     return;
   }
 
@@ -2669,7 +2653,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       __ lwc1(result, MemOperand(scratch0(), base_offset));
       __ cvt_d_s(result, result);
     } else  {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
-      __ ldc1(result, MemOperand(scratch0(), base_offset));
+      __ Ldc1(result, MemOperand(scratch0(), base_offset));
     }
   } else {
     Register result = ToRegister(instr->result());
@@ -2747,7 +2731,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
     __ Lsa(scratch, scratch, key, shift_size);
   }
 
-  __ ldc1(result, MemOperand(scratch));
+  __ Ldc1(result, MemOperand(scratch));
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
     __ lw(scratch, MemOperand(scratch, kHoleNanUpper32Offset));
@@ -2874,7 +2858,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
     __ lw(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ lw(result,
           MemOperand(scratch, CommonFrameConstants::kContextOrFrameTypeOffset));
-    __ Xor(temp, result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+    __ Xor(temp, result,
+           Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
 
     // Result is the frame pointer for the frame if not adapted and for the real
     // frame below the adaptor frame if adapted.
@@ -3486,7 +3471,7 @@ void LCodeGen::PrepareForTailCall(const ParameterCount& actual,
   __ lw(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ lw(scratch3, MemOperand(scratch2, StandardFrameConstants::kContextOffset));
   __ Branch(&no_arguments_adaptor, ne, scratch3,
-            Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+            Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // Drop current frame and load arguments count from arguments adaptor frame.
   __ mov(fp, scratch2);
@@ -3551,8 +3536,7 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     } else {
       DCHECK(instr->target()->IsRegister());
       Register target = ToRegister(instr->target());
-      __ Addu(target, target, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Jump(target);
+      __ Jump(target, Code::kHeaderSize - kHeapObjectTag);
     }
   } else {
     LPointerMap* pointers = instr->pointer_map();
@@ -3567,8 +3551,7 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
       DCHECK(instr->target()->IsRegister());
       Register target = ToRegister(instr->target());
       generator.BeforeCall(__ CallSize(target));
-      __ Addu(target, target, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Call(target);
+      __ Call(target, Code::kHeaderSize - kHeapObjectTag);
     }
     generator.AfterCall();
   }
@@ -3673,7 +3656,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     DCHECK(!instr->hydrogen()->has_transition());
     DCHECK(!instr->hydrogen()->NeedsWriteBarrier());
     DoubleRegister value = ToDoubleRegister(instr->value());
-    __ sdc1(value, FieldMemOperand(object, offset));
+    __ Sdc1(value, FieldMemOperand(object, offset));
     return;
   }
 
@@ -3791,7 +3774,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       __ cvt_s_d(double_scratch0(), value);
       __ swc1(double_scratch0(), MemOperand(address, base_offset));
     } else {  // Storing doubles, not floats.
-      __ sdc1(value, MemOperand(address, base_offset));
+      __ Sdc1(value, MemOperand(address, base_offset));
     }
   } else {
     Register value(ToRegister(instr->value()));
@@ -3871,14 +3854,14 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     // Only load canonical NaN if the comparison above set the overflow.
     __ bind(&is_nan);
     __ LoadRoot(scratch_1, Heap::kNanValueRootIndex);
-    __ ldc1(double_scratch,
+    __ Ldc1(double_scratch,
             FieldMemOperand(scratch_1, HeapNumber::kValueOffset));
-    __ sdc1(double_scratch, MemOperand(scratch, 0));
+    __ Sdc1(double_scratch, MemOperand(scratch, 0));
     __ Branch(&done);
   }
 
   __ bind(&not_nan);
-  __ sdc1(value, MemOperand(scratch, 0));
+  __ Sdc1(value, MemOperand(scratch, 0));
   __ bind(&done);
 }
 
@@ -4351,7 +4334,7 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
   // Done. Put the value in dbl_scratch into the value of the allocated heap
   // number.
   __ bind(&done);
-  __ sdc1(dbl_scratch, FieldMemOperand(dst, HeapNumber::kValueOffset));
+  __ Sdc1(dbl_scratch, FieldMemOperand(dst, HeapNumber::kValueOffset));
 }
 
 
@@ -4381,7 +4364,7 @@ void LCodeGen::DoNumberTagD(LNumberTagD* instr) {
     __ Branch(deferred->entry());
   }
   __ bind(deferred->exit());
-  __ sdc1(input_reg, FieldMemOperand(reg, HeapNumber::kValueOffset));
+  __ Sdc1(input_reg, FieldMemOperand(reg, HeapNumber::kValueOffset));
   // Now that we have finished with the object's real address tag it
 }
 
@@ -4462,7 +4445,7 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
                    Operand(at));
     }
     // Load heap number.
-    __ ldc1(result_reg, FieldMemOperand(input_reg, HeapNumber::kValueOffset));
+    __ Ldc1(result_reg, FieldMemOperand(input_reg, HeapNumber::kValueOffset));
     if (deoptimize_on_minus_zero) {
       __ mfc1(at, result_reg.low());
       __ Branch(&done, ne, at, Operand(zero_reg));
@@ -4478,7 +4461,7 @@ void LCodeGen::EmitNumberUntagD(LNumberUntagD* instr, Register input_reg,
       DeoptimizeIf(ne, instr, DeoptimizeReason::kNotAHeapNumberUndefined,
                    input_reg, Operand(at));
       __ LoadRoot(scratch, Heap::kNanValueRootIndex);
-      __ ldc1(result_reg, FieldMemOperand(scratch, HeapNumber::kValueOffset));
+      __ Ldc1(result_reg, FieldMemOperand(scratch, HeapNumber::kValueOffset));
       __ Branch(&done);
     }
   } else {
@@ -4527,7 +4510,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
                  Operand(at));
 
     // Load the double value.
-    __ ldc1(double_scratch,
+    __ Ldc1(double_scratch,
             FieldMemOperand(input_reg, HeapNumber::kValueOffset));
 
     Register except_flag = scratch2;
@@ -4768,6 +4751,13 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
 
 
 void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
+  Label deopt, done;
+  // If the map is not deprecated the migration attempt does not make sense.
+  __ lw(scratch0(), FieldMemOperand(object, HeapObject::kMapOffset));
+  __ lw(scratch0(), FieldMemOperand(scratch0(), Map::kBitField3Offset));
+  __ And(at, scratch0(), Operand(Map::Deprecated::kMask));
+  __ Branch(&deopt, eq, at, Operand(zero_reg));
+
   {
     PushSafepointRegistersScope scope(this);
     __ push(object);
@@ -4778,8 +4768,15 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
     __ StoreToSafepointRegisterSlot(v0, scratch0());
   }
   __ SmiTst(scratch0(), at);
-  DeoptimizeIf(eq, instr, DeoptimizeReason::kInstanceMigrationFailed, at,
+  __ Branch(&done, ne, at, Operand(zero_reg));
+
+  __ bind(&deopt);
+  // In case of "al" condition the operands are not used so just pass zero_reg
+  // there.
+  DeoptimizeIf(al, instr, DeoptimizeReason::kInstanceMigrationFailed, zero_reg,
                Operand(zero_reg));
+
+  __ bind(&done);
 }
 
 
@@ -4878,8 +4875,8 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   // Heap number
   __ bind(&heap_number);
-  __ ldc1(double_scratch0(), FieldMemOperand(input_reg,
-                                             HeapNumber::kValueOffset));
+  __ Ldc1(double_scratch0(),
+          FieldMemOperand(input_reg, HeapNumber::kValueOffset));
   __ ClampDoubleToUint8(result_reg, double_scratch0(), temp_reg);
   __ jmp(&done);
 
@@ -5156,19 +5153,6 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     *cmp2 = Operand(zero_reg);
     final_branch_condition = eq;
 
-// clang-format off
-#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)        \
-  } else if (String::Equals(type_name, factory->type##_string())) {  \
-    __ JumpIfSmi(input, false_label);                                \
-    __ lw(input, FieldMemOperand(input, HeapObject::kMapOffset));    \
-    __ LoadRoot(at, Heap::k##Type##MapRootIndex);                    \
-    *cmp1 = input;                                                   \
-    *cmp2 = Operand(at);                                             \
-    final_branch_condition = eq;
-  SIMD128_TYPES(SIMD128_TYPE)
-#undef SIMD128_TYPE
-    // clang-format on
-
   } else {
     *cmp1 = at;
     *cmp2 = Operand(zero_reg);  // Set to valid regs, to avoid caller assertion.
@@ -5334,7 +5318,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   __ bind(&load_cache);
   __ LoadInstanceDescriptors(map, result);
   __ lw(result,
-        FieldMemOperand(result, DescriptorArray::kEnumCacheOffset));
+        FieldMemOperand(result, DescriptorArray::kEnumCacheBridgeOffset));
   __ lw(result,
         FieldMemOperand(result, FixedArray::SizeFor(instr->idx())));
   DeoptimizeIf(eq, instr, DeoptimizeReason::kNoCache, result,

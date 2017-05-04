@@ -32,13 +32,13 @@ class DebugWrapper {
                         Exception: 2,
                         AfterCompile: 3,
                         CompileError: 4,
+                        OOM: 5,
                       };
 
     // The different types of steps.
     this.StepAction = { StepOut: 0,
                         StepNext: 1,
                         StepIn: 2,
-                        StepFrame: 3,
                       };
 
     // The different types of scripts matching enum ScriptType in objects.h.
@@ -418,7 +418,6 @@ class DebugWrapper {
       case this.StepAction.StepOut: this.stepOut(); break;
       case this.StepAction.StepNext: this.stepOver(); break;
       case this.StepAction.StepIn: this.stepInto(); break;
-      case this.StepAction.StepFrame: %PrepareStepFrame(); break;
       default: %AbortJS("Unsupported StepAction"); break;
     }
   }
@@ -679,12 +678,13 @@ class DebugWrapper {
            };
   }
 
-  evaluateOnCallFrame(frame, expr) {
+  evaluateOnCallFrame(frame, expr, throw_on_side_effect = false) {
     const frameid = frame.callFrameId;
     const {msgid, msg} = this.createMessage(
         "Debugger.evaluateOnCallFrame",
         { callFrameId : frameid,
-          expression : expr
+          expression : expr,
+          throwOnSideEffect : throw_on_side_effect,
         });
     this.sendMessage(msg);
     const reply = this.takeReplyChecked(msgid);
@@ -729,7 +729,8 @@ class DebugWrapper {
              sourceLine : () => line + 1,
              sourceLineText : () => loc.sourceText,
              sourcePosition : () => loc.position,
-             evaluate : (expr) => this.evaluateOnCallFrame(frame, expr),
+             evaluate : (expr, throw_on_side_effect) =>
+                 this.evaluateOnCallFrame(frame, expr, throw_on_side_effect),
              functionName : () => frame.functionName,
              func : () => func,
              index : () => index,
@@ -818,10 +819,21 @@ class DebugWrapper {
       case "promiseRejection":
         debugEvent = this.DebugEvent.Exception;
         break;
-      default:
-        // TODO(jgruber): More granularity.
+      case "OOM":
+        debugEvent = this.DebugEvent.OOM;
+        break;
+      case "other":
         debugEvent = this.DebugEvent.Break;
         break;
+      case "ambiguous":
+      case "XHR":
+      case "DOM":
+      case "EventListener":
+      case "assert":
+      case "debugCommand":
+        assertUnreachable();
+      default:
+        assertUnreachable();
     }
 
     if (!params.callFrames[0]) return;

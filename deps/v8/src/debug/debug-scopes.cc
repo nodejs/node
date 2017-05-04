@@ -61,9 +61,10 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     // inspect the function scope.
     // This can only happen if we set a break point inside right before the
     // return, which requires a debug info to be available.
+    Handle<DebugInfo> debug_info(shared_info->GetDebugInfo());
 
     // Find the break point where execution has stopped.
-    BreakLocation location = BreakLocation::FromFrame(GetFrame());
+    BreakLocation location = BreakLocation::FromFrame(debug_info, GetFrame());
 
     ignore_nested_scopes = location.IsReturn();
   }
@@ -86,12 +87,11 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
 
   // Reparse the code and analyze the scopes.
   // Check whether we are in global, eval or function code.
-  Zone zone(isolate->allocator(), ZONE_NAME);
   std::unique_ptr<ParseInfo> info;
   if (scope_info->scope_type() != FUNCTION_SCOPE) {
     // Global or eval code.
     Handle<Script> script(Script::cast(shared_info->script()));
-    info.reset(new ParseInfo(&zone, script));
+    info.reset(new ParseInfo(script));
     if (scope_info->scope_type() == EVAL_SCOPE) {
       info->set_eval();
       if (!function->context()->IsNativeContext()) {
@@ -107,15 +107,16 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     }
   } else {
     // Inner function.
-    info.reset(new ParseInfo(&zone, shared_info));
+    info.reset(new ParseInfo(shared_info));
   }
-  if (parsing::ParseAny(info.get()) && Rewriter::Rewrite(info.get())) {
+  if (parsing::ParseAny(info.get(), isolate) &&
+      Rewriter::Rewrite(info.get(), isolate)) {
     DeclarationScope* scope = info->literal()->scope();
     if (!ignore_nested_scopes || collect_non_locals) {
       CollectNonLocals(info.get(), scope);
     }
     if (!ignore_nested_scopes) {
-      DeclarationScope::Analyze(info.get(), AnalyzeMode::kDebugger);
+      DeclarationScope::Analyze(info.get(), isolate_, AnalyzeMode::kDebugger);
       RetrieveScopeChain(scope);
     }
   } else {

@@ -61,6 +61,11 @@ template("v8_isolate_run") {
       } else {
         asan = "0"
       }
+      if (is_lsan) {
+        lsan = "1"
+      } else {
+        lsan = "0"
+      }
       if (is_msan) {
         msan = "1"
       } else {
@@ -95,11 +100,6 @@ template("v8_isolate_run") {
         icu_use_data_file_flag = "1"
       } else {
         icu_use_data_file_flag = "0"
-      }
-      if (v8_enable_inspector) {
-        enable_inspector = "1"
-      } else {
-        enable_inspector = "0"
       }
       if (v8_use_external_startup_data) {
         use_external_startup_data = "1"
@@ -158,6 +158,8 @@ template("v8_isolate_run") {
         "--config-variable",
         "is_gn=1",
         "--config-variable",
+        "lsan=$lsan",
+        "--config-variable",
         "msan=$msan",
         "--config-variable",
         "tsan=$tsan",
@@ -169,8 +171,6 @@ template("v8_isolate_run") {
         "component=$component",
         "--config-variable",
         "target_arch=$target_arch",
-        "--config-variable",
-        "v8_enable_inspector=$enable_inspector",
         "--config-variable",
         "v8_use_external_startup_data=$use_external_startup_data",
         "--config-variable",

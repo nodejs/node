@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
@@ -26,13 +27,13 @@ static void UpdateMemoryReferences(Handle<Code> code, Address old_base,
                   RelocInfo::ModeMask(RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (RelocInfo::IsWasmMemoryReference(mode) ||
-        RelocInfo::IsWasmMemorySizeReference(mode)) {
-      // Patch addresses with change in memory start address
-      it.rinfo()->update_wasm_memory_reference(old_base, new_base, old_size,
-                                               new_size);
-      modified = true;
+    if (RelocInfo::IsWasmMemoryReference(mode)) {
+      it.rinfo()->update_wasm_memory_reference(isolate, old_base, new_base);
+    } else {
+      DCHECK(RelocInfo::IsWasmMemorySizeReference(mode));
+      it.rinfo()->update_wasm_memory_size(isolate, old_size, new_size);
     }
+    modified = true;
   }
   if (modified) {
     Assembler::FlushICache(isolate, code->instruction_start(),
@@ -50,7 +51,8 @@ static void UpdateFunctionTableSizeReferences(Handle<Code> code,
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsWasmFunctionTableSizeReference(mode)) {
-      it.rinfo()->update_wasm_function_table_size_reference(old_size, new_size);
+      it.rinfo()->update_wasm_function_table_size_reference(isolate, old_size,
+                                                            new_size);
       modified = true;
     }
   }

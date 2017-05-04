@@ -81,6 +81,7 @@
       'cctest.cc',
       'cctest.h',
       'expression-type-collector-macros.h',
+      'ffi/test-ffi.cc',
       'interpreter/interpreter-tester.cc',
       'interpreter/interpreter-tester.h',
       'interpreter/source-position-matcher.cc',
@@ -103,6 +104,7 @@
       'heap/test-alloc.cc',
       'heap/test-array-buffer-tracker.cc',
       'heap/test-compaction.cc',
+      'heap/test-concurrent-marking.cc',
       'heap/test-heap.cc',
       'heap/test-incremental-marking.cc',
       'heap/test-lab.cc',
@@ -112,12 +114,16 @@
       'libplatform/test-tracing.cc',
       'libsampler/test-sampler.cc',
       'parsing/test-parse-decision.cc',
+      'parsing/test-preparser.cc',
       'parsing/test-scanner-streams.cc',
       'parsing/test-scanner.cc',
       'print-extension.cc',
       'print-extension.h',
       'profiler-extension.cc',
       'profiler-extension.h',
+      'scope-test-helper.h',
+      'setup-isolate-for-tests.cc',
+      'setup-isolate-for-tests.h',
       'test-access-checks.cc',
       'test-accessor-assembler.cc',
       'test-accessors.cc',
@@ -125,7 +131,6 @@
       'test-api.h',
       'test-api-accessors.cc',
       'test-api-interceptors.cc',
-      'test-api-fast-accessor-builder.cc',
       'test-array-list.cc',
       'test-ast.cc',
       'test-atomicops.cc',
@@ -168,6 +173,7 @@
       'test-liveedit.cc',
       'test-lockers.cc',
       'test-log.cc',
+      'test-managed.cc',
       'test-mementos.cc',
       'test-modules.cc',
       'test-object.cc',
@@ -175,12 +181,10 @@
       'test-platform.cc',
       'test-profile-generator.cc',
       'test-random-number-generator.cc',
-      'test-receiver-check-hidden-prototype.cc',
       'test-regexp.cc',
       'test-representation.cc',
       'test-sampler-api.cc',
       'test-serialize.cc',
-      'test-simd.cc',
       'test-strings.cc',
       'test-symbols.cc',
       'test-strtod.cc',
@@ -204,7 +208,7 @@
       'trace-extension.cc',
       'trace-extension.h',
       'types-fuzz.h',
-      'wasm/test-managed.cc',
+      'unicode-helpers.h',
       'wasm/test-run-wasm.cc',
       'wasm/test-run-wasm-64.cc',
       'wasm/test-run-wasm-asmjs.cc',
@@ -212,7 +216,9 @@
       'wasm/test-run-wasm-js.cc',
       'wasm/test-run-wasm-module.cc',
       'wasm/test-run-wasm-relocation.cc',
+      'wasm/test-run-wasm-simd.cc',
       'wasm/test-wasm-breakpoints.cc',
+      'wasm/test-wasm-interpreter-entry.cc',
       'wasm/test-wasm-stack.cc',
       'wasm/test-wasm-trap-position.cc',
       'wasm/wasm-run-utils.h',
@@ -226,7 +232,6 @@
       'test-macro-assembler-ia32.cc',
       'test-log-stack-tracer.cc',
       'test-run-wasm-relocation-ia32.cc',
-      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_x64': [  ### gcmole(arch:x64) ###
       'test-assembler-x64.cc',
@@ -237,7 +242,6 @@
       'test-macro-assembler-x64.cc',
       'test-log-stack-tracer.cc',
       'test-run-wasm-relocation-x64.cc',
-      'wasm/test-run-wasm-simd.cc',
     ],
     'cctest_sources_arm': [  ### gcmole(arch:arm) ###
       'test-assembler-arm.cc',
@@ -247,7 +251,7 @@
       'test-disasm-arm.cc',
       'test-macro-assembler-arm.cc',
       'test-run-wasm-relocation-arm.cc',
-      'wasm/test-run-wasm-simd-lowering.cc'
+      'test-simulator-arm.cc',
     ],
     'cctest_sources_arm64': [  ### gcmole(arch:arm64) ###
       'test-utils-arm64.cc',
@@ -261,21 +265,19 @@
       'test-javascript-arm64.cc',
       'test-js-arm64-variables.cc',
       'test-run-wasm-relocation-arm64.cc',
-      'wasm/test-run-wasm-simd-lowering.cc'
+      'test-simulator-arm64.cc',
     ],
     'cctest_sources_s390': [  ### gcmole(arch:s390) ###
       'test-assembler-s390.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
       'test-disasm-s390.cc',
-      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_ppc': [  ### gcmole(arch:ppc) ###
       'test-assembler-ppc.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
       'test-disasm-ppc.cc',
-      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_mips': [  ### gcmole(arch:mips) ###
       'test-assembler-mips.cc',
@@ -284,7 +286,6 @@
       'test-code-stubs-mips.cc',
       'test-disasm-mips.cc',
       'test-macro-assembler-mips.cc',
-      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_mipsel': [  ### gcmole(arch:mipsel) ###
       'test-assembler-mips.cc',
@@ -293,7 +294,6 @@
       'test-code-stubs-mips.cc',
       'test-disasm-mips.cc',
       'test-macro-assembler-mips.cc',
-      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_mips64': [  ### gcmole(arch:mips64) ###
       'test-assembler-mips64.cc',
@@ -302,7 +302,6 @@
       'test-code-stubs-mips64.cc',
       'test-disasm-mips64.cc',
       'test-macro-assembler-mips64.cc',
-      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_mips64el': [  ### gcmole(arch:mips64el) ###
       'test-assembler-mips64.cc',
@@ -311,7 +310,6 @@
       'test-code-stubs-mips64.cc',
       'test-disasm-mips64.cc',
       'test-macro-assembler-mips64.cc',
-      'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_x87': [  ### gcmole(arch:x87) ###
       'test-assembler-x87.cc',
@@ -322,7 +320,6 @@
       'test-macro-assembler-x87.cc',
       'test-log-stack-tracer.cc',
       'test-run-wasm-relocation-x87.cc',
-      'wasm/test-run-wasm-simd-lowering.cc'
     ],
   },
   'includes': ['../../gypfiles/toolchain.gypi', '../../gypfiles/features.gypi'],
@@ -340,6 +337,7 @@
       ],
       'sources': [
         '../common/wasm/test-signatures.h',
+        '../common/wasm/wasm-macro-gen.h',
         '../common/wasm/wasm-module-runner.cc',
         '../common/wasm/wasm-module-runner.h',
         '<@(cctest_sources)',

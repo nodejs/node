@@ -26,6 +26,8 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
 
   Reduction Reduce(Node* node) final;
 
+  void Finalize() override;
+
   // Verifies that all virtual allocation nodes have been dealt with. Run it
   // after this reducer has been applied. Has no effect in release mode.
   void VerifyReplacement() const;
@@ -36,6 +38,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
   Reduction ReduceNode(Node* node);
   Reduction ReduceLoad(Node* node);
   Reduction ReduceStore(Node* node);
+  Reduction ReduceCheckMaps(Node* node);
   Reduction ReduceAllocate(Node* node);
   Reduction ReduceFinishRegion(Node* node);
   Reduction ReduceReferenceEqual(Node* node);
@@ -49,7 +52,6 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
   JSGraph* jsgraph() const { return jsgraph_; }
   EscapeAnalysis* escape_analysis() const { return escape_analysis_; }
   Zone* zone() const { return zone_; }
-  Isolate* isolate() const;
 
   JSGraph* const jsgraph_;
   EscapeAnalysis* escape_analysis_;
@@ -58,6 +60,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
   // and nodes that do not need a visit from ReduceDeoptState etc.
   BitVector fully_reduced_;
   bool exists_virtual_allocate_;
+  std::set<Node*> arguments_elements_;
   bool compilation_failed_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(EscapeAnalysisReducer);

@@ -13,11 +13,16 @@ namespace internal {
 
 // Forward declarations.
 class Heap;
-class Zone;
 
 // Base class of identity maps contains shared code for all template
 // instantions.
 class IdentityMapBase {
+ public:
+  bool empty() const { return size_ == 0; }
+  int size() const { return size_; }
+  int capacity() const { return capacity_; }
+  bool is_iterable() const { return is_iterable_; }
+
  protected:
   // Allow Tester to access internals, including changing the address of objects
   // within the {keys_} array in order to simulate a moving GC.
@@ -25,51 +30,68 @@ class IdentityMapBase {
 
   typedef void** RawEntry;
 
-  IdentityMapBase(Heap* heap, Zone* zone)
+  explicit IdentityMapBase(Heap* heap)
       : heap_(heap),
-        zone_(zone),
         gc_counter_(-1),
         size_(0),
+        capacity_(0),
         mask_(0),
         keys_(nullptr),
-        values_(nullptr) {}
-  ~IdentityMapBase();
+        values_(nullptr),
+        is_iterable_(false) {}
+  virtual ~IdentityMapBase();
 
   RawEntry GetEntry(Object* key);
-  RawEntry FindEntry(Object* key);
+  RawEntry FindEntry(Object* key) const;
+  void* DeleteEntry(Object* key);
   void Clear();
+
+  V8_EXPORT_PRIVATE RawEntry EntryAtIndex(int index) const;
+  V8_EXPORT_PRIVATE int NextIndex(int index) const;
+
+  void EnableIteration();
+  void DisableIteration();
+
+  virtual void** NewPointerArray(size_t length) = 0;
+  virtual void DeleteArray(void* array) = 0;
 
  private:
   // Internal implementation should not be called directly by subclasses.
-  int LookupIndex(Object* address);
-  int InsertIndex(Object* address);
+  int ScanKeysFor(Object* address) const;
+  int InsertKey(Object* address);
+  int Lookup(Object* key) const;
+  int LookupOrInsert(Object* key);
+  void* DeleteIndex(int index);
   void Rehash();
-  void Resize();
-  RawEntry Lookup(Object* key);
-  RawEntry Insert(Object* key);
-  int Hash(Object* address);
+  void Resize(int new_capacity);
+  int Hash(Object* address) const;
 
   base::hash<uintptr_t> hasher_;
   Heap* heap_;
-  Zone* zone_;
   int gc_counter_;
   int size_;
+  int capacity_;
   int mask_;
   Object** keys_;
   void** values_;
+  bool is_iterable_;
+
+  DISALLOW_COPY_AND_ASSIGN(IdentityMapBase);
 };
 
 // Implements an identity map from object addresses to a given value type {V}.
 // The map is robust w.r.t. garbage collection by synchronization with the
 // supplied {heap}.
 //  * Keys are treated as strong roots.
-//  * SMIs are valid keys, except SMI #0.
 //  * The value type {V} must be reinterpret_cast'able to {void*}
 //  * The value type {V} must not be a heap type.
-template <typename V>
+template <typename V, class AllocationPolicy>
 class IdentityMap : public IdentityMapBase {
  public:
-  IdentityMap(Heap* heap, Zone* zone) : IdentityMapBase(heap, zone) {}
+  explicit IdentityMap(Heap* heap,
+                       AllocationPolicy allocator = AllocationPolicy())
+      : IdentityMapBase(heap), allocator_(allocator) {}
+  ~IdentityMap() override { Clear(); };
 
   // Searches this map for the given key using the object's address
   // as the identity, returning:
@@ -82,16 +104,71 @@ class IdentityMap : public IdentityMapBase {
   // as the identity, returning:
   //    found => a pointer to the storage location for the value
   //    not found => {nullptr}
-  V* Find(Handle<Object> key) { return Find(*key); }
-  V* Find(Object* key) { return reinterpret_cast<V*>(FindEntry(key)); }
+  V* Find(Handle<Object> key) const { return Find(*key); }
+  V* Find(Object* key) const { return reinterpret_cast<V*>(FindEntry(key)); }
 
   // Set the value for the given key.
   void Set(Handle<Object> key, V v) { Set(*key, v); }
   void Set(Object* key, V v) { *(reinterpret_cast<V*>(GetEntry(key))) = v; }
 
+  V Delete(Handle<Object> key) { return Delete(*key); }
+  V Delete(Object* key) { return reinterpret_cast<V>(DeleteEntry(key)); }
+
   // Removes all elements from the map.
   void Clear() { IdentityMapBase::Clear(); }
+
+  // Iterator over IdentityMap. The IteratableScope used to create this Iterator
+  // must be live for the duration of the iteration.
+  class Iterator {
+   public:
+    Iterator& operator++() {
+      index_ = map_->NextIndex(index_);
+      return *this;
+    }
+
+    V* operator*() { return reinterpret_cast<V*>(map_->EntryAtIndex(index_)); }
+    V* operator->() { return reinterpret_cast<V*>(map_->EntryAtIndex(index_)); }
+    bool operator!=(const Iterator& other) { return index_ != other.index_; }
+
+   private:
+    Iterator(IdentityMap* map, int index) : map_(map), index_(index) {}
+
+    IdentityMap* map_;
+    int index_;
+
+    friend class IdentityMap;
+  };
+
+  class IteratableScope {
+   public:
+    explicit IteratableScope(IdentityMap* map) : map_(map) {
+      CHECK(!map_->is_iterable());
+      map_->EnableIteration();
+    }
+    ~IteratableScope() {
+      CHECK(map_->is_iterable());
+      map_->DisableIteration();
+    }
+
+    Iterator begin() { return Iterator(map_, map_->NextIndex(-1)); }
+    Iterator end() { return Iterator(map_, map_->capacity()); }
+
+   private:
+    IdentityMap* map_;
+    DISALLOW_COPY_AND_ASSIGN(IteratableScope);
+  };
+
+ protected:
+  void** NewPointerArray(size_t length) override {
+    return static_cast<void**>(allocator_.New(sizeof(void*) * length));
+  }
+  void DeleteArray(void* array) override { allocator_.Delete(array); }
+
+ private:
+  AllocationPolicy allocator_;
+  DISALLOW_COPY_AND_ASSIGN(IdentityMap);
 };
+
 }  // namespace internal
 }  // namespace v8
 

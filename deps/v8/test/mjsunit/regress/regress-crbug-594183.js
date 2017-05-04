@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --opt --no-always-opt
 
 var global = {}
 
@@ -79,4 +79,8 @@ assertOptimized(inferrable_store);
 // seeing a property name key. It should have inferred a receiver map and
 // emitted an elements store, however.
 inferrable_store("deopt");
-assertUnoptimized(inferrable_store);
+
+// TurboFan is not sophisticated enough to use key type provided by ICs.
+if (!isTurboFanned(inferrable_store)) {
+  assertUnoptimized(inferrable_store);
+}

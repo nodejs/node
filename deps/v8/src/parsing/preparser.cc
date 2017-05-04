@@ -14,6 +14,7 @@
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"
+#include "src/parsing/preparsed-scope-data.h"
 #include "src/parsing/preparser.h"
 #include "src/unicode.h"
 #include "src/utils.h"
@@ -41,6 +42,10 @@ namespace internal {
 namespace {
 
 PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
+  // These symbols require slightly different treatement:
+  // - regular keywords (enum, await, etc.; treated in 1st switch.)
+  // - 'contextual' keywords (and may contain escaped; treated in 2nd switch.)
+  // - 'contextual' keywords, but may not be escaped (3rd switch).
   switch (scanner->current_token()) {
     case Token::ENUM:
       return PreParserIdentifier::Enum();
@@ -57,20 +62,31 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
     case Token::ASYNC:
       return PreParserIdentifier::Async();
     default:
-      if (scanner->UnescapedLiteralMatches("eval", 4))
-        return PreParserIdentifier::Eval();
-      if (scanner->UnescapedLiteralMatches("arguments", 9))
-        return PreParserIdentifier::Arguments();
-      if (scanner->UnescapedLiteralMatches("undefined", 9))
-        return PreParserIdentifier::Undefined();
-      if (scanner->LiteralMatches("prototype", 9))
-        return PreParserIdentifier::Prototype();
-      if (scanner->LiteralMatches("constructor", 11))
-        return PreParserIdentifier::Constructor();
-      if (scanner->LiteralMatches("name", 4))
-        return PreParserIdentifier::Name();
-      return PreParserIdentifier::Default();
+      break;
   }
+  switch (scanner->current_contextual_token()) {
+    case Token::PROTOTYPE:
+      return PreParserIdentifier::Prototype();
+    case Token::CONSTRUCTOR:
+      return PreParserIdentifier::Constructor();
+    case Token::NAME:
+      return PreParserIdentifier::Name();
+    default:
+      break;
+  }
+  if (scanner->literal_contains_escapes())
+    return PreParserIdentifier::Default();
+  switch (scanner->current_contextual_token()) {
+    case Token::EVAL:
+      return PreParserIdentifier::Eval();
+    case Token::ARGUMENTS:
+      return PreParserIdentifier::Arguments();
+    case Token::UNDEFINED:
+      return PreParserIdentifier::Undefined();
+    default:
+      break;
+  }
+  return PreParserIdentifier::Default();
 }
 
 }  // unnamed namespace
@@ -83,6 +99,35 @@ PreParserIdentifier PreParser::GetSymbol() const {
     symbol.string_ = result;
   }
   return symbol;
+}
+
+PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
+  DCHECK_NULL(scope_);
+  DeclarationScope* scope = NewScriptScope();
+#ifdef DEBUG
+  scope->set_is_being_lazily_parsed(true);
+#endif
+
+  // ModuleDeclarationInstantiation for Source Text Module Records creates a
+  // new Module Environment Record whose outer lexical environment record is
+  // the global scope.
+  if (is_module) scope = NewModuleScope(scope);
+
+  FunctionState top_scope(&function_state_, &scope_, scope);
+  original_scope_ = scope_;
+  bool ok = true;
+  int start_position = scanner()->peek_location().beg_pos;
+  parsing_module_ = is_module;
+  PreParserStatementList body;
+  ParseStatementList(body, Token::EOS, &ok);
+  original_scope_ = nullptr;
+  if (stack_overflow()) return kPreParseStackOverflow;
+  if (!ok) {
+    ReportUnexpectedToken(scanner()->current_token());
+  } else if (is_strict(language_mode())) {
+    CheckStrictOctalLiteral(start_position, scanner()->location().end_pos, &ok);
+  }
+  return kPreParseSuccess;
 }
 
 PreParser::PreParseResult PreParser::PreParseFunction(
@@ -103,16 +148,16 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   ResetFunctionLiteralId();
 
   // The caller passes the function_scope which is not yet inserted into the
-  // scope_state_. All scopes above the function_scope are ignored by the
+  // scope stack. All scopes above the function_scope are ignored by the
   // PreParser.
-  DCHECK_NULL(scope_state_);
-  FunctionState function_state(&function_state_, &scope_state_, function_scope);
+  DCHECK_NULL(function_state_);
+  DCHECK_NULL(scope_);
+  FunctionState function_state(&function_state_, &scope_, function_scope);
   // This indirection is needed so that we can use the CHECK_OK macros.
   bool ok_holder = true;
   bool* ok = &ok_holder;
 
   PreParserFormalParameters formals(function_scope);
-  bool has_duplicate_parameters = false;
   DuplicateFinder duplicate_finder;
   std::unique_ptr<ExpressionClassifier> formals_classifier;
 
@@ -129,23 +174,55 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     CheckArityRestrictions(
         formals.arity, kind, formals.has_rest, function_scope->start_position(),
         formals_end_position, CHECK_OK_VALUE(kPreParseSuccess));
-    has_duplicate_parameters =
-        !classifier()->is_valid_formal_parameter_list_without_duplicates();
-
-    if (track_unresolved_variables_) {
-      function_scope->DeclareVariableName(
-          ast_value_factory()->arguments_string(), VAR);
-      function_scope->DeclareVariableName(ast_value_factory()->this_string(),
-                                          VAR);
-    }
   }
 
   Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
-  LazyParsingResult result = ParseStatementListAndLogFunction(
-      &formals, has_duplicate_parameters, may_abort, ok);
+  DeclarationScope* inner_scope = function_scope;
+  LazyParsingResult result;
 
-  if (is_sloppy(function_scope->language_mode())) {
-    function_scope->HoistSloppyBlockFunctions(nullptr);
+  if (!formals.is_simple) {
+    inner_scope = NewVarblockScope();
+    inner_scope->set_start_position(scanner()->location().beg_pos);
+  }
+
+  {
+    BlockState block_state(&scope_, inner_scope);
+    result = ParseStatementListAndLogFunction(&formals, may_abort, ok);
+  }
+
+  if (!formals.is_simple) {
+    BuildParameterInitializationBlock(formals, ok);
+
+    if (is_sloppy(inner_scope->language_mode())) {
+      inner_scope->HoistSloppyBlockFunctions(nullptr);
+    }
+
+    SetLanguageMode(function_scope, inner_scope->language_mode());
+    inner_scope->set_end_position(scanner()->peek_location().end_pos);
+    inner_scope->FinalizeBlockScope();
+  } else {
+    if (is_sloppy(function_scope->language_mode())) {
+      function_scope->HoistSloppyBlockFunctions(nullptr);
+    }
+  }
+
+  if (!IsArrowFunction(kind) && track_unresolved_variables_) {
+    // Declare arguments after parsing the function since lexical 'arguments'
+    // masks the arguments object. Declare arguments before declaring the
+    // function var since the arguments object masks 'function arguments'.
+    function_scope->DeclareArguments(ast_value_factory());
+
+    if (FLAG_experimental_preparser_scope_analysis &&
+        preparsed_scope_data_ != nullptr) {
+      // We're not going to skip this function, but it might contain skippable
+      // functions inside it.
+      preparsed_scope_data_->AddFunction(
+          scope()->start_position(),
+          PreParseData::FunctionData(
+              scanner()->peek_location().end_pos, scope()->num_parameters(),
+              GetLastFunctionLiteralId(), scope()->language_mode(),
+              scope()->AsDeclarationScope()->uses_super_property()));
+    }
   }
 
   use_counts_ = nullptr;
@@ -209,14 +286,12 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       runtime_call_stats_,
       counters[track_unresolved_variables_][parsing_on_main_thread_]);
 
-  // Parse function body.
-  PreParserStatementList body;
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
-  FunctionState function_state(&function_state_, &scope_state_, function_scope);
+  FunctionState function_state(&function_state_, &scope_, function_scope);
   DuplicateFinder duplicate_finder;
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
-  GetNextFunctionLiteralId();
+  int func_id = GetNextFunctionLiteralId();
 
   Expect(Token::LPAREN, CHECK_OK);
   int start_position = scanner()->location().beg_pos;
@@ -230,8 +305,13 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
                          formals_end_position, CHECK_OK);
 
   Expect(Token::LBRACE, CHECK_OK);
-  ParseStatementList(body, Token::RBRACE, CHECK_OK);
-  Expect(Token::RBRACE, CHECK_OK);
+
+  // Parse function body.
+  PreParserStatementList body;
+  int pos = function_token_pos == kNoSourcePosition ? peek_position()
+                                                    : function_token_pos;
+  ParseFunctionBody(body, function_name, pos, formals, kind, function_type,
+                    CHECK_OK);
 
   // Parsing the body may change the language mode in our scope.
   language_mode = function_scope->language_mode();
@@ -252,8 +332,16 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   if (is_strict(language_mode)) {
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
   }
-  function_scope->set_end_position(end_position);
 
+  if (FLAG_experimental_preparser_scope_analysis &&
+      track_unresolved_variables_ && preparsed_scope_data_ != nullptr) {
+    preparsed_scope_data_->AddSkippableFunction(
+        start_position,
+        PreParseData::FunctionData(
+            end_position, scope()->num_parameters(),
+            GetLastFunctionLiteralId() - func_id, scope()->language_mode(),
+            scope()->AsDeclarationScope()->uses_super_property()));
+  }
   if (FLAG_trace_preparse) {
     PrintF("  [%s]: %i-%i\n",
            track_unresolved_variables_ ? "Preparse resolution"
@@ -265,8 +353,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 }
 
 PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
-    PreParserFormalParameters* formals, bool has_duplicate_parameters,
-    bool may_abort, bool* ok) {
+    PreParserFormalParameters* formals, bool may_abort, bool* ok) {
   PreParserStatementList body;
   LazyParsingResult result = ParseStatementList(
       body, Token::RBRACE, may_abort, CHECK_OK_VALUE(kLazyParsingComplete));
@@ -275,11 +362,9 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   // Position right after terminal '}'.
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
-  DCHECK(this->scope()->is_function_scope());
-  log_.LogFunction(
-      body_end, formals->num_parameters(), formals->function_length,
-      has_duplicate_parameters, function_state_->materialized_literal_count(),
-      function_state_->expected_property_count(), GetLastFunctionLiteralId());
+  DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
+  log_.LogFunction(body_end, formals->num_parameters(),
+                   GetLastFunctionLiteralId());
   return kLazyParsingComplete;
 }
 
@@ -305,14 +390,20 @@ void PreParser::DeclareAndInitializeVariables(
     ZoneList<const AstRawString*>* names, bool* ok) {
   if (declaration->pattern.variables_ != nullptr) {
     DCHECK(FLAG_lazy_inner_functions);
-    Scope* scope = declaration_descriptor->hoist_scope;
-    if (scope == nullptr) {
-      scope = this->scope();
-    }
+    DCHECK(track_unresolved_variables_);
     for (auto variable : *(declaration->pattern.variables_)) {
       declaration_descriptor->scope->RemoveUnresolved(variable);
-      scope->DeclareVariableName(variable->raw_name(),
-                                 declaration_descriptor->mode);
+      Variable* var = scope()->DeclareVariableName(
+          variable->raw_name(), declaration_descriptor->mode);
+      if (FLAG_experimental_preparser_scope_analysis) {
+        MarkLoopVariableAsAssigned(declaration_descriptor->scope, var);
+        // This is only necessary if there is an initializer, but we don't have
+        // that information here.  Consequently, the preparser sometimes says
+        // maybe-assigned where the parser (correctly) says never-assigned.
+      }
+      if (names) {
+        names->Add(variable->raw_name(), zone());
+      }
     }
   }
 }

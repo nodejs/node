@@ -30,6 +30,7 @@
 
 #include "src/inspector/v8-runtime-agent-impl.h"
 
+#include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -296,7 +297,9 @@ void V8RuntimeAgentImpl::evaluate(
   v8::Local<v8::Script> script;
   if (m_inspector->compileScript(scope.context(), expression, String16())
           .ToLocal(&script)) {
-    maybeResultValue = m_inspector->runCompiledScript(scope.context(), script);
+    v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
+                                        v8::MicrotasksScope::kRunMicrotasks);
+    maybeResultValue = script->Run(scope.context());
   }
 
   if (evalIsDisabled) scope.context()->AllowCodeGenerationFromStrings(false);
@@ -384,8 +387,9 @@ void V8RuntimeAgentImpl::callFunctionOn(
   if (m_inspector
           ->compileScript(scope.context(), "(" + expression + ")", String16())
           .ToLocal(&functionScript)) {
-    maybeFunctionValue =
-        m_inspector->runCompiledScript(scope.context(), functionScript);
+    v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
+                                        v8::MicrotasksScope::kRunMicrotasks);
+    maybeFunctionValue = functionScript->Run(scope.context());
   }
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.
@@ -410,9 +414,13 @@ void V8RuntimeAgentImpl::callFunctionOn(
     return;
   }
 
-  v8::MaybeLocal<v8::Value> maybeResultValue = m_inspector->callFunction(
-      functionValue.As<v8::Function>(), scope.context(), scope.object(), argc,
-      argv.get());
+  v8::MaybeLocal<v8::Value> maybeResultValue;
+  {
+    v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
+                                        v8::MicrotasksScope::kRunMicrotasks);
+    maybeResultValue = functionValue.As<v8::Function>()->Call(
+        scope.context(), scope.object(), argc, argv.get());
+  }
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.
   response = scope.initialize();
@@ -520,6 +528,7 @@ Response V8RuntimeAgentImpl::runIfWaitingForDebugger() {
 Response V8RuntimeAgentImpl::setCustomObjectFormatterEnabled(bool enabled) {
   m_state->setBoolean(V8RuntimeAgentImplState::customObjectFormatterEnabled,
                       enabled);
+  if (!m_enabled) return Response::Error("Runtime agent is not enabled");
   m_session->setCustomObjectFormatterEnabled(enabled);
   return Response::OK();
 }
@@ -618,8 +627,12 @@ void V8RuntimeAgentImpl::runScript(
 
   if (includeCommandLineAPI.fromMaybe(false)) scope.installCommandLineAPI();
 
-  v8::MaybeLocal<v8::Value> maybeResultValue =
-      m_inspector->runCompiledScript(scope.context(), script);
+  v8::MaybeLocal<v8::Value> maybeResultValue;
+  {
+    v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
+                                        v8::MicrotasksScope::kRunMicrotasks);
+    maybeResultValue = script->Run(scope.context());
+  }
 
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.
@@ -677,6 +690,7 @@ Response V8RuntimeAgentImpl::disable() {
   m_state->setBoolean(V8RuntimeAgentImplState::runtimeEnabled, false);
   m_inspector->disableStackCapturingIfNeeded();
   m_session->discardInjectedScripts();
+  m_session->setCustomObjectFormatterEnabled(false);
   reset();
   m_inspector->client()->endEnsureAllContextsInGroup(
       m_session->contextGroupId());

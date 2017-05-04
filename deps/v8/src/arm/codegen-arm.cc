@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "src/arm/assembler-arm-inl.h"
 #include "src/arm/simulator-arm.h"
 #include "src/codegen.h"
 #include "src/macro-assembler.h"
@@ -167,7 +168,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
@@ -284,7 +285,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
@@ -322,6 +323,9 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                        Register index,
                                        Register result,
                                        Label* call_runtime) {
+  Label indirect_string_loaded;
+  __ bind(&indirect_string_loaded);
+
   // Fetch the instance type of the receiver into result register.
   __ ldr(result, FieldMemOperand(string, HeapObject::kMapOffset));
   __ ldrb(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
@@ -332,15 +336,22 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ b(eq, &check_sequential);
 
   // Dispatch on the indirect string shape: slice or cons.
-  Label cons_string;
-  __ tst(result, Operand(kSlicedNotConsMask));
+  Label cons_string, thin_string;
+  __ and_(result, result, Operand(kStringRepresentationMask));
+  __ cmp(result, Operand(kConsStringTag));
   __ b(eq, &cons_string);
+  __ cmp(result, Operand(kThinStringTag));
+  __ b(eq, &thin_string);
 
   // Handle slices.
-  Label indirect_string_loaded;
   __ ldr(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
   __ ldr(string, FieldMemOperand(string, SlicedString::kParentOffset));
   __ add(index, index, Operand::SmiUntag(result));
+  __ jmp(&indirect_string_loaded);
+
+  // Handle thin strings.
+  __ bind(&thin_string);
+  __ ldr(string, FieldMemOperand(string, ThinString::kActualOffset));
   __ jmp(&indirect_string_loaded);
 
   // Handle cons strings.
@@ -354,10 +365,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ b(ne, call_runtime);
   // Get the first of the two strings and load its instance type.
   __ ldr(string, FieldMemOperand(string, ConsString::kFirstOffset));
-
-  __ bind(&indirect_string_loaded);
-  __ ldr(result, FieldMemOperand(string, HeapObject::kMapOffset));
-  __ ldrb(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
+  __ jmp(&indirect_string_loaded);
 
   // Distinguish sequential and external strings. Only these two string
   // representations can reach here (slices and flat cons strings have been
@@ -457,11 +465,12 @@ void Code::PatchPlatformCodeAge(Isolate* isolate, byte* sequence,
     Assembler::FlushICache(isolate, sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age);
-    CodePatcher patcher(isolate, sequence,
-                        young_length / Assembler::kInstrSize);
-    patcher.masm()->add(r0, pc, Operand(-8));
-    patcher.masm()->ldr(pc, MemOperand(pc, -4));
-    patcher.masm()->emit_code_stub_address(stub);
+    PatchingAssembler patcher(Assembler::IsolateData(isolate), sequence,
+                              young_length / Assembler::kInstrSize);
+    patcher.add(r0, pc, Operand(-8));
+    patcher.ldr(pc, MemOperand(pc, -4));
+    patcher.emit_code_stub_address(stub);
+    patcher.FlushICache(isolate);
   }
 }
 

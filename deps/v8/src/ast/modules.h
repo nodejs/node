@@ -6,7 +6,6 @@
 #define V8_AST_MODULES_H_
 
 #include "src/parsing/scanner.h"  // Only for Scanner::Location.
-#include "src/pending-compilation-error-handler.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -16,6 +15,7 @@ namespace internal {
 class AstRawString;
 class ModuleInfo;
 class ModuleInfoEntry;
+class PendingCompilationErrorHandler;
 
 class ModuleDescriptor : public ZoneObject {
  public:
@@ -214,8 +214,9 @@ class ModuleDescriptor : public ZoneObject {
 
   int AddModuleRequest(const AstRawString* specifier) {
     DCHECK_NOT_NULL(specifier);
+    int module_requests_count = static_cast<int>(module_requests_.size());
     auto it = module_requests_
-                  .insert(std::make_pair(specifier, module_requests_.size()))
+                  .insert(std::make_pair(specifier, module_requests_count))
                   .first;
     return it->second;
   }

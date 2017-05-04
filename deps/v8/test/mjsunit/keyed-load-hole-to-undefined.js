@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax
-// Flags: --nostress-opt
+// Flags: --no-stress-opt --opt --no-always-opt
 
 // --nostress-opt is specified because the test corrupts the "pristine"
 // array prototype chain by storing an element, and this is tracked

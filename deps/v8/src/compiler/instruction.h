@@ -484,6 +484,9 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kSimd128:
+      case MachineRepresentation::kSimd1x4:
+      case MachineRepresentation::kSimd1x8:
+      case MachineRepresentation::kSimd1x16:
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTagged:
@@ -1106,12 +1109,12 @@ class V8_EXPORT_PRIVATE Constant final {
 
  private:
   Type type_;
-  int64_t value_;
 #if V8_TARGET_ARCH_32_BIT
   RelocInfo::Mode rmode_ = RelocInfo::NONE32;
 #else
   RelocInfo::Mode rmode_ = RelocInfo::NONE64;
 #endif
+  int64_t value_;
 };
 
 
@@ -1122,6 +1125,8 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant);
 class FrameStateDescriptor;
 
 enum class StateValueKind : uint8_t {
+  kArgumentsElements,
+  kArgumentsLength,
   kPlain,
   kOptimizedOut,
   kNested,
@@ -1131,40 +1136,72 @@ enum class StateValueKind : uint8_t {
 class StateValueDescriptor {
  public:
   StateValueDescriptor()
-      : kind_(StateValueKind::kPlain),
-        type_(MachineType::AnyTagged()),
-        id_(0) {}
+      : kind_(StateValueKind::kPlain), type_(MachineType::AnyTagged()) {}
 
+  static StateValueDescriptor ArgumentsElements(bool is_rest) {
+    StateValueDescriptor descr(StateValueKind::kArgumentsElements,
+                               MachineType::AnyTagged());
+    descr.is_rest_ = is_rest;
+    return descr;
+  }
+  static StateValueDescriptor ArgumentsLength(bool is_rest) {
+    StateValueDescriptor descr(StateValueKind::kArgumentsLength,
+                               MachineType::AnyTagged());
+    descr.is_rest_ = is_rest;
+    return descr;
+  }
   static StateValueDescriptor Plain(MachineType type) {
-    return StateValueDescriptor(StateValueKind::kPlain, type, 0);
+    return StateValueDescriptor(StateValueKind::kPlain, type);
   }
   static StateValueDescriptor OptimizedOut() {
     return StateValueDescriptor(StateValueKind::kOptimizedOut,
-                                MachineType::AnyTagged(), 0);
+                                MachineType::AnyTagged());
   }
   static StateValueDescriptor Recursive(size_t id) {
-    return StateValueDescriptor(StateValueKind::kNested,
-                                MachineType::AnyTagged(), id);
+    StateValueDescriptor descr(StateValueKind::kNested,
+                               MachineType::AnyTagged());
+    descr.id_ = id;
+    return descr;
   }
   static StateValueDescriptor Duplicate(size_t id) {
-    return StateValueDescriptor(StateValueKind::kDuplicate,
-                                MachineType::AnyTagged(), id);
+    StateValueDescriptor descr(StateValueKind::kDuplicate,
+                               MachineType::AnyTagged());
+    descr.id_ = id;
+    return descr;
   }
 
-  int IsPlain() { return kind_ == StateValueKind::kPlain; }
-  int IsOptimizedOut() { return kind_ == StateValueKind::kOptimizedOut; }
-  int IsNested() { return kind_ == StateValueKind::kNested; }
-  int IsDuplicate() { return kind_ == StateValueKind::kDuplicate; }
+  bool IsArgumentsElements() const {
+    return kind_ == StateValueKind::kArgumentsElements;
+  }
+  bool IsArgumentsLength() const {
+    return kind_ == StateValueKind::kArgumentsLength;
+  }
+  bool IsPlain() const { return kind_ == StateValueKind::kPlain; }
+  bool IsOptimizedOut() const { return kind_ == StateValueKind::kOptimizedOut; }
+  bool IsNested() const { return kind_ == StateValueKind::kNested; }
+  bool IsDuplicate() const { return kind_ == StateValueKind::kDuplicate; }
   MachineType type() const { return type_; }
-  size_t id() const { return id_; }
+  size_t id() const {
+    DCHECK(kind_ == StateValueKind::kDuplicate ||
+           kind_ == StateValueKind::kNested);
+    return id_;
+  }
+  int is_rest() const {
+    DCHECK(kind_ == StateValueKind::kArgumentsElements ||
+           kind_ == StateValueKind::kArgumentsLength);
+    return is_rest_;
+  }
 
  private:
-  StateValueDescriptor(StateValueKind kind, MachineType type, size_t id)
-      : kind_(kind), type_(type), id_(id) {}
+  StateValueDescriptor(StateValueKind kind, MachineType type)
+      : kind_(kind), type_(type) {}
 
   StateValueKind kind_;
   MachineType type_;
-  size_t id_;
+  union {
+    size_t id_;
+    bool is_rest_;
+  };
 };
 
 class StateValueList {
@@ -1222,6 +1259,12 @@ class StateValueList {
         new (zone->New(sizeof(StateValueList))) StateValueList(zone);
     nested_.push_back(nested);
     return nested;
+  }
+  void PushArgumentsElements(bool is_rest) {
+    fields_.push_back(StateValueDescriptor::ArgumentsElements(is_rest));
+  }
+  void PushArgumentsLength(bool is_rest) {
+    fields_.push_back(StateValueDescriptor::ArgumentsLength(is_rest));
   }
   void PushDuplicate(size_t id) {
     fields_.push_back(StateValueDescriptor::Duplicate(id));
@@ -1289,14 +1332,17 @@ class FrameStateDescriptor : public ZoneObject {
 class DeoptimizationEntry final {
  public:
   DeoptimizationEntry() {}
-  DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeReason reason)
-      : descriptor_(descriptor), reason_(reason) {}
+  DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeKind kind,
+                      DeoptimizeReason reason)
+      : descriptor_(descriptor), kind_(kind), reason_(reason) {}
 
   FrameStateDescriptor* descriptor() const { return descriptor_; }
+  DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
 
  private:
   FrameStateDescriptor* descriptor_ = nullptr;
+  DeoptimizeKind kind_ = DeoptimizeKind::kEager;
   DeoptimizeReason reason_ = DeoptimizeReason::kNoReason;
 };
 
@@ -1423,7 +1469,8 @@ std::ostream& operator<<(std::ostream& os,
 
 typedef ZoneDeque<Constant> ConstantDeque;
 typedef std::map<int, Constant, std::less<int>,
-                 zone_allocator<std::pair<const int, Constant> > > ConstantMap;
+                 ZoneAllocator<std::pair<const int, Constant> > >
+    ConstantMap;
 
 typedef ZoneDeque<Instruction*> InstructionDeque;
 typedef ZoneDeque<ReferenceMap*> ReferenceMapDeque;
@@ -1556,7 +1603,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   }
 
   int AddDeoptimizationEntry(FrameStateDescriptor* descriptor,
-                             DeoptimizeReason reason);
+                             DeoptimizeKind kind, DeoptimizeReason reason);
   DeoptimizationEntry const& GetDeoptimizationEntry(int deoptimization_id);
   int GetDeoptimizationEntryCount() const {
     return static_cast<int>(deoptimization_entries_.size());

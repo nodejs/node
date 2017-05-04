@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks that async chains for promises are correct.');
+InspectorTest.log('Checks that async chains for promises are correct.');
 
 InspectorTest.addScript(`
 function foo1() {
@@ -222,12 +222,7 @@ function reject() {
 InspectorTest.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
   InspectorTest.logCallFrames(message.params.callFrames);
-  var asyncStackTrace = message.params.asyncStackTrace;
-  while (asyncStackTrace) {
-    InspectorTest.log(`-- ${asyncStackTrace.description} --`);
-    InspectorTest.logCallFrames(asyncStackTrace.callFrames);
-    asyncStackTrace = asyncStackTrace.parent;
-  }
+  InspectorTest.logAsyncStackTrace(message.params.asyncStackTrace);
   InspectorTest.log('');
   Protocol.Debugger.resume();
 });

@@ -13,6 +13,7 @@
 #include "src/objects-inl.h"
 #include "src/parsing/token.h"
 #include "src/property-descriptor.h"
+#include "src/string-hasher.h"
 #include "src/transitions.h"
 #include "src/unicode-cache.h"
 
@@ -399,8 +400,8 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
                    ->NowContains(value)) {
             Handle<FieldType> value_type(
                 value->OptimalType(isolate(), expected_representation));
-            Map::GeneralizeField(target, descriptor, expected_representation,
-                                 value_type);
+            Map::GeneralizeField(target, descriptor, details.constness(),
+                                 expected_representation, value_type);
           }
           DCHECK(target->instance_descriptors()
                      ->GetFieldType(descriptor)
@@ -478,12 +479,12 @@ void JsonParser<seq_one_byte>::CommitStateToJsonObject(
   DCHECK(!json_object->map()->is_dictionary_map());
 
   DisallowHeapAllocation no_gc;
-
+  DescriptorArray* descriptors = json_object->map()->instance_descriptors();
   int length = properties->length();
   for (int i = 0; i < length; i++) {
     Handle<Object> value = (*properties)[i];
     // Initializing store.
-    json_object->WriteToField(i, *value);
+    json_object->WriteToField(i, descriptors->GetDetails(i), *value);
   }
 }
 
@@ -720,6 +721,10 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
     // Fast path for existing internalized strings.  If the the string being
     // parsed is not a known internalized string, contains backslashes or
     // unexpectedly reaches the end of string, return with an empty handle.
+
+    // We intentionally use local variables instead of fields, compute hash
+    // while we are iterating a string and manually inline StringTable lookup
+    // here.
     uint32_t running_hash = isolate()->heap()->HashSeed();
     int position = position_;
     uc32 c0 = c0_;
@@ -731,11 +736,19 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
         return SlowScanJsonString<SeqOneByteString, uint8_t>(source_, beg_pos,
                                                              position_);
       }
-      if (c0 < 0x20) return Handle<String>::null();
+      if (c0 < 0x20) {
+        c0_ = c0;
+        position_ = position;
+        return Handle<String>::null();
+      }
       running_hash = StringHasher::AddCharacterCore(running_hash,
                                                     static_cast<uint16_t>(c0));
       position++;
-      if (position >= source_length_) return Handle<String>::null();
+      if (position >= source_length_) {
+        c0_ = kEndOfString;
+        position_ = position;
+        return Handle<String>::null();
+      }
       c0 = seq_source_->SeqOneByteStringGet(position);
     } while (c0 != '"');
     int length = position - position_;

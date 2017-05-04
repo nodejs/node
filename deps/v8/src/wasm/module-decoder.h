@@ -14,6 +14,36 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+const uint32_t kWasmMagic = 0x6d736100;
+const uint32_t kWasmVersion = 0x01;
+const uint8_t kWasmFunctionTypeForm = 0x60;
+const uint8_t kWasmAnyFunctionTypeForm = 0x70;
+const uint8_t kResizableMaximumFlag = 1;
+
+enum SectionCode {
+  kUnknownSectionCode = 0,   // code for unknown sections
+  kTypeSectionCode = 1,      // Function signature declarations
+  kImportSectionCode = 2,    // Import declarations
+  kFunctionSectionCode = 3,  // Function declarations
+  kTableSectionCode = 4,     // Indirect function table and other tables
+  kMemorySectionCode = 5,    // Memory attributes
+  kGlobalSectionCode = 6,    // Global declarations
+  kExportSectionCode = 7,    // Exports
+  kStartSectionCode = 8,     // Start function declaration
+  kElementSectionCode = 9,   // Elements section
+  kCodeSectionCode = 10,     // Function code
+  kDataSectionCode = 11,     // Data segments
+  kNameSectionCode = 12,     // Name section (encoded as a string)
+};
+
+enum NameSectionType : uint8_t { kFunction = 1, kLocal = 2 };
+
+inline bool IsValidSectionCode(uint8_t byte) {
+  return kTypeSectionCode <= byte && byte <= kDataSectionCode;
+}
+
+const char* SectionName(SectionCode code);
+
 typedef Result<const WasmModule*> ModuleResult;
 typedef Result<WasmFunction*> FunctionResult;
 typedef std::vector<std::pair<int, int>> FunctionOffsets;
@@ -46,12 +76,6 @@ V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunction(Isolate* isolate,
                                                     ModuleBytesEnv* env,
                                                     const byte* function_start,
                                                     const byte* function_end);
-
-// Extracts the function offset table from the wasm module bytes.
-// Returns a vector with <offset, length> entries, or failure if the wasm bytes
-// are detected as invalid. Note that this validation is not complete.
-FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
-                                                const byte* module_end);
 
 V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,
                                                             const byte* end);

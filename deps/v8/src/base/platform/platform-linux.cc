@@ -44,6 +44,7 @@
 #undef MAP_TYPE
 
 #include "src/base/macros.h"
+#include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
 
 namespace v8 {
@@ -91,28 +92,12 @@ bool OS::ArmUsingHardFloat() {
 
 #endif  // def __arm__
 
-const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
-  if (std::isnan(time)) return "";
-  time_t tv = static_cast<time_t>(std::floor(time / msPerSecond));
-  struct tm tm;
-  struct tm* t = localtime_r(&tv, &tm);
-  if (!t || !t->tm_zone) return "";
-  return t->tm_zone;
-}
-
-double OS::LocalTimeOffset(TimezoneCache* cache) {
-  time_t tv = time(NULL);
-  struct tm tm;
-  struct tm* t = localtime_r(&tv, &tm);
-  // tm_gmtoff includes any daylight savings offset, so subtract it.
-  return static_cast<double>(t->tm_gmtoff * msPerSecond -
-                             (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
-}
+TimezoneCache* OS::CreateTimezoneCache() { return new PosixTimezoneCache(); }
 
 void* OS::Allocate(const size_t requested, size_t* allocated,
-                   bool is_executable) {
+                   OS::MemoryPermission access) {
   const size_t msize = RoundUp(requested, AllocateAlignment());
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+  int prot = GetProtectionFromMemoryPermission(access);
   void* addr = OS::GetRandomMmapAddr();
   void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) return NULL;

@@ -26,18 +26,15 @@ namespace internal {
 #define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
   entry(p0, p1, p2, p3, p4)
 
-typedef int (*mips_regexp_matcher)(String*, int, const byte*, const byte*,
-                                   void*, int*, int, Address, int, Isolate*);
-
+typedef int (*mips_regexp_matcher)(String*, int, const byte*, const byte*, int*,
+                                   int, Address, int, Isolate*);
 
 // Call the generated regexp code directly. The code at the entry address
 // should act as a function matching the type arm_regexp_matcher.
-// The fifth argument is a dummy that reserves the space used for
-// the return address added by the ExitFrame in native calls.
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
-  (FUNCTION_CAST<mips_regexp_matcher>(entry)(p0, p1, p2, p3, NULL, p4, p5, p6, \
-                                             p7, p8))
+  (FUNCTION_CAST<mips_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,   \
+                                             p8))
 
 // The stack limit beyond which we will throw stack overflow errors in
 // generated code. Because generated code on mips uses the C stack, we
@@ -293,6 +290,9 @@ class Simulator {
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
 
+  // Helpers for data value tracing.
+  enum TraceType { BYTE, HALF, WORD, DWORD, FLOAT, DOUBLE, FLOAT_DOUBLE };
+
   // Read and write memory.
   inline uint32_t ReadBU(int32_t addr);
   inline int32_t ReadB(int32_t addr);
@@ -305,24 +305,18 @@ class Simulator {
   inline void WriteH(int32_t addr, uint16_t value, Instruction* instr);
   inline void WriteH(int32_t addr, int16_t value, Instruction* instr);
 
-  inline int ReadW(int32_t addr, Instruction* instr);
+  inline int ReadW(int32_t addr, Instruction* instr, TraceType t = WORD);
   inline void WriteW(int32_t addr, int value, Instruction* instr);
 
   inline double ReadD(int32_t addr, Instruction* instr);
   inline void WriteD(int32_t addr, double value, Instruction* instr);
 
-  // Helpers for data value tracing.
-  enum TraceType {
-    BYTE,
-    HALF,
-    WORD
-    // DWORD,
-    // DFLOAT - Floats may have printing issues due to paired lwc1's
-  };
-
-  void TraceRegWr(int32_t value);
-  void TraceMemWr(int32_t addr, int32_t value, TraceType t);
-  void TraceMemRd(int32_t addr, int32_t value);
+  void TraceRegWr(int32_t value, TraceType t = WORD);
+  void TraceRegWr(int64_t value, TraceType t = DWORD);
+  void TraceMemWr(int32_t addr, int32_t value, TraceType t = WORD);
+  void TraceMemRd(int32_t addr, int32_t value, TraceType t = WORD);
+  void TraceMemWr(int32_t addr, int64_t value, TraceType t = DWORD);
+  void TraceMemRd(int32_t addr, int64_t value, TraceType t = DWORD);
   EmbeddedVector<char, 128> trace_buf_;
 
   // Operations depending on endianness.
@@ -379,6 +373,26 @@ class Simulator {
   inline void SetResult(int32_t rd_reg, int32_t alu_out) {
     set_register(rd_reg, alu_out);
     TraceRegWr(alu_out);
+  }
+
+  inline void SetFPUWordResult(int32_t fd_reg, int32_t alu_out) {
+    set_fpu_register_word(fd_reg, alu_out);
+    TraceRegWr(get_fpu_register_word(fd_reg));
+  }
+
+  inline void SetFPUResult(int32_t fd_reg, int64_t alu_out) {
+    set_fpu_register(fd_reg, alu_out);
+    TraceRegWr(get_fpu_register(fd_reg));
+  }
+
+  inline void SetFPUFloatResult(int32_t fd_reg, float alu_out) {
+    set_fpu_register_float(fd_reg, alu_out);
+    TraceRegWr(get_fpu_register_word(fd_reg), FLOAT);
+  }
+
+  inline void SetFPUDoubleResult(int32_t fd_reg, double alu_out) {
+    set_fpu_register_double(fd_reg, alu_out);
+    TraceRegWr(get_fpu_register(fd_reg), DOUBLE);
   }
 
   void DecodeTypeImmediate();
@@ -449,7 +463,7 @@ class Simulator {
   // Exceptions.
   void SignalException(Exception e);
 
-  // Runtime call support.
+  // Runtime call support. Uses the isolate in a thread-safe way.
   static void* RedirectExternalReference(Isolate* isolate,
                                          void* external_function,
                                          ExternalReference::Type type);
@@ -513,9 +527,8 @@ class Simulator {
 
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
-  Simulator::current(isolate)                                                  \
-      ->Call(entry, 10, p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8)
-
+  Simulator::current(isolate)->Call(entry, 9, p0, p1, p2, p3, p4, p5, p6, p7,  \
+                                    p8)
 
 // The simulator has its own stack. Thus it has a different stack limit from
 // the C-based native code.  The JS-based limit normally points near the end of

@@ -25,45 +25,72 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
                       v8::base::Semaphore* ready_semaphore);
   virtual ~InspectorClientImpl();
 
+  void scheduleReconnect(v8::base::Semaphore* ready_semaphore);
+  void scheduleDisconnect(v8::base::Semaphore* ready_semaphore);
+  void scheduleCreateContextGroup(
+      TaskRunner::SetupGlobalTasks setup_global_tasks,
+      v8::base::Semaphore* ready_semaphore, int* context_group_id);
+
   static v8_inspector::V8Inspector* InspectorFromContext(
       v8::Local<v8::Context> context);
-
- private:
-  // V8InspectorClient implementation.
-  v8::Local<v8::Context> ensureDefaultContextInGroup(
-      int context_group_id) override;
-  double currentTimeMS() override;
-  void runMessageLoopOnPause(int context_group_id) override;
-  void quitMessageLoopOnPause() override;
-
   static v8_inspector::V8InspectorSession* SessionFromContext(
       v8::Local<v8::Context> context);
 
+  // context_group_id = 0 means default context group.
+  v8_inspector::V8InspectorSession* session(int context_group_id = 0);
+
+  void setCurrentTimeMSForTest(double time);
+  void setMemoryInfoForTest(v8::Local<v8::Value> memory_info);
+  void setLogConsoleApiMessageCalls(bool log);
+
+ private:
+  // V8InspectorClient implementation.
+  bool formatAccessorsAsProperties(v8::Local<v8::Value>) override;
+  v8::Local<v8::Context> ensureDefaultContextInGroup(
+      int context_group_id) override;
+  double currentTimeMS() override;
+  v8::MaybeLocal<v8::Value> memoryInfo(v8::Isolate* isolate,
+                                       v8::Local<v8::Context>) override;
+  void runMessageLoopOnPause(int context_group_id) override;
+  void quitMessageLoopOnPause() override;
+  void consoleAPIMessage(int contextGroupId,
+                         v8::Isolate::MessageErrorLevel level,
+                         const v8_inspector::StringView& message,
+                         const v8_inspector::StringView& url,
+                         unsigned lineNumber, unsigned columnNumber,
+                         v8_inspector::V8StackTrace*) override;
   friend class SendMessageToBackendTask;
 
   friend class ConnectTask;
   void connect(v8::Local<v8::Context> context);
+  friend class DisconnectTask;
+  void disconnect(bool reset_inspector);
+  friend class CreateContextGroupTask;
+  int createContextGroup(
+      const TaskRunner::SetupGlobalTasks& setup_global_tasks);
 
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
-  std::unique_ptr<v8_inspector::V8InspectorSession> session_;
   std::unique_ptr<v8_inspector::V8Inspector::Channel> channel_;
 
+  std::map<int, std::unique_ptr<v8_inspector::V8InspectorSession>> sessions_;
+  std::map<int, std::unique_ptr<v8_inspector::StringBuffer>> states_;
+
   v8::Isolate* isolate_;
-  v8::Global<v8::Context> context_;
+  v8::Global<v8::Value> memory_info_;
 
   TaskRunner* task_runner_;
   FrontendChannel* frontend_channel_;
 
+  bool current_time_set_for_test_ = false;
+  double current_time_ = 0.0;
+  bool log_console_api_message_calls_ = false;
+
   DISALLOW_COPY_AND_ASSIGN(InspectorClientImpl);
 };
 
-class SendMessageToBackendExtension : public v8::Extension {
+class SendMessageToBackendExtension : public TaskRunner::SetupGlobalTask {
  public:
-  SendMessageToBackendExtension()
-      : v8::Extension("v8_inspector/frontend",
-                      "native function sendMessageToBackend();") {}
-  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate, v8::Local<v8::String> name);
+  void Run(v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> global) override;
 
   static void set_backend_task_runner(TaskRunner* task_runner) {
     backend_task_runner_ = task_runner;

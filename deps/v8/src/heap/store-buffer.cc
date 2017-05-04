@@ -91,7 +91,7 @@ void StoreBuffer::FlipStoreBuffers() {
   current_ = other;
   top_ = start_[current_];
 
-  if (!task_running_ && FLAG_concurrent_sweeping) {
+  if (!task_running_ && FLAG_concurrent_store_buffer) {
     task_running_ = true;
     Task* task = new Task(heap_->isolate(), this);
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
@@ -105,7 +105,6 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
   DCHECK_LT(index, kStoreBuffers);
   for (Address* current = start_[index]; current < lazy_top_[index];
        current++) {
-    DCHECK(!heap_->code_space()->Contains(*current));
     Address addr = *current;
     Page* page = Page::FromAnyPointerAddress(heap_, addr);
     if (IsDeletionAddress(addr)) {

@@ -6,6 +6,7 @@
 
 #include "include/v8.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/zone/accounting-allocator.h"
@@ -18,8 +19,7 @@ using namespace v8::internal::wasm;
 static const char* kNameString = "name";
 static const size_t kNameStringLength = 4;
 
-int fuzz_wasm_section(WasmSectionCode section, const uint8_t* data,
-                      size_t size) {
+int fuzz_wasm_section(SectionCode section, const uint8_t* data, size_t size) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
   v8::internal::Isolate* i_isolate =

@@ -52,6 +52,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForJSObjectOffset(
       int offset, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 
+  // Provides access to JSCollecton::table() field.
+  static FieldAccess ForJSCollectionTable();
+
   // Provides access to JSFunction::prototype_or_initial_map() field.
   static FieldAccess ForJSFunctionPrototypeOrInitialMap();
 
@@ -61,8 +64,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSFunction::shared() field.
   static FieldAccess ForJSFunctionSharedFunctionInfo();
 
-  // Provides access to JSFunction::literals() field.
-  static FieldAccess ForJSFunctionLiterals();
+  // Provides access to JSFunction::feedback_vector() field.
+  static FieldAccess ForJSFunctionFeedbackVector();
 
   // Provides access to JSFunction::code() field.
   static FieldAccess ForJSFunctionCodeEntry();
@@ -78,6 +81,10 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to JSGeneratorObject::input_or_debug_pos() field.
   static FieldAccess ForJSGeneratorObjectInputOrDebugPos();
+
+  // Provides access to JSAsyncGeneratorObject::await_input_or_debug_pos()
+  // field.
+  static FieldAccess ForJSAsyncGeneratorObjectAwaitInputOrDebugPos();
 
   // Provides access to JSGeneratorObject::register_file() field.
   static FieldAccess ForJSGeneratorObjectRegisterFile();
@@ -133,8 +140,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to FixedTypedArrayBase::external_pointer() field.
   static FieldAccess ForFixedTypedArrayBaseExternalPointer();
 
-  // Provides access to DescriptorArray::enum_cache() field.
-  static FieldAccess ForDescriptorArrayEnumCache();
+  // Provides access to DescriptorArray::enum_cache_bridge() field.
+  static FieldAccess ForDescriptorArrayEnumCacheBridge();
 
   // Provides access to DescriptorArray::enum_cache_bridge_cache() field.
   static FieldAccess ForDescriptorArrayEnumCacheBridgeCache();
@@ -171,6 +178,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to ConsString::second() field.
   static FieldAccess ForConsStringSecond();
+
+  // Provides access to ThinString::actual() field.
+  static FieldAccess ForThinStringActual();
 
   // Provides access to SlicedString::offset() field.
   static FieldAccess ForSlicedStringOffset();

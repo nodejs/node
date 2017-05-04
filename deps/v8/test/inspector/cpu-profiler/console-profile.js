@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Tests that console.profile/profileEnd will record CPU profile when inspector front-end is connected.");
+InspectorTest.log("Tests that console.profile/profileEnd will record CPU profile when inspector front-end is connected.");
 
 InspectorTest.addScript(`
 function collectProfiles()

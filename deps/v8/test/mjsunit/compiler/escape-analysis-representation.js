@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --use-escape-analysis --max-opt-count=100
+// Flags: --allow-natives-syntax --use-escape-analysis
 
 // This tests that captured objects materialized through the deoptimizer
 // have field descriptors with a representation matching the values that
@@ -60,7 +60,7 @@ function test(value_track, value_break) {
   access(value_track, value_break(), deopt);
 
   // Clear type feedback of the access function for next run.
-  %ClearFunctionTypeFeedback(access);
+  %ClearFunctionFeedback(access);
 
   // Also make sure the initial map of the constructor is reset.
   constructor.prototype = {};

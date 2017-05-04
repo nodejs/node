@@ -45,33 +45,32 @@ class AsmTyperHarnessBuilder {
       : source_(source),
         validation_type_(type),
         handles_(),
-        zone_(handles_.main_zone()),
         isolate_(CcTest::i_isolate()),
-        ast_value_factory_(zone_, isolate_->ast_string_constants(),
-                           isolate_->heap()->HashSeed()),
         factory_(isolate_->factory()),
         source_code_(
             factory_->NewStringFromUtf8(CStrVector(source)).ToHandleChecked()),
-        script_(factory_->NewScript(source_code_)) {
-    ParseInfo info(zone_, script_);
-    info.set_allow_lazy_parsing(false);
-    info.set_toplevel(true);
-    info.set_ast_value_factory(&ast_value_factory_);
-    info.set_ast_value_factory_owned(false);
-    Parser parser(&info);
+        script_(factory_->NewScript(source_code_)),
+        info_(script_),
+        ast_value_factory_(info_.zone(), isolate_->ast_string_constants(),
+                           isolate_->heap()->HashSeed()) {
+    info_.set_allow_lazy_parsing(false);
+    info_.set_toplevel(true);
+    info_.set_ast_value_factory(&ast_value_factory_);
+    info_.set_ast_value_factory_owned(false);
+    Parser parser(&info_);
 
-    if (!Compiler::ParseAndAnalyze(&info)) {
+    if (!Compiler::ParseAndAnalyze(&info_, isolate_)) {
       std::cerr << "Failed to parse:\n" << source_ << "\n";
       CHECK(false);
     }
 
-    outer_scope_ = info.script_scope();
-    module_ = info.scope()
+    outer_scope_ = info_.script_scope();
+    module_ = info_.scope()
                   ->declarations()
                   ->AtForTest(0)
                   ->AsFunctionDeclaration()
                   ->fun();
-    typer_.reset(new AsmTyper(isolate_, zone_, script_, module_));
+    typer_.reset(new AsmTyper(isolate_, zone(), script_, module_));
 
     if (validation_type_ == ValidateStatement ||
         validation_type_ == ValidateExpression) {
@@ -104,7 +103,7 @@ class AsmTyperHarnessBuilder {
     if (var->IsUnallocated()) {
       var->AllocateTo(VariableLocation::LOCAL, -1);
     }
-    auto* var_info = new (zone_) AsmTyper::VariableInfo(type);
+    auto* var_info = new (zone()) AsmTyper::VariableInfo(type);
     var_info->set_mutability(AsmTyper::VariableInfo::kLocal);
     CHECK(typer_->AddLocal(var, var_info));
     return this;
@@ -116,7 +115,7 @@ class AsmTyperHarnessBuilder {
       var->AllocateTo(VariableLocation::MODULE, -1);
     }
     if (type != nullptr) {
-      auto* var_info = new (zone_) AsmTyper::VariableInfo(type);
+      auto* var_info = new (zone()) AsmTyper::VariableInfo(type);
       var_info->set_mutability(AsmTyper::VariableInfo::kMutableGlobal);
       CHECK(typer_->AddGlobal(var, var_info));
     }
@@ -125,12 +124,12 @@ class AsmTyperHarnessBuilder {
 
   AsmTyperHarnessBuilder* WithGlobal(
       VariableName var_name, std::function<AsmType*(Zone*)> type_creator) {
-    return WithGlobal(var_name, type_creator(zone_));
+    return WithGlobal(var_name, type_creator(zone()));
   }
 
   AsmTyperHarnessBuilder* WithUndefinedGlobal(
       VariableName var_name, std::function<AsmType*(Zone*)> type_creator) {
-    auto* type = type_creator(zone_);
+    auto* type = type_creator(zone());
     CHECK(type->AsFunctionType() != nullptr ||
           type->AsFunctionTableType() != nullptr);
     WithGlobal(var_name, type);
@@ -157,7 +156,8 @@ class AsmTyperHarnessBuilder {
         CHECK(false);
       case AsmTyper::kFFI:
         stdlib_map = nullptr;
-        var_info = new (zone_) AsmTyper::VariableInfo(AsmType::FFIType(zone_));
+        var_info =
+            new (zone()) AsmTyper::VariableInfo(AsmType::FFIType(zone()));
         var_info->set_mutability(AsmTyper::VariableInfo::kImmutableGlobal);
         break;
       case AsmTyper::kInfinity:
@@ -176,7 +176,7 @@ class AsmTyperHarnessBuilder {
       }
 
       CHECK(var_info != nullptr);
-      var_info = var_info->Clone(zone_);
+      var_info = var_info->Clone(zone());
     }
 
     CHECK(typer_->AddGlobal(var, var_info));
@@ -193,7 +193,7 @@ class AsmTyperHarnessBuilder {
   AsmTyperHarnessBuilder* WithStdlib(VariableName var_name) {
     auto* var = DeclareVariable(var_name);
     auto* var_info =
-        AsmTyper::VariableInfo::ForSpecialSymbol(zone_, AsmTyper::kStdlib);
+        AsmTyper::VariableInfo::ForSpecialSymbol(zone(), AsmTyper::kStdlib);
     CHECK(typer_->AddGlobal(var, var_info));
     return this;
   }
@@ -201,7 +201,7 @@ class AsmTyperHarnessBuilder {
   AsmTyperHarnessBuilder* WithHeap(VariableName var_name) {
     auto* var = DeclareVariable(var_name);
     auto* var_info =
-        AsmTyper::VariableInfo::ForSpecialSymbol(zone_, AsmTyper::kHeap);
+        AsmTyper::VariableInfo::ForSpecialSymbol(zone(), AsmTyper::kHeap);
     CHECK(typer_->AddGlobal(var, var_info));
     return this;
   }
@@ -209,7 +209,7 @@ class AsmTyperHarnessBuilder {
   AsmTyperHarnessBuilder* WithFFI(VariableName var_name) {
     auto* var = DeclareVariable(var_name);
     auto* var_info =
-        AsmTyper::VariableInfo::ForSpecialSymbol(zone_, AsmTyper::kFFI);
+        AsmTyper::VariableInfo::ForSpecialSymbol(zone(), AsmTyper::kFFI);
     CHECK(typer_->AddGlobal(var, var_info));
     return this;
   }
@@ -305,7 +305,7 @@ class AsmTyperHarnessBuilder {
   }
 
   bool ValidateAllStatements(FunctionDeclaration* fun_decl) {
-    AsmTyper::FlattenedStatements iter(zone_, fun_decl->fun()->body());
+    AsmTyper::FlattenedStatements iter(zone(), fun_decl->fun()->body());
     while (auto* curr = iter.Next()) {
       if (typer_->ValidateStatement(curr) == AsmType::None()) {
         return false;
@@ -315,7 +315,7 @@ class AsmTyperHarnessBuilder {
   }
 
   AsmType* ValidateExpressionStatment(FunctionDeclaration* fun_decl) {
-    AsmTyper::FlattenedStatements iter(zone_, fun_decl->fun()->body());
+    AsmTyper::FlattenedStatements iter(zone(), fun_decl->fun()->body());
     AsmType* ret = AsmType::None();
     bool last_was_expression_statement = false;
     while (auto* curr = iter.Next()) {
@@ -337,15 +337,17 @@ class AsmTyperHarnessBuilder {
     return ret;
   }
 
+  Zone* zone() { return info_.zone(); }
+
   std::string source_;
   ValidationType validation_type_;
   HandleAndZoneScope handles_;
-  Zone* zone_;
   Isolate* isolate_;
-  AstValueFactory ast_value_factory_;
   Factory* factory_;
   Handle<String> source_code_;
   Handle<Script> script_;
+  ParseInfo info_;
+  AstValueFactory ast_value_factory_;
 
   DeclarationScope* outer_scope_;
   FunctionLiteral* module_;
@@ -856,9 +858,10 @@ TEST(ErrorsInFunction) {
        "}\n",
        "Undeclared identifier in return statement"},
       {"function f() {\n"
+       "  var i = 0;\n"
        "  return i?0:1;\n"
        "}\n",
-       "Invalid return type expression"},
+       "Type mismatch in return statement"},
       {"function f() {\n"
        "  return stdlib.Math.E;"
        "}\n",

@@ -8,6 +8,7 @@
 
 #include "src/codegen.h"
 #include "src/macro-assembler.h"
+#include "src/x64/assembler-x64-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -48,7 +49,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
@@ -67,6 +68,9 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                                        Register index,
                                        Register result,
                                        Label* call_runtime) {
+  Label indirect_string_loaded;
+  __ bind(&indirect_string_loaded);
+
   // Fetch the instance type of the receiver into result register.
   __ movp(result, FieldOperand(string, HeapObject::kMapOffset));
   __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
@@ -77,16 +81,23 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ j(zero, &check_sequential, Label::kNear);
 
   // Dispatch on the indirect string shape: slice or cons.
-  Label cons_string;
-  __ testb(result, Immediate(kSlicedNotConsMask));
-  __ j(zero, &cons_string, Label::kNear);
+  Label cons_string, thin_string;
+  __ andl(result, Immediate(kStringRepresentationMask));
+  __ cmpl(result, Immediate(kConsStringTag));
+  __ j(equal, &cons_string, Label::kNear);
+  __ cmpl(result, Immediate(kThinStringTag));
+  __ j(equal, &thin_string, Label::kNear);
 
   // Handle slices.
-  Label indirect_string_loaded;
   __ SmiToInteger32(result, FieldOperand(string, SlicedString::kOffsetOffset));
   __ addp(index, result);
   __ movp(string, FieldOperand(string, SlicedString::kParentOffset));
-  __ jmp(&indirect_string_loaded, Label::kNear);
+  __ jmp(&indirect_string_loaded);
+
+  // Handle thin strings.
+  __ bind(&thin_string);
+  __ movp(string, FieldOperand(string, ThinString::kActualOffset));
+  __ jmp(&indirect_string_loaded);
 
   // Handle cons strings.
   // Check whether the right hand side is the empty string (i.e. if
@@ -98,10 +109,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
                  Heap::kempty_stringRootIndex);
   __ j(not_equal, call_runtime);
   __ movp(string, FieldOperand(string, ConsString::kFirstOffset));
-
-  __ bind(&indirect_string_loaded);
-  __ movp(result, FieldOperand(string, HeapObject::kMapOffset));
-  __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
+  __ jmp(&indirect_string_loaded);
 
   // Distinguish sequential and external strings. Only these two string
   // representations can reach here (slices and flat cons strings have been

@@ -12,33 +12,18 @@
 // Utils
 
 var imports = UNDEFINED;
-var imports_from_experimental = UNDEFINED;
 var exports_container = %ExportFromRuntime({});
-var typed_array_setup = UNDEFINED;
-
-// Register context value to be initialized with a typed array in
-// Genesis::InitializeBuiltinTypedArrays.
-function SetupTypedArray(f) {
-  f.next = typed_array_setup;
-  typed_array_setup = f;
-}
 
 // Export to other scripts.
-// In normal natives, this exports functions to other normal natives.
-// In experimental natives, this exports to other experimental natives and
-// to normal natives that import using utils.ImportFromExperimental.
 function Export(f) {
   f(exports_container);
 }
 
 
-// Import from other scripts. The actual importing happens in PostNatives and
-// PostExperimental so that we can import from scripts executed later. However,
-// that means that the import is not available until the very end. If the
-// import needs to be available immediate, use ImportNow.
-// In normal natives, this imports from other normal natives.
-// In experimental natives, this imports from other experimental natives and
-// whitelisted exports from normal natives.
+// Import from other scripts. The actual importing happens in PostNatives so
+// that we can import from scripts executed later. However, that means that
+// the import is not available until the very end. If the import needs to be
+// available immediately, use ImportNow.
 function Import(f) {
   f.next = imports;
   imports = f;
@@ -50,14 +35,6 @@ function Import(f) {
 // would be too late.
 function ImportNow(name) {
   return exports_container[name];
-}
-
-
-// In normal natives, import from experimental natives.
-// Not callable from experimental natives.
-function ImportFromExperimental(f) {
-  f.next = imports_from_experimental;
-  imports_from_experimental = f;
 }
 
 
@@ -165,84 +142,12 @@ function PostNatives(utils) {
     imports(exports_container);
   }
 
-  // Whitelist of exports from normal natives to experimental natives and debug.
-  var expose_list = [
-    "FormatDateToParts",
-    "MapEntries",
-    "MapIterator",
-    "MapIteratorNext",
-    "MaxSimple",
-    "MinSimple",
-    "SetIterator",
-    "SetIteratorNext",
-    "SetValues",
-    "ToLocaleLowerCaseI18N",
-    "ToLocaleUpperCaseI18N",
-    "ToLowerCaseI18N",
-    "ToUpperCaseI18N",
-    // From runtime:
-    "promise_result_symbol",
-    "promise_state_symbol",
-    "reflect_apply",
-    "to_string_tag_symbol",
-  ];
-
-  var filtered_exports = {};
-  %OptimizeObjectForAddingMultipleProperties(
-      filtered_exports, expose_list.length);
-  for (var key of expose_list) {
-    filtered_exports[key] = exports_container[key];
-  }
-  %ToFastProperties(filtered_exports);
-  exports_container = filtered_exports;
-
-  utils.PostNatives = UNDEFINED;
-  utils.ImportFromExperimental = UNDEFINED;
-}
-
-
-function PostExperimentals(utils) {
-  %CheckIsBootstrapping();
-  %ExportExperimentalFromRuntime(exports_container);
-  for ( ; !IS_UNDEFINED(imports); imports = imports.next) {
-    imports(exports_container);
-  }
-  for ( ; !IS_UNDEFINED(imports_from_experimental);
-          imports_from_experimental = imports_from_experimental.next) {
-    imports_from_experimental(exports_container);
-  }
-
-  utils.Export = UNDEFINED;
-  utils.PostDebug = UNDEFINED;
-  utils.PostExperimentals = UNDEFINED;
-  typed_array_setup = UNDEFINED;
-}
-
-
-function PostDebug(utils) {
-  for ( ; !IS_UNDEFINED(imports); imports = imports.next) {
-    imports(exports_container);
-  }
-
   exports_container = UNDEFINED;
-
   utils.Export = UNDEFINED;
   utils.Import = UNDEFINED;
   utils.ImportNow = UNDEFINED;
-  utils.PostDebug = UNDEFINED;
-  utils.PostExperimentals = UNDEFINED;
-  typed_array_setup = UNDEFINED;
+  utils.PostNatives = UNDEFINED;
 }
-
-
-function InitializeBuiltinTypedArrays(utils, rng_state, rempio2result) {
-  var setup_list =  typed_array_setup;
-
-  for ( ; !IS_UNDEFINED(setup_list); setup_list = setup_list.next) {
-    setup_list(rng_state, rempio2result);
-  }
-}
-
 
 // -----------------------------------------------------------------------
 
@@ -251,7 +156,6 @@ function InitializeBuiltinTypedArrays(utils, rng_state, rempio2result) {
 utils.Import = Import;
 utils.ImportNow = ImportNow;
 utils.Export = Export;
-utils.ImportFromExperimental = ImportFromExperimental;
 utils.SetFunctionName = SetFunctionName;
 utils.InstallConstants = InstallConstants;
 utils.InstallFunctions = InstallFunctions;
@@ -259,14 +163,12 @@ utils.InstallGetter = InstallGetter;
 utils.OverrideFunction = OverrideFunction;
 utils.SetUpLockedPrototype = SetUpLockedPrototype;
 utils.PostNatives = PostNatives;
-utils.PostExperimentals = PostExperimentals;
-utils.PostDebug = PostDebug;
 
 %ToFastProperties(utils);
 
 // -----------------------------------------------------------------------
 
-%OptimizeObjectForAddingMultipleProperties(extrasUtils, 7);
+%OptimizeObjectForAddingMultipleProperties(extrasUtils, 11);
 
 extrasUtils.logStackTrace = function logStackTrace() {
   %DebugTrace();
@@ -315,6 +217,16 @@ extrasUtils.rejectPromise = function rejectPromise(promise, reason) {
 extrasUtils.markPromiseAsHandled = function markPromiseAsHandled(promise) {
   %PromiseMarkAsHandled(promise);
 };
+
+extrasUtils.promiseState = function promiseState(promise) {
+  return %PromiseStatus(promise);
+};
+
+// [[PromiseState]] values (for extrasUtils.promiseState())
+// These values should be kept in sync with PromiseStatus in globals.h
+extrasUtils.kPROMISE_PENDING = 0;
+extrasUtils.kPROMISE_FULFILLED = 1;
+extrasUtils.kPROMISE_REJECTED = 2;
 
 %ToFastProperties(extrasUtils);
 

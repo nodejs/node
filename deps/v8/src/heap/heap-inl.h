@@ -23,6 +23,7 @@
 #include "src/msan.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
+#include "src/string-hasher.h"
 
 namespace v8 {
 namespace internal {
@@ -37,23 +38,21 @@ HeapObject* AllocationResult::ToObjectChecked() {
   return HeapObject::cast(object_);
 }
 
-void PromotionQueue::insert(HeapObject* target, int32_t size,
-                            bool was_marked_black) {
+void PromotionQueue::insert(HeapObject* target, int32_t size) {
   if (emergency_stack_ != NULL) {
-    emergency_stack_->Add(Entry(target, size, was_marked_black));
+    emergency_stack_->Add(Entry(target, size));
     return;
   }
 
   if ((rear_ - 1) < limit_) {
     RelocateQueueHead();
-    emergency_stack_->Add(Entry(target, size, was_marked_black));
+    emergency_stack_->Add(Entry(target, size));
     return;
   }
 
   struct Entry* entry = reinterpret_cast<struct Entry*>(--rear_);
   entry->obj_ = target;
   entry->size_ = size;
-  entry->was_marked_black_ = was_marked_black;
 
 // Assert no overflow into live objects.
 #ifdef DEBUG
@@ -62,21 +61,18 @@ void PromotionQueue::insert(HeapObject* target, int32_t size,
 #endif
 }
 
-void PromotionQueue::remove(HeapObject** target, int32_t* size,
-                            bool* was_marked_black) {
+void PromotionQueue::remove(HeapObject** target, int32_t* size) {
   DCHECK(!is_empty());
   if (front_ == rear_) {
     Entry e = emergency_stack_->RemoveLast();
     *target = e.obj_;
     *size = e.size_;
-    *was_marked_black = e.was_marked_black_;
     return;
   }
 
   struct Entry* entry = reinterpret_cast<struct Entry*>(--front_);
   *target = entry->obj_;
   *size = entry->size_;
-  *was_marked_black = entry->was_marked_black_;
 
   // Assert no underflow.
   SemiSpace::AssertValidRange(reinterpret_cast<Address>(rear_),
@@ -225,6 +221,8 @@ AllocationResult Heap::AllocateInternalizedStringImpl(T t, int chars,
 AllocationResult Heap::AllocateOneByteInternalizedString(
     Vector<const uint8_t> str, uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, str.length());
+  // The canonical empty_string is the only zero-length string we allow.
+  DCHECK_IMPLIES(str.length() == 0, roots_[kempty_stringRootIndex] == nullptr);
   // Compute map and object size.
   Map* map = one_byte_internalized_string_map();
   int size = SeqOneByteString::SizeFor(str.length());
@@ -256,6 +254,7 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
 AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
                                                          uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, str.length());
+  DCHECK_NE(0, str.length());  // Use Heap::empty_string() instead.
   // Compute map and object size.
   Map* map = internalized_string_map();
   int size = SeqTwoByteString::SizeFor(str.length());
@@ -689,6 +688,10 @@ Isolate* Heap::isolate() {
       reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(16)->heap()) + 16);
 }
 
+void Heap::ExternalStringTable::PromoteAllNewSpaceStrings() {
+  old_space_strings_.AddAll(new_space_strings_);
+  new_space_strings_.Clear();
+}
 
 void Heap::ExternalStringTable::AddString(String* string) {
   DCHECK(string->IsExternalString());
@@ -699,18 +702,20 @@ void Heap::ExternalStringTable::AddString(String* string) {
   }
 }
 
-void Heap::ExternalStringTable::IterateNewSpaceStrings(ObjectVisitor* v) {
+void Heap::ExternalStringTable::IterateNewSpaceStrings(RootVisitor* v) {
   if (!new_space_strings_.is_empty()) {
     Object** start = &new_space_strings_[0];
-    v->VisitPointers(start, start + new_space_strings_.length());
+    v->VisitRootPointers(Root::kExternalStringsTable, start,
+                         start + new_space_strings_.length());
   }
 }
 
-void Heap::ExternalStringTable::IterateAll(ObjectVisitor* v) {
+void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
   IterateNewSpaceStrings(v);
   if (!old_space_strings_.is_empty()) {
     Object** start = &old_space_strings_[0];
-    v->VisitPointers(start, start + old_space_strings_.length());
+    v->VisitRootPointers(Root::kExternalStringsTable, start,
+                         start + old_space_strings_.length());
   }
 }
 
@@ -785,9 +790,14 @@ void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
   set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
-void Heap::SetConstructStubDeoptPCOffset(int pc_offset) {
-  DCHECK(construct_stub_deopt_pc_offset() == Smi::kZero);
-  set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
+  DCHECK(construct_stub_create_deopt_pc_offset() == Smi::kZero);
+  set_construct_stub_create_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+void Heap::SetConstructStubInvokeDeoptPCOffset(int pc_offset) {
+  DCHECK(construct_stub_invoke_deopt_pc_offset() == Smi::kZero);
+  set_construct_stub_invoke_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {
@@ -838,24 +848,34 @@ AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
   heap_->always_allocate_scope_count_.Increment(1);
 }
 
-
 AlwaysAllocateScope::~AlwaysAllocateScope() {
-  heap_->always_allocate_scope_count_.Increment(-1);
+  heap_->always_allocate_scope_count_.Decrement(1);
 }
 
+void VerifyPointersVisitor::VisitPointers(HeapObject* host, Object** start,
+                                          Object** end) {
+  VerifyPointers(start, end);
+}
 
-void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
+void VerifyPointersVisitor::VisitRootPointers(Root root, Object** start,
+                                              Object** end) {
+  VerifyPointers(start, end);
+}
+
+void VerifyPointersVisitor::VerifyPointers(Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
     if ((*current)->IsHeapObject()) {
       HeapObject* object = HeapObject::cast(*current);
       CHECK(object->GetIsolate()->heap()->Contains(object));
       CHECK(object->map()->IsMap());
+    } else {
+      CHECK((*current)->IsSmi());
     }
   }
 }
 
-
-void VerifySmisVisitor::VisitPointers(Object** start, Object** end) {
+void VerifySmisVisitor::VisitRootPointers(Root root, Object** start,
+                                          Object** end) {
   for (Object** current = start; current < end; current++) {
     CHECK((*current)->IsSmi());
   }

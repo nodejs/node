@@ -65,11 +65,13 @@ ARCH_GUESS = utils.DefaultArch()
 TEST_MAP = {
   # This needs to stay in sync with test/bot_default.isolate.
   "bot_default": [
+    "debugger",
     "mjsunit",
     "cctest",
-    "debugger",
+    "wasm-spec-tests",
     "inspector",
     "webkit",
+    "mkgrokdump",
     "fuzzer",
     "message",
     "preparser",
@@ -78,10 +80,12 @@ TEST_MAP = {
   ],
   # This needs to stay in sync with test/default.isolate.
   "default": [
+    "debugger",
     "mjsunit",
     "cctest",
-    "debugger",
+    "wasm-spec-tests",
     "inspector",
+    "mkgrokdump",
     "fuzzer",
     "message",
     "preparser",
@@ -90,9 +94,9 @@ TEST_MAP = {
   ],
   # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
+    "debugger",
     "mjsunit",
     "cctest",
-    "debugger",
     "inspector",
     "webkit",
     "intl",
@@ -104,17 +108,18 @@ TEST_MAP = {
 
 TIMEOUT_DEFAULT = 60
 
-VARIANTS = ["default", "turbofan", "ignition_staging"]
+# Variants ordered by expected runtime (slowest first).
+VARIANTS = ["default", "noturbofan"]
 
 MORE_VARIANTS = [
-  "ignition",
   "stress",
-  "turbofan_opt",
+  "noturbofan_stress",
+  "nooptimization",
   "asm_wasm",
   "wasm_traps",
 ]
 
-EXHAUSTIVE_VARIANTS = VARIANTS + MORE_VARIANTS
+EXHAUSTIVE_VARIANTS = MORE_VARIANTS + VARIANTS
 
 VARIANT_ALIASES = {
   # The default for developer workstations.
@@ -122,7 +127,7 @@ VARIANT_ALIASES = {
   # Additional variants, run on all bots.
   "more": MORE_VARIANTS,
   # Additional variants, run on a subset of bots.
-  "extra": ["nocrankshaft"],
+  "extra": ["fullcode"],
 }
 
 DEBUG_FLAGS = ["--nohard-abort", "--nodead-code-elimination",
@@ -262,9 +267,6 @@ def BuildOptions():
   result.add_option("--download-data-only",
                     help="Deprecated",
                     default=False, action="store_true")
-  result.add_option("--enable-inspector",
-                    help="Indicates a build with inspector support",
-                    default=False, action="store_true")
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
                     default="")
@@ -322,6 +324,8 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("--json-test-results",
                     help="Path to a file for storing json results.")
+  result.add_option("--flakiness-results",
+                    help="Path to a file for storing flakiness json.")
   result.add_option("--rerun-failures-count",
                     help=("Number of times to rerun each failing test case. "
                           "Very slow tests will be rerun only once."),
@@ -403,7 +407,15 @@ def SetupEnvironment(options):
   )
 
   if options.asan:
-    os.environ['ASAN_OPTIONS'] = symbolizer
+    asan_options = [symbolizer, "allow_user_segv_handler=1"]
+    if not utils.GuessOS() == 'macos':
+      # LSAN is not available on mac.
+      asan_options.append('detect_leaks=1')
+      os.environ['LSAN_OPTIONS'] = ":".join([
+        'suppressions=%s' % os.path.join(
+            BASE_DIR, 'tools', 'memory', 'lsan', 'suppressions.txt'),
+      ])
+    os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
 
   if options.sancov_dir:
     assert os.path.exists(options.sancov_dir)
@@ -411,6 +423,7 @@ def SetupEnvironment(options):
       'coverage=1',
       'coverage_dir=%s' % options.sancov_dir,
       symbolizer,
+      "allow_user_segv_handler=1",
     ])
 
   if options.cfi_vptr:
@@ -485,7 +498,6 @@ def ProcessOptions(options):
       options.arch = 'ia32'
     options.asan = build_config["is_asan"]
     options.dcheck_always_on = build_config["dcheck_always_on"]
-    options.enable_inspector = build_config["v8_enable_inspector"]
     options.mode = 'debug' if build_config["is_debug"] else 'release'
     options.msan = build_config["is_msan"]
     options.no_i18n = not build_config["v8_enable_i18n_support"]
@@ -612,13 +624,6 @@ def ProcessOptions(options):
   if options.no_i18n:
     TEST_MAP["bot_default"].remove("intl")
     TEST_MAP["default"].remove("intl")
-  if not options.enable_inspector:
-    TEST_MAP["default"].remove("inspector")
-    TEST_MAP["bot_default"].remove("inspector")
-    TEST_MAP["optimize_for_size"].remove("inspector")
-    TEST_MAP["default"].remove("debugger")
-    TEST_MAP["bot_default"].remove("debugger")
-    TEST_MAP["optimize_for_size"].remove("debugger")
   return True
 
 
@@ -869,6 +874,9 @@ def Execute(arch, mode, args, options, suites):
     progress_indicator.Register(progress.JsonTestProgressIndicator(
         options.json_test_results, arch, MODES[mode]["execution_mode"],
         ctx.random_seed))
+  if options.flakiness_results:
+    progress_indicator.Register(progress.FlakinessTestProgressIndicator(
+        options.flakiness_results))
 
   run_networked = not options.no_network
   if not run_networked:

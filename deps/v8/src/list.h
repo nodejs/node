@@ -217,17 +217,6 @@ typedef List<Handle<Map> > MapHandleList;
 typedef List<Handle<FieldType> > TypeHandleList;
 typedef List<Handle<Code> > CodeHandleList;
 
-// Perform binary search for an element in an already sorted
-// list. Returns the index of the element of -1 if it was not found.
-// |cmp| is a predicate that takes a pointer to an element of the List
-// and returns +1 if it is greater, -1 if it is less than the element
-// being searched.
-template <typename T, class P>
-int SortedListBSearch(const List<T>& list, P cmp);
-template <typename T>
-int SortedListBSearch(const List<T>& list, T elem);
-
-
 }  // namespace internal
 }  // namespace v8
 

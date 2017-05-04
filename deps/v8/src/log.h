@@ -58,6 +58,10 @@ namespace internal {
 // --prof
 // Collect statistical profiling information (ticks), default is off.  The
 // tick profiler requires code events, so --prof implies --log-code.
+//
+// --prof-sampling-interval <microseconds>
+// The interval between --prof samples, default is 1000 microseconds (5000 on
+// Android).
 
 // Forward declarations.
 class CodeEventListener;
@@ -136,12 +140,6 @@ class Logger : public CodeEventListener {
   // object.
   void SuspectReadEvent(Name* name, Object* obj);
 
-  // Emits an event when a message is put on or read from a debugging queue.
-  // DebugTag lets us put a call-site specific label on the event.
-  void DebugTag(const char* call_site_tag);
-  void DebugEvent(const char* event_type, Vector<uint16_t> parameter);
-
-
   // ==== Events logged by --log-api. ====
   void ApiSecurityCheck();
   void ApiNamedPropertyAccess(const char* tag, JSObject* holder, Object* name);
@@ -187,7 +185,23 @@ class Logger : public CodeEventListener {
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 
-  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
+  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+                      int fp_to_sp_delta);
+
+  void ICEvent(const char* type, bool keyed, const Address pc, int line,
+               int column, Map* map, Object* key, char old_state,
+               char new_state, const char* modifier,
+               const char* slow_stub_reason);
+  void CompareIC(const Address pc, int line, int column, Code* stub,
+                 const char* op, const char* old_left, const char* old_right,
+                 const char* old_state, const char* new_left,
+                 const char* new_right, const char* new_state);
+  void BinaryOpIC(const Address pc, int line, int column, Code* stub,
+                  const char* old_state, const char* new_state,
+                  AllocationSite* allocation_site);
+  void ToBooleanIC(const Address pc, int line, int column, Code* stub,
+                   const char* old_state, const char* new_state);
+  void PatchIC(const Address pc, const Address test, int delta);
 
   // ==== Events logged by --log-gc. ====
   // Heap sampling events: start, end, and individual types.
@@ -244,15 +258,6 @@ class Logger : public CodeEventListener {
   // Converts tag to a corresponding NATIVE_... if the script is native.
   INLINE(static CodeEventListener::LogEventsAndTags ToNativeByScript(
       CodeEventListener::LogEventsAndTags, Script*));
-
-  // Profiler's sampling interval (in milliseconds).
-#if defined(ANDROID)
-  // Phones and tablets have processors that are much slower than desktop
-  // and laptop computers for which current heuristics are tuned.
-  static const int kSamplingIntervalMs = 5;
-#else
-  static const int kSamplingIntervalMs = 1;
-#endif
 
   // Callback from Log, stops profiling in case of insufficient resources.
   void LogFailure();
@@ -390,7 +395,8 @@ class CodeEventLogger : public CodeEventListener {
   void SetterCallbackEvent(Name* name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override {}
-  void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta) override {}
+  void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
+                      int fp_to_sp_delta) override {}
 
  private:
   class NameBuffer;

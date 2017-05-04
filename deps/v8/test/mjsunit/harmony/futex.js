@@ -95,6 +95,28 @@
   assertEquals("timed-out", Atomics.wait(i32a, 0, 0, -Infinity));
 })();
 
+(function TestWaitNotAllowed() {
+  %SetAllowAtomicsWait(false);
+  var i32a = new Int32Array(new SharedArrayBuffer(16));
+  assertThrows(function() {
+    Atomics.wait(i32a, 0, 0, -1);
+  });
+  %SetAllowAtomicsWait(true);
+})();
+
+(function TestWakePositiveInfinity() {
+  var i32a = new Int32Array(new SharedArrayBuffer(16));
+  Atomics.wake(i32a, 0, Number.POSITIVE_INFINITY);
+})();
+
+// In a previous version, this test caused a check failure
+(function TestObjectWaitValue() {
+  var sab = new SharedArrayBuffer(16);
+  var i32a = new Int32Array(sab);
+  assertEquals("timed-out", Atomics.wait(i32a, 0, Math, 0));
+})();
+
+
 //// WORKER ONLY TESTS
 
 if (this.Worker) {

@@ -4,7 +4,7 @@
 
 #include "src/background-parsing-task.h"
 
-#include "src/debug/debug.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parser.h"
 
 namespace v8 {
@@ -13,7 +13,6 @@ namespace internal {
 void StreamedSource::Release() {
   parser.reset();
   info.reset();
-  zone.reset();
 }
 
 BackgroundParsingTask::BackgroundParsingTask(
@@ -29,15 +28,12 @@ BackgroundParsingTask::BackgroundParsingTask(
 
   // Prepare the data for the internalization phase and compilation phase, which
   // will happen in the main thread after parsing.
-  Zone* zone = new Zone(isolate->allocator(), ZONE_NAME);
-  ParseInfo* info = new ParseInfo(zone);
+  ParseInfo* info = new ParseInfo(isolate->allocator());
+  info->InitFromIsolate(isolate);
   info->set_toplevel();
-  source->zone.reset(zone);
   source->info.reset(info);
-  info->set_isolate(isolate);
   info->set_source_stream(source->source_stream.get());
   info->set_source_stream_encoding(source->encoding);
-  info->set_hash_seed(isolate->heap()->HashSeed());
   info->set_unicode_cache(&source_->unicode_cache);
   info->set_compile_options(options);
   info->set_allow_lazy_parsing();
@@ -61,11 +57,6 @@ void BackgroundParsingTask::Run() {
   uintptr_t stack_limit = GetCurrentStackPosition() - stack_size_ * KB;
   source_->parser->set_stack_limit(stack_limit);
 
-  // Nullify the Isolate temporarily so that the background parser doesn't
-  // accidentally use it.
-  Isolate* isolate = source_->info->isolate();
-  source_->info->set_isolate(nullptr);
-
   source_->parser->ParseOnBackground(source_->info.get());
 
   if (script_data_ != nullptr) {
@@ -76,7 +67,6 @@ void BackgroundParsingTask::Run() {
     delete script_data_;
     script_data_ = nullptr;
   }
-  source_->info->set_isolate(isolate);
 }
 }  // namespace internal
 }  // namespace v8

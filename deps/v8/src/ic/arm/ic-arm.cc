@@ -4,45 +4,14 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include "src/assembler-inl.h"
 #include "src/codegen.h"
 #include "src/ic/ic.h"
-#include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
-
-
-// ----------------------------------------------------------------------------
-// Static IC stub generators.
-//
-
-#define __ ACCESS_MASM(masm)
-
-static void StoreIC_PushArgs(MacroAssembler* masm) {
-  __ Push(StoreWithVectorDescriptor::ValueRegister(),
-          StoreWithVectorDescriptor::SlotRegister(),
-          StoreWithVectorDescriptor::VectorRegister(),
-          StoreWithVectorDescriptor::ReceiverRegister(),
-          StoreWithVectorDescriptor::NameRegister());
-}
-
-
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
-  StoreIC_PushArgs(masm);
-
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss);
-}
-
-void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
-  StoreIC_PushArgs(masm);
-
-  // The slow case calls into the runtime to complete the store without causing
-  // an IC miss that would otherwise cause a transition to the generic stub.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow);
-}
-
-#undef __
 
 
 Condition CompareIC::ComputeCondition(Token::Value op) {
@@ -100,9 +69,7 @@ void PatchInlinedSmiCode(Isolate* isolate, Address address,
   }
 
   if (FLAG_trace_ic) {
-    PrintF("[  patching ic at %p, cmp=%p, delta=%d\n",
-           static_cast<void*>(address),
-           static_cast<void*>(cmp_instruction_address), delta);
+    LOG(isolate, PatchIC(address, cmp_instruction_address, delta));
   }
 
   Address patch_address =

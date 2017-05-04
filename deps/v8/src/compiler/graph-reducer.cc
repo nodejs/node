@@ -146,6 +146,10 @@ void GraphReducer::ReduceTop() {
   // Check if the reduction is an in-place update of the {node}.
   Node* const replacement = reduction.replacement();
   if (replacement == node) {
+    if (FLAG_trace_turbo_reduction) {
+      OFStream os(stdout);
+      os << "- In-place update of " << *replacement << std::endl;
+    }
     // In-place update of {node}, may need to recurse on an input.
     Node::Inputs node_inputs = node->inputs();
     for (int i = 0; i < node_inputs.count(); ++i) {

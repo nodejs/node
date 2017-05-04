@@ -22,10 +22,6 @@ inline bool EqualImmutableValues(Object* obj1, Object* obj2) {
   return false;
 }
 
-inline bool LocationFitsInto(PropertyLocation what, PropertyLocation where) {
-  return where == kField || what == kDescriptor;
-}
-
 }  // namespace
 
 Name* MapUpdater::GetKey(int descriptor) const {
@@ -36,7 +32,7 @@ PropertyDetails MapUpdater::GetDetails(int descriptor) const {
   DCHECK_LE(0, descriptor);
   if (descriptor == modified_descriptor_) {
     return PropertyDetails(new_kind_, new_attributes_, new_location_,
-                           new_representation_);
+                           new_constness_, new_representation_);
   }
   return old_descriptors_->GetDetails(descriptor);
 }
@@ -89,6 +85,7 @@ Handle<FieldType> MapUpdater::GetOrComputeFieldType(
 
 Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
                                                PropertyAttributes attributes,
+                                               PropertyConstness constness,
                                                Representation representation,
                                                Handle<FieldType> field_type) {
   DCHECK_EQ(kInitialized, state_);
@@ -98,8 +95,6 @@ Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
   new_kind_ = kData;
   new_attributes_ = attributes;
   new_location_ = kField;
-  new_representation_ = representation;
-  new_field_type_ = field_type;
 
   PropertyDetails old_details =
       old_descriptors_->GetDetails(modified_descriptor_);
@@ -107,16 +102,25 @@ Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
   // If property kind is not reconfigured merge the result with
   // representation/field type from the old descriptor.
   if (old_details.kind() == new_kind_) {
+    new_constness_ = GeneralizeConstness(constness, old_details.constness());
+
     Representation old_representation = old_details.representation();
-    new_representation_ = new_representation_.generalize(old_representation);
+    new_representation_ = representation.generalize(old_representation);
 
     Handle<FieldType> old_field_type =
         GetOrComputeFieldType(old_descriptors_, modified_descriptor_,
                               old_details.location(), new_representation_);
 
-    new_field_type_ = Map::GeneralizeFieldType(
-        old_representation, old_field_type, new_representation_,
-        new_field_type_, isolate_);
+    new_field_type_ =
+        Map::GeneralizeFieldType(old_representation, old_field_type,
+                                 new_representation_, field_type, isolate_);
+  } else {
+    // We don't know if this is a first property kind reconfiguration
+    // and we don't know which value was in this property previously
+    // therefore we can't treat such a property as constant.
+    new_constness_ = kMutable;
+    new_representation_ = representation;
+    new_field_type_ = field_type;
   }
 
   if (TryRecofigureToDataFieldInplace() == kEnd) return result_map_;
@@ -147,6 +151,16 @@ Handle<Map> MapUpdater::Update() {
   ConstructNewMap();
   DCHECK_EQ(kEnd, state_);
   return result_map_;
+}
+
+void MapUpdater::GeneralizeField(Handle<Map> map, int modify_index,
+                                 PropertyConstness new_constness,
+                                 Representation new_representation,
+                                 Handle<FieldType> new_field_type) {
+  Map::GeneralizeField(map, modify_index, new_constness, new_representation,
+                       new_field_type);
+
+  DCHECK_EQ(*old_descriptors_, old_map_->instance_descriptors());
 }
 
 MapUpdater::State MapUpdater::CopyGeneralizeAllFields(const char* reason) {
@@ -187,8 +201,8 @@ MapUpdater::State MapUpdater::TryRecofigureToDataFieldInplace() {
   Handle<Map> field_owner(old_map_->FindFieldOwner(modified_descriptor_),
                           isolate_);
 
-  Map::GeneralizeField(field_owner, modified_descriptor_, new_representation_,
-                       new_field_type_);
+  GeneralizeField(field_owner, modified_descriptor_, new_constness_,
+                  new_representation_, new_field_type_);
   // Check that the descriptor array was updated.
   DCHECK(old_descriptors_->GetDetails(modified_descriptor_)
              .representation()
@@ -205,13 +219,23 @@ MapUpdater::State MapUpdater::FindRootMap() {
   DCHECK_EQ(kInitialized, state_);
   // Check the state of the root map.
   root_map_ = handle(old_map_->FindRootMap(), isolate_);
+  ElementsKind from_kind = root_map_->elements_kind();
+  ElementsKind to_kind = new_elements_kind_;
+  if (root_map_->is_deprecated()) {
+    state_ = kEnd;
+    result_map_ = handle(
+        JSFunction::cast(root_map_->GetConstructor())->initial_map(), isolate_);
+    if (from_kind != to_kind) {
+      result_map_ = Map::AsElementsKind(result_map_, to_kind);
+    }
+    DCHECK(result_map_->is_dictionary_map());
+    return state_;
+  }
   int root_nof = root_map_->NumberOfOwnDescriptors();
   if (!old_map_->EquivalentToForTransition(*root_map_)) {
     return CopyGeneralizeAllFields("GenAll_NotEquivalent");
   }
 
-  ElementsKind from_kind = root_map_->elements_kind();
-  ElementsKind to_kind = new_elements_kind_;
   // TODO(ishell): Add a test for SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
   if (from_kind != to_kind && to_kind != DICTIONARY_ELEMENTS &&
       to_kind != SLOW_STRING_WRAPPER_ELEMENTS &&
@@ -228,19 +252,37 @@ MapUpdater::State MapUpdater::FindRootMap() {
         old_details.attributes() != new_attributes_) {
       return CopyGeneralizeAllFields("GenAll_RootModification1");
     }
-    if (!new_representation_.fits_into(old_details.representation())) {
+    if (old_details.location() != kField) {
       return CopyGeneralizeAllFields("GenAll_RootModification2");
     }
-    if (old_details.location() != kField) {
+    if (new_constness_ != old_details.constness() &&
+        (!FLAG_modify_map_inplace || !old_map_->is_prototype_map())) {
       return CopyGeneralizeAllFields("GenAll_RootModification3");
     }
+    if (!new_representation_.fits_into(old_details.representation())) {
+      return CopyGeneralizeAllFields("GenAll_RootModification4");
+    }
+
     DCHECK_EQ(kData, old_details.kind());
     DCHECK_EQ(kData, new_kind_);
     DCHECK_EQ(kField, new_location_);
     FieldType* old_field_type =
         old_descriptors_->GetFieldType(modified_descriptor_);
     if (!new_field_type_->NowIs(old_field_type)) {
-      return CopyGeneralizeAllFields("GenAll_RootModification4");
+      return CopyGeneralizeAllFields("GenAll_RootModification5");
+    }
+
+    // Modify root map in-place.
+    if (FLAG_modify_map_inplace && new_constness_ != old_details.constness()) {
+      // Only prototype root maps are allowed to be updated in-place.
+      // TODO(ishell): fix all the stubs that use prototype map check to
+      // ensure that the prototype was not modified.
+      DCHECK(old_map_->is_prototype_map());
+      DCHECK(old_map_->is_stable());
+      DCHECK(IsGeneralizableTo(old_details.constness(), new_constness_));
+      GeneralizeField(old_map_, modified_descriptor_, new_constness_,
+                      old_details.representation(),
+                      handle(old_field_type, isolate_));
     }
   }
 
@@ -276,12 +318,14 @@ MapUpdater::State MapUpdater::FindTargetMap() {
       // TODO(ishell): mutable accessors are not implemented yet.
       return CopyGeneralizeAllFields("GenAll_Incompatible");
     }
-    // Check if old location fits into tmp location.
-    if (!LocationFitsInto(old_details.location(), tmp_details.location())) {
+    PropertyConstness tmp_constness = tmp_details.constness();
+    if (!FLAG_modify_map_inplace &&
+        !IsGeneralizableTo(old_details.constness(), tmp_constness)) {
       break;
     }
-
-    // Check if old representation fits into tmp representation.
+    if (!IsGeneralizableTo(old_details.location(), tmp_details.location())) {
+      break;
+    }
     Representation tmp_representation = tmp_details.representation();
     if (!old_details.representation().fits_into(tmp_representation)) {
       break;
@@ -290,7 +334,10 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     if (tmp_details.location() == kField) {
       Handle<FieldType> old_field_type =
           GetOrComputeFieldType(i, old_details.location(), tmp_representation);
-      Map::GeneralizeField(tmp_map, i, tmp_representation, old_field_type);
+      PropertyConstness constness =
+          FLAG_modify_map_inplace ? old_details.constness() : tmp_constness;
+      GeneralizeField(tmp_map, i, constness, tmp_representation,
+                      old_field_type);
     } else {
       // kDescriptor: Check that the value matches.
       if (!EqualImmutableValues(GetValue(i), tmp_descriptors->GetValue(i))) {
@@ -311,6 +358,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
           target_descriptors->GetDetails(modified_descriptor_);
       DCHECK_EQ(new_kind_, details.kind());
       DCHECK_EQ(new_attributes_, details.attributes());
+      DCHECK(IsGeneralizableTo(new_constness_, details.constness()));
       DCHECK_EQ(new_location_, details.location());
       DCHECK(new_representation_.fits_into(details.representation()));
       if (new_location_ == kField) {
@@ -341,7 +389,6 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     Handle<Map> tmp_map(transition, isolate_);
     Handle<DescriptorArray> tmp_descriptors(tmp_map->instance_descriptors(),
                                             isolate_);
-
 #ifdef DEBUG
     // Check that target map is compatible.
     PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
@@ -404,6 +451,14 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 
     PropertyKind next_kind = old_details.kind();
     PropertyAttributes next_attributes = old_details.attributes();
+    DCHECK_EQ(next_kind, target_details.kind());
+    DCHECK_EQ(next_attributes, target_details.attributes());
+
+    PropertyConstness next_constness = GeneralizeConstness(
+        old_details.constness(), target_details.constness());
+
+    // Note: failed values equality check does not invalidate per-object
+    // property constness.
     PropertyLocation next_location =
         old_details.location() == kField ||
                 target_details.location() == kField ||
@@ -412,12 +467,15 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
             ? kField
             : kDescriptor;
 
+    if (!FLAG_track_constant_fields && next_location == kField) {
+      next_constness = kMutable;
+    }
+    // Ensure that mutable values are stored in fields.
+    DCHECK_IMPLIES(next_constness == kMutable, next_location == kField);
+
     Representation next_representation =
         old_details.representation().generalize(
             target_details.representation());
-
-    DCHECK_EQ(next_kind, target_details.kind());
-    DCHECK_EQ(next_attributes, target_details.attributes());
 
     if (next_location == kField) {
       Handle<FieldType> old_field_type =
@@ -434,8 +492,9 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       Handle<Object> wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
       if (next_kind == kData) {
-        d = Descriptor::DataField(key, current_offset, wrapped_type,
-                                  next_attributes, next_representation);
+        d = Descriptor::DataField(key, current_offset, next_attributes,
+                                  next_constness, next_representation,
+                                  wrapped_type);
       } else {
         // TODO(ishell): mutable accessors are not implemented yet.
         UNIMPLEMENTED();
@@ -444,10 +503,12 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       new_descriptors->Set(i, &d);
     } else {
       DCHECK_EQ(kDescriptor, next_location);
+      DCHECK_EQ(kConst, next_constness);
 
       Handle<Object> value(GetValue(i), isolate_);
       Descriptor d;
       if (next_kind == kData) {
+        DCHECK(!FLAG_track_constant_fields);
         d = Descriptor::DataConstant(key, value, next_attributes);
       } else {
         DCHECK_EQ(kAccessor, next_kind);
@@ -465,6 +526,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 
     PropertyKind next_kind = old_details.kind();
     PropertyAttributes next_attributes = old_details.attributes();
+    PropertyConstness next_constness = old_details.constness();
     PropertyLocation next_location = old_details.location();
     Representation next_representation = old_details.representation();
 
@@ -476,8 +538,10 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       Handle<Object> wrapped_type(Map::WrapFieldType(old_field_type));
       Descriptor d;
       if (next_kind == kData) {
-        d = Descriptor::DataField(key, current_offset, wrapped_type,
-                                  next_attributes, next_representation);
+        DCHECK_IMPLIES(!FLAG_track_constant_fields, next_constness == kMutable);
+        d = Descriptor::DataField(key, current_offset, next_attributes,
+                                  next_constness, next_representation,
+                                  wrapped_type);
       } else {
         // TODO(ishell): mutable accessors are not implemented yet.
         UNIMPLEMENTED();
@@ -486,6 +550,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       new_descriptors->Set(i, &d);
     } else {
       DCHECK_EQ(kDescriptor, next_location);
+      DCHECK_EQ(kConst, next_constness);
 
       Handle<Object> value(GetValue(i), isolate_);
       if (next_kind == kData) {
@@ -518,6 +583,7 @@ Handle<Map> MapUpdater::FindSplitMap(Handle<DescriptorArray> descriptors) {
     PropertyDetails next_details = next_descriptors->GetDetails(i);
     DCHECK_EQ(details.kind(), next_details.kind());
     DCHECK_EQ(details.attributes(), next_details.attributes());
+    if (details.constness() != next_details.constness()) break;
     if (details.location() != next_details.location()) break;
     if (!details.representation().Equals(next_details.representation())) break;
 

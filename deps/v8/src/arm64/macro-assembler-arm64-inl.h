@@ -12,9 +12,8 @@
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/instrument-arm64.h"
-#include "src/arm64/macro-assembler-arm64.h"
 #include "src/base/bits.h"
-
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -34,12 +33,6 @@ MemOperand UntagSmiMemOperand(Register object, int offset) {
   // Assumes that Smis are shifted by 32 bits and little endianness.
   STATIC_ASSERT(kSmiShift == 32);
   return MemOperand(object, offset + (kSmiShift / kBitsPerByte));
-}
-
-
-Handle<Object> MacroAssembler::CodeObject() {
-  DCHECK(!code_object_.is_null());
-  return code_object_;
 }
 
 
@@ -1239,6 +1232,14 @@ void MacroAssembler::Uxtw(const Register& rd, const Register& rn) {
   uxtw(rd, rn);
 }
 
+void MacroAssembler::AlignAndSetCSPForFrame() {
+  int sp_alignment = ActivationFrameAlignment();
+  // AAPCS64 mandates at least 16-byte alignment.
+  DCHECK(sp_alignment >= 16);
+  DCHECK(base::bits::IsPowerOfTwo32(sp_alignment));
+  Bic(csp, StackPointer(), sp_alignment - 1);
+  SetStackPointer(csp);
+}
 
 void MacroAssembler::BumpSystemStackPointer(const Operand& space) {
   DCHECK(!csp.Is(sp_));
@@ -1441,14 +1442,7 @@ void MacroAssembler::ObjectUntag(Register untagged_obj, Register obj) {
   Bic(untagged_obj, obj, kHeapObjectTag);
 }
 
-
-void MacroAssembler::IsObjectNameType(Register object,
-                                      Register type,
-                                      Label* fail) {
-  CompareObjectType(object, type, type, LAST_NAME_TYPE);
-  B(hi, fail);
-}
-
+void MacroAssembler::jmp(Label* L) { B(L); }
 
 void MacroAssembler::IsObjectJSStringType(Register object,
                                           Register type,
@@ -1477,6 +1471,7 @@ void MacroAssembler::Push(Handle<Object> handle) {
   Push(tmp);
 }
 
+void MacroAssembler::Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
 
 void MacroAssembler::Claim(int64_t count, uint64_t unit_size) {
   DCHECK(count >= 0);

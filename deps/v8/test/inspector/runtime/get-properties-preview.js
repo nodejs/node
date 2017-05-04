@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+InspectorTest.setupInjectedScriptEnvironment();
+
 Protocol.Runtime.evaluate({ "expression": "({p1: {a:1}, p2: {b:'foo', bb:'bar'}})" }).then(callbackEvaluate);
 
 function callbackEvaluate(result)

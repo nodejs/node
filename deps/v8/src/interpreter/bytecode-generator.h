@@ -14,10 +14,12 @@
 namespace v8 {
 namespace internal {
 
+class AstStringConstants;
 class CompilationInfo;
 
 namespace interpreter {
 
+class GlobalDeclarationsBuilder;
 class LoopBuilder;
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
@@ -43,6 +45,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class ControlScopeForTopLevel;
   class ControlScopeForTryCatch;
   class ControlScopeForTryFinally;
+  class CurrentScope;
   class ExpressionResultScope;
   class EffectResultScope;
   class GlobalDeclarationsBuilder;
@@ -50,7 +53,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class TestResultScope;
   class ValueResultScope;
 
+  using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
+
   enum class TestFallthrough { kThen, kElse, kNone };
+  enum class TypeHint { kAny, kBoolean };
 
   void GenerateBytecodeBody();
   void AllocateDeferredConstants(Isolate* isolate);
@@ -68,6 +74,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitTypeOf(UnaryOperation* expr);
   void VisitNot(UnaryOperation* expr);
   void VisitDelete(UnaryOperation* expr);
+
+  // Visits a typeof expression for the value on which to perform the typeof.
+  void VisitForTypeOfValue(Expression* expr);
 
   // Used by flow control routines to evaluate loop condition.
   void VisitCondition(Expression* expr);
@@ -94,23 +103,23 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitPropertyLoadForRegister(Register obj, Property* expr,
                                     Register destination);
 
-  void BuildVariableLoad(Variable* variable, FeedbackVectorSlot slot,
+  void BuildVariableLoad(Variable* variable, FeedbackSlot slot,
                          HoleCheckMode hole_check_mode,
                          TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
   void BuildVariableLoadForAccumulatorValue(
-      Variable* variable, FeedbackVectorSlot slot,
-      HoleCheckMode hole_check_mode,
+      Variable* variable, FeedbackSlot slot, HoleCheckMode hole_check_mode,
       TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
   void BuildVariableAssignment(Variable* variable, Token::Value op,
-                               FeedbackVectorSlot slot,
+                               FeedbackSlot slot,
                                HoleCheckMode hole_check_mode);
-
+  void BuildLiteralCompareNil(Token::Value compare_op, NilValue nil);
   void BuildReturn();
   void BuildAsyncReturn();
+  void BuildAsyncGeneratorReturn();
   void BuildReThrow();
   void BuildAbort(BailoutReason bailout_reason);
-  void BuildThrowIfHole(Handle<String> name);
-  void BuildThrowReferenceError(Handle<String> name);
+  void BuildThrowIfHole(Variable* variable);
+  void BuildThrowReferenceError(const AstRawString* name);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 
   // Build jump to targets[value], where
@@ -121,7 +130,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalActivationContext();
   void BuildLocalActivationContextInitialization();
   void BuildNewLocalBlockContext(Scope* scope);
-  void BuildNewLocalCatchContext(Variable* variable, Scope* scope);
+  void BuildNewLocalCatchContext(Scope* scope);
   void BuildNewLocalWithContext(Scope* scope);
 
   void VisitGeneratorPrologue();
@@ -141,7 +150,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitObjectLiteralAccessor(Register home_object,
                                   ObjectLiteralProperty* property,
                                   Register value_out);
-  void VisitForInAssignment(Expression* expr, FeedbackVectorSlot slot);
+  void VisitForInAssignment(Expression* expr, FeedbackSlot slot);
   void VisitModuleNamespaceImports();
 
   // Visit the header/body of a loop iteration.
@@ -154,9 +163,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   void BuildPushUndefinedIntoRegisterList(RegisterList* reg_list);
 
+  void BuildLoadPropertyKey(LiteralProperty* property, Register out_reg);
+
   // Visitors for obtaining expression result in the accumulator, in a
-  // register, or just getting the effect.
-  void VisitForAccumulatorValue(Expression* expr);
+  // register, or just getting the effect. Some visitors return a TypeHint which
+  // specifies the type of the result of the visited expression.
+  TypeHint VisitForAccumulatorValue(Expression* expr);
   void VisitForAccumulatorValueOrTheHole(Expression* expr);
   MUST_USE_RESULT Register VisitForRegisterValue(Expression* expr);
   void VisitForRegisterValue(Expression* expr, Register destination);
@@ -170,10 +182,18 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   inline Runtime::FunctionId StoreToSuperRuntimeId();
   inline Runtime::FunctionId StoreKeyedToSuperRuntimeId();
 
+  ToBooleanMode ToBooleanModeFromTypeHint(TypeHint type_hint);
+
   inline BytecodeArrayBuilder* builder() const { return builder_; }
   inline Zone* zone() const { return zone_; }
-  inline DeclarationScope* scope() const { return scope_; }
+  inline DeclarationScope* closure_scope() const { return closure_scope_; }
   inline CompilationInfo* info() const { return info_; }
+  inline const AstStringConstants* ast_string_constants() const {
+    return ast_string_constants_;
+  }
+
+  inline Scope* current_scope() const { return current_scope_; }
+  inline void set_current_scope(Scope* scope) { current_scope_ = scope; }
 
   inline ControlScope* execution_control() const { return execution_control_; }
   inline void set_execution_control(ControlScope* scope) {
@@ -191,20 +211,19 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     return builder()->register_allocator();
   }
 
-  GlobalDeclarationsBuilder* globals_builder() { return globals_builder_; }
+  GlobalDeclarationsBuilder* globals_builder() {
+    DCHECK_NOT_NULL(globals_builder_);
+    return globals_builder_;
+  }
   inline LanguageMode language_mode() const;
-  int feedback_index(FeedbackVectorSlot slot) const;
-
-  Handle<Name> home_object_symbol() const { return home_object_symbol_; }
-  Handle<Name> iterator_symbol() const { return iterator_symbol_; }
-  Handle<Name> prototype_string() const { return prototype_string_; }
-  Handle<FixedArray> empty_fixed_array() const { return empty_fixed_array_; }
-  const AstRawString* undefined_string() const { return undefined_string_; }
+  int feedback_index(FeedbackSlot slot) const;
 
   Zone* zone_;
   BytecodeArrayBuilder* builder_;
   CompilationInfo* info_;
-  DeclarationScope* scope_;
+  const AstStringConstants* ast_string_constants_;
+  DeclarationScope* closure_scope_;
+  Scope* current_scope_;
 
   GlobalDeclarationsBuilder* globals_builder_;
   ZoneVector<GlobalDeclarationsBuilder*> global_declarations_;
@@ -221,12 +240,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ZoneVector<BytecodeLabel> generator_resume_points_;
   Register generator_state_;
   int loop_depth_;
-
-  Handle<Name> home_object_symbol_;
-  Handle<Name> iterator_symbol_;
-  Handle<Name> prototype_string_;
-  Handle<FixedArray> empty_fixed_array_;
-  const AstRawString* undefined_string_;
 };
 
 }  // namespace interpreter

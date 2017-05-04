@@ -12,65 +12,119 @@
 // This will be overridden in the test cases. The override can be minimized.
 var __PrettyPrint = function __PrettyPrint(msg) { print(msg); };
 
-
-// All calls to f.arguments are replaced by f.mock_arguments by an external
-// script.
-Object.prototype.mock_arguments = ['x', 'y']
-
-
 // Mock Math.random.
-var __magic_index_for_mocked_random = 0
-Math.random = function(){
-  __magic_index_for_mocked_random = (__magic_index_for_mocked_random + 1) % 10
-  return __magic_index_for_mocked_random / 10.0;
-}
-
+(function () {
+  var index = 0
+  Math.random = function() {
+    index = (index + 1) % 10;
+    return index / 10.0;
+  }
+})();
 
 // Mock Date.
-var __magic_index_for_mocked_date = 0
-var __magic_mocked_date = 1477662728696
-__magic_mocked_date_now = function(){
-  __magic_index_for_mocked_date = (__magic_index_for_mocked_date + 1) % 10
-  __magic_mocked_date = __magic_mocked_date + __magic_index_for_mocked_date + 1
-  return __magic_mocked_date
-}
+(function () {
+  var index = 0
+  var mockDate = 1477662728696
+  var mockDateNow = function() {
+    index = (index + 1) % 10
+    mockDate = mockDate + index + 1
+    return mockDate
+  }
 
-var __original_date = Date;
-__magic_mock_date_handler = {
-  construct: function(target, args, newTarget) {
-    if (args.length > 0) {
-      return new (Function.prototype.bind.apply(__original_date, [null].concat(args)));
+  var origDate = Date;
+  var constructDate = function(args) {
+    if (args.length == 1) {
+      var result = new origDate(args[0]);
+    } else if (args.length == 2) {
+      var result = new origDate(args[0], args[1]);
+    } else if (args.length == 3) {
+      var result = new origDate(args[0], args[1], args[2]);
+    } else if (args.length == 4) {
+      var result = new origDate(args[0], args[1], args[2], args[3]);
+    } else if (args.length == 5) {
+      var result = new origDate(args[0], args[1], args[2], args[3], args[4]);
+    } else if (args.length == 6) {
+      var result = new origDate(
+          args[0], args[1], args[2], args[3], args[4], args[5]);
+    } else if (args.length >= 7) {
+      var result = new origDate(
+          args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
     } else {
-      return new __original_date(__magic_mocked_date_now());
+      var result = new origDate(mockDateNow());
     }
-  },
-  get: function(target, property, receiver) {
-    if (property == "now") {
-      return __magic_mocked_date_now;
-    }
-  },
-}
+    result.constructor = function(...args) { return constructDate(args); }
+    Object.defineProperty(
+        result, "constructor", { configurable: false, writable: false });
+    return result
+  }
 
-Date = new Proxy(Date, __magic_mock_date_handler);
+  var handler = {
+    apply: function (target, thisArg, args) {
+      return constructDate(args)
+    },
+    construct: function (target, args, newTarget) {
+      return constructDate(args)
+    },
+    get: function(target, property, receiver) {
+      if (property == "now") {
+        return mockDateNow;
+      }
+    },
+  }
+
+  Date = new Proxy(Date, handler);
+})();
+
+// Mock performace.now().
+(function () {
+  performance.now = function () { return 1.2; }
+})();
+
+// Mock stack traces.
+Error.prepareStackTrace = function (error, structuredStackTrace) {
+  return "";
+};
+Object.defineProperty(
+    Error, 'prepareStackTrace', { configurable: false, writable: false });
+
+// Mock buffer access in float typed arrays because of varying NaN patterns.
+// Note, for now we just use noop forwarding proxies, because they already
+// turn off optimizations.
+(function () {
+  var mock = function(arrayType) {
+    var handler = {
+      construct: function(target, args) {
+        return new Proxy(
+            Function.prototype.bind.apply(arrayType, [null].concat(args)), {});
+      },
+    };
+    return new Proxy(arrayType, handler);
+  }
+
+  Float32Array = mock(Float32Array);
+  Float64Array = mock(Float64Array);
+})();
 
 // Mock Worker.
-var __magic_index_for_mocked_worker = 0
-// TODO(machenbach): Randomize this for each test case, but keep stable during
-// comparison. Also data and random above.
-var __magic_mocked_worker_messages = [
-  undefined, 0, -1, "", "foo", 42, [], {}, [0], {"x": 0}
-]
-Worker = function(code){
-  try {
-    __PrettyPrint(eval(code));
-  } catch(e) {
-    __PrettyPrint(e);
-  }
-  this.getMessage = function(){
-    __magic_index_for_mocked_worker = (__magic_index_for_mocked_worker + 1) % 10
-    return __magic_mocked_worker_messages[__magic_index_for_mocked_worker];
-  }
-  this.postMessage = function(msg){
-    __PrettyPrint(msg);
-  }
-}
+(function () {
+  var index = 0;
+  // TODO(machenbach): Randomize this for each test case, but keep stable
+  // during comparison. Also data and random above.
+  var workerMessages = [
+    undefined, 0, -1, "", "foo", 42, [], {}, [0], {"x": 0}
+  ];
+  Worker = function(code){
+    try {
+      __PrettyPrint(eval(code));
+    } catch(e) {
+      __PrettyPrint(e);
+    }
+    this.getMessage = function(){
+      index = (index + 1) % 10;
+      return workerMessages[index];
+    }
+    this.postMessage = function(msg){
+      __PrettyPrint(msg);
+    }
+  };
+})();

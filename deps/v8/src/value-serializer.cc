@@ -6,6 +6,7 @@
 
 #include <type_traits>
 
+#include "include/v8-value-serializer-version.h"
 #include "src/base/logging.h"
 #include "src/conversions.h"
 #include "src/factory.h"
@@ -29,7 +30,17 @@ namespace internal {
 // Version 12: regexp and string objects share normal string encoding
 // Version 13: host objects have an explicit tag (rather than handling all
 //             unknown tags)
+//
+// WARNING: Increasing this value is a change which cannot safely be rolled
+// back without breaking compatibility with data stored on disk. It is
+// strongly recommended that you do not make such changes near a release
+// milestone branch point.
+//
+// Recent changes are routinely reverted in preparation for branch, and this
+// has been the cause of at least one bug in the past.
 static const uint32_t kLatestVersion = 13;
+static_assert(kLatestVersion == v8::CurrentValueSerializerFormatVersion(),
+              "Exported format version must match latest version.");
 
 static const int kPretenureThreshold = 100 * KB;
 
@@ -126,6 +137,8 @@ enum class SerializationTag : uint8_t {
   //  wasmWireByteLength:uint32_t, then raw data
   //  compiledDataLength:uint32_t, then raw data
   kWasmModule = 'W',
+  // A wasm module object transfer. next value is its index.
+  kWasmModuleTransfer = 'w',
   // The delegate is responsible for processing all following data.
   // This "escapes" to whatever wire format the delegate chooses.
   kHostObject = '\\',
@@ -157,8 +170,9 @@ ValueSerializer::ValueSerializer(Isolate* isolate,
     : isolate_(isolate),
       delegate_(delegate),
       zone_(isolate->allocator(), ZONE_NAME),
-      id_map_(isolate->heap(), &zone_),
-      array_buffer_transfer_map_(isolate->heap(), &zone_) {}
+      id_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
+      array_buffer_transfer_map_(isolate->heap(),
+                                 ZoneAllocationPolicy(&zone_)) {}
 
 ValueSerializer::~ValueSerializer() {
   if (buffer_) {
@@ -440,7 +454,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
           map->GetConstructor() ==
               isolate_->native_context()->wasm_module_constructor()) {
         return WriteWasmModule(js_object);
-      } else if (JSObject::GetInternalFieldCount(map)) {
+      } else if (JSObject::GetEmbedderFieldCount(map)) {
         return WriteHostObject(js_object);
       } else {
         return WriteJSObject(js_object);
@@ -522,7 +536,7 @@ Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
 Maybe<bool> ValueSerializer::WriteJSObjectSlow(Handle<JSObject> object) {
   WriteTag(SerializationTag::kBeginJSObject);
   Handle<FixedArray> keys;
-  uint32_t properties_written;
+  uint32_t properties_written = 0;
   if (!KeyAccumulator::GetKeys(object, KeyCollectionMode::kOwnOnly,
                                ENUMERABLE_STRINGS)
            .ToHandle(&keys) ||
@@ -631,7 +645,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     WriteTag(SerializationTag::kBeginSparseJSArray);
     WriteVarint<uint32_t>(length);
     Handle<FixedArray> keys;
-    uint32_t properties_written;
+    uint32_t properties_written = 0;
     if (!KeyAccumulator::GetKeys(array, KeyCollectionMode::kOwnOnly,
                                  ENUMERABLE_STRINGS)
              .ToHandle(&keys) ||
@@ -802,8 +816,21 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
 }
 
 Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
+  if (delegate_ != nullptr) {
+    Maybe<uint32_t> transfer_id = delegate_->GetWasmModuleTransferId(
+        reinterpret_cast<v8::Isolate*>(isolate_),
+        v8::Local<v8::WasmCompiledModule>::Cast(Utils::ToLocal(object)));
+    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+    uint32_t id = 0;
+    if (transfer_id.To(&id)) {
+      WriteTag(SerializationTag::kWasmModuleTransfer);
+      WriteVarint<uint32_t>(id);
+      return Just(true);
+    }
+  }
+
   Handle<WasmCompiledModule> compiled_part(
-      WasmCompiledModule::cast(object->GetInternalField(0)), isolate_);
+      WasmCompiledModule::cast(object->GetEmbedderField(0)), isolate_);
   WasmEncodingTag encoding_tag = WasmEncodingTag::kRawBytes;
   WriteTag(SerializationTag::kWasmModule);
   WriteRawBytes(&encoding_tag, sizeof(encoding_tag));
@@ -906,8 +933,8 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate,
       position_(data.start()),
       end_(data.start() + data.length()),
       pretenure_(data.length() > kPretenureThreshold ? TENURED : NOT_TENURED),
-      id_map_(Handle<FixedArray>::cast(isolate->global_handles()->Create(
-          isolate_->heap()->empty_fixed_array()))) {}
+      id_map_(isolate->global_handles()->Create(
+          isolate_->heap()->empty_fixed_array())) {}
 
 ValueDeserializer::~ValueDeserializer() {
   GlobalHandles::Destroy(Handle<Object>::cast(id_map_).location());
@@ -1036,9 +1063,8 @@ bool ValueDeserializer::ReadRawBytes(size_t length, const void** data) {
 void ValueDeserializer::TransferArrayBuffer(
     uint32_t transfer_id, Handle<JSArrayBuffer> array_buffer) {
   if (array_buffer_transfer_map_.is_null()) {
-    array_buffer_transfer_map_ =
-        Handle<SeededNumberDictionary>::cast(isolate_->global_handles()->Create(
-            *SeededNumberDictionary::New(isolate_, 0)));
+    array_buffer_transfer_map_ = isolate_->global_handles()->Create(
+        *SeededNumberDictionary::New(isolate_, 0));
   }
   Handle<SeededNumberDictionary> dictionary =
       array_buffer_transfer_map_.ToHandleChecked();
@@ -1048,8 +1074,8 @@ void ValueDeserializer::TransferArrayBuffer(
                                           not_a_prototype_holder);
   if (!new_dictionary.is_identical_to(dictionary)) {
     GlobalHandles::Destroy(Handle<Object>::cast(dictionary).location());
-    array_buffer_transfer_map_ = Handle<SeededNumberDictionary>::cast(
-        isolate_->global_handles()->Create(*new_dictionary));
+    array_buffer_transfer_map_ =
+        isolate_->global_handles()->Create(*new_dictionary);
   }
 }
 
@@ -1149,6 +1175,8 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     }
     case SerializationTag::kWasmModule:
       return ReadWasmModule();
+    case SerializationTag::kWasmModuleTransfer:
+      return ReadWasmModuleTransfer();
     case SerializationTag::kHostObject:
       return ReadHostObject();
     default:
@@ -1177,8 +1205,9 @@ MaybeHandle<String> ValueDeserializer::ReadUtf8String() {
   if (!ReadVarint<uint32_t>().To(&utf8_length) ||
       utf8_length >
           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
-      !ReadRawBytes(utf8_length).To(&utf8_bytes))
+      !ReadRawBytes(utf8_length).To(&utf8_bytes)) {
     return MaybeHandle<String>();
+  }
   return isolate_->factory()->NewStringFromUtf8(
       Vector<const char>::cast(utf8_bytes), pretenure_);
 }
@@ -1201,16 +1230,20 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
   if (!ReadVarint<uint32_t>().To(&byte_length) ||
       byte_length >
           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
-      byte_length % sizeof(uc16) != 0 || !ReadRawBytes(byte_length).To(&bytes))
+      byte_length % sizeof(uc16) != 0 ||
+      !ReadRawBytes(byte_length).To(&bytes)) {
     return MaybeHandle<String>();
+  }
 
   // Allocate an uninitialized string so that we can do a raw memcpy into the
   // string on the heap (regardless of alignment).
+  if (byte_length == 0) return isolate_->factory()->empty_string();
   Handle<SeqTwoByteString> string;
   if (!isolate_->factory()
            ->NewRawTwoByteString(byte_length / sizeof(uc16), pretenure_)
-           .ToHandle(&string))
+           .ToHandle(&string)) {
     return MaybeHandle<String>();
+  }
 
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
@@ -1239,16 +1272,22 @@ bool ValueDeserializer::ReadExpectedString(Handle<String> expected) {
 
   // If the bytes are verbatim what is in the flattened string, then the string
   // is successfully consumed.
-  if (tag == SerializationTag::kUtf8String && flat.IsOneByte()) {
+  if (tag == SerializationTag::kOneByteString && flat.IsOneByte()) {
     Vector<const uint8_t> chars = flat.ToOneByteVector();
     if (byte_length == static_cast<size_t>(chars.length()) &&
-        String::IsAscii(chars.begin(), chars.length()) &&
         memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
       return true;
     }
   } else if (tag == SerializationTag::kTwoByteString && flat.IsTwoByte()) {
     Vector<const uc16> chars = flat.ToUC16Vector();
     if (byte_length == static_cast<unsigned>(chars.length()) * sizeof(uc16) &&
+        memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
+      return true;
+    }
+  } else if (tag == SerializationTag::kUtf8String && flat.IsOneByte()) {
+    Vector<const uint8_t> chars = flat.ToOneByteVector();
+    if (byte_length == static_cast<size_t>(chars.length()) &&
+        String::IsAscii(chars.begin(), chars.length()) &&
         memcmp(bytes.begin(), chars.begin(), byte_length) == 0) {
       return true;
     }
@@ -1589,8 +1628,32 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
   return typed_array;
 }
 
+MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
+  if (FLAG_wasm_disable_structured_cloning || expect_inline_wasm()) {
+    return MaybeHandle<JSObject>();
+  }
+
+  uint32_t transfer_id = 0;
+  Local<Value> module_value;
+  if (!ReadVarint<uint32_t>().To(&transfer_id) || delegate_ == nullptr ||
+      !delegate_
+           ->GetWasmModuleFromId(reinterpret_cast<v8::Isolate*>(isolate_),
+                                 transfer_id)
+           .ToLocal(&module_value)) {
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSObject);
+    return MaybeHandle<JSObject>();
+  }
+  uint32_t id = next_id_++;
+  Handle<JSObject> module =
+      Handle<JSObject>::cast(Utils::OpenHandle(*module_value));
+  AddObjectWithID(id, module);
+  return module;
+}
+
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
-  if (FLAG_wasm_disable_structured_cloning) return MaybeHandle<JSObject>();
+  if (FLAG_wasm_disable_structured_cloning || !expect_inline_wasm()) {
+    return MaybeHandle<JSObject>();
+  }
 
   Vector<const uint8_t> encoding_tag;
   if (!ReadRawBytes(sizeof(WasmEncodingTag)).To(&encoding_tag) ||
@@ -1619,23 +1682,22 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   // Try to deserialize the compiled module first.
   ScriptData script_data(compiled_bytes.start(), compiled_bytes.length());
   Handle<FixedArray> compiled_part;
+  MaybeHandle<JSObject> result;
   if (WasmCompiledModuleSerializer::DeserializeWasmModule(
           isolate_, &script_data, wire_bytes)
           .ToHandle(&compiled_part)) {
-    return WasmModuleObject::New(
+    result = WasmModuleObject::New(
         isolate_, Handle<WasmCompiledModule>::cast(compiled_part));
-  }
-
-  // If that fails, recompile.
-  MaybeHandle<JSObject> result;
-  {
+  } else {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
-    result = wasm::CreateModuleObjectFromBytes(
-        isolate_, wire_bytes.begin(), wire_bytes.end(), &thrower,
-        wasm::ModuleOrigin::kWasmOrigin, Handle<Script>::null(),
-        Vector<const byte>::empty());
+    result = wasm::SyncCompile(isolate_, &thrower,
+                               wasm::ModuleWireBytes(wire_bytes));
   }
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSObject);
+  uint32_t id = next_id_++;
+  if (!result.is_null()) {
+    AddObjectWithID(id, result.ToHandleChecked());
+  }
   return result;
 }
 
@@ -1742,8 +1804,8 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
                    ->NowContains(value)) {
             Handle<FieldType> value_type =
                 value->OptimalType(isolate_, expected_representation);
-            Map::GeneralizeField(target, descriptor, expected_representation,
-                                 value_type);
+            Map::GeneralizeField(target, descriptor, details.constness(),
+                                 expected_representation, value_type);
           }
           DCHECK(target->instance_descriptors()
                      ->GetFieldType(descriptor)
@@ -1831,8 +1893,7 @@ void ValueDeserializer::AddObjectWithID(uint32_t id,
   // If the dictionary was reallocated, update the global handle.
   if (!new_array.is_identical_to(id_map_)) {
     GlobalHandles::Destroy(Handle<Object>::cast(id_map_).location());
-    id_map_ = Handle<FixedArray>::cast(
-        isolate_->global_handles()->Create(*new_array));
+    id_map_ = isolate_->global_handles()->Create(*new_array);
   }
 }
 

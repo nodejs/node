@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "src/assembler-inl.h"
 #include "src/bailout-reason.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
@@ -13,6 +14,7 @@
 #include "src/crankshaft/lithium.h"
 #include "src/field-index.h"
 #include "src/ic/ic.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -77,14 +79,6 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   CodeStub* stub() { return code_stub_; }
   HContext* context() { return context_; }
   Isolate* isolate() { return info_->isolate(); }
-
-  HLoadNamedField* BuildLoadNamedField(HValue* object, FieldIndex index);
-  void BuildStoreNamedField(HValue* object, HValue* value, FieldIndex index,
-                            Representation representation,
-                            bool transition_to_field);
-
-  HValue* BuildToString(HValue* input, bool convert);
-  HValue* BuildToPrimitive(HValue* input, HValue* input_map);
 
  private:
   std::unique_ptr<HParameter* []> parameters_;
@@ -326,72 +320,6 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   return code;
 }
 
-
-HLoadNamedField* CodeStubGraphBuilderBase::BuildLoadNamedField(
-    HValue* object, FieldIndex index) {
-  Representation representation = index.is_double()
-      ? Representation::Double()
-      : Representation::Tagged();
-  int offset = index.offset();
-  HObjectAccess access = index.is_inobject()
-      ? HObjectAccess::ForObservableJSObjectOffset(offset, representation)
-      : HObjectAccess::ForBackingStoreOffset(offset, representation);
-  if (index.is_double() &&
-      (!FLAG_unbox_double_fields || !index.is_inobject())) {
-    // Load the heap number.
-    object = Add<HLoadNamedField>(
-        object, nullptr, access.WithRepresentation(Representation::Tagged()));
-    // Load the double value from it.
-    access = HObjectAccess::ForHeapNumberValue();
-  }
-  return Add<HLoadNamedField>(object, nullptr, access);
-}
-
-void CodeStubGraphBuilderBase::BuildStoreNamedField(
-    HValue* object, HValue* value, FieldIndex index,
-    Representation representation, bool transition_to_field) {
-  DCHECK(!index.is_double() || representation.IsDouble());
-  int offset = index.offset();
-  HObjectAccess access =
-      index.is_inobject()
-          ? HObjectAccess::ForObservableJSObjectOffset(offset, representation)
-          : HObjectAccess::ForBackingStoreOffset(offset, representation);
-
-  if (representation.IsDouble()) {
-    if (!FLAG_unbox_double_fields || !index.is_inobject()) {
-      HObjectAccess heap_number_access =
-          access.WithRepresentation(Representation::Tagged());
-      if (transition_to_field) {
-        // The store requires a mutable HeapNumber to be allocated.
-        NoObservableSideEffectsScope no_side_effects(this);
-        HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
-
-        // TODO(hpayer): Allocation site pretenuring support.
-        HInstruction* heap_number =
-            Add<HAllocate>(heap_number_size, HType::HeapObject(), NOT_TENURED,
-                           MUTABLE_HEAP_NUMBER_TYPE, graph()->GetConstant0());
-        AddStoreMapConstant(heap_number,
-                            isolate()->factory()->mutable_heap_number_map());
-        Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
-                              value);
-        // Store the new mutable heap number into the object.
-        access = heap_number_access;
-        value = heap_number;
-      } else {
-        // Load the heap number.
-        object = Add<HLoadNamedField>(object, nullptr, heap_number_access);
-        // Store the double value into it.
-        access = HObjectAccess::ForHeapNumberValue();
-      }
-    }
-  } else if (representation.IsHeapObject()) {
-    BuildCheckHeapObject(value);
-  }
-
-  Add<HStoreNamedField>(object, access, value, INITIALIZING_STORE);
-}
-
-
 template <>
 HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
   ElementsKind const from_kind = casted_stub()->from_kind();
@@ -556,138 +484,6 @@ Handle<Code> BinaryOpWithAllocationSiteStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-
-HValue* CodeStubGraphBuilderBase::BuildToString(HValue* input, bool convert) {
-  if (!convert) return BuildCheckString(input);
-  IfBuilder if_inputissmi(this);
-  HValue* inputissmi = if_inputissmi.If<HIsSmiAndBranch>(input);
-  if_inputissmi.Then();
-  {
-    // Convert the input smi to a string.
-    Push(BuildNumberToString(input, AstType::SignedSmall()));
-  }
-  if_inputissmi.Else();
-  {
-    HValue* input_map =
-        Add<HLoadNamedField>(input, inputissmi, HObjectAccess::ForMap());
-    HValue* input_instance_type = Add<HLoadNamedField>(
-        input_map, inputissmi, HObjectAccess::ForMapInstanceType());
-    IfBuilder if_inputisstring(this);
-    if_inputisstring.If<HCompareNumericAndBranch>(
-        input_instance_type, Add<HConstant>(FIRST_NONSTRING_TYPE), Token::LT);
-    if_inputisstring.Then();
-    {
-      // The input is already a string.
-      Push(input);
-    }
-    if_inputisstring.Else();
-    {
-      // Convert to primitive first (if necessary), see
-      // ES6 section 12.7.3 The Addition operator.
-      IfBuilder if_inputisprimitive(this);
-      STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
-      if_inputisprimitive.If<HCompareNumericAndBranch>(
-          input_instance_type, Add<HConstant>(LAST_PRIMITIVE_TYPE), Token::LTE);
-      if_inputisprimitive.Then();
-      {
-        // The input is already a primitive.
-        Push(input);
-      }
-      if_inputisprimitive.Else();
-      {
-        // Convert the input to a primitive.
-        Push(BuildToPrimitive(input, input_map));
-      }
-      if_inputisprimitive.End();
-      // Convert the primitive to a string value.
-      HValue* values[] = {Pop()};
-      Callable toString = CodeFactory::ToString(isolate());
-      Push(AddUncasted<HCallWithDescriptor>(Add<HConstant>(toString.code()), 0,
-                                            toString.descriptor(),
-                                            ArrayVector(values)));
-    }
-    if_inputisstring.End();
-  }
-  if_inputissmi.End();
-  return Pop();
-}
-
-
-HValue* CodeStubGraphBuilderBase::BuildToPrimitive(HValue* input,
-                                                   HValue* input_map) {
-  // Get the native context of the caller.
-  HValue* native_context = BuildGetNativeContext();
-
-  // Determine the initial map of the %ObjectPrototype%.
-  HValue* object_function_prototype_map =
-      Add<HLoadNamedField>(native_context, nullptr,
-                           HObjectAccess::ForContextSlot(
-                               Context::OBJECT_FUNCTION_PROTOTYPE_MAP_INDEX));
-
-  // Determine the initial map of the %StringPrototype%.
-  HValue* string_function_prototype_map =
-      Add<HLoadNamedField>(native_context, nullptr,
-                           HObjectAccess::ForContextSlot(
-                               Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
-
-  // Determine the initial map of the String function.
-  HValue* string_function = Add<HLoadNamedField>(
-      native_context, nullptr,
-      HObjectAccess::ForContextSlot(Context::STRING_FUNCTION_INDEX));
-  HValue* string_function_initial_map = Add<HLoadNamedField>(
-      string_function, nullptr, HObjectAccess::ForPrototypeOrInitialMap());
-
-  // Determine the map of the [[Prototype]] of {input}.
-  HValue* input_prototype =
-      Add<HLoadNamedField>(input_map, nullptr, HObjectAccess::ForPrototype());
-  HValue* input_prototype_map =
-      Add<HLoadNamedField>(input_prototype, nullptr, HObjectAccess::ForMap());
-
-  // For string wrappers (JSValue instances with [[StringData]] internal
-  // fields), we can shortcirciut the ToPrimitive if
-  //
-  //  (a) the {input} map matches the initial map of the String function,
-  //  (b) the {input} [[Prototype]] is the unmodified %StringPrototype% (i.e.
-  //      no one monkey-patched toString, @@toPrimitive or valueOf), and
-  //  (c) the %ObjectPrototype% (i.e. the [[Prototype]] of the
-  //      %StringPrototype%) is also unmodified, that is no one sneaked a
-  //      @@toPrimitive into the %ObjectPrototype%.
-  //
-  // If all these assumptions hold, we can just take the [[StringData]] value
-  // and return it.
-  // TODO(bmeurer): This just repairs a regression introduced by removing the
-  // weird (and broken) intrinsic %_IsStringWrapperSafeForDefaultValue, which
-  // was intendend to something similar to this, although less efficient and
-  // wrong in the presence of @@toPrimitive. Long-term we might want to move
-  // into the direction of having a ToPrimitiveStub that can do common cases
-  // while staying in JavaScript land (i.e. not going to C++).
-  IfBuilder if_inputisstringwrapper(this);
-  if_inputisstringwrapper.If<HCompareObjectEqAndBranch>(
-      input_map, string_function_initial_map);
-  if_inputisstringwrapper.And();
-  if_inputisstringwrapper.If<HCompareObjectEqAndBranch>(
-      input_prototype_map, string_function_prototype_map);
-  if_inputisstringwrapper.And();
-  if_inputisstringwrapper.If<HCompareObjectEqAndBranch>(
-      Add<HLoadNamedField>(Add<HLoadNamedField>(input_prototype_map, nullptr,
-                                                HObjectAccess::ForPrototype()),
-                           nullptr, HObjectAccess::ForMap()),
-      object_function_prototype_map);
-  if_inputisstringwrapper.Then();
-  {
-    Push(BuildLoadNamedField(
-        input, FieldIndex::ForInObjectOffset(JSValue::kValueOffset)));
-  }
-  if_inputisstringwrapper.Else();
-  {
-    // TODO(bmeurer): Add support for fast ToPrimitive conversion using
-    // a dedicated ToPrimitiveStub.
-    Add<HPushArguments>(input);
-    Push(Add<HCallRuntime>(Runtime::FunctionForId(Runtime::kToPrimitive), 1));
-  }
-  if_inputisstringwrapper.End();
-  return Pop();
-}
 
 template <>
 HValue* CodeStubGraphBuilder<ToBooleanICStub>::BuildCodeInitializedStub() {

@@ -16,15 +16,9 @@ class LGapResolver;
 
 class DelayedGapMasm : public DelayedMasm {
  public:
-  DelayedGapMasm(LCodeGen* owner, MacroAssembler* masm)
-    : DelayedMasm(owner, masm, root) {
-    // We use the root register as an extra scratch register.
-    // The root register has two advantages:
-    //  - It is not in crankshaft allocatable registers list, so it can't
-    //    interfere with the allocatable registers.
-    //  - We don't need to push it on the stack, as we can reload it with its
-    //    value once we have finish.
-  }
+  DelayedGapMasm(LCodeGen* owner, MacroAssembler* masm);
+  ~DelayedGapMasm();
+
   void EndDelayedUse();
 };
 

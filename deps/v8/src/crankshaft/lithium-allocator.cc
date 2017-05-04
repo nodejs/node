@@ -5,8 +5,9 @@
 #include "src/crankshaft/lithium-allocator.h"
 
 #include "src/crankshaft/hydrogen.h"
-#include "src/crankshaft/lithium-inl.h"
 #include "src/crankshaft/lithium-allocator-inl.h"
+#include "src/crankshaft/lithium-inl.h"
+#include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/string-stream.h"
 

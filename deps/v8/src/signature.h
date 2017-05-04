@@ -5,6 +5,7 @@
 #ifndef V8_SIGNATURE_H_
 #define V8_SIGNATURE_H_
 
+#include "src/base/iterator.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -32,7 +33,18 @@ class Signature : public ZoneObject {
     return reps_[index];
   }
 
-  bool Equals(Signature* that) {
+  // Iteration support.
+  base::iterator_range<const T*> parameters() const {
+    return {reps_ + return_count_, reps_ + return_count_ + parameter_count_};
+  }
+  base::iterator_range<const T*> returns() const {
+    return {reps_, reps_ + return_count_};
+  }
+  base::iterator_range<const T*> all() const {
+    return {reps_, reps_ + return_count_ + parameter_count_};
+  }
+
+  bool Equals(const Signature* that) const {
     if (this == that) return true;
     if (this->parameter_count() != that->parameter_count()) return false;
     if (this->return_count() != that->return_count()) return false;

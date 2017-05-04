@@ -5,9 +5,11 @@
 #include "src/compiler/js-builtin-reducer.h"
 
 #include "src/base/bits.h"
+#include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -19,17 +21,16 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-
-// Helper class to access JSCallFunction nodes that are potential candidates
+// Helper class to access JSCall nodes that are potential candidates
 // for reduction when they have a BuiltinFunctionId associated with them.
 class JSCallReduction {
  public:
   explicit JSCallReduction(Node* node) : node_(node) {}
 
-  // Determines whether the node is a JSCallFunction operation that targets a
+  // Determines whether the node is a JSCall operation that targets a
   // constant callee being a well-known builtin with a BuiltinFunctionId.
   bool HasBuiltinFunctionId() {
-    if (node_->opcode() != IrOpcode::kJSCallFunction) return false;
+    if (node_->opcode() != IrOpcode::kJSCall) return false;
     HeapObjectMatcher m(NodeProperties::GetValueInput(node_, 0));
     if (!m.HasValue() || !m.Value()->IsJSFunction()) return false;
     Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
@@ -38,7 +39,7 @@ class JSCallReduction {
 
   // Retrieves the BuiltinFunctionId as described above.
   BuiltinFunctionId GetBuiltinFunctionId() {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
+    DCHECK_EQ(IrOpcode::kJSCall, node_->opcode());
     HeapObjectMatcher m(NodeProperties::GetValueInput(node_, 0));
     Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
     return function->shared()->builtin_function_id();
@@ -79,13 +80,13 @@ class JSCallReduction {
   Node* right() { return GetJSCallInput(1); }
 
   int GetJSCallArity() {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
+    DCHECK_EQ(IrOpcode::kJSCall, node_->opcode());
     // Skip first (i.e. callee) and second (i.e. receiver) operand.
     return node_->op()->ValueInputCount() - 2;
   }
 
   Node* GetJSCallInput(int index) {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
+    DCHECK_EQ(IrOpcode::kJSCall, node_->opcode());
     DCHECK_LT(index, GetJSCallArity());
     // Skip first (i.e. callee) and second (i.e. receiver) operand.
     return NodeProperties::GetValueInput(node_, index + 2);
@@ -108,38 +109,16 @@ JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
 
 namespace {
 
-// TODO(turbofan): Shall we move this to the NodeProperties? Or some (untyped)
-// alias analyzer?
-bool IsSame(Node* a, Node* b) {
-  if (a == b) {
-    return true;
-  } else if (a->opcode() == IrOpcode::kCheckHeapObject) {
-    return IsSame(a->InputAt(0), b);
-  } else if (b->opcode() == IrOpcode::kCheckHeapObject) {
-    return IsSame(a, b->InputAt(0));
-  }
-  return false;
-}
-
 MaybeHandle<Map> GetMapWitness(Node* node) {
+  ZoneHandleSet<Map> maps;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
-  // Check if the {node} is dominated by a CheckMaps with a single map
-  // for the {receiver}, and if so use that map for the lowering below.
-  for (Node* dominator = effect;;) {
-    if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        IsSame(dominator->InputAt(0), receiver)) {
-      ZoneHandleSet<Map> const& maps =
-          CheckMapsParametersOf(dominator->op()).maps();
-      return (maps.size() == 1) ? MaybeHandle<Map>(maps[0])
-                                : MaybeHandle<Map>();
-    }
-    if (dominator->op()->EffectInputCount() != 1) {
-      // Didn't find any appropriate CheckMaps node.
-      return MaybeHandle<Map>();
-    }
-    dominator = NodeProperties::GetEffectInput(dominator);
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &maps);
+  if (result == NodeProperties::kReliableReceiverMaps && maps.size() == 1) {
+    return maps[0];
   }
+  return MaybeHandle<Map>();
 }
 
 // TODO(turbofan): This was copied from Crankshaft, might be too restrictive.
@@ -318,9 +297,8 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
   effect = graph()->NewNode(
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   Node* value = effect = graph()->NewNode(
-      simplified()->Allocate(NOT_TENURED),
+      simplified()->Allocate(Type::OtherObject(), NOT_TENURED),
       jsgraph()->Constant(JSArrayIterator::kSize), effect, control);
-  NodeProperties::SetType(value, Type::OtherObject());
   effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                             value, jsgraph()->Constant(map), effect, control);
   effect = graph()->NewNode(
@@ -748,6 +726,116 @@ Reduction JSBuiltinReducer::ReduceArrayIteratorNext(Node* node) {
   return NoChange();
 }
 
+// ES6 section 22.1.2.2 Array.isArray ( arg )
+Reduction JSBuiltinReducer::ReduceArrayIsArray(Node* node) {
+  // We certainly know that undefined is not an array.
+  if (node->op()->ValueInputCount() < 3) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+  Node* value = NodeProperties::GetValueInput(node, 2);
+  Type* value_type = NodeProperties::GetType(value);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Constant-fold based on {value} type.
+  if (value_type->Is(Type::Array())) {
+    Node* value = jsgraph()->TrueConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  } else if (!value_type->Maybe(Type::ArrayOrProxy())) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+
+  int count = 0;
+  Node* values[5];
+  Node* effects[5];
+  Node* controls[4];
+
+  // Check if the {value} is a Smi.
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
+  control =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  // The {value} is a Smi.
+  controls[count] = graph()->NewNode(common()->IfTrue(), control);
+  effects[count] = effect;
+  values[count] = jsgraph()->FalseConstant();
+  count++;
+
+  control = graph()->NewNode(common()->IfFalse(), control);
+
+  // Load the {value}s instance type.
+  Node* value_map = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMap()), value, effect, control);
+  Node* value_instance_type = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), value_map,
+      effect, control);
+
+  // Check if the {value} is a JSArray.
+  check = graph()->NewNode(simplified()->NumberEqual(), value_instance_type,
+                           jsgraph()->Constant(JS_ARRAY_TYPE));
+  control = graph()->NewNode(common()->Branch(), check, control);
+
+  // The {value} is a JSArray.
+  controls[count] = graph()->NewNode(common()->IfTrue(), control);
+  effects[count] = effect;
+  values[count] = jsgraph()->TrueConstant();
+  count++;
+
+  control = graph()->NewNode(common()->IfFalse(), control);
+
+  // Check if the {value} is a JSProxy.
+  check = graph()->NewNode(simplified()->NumberEqual(), value_instance_type,
+                           jsgraph()->Constant(JS_PROXY_TYPE));
+  control =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  // The {value} is neither a JSArray nor a JSProxy.
+  controls[count] = graph()->NewNode(common()->IfFalse(), control);
+  effects[count] = effect;
+  values[count] = jsgraph()->FalseConstant();
+  count++;
+
+  control = graph()->NewNode(common()->IfTrue(), control);
+
+  // Let the %ArrayIsArray runtime function deal with the JSProxy {value}.
+  value = effect = control =
+      graph()->NewNode(javascript()->CallRuntime(Runtime::kArrayIsArray), value,
+                       context, frame_state, effect, control);
+  NodeProperties::SetType(value, Type::Boolean());
+
+  // Update potential {IfException} uses of {node} to point to the above
+  // %ArrayIsArray runtime call node instead.
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    NodeProperties::ReplaceControlInput(on_exception, control);
+    NodeProperties::ReplaceEffectInput(on_exception, effect);
+    control = graph()->NewNode(common()->IfSuccess(), control);
+    Revisit(on_exception);
+  }
+
+  // The {value} is neither a JSArray nor a JSProxy.
+  controls[count] = control;
+  effects[count] = effect;
+  values[count] = value;
+  count++;
+
+  control = graph()->NewNode(common()->Merge(count), count, controls);
+  effects[count] = control;
+  values[count] = control;
+  effect = graph()->NewNode(common()->EffectPhi(count), count + 1, effects);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, count),
+                           count + 1, values);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
 // ES6 section 22.1.3.17 Array.prototype.pop ( )
 Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
   Handle<Map> receiver_map;
@@ -838,19 +926,41 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
 
 // ES6 section 22.1.3.18 Array.prototype.push ( )
 Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
-  Handle<Map> receiver_map;
   // We need exactly target, receiver and value parameters.
   if (node->op()->ValueInputCount() != 3) return NoChange();
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* value = NodeProperties::GetValueInput(node, 2);
-  if (GetMapWitness(node).ToHandle(&receiver_map) &&
-      CanInlineArrayResizeOperation(receiver_map)) {
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (receiver_maps.size() != 1) return NoChange();
+  DCHECK_NE(NodeProperties::kNoReceiverMaps, result);
+
+  // TODO(turbofan): Relax this to deal with multiple {receiver} maps.
+  Handle<Map> receiver_map = receiver_maps[0];
+  if (CanInlineArrayResizeOperation(receiver_map)) {
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
     dependencies()->AssumePropertyCell(factory()->array_protector());
     dependencies()->AssumePrototypeMapsStable(receiver_map);
+
+    // If the {receiver_maps} information is not reliable, we need
+    // to check that the {receiver} still has one of these maps.
+    if (result == NodeProperties::kUnreliableReceiverMaps) {
+      if (receiver_map->is_stable()) {
+        dependencies()->AssumeMapStable(receiver_map);
+      } else {
+        // TODO(turbofan): This is a potential - yet unlikely - deoptimization
+        // loop, since we might not learn from this deoptimization in baseline
+        // code. We need a way to learn from deoptimizations in optimized to
+        // address these problems.
+        effect = graph()->NewNode(
+            simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps),
+            receiver, effect, control);
+      }
+    }
 
     // TODO(turbofan): Perform type checks on the {value}. We are not guaranteed
     // to learn from these checks in case they fail, as the witness (i.e. the
@@ -915,7 +1025,7 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
                             InstanceType instance_type) {
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        IsSame(dominator->InputAt(0), receiver)) {
+        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       ZoneHandleSet<Map> const& maps =
           CheckMapsParametersOf(dominator->op()).maps();
       // Check if all maps have the given {instance_type}.
@@ -924,27 +1034,15 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
       }
       return true;
     }
-    switch (dominator->opcode()) {
-      case IrOpcode::kStoreField: {
-        FieldAccess const& access = FieldAccessOf(dominator->op());
-        if (access.base_is_tagged == kTaggedBase &&
-            access.offset == HeapObject::kMapOffset) {
-          return false;
-        }
-        break;
-      }
-      case IrOpcode::kStoreElement:
-      case IrOpcode::kStoreTypedElement:
-        break;
-      default: {
-        DCHECK_EQ(1, dominator->op()->EffectOutputCount());
-        if (dominator->op()->EffectInputCount() != 1 ||
-            !dominator->op()->HasProperty(Operator::kNoWrite)) {
-          // Didn't find any appropriate CheckMaps node.
-          return false;
-        }
-        break;
-      }
+    // The instance type doesn't change for JSReceiver values, so we
+    // don't need to pay attention to potentially side-effecting nodes
+    // here. Strings and internal structures like FixedArray and
+    // FixedDoubleArray are weird here, but we don't use this function then.
+    DCHECK_LE(FIRST_JS_RECEIVER_TYPE, instance_type);
+    DCHECK_EQ(1, dominator->op()->EffectOutputCount());
+    if (dominator->op()->EffectInputCount() != 1) {
+      // Didn't find any appropriate CheckMaps node.
+      return false;
     }
     dominator = NodeProperties::GetEffectInput(dominator);
   }
@@ -1450,14 +1548,15 @@ Reduction JSBuiltinReducer::ReduceNumberIsInteger(Node* node) {
 // ES6 section 20.1.2.4 Number.isNaN ( number )
 Reduction JSBuiltinReducer::ReduceNumberIsNaN(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Number.isNaN(a:number) -> BooleanNot(NumberEqual(a, a))
-    Node* input = r.GetJSCallInput(0);
-    Node* check = graph()->NewNode(simplified()->NumberEqual(), input, input);
-    Node* value = graph()->NewNode(simplified()->BooleanNot(), check);
+  if (r.InputsMatchZero()) {
+    // Number.isNaN() -> #false
+    Node* value = jsgraph()->FalseConstant();
     return Replace(value);
   }
-  return NoChange();
+  // Number.isNaN(a:number) -> ObjectIsNaN(a)
+  Node* input = r.GetJSCallInput(0);
+  Node* value = graph()->NewNode(simplified()->ObjectIsNaN(), input);
+  return Replace(value);
 }
 
 // ES6 section 20.1.2.5 Number.isSafeInteger ( number )
@@ -1518,7 +1617,7 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
         common()->BeginRegion(RegionObservability::kNotObservable), effect);
 
     Node* value = effect =
-        graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+        graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
                          jsgraph()->Constant(size), effect, control);
     effect =
         graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
@@ -1571,7 +1670,7 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
   effect = graph()->NewNode(
       common()->BeginRegion(RegionObservability::kNotObservable), effect);
   Node* value = effect =
-      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+      graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
                        jsgraph()->Constant(instance_size), effect, control);
   effect =
       graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()), value,
@@ -1622,7 +1721,7 @@ Node* GetStringWitness(Node* node) {
   // the lowering below.
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckString &&
-        IsSame(dominator->InputAt(0), receiver)) {
+        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       return dominator;
     }
     if (dominator->op()->EffectInputCount() != 1) {
@@ -1743,6 +1842,65 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
   return NoChange();
 }
 
+// ES6 String.prototype.concat(...args)
+// #sec-string.prototype.concat
+Reduction JSBuiltinReducer::ReduceStringConcat(Node* node) {
+  if (Node* receiver = GetStringWitness(node)) {
+    JSCallReduction r(node);
+    if (r.InputsMatchOne(Type::PlainPrimitive())) {
+      // String.prototype.concat(lhs:string, rhs:plain-primitive)
+      //   -> Call[StringAddStub](lhs, rhs)
+      StringAddFlags flags = r.InputsMatchOne(Type::String())
+                                 ? STRING_ADD_CHECK_NONE
+                                 : STRING_ADD_CONVERT_RIGHT;
+      // TODO(turbofan): Massage the FrameState of the {node} here once we
+      // have an artificial builtin frame type, so that it looks like the
+      // exception from StringAdd overflow came from String.prototype.concat
+      // builtin instead of the calling function.
+      Callable const callable =
+          CodeFactory::StringAdd(isolate(), flags, NOT_TENURED);
+      CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), callable.descriptor(), 0,
+          CallDescriptor::kNeedsFrameState,
+          Operator::kNoDeopt | Operator::kNoWrite);
+      node->ReplaceInput(0, jsgraph()->HeapConstant(callable.code()));
+      node->ReplaceInput(1, receiver);
+      NodeProperties::ChangeOp(node, common()->Call(desc));
+      return Changed(node);
+    }
+  }
+
+  return NoChange();
+}
+
+// ES6 String.prototype.indexOf(searchString [, position])
+// #sec-string.prototype.indexof
+Reduction JSBuiltinReducer::ReduceStringIndexOf(Node* node) {
+  // We need at least target, receiver and search_string parameters.
+  if (node->op()->ValueInputCount() >= 3) {
+    Node* search_string = NodeProperties::GetValueInput(node, 2);
+    Type* search_string_type = NodeProperties::GetType(search_string);
+    Node* position = (node->op()->ValueInputCount() >= 4)
+                         ? NodeProperties::GetValueInput(node, 3)
+                         : jsgraph()->ZeroConstant();
+    Type* position_type = NodeProperties::GetType(position);
+
+    if (search_string_type->Is(Type::String()) &&
+        position_type->Is(Type::SignedSmall())) {
+      if (Node* receiver = GetStringWitness(node)) {
+        RelaxEffectsAndControls(node);
+        node->ReplaceInput(0, receiver);
+        node->ReplaceInput(1, search_string);
+        node->ReplaceInput(2, position);
+        node->TrimInputCount(3);
+        NodeProperties::ChangeOp(node, simplified()->StringIndexOf());
+        return Changed(node);
+      }
+    }
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
   if (Node* receiver = GetStringWitness(node)) {
     Node* effect = NodeProperties::GetEffectInput(node);
@@ -1755,9 +1913,8 @@ Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
     effect = graph()->NewNode(
         common()->BeginRegion(RegionObservability::kNotObservable), effect);
     Node* value = effect = graph()->NewNode(
-        simplified()->Allocate(NOT_TENURED),
+        simplified()->Allocate(Type::OtherObject(), NOT_TENURED),
         jsgraph()->Constant(JSStringIterator::kSize), effect, control);
-    NodeProperties::SetType(value, Type::OtherObject());
     effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                               value, map, effect, control);
     effect = graph()->NewNode(
@@ -1976,6 +2133,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceArrayIterator(node, IterationKind::kValues);
     case kArrayIteratorNext:
       return ReduceArrayIteratorNext(node);
+    case kArrayIsArray:
+      return ReduceArrayIsArray(node);
     case kArrayPop:
       return ReduceArrayPop(node);
     case kArrayPush:
@@ -2114,6 +2273,10 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringCharAt(node);
     case kStringCharCodeAt:
       return ReduceStringCharCodeAt(node);
+    case kStringConcat:
+      return ReduceStringConcat(node);
+    case kStringIndexOf:
+      return ReduceStringIndexOf(node);
     case kStringIterator:
       return ReduceStringIterator(node);
     case kStringIteratorNext:

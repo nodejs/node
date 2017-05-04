@@ -31,13 +31,15 @@
 
 #include "src/v8.h"
 
+#include "src/api.h"
+#include "src/assembler-inl.h"
 #include "src/bootstrapper.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/heap/spaces.h"
-#include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/macro-assembler-inl.h"
+#include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/deserializer.h"
@@ -47,6 +49,7 @@
 #include "src/snapshot/startup-serializer.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
+#include "test/cctest/setup-isolate-for-tests.h"
 
 using namespace v8::internal;
 
@@ -62,13 +65,25 @@ class TestIsolate : public Isolate {
  public:
   static v8::Isolate* NewInitialized(bool enable_serializer) {
     i::Isolate* isolate = new TestIsolate(enable_serializer);
+    isolate->setup_delegate_ = new SetupIsolateDelegateForTests();
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     isolate->Init(NULL);
     return v8_isolate;
   }
+  // Wraps v8::Isolate::New, but with a TestIsolate under the hood.
+  // Allows flexibility to bootstrap with or without snapshot even when
+  // the production Isolate class has one or the other behavior baked in.
+  static v8::Isolate* New(const v8::Isolate::CreateParams& params) {
+    i::Isolate* isolate = new TestIsolate(false);
+    isolate->setup_delegate_ = new SetupIsolateDelegateForTests();
+    return v8::IsolateNewImpl(isolate, params);
+  }
   explicit TestIsolate(bool enable_serializer) : Isolate(enable_serializer) {
     set_array_buffer_allocator(CcTest::array_buffer_allocator());
+  }
+  void CreateSetupDelegateForTests() {
+    setup_delegate_ = new SetupIsolateDelegateForTests();
   }
 };
 
@@ -123,9 +138,10 @@ v8::Isolate* InitializeFromBlob(Vector<const byte> blob) {
   {
     SnapshotData snapshot_data(blob);
     Deserializer deserializer(&snapshot_data);
-    Isolate* isolate = new TestIsolate(false);
+    TestIsolate* isolate = new TestIsolate(false);
     v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
+    isolate->CreateSetupDelegateForTests();
     isolate->Init(&deserializer);
   }
   return v8_isolate;
@@ -255,17 +271,9 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
     }
-    // Make sure all builtin scripts are cached.
-    {
-      HandleScope scope(isolate);
-      for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        isolate->bootstrapper()->SourceLookup<Natives>(i);
-      }
-    }
-    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
-                            i::GarbageCollectionReason::kTesting);
-    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
-                            i::GarbageCollectionReason::kTesting);
+
+    heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
+    heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
 
     Object* raw_foo;
     {
@@ -363,17 +371,10 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
     }
-    // Make sure all builtin scripts are cached.
-    {
-      HandleScope scope(isolate);
-      for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        isolate->bootstrapper()->SourceLookup<Natives>(i);
-      }
-    }
+
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
-                            i::GarbageCollectionReason::kTesting);
+    heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
 
     {
       v8::HandleScope handle_scope(v8_isolate);
@@ -421,7 +422,7 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
     Handle<Object> root;
     Handle<JSGlobalProxy> global_proxy =
         isolate->factory()->NewUninitializedJSGlobalProxy(
-            JSGlobalProxy::SizeWithInternalFields(0));
+            JSGlobalProxy::SizeWithEmbedderFields(0));
     {
       SnapshotData snapshot_data(partial_blob);
       Deserializer deserializer(&snapshot_data);
@@ -488,13 +489,6 @@ static void PartiallySerializeCustomContext(
       CompileRun(source_str.ToLocalChecked());
       source.Dispose();
     }
-    // Make sure all builtin scripts are cached.
-    {
-      HandleScope scope(isolate);
-      for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-        isolate->bootstrapper()->SourceLookup<Natives>(i);
-      }
-    }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
     isolate->heap()->CollectAllAvailableGarbage(
@@ -546,7 +540,7 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
     Handle<Object> root;
     Handle<JSGlobalProxy> global_proxy =
         isolate->factory()->NewUninitializedJSGlobalProxy(
-            JSGlobalProxy::SizeWithInternalFields(0));
+            JSGlobalProxy::SizeWithEmbedderFields(0));
     {
       SnapshotData snapshot_data(partial_blob);
       Deserializer deserializer(&snapshot_data);
@@ -632,7 +626,8 @@ TEST(CustomSnapshotDataBlob1) {
   params1.snapshot_blob = &data1;
   params1.array_buffer_allocator = CcTest::array_buffer_allocator();
 
-  v8::Isolate* isolate1 = v8::Isolate::New(params1);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate1 = TestIsolate::New(params1);
   {
     v8::Isolate::Scope i_scope(isolate1);
     v8::HandleScope h_scope(isolate1);
@@ -659,7 +654,8 @@ TEST(CustomSnapshotDataBlob2) {
   v8::Isolate::CreateParams params2;
   params2.snapshot_blob = &data2;
   params2.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate2 = v8::Isolate::New(params2);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate2 = TestIsolate::New(params2);
   {
     v8::Isolate::Scope i_scope(isolate2);
     v8::HandleScope h_scope(isolate2);
@@ -702,7 +698,8 @@ TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
   params.snapshot_blob = &data;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
-  v8::Isolate* isolate = v8::Isolate::New(params);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestIsolate::New(params);
   {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
@@ -749,7 +746,8 @@ TEST(CustomSnapshotDataBlobWithLocker) {
   v8::Isolate::CreateParams params1;
   params1.snapshot_blob = &data1;
   params1.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate1 = v8::Isolate::New(params1);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate1 = TestIsolate::New(params1);
   {
     v8::Locker locker(isolate1);
     v8::Isolate::Scope i_scope(isolate1);
@@ -781,7 +779,8 @@ TEST(CustomSnapshotDataBlobStackOverflow) {
   params.snapshot_blob = &data;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
-  v8::Isolate* isolate = v8::Isolate::New(params);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestIsolate::New(params);
   {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
@@ -821,7 +820,8 @@ TEST(SnapshotDataBlobWithWarmup) {
   params.snapshot_blob = &warm;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
-  v8::Isolate* isolate = v8::Isolate::New(params);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestIsolate::New(params);
   {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
@@ -854,7 +854,8 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
   params.snapshot_blob = &warm;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
-  v8::Isolate* isolate = v8::Isolate::New(params);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestIsolate::New(params);
   {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
@@ -867,7 +868,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     CHECK(IsCompiled("Math.abs"));
     CHECK(!IsCompiled("g"));
     CHECK(!IsCompiled("String.raw"));
-    CHECK(!IsCompiled("Object.valueOf"));
+    CHECK(!IsCompiled("Array.prototype.sort"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }
   isolate->Dispose();
@@ -890,7 +891,8 @@ TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
   params.snapshot_blob = &data;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
-  v8::Isolate* isolate = v8::Isolate::New(params);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestIsolate::New(params);
   {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
@@ -931,7 +933,7 @@ static Handle<SharedFunctionInfo> CompileScript(
   return Compiler::GetSharedFunctionInfoForScript(
       source, name, 0, 0, v8::ScriptOriginOptions(), Handle<Object>(),
       Handle<Context>(isolate->native_context()), NULL, cached_data, options,
-      NOT_NATIVES_CODE, false);
+      NOT_NATIVES_CODE);
 }
 
 TEST(CodeSerializerOnePlusOne) {
@@ -1005,11 +1007,11 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   Handle<SharedFunctionInfo> copy = CompileScript(
       isolate, src, src, &cache, v8::ScriptCompiler::kConsumeCodeCache);
 
-  CHECK(isolate->compilation_cache()
-            ->LookupScript(src, src, 0, 0, v8::ScriptOriginOptions(),
-                           isolate->native_context(), SLOPPY)
-            .ToHandleChecked()
-            .is_identical_to(copy));
+  InfoVectorPair pair = isolate->compilation_cache()->LookupScript(
+      src, src, 0, 0, v8::ScriptOriginOptions(), isolate->native_context(),
+      SLOPPY);
+
+  CHECK(pair.shared() == *copy);
 
   delete cache;
 }
@@ -1687,96 +1689,6 @@ TEST(CodeSerializerWithHarmonyScoping) {
   isolate2->Dispose();
 }
 
-TEST(CodeSerializerInternalReference) {
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
-  return;
-#endif
-  // In ignition there are only relative jumps, so the following code
-  // would not have any internal references. This test is not relevant
-  // for ignition.
-  if (FLAG_ignition || FLAG_turbo) {
-    return;
-  }
-  // Disable experimental natives that are loaded after deserialization.
-  FLAG_function_context_specialization = false;
-  FLAG_always_opt = true;
-  const char* flag = "--turbo-filter=foo";
-  FlagList::SetFlagsFromString(flag, StrLength(flag));
-
-  const char* source =
-      "var foo = (function(stdlib, foreign, heap) {"
-      "  function foo(i) {"
-      "    i = i|0;"
-      "    var j = 0;"
-      "    switch (i) {"
-      "      case 0:"
-      "      case 1: j = 1; break;"
-      "      case 2:"
-      "      case 3: j = 2; break;"
-      "      case 4:"
-      "      case 5: j = foo(3) + 1; break;"
-      "      default: j = 0; break;"
-      "    }"
-      "    return j + 10;"
-      "  }"
-      "  return { foo: foo };"
-      "})(this, {}, undefined).foo;"
-      "foo(1);";
-
-  v8::StartupData data = v8::V8::CreateSnapshotDataBlob(source);
-  CHECK(data.data);
-
-  v8::Isolate::CreateParams params;
-  params.snapshot_blob = &data;
-  params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(params);
-  {
-    v8::Isolate::Scope i_scope(isolate);
-    v8::HandleScope h_scope(isolate);
-    v8::Local<v8::Context> context = v8::Context::New(isolate);
-    delete[] data.data;  // We can dispose of the snapshot blob now.
-    v8::Context::Scope c_scope(context);
-    v8::Local<v8::Function> foo =
-        v8::Local<v8::Function>::Cast(CompileRun("foo"));
-
-    // There are at least 6 internal references.
-    int mask = RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-               RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-    RelocIterator it(
-        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*foo))->code(), mask);
-    for (int i = 0; i < 6; ++i) {
-      CHECK(!it.done());
-      it.next();
-    }
-
-    CHECK(Handle<JSFunction>::cast(v8::Utils::OpenHandle(*foo))
-              ->code()
-              ->is_turbofanned());
-    CHECK_EQ(11, CompileRun("foo(0)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-    CHECK_EQ(11, CompileRun("foo(1)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-    CHECK_EQ(12, CompileRun("foo(2)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-    CHECK_EQ(12, CompileRun("foo(3)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-    CHECK_EQ(23, CompileRun("foo(4)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-    CHECK_EQ(23, CompileRun("foo(5)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-    CHECK_EQ(10, CompileRun("foo(6)")
-                     ->Int32Value(isolate->GetCurrentContext())
-                     .FromJust());
-  }
-  isolate->Dispose();
-}
-
 TEST(CodeSerializerEagerCompilationAndPreAge) {
   if (FLAG_ignition || FLAG_turbo) return;
 
@@ -1846,8 +1758,7 @@ TEST(Regress503552) {
   Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfoForScript(
       source, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
       Handle<Object>(), Handle<Context>(isolate->native_context()), NULL,
-      &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE,
-      false);
+      &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
   delete script_data;
 
   heap::SimulateIncrementalMarking(isolate->heap());
@@ -1996,7 +1907,8 @@ TEST(SnapshotCreatorMultipleContexts) {
   v8::Isolate::CreateParams params;
   params.snapshot_blob = &blob;
   params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(params);
+  // Test-appropriate equivalent of v8::Isolate::New.
+  v8::Isolate* isolate = TestIsolate::New(params);
   {
     v8::Isolate::Scope isolate_scope(isolate);
     {
@@ -2078,6 +1990,7 @@ intptr_t original_external_references[] = {
     reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
     reinterpret_cast<intptr_t>(&AccessorForSerialization),
     reinterpret_cast<intptr_t>(&SerializedExtension::FunctionCallback),
+    reinterpret_cast<intptr_t>(&serialized_static_field),  // duplicate entry
     0};
 
 intptr_t replaced_external_references[] = {
@@ -2086,6 +1999,7 @@ intptr_t replaced_external_references[] = {
     reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
     reinterpret_cast<intptr_t>(&AccessorForSerialization),
     reinterpret_cast<intptr_t>(&SerializedExtension::FunctionCallback),
+    reinterpret_cast<intptr_t>(&serialized_static_field),
     0};
 
 TEST(SnapshotCreatorExternalReferences) {
@@ -2116,7 +2030,8 @@ TEST(SnapshotCreatorExternalReferences) {
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
     params.external_references = original_external_references;
-    v8::Isolate* isolate = v8::Isolate::New(params);
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
@@ -2133,7 +2048,8 @@ TEST(SnapshotCreatorExternalReferences) {
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
     params.external_references = replaced_external_references;
-    v8::Isolate* isolate = v8::Isolate::New(params);
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
@@ -2177,12 +2093,12 @@ struct InternalFieldData {
 v8::StartupData SerializeInternalFields(v8::Local<v8::Object> holder, int index,
                                         void* data) {
   CHECK_EQ(reinterpret_cast<void*>(2016), data);
-  InternalFieldData* internal_field = static_cast<InternalFieldData*>(
+  InternalFieldData* embedder_field = static_cast<InternalFieldData*>(
       holder->GetAlignedPointerFromInternalField(index));
-  int size = sizeof(*internal_field);
+  int size = sizeof(*embedder_field);
   char* payload = new char[size];
   // We simply use memcpy to serialize the content.
-  memcpy(payload, internal_field, size);
+  memcpy(payload, embedder_field, size);
   return {payload, size};
 }
 
@@ -2191,10 +2107,10 @@ std::vector<InternalFieldData*> deserialized_data;
 void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
                                v8::StartupData payload, void* data) {
   CHECK_EQ(reinterpret_cast<void*>(2017), data);
-  InternalFieldData* internal_field = new InternalFieldData{0};
-  memcpy(internal_field, payload.data, payload.raw_size);
-  holder->SetAlignedPointerInInternalField(index, internal_field);
-  deserialized_data.push_back(internal_field);
+  InternalFieldData* embedder_field = new InternalFieldData{0};
+  memcpy(embedder_field, payload.data, payload.raw_size);
+  holder->SetAlignedPointerInInternalField(index, embedder_field);
+  deserialized_data.push_back(embedder_field);
 }
 
 TEST(SnapshotCreatorTemplates) {
@@ -2266,7 +2182,8 @@ TEST(SnapshotCreatorTemplates) {
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
     params.external_references = original_external_references;
-    v8::Isolate* isolate = v8::Isolate::New(params);
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
       {
@@ -2303,7 +2220,7 @@ TEST(SnapshotCreatorTemplates) {
         // Check that it instantiates to the same prototype.
         ExpectTrue("g.prototype === f.prototype");
 
-        // Retrieve internal fields.
+        // Retrieve embedder fields.
         v8::Local<v8::Object> a = context->Global()
                                       ->Get(context, v8_str("a"))
                                       .ToLocalChecked()
@@ -2443,7 +2360,8 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
     params.external_references = original_external_references;
-    v8::Isolate* isolate = v8::Isolate::New(params);
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
     {
       v8::Isolate::Scope isolate_scope(isolate);
       // We can introduce new extensions, which could override the already

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/crankshaft/hydrogen-sce.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

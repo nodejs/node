@@ -25,7 +25,7 @@ examples:
   # samples and other non-Ignition samples.
   #
   $ tools/run-perf.sh out/x64.release/d8 \\
-        --ignition --noturbo --nocrankshaft run.js
+        --ignition --noturbo --noopt run.js
   $ tools/ignition/linux_perf_report.py --flamegraph -o out.collapsed
   $ flamegraph.pl --colors js out.collapsed > out.svg
 
@@ -45,7 +45,7 @@ examples:
   # See the hottest bytecodes on Octane benchmark, by number of samples.
   #
   $ tools/run-perf.sh out/x64.release/d8 \\
-        --ignition --noturbo --nocrankshaft octane/run.js
+        --ignition --noturbo --noopt octane/run.js
   $ tools/ignition/linux_perf_report.py
 """
 

@@ -33,6 +33,8 @@
 
     'v8_enable_gdbjit%': 0,
 
+    'v8_enable_verify_csa%': 0,
+
     'v8_object_print%': 0,
 
     'v8_enable_verify_heap%': 0,
@@ -78,6 +80,9 @@
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
       }],
+      ['v8_enable_verify_csa==1', {
+        'defines': ['ENABLE_VERIFY_CSA',],
+      }],
       ['v8_object_print==1', {
         'defines': ['OBJECT_PRINT',],
       }],
@@ -100,7 +105,7 @@
         'defines': ['V8_IMMINENT_DEPRECATION_WARNINGS',],
       }],
       ['v8_enable_i18n_support==1', {
-        'defines': ['V8_I18N_SUPPORT',],
+        'defines': ['V8_INTL_SUPPORT',],
       }],
       ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {
         'defines': ['V8_USE_EXTERNAL_STARTUP_DATA',],
@@ -123,7 +128,7 @@
       },  # Debug
       'Release': {
         'variables': {
-          'v8_enable_handle_zapping%': 0,
+          'v8_enable_handle_zapping%': 1,
         },
         'conditions': [
           ['v8_enable_handle_zapping==1', {
@@ -132,5 +137,8 @@
         ],  # conditions
       },  # Release
     },  # configurations
+    'defines': [
+      'V8_GYP_BUILD',
+    ],  # defines
   },  # target_defaults
 }

@@ -4,8 +4,8 @@
 
 // Flags: --expose-wasm
 
-load('test/mjsunit/wasm/wasm-constants.js');
-load('test/mjsunit/wasm/wasm-module-builder.js');
+utils.load('test/mjsunit/wasm/wasm-constants.js');
+utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 

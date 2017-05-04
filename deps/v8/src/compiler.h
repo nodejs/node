@@ -37,11 +37,10 @@ class ThreadedListZoneEntry;
 // parameters which then can be executed. If the source code contains other
 // functions, they might be compiled and allocated as part of the compilation
 // of the source code or deferred for lazy compilation at a later point.
-class Compiler : public AllStatic {
+class V8_EXPORT_PRIVATE Compiler : public AllStatic {
  public:
   enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
   enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
-  enum CompilationTier { INTERPRETED, BASELINE, OPTIMIZED };
 
   // ===========================================================================
   // The following family of methods ensures a given function is compiled. The
@@ -50,7 +49,6 @@ class Compiler : public AllStatic {
   // given function holds (except for live-edit, which compiles the world).
 
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag);
-  static bool CompileBaseline(Handle<JSFunction> function);
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
@@ -71,19 +69,20 @@ class Compiler : public AllStatic {
       EagerInnerFunctionLiterals;
 
   // Parser::Parse, then Compiler::Analyze.
-  static bool ParseAndAnalyze(ParseInfo* info);
+  static bool ParseAndAnalyze(ParseInfo* info, Isolate* isolate);
+  // Convenience function
+  static bool ParseAndAnalyze(CompilationInfo* info);
   // Rewrite, analyze scopes, and renumber. If |eager_literals| is non-null, it
   // is appended with inner function literals which should be eagerly compiled.
-  static bool Analyze(ParseInfo* info,
+  static bool Analyze(ParseInfo* info, Isolate* isolate,
+                      EagerInnerFunctionLiterals* eager_literals = nullptr);
+  // Convenience function
+  static bool Analyze(CompilationInfo* info,
                       EagerInnerFunctionLiterals* eager_literals = nullptr);
   // Adds deoptimization support, requires ParseAndAnalyze.
   static bool EnsureDeoptimizationSupport(CompilationInfo* info);
   // Ensures that bytecode is generated, calls ParseAndAnalyze internally.
   static bool EnsureBytecode(CompilationInfo* info);
-
-  // The next compilation tier which the function should  be compiled to for
-  // optimization. This is used as a hint by the runtime profiler.
-  static CompilationTier NextCompilationTier(JSFunction* function);
 
   // ===========================================================================
   // The following family of methods instantiates new functions for scripts or
@@ -98,15 +97,15 @@ class Compiler : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
       Handle<Context> context, LanguageMode language_mode,
-      ParseRestriction restriction, int eval_scope_position, int eval_position,
-      int line_offset = 0, int column_offset = 0,
-      Handle<Object> script_name = Handle<Object>(),
+      ParseRestriction restriction, int parameters_end_pos,
+      int eval_scope_position, int eval_position, int line_offset = 0,
+      int column_offset = 0, Handle<Object> script_name = Handle<Object>(),
       ScriptOriginOptions options = ScriptOriginOptions());
 
   // Create a (bound) function for a String source within a context for eval.
   MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
       Handle<Context> context, Handle<String> source,
-      ParseRestriction restriction);
+      ParseRestriction restriction, int parameters_end_pos);
 
   // Create a shared function info object for a String source within a context.
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
@@ -115,7 +114,7 @@ class Compiler : public AllStatic {
       Handle<Object> source_map_url, Handle<Context> context,
       v8::Extension* extension, ScriptData** cached_data,
       ScriptCompiler::CompileOptions compile_options,
-      NativesFlag is_natives_code, bool is_module);
+      NativesFlag is_natives_code);
 
   // Create a shared function info object for a Script that has already been
   // parsed while the script was being loaded from a streamed source.
@@ -154,7 +153,7 @@ class Compiler : public AllStatic {
 //
 // Each of the three phases can either fail or succeed. The current state of
 // the job can be checked using {state()}.
-class CompilationJob {
+class V8_EXPORT_PRIVATE CompilationJob {
  public:
   enum Status { SUCCEEDED, FAILED };
   enum class State {
