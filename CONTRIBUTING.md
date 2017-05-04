@@ -188,12 +188,6 @@ can use this syntax to run it exactly as the test harness would:
 $ python tools/test.py --mode=release parallel/test-stream2-transform
 ```
 
-You can run tests in parallel with option `-J`
-
-```text
-$ python tools/test.py -J --mode=release parallel
-```
-
 If you want to check the other option, please refer the help with option `--help`
 
 ```text
