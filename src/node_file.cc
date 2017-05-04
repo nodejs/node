@@ -71,9 +71,6 @@ using v8::Value;
 
 #define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
 
-#define MILLISEC_PER_SEC 1000
-#define NANOSEC_PER_MILLISEC 1000000
-
 class FSReqWrap: public ReqWrap<uv_fs_t> {
  public:
   enum Ownership { COPY, MOVE };
@@ -479,8 +476,8 @@ void FillStatsArray(double* fields, const uv_stat_t* s) {
 #endif
   // Dates.
 #define X(idx, name)                                                               \
-  fields[idx] = (static_cast<double>(s->st_##name.tv_sec) * MILLISEC_PER_SEC) +    \
-                (static_cast<double>(s->st_##name.tv_nsec) / NANOSEC_PER_MILLISEC);\
+  fields[idx] = (s->st_##name.tv_sec * 1e3) + \
+                (s->st_##name.tv_nsec / 1e6); \
 
   X(10, atim)
   X(11, mtim)
