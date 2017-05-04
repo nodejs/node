@@ -22,7 +22,7 @@ const failureTests = tests.filter((test) => test.failure).concat([
   { input: null },
   { input: new Date() },
   { input: new RegExp() },
-  { input: common.noop }
+  { input: () => {} }
 ]);
 
 const expectedError = common.expectsError(

@@ -43,7 +43,7 @@ assert.throws(() => {
 
 // Console constructor should throw if stderr exists but is not writable
 assert.throws(() => {
-  out.write = common.noop;
+  out.write = () => {};
   err.write = undefined;
   new Console(out, err);
 }, /^TypeError: Console expects writable stream instances$/);
