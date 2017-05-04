@@ -101,7 +101,7 @@ const HIJACK_TEST_ARRAY = [ 'foo\n', 'bar\n', 'baz\n' ];
   assert.notStrictEqual(originalWrite, stream.write);
 
   HIJACK_TEST_ARRAY.forEach((val) => {
-    stream.write(val, common.mustCall(common.noop));
+    stream.write(val, common.mustCall());
   });
 
   assert.strictEqual(HIJACK_TEST_ARRAY.length, stream.writeTimes);

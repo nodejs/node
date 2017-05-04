@@ -571,29 +571,30 @@ a.throws(makeBlock(a.deepEqual, args, []));
 
 // check messages from assert.throws()
 {
+  const noop = () => {};
   assert.throws(
-    () => { a.throws(common.noop); },
+    () => { a.throws((noop)); },
     common.expectsError({
       code: 'ERR_ASSERTION',
       message: /^Missing expected exception\.$/
     }));
 
   assert.throws(
-    () => { a.throws(common.noop, TypeError); },
+    () => { a.throws(noop, TypeError); },
     common.expectsError({
       code: 'ERR_ASSERTION',
       message: /^Missing expected exception \(TypeError\)\.$/
     }));
 
   assert.throws(
-    () => { a.throws(common.noop, 'fhqwhgads'); },
+    () => { a.throws(noop, 'fhqwhgads'); },
     common.expectsError({
       code: 'ERR_ASSERTION',
       message: /^Missing expected exception: fhqwhgads$/
     }));
 
   assert.throws(
-    () => { a.throws(common.noop, TypeError, 'fhqwhgads'); },
+    () => { a.throws(noop, TypeError, 'fhqwhgads'); },
     common.expectsError({
       code: 'ERR_ASSERTION',
       message: /^Missing expected exception \(TypeError\): fhqwhgads$/

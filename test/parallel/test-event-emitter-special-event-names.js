@@ -5,7 +5,7 @@ const EventEmitter = require('events');
 const assert = require('assert');
 
 const ee = new EventEmitter();
-const handler = common.noop;
+const handler = () => {};
 
 assert.deepStrictEqual(ee.eventNames(), []);
 

@@ -1,15 +1,15 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const EventEmitter = require('events');
 
 const emitter = new EventEmitter();
-emitter.on('foo', common.noop);
-emitter.on('foo', common.noop);
-emitter.on('baz', common.noop);
+emitter.on('foo', () => {});
+emitter.on('foo', () => {});
+emitter.on('baz', () => {});
 // Allow any type
-emitter.on(123, common.noop);
+emitter.on(123, () => {});
 
 assert.strictEqual(EventEmitter.listenerCount(emitter, 'foo'), 2);
 assert.strictEqual(emitter.listenerCount('foo'), 2);
