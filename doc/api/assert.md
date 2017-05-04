@@ -286,26 +286,41 @@ assert.fail('a', 'b');
 // AssertionError: 'a' != 'b'
 ```
 
-## assert.ifError(value)
+## assert.ifError(value, message)
 <!-- YAML
 added: v0.1.97
 -->
 * `value` {any}
+* `message` {any}
 
-Throws `value` if `value` is truthy. This is useful when testing the `error`
-argument in callbacks.
-
+Throws an `AssertionError` if `value` is truthy. This is useful when testing the
+`error` argument in callbacks. If the `message` parameter is undefined, a
+default error message is assigned, and `value` is be appended to it.
 ```js
 const assert = require('assert');
 
 assert.ifError(0);
 // OK
+
 assert.ifError(1);
-// Throws 1
+// outputs:
+// AssertionError [ERR_ASSERTION]: ifError failed. Original error:
+// 1
+//    at Function.ifError (assert.js:552:3)
+// ...
+
 assert.ifError('error');
-// Throws 'error'
-assert.ifError(new Error());
-// Throws Error
+// outputs:
+// AssertionError [ERR_ASSERTION]: ifError failed. Original error:
+// error
+//    at Function.ifError (assert.js:552:3)
+// ...
+
+a.ifError(new Error('hello'));
+// outputs:
+// AssertionError [ERR_ASSERTION]: ifError failed. Original error:
+// Error: hello
+//    at ...
 ```
 
 ## assert.notDeepEqual(actual, expected[, message])

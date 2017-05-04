@@ -453,8 +453,37 @@ assert.throws(makeBlock(thrower, TypeError));
                      'a.doesNotThrow is not catching type matching errors');
 }
 
-assert.throws(function() { assert.ifError(new Error('test error')); },
-              /^Error: test error$/);
+
+// Assert that the exception is wraped with an AssertionError
+assert.throws(
+  function() { assert.ifError(new Error('test error')); },
+  common.expectsError({
+                code: 'ERR_ASSERTION',
+                type: a.AssertionError,
+                message: /^ifError failed\. Original error:$/m
+  })
+);
+// Assert that the original exception is inside
+assert.throws(
+  function() { assert.ifError(new Error('test_error_slug')); },
+  common.expectsError({
+                code: 'ERR_ASSERTION',
+                type: a.AssertionError,
+                message: /^Error: test_error_slug$/m
+  })
+);
+
+// Assert that the failing frame is in the stack
+assert.throws(
+  function goose() {
+    assert.ifError(new Error('test error'));
+  },
+  common.expectsError({
+                code: 'ERR_ASSERTION',
+                type: a.AssertionError,
+                message: /^\s+at goose(.+)test-assert\.js:\d+:\d+\)$/m
+  })
+);
 assert.doesNotThrow(function() { assert.ifError(null); });
 assert.doesNotThrow(function() { assert.ifError(); });
 
