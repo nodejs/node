@@ -1198,7 +1198,8 @@ on the type of stream being created, as detailed in the chart below:
       <p>[Writable](#stream_class_stream_writable)</p>
     </td>
     <td>
-      <p><code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code></p>
+      <p><code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>,
+      <code>[_final][stream-_final]</code></p>
     </td>
   </tr>
   <tr>
@@ -1209,7 +1210,8 @@ on the type of stream being created, as detailed in the chart below:
       <p>[Duplex](#stream_class_stream_duplex)</p>
     </td>
     <td>
-      <p><code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code></p>
+      <p><code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>,
+      <code>[_final][stream-_final]</code></p>
     </td>
   </tr>
   <tr>
@@ -1220,7 +1222,8 @@ on the type of stream being created, as detailed in the chart below:
       <p>[Transform](#stream_class_stream_transform)</p>
     </td>
     <td>
-      <p><code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code></p>
+      <p><code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code>,
+      <code>[_final][stream-_final]</code></p>
     </td>
   </tr>
 </table>
@@ -1279,6 +1282,8 @@ constructor and implement the `writable._write()` method. The
     [`stream._writev()`][stream-_writev] method.
   * `destroy` {Function} Implementation for the
     [`stream._destroy()`][writable-_destroy] method.
+  * `final` {Function} Implementation for the
+    [`stream._final()`][stream-_final] method.
 
 For example:
 
@@ -1397,6 +1402,22 @@ added: REPLACEME
 * `err` {Error} An error.
 * `callback` {Function} A callback function that takes an optional error argument
   which is invoked when the writable is destroyed.
+
+#### writable.\_final(callback)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callback` {Function} Call this function (optionally with an error
+  argument) when you are done writing any remaining data.
+
+Note: `_final()` **must not** be called directly.  It MAY be implemented
+by child classes, and if so, will be called by the internal Writable
+class methods only.
+
+This optional function will be called before the stream closes, delaying the
+`finish` event until `callback` is called. This is useful to close resources
+or write buffered data before a stream ends.
 
 #### Errors While Writing
 
@@ -2115,6 +2136,7 @@ readable buffer so there is nothing for a user to consume.
 [stream-_transform]: #stream_transform_transform_chunk_encoding_callback
 [stream-_write]: #stream_writable_write_chunk_encoding_callback_1
 [stream-_writev]: #stream_writable_writev_chunks_callback
+[stream-_final]: #stream_writable_final_callback
 [stream-end]: #stream_writable_end_chunk_encoding_callback
 [stream-pause]: #stream_readable_pause
 [stream-push]: #stream_readable_push_chunk_encoding
