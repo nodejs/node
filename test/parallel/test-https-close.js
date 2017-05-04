@@ -49,7 +49,7 @@ server.listen(0, function() {
   };
 
   const req = https.request(requestOptions, function(res) {
-    res.on('data', common.noop);
+    res.on('data', () => {});
     setImmediate(shutdown);
   });
   req.end();
