@@ -182,7 +182,14 @@ If you are updating tests and just want to run a single test to check it, you
 can use this syntax to run it exactly as the test harness would:
 
 ```text
-$ python tools/test.py -v --mode=release parallel/test-stream2-transform
+$ python tools/test.py -J --mode=release parallel/test-stream2-transform
+```
+
+If you want to check the other options, please refer to the help by using
+the `--help` option
+
+```text
+$ python tools/test.py --help
 ```
 
 You can run tests directly with node:
