@@ -1,4 +1,5 @@
 'use strict';
+
 require('../common');
 const assert = require('assert');
 const net = require('net');
@@ -32,7 +33,7 @@ const server = net.createServer(function(socket) {
   });
 
   for (let i = 0; i < N; ++i) {
-    socket.write(buf, function() { });
+    socket.write(buf, () => {});
   }
   socket.end();
 

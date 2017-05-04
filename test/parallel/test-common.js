@@ -10,11 +10,11 @@ global.gc = 42;  // Not a valid global unless --expose_gc is set.
 assert.deepStrictEqual(common.leakedGlobals(), ['gc']);
 
 assert.throws(function() {
-  common.mustCall(common.noop, 'foo');
+  common.mustCall(() => {}, 'foo');
 }, /^TypeError: Invalid exact value: foo$/);
 
 assert.throws(function() {
-  common.mustCall(common.noop, /foo/);
+  common.mustCall(() => {}, /foo/);
 }, /^TypeError: Invalid exact value: \/foo\/$/);
 
 const fnOnce = common.mustCall(() => {});

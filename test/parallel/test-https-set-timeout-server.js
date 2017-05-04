@@ -43,7 +43,7 @@ test(function serverTimeout(cb) {
     https.get({
       port: server.address().port,
       rejectUnauthorized: false
-    }).on('error', common.noop);
+    }).on('error', () => {});
   }));
 });
 
@@ -65,7 +65,7 @@ test(function serverRequestTimeout(cb) {
       method: 'POST',
       rejectUnauthorized: false
     });
-    req.on('error', common.noop);
+    req.on('error', () => {});
     req.write('Hello');
     // req is in progress
   }));

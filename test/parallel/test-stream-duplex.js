@@ -1,4 +1,5 @@
 'use strict';
+
 require('../common');
 const assert = require('assert');
 const Duplex = require('stream').Duplex;

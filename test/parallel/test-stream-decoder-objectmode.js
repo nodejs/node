@@ -1,4 +1,5 @@
 'use strict';
+
 require('../common');
 const stream = require('stream');
 const assert = require('assert');

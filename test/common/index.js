@@ -14,7 +14,6 @@ const testRoot = process.env.NODE_TEST_DIR ?
 
 const noop = () => {};
 
-exports.noop = noop;
 exports.fixturesDir = path.join(__dirname, '..', 'fixtures');
 exports.tmpDirName = 'tmp';
 // PORT should match the definition in test/testpy/__init__.py.

@@ -39,7 +39,7 @@ function demoBug(part1, part2) {
     console.log('url', info.url);
   };
 
-  parser[kOnBody] = function(b, start, len) { };
+  parser[kOnBody] = () => {};
 
   parser[kOnMessageComplete] = function() {
     messagesComplete++;

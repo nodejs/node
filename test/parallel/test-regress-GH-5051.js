@@ -1,11 +1,11 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const agent = require('http').globalAgent;
 
 // small stub just so we can call addRequest directly
 const req = {
-  getHeader: common.noop
+  getHeader: () => {}
 };
 
 agent.maxSockets = 0;

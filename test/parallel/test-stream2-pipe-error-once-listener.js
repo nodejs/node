@@ -29,7 +29,7 @@ Write.prototype._write = function(buffer, encoding, cb) {
 const read = new Read();
 const write = new Write();
 
-write.once('error', function(err) {});
+write.once('error', () => {});
 write.once('alldone', function(err) {
   console.log('ok');
 });

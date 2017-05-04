@@ -1,5 +1,6 @@
 'use strict';
-const common = require('../common');
+
+require('../common');
 const assert = require('assert');
 
 const util = require('util');
@@ -16,7 +17,7 @@ function createTestServer() {
 }
 
 function testServer() {
-  http.Server.call(this, common.noop);
+  http.Server.call(this, () => {});
 
   this.on('connection', function() {
     requests_recv++;

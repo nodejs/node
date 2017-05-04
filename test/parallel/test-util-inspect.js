@@ -800,7 +800,7 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
                      'SetSubclass { 1, 2, 3 }');
   assert.strictEqual(util.inspect(new MapSubclass([['foo', 42]])),
                      'MapSubclass { \'foo\' => 42 }');
-  assert.strictEqual(util.inspect(new PromiseSubclass(function() {})),
+  assert.strictEqual(util.inspect(new PromiseSubclass(() => {})),
                      'PromiseSubclass { <pending> }');
 }
 

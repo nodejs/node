@@ -10,7 +10,7 @@ assert.strictEqual(
   'function',
   'Run this test with --expose-gc'
 );
-net.createServer(common.noop).listen(common.PORT);
+net.createServer(() => {}).listen(common.PORT);
 
 let before = 0;
 {

@@ -20,7 +20,7 @@ function connectThrows(input) {
   }, expectedError);
 }
 
-[() => {}].forEach((input) => connectDoesNotThrow(input));
+connectDoesNotThrow(() => {});
 
 function connectDoesNotThrow(input) {
   const opts = {

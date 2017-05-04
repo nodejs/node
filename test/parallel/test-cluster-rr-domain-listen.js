@@ -8,10 +8,10 @@ const domain = require('domain');
 
 if (cluster.isWorker) {
   const d = domain.create();
-  d.run(function() { });
+  d.run(() => {});
 
   const http = require('http');
-  http.Server(function() { }).listen(0, '127.0.0.1');
+  http.Server(() => {}).listen(0, '127.0.0.1');
 
 } else if (cluster.isMaster) {
   let worker;

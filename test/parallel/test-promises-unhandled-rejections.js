@@ -164,7 +164,7 @@ asyncTest('Catching a promise rejection after setImmediate is not' +
   });
   _reject(e);
   setImmediate(function() {
-    promise.then(common.fail, common.noop);
+    promise.then(common.fail, () => {});
   });
 });
 
@@ -240,7 +240,7 @@ asyncTest(
   function(done) {
     const e = new Error();
     onUnhandledFail(done);
-    Promise.reject(e).then(common.fail, common.noop);
+    Promise.reject(e).then(common.fail, () => {});
   }
 );
 
@@ -252,7 +252,7 @@ asyncTest(
     onUnhandledFail(done);
     new Promise(function(_, reject) {
       reject(e);
-    }).then(common.fail, common.noop);
+    }).then(common.fail, () => {});
   }
 );
 
@@ -262,7 +262,7 @@ asyncTest('Attaching a promise catch in a process.nextTick is soon enough to' +
   onUnhandledFail(done);
   const promise = Promise.reject(e);
   process.nextTick(function() {
-    promise.then(common.fail, common.noop);
+    promise.then(common.fail, () => {});
   });
 });
 
@@ -274,7 +274,7 @@ asyncTest('Attaching a promise catch in a process.nextTick is soon enough to' +
     reject(e);
   });
   process.nextTick(function() {
-    promise.then(common.fail, common.noop);
+    promise.then(common.fail, () => {});
   });
 });
 
@@ -385,7 +385,7 @@ asyncTest('Catching the Promise.all() of a collection that includes a' +
           'rejected promise prevents unhandledRejection', function(done) {
   const e = new Error();
   onUnhandledFail(done);
-  Promise.all([Promise.reject(e)]).then(common.fail, common.noop);
+  Promise.all([Promise.reject(e)]).then(common.fail, () => {});
 });
 
 asyncTest(
@@ -401,7 +401,7 @@ asyncTest(
     });
     p = Promise.all([p]);
     process.nextTick(function() {
-      p.then(common.fail, common.noop);
+      p.then(common.fail, () => {});
     });
   }
 );
@@ -455,7 +455,7 @@ asyncTest('Waiting for some combination of process.nextTick + promise' +
     Promise.resolve().then(function() {
       process.nextTick(function() {
         Promise.resolve().then(function() {
-          a.catch(common.noop);
+          a.catch(() => {});
         });
       });
     });
@@ -474,7 +474,7 @@ asyncTest('Waiting for some combination of process.nextTick + promise' +
       Promise.resolve().then(function() {
         process.nextTick(function() {
           Promise.resolve().then(function() {
-            a.catch(common.noop);
+            a.catch(() => {});
           });
         });
       });
@@ -494,7 +494,7 @@ asyncTest('Waiting for some combination of process.nextTick + promise ' +
       Promise.resolve().then(function() {
         process.nextTick(function() {
           Promise.resolve().then(function() {
-            a.catch(common.noop);
+            a.catch(() => {});
           });
         });
       });
@@ -514,7 +514,7 @@ asyncTest('Waiting for some combination of promise microtasks + ' +
     process.nextTick(function() {
       Promise.resolve().then(function() {
         process.nextTick(function() {
-          a.catch(common.noop);
+          a.catch(() => {});
         });
       });
     });
@@ -535,7 +535,7 @@ asyncTest(
         process.nextTick(function() {
           Promise.resolve().then(function() {
             process.nextTick(function() {
-              a.catch(common.noop);
+              a.catch(() => {});
             });
           });
         });
@@ -556,7 +556,7 @@ asyncTest('Waiting for some combination of promise microtasks +' +
       process.nextTick(function() {
         Promise.resolve().then(function() {
           process.nextTick(function() {
-            a.catch(common.noop);
+            a.catch(() => {});
           });
         });
       });
@@ -575,7 +575,7 @@ asyncTest('setImmediate + promise microtasks is too late to attach a catch' +
   let p = Promise.reject(e);
   setImmediate(function() {
     Promise.resolve().then(function() {
-      p.catch(common.noop);
+      p.catch(() => {});
     });
   });
 });
@@ -592,7 +592,7 @@ asyncTest('setImmediate + promise microtasks is too late to attach a catch' +
       Promise.resolve().then(function() {
         Promise.resolve().then(function() {
           Promise.resolve().then(function() {
-            p.catch(common.noop);
+            p.catch(() => {});
           });
         });
       });
@@ -614,7 +614,7 @@ asyncTest('setImmediate + promise microtasks is too late to attach a catch' +
       Promise.resolve().then(function() {
         Promise.resolve().then(function() {
           Promise.resolve().then(function() {
-            p.catch(common.noop);
+            p.catch(() => {});
           });
         });
       });
@@ -682,7 +682,7 @@ asyncTest('Throwing an error inside a rejectionHandled handler goes to' +
   const p = Promise.reject(e);
   setTimeout(function() {
     try {
-      p.catch(common.noop);
+      p.catch(() => {});
     } catch (e) {
       done(new Error('fail'));
     }

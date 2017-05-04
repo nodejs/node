@@ -70,9 +70,9 @@ function listener() {}
   ee.on('removeListener', function(name, listener) {
     assert.strictEqual(expectLength--, this.listeners('baz').length);
   });
-  ee.on('baz', common.noop);
-  ee.on('baz', common.noop);
-  ee.on('baz', common.noop);
+  ee.on('baz', () => {});
+  ee.on('baz', () => {});
+  ee.on('baz', () => {});
   assert.strictEqual(ee.listeners('baz').length, expectLength + 1);
   ee.removeAllListeners('baz');
   assert.strictEqual(ee.listeners('baz').length, 0);
