@@ -34,10 +34,10 @@ function FakeInput() {
   EventEmitter.call(this);
 }
 inherits(FakeInput, EventEmitter);
-FakeInput.prototype.resume = common.noop;
-FakeInput.prototype.pause = common.noop;
-FakeInput.prototype.write = common.noop;
-FakeInput.prototype.end = common.noop;
+FakeInput.prototype.resume = () => {};
+FakeInput.prototype.pause = () => {};
+FakeInput.prototype.write = () => {};
+FakeInput.prototype.end = () => {};
 
 function isWarned(emitter) {
   for (const name in emitter) {

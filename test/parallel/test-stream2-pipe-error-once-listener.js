@@ -21,7 +21,7 @@
 
 'use strict';
 
-const common = require('../common');
+require('../common');
 const util = require('util');
 const stream = require('stream');
 
@@ -50,7 +50,7 @@ Write.prototype._write = function(buffer, encoding, cb) {
 const read = new Read();
 const write = new Write();
 
-write.once('error', common.noop);
+write.once('error', () => {});
 write.once('alldone', function(err) {
   console.log('ok');
 });
