@@ -2855,13 +2855,6 @@ will be invoked with a status value of `napi_cancelled`.
 The work should not be deleted before the `complete`
 callback invocation, even when it was cancelled.
 
-**Note:** As mentioned in the section on memory management, if
-the code to be run in the callbacks will create N-API values, then
-N-API handle scope functions must be used to create/destroy a
-`napi_handle_scope` such that the scope is active when
-objects can be created.
-
-
 ### napi_create_async_work
 <!-- YAML
 added: v8.0.0
