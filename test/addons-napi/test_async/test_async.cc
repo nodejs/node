@@ -20,22 +20,6 @@ typedef struct {
 carrier the_carrier;
 carrier async_carrier[MAX_CANCEL_THREADS];
 
-struct AutoHandleScope {
-  explicit AutoHandleScope(napi_env env)
-  : _env(env),
-  _scope(nullptr) {
-    napi_open_handle_scope(_env, &_scope);
-  }
-  ~AutoHandleScope() {
-    napi_close_handle_scope(_env, _scope);
-  }
- private:
-  AutoHandleScope() { }
-
-  napi_env _env;
-  napi_handle_scope _scope;
-};
-
 void Execute(napi_env env, void* data) {
 #if defined _WIN32
   Sleep(1000);
@@ -53,7 +37,6 @@ void Execute(napi_env env, void* data) {
 }
 
 void Complete(napi_env env, napi_status status, void* data) {
-  AutoHandleScope scope(env);
   carrier* c = static_cast<carrier*>(data);
 
   if (c != &the_carrier) {
@@ -116,13 +99,11 @@ napi_value Test(napi_env env, napi_callback_info info) {
 }
 
 void BusyCancelComplete(napi_env env, napi_status status, void* data) {
-  AutoHandleScope scope(env);
   carrier* c = static_cast<carrier*>(data);
   NAPI_CALL_RETURN_VOID(env, napi_delete_async_work(env, c->_request));
 }
 
 void CancelComplete(napi_env env, napi_status status, void* data) {
-  AutoHandleScope scope(env);
   carrier* c = static_cast<carrier*>(data);
 
   if (status == napi_cancelled) {
