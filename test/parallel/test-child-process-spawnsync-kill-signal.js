@@ -4,7 +4,7 @@ const assert = require('assert');
 const cp = require('child_process');
 
 if (process.argv[2] === 'child') {
-  setInterval(common.noop, 1000);
+  setInterval(() => {}, 1000);
 } else {
   const { SIGKILL } = process.binding('constants').os.signals;
 

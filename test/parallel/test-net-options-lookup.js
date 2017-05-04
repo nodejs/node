@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -20,7 +20,7 @@ function connectThrows(input) {
   }, expectedError);
 }
 
-connectDoesNotThrow(common.noop);
+connectDoesNotThrow(() => {});
 
 function connectDoesNotThrow(input) {
   const opts = {
