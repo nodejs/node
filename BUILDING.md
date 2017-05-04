@@ -123,15 +123,6 @@ To run the tests:
 $ make test
 ```
 
-To run the npm test suite:
-
-*note: to run the suite on node v4 or earlier you must first*
-*run `make install`*
-
-```console
-$ make test-npm
-```
-
 To build the documentation:
 
 This will build Node.js first (if necessary) and then use it to build the docs:
