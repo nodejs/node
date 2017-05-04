@@ -809,6 +809,7 @@ changes:
     `tls.createSecureContext()`. *Note*: In effect, all
     [`tls.createSecureContext()`][] options can be provided, but they will be
     _completely ignored_ unless the `secureContext` option is missing.
+  * `lookup`: {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
   * ...: Optional [`tls.createSecureContext()`][] options can be provided, see
     the `secureContext` option for more information.
 * `callback` {Function}
