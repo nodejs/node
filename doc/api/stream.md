@@ -441,9 +441,17 @@ See also: [`writable.cork()`][].
 <!-- YAML
 added: v9.3.0
 -->
-
 Return the value of `highWaterMark` passed when constructing this
 `Writable`.
+
+##### writable.writableLength
+<!-- YAML
+added: REPLACEME
+-->
+
+This property contains the number of bytes (or objects) in the queue
+ready to be written. The value provides introspection data regarding
+the status of the `highWaterMark`.
 
 ##### writable.write(chunk[, encoding][, callback])
 <!-- YAML
@@ -944,6 +952,15 @@ event will also be emitted.
 
 *Note*: Calling [`stream.read([size])`][stream-read] after the [`'end'`][]
 event has been emitted will return `null`. No runtime error will be raised.
+
+##### readable.readableLength
+<!-- YAML
+added: REPLACEME
+-->
+
+This property contains the number of bytes (or objects) in the queue
+ready to be read. The value provides introspection data regarding
+the status of the `highWaterMark`.
 
 ##### readable.resume()
 <!-- YAML

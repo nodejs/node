@@ -110,7 +110,7 @@ for (let i = 0; i < chunks.length; i++) {
     } while (ret !== false && i < chunks.length);
 
     if (i < chunks.length) {
-      assert(tw._writableState.length >= 50);
+      assert(tw.writableLength >= 50);
       tw.once('drain', W);
     } else {
       tw.end();
