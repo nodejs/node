@@ -34,19 +34,6 @@ assert.strictEqual(test_reference.finalizeCount, 0);
 }
 
 {
-  // Weak reference
-  let value = test_reference.createExternalWithFinalize();
-  assert.strictEqual(test_reference.finalizeCount, 0);
-  test_reference.createReference(value, 0);
-  assert.strictEqual(test_reference.referenceValue, value);
-  value = null;
-  global.gc(); // Value should be GC'd because there is only a weak ref
-  assert.strictEqual(test_reference.referenceValue, undefined);
-  assert.strictEqual(test_reference.finalizeCount, 1);
-  test_reference.deleteReference();
-}
-
-{
   // Strong reference
   let value = test_reference.createExternalWithFinalize();
   assert.strictEqual(test_reference.finalizeCount, 0);
@@ -84,4 +71,20 @@ assert.strictEqual(test_reference.finalizeCount, 0);
   test_reference.deleteReference();
   global.gc(); // Value was already GC'd
   assert.strictEqual(test_reference.finalizeCount, 1);
+}
+
+{
+  // Weak reference
+  let value = test_reference.createExternalWithFinalize();
+  assert.strictEqual(test_reference.finalizeCount, 0);
+  test_reference.createReference(value, 0);
+  assert.strictEqual(test_reference.referenceValue, value);
+  value = null;
+  setImmediate(common.mustCall(() => {
+    // This test only works if gc() is called from an immediate callback.
+    global.gc(); // Value should be GC'd because there is only a weak ref
+    assert.strictEqual(test_reference.referenceValue, undefined);
+    assert.strictEqual(test_reference.finalizeCount, 1);
+    test_reference.deleteReference();
+  }));
 }
