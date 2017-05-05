@@ -133,6 +133,9 @@ enum url_error_cb_args {
 // https://infra.spec.whatwg.org/#ascii-tab-or-newline
 CHAR_TEST(8, IsASCIITabOrNewline, (ch == '\t' || ch == '\n' || ch == '\r'))
 
+// https://infra.spec.whatwg.org/#c0-control-or-space
+CHAR_TEST(8, IsC0ControlOrSpace, (ch >= '\0' && ch <= ' '))
+
 // https://infra.spec.whatwg.org/#ascii-digit
 CHAR_TEST(8, IsASCIIDigit, (ch >= '0' && ch <= '9'))
 
@@ -1134,15 +1137,45 @@ static inline void ShortenUrlPath(struct url_data* url) {
 }
 
 void URL::Parse(const char* input,
-                const size_t len,
+                size_t len,
                 enum url_parse_state state_override,
                 struct url_data* url,
+                bool has_url,
                 const struct url_data* base,
                 bool has_base) {
+  const char* p = input;
+  const char* end = input + len;
+
+  if (!has_url) {
+    for (const char* ptr = p; ptr < end; ptr++) {
+      if (IsC0ControlOrSpace(*ptr))
+        p++;
+      else
+        break;
+    }
+    for (const char* ptr = end - 1; ptr >= p; ptr--) {
+      if (IsC0ControlOrSpace(*ptr))
+        end--;
+      else
+        break;
+    }
+    len = end - p;
+  }
+
+  std::string whitespace_stripped;
+  whitespace_stripped.reserve(len);
+  for (const char* ptr = p; ptr < end; ptr++)
+    if (!IsASCIITabOrNewline(*ptr))
+      whitespace_stripped += *ptr;
+
+  input = whitespace_stripped.c_str();
+  len = whitespace_stripped.size();
+  p = input;
+  end = input + len;
+
   bool atflag = false;
   bool sbflag = false;
   bool uflag = false;
-  int wskip = 0;
 
   std::string buffer;
   url->scheme.reserve(len);
@@ -1159,9 +1192,6 @@ void URL::Parse(const char* input,
   enum url_parse_state state = has_state_override ? state_override :
                                                     kSchemeStart;
 
-  const char* p = input;
-  const char* end = input + len;
-
   if (state < kSchemeStart || state > kFragment) {
     url->flags |= URL_FLAGS_INVALID_PARSE_STATE;
     return;
@@ -1170,18 +1200,6 @@ void URL::Parse(const char* input,
   while (p <= end) {
     const char ch = p < end ? p[0] : kEOL;
     const size_t remaining = end == p ? 0 : (end - p - 1);
-
-    if (IsASCIITabOrNewline(ch)) {
-      if (state == kAuthority) {
-        // It's necessary to keep track of how much whitespace
-        // is being ignored when in kAuthority state because of
-        // how the buffer is managed. TODO: See if there's a better
-        // way
-        wskip++;
-      }
-      p++;
-      continue;
-    }
 
     bool special = (url->flags & URL_FLAGS_SPECIAL);
     bool cannot_be_base;
@@ -1500,7 +1518,7 @@ void URL::Parse(const char* input,
             url->flags |= URL_FLAGS_FAILED;
             return;
           }
-          p -= buffer.size() + 1 + wskip;
+          p -= buffer.size() + 1;
           buffer.clear();
           state = kHost;
         } else {
@@ -1892,16 +1910,17 @@ static void Parse(Environment* env,
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
 
+  const bool has_context = context_obj->IsObject();
   const bool has_base = base_obj->IsObject();
 
   struct url_data base;
   struct url_data url;
-  if (context_obj->IsObject())
+  if (has_context)
     HarvestContext(env, &url, context_obj.As<Object>());
   if (has_base)
     HarvestBase(env, &base, base_obj.As<Object>());
 
-  URL::Parse(input, len, state_override, &url, &base, has_base);
+  URL::Parse(input, len, state_override, &url, has_context, &base, has_base);
   if ((url.flags & URL_FLAGS_INVALID_PARSE_STATE) ||
       ((state_override != kUnknownState) &&
        (url.flags & URL_FLAGS_TERMINATED)))
