@@ -154,7 +154,7 @@ runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
   runTest(new Date(), new Date(), function() {
     runTest(123456.789, 123456.789, function() {
       runTest(stats.mtime, stats.mtime, function() {
-        runTest('123456', -1, function() {
+        runTest('123456', (Date.now()/1000), function() {
           runTest(
             new Date('2017-04-08T17:59:38.008Z'),
             new Date('2017-04-08T17:59:38.008Z'),
