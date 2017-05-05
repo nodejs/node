@@ -1526,7 +1526,7 @@ napi_status napi_get_cb_info(
 
   if (argv != nullptr) {
     CHECK_ARG(env, argc);
-    info->Args(argv, std::min(*argc, info->ArgsLength()));
+    info->Args(argv, *argc);
   }
   if (argc != nullptr) {
     *argc = info->ArgsLength();
