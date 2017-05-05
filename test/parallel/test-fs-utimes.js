@@ -155,9 +155,13 @@ runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
     runTest(123456.789, 123456.789, function() {
       runTest(stats.mtime, stats.mtime, function() {
         runTest('123456', -1, function() {
-          runTest(1491674378008, 1491674378008, common.mustCall(function() {
-            // done
-          }));
+          runTest(
+            new Date('2017-04-08T17:59:38.008Z'),
+            new Date('2017-04-08T17:59:38.008Z'),
+            common.mustCall(function() {
+              // done
+            })
+          );
         });
       });
     });
