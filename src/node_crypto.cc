@@ -237,6 +237,7 @@ static int PasswordCallback(char *buf, int size, int rwflag, void *u) {
   return len;
 }
 
+
 // This callback is used to avoid the default passphrase callback in OpenSSL
 // which will typically prompt for the passphrase.
 static int NoPasswordCallback(char *buf, int size, int rwflag, void *u) {
