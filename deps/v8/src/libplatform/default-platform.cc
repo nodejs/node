@@ -29,9 +29,12 @@ void PrintStackTrace() {
 
 }  // namespace
 
-v8::Platform* CreateDefaultPlatform(int thread_pool_size,
-                                    IdleTaskSupport idle_task_support) {
-  v8::base::debug::EnableInProcessStackDumping();
+v8::Platform* CreateDefaultPlatform(
+    int thread_pool_size, IdleTaskSupport idle_task_support,
+    InProcessStackDumping in_process_stack_dumping) {
+  if (in_process_stack_dumping == InProcessStackDumping::kEnabled) {
+    v8::base::debug::EnableInProcessStackDumping();
+  }
   DefaultPlatform* platform = new DefaultPlatform(idle_task_support);
   platform->SetThreadPoolSize(thread_pool_size);
   platform->EnsureInitialized();
