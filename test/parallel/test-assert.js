@@ -707,12 +707,16 @@ assert.throws(() => {
   code: 'ERR_ASSERTION',
   message: new RegExp(`^'${'A'.repeat(127)} === ''$`)}));
 
-[1, true, false, '', null, Infinity, Symbol('test')].forEach((input) => {
-  assert.throws(
-    () => new assert.AssertionError(input),
-    common.expectsError({
-      code: 'ERR_INVALID_ARG_TYPE',
-      type: TypeError,
-      message: /^The "options" argument must be of type object$/
-    }));
-});
+{
+  // bad args to AssertionError constructor should throw TypeError
+  const args = [1, true, false, '', null, Infinity, Symbol('test'), undefined];
+  args.forEach((input) => {
+    assert.throws(
+      () => new assert.AssertionError(input),
+      common.expectsError({
+        code: 'ERR_INVALID_ARG_TYPE',
+        type: TypeError,
+        message: /^The "options" argument must be of type object$/
+      }));
+  });
+}
