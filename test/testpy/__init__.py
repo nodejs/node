@@ -44,7 +44,6 @@ class SimpleTestCase(test.TestCase):
     self.config = config
     self.arch = arch
     self.mode = mode
-    self.tmpdir = join(dirname(self.config.root), 'tmp')
     if additional is not None:
       self.additional_flags = additional
     else:
