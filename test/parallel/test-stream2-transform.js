@@ -43,7 +43,7 @@ const Transform = require('_stream_transform');
   }
   tx.end();
 
-  assert.strictEqual(tx._readableState.length, 10);
+  assert.strictEqual(tx.readableLength, 10);
   assert.strictEqual(transformed, 10);
   assert.strictEqual(tx._transformState.writechunk.length, 5);
   assert.deepStrictEqual(tx.writableBuffer.map(function(c) {
