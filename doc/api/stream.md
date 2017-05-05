@@ -437,6 +437,14 @@ process.nextTick(() => {
 
 See also: [`writable.cork()`][].
 
+##### writable.writableHighWaterMark
+<!-- YAML
+added: REPLACEME
+-->
+
+Return the value of `highWaterMark` passed when constructing this
+`Writable`.
+
 ##### writable.write(chunk[, encoding][, callback])
 <!-- YAML
 added: v0.9.4
@@ -878,6 +886,14 @@ to prevent memory leaks.
 *Note*: The [`process.stderr`][] and [`process.stdout`][] Writable streams are
 never closed until the Node.js process exits, regardless of the specified
 options.
+
+##### readable.readableHighWaterMark
+<!-- YAML
+added: REPLACEME
+-->
+
+Return the value of `highWaterMark` passed when constructing this
+`Readable`.
 
 ##### readable.read([size])
 <!-- YAML

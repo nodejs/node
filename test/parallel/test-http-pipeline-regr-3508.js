@@ -30,7 +30,7 @@ const server = http.createServer(function(req, res) {
     res.end(chunk);
   }
   size += res.outputSize;
-  if (size <= req.socket._writableState.highWaterMark) {
+  if (size <= req.socket.writableHighWaterMark) {
     more();
     return;
   }
