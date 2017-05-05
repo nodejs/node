@@ -2575,6 +2575,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strncmp(argv[i], "--lcov=", 7) == 0) {
       options.lcov_file = argv[i] + 7;
       argv[i] = NULL;
+    } else if (strcmp(argv[i], "--disable-in-process-stack-traces") == 0) {
+      options.disable_in_process_stack_traces = true;
+      argv[i] = NULL;
     }
   }
 
@@ -2998,10 +3001,17 @@ int Shell::Main(int argc, char* argv[]) {
 #endif  // defined(_WIN32) || defined(_WIN64)
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
+
+  v8::platform::InProcessStackDumping in_process_stack_dumping =
+      options.disable_in_process_stack_traces
+          ? v8::platform::InProcessStackDumping::kDisabled
+          : v8::platform::InProcessStackDumping::kEnabled;
+
   g_platform = i::FLAG_verify_predictable
                    ? new PredictablePlatform()
                    : v8::platform::CreateDefaultPlatform(
-                         0, v8::platform::IdleTaskSupport::kEnabled);
+                         0, v8::platform::IdleTaskSupport::kEnabled,
+                         in_process_stack_dumping);
 
   platform::tracing::TracingController* tracing_controller;
   if (options.trace_enabled) {
