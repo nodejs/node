@@ -53,3 +53,12 @@ encodings
   assert.strictEqual(buf.write('666f6f', 0, len, encoding), len);
   assert.deepStrictEqual(buf, resultMap.get(encoding.toLowerCase()));
 });
+
+// Invalid encodings
+for (let i = 1; i < 10; i++) {
+  const encoding = String(i).repeat(i);
+  const error = new RegExp(`^TypeError: Unknown encoding: ${encoding}$`);
+
+  assert.ok(!Buffer.isEncoding(encoding));
+  assert.throws(() => Buffer.alloc(9).write('foo', encoding), error);
+}
