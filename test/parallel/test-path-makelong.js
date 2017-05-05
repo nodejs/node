@@ -28,9 +28,9 @@ if (common.isWindows) {
   const file = path.join(common.fixturesDir, 'a.js');
   const resolvedFile = path.resolve(file);
 
-  assert.strictEqual('\\\\?\\' + resolvedFile, path._makeLong(file));
-  assert.strictEqual('\\\\?\\' + resolvedFile, path._makeLong('\\\\?\\' +
-                     file));
+  assert.strictEqual(`\\\\?\\${resolvedFile}`, path._makeLong(file));
+  assert.strictEqual(`\\\\?\\${resolvedFile}`,
+                     path._makeLong(`\\\\?\\${file}`));
   assert.strictEqual('\\\\?\\UNC\\someserver\\someshare\\somefile',
                      path._makeLong('\\\\someserver\\someshare\\somefile'));
   assert.strictEqual('\\\\?\\UNC\\someserver\\someshare\\somefile', path

@@ -29,7 +29,7 @@ const done = [];
 
 function get_printer(timeout) {
   return function() {
-    console.log('Running from setTimeout ' + timeout);
+    console.log(`Running from setTimeout ${timeout}`);
     done.push(timeout);
   };
 }

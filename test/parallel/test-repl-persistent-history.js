@@ -35,7 +35,7 @@ class ActionStream extends stream.Stream {
       if (typeof action === 'object') {
         this.emit('keypress', '', action);
       } else {
-        this.emit('data', action + '\n');
+        this.emit('data', `${action}\n`);
       }
       setImmediate(doAction);
     };
@@ -78,6 +78,8 @@ const emptyHistoryPath = path.join(fixtures, '.empty-repl-history-file');
 const defaultHistoryPath = path.join(common.tmpDir, '.node_repl_history');
 const emptyHiddenHistoryPath = path.join(fixtures,
                                          '.empty-hidden-repl-history-file');
+const devNullHistoryPath = path.join(common.tmpDir,
+                                     '.dev-null-repl-history-file');
 
 const tests = [
   {
@@ -115,19 +117,19 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY: historyPath },
     test: [UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_FILE: oldHistoryPath },
     test: [UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_FILE: '' },
     test: [UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
     env: {},
@@ -137,27 +139,27 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath },
     test: [UP, CLEAR, '\'42\'', ENTER],
-    expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt, '\'',
+    expected: [prompt, convertMsg, prompt, `${prompt}'=^.^='`, prompt, '\'',
                '4', '2', '\'', '\'42\'\n', prompt, prompt],
     clean: false
   },
   { // Requires the above testcase
     env: {},
     test: [UP, UP, ENTER],
-    expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
+    expected: [prompt, `${prompt}'42'`, `${prompt}'=^.^='`, '\'=^.^=\'\n',
                prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP, UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath,
            NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP, UP, UP, CLEAR],
-    expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt]
+    expected: [prompt, convertMsg, prompt, `${prompt}'=^.^='`, prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPathFail,
@@ -175,6 +177,15 @@ const tests = [
       }
     },
     env: { NODE_REPL_HISTORY: emptyHiddenHistoryPath },
+    test: [UP],
+    expected: [prompt]
+  },
+  {
+    before: function before() {
+      if (!common.isWindows)
+        fs.symlinkSync('/dev/null', devNullHistoryPath);
+    },
+    env: { NODE_REPL_HISTORY: devNullHistoryPath },
     test: [UP],
     expected: [prompt]
   },

@@ -44,12 +44,12 @@ if (cluster.isMaster) {
 
   server1.on('error', function(err) {
     // no errors expected
-    process.send('server1:' + err.code);
+    process.send(`server1:${err.code}`);
   });
 
   server2.on('error', function(err) {
     // an error is expected on the second worker
-    process.send('server2:' + err.code);
+    process.send(`server2:${err.code}`);
   });
 
   server1.listen({

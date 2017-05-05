@@ -88,7 +88,7 @@ assert.doesNotThrow(
 
 // Throws if opt.strategy is the wrong type.
 assert.throws(
-  () => { new zlib.Deflate({strategy: '' + zlib.constants.Z_RLE }); },
+  () => { new zlib.Deflate({ strategy: String(zlib.constants.Z_RLE) }); },
   /^TypeError: Invalid strategy: 3$/
 );
 
@@ -107,6 +107,5 @@ assert.throws(
 // Throws if opts.dictionary is not a Buffer
 assert.throws(
   () => { new zlib.Deflate({dictionary: 'not a buffer'}); },
-  new RegExp('^TypeError: Invalid dictionary: it should be a Buffer, ' +
-             'TypedArray, or DataView$')
+  /^TypeError: Invalid dictionary: it should be a Buffer, TypedArray, or DataView$/
 );

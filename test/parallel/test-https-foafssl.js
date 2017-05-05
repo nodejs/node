@@ -40,8 +40,8 @@ if (!common.hasCrypto) {
 const https = require('https');
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/agent.key'),
-  cert: fs.readFileSync(common.fixturesDir + '/agent.crt'),
+  key: fs.readFileSync(`${common.fixturesDir}/agent.key`),
+  cert: fs.readFileSync(`${common.fixturesDir}/agent.crt`),
   requestCert: true,
   rejectUnauthorized: false
 };

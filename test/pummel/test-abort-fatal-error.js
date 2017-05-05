@@ -30,7 +30,7 @@ if (common.isWindows) {
 
 const exec = require('child_process').exec;
 
-let cmdline = 'ulimit -c 0; ' + process.execPath;
+let cmdline = `ulimit -c 0; ${process.execPath}`;
 cmdline += ' --max-old-space-size=4 --max-semi-space-size=1';
 cmdline += ' -e "a = []; for (i = 0; i < 1e9; i++) { a.push({}) }"';
 

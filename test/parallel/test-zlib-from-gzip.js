@@ -46,6 +46,6 @@ out.on('close', function() {
   const actual = fs.readFileSync(outputFile);
   assert.strictEqual(actual.length, expect.length, 'length should match');
   for (let i = 0, l = actual.length; i < l; i++) {
-    assert.strictEqual(actual[i], expect[i], 'byte[' + i + ']');
+    assert.strictEqual(actual[i], expect[i], `byte[${i}]`);
   }
 });

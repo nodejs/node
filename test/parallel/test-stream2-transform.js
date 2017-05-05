@@ -344,7 +344,7 @@ test('passthrough event emission', function(t) {
   t.equal(emits, 1);
 
   t.equal(pt.read(5).toString(), 'foogb');
-  t.equal(pt.read(5) + '', 'null');
+  t.equal(String(pt.read(5)), 'null');
 
   console.error('need emit 1');
 

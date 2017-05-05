@@ -8,8 +8,7 @@ const fs = require('fs');
 const stdoutScript = join(common.fixturesDir, 'echo-close-check.js');
 const tmpFile = join(common.tmpDir, 'stdin.txt');
 
-const cmd = '"' + process.argv[0] + '" "' + stdoutScript + '" < "' +
-            tmpFile + '"';
+const cmd = `"${process.argv[0]}" "${stdoutScript}" < "${tmpFile}"`;
 
 const string = 'abc\nümlaut.\nsomething else\n' +
                '南越国是前203年至前111年存在于岭南地区的一个国家，国都位于番禺，' +
@@ -26,7 +25,7 @@ const string = 'abc\nümlaut.\nsomething else\n' +
 
 common.refreshTmpDir();
 
-console.log(cmd + '\n\n');
+console.log(`${cmd}\n\n`);
 
 fs.writeFileSync(tmpFile, string);
 
@@ -34,6 +33,6 @@ childProcess.exec(cmd, common.mustCall(function(err, stdout, stderr) {
   fs.unlinkSync(tmpFile);
 
   assert.ifError(err);
-  assert.strictEqual(stdout, 'hello world\r\n' + string);
+  assert.strictEqual(stdout, `hello world\r\n${string}`);
   assert.strictEqual('', stderr);
 }));

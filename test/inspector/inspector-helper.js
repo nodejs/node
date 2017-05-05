@@ -169,13 +169,15 @@ TestSession.prototype.processMessage_ = function(message) {
     assert.strictEqual(id, this.expectedId_);
     this.expectedId_++;
     if (this.responseCheckers_[id]) {
-      assert(message['result'], JSON.stringify(message) + ' (response to ' +
-             JSON.stringify(this.messages_[id]) + ')');
+      const messageJSON = JSON.stringify(message);
+      const idJSON = JSON.stringify(this.messages_[id]);
+      assert(message['result'], `${messageJSON} (response to ${idJSON})`);
       this.responseCheckers_[id](message['result']);
       delete this.responseCheckers_[id];
     }
-    assert(!message['error'], JSON.stringify(message) + ' (replying to ' +
-           JSON.stringify(this.messages_[id]) + ')');
+    const messageJSON = JSON.stringify(message);
+    const idJSON = JSON.stringify(this.messages_[id]);
+    assert(!message['error'], `${messageJSON} (replying to ${idJSON})`);
     delete this.messages_[id];
     if (id === this.lastId_) {
       this.lastMessageResponseCallback_ && this.lastMessageResponseCallback_();
@@ -213,12 +215,8 @@ TestSession.prototype.sendInspectorCommands = function(commands) {
     };
     this.sendAll_(commands, () => {
       timeoutId = setTimeout(() => {
-        let s = '';
-        for (const id in this.messages_) {
-          s += id + ', ';
-        }
-        assert.fail('Messages without response: ' +
-                    s.substring(0, s.length - 2));
+        assert.fail(`Messages without response: ${
+                    Object.keys(this.messages_).join(', ')}`);
       }, TIMEOUT);
     });
   });
@@ -241,7 +239,7 @@ TestSession.prototype.expectMessages = function(expects) {
   if (!(expects instanceof Array)) expects = [ expects ];
 
   const callback = this.createCallbackWithTimeout_(
-      'Matching response was not received:\n' + expects[0]);
+      `Matching response was not received:\n${expects[0]}`);
   this.messagefilter_ = (message) => {
     if (expects[0](message))
       expects.shift();
@@ -256,7 +254,7 @@ TestSession.prototype.expectMessages = function(expects) {
 TestSession.prototype.expectStderrOutput = function(regexp) {
   this.harness_.addStderrFilter(
       regexp,
-      this.createCallbackWithTimeout_('Timed out waiting for ' + regexp));
+      this.createCallbackWithTimeout_(`Timed out waiting for ${regexp}`));
   return this;
 };
 
@@ -461,11 +459,11 @@ exports.startNodeForInspectorTest = function(callback,
     clearTimeout(timeoutId);
     console.log('[err]', text);
     if (found) return;
-    const match = text.match(/Debugger listening on .*:(\d+)/);
+    const match = text.match(/Debugger listening on ws:\/\/(.+):(\d+)\/(.+)/);
     found = true;
     child.stderr.removeListener('data', dataCallback);
     assert.ok(match, text);
-    callback(new Harness(match[1], child));
+    callback(new Harness(match[2], child));
   });
 
   child.stderr.on('data', dataCallback);

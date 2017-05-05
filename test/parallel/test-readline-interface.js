@@ -155,7 +155,7 @@ function isWarned(emitter) {
     assert.strictEqual(line, expectedLines[callCount]);
     callCount++;
   });
-  fi.emit('data', expectedLines.join('\n') + '\n');
+  fi.emit('data', `${expectedLines.join('\n')}\n`);
   assert.strictEqual(callCount, expectedLines.length);
   rli.close();
 
@@ -216,7 +216,7 @@ function isWarned(emitter) {
     callCount++;
   });
   expectedLines.forEach(function(line) {
-    fi.emit('data', line + '\r');
+    fi.emit('data', `${line}\r`);
     fi.emit('data', '\n');
   });
   assert.strictEqual(callCount, expectedLines.length);
@@ -339,7 +339,7 @@ function isWarned(emitter) {
     assert.strictEqual(line, expectedLines[callCount]);
     callCount++;
   });
-  fi.emit('data', expectedLines.join('\n') + '\n');
+  fi.emit('data', `${expectedLines.join('\n')}\n`);
   assert.strictEqual(callCount, expectedLines.length);
   fi.emit('keypress', '.', { name: 'up' }); // 'bat'
   assert.strictEqual(rli.line, expectedLines[--callCount]);
@@ -369,7 +369,7 @@ function isWarned(emitter) {
     assert.strictEqual(line, expectedLines[callCount]);
     callCount++;
   });
-  fi.emit('data', expectedLines.join('\n') + '\n');
+  fi.emit('data', `${expectedLines.join('\n')}\n`);
   assert.strictEqual(callCount, expectedLines.length);
   fi.emit('keypress', '.', { name: 'up' }); // 'bat'
   assert.strictEqual(rli.line, expectedLines[--callCount]);

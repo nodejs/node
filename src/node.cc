@@ -1570,11 +1570,15 @@ Local<Value> Encode(Isolate* isolate,
                     size_t len,
                     enum encoding encoding) {
   CHECK_NE(encoding, UCS2);
-  return StringBytes::Encode(isolate, buf, len, encoding);
+  Local<Value> error;
+  return StringBytes::Encode(isolate, buf, len, encoding, &error)
+      .ToLocalChecked();
 }
 
 Local<Value> Encode(Isolate* isolate, const uint16_t* buf, size_t len) {
-  return StringBytes::Encode(isolate, buf, len);
+  Local<Value> error;
+  return StringBytes::Encode(isolate, buf, len, &error)
+      .ToLocalChecked();
 }
 
 // Returns -1 if the handle was not valid for decoding
@@ -3623,6 +3627,7 @@ static void PrintHelp() {
          "  --no-deprecation           silence deprecation warnings\n"
          "  --trace-deprecation        show stack traces on deprecations\n"
          "  --throw-deprecation        throw an exception on deprecations\n"
+         "  --pending-deprecation      emit pending deprecation warnings\n"
          "  --no-warnings              silence all process warnings\n"
          "  --napi-modules             load N-API modules\n"
          "  --trace-warnings           show stack traces on process warnings\n"
@@ -3735,6 +3740,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--force-fips",
     "--openssl-config",
     "--icu-data-dir",
+    "--napi-modules",
 
     // V8 options
     "--max_old_space_size",
@@ -4618,3 +4624,9 @@ int Start(int argc, char** argv) {
 
 
 }  // namespace node
+
+#if !HAVE_INSPECTOR
+static void InitEmptyBindings() {}
+
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(inspector, InitEmptyBindings);
+#endif  // !HAVE_INSPECTOR

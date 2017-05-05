@@ -33,8 +33,8 @@ const fs = require('fs');
 let serverConnected = 0;
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
 };
 
 const server = tls.Server(options, common.mustCall(function(socket) {

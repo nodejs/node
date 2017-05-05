@@ -34,7 +34,7 @@ let testIdx = 0;
 const s = http.createServer(function(req, res) {
   const t = tests[testIdx];
   res.writeHead(t, {'Content-Type': 'text/plain'});
-  console.log('--\nserver: statusCode after writeHead: ' + res.statusCode);
+  console.log(`--\nserver: statusCode after writeHead: ${res.statusCode}`);
   assert.strictEqual(res.statusCode, t);
   res.end('hello world\n');
 });
@@ -49,8 +49,8 @@ function nextTest() {
   const test = tests[testIdx];
 
   http.get({ port: s.address().port }, function(response) {
-    console.log('client: expected status: ' + test);
-    console.log('client: statusCode: ' + response.statusCode);
+    console.log(`client: expected status: ${test}`);
+    console.log(`client: statusCode: ${response.statusCode}`);
     assert.strictEqual(response.statusCode, test);
     response.on('end', function() {
       testsComplete++;

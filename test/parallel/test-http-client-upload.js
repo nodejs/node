@@ -31,7 +31,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
   let sent_body = '';
 
   req.on('data', function(chunk) {
-    console.log('server got: ' + JSON.stringify(chunk));
+    console.log(`server got: ${JSON.stringify(chunk)}`);
     sent_body += chunk;
   });
 

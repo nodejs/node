@@ -109,7 +109,7 @@ fs.appendFile(filename4, n, { mode: m }, function(e) {
   fs.readFile(filename4, function(e, buffer) {
     assert.ifError(e);
     ncallbacks++;
-    assert.strictEqual(Buffer.byteLength('' + n) + currentFileData.length,
+    assert.strictEqual(Buffer.byteLength(String(n)) + currentFileData.length,
                        buffer.length);
   });
 });

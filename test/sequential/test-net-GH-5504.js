@@ -92,7 +92,7 @@ function parent() {
     inp.on('data', function(c) {
       c = c.trim();
       if (!c) return;
-      out.write(w + c.split('\n').join('\n' + w) + '\n');
+      out.write(`${w}${c.split('\n').join(`\n${w}`)}\n`);
     });
   }
 }

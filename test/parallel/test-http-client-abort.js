@@ -36,7 +36,7 @@ const server = http.Server(function(req, res) {
   // event like "aborted" or something.
   req.on('aborted', function() {
     clientAborts++;
-    console.log('Got abort ' + clientAborts);
+    console.log(`Got abort ${clientAborts}`);
     if (clientAborts === N) {
       console.log('All aborts detected, you win.');
       server.close();
@@ -52,10 +52,10 @@ server.listen(0, function() {
   console.log('Server listening.');
 
   for (let i = 0; i < N; i++) {
-    console.log('Making client ' + i);
-    const options = { port: this.address().port, path: '/?id=' + i };
+    console.log(`Making client ${i}`);
+    const options = { port: this.address().port, path: `/?id=${i}` };
     const req = http.get(options, function(res) {
-      console.log('Client response code ' + res.statusCode);
+      console.log(`Client response code ${res.statusCode}`);
 
       res.resume();
       if (++responses === N) {

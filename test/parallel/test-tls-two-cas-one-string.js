@@ -35,5 +35,5 @@ function test(ca, next) {
 }
 
 const array = [ca1, ca2];
-const string = ca1 + '\n' + ca2;
+const string = `${ca1}\n${ca2}`;
 test(array, () => test(string, common.noop));

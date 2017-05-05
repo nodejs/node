@@ -105,19 +105,22 @@ class StringBytes {
 
   // Take the bytes in the src, and turn it into a Buffer or String.
   // Don't call with encoding=UCS2.
-  static v8::Local<v8::Value> Encode(v8::Isolate* isolate,
-                                     const char* buf,
-                                     size_t buflen,
-                                     enum encoding encoding);
+  static v8::MaybeLocal<v8::Value> Encode(v8::Isolate* isolate,
+                                          const char* buf,
+                                          size_t buflen,
+                                          enum encoding encoding,
+                                          v8::Local<v8::Value>* error);
 
   // The input buffer should be in host endianness.
-  static v8::Local<v8::Value> Encode(v8::Isolate* isolate,
-                                     const uint16_t* buf,
-                                     size_t buflen);
+  static v8::MaybeLocal<v8::Value> Encode(v8::Isolate* isolate,
+                                          const uint16_t* buf,
+                                          size_t buflen,
+                                          v8::Local<v8::Value>* error);
 
-  static v8::Local<v8::Value> Encode(v8::Isolate* isolate,
-                                     const char* buf,
-                                     enum encoding encoding);
+  static v8::MaybeLocal<v8::Value> Encode(v8::Isolate* isolate,
+                                          const char* buf,
+                                          enum encoding encoding,
+                                          v8::Local<v8::Value>* error);
 
  private:
   static size_t WriteUCS2(char* buf,

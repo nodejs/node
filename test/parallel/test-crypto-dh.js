@@ -23,9 +23,8 @@ assert.strictEqual(secret2.toString('base64'), secret1);
 assert.strictEqual(dh1.verifyError, 0);
 assert.strictEqual(dh2.verifyError, 0);
 
-const argumentsError = new RegExp('^TypeError: First argument should be ' +
-                                  'number, string, Buffer, TypedArray, or ' +
-                                  'DataView$');
+const argumentsError =
+  /^TypeError: First argument should be number, string, Buffer, TypedArray, or DataView$/;
 
 assert.throws(() => {
   crypto.createDiffieHellman([0x1, 0x2]);
@@ -61,8 +60,7 @@ const secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 assert.strictEqual(secret1, secret3);
 
 const wrongBlockLength =
-    new RegExp('^Error: error:0606506D:digital envelope' +
-    ' routines:EVP_DecryptFinal_ex:wrong final block length$');
+  /^Error: error:0606506D:digital envelope routines:EVP_DecryptFinal_ex:wrong final block length$/;
 
 // Run this one twice to make sure that the dh3 clears its error properly
 {

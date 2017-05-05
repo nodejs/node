@@ -33,7 +33,7 @@ const args = [
 
 const pkgContent = JSON.stringify({
   dependencies: {
-    'package-name': common.fixturesDir + '/packages/main'
+    'package-name': `${common.fixturesDir}/packages/main`
   }
 });
 
@@ -56,7 +56,7 @@ function handleExit(code, signalCode) {
   assert.strictEqual(code, 0, `npm install got error code ${code}`);
   assert.strictEqual(signalCode, null, `unexpected signal: ${signalCode}`);
   assert.doesNotThrow(function() {
-    fs.accessSync(installDir + '/node_modules/package-name');
+    fs.accessSync(`${installDir}/node_modules/package-name`);
   });
 }
 

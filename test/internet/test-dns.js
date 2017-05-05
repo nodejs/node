@@ -545,7 +545,7 @@ req.oncomplete = function(err, domains) {
 };
 
 process.on('exit', function() {
-  console.log(completed + ' tests completed');
+  console.log(`${completed} tests completed`);
   assert.strictEqual(running, false);
   assert.strictEqual(expected, completed);
   assert.ok(getaddrinfoCallbackCalled);

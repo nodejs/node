@@ -19,7 +19,7 @@ function checkVersion(err, response) {
   assert.ifError(err);
   assert.ok(response);
   const expected = {
-    'Browser': 'node.js/' + process.version,
+    'Browser': `node.js/${process.version}`,
     'Protocol-Version': '1.1',
   };
   assert.strictEqual(JSON.stringify(response),
@@ -36,7 +36,7 @@ function expectMainScriptSource(result) {
   const expected = helper.mainScriptSource();
   const source = result['scriptSource'];
   assert(source && (source.includes(expected)),
-         'Script source is wrong: ' + source);
+         `Script source is wrong: ${source}`);
 }
 
 function setupExpectBreakOnLine(line, url, session, scopeIdCallback) {
@@ -187,7 +187,7 @@ function testI18NCharacters(session) {
     {
       'method': 'Debugger.evaluateOnCallFrame', 'params': {
         'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
-        'expression': 'console.log("' + chars + '")',
+        'expression': `console.log("${chars}")`,
         'objectGroup': 'console',
         'includeCommandLineAPI': true,
         'silent': false,

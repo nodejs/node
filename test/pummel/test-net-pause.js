@@ -52,21 +52,21 @@ server.on('listening', function() {
 
   setTimeout(function() {
     chars_recved = recv.length;
-    console.log('pause at: ' + chars_recved);
+    console.log(`pause at: ${chars_recved}`);
     assert.strictEqual(true, chars_recved > 1);
     client.pause();
     setTimeout(function() {
-      console.log('resume at: ' + chars_recved);
+      console.log(`resume at: ${chars_recved}`);
       assert.strictEqual(chars_recved, recv.length);
       client.resume();
 
       setTimeout(function() {
         chars_recved = recv.length;
-        console.log('pause at: ' + chars_recved);
+        console.log(`pause at: ${chars_recved}`);
         client.pause();
 
         setTimeout(function() {
-          console.log('resume at: ' + chars_recved);
+          console.log(`resume at: ${chars_recved}`);
           assert.strictEqual(chars_recved, recv.length);
           client.resume();
 

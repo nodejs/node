@@ -40,8 +40,8 @@ function test1() {
     if (data.length) {
 
       // inspect output matches repl output
-      assert.strictEqual(data, util.inspect(require('fs'), null, 2, false) +
-                         '\n');
+      assert.strictEqual(data,
+                         `${util.inspect(require('fs'), null, 2, false)}\n`);
       // globally added lib matches required lib
       assert.strictEqual(global.fs, require('fs'));
       test2();

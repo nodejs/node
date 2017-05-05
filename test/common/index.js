@@ -33,12 +33,12 @@ const Timer = process.binding('timer_wrap').Timer;
 const execSync = require('child_process').execSync;
 
 const testRoot = process.env.NODE_TEST_DIR ?
-                   fs.realpathSync(process.env.NODE_TEST_DIR) : __dirname;
+  fs.realpathSync(process.env.NODE_TEST_DIR) : path.resolve(__dirname, '..');
 
 const noop = () => {};
 
 exports.noop = noop;
-exports.fixturesDir = path.join(__dirname, 'fixtures');
+exports.fixturesDir = path.join(__dirname, '..', 'fixtures');
 exports.tmpDirName = 'tmp';
 // PORT should match the definition in test/testpy/__init__.py.
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
@@ -55,9 +55,8 @@ exports.isLinux = process.platform === 'linux';
 exports.isOSX = process.platform === 'darwin';
 
 exports.enoughTestMem = os.totalmem() > 0x40000000; /* 1 Gb */
-exports.bufferMaxSizeMsg = new RegExp('^RangeError: "size" argument' +
-                                      ' must not be larger than ' +
-                                      buffer.kMaxLength + '$');
+exports.bufferMaxSizeMsg = new RegExp(
+  `^RangeError: "size" argument must not be larger than ${buffer.kMaxLength}$`);
 const cpus = os.cpus();
 exports.enoughTestCpu = Array.isArray(cpus) &&
                         (cpus.length > 1 || cpus[0].speed > 999);
@@ -118,7 +117,7 @@ exports.refreshTmpDir = function() {
 
 if (process.env.TEST_THREAD_ID) {
   exports.PORT += process.env.TEST_THREAD_ID * 100;
-  exports.tmpDirName += '.' + process.env.TEST_THREAD_ID;
+  exports.tmpDirName += `.${process.env.TEST_THREAD_ID}`;
 }
 exports.tmpDir = path.join(testRoot, exports.tmpDirName);
 
@@ -217,10 +216,10 @@ Object.defineProperty(exports, 'hasFipsCrypto', {
 if (exports.isWindows) {
   exports.PIPE = '\\\\.\\pipe\\libuv-test';
   if (process.env.TEST_THREAD_ID) {
-    exports.PIPE += '.' + process.env.TEST_THREAD_ID;
+    exports.PIPE += `.${process.env.TEST_THREAD_ID}`;
   }
 } else {
-  exports.PIPE = exports.tmpDir + '/test.sock';
+  exports.PIPE = `${exports.tmpDir}/test.sock`;
 }
 
 const ifaces = os.networkInterfaces();
@@ -256,10 +255,9 @@ exports.childShouldThrowAndAbort = function() {
 exports.ddCommand = function(filename, kilobytes) {
   if (exports.isWindows) {
     const p = path.resolve(exports.fixturesDir, 'create-file.js');
-    return '"' + process.argv[0] + '" "' + p + '" "' +
-           filename + '" ' + (kilobytes * 1024);
+    return `"${process.argv[0]}" "${p}" "${filename}" ${kilobytes * 1024}`;
   } else {
-    return 'dd if=/dev/zero of="' + filename + '" bs=1024 count=' + kilobytes;
+    return `dd if=/dev/zero of="${filename}" bs=1024 count=${kilobytes}`;
   }
 };
 
@@ -495,7 +493,7 @@ exports.canCreateSymLink = function() {
     let output = '';
 
     try {
-      output = execSync(whoamiPath + ' /priv', { timout: 1000 });
+      output = execSync(`${whoamiPath} /priv`, { timout: 1000 });
     } catch (e) {
       err = true;
     } finally {
@@ -522,7 +520,7 @@ exports.skip = function(msg) {
 function ArrayStream() {
   this.run = function(data) {
     data.forEach((line) => {
-      this.emit('data', line + '\n');
+      this.emit('data', `${line}\n`);
     });
   };
 }
@@ -630,32 +628,6 @@ Object.defineProperty(exports, 'hasIntl', {
     return process.binding('config').hasIntl;
   }
 });
-
-// https://github.com/w3c/testharness.js/blob/master/testharness.js
-exports.WPT = {
-  test: (fn, desc) => {
-    try {
-      fn();
-    } catch (err) {
-      console.error(`In ${desc}:`);
-      throw err;
-    }
-  },
-  assert_equals: assert.strictEqual,
-  assert_true: (value, message) => assert.strictEqual(value, true, message),
-  assert_false: (value, message) => assert.strictEqual(value, false, message),
-  assert_throws: (code, func, desc) => {
-    assert.throws(func, (err) => {
-      return typeof err === 'object' &&
-             'name' in err &&
-             err.name.startsWith(code.name);
-    }, desc);
-  },
-  assert_array_equals: assert.deepStrictEqual,
-  assert_unreached(desc) {
-    assert.fail(`Reached unreachable code: ${desc}`);
-  }
-};
 
 // Useful for testing expected internal/error objects
 exports.expectsError = function expectsError({code, type, message}) {
