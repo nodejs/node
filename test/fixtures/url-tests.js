@@ -1,7 +1,7 @@
 'use strict';
 
 /* WPT Refs:
-   https://github.com/w3c/web-platform-tests/blob/28541bb/url/urltestdata.json
+   https://github.com/w3c/web-platform-tests/blob/0f26c418a5/url/urltestdata.json
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
 module.exports =
@@ -3566,6 +3566,22 @@ module.exports =
     "search": "",
     "hash": ""
   },
+  "Leading and trailing C0 control or space",
+  {
+    "input": "\u0000\u001b\u0004\u0012 http://example.com/\u001f \u000d ",
+    "base": "about:blank",
+    "href": "http://example.com/",
+    "origin": "http://example.com",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "example.com",
+    "hostname": "example.com",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
   "Ideographic full stop (full-width period for Chinese, etc.) should be treated as a dot. U+3002 is mapped to U+002E (dot)",
   {
     "input": "http://www.foo。bar.com",
@@ -5475,6 +5491,20 @@ module.exports =
   },
   {
     "input": "C|/",
+    "base": "file://host/dir/file",
+    "href": "file:///C:/",
+    "protocol": "file:",
+    "username": "",
+    "password": "",
+    "host": "",
+    "hostname": "",
+    "port": "",
+    "pathname": "/C:/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "C|\n/",
     "base": "file://host/dir/file",
     "href": "file:///C:/",
     "protocol": "file:",
