@@ -39,8 +39,8 @@ function stat_resource(resource) {
 }
 
 function check_mtime(resource, mtime) {
-  const stats = stat_resource(resource);
   mtime = fs._toUnixTimestamp(mtime);
+  const stats = stat_resource(resource);
   const real_mtime = fs._toUnixTimestamp(stats.mtime);
   if (common.isWindows) {
     // check ms precision on windows.
