@@ -299,7 +299,7 @@
               ],
               'outputs': ['<(SHARED_INTERMEDIATE_DIR)/openssl.def'],
               'action': [
-                'python',
+                'python2',
                 'tools/mkssldef.py',
                 '<@(mkssldef_flags)',
                 '-o',
@@ -373,7 +373,7 @@
                 '<(SHARED_INTERMEDIATE_DIR)/v8_inspector_protocol_json.h',
               ],
               'action': [
-                'python',
+                'python2',
                 'tools/compress_json.py',
                 '<@(_inputs)',
                 '<@(_outputs)',
@@ -410,7 +410,7 @@
             }]
           ],
           'action': [
-            'python',
+            'python2',
             'tools/js2c.py',
             '<@(_outputs)',
             '<@(_inputs)',
