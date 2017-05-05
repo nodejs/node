@@ -10,6 +10,7 @@ common.refreshTmpDir();
 const srcPath = path.join(common.tmpDir, 'hardlink-target.txt');
 const dstPath = path.join(common.tmpDir, 'link1.js');
 const doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
+const doesNotExistDst = path.join(common.tmpDir, '__this_should_not_exist_dst');
 fs.writeFileSync(srcPath, 'hello world');
 
 const callback = function(err) {
@@ -36,12 +37,13 @@ assert.throws(
   /dest must be a string or Buffer/
 );
 
-fs.link(doesNotExist, 'abc', common.mustCall((err) => {
+fs.link(doesNotExist, doesNotExistDst, common.mustCall((err) => {
   assert.strictEqual(err.code, 'ENOENT');
   assert.strictEqual(err.path, doesNotExist);
   assert.strictEqual(
     err.message,
-    `ENOENT: no such file or directory, link '${doesNotExist}' -> 'abc'`
+    `ENOENT: no such file or directory, link '${doesNotExist}' ` +
+    `-> '${doesNotExistDst}'`
   );
 }));
 
