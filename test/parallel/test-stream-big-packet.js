@@ -44,7 +44,7 @@ s1.pipe(s3);
 s2.pipe(s3, { end: false });
 
 // We must write a buffer larger than highWaterMark
-const big = Buffer.alloc(s1._writableState.highWaterMark + 1, 'x');
+const big = Buffer.alloc(s1.writableHighWaterMark + 1, 'x');
 
 // Since big is larger than highWaterMark, it will be buffered internally.
 assert(!s1.write(big));
