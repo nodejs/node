@@ -592,10 +592,13 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
   // or SIGABRT (depending on the compiler).
   const expectedSignals = ['SIGILL', 'SIGTRAP', 'SIGABRT'];
 
-  // On Windows, v8's base::OS::Abort triggers an access violation,
+  // On Windows, 'aborts' are of 2 types, depending on the context:
+  // (i) Forced access violation, if --abort-on-uncaught-exception is on
   // which corresponds to exit code 3221225477 (0xC0000005)
+  // (ii) raise(SIGABRT) or abort(), which lands up in CRT library calls
+  // which corresponds to exit code 3.
   if (exports.isWindows)
-    expectedExitCodes = [3221225477];
+    expectedExitCodes = [3221225477, 3];
 
   // When using --abort-on-uncaught-exception, V8 will use
   // base::OS::Abort to terminate the process.
