@@ -1,6 +1,6 @@
 # Tips, Tricks & Troubleshooting
 
-## Rules of thumb
+## Best Practices / Rules of thumb
 
 <details>
 <summary><strong>Provide motivation for the change</strong></summary>
@@ -45,12 +45,9 @@ for ESLint plus some of
 
 ## Tips
 
-### Windows
-
-1. If you regularly build on windows, you should check out [`ninja`]. You may
-   find it to be much faster than `MSBuild` and less eager to rebuild unchanged
+1. If you build the code often, you should check out [`ninja`]. You may
+   find it to be faster than `make`, much much faster than `MSBuild` (Windows), and less eager to rebuild unchanged
    sub-targets.
-   P.S. non-windows developers may also find it better then `make`.
 
    [`ninja`]: ./building-node-with-ninja.md
 
