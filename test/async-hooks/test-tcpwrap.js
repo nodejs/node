@@ -48,13 +48,16 @@ const server = net
     { port: server.address().port, host: server.address().address },
     common.mustCall(onconnected));
   const tcps = hooks.activitiesOfTypes('TCPWRAP');
-  const tcpconnects = hooks.activitiesOfTypes('TCPCONNECTWRAP');
   assert.strictEqual(
     tcps.length, 2,
     '2 TCPWRAPs present when client is connecting');
-  assert.strictEqual(
-    tcpconnects.length, 1,
-    '1 TCPCONNECTWRAP present when client is connecting');
+  process.nextTick(() => {
+    const tcpconnects = hooks.activitiesOfTypes('TCPCONNECTWRAP');
+    assert.strictEqual(
+      tcpconnects.length, 1,
+      '1 TCPCONNECTWRAP present when client is connecting');
+  });
+
   tcp2 = tcps[1];
   assert.strictEqual(tcps.length, 2,
                      '2 TCPWRAP present when client is connecting');
