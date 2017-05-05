@@ -13,6 +13,7 @@ namespace v8 {
 namespace platform {
 
 enum class IdleTaskSupport { kDisabled, kEnabled };
+enum class InProcessStackDumping { kDisabled, kEnabled };
 
 /**
  * Returns a new instance of the default v8::Platform implementation.
@@ -27,7 +28,9 @@ enum class IdleTaskSupport { kDisabled, kEnabled };
  */
 V8_PLATFORM_EXPORT v8::Platform* CreateDefaultPlatform(
     int thread_pool_size = 0,
-    IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled);
+    IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled,
+    InProcessStackDumping in_process_stack_dumping =
+        InProcessStackDumping::kEnabled);
 
 /**
  * Pumps the message loop for the given isolate.

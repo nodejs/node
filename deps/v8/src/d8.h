@@ -304,7 +304,8 @@ class ShellOptions {
         snapshot_blob(NULL),
         trace_enabled(false),
         trace_config(NULL),
-        lcov_file(NULL) {}
+        lcov_file(NULL),
+        disable_in_process_stack_traces(false) {}
 
   ~ShellOptions() {
     delete[] isolate_sources;
@@ -336,6 +337,7 @@ class ShellOptions {
   bool trace_enabled;
   const char* trace_config;
   const char* lcov_file;
+  bool disable_in_process_stack_traces;
 };
 
 class Shell : public i::AllStatic {
