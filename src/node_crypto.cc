@@ -464,7 +464,6 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
 
-  bool has_password = true;
   unsigned int len = args.Length();
   if (len < 1) {
     return env->ThrowError("Private key argument is mandatory");
@@ -474,7 +473,8 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Only private key and pass phrase are expected");
   }
 
-  if (len == 2) {
+  bool has_password = len == 2;
+  if (has_password) {
     if (args[1]->IsUndefined() || args[1]->IsNull())
       has_password = false;
     else
