@@ -403,7 +403,9 @@ if defined test_node_inspect goto node-test-inspect
 goto node-tests
 
 :node-check-deopts
-python tools\test.py --mode=release --check-deopts parallel sequential -J
+set "test_deopts_cmd=tools\test-ci.cmd --check-deopts parallel sequential"
+echo running '%test_deopts_cmd%'
+call %test_deopts_cmd%
 if defined test_node_inspect goto node-test-inspect
 goto node-tests
 
@@ -418,8 +420,9 @@ if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
-echo running 'python tools\test.py %test_args%'
-python tools\test.py %test_args%
+set "test_cmd=tools\test-ci.cmd %test_args%"
+echo running '%test_cmd%'
+call %test_cmd%
 goto cpplint
 
 :cpplint

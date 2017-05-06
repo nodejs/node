@@ -43,6 +43,7 @@ NODE_EXE = node$(EXEEXT)
 NODE ?= ./$(NODE_EXE)
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
+TEST_CI = ./tools/test-ci.sh
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
@@ -195,18 +196,18 @@ test: all
 	$(MAKE) build-addons
 	$(MAKE) build-addons-napi
 	$(MAKE) cctest
-	$(PYTHON) tools/test.py --mode=release -J \
+	$(TEST_CI) \
 		doctool inspector known_issues message pseudo-tty parallel sequential $(CI_NATIVE_SUITES)
 	$(MAKE) lint
 
 test-parallel: all
-	$(PYTHON) tools/test.py --mode=release parallel -J
+	$(TEST_CI) parallel
 
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
 
 test-check-deopts: all
-	$(PYTHON) tools/test.py --mode=release --check-deopts parallel sequential -J
+	$(TEST_CI) --check-deopts parallel sequential
 
 # Implicitly depends on $(NODE_EXE).  We don't depend on it explicitly because
 # it always triggers a rebuild due to it being a .PHONY rule.  See the comment
