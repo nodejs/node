@@ -12,6 +12,7 @@ LOGLEVEL ?= silent
 OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
 COVTESTS ?= test
 GTEST_FILTER ?= "*"
+export PYTHON
 
 ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
