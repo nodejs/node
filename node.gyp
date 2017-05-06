@@ -105,6 +105,7 @@
       'lib/internal/streams/lazy_transform.js',
       'lib/internal/streams/BufferList.js',
       'lib/internal/streams/legacy.js',
+      'lib/internal/streams/destroy.js',
       'deps/v8/tools/splaytree.js',
       'deps/v8/tools/codemap.js',
       'deps/v8/tools/consarray.js',
