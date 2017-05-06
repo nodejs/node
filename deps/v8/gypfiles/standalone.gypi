@@ -190,7 +190,7 @@
     'host_clang%': '<(host_clang)',
     'target_arch%': '<(target_arch)',
     'v8_target_arch%': '<(v8_target_arch)',
-    'werror%': '-Werror',
+    'werror%': '',
     'use_goma%': '<(use_goma)',
     'gomadir%': '<(gomadir)',
     'asan%': '<(asan)',
