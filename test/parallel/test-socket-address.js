@@ -12,6 +12,6 @@ server.listen(0, common.mustCall(function() {
     return -1;
   };
   assert.throws(() => this.address(),
-                /^Error: address EPERM$/);
+                /^Error: address (\w+)$/);
   server.close();
 }));
