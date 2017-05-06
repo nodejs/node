@@ -7155,16 +7155,6 @@ class V8_EXPORT Isolate {
       AllowCodeGenerationFromStringsCallback callback);
 
   /**
-   * Set the callback to invoke to check if wasm compilation from
-   * the specified object is allowed. By default, wasm compilation
-   * is allowed.
-   *
-   * Similar for instantiate.
-   */
-  void SetAllowWasmCompileCallback(AllowWasmCompileCallback callback);
-  void SetAllowWasmInstantiateCallback(AllowWasmInstantiateCallback callback);
-
-  /**
   * Check if V8 is dead and therefore unusable.  This is the case after
   * fatal errors such as out-of-memory situations.
   */

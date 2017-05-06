@@ -8654,17 +8654,6 @@ void Isolate::SetAllowCodeGenerationFromStringsCallback(
   isolate->set_allow_code_gen_callback(callback);
 }
 
-void Isolate::SetAllowWasmCompileCallback(AllowWasmCompileCallback callback) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->set_allow_wasm_compile_callback(callback);
-}
-
-void Isolate::SetAllowWasmInstantiateCallback(
-    AllowWasmInstantiateCallback callback) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->set_allow_wasm_instantiate_callback(callback);
-}
-
 bool Isolate::IsDead() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return isolate->IsDead();
