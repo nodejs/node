@@ -14,10 +14,15 @@ if (process.argv[2] === 'child') {
     process.disconnect();
   }));
 } else {
-  const child = cp.fork(__filename, ['child'], {silent: true});
+  // Passing '--inspect', '--inspect-brk' to child.spawn enables
+  // the debugger. This test was added to help debug the fork-based
+  // test with the same name.
+  const child = cp.spawn(process.execPath, [__filename, 'child'], {
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc']
+  });
 
   child.on('close', common.mustCall((exitCode, signal) => {
-    assert.strictEqual(exitCode, 0);
+    assert.strictEqual(exitCode, 0, 'exit successfully');
     assert.strictEqual(signal, null);
   }));
 
