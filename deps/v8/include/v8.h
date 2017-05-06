@@ -1071,6 +1071,9 @@ class V8_EXPORT Module {
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
 };
 
+// Node.js-specific: This will be implemented by a later V8 upgrade!
+class DynamicImportResult;
+
 /**
  * A compiled JavaScript script, tied to a Context which was active when the
  * script was compiled.
@@ -5795,6 +5798,25 @@ typedef void (*CallCompletedCallback)(Isolate*);
 typedef void (*DeprecatedCallCompletedCallback)();
 
 /**
+ * HostImportDynamicallyCallback is called when we require the
+ * embedder to load a module. This is used as part of the dynamic
+ * import syntax. The behavior of this callback is not specified in
+ * EcmaScript.
+ *
+ * The referrer is the name of the file which calls the dynamic
+ * import. The referrer can be used to resolve the module location.
+ *
+ * The specifier is the name of the module that should be imported.
+ *
+ * The DynamicImportResult object is used to signal success or failure
+ * by calling it's respective methods.
+ *
+ */
+typedef void (*HostImportModuleDynamicallyCallback)(
+    Isolate* isolate, Local<String> referrer, Local<String> specifier,
+    Local<DynamicImportResult> result);
+
+/**
  * PromiseHook with type kInit is called when a new promise is
  * created. When a new promise is created as part of the chain in the
  * case of Promise.then or in the intermediate promises created by
@@ -6343,7 +6365,8 @@ class V8_EXPORT Isolate {
           add_histogram_sample_callback(nullptr),
           array_buffer_allocator(nullptr),
           external_references(nullptr),
-          allow_atomics_wait(true) {}
+          allow_atomics_wait(true),
+          host_import_module_dynamically_callback_(nullptr) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -6405,6 +6428,16 @@ class V8_EXPORT Isolate {
      * this isolate.
      */
     bool allow_atomics_wait;
+
+    /**
+     * This is an unfinished experimental feature, and is only exposed
+     * here for internal testing purposes. DO NOT USE.
+     *
+     * This specifies the callback called by the upcoming dynamic
+     * import() language feature to load modules.
+     */
+    HostImportModuleDynamicallyCallback
+        host_import_module_dynamically_callback_;
   };
 
 
