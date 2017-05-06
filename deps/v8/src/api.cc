@@ -3119,6 +3119,11 @@ Maybe<uint32_t> ValueSerializer::Delegate::GetSharedArrayBufferId(
   return Nothing<uint32_t>();
 }
 
+Maybe<uint32_t> ValueSerializer::Delegate::GetWasmModuleTransferId(
+    Isolate* v8_isolate, Local<WasmCompiledModule> module) {
+  return Nothing<uint32_t>();
+}
+
 void* ValueSerializer::Delegate::ReallocateBufferMemory(void* old_buffer,
                                                         size_t size,
                                                         size_t* actual_size) {
@@ -3205,6 +3210,15 @@ MaybeLocal<Object> ValueDeserializer::Delegate::ReadHostObject(
       isolate->error_function(),
       i::MessageTemplate::kDataCloneDeserializationError));
   return MaybeLocal<Object>();
+}
+
+MaybeLocal<WasmCompiledModule> ValueDeserializer::Delegate::GetWasmModuleFromId(
+    Isolate* v8_isolate, uint32_t id) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->ScheduleThrow(*isolate->factory()->NewError(
+      isolate->error_function(),
+      i::MessageTemplate::kDataCloneDeserializationError));
+  return MaybeLocal<WasmCompiledModule>();
 }
 
 struct ValueDeserializer::PrivateData {
