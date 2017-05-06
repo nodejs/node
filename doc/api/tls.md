@@ -753,6 +753,9 @@ decrease overall server throughput.
 added: v0.11.3
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12839
+    description: The `lookup` option is supported now.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/11984
     description: The `ALPNProtocols` and `NPNProtocols` options can
                  be `Uint8Array`s now.

@@ -5,9 +5,7 @@ const tls = require('tls');
 
 const expectedError = /^TypeError: "lookup" option should be a function$/;
 
-['foobar', 1, {}, []].forEach((input) => connectThrows(input));
-
-function connectThrows(input) {
+['foobar', 1, {}, []].forEach(function connectThrows(input) {
   const opts = {
     host: 'localhost',
     port: common.PORT,
@@ -17,9 +15,9 @@ function connectThrows(input) {
   assert.throws(function() {
     tls.connect(opts);
   }, expectedError);
-}
+});
 
-connectDoesNotThrow(common.mustCall(common.noop));
+connectDoesNotThrow(common.mustCall(() => {}));
 
 function connectDoesNotThrow(input) {
   const opts = {
