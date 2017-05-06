@@ -108,6 +108,7 @@ class Private;
 class Uint32;
 class Utils;
 class Value;
+class WasmCompiledModule;
 template <class T> class Local;
 template <class T>
 class MaybeLocal;
@@ -1707,6 +1708,8 @@ class V8_EXPORT ValueSerializer {
     virtual Maybe<uint32_t> GetSharedArrayBufferId(
         Isolate* isolate, Local<SharedArrayBuffer> shared_array_buffer);
 
+    virtual Maybe<uint32_t> GetWasmModuleTransferId(
+        Isolate* isolate, Local<WasmCompiledModule> module);
     /*
      * Allocates memory for the buffer of at least the size provided. The actual
      * size (which may be greater or equal) is written to |actual_size|. If no
@@ -1817,6 +1820,13 @@ class V8_EXPORT ValueDeserializer {
      * MaybeLocal<Object>() returned.
      */
     virtual MaybeLocal<Object> ReadHostObject(Isolate* isolate);
+
+    /*
+     * Get a WasmCompiledModule given a transfer_id previously provided
+     * by ValueSerializer::GetWasmModuleTransferId
+     */
+    virtual MaybeLocal<WasmCompiledModule> GetWasmModuleFromId(
+        Isolate* isolate, uint32_t transfer_id);
   };
 
   ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);
