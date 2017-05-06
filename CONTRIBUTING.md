@@ -169,9 +169,16 @@ C++ linting.
 
 If you are updating tests and just want to run a single test to check it:
 
-```text
-$ python tools/test.py -v --mode=release parallel/test-stream2-transform
+```console
+$ ./tools/test-ci.sh parallel/test-stream2-transform
 ```
+
+Windows:
+
+```console
+> tools\test-ci parallel\test-stream2-transform
+```
+
 
 You can usually run tests directly with node:
 
