@@ -8168,7 +8168,7 @@ class V8_EXPORT Context {
   /**
    * Estimate the memory in bytes retained by this context.
    */
-  size_t EstimatedSize();
+  V8_DEPRECATED("no longer supported", size_t EstimatedSize());
 
   /**
    * Stack-allocated class which sets the execution context for all
