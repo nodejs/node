@@ -229,12 +229,15 @@ static void crypto_lock_cb(int mode, int n, const char* file, int line) {
 
 
 static int PasswordCallback(char *buf, int size, int rwflag, void *u) {
-  CHECK_NE(u, nullptr);
-  size_t buflen = static_cast<size_t>(size);
-  size_t len = strlen(static_cast<const char*>(u));
-  len = len > buflen ? buflen : len;
-  memcpy(buf, u, len);
-  return len;
+  if (u) {
+    size_t buflen = static_cast<size_t>(size);
+    size_t len = strlen(static_cast<const char*>(u));
+    len = len > buflen ? buflen : len;
+    memcpy(buf, u, len);
+    return len;
+  }
+
+  return 0;
 }
 
 
@@ -473,10 +476,9 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Only private key and pass phrase are expected");
   }
 
-  bool has_password = len == 2;
-  if (has_password) {
+  if (len == 2) {
     if (args[1]->IsUndefined() || args[1]->IsNull())
-      has_password = false;
+      len = 1;
     else
       THROW_AND_RETURN_IF_NOT_STRING(args[1], "Pass phrase");
   }
@@ -485,13 +487,12 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   if (!bio)
     return;
 
-  auto callback = has_password ? PasswordCallback : NoPasswordCallback;
-  auto passphrase = has_password ?
-      *node::Utf8Value{env->isolate(), args[1]} : nullptr;
+  node::Utf8Value passphrase(env->isolate(), args[1]);
+
   EVP_PKEY* key = PEM_read_bio_PrivateKey(bio,
                                           nullptr,
-                                          callback,
-                                          passphrase);
+                                          PasswordCallback,
+                                          len == 1 ? nullptr : *passphrase);
 
   if (!key) {
     BIO_free_all(bio);
