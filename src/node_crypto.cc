@@ -242,7 +242,10 @@ static int PasswordCallback(char *buf, int size, int rwflag, void *u) {
 
 
 // This callback is used to avoid the default passphrase callback in OpenSSL
-// which will typically prompt for the passphrase.
+// which will typically prompt for the passphrase. The prompting is designed
+// for the OpenSSL CLI, but works poorly for Node.js because it involves
+// synchronous interaction with the controlling terminal, something we never
+// want, and use this function to avoid it.
 static int NoPasswordCallback(char *buf, int size, int rwflag, void *u) {
   return 0;
 }
