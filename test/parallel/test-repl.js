@@ -194,7 +194,7 @@ function error_test() {
     {
       client: client_unix,
       send: '(function(a, a, b) { "use strict"; return a + b + c; })()',
-      expect: /\bSyntaxError: Duplicate parameter name not allowed in this context/ // eslint-disable-line max-len
+      expect: /\bSyntaxError: Duplicate parameter name not allowed in this context/
     },
     {
       client: client_unix,
@@ -204,7 +204,7 @@ function error_test() {
     {
       client: client_unix,
       send: '(function() { "use strict"; var x; delete x; })()',
-      expect: /\bSyntaxError: Delete of an unqualified identifier in strict mode/ // eslint-disable-line max-len
+      expect: /\bSyntaxError: Delete of an unqualified identifier in strict mode/
     },
     { client: client_unix,
       send: '(function() { "use strict"; eval = 17; })()',
@@ -212,7 +212,7 @@ function error_test() {
     {
       client: client_unix,
       send: '(function() { "use strict"; if (true) function f() { } })()',
-      expect: /\bSyntaxError: In strict mode code, functions can only be declared at top level or inside a block\./ // eslint-disable-line max-len
+      expect: /\bSyntaxError: In strict mode code, functions can only be declared at top level or inside a block\./
     },
     // Named functions can be used:
     { client: client_unix, send: 'function blah() { return 1; }',
