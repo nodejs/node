@@ -1,28 +1,26 @@
 'use strict';
-var common = require('../common.js');
+const common = require('../common.js');
 
-var types = [
-  'Array',
-  'Buffer',
-  'Int8Array',
-  'Uint8Array',
-  'Int16Array',
-  'Uint16Array',
-  'Int32Array',
-  'Uint32Array',
-  'Float32Array',
-  'Float64Array'
-];
-
-var bench = common.createBenchmark(main, {
-  type: types,
+const bench = common.createBenchmark(main, {
+  type: [
+    'Array',
+    'Buffer',
+    'Int8Array',
+    'Uint8Array',
+    'Int16Array',
+    'Uint16Array',
+    'Int32Array',
+    'Uint32Array',
+    'Float32Array',
+    'Float64Array'
+  ],
   n: [25]
 });
 
 function main(conf) {
-  var type = conf.type;
-  var clazz = global[type];
-  var n = +conf.n;
+  const type = conf.type;
+  const clazz = global[type];
+  const n = +conf.n;
 
   bench.start();
   var arr = new clazz(n * 1e6);
