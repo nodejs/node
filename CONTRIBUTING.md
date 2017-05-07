@@ -20,6 +20,8 @@ trademark) should use the
 
 ## Code Contributions
 
+For some contribution "Best Practices" have a look at [this guide](doc/guides/best-practices-for-a-successful-pr.md) 
+
 This section will guide you through the contribution process.
 
 ### Step 1: Fork
