@@ -952,7 +952,7 @@ The Array's length property is set to the passed-in length parameter.
 However, the underlying buffer is not guaranteed to be pre-allocated by the VM
 when the array is created - that behavior is left to the underlying VM
 implementation.
-if the buffer must be a contiguous block of memory that can be
+If the buffer must be a contiguous block of memory that can be
 directly read and/or written via C, consider using
 [`napi_create_external_arraybuffer`][].
 
@@ -2958,13 +2958,13 @@ callback invocation, even when it was cancelled.
 [`napi_close_handle_scope`]: #n_api_napi_close_handle_scope
 [`napi_create_async_work`]: #n_api_napi_create_async_work
 [`napi_create_error`]: #n_api_napi_create_error
-[`napi_create_external_arraybuffer`][]: #n_api_napi_create_external_arraybuffer
+[`napi_create_external_arraybuffer`]: #n_api_napi_create_external_arraybuffer
 [`napi_create_range_error`]: #n_api_napi_create_range_error
 [`napi_create_reference`]: #n_api_napi_create_reference
 [`napi_create_type_error`]: #n_api_napi_create_type_error
 [`napi_define_class`]: #n_api_napi_define_class
 [`napi_delete_async_work`]: #n_api_napi_delete_async_work
-[`napi_define_class`][]: #n_api_napi_define_class
+[`napi_define_class`]: #n_api_napi_define_class
 [`napi_delete_reference`]: #n_api_napi_delete_reference
 [`napi_escape_handle`]: #n_api_napi_escape_handle
 [`napi_get_array_length`]: #n_api_napi_get_array_length
