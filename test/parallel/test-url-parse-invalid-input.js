@@ -13,8 +13,8 @@ const url = require('url');
   0,
   [],
   {}
-].forEach(function(val) {
-  assert.throws(function() { url.parse(val); }, TypeError);
+].forEach((val) => {
+  assert.throws(() => { url.parse(val); }, /^TypeError: Parameter "url" must be a string, not undefined|boolean|number|object$/);
 });
 
-assert.throws(function() { url.parse('http://%E0%A4%A@fail'); }, /^URIError: URI malformed$/);
+assert.throws(() => { url.parse('http://%E0%A4%A@fail'); }, /^URIError: URI malformed$/);
