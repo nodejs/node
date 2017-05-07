@@ -23,14 +23,14 @@ function main(conf) {
   const n = +conf.n;
 
   bench.start();
-  let arr = new clazz(n * 1e6);
+  var arr = new clazz(n * 1e6);
   for (let i = 0; i < 10; ++i) {
     run();
   }
   bench.end(n);
 
   function run() {
-    for (let j = 0, k = arr.length; j < k; ++j) {
+    for (var j = 0, k = arr.length; j < k; ++j) {
       arr[j] = 0;
     }
   }
