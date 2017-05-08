@@ -1238,6 +1238,11 @@ to `stdout` although there are only 4 characters.
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
 [`'message'`]: #child_process_event_message
+[`ChildProcess`]: #child_process_child_process
+[`Error`]: errors.html#errors_class_error
+[`EventEmitter`]: events.html#events_class_eventemitter
+[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`child.channel`]: #child_process_child_channel
 [`child.connected`]: #child_process_child_connected
 [`child.disconnect()`]: #child_process_child_disconnect
@@ -1253,10 +1258,6 @@ to `stdout` although there are only 4 characters.
 [`child_process.fork()`]: #child_process_child_process_fork_modulepath_args_options
 [`child_process.spawn()`]: #child_process_child_process_spawn_command_args_options
 [`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
-[`ChildProcess`]: #child_process_child_process
-[`Error`]: errors.html#errors_class_error
-[`EventEmitter`]: events.html#events_class_eventemitter
-[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`maxBuffer` and Unicode]: #child_process_maxbuffer_and_unicode
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
@@ -1269,4 +1270,3 @@ to `stdout` although there are only 4 characters.
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`stdio`]: #child_process_options_stdio
 [synchronous counterparts]: #child_process_synchronous_process_creation
-[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
