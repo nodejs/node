@@ -12,7 +12,7 @@ compiled for one version to run on later versions of Node.js without
 recompilation.
 
 Addons are built/packaged with the same approach/tools
-outlined in the section titled  [C/C++ Addons](addons.html).
+outlined in the section titled  [C++ Addons](addons.html).
 The only difference is the set of APIs that are used by the native code.
 Instead of using the V8 or [Native Abstractions for Node.js][] APIs,
 the functions available in the N-API are used.
