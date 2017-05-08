@@ -34,26 +34,21 @@ function test(handler, request_generator, response_validator) {
   let server_response = '';
 
   server.listen(0);
-  server.on('listening', function() {
-    const c = net.createConnection(this.address().port);
+  server.on('listening', common.mustCall(() => {
+    const c = net.createConnection(server.address().port);
 
     c.setEncoding('utf8');
 
-    c.on('connect', function() {
-      c.write(request_generator());
-    });
+    c.on('connect', common.mustCall(() => c.write(request_generator())));
+    c.on('data', common.mustCall((chunk) => server_response += chunk));
 
-    c.on('data', function(chunk) {
-      server_response += chunk;
-    });
-
-    c.on('end', common.mustCall(function() {
+    c.on('end', common.mustCall(() => {
       client_got_eof = true;
       c.end();
       server.close();
       response_validator(server_response, client_got_eof, false);
     }));
-  });
+  }));
 }
 
 {

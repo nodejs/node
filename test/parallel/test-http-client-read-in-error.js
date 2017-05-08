@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const net = require('net');
 const http = require('http');
 const util = require('util');
@@ -13,9 +13,7 @@ Agent.prototype.createConnection = function() {
   const self = this;
   const socket = new net.Socket();
 
-  socket.on('error', function() {
-    socket.push('HTTP/1.1 200\r\n\r\n');
-  });
+  socket.on('error', () => socket.push('HTTP/1.1 200\r\n\r\n'));
 
   socket.on('newListener', function onNewListener(name) {
     if (name !== 'error')
@@ -23,9 +21,7 @@ Agent.prototype.createConnection = function() {
     socket.removeListener('newListener', onNewListener);
 
     // Let other listeners to be set up too
-    process.nextTick(function() {
-      self.breakSocket(socket);
-    });
+    process.nextTick(() => self.breakSocket(socket));
   });
 
   return socket;
@@ -39,6 +35,4 @@ const agent = new Agent();
 
 http.request({
   agent: agent
-}).once('error', function() {
-  console.log('ignore');
-});
+}).once('error', common.noop);

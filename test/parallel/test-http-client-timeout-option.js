@@ -13,21 +13,17 @@ const options = {
 
 const server = http.createServer();
 
-server.listen(0, options.host, function() {
-  options.port = this.address().port;
+server.listen(0, options.host, common.mustCall(() => {
+  options.port = server.address().port;
   const req = http.request(options);
-  req.on('error', function() {
-    // this space is intentionally left blank
-  });
+  req.on('error', common.mustCall());
   req.on('close', common.mustCall(() => server.close()));
 
   let timeout_events = 0;
   req.on('timeout', common.mustCall(() => timeout_events += 1));
-  setTimeout(function() {
+  setTimeout(() => {
     req.destroy();
     assert.strictEqual(timeout_events, 1);
   }, common.platformTimeout(100));
-  setTimeout(function() {
-    req.end();
-  }, common.platformTimeout(10));
-});
+  setTimeout(() => req.end(), common.platformTimeout(10));
+}));

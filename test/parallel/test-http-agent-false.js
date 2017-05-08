@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -35,20 +35,14 @@ const opts = {
   agent: false
 };
 
-let good = false;
-process.on('exit', function() {
-  assert(good, 'expected either an "error" or "response" event');
-});
-
 // we just want an "error" (no local HTTP server on port 80) or "response"
 // to happen (user happens ot have HTTP server running on port 80).
 // As long as the process doesn't crash from a C++ assertion then we're good.
+const fn = common.mustCall();
 const req = http.request(opts);
-req.on('response', function(res) {
-  good = true;
-});
-req.on('error', function(err) {
-  // an "error" event is ok, don't crash the process
-  good = true;
-});
+
+// Both the below use the same common.mustCall() instance, so exactly one
+// (but not both) would be called
+req.on('response', fn);
+req.on('error', fn);
 req.end();

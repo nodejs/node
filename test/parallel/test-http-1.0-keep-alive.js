@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const http = require('http');
 const net = require('net');
 
@@ -107,7 +107,8 @@ function check(tests) {
   const test = tests[0];
   let server;
   if (test) {
-    server = http.createServer(serverHandler).listen(0, '127.0.0.1', client);
+    server = http.createServer(serverHandler)
+                 .listen(0, '127.0.0.1', common.mustCall(client));
   }
   let current = 0;
 
@@ -118,9 +119,8 @@ function check(tests) {
   function serverHandler(req, res) {
     if (current + 1 === test.responses.length) this.close();
     const ctx = test.responses[current];
-    console.error('<  SERVER SENDING RESPONSE', ctx);
     res.writeHead(200, ctx.headers);
-    ctx.chunks.slice(0, -1).forEach(function(chunk) { res.write(chunk); });
+    ctx.chunks.slice(0, -1).forEach((chunk) => res.write(chunk));
     res.end(ctx.chunks[ctx.chunks.length - 1]);
   }
 
@@ -131,19 +131,16 @@ function check(tests) {
 
     function connected() {
       const ctx = test.requests[current];
-      console.error(' > CLIENT SENDING REQUEST', ctx);
       conn.setEncoding('utf8');
       conn.write(ctx.data);
 
       function onclose() {
-        console.error(' > CLIENT CLOSE');
         if (!ctx.expectClose) throw new Error('unexpected close');
         client();
       }
       conn.on('close', onclose);
 
       function ondata(s) {
-        console.error(' > CLIENT ONDATA %j %j', s.length, s.toString());
         current++;
         if (ctx.expectClose) return;
         conn.removeListener('close', onclose);
