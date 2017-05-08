@@ -3,7 +3,7 @@
 // test HTTP throughput in fragmented header case
 var common = require('../common.js');
 var net = require('net');
-var test = require('../../test/common.js');
+var test = require('../../test/common');
 
 var bench = common.createBenchmark(main, {
   len:  [1, 4, 8, 16, 32, 64, 128],
