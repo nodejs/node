@@ -759,12 +759,16 @@ changes:
   - version: v6.4.0
     pr-url: https://github.com/nodejs/node/pull/7838
     description: The `stdio` option is supported now.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11546
+    description: The `scheduler` option is now supported.
 -->
 
 * `settings` {Object}
   * `exec` {string} file path to worker file.  (Default=`process.argv[1]`)
   * `args` {Array} string arguments passed to worker.
     (Default=`process.argv.slice(2)`)
+  * `scheduler` {Function} a synchronous function used to schedule connections.
   * `silent` {boolean} whether or not to send output to parent's stdio.
     (Default=`false`)
   * `stdio` {Array} Configures the stdio of forked processes. When this option
@@ -856,6 +860,57 @@ Using the worker's unique id is the easiest way to locate the worker.
 socket.on('data', (id) => {
   const worker = cluster.workers[id];
 });
+```
+
+## Custom Scheduling
+<!-- YAML
+added: REPLACEME
+-->
+
+The cluster master's scheduling algorithm can be customized by passing a
+function as the `scheduler` option to `cluster.setupMaster()`. The `scheduler`
+is a synchronous function, whose signature is `scheduler(workers[, socket])`.
+
+* `workers` {Array} an array of cluster workers that the request can be
+  distributed to.
+* `socket` {net.Socket} a socket that can be used for connection based
+  scheduling. There is some overhead associated with creating `socket`, so it is
+  not provided by default. If the scheduling policy requires access to `socket`,
+  set `exposeSocket` to `true` on the `scheduler` function.
+
+The scheduling function should return the worker that will handle the
+connection. However, the `workers` array should under no condition be
+mutated. If a cluster worker is not returned from the scheduler, the
+connection will not be processed at that time. An example that implements round
+robin scheduling is shown below.
+
+```javascript
+'use strict';
+const cluster = require('cluster');
+const http = require('http');
+
+if (cluster.isMaster) {
+  function scheduler(workers, socket) {
+    const worker = workers.shift();
+
+    if (worker === undefined)
+      return;
+
+    workers.shift(worker);  // Add to the end of the queue.
+
+    return worker;
+  }
+
+  scheduler.exposeSocket = true;  // Expose the socket even though it is unused.
+  cluster.setupMaster({ scheduler });
+
+  cluster.fork();
+  cluster.fork();
+} else {
+  http.createServer((req, res) => {
+    res.end(`hello from ${cluster.worker.id}\n`);
+  }).listen(8080);
+}
 ```
 
 [`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
