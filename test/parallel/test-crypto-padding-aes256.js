@@ -33,8 +33,8 @@ crypto.DEFAULT_ENCODING = 'buffer';
 
 function aes256(decipherFinal) {
   const iv = Buffer.from('00000000000000000000000000000000', 'hex');
-  const key = Buffer.from('0123456789abcdef0123456789abcdef' +
-                         '0123456789abcdef0123456789abcdef', 'hex');
+  const key = Buffer.from(
+    '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef', 'hex');
 
   function encrypt(val, pad) {
     const c = crypto.createCipheriv('aes256', key, iv);

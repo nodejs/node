@@ -15,7 +15,7 @@ const awaitDrainStates = [
 // never get subsequent chunks because 'drain' is only emitted once.
 const writable = new stream.Writable({
   write: common.mustCall(function(chunk, encoding, cb) {
-    if (chunk.length === 32 * 1024) { // first chunk
+    if (chunk.length === 32768) { // 32 * 1024, first chunk
       const beforePush = readable._readableState.awaitDrain;
       readable.push(new Buffer(34 * 1024)); // above hwm
       // We should check if awaitDrain counter is increased.

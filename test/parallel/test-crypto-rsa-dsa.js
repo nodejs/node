@@ -108,7 +108,7 @@ const decryptError =
 }
 
 function test_rsa(padding) {
-  const size = (padding === 'RSA_NO_PADDING') ? 1024 / 8 : 32;
+  const size = (padding === 'RSA_NO_PADDING') ? 128 : 32; // 1024 / 8 : 32
   const input = Buffer.allocUnsafe(size);
   for (let i = 0; i < input.length; i++)
     input[i] = (i * 7 + 11) & 0xff;
