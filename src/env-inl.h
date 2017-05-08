@@ -36,7 +36,10 @@
 
 namespace node {
 
-// Create string properties as internalized one byte strings.
+inline IsolateData::IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
+                                uint32_t* zero_fill_field) :
+
+// Create string and private symbol properties as internalized one byte strings.
 //
 // Internalized because it makes property lookups a little faster and because
 // the string is created in the old space straight away.  It's going to end up
@@ -45,9 +48,6 @@ namespace node {
 //
 // One byte because our strings are ASCII and we can safely skip V8's UTF-8
 // decoding step.  It's a one-time cost, but why pay it when you don't have to?
-inline IsolateData::IsolateData(v8::Isolate* isolate, uv_loop_t* event_loop,
-                                uint32_t* zero_fill_field)
-    :
 #define V(PropertyName, StringValue)                                          \
     PropertyName ## _(                                                        \
         isolate,                                                              \
