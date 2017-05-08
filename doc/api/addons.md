@@ -1,6 +1,6 @@
-# C/C++ Addons
+# C++ Addons
 
-Node.js Addons are dynamically-linked shared objects, written in C or C++, that
+Node.js Addons are dynamically-linked shared objects, written in C++, that
 can be loaded into Node.js using the [`require()`][require] function, and used
 just as if they were an ordinary Node.js module. They are used primarily to
 provide an interface between JavaScript running in Node.js and C/C++ libraries.
@@ -26,7 +26,7 @@ involving knowledge of several components and APIs :
    off-loading work via libuv to non-blocking system operations, worker threads
    or a custom use of libuv's threads.
 
- - Internal Node.js libraries. Node.js itself exports a number of C/C++ APIs
+ - Internal Node.js libraries. Node.js itself exports a number of C++ APIs
    that Addons can use &mdash; the most important of which is the
    `node::ObjectWrap` class.
 
