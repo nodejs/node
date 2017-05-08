@@ -1734,23 +1734,24 @@ There are a few special headers that should be noted.
 [`'request'`]: #http_event_request
 [`'response'`]: #http_event_response
 [`Agent`]: #http_class_http_agent
+[`EventEmitter`]: events.html#events_class_eventemitter
+[`TypeError`]: errors.html#errors_class_typeerror
 [`agent.createConnection()`]: #http_agent_createconnection_options_callback
 [`destroy()`]: #http_agent_destroy
-[`EventEmitter`]: events.html#events_class_eventemitter
 [`http.Agent`]: #http_class_http_agent
 [`http.ClientRequest`]: #http_class_http_clientrequest
-[`http.globalAgent`]: #http_http_globalagent
 [`http.IncomingMessage`]: #http_class_http_incomingmessage
-[`http.request()`]: #http_http_request_options_callback
 [`http.Server`]: #http_class_http_server
+[`http.globalAgent`]: #http_http_globalagent
+[`http.request()`]: #http_http_request_options_callback
 [`message.headers`]: #http_message_headers
-[`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
-[`net.Server`]: net.html#net_class_net_server
 [`net.Server.close()`]: net.html#net_server_close_callback
 [`net.Server.listen()`]: net.html#net_server_listen_handle_backlog_callback
 [`net.Server.listen(path)`]: net.html#net_server_listen_path_backlog_callback
 [`net.Server.listen(port)`]: net.html#net_server_listen_port_hostname_backlog_callback
+[`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
+[`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http_response_end_data_encoding_callback
 [`response.setHeader()`]: #http_response_setheader_name_value
@@ -1761,11 +1762,10 @@ There are a few special headers that should be noted.
 [`socket.setKeepAlive()`]: net.html#net_socket_setkeepalive_enable_initialdelay
 [`socket.setNoDelay()`]: net.html#net_socket_setnodelay_nodelay
 [`socket.setTimeout()`]: net.html#net_socket_settimeout_timeout_callback
-[`TypeError`]: errors.html#errors_class_typeerror
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
-[constructor options]: #http_new_agent_options
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
+[constructor options]: #http_new_agent_options
 [socket.unref()]: net.html#net_socket_unref
-[unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
+[unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address

@@ -1110,27 +1110,27 @@ console.log(myURL.origin);
 
 
 [`Error`]: errors.html#errors_class_error
-[`querystring`]: querystring.html
+[`JSON.stringify()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+[`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`TypeError`]: errors.html#errors_class_typeerror
-[WHATWG URL Standard]: https://url.spec.whatwg.org/
-[examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
+[`URLSearchParams`]: #url_class_urlsearchparams
+[`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
+[`new URL()`]: #url_constructor_new_url_input_base
+[`querystring`]: querystring.html
+[`require('url').format()`]: #url_url_format_url_options
 [`url.domainToASCII()`]: #url_url_domaintoascii_domain
 [`url.domainToUnicode()`]: #url_url_domaintounicode_domain
-[`url.parse()`]: #url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [`url.format()`]: #url_url_format_urlobject
-[`require('url').format()`]: #url_url_format_url_options
-[`url.toString()`]: #url_url_tostring
-[Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
-[`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
-[`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
-[WHATWG URL]: #url_the_whatwg_url_api
-[`new URL()`]: #url_constructor_new_url_input_base
 [`url.href`]: #url_url_href
+[`url.parse()`]: #url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [`url.search`]: #url_url_search
-[percent-encoded]: #whatwg-percent-encoding
-[`URLSearchParams`]: #url_class_urlsearchparams
+[`url.toJSON()`]: #url_url_tojson
+[`url.toString()`]: #url_url_tostring
 [`urlSearchParams.entries()`]: #url_urlsearchparams_entries
 [`urlSearchParams@@iterator()`]: #url_urlsearchparams_iterator
+[Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
+[WHATWG URL Standard]: https://url.spec.whatwg.org/
+[WHATWG URL]: #url_the_whatwg_url_api
+[examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
+[percent-encoded]: #whatwg-percent-encoding
 [stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability
-[`JSON.stringify()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
-[`url.toJSON()`]: #url_url_tojson
