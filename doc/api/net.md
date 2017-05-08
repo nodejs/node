@@ -99,10 +99,13 @@ added: v0.1.90
 -->
 
 Returns the bound address, the address family name, and port of the server
-as reported by the operating system.
+as reported by the operating system if listening on an IP socket.
 Useful to find which port was assigned when getting an OS-assigned address.
 Returns an object with `port`, `family`, and `address` properties:
-`{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
+`{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`.
+
+For servers listening on a pipe or unix domain sockets the name is returned
+as string.
 
 Example:
 
