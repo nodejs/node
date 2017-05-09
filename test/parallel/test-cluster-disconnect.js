@@ -54,8 +54,10 @@ if (cluster.isWorker) {
   // test both servers created in the cluster
   const testCluster = (cb) => {
     let done = 0;
+    const server2 = net.createServer();
+    const port = server2.address().port;
     for (let i = 0; i < servers; i++) {
-      testConnection(common.PORT + i, (success) => {
+      testConnection(port + i, (success) => {
         assert.ok(success);
         done += 1;
         if (done === servers) {
