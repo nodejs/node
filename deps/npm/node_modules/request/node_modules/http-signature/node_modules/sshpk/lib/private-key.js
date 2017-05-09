@@ -1,4 +1,4 @@
-// Copyright 2015 Joyent, Inc.
+// Copyright 2017 Joyent, Inc.
 
 module.exports = PrivateKey;
 
@@ -10,6 +10,9 @@ var Signature = require('./signature');
 var errs = require('./errors');
 var util = require('util');
 var utils = require('./utils');
+var dhe = require('./dhe');
+var generateECDSA = dhe.generateECDSA;
+var generateED25519 = dhe.generateED25519;
 var edCompat;
 var ed;
 
@@ -163,12 +166,14 @@ PrivateKey.prototype.createSign = function (hashAlgo) {
 	var oldSign = v.sign.bind(v);
 	var key = this.toBuffer('pkcs1');
 	var type = this.type;
+	var curve = this.curve;
 	v.sign = function () {
 		var sig = oldSign(key);
 		if (typeof (sig) === 'string')
 			sig = new Buffer(sig, 'binary');
 		sig = Signature.parse(sig, type, 'asn1');
 		sig.hashAlgorithm = hashAlgo;
+		sig.curve = curve;
 		return (sig);
 	};
 	return (v);
@@ -206,6 +211,25 @@ PrivateKey.parse = function (data, format, options) {
 
 PrivateKey.isPrivateKey = function (obj, ver) {
 	return (utils.isCompatible(obj, PrivateKey, ver));
+};
+
+PrivateKey.generate = function (type, options) {
+	if (options === undefined)
+		options = {};
+	assert.object(options, 'options');
+
+	switch (type) {
+	case 'ecdsa':
+		if (options.curve === undefined)
+			options.curve = 'nistp256';
+		assert.string(options.curve, 'options.curve');
+		return (generateECDSA(options.curve));
+	case 'ed25519':
+		return (generateED25519());
+	default:
+		throw (new Error('Key generation not supported with key ' +
+		    'type "' + type + '"'));
+	}
 };
 
 /*

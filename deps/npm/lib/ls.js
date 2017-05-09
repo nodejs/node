@@ -9,7 +9,6 @@ module.exports = exports = ls
 var path = require('path')
 var url = require('url')
 var readPackageTree = require('read-package-tree')
-var log = require('npmlog')
 var archy = require('archy')
 var semver = require('semver')
 var color = require('ansicolors')
@@ -19,7 +18,7 @@ var sortedObject = require('sorted-object')
 var extend = Object.assign || require('util')._extend
 var npm = require('./npm.js')
 var mutateIntoLogicalTree = require('./install/mutate-into-logical-tree.js')
-var recalculateMetadata = require('./install/deps.js').recalculateMetadata
+var computeMetadata = require('./install/deps.js').computeMetadata
 var packageId = require('./utils/package-id.js')
 var usage = require('./utils/usage')
 var output = require('./utils/output.js')
@@ -37,14 +36,14 @@ function ls (args, silent, cb) {
     silent = false
   }
   var dir = path.resolve(npm.dir, '..')
-  readPackageTree(dir, andRecalculateMetadata(iferr(cb, function (physicalTree) {
+  readPackageTree(dir, andComputeMetadata(iferr(cb, function (physicalTree) {
     lsFromTree(dir, physicalTree, args, silent, cb)
   })))
 }
 
-function andRecalculateMetadata (next) {
+function andComputeMetadata (next) {
   return function (er, tree) {
-    recalculateMetadata(tree || {}, log, next)
+    next(null, computeMetadata(tree || {}))
   }
 }
 
@@ -63,14 +62,18 @@ var lsFromTree = ls.fromTree = function (dir, physicalTree, args, silent, cb) {
     args = []
   } else {
     args = args.map(function (a) {
-      var p = npa(a)
-      var name = p.name
-      // When version spec is missing, we'll skip using it when filtering.
-      // Otherwise, `semver.validRange` would return '*', which won't
-      // match prerelease versions.
-      var ver = (p.rawSpec &&
-                 (semver.validRange(p.rawSpec) || ''))
-      return [ name, ver, a ]
+      if (typeof a === 'object') {
+        return [a.package.name, a.package.version, a]
+      } else {
+        var p = npa(a)
+        var name = p.name
+        // When version spec is missing, we'll skip using it when filtering.
+        // Otherwise, `semver.validRange` would return '*', which won't
+        // match prerelease versions.
+        var ver = (p.rawSpec &&
+                   (semver.validRange(p.rawSpec) || ''))
+        return [ name, ver, a ]
+      }
     })
   }
 
@@ -293,12 +296,14 @@ function filterFound (root, args) {
         var argVersion = args[ii][1]
         var argRaw = args[ii][2]
         var found
-        if (depName === argName && argVersion) {
+        if (typeof argRaw === 'object') {
+          if (dep.path === argRaw.path) {
+            found = true
+          }
+        } else if (depName === argName && argVersion) {
           found = semver.satisfies(dep.version, argVersion, true)
         } else if (depName === argName) {
           // If version is missing from arg, just do a name match.
-          found = true
-        } else if (dep.path === argRaw) {
           found = true
         }
         if (found) {
@@ -474,7 +479,7 @@ function makeParseable (data, long, dir, depth, parent, d) {
       .sort(alphasort).map(function (d) {
         return makeParseable(data.dependencies[d], long, dir, depth + 1, data, d)
       }))
-    .filter(function (x) { return x })
+    .filter(function (x) { return x && x.length })
     .join('\n')
 }
 

@@ -1,4 +1,5 @@
-var Readable = require('stream').Readable
+var Readable = require('readable-stream').Readable
+var shift = require('stream-shift')
 
 var stream2 = function (stream) {
   if (stream._readableState) return stream
@@ -34,7 +35,7 @@ module.exports = function (stream) {
 
   var update = function () {
     if (!fn) return
-    data = stream.read()
+    data = shift(stream)
     if (data === null && !ended) return
     onresult()
   }

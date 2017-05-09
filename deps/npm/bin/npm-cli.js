@@ -57,7 +57,7 @@
 
   if (conf.version) {
     console.log(npm.version)
-    return
+    return errorHandler.exit(0)
   }
 
   if (conf.versions) {
@@ -83,7 +83,7 @@
     if (er) return errorHandler(er)
     npm.commands[npm.command](npm.argv, function (err) {
       // https://www.youtube.com/watch?v=7nfPu8qTiQU
-      if (!err && npm.config.get('ham-it-up')) {
+      if (!err && npm.config.get('ham-it-up') && !npm.config.get('json') && !npm.config.get('parseable')) {
         output('\n 🎵 I Have the Honour to Be Your Obedient Servant,🎵 ~ npm 📜🖋\n')
       }
       errorHandler.apply(this, arguments)

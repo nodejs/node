@@ -35,7 +35,7 @@ test('run up the mock registry', function (t) {
 
 test('npm install-test', function (t) {
   setup()
-  common.npm(['install-test', '--registry=' + common.registry], { cwd: pkg }, function (err, code, stdout, stderr) {
+  common.npm(['install-test', '--no-shrinkwrap', '--registry=' + common.registry], { cwd: pkg }, function (err, code, stdout, stderr) {
     if (err) throw err
     t.equal(code, 0, 'command ran without error')
     t.ok(statSync(installed), 'package was installed')

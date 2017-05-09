@@ -1,9 +1,10 @@
-// Copyright 2016 Joyent, Inc.
+// Copyright 2017 Joyent, Inc.
 
 module.exports = {
 	read: read,
 	verify: verify,
 	sign: sign,
+	signAsync: signAsync,
 	write: write,
 
 	/* Internal private API */
@@ -186,6 +187,38 @@ function sign(cert, key) {
 	signer.write(blob);
 	sig.signature = signer.sign();
 	return (true);
+}
+
+function signAsync(cert, signer, done) {
+	if (cert.signatures.openssh === undefined)
+		cert.signatures.openssh = {};
+	try {
+		var blob = toBuffer(cert, true);
+	} catch (e) {
+		delete (cert.signatures.openssh);
+		done(e);
+		return;
+	}
+	var sig = cert.signatures.openssh;
+
+	signer(blob, function (err, signature) {
+		if (err) {
+			done(err);
+			return;
+		}
+		try {
+			/*
+			 * This will throw if the signature isn't of a
+			 * type/algo that can be used for SSH.
+			 */
+			signature.toBuffer('ssh');
+		} catch (e) {
+			done(e);
+			return;
+		}
+		sig.signature = signature;
+		done();
+	});
 }
 
 function write(cert, options) {

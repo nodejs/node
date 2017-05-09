@@ -7,7 +7,7 @@ var chownr = require('chownr')
 var npm = require('../npm.js')
 var log = require('npmlog')
 var cacheFile = require('npm-cache-filename')
-var getCacheStat = require('../cache/get-stat.js')
+var correctMkdir = require('../utils/correct-mkdir.js')
 var mapToRegistry = require('../utils/map-to-registry.js')
 var jsonstream = require('JSONStream')
 var writeStreamAtomic = require('fs-write-stream-atomic')
@@ -236,7 +236,7 @@ function createCacheWriteStream (cacheFile, latest, cb) {
 function _ensureCacheDirExists (cacheFile, cb) {
   var cacheBase = path.dirname(cacheFile)
   log.silly('all-package-metadata', 'making sure cache dir exists at', cacheBase)
-  getCacheStat(function (er, st) {
+  correctMkdir(npm.cache, function (er, st) {
     if (er) return cb(er)
     mkdir(cacheBase, function (er, made) {
       if (er) return cb(er)
