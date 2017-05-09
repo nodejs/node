@@ -123,6 +123,10 @@ dns.lookup('example.com', options, (err, addresses) =>
 // addresses: [{"address":"2606:2800:220:1:248:1893:25c8:1946","family":6}]
 ```
 
+If this method is invoked as its [`util.promisify()`][]ed version, and `all`
+is not set to `true`, it returns a Promise for an object with `address` and
+`family` properties.
+
 ### Supported getaddrinfo flags
 
 The following flags can be passed as hints to [`dns.lookup()`][].
@@ -162,6 +166,9 @@ dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
   // Prints: localhost ssh
 });
 ```
+
+If this method is invoked as its [`util.promisify()`][]ed version, it returns a
+Promise for an object with `hostname` and `service` properties.
 
 ## dns.resolve(hostname[, rrtype], callback)
 <!-- YAML
@@ -528,3 +535,4 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [Implementation considerations section]: #dns_implementation_considerations
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
 [the official libuv documentation]: http://docs.libuv.org/en/latest/threadpool.html
+[`util.promisify()`]: util.html#util_util_promisify_original
