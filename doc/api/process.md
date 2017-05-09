@@ -509,8 +509,7 @@ console.log(`Starting directory: ${process.cwd()}`);
 try {
   process.chdir('/tmp');
   console.log(`New directory: ${process.cwd()}`);
-}
-catch (err) {
+} catch (err) {
   console.error(`chdir: ${err}`);
 }
 ```
@@ -529,6 +528,7 @@ running the `./configure` script.
 
 An example of the possible output looks like:
 
+<!-- eslint-disable -->
 ```js
 {
   target_defaults:
@@ -637,6 +637,52 @@ process's [`ChildProcess.disconnect()`][].
 If the Node.js process was not spawned with an IPC channel,
 `process.disconnect()` will be `undefined`.
 
+## process.emitWarning(warning[, options])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `warning` {string|Error} The warning to emit.
+* `options` {Object}
+  * `type` {string} When `warning` is a String, `type` is the name to use
+    for the *type* of warning being emitted. Default: `Warning`.
+  * `code` {string} A unique identifier for the warning instance being emitted.
+  * `ctor` {Function} When `warning` is a String, `ctor` is an optional
+    function used to limit the generated stack trace. Default
+    `process.emitWarning`
+  * `detail` {string} Additional text to include with the error.
+
+The `process.emitWarning()` method can be used to emit custom or application
+specific process warnings. These can be listened for by adding a handler to the
+[`process.on('warning')`][process_warning] event.
+
+```js
+// Emit a warning with a code and additional detail.
+process.emitWarning('Something happened!', {
+  code: 'MY_WARNING',
+  detail: 'This is some additional information'
+});
+// Emits:
+// (node:56338) [MY_WARNING] Warning: Something happened!
+// This is some additional information
+```
+
+In this example, an `Error` object is generated internally by
+`process.emitWarning()` and passed through to the
+[`process.on('warning')`][process_warning] event.
+
+```js
+process.on('warning', (warning) => {
+  console.warn(warning.name);    // 'Warning'
+  console.warn(warning.message); // 'Something happened!'
+  console.warn(warning.code);    // 'MY_WARNING'
+  console.warn(warning.stack);   // Stack trace
+  console.warn(warning.detail);  // 'This is some additional information'
+});
+```
+
+If `warning` is passed as an `Error` object, the `options` argument is ignored.
+
 ## process.emitWarning(warning[, type[, code]][, ctor])
 <!-- YAML
 added: v6.0.0
@@ -655,13 +701,13 @@ specific process warnings. These can be listened for by adding a handler to the
 [`process.on('warning')`][process_warning] event.
 
 ```js
-// Emit a warning using a string...
+// Emit a warning using a string.
 process.emitWarning('Something happened!');
 // Emits: (node: 56338) Warning: Something happened!
 ```
 
 ```js
-// Emit a warning using a string and a type...
+// Emit a warning using a string and a type.
 process.emitWarning('Something Happened!', 'CustomWarning');
 // Emits: (node:56338) CustomWarning: Something Happened!
 ```
@@ -689,14 +735,14 @@ If `warning` is passed as an `Error` object, it will be passed through to the
 `code` and `ctor` arguments will be ignored):
 
 ```js
-// Emit a warning using an Error object...
-const myWarning = new Error('Warning! Something happened!');
+// Emit a warning using an Error object.
+const myWarning = new Error('Something happened!');
 // Use the Error name property to specify the type name
 myWarning.name = 'CustomWarning';
 myWarning.code = 'WARN001';
 
 process.emitWarning(myWarning);
-// Emits: (node:56338) [WARN001] CustomWarning: Warning! Something happened!
+// Emits: (node:56338) [WARN001] CustomWarning: Something happened!
 ```
 
 A `TypeError` is thrown if `warning` is anything other than a string or `Error`
@@ -746,6 +792,7 @@ See environ(7).
 
 An example of this object looks like:
 
+<!-- eslint-disable -->
 ```js
 {
   TERM: 'xterm-256color',
@@ -833,12 +880,14 @@ $ node --harmony script.js --version
 
 Results in `process.execArgv`:
 
+<!-- eslint-disable semi -->
 ```js
 ['--harmony']
 ```
 
 And `process.argv`:
 
+<!-- eslint-disable semi -->
 ```js
 ['/usr/local/bin/node', 'script.js', '--version']
 ```
@@ -855,6 +904,7 @@ that started the Node.js process.
 
 For example:
 
+<!-- eslint-disable semi -->
 ```js
 '/usr/local/bin/node'
 ```
@@ -1174,6 +1224,7 @@ console.log(process.memoryUsage());
 
 Will generate:
 
+<!-- eslint-disable -->
 ```js
 {
   rss: 4935680,
@@ -1345,6 +1396,7 @@ tarball.
 
 For example:
 
+<!-- eslint-disable -->
 ```js
 {
   name: 'node',
@@ -1398,8 +1450,7 @@ if (process.getegid && process.setegid) {
   try {
     process.setegid(501);
     console.log(`New gid: ${process.getegid()}`);
-  }
-  catch (err) {
+  } catch (err) {
     console.log(`Failed to set gid: ${err}`);
   }
 }
@@ -1427,8 +1478,7 @@ if (process.geteuid && process.seteuid) {
   try {
     process.seteuid(501);
     console.log(`New uid: ${process.geteuid()}`);
-  }
-  catch (err) {
+  } catch (err) {
     console.log(`Failed to set uid: ${err}`);
   }
 }
@@ -1455,8 +1505,7 @@ if (process.getgid && process.setgid) {
   try {
     process.setgid(501);
     console.log(`New gid: ${process.getgid()}`);
-  }
-  catch (err) {
+  } catch (err) {
     console.log(`Failed to set gid: ${err}`);
   }
 }
@@ -1497,8 +1546,7 @@ if (process.getuid && process.setuid) {
   try {
     process.setuid(501);
     console.log(`New uid: ${process.getuid()}`);
-  }
-  catch (err) {
+  } catch (err) {
     console.log(`Failed to set uid: ${err}`);
   }
 }
@@ -1591,7 +1639,7 @@ These behaviours are partly for historical reasons, as changing them would
 create backwards incompatibility, but they are also expected by some users.
 
 Synchronous writes avoid problems such as output written with `console.log()` or
-`console.write()` being unexpectedly interleaved, or not written at all if
+`console.error()` being unexpectedly interleaved, or not written at all if
 `process.exit()` is called before an asynchronous write completes. See
 [`process.exit()`][] for more information.
 
@@ -1708,8 +1756,9 @@ to load modules that were compiled against a different module ABI version.
 console.log(process.versions);
 ```
 
-Will generate output similar to:
+Will generate an object similar to:
 
+<!-- eslint-disable -->
 ```js
 {
   http_parser: '2.3.0',
@@ -1781,31 +1830,31 @@ cases:
 [`ChildProcess.kill()`]: child_process.html#child_process_child_kill_signal
 [`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
 [`ChildProcess`]: child_process.html#child_process_class_childprocess
-[`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`process.argv`]: #process_process_argv
-[`process.exit()`]: #process_process_exit_code
-[`process.kill()`]: #process_process_kill_pid_signal
 [`process.execPath`]: #process_process_execpath
+[`process.exit()`]: #process_process_exit_code
+[`process.exitCode`]: #process_process_exitcode
+[`process.kill()`]: #process_process_kill_pid_signal
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
-[note on process I/O]: process.html#process_a_note_on_process_i_o
-[process_emit_warning]: #process_process_emitwarning_warning_name_ctor
-[process_warning]: #process_event_warning
+[Child Process]: child_process.html
+[Cluster]: cluster.html
+[Duplex]: stream.html#stream_duplex_and_transform_streams
+[LTS]: https://github.com/nodejs/LTS/
+[Readable]: stream.html#stream_readable_streams
 [Signal Events]: #process_signal_events
 [Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
 [TTY]: tty.html#tty_tty
 [Writable]: stream.html#stream_writable_streams
-[Readable]: stream.html#stream_readable_streams
-[Duplex]: stream.html#stream_duplex_and_transform_streams
-[Child Process]: child_process.html
-[Cluster]: cluster.html
-[`process.exitCode`]: #process_process_exitcode
-[LTS]: https://github.com/nodejs/LTS/
+[note on process I/O]: process.html#process_a_note_on_process_i_o
+[process_emit_warning]: #process_process_emitwarning_warning_name_ctor
+[process_warning]: #process_event_warning

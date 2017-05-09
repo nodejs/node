@@ -28,6 +28,8 @@ const isIPv4 = net.isIPv4;
 const isIPv6 = net.isIPv6;
 const util = require('util');
 
+common.crashOnUnhandledRejection();
+
 let expected = 0;
 let completed = 0;
 let running = false;
@@ -428,6 +430,32 @@ TEST(function test_lookup_ip_all(done) {
 });
 
 
+TEST(function test_lookup_ip_all_promise(done) {
+  const req = util.promisify(dns.lookup)('127.0.0.1', {all: true})
+    .then(function(ips) {
+      assert.ok(Array.isArray(ips));
+      assert.ok(ips.length > 0);
+      assert.strictEqual(ips[0].address, '127.0.0.1');
+      assert.strictEqual(ips[0].family, 4);
+
+      done();
+    });
+
+  checkWrap(req);
+});
+
+
+TEST(function test_lookup_ip_promise(done) {
+  util.promisify(dns.lookup)('127.0.0.1')
+    .then(function({ address, family }) {
+      assert.strictEqual(address, '127.0.0.1');
+      assert.strictEqual(family, 4);
+
+      done();
+    });
+});
+
+
 TEST(function test_lookup_null_all(done) {
   const req = dns.lookup(null, {all: true}, function(err, ips, family) {
     assert.ifError(err);
@@ -545,7 +573,7 @@ req.oncomplete = function(err, domains) {
 };
 
 process.on('exit', function() {
-  console.log(completed + ' tests completed');
+  console.log(`${completed} tests completed`);
   assert.strictEqual(running, false);
   assert.strictEqual(expected, completed);
   assert.ok(getaddrinfoCallbackCalled);

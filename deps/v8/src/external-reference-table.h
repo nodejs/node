@@ -22,6 +22,7 @@ class ExternalReferenceTable {
   uint32_t size() const { return static_cast<uint32_t>(refs_.length()); }
   Address address(uint32_t i) { return refs_[i].address; }
   const char* name(uint32_t i) { return refs_[i].name; }
+  bool is_api_reference(uint32_t i) { return i >= api_refs_start_; }
 
 #ifdef DEBUG
   void increment_count(uint32_t i) { refs_[i].count++; }
@@ -64,6 +65,7 @@ class ExternalReferenceTable {
   void AddApiReferences(Isolate* isolate);
 
   List<ExternalReferenceEntry> refs_;
+  uint32_t api_refs_start_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceTable);
 };

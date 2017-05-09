@@ -8,6 +8,7 @@
 #include "src/compiler/node.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/node-test-utils.h"
 
@@ -17,6 +18,14 @@ namespace v8 {
 namespace internal {
 
 using namespace compiler;
+
+#ifdef ENABLE_VERIFY_CSA
+#define IS_BITCAST_WORD_TO_TAGGED_SIGNED(x) IsBitcastWordToTaggedSigned(x)
+#define IS_BITCAST_TAGGED_TO_WORD(x) IsBitcastTaggedToWord(x)
+#else
+#define IS_BITCAST_WORD_TO_TAGGED_SIGNED(x) (x)
+#define IS_BITCAST_TAGGED_TO_WORD(x) (x)
+#endif
 
 namespace interpreter {
 
@@ -305,61 +314,6 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsUnsignedOperand(
   return nullptr;
 }
 
-TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerTestState state(this, bytecode);
-    InterpreterAssemblerForTest m(&state, bytecode);
-    Node* tail_call_node = m.Dispatch();
-
-    OperandScale operand_scale = OperandScale::kSingle;
-    Matcher<Node*> next_bytecode_offset_matcher =
-        IsIntPtrAdd(IsParameter(InterpreterDispatchDescriptor::kBytecodeOffset),
-                    IsIntPtrConstant(
-                        interpreter::Bytecodes::Size(bytecode, operand_scale)));
-    Matcher<Node*> target_bytecode_matcher =
-        m.IsLoad(MachineType::Uint8(),
-                 IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
-                 next_bytecode_offset_matcher);
-    target_bytecode_matcher = IsChangeUint32ToWord(target_bytecode_matcher);
-    Matcher<Node*> code_target_matcher = m.IsLoad(
-        MachineType::Pointer(),
-        IsParameter(InterpreterDispatchDescriptor::kDispatchTable),
-        IsWordShl(target_bytecode_matcher, IsIntPtrConstant(kPointerSizeLog2)));
-
-    if (interpreter::Bytecodes::IsStarLookahead(bytecode, operand_scale)) {
-      Matcher<Node*> after_lookahead_offset =
-          IsIntPtrAdd(next_bytecode_offset_matcher,
-                      IsIntPtrConstant(interpreter::Bytecodes::Size(
-                          Bytecode::kStar, operand_scale)));
-      next_bytecode_offset_matcher =
-          IsPhi(MachineType::PointerRepresentation(),
-                next_bytecode_offset_matcher, after_lookahead_offset, _);
-      Matcher<Node*> after_lookahead_bytecode =
-          m.IsLoad(MachineType::Uint8(),
-                   IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
-                   after_lookahead_offset);
-      after_lookahead_bytecode = IsChangeUint32ToWord(after_lookahead_bytecode);
-      target_bytecode_matcher =
-          IsPhi(MachineType::PointerRepresentation(), target_bytecode_matcher,
-                after_lookahead_bytecode, _);
-      code_target_matcher =
-          m.IsLoad(MachineType::Pointer(),
-                   IsParameter(InterpreterDispatchDescriptor::kDispatchTable),
-                   IsWordShl(target_bytecode_matcher,
-                             IsIntPtrConstant(kPointerSizeLog2)));
-    }
-
-    EXPECT_THAT(
-        tail_call_node,
-        IsTailCall(_, code_target_matcher,
-                   IsParameter(InterpreterDispatchDescriptor::kAccumulator),
-                   next_bytecode_offset_matcher,
-                   IsParameter(InterpreterDispatchDescriptor::kBytecodeArray),
-                   IsParameter(InterpreterDispatchDescriptor::kDispatchTable),
-                   _, _));
-  }
-}
-
 TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
   // If debug code is enabled we emit extra code in Jump.
   if (FLAG_debug_code) return;
@@ -462,34 +416,6 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
   }
 }
 
-TARGET_TEST_F(InterpreterAssemblerTest, GetSetAccumulator) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    if (!interpreter::Bytecodes::ReadsAccumulator(bytecode) ||
-        !interpreter::Bytecodes::WritesAccumulator(bytecode)) {
-      continue;
-    }
-
-    InterpreterAssemblerTestState state(this, bytecode);
-    InterpreterAssemblerForTest m(&state, bytecode);
-    // Should be incoming accumulator if not set.
-    EXPECT_THAT(m.GetAccumulator(),
-                IsParameter(InterpreterDispatchDescriptor::kAccumulator));
-    // Should be set by SetAccumulator.
-    Node* accumulator_value_1 = m.Int32Constant(0xdeadbeef);
-    m.SetAccumulator(accumulator_value_1);
-    EXPECT_THAT(m.GetAccumulator(), accumulator_value_1);
-    Node* accumulator_value_2 = m.Int32Constant(42);
-    m.SetAccumulator(accumulator_value_2);
-    EXPECT_THAT(m.GetAccumulator(), accumulator_value_2);
-
-    // Should be passed to next bytecode handler on dispatch.
-    Node* tail_call_node = m.Dispatch();
-
-    EXPECT_THAT(tail_call_node,
-                IsTailCall(_, _, accumulator_value_2, _, _, _, _));
-  }
-}
-
 TARGET_TEST_F(InterpreterAssemblerTest, GetContext) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerTestState state(this, bytecode);
@@ -550,11 +476,12 @@ TARGET_TEST_F(InterpreterAssemblerTest, SmiTag) {
     InterpreterAssemblerTestState state(this, bytecode);
     InterpreterAssemblerForTest m(&state, bytecode);
     Node* value = m.Int32Constant(44);
-    EXPECT_THAT(m.SmiTag(value), IsBitcastWordToTaggedSigned(IsIntPtrConstant(
-                                     static_cast<intptr_t>(44)
-                                     << (kSmiShiftSize + kSmiTagSize))));
+    EXPECT_THAT(
+        m.SmiTag(value),
+        IS_BITCAST_WORD_TO_TAGGED_SIGNED(IsIntPtrConstant(
+            static_cast<intptr_t>(44) << (kSmiShiftSize + kSmiTagSize))));
     EXPECT_THAT(m.SmiUntag(value),
-                IsWordSar(IsBitcastTaggedToWord(value),
+                IsWordSar(IS_BITCAST_TAGGED_TO_WORD(value),
                           IsIntPtrConstant(kSmiShiftSize + kSmiTagSize)));
   }
 }
@@ -657,30 +584,33 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
   const int kResultSizes[] = {1, 2};
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     TRACED_FOREACH(int, result_size, kResultSizes) {
-      InterpreterAssemblerTestState state(this, bytecode);
-      InterpreterAssemblerForTest m(&state, bytecode);
-      Callable builtin = CodeFactory::InterpreterCEntry(isolate(), result_size);
+      if (Bytecodes::IsCallRuntime(bytecode)) {
+        InterpreterAssemblerTestState state(this, bytecode);
+        InterpreterAssemblerForTest m(&state, bytecode);
+        Callable builtin =
+            CodeFactory::InterpreterCEntry(isolate(), result_size);
 
-      Node* function_id = m.Int32Constant(0);
-      Node* first_arg = m.IntPtrConstant(1);
-      Node* arg_count = m.Int32Constant(2);
-      Node* context = m.IntPtrConstant(4);
+        Node* function_id = m.Int32Constant(0);
+        Node* first_arg = m.IntPtrConstant(1);
+        Node* arg_count = m.Int32Constant(2);
+        Node* context = m.IntPtrConstant(4);
 
-      Matcher<Node*> function_table = IsExternalConstant(
-          ExternalReference::runtime_function_table_address(isolate()));
-      Matcher<Node*> function = IsIntPtrAdd(
-          function_table,
-          IsChangeUint32ToWord(IsInt32Mul(
-              function_id, IsInt32Constant(sizeof(Runtime::Function)))));
-      Matcher<Node*> function_entry =
-          m.IsLoad(MachineType::Pointer(), function,
-                   IsIntPtrConstant(offsetof(Runtime::Function, entry)));
+        Matcher<Node*> function_table = IsExternalConstant(
+            ExternalReference::runtime_function_table_address(isolate()));
+        Matcher<Node*> function = IsIntPtrAdd(
+            function_table,
+            IsChangeUint32ToWord(IsInt32Mul(
+                function_id, IsInt32Constant(sizeof(Runtime::Function)))));
+        Matcher<Node*> function_entry =
+            m.IsLoad(MachineType::Pointer(), function,
+                     IsIntPtrConstant(offsetof(Runtime::Function, entry)));
 
-      Node* call_runtime = m.CallRuntimeN(function_id, context, first_arg,
-                                          arg_count, result_size);
-      EXPECT_THAT(call_runtime,
-                  IsCall(_, IsHeapConstant(builtin.code()), arg_count,
-                         first_arg, function_entry, context, _, _));
+        Node* call_runtime = m.CallRuntimeN(function_id, context, first_arg,
+                                            arg_count, result_size);
+        EXPECT_THAT(call_runtime,
+                    IsCall(_, IsHeapConstant(builtin.code()), arg_count,
+                           first_arg, function_entry, context, _, _));
+      }
     }
   }
 }
@@ -690,18 +620,21 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallJS) {
                                     TailCallMode::kAllow};
   TRACED_FOREACH(TailCallMode, tail_call_mode, tail_call_modes) {
     TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-      InterpreterAssemblerTestState state(this, bytecode);
-      InterpreterAssemblerForTest m(&state, bytecode);
-      Callable builtin =
-          CodeFactory::InterpreterPushArgsAndCall(isolate(), tail_call_mode);
-      Node* function = m.IntPtrConstant(0);
-      Node* first_arg = m.IntPtrConstant(1);
-      Node* arg_count = m.Int32Constant(2);
-      Node* context = m.IntPtrConstant(3);
-      Node* call_js =
-          m.CallJS(function, context, first_arg, arg_count, tail_call_mode);
-      EXPECT_THAT(call_js, IsCall(_, IsHeapConstant(builtin.code()), arg_count,
-                                  first_arg, function, context, _, _));
+      if (Bytecodes::IsCallOrConstruct(bytecode)) {
+        InterpreterAssemblerTestState state(this, bytecode);
+        InterpreterAssemblerForTest m(&state, bytecode);
+        Callable builtin = CodeFactory::InterpreterPushArgsAndCall(
+            isolate(), tail_call_mode, InterpreterPushArgsMode::kOther);
+        Node* function = m.IntPtrConstant(0);
+        Node* first_arg = m.IntPtrConstant(1);
+        Node* arg_count = m.Int32Constant(2);
+        Node* context = m.IntPtrConstant(3);
+        Node* call_js =
+            m.CallJS(function, context, first_arg, arg_count, tail_call_mode);
+        EXPECT_THAT(call_js,
+                    IsCall(_, IsHeapConstant(builtin.code()), arg_count,
+                           first_arg, function, context, _, _));
+      }
     }
   }
 }
@@ -716,14 +649,13 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadFeedbackVector) {
         m.IsLoad(MachineType::AnyTagged(), IsLoadParentFramePointer(),
                  IsIntPtrConstant(Register::function_closure().ToOperand()
                                   << kPointerSizeLog2));
-    Matcher<Node*> load_literals_matcher = m.IsLoad(
+    Matcher<Node*> load_vector_cell_matcher = m.IsLoad(
         MachineType::AnyTagged(), load_function_matcher,
-        IsIntPtrConstant(JSFunction::kLiteralsOffset - kHeapObjectTag));
-
-    EXPECT_THAT(feedback_vector,
-                m.IsLoad(MachineType::AnyTagged(), load_literals_matcher,
-                         IsIntPtrConstant(LiteralsArray::kFeedbackVectorOffset -
-                                          kHeapObjectTag)));
+        IsIntPtrConstant(JSFunction::kFeedbackVectorOffset - kHeapObjectTag));
+    EXPECT_THAT(
+        feedback_vector,
+        m.IsLoad(MachineType::AnyTagged(), load_vector_cell_matcher,
+                 IsIntPtrConstant(Cell::kValueOffset - kHeapObjectTag)));
   }
 }
 

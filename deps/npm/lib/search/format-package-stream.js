@@ -161,7 +161,7 @@ function normalizePackage (data, opts) {
     : typeof data.keywords === 'string'
     ? data.keywords.replace(/[,\s]+/, ' ')
     : '',
-    version: Object.keys(data.versions || {})[0] || [],
+    version: data.version,
     date: data.date &&
           (data.date.toISOString() // remove time
             .split('T').join(' ')

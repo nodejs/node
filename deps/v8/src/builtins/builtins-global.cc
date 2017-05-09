@@ -7,6 +7,8 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/compiler.h"
+#include "src/counters.h"
+#include "src/objects-inl.h"
 #include "src/uri.h"
 
 namespace v8 {
@@ -92,9 +94,10 @@ BUILTIN(GlobalEval) {
   }
   Handle<JSFunction> function;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, function, Compiler::GetFunctionFromString(
-                             handle(target->native_context(), isolate),
-                             Handle<String>::cast(x), NO_PARSE_RESTRICTION));
+      isolate, function,
+      Compiler::GetFunctionFromString(handle(target->native_context(), isolate),
+                                      Handle<String>::cast(x),
+                                      NO_PARSE_RESTRICTION, kNoSourcePosition));
   RETURN_RESULT_OR_FAILURE(
       isolate,
       Execution::Call(isolate, function, target_global_proxy, 0, nullptr));

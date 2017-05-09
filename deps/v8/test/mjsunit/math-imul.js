@@ -64,8 +64,8 @@ function TestMathImul(expected, a, b) {
   // Deoptimize closures and forget type feedback.
   %DeoptimizeFunction(imul_meth_closure);
   %DeoptimizeFunction(imul_func_closure);
-  %ClearFunctionTypeFeedback(imul_meth_closure);
-  %ClearFunctionTypeFeedback(imul_func_closure);
+  %ClearFunctionFeedback(imul_meth_closure);
+  %ClearFunctionFeedback(imul_func_closure);
 }
 
 TestMathImul(8, 2, 4);

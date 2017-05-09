@@ -37,7 +37,7 @@ involving knowledge of several components and APIs :
    See [Linking to Node.js' own dependencies][] for additional information.
 
 All of the following examples are available for [download][] and may
-be used as a starting-point for your own Addon.
+be used as the starting-point for an Addon.
 
 ## Hello world
 
@@ -98,7 +98,7 @@ Addon module name is `addon`.
 
 Once the source code has been written, it must be compiled into the binary
 `addon.node` file. To do so, create a file called `binding.gyp` in the
-top-level of the project describing the build configuration of your module
+top-level of the project describing the build configuration of the module
 using a JSON-like format. This file is used by [node-gyp][] -- a tool written
 specifically to compile Node.js Addons.
 
@@ -212,6 +212,26 @@ The [Native Abstractions for Node.js][] (or `nan`) provide a set of tools that
 Addon developers are recommended to use to keep compatibility between past and
 future releases of V8 and Node.js. See the `nan` [examples][] for an
 illustration of how it can be used.
+
+
+## N-API
+
+> Stability: 1 - Experimental
+
+N-API is an API for building native Addons. It is independent from
+the underlying JavaScript runtime (ex V8) and is maintained as part of
+Node.js itself. This API will be Application Binary Interface (ABI) stable
+across version of Node.js. It is intended to insulate Addons from
+changes in the underlying JavaScript engine and allow modules
+compiled for one version to run on later versions of Node.js without
+recompilation. Addons are built/packaged with the same approach/tools
+outlined in this document (node-gyp, etc.). The only difference is the
+set of APIs that are used by the native code. Instead of using the V8
+or [Native Abstractions for Node.js][] APIs, the functions available
+in the N-API are used.
+
+The functions available and how to use them are documented in the
+section titled [C/C++ Addons - N-API](n-api.html).
 
 ## Addon examples
 
@@ -1108,14 +1128,14 @@ Test in JavaScript by running:
 const addon = require('./build/Release/addon');
 ```
 
+[Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
+[Linking to Node.js' own dependencies]: #addons_linking_to_node_js_own_dependencies
+[Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
-[Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
 [examples]: https://github.com/nodejs/nan/tree/master/examples/
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
-[Linking to Node.js' own dependencies]: #addons_linking_to_node_js_own_dependencies
-[Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [node-gyp]: https://github.com/nodejs/node-gyp
 [require]: globals.html#globals_require
 [v8-docs]: https://v8docs.nodesource.com/

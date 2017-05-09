@@ -51,7 +51,7 @@ function main(conf) {
       message = Buffer.alloc(conf.len, 'b');
       break;
     default:
-      throw new Error('unknown message type: ' + conf.type);
+      throw new Error(`unknown message type: ${conf.type}`);
   }
 
   var fn = api === 'stream' ? streamWrite : legacyWrite;

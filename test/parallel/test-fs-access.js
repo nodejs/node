@@ -7,10 +7,10 @@ const doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
 const readOnlyFile = path.join(common.tmpDir, 'read_only_file');
 const readWriteFile = path.join(common.tmpDir, 'read_write_file');
 
-const createFileWithPerms = function(file, mode) {
+function createFileWithPerms(file, mode) {
   fs.writeFileSync(file, '');
   fs.chmodSync(file, mode);
-};
+}
 
 common.refreshTmpDir();
 createFileWithPerms(readOnlyFile, 0o444);
@@ -87,11 +87,11 @@ assert.throws(() => {
 
 assert.throws(() => {
   fs.access(__filename, fs.F_OK);
-}, /^TypeError: "callback" argument must be a function$/);
+}, common.expectsError({code: 'ERR_INVALID_CALLBACK'}));
 
 assert.throws(() => {
   fs.access(__filename, fs.F_OK, {});
-}, /^TypeError: "callback" argument must be a function$/);
+}, common.expectsError({code: 'ERR_INVALID_CALLBACK'}));
 
 assert.doesNotThrow(() => {
   fs.accessSync(__filename);

@@ -65,7 +65,7 @@ const testCases =
   ];
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
+  return require('path').join(common.fixturesDir, 'keys', `${n}.pem`);
 }
 
 
@@ -105,7 +105,7 @@ function testServers(index, servers, clientOptions, cb) {
       const authorized = client.authorized ||
                          hosterr.test(client.authorizationError);
 
-      console.error('expected: ' + ok + ' authed: ' + authorized);
+      console.error(`expected: ${ok} authed: ${authorized}`);
 
       assert.strictEqual(ok, authorized);
       server.close();

@@ -34,7 +34,7 @@ function checkFilesPermission (root, mask, cb) {
       function checkFile (f, next) {
         var file = path.join(root, f)
         tracker.silly('checkFilePermissions', f)
-        fs.stat(file, function (e, stat) {
+        fs.lstat(file, function (e, stat) {
           tracker.completeWork(1)
           if (e) return next(e)
           if (!stat.isFile()) return next()

@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 
+class AstType;
 
 const int kMaxKeyedPolymorphism = 4;
 
@@ -20,38 +21,6 @@ class ICUtility : public AllStatic {
   // Clear the inline cache to initial state.
   static void Clear(Isolate* isolate, Address address, Address constant_pool);
 };
-
-
-class CallICState final BASE_EMBEDDED {
- public:
-  explicit CallICState(ExtraICState extra_ic_state)
-      : bit_field_(extra_ic_state) {}
-  CallICState(ConvertReceiverMode convert_mode, TailCallMode tail_call_mode)
-      : bit_field_(ConvertModeBits::encode(convert_mode) |
-                   TailCallModeBits::encode(tail_call_mode)) {}
-
-  ExtraICState GetExtraICState() const { return bit_field_; }
-
-  static void GenerateAheadOfTime(Isolate*,
-                                  void (*Generate)(Isolate*,
-                                                   const CallICState&));
-
-  ConvertReceiverMode convert_mode() const {
-    return ConvertModeBits::decode(bit_field_);
-  }
-  TailCallMode tail_call_mode() const {
-    return TailCallModeBits::decode(bit_field_);
-  }
-
- private:
-  typedef BitField<ConvertReceiverMode, 0, 2> ConvertModeBits;
-  typedef BitField<TailCallMode, ConvertModeBits::kNext, 1> TailCallModeBits;
-
-  int const bit_field_;
-};
-
-
-std::ostream& operator<<(std::ostream& os, const CallICState& s);
 
 
 class BinaryOpICState final BASE_EMBEDDED {
@@ -211,67 +180,6 @@ class CompareICState {
                            State old_right, Token::Value op,
                            bool has_inlined_smi_code, Handle<Object> x,
                            Handle<Object> y);
-};
-
-class LoadGlobalICState final BASE_EMBEDDED {
- private:
-  class TypeofModeBits : public BitField<TypeofMode, 0, 1> {};
-  STATIC_ASSERT(static_cast<int>(INSIDE_TYPEOF) == 0);
-  const ExtraICState state_;
-
- public:
-  static const uint32_t kNextBitFieldOffset = TypeofModeBits::kNext;
-
-  explicit LoadGlobalICState(ExtraICState extra_ic_state)
-      : state_(extra_ic_state) {}
-
-  explicit LoadGlobalICState(TypeofMode typeof_mode)
-      : state_(TypeofModeBits::encode(typeof_mode)) {}
-
-  ExtraICState GetExtraICState() const { return state_; }
-
-  TypeofMode typeof_mode() const { return TypeofModeBits::decode(state_); }
-
-  static TypeofMode GetTypeofMode(ExtraICState state) {
-    return LoadGlobalICState(state).typeof_mode();
-  }
-
-  // For convenience, a statically declared encoding of typeof mode
-  // IC state.
-  static const ExtraICState kInsideTypeOfState = INSIDE_TYPEOF
-                                                 << TypeofModeBits::kShift;
-  static const ExtraICState kNotInsideTypeOfState = NOT_INSIDE_TYPEOF
-                                                    << TypeofModeBits::kShift;
-};
-
-
-class StoreICState final BASE_EMBEDDED {
- public:
-  explicit StoreICState(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
-
-  explicit StoreICState(LanguageMode mode)
-      : state_(LanguageModeState::encode(mode)) {}
-
-  ExtraICState GetExtraICState() const { return state_; }
-
-  LanguageMode language_mode() const {
-    return LanguageModeState::decode(state_);
-  }
-
-  static LanguageMode GetLanguageMode(ExtraICState state) {
-    return StoreICState(state).language_mode();
-  }
-
-  class LanguageModeState : public BitField<LanguageMode, 1, 1> {};
-  STATIC_ASSERT(i::LANGUAGE_END == 2);
-
-  // For convenience, a statically declared encoding of strict mode extra
-  // IC state.
-  static const ExtraICState kStrictModeState = STRICT
-                                               << LanguageModeState::kShift;
-
- private:
-  const ExtraICState state_;
 };
 
 }  // namespace internal

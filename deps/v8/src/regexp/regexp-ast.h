@@ -21,11 +21,11 @@ namespace internal {
   VISIT(Atom)                             \
   VISIT(Quantifier)                       \
   VISIT(Capture)                          \
+  VISIT(Group)                            \
   VISIT(Lookaround)                       \
   VISIT(BackReference)                    \
   VISIT(Empty)                            \
   VISIT(Text)
-
 
 #define FORWARD_DECLARE(Name) class RegExp##Name;
 FOR_EACH_REG_EXP_TREE_TYPE(FORWARD_DECLARE)
@@ -440,6 +440,26 @@ class RegExpCapture final : public RegExpTree {
   const ZoneVector<uc16>* name_;
 };
 
+class RegExpGroup final : public RegExpTree {
+ public:
+  explicit RegExpGroup(RegExpTree* body) : body_(body) {}
+  void* Accept(RegExpVisitor* visitor, void* data) override;
+  RegExpNode* ToNode(RegExpCompiler* compiler,
+                     RegExpNode* on_success) override {
+    return body_->ToNode(compiler, on_success);
+  }
+  RegExpGroup* AsGroup() override;
+  bool IsAnchoredAtStart() override { return body_->IsAnchoredAtStart(); }
+  bool IsAnchoredAtEnd() override { return body_->IsAnchoredAtEnd(); }
+  bool IsGroup() override;
+  int min_match() override { return body_->min_match(); }
+  int max_match() override { return body_->max_match(); }
+  Interval CaptureRegisters() override { return body_->CaptureRegisters(); }
+  RegExpTree* body() { return body_; }
+
+ private:
+  RegExpTree* body_;
+};
 
 class RegExpLookaround final : public RegExpTree {
  public:

@@ -145,10 +145,10 @@ added: v0.1.27
 
 * {Object} The global namespace object.
 
-In browsers, the top-level scope is the global scope. That means that in
-browsers if you're in the global scope `var something` will define a global
-variable. In Node.js this is different. The top-level scope is not the global
-scope; `var something` inside an Node.js module will be local to that module.
+In browsers, the top-level scope is the global scope. This means that
+within the browser `var something` will define a new global variable. In
+Node.js this is different. The top-level scope is not the global scope;
+`var something` inside a Node.js module will be local to that module.
 
 ## module
 <!-- YAML
@@ -274,18 +274,18 @@ added: v0.0.1
 
 [`__dirname`]: #globals_dirname
 [`__filename`]: #globals_filename
-[`console`]: console.html
-[`path.dirname()`]: path.html#path_path_dirname_path
-[`process` object]: process.html#process_process
-[buffer section]: buffer.html
-[module system documentation]: modules.html
-[Modules]: modules.html#modules_modules
-[native addons]: addons.html
-[timers]: timers.html
 [`clearImmediate`]: timers.html#timers_clearimmediate_immediate
 [`clearInterval`]: timers.html#timers_clearinterval_timeout
 [`clearTimeout`]: timers.html#timers_cleartimeout_timeout
+[`console`]: console.html
+[`path.dirname()`]: path.html#path_path_dirname_path
+[`process` object]: process.html#process_process
 [`setImmediate`]: timers.html#timers_setimmediate_callback_args
 [`setInterval`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout`]: timers.html#timers_settimeout_callback_delay_args
+[Modules]: modules.html#modules_modules
+[buffer section]: buffer.html
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
+[module system documentation]: modules.html
+[native addons]: addons.html
+[timers]: timers.html

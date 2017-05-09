@@ -65,11 +65,11 @@ const zlib = require('zlib');
 const http = require('http');
 const fs = require('fs');
 const request = http.get({ host: 'example.com',
-                         path: '/',
-                         port: 80,
-                         headers: { 'Accept-Encoding': 'gzip,deflate' } });
+                           path: '/',
+                           port: 80,
+                           headers: { 'Accept-Encoding': 'gzip,deflate' } });
 request.on('response', (response) => {
-  var output = fs.createWriteStream('example.com_index.html');
+  const output = fs.createWriteStream('example.com_index.html');
 
   switch (response.headers['content-encoding']) {
     // or, just use zlib.createUnzip() to handle both cases
@@ -84,7 +84,9 @@ request.on('response', (response) => {
       break;
   }
 });
+```
 
+```js
 // server example
 // Running a gzip operation on every request is quite expensive.
 // It would be much more efficient to cache the compressed buffer.
@@ -92,8 +94,8 @@ const zlib = require('zlib');
 const http = require('http');
 const fs = require('fs');
 http.createServer((request, response) => {
-  var raw = fs.createReadStream('index.html');
-  var acceptEncoding = request.headers['accept-encoding'];
+  const raw = fs.createReadStream('index.html');
+  let acceptEncoding = request.headers['accept-encoding'];
   if (!acceptEncoding) {
     acceptEncoding = '';
   }
@@ -123,15 +125,16 @@ method that is used to compressed the last chunk of input data:
 // This is a truncated version of the buffer from the above examples
 const buffer = Buffer.from('eJzT0yMA', 'base64');
 
-zlib.unzip(buffer,
-           {finishFlush: zlib.constants.Z_SYNC_FLUSH},
-           (err, buffer) => {
-  if (!err) {
-    console.log(buffer.toString());
-  } else {
-    // handle error
-  }
-});
+zlib.unzip(
+  buffer,
+  {finishFlush: zlib.constants.Z_SYNC_FLUSH},
+  (err, buffer) => {
+    if (!err) {
+      console.log(buffer.toString());
+    } else {
+      // handle error
+    }
+  });
 ```
 
 This will not change the behavior in other error-throwing situations, e.g.
@@ -148,8 +151,9 @@ From `zlib/zconf.h`, modified to node.js's usage:
 
 The memory requirements for deflate are (in bytes):
 
+<!-- eslint-disable semi -->
 ```js
-(1 << (windowBits+2)) +  (1 << (memLevel+9))
+(1 << (windowBits + 2)) + (1 << (memLevel + 9))
 ```
 
 That is: 128K for windowBits=15  +  128K for memLevel = 8
@@ -159,17 +163,12 @@ For example, to reduce the default memory requirements from 256K to 128K, the
 options should be set to:
 
 ```js
-{ windowBits: 14, memLevel: 7 }
+const options = { windowBits: 14, memLevel: 7 };
 ```
 
 This will, however, generally degrade compression.
 
-The memory requirements for inflate are (in bytes)
-
-```js
-1 << windowBits
-```
-
+The memory requirements for inflate are (in bytes) `1 << windowBits`.
 That is, 32K for windowBits=15 (default value) plus a few kilobytes
 for small objects.
 
@@ -673,19 +672,19 @@ changes:
 
 Decompress a chunk of data with [Unzip][].
 
-[`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
-[`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
-[Memory Usage Tuning]: #zlib_memory_usage_tuning
-[zlib documentation]: http://zlib.net/manual.html#Constants
-[options]: #zlib_class_options
-[Deflate]: #zlib_class_zlib_deflate
-[DeflateRaw]: #zlib_class_zlib_deflateraw
-[Gunzip]: #zlib_class_zlib_gunzip
-[Gzip]: #zlib_class_zlib_gzip
-[Inflate]: #zlib_class_zlib_inflate
-[InflateRaw]: #zlib_class_zlib_inflateraw
-[Unzip]: #zlib_class_zlib_unzip
 [`.flush()`]: #zlib_zlib_flush_kind_callback
+[`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
 [`Buffer`]: buffer.html#buffer_class_buffer
+[`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
+[DeflateRaw]: #zlib_class_zlib_deflateraw
+[Deflate]: #zlib_class_zlib_deflate
+[Gunzip]: #zlib_class_zlib_gunzip
+[Gzip]: #zlib_class_zlib_gzip
+[InflateRaw]: #zlib_class_zlib_inflateraw
+[Inflate]: #zlib_class_zlib_inflate
+[Memory Usage Tuning]: #zlib_memory_usage_tuning
+[Unzip]: #zlib_class_zlib_unzip
+[options]: #zlib_class_options
+[zlib documentation]: http://zlib.net/manual.html#Constants

@@ -5,6 +5,7 @@
 #include "src/assembler.h"
 #include "src/base/lazy-instance.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/register-configuration.h"
 
 #include "src/wasm/wasm-module.h"

@@ -28,7 +28,8 @@ release.
 </tr>
 <tr>
     <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V7.md#7.9.0">7.9.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V7.md#7.10.0">7.10.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V7.md#7.9.0">7.9.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V7.md#7.8.0">7.8.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V7.md#7.7.4">7.7.4</a><br/>
 <a href="doc/changelogs/CHANGELOG_V7.md#7.7.3">7.7.3</a><br/>
@@ -45,7 +46,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V7.md#7.0.0">7.0.0</a><br/>
     </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V6.md#6.10.2">6.10.2</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V6.md#6.10.3">6.10.3</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.10.2">6.10.2</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.10.1">6.10.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.10.0">6.10.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.9.5">6.9.5</a><br/>
@@ -89,7 +91,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V5.md#5.0.0">5.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V4.md#4.8.2">4.8.2</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V4.md#4.8.3">4.8.3</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V4.md#4.8.2">4.8.2</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.8.1">4.8.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.8.0">4.8.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V4.md#4.7.3">4.7.3</a><br/>

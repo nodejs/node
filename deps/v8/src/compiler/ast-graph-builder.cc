@@ -19,6 +19,7 @@
 #include "src/compiler/state-values-utils.h"
 #include "src/feedback-vector.h"
 #include "src/objects-inl.h"
+#include "src/objects/literal-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -930,9 +931,10 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
     case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
       globals()->push_back(variable->name());
-      FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
+      FeedbackSlot slot = decl->proxy()->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals()->push_back(handle(Smi::FromInt(slot.ToInt()), isolate()));
+      globals()->push_back(isolate()->factory()->undefined_value());
       globals()->push_back(isolate()->factory()->undefined_value());
       break;
     }
@@ -966,9 +968,15 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       // Check for stack-overflow exception.
       if (function.is_null()) return SetStackOverflow();
       globals()->push_back(variable->name());
-      FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
+      FeedbackSlot slot = decl->proxy()->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals()->push_back(handle(Smi::FromInt(slot.ToInt()), isolate()));
+
+      // We need the slot where the literals array lives, too.
+      slot = decl->fun()->LiteralFeedbackSlot();
+      DCHECK(!slot.IsInvalid());
+      globals()->push_back(handle(Smi::FromInt(slot.ToInt()), isolate()));
+
       globals()->push_back(function);
       break;
     }
@@ -1165,98 +1173,8 @@ void AstGraphBuilder::VisitForStatement(ForStatement* stmt) {
 
 
 void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
-  VisitForValue(stmt->subject());
-  Node* object = environment()->Pop();
-  BlockBuilder for_block(this);
-  for_block.BeginBlock();
-  // Check for null or undefined before entering loop.
-  Node* is_null_cond =
-      NewNode(javascript()->StrictEqual(CompareOperationHint::kAny), object,
-              jsgraph()->NullConstant());
-  for_block.BreakWhen(is_null_cond, BranchHint::kFalse);
-  Node* is_undefined_cond =
-      NewNode(javascript()->StrictEqual(CompareOperationHint::kAny), object,
-              jsgraph()->UndefinedConstant());
-  for_block.BreakWhen(is_undefined_cond, BranchHint::kFalse);
-  {
-    // Convert object to jsobject.
-    object = BuildToObject(object, stmt->ToObjectId());
-    environment()->Push(object);
-
-    // Prepare for-in cache.
-    Node* prepare = NewNode(javascript()->ForInPrepare(), object);
-    PrepareFrameState(prepare, stmt->PrepareId(),
-                      OutputFrameStateCombine::Push(3));
-    Node* cache_type = NewNode(common()->Projection(0), prepare);
-    Node* cache_array = NewNode(common()->Projection(1), prepare);
-    Node* cache_length = NewNode(common()->Projection(2), prepare);
-
-    // Construct the rest of the environment.
-    environment()->Push(cache_type);
-    environment()->Push(cache_array);
-    environment()->Push(cache_length);
-    environment()->Push(jsgraph()->ZeroConstant());
-
-    // Build the actual loop body.
-    LoopBuilder for_loop(this);
-    for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
-    {
-      // These stack values are renamed in the case of OSR, so reload them
-      // from the environment.
-      Node* index = environment()->Peek(0);
-      Node* cache_length = environment()->Peek(1);
-      Node* cache_array = environment()->Peek(2);
-      Node* cache_type = environment()->Peek(3);
-      Node* object = environment()->Peek(4);
-
-      // Check loop termination condition (we know that the {index} is always
-      // in Smi range, so we can just set the hint on the comparison below).
-      PrepareEagerCheckpoint(stmt->EntryId());
-      Node* exit_cond =
-          NewNode(javascript()->LessThan(CompareOperationHint::kSignedSmall),
-                  index, cache_length);
-      PrepareFrameState(exit_cond, BailoutId::None());
-      for_loop.BreakUnless(exit_cond);
-
-      // Compute the next enumerated value.
-      Node* value = NewNode(javascript()->ForInNext(), object, cache_array,
-                            cache_type, index);
-      PrepareFrameState(value, stmt->FilterId(),
-                        OutputFrameStateCombine::Push());
-      IfBuilder test_value(this);
-      Node* test_value_cond =
-          NewNode(javascript()->StrictEqual(CompareOperationHint::kAny), value,
-                  jsgraph()->UndefinedConstant());
-      test_value.If(test_value_cond, BranchHint::kFalse);
-      test_value.Then();
-      test_value.Else();
-      {
-        environment()->Push(value);
-        PrepareEagerCheckpoint(stmt->FilterId());
-        value = environment()->Pop();
-        // Bind value and do loop body.
-        VectorSlotPair feedback =
-            CreateVectorSlotPair(stmt->EachFeedbackSlot());
-        VisitForInAssignment(stmt->each(), value, feedback,
-                             stmt->AssignmentId());
-        VisitIterationBody(stmt, &for_loop, stmt->StackCheckId());
-      }
-      test_value.End();
-      for_loop.EndBody();
-
-      // Increment counter and continue (we know that the {index} is always
-      // in Smi range, so we can just set the hint on the increment below).
-      index = environment()->Peek(0);
-      PrepareEagerCheckpoint(stmt->IncrementId());
-      index = NewNode(javascript()->Add(BinaryOperationHint::kSignedSmall),
-                      index, jsgraph()->OneConstant());
-      PrepareFrameState(index, BailoutId::None());
-      environment()->Poke(0, index);
-    }
-    for_loop.EndLoop();
-    environment()->Drop(5);
-  }
-  for_block.EndBlock();
+  // Only the BytecodeGraphBuilder supports for-in.
+  return SetStackOverflow();
 }
 
 
@@ -1279,10 +1197,8 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void AstGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  Node* node =
-      NewNode(javascript()->CallRuntime(Runtime::kHandleDebuggerStatement));
-  PrepareFrameState(node, stmt->DebugBreakId());
-  environment()->MarkAllLocalsLive();
+  // Debugger statement is supported only by going through Ignition first.
+  UNREACHABLE();
 }
 
 
@@ -1353,7 +1269,8 @@ void AstGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 
   // Create node to materialize a regular expression literal.
   const Operator* op = javascript()->CreateLiteralRegExp(
-      expr->pattern(), expr->flags(), expr->literal_index());
+      expr->pattern(), expr->flags(),
+      FeedbackVector::GetIndex(expr->literal_slot()));
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(expr, literal);
@@ -1366,7 +1283,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   // Create node to deep-copy the literal boilerplate.
   const Operator* op = javascript()->CreateLiteralObject(
       expr->GetOrBuildConstantProperties(isolate()), expr->ComputeFlags(true),
-      expr->literal_index(), expr->properties_count());
+      FeedbackVector::GetIndex(expr->literal_slot()), expr->properties_count());
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
@@ -1402,7 +1319,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             Handle<Name> name = key->AsPropertyName();
             VectorSlotPair feedback =
                 CreateVectorSlotPair(property->GetSlot(0));
-            Node* store = BuildNamedStore(literal, name, value, feedback);
+            Node* store = BuildNamedStoreOwn(literal, name, value, feedback);
             PrepareFrameState(store, key->id(),
                               OutputFrameStateCombine::Ignore());
             BuildSetHomeObject(value, literal, property, 1);
@@ -1495,7 +1412,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   // Create node to deep-copy the literal boilerplate.
   const Operator* op = javascript()->CreateLiteralArray(
       expr->GetOrBuildConstantElements(isolate()), expr->ComputeFlags(true),
-      expr->literal_index(), expr->values()->length());
+      FeedbackVector::GetIndex(expr->literal_slot()), expr->values()->length());
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
@@ -1524,51 +1441,6 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
   ast_context()->ProduceValue(expr, environment()->Pop());
 }
-
-void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
-                                           const VectorSlotPair& feedback,
-                                           BailoutId bailout_id) {
-  DCHECK(expr->IsValidReferenceExpressionOrThis());
-
-  // Left-hand side can only be a property, a global or a variable slot.
-  Property* property = expr->AsProperty();
-  LhsKind assign_type = Property::GetAssignType(property);
-
-  // Evaluate LHS expression and store the value.
-  switch (assign_type) {
-    case VARIABLE: {
-      Variable* var = expr->AsVariableProxy()->var();
-      BuildVariableAssignment(var, value, Token::ASSIGN, feedback, bailout_id);
-      break;
-    }
-    case NAMED_PROPERTY: {
-      environment()->Push(value);
-      VisitForValue(property->obj());
-      Node* object = environment()->Pop();
-      value = environment()->Pop();
-      Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-      Node* store = BuildNamedStore(object, name, value, feedback);
-      PrepareFrameState(store, bailout_id, OutputFrameStateCombine::Ignore());
-      break;
-    }
-    case KEYED_PROPERTY: {
-      environment()->Push(value);
-      VisitForValue(property->obj());
-      VisitForValue(property->key());
-      Node* key = environment()->Pop();
-      Node* object = environment()->Pop();
-      value = environment()->Pop();
-      Node* store = BuildKeyedStore(object, key, value, feedback);
-      PrepareFrameState(store, bailout_id, OutputFrameStateCombine::Ignore());
-      break;
-    }
-    case NAMED_SUPER_PROPERTY:
-    case KEYED_SUPER_PROPERTY:
-      UNREACHABLE();
-      break;
-  }
-}
-
 
 void AstGraphBuilder::VisitAssignment(Assignment* expr) {
   DCHECK(expr->target()->IsValidReferenceExpressionOrThis());
@@ -1824,8 +1696,8 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   float const frequency = ComputeCallFrequency(expr->CallFeedbackICSlot());
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallFeedbackICSlot());
   const Operator* call =
-      javascript()->CallFunction(args->length() + 2, frequency, feedback,
-                                 receiver_hint, expr->tail_call_mode());
+      javascript()->Call(args->length() + 2, frequency, feedback, receiver_hint,
+                         expr->tail_call_mode());
   PrepareEagerCheckpoint(expr->CallId());
   Node* value = ProcessArguments(call, args->length() + 2);
   // The callee passed to the call, we just need to push something here to
@@ -1852,7 +1724,7 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   float const frequency = ComputeCallFrequency(expr->CallNewFeedbackSlot());
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallNewFeedbackSlot());
   const Operator* call =
-      javascript()->CallConstruct(args->length() + 2, frequency, feedback);
+      javascript()->Construct(args->length() + 2, frequency, feedback);
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->ReturnId(), OutputFrameStateCombine::Push());
   ast_context()->ProduceValue(expr, value);
@@ -1873,7 +1745,7 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   VisitForValues(args);
 
   // Create node to perform the JS runtime call.
-  const Operator* call = javascript()->CallFunction(args->length() + 2);
+  const Operator* call = javascript()->Call(args->length() + 2);
   PrepareEagerCheckpoint(expr->CallId());
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
@@ -2228,10 +2100,8 @@ void AstGraphBuilder::VisitIterationBody(IterationStatement* stmt,
                                          LoopBuilder* loop,
                                          BailoutId stack_check_id) {
   ControlScopeForIteration scope(this, stmt, loop);
-  if (FLAG_turbo_loop_stackcheck || !info()->shared_info()->asm_function()) {
-    Node* node = NewNode(javascript()->StackCheck());
-    PrepareFrameState(node, stack_check_id);
-  }
+  Node* node = NewNode(javascript()->StackCheck());
+  PrepareFrameState(node, stack_check_id);
   Visit(stmt->body());
 }
 
@@ -2361,9 +2231,7 @@ LanguageMode AstGraphBuilder::language_mode() const {
   return current_scope()->language_mode();
 }
 
-
-VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(
-    FeedbackVectorSlot slot) const {
+VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(FeedbackSlot slot) const {
   return VectorSlotPair(handle(info()->closure()->feedback_vector()), slot);
 }
 
@@ -2372,7 +2240,7 @@ void AstGraphBuilder::VisitRewritableExpression(RewritableExpression* node) {
   Visit(node->expression());
 }
 
-float AstGraphBuilder::ComputeCallFrequency(FeedbackVectorSlot slot) const {
+float AstGraphBuilder::ComputeCallFrequency(FeedbackSlot slot) const {
   if (slot.IsInvalid()) return 0.0f;
   Handle<FeedbackVector> feedback_vector(info()->closure()->feedback_vector(),
                                          isolate());
@@ -2738,6 +2606,8 @@ Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
 
 Node* AstGraphBuilder::BuildKeyedStore(Node* object, Node* key, Node* value,
                                        const VectorSlotPair& feedback) {
+  DCHECK_EQ(feedback.vector()->GetLanguageMode(feedback.slot()),
+            language_mode());
   const Operator* op = javascript()->StoreProperty(language_mode(), feedback);
   Node* node = NewNode(op, object, key, value);
   return node;
@@ -2747,16 +2617,28 @@ Node* AstGraphBuilder::BuildKeyedStore(Node* object, Node* key, Node* value,
 Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
                                        Node* value,
                                        const VectorSlotPair& feedback) {
+  DCHECK_EQ(feedback.vector()->GetLanguageMode(feedback.slot()),
+            language_mode());
   const Operator* op =
       javascript()->StoreNamed(language_mode(), name, feedback);
   Node* node = NewNode(op, object, value);
   return node;
 }
 
+Node* AstGraphBuilder::BuildNamedStoreOwn(Node* object, Handle<Name> name,
+                                          Node* value,
+                                          const VectorSlotPair& feedback) {
+  DCHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
+            feedback.vector()->GetKind(feedback.slot()));
+  const Operator* op = javascript()->StoreNamedOwn(name, feedback);
+  Node* node = NewNode(op, object, value);
+  return node;
+}
 
 Node* AstGraphBuilder::BuildGlobalLoad(Handle<Name> name,
                                        const VectorSlotPair& feedback,
                                        TypeofMode typeof_mode) {
+  DCHECK_EQ(feedback.vector()->GetTypeofMode(feedback.slot()), typeof_mode);
   const Operator* op = javascript()->LoadGlobal(name, feedback, typeof_mode);
   Node* node = NewNode(op);
   return node;
@@ -2874,37 +2756,37 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op,
   BinaryOperationHint hint = BinaryOperationHint::kAny;
   switch (op) {
     case Token::BIT_OR:
-      js_op = javascript()->BitwiseOr(hint);
+      js_op = javascript()->BitwiseOr();
       break;
     case Token::BIT_AND:
-      js_op = javascript()->BitwiseAnd(hint);
+      js_op = javascript()->BitwiseAnd();
       break;
     case Token::BIT_XOR:
-      js_op = javascript()->BitwiseXor(hint);
+      js_op = javascript()->BitwiseXor();
       break;
     case Token::SHL:
-      js_op = javascript()->ShiftLeft(hint);
+      js_op = javascript()->ShiftLeft();
       break;
     case Token::SAR:
-      js_op = javascript()->ShiftRight(hint);
+      js_op = javascript()->ShiftRight();
       break;
     case Token::SHR:
-      js_op = javascript()->ShiftRightLogical(hint);
+      js_op = javascript()->ShiftRightLogical();
       break;
     case Token::ADD:
       js_op = javascript()->Add(hint);
       break;
     case Token::SUB:
-      js_op = javascript()->Subtract(hint);
+      js_op = javascript()->Subtract();
       break;
     case Token::MUL:
-      js_op = javascript()->Multiply(hint);
+      js_op = javascript()->Multiply();
       break;
     case Token::DIV:
-      js_op = javascript()->Divide(hint);
+      js_op = javascript()->Divide();
       break;
     case Token::MOD:
-      js_op = javascript()->Modulus(hint);
+      js_op = javascript()->Modulus();
       break;
     default:
       UNREACHABLE();

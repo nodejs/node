@@ -79,6 +79,8 @@ namespace internal {
   V(r14)                                 \
   V(r15)
 
+// The length of pushq(rbp), movp(rbp, rsp), Push(rsi) and Push(rdi).
+static const int kNoCodeAgeSequenceLength = kPointerSize == kInt64Size ? 6 : 17;
 
 // CPU Registers.
 //
@@ -203,6 +205,7 @@ const Register arg_reg_4 = {Register::kCode_rcx};
   V(xmm14)
 
 static const bool kSimpleFPAliasing = true;
+static const bool kSimdMaskRegisters = false;
 
 struct XMMRegister {
   enum Code {
@@ -503,17 +506,10 @@ class Assembler : public AssemblerBase {
   static inline void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
-  static inline Address target_address_at(Address pc, Code* code) {
-    Address constant_pool = code ? code->constant_pool() : NULL;
-    return target_address_at(pc, constant_pool);
-  }
+  static inline Address target_address_at(Address pc, Code* code);
   static inline void set_target_address_at(
       Isolate* isolate, Address pc, Code* code, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
-    Address constant_pool = code ? code->constant_pool() : NULL;
-    set_target_address_at(isolate, pc, constant_pool, target,
-                          icache_flush_mode);
-  }
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
@@ -523,9 +519,7 @@ class Assembler : public AssemblerBase {
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
       Isolate* isolate, Address instruction_payload, Code* code,
-      Address target) {
-    set_target_address_at(isolate, instruction_payload, code, target);
-  }
+      Address target);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
@@ -2000,6 +1994,8 @@ class Assembler : public AssemblerBase {
     UNREACHABLE();
   }
 
+  void RecordProtectedInstructionLanding(int pc_offset);
+
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
   void db(uint8_t data);
@@ -2055,12 +2051,7 @@ class Assembler : public AssemblerBase {
                                RelocInfo::Mode rmode,
                                TypeFeedbackId ast_id = TypeFeedbackId::None());
   inline void emit_runtime_entry(Address entry, RelocInfo::Mode rmode);
-  void emit(Immediate x) {
-    if (!RelocInfo::IsNone(x.rmode_)) {
-      RecordRelocInfo(x.rmode_);
-    }
-    emitl(x.value_);
-  }
+  inline void emit(Immediate x);
 
   // Emits a REX prefix that encodes a 64-bit operand size and
   // the top bit of both register codes.

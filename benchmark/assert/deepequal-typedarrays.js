@@ -2,8 +2,17 @@
 const common = require('../common.js');
 const assert = require('assert');
 const bench = common.createBenchmark(main, {
-  type: ('Int8Array Uint8Array Int16Array Uint16Array Int32Array Uint32Array ' +
-    'Float32Array Float64Array Uint8ClampedArray').split(' '),
+  type: [
+    'Int8Array',
+    'Uint8Array',
+    'Int16Array',
+    'Uint16Array',
+    'Int32Array',
+    'Uint32Array',
+    'Float32Array',
+    'Float64Array',
+    'Uint8ClampedArray',
+  ],
   n: [1],
   method: ['strict', 'nonstrict'],
   len: [1e6]

@@ -78,8 +78,8 @@ function TryGetter(context, getter, obj, expected, expectException) {
     assertEquals(7, exception.stack.split('\n').length);
   }
   %DeoptimizeFunction(context);
-  %ClearFunctionTypeFeedback(context);
-  %ClearFunctionTypeFeedback(getter);
+  %ClearFunctionFeedback(context);
+  %ClearFunctionFeedback(getter);
 }
 
 function TestGetterInAllContexts(getter, obj, expected, expectException) {
@@ -239,8 +239,8 @@ function TrySetter(context, setter, obj, expectException, value, expected) {
     assertEquals(7, exception.stack.split('\n').length);
   }
   %DeoptimizeFunction(context);
-  %ClearFunctionTypeFeedback(context);
-  %ClearFunctionTypeFeedback(setter);
+  %ClearFunctionFeedback(context);
+  %ClearFunctionFeedback(setter);
 }
 
 function TestSetterInAllContexts(setter, obj, expectException) {

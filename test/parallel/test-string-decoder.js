@@ -167,7 +167,7 @@ function test(encoding, input, expected, singleSequence) {
 function unicodeEscape(str) {
   let r = '';
   for (let i = 0; i < str.length; i++) {
-    r += '\\u' + str.charCodeAt(i).toString(16);
+    r += `\\u${str.charCodeAt(i).toString(16)}`;
   }
   return r;
 }

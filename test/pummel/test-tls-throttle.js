@@ -38,8 +38,8 @@ const body = 'hello world\n'.repeat(1024 * 1024);
 process.stdout.write('done\n');
 
 const options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent2-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent2-cert.pem`)
 };
 
 const server = tls.Server(options, common.mustCall(function(socket) {

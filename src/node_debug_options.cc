@@ -8,7 +8,6 @@
 namespace node {
 
 namespace {
-const int default_debugger_port = 5858;
 #if HAVE_INSPECTOR
 const int default_inspector_port = 9229;
 #endif  // HAVE_INSPECTOR
@@ -56,28 +55,12 @@ std::pair<std::string, int> split_host_port(const std::string& arg) {
 
 }  // namespace
 
-DebugOptions::DebugOptions() : debugger_enabled_(false),
+DebugOptions::DebugOptions() :
 #if HAVE_INSPECTOR
                                inspector_enabled_(false),
 #endif  // HAVE_INSPECTOR
                                wait_connect_(false), http_enabled_(false),
                                host_name_("127.0.0.1"), port_(-1) { }
-
-void DebugOptions::EnableDebugAgent(DebugAgentType tool) {
-  switch (tool) {
-#if HAVE_INSPECTOR
-    case DebugAgentType::kInspector:
-      inspector_enabled_ = true;
-      debugger_enabled_ = true;
-      break;
-#endif  // HAVE_INSPECTOR
-    case DebugAgentType::kDebugger:
-      debugger_enabled_ = true;
-      break;
-    case DebugAgentType::kNone:
-      break;
-  }
-}
 
 bool DebugOptions::ParseOption(const std::string& option) {
   bool enable_inspector = false;
@@ -95,10 +78,8 @@ bool DebugOptions::ParseOption(const std::string& option) {
   }
 
   if (option_name == "--inspect") {
-    debugger_enabled_ = true;
     enable_inspector = true;
   } else if (option_name == "--inspect-brk") {
-    debugger_enabled_ = true;
     enable_inspector = true;
     wait_connect_ = true;
   } else if ((option_name != "--debug-port" &&
@@ -136,10 +117,8 @@ bool DebugOptions::ParseOption(const std::string& option) {
 int DebugOptions::port() const {
   int port = port_;
   if (port < 0) {
-    port = default_debugger_port;
 #if HAVE_INSPECTOR
-    if (!debugger_enabled_ || inspector_enabled_)
-      port = default_inspector_port;
+    port = default_inspector_port;
 #endif  // HAVE_INSPECTOR
   }
   return port;

@@ -66,8 +66,8 @@ for (const [type, expect] of [
     }));
 
     {
-      const compressed = zlib[method[0] + 'Sync'](expect, opts);
-      const decompressed = zlib[method[1] + 'Sync'](compressed, opts);
+      const compressed = zlib[`${method[0]}Sync`](expect, opts);
+      const decompressed = zlib[`${method[1]}Sync`](compressed, opts);
       assert.strictEqual(decompressed.toString(), expectStr,
                          `Should get original string after ${method[0]}Sync/` +
                          `${method[1]}Sync ${type} with options.`);
@@ -75,8 +75,8 @@ for (const [type, expect] of [
 
 
     {
-      const compressed = zlib[method[0] + 'Sync'](expect);
-      const decompressed = zlib[method[1] + 'Sync'](compressed);
+      const compressed = zlib[`${method[0]}Sync`](expect);
+      const decompressed = zlib[`${method[1]}Sync`](compressed);
       assert.strictEqual(decompressed.toString(), expectStr,
                          `Should get original string after ${method[0]}Sync/` +
                          `${method[1]}Sync ${type} without options.`);

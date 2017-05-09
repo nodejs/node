@@ -5,11 +5,11 @@
 #ifndef V8_API_EXPERIMENTAL_H_
 #define V8_API_EXPERIMENTAL_H_
 
-#include "src/handles.h"
-
 namespace v8 {
 namespace internal {
 class Code;
+template <typename T>
+class MaybeHandle;
 }  // internal;
 namespace experimental {
 class FastAccessorBuilder;

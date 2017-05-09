@@ -4,6 +4,11 @@
 
 [
 
+[ALWAYS, {
+  # Test is failing on V8 Linux - arm64 - sim - nosnap - debug.
+  'debugger/pause-on-oom': [SKIP],
+}],  # ALWAYS
+
 ##############################################################################
 ['variant == asm_wasm', {
   '*': [SKIP],

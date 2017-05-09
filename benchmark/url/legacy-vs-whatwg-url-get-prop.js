@@ -48,7 +48,7 @@ function useWHATWG(n, input) {
   var obj = new URL(input);
   var noDead = {
     protocol: obj.protocol,
-    auth: obj.username + ':' + obj.password,
+    auth: `${obj.username}:${obj.password}`,
     host: obj.host,
     hostname: obj.hostname,
     port: obj.port,
@@ -59,7 +59,7 @@ function useWHATWG(n, input) {
   bench.start();
   for (var i = 0; i < n; i += 1) {
     noDead.protocol = obj.protocol;
-    noDead.auth = obj.username + ':' + obj.password;
+    noDead.auth = `${obj.username}:${obj.password}`;
     noDead.host = obj.host;
     noDead.hostname = obj.hostname;
     noDead.port = obj.port;

@@ -101,8 +101,6 @@ tap.test("urls required", function(t) {
     repository: "Hello."
   }, warn)
 
-  console.error(a)
-
   var expect =
     [ warningMessages.missingDescription,
       warningMessages.missingRepository,
@@ -129,8 +127,6 @@ tap.test("homepage field must start with a protocol.", function(t) {
     homepage: 'example.org'
   }, warn)
 
-  console.error(a)
-
   var expect =
     [ warningMessages.missingDescription,
       warningMessages.missingRepository,
@@ -151,8 +147,6 @@ tap.test("license field should be a valid SPDX expression", function(t) {
   normalize(a={
     license: 'Apache 2'
   }, warn)
-
-  console.error(a)
 
   var expect =
     [ warningMessages.missingDescription,

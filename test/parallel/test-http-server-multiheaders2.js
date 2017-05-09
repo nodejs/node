@@ -71,14 +71,13 @@ const multipleForbidden = [
 
 const srv = http.createServer(function(req, res) {
   multipleForbidden.forEach(function(header) {
-    assert.strictEqual(req.headers[header.toLowerCase()],
-                       'foo', 'header parsed incorrectly: ' + header);
+    assert.strictEqual(req.headers[header.toLowerCase()], 'foo',
+                       `header parsed incorrectly: ${header}`);
   });
   multipleAllowed.forEach(function(header) {
     const sep = (header.toLowerCase() === 'cookie' ? '; ' : ', ');
-    assert.strictEqual(req.headers[header.toLowerCase()],
-                       'foo' + sep + 'bar',
-                       'header parsed incorrectly: ' + header);
+    assert.strictEqual(req.headers[header.toLowerCase()], `foo${sep}bar`,
+                       `header parsed incorrectly: ${header}`);
   });
 
   res.writeHead(200, {'Content-Type': 'text/plain'});

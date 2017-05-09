@@ -1,0 +1,125 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "string-width@^2.0.0",
+        "scope": null,
+        "escapedName": "string-width",
+        "name": "string-width",
+        "rawSpec": "^2.0.0",
+        "spec": ">=2.0.0 <3.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen"
+    ]
+  ],
+  "_from": "string-width@>=2.0.0 <3.0.0",
+  "_id": "string-width@2.0.0",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/string-width",
+  "_nodeVersion": "4.5.0",
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/string-width-2.0.0.tgz_1474527284011_0.7386264291126281"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "3.10.7",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "string-width@^2.0.0",
+    "scope": null,
+    "escapedName": "string-width",
+    "name": "string-width",
+    "rawSpec": "^2.0.0",
+    "spec": ">=2.0.0 <3.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen"
+  ],
+  "_resolved": "https://registry.npmjs.org/string-width/-/string-width-2.0.0.tgz",
+  "_shasum": "635c5436cc72a6e0c387ceca278d4e2eec52687e",
+  "_shrinkwrap": null,
+  "_spec": "string-width@^2.0.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/string-width/issues"
+  },
+  "dependencies": {
+    "is-fullwidth-code-point": "^2.0.0",
+    "strip-ansi": "^3.0.0"
+  },
+  "description": "Get the visual width of a string - the number of columns required to display it",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "635c5436cc72a6e0c387ceca278d4e2eec52687e",
+    "tarball": "https://registry.npmjs.org/string-width/-/string-width-2.0.0.tgz"
+  },
+  "engines": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "523d7ba4dbb24d40cde88d2c36bb1c7124ab6f82",
+  "homepage": "https://github.com/sindresorhus/string-width#readme",
+  "keywords": [
+    "string",
+    "str",
+    "character",
+    "char",
+    "unicode",
+    "width",
+    "visual",
+    "column",
+    "columns",
+    "fullwidth",
+    "full-width",
+    "full",
+    "ansi",
+    "escape",
+    "codes",
+    "cli",
+    "command-line",
+    "terminal",
+    "console",
+    "cjk",
+    "chinese",
+    "japanese",
+    "korean",
+    "fixed-width"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "string-width",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/string-width.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "2.0.0",
+  "xo": {
+    "esnext": true
+  }
+}

@@ -88,12 +88,6 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Load padding words on stack.
-    __ Mov(scratch, Smi::FromInt(LiveEdit::kFramePaddingValue));
-    __ PushMultipleTimes(scratch, LiveEdit::kFramePaddingInitialSize);
-    __ Mov(scratch, Smi::FromInt(LiveEdit::kFramePaddingInitialSize));
-    __ Push(scratch);
-
     // Push arguments for DebugBreak call.
     if (mode == SAVE_RESULT_REGISTER) {
       // Break on return.
@@ -119,52 +113,48 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
         }
       }
     }
-
-    // Don't bother removing padding bytes pushed on the stack
-    // as the frame is going to be restored right away.
-
     // Leave the internal frame.
   }
 
-  // Now that the break point has been handled, resume normal execution by
-  // jumping to the target address intended by the caller and that was
-  // overwritten by the address of DebugBreakXXX.
-  ExternalReference after_break_target =
-      ExternalReference::debug_after_break_target_address(masm->isolate());
-  __ Mov(scratch, after_break_target);
-  __ Ldr(scratch, MemOperand(scratch));
-  __ Br(scratch);
+  __ MaybeDropFrames();
+
+  // Return to caller.
+  __ Ret();
 }
 
+void DebugCodegen::GenerateHandleDebuggerStatement(MacroAssembler* masm) {
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kHandleDebuggerStatement, 0);
+  }
+  __ MaybeDropFrames();
 
-void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  // We do not know our frame height, but set sp based on fp.
-  __ Add(masm->StackPointer(), fp, FrameDropperFrameConstants::kFunctionOffset);
+  // Return to caller.
+  __ Ret();
+}
+
+void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
+  // Frame is being dropped:
+  // - Drop to the target frame specified by x1.
+  // - Look up current function on the frame.
+  // - Leave the frame.
+  // - Restart the frame by calling the function.
+  __ Mov(fp, x1);
   __ AssertStackConsistency();
+  __ Ldr(x1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
 
-  __ Pop(x1);  // Function
   __ Mov(masm->StackPointer(), Operand(fp));
   __ Pop(fp, lr);  // Frame, Return address.
 
-  ParameterCount dummy(0);
-  __ CheckDebugHook(x1, no_reg, dummy, dummy);
+  __ Ldr(x0, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldr(x0,
+         FieldMemOperand(x0, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ mov(x2, x0);
 
-  UseScratchRegisterScope temps(masm);
-  Register scratch = temps.AcquireX();
-
-  // Load context from the function.
-  __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
-
-  // Clear new.target as a safety measure.
-  __ LoadRoot(x3, Heap::kUndefinedValueRootIndex);
-
-  // Get function code.
-  __ Ldr(scratch, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldr(scratch, FieldMemOperand(scratch, SharedFunctionInfo::kCodeOffset));
-  __ Add(scratch, scratch, Code::kHeaderSize - kHeapObjectTag);
-
-  // Re-run JSFunction, x1 is function, cp is context.
-  __ Br(scratch);
+  ParameterCount dummy1(x2);
+  ParameterCount dummy2(x0);
+  __ InvokeFunction(x1, dummy1, dummy2, JUMP_FUNCTION,
+                    CheckDebugStepCallWrapper());
 }
 
 

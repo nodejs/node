@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/objects-inl.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/version.h"
 #include "src/wasm/module-decoder.h"
@@ -270,9 +271,9 @@ class WasmSerializationTest {
                0);
     }
     Handle<JSObject> instance =
-        WasmModule::Instantiate(current_isolate(), &thrower, module_object,
-                                Handle<JSReceiver>::null(),
-                                Handle<JSArrayBuffer>::null())
+        SyncInstantiate(current_isolate(), &thrower, module_object,
+                        Handle<JSReceiver>::null(),
+                        MaybeHandle<JSArrayBuffer>())
             .ToHandleChecked();
     Handle<Object> params[1] = {
         Handle<Object>(Smi::FromInt(41), current_isolate())};
@@ -306,14 +307,6 @@ class WasmSerializationTest {
   }
 
   void SetUp() {
-    WasmModuleBuilder* builder = new (zone()) WasmModuleBuilder(zone());
-    TestSignatures sigs;
-
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
-    byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add};
-    EMIT_CODE_WITH_END(f, code);
-    f->ExportAs(CStrVector(kFunctionName));
-
     ZoneBuffer buffer(&zone_);
     WasmSerializationTest::BuildWireBytes(zone(), &buffer);
 
@@ -325,19 +318,13 @@ class WasmSerializationTest {
       HandleScope scope(serialization_isolate);
       testing::SetupIsolateForWasmModule(serialization_isolate);
 
-      ModuleResult decoding_result =
-          DecodeWasmModule(serialization_isolate, buffer.begin(), buffer.end(),
-                           false, kWasmOrigin);
-      CHECK(!decoding_result.failed());
+      MaybeHandle<WasmModuleObject> module_object =
+          SyncCompile(serialization_isolate, &thrower,
+                      ModuleWireBytes(buffer.begin(), buffer.end()));
 
-      Handle<WasmModuleWrapper> module_wrapper = WasmModuleWrapper::New(
-          serialization_isolate, const_cast<WasmModule*>(decoding_result.val));
-
-      MaybeHandle<WasmCompiledModule> compiled_module =
-          decoding_result.val->CompileFunctions(
-              serialization_isolate, module_wrapper, &thrower,
-              ModuleWireBytes(buffer.begin(), buffer.end()),
-              Handle<Script>::null(), Vector<const byte>::empty());
+      MaybeHandle<WasmCompiledModule> compiled_module(
+          module_object.ToHandleChecked()->compiled_module(),
+          serialization_isolate);
       CHECK(!compiled_module.is_null());
       Handle<JSObject> module_obj = WasmModuleObject::New(
           serialization_isolate, compiled_module.ToHandleChecked());
@@ -444,10 +431,8 @@ TEST(BlockWasmCodeGen) {
   CcTest::isolate()->SetAllowCodeGenerationFromStringsCallback(False);
 
   ErrorThrower thrower(isolate, "block codegen");
-  MaybeHandle<WasmModuleObject> ret = wasm::CreateModuleObjectFromBytes(
-      isolate, buffer.begin(), buffer.end(), &thrower,
-      wasm::ModuleOrigin::kWasmOrigin, Handle<v8::internal::Script>::null(),
-      Vector<const byte>::empty());
+  MaybeHandle<WasmModuleObject> ret = wasm::SyncCompile(
+      isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
   CcTest::isolate()->SetAllowCodeGenerationFromStringsCallback(nullptr);
   CHECK(ret.is_null());
   CHECK(thrower.error());

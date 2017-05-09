@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --max-opt-count=100 --noalways-opt
-// Flags: --nocollect-maps
+// Flags: --nocollect-maps --crankshaft
 
 // We specify max-opt-count because we opt/deopt the same function many
 // times.
@@ -70,7 +70,7 @@ if (standalone) {
     %OptimizeFunctionOnNextCall(name);
   }
   clearFunctionTypeFeedback = function(name) {
-    %ClearFunctionTypeFeedback(name);
+    %ClearFunctionFeedback(name);
   }
   deoptimizeFunction = function(name) {
     %DeoptimizeFunction(name);

@@ -296,7 +296,7 @@ assert.strictEqual(
 
 // Function with properties
 {
-  const value = function() {};
+  const value = () => {};
   value.aprop = 42;
   assert.strictEqual(util.inspect(value), '{ [Function: value] aprop: 42 }');
 }
@@ -514,8 +514,7 @@ assert.doesNotThrow(() => {
 
     const withoutColor = util.inspect(input, false, 0, false);
     const withColor = util.inspect(input, false, 0, true);
-    const expect = '\u001b[' + color[0] + 'm' + withoutColor +
-                   '\u001b[' + color[1] + 'm';
+    const expect = `\u001b[${color[0]}m${withoutColor}\u001b[${color[1]}m`;
     assert.strictEqual(
       withColor,
       expect,

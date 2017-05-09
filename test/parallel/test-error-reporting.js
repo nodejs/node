@@ -26,8 +26,7 @@ const exec = require('child_process').exec;
 const path = require('path');
 
 function errExec(script, callback) {
-  const cmd = '"' + process.argv[0] + '" "' +
-              path.join(common.fixturesDir, script) + '"';
+  const cmd = `"${process.argv[0]}" "${path.join(common.fixturesDir, script)}"`;
   return exec(cmd, function(err, stdout, stderr) {
     // There was some error
     assert.ok(err);
@@ -36,7 +35,7 @@ function errExec(script, callback) {
     assert.ok(stderr.split('\n').length > 2);
 
     // Assert the script is mentioned in error output.
-    assert.ok(stderr.indexOf(script) >= 0);
+    assert.ok(stderr.includes(script));
 
     // Proxy the args for more tests.
     callback(err, stdout, stderr);

@@ -64,23 +64,13 @@ class WasmCompiledModuleSerializer : public CodeSerializer {
 
  protected:
   void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
-                           WhereToPoint where_to_point) override {
-    Code::Kind kind = code_object->kind();
-    if (kind == Code::WASM_FUNCTION || kind == Code::WASM_TO_JS_FUNCTION ||
-        kind == Code::JS_TO_WASM_FUNCTION) {
-      SerializeGeneric(code_object, how_to_code, where_to_point);
-    } else {
-      UNREACHABLE();
-    }
-  }
-
-  bool ElideObject(Object* obj) override {
-    return obj->IsWeakCell() || obj->IsForeign();
-  };
+                           WhereToPoint where_to_point) override;
+  bool ElideObject(Object* obj) override;
 
  private:
-  WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash)
-      : CodeSerializer(isolate, source_hash) {}
+  WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash,
+                               Handle<Context> native_context,
+                               Handle<SeqOneByteString> module_bytes);
   DISALLOW_COPY_AND_ASSIGN(WasmCompiledModuleSerializer);
 };
 

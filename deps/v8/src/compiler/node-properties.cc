@@ -7,7 +7,9 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/compiler/verifier.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
@@ -312,6 +314,111 @@ void NodeProperties::CollectControlProjections(Node* node, Node** projections,
 #endif
 }
 
+// static
+bool NodeProperties::IsSame(Node* a, Node* b) {
+  for (;;) {
+    if (a->opcode() == IrOpcode::kCheckHeapObject) {
+      a = GetValueInput(a, 0);
+      continue;
+    }
+    if (b->opcode() == IrOpcode::kCheckHeapObject) {
+      b = GetValueInput(b, 0);
+      continue;
+    }
+    return a == b;
+  }
+}
+
+// static
+NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
+    Node* receiver, Node* effect, ZoneHandleSet<Map>* maps_return) {
+  HeapObjectMatcher m(receiver);
+  if (m.HasValue()) {
+    Handle<Map> receiver_map(m.Value()->map());
+    if (receiver_map->is_stable()) {
+      // The {receiver_map} is only reliable when we install a stability
+      // code dependency.
+      *maps_return = ZoneHandleSet<Map>(receiver_map);
+      return kUnreliableReceiverMaps;
+    }
+  }
+  InferReceiverMapsResult result = kReliableReceiverMaps;
+  while (true) {
+    switch (effect->opcode()) {
+      case IrOpcode::kCheckMaps: {
+        Node* const object = GetValueInput(effect, 0);
+        if (IsSame(receiver, object)) {
+          *maps_return = CheckMapsParametersOf(effect->op()).maps();
+          return result;
+        }
+        break;
+      }
+      case IrOpcode::kJSCreate: {
+        if (IsSame(receiver, effect)) {
+          HeapObjectMatcher mtarget(GetValueInput(effect, 0));
+          HeapObjectMatcher mnewtarget(GetValueInput(effect, 1));
+          if (mtarget.HasValue() && mnewtarget.HasValue()) {
+            Handle<JSFunction> original_constructor =
+                Handle<JSFunction>::cast(mnewtarget.Value());
+            if (original_constructor->has_initial_map()) {
+              Handle<Map> initial_map(original_constructor->initial_map());
+              if (initial_map->constructor_or_backpointer() ==
+                  *mtarget.Value()) {
+                *maps_return = ZoneHandleSet<Map>(initial_map);
+                return result;
+              }
+            }
+          }
+          // We reached the allocation of the {receiver}.
+          return kNoReceiverMaps;
+        }
+        break;
+      }
+      case IrOpcode::kStoreField: {
+        // We only care about StoreField of maps.
+        Node* const object = GetValueInput(effect, 0);
+        FieldAccess const& access = FieldAccessOf(effect->op());
+        if (access.base_is_tagged == kTaggedBase &&
+            access.offset == HeapObject::kMapOffset) {
+          if (IsSame(receiver, object)) {
+            Node* const value = GetValueInput(effect, 1);
+            HeapObjectMatcher m(value);
+            if (m.HasValue()) {
+              *maps_return = ZoneHandleSet<Map>(Handle<Map>::cast(m.Value()));
+              return result;
+            }
+          }
+          // Without alias analysis we cannot tell whether this
+          // StoreField[map] affects {receiver} or not.
+          result = kUnreliableReceiverMaps;
+        }
+        break;
+      }
+      case IrOpcode::kJSStoreMessage:
+      case IrOpcode::kJSStoreModule:
+      case IrOpcode::kStoreElement:
+      case IrOpcode::kStoreTypedElement: {
+        // These never change the map of objects.
+        break;
+      }
+      default: {
+        DCHECK_EQ(1, effect->op()->EffectOutputCount());
+        if (effect->op()->EffectInputCount() != 1) {
+          // Didn't find any appropriate CheckMaps node.
+          return kNoReceiverMaps;
+        }
+        if (!effect->op()->HasProperty(Operator::kNoWrite)) {
+          // Without alias/escape analysis we cannot tell whether this
+          // {effect} affects {receiver} or not.
+          result = kUnreliableReceiverMaps;
+        }
+        break;
+      }
+    }
+    DCHECK_EQ(1, effect->op()->EffectInputCount());
+    effect = NodeProperties::GetEffectInput(effect);
+  }
+}
 
 // static
 MaybeHandle<Context> NodeProperties::GetSpecializationContext(

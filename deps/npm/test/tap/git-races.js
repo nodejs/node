@@ -162,7 +162,8 @@ function setup (cb) {
 var oneTree = [
   'npm-git-test@1.0.0', [
     ['dummy-npm-bar@4.0.0', [
-      ['dummy-npm-foo@3.0.0', []]
+      ['dummy-npm-foo@3.0.0', []],
+      ['dummy-npm-buzz@3.0.0', []]
     ]],
     ['dummy-npm-buzz@3.0.0', []],
     ['dummy-npm-foo@4.0.0', [
@@ -199,17 +200,19 @@ test('setup', function (t) {
 })
 
 test('correct versions are installed for git dependency', function (t) {
-  t.plan(3)
   t.comment('test for https://github.com/npm/npm/issues/7202')
   npm.commands.install([], function (er) {
     t.ifError(er, 'installed OK')
     npm.commands.ls([], true, function (er, result) {
       t.ifError(er, 'ls OK')
       var simplified = toSimple(result)
-      t.ok(
-        deepEqual(simplified, oneTree) || deepEqual(simplified, otherTree),
-        'install tree is correct'
-      )
+      if (deepEqual(simplified, oneTree) || deepEqual(simplified, otherTree)) {
+        t.pass('install tree is correct')
+      } else {
+        t.isDeeply(simplified, oneTree, 'oneTree matches')
+        t.isDeeply(simplified, otherTree, 'otherTree matches')
+      }
+      t.done()
     })
   })
 })

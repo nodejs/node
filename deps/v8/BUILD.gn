@@ -30,7 +30,7 @@ declare_args() {
   v8_deprecation_warnings = false
 
   # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
-  v8_imminent_deprecation_warnings = ""
+  v8_imminent_deprecation_warnings = false
 
   # Embeds the given script into the snapshot.
   v8_embed_script = ""
@@ -41,11 +41,17 @@ declare_args() {
   # Sets -dENABLE_GDB_JIT_INTERFACE.
   v8_enable_gdbjit = ""
 
+  # Sets -dENABLE_VTUNE_JIT_INTERFACE.
+  v8_enable_vtunejit = false
+
   # Sets -dENABLE_HANDLE_ZAPPING.
   v8_enable_handle_zapping = is_debug
 
   # Enable slow dchecks.
   v8_enable_slow_dchecks = false
+
+  # Enable code-generation-time checking of types in the CodeStubAssembler.
+  v8_enable_verify_csa = false
 
   # Interpreted regexp engine exists as platform-independent alternative
   # based where the regular expression is compiled to a bytecode.
@@ -76,23 +82,22 @@ declare_args() {
 
   # Similar to the ARM hard float ABI but on MIPS.
   v8_use_mips_abi_hardfloat = true
-}
 
-# Set project-specific defaults for some args if not provided in args.gn. The
-# defaults can be set in the respective build_overrides files.
-if (v8_imminent_deprecation_warnings == "") {
-  if (defined(v8_imminent_deprecation_warnings_default)) {
-    v8_imminent_deprecation_warnings = v8_imminent_deprecation_warnings_default
-  } else {
-    v8_imminent_deprecation_warnings = false
-  }
-}
-if (v8_enable_gdbjit == "") {
-  if (defined(v8_enable_gdbjit_default)) {
-    v8_enable_gdbjit = v8_enable_gdbjit_default
-  } else {
-    v8_enable_gdbjit = false
-  }
+  # List of extra files to snapshot. They will be snapshotted in order so
+  # if files export symbols used by later files, they should go first.
+  #
+  # This default is used by cctests. Projects using V8 will want to override.
+  v8_extra_library_files = [ "//test/cctest/test-extra.js" ]
+
+  # Like v8_extra_library_files but for experimental features.
+  #
+  # This default is used by cctests. Projects using V8 will want to override.
+  v8_experimental_extra_library_files =
+      [ "//test/cctest/test-experimental-extra.js" ]
+
+  v8_enable_gdbjit = ((v8_current_cpu == "x86" || v8_current_cpu == "x64" ||
+                       v8_current_cpu == "x87") && (is_linux || is_mac)) ||
+                     (v8_current_cpu == "ppc64" && is_linux)
 }
 
 # Derived defaults.
@@ -194,6 +199,9 @@ config("features") {
   }
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
+  }
+  if (v8_enable_vtunejit) {
+    defines += [ "ENABLE_VTUNE_JIT_INTERFACE" ]
   }
   if (v8_enable_object_print) {
     defines += [ "OBJECT_PRINT" ]
@@ -381,6 +389,10 @@ config("toolchain") {
     defines += [ "DEBUG" ]
   }
 
+  if (v8_enable_verify_csa) {
+    defines += [ "ENABLE_VERIFY_CSA" ]
+  }
+
   if (v8_no_inline) {
     cflags += [
       "-fno-inline-functions",
@@ -395,11 +407,10 @@ config("toolchain") {
       # TODO(hans): Remove once http://crbug.com/428099 is resolved.
       "-Winconsistent-missing-override",
     ]
-
-    if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
-        v8_current_cpu == "mips64el") {
-      cflags += [ "-Wshorten-64-to-32" ]
-    }
+    #if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
+    #    v8_current_cpu == "mips64el") {
+    #  cflags += [ "-Wshorten-64-to-32" ]
+    #}
   }
 }
 
@@ -437,7 +448,6 @@ action("js2c") {
     "src/js/templates.js",
     "src/js/spread.js",
     "src/js/proxy.js",
-    "src/js/async-await.js",
     "src/js/harmony-string-padding.js",
     "src/debug/mirrors.js",
     "src/debug/debug.js",
@@ -482,19 +492,11 @@ action("js2c_experimental") {
     "src/js/macros.py",
     "src/messages.h",
     "src/js/harmony-atomics.js",
-    "src/js/harmony-simd.js",
   ]
 
   outputs = [
     "$target_gen_dir/experimental-libraries.cc",
   ]
-
-  if (v8_enable_i18n_support) {
-    sources += [
-      "src/js/datetime-format-to-parts.js",
-      "src/js/icu-case-mapping.js",
-    ]
-  }
 
   args = [
            rebase_path("$target_gen_dir/experimental-libraries.cc",
@@ -749,6 +751,7 @@ action("v8_dump_build_config") {
   ]
   args = [
     rebase_path("$root_out_dir/v8_build_config.json", root_build_dir),
+    "current_cpu=\"$current_cpu\"",
     "dcheck_always_on=$dcheck_always_on",
     "is_asan=$is_asan",
     "is_cfi=$is_cfi",
@@ -757,6 +760,7 @@ action("v8_dump_build_config") {
     "is_msan=$is_msan",
     "is_tsan=$is_tsan",
     "target_cpu=\"$target_cpu\"",
+    "v8_current_cpu=\"$v8_current_cpu\"",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
     "v8_enable_inspector=$v8_enable_inspector",
     "v8_target_cpu=\"$v8_target_cpu\"",
@@ -866,7 +870,7 @@ if (v8_use_external_startup_data) {
 
 # This is split out to be a non-code containing target that the Chromium browser
 # DLL can depend upon to get only a version string.
-v8_source_set("v8_version") {
+v8_header_set("v8_version") {
   configs = [ ":internal_config" ]
 
   sources = [
@@ -928,8 +932,6 @@ v8_source_set("v8_base") {
     "src/ast/ast-expression-rewriter.h",
     "src/ast/ast-function-literal-id-reindexer.cc",
     "src/ast/ast-function-literal-id-reindexer.h",
-    "src/ast/ast-literal-reindexer.cc",
-    "src/ast/ast-literal-reindexer.h",
     "src/ast/ast-numbering.cc",
     "src/ast/ast-numbering.h",
     "src/ast/ast-traversal-visitor.h",
@@ -967,8 +969,14 @@ v8_source_set("v8_base") {
     "src/bootstrapper.cc",
     "src/bootstrapper.h",
     "src/builtins/builtins-api.cc",
+    "src/builtins/builtins-arguments.cc",
+    "src/builtins/builtins-arguments.h",
     "src/builtins/builtins-array.cc",
     "src/builtins/builtins-arraybuffer.cc",
+    "src/builtins/builtins-async-function.cc",
+    "src/builtins/builtins-async-iterator.cc",
+    "src/builtins/builtins-async.cc",
+    "src/builtins/builtins-async.h",
     "src/builtins/builtins-boolean.cc",
     "src/builtins/builtins-call.cc",
     "src/builtins/builtins-callsite.cc",
@@ -990,16 +998,19 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-math.cc",
     "src/builtins/builtins-number.cc",
     "src/builtins/builtins-object.cc",
+    "src/builtins/builtins-object.h",
     "src/builtins/builtins-promise.cc",
     "src/builtins/builtins-promise.h",
     "src/builtins/builtins-proxy.cc",
     "src/builtins/builtins-reflect.cc",
     "src/builtins/builtins-regexp.cc",
+    "src/builtins/builtins-regexp.h",
     "src/builtins/builtins-sharedarraybuffer.cc",
     "src/builtins/builtins-string.cc",
     "src/builtins/builtins-symbol.cc",
     "src/builtins/builtins-typedarray.cc",
     "src/builtins/builtins-utils.h",
+    "src/builtins/builtins-wasm.cc",
     "src/builtins/builtins.cc",
     "src/builtins/builtins.h",
     "src/cached-powers.cc",
@@ -1132,8 +1143,6 @@ v8_source_set("v8_base") {
     "src/compiler/js-frame-specialization.h",
     "src/compiler/js-generic-lowering.cc",
     "src/compiler/js-generic-lowering.h",
-    "src/compiler/js-global-object-specialization.cc",
-    "src/compiler/js-global-object-specialization.h",
     "src/compiler/js-graph.cc",
     "src/compiler/js-graph.h",
     "src/compiler/js-inlining-heuristic.cc",
@@ -1146,6 +1155,8 @@ v8_source_set("v8_base") {
     "src/compiler/js-native-context-specialization.h",
     "src/compiler/js-operator.cc",
     "src/compiler/js-operator.h",
+    "src/compiler/js-type-hint-lowering.cc",
+    "src/compiler/js-type-hint-lowering.h",
     "src/compiler/js-typed-lowering.cc",
     "src/compiler/js-typed-lowering.h",
     "src/compiler/jump-threading.cc",
@@ -1324,6 +1335,8 @@ v8_source_set("v8_base") {
     "src/dateparser-inl.h",
     "src/dateparser.cc",
     "src/dateparser.h",
+    "src/debug/debug-coverage.cc",
+    "src/debug/debug-coverage.h",
     "src/debug/debug-evaluate.cc",
     "src/debug/debug-evaluate.h",
     "src/debug/debug-frames.cc",
@@ -1380,10 +1393,13 @@ v8_source_set("v8_base") {
     "src/feedback-vector-inl.h",
     "src/feedback-vector.cc",
     "src/feedback-vector.h",
+    "src/ffi/ffi-compiler.cc",
+    "src/ffi/ffi-compiler.h",
     "src/field-index-inl.h",
     "src/field-index.h",
     "src/field-type.cc",
     "src/field-type.h",
+    "src/find-and-replace-pattern.h",
     "src/fixed-dtoa.cc",
     "src/fixed-dtoa.h",
     "src/flag-definitions.h",
@@ -1453,7 +1469,6 @@ v8_source_set("v8_base") {
     "src/ic/access-compiler-data.h",
     "src/ic/access-compiler.cc",
     "src/ic/access-compiler.h",
-    "src/ic/accessor-assembler-impl.h",
     "src/ic/accessor-assembler.cc",
     "src/ic/accessor-assembler.h",
     "src/ic/call-optimization.cc",
@@ -1462,8 +1477,6 @@ v8_source_set("v8_base") {
     "src/ic/handler-compiler.h",
     "src/ic/handler-configuration-inl.h",
     "src/ic/handler-configuration.h",
-    "src/ic/ic-compiler.cc",
-    "src/ic/ic-compiler.h",
     "src/ic/ic-inl.h",
     "src/ic/ic-state.cc",
     "src/ic/ic-state.h",
@@ -1537,6 +1550,7 @@ v8_source_set("v8_base") {
     "src/json-stringifier.h",
     "src/keys.cc",
     "src/keys.h",
+    "src/label.h",
     "src/layout-descriptor-inl.h",
     "src/layout-descriptor.cc",
     "src/layout-descriptor.h",
@@ -1557,6 +1571,7 @@ v8_source_set("v8_base") {
     "src/machine-type.cc",
     "src/machine-type.h",
     "src/macro-assembler.h",
+    "src/managed.h",
     "src/map-updater.cc",
     "src/map-updater.h",
     "src/messages.cc",
@@ -1569,9 +1584,12 @@ v8_source_set("v8_base") {
     "src/objects-printer.cc",
     "src/objects.cc",
     "src/objects.h",
+    "src/objects/literal-objects.cc",
+    "src/objects/literal-objects.h",
     "src/objects/module-info.h",
     "src/objects/object-macros-undef.h",
     "src/objects/object-macros.h",
+    "src/objects/regexp-match-info.h",
     "src/objects/scope-info.cc",
     "src/objects/scope-info.h",
     "src/ostreams.cc",
@@ -1594,6 +1612,8 @@ v8_source_set("v8_base") {
     "src/parsing/preparse-data-format.h",
     "src/parsing/preparse-data.cc",
     "src/parsing/preparse-data.h",
+    "src/parsing/preparsed-scope-data.cc",
+    "src/parsing/preparsed-scope-data.h",
     "src/parsing/preparser.cc",
     "src/parsing/preparser.h",
     "src/parsing/rewriter.cc",
@@ -1692,7 +1712,6 @@ v8_source_set("v8_base") {
     "src/runtime/runtime-proxy.cc",
     "src/runtime/runtime-regexp.cc",
     "src/runtime/runtime-scopes.cc",
-    "src/runtime/runtime-simd.cc",
     "src/runtime/runtime-strings.cc",
     "src/runtime/runtime-symbol.cc",
     "src/runtime/runtime-test.cc",
@@ -1780,14 +1799,16 @@ v8_source_set("v8_base") {
     "src/vm-state-inl.h",
     "src/vm-state.h",
     "src/wasm/decoder.h",
+    "src/wasm/function-body-decoder-impl.h",
     "src/wasm/function-body-decoder.cc",
     "src/wasm/function-body-decoder.h",
     "src/wasm/leb-helper.h",
-    "src/wasm/managed.h",
     "src/wasm/module-decoder.cc",
     "src/wasm/module-decoder.h",
     "src/wasm/signature-map.cc",
     "src/wasm/signature-map.h",
+    "src/wasm/wasm-code-specialization.cc",
+    "src/wasm/wasm-code-specialization.h",
     "src/wasm/wasm-debug.cc",
     "src/wasm/wasm-external-refs.cc",
     "src/wasm/wasm-external-refs.h",
@@ -2532,6 +2553,21 @@ group("gn_all") {
   }
 }
 
+group("v8_clusterfuzz") {
+  deps = [
+    ":d8",
+  ]
+
+  if (v8_multi_arch_build) {
+    deps += [
+      ":d8(//build/toolchain/linux:clang_x64)",
+      ":d8(//build/toolchain/linux:clang_x64_v8_arm64)",
+      ":d8(//build/toolchain/linux:clang_x86)",
+      ":d8(//build/toolchain/linux:clang_x86_v8_arm)",
+    ]
+  }
+}
+
 group("v8_fuzzers") {
   testonly = true
   deps = [
@@ -2609,8 +2645,6 @@ v8_executable("d8") {
     "//build/win:default_exe_manifest",
   ]
 
-  # TODO(jochen): Add support for vtunejit.
-
   if (is_posix) {
     sources += [ "src/d8-posix.cc" ]
   } else if (is_win) {
@@ -2628,6 +2662,10 @@ v8_executable("d8") {
   defines = []
   if (v8_enable_inspector) {
     defines += [ "V8_INSPECTOR_ENABLED" ]
+  }
+
+  if (v8_enable_vtunejit) {
+    deps += [ "//src/third_party/vtune:v8_vtune" ]
   }
 }
 
@@ -3063,4 +3101,24 @@ v8_source_set("wasm_data_section_fuzzer") {
 }
 
 v8_fuzzer("wasm_data_section_fuzzer") {
+}
+
+v8_source_set("wasm_compile_fuzzer") {
+  sources = [
+    "test/fuzzer/wasm-compile.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+    ":wasm_module_runner",
+    ":wasm_test_signatures",
+  ]
+
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
+}
+
+v8_fuzzer("wasm_compile_fuzzer") {
 }

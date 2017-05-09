@@ -323,7 +323,6 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     case JS_VALUE_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSValue(Handle<JSValue>::cast(object));
-    case SIMD128_VALUE_TYPE:
     case SYMBOL_TYPE:
       return UNCHANGED;
     default:

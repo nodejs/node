@@ -78,7 +78,6 @@ class ProgressIndicator(object):
     self.failed = [ ]
     self.flaky_failed = [ ]
     self.crashed = 0
-    self.flaky_crashed = 0
     self.lock = threading.Lock()
     self.shutdown_event = threading.Event()
 
@@ -156,8 +155,6 @@ class ProgressIndicator(object):
       if output.UnexpectedOutput():
         if FLAKY in output.test.outcomes and self.flaky_tests_mode == DONTCARE:
           self.flaky_failed.append(output)
-          if output.HasCrashed():
-            self.flaky_crashed += 1
         else:
           self.failed.append(output)
           if output.HasCrashed():
@@ -341,6 +338,39 @@ class TapProgressIndicator(SimpleProgressIndicator):
   def Done(self):
     pass
 
+class DeoptsCheckProgressIndicator(SimpleProgressIndicator):
+
+  def Starting(self):
+    pass
+
+  def AboutToRun(self, case):
+    pass
+
+  def HasRun(self, output):
+    # Print test name as (for example) "parallel/test-assert".  Tests that are
+    # scraped from the addons documentation are all named test.js, making it
+    # hard to decipher what test is running when only the filename is printed.
+    prefix = abspath(join(dirname(__file__), '../test')) + os.sep
+    command = output.command[-1]
+    if command.endswith('.js'): command = command[:-3]
+    if command.startswith(prefix): command = command[len(prefix):]
+    command = command.replace('\\', '/')
+
+    stdout = output.output.stdout.strip()
+    printed_file = False
+    for line in stdout.splitlines():
+      if (line.startswith("[aborted optimiz") or \
+          line.startswith("[disabled optimiz")) and \
+         ("because:" in line or "reason:" in line):
+        if not printed_file:
+          printed_file = True
+          print '==== %s ====' % command
+          self.failed.append(output)
+        print '  %s' % line
+
+  def Done(self):
+    pass
+
 
 class CompactProgressIndicator(ProgressIndicator):
 
@@ -433,7 +463,8 @@ PROGRESS_INDICATORS = {
   'dots': DotsProgressIndicator,
   'color': ColorProgressIndicator,
   'tap': TapProgressIndicator,
-  'mono': MonochromeProgressIndicator
+  'mono': MonochromeProgressIndicator,
+  'deopts': DeoptsCheckProgressIndicator
 }
 
 
@@ -541,9 +572,6 @@ class TestOutput(object):
     else:
       outcome = PASS
     return not outcome in self.test.outcomes
-
-  def HasPreciousOutput(self):
-    return self.UnexpectedOutput() and self.store_unexpected_output
 
   def HasCrashed(self):
     if utils.IsWindows():
@@ -771,11 +799,6 @@ class TestSuite(object):
     return self.name
 
 
-# Use this to run several variants of the tests, e.g.:
-# VARIANT_FLAGS = [[], ['--always_compact', '--noflush_code']]
-VARIANT_FLAGS = [[]]
-
-
 class TestRepository(TestSuite):
 
   def __init__(self, path):
@@ -794,10 +817,6 @@ class TestRepository(TestSuite):
       (file, pathname, description) = imp.find_module('testcfg', [ self.path ])
       module = imp.load_module('testcfg', file, pathname, description)
       self.config = module.GetConfiguration(context, self.path)
-      if hasattr(self.config, 'additional_flags'):
-        self.config.additional_flags += context.node_args
-      else:
-        self.config.additional_flags = context.node_args
     finally:
       if file:
         file.close()
@@ -807,13 +826,11 @@ class TestRepository(TestSuite):
     return self.GetConfiguration(context).GetBuildRequirements()
 
   def AddTestsToList(self, result, current_path, path, context, arch, mode):
-    for v in VARIANT_FLAGS:
-      tests = self.GetConfiguration(context).ListTests(current_path, path,
-                                                       arch, mode)
-      for t in tests: t.variant_flags = v
-      result += tests
-      for i in range(1, context.repeat):
-        result += copy.deepcopy(tests)
+    tests = self.GetConfiguration(context).ListTests(current_path, path,
+                                                     arch, mode)
+    result += tests
+    for i in range(1, context.repeat):
+      result += copy.deepcopy(tests)
 
   def GetTestStatus(self, context, sections, defs):
     self.GetConfiguration(context).GetTestStatus(sections, defs)
@@ -849,12 +866,6 @@ class LiteralTestSuite(TestSuite):
       test.GetTestStatus(context, sections, defs)
 
 
-SUFFIX = {
-    'debug'   : '_g',
-    'release' : '' }
-FLAGS = {
-    'debug'   : ['--enable-slow-asserts', '--debug-code', '--verify-heap'],
-    'release' : []}
 TIMEOUT_SCALEFACTOR = {
     'armv6' : { 'debug' : 12, 'release' : 3 },  # The ARM buildbots are slow.
     'arm'   : { 'debug' :  8, 'release' : 2 },
@@ -872,7 +883,6 @@ class Context(object):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
-    self.vm_root = vm
     self.node_args = args
     self.expect_fail = expect_fail
     self.timeout = timeout
@@ -901,9 +911,6 @@ class Context(object):
       raise ValueError('Could not find executable. Should be ' + name)
 
     return name
-
-  def GetVmFlags(self, testcase, mode):
-    return testcase.variant_flags + FLAGS[mode]
 
   def GetTimeout(self, mode):
     return self.timeout * TIMEOUT_SCALEFACTOR[ARCH_GUESS or 'ia32'][mode]
@@ -1000,18 +1007,6 @@ class ListSet(Set):
 
   def IsEmpty(self):
     return len(self.elms) == 0
-
-
-class Everything(Set):
-
-  def Intersect(self, that):
-    return that
-
-  def Union(self, that):
-    return self
-
-  def IsEmpty(self):
-    return False
 
 
 class Nothing(Set):
@@ -1383,6 +1378,8 @@ def BuildOptions():
       help="Expect test cases to fail", default=False, action="store_true")
   result.add_option("--valgrind", help="Run tests through valgrind",
       default=False, action="store_true")
+  result.add_option("--check-deopts", help="Check tests for permanent deoptimizations",
+      default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
       default=False, action="store_true")
   result.add_option("--flaky-tests",
@@ -1585,6 +1582,14 @@ def Main():
   if options.valgrind:
     run_valgrind = join(workspace, "tools", "run-valgrind.py")
     options.special_command = "python -u " + run_valgrind + " @"
+
+  if options.check_deopts:
+    options.node_args.append("--trace-opt")
+    options.node_args.append("--trace-file-names")
+    # --always-opt is needed because many tests do not run long enough for the
+    # optimizer to kick in, so this flag will force it to run.
+    options.node_args.append("--always-opt")
+    options.progress = "deopts"
 
   shell = abspath(options.shell)
   buildspace = dirname(shell)

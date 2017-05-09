@@ -524,7 +524,7 @@ parameter count: 1
 bytecode array length: 18
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /* 1494 S> */ B(LdaSmi), U8(3),
+  /* 1494 S> */ B(LdaSmi), I8(3),
   /* 1501 E> */ B(TestGreaterThan), R(2), U8(2),
                 B(JumpIfFalse), U8(7),
   /* 1508 S> */ B(Wide), B(Ldar), R16(129),
@@ -708,12 +708,12 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /* 1503 S> */ B(LdaZero),
                 B(Star), R(0),
-  /* 1506 S> */ B(LdaSmi), U8(3),
+  /* 1506 S> */ B(LdaSmi), I8(3),
   /* 1515 E> */ B(Wide), B(TestEqual), R16(129), U16(2),
                 B(JumpIfFalse), U8(10),
   /* 1534 S> */ B(Wide), B(Mov), R16(0), R16(129),
                 B(Ldar), R(0),
-  /* 1540 S> */ B(LdaSmi), U8(3),
+  /* 1540 S> */ B(LdaSmi), I8(3),
   /* 1547 E> */ B(TestGreaterThan), R(2), U8(3),
                 B(JumpIfFalse), U8(5),
   /* 1554 S> */ B(Ldar), R(0),
@@ -900,7 +900,7 @@ bytecodes: [
                 B(Star), R(1),
   /* 1523 S> */ B(LdaZero),
                 B(Wide), B(Star), R16(128),
-  /* 1538 S> */ B(LdaSmi), U8(64),
+  /* 1538 S> */ B(LdaSmi), I8(64),
   /* 1538 E> */ B(Wide), B(TestLessThan), R16(128), U16(2),
                 B(JumpIfFalse), U8(31),
   /* 1518 E> */ B(StackCheck),
@@ -911,7 +911,7 @@ bytecodes: [
   /* 1548 S> */ B(Wide), B(Ldar), R16(128),
                 B(Inc), U8(3),
                 B(Wide), B(Star), R16(128),
-                B(JumpLoop), U8(-36), U8(0),
+                B(JumpLoop), U8(36), I8(0),
   /* 1567 S> */ B(Wide), B(Ldar), R16(128),
   /* 1580 S> */ B(Return),
 ]
@@ -1088,7 +1088,7 @@ parameter count: 1
 bytecode array length: 85
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /* 1503 S> */ B(Wide), B(LdaSmi), U16(1234),
+  /* 1503 S> */ B(Wide), B(LdaSmi), I16(1234),
                 B(Star), R(0),
   /* 1518 S> */ B(LdaZero),
                 B(Star), R(1),
@@ -1111,7 +1111,7 @@ bytecodes: [
                 B(Star), R(1),
   /* 1544 E> */ B(Wide), B(ForInStep), R16(161),
                 B(Wide), B(Star), R16(161),
-                B(JumpLoop), U8(-48), U8(0),
+                B(JumpLoop), U8(48), I8(0),
   /* 1553 S> */ B(Ldar), R(1),
   /* 1564 S> */ B(Return),
 ]

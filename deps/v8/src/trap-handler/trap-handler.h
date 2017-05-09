@@ -11,12 +11,12 @@ namespace trap_handler {
 
 struct ProtectedInstructionData {
   // The offset of this instruction from the start of its code object.
-  int32_t instr_offset;
+  intptr_t instr_offset;
 
   // The offset of the landing pad from the start of its code object.
   //
   // TODO(eholk): Using a single landing pad and store parameters here.
-  int32_t landing_offset;
+  intptr_t landing_offset;
 };
 
 }  // namespace trap_handler

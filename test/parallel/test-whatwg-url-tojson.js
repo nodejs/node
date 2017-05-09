@@ -1,8 +1,8 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const URL = require('url').URL;
-const { test, assert_equals } = common.WPT;
+const { test, assert_equals } = require('../common/wpt');
 
 /* eslint-disable */
 /* WPT Refs:

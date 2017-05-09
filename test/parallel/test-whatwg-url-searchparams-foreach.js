@@ -3,7 +3,8 @@
 const common = require('../common');
 const assert = require('assert');
 const { URL, URLSearchParams } = require('url');
-const { test, assert_array_equals, assert_unreached } = common.WPT;
+const { test, assert_array_equals, assert_unreached } =
+  require('../common/wpt');
 
 /* eslint-disable */
 var i;  // Strict mode fix for WPT.
@@ -50,5 +51,9 @@ test(function() {
   const params = new URLSearchParams();
   assert.throws(() => {
     params.forEach.call(undefined);
-  }, /^TypeError: Value of `this` is not a URLSearchParams$/);
+  }, common.expectsError({
+    code: 'ERR_INVALID_THIS',
+    type: TypeError,
+    message: 'Value of "this" must be of type URLSearchParams'
+  }));
 }

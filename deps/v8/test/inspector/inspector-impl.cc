@@ -138,7 +138,13 @@ v8::Local<v8::Context> InspectorClientImpl::ensureDefaultContextInGroup(int) {
   return context_.Get(isolate_);
 }
 
+void InspectorClientImpl::setCurrentTimeMSForTest(double time) {
+  current_time_ = time;
+  current_time_set_for_test_ = true;
+}
+
 double InspectorClientImpl::currentTimeMS() {
+  if (current_time_set_for_test_) return current_time_;
   return v8::base::OS::TimeCurrentMillis();
 }
 

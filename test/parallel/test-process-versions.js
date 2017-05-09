@@ -20,3 +20,11 @@ expected_keys.sort();
 const actual_keys = Object.keys(process.versions).sort();
 
 assert.deepStrictEqual(actual_keys, expected_keys);
+
+assert(/^\d+\.\d+\.\d+(-.*)?$/.test(process.versions.ares));
+assert(/^\d+\.\d+\.\d+(-.*)?$/.test(process.versions.http_parser));
+assert(/^\d+\.\d+\.\d+(-.*)?$/.test(process.versions.node));
+assert(/^\d+\.\d+\.\d+(-.*)?$/.test(process.versions.uv));
+assert(/^\d+\.\d+\.\d+(-.*)?$/.test(process.versions.zlib));
+assert(/^\d+\.\d+\.\d+(\.\d+)?$/.test(process.versions.v8));
+assert(/^\d+$/.test(process.versions.modules));

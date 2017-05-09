@@ -45,11 +45,11 @@ let response = '';
 child.stdout.setEncoding('utf8');
 
 child.stdout.on('data', function(chunk) {
-  console.log('stdout: ' + chunk);
+  console.log(`stdout: ${chunk}`);
   response += chunk;
 });
 
 process.on('exit', function() {
-  assert.ok(response.indexOf('HELLO=WORLD') >= 0);
-  assert.ok(response.indexOf('FOO=BAR') >= 0);
+  assert.ok(response.includes('HELLO=WORLD'));
+  assert.ok(response.includes('FOO=BAR'));
 });

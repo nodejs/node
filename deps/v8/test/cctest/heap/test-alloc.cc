@@ -48,7 +48,7 @@ AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
   // Make sure we can allocate through optimized allocation functions
   // for specific kinds.
   heap->AllocateFixedArray(100).ToObjectChecked();
-  heap->AllocateHeapNumber(0.42).ToObjectChecked();
+  heap->AllocateHeapNumber().ToObjectChecked();
   Object* object = heap->AllocateJSObject(
       *CcTest::i_isolate()->object_function()).ToObjectChecked();
   heap->CopyJSObject(JSObject::cast(object)).ToObjectChecked();

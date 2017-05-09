@@ -5,6 +5,7 @@
 #include "src/code-factory.h"
 #include "src/compiler/code-assembler.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 

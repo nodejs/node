@@ -20,7 +20,7 @@ server.on('message', (msg, rinfo) => {
 });
 
 server.on('listening', () => {
-  var address = server.address();
+  const address = server.address();
   console.log(`server listening ${address.address}:${address.port}`);
 });
 
@@ -146,7 +146,7 @@ server.on('message', (msg, rinfo) => {
 });
 
 server.on('listening', () => {
-  var address = server.address();
+  const address = server.address();
   console.log(`server listening ${address.address}:${address.port}`);
 });
 
@@ -301,9 +301,8 @@ The only way to know for sure that the datagram has been sent is by using a
 passed as the first argument to the `callback`. If a `callback` is not given,
 the error is emitted as an `'error'` event on the `socket` object.
 
-Offset and length are optional, but if you specify one you would need to
-specify the other. Also, they are supported only when the first
-argument is a `Buffer` or `Uint8Array`.
+Offset and length are optional but both *must* be set if either are used.
+They are supported only when the first argument is a `Buffer` or `Uint8Array`.
 
 Example of sending a UDP packet to a random port on `localhost`;
 
@@ -329,8 +328,10 @@ client.send([buf1, buf2], 41234, (err) => {
 });
 ```
 
-Sending multiple buffers might be faster or slower depending on your
-application and operating system: benchmark it. Usually it is faster.
+Sending multiple buffers might be faster or slower depending on the
+application and operating system. It is important to run benchmarks to
+determine the optimal strategy on a case-by-case basis. Generally speaking,
+however, sending multiple buffers is faster.
 
 **A Note about UDP datagram size**
 
@@ -497,14 +498,14 @@ interfaces" address on a random port (it does the right thing for both `udp4`
 and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`][] and [`socket.address().port`][].
 
-[`EventEmitter`]: events.html
-[`Buffer`]: buffer.html
 [`'close'`]: #dgram_event_close
+[`Buffer`]: buffer.html
+[`Error`]: errors.html#errors_class_error
+[`EventEmitter`]: events.html
 [`close()`]: #dgram_socket_close_callback
 [`cluster`]: cluster.html
-[`dgram.createSocket()`]: #dgram_dgram_createsocket_options_callback
 [`dgram.Socket#bind()`]: #dgram_socket_bind_options_callback
-[`Error`]: errors.html#errors_class_error
+[`dgram.createSocket()`]: #dgram_dgram_createsocket_options_callback
 [`socket.address().address`]: #dgram_socket_address
 [`socket.address().port`]: #dgram_socket_address
 [`socket.bind()`]: #dgram_socket_bind_port_address_callback

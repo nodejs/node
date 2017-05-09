@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 
@@ -13,7 +13,10 @@ function re(literals, ...values) {
     result += str.replace(/[\\^$.*+?()[\]{}|=!<>:-]/g, '\\$&');
     result += literals[i + 1];
   }
-  return new RegExp(`^AssertionError: ${result}$`);
+  return common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: new RegExp(`^${result}$`)
+  });
 }
 
 // The following deepEqual tests might seem very weird.
@@ -112,8 +115,10 @@ for (const a of similar) {
 
 assert.throws(
   () => { assert.deepEqual(new Set([{a: 0}]), new Set([{a: 1}])); },
-  /^AssertionError: Set { { a: 0 } } deepEqual Set { { a: 1 } }$/
-);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^Set { { a: 0 } } deepEqual Set { { a: 1 } }$/
+  }));
 
 function assertDeepAndStrictEqual(a, b) {
   assert.deepEqual(a, b);

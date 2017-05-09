@@ -46,6 +46,76 @@ class ObjectMarking : public AllStatic {
     return Marking::Color(ObjectMarking::MarkBitFrom(obj));
   }
 
+  V8_INLINE static bool IsImpossible(HeapObject* obj) {
+    return Marking::IsImpossible(MarkBitFrom(obj));
+  }
+
+  V8_INLINE static bool IsBlack(HeapObject* obj) {
+    return Marking::IsBlack(MarkBitFrom(obj));
+  }
+
+  V8_INLINE static bool IsWhite(HeapObject* obj) {
+    return Marking::IsWhite(MarkBitFrom(obj));
+  }
+
+  V8_INLINE static bool IsGrey(HeapObject* obj) {
+    return Marking::IsGrey(MarkBitFrom(obj));
+  }
+
+  V8_INLINE static bool IsBlackOrGrey(HeapObject* obj) {
+    return Marking::IsBlackOrGrey(MarkBitFrom(obj));
+  }
+
+  V8_INLINE static void ClearMarkBit(HeapObject* obj) {
+    Marking::MarkWhite(MarkBitFrom(obj));
+  }
+
+  V8_INLINE static void BlackToWhite(HeapObject* obj) {
+    DCHECK(IsBlack(obj));
+    MarkBit markbit = MarkBitFrom(obj);
+    Marking::BlackToWhite(markbit);
+    MemoryChunk::IncrementLiveBytes(obj, -obj->Size());
+  }
+
+  V8_INLINE static void GreyToWhite(HeapObject* obj) {
+    DCHECK(IsGrey(obj));
+    Marking::GreyToWhite(MarkBitFrom(obj));
+  }
+
+  V8_INLINE static void BlackToGrey(HeapObject* obj) {
+    DCHECK(IsBlack(obj));
+    MarkBit markbit = MarkBitFrom(obj);
+    Marking::BlackToGrey(markbit);
+    MemoryChunk::IncrementLiveBytes(obj, -obj->Size());
+  }
+
+  V8_INLINE static void WhiteToGrey(HeapObject* obj) {
+    DCHECK(IsWhite(obj));
+    Marking::WhiteToGrey(MarkBitFrom(obj));
+  }
+
+  V8_INLINE static void WhiteToBlack(HeapObject* obj) {
+    DCHECK(IsWhite(obj));
+    MarkBit markbit = MarkBitFrom(obj);
+    Marking::WhiteToBlack(markbit);
+    MemoryChunk::IncrementLiveBytes(obj, obj->Size());
+  }
+
+  V8_INLINE static void GreyToBlack(HeapObject* obj) {
+    DCHECK(IsGrey(obj));
+    MarkBit markbit = MarkBitFrom(obj);
+    Marking::GreyToBlack(markbit);
+    MemoryChunk::IncrementLiveBytes(obj, obj->Size());
+  }
+
+  V8_INLINE static void AnyToGrey(HeapObject* obj) {
+    MarkBit markbit = MarkBitFrom(obj);
+    if (Marking::IsBlack(markbit)) {
+      MemoryChunk::IncrementLiveBytes(obj, -obj->Size());
+    }
+    Marking::AnyToGrey(markbit);
+  }
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ObjectMarking);
 };
@@ -446,7 +516,6 @@ class MarkCompactCollector {
   static const uint32_t kSingleFreeEncoding = 0;
   static const uint32_t kMultiFreeEncoding = 1;
 
-  static inline bool IsMarked(Object* obj);
   static bool IsUnmarkedHeapObjectWithHeap(Heap* heap, Object** p);
 
   inline Heap* heap() const { return heap_; }
@@ -471,6 +540,7 @@ class MarkCompactCollector {
   INLINE(void RecordSlot(HeapObject* object, Object** slot, Object* target));
   INLINE(void ForceRecordSlot(HeapObject* object, Object** slot,
                               Object* target));
+  void RecordLiveSlotsOnPage(Page* page);
 
   void UpdateSlots(SlotsBuffer* buffer);
   void UpdateSlotsRecordedIn(SlotsBuffer* buffer);
@@ -498,10 +568,6 @@ class MarkCompactCollector {
   void set_evacuation(bool evacuation) { evacuation_ = evacuation; }
 
   bool evacuation() const { return evacuation_; }
-
-  // Special case for processing weak references in a full collection. We need
-  // to artificially keep AllocationSites alive for a time.
-  void MarkAllocationSite(AllocationSite* site);
 
   // Mark objects in implicit references groups if their parent object
   // is marked.
@@ -591,11 +657,7 @@ class MarkCompactCollector {
 
   // Marks the object black and pushes it on the marking stack.
   // This is for non-incremental marking only.
-  INLINE(void MarkObject(HeapObject* obj, MarkBit mark_bit));
-
-  // Marks the object black assuming that it is not yet marked.
-  // This is for non-incremental marking only.
-  INLINE(void SetMark(HeapObject* obj, MarkBit mark_bit));
+  INLINE(void MarkObject(HeapObject* obj));
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootMarkingVisitor<MarkCompactMode::FULL>* visitor);
@@ -692,8 +754,8 @@ class MarkCompactCollector {
   void StartSweepSpaces();
   void StartSweepSpace(PagedSpace* space);
 
-  void EvacuateNewSpacePrologue();
-
+  void EvacuatePrologue();
+  void EvacuateEpilogue();
   void EvacuatePagesInParallel();
 
   // The number of parallel compaction tasks, including the main thread.
@@ -757,8 +819,11 @@ class MarkCompactCollector {
 
   CodeFlusher* code_flusher_;
 
+  // Candidates for pages that should be evacuated.
   List<Page*> evacuation_candidates_;
-  List<Page*> newspace_evacuation_candidates_;
+  // Pages that are actually processed during evacuation.
+  List<Page*> old_space_evacuation_pages_;
+  List<Page*> new_space_evacuation_pages_;
 
   Sweeper sweeper_;
 

@@ -105,7 +105,6 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
   DCHECK_LT(index, kStoreBuffers);
   for (Address* current = start_[index]; current < lazy_top_[index];
        current++) {
-    DCHECK(!heap_->code_space()->Contains(*current));
     Address addr = *current;
     Page* page = Page::FromAnyPointerAddress(heap_, addr);
     if (IsDeletionAddress(addr)) {

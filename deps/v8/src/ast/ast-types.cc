@@ -157,6 +157,8 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case ONE_BYTE_STRING_TYPE:
     case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
+    case THIN_STRING_TYPE:
+    case THIN_ONE_BYTE_STRING_TYPE:
     case SLICED_STRING_TYPE:
     case SLICED_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_STRING_TYPE:
@@ -193,8 +195,6 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     }
     case HEAP_NUMBER_TYPE:
       return kNumber & kTaggedPointer;
-    case SIMD128_VALUE_TYPE:
-      return kSimd;
     case JS_OBJECT_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
@@ -220,6 +220,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
 
     case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
     case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:
@@ -308,7 +309,6 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
     case ALLOCATION_MEMENTO_TYPE:
     case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
-    case BOX_TYPE:
     case DEBUG_INFO_TYPE:
     case BREAK_POINT_INFO_TYPE:
     case CELL_TYPE:
@@ -1295,13 +1295,6 @@ AstBitsetType::bitset AstBitsetType::SignedSmall() {
 AstBitsetType::bitset AstBitsetType::UnsignedSmall() {
   return i::SmiValuesAre31Bits() ? kUnsigned30 : kUnsigned31;
 }
-
-#define CONSTRUCT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
-  AstType* AstType::Name(Isolate* isolate, Zone* zone) {             \
-    return Class(i::handle(isolate->heap()->name##_map()), zone);    \
-  }
-SIMD128_TYPES(CONSTRUCT_SIMD_TYPE)
-#undef CONSTRUCT_SIMD_TYPE
 
 // -----------------------------------------------------------------------------
 // Instantiations.

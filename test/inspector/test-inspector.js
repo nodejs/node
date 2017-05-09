@@ -19,7 +19,7 @@ function checkVersion(err, response) {
   assert.ifError(err);
   assert.ok(response);
   const expected = {
-    'Browser': 'node.js/' + process.version,
+    'Browser': `node.js/${process.version}`,
     'Protocol-Version': '1.1',
   };
   assert.strictEqual(JSON.stringify(response),
@@ -35,8 +35,8 @@ function checkBadPath(err, response) {
 function expectMainScriptSource(result) {
   const expected = helper.mainScriptSource();
   const source = result['scriptSource'];
-  assert(source && (source.indexOf(expected) >= 0),
-         'Script source is wrong: ' + source);
+  assert(source && (source.includes(expected)),
+         `Script source is wrong: ${source}`);
 }
 
 function setupExpectBreakOnLine(line, url, session, scopeIdCallback) {
@@ -87,9 +87,16 @@ function setupExpectValue(value) {
   };
 }
 
+function setupExpectContextDestroyed(id) {
+  return function(message) {
+    if ('Runtime.executionContextDestroyed' === message['method'])
+      return message['params']['executionContextId'] === id;
+  };
+}
+
 function testBreakpointOnStart(session) {
   console.log('[test]',
-              'Verifying debugger stops on start (--debug-brk option)');
+              'Verifying debugger stops on start (--inspect-brk option)');
   const commands = [
     { 'method': 'Runtime.enable' },
     { 'method': 'Debugger.enable' },
@@ -187,7 +194,7 @@ function testI18NCharacters(session) {
     {
       'method': 'Debugger.evaluateOnCallFrame', 'params': {
         'callFrameId': '{"ordinal":0,"injectedScriptId":1}',
-        'expression': 'console.log("' + chars + '")',
+        'expression': `console.log("${chars}")`,
         'objectGroup': 'console',
         'includeCommandLineAPI': true,
         'silent': false,
@@ -203,6 +210,7 @@ function testI18NCharacters(session) {
 function testWaitsForFrontendDisconnect(session, harness) {
   console.log('[test]', 'Verify node waits for the frontend to disconnect');
   session.sendInspectorCommands({ 'method': 'Debugger.resume'})
+    .expectMessages(setupExpectContextDestroyed(1))
     .expectStderrOutput('Waiting for the debugger to disconnect...')
     .disconnect(true);
 }

@@ -1,0 +1,106 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "is-stream@^1.1.0",
+        "scope": null,
+        "escapedName": "is-stream",
+        "name": "is-stream",
+        "rawSpec": "^1.1.0",
+        "spec": ">=1.1.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa"
+    ]
+  ],
+  "_from": "is-stream@>=1.1.0 <2.0.0",
+  "_id": "is-stream@1.1.0",
+  "_inCache": true,
+  "_location": "/update-notifier/boxen/term-size/execa/is-stream",
+  "_nodeVersion": "4.4.2",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/is-stream-1.1.0.tgz_1460446915184_0.806101513793692"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.0",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "is-stream@^1.1.0",
+    "scope": null,
+    "escapedName": "is-stream",
+    "name": "is-stream",
+    "rawSpec": "^1.1.0",
+    "spec": ">=1.1.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/boxen/term-size/execa"
+  ],
+  "_resolved": "https://registry.npmjs.org/is-stream/-/is-stream-1.1.0.tgz",
+  "_shasum": "12d4a3dd4e68e0b79ceb8dbc84173ae80d91ca44",
+  "_shrinkwrap": null,
+  "_spec": "is-stream@^1.1.0",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/boxen/node_modules/term-size/node_modules/execa",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/is-stream/issues"
+  },
+  "dependencies": {},
+  "description": "Check if something is a Node.js stream",
+  "devDependencies": {
+    "ava": "*",
+    "tempfile": "^1.1.0",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "12d4a3dd4e68e0b79ceb8dbc84173ae80d91ca44",
+    "tarball": "https://registry.npmjs.org/is-stream/-/is-stream-1.1.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "e21d73f1028c189d16150cea52641059b0936310",
+  "homepage": "https://github.com/sindresorhus/is-stream#readme",
+  "keywords": [
+    "stream",
+    "type",
+    "streams",
+    "writable",
+    "readable",
+    "duplex",
+    "transform",
+    "check",
+    "detect",
+    "is"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "is-stream",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/is-stream.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.1.0"
+}

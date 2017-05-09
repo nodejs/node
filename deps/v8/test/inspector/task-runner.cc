@@ -22,6 +22,13 @@ void ReportUncaughtException(v8::Isolate* isolate,
   fprintf(stderr, "Unhandle exception: %s\n", message.data());
 }
 
+v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
+  v8::internal::Vector<uint16_t> buffer =
+      v8::internal::Vector<uint16_t>::New(str->Length());
+  str->Write(buffer.start(), 0, str->Length());
+  return buffer;
+}
+
 }  //  namespace
 
 TaskRunner::TaskRunner(v8::ExtensionConfiguration* extensions,
@@ -101,6 +108,19 @@ void TaskRunner::Terminate() {
   process_queue_semaphore_.Signal();
 }
 
+void TaskRunner::RegisterModule(v8::internal::Vector<uint16_t> name,
+                                v8::Local<v8::Module> module) {
+  modules_[name] = v8::Global<v8::Module>(isolate_, module);
+}
+
+v8::MaybeLocal<v8::Module> TaskRunner::ModuleResolveCallback(
+    v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
+    v8::Local<v8::Module> referrer) {
+  std::string str = *v8::String::Utf8Value(specifier);
+  TaskRunner* runner = TaskRunner::FromContext(context);
+  return runner->modules_[ToVector(specifier)].Get(runner->isolate_);
+}
+
 TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
   for (;;) {
     if (is_terminated_.Value()) return nullptr;
@@ -125,17 +145,6 @@ TaskRunner* TaskRunner::FromContext(v8::Local<v8::Context> context) {
       context->GetAlignedPointerFromEmbedderData(kTaskRunnerIndex));
 }
 
-namespace {
-
-v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
-  v8::internal::Vector<uint16_t> buffer =
-      v8::internal::Vector<uint16_t>::New(str->Length());
-  str->Write(buffer.start(), 0, str->Length());
-  return buffer;
-}
-
-}  // namespace
-
 AsyncTask::AsyncTask(const char* task_name,
                      v8_inspector::V8Inspector* inspector)
     : inspector_(task_name ? inspector : nullptr) {
@@ -157,20 +166,18 @@ void AsyncTask::Run(v8::Isolate* isolate,
 ExecuteStringTask::ExecuteStringTask(
     const v8::internal::Vector<uint16_t>& expression,
     v8::Local<v8::String> name, v8::Local<v8::Integer> line_offset,
-    v8::Local<v8::Integer> column_offset, const char* task_name,
-    v8_inspector::V8Inspector* inspector)
+    v8::Local<v8::Integer> column_offset, v8::Local<v8::Boolean> is_module,
+    const char* task_name, v8_inspector::V8Inspector* inspector)
     : AsyncTask(task_name, inspector),
       expression_(expression),
       name_(ToVector(name)),
       line_offset_(line_offset.As<v8::Int32>()->Value()),
-      column_offset_(column_offset.As<v8::Int32>()->Value()) {}
+      column_offset_(column_offset.As<v8::Int32>()->Value()),
+      is_module_(is_module->Value()) {}
 
 ExecuteStringTask::ExecuteStringTask(
     const v8::internal::Vector<const char>& expression)
-    : AsyncTask(nullptr, nullptr),
-      expression_utf8_(expression),
-      line_offset_(0),
-      column_offset_(0) {}
+    : AsyncTask(nullptr, nullptr), expression_utf8_(expression) {}
 
 void ExecuteStringTask::AsyncRun(v8::Isolate* isolate,
                                  const v8::Global<v8::Context>& context) {
@@ -188,7 +195,14 @@ void ExecuteStringTask::AsyncRun(v8::Isolate* isolate,
   v8::Local<v8::Integer> column_offset =
       v8::Integer::New(isolate, column_offset_);
 
-  v8::ScriptOrigin origin(name, line_offset, column_offset);
+  v8::ScriptOrigin origin(
+      name, line_offset, column_offset,
+      /* resource_is_shared_cross_origin */ v8::Local<v8::Boolean>(),
+      /* script_id */ v8::Local<v8::Integer>(),
+      /* source_map_url */ v8::Local<v8::Value>(),
+      /* resource_is_opaque */ v8::Local<v8::Boolean>(),
+      /* is_wasm */ v8::Local<v8::Boolean>(),
+      v8::Boolean::New(isolate, is_module_));
   v8::Local<v8::String> source;
   if (expression_.length()) {
     source = v8::String::NewFromTwoByte(isolate, expression_.start(),
@@ -203,10 +217,28 @@ void ExecuteStringTask::AsyncRun(v8::Isolate* isolate,
   }
 
   v8::ScriptCompiler::Source scriptSource(source, origin);
-  v8::Local<v8::Script> script;
-  if (!v8::ScriptCompiler::Compile(local_context, &scriptSource)
-           .ToLocal(&script))
-    return;
-  v8::MaybeLocal<v8::Value> result;
-  result = script->Run(local_context);
+  if (!is_module_) {
+    v8::Local<v8::Script> script;
+    if (!v8::ScriptCompiler::Compile(local_context, &scriptSource)
+             .ToLocal(&script))
+      return;
+    v8::MaybeLocal<v8::Value> result;
+    if (inspector_)
+      inspector_->willExecuteScript(local_context,
+                                    script->GetUnboundScript()->GetId());
+    result = script->Run(local_context);
+    if (inspector_) inspector_->didExecuteScript(local_context);
+  } else {
+    v8::Local<v8::Module> module;
+    if (!v8::ScriptCompiler::CompileModule(isolate, &scriptSource)
+             .ToLocal(&module)) {
+      return;
+    }
+    if (!module->Instantiate(local_context, &TaskRunner::ModuleResolveCallback))
+      return;
+    v8::Local<v8::Value> result;
+    if (!module->Evaluate(local_context).ToLocal(&result)) return;
+    TaskRunner* runner = TaskRunner::FromContext(local_context);
+    runner->RegisterModule(name_, module);
+  }
 }

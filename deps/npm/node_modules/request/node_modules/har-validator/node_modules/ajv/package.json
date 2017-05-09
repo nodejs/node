@@ -1,0 +1,166 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "ajv@^4.9.1",
+        "scope": null,
+        "escapedName": "ajv",
+        "name": "ajv",
+        "rawSpec": "^4.9.1",
+        "spec": ">=4.9.1 <5.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/request/node_modules/har-validator"
+    ]
+  ],
+  "_from": "ajv@>=4.9.1 <5.0.0",
+  "_id": "ajv@4.11.4",
+  "_inCache": true,
+  "_location": "/request/har-validator/ajv",
+  "_nodeVersion": "4.6.1",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/ajv-4.11.4.tgz_1488652451968_0.44489557039923966"
+  },
+  "_npmUser": {
+    "name": "esp",
+    "email": "e.poberezkin@me.com"
+  },
+  "_npmVersion": "2.15.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "ajv@^4.9.1",
+    "scope": null,
+    "escapedName": "ajv",
+    "name": "ajv",
+    "rawSpec": "^4.9.1",
+    "spec": ">=4.9.1 <5.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/har-validator"
+  ],
+  "_resolved": "https://registry.npmjs.org/ajv/-/ajv-4.11.4.tgz",
+  "_shasum": "ebf3a55d4b132ea60ff5847ae85d2ef069960b45",
+  "_shrinkwrap": null,
+  "_spec": "ajv@^4.9.1",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/request/node_modules/har-validator",
+  "author": {
+    "name": "Evgeny Poberezkin"
+  },
+  "bugs": {
+    "url": "https://github.com/epoberezkin/ajv/issues"
+  },
+  "dependencies": {
+    "co": "^4.6.0",
+    "json-stable-stringify": "^1.0.1"
+  },
+  "description": "Another JSON Schema Validator",
+  "devDependencies": {
+    "bluebird": "^3.1.5",
+    "brfs": "^1.4.3",
+    "browserify": "^14.1.0",
+    "chai": "^3.5.0",
+    "coveralls": "^2.11.4",
+    "dot": "^1.0.3",
+    "eslint": "^3.2.2",
+    "gh-pages-generator": "^0.2.0",
+    "glob": "^7.0.0",
+    "if-node-version": "^1.0.0",
+    "js-beautify": "^1.5.6",
+    "jshint": "^2.8.0",
+    "json-schema-test": "^1.1.1",
+    "karma": "^1.0.0",
+    "karma-chrome-launcher": "^2.0.0",
+    "karma-mocha": "^1.1.1",
+    "karma-phantomjs-launcher": "^1.0.0",
+    "karma-sauce-launcher": "^1.1.0",
+    "mocha": "^3.0.0",
+    "nodent": "^3.0.2",
+    "nyc": "^10.0.0",
+    "phantomjs-prebuilt": "^2.1.4",
+    "pre-commit": "^1.1.1",
+    "regenerator": "0.9.5",
+    "require-globify": "^1.3.0",
+    "typescript": "^2.0.3",
+    "uglify-js": "^2.6.1",
+    "watch": "^1.0.0"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "ebf3a55d4b132ea60ff5847ae85d2ef069960b45",
+    "tarball": "https://registry.npmjs.org/ajv/-/ajv-4.11.4.tgz"
+  },
+  "files": [
+    "lib/",
+    "dist/",
+    "scripts/",
+    "LICENSE",
+    ".tonic_example.js"
+  ],
+  "gitHead": "3760c359455ba33b66b4427d17cb655d039bc550",
+  "homepage": "https://github.com/epoberezkin/ajv",
+  "keywords": [
+    "JSON",
+    "schema",
+    "validator",
+    "validation",
+    "jsonschema",
+    "json-schema",
+    "json-schema-validator",
+    "json-schema-validation"
+  ],
+  "license": "MIT",
+  "main": "lib/ajv.js",
+  "maintainers": [
+    {
+      "name": "blakeembrey",
+      "email": "hello@blakeembrey.com"
+    },
+    {
+      "name": "esp",
+      "email": "e.poberezkin@me.com"
+    }
+  ],
+  "name": "ajv",
+  "nyc": {
+    "exclude": [
+      "**/spec/**",
+      "node_modules"
+    ],
+    "reporter": [
+      "lcov",
+      "text-summary"
+    ]
+  },
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/epoberezkin/ajv.git"
+  },
+  "scripts": {
+    "build": "rm -f lib/dotjs/*.js && node scripts/compile-dots.js",
+    "bundle": "./scripts/bundle . Ajv pure_getters",
+    "bundle-all": "rm -rf dist && npm run bundle && npm run bundle-regenerator && npm run bundle-nodent",
+    "bundle-beautify": "./scripts/bundle js-beautify",
+    "bundle-nodent": "./scripts/bundle nodent",
+    "bundle-regenerator": "./scripts/bundle regenerator",
+    "eslint": "if-node-version '>=4' eslint lib/*.js lib/compile/*.js spec",
+    "jshint": "jshint lib/*.js lib/**/*.js --exclude lib/dotjs/**/*",
+    "prepublish": "npm run build && npm run bundle-all",
+    "test": "npm run jshint && npm run eslint && npm run test-ts && npm run build && npm run test-cov && npm run test-browser",
+    "test-browser": "rm -rf .browser && npm run bundle-all && scripts/prepare-tests && npm run test-karma",
+    "test-cov": "nyc npm run test-spec",
+    "test-debug": "mocha spec/*.spec.js --debug-brk -R spec",
+    "test-fast": "AJV_FAST_TEST=true npm run test-spec",
+    "test-karma": "karma start --single-run --browsers PhantomJS",
+    "test-spec": "mocha spec/*.spec.js -R spec",
+    "test-ts": "tsc --target ES5 --noImplicitAny lib/ajv.d.ts",
+    "watch": "watch 'npm run build' ./lib/dot"
+  },
+  "tonicExampleFilename": ".tonic_example.js",
+  "typings": "lib/ajv.d.ts",
+  "version": "4.11.4",
+  "webpack": "dist/ajv.bundle.js"
+}

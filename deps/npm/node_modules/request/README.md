@@ -18,10 +18,10 @@ Request is designed to be the simplest way possible to make http calls. It suppo
 ```js
 var request = require('request');
 request('http://www.google.com', function (error, response, body) {
-  if (!error && response.statusCode == 200) {
-    console.log(body) // Show the HTML for the Google homepage.
-  }
-})
+  console.log('error:', error); // Print the error if one occurred
+  console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
+  console.log('body:', body); // Print the HTML for the Google homepage.
+});
 ```
 
 
@@ -185,7 +185,7 @@ var formData = {
     value:  fs.createReadStream('/dev/urandom'),
     options: {
       filename: 'topsecret.jpg',
-      contentType: 'image/jpg'
+      contentType: 'image/jpeg'
     }
   }
 };
@@ -287,13 +287,13 @@ The method form takes parameters
 `auth(username, password, sendImmediately, bearer)`.
 
 `sendImmediately` defaults to `true`, which causes a basic or bearer
-authentication header to be sent.  If `sendImmediately` is `false`, then
+authentication header to be sent. If `sendImmediately` is `false`, then
 `request` will retry with a proper authentication header after receiving a
 `401` response from the server (which must contain a `WWW-Authenticate` header
 indicating the required authentication method).
 
 Note that you can also specify basic authentication using the URL itself, as
-detailed in [RFC 1738](http://www.ietf.org/rfc/rfc1738.txt).  Simply pass the
+detailed in [RFC 1738](http://www.ietf.org/rfc/rfc1738.txt). Simply pass the
 `user:password` before the host with an `@` sign:
 
 ```js
@@ -358,7 +358,7 @@ request(options, callback);
 
 ## OAuth Signing
 
-[OAuth version 1.0](https://tools.ietf.org/html/rfc5849) is supported.  The
+[OAuth version 1.0](https://tools.ietf.org/html/rfc5849) is supported. The
 default signing algorithm is
 [HMAC-SHA1](https://tools.ietf.org/html/rfc5849#section-3.4.2):
 
@@ -477,7 +477,7 @@ See [the wikipedia page on HTTP Tunneling](https://en.wikipedia.org/wiki/HTTP_tu
 for more information.
 
 By default, when proxying `http` traffic, request will simply make a
-standard proxied `http` request.  This is done by making the `url`
+standard proxied `http` request. This is done by making the `url`
 section of the initial line of the request a fully qualified url to
 the endpoint.
 
@@ -493,7 +493,7 @@ request body or whatever
 
 Because a pure "http over http" tunnel offers no additional security
 or other features, it is generally simpler to go with a
-straightforward HTTP proxy in this case.  However, if you would like
+straightforward HTTP proxy in this case. However, if you would like
 to force a tunneling proxy, you may set the `tunnel` option to `true`.
 
 You can also make a standard proxied `http` request by explicitly setting
@@ -717,7 +717,7 @@ a validation step will check if the HAR Request format matches the latest spec (
 The first argument can be either a `url` or an `options` object. The only required option is `uri`; all others are optional.
 
 - `uri` || `url` - fully qualified uri or a parsed url object from `url.parse()`
-- `baseUrl` - fully qualified uri string used as the base url. Most useful with `request.defaults`, for example when you want to do many requests to the same domain.  If `baseUrl` is `https://example.com/api/`, then requesting `/end/point?test=true` will fetch `https://example.com/api/end/point?test=true`. When `baseUrl` is given, `uri` must also be a string.
+- `baseUrl` - fully qualified uri string used as the base url. Most useful with `request.defaults`, for example when you want to do many requests to the same domain. If `baseUrl` is `https://example.com/api/`, then requesting `/end/point?test=true` will fetch `https://example.com/api/end/point?test=true`. When `baseUrl` is given, `uri` must also be a string.
 - `method` - http method (default: `"GET"`)
 - `headers` - http headers (default: `{}`)
 
@@ -727,7 +727,7 @@ The first argument can be either a `url` or an `options` object. The only requir
 - `qsParseOptions` - object containing options to pass to the [qs.parse](https://github.com/hapijs/qs#parsing-objects) method. Alternatively pass options to the [querystring.parse](https://nodejs.org/docs/v0.12.0/api/querystring.html#querystring_querystring_parse_str_sep_eq_options) method using this format `{sep:';', eq:':', options:{}}`
 - `qsStringifyOptions` - object containing options to pass to the [qs.stringify](https://github.com/hapijs/qs#stringifying) method. Alternatively pass options to the  [querystring.stringify](https://nodejs.org/docs/v0.12.0/api/querystring.html#querystring_querystring_stringify_obj_sep_eq_options) method using this format `{sep:';', eq:':', options:{}}`. For example, to change the way arrays are converted to query strings using the `qs` module pass the `arrayFormat` option with one of `indices|brackets|repeat`
 - `useQuerystring` - If true, use `querystring` to stringify and parse
-  querystrings, otherwise use `qs` (default: `false`).  Set this option to
+  querystrings, otherwise use `qs` (default: `false`). Set this option to
   `true` if you need arrays to be serialized as `foo=bar&foo=baz` instead of the
   default `foo[0]=bar&foo[1]=baz`.
 
@@ -746,13 +746,13 @@ The first argument can be either a `url` or an `options` object. The only requir
     In non-chunked requests, data items with body streams are not allowed.
 - `preambleCRLF` - append a newline/CRLF before the boundary of your `multipart/form-data` request.
 - `postambleCRLF` - append a newline/CRLF at the end of the boundary of your `multipart/form-data` request.
-- `json` - sets `body` to JSON representation of value and adds `Content-type: application/json` header.  Additionally, parses the response body as JSON.
+- `json` - sets `body` to JSON representation of value and adds `Content-type: application/json` header. Additionally, parses the response body as JSON.
 - `jsonReviver` - a [reviver function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse) that will be passed to `JSON.parse()` when parsing a JSON response body.
 - `jsonReplacer` - a [replacer function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) that will be passed to `JSON.stringify()` when stringifying a JSON request body.
 
 ---
 
-- `auth` - A hash containing values `user` || `username`, `pass` || `password`, and `sendImmediately` (optional).  See documentation above.
+- `auth` - A hash containing values `user` || `username`, `pass` || `password`, and `sendImmediately` (optional). See documentation above.
 - `oauth` - Options for OAuth HMAC-SHA1 signing. See documentation above.
 - `hawk` - Options for [Hawk signing](https://github.com/hueniverse/hawk). The `credentials` key must contain the necessary signing info, [see hawk docs for details](https://github.com/hueniverse/hawk#usage-example).
 - `aws` - `object` containing AWS signing information. Should have the properties `key`, `secret`, and optionally `session` (note that this only works for services that require session as part of the canonical string). Also requires the property `bucket`, unless you’re specifying your `bucket` as part of the path, or the request doesn’t use a bucket (i.e. GET Services). If you want to use AWS sign version 4 use the parameter `sign_version` with value `4` otherwise the default is version 2. **Note:** you need to `npm install aws4` first.
@@ -769,7 +769,7 @@ The first argument can be either a `url` or an `options` object. The only requir
 ---
 
 - `encoding` - Encoding to be used on `setEncoding` of response data. If `null`, the `body` is returned as a `Buffer`. Anything else **(including the default value of `undefined`)** will be passed as the [encoding](http://nodejs.org/api/buffer.html#buffer_buffer) parameter to `toString()` (meaning this is effectively `utf8` by default). (**Note:** if you expect binary data, you should set `encoding: null`.)
-- `gzip` - If `true`, add an `Accept-Encoding` header to request compressed content encodings from the server (if not already present) and decode supported content encodings in the response.  **Note:** Automatic decoding of the response content is performed on the body data returned through `request` (both through the `request` stream and passed to the callback function) but is not performed on the `response` stream (available from the `response` event) which is the unmodified `http.IncomingMessage` object which may contain compressed data. See example below.
+- `gzip` - If `true`, add an `Accept-Encoding` header to request compressed content encodings from the server (if not already present) and decode supported content encodings in the response. **Note:** Automatic decoding of the response content is performed on the body data returned through `request` (both through the `request` stream and passed to the callback function) but is not performed on the `response` stream (available from the `response` event) which is the unmodified `http.IncomingMessage` object which may contain compressed data. See example below.
 - `jar` - If `true`, remember cookies for future use (or define your custom cookie jar; see examples section)
 
 ---
@@ -781,7 +781,7 @@ The first argument can be either a `url` or an `options` object. The only requir
 - `pool` - An object describing which agents to use for the request. If this option is omitted the request will use the global agent (as long as your options allow for it). Otherwise, request will search the pool for your custom agent. If no custom agent is found, a new agent will be created and added to the pool. **Note:** `pool` is used only when the `agent` option is not specified.
   - A `maxSockets` property can also be provided on the `pool` object to set the max number of sockets for all agents created (ex: `pool: {maxSockets: Infinity}`).
   - Note that if you are sending multiple requests in a loop and creating
-    multiple new `pool` objects, `maxSockets` will not work as intended.  To
+    multiple new `pool` objects, `maxSockets` will not work as intended. To
     work around this, either use [`request.defaults`](#requestdefaultsoptions)
     with your pool options or create the pool object with the `maxSockets`
     property outside of the loop.
@@ -812,14 +812,31 @@ default in Linux can be anywhere from 20-120 seconds][linux-timeout]).
 
 ---
 
-- `time` - If `true`, the request-response cycle (including all redirects) is timed at millisecond resolution, and the result provided on the response's `elapsedTime` property. The `responseStartTime` property is also available to indicate the timestamp when the response begins.
+- `time` - If `true`, the request-response cycle (including all redirects) is timed at millisecond resolution. When set, the following properties are added to the response object:
+  - `elapsedTime` Duration of the entire request/response in milliseconds (*deprecated*).
+  - `responseStartTime` Timestamp when the response began (in Unix Epoch milliseconds) (*deprecated*).
+  - `timingStart` Timestamp of the start of the request (in Unix Epoch milliseconds).
+  - `timings` Contains event timestamps in millisecond resolution relative to `timingStart`. If there were redirects, the properties reflect the timings of the final request in the redirect chain:
+    - `socket` Relative timestamp when the [`http`](https://nodejs.org/api/http.html#http_event_socket) module's `socket` event fires. This happens when the socket is assigned to the request.
+    - `lookup` Relative timestamp when the [`net`](https://nodejs.org/api/net.html#net_event_lookup) module's `lookup` event fires. This happens when the DNS has been resolved.
+    - `connect`: Relative timestamp when the [`net`](https://nodejs.org/api/net.html#net_event_connect) module's `connect` event fires. This happens when the server acknowledges the TCP connection.
+    - `response`: Relative timestamp when the [`http`](https://nodejs.org/api/http.html#http_event_response) module's `response` event fires. This happens when the first bytes are received from the server.
+    - `end`: Relative timestamp when the last bytes of the response are received.
+  - `timingPhases` Contains the durations of each request phase. If there were redirects, the properties reflect the timings of the final request in the redirect chain:
+    - `wait`: Duration of socket initialization (`timings.socket`)
+    - `dns`: Duration of DNS lookup (`timings.lookup` - `timings.socket`)
+    - `tcp`: Duration of TCP connection (`timings.connect` - `timings.socket`)
+    - `firstByte`: Duration of HTTP server response (`timings.response` - `timings.connect`)
+    - `download`: Duration of HTTP download (`timings.end` - `timings.response`)
+    - `total`: Duration entire HTTP round-trip (`timings.end`)
+
 - `har` - A [HAR 1.2 Request Object](http://www.softwareishard.com/blog/har-12-spec/#request), will be processed from HAR format into options overwriting matching values *(see the [HAR 1.2 section](#support-for-har-1.2) for details)*
 - `callback` - alternatively pass the request's callback in the options object
 
 The callback argument gets 3 arguments:
 
 1. An `error` when applicable (usually from [`http.ClientRequest`](http://nodejs.org/api/http.html#http_class_http_clientrequest) object)
-2. An [`http.IncomingMessage`](https://nodejs.org/api/http.html#http_class_http_incomingmessage) object
+2. An [`http.IncomingMessage`](https://nodejs.org/api/http.html#http_class_http_incomingmessage) object (Response object)
 3. The third is the `response` body (`String` or `Buffer`, or JSON object if the `json` option is supplied)
 
 [back to top](#table-of-contents)
@@ -1002,7 +1019,7 @@ request.get('http://10.255.255.1', {timeout: 1500}, function(err) {
 ```
 
 For backwards-compatibility, response compression is not supported by default.
-To accept gzip-compressed responses, set the `gzip` option to `true`.  Note
+To accept gzip-compressed responses, set the `gzip` option to `true`. Note
 that the body data passed through `request` is automatically decompressed
 while the response object is unmodified and will contain compressed data if
 the server sent a compressed response.

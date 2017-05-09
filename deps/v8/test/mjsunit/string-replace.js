@@ -283,3 +283,16 @@ function testIndices59(re) {
 
 testIndices59(new RegExp(regexp59pattern));
 testIndices59(new RegExp(regexp59pattern, "g"));
+
+// Test that ToString(replace) is called.
+
+let replace_tostring_count = 0;
+const fake_replacer = {
+  [Symbol.toPrimitive]: () => { replace_tostring_count++; return "b"; }
+};
+
+"a".replace("x", fake_replacer);
+assertEquals(1, replace_tostring_count);
+
+"a".replace("a", fake_replacer);
+assertEquals(2, replace_tostring_count);

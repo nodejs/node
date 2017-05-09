@@ -19,7 +19,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-/* eslint-disable max-len, strict */
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -47,19 +46,19 @@ console.error('repl test');
 
 // function for REPL to run
 global.invoke_me = function(arg) {
-  return 'invoked ' + arg;
+  return `invoked ${arg}`;
 };
 
 function send_expect(list) {
   if (list.length > 0) {
     const cur = list.shift();
 
-    console.error('sending ' + JSON.stringify(cur.send));
+    console.error(`sending ${JSON.stringify(cur.send)}`);
 
     cur.client.expect = cur.expect;
     cur.client.list = list;
     if (cur.send.length > 0) {
-      cur.client.write(cur.send + '\n');
+      cur.client.write(`${cur.send}\n`);
     }
   }
 }
@@ -84,12 +83,13 @@ function error_test() {
 
   client_unix.on('data', function(data) {
     read_buffer += data.toString('ascii', 0, data.length);
-    console.error('Unix data: ' + JSON.stringify(read_buffer) + ', expecting ' +
-                 (client_unix.expect.exec ?
-                  client_unix.expect :
-                  JSON.stringify(client_unix.expect)));
+    console.error(
+      `Unix data: ${JSON.stringify(read_buffer)}, expecting ${
+      client_unix.expect.exec ?
+      client_unix.expect :
+      JSON.stringify(client_unix.expect)}`);
 
-    if (read_buffer.indexOf(prompt_unix) !== -1) {
+    if (read_buffer.includes(prompt_unix)) {
       // if it's an exact match, then don't do the regexp
       if (read_buffer !== client_unix.expect) {
         let expect = client_unix.expect;
@@ -110,7 +110,7 @@ function error_test() {
         tcp_test();
       }
 
-    } else if (read_buffer.indexOf(prompt_multiline) !== -1) {
+    } else if (read_buffer.includes(prompt_multiline)) {
       // Check that you meant to send a multiline test
       assert.strictEqual(prompt_multiline, client_unix.expect);
       read_buffer = '';
@@ -218,7 +218,7 @@ function error_test() {
     { client: client_unix, send: 'function blah() { return 1; }',
       expect: prompt_unix },
     { client: client_unix, send: 'blah()',
-      expect: '1\n' + prompt_unix },
+      expect: `1\n${prompt_unix}` },
     // Functions should not evaluate twice (#2773)
     { client: client_unix, send: 'var I = [1,2,3,function() {}]; I.pop()',
       expect: '[Function]' },
@@ -242,7 +242,7 @@ function error_test() {
     { client: client_unix, send: '2)',
       expect: prompt_multiline },
     { client: client_unix, send: ')',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     // npm prompt error message
     { client: client_unix, send: 'npm install foobar',
       expect: expect_npm },
@@ -257,18 +257,18 @@ function error_test() {
     // this makes sure that we don't print `undefined` when we actually print
     // the error message
     { client: client_unix, send: '.invalid_repl_command',
-      expect: 'Invalid REPL keyword\n' + prompt_unix },
+      expect: `Invalid REPL keyword\n${prompt_unix}` },
     // this makes sure that we don't crash when we use an inherited property as
     // a REPL command
     { client: client_unix, send: '.toString',
-      expect: 'Invalid REPL keyword\n' + prompt_unix },
+      expect: `Invalid REPL keyword\n${prompt_unix}` },
     // fail when we are not inside a String and a line continuation is used
     { client: client_unix, send: '[] \\',
       expect: /\bSyntaxError: Invalid or unexpected token/ },
     // do not fail when a String is created with line continuation
     { client: client_unix, send: '\'the\\\nfourth\\\neye\'',
-      expect: prompt_multiline + prompt_multiline +
-              '\'thefourtheye\'\n' + prompt_unix },
+      expect: `${prompt_multiline}${prompt_multiline}'thefourtheye'\n${
+              prompt_unix}` },
     // Don't fail when a partial String is created and line continuation is used
     // with whitespace characters at the end of the string. We are to ignore it.
     // This test is to make sure that we properly remove the whitespace
@@ -277,12 +277,12 @@ function error_test() {
       expect: prompt_unix },
     // multiline strings preserve whitespace characters in them
     { client: client_unix, send: '\'the \\\n   fourth\t\t\\\n  eye  \'',
-      expect: prompt_multiline + prompt_multiline +
-              '\'the    fourth\\t\\t  eye  \'\n' + prompt_unix },
+      expect: `${prompt_multiline}${
+              prompt_multiline}'the    fourth\\t\\t  eye  '\n${prompt_unix}` },
     // more than one multiline strings also should preserve whitespace chars
     { client: client_unix, send: '\'the \\\n   fourth\' +  \'\t\t\\\n  eye  \'',
-      expect: prompt_multiline + prompt_multiline +
-              '\'the    fourth\\t\\t  eye  \'\n' + prompt_unix },
+      expect: `${prompt_multiline}${
+              prompt_multiline}'the    fourth\\t\\t  eye  '\n${prompt_unix}` },
     // using REPL commands within a string literal should still work
     { client: client_unix, send: '\'\\\n.break',
       expect: prompt_unix },
@@ -294,8 +294,8 @@ function error_test() {
       expect: prompt_unix + prompt_unix + prompt_unix },
     // empty lines in the string literals should not affect the string
     { client: client_unix, send: '\'the\\\n\\\nfourtheye\'\n',
-      expect: prompt_multiline + prompt_multiline +
-              '\'thefourtheye\'\n' + prompt_unix },
+      expect: `${prompt_multiline}${
+              prompt_multiline}'thefourtheye'\n${prompt_unix}` },
     // Regression test for https://github.com/nodejs/node/issues/597
     { client: client_unix,
       send: '/(.)(.)(.)(.)(.)(.)(.)(.)(.)/.test(\'123456789\')\n',
@@ -308,39 +308,39 @@ function error_test() {
                '\'7\'\n', '\'8\'\n', '\'9\'\n'].join(`${prompt_unix}`) },
     // regression tests for https://github.com/nodejs/node/issues/2749
     { client: client_unix, send: 'function x() {\nreturn \'\\n\';\n }',
-      expect: prompt_multiline + prompt_multiline +
-              'undefined\n' + prompt_unix },
+      expect: `${prompt_multiline}${prompt_multiline}undefined\n${
+              prompt_unix}` },
     { client: client_unix, send: 'function x() {\nreturn \'\\\\\';\n }',
-      expect: prompt_multiline + prompt_multiline +
-              'undefined\n' + prompt_unix },
+      expect: `${prompt_multiline}${prompt_multiline}undefined\n${
+              prompt_unix}` },
     // regression tests for https://github.com/nodejs/node/issues/3421
     { client: client_unix, send: 'function x() {\n//\'\n }',
-      expect: prompt_multiline + prompt_multiline +
-              'undefined\n' + prompt_unix },
+      expect: `${prompt_multiline}${prompt_multiline}undefined\n${
+              prompt_unix}` },
     { client: client_unix, send: 'function x() {\n//"\n }',
-      expect: prompt_multiline + prompt_multiline +
-              'undefined\n' + prompt_unix },
+      expect: `${prompt_multiline}${prompt_multiline}undefined\n${
+              prompt_unix}` },
     { client: client_unix, send: 'function x() {//\'\n }',
-      expect: prompt_multiline + 'undefined\n' + prompt_unix },
+      expect: `${prompt_multiline}undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x() {//"\n }',
-      expect: prompt_multiline + 'undefined\n' + prompt_unix },
+      expect: `${prompt_multiline}undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x() {\nvar i = "\'";\n }',
-      expect: prompt_multiline + prompt_multiline +
-              'undefined\n' + prompt_unix },
+      expect: `${prompt_multiline}${prompt_multiline}undefined\n${
+              prompt_unix}` },
     { client: client_unix, send: 'function x(/*optional*/) {}',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: 'function x(/* // 5 */) {}',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: '// /* 5 */',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: '"//"',
-      expect: '\'//\'\n' + prompt_unix },
+      expect: `'//'\n${prompt_unix}` },
     { client: client_unix, send: '"data /*with*/ comment"',
-      expect: '\'data /*with*/ comment\'\n' + prompt_unix },
+      expect: `'data /*with*/ comment'\n${prompt_unix}` },
     { client: client_unix, send: 'function x(/*fn\'s optional params*/) {}',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     { client: client_unix, send: '/* \'\n"\n\'"\'\n*/',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     // REPL should get a normal require() function, not one that allows
     // access to internal modules without the --expose_internals flag.
     { client: client_unix, send: 'require("internal/repl")',
@@ -348,31 +348,31 @@ function error_test() {
     // REPL should handle quotes within regexp literal in multiline mode
     { client: client_unix,
       send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
-      expect: prompt_multiline + prompt_multiline +
-            'undefined\n' + prompt_unix },
+      expect: `${prompt_multiline}${prompt_multiline}` +
+            `undefined\n${prompt_unix}` },
     { client: client_unix,
       send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
-      expect: prompt_multiline + prompt_multiline +
-            'undefined\n' + prompt_unix },
+      expect: `${prompt_multiline}${prompt_multiline}` +
+            `undefined\n${prompt_unix}` },
     { client: client_unix,
       send: 'function x(s) {\nreturn s.replace(/"/,"");\n}',
-      expect: prompt_multiline + prompt_multiline +
-            'undefined\n' + prompt_unix },
+      expect: `${prompt_multiline}${prompt_multiline}` +
+            `undefined\n${prompt_unix}` },
     { client: client_unix,
       send: 'function x(s) {\nreturn s.replace(/.*/,"");\n}',
-      expect: prompt_multiline + prompt_multiline +
-            'undefined\n' + prompt_unix },
+      expect: `${prompt_multiline}${prompt_multiline}` +
+            `undefined\n${prompt_unix}` },
     { client: client_unix, send: '{ var x = 4; }',
-      expect: 'undefined\n' + prompt_unix },
+      expect: `undefined\n${prompt_unix}` },
     // Illegal token is not recoverable outside string literal, RegExp literal,
     // or block comment. https://github.com/nodejs/node/issues/3611
     { client: client_unix, send: 'a = 3.5e',
       expect: /\bSyntaxError: Invalid or unexpected token/ },
     // Mitigate https://github.com/nodejs/node/issues/548
     { client: client_unix, send: 'function name(){ return "node"; };name()',
-      expect: "'node'\n" + prompt_unix },
+      expect: `'node'\n${prompt_unix}` },
     { client: client_unix, send: 'function name(){ return "nodejs"; };name()',
-      expect: "'nodejs'\n" + prompt_unix },
+      expect: `'nodejs'\n${prompt_unix}` },
     // Avoid emitting repl:line-number for SyntaxError
     { client: client_unix, send: 'a = 3.5e',
       expect: /^(?!repl)/ },
@@ -401,17 +401,17 @@ function error_test() {
 
     {
       client: client_unix, send: '(function() {\nreturn /foo/ / /bar/;\n}())',
-      expect: prompt_multiline + prompt_multiline + 'NaN\n' + prompt_unix
+      expect: `${prompt_multiline}${prompt_multiline}NaN\n${prompt_unix}`
     },
 
     {
       client: client_unix, send: '(function() {\nif (false) {} /bar"/;\n}())',
-      expect: prompt_multiline + prompt_multiline + 'undefined\n' + prompt_unix
+      expect: `${prompt_multiline}${prompt_multiline}undefined\n${prompt_unix}`
     },
 
     // Newline within template string maintains whitespace.
     { client: client_unix, send: '`foo \n`',
-      expect: prompt_multiline + '\'foo \\n\'\n' + prompt_unix },
+      expect: `${prompt_multiline}'foo \\n'\n${prompt_unix}` },
     // Whitespace is not evaluated.
     { client: client_unix, send: ' \t  \n',
       expect: prompt_unix }
@@ -442,20 +442,20 @@ function tcp_test() {
         { client: client_tcp, send: '',
           expect: prompt_tcp },
         { client: client_tcp, send: 'invoke_me(333)',
-          expect: ('\'' + 'invoked 333' + '\'\n' + prompt_tcp) },
+          expect: (`'invoked 333'\n${prompt_tcp}`) },
         { client: client_tcp, send: 'a += 1',
-          expect: ('12346' + '\n' + prompt_tcp) },
+          expect: (`12346\n${prompt_tcp}`) },
         { client: client_tcp,
-          send: 'require(' + JSON.stringify(moduleFilename) + ').number',
-          expect: ('42' + '\n' + prompt_tcp) }
+          send: `require(${JSON.stringify(moduleFilename)}).number`,
+          expect: (`42\n${prompt_tcp}`) }
       ]);
     });
 
     client_tcp.on('data', function(data) {
       read_buffer += data.toString('ascii', 0, data.length);
-      console.error('TCP data: ' + JSON.stringify(read_buffer) +
-                   ', expecting ' + JSON.stringify(client_tcp.expect));
-      if (read_buffer.indexOf(prompt_tcp) !== -1) {
+      console.error(`TCP data: ${JSON.stringify(read_buffer)}, expecting ${
+                    JSON.stringify(client_tcp.expect)}`);
+      if (read_buffer.includes(prompt_tcp)) {
         assert.strictEqual(client_tcp.expect, read_buffer);
         console.error('match');
         read_buffer = '';
@@ -511,21 +511,21 @@ function unix_test() {
         { client: client_unix, send: '',
           expect: prompt_unix },
         { client: client_unix, send: 'message',
-          expect: ('\'' + message + '\'\n' + prompt_unix) },
+          expect: (`'${message}'\n${prompt_unix}`) },
         { client: client_unix, send: 'invoke_me(987)',
-          expect: ('\'' + 'invoked 987' + '\'\n' + prompt_unix) },
+          expect: (`'invoked 987'\n${prompt_unix}`) },
         { client: client_unix, send: 'a = 12345',
-          expect: ('12345' + '\n' + prompt_unix) },
+          expect: (`12345\n${prompt_unix}`) },
         { client: client_unix, send: '{a:1}',
-          expect: ('{ a: 1 }' + '\n' + prompt_unix) }
+          expect: (`{ a: 1 }\n${prompt_unix}`) }
       ]);
     });
 
     client_unix.on('data', function(data) {
       read_buffer += data.toString('ascii', 0, data.length);
-      console.error('Unix data: ' + JSON.stringify(read_buffer) +
-                   ', expecting ' + JSON.stringify(client_unix.expect));
-      if (read_buffer.indexOf(prompt_unix) !== -1) {
+      console.error(`Unix data: ${JSON.stringify(read_buffer)}, expecting ${
+                    JSON.stringify(client_unix.expect)}`);
+      if (read_buffer.includes(prompt_unix)) {
         assert.strictEqual(client_unix.expect, read_buffer);
         console.error('match');
         read_buffer = '';

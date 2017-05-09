@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/instruction.h"
+
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/instruction.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {
@@ -207,6 +209,15 @@ std::ostream& operator<<(std::ostream& os,
           break;
         case MachineRepresentation::kSimd128:
           os << "|s128";
+          break;
+        case MachineRepresentation::kSimd1x4:
+          os << "|s1x4";
+          break;
+        case MachineRepresentation::kSimd1x8:
+          os << "|s1x8";
+          break;
+        case MachineRepresentation::kSimd1x16:
+          os << "|s1x16";
           break;
         case MachineRepresentation::kTaggedSigned:
           os << "|ts";
@@ -888,6 +899,9 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kFloat64:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd1x4:
+    case MachineRepresentation::kSimd1x8:
+    case MachineRepresentation::kSimd1x16:
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
@@ -926,9 +940,11 @@ void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
 }
 
 int InstructionSequence::AddDeoptimizationEntry(
-    FrameStateDescriptor* descriptor, DeoptimizeReason reason) {
+    FrameStateDescriptor* descriptor, DeoptimizeKind kind,
+    DeoptimizeReason reason) {
   int deoptimization_id = static_cast<int>(deoptimization_entries_.size());
-  deoptimization_entries_.push_back(DeoptimizationEntry(descriptor, reason));
+  deoptimization_entries_.push_back(
+      DeoptimizationEntry(descriptor, kind, reason));
   return deoptimization_id;
 }
 

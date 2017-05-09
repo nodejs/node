@@ -43,5 +43,7 @@ assert.throws(function() {
 // assert.fail() tests
 assert.throws(
   () => { assert.fail('fhqwhgads'); },
-  /^AssertionError: fhqwhgads$/
-);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^fhqwhgads$/
+  }));

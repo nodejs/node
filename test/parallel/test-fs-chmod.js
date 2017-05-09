@@ -114,7 +114,7 @@ fs.open(file2, 'a', common.mustCall((err, fd) => {
       assert.strictEqual(mode_sync, fs.fstatSync(fd).mode & 0o777);
     }
 
-    fs.close(fd);
+    fs.close(fd, assert.ifError);
   }));
 }));
 

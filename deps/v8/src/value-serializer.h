@@ -157,11 +157,11 @@ class ValueSerializer {
   // To avoid extra lookups in the identity map, ID+1 is actually stored in the
   // map (checking if the used identity is zero is the fast way of checking if
   // the entry is new).
-  IdentityMap<uint32_t> id_map_;
+  IdentityMap<uint32_t, ZoneAllocationPolicy> id_map_;
   uint32_t next_id_ = 0;
 
   // A similar map, for transferred array buffers.
-  IdentityMap<uint32_t> array_buffer_transfer_map_;
+  IdentityMap<uint32_t, ZoneAllocationPolicy> array_buffer_transfer_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueSerializer);
 };

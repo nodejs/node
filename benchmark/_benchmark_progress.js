@@ -3,12 +3,13 @@
 const readline = require('readline');
 
 function pad(input, minLength, fill) {
-  var result = input + '';
-  return fill.repeat(Math.max(0, minLength - result.length)) + result;
+  var result = String(input);
+  var padding = fill.repeat(Math.max(0, minLength - result.length));
+  return `${padding}${result}`;
 }
 
 function fraction(numerator, denominator) {
-  const fdenominator = denominator + '';
+  const fdenominator = String(denominator);
   const fnumerator = pad(numerator, fdenominator.length, ' ');
   return `${fnumerator}/${fdenominator}`;
 }
@@ -100,11 +101,12 @@ class BenchmarkProgress {
     const percent = pad(Math.floor(completedRate * 100), 3, ' ');
 
     const caption = finished ? 'Done\n' : this.currentFile;
-    return `[${getTime(diff)}|% ${percent}` +
-          `| ${fraction(completedFiles, scheduledFiles)} files ` +
-          `| ${fraction(completedRunsForFile, runsPerFile)} runs ` +
-          `| ${fraction(completedConfig, scheduledConfig)} configs]` +
-          `: ${caption} `;
+    return `[${getTime(diff)}|% ${
+               percent}| ${
+               fraction(completedFiles, scheduledFiles)} files | ${
+               fraction(completedRunsForFile, runsPerFile)} runs | ${
+               fraction(completedConfig, scheduledConfig)} configs]: ${
+               caption} `;
   }
 
   updateProgress(finished) {

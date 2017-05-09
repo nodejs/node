@@ -78,10 +78,10 @@ function doTest() {
 
   // Expects a callback -- cb(connectionType : enum ['New'|'Reused'])
 
-  const Client = function(cb) {
+  function Client(cb) {
     const flags = [
       's_client',
-      '-connect', 'localhost:' + common.PORT,
+      '-connect', `localhost:${common.PORT}`,
       '-sess_in', sessionFileName,
       '-sess_out', sessionFileName
     ];
@@ -95,7 +95,7 @@ function doTest() {
     });
     client.on('exit', function(code) {
       let connectionType;
-      const grepConnectionType = function(line) {
+      const grepConnectionType = (line) => {
         const matches = line.match(/(New|Reused), /);
         if (matches) {
           connectionType = matches[1];
@@ -108,7 +108,7 @@ function doTest() {
       }
       cb(connectionType);
     });
-  };
+  }
 
   const server = tls.createServer(options, function(cleartext) {
     cleartext.on('error', function(er) {

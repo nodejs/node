@@ -1,0 +1,112 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "rc@^1.1.6",
+        "scope": null,
+        "escapedName": "rc",
+        "name": "rc",
+        "rawSpec": "^1.1.6",
+        "spec": ">=1.1.6 <2.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/registry-auth-token"
+    ],
+    [
+      {
+        "raw": "rc@^1.0.1",
+        "scope": null,
+        "escapedName": "rc",
+        "name": "rc",
+        "rawSpec": "^1.0.1",
+        "spec": ">=1.0.1 <2.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/registry-url"
+    ]
+  ],
+  "_from": "rc@^1.0.1",
+  "_id": "rc@1.1.7",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/registry-url/rc",
+  "_nodeVersion": "6.9.4",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/rc-1.1.7.tgz_1487322919345_0.9128507312852889"
+  },
+  "_npmUser": {
+    "name": "dominictarr",
+    "email": "dominic.tarr@gmail.com"
+  },
+  "_npmVersion": "3.10.10",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "rc@^1.0.1",
+    "scope": null,
+    "escapedName": "rc",
+    "name": "rc",
+    "rawSpec": "^1.0.1",
+    "spec": ">=1.0.1 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/registry-url"
+  ],
+  "_resolved": "https://registry.npmjs.org/rc/-/rc-1.1.7.tgz",
+  "_shasum": "c5ea564bb07aff9fd3a5b32e906c1d3a65940fea",
+  "_shrinkwrap": null,
+  "_spec": "rc@^1.0.1",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/registry-url",
+  "author": {
+    "name": "Dominic Tarr",
+    "email": "dominic.tarr@gmail.com",
+    "url": "dominictarr.com"
+  },
+  "bin": {
+    "rc": "./index.js"
+  },
+  "browserify": "browser.js",
+  "bugs": {
+    "url": "https://github.com/dominictarr/rc/issues"
+  },
+  "dependencies": {
+    "deep-extend": "~0.4.0",
+    "ini": "~1.3.0",
+    "minimist": "^1.2.0",
+    "strip-json-comments": "~2.0.1"
+  },
+  "description": "hardwired configuration loader",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "c5ea564bb07aff9fd3a5b32e906c1d3a65940fea",
+    "tarball": "https://registry.npmjs.org/rc/-/rc-1.1.7.tgz"
+  },
+  "gitHead": "13bca1296fa95cd7795d30681652b2b7499d85d3",
+  "homepage": "https://github.com/dominictarr/rc#readme",
+  "keywords": [
+    "config",
+    "rc",
+    "unix",
+    "defaults"
+  ],
+  "license": "(BSD-2-Clause OR MIT OR Apache-2.0)",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "dominictarr",
+      "email": "dominic.tarr@gmail.com"
+    }
+  ],
+  "name": "rc",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dominictarr/rc.git"
+  },
+  "scripts": {
+    "test": "set -e; node test/test.js; node test/ini.js; node test/nested-env-vars.js"
+  },
+  "version": "1.1.7"
+}

@@ -34,6 +34,7 @@ node_g
 .benchmark_reports
 icu_config.gypi
 .eslintcache
+node_trace.*.log
 
 /out
 

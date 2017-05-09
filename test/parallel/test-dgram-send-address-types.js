@@ -30,8 +30,8 @@ client.send(buf, port, undefined, onMessage);
 // valid address: not provided
 client.send(buf, port, onMessage);
 
-const expectedError = new RegExp('^TypeError: Invalid arguments: address ' +
-  'must be a nonempty string or falsy$');
+const expectedError =
+  /^TypeError: Invalid arguments: address must be a nonempty string or falsy$/;
 
 // invalid address: object
 assert.throws(() => {

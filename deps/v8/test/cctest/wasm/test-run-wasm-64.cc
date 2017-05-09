@@ -6,7 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
+#include "src/objects-inl.h"
 #include "src/wasm/wasm-macro-gen.h"
 
 #include "test/cctest/cctest.h"
@@ -1319,6 +1321,9 @@ WASM_EXEC_TEST(I64ReinterpretF64) {
   }
 }
 
+// Do not run this test in a simulator because of signalling NaN issues on ia32.
+#ifndef USE_SIMULATOR
+
 WASM_EXEC_TEST(SignallingNanSurvivesI64ReinterpretF64) {
   REQUIRE(I64ReinterpretF64);
   WasmRunner<int64_t> r(execution_mode);
@@ -1328,6 +1333,7 @@ WASM_EXEC_TEST(SignallingNanSurvivesI64ReinterpretF64) {
   // This is a signalling nan.
   CHECK_EQ(0x7ff4000000000000, r.Call());
 }
+#endif
 
 WASM_EXEC_TEST(F64ReinterpretI64) {
   REQUIRE(F64ReinterpretI64);

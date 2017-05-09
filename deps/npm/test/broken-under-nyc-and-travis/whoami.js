@@ -48,7 +48,7 @@ test('npm whoami with bearer auth', { timeout: 2 * 1000 }, function (t) {
     t.equal(req.url, '/-/whoami')
 
     res.setHeader('content-type', 'application/json')
-    res.writeHeader(200)
+    res.writeHead(200)
     res.end(JSON.stringify({ username: 'wombat' }), 'utf8')
   }
 

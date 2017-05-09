@@ -101,7 +101,9 @@ bat.stderr.on('data', (data) => {
 bat.on('exit', (code) => {
   console.log(`Child exited with code ${code}`);
 });
+```
 
+```js
 // OR...
 const exec = require('child_process').exec;
 exec('my.bat', (err, stdout, stderr) => {
@@ -195,14 +197,14 @@ The `options` argument may be passed as the second argument to customize how
 the process is spawned. The default options are:
 
 ```js
-{
+const defaults = {
   encoding: 'utf8',
   timeout: 0,
-  maxBuffer: 200*1024,
+  maxBuffer: 200 * 1024,
   killSignal: 'SIGTERM',
   cwd: null,
   env: null
-}
+};
 ```
 
 If `timeout` is greater than `0`, the parent will send the signal
@@ -211,6 +213,23 @@ child runs longer than `timeout` milliseconds.
 
 *Note: Unlike the exec(3) POSIX system call, `child_process.exec()` does not
 replace the existing process and uses a shell to execute the command.*
+
+If this method is invoked as its [`util.promisify()`][]ed version, it returns
+a Promise for an object with `stdout` and `stderr` properties.
+
+For example:
+
+```js
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
+
+async function lsExample() {
+  const {stdout, stderr} = await exec('ls');
+  console.log('stdout:', stdout);
+  console.log('stderr:', stderr);
+}
+lsExample();
+```
 
 ### child_process.execFile(file[, args][, options][, callback])
 <!-- YAML
@@ -260,6 +279,19 @@ the output as UTF-8 and pass strings to the callback. The `encoding` option
 can be used to specify the character encoding used to decode the stdout and
 stderr output. If `encoding` is `'buffer'`, or an unrecognized character
 encoding, `Buffer` objects will be passed to the callback instead.
+
+If this method is invoked as its [`util.promisify()`][]ed version, it returns
+a Promise for an object with `stdout` and `stderr` properties.
+
+```js
+const util = require('util');
+const execFile = util.promisify(require('child_process').execFile);
+async function getVersion() {
+  const {stdout} = await execFile('node', ['--version']);
+  console.log(stdout);
+}
+getVersion();
+```
 
 ### child_process.fork(modulePath[, args][, options])
 <!-- YAML
@@ -362,10 +394,10 @@ trigger arbitrary command execution.**
 A third argument may be used to specify additional options, with these defaults:
 
 ```js
-{
+const defaults = {
   cwd: undefined,
   env: process.env
-}
+};
 ```
 
 Use `cwd` to specify the working directory from which the process is spawned.
@@ -806,8 +838,8 @@ The `'error'` event is emitted whenever:
 2. The process could not be killed, or
 3. Sending a message to the child process failed.
 
-Note that the `'exit'` event may or may not fire after an error has occurred.
-If you are listening to both the `'exit'` and `'error'` events, it is important
+*Note*: The `'exit'` event may or may not fire after an error has occurred.
+When listening to both the `'exit'` and `'error'` events, it is important
 to guard against accidentally invoking handler functions multiple times.
 
 See also [`child.kill()`][] and [`child.send()`][].
@@ -931,13 +963,17 @@ as in this example:
 'use strict';
 const spawn = require('child_process').spawn;
 
-const child = spawn('sh', ['-c',
-  `node -e "setInterval(() => {
+const child = spawn(
+  'sh',
+  [
+    '-c',
+    `node -e "setInterval(() => {
       console.log(process.pid, 'is alive')
     }, 500);"`
   ], {
     stdio: ['inherit', 'inherit', 'inherit']
-  });
+  }
+);
 
 setTimeout(() => {
   child.kill(); // does not terminate the node process in the shell
@@ -1232,6 +1268,11 @@ to `stdout` although there are only 4 characters.
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
 [`'message'`]: #child_process_event_message
+[`ChildProcess`]: #child_process_child_process
+[`Error`]: errors.html#errors_class_error
+[`EventEmitter`]: events.html#events_class_eventemitter
+[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`child.channel`]: #child_process_child_channel
 [`child.connected`]: #child_process_child_connected
 [`child.disconnect()`]: #child_process_child_disconnect
@@ -1247,10 +1288,6 @@ to `stdout` although there are only 4 characters.
 [`child_process.fork()`]: #child_process_child_process_fork_modulepath_args_options
 [`child_process.spawn()`]: #child_process_child_process_spawn_command_args_options
 [`child_process.spawnSync()`]: #child_process_child_process_spawnsync_command_args_options
-[`ChildProcess`]: #child_process_child_process
-[`Error`]: errors.html#errors_class_error
-[`EventEmitter`]: events.html#events_class_eventemitter
-[`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`maxBuffer` and Unicode]: #child_process_maxbuffer_and_unicode
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
@@ -1262,5 +1299,5 @@ to `stdout` although there are only 4 characters.
 [`process.on('message')`]: process.html#process_event_message
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`stdio`]: #child_process_options_stdio
+[`util.promisify()`]: util.html#util_util_promisify_original
 [synchronous counterparts]: #child_process_synchronous_process_creation
-[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array

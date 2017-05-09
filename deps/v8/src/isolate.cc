@@ -9,6 +9,7 @@
 #include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
 
+#include "src/assembler-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/context-slot-cache.h"
 #include "src/base/hashmap.h"
@@ -1460,6 +1461,9 @@ void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
     DCHECK(scheduled_exception() != heap()->termination_exception());
     clear_scheduled_exception();
   }
+  if (thread_local_top_.pending_message_obj_ == handler->message_obj_) {
+    clear_pending_message();
+  }
 }
 
 
@@ -1875,6 +1879,11 @@ bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
                                Handle<JSReceiver>::cast(deferred_promise));
   }
 
+  if (queue->IsSymbol()) {
+    return InternalPromiseHasUserDefinedRejectHandler(
+        isolate, Handle<JSPromise>::cast(deferred_promise));
+  }
+
   Handle<FixedArray> queue_arr = Handle<FixedArray>::cast(queue);
   Handle<FixedArray> deferred_promise_arr =
       Handle<FixedArray>::cast(deferred_promise);
@@ -2022,6 +2031,47 @@ Isolate::ThreadDataTable::~ThreadDataTable() {
   // DCHECK_NULL(list_);
 }
 
+void Isolate::ReleaseManagedObjects() {
+  Isolate::ManagedObjectFinalizer* current =
+      managed_object_finalizers_list_.next_;
+  while (current != nullptr) {
+    Isolate::ManagedObjectFinalizer* next = current->next_;
+    current->Dispose();
+    delete current;
+    current = next;
+  }
+}
+
+Isolate::ManagedObjectFinalizer* Isolate::RegisterForReleaseAtTeardown(
+    void* value, Isolate::ManagedObjectFinalizer::Deleter deleter) {
+  DCHECK_NOT_NULL(value);
+  DCHECK_NOT_NULL(deleter);
+
+  Isolate::ManagedObjectFinalizer* ret = new Isolate::ManagedObjectFinalizer();
+  ret->value_ = value;
+  ret->deleter_ = deleter;
+  // Insert at head. We keep the head alive for the lifetime of the Isolate
+  // because otherwise we can't reset the head, should we delete it before
+  // the isolate expires
+  Isolate::ManagedObjectFinalizer* next = managed_object_finalizers_list_.next_;
+  managed_object_finalizers_list_.next_ = ret;
+  ret->prev_ = &managed_object_finalizers_list_;
+  ret->next_ = next;
+  if (next != nullptr) next->prev_ = ret;
+  return ret;
+}
+
+void Isolate::UnregisterFromReleaseAtTeardown(
+    Isolate::ManagedObjectFinalizer** finalizer_ptr) {
+  DCHECK_NOT_NULL(finalizer_ptr);
+  Isolate::ManagedObjectFinalizer* finalizer = *finalizer_ptr;
+  DCHECK_NOT_NULL(finalizer->prev_);
+
+  finalizer->prev_->next_ = finalizer->next_;
+  if (finalizer->next_ != nullptr) finalizer->next_->prev_ = finalizer->prev_;
+  delete finalizer;
+  *finalizer_ptr = nullptr;
+}
 
 Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
 #if defined(USE_SIMULATOR)
@@ -2128,8 +2178,7 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"time\": %f, "
         "\"ptr\": \"%p\", "
         "\"name\": \"%s\","
-        "\"nesting\": %zu"
-        "}\n",
+        "\"nesting\": %" PRIuS "}\n",
         reinterpret_cast<void*>(heap_->isolate()), time,
         reinterpret_cast<const void*>(zone), zone->name(),
         nesting_deepth_.Value());
@@ -2146,9 +2195,9 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"time\": %f, "
         "\"ptr\": \"%p\", "
         "\"name\": \"%s\", "
-        "\"size\": %zu,"
-        "\"nesting\": %zu"
-        "}\n",
+        "\"size\": %" PRIuS
+        ","
+        "\"nesting\": %" PRIuS "}\n",
         reinterpret_cast<void*>(heap_->isolate()), time,
         reinterpret_cast<const void*>(zone), zone->name(),
         zone->allocation_size(), nesting_deepth_.Value());
@@ -2164,9 +2213,9 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"type\": \"zone\", "
         "\"isolate\": \"%p\", "
         "\"time\": %f, "
-        "\"allocated\": %zu,"
-        "\"pooled\": %zu"
-        "}\n",
+        "\"allocated\": %" PRIuS
+        ","
+        "\"pooled\": %" PRIuS "}\n",
         reinterpret_cast<void*>(heap_->isolate()), time, malloced, pooled);
   }
 
@@ -2215,6 +2264,7 @@ Isolate::Isolate(bool enable_serializer)
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
       rail_mode_(PERFORMANCE_ANIMATION),
+      promise_hook_or_debug_is_active_(false),
       promise_hook_(NULL),
       load_start_time_ms_(0),
       serializer_enabled_(enable_serializer),
@@ -2237,7 +2287,8 @@ Isolate::Isolate(bool enable_serializer)
       use_counter_callback_(NULL),
       basic_block_profiler_(NULL),
       cancelable_task_manager_(new CancelableTaskManager()),
-      abort_on_uncaught_exception_callback_(NULL) {
+      abort_on_uncaught_exception_callback_(NULL),
+      total_regexp_code_generated_(0) {
   {
     base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
     CHECK(thread_data_table_);
@@ -2390,6 +2441,7 @@ void Isolate::Deinit() {
   root_index_map_ = NULL;
 
   ClearSerializerData();
+  ReleaseManagedObjects();
 }
 
 
@@ -2643,9 +2695,7 @@ bool Isolate::Init(Deserializer* des) {
 
   bootstrapper_->Initialize(create_heap_objects);
   builtins_.SetUp(this, create_heap_objects);
-  if (create_heap_objects) {
-    heap_.CreateFixedStubs();
-  }
+  if (create_heap_objects) heap_.CreateFixedStubs();
 
   if (FLAG_log_internal_timer_events) {
     set_event_logger(Logger::DefaultEventLoggerSentinel);
@@ -2899,16 +2949,24 @@ Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
   return nullptr;
 }
 
-
-bool Isolate::use_crankshaft() const {
+bool Isolate::use_crankshaft() {
   return FLAG_opt && FLAG_crankshaft && !serializer_enabled_ &&
-         CpuFeatures::SupportsCrankshaft();
+         CpuFeatures::SupportsCrankshaft() && !IsCodeCoverageEnabled();
 }
 
 bool Isolate::NeedsSourcePositionsForProfiling() const {
   return FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
          FLAG_turbo_profiling || FLAG_perf_prof || is_profiling() ||
          debug_->is_active() || logger_->is_logging();
+}
+
+bool Isolate::IsCodeCoverageEnabled() {
+  return heap()->code_coverage_list()->IsArrayList();
+}
+
+void Isolate::SetCodeCoverageList(Object* value) {
+  DCHECK(value->IsUndefined(this) || value->IsArrayList());
+  heap()->set_code_coverage_list(value);
 }
 
 bool Isolate::IsArrayOrObjectPrototype(Object* object) {
@@ -3058,15 +3116,6 @@ void Isolate::UpdateArrayProtectorOnSetElement(Handle<JSObject> object) {
       handle(Smi::FromInt(kProtectorInvalid), this));
 }
 
-void Isolate::InvalidateHasInstanceProtector() {
-  DCHECK(factory()->has_instance_protector()->value()->IsSmi());
-  DCHECK(IsHasInstanceLookupChainIntact());
-  PropertyCell::SetValueWithInvalidation(
-      factory()->has_instance_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsHasInstanceLookupChainIntact());
-}
-
 void Isolate::InvalidateIsConcatSpreadableProtector() {
   DCHECK(factory()->is_concat_spreadable_protector()->value()->IsSmi());
   DCHECK(IsIsConcatSpreadableLookupChainIntact());
@@ -3094,8 +3143,9 @@ void Isolate::InvalidateStringLengthOverflowProtector() {
 void Isolate::InvalidateArrayIteratorProtector() {
   DCHECK(factory()->array_iterator_protector()->value()->IsSmi());
   DCHECK(IsArrayIteratorLookupChainIntact());
-  factory()->array_iterator_protector()->set_value(
-      Smi::FromInt(kProtectorInvalid));
+  PropertyCell::SetValueWithInvalidation(
+      factory()->array_iterator_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsArrayIteratorLookupChainIntact());
 }
 
@@ -3244,10 +3294,18 @@ void Isolate::FireCallCompletedCallback() {
   }
 }
 
-void Isolate::SetPromiseHook(PromiseHook hook) { promise_hook_ = hook; }
+void Isolate::DebugStateUpdated() {
+  promise_hook_or_debug_is_active_ = promise_hook_ || debug()->is_active();
+}
+
+void Isolate::SetPromiseHook(PromiseHook hook) {
+  promise_hook_ = hook;
+  DebugStateUpdated();
+}
 
 void Isolate::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                              Handle<Object> parent) {
+  if (debug()->is_active()) debug()->RunPromiseHook(type, promise, parent);
   if (promise_hook_ == nullptr) return;
   promise_hook_(type, v8::Utils::PromiseToLocal(promise),
                 v8::Utils::ToLocal(parent));
@@ -3271,33 +3329,9 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
       v8::Utils::StackTraceToLocal(stack_trace)));
 }
 
-namespace {
-class PromiseDebugEventScope {
- public:
-  PromiseDebugEventScope(Isolate* isolate, int id)
-      : isolate_(isolate), id_(id) {
-    if (isolate_->debug()->is_active() && id_ != kDebugPromiseNoID) {
-      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugWillHandle, id_);
-    }
-  }
-
-  ~PromiseDebugEventScope() {
-    if (isolate_->debug()->is_active() && id_ != kDebugPromiseNoID) {
-      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugDidHandle, id_);
-    }
-  }
-
- private:
-  Isolate* isolate_;
-  int id_;
-};
-}  // namespace
-
 void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
                                  MaybeHandle<Object>* result,
                                  MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, info->debug_id());
-
   Handle<Object> value(info->value(), this);
   Handle<Object> tasks(info->tasks(), this);
   Handle<JSFunction> promise_handle_fn = promise_handle();
@@ -3339,8 +3373,6 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
 void Isolate::PromiseResolveThenableJob(
     Handle<PromiseResolveThenableJobInfo> info, MaybeHandle<Object>* result,
     MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, info->debug_id());
-
   Handle<JSReceiver> thenable(info->thenable(), this);
   Handle<JSFunction> resolve(info->resolve(), this);
   Handle<JSFunction> reject(info->reject(), this);

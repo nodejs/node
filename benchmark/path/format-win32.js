@@ -12,7 +12,7 @@ var bench = common.createBenchmark(main, {
 function main(conf) {
   var n = +conf.n;
   var p = path.win32;
-  var props = ('' + conf.props).split('|');
+  var props = String(conf.props).split('|');
   var obj = {
     root: props[0] || '',
     dir: props[1] || '',

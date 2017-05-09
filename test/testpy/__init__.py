@@ -44,7 +44,6 @@ class SimpleTestCase(test.TestCase):
     self.config = config
     self.arch = arch
     self.mode = mode
-    self.tmpdir = join(dirname(self.config.root), 'tmp')
     if additional is not None:
       self.additional_flags = additional
     else:
@@ -62,7 +61,7 @@ class SimpleTestCase(test.TestCase):
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
-      # PORT should match the definition in test/common.js.
+      # PORT should match the definition in test/common/index.js.
       env = { 'PORT': int(os.getenv('NODE_COMMON_PORT', '12346')) }
       env['PORT'] += self.thread_id * 100
       flag = flags_match.group(1).strip().format(**env).split()
@@ -72,9 +71,14 @@ class SimpleTestCase(test.TestCase):
       # cause node to exit and report the test as failed. The use case
       # is currently when Node is configured --without-ssl and the tests should
       # still be runnable but skip any tests that require ssl (which includes the
-      # inspector related tests).
-      if flag[0].startswith('--inspect') and self.context.v8_enable_inspector == 0:
-        print('Skipping as inspector is disabled')
+      # inspector related tests). Also, if there is no ssl support the options
+      # '--use-bundled-ca' and '--use-openssl-ca' will also cause a similar
+      # failure so such tests are also skipped.
+      if ('--inspect' in flag[0] or \
+          '--use-bundled-ca' in flag[0] or \
+          '--use-openssl-ca' in flag[0]) and \
+          self.context.v8_enable_inspector == 0:
+        print('Skipping as node was configured --without-ssl')
       else:
         result += flag
     files_match = FILES_PATTERN.search(source);

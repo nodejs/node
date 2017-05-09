@@ -16,7 +16,7 @@ repo.completion = function (opts, cb) {
 
 function repo (args, cb) {
   var n = args.length ? args[0] : '.'
-  fetchPackageMetadata(n, '.', function (er, d) {
+  fetchPackageMetadata(n, '.', {fullMetadata: true}, function (er, d) {
     if (er) return cb(er)
     getUrlAndOpen(d, cb)
   })

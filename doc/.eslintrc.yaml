@@ -1,0 +1,12 @@
+## Docs-specific linter rules
+
+rules:
+  # ease some restrictions in doc examples
+  no-restricted-properties: 0
+  no-undef: 0
+  no-unused-vars: 0
+  strict: 0
+
+  # add new ECMAScript features gradually
+  no-var: 2
+  prefer-const: 2

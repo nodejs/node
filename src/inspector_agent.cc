@@ -44,6 +44,11 @@ std::unique_ptr<StringBuffer> ToProtocolString(Isolate* isolate,
   return StringBuffer::create(StringView(*buffer, buffer.length()));
 }
 
+// Called from the main thread.
+void StartInspectorIoThreadAsyncCallback(uv_async_t* handle) {
+  static_cast<Agent*>(handle->data)->StartIoThread();
+}
+
 #ifdef __POSIX__
 static void EnableInspectorIOThreadSignalHandler(int signo) {
   uv_sem_post(&inspector_io_thread_semaphore);
@@ -149,67 +154,65 @@ static int RegisterDebugSignalHandler() {
   return 0;
 }
 #endif  // _WIN32
-}  // namespace
 
+void InspectorConsoleCall(const v8::FunctionCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  HandleScope handle_scope(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+  CHECK_LT(2, info.Length());
+  std::vector<Local<Value>> call_args;
+  for (int i = 3; i < info.Length(); ++i) {
+    call_args.push_back(info[i]);
+  }
+  Environment* env = Environment::GetCurrent(isolate);
+  if (env->inspector_agent()->enabled()) {
+    Local<Value> inspector_method = info[0];
+    CHECK(inspector_method->IsFunction());
+    Local<Value> config_value = info[2];
+    CHECK(config_value->IsObject());
+    Local<Object> config_object = config_value.As<Object>();
+    Local<String> in_call_key = FIXED_ONE_BYTE_STRING(isolate, "in_call");
+    if (!config_object->Has(context, in_call_key).FromMaybe(false)) {
+      CHECK(config_object->Set(context,
+                               in_call_key,
+                               v8::True(isolate)).FromJust());
+      CHECK(!inspector_method.As<Function>()->Call(context,
+                                                   info.Holder(),
+                                                   call_args.size(),
+                                                   call_args.data()).IsEmpty());
+    }
+    CHECK(config_object->Delete(context, in_call_key).FromJust());
+  }
+
+  Local<Value> node_method = info[1];
+  CHECK(node_method->IsFunction());
+  static_cast<void>(node_method.As<Function>()->Call(context,
+                                                     info.Holder(),
+                                                     call_args.size(),
+                                                     call_args.data()));
+}
+
+void CallAndPauseOnStart(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GT(args.Length(), 1);
+  CHECK(args[0]->IsFunction());
+  std::vector<v8::Local<v8::Value>> call_args;
+  for (int i = 2; i < args.Length(); i++) {
+    call_args.push_back(args[i]);
+  }
+
+  env->inspector_agent()->PauseOnNextJavascriptStatement("Break on start");
+  v8::MaybeLocal<v8::Value> retval =
+      args[0].As<v8::Function>()->Call(env->context(), args[1],
+                                       call_args.size(), call_args.data());
+  args.GetReturnValue().Set(retval.ToLocalChecked());
+}
+}  // namespace
 
 // Used in NodeInspectorClient::currentTimeMS() below.
 const int NANOS_PER_MSEC = 1000000;
 const int CONTEXT_GROUP_ID = 1;
-
-class NodeInspectorClient;
-
-class AgentImpl {
- public:
-  explicit AgentImpl(node::Environment* env);
-
-  bool Start(v8::Platform* platform, const char* path,
-             const DebugOptions& options);
-  void Stop();
-  bool IsStarted();
-  bool IsConnected();
-  void WaitForDisconnect();
-
-  void FatalException(Local<Value> error,
-                      Local<v8::Message> message);
-
-  void SchedulePauseOnNextStatement(const std::string& reason);
-
-  void Connect(InspectorSessionDelegate* session);
-
-  NodeInspectorClient* client() {
-    return inspector_.get();
-  }
-
- private:
-  template <typename Action>
-  using MessageQueue =
-      std::vector<std::tuple<Action, int, std::unique_ptr<StringBuffer>>>;
-  enum class State { kNew, kAccepting, kConnected, kDone, kError };
-
-  static void ThreadCbIO(void* agent);
-  static void WriteCbIO(uv_async_t* async);
-  static void CallAndPauseOnStart(const v8::FunctionCallbackInfo<v8::Value>&);
-
-  void WorkerRunIO();
-  void SetConnected(bool connected);
-  void WaitForFrontendMessage();
-  void NotifyMessageReceived();
-  bool StartIoThread();
-  static void InspectorWrapConsoleCall(
-      const v8::FunctionCallbackInfo<Value>& args);
-  static void InspectorConsoleCall(
-      const v8::FunctionCallbackInfo<Value>& info);
-  static void StartInspectorIoThreadAsyncCallback(uv_async_t* handle);
-  State ToState(State state);
-
-  node::Environment* parent_env_;
-  std::unique_ptr<NodeInspectorClient> inspector_;
-  std::unique_ptr<InspectorIo> io_;
-  v8::Platform* platform_;
-  bool inspector_console_;
-  std::string path_;
-  DebugOptions debug_options_;
-};
 
 class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
  public:
@@ -268,11 +271,6 @@ class NodeInspectorClient : public v8_inspector::V8InspectorClient {
                                                 terminated_(false),
                                                 running_nested_loop_(false) {
     inspector_ = V8Inspector::create(env->isolate(), this);
-    const uint8_t CONTEXT_NAME[] = "Node.js Main Context";
-    StringView context_name(CONTEXT_NAME, sizeof(CONTEXT_NAME) - 1);
-    v8_inspector::V8ContextInfo info(env->context(), CONTEXT_GROUP_ID,
-                                     context_name);
-    inspector_->contextCreated(info);
   }
 
   void runMessageLoopOnPause(int context_group_id) override {
@@ -293,6 +291,17 @@ class NodeInspectorClient : public v8_inspector::V8InspectorClient {
     return uv_hrtime() * 1.0 / NANOS_PER_MSEC;
   }
 
+  void contextCreated(Local<Context> context, const std::string& name) {
+    std::unique_ptr<StringBuffer> name_buffer = Utf8ToStringView(name);
+    v8_inspector::V8ContextInfo info(context, CONTEXT_GROUP_ID,
+                                     name_buffer->string());
+    inspector_->contextCreated(info);
+  }
+
+  void contextDestroyed(Local<Context> context) {
+    inspector_->contextDestroyed(context);
+  }
+
   void quitMessageLoopOnPause() override {
     terminated_ = true;
   }
@@ -311,12 +320,6 @@ class NodeInspectorClient : public v8_inspector::V8InspectorClient {
   void dispatchMessageFromFrontend(const StringView& message) {
     CHECK_NE(channel_, nullptr);
     channel_->dispatchProtocolMessage(message);
-  }
-
-  void schedulePauseOnNextStatement(const std::string& reason) {
-    if (channel_ != nullptr) {
-      channel_->schedulePauseOnNextStatement(reason);
-    }
   }
 
   Local<Context> ensureDefaultContextInGroup(int contextGroupId) override {
@@ -352,10 +355,8 @@ class NodeInspectorClient : public v8_inspector::V8InspectorClient {
         script_id);
   }
 
-  InspectorSessionDelegate* delegate() {
-    if (channel_ == nullptr)
-      return nullptr;
-    return channel_->delegate();
+  ChannelImpl* channel() {
+    return channel_.get();
   }
 
  private:
@@ -367,105 +368,26 @@ class NodeInspectorClient : public v8_inspector::V8InspectorClient {
   std::unique_ptr<ChannelImpl> channel_;
 };
 
-AgentImpl::AgentImpl(Environment* env) : parent_env_(env),
-                                         inspector_(nullptr),
-                                         platform_(nullptr),
-                                         inspector_console_(false) {}
+Agent::Agent(Environment* env) : parent_env_(env),
+                                 inspector_(nullptr),
+                                 platform_(nullptr),
+                                 enabled_(false) {}
 
-// static
-void AgentImpl::InspectorConsoleCall(
-    const v8::FunctionCallbackInfo<Value>& info) {
-  Isolate* isolate = info.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
-
-  CHECK(info.Data()->IsArray());
-  Local<v8::Array> args = info.Data().As<v8::Array>();
-  CHECK_EQ(args->Length(), 3);
-
-  std::vector<Local<Value>> call_args(info.Length());
-  for (int i = 0; i < info.Length(); ++i) {
-    call_args[i] = info[i];
-  }
-
-  Environment* env = Environment::GetCurrent(isolate);
-  if (env->inspector_agent()->impl->inspector_console_) {
-    Local<Value> inspector_method = args->Get(context, 0).ToLocalChecked();
-    CHECK(inspector_method->IsFunction());
-    Local<Value> config_value = args->Get(context, 2).ToLocalChecked();
-    CHECK(config_value->IsObject());
-    Local<Object> config_object = config_value.As<Object>();
-    Local<String> in_call_key = FIXED_ONE_BYTE_STRING(isolate, "in_call");
-    if (!config_object->Has(context, in_call_key).FromMaybe(false)) {
-      CHECK(config_object->Set(context,
-                               in_call_key,
-                               v8::True(isolate)).FromJust());
-      CHECK(!inspector_method.As<Function>()->Call(context,
-                                                   info.Holder(),
-                                                   call_args.size(),
-                                                   call_args.data()).IsEmpty());
-    }
-    CHECK(config_object->Delete(context, in_call_key).FromJust());
-  }
-
-  Local<Value> node_method =
-      args->Get(context, 1).ToLocalChecked();
-  CHECK(node_method->IsFunction());
-  static_cast<void>(node_method.As<Function>()->Call(context,
-                                                     info.Holder(),
-                                                     call_args.size(),
-                                                     call_args.data()));
+// Destructor needs to be defined here in implementation file as the header
+// does not have full definition of some classes.
+Agent::~Agent() {
 }
 
-// static
-void AgentImpl::InspectorWrapConsoleCall(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  if (args.Length() != 3 || !args[0]->IsFunction() ||
-      !args[1]->IsFunction() || !args[2]->IsObject()) {
-    return env->ThrowError("inspector.wrapConsoleCall takes exactly 3 "
-        "arguments: two functions and an object.");
-  }
-
-  Local<v8::Array> array = v8::Array::New(env->isolate(), args.Length());
-  CHECK(array->Set(env->context(), 0, args[0]).FromJust());
-  CHECK(array->Set(env->context(), 1, args[1]).FromJust());
-  CHECK(array->Set(env->context(), 2, args[2]).FromJust());
-  args.GetReturnValue().Set(Function::New(env->context(),
-                                          InspectorConsoleCall,
-                                          array).ToLocalChecked());
-}
-
-// Called from the main thread.
-// static
-void AgentImpl::StartInspectorIoThreadAsyncCallback(uv_async_t* handle) {
-  reinterpret_cast<AgentImpl*>(handle->data)->StartIoThread();
-}
-
-bool AgentImpl::Start(v8::Platform* platform, const char* path,
-                      const DebugOptions& options) {
+bool Agent::Start(v8::Platform* platform, const char* path,
+                  const DebugOptions& options) {
   path_ = path == nullptr ? "" : path;
   debug_options_ = options;
-  inspector_console_ = false;
   inspector_ =
       std::unique_ptr<NodeInspectorClient>(
           new NodeInspectorClient(parent_env_, platform));
+  inspector_->contextCreated(parent_env_->context(), "Node.js Main Context");
   platform_ = platform;
-  Local<Object> process = parent_env_->process_object();
-  Local<Object> inspector = Object::New(parent_env_->isolate());
-  Local<String> name =
-      FIXED_ONE_BYTE_STRING(parent_env_->isolate(), "inspector");
-  process->DefineOwnProperty(parent_env_->context(),
-                             name,
-                             inspector,
-                             v8::ReadOnly).FromJust();
-  parent_env_->SetMethod(inspector, "wrapConsoleCall",
-                         InspectorWrapConsoleCall);
   if (options.inspector_enabled()) {
-    if (options.wait_for_connect()) {
-      parent_env_->SetMethod(inspector, "callAndPauseOnStart",
-                             CallAndPauseOnStart);
-    }
     return StartIoThread();
   } else {
     CHECK_EQ(0, uv_async_init(uv_default_loop(),
@@ -479,13 +401,13 @@ bool AgentImpl::Start(v8::Platform* platform, const char* path,
   }
 }
 
-bool AgentImpl::StartIoThread() {
+bool Agent::StartIoThread() {
   if (io_ != nullptr)
     return true;
 
   CHECK_NE(inspector_, nullptr);
 
-  inspector_console_ = true;
+  enabled_ = true;
   io_ = std::unique_ptr<InspectorIo>(
       new InspectorIo(parent_env_, platform_, path_, debug_options_));
   if (!io_->Start()) {
@@ -517,121 +439,71 @@ bool AgentImpl::StartIoThread() {
   return true;
 }
 
-void AgentImpl::Stop() {
+void Agent::Stop() {
   if (io_ != nullptr)
     io_->Stop();
 }
 
-void AgentImpl::Connect(InspectorSessionDelegate* delegate) {
-  inspector_console_ = true;
+void Agent::Connect(InspectorSessionDelegate* delegate) {
+  enabled_ = true;
   inspector_->connectFrontend(delegate);
 }
 
-bool AgentImpl::IsConnected() {
+bool Agent::IsConnected() {
   return io_ && io_->IsConnected();
 }
 
-bool AgentImpl::IsStarted() {
+bool Agent::IsStarted() {
   return !!inspector_;
 }
 
-// static
-void AgentImpl::CallAndPauseOnStart(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  CHECK_GT(args.Length(), 1);
-  CHECK(args[0]->IsFunction());
-  std::vector<v8::Local<v8::Value>> call_args;
-  for (int i = 2; i < args.Length(); i++) {
-    call_args.push_back(args[i]);
-  }
-
-  env->inspector_agent()->SchedulePauseOnNextStatement("Break on start");
-
-  v8::MaybeLocal<v8::Value> retval =
-      args[0].As<v8::Function>()->Call(env->context(), args[1],
-                                       call_args.size(), call_args.data());
-  args.GetReturnValue().Set(retval.ToLocalChecked());
-}
-
-void AgentImpl::WaitForDisconnect() {
+void Agent::WaitForDisconnect() {
+  CHECK_NE(inspector_, nullptr);
+  inspector_->contextDestroyed(parent_env_->context());
   if (io_ != nullptr) {
     io_->WaitForDisconnect();
   }
 }
 
-void AgentImpl::FatalException(Local<Value> error,
-                               Local<v8::Message> message) {
+void Agent::FatalException(Local<Value> error, Local<v8::Message> message) {
   if (!IsStarted())
     return;
   inspector_->FatalException(error, message);
   WaitForDisconnect();
 }
 
-void AgentImpl::SchedulePauseOnNextStatement(const std::string& reason) {
-  inspector_->schedulePauseOnNextStatement(reason);
-}
-
-// Exported class Agent
-Agent::Agent(node::Environment* env) : impl(new AgentImpl(env)) {}
-
-Agent::~Agent() {
-  delete impl;
-}
-
-bool Agent::Start(v8::Platform* platform, const char* path,
-                  const DebugOptions& options) {
-  return impl->Start(platform, path, options);
-}
-
-void Agent::Stop() {
-  impl->Stop();
-}
-
-bool Agent::IsStarted() {
-  return impl->IsStarted();
-}
-
-bool Agent::IsConnected() {
-  return impl->IsConnected();
-}
-
-void Agent::WaitForDisconnect() {
-  impl->WaitForDisconnect();
-}
-
-void Agent::FatalException(Local<Value> error,
-                           Local<v8::Message> message) {
-  impl->FatalException(error, message);
-}
-
-void Agent::SchedulePauseOnNextStatement(const std::string& reason) {
-  impl->SchedulePauseOnNextStatement(reason);
-}
-
-void Agent::Connect(InspectorSessionDelegate* delegate) {
-  impl->Connect(delegate);
-}
-
 void Agent::Dispatch(const StringView& message) {
-  CHECK_NE(impl->client(), nullptr);
-  impl->client()->dispatchMessageFromFrontend(message);
+  CHECK_NE(inspector_, nullptr);
+  inspector_->dispatchMessageFromFrontend(message);
 }
 
 void Agent::Disconnect() {
-  CHECK_NE(impl->client(), nullptr);
-  impl->client()->disconnectFrontend();
-}
-
-InspectorSessionDelegate* Agent::delegate() {
-  CHECK_NE(impl->client(), nullptr);
-  return impl->client()->delegate();
+  CHECK_NE(inspector_, nullptr);
+  inspector_->disconnectFrontend();
 }
 
 void Agent::RunMessageLoop() {
-  CHECK_NE(impl->client(), nullptr);
-  impl->client()->runMessageLoopOnPause(CONTEXT_GROUP_ID);
+  CHECK_NE(inspector_, nullptr);
+  inspector_->runMessageLoopOnPause(CONTEXT_GROUP_ID);
 }
 
+void Agent::PauseOnNextJavascriptStatement(const std::string& reason) {
+  ChannelImpl* channel = inspector_->channel();
+  if (channel != nullptr)
+    channel->schedulePauseOnNextStatement(reason);
+}
+
+// static
+void Agent::InitJSBindings(Local<Object> target, Local<Value> unused,
+                           Local<Context> context, void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  Agent* agent = env->inspector_agent();
+  env->SetMethod(target, "consoleCall", InspectorConsoleCall);
+  if (agent->debug_options_.wait_for_connect())
+    env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
+}
 }  // namespace inspector
 }  // namespace node
+
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(inspector,
+                                  node::inspector::Agent::InitJSBindings);

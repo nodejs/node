@@ -43,8 +43,8 @@ Benchmark.prototype._parseArgs = function(argv, configs) {
   // Parse configuration arguments
   for (const arg of argv) {
     const match = arg.match(/^(.+?)=([\s\S]*)$/);
-    if (!match || !match[1]) {
-      console.error('bad argument: ' + arg);
+    if (!match) {
+      console.error(`bad argument: ${arg}`);
       process.exit(1);
     }
     const config = match[1];
@@ -206,7 +206,7 @@ function formatResult(data) {
   // Construct configuration string, " A=a, B=b, ..."
   let conf = '';
   for (const key of Object.keys(data.conf)) {
-    conf += ' ' + key + '=' + JSON.stringify(data.conf[key]);
+    conf += ` ${key}=${JSON.stringify(data.conf[key])}`;
   }
 
   var rate = data.rate.toString().split('.');

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --validate-asm --allow-natives-syntax
+// Flags: --validate-asm --allow-natives-syntax --crankshaft --no-always-opt
 
 // /v8/test/mjsunit/regress/regress-crbug-431602.js
 // /v8/test/mjsunit/lazy-load.js
@@ -1238,7 +1238,6 @@ gc();
     "use asm";
     var __v_9 = new stdlib.Float32Array(heap);
     var __v_13 = stdlib.Math.fround;
-    assertEquals("number", debug.LookupMirror(__v_112).type());
     function __f_73() {
       var __v_23 = __v_13(1.0);
       var __v_25 = __v_13(2.0);
@@ -1432,39 +1431,4 @@ gc();
   assertEquals(0x80000000, __v_36.__f_95());
   assertEquals(0x87654321, __v_30.__f_50());
 })();
-} catch(e) { print("Caught: " + e); }
-try {
-var __v_112 = debug.MakeMirror(123).handle();
-assertEquals("number", debug.LookupMirror(__v_112).type());
-debug.ToggleMirrorCache(false);
-var __v_114 = debug.MakeMirror(123).handle();
-gc();
-assertEquals(undefined, __v_114);
-assertThrows(function() { debug.LookupMirror(__v_114) });
-debug.ToggleMirrorCache(true);
-var __v_113 = debug.MakeMirror(123).handle();
-assertEquals("number", debug.LookupMirror(__v_113).type());
-} catch(e) { print("Caught: " + e); }
-try {
-var Debug = debug.Debug;
-var __v_25 = null;
-var __v_113 = true;
-} catch(e) { print("Caught: " + e); }
-function __f_112(event, exec_state, event_data, data) {
-  if (event != Debug.DebugEvent.Break) return;
-  try {
-    assertTrue(exec_state.frame(0).sourceLineText().indexOf("BREAK") > 0);
-  } catch (e) {
-    __v_0 = e;
-  }
-}
-function __f_113() {
-  return 1;
-}
-try {
-Debug.setListener(__f_112);
-nop();
-__f_113();
-Debug.setListener(null);
-assertNull(__v_112);
 } catch(e) { print("Caught: " + e); }

@@ -58,7 +58,7 @@ const web = http.Server(function(req, res) {
   });
 
   req.connection.on('error', function(e) {
-    console.log('http server-side error: ' + e.message);
+    console.log(`http server-side error: ${e.message}`);
     process.exit(1);
   });
 });

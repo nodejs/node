@@ -245,8 +245,10 @@ class MacroAssembler : public Assembler {
 
   // Add (Register - Immediate)
   void Add32(Register dst, const Operand& imm);
+  void Add32_RI(Register dst, const Operand& imm);
   void AddP(Register dst, const Operand& imm);
   void Add32(Register dst, Register src, const Operand& imm);
+  void Add32_RRI(Register dst, Register src, const Operand& imm);
   void AddP(Register dst, Register src, const Operand& imm);
 
   // Add (Register - Register)
@@ -282,8 +284,12 @@ class MacroAssembler : public Assembler {
 
   // Subtract (Register - Immediate)
   void Sub32(Register dst, const Operand& imm);
+  void Sub32_RI(Register dst, const Operand& imm) { Sub32(dst, imm); }
   void SubP(Register dst, const Operand& imm);
   void Sub32(Register dst, Register src, const Operand& imm);
+  void Sub32_RRI(Register dst, Register src, const Operand& imm) {
+    Sub32(dst, src, imm);
+  }
   void SubP(Register dst, Register src, const Operand& imm);
 
   // Subtract (Register - Register)
@@ -316,6 +322,17 @@ class MacroAssembler : public Assembler {
   void Mul32(Register dst, const MemOperand& src1);
   void Mul32(Register dst, Register src1);
   void Mul32(Register dst, const Operand& src1);
+  void MulHigh32(Register dst, Register src1, const MemOperand& src2);
+  void MulHigh32(Register dst, Register src1, Register src2);
+  void MulHigh32(Register dst, Register src1, const Operand& src2);
+  void MulHighU32(Register dst, Register src1, const MemOperand& src2);
+  void MulHighU32(Register dst, Register src1, Register src2);
+  void MulHighU32(Register dst, Register src1, const Operand& src2);
+  void Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
+                                    const MemOperand& src2);
+  void Mul32WithOverflowIfCCUnequal(Register dst, Register src1, Register src2);
+  void Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
+                                    const Operand& src2);
   void Mul64(Register dst, const MemOperand& src1);
   void Mul64(Register dst, Register src1);
   void Mul64(Register dst, const Operand& src1);
@@ -323,6 +340,20 @@ class MacroAssembler : public Assembler {
 
   // Divide
   void DivP(Register dividend, Register divider);
+  void Div32(Register dst, Register src1, const MemOperand& src2);
+  void Div32(Register dst, Register src1, Register src2);
+  void Div32(Register dst, Register src1, const Operand& src2);
+  void DivU32(Register dst, Register src1, const MemOperand& src2);
+  void DivU32(Register dst, Register src1, Register src2);
+  void DivU32(Register dst, Register src1, const Operand& src2);
+
+  // Mod
+  void Mod32(Register dst, Register src1, const MemOperand& src2);
+  void Mod32(Register dst, Register src1, Register src2);
+  void Mod32(Register dst, Register src1, const Operand& src2);
+  void ModU32(Register dst, Register src1, const MemOperand& src2);
+  void ModU32(Register dst, Register src1, Register src2);
+  void ModU32(Register dst, Register src1, const Operand& src2);
 
   // Square root
   void Sqrt(DoubleRegister result, DoubleRegister input);
@@ -359,6 +390,7 @@ class MacroAssembler : public Assembler {
   void LoadB(Register dst, const MemOperand& opnd);
   void LoadB(Register dst, Register src);
   void LoadlB(Register dst, const MemOperand& opnd);
+  void LoadlB(Register dst, Register src);
 
   void LoadLogicalReversedWordP(Register dst, const MemOperand& opnd);
   void LoadLogicalReversedHalfWordP(Register dst, const MemOperand& opnd);
@@ -915,12 +947,9 @@ class MacroAssembler : public Assembler {
 
   void IsObjectNameType(Register object, Register scratch, Label* fail);
 
-  // ---------------------------------------------------------------------------
-  // Debugger Support
+  // Frame restart support
+  void MaybeDropFrames();
 
-  void DebugBreak();
-
-  // ---------------------------------------------------------------------------
   // Exception handling
 
   // Push a new stack handler and link into stack handler chain.
@@ -1028,14 +1057,6 @@ class MacroAssembler : public Assembler {
   // |temp| holds |result|'s map when done, and |temp2| its instance type.
   void GetMapConstructor(Register result, Register map, Register temp,
                          Register temp2);
-
-  // Try to get function prototype of a function and puts the value in
-  // the result register. Checks that the function really is a
-  // function and jumps to the miss label if the fast checks fail. The
-  // function register will be untouched; the other registers may be
-  // clobbered.
-  void TryGetFunctionPrototype(Register function, Register result,
-                               Register scratch, Label* miss);
 
   // Compare object type for heap object.  heap_object contains a non-Smi
   // whose object type should be compared with the given type.  This both
@@ -1754,10 +1775,6 @@ class MacroAssembler : public Assembler {
                       const ParameterCount& actual, Label* done,
                       bool* definitely_mismatches, InvokeFlag flag,
                       const CallWrapper& call_wrapper);
-
-  void InitializeNewString(Register string, Register length,
-                           Heap::RootListIndex map_index, Register scratch1,
-                           Register scratch2);
 
   // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
   void InNewSpace(Register object, Register scratch,

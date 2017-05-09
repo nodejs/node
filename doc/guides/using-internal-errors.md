@@ -27,7 +27,7 @@ are intended to replace existing `Error` objects within the Node.js source.
 For instance, an existing `Error` such as:
 
 ```js
-  var err = new TypeError('Expected string received ' + type);
+  const err = new TypeError('Expected string received ' + type);
 ```
 
 Can be replaced by first adding a new error key into the `internal/errors.js`
@@ -42,7 +42,7 @@ Then replacing the existing `new TypeError` in the code:
 ```js
   const errors = require('internal/errors');
   // ...
-  var err = new errors.TypeError('FOO', type);
+  const err = new errors.TypeError('FOO', type);
 ```
 
 ## Adding new errors
@@ -52,7 +52,7 @@ and appending the new error codes to the end using the utility `E()` method.
 
 ```js
 E('EXAMPLE_KEY1', 'This is the error value');
-E('EXAMPLE_KEY2', (a, b) => return `${a} ${b}`);
+E('EXAMPLE_KEY2', (a, b) => `${a} ${b}`);
 ```
 
 The first argument passed to `E()` is the static identifier. The second
@@ -80,8 +80,8 @@ codes.
 ```js
 const errors = require('internal/errors');
 
-var arg1 = 'foo';
-var arg2 = 'bar';
+const arg1 = 'foo';
+const arg2 = 'bar';
 const myError = new errors.Error('KEY', arg1, arg2);
 throw myError;
 ```
@@ -100,8 +100,8 @@ The `myError` object will have a `code` property equal to the `key` and a
 ```js
 const errors = require('internal/errors');
 
-var arg1 = 'foo';
-var arg2 = 'bar';
+const arg1 = 'foo';
+const arg2 = 'bar';
 const myError = new errors.TypeError('KEY', arg1, arg2);
 throw myError;
 ```
@@ -120,8 +120,8 @@ The `myError` object will have a `code` property equal to the `key` and a
 ```js
 const errors = require('internal/errors');
 
-var arg1 = 'foo';
-var arg2 = 'bar';
+const arg1 = 'foo';
+const arg2 = 'bar';
 const myError = new errors.RangeError('KEY', arg1, arg2);
 throw myError;
 ```

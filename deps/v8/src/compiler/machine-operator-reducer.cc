@@ -12,6 +12,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-matchers.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -331,7 +332,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // L - R => (L - R)
         return ReplaceFloat32(m.left().Value() - m.right().Value());
       }
-      if (m.left().IsMinusZero()) {
+      if (allow_signalling_nan_ && m.left().IsMinusZero()) {
         // -0.0 - round_down(-0.0 - R) => round_up(R)
         if (machine()->Float32RoundUp().IsSupported() &&
             m.right().IsFloat32RoundDown()) {
@@ -378,7 +379,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // L - R => (L - R)
         return ReplaceFloat64(m.left().Value() - m.right().Value());
       }
-      if (m.left().IsMinusZero()) {
+      if (allow_signalling_nan_ && m.left().IsMinusZero()) {
         // -0.0 - round_down(-0.0 - R) => round_up(R)
         if (machine()->Float64RoundUp().IsSupported() &&
             m.right().IsFloat64RoundDown()) {
@@ -437,7 +438,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // K / K => K
         return ReplaceFloat64(m.left().Value() / m.right().Value());
       }
-      if (m.right().Is(-1)) {  // x / -1.0 => -x
+      if (allow_signalling_nan_ && m.right().Is(-1)) {  // x / -1.0 => -x
         node->RemoveInput(1);
         NodeProperties::ChangeOp(node, machine()->Float64Neg());
         return Changed(node);
@@ -606,7 +607,13 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kChangeFloat32ToFloat64: {
       Float32Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceFloat64(m.Value());
+      if (m.HasValue()) {
+        if (!allow_signalling_nan_ && std::isnan(m.Value())) {
+          // Do some calculation to make guarantee the value is a quiet NaN.
+          return ReplaceFloat64(m.Value() + m.Value());
+        }
+        return ReplaceFloat64(m.Value());
+      }
       break;
     }
     case IrOpcode::kChangeFloat64ToInt32: {
@@ -655,8 +662,15 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kTruncateFloat64ToFloat32: {
       Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceFloat32(DoubleToFloat32(m.Value()));
-      if (m.IsChangeFloat32ToFloat64()) return Replace(m.node()->InputAt(0));
+      if (m.HasValue()) {
+        if (!allow_signalling_nan_ && std::isnan(m.Value())) {
+          // Do some calculation to make guarantee the value is a quiet NaN.
+          return ReplaceFloat32(DoubleToFloat32(m.Value() + m.Value()));
+        }
+        return ReplaceFloat32(DoubleToFloat32(m.Value()));
+      }
+      if (allow_signalling_nan_ && m.IsChangeFloat32ToFloat64())
+        return Replace(m.node()->InputAt(0));
       break;
     }
     case IrOpcode::kRoundFloat64ToInt32: {
@@ -1167,8 +1181,9 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
     if (m.left().IsWord32Shl()) {
       Uint32BinopMatcher mleft(m.left().node());
       if (mleft.right().HasValue() &&
-          mleft.right().Value() >= base::bits::CountTrailingZeros32(mask)) {
-        // (x << L) & (-1 << K) => x << L iff K >= L
+          (mleft.right().Value() & 0x1f) >=
+              base::bits::CountTrailingZeros32(mask)) {
+        // (x << L) & (-1 << K) => x << L iff L >= K
         return Replace(mleft.node());
       }
     } else if (m.left().IsInt32Add()) {

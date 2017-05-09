@@ -35,7 +35,7 @@ class ActionStream extends stream.Stream {
       if (typeof action === 'object') {
         this.emit('keypress', '', action);
       } else {
-        this.emit('data', action + '\n');
+        this.emit('data', `${action}\n`);
       }
       setImmediate(doAction);
     };
@@ -76,6 +76,10 @@ const oldHistoryPath = path.join(fixtures, 'old-repl-history-file.json');
 const enoentHistoryPath = path.join(fixtures, 'enoent-repl-history-file.json');
 const emptyHistoryPath = path.join(fixtures, '.empty-repl-history-file');
 const defaultHistoryPath = path.join(common.tmpDir, '.node_repl_history');
+const emptyHiddenHistoryPath = path.join(fixtures,
+                                         '.empty-hidden-repl-history-file');
+const devNullHistoryPath = path.join(common.tmpDir,
+                                     '.dev-null-repl-history-file');
 
 const tests = [
   {
@@ -113,19 +117,19 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY: historyPath },
     test: [UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_FILE: oldHistoryPath },
     test: [UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_FILE: '' },
     test: [UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
     env: {},
@@ -135,33 +139,55 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath },
     test: [UP, CLEAR, '\'42\'', ENTER],
-    expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt, '\'',
+    expected: [prompt, convertMsg, prompt, `${prompt}'=^.^='`, prompt, '\'',
                '4', '2', '\'', '\'42\'\n', prompt, prompt],
     clean: false
   },
   { // Requires the above testcase
     env: {},
     test: [UP, UP, ENTER],
-    expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
+    expected: [prompt, `${prompt}'42'`, `${prompt}'=^.^='`, '\'=^.^=\'\n',
                prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP, UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath,
            NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP, UP, UP, CLEAR],
-    expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt]
+    expected: [prompt, convertMsg, prompt, `${prompt}'=^.^='`, prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPathFail,
            NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP],
     expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
+  },
+  {
+    before: function before() {
+      if (common.isWindows) {
+        const execSync = require('child_process').execSync;
+        execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`, (err) => {
+          assert.ifError(err);
+        });
+      }
+    },
+    env: { NODE_REPL_HISTORY: emptyHiddenHistoryPath },
+    test: [UP],
+    expected: [prompt]
+  },
+  {
+    before: function before() {
+      if (!common.isWindows)
+        fs.symlinkSync('/dev/null', devNullHistoryPath);
+    },
+    env: { NODE_REPL_HISTORY: devNullHistoryPath },
+    test: [UP],
+    expected: [prompt]
   },
   { // Make sure this is always the last test, since we change os.homedir()
     before: function before() {
@@ -178,12 +204,6 @@ const tests = [
 const numtests = tests.length;
 
 
-let testsNotRan = tests.length;
-
-process.on('beforeExit', () =>
-  assert.strictEqual(testsNotRan, 0)
-);
-
 function cleanupTmpFile() {
   try {
     // Write over the file, clearing any history
@@ -198,6 +218,8 @@ function cleanupTmpFile() {
 // Copy our fixture to the tmp directory
 fs.createReadStream(historyFixturePath)
   .pipe(fs.createWriteStream(historyPath)).on('unpipe', () => runTest());
+
+const runTestWrap = common.mustCall(runTest, numtests);
 
 function runTest(assertCleaned) {
   const opts = tests.shift();
@@ -268,8 +290,7 @@ function runTest(assertCleaned) {
       try {
         // Ensure everything that we expected was output
         assert.strictEqual(expected.length, 0);
-        testsNotRan--;
-        setImmediate(runTest, cleaned);
+        setImmediate(runTestWrap, cleaned);
       } catch (err) {
         console.error(`Failed test # ${numtests - tests.length}`);
         throw err;

@@ -96,9 +96,9 @@ function test(arg, exit) {
   const f = __filename;
   const option = { stdio: [ 0, 1, 'ignore' ] };
   spawn(node, [f, arg], option).on('exit', function(code) {
-    assert.strictEqual(code, exit, 'wrong exit for ' +
-                 arg + '\nexpected:' + exit +
-                 ' but got:' + code);
+    assert.strictEqual(
+      code, exit,
+      `wrong exit for ${arg}\nexpected:${exit} but got:${code}`);
     console.log('ok - %s exited with %d', arg, exit);
   });
 }

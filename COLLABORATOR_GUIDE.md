@@ -4,15 +4,15 @@
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
- - [Useful CI Jobs](#useful-ci-jobs)
- - [Internal vs. Public API](#internal-vs-public-api)
- - [Breaking Changes](#breaking-changes)
- - [Deprecations](#deprecations)
- - [Involving the CTC](#involving-the-ctc)
+   - [Useful CI Jobs](#useful-ci-jobs)
+   - [Internal vs. Public API](#internal-vs-public-api)
+   - [Breaking Changes](#breaking-changes)
+   - [Deprecations](#deprecations)
+   - [Involving the CTC](#involving-the-ctc)
 * [Landing Pull Requests](#landing-pull-requests)
- - [Technical HOWTO](#technical-howto)
- - [I Just Made a Mistake](#i-just-made-a-mistake)
- - [Long Term Support](#long-term-support)
+   - [Technical HOWTO](#technical-howto)
+   - [I Just Made a Mistake](#i-just-made-a-mistake)
+   - [Long Term Support](#long-term-support)
 
 This document contains information for Collaborators of the Node.js
 project regarding maintaining the code, documentation and issues.
@@ -392,6 +392,18 @@ Apply external patches
 ```text
 $ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am --whitespace=fix
 ```
+
+If the merge fails even though recent CI runs were successful, then a 3-way merge may
+be required.  In this case try:
+
+```text
+$ git am --abort
+$ curl -L https://github.com/nodejs/node/pull/xxx.patch | git am -3 --whitespace=fix
+```
+If the 3-way merge succeeds you can proceed, but make sure to check the changes
+against the original PR carefully and build/test on at least one platform
+before landing. If the 3-way merge fails, then it is most likely that a conflicting
+PR has landed since the CI run and you will have to ask the author to rebase.
 
 Check and re-review the changes
 

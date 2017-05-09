@@ -1270,7 +1270,14 @@ function ArrayReduceRight(callback, current) {
 }
 
 
-function InnerArrayCopyWithin(target, start, end, array, length) {
+// ES#sec-array.prototype.copywithin
+// (Array.prototype.copyWithin ( target, start [ , end ] )
+function ArrayCopyWithin(target, start, end) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.copyWithin");
+
+  var array = TO_OBJECT(this);
+  var length = TO_LENGTH(array.length);
+
   target = TO_INTEGER(target);
   var to;
   if (target < 0) {
@@ -1315,17 +1322,6 @@ function InnerArrayCopyWithin(target, start, end, array, length) {
   }
 
   return array;
-}
-
-
-// ES6 draft 03-17-15, section 22.1.3.3
-function ArrayCopyWithin(target, start, end) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.copyWithin");
-
-  var array = TO_OBJECT(this);
-  var length = TO_LENGTH(array.length);
-
-  return InnerArrayCopyWithin(target, start, end, array, length);
 }
 
 
@@ -1532,7 +1528,14 @@ function getFunction(name, jsBuiltin, len) {
   return f;
 };
 
-var ArrayValues = getFunction("values", null, 0);
+// Array prototype functions that return iterators. They are exposed to the
+// public API via Template::SetIntrinsicDataProperty().
+var IteratorFunctions = {
+    "entries": getFunction("entries", null, 0),
+    "forEach": getFunction("forEach", ArrayForEach, 1),
+    "keys": getFunction("keys", null, 0),
+    "values": getFunction("values", null, 0)
+}
 
 // Set up non-enumerable functions of the Array.prototype object and
 // set their names.
@@ -1551,7 +1554,6 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "splice", getFunction("splice", ArraySplice, 2),
   "sort", getFunction("sort", ArraySort),
   "filter", getFunction("filter", ArrayFilter, 1),
-  "forEach", getFunction("forEach", ArrayForEach, 1),
   "some", getFunction("some", ArraySome, 1),
   "every", getFunction("every", ArrayEvery, 1),
   "map", getFunction("map", ArrayMap, 1),
@@ -1564,12 +1566,18 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "findIndex", getFunction("findIndex", ArrayFindIndex, 1),
   "fill", getFunction("fill", ArrayFill, 1),
   "includes", getFunction("includes", null, 1),
-  "keys", getFunction("keys", null, 0),
-  "entries", getFunction("entries", null, 0),
-  iteratorSymbol, ArrayValues
+  "entries", IteratorFunctions.entries,
+  "forEach", IteratorFunctions.forEach,
+  "keys", IteratorFunctions.keys,
+  iteratorSymbol, IteratorFunctions.values
 ]);
 
-%FunctionSetName(ArrayValues, "values");
+utils.ForEachFunction = GlobalArray.prototype.forEach;
+
+%FunctionSetName(IteratorFunctions.entries, "entries");
+%FunctionSetName(IteratorFunctions.forEach, "forEach");
+%FunctionSetName(IteratorFunctions.keys, "keys");
+%FunctionSetName(IteratorFunctions.values, "values");
 
 %FinishArrayPrototypeSetup(GlobalArray.prototype);
 
@@ -1612,8 +1620,7 @@ utils.Export(function(to) {
   to.ArrayJoin = ArrayJoin;
   to.ArrayPush = ArrayPush;
   to.ArrayToString = ArrayToString;
-  to.ArrayValues = ArrayValues;
-  to.InnerArrayCopyWithin = InnerArrayCopyWithin;
+  to.ArrayValues = IteratorFunctions.values,
   to.InnerArrayEvery = InnerArrayEvery;
   to.InnerArrayFill = InnerArrayFill;
   to.InnerArrayFilter = InnerArrayFilter;
@@ -1631,13 +1638,16 @@ utils.Export(function(to) {
 });
 
 %InstallToContext([
+  "array_entries_iterator", IteratorFunctions.entries,
+  "array_for_each_iterator", IteratorFunctions.forEach,
+  "array_keys_iterator", IteratorFunctions.keys,
   "array_pop", ArrayPop,
   "array_push", ArrayPush,
   "array_shift", ArrayShift,
   "array_splice", ArraySplice,
   "array_slice", ArraySlice,
   "array_unshift", ArrayUnshift,
-  "array_values_iterator", ArrayValues,
+  "array_values_iterator", IteratorFunctions.values,
 ]);
 
 });

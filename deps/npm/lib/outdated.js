@@ -357,7 +357,7 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
         }
       }
 
-      if (curr.version !== wanted) {
+      if (!curr || curr.version !== wanted) {
         doIt(wanted, latest)
       } else {
         skip()

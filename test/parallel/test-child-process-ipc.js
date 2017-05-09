@@ -36,13 +36,13 @@ let gotEcho = false;
 const child = spawn(process.argv[0], [sub]);
 
 child.stderr.on('data', function(data) {
-  console.log('parent stderr: ' + data);
+  console.log(`parent stderr: ${data}`);
 });
 
 child.stdout.setEncoding('utf8');
 
 child.stdout.on('data', function(data) {
-  console.log('child said: ' + JSON.stringify(data));
+  console.log(`child said: ${JSON.stringify(data)}`);
   if (!gotHelloWorld) {
     console.error('testing for hello world');
     assert.strictEqual('hello world\r\n', data);

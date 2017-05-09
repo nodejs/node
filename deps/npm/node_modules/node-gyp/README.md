@@ -3,7 +3,7 @@ node-gyp
 ### Node.js native addon build tool
 
 `node-gyp` is a cross-platform command-line tool written in Node.js for compiling
-native addon modules for Node.js.  It bundles the [gyp](https://code.google.com/p/gyp/)
+native addon modules for Node.js.  It bundles the [gyp](https://gyp.gsrc.io)
 project used by the Chromium team and takes away the pain of dealing with the
 various differences in build platforms. It is the replacement to the `node-waf`
 program which is removed for node `v0.8`. If you have a native addon for node that

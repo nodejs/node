@@ -1,0 +1,112 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "move-concurrently@latest",
+        "scope": null,
+        "escapedName": "move-concurrently",
+        "name": "move-concurrently",
+        "rawSpec": "latest",
+        "spec": "latest",
+        "type": "tag"
+      },
+      "/Users/rebecca/code/npm"
+    ]
+  ],
+  "_from": "move-concurrently@latest",
+  "_id": "move-concurrently@1.0.1",
+  "_inCache": true,
+  "_location": "/move-concurrently",
+  "_nodeVersion": "4.6.1",
+  "_npmOperationalInternal": {
+    "host": "packages-18-east.internal.npmjs.com",
+    "tmp": "tmp/move-concurrently-1.0.1.tgz_1489706667405_0.5766653206665069"
+  },
+  "_npmUser": {
+    "name": "iarna",
+    "email": "me@re-becca.org"
+  },
+  "_npmVersion": "4.4.3",
+  "_phantomChildren": {
+    "aproba": "1.1.1",
+    "fs-write-stream-atomic": "1.0.10",
+    "iferr": "0.1.5",
+    "mkdirp": "0.5.1",
+    "rimraf": "2.6.1"
+  },
+  "_requested": {
+    "raw": "move-concurrently@latest",
+    "scope": null,
+    "escapedName": "move-concurrently",
+    "name": "move-concurrently",
+    "rawSpec": "latest",
+    "spec": "latest",
+    "type": "tag"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/move-concurrently/-/move-concurrently-1.0.1.tgz",
+  "_shasum": "be2c005fda32e0b29af1f05d7c4b33214c701f92",
+  "_shrinkwrap": null,
+  "_spec": "move-concurrently@latest",
+  "_where": "/Users/rebecca/code/npm",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/npm/move-concurrently/issues"
+  },
+  "dependencies": {
+    "aproba": "^1.1.1",
+    "copy-concurrently": "^1.0.0",
+    "fs-write-stream-atomic": "^1.0.8",
+    "mkdirp": "^0.5.1",
+    "rimraf": "^2.5.4",
+    "run-queue": "^1.0.3"
+  },
+  "description": "Promises of moves of files or directories with rename, falling back to recursive rename/copy on EXDEV errors, with configurable concurrency and win32 junction support.",
+  "devDependencies": {
+    "standard": "^8.6.0",
+    "tacks": "^1.2.6",
+    "tap": "^10.1.1"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "dist": {
+    "shasum": "be2c005fda32e0b29af1f05d7c4b33214c701f92",
+    "tarball": "https://registry.npmjs.org/move-concurrently/-/move-concurrently-1.0.1.tgz"
+  },
+  "files": [
+    "move.js",
+    "is-windows.js"
+  ],
+  "gitHead": "8558616a681db87a77b2d9077ce5f855ceb46b87",
+  "homepage": "https://www.npmjs.com/package/move-concurrently",
+  "keywords": [
+    "move"
+  ],
+  "license": "ISC",
+  "main": "move.js",
+  "maintainers": [
+    {
+      "name": "iarna",
+      "email": "me@re-becca.org"
+    }
+  ],
+  "name": "move-concurrently",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/move-concurrently.git"
+  },
+  "scripts": {
+    "test": "standard && tap --coverage test"
+  },
+  "version": "1.0.1"
+}

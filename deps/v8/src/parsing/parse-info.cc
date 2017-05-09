@@ -4,15 +4,19 @@
 
 #include "src/parsing/parse-info.h"
 
+#include "src/api.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/scope-info.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 
-ParseInfo::ParseInfo(Zone* zone)
-    : zone_(zone),
+ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
+    : zone_(std::make_shared<Zone>(zone_allocator, ZONE_NAME)),
       flags_(0),
       source_stream_(nullptr),
       source_stream_encoding_(ScriptCompiler::StreamedSource::ONE_BYTE),
@@ -27,16 +31,18 @@ ParseInfo::ParseInfo(Zone* zone)
       compiler_hints_(0),
       start_position_(0),
       end_position_(0),
+      parameters_end_pos_(kNoSourcePosition),
       function_literal_id_(FunctionLiteral::kIdTypeInvalid),
       max_function_literal_id_(FunctionLiteral::kIdTypeInvalid),
       isolate_(nullptr),
       cached_data_(nullptr),
       ast_value_factory_(nullptr),
       function_name_(nullptr),
-      literal_(nullptr) {}
+      literal_(nullptr),
+      deferred_handles_(nullptr) {}
 
-ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
-    : ParseInfo(zone) {
+ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
+    : ParseInfo(shared->GetIsolate()->allocator()) {
   isolate_ = shared->GetIsolate();
 
   set_toplevel(shared->is_toplevel());
@@ -66,7 +72,14 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
   }
 }
 
-ParseInfo::ParseInfo(Zone* zone, Handle<Script> script) : ParseInfo(zone) {
+ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared,
+                     std::shared_ptr<Zone> zone)
+    : ParseInfo(shared) {
+  zone_.swap(zone);
+}
+
+ParseInfo::ParseInfo(Handle<Script> script)
+    : ParseInfo(script->GetIsolate()->allocator()) {
   isolate_ = script->GetIsolate();
 
   set_allow_lazy_parsing();
@@ -88,6 +101,46 @@ ParseInfo::~ParseInfo() {
   ast_value_factory_ = nullptr;
 }
 
+// static
+ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
+  Isolate* isolate = shared->GetIsolate();
+  ParseInfo* p = new ParseInfo(isolate->allocator());
+  p->isolate_ = isolate;
+
+  p->set_toplevel(shared->is_toplevel());
+  p->set_allow_lazy_parsing(FLAG_lazy_inner_functions);
+  p->set_hash_seed(isolate->heap()->HashSeed());
+  p->set_is_named_expression(shared->is_named_expression());
+  p->set_calls_eval(shared->scope_info()->CallsEval());
+  p->set_compiler_hints(shared->compiler_hints());
+  p->set_start_position(shared->start_position());
+  p->set_end_position(shared->end_position());
+  p->function_literal_id_ = shared->function_literal_id();
+  p->set_stack_limit(isolate->stack_guard()->real_climit());
+  p->set_unicode_cache(isolate->unicode_cache());
+  p->set_language_mode(shared->language_mode());
+  p->set_shared_info(shared);
+  p->set_module(shared->kind() == FunctionKind::kModule);
+
+  // BUG(5946): This function exists as a workaround until we can
+  // get rid of %SetCode in our native functions. The ParseInfo
+  // is explicitly set up for the case that:
+  // a) you have a native built-in,
+  // b) it's being run for the 2nd-Nth time in an isolate,
+  // c) we've already compiled bytecode and therefore don't need
+  //    to parse.
+  // We tolerate a ParseInfo without a Script in this case.
+  p->set_native(true);
+  p->set_eval(false);
+
+  Handle<HeapObject> scope_info(shared->outer_scope_info());
+  if (!scope_info->IsTheHole(isolate) &&
+      Handle<ScopeInfo>::cast(scope_info)->length() > 0) {
+    p->set_outer_scope_info(Handle<ScopeInfo>::cast(scope_info));
+  }
+  return p;
+}
+
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
 bool ParseInfo::is_declaration() const {
@@ -96,6 +149,17 @@ bool ParseInfo::is_declaration() const {
 
 FunctionKind ParseInfo::function_kind() const {
   return SharedFunctionInfo::FunctionKindBits::decode(compiler_hints_);
+}
+
+void ParseInfo::set_deferred_handles(
+    std::shared_ptr<DeferredHandles> deferred_handles) {
+  DCHECK(deferred_handles_.get() == nullptr);
+  deferred_handles_.swap(deferred_handles);
+}
+
+void ParseInfo::set_deferred_handles(DeferredHandles* deferred_handles) {
+  DCHECK(deferred_handles_.get() == nullptr);
+  deferred_handles_.reset(deferred_handles);
 }
 
 #ifdef DEBUG

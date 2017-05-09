@@ -116,6 +116,7 @@ class AstTypes {
     for (int i = 0; i < 30; ++i) {
       types.push_back(Fuzz());
     }
+    USE(isolate_);  // Currently unused.
   }
 
   Handle<i::Map> object_map;
@@ -286,19 +287,6 @@ class AstTypes {
           type->AsFunction()->InitParameter(i, parameter);
         }
         return type;
-      }
-      case 8: {  // simd
-        static const int num_simd_types =
-#define COUNT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) +1
-            SIMD128_TYPES(COUNT_SIMD_TYPE);
-#undef COUNT_SIMD_TYPE
-        AstType* (*simd_constructors[num_simd_types])(Isolate*, Zone*) = {
-#define COUNT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) &AstType::Name,
-            SIMD128_TYPES(COUNT_SIMD_TYPE)
-#undef COUNT_SIMD_TYPE
-        };
-        return simd_constructors[rng_->NextInt(num_simd_types)](isolate_,
-                                                                zone_);
       }
       default: {  // union
         int n = rng_->NextInt(10);

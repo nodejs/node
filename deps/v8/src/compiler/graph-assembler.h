@@ -275,6 +275,8 @@ class GraphAssembler {
 
   Node* DeoptimizeIf(DeoptimizeReason reason, Node* condition,
                      Node* frame_state);
+  Node* DeoptimizeUnless(DeoptimizeKind kind, DeoptimizeReason reason,
+                         Node* condition, Node* frame_state);
   Node* DeoptimizeUnless(DeoptimizeReason reason, Node* condition,
                          Node* frame_state);
   template <typename... Args>

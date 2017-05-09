@@ -140,6 +140,13 @@ void GCTracer::ResetForTesting() {
   start_counter_ = 0;
 }
 
+void GCTracer::NotifyYoungGenerationHandling(
+    YoungGenerationHandling young_generation_handling) {
+  DCHECK(current_.type == Event::SCAVENGER || start_counter_ > 1);
+  heap_->isolate()->counters()->young_generation_handling()->AddSample(
+      static_cast<int>(young_generation_handling));
+}
+
 void GCTracer::Start(GarbageCollector collector,
                      GarbageCollectionReason gc_reason,
                      const char* collector_reason) {
@@ -445,6 +452,7 @@ void GCTracer::PrintNVP() const {
           "gc=%s "
           "reduce_memory=%d "
           "scavenge=%.2f "
+          "evacuate=%.2f "
           "old_new=%.2f "
           "weak=%.2f "
           "roots=%.2f "
@@ -481,6 +489,7 @@ void GCTracer::PrintNVP() const {
           "context_disposal_rate=%.1f\n",
           duration, spent_in_mutator, current_.TypeName(true),
           current_.reduce_memory, current_.scopes[Scope::SCAVENGER_SCAVENGE],
+          current_.scopes[Scope::SCAVENGER_EVACUATE],
           current_.scopes[Scope::SCAVENGER_OLD_TO_NEW_POINTERS],
           current_.scopes[Scope::SCAVENGER_WEAK],
           current_.scopes[Scope::SCAVENGER_ROOTS],
@@ -541,6 +550,9 @@ void GCTracer::PrintNVP() const {
           "evacuate.candidates=%.1f "
           "evacuate.clean_up=%.1f "
           "evacuate.copy=%.1f "
+          "evacuate.prologue=%.1f "
+          "evacuate.epilogue=%.1f "
+          "evacuate.rebalance=%.1f "
           "evacuate.update_pointers=%.1f "
           "evacuate.update_pointers.to_evacuated=%.1f "
           "evacuate.update_pointers.to_new=%.1f "
@@ -624,6 +636,9 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_EVACUATE_CANDIDATES],
           current_.scopes[Scope::MC_EVACUATE_CLEAN_UP],
           current_.scopes[Scope::MC_EVACUATE_COPY],
+          current_.scopes[Scope::MC_EVACUATE_PROLOGUE],
+          current_.scopes[Scope::MC_EVACUATE_EPILOGUE],
+          current_.scopes[Scope::MC_EVACUATE_REBALANCE],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_EVACUATED],
           current_.scopes[Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW],

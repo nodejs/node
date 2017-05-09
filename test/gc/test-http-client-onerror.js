@@ -17,7 +17,7 @@ let done = 0;
 let count = 0;
 let countGC = 0;
 
-console.log('We should do ' + todo + ' requests');
+console.log(`We should do ${todo} requests`);
 
 const server = http.createServer(serverHandler);
 server.listen(0, runTest);

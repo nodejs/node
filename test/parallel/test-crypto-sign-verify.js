@@ -12,8 +12,8 @@ if (!common.hasCrypto) {
 const crypto = require('crypto');
 
 // Test certificates
-const certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
-const keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
+const certPem = fs.readFileSync(`${common.fixturesDir}/test_cert.pem`, 'ascii');
+const keyPem = fs.readFileSync(`${common.fixturesDir}/test_key.pem`, 'ascii');
 const modSize = 1024;
 
 // Test signing and verifying
@@ -265,10 +265,10 @@ const modSize = 1024;
   const msgfile = path.join(common.tmpDir, 's5.msg');
   fs.writeFileSync(msgfile, msg);
 
-  const cmd = '"' + common.opensslCli + '" dgst -sha256 -verify "' + pubfile +
-              '" -signature "' + sigfile +
-              '" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "' +
-              msgfile + '"';
+  const cmd =
+    `"${common.opensslCli}" dgst -sha256 -verify "${pubfile}" -signature "${
+    sigfile}" -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-2 "${
+    msgfile}"`;
 
   exec(cmd, common.mustCall((err, stdout, stderr) => {
     assert(stdout.includes('Verified OK'));

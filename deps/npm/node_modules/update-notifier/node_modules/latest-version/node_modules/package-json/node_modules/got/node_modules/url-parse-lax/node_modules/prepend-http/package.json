@@ -1,0 +1,103 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "prepend-http@^1.0.1",
+        "scope": null,
+        "escapedName": "prepend-http",
+        "name": "prepend-http",
+        "rawSpec": "^1.0.1",
+        "spec": ">=1.0.1 <2.0.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got/node_modules/url-parse-lax"
+    ]
+  ],
+  "_from": "prepend-http@>=1.0.1 <2.0.0",
+  "_id": "prepend-http@1.0.4",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/got/url-parse-lax/prepend-http",
+  "_nodeVersion": "4.4.2",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/prepend-http-1.0.4.tgz_1462857682803_0.5703588796313852"
+  },
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "2.15.0",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "prepend-http@^1.0.1",
+    "scope": null,
+    "escapedName": "prepend-http",
+    "name": "prepend-http",
+    "rawSpec": "^1.0.1",
+    "spec": ">=1.0.1 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/got/url-parse-lax"
+  ],
+  "_resolved": "https://registry.npmjs.org/prepend-http/-/prepend-http-1.0.4.tgz",
+  "_shasum": "d4f4562b0ce3696e41ac52d0e002e57a635dc6dc",
+  "_shrinkwrap": null,
+  "_spec": "prepend-http@^1.0.1",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got/node_modules/url-parse-lax",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "sindresorhus.com"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/prepend-http/issues"
+  },
+  "dependencies": {},
+  "description": "Prepend `http://` to humanized URLs like todomvc.com and localhost",
+  "devDependencies": {
+    "ava": "*",
+    "xo": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "d4f4562b0ce3696e41ac52d0e002e57a635dc6dc",
+    "tarball": "https://registry.npmjs.org/prepend-http/-/prepend-http-1.0.4.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "4f2fbbcdd5daa579c062f9e54a99c8714ddc80d8",
+  "homepage": "https://github.com/sindresorhus/prepend-http#readme",
+  "keywords": [
+    "prepend",
+    "protocol",
+    "scheme",
+    "url",
+    "uri",
+    "http",
+    "https",
+    "humanized"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "prepend-http",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sindresorhus/prepend-http.git"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "version": "1.0.4"
+}

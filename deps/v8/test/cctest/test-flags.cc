@@ -257,5 +257,5 @@ TEST(FlagsRemoveIncomplete) {
                                                 const_cast<char **>(argv),
                                                 true));
   CHECK(argv[1]);
-  CHECK_EQ(argc, 2);
+  CHECK_EQ(2, argc);
 }

@@ -227,7 +227,7 @@ void TrySettingEmptyEnumCache(JSReceiver* object) {
   map->SetEnumLength(0);
 }
 
-bool CheckAndInitalizeSimpleEnumCache(JSReceiver* object) {
+bool CheckAndInitalizeEmptyEnumCache(JSReceiver* object) {
   if (object->map()->EnumLength() == kInvalidEnumCacheSentinel) {
     TrySettingEmptyEnumCache(object);
   }
@@ -248,7 +248,7 @@ void FastKeyAccumulator::Prepare() {
   for (PrototypeIterator iter(isolate_, *receiver_); !iter.IsAtEnd();
        iter.Advance()) {
     JSReceiver* current = iter.GetCurrent<JSReceiver>();
-    bool has_no_properties = CheckAndInitalizeSimpleEnumCache(current);
+    bool has_no_properties = CheckAndInitalizeEmptyEnumCache(current);
     if (has_no_properties) continue;
     last_prototype = current;
     has_empty_prototype_ = false;
@@ -271,6 +271,8 @@ static Handle<FixedArray> ReduceFixedArrayTo(Isolate* isolate,
   return isolate->factory()->CopyFixedArrayUpTo(array, length);
 }
 
+// Initializes and directly returns the enume cache. Users of this function
+// have to make sure to never directly leak the enum cache.
 Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
                                            Handle<JSObject> object) {
   Handle<Map> map(object->map());
@@ -370,25 +372,6 @@ MaybeHandle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
   return result;
 }
 
-MaybeHandle<FixedArray> GetOwnKeysWithUninitializedEnumCache(
-    Isolate* isolate, Handle<JSObject> object) {
-  // Uninitalized enum cache
-  Map* map = object->map();
-  if (object->elements() != isolate->heap()->empty_fixed_array() ||
-      object->elements() != isolate->heap()->empty_slow_element_dictionary()) {
-    // Assume that there are elements.
-    return MaybeHandle<FixedArray>();
-  }
-  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  if (number_of_own_descriptors == 0) {
-    map->SetEnumLength(0);
-    return isolate->factory()->empty_fixed_array();
-  }
-  // We have no elements but possibly enumerable property keys, hence we can
-  // directly initialize the enum cache.
-  return GetFastEnumPropertyKeys(isolate, object);
-}
-
 bool OnlyHasSimpleProperties(Map* map) {
   return map->instance_type() > LAST_CUSTOM_ELEMENTS_RECEIVER;
 }
@@ -428,8 +411,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
   if (enum_length == kInvalidEnumCacheSentinel) {
     Handle<FixedArray> keys;
     // Try initializing the enum cache and return own properties.
-    if (GetOwnKeysWithUninitializedEnumCache(isolate_, object)
-            .ToHandle(&keys)) {
+    if (GetOwnKeysWithUninitializedEnumCache().ToHandle(&keys)) {
       if (FLAG_trace_for_in_enumerate) {
         PrintF("| strings=%d symbols=0 elements=0 || prototypes>=1 ||\n",
                keys->length());
@@ -442,6 +424,28 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
   // The properties-only case failed because there were probably elements on the
   // receiver.
   return GetOwnKeysWithElements<true>(isolate_, object, keys_conversion);
+}
+
+MaybeHandle<FixedArray>
+FastKeyAccumulator::GetOwnKeysWithUninitializedEnumCache() {
+  Handle<JSObject> object = Handle<JSObject>::cast(receiver_);
+  // Uninitalized enum cache
+  Map* map = object->map();
+  if (object->elements()->length() != 0) {
+    // Assume that there are elements.
+    return MaybeHandle<FixedArray>();
+  }
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  if (number_of_own_descriptors == 0) {
+    map->SetEnumLength(0);
+    return isolate_->factory()->empty_fixed_array();
+  }
+  // We have no elements but possibly enumerable property keys, hence we can
+  // directly initialize the enum cache.
+  Handle<FixedArray> keys = GetFastEnumPropertyKeys(isolate_, object);
+  if (is_for_in_) return keys;
+  // Do not leak the enum cache as it might end up as an elements backing store.
+  return isolate_->factory()->CopyFixedArray(keys);
 }
 
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysSlow(
@@ -798,7 +802,8 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   Zone set_zone(isolate_->allocator(), ZONE_NAME);
   const int kPresent = 1;
   const int kGone = 0;
-  IdentityMap<int> unchecked_result_keys(isolate_->heap(), &set_zone);
+  IdentityMap<int, ZoneAllocationPolicy> unchecked_result_keys(
+      isolate_->heap(), ZoneAllocationPolicy(&set_zone));
   int unchecked_result_keys_size = 0;
   for (int i = 0; i < trap_result->length(); ++i) {
     DCHECK(trap_result->get(i)->IsUniqueName());

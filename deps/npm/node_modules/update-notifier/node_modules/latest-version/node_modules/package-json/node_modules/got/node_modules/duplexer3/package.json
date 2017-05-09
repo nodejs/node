@@ -1,0 +1,96 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "duplexer3@^0.1.4",
+        "scope": null,
+        "escapedName": "duplexer3",
+        "name": "duplexer3",
+        "rawSpec": "^0.1.4",
+        "spec": ">=0.1.4 <0.2.0",
+        "type": "range"
+      },
+      "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got"
+    ]
+  ],
+  "_from": "duplexer3@>=0.1.4 <0.2.0",
+  "_id": "duplexer3@0.1.4",
+  "_inCache": true,
+  "_location": "/update-notifier/latest-version/package-json/got/duplexer3",
+  "_nodeVersion": "4.2.3",
+  "_npmUser": {
+    "name": "floatdrop",
+    "email": "floatdrop@gmail.com"
+  },
+  "_npmVersion": "2.14.7",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "duplexer3@^0.1.4",
+    "scope": null,
+    "escapedName": "duplexer3",
+    "name": "duplexer3",
+    "rawSpec": "^0.1.4",
+    "spec": ">=0.1.4 <0.2.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/update-notifier/latest-version/package-json/got"
+  ],
+  "_resolved": "https://registry.npmjs.org/duplexer3/-/duplexer3-0.1.4.tgz",
+  "_shasum": "ee01dd1cac0ed3cbc7fdbea37dc0a8f1ce002ce2",
+  "_shrinkwrap": null,
+  "_spec": "duplexer3@^0.1.4",
+  "_where": "/Users/ceej/code/Tools/npm/node_modules/update-notifier/node_modules/latest-version/node_modules/package-json/node_modules/got",
+  "author": {
+    "name": "Conrad Pankoff",
+    "email": "deoxxa@fknsrs.biz",
+    "url": "http://www.fknsrs.biz/"
+  },
+  "bugs": {
+    "url": "https://github.com/floatdrop/duplexer3/issues"
+  },
+  "dependencies": {},
+  "description": "Like duplexer but using streams3",
+  "devDependencies": {
+    "mocha": "^2.2.5"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "ee01dd1cac0ed3cbc7fdbea37dc0a8f1ce002ce2",
+    "tarball": "https://registry.npmjs.org/duplexer3/-/duplexer3-0.1.4.tgz"
+  },
+  "engine": {
+    "node": ">=4"
+  },
+  "files": [
+    "index.js"
+  ],
+  "gitHead": "810f45fd7216a4ec4585e673ad28f05852ed05a6",
+  "homepage": "https://github.com/floatdrop/duplexer3",
+  "keywords": [
+    "duplex",
+    "duplexer",
+    "stream",
+    "stream3",
+    "join",
+    "combine"
+  ],
+  "license": "BSD-3-Clause",
+  "maintainers": [
+    {
+      "name": "floatdrop",
+      "email": "floatdrop@gmail.com"
+    }
+  ],
+  "name": "duplexer3",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/floatdrop/duplexer3.git"
+  },
+  "scripts": {
+    "test": "mocha -R tap"
+  },
+  "version": "0.1.4"
+}

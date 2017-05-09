@@ -153,6 +153,13 @@ var DEFAULT_ICU_LOCALE = UNDEFINED;
 function GetDefaultICULocaleJS() {
   if (IS_UNDEFINED(DEFAULT_ICU_LOCALE)) {
     DEFAULT_ICU_LOCALE = %GetDefaultICULocale();
+    // Check that this is a valid default, otherwise fall back to "und"
+    for (let service in AVAILABLE_LOCALES) {
+      if (IS_UNDEFINED(getAvailableLocalesOf(service)[DEFAULT_ICU_LOCALE])) {
+        DEFAULT_ICU_LOCALE = "und";
+        break;
+      }
+    }
   }
   return DEFAULT_ICU_LOCALE;
 }
@@ -298,19 +305,16 @@ function supportedLocalesOf(service, locales, options) {
 
   var requestedLocales = initializeLocaleList(locales);
 
-  // Cache these, they don't ever change per service.
-  if (IS_UNDEFINED(AVAILABLE_LOCALES[service])) {
-    AVAILABLE_LOCALES[service] = getAvailableLocalesOf(service);
-  }
+  var availableLocales = getAvailableLocalesOf(service);
 
   // Use either best fit or lookup algorithm to match locales.
   if (matcher === 'best fit') {
     return initializeLocaleList(bestFitSupportedLocalesOf(
-        requestedLocales, AVAILABLE_LOCALES[service]));
+        requestedLocales, availableLocales));
   }
 
   return initializeLocaleList(lookupSupportedLocalesOf(
-      requestedLocales, AVAILABLE_LOCALES[service]));
+      requestedLocales, availableLocales));
 }
 
 
@@ -437,17 +441,14 @@ function lookupMatcher(service, requestedLocales) {
     throw %make_error(kWrongServiceType, service);
   }
 
-  // Cache these, they don't ever change per service.
-  if (IS_UNDEFINED(AVAILABLE_LOCALES[service])) {
-    AVAILABLE_LOCALES[service] = getAvailableLocalesOf(service);
-  }
+  var availableLocales = getAvailableLocalesOf(service);
 
   for (var i = 0; i < requestedLocales.length; ++i) {
     // Remove all extensions.
     var locale = %RegExpInternalReplace(
         GetAnyExtensionRE(), requestedLocales[i], '');
     do {
-      if (!IS_UNDEFINED(AVAILABLE_LOCALES[service][locale])) {
+      if (!IS_UNDEFINED(availableLocales[locale])) {
         // Return the resolved locale and extension.
         var extensionMatch = %regexp_internal_match(
             GetUnicodeExtensionRE(), requestedLocales[i]);
@@ -658,6 +659,11 @@ function getOptimalLanguageTag(original, resolved) {
  * that is supported. This is required by the spec.
  */
 function getAvailableLocalesOf(service) {
+  // Cache these, they don't ever change per service.
+  if (!IS_UNDEFINED(AVAILABLE_LOCALES[service])) {
+    return AVAILABLE_LOCALES[service];
+  }
+
   var available = %AvailableLocalesOf(service);
 
   for (var i in available) {
@@ -671,6 +677,8 @@ function getAvailableLocalesOf(service) {
       }
     }
   }
+
+  AVAILABLE_LOCALES[service] = available;
 
   return available;
 }
@@ -723,8 +731,8 @@ function addWECPropertyIfDefined(object, property, value) {
  * Returns titlecased word, aMeRricA -> America.
  */
 function toTitleCaseWord(word) {
-  return %StringToUpperCase(%_Call(StringSubstr, word, 0, 1)) +
-         %StringToLowerCase(%_Call(StringSubstr, word, 1));
+  return %StringToUpperCaseI18N(%_Call(StringSubstr, word, 0, 1)) +
+         %StringToLowerCaseI18N(%_Call(StringSubstr, word, 1));
 }
 
 /**
@@ -745,7 +753,7 @@ function toTitleCaseTimezoneLocation(location) {
     var parts = %StringSplit(match[2], separator, kMaxUint32);
     for (var i = 1; i < parts.length; i++) {
       var part = parts[i]
-      var lowercasedPart = %StringToLowerCase(part);
+      var lowercasedPart = %StringToLowerCaseI18N(part);
       result = result + separator +
           ((lowercasedPart !== 'es' &&
             lowercasedPart !== 'of' && lowercasedPart !== 'au') ?
@@ -850,6 +858,8 @@ function isStructuallyValidLanguageTag(locale) {
   if (IS_NULL(%regexp_internal_match(GetLanguageTagRE(), locale))) {
     return false;
   }
+
+  locale = %StringToLowerCaseI18N(locale);
 
   // Just return if it's a x- form. It's all private.
   if (%StringIndexOf(locale, 'x-', 0) === 0) {
@@ -1177,7 +1187,7 @@ function CreateNumberFormat(locales, options) {
   var currencyDisplay = getOption(
       'currencyDisplay', 'string', ['code', 'symbol', 'name'], 'symbol');
   if (internalOptions.style === 'currency') {
-    defineWEProperty(internalOptions, 'currency', %StringToUpperCase(currency));
+    defineWEProperty(internalOptions, 'currency', %StringToUpperCaseI18N(currency));
     defineWEProperty(internalOptions, 'currencyDisplay', currencyDisplay);
   }
 
@@ -1203,7 +1213,7 @@ function CreateNumberFormat(locales, options) {
   var mnsd = options['minimumSignificantDigits'];
   var mxsd = options['maximumSignificantDigits'];
   if (!IS_UNDEFINED(mnsd) || !IS_UNDEFINED(mxsd)) {
-    mnsd = getNumberOption(options, 'minimumSignificantDigits', 1, 21, 0);
+    mnsd = getNumberOption(options, 'minimumSignificantDigits', 1, 21, 1);
     defineWEProperty(internalOptions, 'minimumSignificantDigits', mnsd);
 
     mxsd = getNumberOption(options, 'maximumSignificantDigits', mnsd, 21, 21);
@@ -1766,7 +1776,7 @@ function canonicalizeTimeZoneID(tzID) {
   tzID = TO_STRING(tzID);
 
   // Special case handling (UTC, GMT).
-  var upperID = %StringToUpperCase(tzID);
+  var upperID = %StringToUpperCaseI18N(tzID);
   if (upperID === 'UTC' || upperID === 'GMT' ||
       upperID === 'ETC/UTC' || upperID === 'ETC/GMT') {
     return 'UTC';
@@ -2051,6 +2061,7 @@ OverrideFunction(GlobalString.prototype, 'normalize', function() {
   }
 );
 
+// TODO(littledan): Rewrite these two functions as C++ builtins
 function ToLowerCaseI18N() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLowerCase");
   return %StringToLowerCaseI18N(TO_STRING(this));
@@ -2074,18 +2085,6 @@ function ToLocaleUpperCaseI18N(locales) {
 }
 
 %FunctionSetLength(ToLocaleUpperCaseI18N, 0);
-
-%FunctionRemovePrototype(ToLowerCaseI18N);
-%FunctionRemovePrototype(ToUpperCaseI18N);
-%FunctionRemovePrototype(ToLocaleLowerCaseI18N);
-%FunctionRemovePrototype(ToLocaleUpperCaseI18N);
-
-utils.Export(function(to) {
-  to.ToLowerCaseI18N = ToLowerCaseI18N;
-  to.ToUpperCaseI18N = ToUpperCaseI18N;
-  to.ToLocaleLowerCaseI18N = ToLocaleLowerCaseI18N;
-  to.ToLocaleUpperCaseI18N = ToLocaleUpperCaseI18N;
-});
 
 
 /**
@@ -2167,9 +2166,23 @@ OverrideFunction(GlobalDate.prototype, 'toLocaleTimeString', function() {
 );
 
 %FunctionRemovePrototype(FormatDateToParts);
+%FunctionRemovePrototype(ToLowerCaseI18N);
+%FunctionRemovePrototype(ToUpperCaseI18N);
+%FunctionRemovePrototype(ToLocaleLowerCaseI18N);
+%FunctionRemovePrototype(ToLocaleUpperCaseI18N);
+
+utils.SetFunctionName(FormatDateToParts, "formatToParts");
+utils.SetFunctionName(ToLowerCaseI18N, "toLowerCase");
+utils.SetFunctionName(ToUpperCaseI18N, "toUpperCase");
+utils.SetFunctionName(ToLocaleLowerCaseI18N, "toLocaleLowerCase");
+utils.SetFunctionName(ToLocaleUpperCaseI18N, "toLocaleUpperCase");
 
 utils.Export(function(to) {
   to.FormatDateToParts = FormatDateToParts;
+  to.ToLowerCaseI18N = ToLowerCaseI18N;
+  to.ToUpperCaseI18N = ToUpperCaseI18N;
+  to.ToLocaleLowerCaseI18N = ToLocaleLowerCaseI18N;
+  to.ToLocaleUpperCaseI18N = ToLocaleUpperCaseI18N;
 });
 
 })

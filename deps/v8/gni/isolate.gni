@@ -61,6 +61,11 @@ template("v8_isolate_run") {
       } else {
         asan = "0"
       }
+      if (is_lsan) {
+        lsan = "1"
+      } else {
+        lsan = "0"
+      }
       if (is_msan) {
         msan = "1"
       } else {
@@ -157,6 +162,8 @@ template("v8_isolate_run") {
         "icu_use_data_file_flag=$icu_use_data_file_flag",
         "--config-variable",
         "is_gn=1",
+        "--config-variable",
+        "lsan=$lsan",
         "--config-variable",
         "msan=$msan",
         "--config-variable",

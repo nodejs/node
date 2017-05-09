@@ -31,9 +31,9 @@ let child;
 function after(err, stdout, stderr) {
   if (err) {
     error_count++;
-    console.log('error!: ' + err.code);
-    console.log('stdout: ' + JSON.stringify(stdout));
-    console.log('stderr: ' + JSON.stringify(stderr));
+    console.log(`error!: ${err.code}`);
+    console.log(`stdout: ${JSON.stringify(stdout)}`);
+    console.log(`stderr: ${JSON.stringify(stderr)}`);
     assert.strictEqual(false, err.killed);
   } else {
     success_count++;
@@ -56,5 +56,5 @@ process.on('exit', function() {
   console.log('response: ', response);
   assert.strictEqual(1, success_count);
   assert.strictEqual(0, error_count);
-  assert.ok(response.indexOf('HELLO=WORLD') >= 0);
+  assert.ok(response.includes('HELLO=WORLD'));
 });

@@ -160,22 +160,5 @@ RUNTIME_FUNCTION(Runtime_ForInFilter) {
                            HasEnumerableProperty(isolate, receiver, key));
 }
 
-
-RUNTIME_FUNCTION(Runtime_ForInNext) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(FixedArray, cache_array, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, cache_type, 2);
-  CONVERT_SMI_ARG_CHECKED(index, 3);
-  Handle<Object> key = handle(cache_array->get(index), isolate);
-  // Don't need filtering if expected map still matches that of the receiver.
-  if (receiver->map() == *cache_type) {
-    return *key;
-  }
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           HasEnumerableProperty(isolate, receiver, key));
-}
-
 }  // namespace internal
 }  // namespace v8

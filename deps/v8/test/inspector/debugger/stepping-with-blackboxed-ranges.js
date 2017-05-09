@@ -90,10 +90,15 @@ function setIncorrectRanges(scriptId, response)
 function setMixedSourceRanges(scriptId)
 {
   Protocol.Debugger.onPaused(runAction);
-  Protocol.Debugger.setBlackboxedRanges({
-    scriptId: scriptId,
-    positions: [ { lineNumber: 8, columnNumber: 0 }, { lineNumber: 15, columnNumber: 0 } ] // blackbox ranges for mixed.js
-  }).then(runAction);
+  Protocol.Debugger
+      .setBlackboxedRanges({
+        scriptId: scriptId,
+        positions: [
+          {lineNumber: 6, columnNumber: 0},
+          {lineNumber: 14, columnNumber: 0}
+        ]  // blackbox ranges for mixed.js
+      })
+      .then(runAction);
 }
 
 var actions = [ "stepOut", "print", "stepOut", "print", "stepOut", "print",

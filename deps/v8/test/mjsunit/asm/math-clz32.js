@@ -10,8 +10,8 @@ var f = (function Module(stdlib) {
   var clz32 = stdlib.Math.clz32;
 
   function f(a) {
-    a = a >>> 0;
-    return clz32(a)|0;
+    a = a | 0;
+    return clz32(a >>> 0) | 0;
   }
 
   return f;

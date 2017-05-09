@@ -1,6 +1,6 @@
 # normalize-package-data [![Build Status](https://travis-ci.org/npm/normalize-package-data.png?branch=master)](https://travis-ci.org/npm/normalize-package-data)
 
-normalize-package data exports a function that normalizes package metadata. This data is typically found in a package.json file, but in principle could come from any source - for example the npm registry.
+normalize-package-data exports a function that normalizes package metadata. This data is typically found in a package.json file, but in principle could come from any source - for example the npm registry.
 
 normalize-package-data is used by [read-package-json](https://npmjs.org/package/read-package-json) to normalize the data it reads from a package.json file. In turn, read-package-json is used by [npm](https://npmjs.org/package/npm) and various npm-related tools.
 
@@ -16,7 +16,7 @@ Basic usage is really simple. You call the function that normalize-package-data 
 
 ```javascript
 normalizeData = require('normalize-package-data')
-packageData = fs.readFileSync("package.json")
+packageData = require("./package.json")
 normalizeData(packageData)
 // packageData is now normalized
 ```
@@ -27,8 +27,7 @@ You may activate strict validation by passing true as the second argument.
 
 ```javascript
 normalizeData = require('normalize-package-data')
-packageData = fs.readFileSync("package.json")
-warnFn = function(msg) { console.error(msg) }
+packageData = require("./package.json")
 normalizeData(packageData, true)
 // packageData is now normalized
 ```
@@ -41,7 +40,7 @@ Optionally, you may pass a "warning" function. It gets called whenever the `norm
 
 ```javascript
 normalizeData = require('normalize-package-data')
-packageData = fs.readFileSync("package.json")
+packageData = require("./package.json")
 warnFn = function(msg) { console.error(msg) }
 normalizeData(packageData, warnFn)
 // packageData is now normalized. Any number of warnings may have been logged.
@@ -78,7 +77,7 @@ If the supplied data has an invalid name or version vield, `normalizeData` will 
 * If `bugs` field is an object, the resulting value only has email and url properties. If email and url properties are not strings, they are ignored. If no valid values for either email or url is found, bugs field will be removed.
 * If `homepage` field is not a string, it will be removed.
 * If the url in the `homepage` field does not specify a protocol, then http is assumed. For example, `myproject.org` will be changed to `http://myproject.org`.
-* If `homepage` field does not exist, but `repository` field points to a repository hosted on GitHub, the value of the `homepage` field gets set to an url in the form of https://github.com/[owner-name]/[repo-name]/ . If the repository field points to a GitHub Gist repo url, the associated http url is chosen.
+* If `homepage` field does not exist, but `repository` field points to a repository hosted on GitHub, the value of the `homepage` field gets set to an url in the form of https://github.com/[owner-name]/[repo-name]#readme . If the repository field points to a GitHub Gist repo url, the associated http url is chosen.
 
 ### Rules for name field
 
@@ -86,7 +85,7 @@ If `name` field is given, the value of the name field must be a string. The stri
 
 * start with a period.
 * contain the following characters: `/@\s+%`
-* contain and characters that would need to be encoded for use in urls.
+* contain any characters that would need to be encoded for use in urls.
 * resemble the word `node_modules` or `favicon.ico` (case doesn't matter).
 
 ### Rules for version field

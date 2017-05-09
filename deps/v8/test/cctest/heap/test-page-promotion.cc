@@ -115,7 +115,7 @@ UNINITIALIZED_TEST(PagePromotion_NewToNewJSArrayBuffer) {
     // Allocate a buffer we would like to check against.
     Handle<JSArrayBuffer> buffer =
         i_isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared);
-    JSArrayBuffer::SetupAllocatingData(buffer, i_isolate, 100);
+    CHECK(JSArrayBuffer::SetupAllocatingData(buffer, i_isolate, 100));
     std::vector<Handle<FixedArray>> handles;
     // Simulate a full space, filling the interesting page with live objects.
     heap::SimulateFullSpace(heap->new_space(), &handles);

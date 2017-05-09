@@ -288,7 +288,8 @@ decipher.on('end', () => {
   // Prints: some clear text data
 });
 
-const encrypted = 'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
+const encrypted =
+    'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
 decipher.write(encrypted, 'hex');
 decipher.end();
 ```
@@ -312,7 +313,8 @@ Example: Using the [`decipher.update()`][] and [`decipher.final()`][] methods:
 const crypto = require('crypto');
 const decipher = crypto.createDecipher('aes192', 'a password');
 
-const encrypted = 'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
+const encrypted =
+    'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
 let decrypted = decipher.update(encrypted, 'hex', 'utf8');
 decrypted += decipher.final('utf8');
 console.log(decrypted);
@@ -1713,18 +1715,18 @@ This should normally never take longer than a few milliseconds. The only time
 when generating the random bytes may conceivably block for a longer period of
 time is right after boot, when the whole system is still low on entropy.
 
-### crypto.randomFillSync(buf[, offset][, size])
+### crypto.randomFillSync(buffer[, offset][, size])
 <!-- YAML
-added: REPLACEME
+added: v7.10.0
 -->
 
-* `buf` {Buffer|Uint8Array} Must be supplied.
+* `buffer` {Buffer|Uint8Array} Must be supplied.
 * `offset` {number} Defaults to `0`.
-* `size` {number} Defaults to `buf.length - offset`.
+* `size` {number} Defaults to `buffer.length - offset`.
 
 Synchronous version of [`crypto.randomFill()`][].
 
-Returns `buf`
+Returns `buffer`
 
 ```js
 const buf = Buffer.alloc(10);
@@ -1738,14 +1740,14 @@ crypto.randomFillSync(buf, 5, 5);
 console.log(buf.toString('hex'));
 ```
 
-### crypto.randomFill(buf[, offset][, size], callback)
+### crypto.randomFill(buffer[, offset][, size], callback)
 <!-- YAML
-added: REPLACEME
+added: v7.10.0
 -->
 
-* `buf` {Buffer|Uint8Array} Must be supplied.
+* `buffer` {Buffer|Uint8Array} Must be supplied.
 * `offset` {number} Defaults to `0`.
-* `size` {number} Defaults to `buf.length - offset`.
+* `size` {number} Defaults to `buffer.length - offset`.
 * `callback` {Function} `function(err, buf) {}`.
 
 This function is similar to [`crypto.randomBytes()`][] but requires the first
@@ -2197,6 +2199,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
 
 [`Buffer`]: buffer.html
+[`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_BytesToKey.html
 [`cipher.final()`]: #crypto_cipher_final_output_encoding
 [`cipher.update()`]: #crypto_cipher_update_data_input_encoding_output_encoding
 [`crypto.createCipher()`]: #crypto_crypto_createcipher_algorithm_password
@@ -2213,14 +2216,13 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`crypto.getHashes()`]: #crypto_crypto_gethashes
 [`crypto.pbkdf2()`]: #crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
 [`crypto.randomBytes()`]: #crypto_crypto_randombytes_size_callback
-[`crypto.randomFill()`]: #crypto_crypto_randombytesbuffer_buf_size_offset_cb
+[`crypto.randomFill()`]: #crypto_crypto_randomfill_buffer_offset_size_callback
 [`decipher.final()`]: #crypto_decipher_final_output_encoding
 [`decipher.update()`]: #crypto_decipher_update_data_input_encoding_output_encoding
 [`diffieHellman.setPublicKey()`]: #crypto_diffiehellman_setpublickey_public_key_encoding
 [`ecdh.generateKeys()`]: #crypto_ecdh_generatekeys_encoding_format
 [`ecdh.setPrivateKey()`]: #crypto_ecdh_setprivatekey_private_key_encoding
 [`ecdh.setPublicKey()`]: #crypto_ecdh_setpublickey_public_key_encoding
-[`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_BytesToKey.html
 [`hash.digest()`]: #crypto_hash_digest_encoding
 [`hash.update()`]: #crypto_hash_update_data_input_encoding
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
@@ -2231,16 +2233,16 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`verify.update()`]: #crypto_verifier_update_data_input_encoding
 [`verify.verify()`]: #crypto_verifier_verify_object_signature_signature_format
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
+[Crypto Constants]: #crypto_crypto_constants_1
 [HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element
-[initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
 [OpenSSL cipher list format]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
-[publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
-[stream]: stream.html
+[initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
+[publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
 [stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
-[Crypto Constants]: #crypto_crypto_constants_1
+[stream]: stream.html

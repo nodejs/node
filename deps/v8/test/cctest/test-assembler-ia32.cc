@@ -1535,7 +1535,7 @@ TEST(Regress621926) {
 #endif
 
   F0 f = FUNCTION_CAST<F0>(code->entry());
-  CHECK_EQ(f(), 1);
+  CHECK_EQ(1, f());
 }
 
 #undef __

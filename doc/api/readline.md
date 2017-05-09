@@ -158,7 +158,7 @@ For example:
 
 ```js
 rl.on('SIGINT', () => {
-  rl.question('Are you sure you want to exit?', (answer) => {
+  rl.question('Are you sure you want to exit? ', (answer) => {
     if (answer.match(/^y(es)?$/i)) rl.pause();
   });
 });
@@ -255,7 +255,7 @@ If the `readline.Interface` was created with `output` set to `null` or
 Example usage:
 
 ```js
-rl.question('What is your favorite food?', (answer) => {
+rl.question('What is your favorite food? ', (answer) => {
   console.log(`Oh, so your favorite food is ${answer}`);
 });
 ```
@@ -403,8 +403,8 @@ a `'resize'` event on the `output` if or when the columns ever change
 
 ### Use of the `completer` Function
 
-When called, the `completer` function is provided the current line entered by
-the user, and is expected to return an Array with 2 entries:
+The `completer` function takes the current line entered by the user
+as an argument, and returns an Array with 2 entries:
 
 * An Array with matching entries for the completion.
 * The substring that was used for the matching.
@@ -414,7 +414,7 @@ For instance: `[[substr1, substr2, ...], originalsubstring]`.
 ```js
 function completer(line) {
   const completions = '.help .error .exit .quit .q'.split(' ');
-  const hits = completions.filter((c) => { return c.indexOf(line) === 0 });
+  const hits = completions.filter((c) => c.startsWith(line));
   // show all completions if none found
   return [hits.length ? hits : completions, line];
 }
@@ -492,7 +492,7 @@ const rl = readline.createInterface({
 rl.prompt();
 
 rl.on('line', (line) => {
-  switch(line.trim()) {
+  switch (line.trim()) {
     case 'hello':
       console.log('world!');
       break;
@@ -526,10 +526,10 @@ rl.on('line', (line) => {
 });
 ```
 
+[`SIGCONT`]: readline.html#readline_event_sigcont
+[`SIGTSTP`]: readline.html#readline_event_sigtstp
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
-[Writable]: stream.html#stream_writable_streams
 [Readable]: stream.html#stream_readable_streams
 [TTY]: tty.html
-[`SIGTSTP`]: readline.html#readline_event_sigtstp
-[`SIGCONT`]: readline.html#readline_event_sigcont
+[Writable]: stream.html#stream_writable_streams

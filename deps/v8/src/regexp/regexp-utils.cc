@@ -145,7 +145,14 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   if (!proto->IsJSReceiver()) return false;
 
   Handle<Map> initial_proto_initial_map = isolate->regexp_prototype_map();
-  return (JSReceiver::cast(proto)->map() == *initial_proto_initial_map);
+  if (JSReceiver::cast(proto)->map() != *initial_proto_initial_map) {
+    return false;
+  }
+
+  // The smi check is required to omit ToLength(lastIndex) calls with possible
+  // user-code execution on the fast path.
+  Object* last_index = JSRegExp::cast(recv)->LastIndex();
+  return last_index->IsSmi() && Smi::cast(last_index)->value() >= 0;
 }
 
 int RegExpUtils::AdvanceStringIndex(Isolate* isolate, Handle<String> string,

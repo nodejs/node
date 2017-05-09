@@ -33,6 +33,8 @@
 
     'v8_enable_gdbjit%': 0,
 
+    'v8_enable_verify_csa%': 0,
+
     'v8_object_print%': 0,
 
     'v8_enable_verify_heap%': 0,
@@ -77,6 +79,9 @@
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
+      }],
+      ['v8_enable_verify_csa==1', {
+        'defines': ['ENABLE_VERIFY_CSA',],
       }],
       ['v8_object_print==1', {
         'defines': ['OBJECT_PRINT',],

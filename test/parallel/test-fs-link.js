@@ -11,11 +11,11 @@ const srcPath = path.join(common.tmpDir, 'hardlink-target.txt');
 const dstPath = path.join(common.tmpDir, 'link1.js');
 fs.writeFileSync(srcPath, 'hello world');
 
-const callback = function(err) {
+function callback(err) {
   assert.ifError(err);
   const dstContent = fs.readFileSync(dstPath, 'utf8');
   assert.strictEqual('hello world', dstContent);
-};
+}
 
 fs.link(srcPath, dstPath, common.mustCall(callback));
 
@@ -23,14 +23,14 @@ fs.link(srcPath, dstPath, common.mustCall(callback));
 
 assert.throws(
   function() {
-    fs.link();
+    fs.link(undefined, undefined, common.mustNotCall());
   },
   /src must be a string or Buffer/
 );
 
 assert.throws(
   function() {
-    fs.link('abc');
+    fs.link('abc', undefined, common.mustNotCall());
   },
   /dest must be a string or Buffer/
 );

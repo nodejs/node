@@ -5,6 +5,7 @@
 #include "src/crankshaft/hydrogen-store-elimination.h"
 
 #include "src/crankshaft/hydrogen-instructions.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -193,7 +193,6 @@ inline Environment::Environment(IsolateData* isolate_data,
       trace_sync_io_(false),
       makecallback_cntr_(0),
       async_wrap_uid_(0),
-      debugger_agent_(this),
 #if HAVE_INSPECTOR
       inspector_agent_(this),
 #endif
@@ -222,28 +221,6 @@ inline Environment::Environment(IsolateData* isolate_data,
 
 inline Environment::~Environment() {
   v8::HandleScope handle_scope(isolate());
-
-  while (HandleCleanup* hc = handle_cleanup_queue_.PopFront()) {
-    handle_cleanup_waiting_++;
-    hc->cb_(this, hc->handle_, hc->arg_);
-    delete hc;
-  }
-
-  while (handle_cleanup_waiting_ != 0)
-    uv_run(event_loop(), UV_RUN_ONCE);
-
-  // Closing the destroy_ids_idle_handle_ within the handle cleanup queue
-  // prevents the async wrap destroy hook from being called.
-  uv_handle_t* handle =
-    reinterpret_cast<uv_handle_t*>(&destroy_ids_idle_handle_);
-  handle->data = this;
-  handle_cleanup_waiting_ = 1;
-  uv_close(handle, [](uv_handle_t* handle) {
-    static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
-  });
-
-  while (handle_cleanup_waiting_ != 0)
-    uv_run(event_loop(), UV_RUN_ONCE);
 
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
                                              nullptr);

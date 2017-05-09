@@ -131,6 +131,56 @@ The `slashes` property is a `boolean` with a value of `true` if two ASCII
 forward-slash characters (`/`) are required following the colon in the
 `protocol`.
 
+## url.domainToASCII(domain)
+<!-- YAML
+added: v7.4.0
+-->
+
+> Stability: 1 - Experimental
+
+* `domain` {string}
+* Returns: {string}
+
+Returns the [Punycode][] ASCII serialization of the `domain`. If `domain` is an
+invalid domain, the empty string is returned.
+
+It performs the inverse operation to [`url.domainToUnicode()`][].
+
+```js
+const url = require('url');
+console.log(url.domainToASCII('español.com'));
+  // Prints xn--espaol-zwa.com
+console.log(url.domainToASCII('中文.com'));
+  // Prints xn--fiq228c.com
+console.log(url.domainToASCII('xn--iñvalid.com'));
+  // Prints an empty string
+```
+
+## url.domainToUnicode(domain)
+<!-- YAML
+added: v7.4.0
+-->
+
+> Stability: 1 - Experimental
+
+* `domain` {string}
+* Returns: {string}
+
+Returns the Unicode serialization of the `domain`. If `domain` is an invalid
+domain, the empty string is returned.
+
+It performs the inverse operation to [`url.domainToASCII()`][].
+
+```js
+const url = require('url');
+console.log(url.domainToUnicode('xn--espaol-zwa.com'));
+  // Prints español.com
+console.log(url.domainToUnicode('xn--fiq228c.com'));
+  // Prints 中文.com
+console.log(url.domainToUnicode('xn--iñvalid.com'));
+  // Prints an empty string
+```
+
 ## url.format(urlObject)
 <!-- YAML
 added: v0.1.25
@@ -199,6 +249,9 @@ The formatting process operates as follows:
 * `result` is returned.
 
 ## url.format(URL[, options])
+<!-- YAML
+added: v7.6.0
+-->
 
 > Stability: 1 - Experimental
 
@@ -210,7 +263,7 @@ The formatting process operates as follows:
     fragment, `false` otherwise. Defaults to `true`.
   * `search` {boolean} `true` if the serialized URL string should include the
     search query, `false` otherwise. Defaults to `true`.
-  * `unicode` (Boolean) `true` if Unicode characters appearing in the host
+  * `unicode` {boolean} `true` if Unicode characters appearing in the host
     component of the URL string should be encoded directly as opposed to being
     Punycode encoded. Defaults to `false`.
 
@@ -289,9 +342,9 @@ manner similar to that of a Web browser resolving an anchor tag HREF.
 For example:
 
 ```js
-url.resolve('/one/two/three', 'four')         // '/one/two/four'
-url.resolve('http://example.com/', '/one')    // 'http://example.com/one'
-url.resolve('http://example.com/one', '/two') // 'http://example.com/two'
+url.resolve('/one/two/three', 'four');         // '/one/two/four'
+url.resolve('http://example.com/', '/one');    // 'http://example.com/one'
+url.resolve('http://example.com/one', '/two'); // 'http://example.com/two'
 ```
 
 ## Escaped Characters
@@ -308,6 +361,9 @@ For example, the ASCII space character (`' '`) is encoded as `%20`. The ASCII
 forward slash (`/`) character is encoded as `%3C`.
 
 ## The WHATWG URL API
+<!-- YAML
+added: v7.0.0
+-->
 
 > Stability: 1 - Experimental
 
@@ -460,7 +516,7 @@ const myURL = new URL('https://example.org/foo');
 console.log(myURL.href);
   // Prints https://example.org/foo
 
-myURL.href = 'https://example.com/bar'
+myURL.href = 'https://example.com/bar';
   // Prints https://example.com/bar
 ```
 
@@ -695,6 +751,9 @@ console.log(JSON.stringify(myURLs));
 ```
 
 ### Class: URLSearchParams
+<!-- YAML
+added: v7.5.0
+-->
 
 The `URLSearchParams` API provides read and write access to the query of a
 `URL`. The `URLSearchParams` class can also be used standalone with one of the
@@ -767,6 +826,9 @@ console.log(params.toString());
 ```
 
 #### Constructor: new URLSearchParams(obj)
+<!-- YAML
+added: v7.10.0
+-->
 
 * `obj` {Object} An object representing a collection of key-value pairs
 
@@ -790,6 +852,9 @@ console.log(params.toString());
 ```
 
 #### Constructor: new URLSearchParams(iterable)
+<!-- YAML
+added: v7.10.0
+-->
 
 * `iterable` {Iterable} An iterable object whose elements are key-value pairs
 
@@ -949,6 +1014,9 @@ console.log(params.toString());
 ```
 
 #### urlSearchParams.sort()
+<!-- YAML
+added: v7.7.0
+-->
 
 Sort all existing name-value pairs in-place by their names. Sorting is done
 with a [stable sorting algorithm][], so relative order between name-value pairs
@@ -997,52 +1065,6 @@ for (const [name, value] of params) {
   // xyz baz
 ```
 
-### require('url').domainToASCII(domain)
-
-* `domain` {string}
-* Returns: {string}
-
-Returns the [Punycode][] ASCII serialization of the `domain`. If `domain` is an
-invalid domain, the empty string is returned.
-
-It performs the inverse operation to [`require('url').domainToUnicode()`][].
-
-```js
-const url = require('url');
-console.log(url.domainToASCII('español.com'));
-  // Prints xn--espaol-zwa.com
-console.log(url.domainToASCII('中文.com'));
-  // Prints xn--fiq228c.com
-console.log(url.domainToASCII('xn--iñvalid.com'));
-  // Prints an empty string
-```
-
-*Note*: The `require('url').domainToASCII()` method is introduced as part of
-the new `URL` implementation but is not part of the WHATWG URL standard.
-
-### require('url').domainToUnicode(domain)
-
-* `domain` {string}
-* Returns: {string}
-
-Returns the Unicode serialization of the `domain`. If `domain` is an invalid
-domain, the empty string is returned.
-
-It performs the inverse operation to [`require('url').domainToASCII()`][].
-
-```js
-const url = require('url');
-console.log(url.domainToUnicode('xn--espaol-zwa.com'));
-  // Prints español.com
-console.log(url.domainToUnicode('xn--fiq228c.com'));
-  // Prints 中文.com
-console.log(url.domainToUnicode('xn--iñvalid.com'));
-  // Prints an empty string
-```
-
-*Note*: The `require('url').domainToUnicode()` API is introduced as part of the
-the new `URL` implementation but is not part of the WHATWG URL standard.
-
 <a id="whatwg-percent-encoding"></a>
 ### Percent-Encoding in the WHATWG URL Standard
 
@@ -1053,23 +1075,25 @@ located within the structure of the URL. The WHATWG URL Standard uses a more
 selective and fine grained approach to selecting encoded characters than that
 used by the older [`url.parse()`][] and [`url.format()`][] methods.
 
-The WHATWG algorithm defines three "encoding sets" that describe ranges of
-characters that must be percent-encoded:
+The WHATWG algorithm defines three "percent-encode sets" that describe ranges
+of characters that must be percent-encoded:
 
-* The *simple encode set* includes code points in range U+0000 to U+001F
-  (inclusive) and all code points greater than U+007E.
+* The *C0 control percent-encode set* includes code points in range U+0000 to
+  U+001F (inclusive) and all code points greater than U+007E.
 
-* The *default encode set* includes the *simple encode set* and code points
-  U+0020, U+0022, U+0023, U+003C, U+003E, U+003F, U+0060, U+007B, and U+007D.
+* The *path percent-encode set* includes the *C0 control percent-encode set*
+  and code points U+0020, U+0022, U+0023, U+003C, U+003E, U+003F, U+0060,
+  U+007B, and U+007D.
 
-* The *userinfo encode set* includes the *default encode set* and code points
-  U+002F, U+003A, U+003B, U+003D, U+0040, U+005B, U+005C, U+005D, U+005E, and
-  U+007C.
+* The *userinfo encode set* includes the *path percent-encode set* and code
+  points U+002F, U+003A, U+003B, U+003D, U+0040, U+005B, U+005C, U+005D,
+  U+005E, and U+007C.
 
-The *simple encode set* is used primary for URL fragments and certain specific
-conditions for the path. The *userinfo encode set* is used specifically for
-username and passwords encoded within the URL. The *default encode set* is used
-for all other cases.
+The *userinfo percent-encode set* is used exclusively for username and
+passwords encoded within the URL. The *path percent-encode set* is used for the
+path of most URLs. The *C0 control percent-encode set* is used for all
+other cases, including URL fragments in particular, but also host and path
+under certain specific conditions.
 
 When non-ASCII characters appear within a hostname, the hostname is encoded
 using the [Punycode][] algorithm. Note, however, that a hostname *may* contain
@@ -1086,27 +1110,27 @@ console.log(myURL.origin);
 
 
 [`Error`]: errors.html#errors_class_error
-[`querystring`]: querystring.html
-[`TypeError`]: errors.html#errors_class_typeerror
-[WHATWG URL Standard]: https://url.spec.whatwg.org/
-[examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
-[`url.parse()`]: #url_url_parse_urlstring_parsequerystring_slashesdenotehost
-[`url.format()`]: #url_url_format_urlobject
-[`require('url').format()`]: #url_url_format_url_options
-[`url.toString()`]: #url_url_tostring
-[Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
+[`JSON.stringify()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
-[`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
-[WHATWG URL]: #url_the_whatwg_url_api
-[`new URL()`]: #url_constructor_new_url_input_base
-[`url.href`]: #url_url_href
-[`url.search`]: #url_url_search
-[percent-encoded]: #whatwg-percent-encoding
+[`TypeError`]: errors.html#errors_class_typeerror
 [`URLSearchParams`]: #url_class_urlsearchparams
+[`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
+[`new URL()`]: #url_constructor_new_url_input_base
+[`querystring`]: querystring.html
+[`require('url').format()`]: #url_url_format_url_options
+[`url.domainToASCII()`]: #url_url_domaintoascii_domain
+[`url.domainToUnicode()`]: #url_url_domaintounicode_domain
+[`url.format()`]: #url_url_format_urlobject
+[`url.href`]: #url_url_href
+[`url.parse()`]: #url_url_parse_urlstring_parsequerystring_slashesdenotehost
+[`url.search`]: #url_url_search
+[`url.toJSON()`]: #url_url_tojson
+[`url.toString()`]: #url_url_tostring
 [`urlSearchParams.entries()`]: #url_urlsearchparams_entries
 [`urlSearchParams@@iterator()`]: #url_urlsearchparams_iterator
-[`require('url').domainToASCII()`]: #url_require_url_domaintoascii_domain
-[`require('url').domainToUnicode()`]: #url_require_url_domaintounicode_domain
+[Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
+[WHATWG URL Standard]: https://url.spec.whatwg.org/
+[WHATWG URL]: #url_the_whatwg_url_api
+[examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
+[percent-encoded]: #whatwg-percent-encoding
 [stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability
-[`JSON.stringify()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
-[`url.toJSON()`]: #url_url_tojson

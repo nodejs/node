@@ -51,6 +51,10 @@ endif
 ifeq ($(objectprint), on)
   GYPFLAGS += -Dv8_object_print=1
 endif
+# verifycsa=on
+ifeq ($(verifycsa), on)
+  GYPFLAGS += -Dv8_enable_verify_csa=1
+endif
 # verifyheap=on
 ifeq ($(verifyheap), on)
   GYPFLAGS += -Dv8_enable_verify_heap=1

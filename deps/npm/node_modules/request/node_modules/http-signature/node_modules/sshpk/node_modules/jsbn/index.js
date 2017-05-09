@@ -1345,14 +1345,13 @@
 	// An array of bytes the size of the pool will be passed to init()
 	var rng_psize = 256;
 
-    if (typeof exports !== 'undefined') {
-        exports = module.exports = {
-			BigInteger: BigInteger,
-			SecureRandom: SecureRandom,
-		};
-    } else {
-        this.BigInteger = BigInteger;
-        this.SecureRandom = SecureRandom;
-    }
+  BigInteger.SecureRandom = SecureRandom;
+  BigInteger.BigInteger = BigInteger;
+  if (typeof exports !== 'undefined') {
+    exports = module.exports = BigInteger;
+  } else {
+    this.BigInteger = BigInteger;
+    this.SecureRandom = SecureRandom;
+  }
 
 }).call(this);

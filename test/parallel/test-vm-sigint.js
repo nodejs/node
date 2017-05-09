@@ -5,11 +5,6 @@ const vm = require('vm');
 
 const spawn = require('child_process').spawn;
 
-const methods = [
-  'runInThisContext',
-  'runInContext'
-];
-
 if (common.isWindows) {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
@@ -18,7 +13,9 @@ if (common.isWindows) {
 
 if (process.argv[2] === 'child') {
   const method = process.argv[3];
+  const listeners = +process.argv[4];
   assert.ok(method);
+  assert.ok(typeof listeners, 'number');
 
   const script = `process.send('${method}'); while(true) {}`;
   const args = method === 'runInContext' ?
@@ -26,23 +23,28 @@ if (process.argv[2] === 'child') {
                           [];
   const options = { breakOnSigint: true };
 
+  for (let i = 0; i < listeners; i++)
+    process.on('SIGINT', common.noop);
+
   assert.throws(() => { vm[method](script, ...args, options); },
                 /^Error: Script execution interrupted\.$/);
-
   return;
 }
 
-for (const method of methods) {
-  const child = spawn(process.execPath, [__filename, 'child', method], {
-    stdio: [null, 'pipe', 'inherit', 'ipc']
-  });
+for (const method of ['runInThisContext', 'runInContext']) {
+  for (const listeners of [0, 1, 2]) {
+    const args = [__filename, 'child', method, listeners];
+    const child = spawn(process.execPath, args, {
+      stdio: [null, 'pipe', 'inherit', 'ipc']
+    });
 
-  child.on('message', common.mustCall(() => {
-    process.kill(child.pid, 'SIGINT');
-  }));
+    child.on('message', common.mustCall(() => {
+      process.kill(child.pid, 'SIGINT');
+    }));
 
-  child.on('close', common.mustCall((code, signal) => {
-    assert.strictEqual(signal, null);
-    assert.strictEqual(code, 0);
-  }));
+    child.on('close', common.mustCall((code, signal) => {
+      assert.strictEqual(signal, null);
+      assert.strictEqual(code, 0);
+    }));
+  }
 }

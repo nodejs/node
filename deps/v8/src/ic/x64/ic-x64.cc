@@ -6,53 +6,11 @@
 
 #include "src/codegen.h"
 #include "src/ic/ic.h"
-#include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
-
-// ----------------------------------------------------------------------------
-// Static IC stub generators.
-//
-
-#define __ ACCESS_MASM(masm)
-
-static void StoreIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();
-  Register name = StoreWithVectorDescriptor::NameRegister();
-  Register value = StoreWithVectorDescriptor::ValueRegister();
-  Register slot = StoreWithVectorDescriptor::SlotRegister();
-  Register vector = StoreWithVectorDescriptor::VectorRegister();
-  Register temp = r11;
-  DCHECK(!AreAliased(receiver, name, value, slot, vector, temp));
-
-  __ PopReturnAddressTo(temp);
-  __ Push(value);
-  __ Push(slot);
-  __ Push(vector);
-  __ Push(receiver);
-  __ Push(name);
-  __ PushReturnAddressFrom(temp);
-}
-
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
-  // Return address is on the stack.
-  StoreIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss);
-}
-
-void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
-  // Return address is on the stack.
-  StoreIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow);
-}
-
-#undef __
 
 
 Condition CompareIC::ComputeCondition(Token::Value op) {
@@ -104,9 +62,7 @@ void PatchInlinedSmiCode(Isolate* isolate, Address address,
   // condition code uses at the patched jump.
   uint8_t delta = *reinterpret_cast<uint8_t*>(delta_address);
   if (FLAG_trace_ic) {
-    PrintF("[  patching ic at %p, test=%p, delta=%d\n",
-           static_cast<void*>(address),
-           static_cast<void*>(test_instruction_address), delta);
+    LOG(isolate, PatchIC(address, test_instruction_address, delta));
   }
 
   // Patch with a short conditional jump. Enabling means switching from a short

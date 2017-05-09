@@ -45,8 +45,8 @@ function createServer() {
   let previousKey = null;
 
   const server = tls.createServer({
-    key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-    cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
+    key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
+    cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`),
     ticketKeys: keys
   }, function(c) {
     serverLog.push(id);

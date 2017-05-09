@@ -1,3 +1,8 @@
+root: true
+
+plugins:
+  - markdown
+
 env:
   node: true
   es6: true
@@ -44,7 +49,9 @@ rules:
   no-throw-literal: 2
   no-unused-labels: 2
   no-useless-call: 2
+  no-useless-concat: 2
   no-useless-escape: 2
+  no-useless-return: 2
   no-void: 2
   no-with: 2
 
@@ -90,6 +97,7 @@ rules:
   eol-last: 2
   func-call-spacing: 2
   func-name-matching: 2
+  func-style: [2, declaration, {allowArrowFunctions: true}]
   indent: [2, 2, {ArrayExpression: first,
                   CallExpression: {arguments: first},
                   MemberExpression: 1,
@@ -98,7 +106,10 @@ rules:
   key-spacing: [2, {mode: minimum}]
   keyword-spacing: 2
   linebreak-style: [2, unix]
-  max-len: [2, {code: 80, ignoreUrls: true, tabWidth: 2}]
+  max-len: [2, {code: 80,
+                ignoreRegExpLiterals: true,
+                ignoreUrls: true,
+                tabWidth: 2}]
   new-parens: 2
   no-mixed-spaces-and-tabs: 2
   no-multiple-empty-lines: [2, {max: 2, maxEOF: 0, maxBOF: 0}]

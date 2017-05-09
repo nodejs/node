@@ -7,6 +7,7 @@
 #include "src/v8.h"
 
 #include "src/interpreter/bytecode-decoder.h"
+#include "src/runtime/runtime.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
@@ -45,10 +46,10 @@ TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
        3,
        0,
        "         ForInPrepare r10, r11-r13"},
-      {{B(CallRuntime), U16(134), R8(0), U8(0)},
+      {{B(CallRuntime), U16(Runtime::FunctionId::kIsDate), R8(0), U8(0)},
        5,
        0,
-       "   CallRuntime [134], r0-r0"},
+       "   CallRuntime [IsDate], r0-r0"},
       {{B(Ldar),
         static_cast<uint8_t>(Register::FromParameterIndex(2, 3).ToOperand())},
        2,

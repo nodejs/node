@@ -21,7 +21,7 @@ var bench = common.createBenchmark(main, {
 function main(conf) {
   var n = +conf.n;
   var p = path.win32;
-  var input = '' + conf.pathext;
+  var input = String(conf.pathext);
   var ext;
   var extIdx = input.indexOf('|');
   if (extIdx !== -1) {

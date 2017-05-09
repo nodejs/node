@@ -92,6 +92,30 @@ void Environment::Start(int argc,
   LoadAsyncWrapperInfo(this);
 }
 
+void Environment::CleanupHandles() {
+  while (HandleCleanup* hc = handle_cleanup_queue_.PopFront()) {
+    handle_cleanup_waiting_++;
+    hc->cb_(this, hc->handle_, hc->arg_);
+    delete hc;
+  }
+
+  while (handle_cleanup_waiting_ != 0)
+    uv_run(event_loop(), UV_RUN_ONCE);
+
+  // Closing the destroy_ids_idle_handle_ within the handle cleanup queue
+  // prevents the async wrap destroy hook from being called.
+  uv_handle_t* handle =
+    reinterpret_cast<uv_handle_t*>(&destroy_ids_idle_handle_);
+  handle->data = this;
+  handle_cleanup_waiting_ = 1;
+  uv_close(handle, [](uv_handle_t* handle) {
+    static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
+  });
+
+  while (handle_cleanup_waiting_ != 0)
+    uv_run(event_loop(), UV_RUN_ONCE);
+}
+
 void Environment::StartProfilerIdleNotifier() {
   uv_prepare_start(&idle_prepare_handle_, [](uv_prepare_t* handle) {
     Environment* env = ContainerOf(&Environment::idle_prepare_handle_, handle);
@@ -162,6 +186,22 @@ void Environment::RunAtExitCallbacks() {
 
 void Environment::AtExit(void (*cb)(void* arg), void* arg) {
   at_exit_functions_.push_back(AtExitCallback{cb, arg});
+}
+
+void Environment::AddPromiseHook(promise_hook_func fn, void* arg) {
+  promise_hooks_.push_back(PromiseHookCallback{fn, arg});
+  if (promise_hooks_.size() == 1) {
+    isolate_->SetPromiseHook(EnvPromiseHook);
+  }
+}
+
+void Environment::EnvPromiseHook(v8::PromiseHookType type,
+                                 v8::Local<v8::Promise> promise,
+                                 v8::Local<v8::Value> parent) {
+  Environment* env = Environment::GetCurrent(promise->CreationContext());
+  for (const PromiseHookCallback& hook : env->promise_hooks_) {
+    hook.cb_(type, promise, parent, hook.arg_);
+  }
 }
 
 }  // namespace node

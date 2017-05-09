@@ -9,6 +9,7 @@ Runtime.evaluate with valid expression
         hasSourceURL : true
         hash : 9D04F7335D1661503EAB9AF3EACAF92020803F34
         isLiveEdit : false
+        isModule : false
         scriptId : <scriptId>
         sourceMapURL : 
         startColumn : 0
@@ -25,6 +26,7 @@ Runtime.evaluate with syntax error
         executionContextId : <executionContextId>
         hasSourceURL : true
         hash : 9BCA34A10E5386925E74C1716C857BEB02821E15
+        isModule : false
         scriptId : <scriptId>
         sourceMapURL : 
         startColumn : 0
@@ -42,6 +44,7 @@ Runtime.callFunctionOn with valid functionDeclaration
         hasSourceURL : false
         hash : 9D04CEA1B54DF92A01A0498543D429DC872EBA18
         isLiveEdit : false
+        isModule : false
         scriptId : <scriptId>
         sourceMapURL : 
         startColumn : 0
@@ -58,6 +61,7 @@ Runtime.callFunctionOn with syntax error
         executionContextId : <executionContextId>
         hasSourceURL : false
         hash : 9D04D83251E2B7F64CB5762843D429DC872EBA18
+        isModule : false
         scriptId : <scriptId>
         sourceMapURL : 
         startColumn : 0
@@ -75,6 +79,7 @@ Runtime.compileScript with valid expression
         hasSourceURL : false
         hash : 9D04F733E4E4F1BA4CB5762843D429DC872EBA18
         isLiveEdit : false
+        isModule : false
         scriptId : <scriptId>
         sourceMapURL : 
         startColumn : 0
@@ -91,6 +96,7 @@ Runtime.compileScript with syntax error
         executionContextId : <executionContextId>
         hasSourceURL : false
         hash : FF746120E4E4F1BA4CB5762843D429DC872EBA18
+        isModule : false
         scriptId : <scriptId>
         sourceMapURL : 
         startColumn : 0

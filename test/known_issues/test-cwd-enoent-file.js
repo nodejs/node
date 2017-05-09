@@ -19,7 +19,7 @@ if (process.argv[2] === 'child') {
   // Do nothing.
 } else {
   common.refreshTmpDir();
-  const dir = fs.mkdtempSync(common.tmpDir + '/');
+  const dir = fs.mkdtempSync(`${common.tmpDir}/`);
   process.chdir(dir);
   fs.rmdirSync(dir);
   assert.throws(process.cwd,

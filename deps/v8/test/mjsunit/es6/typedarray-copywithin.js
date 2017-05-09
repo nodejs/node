@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --allow-natives-syntax
+
 var typedArrayConstructors = [
   Uint8Array,
   Int8Array,
@@ -170,4 +172,76 @@ CheckEachTypedArray(function copyWithinNullEnd(constructor) {
   // test null on third argument is converted to +0
   assertArrayEquals([1, 2, 3, 4, 5],
                     new constructor([1, 2, 3, 4, 5]).copyWithin(0, 3, null));
+});
+
+
+CheckEachTypedArray(function copyWithinMinusInfinityTarget(constructor) {
+  var arr = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  var expected = [6, 7, 8, 9, 10, 6, 7, 8, 9, 10];
+
+  assertArrayEquals(expected, arr.copyWithin(-Infinity, 5));
+  assertEquals(10, arr.length);
+});
+
+
+CheckEachTypedArray(function copyWithinPositiveInfinityTarget(constructor) {
+  var arr = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  var expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+  assertArrayEquals(expected, arr.copyWithin(+Infinity, 5));
+  assertEquals(10, arr.length);
+});
+
+
+CheckEachTypedArray(function copyWithinMinusInfinityStart(constructor) {
+  var arr = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  var expected = [1, 2, 3, 4, 5, 1, 2, 3, 4, 5];
+
+  assertArrayEquals(expected, arr.copyWithin(5, -Infinity));
+  assertEquals(10, arr.length);
+});
+
+
+CheckEachTypedArray(function copyWithinPositiveInfinityStart(constructor) {
+  var arr = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  var expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+  assertArrayEquals(expected, arr.copyWithin(5, +Infinity));
+  assertEquals(10, arr.length);
+});
+
+
+CheckEachTypedArray(function copyWithinMinusInfinityEnd(constructor) {
+  var arr = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  var expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+  assertArrayEquals(expected, arr.copyWithin(5, 0, -Infinity));
+  assertEquals(10, arr.length);
+});
+
+
+CheckEachTypedArray(function copyWithinPositiveInfinityEnd(constructor) {
+var arr = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  var expected = [1, 2, 3, 4, 5, 1, 2, 3, 4, 5];
+
+  assertArrayEquals(expected, arr.copyWithin(5, 0, +Infinity));
+  assertEquals(10, arr.length);
+});
+
+CheckEachTypedArray(function parametersNotCalledIfDetached(constructor) {
+  var tmp = {
+    [Symbol.toPrimitive]() {
+      assertUnreachable("Parameter should not be processed when " +
+                        "array.[[ViewedArrayBuffer]] is neutered.");
+      return 0;
+    }
+  };
+
+  var array = new constructor([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  %ArrayBufferNeuter(array.buffer);
+
+  // TODO(caitp): this should throw due to being invoked on a TypedArray with a
+  // detached buffer (per v8:4648).
+  array.copyWithin(tmp, tmp, tmp);
+  assertEquals(0, array.length, "array.[[ViewedArrayBuffer]] is detached");
 });

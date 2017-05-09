@@ -30,6 +30,7 @@
 
 #include "include/libplatform/libplatform.h"
 #include "src/debug/debug.h"
+#include "src/objects-inl.h"
 #include "test/cctest/print-extension.h"
 #include "test/cctest/profiler-extension.h"
 #include "test/cctest/trace-extension.h"

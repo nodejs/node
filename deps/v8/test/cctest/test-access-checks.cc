@@ -102,6 +102,23 @@ void IndexedEnumerator(const v8::PropertyCallbackInfo<v8::Array>& info) {
   info.GetReturnValue().Set(names);
 }
 
+void MethodGetter(v8::Local<v8::Name> property,
+                  const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+  v8::Local<v8::External> data = info.Data().As<v8::External>();
+  v8::Local<v8::FunctionTemplate>& function_template =
+      *reinterpret_cast<v8::Local<v8::FunctionTemplate>*>(data->Value());
+
+  info.GetReturnValue().Set(
+      function_template->GetFunction(context).ToLocalChecked());
+}
+
+void MethodCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(8);
+}
+
 void NamedGetterThrowsException(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -286,6 +303,44 @@ TEST(AccessCheckWithInterceptor) {
   v8::Local<v8::Context> context1 =
       v8::Context::New(isolate, nullptr, global_template);
   CheckCrossContextAccess(isolate, context1, context0->Global());
+}
+
+TEST(CallFunctionWithRemoteContextReceiver) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::FunctionTemplate> global_template =
+      v8::FunctionTemplate::New(isolate);
+
+  v8::Local<v8::Signature> signature =
+      v8::Signature::New(isolate, global_template);
+  v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(
+      isolate, MethodCallback, v8::External::New(isolate, &function_template),
+      signature);
+
+  global_template->InstanceTemplate()->SetAccessCheckCallbackAndHandler(
+      AccessCheck, v8::NamedPropertyHandlerConfiguration(
+                       MethodGetter, nullptr, nullptr, nullptr, nullptr,
+                       v8::External::New(isolate, &function_template)),
+      v8::IndexedPropertyHandlerConfiguration());
+
+  v8::Local<v8::Object> accessed_object =
+      v8::Context::NewRemoteContext(isolate,
+                                    global_template->InstanceTemplate())
+          .ToLocalChecked();
+  v8::Local<v8::Context> accessing_context =
+      v8::Context::New(isolate, nullptr, global_template->InstanceTemplate());
+
+  v8::HandleScope handle_scope(isolate);
+  accessing_context->Global()
+      ->Set(accessing_context, v8_str("other"), accessed_object)
+      .FromJust();
+  v8::Context::Scope context_scope(accessing_context);
+
+  {
+    v8::TryCatch try_catch(isolate);
+    ExpectInt32("this.other.method()", 8);
+    CHECK(!try_catch.HasCaught());
+  }
 }
 
 TEST(AccessCheckWithExceptionThrowingInterceptor) {

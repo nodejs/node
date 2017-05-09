@@ -30,8 +30,6 @@ function Writer (props, current) {
     props = { path: props }
   }
 
-  if (!props.path) self.error('Must provide a path', null, true)
-
   // polymorphism.
   // call fstream.Writer(dir) to get a DirWriter object, etc.
   var type = getType(props)
@@ -60,6 +58,8 @@ function Writer (props, current) {
   // now get down to business.
 
   Abstract.call(self)
+
+  if (!props.path) self.error('Must provide a path', null, true)
 
   // props is what we want to set.
   // set some convenience properties as well.

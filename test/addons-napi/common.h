@@ -3,12 +3,12 @@
 
 #define GET_AND_THROW_LAST_ERROR(env)                                    \
   do {                                                                   \
+    const napi_extended_error_info *error_info;                          \
+    napi_get_last_error_info((env), &error_info);                        \
     bool is_pending;                                                     \
     napi_is_exception_pending((env), &is_pending);                       \
     /* If an exception is already pending, don't rethrow it */           \
     if (!is_pending) {                                                   \
-      const napi_extended_error_info* error_info;                        \
-      napi_get_last_error_info((env), &error_info);                      \
       const char* error_message = error_info->error_message != NULL ?    \
         error_info->error_message :                                      \
         "empty error message";                                           \
@@ -50,3 +50,6 @@
 
 #define DECLARE_NAPI_PROPERTY(name, func)                                \
   { (name), 0, (func), 0, 0, 0, napi_default, 0 }
+
+#define DECLARE_NAPI_GETTER(name, func)                                  \
+  { (name), 0, 0, (func), 0, 0, napi_default, 0 }

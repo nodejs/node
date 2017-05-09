@@ -23,6 +23,7 @@
 const common = require('../common');
 const assert = require('assert');
 const util = require('util');
+const binding = process.binding('util');
 const context = require('vm').runInNewContext;
 
 // isArray
@@ -51,8 +52,7 @@ assert.strictEqual(false, util.isRegExp(Object.create(RegExp.prototype)));
 // isDate
 assert.strictEqual(true, util.isDate(new Date()));
 assert.strictEqual(true, util.isDate(new Date(0)));
-// eslint-disable-next-line new-parens
-assert.strictEqual(true, util.isDate(new (context('Date'))));
+assert.strictEqual(true, util.isDate(new (context('Date'))()));
 assert.strictEqual(false, util.isDate(Date()));
 assert.strictEqual(false, util.isDate({}));
 assert.strictEqual(false, util.isDate([]));
@@ -63,11 +63,9 @@ assert.strictEqual(false, util.isDate(Object.create(Date.prototype)));
 assert.strictEqual(true, util.isError(new Error()));
 assert.strictEqual(true, util.isError(new TypeError()));
 assert.strictEqual(true, util.isError(new SyntaxError()));
-/* eslint-disable new-parens */
-assert.strictEqual(true, util.isError(new (context('Error'))));
-assert.strictEqual(true, util.isError(new (context('TypeError'))));
-assert.strictEqual(true, util.isError(new (context('SyntaxError'))));
-/* eslint-enable */
+assert.strictEqual(true, util.isError(new (context('Error'))()));
+assert.strictEqual(true, util.isError(new (context('TypeError'))()));
+assert.strictEqual(true, util.isError(new (context('SyntaxError'))()));
 assert.strictEqual(false, util.isError({}));
 assert.strictEqual(false, util.isError({ name: 'Error', message: '' }));
 assert.strictEqual(false, util.isError([]));
@@ -153,3 +151,20 @@ util.print('test');
 util.puts('test');
 util.debug('test');
 util.error('test');
+
+{
+  // binding.isNativeError()
+  assert.strictEqual(binding.isNativeError(new Error()), true);
+  assert.strictEqual(binding.isNativeError(new TypeError()), true);
+  assert.strictEqual(binding.isNativeError(new SyntaxError()), true);
+  assert.strictEqual(binding.isNativeError(new (context('Error'))()), true);
+  assert.strictEqual(binding.isNativeError(new (context('TypeError'))()), true);
+  assert.strictEqual(binding.isNativeError(new (context('SyntaxError'))()),
+                     true);
+  assert.strictEqual(binding.isNativeError({}), false);
+  assert.strictEqual(binding.isNativeError({ name: 'Error', message: '' }),
+                     false);
+  assert.strictEqual(binding.isNativeError([]), false);
+  assert.strictEqual(binding.isNativeError(Object.create(Error.prototype)),
+                     false);
+}

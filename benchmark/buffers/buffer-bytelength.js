@@ -28,7 +28,7 @@ function main(conf) {
   } else {
     for (var string of chars) {
       // Strings must be built differently, depending on encoding
-      var data = buildString(string, len);
+      var data = string.repeat(len);
       if (encoding === 'utf8') {
         strings.push(data);
       } else if (encoding === 'base64') {
@@ -53,10 +53,4 @@ function main(conf) {
       throw new Error('incorrect return value');
   }
   bench.end(n);
-}
-
-function buildString(str, times) {
-  if (times === 1) return str;
-
-  return str + buildString(str, times - 1);
 }

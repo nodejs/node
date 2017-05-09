@@ -6,21 +6,10 @@
 // Forward declaration to break recursive dependency chain with src/env.h.
 namespace node {
 
-enum class DebugAgentType {
-  kNone,
-  kDebugger,
-#if HAVE_INSPECTOR
-  kInspector
-#endif  // HAVE_INSPECTOR
-};
-
 class DebugOptions {
  public:
   DebugOptions();
   bool ParseOption(const std::string& option);
-  bool debugger_enabled() const {
-    return debugger_enabled_ && !inspector_enabled();
-  }
   bool inspector_enabled() const {
 #if HAVE_INSPECTOR
     return inspector_enabled_;
@@ -28,7 +17,6 @@ class DebugOptions {
     return false;
 #endif  // HAVE_INSPECTOR
   }
-  void EnableDebugAgent(DebugAgentType type);
   bool ToolsServerEnabled();
   bool wait_for_connect() const { return wait_connect_; }
   std::string host_name() const { return host_name_; }
@@ -36,7 +24,6 @@ class DebugOptions {
   void set_port(int port) { port_ = port; }
 
  private:
-  bool debugger_enabled_;
 #if HAVE_INSPECTOR
   bool inspector_enabled_;
 #endif  // HAVE_INSPECTOR

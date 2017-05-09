@@ -54,12 +54,12 @@ if (cluster.isMaster) {
 
   socket1.on('error', (err) => {
     // no errors expected
-    process.send('socket1:' + err.code);
+    process.send(`socket1:${err.code}`);
   });
 
   socket2.on('error', (err) => {
     // an error is expected on the second worker
-    process.send('socket2:' + err.code);
+    process.send(`socket2:${err.code}`);
   });
 
   socket1.bind({

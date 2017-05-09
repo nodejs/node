@@ -136,12 +136,6 @@ class Logger : public CodeEventListener {
   // object.
   void SuspectReadEvent(Name* name, Object* obj);
 
-  // Emits an event when a message is put on or read from a debugging queue.
-  // DebugTag lets us put a call-site specific label on the event.
-  void DebugTag(const char* call_site_tag);
-  void DebugEvent(const char* event_type, Vector<uint16_t> parameter);
-
-
   // ==== Events logged by --log-api. ====
   void ApiSecurityCheck();
   void ApiNamedPropertyAccess(const char* tag, JSObject* holder, Object* name);
@@ -188,6 +182,21 @@ class Logger : public CodeEventListener {
   void CodeNameEvent(Address addr, int pos, const char* code_name);
 
   void CodeDeoptEvent(Code* code, Address pc, int fp_to_sp_delta);
+
+  void ICEvent(const char* type, bool keyed, const Address pc, int line,
+               int column, Map* map, Object* key, char old_state,
+               char new_state, const char* modifier,
+               const char* slow_stub_reason);
+  void CompareIC(const Address pc, int line, int column, Code* stub,
+                 const char* op, const char* old_left, const char* old_right,
+                 const char* old_state, const char* new_left,
+                 const char* new_right, const char* new_state);
+  void BinaryOpIC(const Address pc, int line, int column, Code* stub,
+                  const char* old_state, const char* new_state,
+                  AllocationSite* allocation_site);
+  void ToBooleanIC(const Address pc, int line, int column, Code* stub,
+                   const char* old_state, const char* new_state);
+  void PatchIC(const Address pc, const Address test, int delta);
 
   // ==== Events logged by --log-gc. ====
   // Heap sampling events: start, end, and individual types.
