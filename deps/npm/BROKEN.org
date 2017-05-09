@@ -1,0 +1,37 @@
+* Broken test files
+  * add-remote-git-get-resolved.js (needs porting to pacote)
+  * bugs.js (I think because opts.fullMetadata)
+  * builtin-config.js (freezes)
+  * check-cpu-reqs.js (uhhh? it's not checking?)
+  * check-engine-reqs.js (same?)
+  * check-os-reqs.js (same?)
+  * doctor.js (needs rewrite)
+  * full-warning-messages.js
+  * get.js
+  * git-npmignore.js
+  * git-races.js
+  * github-shortcut.js
+  * ignore-shrinkwrap.js
+  * install-shrinkwrapped-git.js
+  * install-with-dev-dep-duplicate.js
+  * legacy-npm-self-install.js (one check failed)
+  * ls-depth-cli.js
+  * outdated-local.js
+  * outdated-notarget.js
+  * outdated-private.js
+  * peer-deps-invalid.js
+  * peer-deps-toplevel.js
+  * peer-deps-without-package-json.js
+  * repo.js
+  * retry-on-stale-cache.js
+  * scope-header.js
+  * shrinkwrap-default-arg-ver.js
+  * shrinkwrap-local-dependency.js
+  * shrinkwrap-optional-dependency.js
+  * shrinkwrap-optional-property.js
+  * shrinkwrap-prod-dependency.js
+  * shrinkwrap-shared-dev-dependency.js
+  * splat-with-only-prerelease-to-latest.js
+  * url-dependencies.js
+  * verify-no-lifecycle-on-repo.js
+  * network/legacy-shrinkwrap.js

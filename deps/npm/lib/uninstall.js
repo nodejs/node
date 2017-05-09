@@ -63,12 +63,11 @@ Uninstaller.prototype.loadArgMetadata = function (next) {
 
 Uninstaller.prototype.loadAllDepsIntoIdealTree = function (cb) {
   validate('F', arguments)
-  log.silly('uninstall', 'loadAllDepsIntoIdealtree')
-  var saveDeps = getSaveType(this.args)
+  log.silly('uninstall', 'loadAllDepsIntoIdealTree')
+  var saveDeps = getSaveType()
 
-  var cg = this.progress.loadAllDepsIntoIdealTree
+  var cg = this.progress['loadIdealTree:loadAllDepsIntoIdealTree']
   var steps = []
-
   steps.push(
     [removeDeps, this.args, this.idealTree, saveDeps, cg.newGroup('removeDeps')],
     [loadExtraneous, this.idealTree, cg.newGroup('loadExtraneous')])

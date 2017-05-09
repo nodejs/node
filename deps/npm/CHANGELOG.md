@@ -1,3 +1,77 @@
+## v4.6.1 (2017-04-21)
+
+A little release to tide you over while we hammer out the last bits for npm@5.
+
+### FEATURES
+
+* [`d13c9b2f2`](https://github.com/npm/npm/commit/d13c9b2f24b6380427f359b6e430b149ac8aaa79)
+  `init-package-json@1.10.0`:
+  The `name:` prompt is now `package name:` to make this less ambiguous for new users.
+
+  The default package name is now a valid package name. For example: If your package directory
+  has mixed case, the default package name will be all lower case.
+* [`f08c66323`](https://github.com/npm/npm/commit/f08c663231099f7036eb82b92770806a3a79cdf1)
+  [#16213](https://github.com/npm/npm/pull/16213)
+  Add `--allow-same-version` option to `npm version` so that you can use `npm version` to run
+  your version lifecycles and tag your git repo without actually changing the version number in
+  your `package.json`.
+  ([@lucastheisen](https://github.com/lucastheisen))
+* [`f5e8becd0`](https://github.com/npm/npm/commit/f5e8becd05e0426379eb0c999abdbc8e87a7f6f2)
+  Timing has been added throughout the install implementation. You can see it by running
+  a command with `--loglevel=timing`. You can also run commands with `--timing` which will write
+  an `npm-debug.log` even on success and add an entry to `_timing.json` in your cache with
+  the timing information from that run.
+  ([@iarna](https://github.com/iarna))
+
+### BUG FIXES
+
+* [`9c860f2ed`](https://github.com/npm/npm/commit/9c860f2ed3bdea1417ed059b019371cd253db2ad)
+  [#16021](https://github.com/npm/npm/pull/16021)
+  Fix a crash in `npm doctor` when used with a registry that does not support
+  the `ping` API endpoint.
+  ([@watilde](https://github.com/watilde))
+* [`65b9943e9`](https://github.com/npm/npm/commit/65b9943e9424c67547b0029f02b0258e35ba7d26)
+  [#16364](https://github.com/npm/npm/pull/16364)
+  Shorten the ELIFECYCLE error message. The shorter error message should make it much
+  easier to discern the actual cause of the error.
+  ([@j-f1](https://github.com/j-f1))
+* [`a87a4a835`](https://github.com/npm/npm/commit/a87a4a8359693518ee41dfeb13c5a8929136772a)
+  `npmlog@4.0.2`:
+  Fix flashing of the progress bar when your terminal is very narrow.
+  ([@iarna](https://github.com/iarna))
+* [`41c10974f`](https://github.com/npm/npm/commit/41c10974fe95a2e520e33e37725570c75f6126ea)
+  `write-file-atomic@1.3.2`:
+  Wait for `fsync` to complete before considering our file written to disk.
+  This will improve certain sorts of Windows diagnostic problems.
+* [`2afa9240c`](https://github.com/npm/npm/commit/2afa9240ce5b391671ed5416464f2882d18a94bc)
+  [#16336](https://github.com/npm/npm/pull/16336)
+  Don't ham-it-up when expecting JSON.
+  ([@bdukes](https://github.com/bdukes))
+
+### DOCUMENTATION FIXES
+
+* [`566f3eebe`](https://github.com/npm/npm/commit/566f3eebe741f935b7c1e004bebf19b8625a1413)
+  [#16296](https://github.com/npm/npm/pull/16296)
+  Use a single convention when referring to the `<command>` you're running.
+  ([@desfero](https://github.com/desfero))
+* [`ccbb94934`](https://github.com/npm/npm/commit/ccbb94934d4f677f680c3e2284df3d0ae0e65758)
+  [#16267](https://github.com/npm/npm/pull/16267)
+  Fix a missing space in the example package.json.
+  ([@famousgarkin](https://github.com/famousgarkin))
+
+### DEPENDENCY UPDATES
+
+* [`ebde4ea33`](https://github.com/npm/npm/commit/ebde4ea3363dfc154c53bd537189503863c9b3a4)
+  `hosted-git-info@2.4.2`
+* [`c46ad71bb`](https://github.com/npm/npm/commit/c46ad71bbe27aaa9ee10e107d8bcd665d98544d7)
+  `init-package-json@1.9.6`
+* [`d856d570d`](https://github.com/npm/npm/commit/d856d570d2df602767c039cf03439d647bba2e3d)
+  `npm-registry-client@8.1.1`
+* [`4a2e14436`](https://github.com/npm/npm/commit/4a2e1443613a199665e7adbda034d5b9d10391a2)
+  `readable-stream@2.2.9`
+* [`f0399138e`](https://github.com/npm/npm/commit/f0399138e6d6f1cd7f807d523787a3b129996301)
+  `normalize-package-data@2.3.8`
+
 ### v4.5.0 (2017-03-24)
 
 Welcome a wrinkle on npm's registry API!

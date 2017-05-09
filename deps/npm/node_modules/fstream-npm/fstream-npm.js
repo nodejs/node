@@ -151,7 +151,9 @@ Packer.prototype.applyIgnores = function (entry, partial, entryObj) {
       entry.match(/^\..*\.swp$/) ||
       entry === '.DS_Store' ||
       entry.match(/^\._/) ||
-      entry.match(/^.*\.orig$/)
+      entry.match(/^.*\.orig$/) ||
+      // Package locks are never allowed in tarballs -- use shrinkwrap instead
+      entry === 'package-lock.json'
     ) {
     return false
   }

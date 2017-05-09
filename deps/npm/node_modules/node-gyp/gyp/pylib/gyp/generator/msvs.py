@@ -354,8 +354,6 @@ def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
       command = ['type']
     else:
       command = [cmd[0].replace('/', '\\')]
-    if quote_cmd:
-      command = ['"%s"' % i for i in command]
     # Add call before command to ensure that commands can be tied together one
     # after the other without aborting in Incredibuild, since IB makes a bat
     # file out of the raw command string, and some commands (like python) are

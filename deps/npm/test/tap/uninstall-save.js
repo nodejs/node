@@ -12,7 +12,7 @@ var server
 
 var pkg = path.join(__dirname, 'uninstall-save')
 
-var EXEC_OPTS = { cwd: pkg }
+var EXEC_OPTS = { cwd: pkg, stdio: [0, 'ignore', 2] }
 
 var json = {
   name: 'uninstall-save',
@@ -32,7 +32,7 @@ test('uninstall --save removes rm-ed package from package.json', function (t) {
   common.npm(
     [
       '--registry', common.registry,
-      '--loglevel', 'silent',
+      '--loglevel', 'error',
       '--save-prefix', '^',
       '--save',
       'install', 'underscore@latest'

@@ -14,8 +14,8 @@ function ping (args, silent, cb) {
   if (!registry) return cb(new Error('no default registry set'))
   var auth = npm.config.getCredentialsByURI(registry)
 
-  npm.registry.ping(registry, {auth: auth}, function (er, pong) {
+  npm.registry.ping(registry, {auth: auth}, function (er, pong, data, res) {
     if (!silent) output(JSON.stringify(pong))
-    cb(er, er ? null : pong)
+    cb(er, er ? null : pong, data, res)
   })
 }

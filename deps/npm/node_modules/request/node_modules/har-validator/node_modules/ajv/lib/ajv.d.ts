@@ -125,6 +125,7 @@ declare namespace ajv {
     schemas?: Array<Object> | Object;
     ownProperties?: boolean;
     missingRefs?: boolean | string;
+    extendRefs?: boolean | string;
     loadSchema?: (uri: string, cb: (err: Error, schema: Object) => any) => any;
     removeAdditional?: boolean | string;
     useDefaults?: boolean | string;
@@ -140,6 +141,7 @@ declare namespace ajv {
     multipleOfPrecision?: number;
     errorDataPath?: string;
     messages?: boolean;
+    sourceCode?: boolean;
     beautify?: boolean | Object;
     cache?: Object;
   }

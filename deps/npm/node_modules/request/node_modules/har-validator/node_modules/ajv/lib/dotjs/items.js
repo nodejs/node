@@ -7,7 +7,6 @@ module.exports = function generate_items(it, $keyword) {
   var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
-  var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
   var $valid = 'valid' + $lvl;
   var $errs = 'errs__' + $lvl;
@@ -31,7 +30,7 @@ module.exports = function generate_items(it, $keyword) {
       $$outStack.push(out);
       out = ''; /* istanbul ignore else */
       if (it.createErrors !== false) {
-        out += ' { keyword: \'' + ($errorKeyword || 'additionalItems') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { limit: ' + ($schema.length) + ' } ';
+        out += ' { keyword: \'' + ('additionalItems') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { limit: ' + ($schema.length) + ' } ';
         if (it.opts.messages !== false) {
           out += ' , message: \'should NOT have more than ' + ($schema.length) + ' items\' ';
         }

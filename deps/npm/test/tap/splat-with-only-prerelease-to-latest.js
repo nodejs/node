@@ -1,10 +1,17 @@
 'use strict'
-var test = require('tap').test
-var npm = require('../../lib/npm')
-var stream = require('readable-stream')
 
-var moduleName = 'xyzzy-wibble'
-var testModule = {
+const common = require('../common-tap.js')
+const mr = require('npm-registry-mock')
+const npm = require('../../lib/npm')
+const osenv = require('osenv')
+const path = require('path')
+const rimraf = require('rimraf')
+const test = require('tap').test
+
+const testdir = path.join(__dirname, path.basename(__filename, '.js'))
+
+const moduleName = 'xyzzy-wibble'
+const testModule = {
   name: moduleName,
   'dist-tags': {
     latest: '1.3.0-a',
@@ -46,43 +53,54 @@ var testModule = {
   }
 }
 
-var lastFetched
-test('setup', function (t) {
-  npm.load(function () {
-    npm.config.set('loglevel', 'silly')
-    npm.registry = {
-      get: function (uri, opts, cb) {
-        setTimeout(function () {
-          cb(null, testModule, null, {statusCode: 200})
-        })
-      },
-      fetch: function (u, opts, cb) {
-        lastFetched = u
-        setTimeout(function () {
-          var empty = new stream.Readable()
-          empty.push(null)
-          cb(null, empty)
-        })
-      }
-    }
-    t.end()
+let server
+test('setup', (t) => {
+  mr({port: common.port}, (er, s) => {
+    if (er) throw er
+    t.ok(true, 'mock registry loaded')
+    server = s
+    npm.load({
+      loglevel: 'silent',
+      registry: common.registry,
+      cache: path.join(testdir, 'cache')
+    }, (err) => {
+      if (err) { throw err }
+      t.ok(true, 'npm loaded')
+      t.end()
+    })
   })
 })
 
-test('splat', function (t) {
-  t.plan(8)
-  var addNamed = require('../../lib/cache/add-named.js')
-  addNamed('xyzzy-wibble', '*', testModule, function (err, pkg) {
-    t.error(err, 'Succesfully resolved a splat package')
-    t.is(pkg.name, moduleName)
-    t.is(pkg.version, testModule['dist-tags'].latest)
-    t.is(lastFetched, 'https://registry.npmjs.org/aproba/-/xyzzy-wibble-1.3.0-a.tgz')
+test('splat', (t) => {
+  server.get('/xyzzy-wibble').reply(200, testModule)
+  return npm.commands.cache.add('xyzzy-wibble', '*', testdir).then((pkg) => {
+    throw new Error(`Was not supposed to succeed on ${pkg}`)
+  }).catch((err) => {
+    t.equal(err.code, 'E404', 'got a 404 on the tarball fetch')
+    t.equal(
+      err.uri,
+      testModule.versions['1.3.0-a'].dist.tarball,
+      'tried to get tarball for `latest` tag'
+    )
     npm.config.set('tag', 'other')
-    addNamed('xyzzy-wibble', '*', testModule, function (err, pkg) {
-      t.error(err, 'Succesfully resolved a splat package')
-      t.is(pkg.name, moduleName)
-      t.is(pkg.version, testModule['dist-tags'].other)
-      t.is(lastFetched, 'https://registry.npmjs.org/aproba/-/xyzzy-wibble-1.2.0-a.tgz')
-    })
+    return npm.commands.cache.add('xyzzy-wibble', '*', testdir)
+  }).then((pkg) => {
+    throw new Error(`Was not supposed to succeed on ${pkg}`)
+  }).catch((err) => {
+    t.equal(err.code, 'E404', 'got a 404 on the tarball fetch')
+    t.equal(
+      err.uri,
+      testModule.versions['1.2.0-a'].dist.tarball,
+      'tried to get tarball for `other` tag'
+    )
+    server.close()
+  })
+})
+
+test('cleanup', (t) => {
+  process.chdir(osenv.tmpdir())
+  rimraf(testdir, () => {
+    t.ok(true, 'cleaned up test dir')
+    t.done()
   })
 })

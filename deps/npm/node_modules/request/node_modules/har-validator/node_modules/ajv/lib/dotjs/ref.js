@@ -6,7 +6,6 @@ module.exports = function generate_ref(it, $keyword) {
   var $schema = it.schema[$keyword];
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
-  var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
   var $valid = 'valid' + $lvl;
   var $async, $refCode;
@@ -28,7 +27,7 @@ module.exports = function generate_ref(it, $keyword) {
         $$outStack.push(out);
         out = ''; /* istanbul ignore else */
         if (it.createErrors !== false) {
-          out += ' { keyword: \'' + ($errorKeyword || '$ref') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { ref: \'' + (it.util.escapeQuotes($schema)) + '\' } ';
+          out += ' { keyword: \'' + ('$ref') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { ref: \'' + (it.util.escapeQuotes($schema)) + '\' } ';
           if (it.opts.messages !== false) {
             out += ' , message: \'can\\\'t resolve reference ' + (it.util.escapeQuotes($schema)) + '\' ';
           }

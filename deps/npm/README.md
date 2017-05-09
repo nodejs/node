@@ -78,7 +78,7 @@ If you plan on hacking on npm, `make link` is your friend.
 
 If you've got the npm source code, you can also semi-permanently set
 arbitrary config keys using the `./configure --key=val ...`, and then
-run npm commands by doing `node cli.js <cmd> <args>`.  (This is helpful
+run npm commands by doing `node bin/npm-cli.js <command> <args>`.  (This is helpful
 for testing, or running stuff without actually installing npm itself.)
 
 ## Windows Install or Upgrade
