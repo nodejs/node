@@ -37,4 +37,4 @@ function close() {
 }
 
 for (let i = 0; i < 2; i++)
-  dgram.createSocket({ type: 'udp4', reuseAddr: true }).bind(common.PORT, next);
+  dgram.createSocket({ type: 'udp4', reuseAddr: true }).bind(0, next);
