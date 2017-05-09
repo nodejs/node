@@ -4618,5 +4618,5 @@ int Start(int argc, char** argv) {
 #if !HAVE_INSPECTOR
 static void InitEmptyBindings() {}
 
-NODE_MODULE_CONTEXT_AWARE_BUILTIN(inspector, InitEmptyBindings);
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(inspector, InitEmptyBindings)
 #endif  // !HAVE_INSPECTOR
