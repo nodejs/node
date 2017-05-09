@@ -10,8 +10,11 @@ const onMessage = common.mustCall((err, bytes) => {
   assert.strictEqual(bytes, buf.length);
 }, 6);
 
-const expectedError =
-  /^TypeError: Invalid arguments: address must be a nonempty string or falsy$/;
+const expectedError = { code: 'ERR_INVALID_ARG_TYPE',
+                        type: TypeError,
+                        message:
+  /^The "address" argument must be one of type string or falsy$/
+};
 
 const client = dgram.createSocket('udp4').bind(0, () => {
   const port = client.address().port;
@@ -37,17 +40,17 @@ const client = dgram.createSocket('udp4').bind(0, () => {
   // invalid address: object
   assert.throws(() => {
     client.send(buf, port, []);
-  }, expectedError);
+  }, common.expectsError(expectedError));
 
   // invalid address: nonzero number
   assert.throws(() => {
     client.send(buf, port, 1);
-  }, expectedError);
+  }, common.expectsError(expectedError));
 
   // invalid address: true
   assert.throws(() => {
     client.send(buf, port, true);
-  }, expectedError);
+  }, common.expectsError(expectedError));
 });
 
 client.unref();
