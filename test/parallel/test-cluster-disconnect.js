@@ -30,9 +30,9 @@ if (cluster.isWorker) {
     socket.end('echo');
   }).listen(0, '127.0.0.1');
 
-  net.createServer((socket) => {
+  const server  = net.createServer((socket) => {
     socket.end('echo');
-  }).listen(0 + 1, '127.0.0.1');
+  }).listen(server.address().port + 1, '127.0.0.1');
 
 } else if (cluster.isMaster) {
   const servers = 2;
@@ -54,9 +54,9 @@ if (cluster.isWorker) {
   // test both servers created in the cluster
   const testCluster = (cb) => {
     let done = 0;
-
+    const server = net.createServer();
     for (let i = 0; i < servers; i++) {
-      testConnection(0 + i, (success) => {
+      testConnection(server.address().port + i, (success) => {
         assert.ok(success);
         done += 1;
         if (done === servers) {
