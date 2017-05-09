@@ -91,6 +91,12 @@ platform. Use `configure` for that:
 $ node-gyp configure
 ```
 
+Auto-detection fails for Visual C++ Build Tools 2015, so `--msvs_version=2015`
+needs to be added (not needed when run by npm as configured above):
+``` bash
+$ node-gyp configure --msvs_version=2015
+```
+
 __Note__: The `configure` step looks for the `binding.gyp` file in the current
 directory to process. See below for instructions on creating the `binding.gyp` file.
 

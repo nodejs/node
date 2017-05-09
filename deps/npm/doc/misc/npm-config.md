@@ -121,6 +121,14 @@ you want your scoped package to be publicly viewable (and installable) set
 `--access=public`. The only valid values for `access` are `public` and
 `restricted`. Unscoped packages _always_ have an access level of `public`.
 
+### allow-same-version
+
+* Default: false
+* Type: Boolean
+
+Prevents throwing an error when `npm version` is used to set the new version
+to the same value as the current version.
+
 ### always-auth
 
 * Default: false
@@ -226,22 +234,18 @@ Number of ms to wait for cache lock files to expire.
 * Default: Infinity
 * Type: Number
 
-The maximum time (in seconds) to keep items in the registry cache before
-re-checking against the registry.
+**DEPRECATED**: This option has been deprecated in favor of `--prefer-online`.
 
-Note that no purging is done unless the `npm cache clean` command is
-explicitly used, and that only GET requests use the cache.
+`--cache-max=0` is an alias for `--prefer-online`.
 
 ### cache-min
 
 * Default: 10
 * Type: Number
 
-The minimum time (in seconds) to keep items in the registry cache before
-re-checking against the registry.
+**DEPRECATED**: This option has been deprecated in favor of `--prefer-offline`.
 
-Note that no purging is done unless the `npm cache clean` command is
-explicitly used, and that only GET requests use the cache.
+`--cache-min=9999 (or bigger)` is an alias for `--prefer-offline`.
 
 ### cert
 
@@ -446,6 +450,13 @@ option can be used when it's desirable to optionally run a script when it's
 present and fail if the script fails. This is useful, for example, when running
 scripts that may only apply for some builds in an otherwise generic CI setup.
 
+### ignore-prepublish
+
+* Default: false
+* Type: Boolean
+
+If true, npm will not run `prepublish` scripts.
+
 ### ignore-scripts
 
 * Default: false
@@ -628,6 +639,14 @@ The registry you want to send cli metrics to if `send-metrics` is true.
 
 The node version to use when checking a package's `engines` map.
 
+### offline
+
+* Default: false
+* Type: Boolean
+
+Force offline mode: no network requests will be done during install. To allow
+the CLI to fill in missing cache data, see `--prefer-offline`.
+
 ### onload-script
 
 * Default: false
@@ -670,6 +689,24 @@ process is not aborted.
 
 Output parseable results from commands that write to
 standard output. For `npm search`, this will be tab-separated table format.
+
+### prefer-offline
+
+* Default: false
+* Type: Boolean
+
+If true, staleness checks for cached data will be bypassed, but missing data
+will be requested from the server. To force full offline mode, use `--offline`.
+
+This option is effectively equivalent to `--cache-min=9999999`.
+
+### prefer-online
+
+* Default: false
+* Type: Boolean
+
+If true, staleness checks for cached data will be forced, making the CLI look
+for updates immediately even for fresh package data.
 
 ### prefix
 
@@ -959,6 +996,17 @@ to the empty string: `""`.
 Because other tools may rely on the convention that npm version tags look like
 `v1.0.0`, _only use this property if it is absolutely necessary_. In
 particular, use care when overriding this setting for public packages.
+
+### timing
+
+* Default: `false`
+* Type: Boolean
+
+If true, writes an `npm-debug` log to `_logs` and timing information to
+`_timing.json`, both in your cache.  `_timing.json` is a newline delimited
+list of JSON objects.  You can quickly view it with this
+[json](https://www.npmjs.com/package/json) command line:
+`json -g < ~/.npm/_timing.json`.
 
 ### tmp
 

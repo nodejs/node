@@ -5,12 +5,23 @@ const registryUrl = require('registry-url');
 const registryAuthToken = require('registry-auth-token');
 const semver = require('semver');
 
-module.exports = (name, version) => {
+module.exports = (name, opts) => {
 	const scope = name.split('/')[0];
 	const regUrl = registryUrl(scope);
 	const pkgUrl = url.resolve(regUrl, encodeURIComponent(name).replace(/^%40/, '@'));
-	const authInfo = registryAuthToken(regUrl);
-	const headers = {};
+	const authInfo = registryAuthToken(regUrl, {recursive: true});
+
+	opts = Object.assign({
+		version: 'latest'
+	}, opts);
+
+	const headers = {
+		accept: 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*'
+	};
+
+	if (opts.fullMetadata) {
+		delete headers.accept;
+	}
 
 	if (authInfo) {
 		headers.authorization = `${authInfo.type} ${authInfo.token}`;
@@ -19,6 +30,11 @@ module.exports = (name, version) => {
 	return got(pkgUrl, {json: true, headers})
 		.then(res => {
 			let data = res.body;
+			let version = opts.version;
+
+			if (opts.allVersions) {
+				return data;
+			}
 
 			if (data['dist-tags'][version]) {
 				data = data.versions[data['dist-tags'][version]];

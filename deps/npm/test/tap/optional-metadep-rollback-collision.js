@@ -191,6 +191,7 @@ test('go go test racer', function (t) {
       '--prefix', pkg,
       '--fetch-retries', '0',
       '--loglevel', 'silent',
+      '--parseable',
       '--cache', cache,
       'install'
     ],

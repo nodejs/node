@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "April 2017" "" ""
+.TH "NPM\-CONFIG" "7" "May 2017" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -167,6 +167,17 @@ When publishing scoped packages, the access level defaults to \fBrestricted\fP\|
 you want your scoped package to be publicly viewable (and installable) set
 \fB\-\-access=public\fP\|\. The only valid values for \fBaccess\fP are \fBpublic\fP and
 \fBrestricted\fP\|\. Unscoped packages \fIalways\fR have an access level of \fBpublic\fP\|\.
+.SS allow\-same\-version
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Prevents throwing an error when \fBnpm version\fP is used to set the new version
+to the same value as the current version\.
 .SS always\-auth
 .RS 0
 .IP \(bu 2
@@ -317,11 +328,9 @@ Type: Number
 
 .RE
 .P
-The maximum time (in seconds) to keep items in the registry cache before
-re\-checking against the registry\.
+\fBDEPRECATED\fR: This option has been deprecated in favor of \fB\-\-prefer\-online\fP\|\.
 .P
-Note that no purging is done unless the \fBnpm cache clean\fP command is
-explicitly used, and that only GET requests use the cache\.
+\fB\-\-cache\-max=0\fP is an alias for \fB\-\-prefer\-online\fP\|\.
 .SS cache\-min
 .RS 0
 .IP \(bu 2
@@ -331,11 +340,9 @@ Type: Number
 
 .RE
 .P
-The minimum time (in seconds) to keep items in the registry cache before
-re\-checking against the registry\.
+\fBDEPRECATED\fR: This option has been deprecated in favor of \fB\-\-prefer\-offline\fP\|\.
 .P
-Note that no purging is done unless the \fBnpm cache clean\fP command is
-explicitly used, and that only GET requests use the cache\.
+\fB\-\-cache\-min=9999 (or bigger)\fP is an alias for \fB\-\-prefer\-offline\fP\|\.
 .SS cert
 .RS 0
 .IP \(bu 2
@@ -620,6 +627,16 @@ a script that isn't defined in the \fBscripts\fP section of \fBpackage\.json\fP\
 option can be used when it's desirable to optionally run a script when it's
 present and fail if the script fails\. This is useful, for example, when running
 scripts that may only apply for some builds in an otherwise generic CI setup\.
+.SS ignore\-prepublish
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, npm will not run \fBprepublish\fP scripts\.
 .SS ignore\-scripts
 .RS 0
 .IP \(bu 2
@@ -871,6 +888,17 @@ Type: semver or false
 .RE
 .P
 The node version to use when checking a package's \fBengines\fP map\.
+.SS offline
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Force offline mode: no network requests will be done during install\. To allow
+the CLI to fill in missing cache data, see \fB\-\-prefer\-offline\fP\|\.
 .SS onload\-script
 .RS 0
 .IP \(bu 2
@@ -926,6 +954,30 @@ Type: Boolean
 .P
 Output parseable results from commands that write to
 standard output\. For \fBnpm search\fP, this will be tab\-separated table format\.
+.SS prefer\-offline
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, staleness checks for cached data will be bypassed, but missing data
+will be requested from the server\. To force full offline mode, use \fB\-\-offline\fP\|\.
+.P
+This option is effectively equivalent to \fB\-\-cache\-min=9999999\fP\|\.
+.SS prefer\-online
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, staleness checks for cached data will be forced, making the CLI look
+for updates immediately even for fresh package data\.
 .SS prefix
 .RS 0
 .IP \(bu 2
@@ -1306,6 +1358,20 @@ to the empty string: \fB""\fP\|\.
 Because other tools may rely on the convention that npm version tags look like
 \fBv1\.0\.0\fP, \fIonly use this property if it is absolutely necessary\fR\|\. In
 particular, use care when overriding this setting for public packages\.
+.SS timing
+.RS 0
+.IP \(bu 2
+Default: \fBfalse\fP
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, writes an \fBnpm\-debug\fP log to \fB_logs\fP and timing information to
+\fB_timing\.json\fP, both in your cache\.  \fB_timing\.json\fP is a newline delimited
+list of JSON objects\.  You can quickly view it with this
+json \fIhttps://www\.npmjs\.com/package/json\fR command line:
+\fBjson \-g < ~/\.npm/_timing\.json\fP\|\.
 .SS tmp
 .RS 0
 .IP \(bu 2

@@ -1,5 +1,9 @@
+'use strict'
+
 // commands for packing and unpacking tarballs
 // this file is used by lib/cache.js
+
+const BB = require('bluebird')
 
 var fs = require('graceful-fs')
 var path = require('path')
@@ -24,6 +28,11 @@ var moduleName = require('./module-name.js')
 var packageId = require('./package-id.js')
 var pulseTillDone = require('../utils/pulse-till-done.js')
 
+const cacache = require('cacache')
+const packAsync = BB.promisify(pack)
+const PassThrough = require('stream').PassThrough
+const pipe = BB.promisify(require('mississippi').pipe)
+
 if (process.env.SUDO_UID && myUid === 0) {
   if (!isNaN(process.env.SUDO_UID)) myUid = +process.env.SUDO_UID
   if (!isNaN(process.env.SUDO_GID)) myGid = +process.env.SUDO_GID
@@ -31,6 +40,18 @@ if (process.env.SUDO_UID && myUid === 0) {
 
 exports.pack = pack
 exports.unpack = unpack
+
+module.exports.packToStream = packToStream
+function packToStream (mani, dir) {
+  const stream = new PassThrough()
+  cacache.tmp.withTmp(npm.tmp, (tmp) => {
+    const tmpTarget = path.join(tmp, 'package.tgz')
+    return packAsync(tmpTarget, dir, mani).then(() => {
+      return pipe(fs.createReadStream(tmpTarget), stream)
+    })
+  }).catch((err) => stream.emit('error', err))
+  return stream
+}
 
 function pack (tarball, folder, pkg, cb) {
   log.verbose('tar pack', [tarball, folder])
@@ -45,14 +66,11 @@ function pack (tarball, folder, pkg, cb) {
       // we require this at runtime due to load-order issues, because recursive
       // requires fail if you replace the exports object, and we do, not in deps, but
       // in a dep of it.
-      var recalculateMetadata = require('../install/deps.js').recalculateMetadata
+      var computeMetadata = require('../install/deps.js').computeMetadata
 
       readPackageTree(folder, pulseTillDone('pack:readTree:' + packageId(pkg), iferr(cb, function (tree) {
-        var recalcGroup = log.newGroup('pack:recalc:' + packageId(pkg))
-        recalculateMetadata(tree, recalcGroup, iferr(cb, function () {
-          recalcGroup.finish()
-          pack_(tarball, folder, tree, pkg, pulseTillDone('pack:' + packageId(pkg), cb))
-        }))
+        computeMetadata(tree)
+        pack_(tarball, folder, tree, pkg, pulseTillDone('pack:' + packageId(pkg), cb))
       })))
     }
   })
@@ -103,7 +121,9 @@ BundledPacker.prototype.applyIgnores = function (entry, partial, entryObj) {
       entry.match(/^\..*\.swp$/) ||
       entry === '.DS_Store' ||
       entry.match(/^\._/) ||
-      entry.match(/^.*\.orig$/)
+      entry.match(/^.*\.orig$/) ||
+      // Package locks are never allowed in tarballs -- use shrinkwrap instead
+      entry === 'package-lock.json'
     ) {
     return false
   }

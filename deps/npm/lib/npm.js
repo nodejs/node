@@ -38,6 +38,12 @@
   var plumbing = require('./config/cmd-list').plumbing
   var output = require('./utils/output.js')
   var startMetrics = require('./utils/metrics.js').start
+  var perf = require('./utils/perf.js')
+
+  perf.emit('time', 'npm')
+  perf.on('timing', function (name, finished) {
+    log.timing(name, 'Completed in', finished + 'ms')
+  })
 
   npm.config = {
     loaded: false,
@@ -54,9 +60,11 @@
   // TUNING
   npm.limit = {
     fetch: 10,
-    action: 10
+    action: 50
   }
   // ***
+
+  npm.lockfileVersion = 1
 
   npm.rollbacks = []
 
@@ -64,6 +72,7 @@
     // startup, ok to do this synchronously
     var j = parseJSON(fs.readFileSync(
       path.join(__dirname, '../package.json')) + '')
+    npm.name = j.name
     npm.version = j.version
   } catch (ex) {
     try {
@@ -94,7 +103,7 @@
       if (!loaded) {
         throw new Error(
           'Call npm.load(config, cb) before using this command.\n' +
-            'See the README.md or cli.js for example usage.'
+            'See the README.md or bin/npm-cli.js for example usage.'
         )
       }
       var a = npm.deref(c)
@@ -334,8 +343,8 @@
         // go ahead and spin up the registry client.
         lazyProperty(npm, 'registry', function () {
           registryLoaded = true
-          var CachingRegClient = require('./cache/caching-client.js')
-          var registry = new CachingRegClient(npm.config)
+          var RegClient = require('npm-registry-client')
+          var registry = new RegClient(adaptClientConfig(npm.config))
           registry.version = npm.version
           registry.refer = registryRefer
           return registry
@@ -456,6 +465,33 @@
       return pkg.name.slice(0, sep)
     } catch (ex) {
       return ''
+    }
+  }
+
+  function adaptClientConfig (config) {
+    return {
+      proxy: {
+        http: config.get('proxy'),
+        https: config.get('https-proxy'),
+        localAddress: config.get('local-address')
+      },
+      ssl: {
+        certificate: config.get('cert'),
+        key: config.get('key'),
+        ca: config.get('ca'),
+        strict: config.get('strict-ssl')
+      },
+      retry: {
+        retries: config.get('fetch-retries'),
+        factor: config.get('fetch-retry-factor'),
+        minTimeout: config.get('fetch-retry-mintimeout'),
+        maxTimeout: config.get('fetch-retry-maxtimeout')
+      },
+      userAgent: config.get('user-agent'),
+      log: log,
+      defaultTag: config.get('tag'),
+      maxSockets: config.get('maxsockets'),
+      scope: npm.projectScope
     }
   }
 })()

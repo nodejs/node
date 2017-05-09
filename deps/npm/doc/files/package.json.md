@@ -144,7 +144,7 @@ Those styles are now deprecated. Instead, use SPDX expressions, like this:
 Finally, if you do not wish to grant others the right to use a private or
 unpublished package under any terms:
 
-    { "license": "UNLICENSED"}
+    { "license": "UNLICENSED" }
 
 Consider also setting `"private": true` to prevent accidental publication.
 

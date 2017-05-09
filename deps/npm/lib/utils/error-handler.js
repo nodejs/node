@@ -1,5 +1,6 @@
 
 module.exports = errorHandler
+module.exports.exit = exit
 
 var cbCalled = false
 var log = require('npmlog')
@@ -14,6 +15,7 @@ var writeFileAtomic = require('write-file-atomic')
 var errorMessage = require('./error-message.js')
 var stopMetrics = require('./metrics.js').stop
 var mkdirp = require('mkdirp')
+var fs = require('graceful-fs')
 
 var logFileName
 function getLogFile () {
@@ -23,9 +25,26 @@ function getLogFile () {
   return logFileName
 }
 
+var timings = {
+  version: npm.version,
+  command: process.argv.slice(2),
+  logfile: null
+}
+process.on('timing', function (name, value) {
+  if (timings[name]) { timings[name] += value } else { timings[name] = value }
+})
+
 process.on('exit', function (code) {
+  process.emit('timeEnd', 'npm')
   log.disableProgress()
-  if (!npm.config || !npm.config.loaded) return
+  if (npm.config.loaded && npm.config.get('timing')) {
+    try {
+      timings.logfile = getLogFile()
+      fs.appendFileSync(path.join(npm.config.get('cache'), '_timing.json'), JSON.stringify(timings) + '\n')
+    } catch (_) {
+      // ignore
+    }
+  }
 
   // kill any outstanding stats reporter if it hasn't finished yet
   stopMetrics()
@@ -42,25 +61,26 @@ process.on('exit', function (code) {
       writeLogFile()
     }
 
-    if (wroteLogFile) {
-      // just a line break
-      if (log.levels[log.level] <= log.levels.error) console.error('')
-
-      log.error(
-        '',
-        [
-          'A complete log of this run can be found in:',
-          '    ' + getLogFile()
-        ].join('\n')
-      )
-      wroteLogFile = false
-    }
     if (code) {
       log.verbose('code', code)
     }
   }
+  if (npm.config.loaded && npm.config.get('timing') && !wroteLogFile) writeLogFile()
+  if (wroteLogFile) {
+    // just a line break
+    if (log.levels[log.level] <= log.levels.error) console.error('')
 
-  var doExit = npm.config.get('_exit')
+    log.error(
+      '',
+      [
+        'A complete log of this run can be found in:',
+        '    ' + getLogFile()
+      ].join('\n')
+    )
+    wroteLogFile = false
+  }
+
+  var doExit = npm.config.loaded && npm.config.get('_exit')
   if (doExit) {
     // actually exit.
     if (exitCode === 0 && !itWorked) {
@@ -75,7 +95,7 @@ process.on('exit', function (code) {
 function exit (code, noLog) {
   exitCode = exitCode || process.exitCode || code
 
-  var doExit = npm.config ? npm.config.get('_exit') : true
+  var doExit = npm.config.loaded ? npm.config.get('_exit') : true
   log.verbose('exit', [code, doExit])
   if (log.level === 'silent') noLog = true
 
@@ -107,9 +127,6 @@ function exit (code, noLog) {
 
   function reallyExit (er) {
     if (er && !code) code = typeof er.errno === 'number' ? er.errno : 1
-
-    // truncate once it's been written.
-    log.record.length = 0
 
     itWorked = !code
 
@@ -189,13 +206,28 @@ function errorHandler (er) {
   msg.summary.concat(msg.detail).forEach(function (errline) {
     log.error.apply(log, errline)
   })
+  if (npm.config.get('json')) {
+    var error = {
+      error: {
+        code: er.code,
+        summary: messageText(msg.summary),
+        detail: messageText(msg.detail)
+      }
+    }
+    console.log(JSON.stringify(error, null, 2))
+  }
 
   exit(typeof er.errno === 'number' ? er.errno : 1)
 }
 
+function messageText (msg) {
+  return msg.map(function (line) {
+    return line.slice(1).join(' ')
+  }).join('\n')
+}
+
 function writeLogFile () {
   if (wroteLogFile) return
-  wroteLogFile = true
 
   var os = require('os')
 
@@ -214,6 +246,10 @@ function writeLogFile () {
       })
     })
     writeFileAtomic.sync(getLogFile(), logOutput)
+
+    // truncate once it's been written.
+    log.record.length = 0
+    wroteLogFile = true
   } catch (ex) {
     return
   }
