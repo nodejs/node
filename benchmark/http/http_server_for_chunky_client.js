@@ -1,5 +1,6 @@
 'use strict';
 
+var assert = require('assert');
 var path = require('path');
 var http = require('http');
 var fs = require('fs');
@@ -37,6 +38,7 @@ server.listen(PIPE);
 
 var child = fork(pep, process.argv.slice(2));
 child.on('message', common.sendResult);
-child.on('close', function() {
+child.on('close', function(code) {
   server.close();
+  assert.strictEqual(code, 0);
 });
