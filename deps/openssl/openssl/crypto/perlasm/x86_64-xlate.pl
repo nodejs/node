@@ -206,8 +206,9 @@ my %globals;
 	    }
 	    sprintf "\$%s",$self->{value};
 	} else {
-	    $self->{value} =~ s/0x([0-9a-f]+)/0$1h/ig if ($masm);
-	    sprintf "%s",$self->{value};
+	    my $value = $self->{value};
+	    $value =~ s/0x([0-9a-f]+)/0$1h/ig if ($masm);
+	    sprintf "%s",$value;
 	}
     }
 }
