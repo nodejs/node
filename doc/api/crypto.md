@@ -1,6 +1,6 @@
 # Crypto
 
-<!--introduced_in=v0.10.0-->
+<!--introduced_in=v0.3.6-->
 
 > Stability: 2 - Stable
 

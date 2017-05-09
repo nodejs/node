@@ -215,7 +215,7 @@ function altDocs(filename) {
   const a = (v) => `<a href="${href(v)}">v${v}</a>`;
   const as = (vs) => vs.filter(lte).map(a).join(' / ');
 
-  html += 'View another version of this page <b>Current:</b> ' + a('7.x');
+  html += 'View another version of this page <b>Latest:</b> ' + a('7.x');
 
   const lts = as(['4.x', '6.x']);
   if (lts.length)
