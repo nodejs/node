@@ -182,13 +182,24 @@ Gets IP of localhost
 
 Array of IPV6 hosts.
 
-### mustCall([fn][, expected])
-* fn [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
-* expected [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
+### mustCall([fn][, exact])
+* `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) default = `common.noop`
+* `exact` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
 * return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
 
 Returns a function that calls `fn`. If the returned function has not been called
 exactly `expected` number of times when the test is complete, then the test will
+fail.
+
+If `fn` is not provided, `common.noop` will be used.
+
+### mustCallAtLeast([fn][, minimum])
+* `fn` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function) default = `common.noop`
+* `minimum` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
+* return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
+
+Returns a function that calls `fn`. If the returned function has not been called
+at least `minimum` number of times when the test is complete, then the test will
 fail.
 
 If `fn` is not provided, `common.noop` will be used.
