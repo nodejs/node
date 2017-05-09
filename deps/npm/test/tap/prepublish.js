@@ -59,7 +59,7 @@ test('prepublish deprecation warning on `npm pack`', function (t) {
     t.equal(code, 0, 'pack finished successfully')
     t.ifErr(err, 'pack finished successfully')
 
-    t.match(stderr, /`prepublish` scripts will run only for `npm publish`/)
+    t.match(stderr, /`prepublish` scripts are deprecated/)
     var c = stdout.trim()
     var regex = new RegExp('' +
       '> npm-test-prepublish@1.2.5 prepublish [^\\r\\n]+\\r?\\n' +

@@ -43,9 +43,9 @@ cache:
   - node_modules/tacks
   - node_modules/tap
 install:
-  - "node . prune"
   - "node . rebuild --depth=0"
   - "node . install --ignore-scripts"
+  - "node . prune"
   - "make -j4 doc"
 script:
   - "node . run tap -- \"test/tap/*.js\" \"test/broken-under-nyc/*.js\""

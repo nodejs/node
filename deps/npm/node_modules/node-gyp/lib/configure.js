@@ -375,6 +375,7 @@ PythonFinder.prototype = {
   env: process.env,
   execFile: cp.execFile,
   log: log,
+  resolve: path.win32 && path.win32.resolve || path.resolve,
   stat: fs.stat,
   which: which,
   win: win,
@@ -499,8 +500,7 @@ PythonFinder.prototype = {
     if (rootDir[rootDir.length - 1] !== '\\') {
       rootDir += '\\'
     }
-    var resolve = path.win32 && path.win32.resolve || path.resolve
-    var pythonPath = resolve(rootDir, 'Python27', 'python.exe')
+    var pythonPath = this.resolve(rootDir, 'Python27', 'python.exe')
     this.log.verbose('ensuring that file exists:', pythonPath)
     this.stat(pythonPath, function (err, stat) {
       if (err) {

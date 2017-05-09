@@ -85,7 +85,7 @@ function setup () {
 
 function tarballWasFetched (output) {
   return output.indexOf(
-    'http fetch GET ' +
+    'GET 200 ' +
       common.registry +
       '/underscore/-/underscore-1.3.1.tgz'
   ) > -1

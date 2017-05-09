@@ -1,6 +1,6 @@
 # package-json [![Build Status](https://travis-ci.org/sindresorhus/package-json.svg?branch=master)](https://travis-ci.org/sindresorhus/package-json)
 
-> Get the package.json of a package from the npm registry
+> Get metadata of a package from the npm registry
 
 
 ## Install
@@ -15,31 +15,60 @@ $ npm install --save package-json
 ```js
 const packageJson = require('package-json');
 
-packageJson('pageres', 'latest').then(json => {
+packageJson('ava').then(json => {
 	console.log(json);
-	//=> {name: 'pageres', ...}
+	//=> {name: 'ava', ...}
 });
 
 // Also works with scoped packages
-packageJson('@company/package', 'latest').then(json => {
+packageJson('@sindresorhus/df').then(json => {
 	console.log(json);
-	//=> {name: 'package', ...}
+	//=> {name: '@sindresorhus/df', ...}
 });
 ```
 
 
 ## API
 
-### packageJson(name, [version])
+### packageJson(name, [options])
 
-You can optionally specify a version (e.g. `1.0.0`) or a [dist tag](https://docs.npmjs.com/cli/dist-tag) such as `latest`. If you don't specify a version you'll get the [main entry](http://registry.npmjs.org/pageres/) containing all versions.
+#### name
 
-The version can also be in any format supported by the [semver](https://www.npmjs.com/package/semver) module. For example:
+Type: `string`
+
+Name of the package.
+
+#### options
+
+Type: `Object`
+
+##### version
+
+Type: `string`<br>
+Default: `latest`
+
+Package version such as `1.0.0` or a [dist tag](https://docs.npmjs.com/cli/dist-tag) such as `latest`.
+
+The version can also be in any format supported by the [semver](https://github.com/npm/node-semver) module. For example:
 
 - `1` - get the latest `1.x.x`
 - `1.2` - get the latest `1.2.x`
 - `^1.2.3` - get the latest `1.x.x` but at least `1.2.3`
 - `~1.2.3` - get the latest `1.2.x` but at least `1.2.3`
+
+##### fullMetadata
+
+Type: `boolean`<br>
+Default: `false`
+
+By default, only an abbreviated metadata object is returned for performance reasons. [Read more.](https://github.com/npm/registry/blob/master/docs/responses/package-metadata.md)
+
+##### allVersions
+
+Type: `boolean`<br>
+Default: `false`
+
+Return the [main entry](https://registry.npmjs.org/ava) containing all versions.
 
 
 ## Authentication

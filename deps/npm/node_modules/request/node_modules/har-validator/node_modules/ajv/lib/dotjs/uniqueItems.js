@@ -7,7 +7,6 @@ module.exports = function generate_uniqueItems(it, $keyword) {
   var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
-  var $errorKeyword;
   var $data = 'data' + ($dataLvl || '');
   var $valid = 'valid' + $lvl;
   var $isData = it.opts.v5 && $schema && $schema.$data,
@@ -31,7 +30,7 @@ module.exports = function generate_uniqueItems(it, $keyword) {
     $$outStack.push(out);
     out = ''; /* istanbul ignore else */
     if (it.createErrors !== false) {
-      out += ' { keyword: \'' + ($errorKeyword || 'uniqueItems') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { i: i, j: j } ';
+      out += ' { keyword: \'' + ('uniqueItems') + '\' , dataPath: (dataPath || \'\') + ' + (it.errorPath) + ' , schemaPath: ' + (it.util.toQuotedString($errSchemaPath)) + ' , params: { i: i, j: j } ';
       if (it.opts.messages !== false) {
         out += ' , message: \'should NOT have duplicate items (items ## \' + j + \' and \' + i + \' are identical)\' ';
       }

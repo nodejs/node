@@ -53,18 +53,10 @@ test('authed npm install with shrinkwrapped scoped package', function (t) {
       t.equal(code, 0, 'npm install exited OK')
       try {
         var results = JSON.parse(stdout)
+        t.match(results, {added: [{name: '@scoped/underscore', version: '1.3.1'}]}, '@scoped/underscore installed')
       } catch (ex) {
         console.error('#', ex)
         t.ifError(ex, 'stdout was valid JSON')
-      }
-
-      if (results) {
-        var installedversion = {
-          'version': '1.3.1',
-          'from': '>=1.3.1 <2',
-          'resolved': 'http://localhost:1337/scoped-underscore/-/scoped-underscore-1.3.1.tgz'
-        }
-        t.isDeeply(results.dependencies['@scoped/underscore'], installedversion, '@scoped/underscore installed')
       }
 
       t.end()
