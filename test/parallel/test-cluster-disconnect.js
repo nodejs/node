@@ -28,11 +28,11 @@ const net = require('net');
 if (cluster.isWorker) {
   net.createServer((socket) => {
     socket.end('echo');
-  }).listen(common.PORT, '127.0.0.1');
+  }).listen(0, '127.0.0.1');
 
   net.createServer((socket) => {
     socket.end('echo');
-  }).listen(common.PORT + 1, '127.0.0.1');
+  }).listen(0 + 1, '127.0.0.1');
 
 } else if (cluster.isMaster) {
   const servers = 2;
@@ -56,7 +56,7 @@ if (cluster.isWorker) {
     let done = 0;
 
     for (let i = 0; i < servers; i++) {
-      testConnection(common.PORT + i, (success) => {
+      testConnection(0 + i, (success) => {
         assert.ok(success);
         done += 1;
         if (done === servers) {
