@@ -37,14 +37,7 @@ napi_value TestGetElement(napi_env env, napi_callback_info info) {
   uint32_t length;
   NAPI_CALL(env, napi_get_array_length(env, array, &length));
 
-  if ((uint32_t)index >= length) {
-    napi_value str;
-    const char* str_val = "Index out of bound!";
-    size_t str_len = strlen(str_val);
-    NAPI_CALL(env, napi_create_string_utf8(env, str_val, str_len, &str));
-
-    return str;
-  }
+  NAPI_ASSERT(env, ((uint32_t)index < length), "Index out of bounds!");
 
   napi_value ret;
   NAPI_CALL(env, napi_get_element(env, array, index, &ret));

@@ -19,8 +19,12 @@ const array = [
   ]
 ];
 
-assert.strictEqual(test_array.TestGetElement(array, array.length + 1),
-                   'Index out of bound!');
+assert.throws(
+  () => {
+    test_array.TestGetElement(array, array.length + 1);
+  },
+  /Index out of bounds!/
+);
 
 assert.throws(
   () => {
