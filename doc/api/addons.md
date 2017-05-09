@@ -1116,7 +1116,7 @@ void init(Local<Object> exports) {
   AtExit(at_exit_cb1, exports->GetIsolate());
 }
 
-NODE_MODULE(addon, init);
+NODE_MODULE(addon, init)
 
 }  // namespace demo
 ```
