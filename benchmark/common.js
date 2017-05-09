@@ -196,6 +196,9 @@ Benchmark.prototype.end = function(operations) {
   if (!process.env.NODEJS_BENCHMARK_ZERO_ALLOWED && operations <= 0) {
     throw new Error('called end() with operation count <= 0');
   }
+  if (elapsed[0] === 0 && elapsed[1] === 0) {
+    throw new Error('insufficient time precision for short benchmark');
+  }
 
   const time = elapsed[0] + elapsed[1] / 1e9;
   const rate = operations / time;
