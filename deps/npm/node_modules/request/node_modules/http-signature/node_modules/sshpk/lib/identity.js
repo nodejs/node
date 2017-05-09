@@ -1,4 +1,4 @@
-// Copyright 2016 Joyent, Inc.
+// Copyright 2017 Joyent, Inc.
 
 module.exports = Identity;
 

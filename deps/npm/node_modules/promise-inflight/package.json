@@ -1,0 +1,59 @@
+{
+  "_from": "promise-inflight@~1.0.1",
+  "_id": "promise-inflight@1.0.1",
+  "_integrity": "sha1-mEcocL8igTL8vdhoEputEsPAKeM=",
+  "_location": "/promise-inflight",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "range",
+    "registry": true,
+    "raw": "promise-inflight@~1.0.1",
+    "name": "promise-inflight",
+    "escapedName": "promise-inflight",
+    "rawSpec": "~1.0.1",
+    "saveSpec": null,
+    "fetchSpec": "~1.0.1"
+  },
+  "_requiredBy": [
+    "/",
+    "/cacache",
+    "/pacote"
+  ],
+  "_resolved": "https://registry.npmjs.org/promise-inflight/-/promise-inflight-1.0.1.tgz",
+  "_shasum": "98472870bf228132fcbdd868129bad12c3c029e3",
+  "_shrinkwrap": null,
+  "_spec": "promise-inflight@~1.0.1",
+  "_where": "/Users/zkat/Documents/code/npm",
+  "author": {
+    "name": "Rebecca Turner",
+    "email": "me@re-becca.org",
+    "url": "http://re-becca.org/"
+  },
+  "bin": null,
+  "bugs": {
+    "url": "https://github.com/iarna/promise-inflight/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {},
+  "deprecated": false,
+  "description": "One promise for multiple requests in flight to avoid async duplication",
+  "devDependencies": {},
+  "files": [
+    "inflight.js"
+  ],
+  "homepage": "https://github.com/iarna/promise-inflight#readme",
+  "keywords": [],
+  "license": "ISC",
+  "main": "inflight.js",
+  "name": "promise-inflight",
+  "optionalDependencies": {},
+  "peerDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/promise-inflight.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "1.0.1"
+}

@@ -15,6 +15,7 @@ var isDev = require('./install/is-dev-dep.js')
 var removeDeps = require('./install/deps.js').removeDeps
 var loadExtraneous = require('./install/deps.js').loadExtraneous
 var chain = require('slide').chain
+var computeMetadata = require('./install/deps.js').computeMetadata
 
 prune.completion = require('./utils/completion/installed-deep.js')
 
@@ -29,11 +30,12 @@ function Pruner (where, dryrun, args) {
 util.inherits(Pruner, Installer)
 
 Pruner.prototype.loadAllDepsIntoIdealTree = function (cb) {
-  log.silly('uninstall', 'loadAllDepsIntoIdealtree')
+  log.silly('uninstall', 'loadAllDepsIntoIdealTree')
 
-  var cg = this.progress.loadAllDepsIntoIdealTree
+  var cg = this.progress['loadIdealTree:loadAllDepsIntoIdealTree']
   var steps = []
 
+  computeMetadata(this.idealTree)
   var self = this
   var excludeDev = npm.config.get('production') || /^prod(uction)?$/.test(npm.config.get('only'))
   function shouldPrune (child) {
@@ -54,7 +56,7 @@ Pruner.prototype.loadAllDepsIntoIdealTree = function (cb) {
   function nameObj (name) {
     return {name: name}
   }
-  var toPrune = this.currentTree.children.filter(shouldPrune).map(getModuleName).filter(matchesArg).map(nameObj)
+  var toPrune = this.idealTree.children.filter(shouldPrune).map(getModuleName).filter(matchesArg).map(nameObj)
 
   steps.push(
     [removeDeps, toPrune, this.idealTree, null, cg.newGroup('removeDeps')],

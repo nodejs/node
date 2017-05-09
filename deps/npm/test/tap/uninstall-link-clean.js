@@ -14,7 +14,7 @@ var dep = path.join(__dirname, 'dep')
 var work = path.join(__dirname, 'uninstall-link-clean-TEST')
 var modules = path.join(work, 'node_modules')
 
-var EXEC_OPTS = { cwd: work }
+var EXEC_OPTS = { cwd: work, stdio: [0, 'ignore', 2] }
 
 var world = 'console.log("hello blrbld")\n'
 
@@ -62,7 +62,7 @@ test('setup', function (t) {
 test('installing package with links', function (t) {
   common.npm(
     [
-      '--loglevel', 'silent',
+      '--loglevel', 'error',
       'install', pkg
     ],
     EXEC_OPTS,
@@ -86,7 +86,7 @@ test('installing package with links', function (t) {
 test('uninstalling package with links', function (t) {
   common.npm(
     [
-      '--loglevel', 'silent',
+      '--loglevel', 'error',
       'uninstall', 'package'
     ],
     EXEC_OPTS,
