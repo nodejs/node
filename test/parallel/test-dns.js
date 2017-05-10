@@ -120,6 +120,11 @@ assert.doesNotThrow(() => dns.lookup(0, common.noop));
 
 assert.doesNotThrow(() => dns.lookup(NaN, common.noop));
 
+// Make sure that dns.reverse does not throw if ip is invalid
+assert.doesNotThrow(function() {
+  dns.reverse('foo', noop)
+});
+
 /*
  * Make sure that dns.lookup throws if hints does not represent a valid flag.
  * (dns.V4MAPPED | dns.ADDRCONFIG) + 1 is invalid because:
