@@ -159,7 +159,8 @@ the binary verification command above.
 ## Building Node.js
 
 See [BUILDING.md](BUILDING.md) for instructions on how to build
-Node.js from source along with a list of officially supported platforms.
+Node.js from source. The document also contains a list of
+officially supported platforms.
 
 ## Security
 
