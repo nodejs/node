@@ -998,7 +998,7 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
 
 #if !defined(USING_UV_SHARED)
 int make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr);
-WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target);
+WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target, BOOL isFilePath);
 
 TEST_IMPL(argument_escaping) {
   const WCHAR* test_str[] = {
@@ -1035,7 +1035,7 @@ TEST_IMPL(argument_escaping) {
   ASSERT(test_output != NULL);
   for (i = 0; i < count; ++i) {
     test_output[i] = calloc(2 * (wcslen(test_str[i]) + 2), sizeof(WCHAR));
-    quote_cmd_arg(test_str[i], test_output[i]);
+    quote_cmd_arg(test_str[i], test_output[i], FALSE);
     wprintf(L"input : %s\n", test_str[i]);
     wprintf(L"output: %s\n", test_output[i]);
     total_size += wcslen(test_output[i]) + 1;
