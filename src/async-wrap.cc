@@ -116,7 +116,7 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
   Local<Object> object = wrapper.As<Object>();
   CHECK_GT(object->InternalFieldCount(), 0);
 
-  AsyncWrap* wrap = Unwrap<AsyncWrap>(object);
+  AsyncWrap* wrap = Unwrap<AsyncWrap>(object)->async_wrap_cast();
   CHECK_NE(nullptr, wrap);
 
   return new RetainedAsyncInfo(class_id, wrap);
@@ -408,6 +408,11 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   }
 
   return ret;
+}
+
+
+AsyncWrap* AsyncWrap::async_wrap_cast() {
+  return this;
 }
 
 }  // namespace node

@@ -360,6 +360,9 @@ class Connection : public AsyncWrap, public SSLWrap<Connection> {
 #endif
 
   size_t self_size() const override { return sizeof(*this); }
+  AsyncWrap* async_wrap_cast() override {
+    return static_cast<AsyncWrap*>(this);
+  }
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

@@ -74,6 +74,9 @@ class TLSWrap : public AsyncWrap,
   void NewSessionDoneCb();
 
   size_t self_size() const override { return sizeof(*this); }
+  AsyncWrap* async_wrap_cast() override {
+    return static_cast<AsyncWrap*>(this);
+  }
 
   void clear_stream() { stream_ = nullptr; }
 
