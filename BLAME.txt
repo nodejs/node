@@ -1,0 +1,10 @@
+Why io?
+node.js is a language to emplicit javascript for microcontrollers programming
+Look at logo. Node.js and .. squares. What is it? microcontrollers
+io.js must be an library for microcontrollers node.js implicit
+node.js as web server? bad very bad
+because there is ajax, there is web server Apache for example
+they're faster! node.js as web server... no
+but io. io.js for node.js? why?
+for microcontrollers. only
+set task to user for node.js to do io.js as a library for microcontroller programming
