@@ -2470,6 +2470,9 @@ extern "C" void node_module_register(void* m) {
     mp->nm_link = modlist_linked;
     modlist_linked = mp;
   } else {
+    // Once node::Init was called we can only register dynamic modules.
+    // See DLOpen.
+    assert(modpending == NULL);
     modpending = mp;
   }
 }
