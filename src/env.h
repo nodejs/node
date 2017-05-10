@@ -40,14 +40,6 @@
 #include <stdint.h>
 #include <vector>
 
-// Caveat emptor: we're going slightly crazy with macros here but the end
-// hopefully justifies the means. We have a lot of per-context properties
-// and adding and maintaining their getters and setters by hand would be
-// a nightmare so let's make the preprocessor generate them for us.
-//
-// Make sure that any macros defined here are undefined again at the bottom
-// of context-inl.h. The exceptions are NODE_CONTEXT_EMBEDDER_DATA_INDEX
-// and NODE_ISOLATE_SLOT, they may have been defined externally.
 namespace node {
 
 // Pick an index that's hopefully out of the way when we're embedded inside
@@ -63,6 +55,17 @@ namespace node {
 #ifndef NODE_PUSH_VAL_TO_ARRAY_MAX
 #define NODE_PUSH_VAL_TO_ARRAY_MAX 8
 #endif
+
+// PER_ISOLATE_* macros: We have a lot of per-isolate properties
+// and adding and maintaining their getters and setters by hand would be
+// difficult so let's make the preprocessor generate them for us.
+//
+// In each macro, `V` is expected to be the name of a macro or function which
+// accepts the number of arguments provided in each tuple in the macro body,
+// typically two. The named function will be invoked against each tuple.
+//
+// Make sure that any macro V defined for use with the PER_ISOLATE_* macros is
+// undefined again after use.
 
 // Private symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only and have a
