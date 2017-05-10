@@ -244,7 +244,7 @@ void ares_sockstate_cb(void* data,
   } else {
     /* read == 0 and write == 0 this is c-ares's way of notifying us that */
     /* the socket is now closed. We must free the data associated with */
-    /* socket. */
+    /* the socket. */
     CHECK(task &&
           "When an ares socket is closed we should have a handle for it");
 
@@ -648,7 +648,7 @@ class QueryTxtWrap: public QueryWrap {
       }
       txt_chunk->Set(j++, txt);
     }
-    // Push last chunk if it isn't empty
+    // Push the last chunk if it isn't empty
     if (!txt_chunk.IsEmpty())
       txt_records->Set(i, txt_chunk);
 
