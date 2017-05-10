@@ -36,5 +36,7 @@ function close() {
     cluster.worker.disconnect();
 }
 
-for (let i = 0; i < 2; i++)
-  dgram.createSocket({ type: 'udp4', reuseAddr: true }).bind(0, next);
+const socket = dgram.createSocket({type:'udp4', reuseAddr: true})
+  .bind(0, common.mustCall(()=>{
+    socket.bind(address().port);
+}));
