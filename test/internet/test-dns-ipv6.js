@@ -13,6 +13,11 @@ if (!common.hasIPv6) {
   return;
 }
 
+if (!common.hasIPv6) {
+  console.log('1..0 # Skipped: this test, no IPv6 support');
+  return;
+}
+
 function TEST(f) {
   function next() {
     const f = queue.shift();
