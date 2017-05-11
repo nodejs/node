@@ -238,7 +238,7 @@ function MyError() {
 
 // Without passing MyError to captureStackTrace, the MyError
 // frame would show up in the .stack property. By passing
-// the constructor, we omit that frame and all frames above it.
+// the constructor, we omit that frame, and retain all frames below it.
 new MyError().stack;
 ```
 
