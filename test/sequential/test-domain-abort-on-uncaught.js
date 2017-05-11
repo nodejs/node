@@ -239,8 +239,8 @@ if (process.argv[2] === 'child') {
       testCmd += 'ulimit -c 0 && ';
     }
 
-    testCmd += `${process.argv[0]} --abort-on-uncaught-exception ` +
-               `${process.argv[1]} child ${testIndex}`;
+    testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception ` +
+               `"${process.argv[1]}" child ${testIndex}`;
 
     const child = child_process.exec(testCmd);
 

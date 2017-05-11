@@ -18,7 +18,8 @@ if (process.argv[2] === 'child') {
 [22, 21, 20, 19, 18, 17, 16, 16, 17, 18, 19, 20, 21, 22].forEach((exponent) => {
   const bigNum = Math.pow(2, exponent);
   const longLine = lineSeed.repeat(bigNum);
-  const cmd = `${process.execPath} ${__filename} child ${exponent} ${bigNum}`;
+  const cmd =
+    `"${process.execPath}" "${__filename}" child ${exponent} ${bigNum}`;
   const stdout = execSync(cmd).toString().trim();
 
   assert.strictEqual(stdout, longLine, `failed with exponent ${exponent}`);
