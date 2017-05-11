@@ -1629,11 +1629,7 @@ important ways:
    respectively.
 2. They cannot be closed ([`end()`][] will throw).
 3. They will never emit the [`'finish'`][] event.
-4. Writes may be synchronous depending on the what the stream is connected to
-   and whether the system is Windows or Unix:
-   - Files: *synchronous* on Windows and Linux
-   - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on Unix
-   - Pipes (and sockets): *synchronous* on Windows, *asynchronous* on Unix
+4. Writes will be synchronous (“blocking”).
 
 These behaviours are partly for historical reasons, as changing them would
 create backwards incompatibility, but they are also expected by some users.
