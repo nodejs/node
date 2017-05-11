@@ -472,8 +472,8 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
   // 9.0.0 (rev. 17), but were found to be incompatible with many actual domain
   // names in the wild. As such, in the current UTS #46 draft (rev. 18) these
   // checks are made optional depending on the CheckHyphens flag, which will be
-  // disabled in WHATWG URL's "domain to ASCII" algorithm as soon as the UTS #46
-  // draft becomes standard.
+  // disabled in WHATWG URL's "domain to unicode" algorithm as soon as the UTS
+  // #46 draft becomes standard.
   // Refs:
   // - https://github.com/whatwg/url/issues/53
   // - http://www.unicode.org/review/pri317/

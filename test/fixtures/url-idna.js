@@ -204,6 +204,14 @@ module.exports = {
     {
       ascii: 'sn-a5mlrn7s-.gevideo.com',
       unicode: 'sn-a5mlrn7s-.gevideo.com'
+    },
+    {
+      ascii: '-sn-a5mlrn7s-.gevideo.com',
+      unicode: '-sn-a5mlrn7s-.gevideo.com'
+    },
+    {
+      ascii: '-sn--a5mlrn7s-.gevideo.com',
+      unicode: '-sn--a5mlrn7s-.gevideo.com'
     }
   ],
   invalid: [
