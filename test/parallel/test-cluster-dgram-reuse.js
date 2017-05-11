@@ -38,5 +38,7 @@ function close() {
 
 const socket = dgram.createSocket({type: 'udp4', reuseAddr: true})
   .bind(0, common.mustCall(() => {
+    const socket2 = socket();
     socket.bind(this.address().port, next);
+    socket2.bind(this.address().port, next);
   }));
