@@ -2931,11 +2931,12 @@ NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This API cancels a previously allocated work, provided
-it has not yet been queued for execution. After this function is called
+This API cancels queued work if it has not yet
+been started.  If it has already started executing, it cannot be
+cancelled and `napi_generic_failure` will be returned. If successful,
 the `complete` callback will be invoked with a status value of
 `napi_cancelled`. The work should not be deleted before the `complete`
-callback invocation, even when it was cancelled.
+callback invocation, even if it has been successfully cancelled.
 
 
 [Aynchronous Operations]: #n_api_asynchronous_operations
