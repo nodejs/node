@@ -90,10 +90,13 @@ message sent by a parent process using [`childprocess.send()`][] is received by
 the child process.
 
 The listener callback is invoked with the following arguments:
-* `message` {Object} a parsed JSON object or primitive value
+* `message` {Object} a parsed JSON object or primitive value.
 * `sendHandle` {Handle object} a [`net.Socket`][] or [`net.Server`][] object, or
   undefined.
 
+*Note*: The message goes through JSON serialization and parsing. The resulting
+message might not be the same as what is originally sent. See notes in
+[the `JSON.stringify()` specification][`JSON.stringify` spec].
 
 ### Event: 'rejectionHandled'
 <!-- YAML
@@ -1472,8 +1475,9 @@ used to send messages to the parent process. Messages will be received as a
 If Node.js was not spawned with an IPC channel, `process.send()` will be
 `undefined`.
 
-*Note*: This function uses [`JSON.stringify()`][] internally to serialize the
-`message`.
+*Note*: The message goes through JSON serialization and parsing. The resulting
+message might not be the same as what is originally sent. See notes in
+[the `JSON.stringify()` specification][`JSON.stringify` spec].
 
 ## process.setegid(id)
 <!-- YAML
@@ -1877,6 +1881,7 @@ cases:
 [`ChildProcess`]: child_process.html#child_process_class_childprocess
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`JSON.stringify` spec]: https://tc39.github.io/ecma262/#sec-json.stringify
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
