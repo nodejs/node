@@ -891,6 +891,10 @@ added: v0.5.9
 The `'message'` event is triggered when a child process uses [`process.send()`][]
 to send messages.
 
+*Note*: The message goes through JSON serialization and parsing. The resulting
+message might not be the same as what is originally sent. See notes in
+[the `JSON.stringify()` specification][`JSON.stringify` spec].
+
 ### subprocess.channel
 <!-- YAML
 added: v7.1.0
@@ -1050,6 +1054,10 @@ be used to send messages to the child process. When the child process is a
 Node.js instance, these messages can be received via the
 [`process.on('message')`][] event.
 
+*Note*: The message goes through JSON serialization and parsing. The resulting
+message might not be the same as what is originally sent. See notes in
+[the `JSON.stringify()` specification][`JSON.stringify` spec].
+
 For example, in the parent script:
 
 ```js
@@ -1060,6 +1068,7 @@ n.on('message', (m) => {
   console.log('PARENT got message:', m);
 });
 
+// Causes the child to print: CHILD got message: { hello: 'world' }
 n.send({ hello: 'world' });
 ```
 
@@ -1070,7 +1079,8 @@ process.on('message', (m) => {
   console.log('CHILD got message:', m);
 });
 
-process.send({ foo: 'bar' });
+// Causes the parent to print: PARENT got message: { foo: 'bar', baz: null }
+process.send({ foo: 'bar', baz: NaN });
 ```
 
 Child Node.js processes will have a [`process.send()`][] method of their own that
@@ -1201,9 +1211,6 @@ It is also recommended that any `'message'` handlers in the child process
 verify that `socket` exists, as the connection may have been closed during the
 time it takes to send the connection to the child.
 
-*Note*: This function uses [`JSON.stringify()`][] internally to serialize the
-`message`.
-
 ### subprocess.stderr
 <!-- YAML
 added: v0.1.90
@@ -1319,6 +1326,7 @@ unavailable.
 [`ChildProcess`]: #child_process_child_process
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`JSON.stringify` spec]: https://tc39.github.io/ecma262/#sec-json.stringify
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`subprocess.connected`]: #child_process_subprocess_connected
 [`subprocess.disconnect()`]: #child_process_subprocess_disconnect
