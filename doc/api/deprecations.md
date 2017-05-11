@@ -150,10 +150,9 @@ explicitly via error event handlers set on the domain instead.
 <a id="DEP0013"></a>
 ### DEP0013: fs async function without callback
 
-Type: End-of-Life
+Type: Runtime
 
-Calling an asynchronous function without a callback will throw a `TypeError`
-v8.0.0 onwards. Refer: [PR 12562](https://github.com/nodejs/node/pull/12562)
+Calling an asynchronous function without a callback is deprecated.
 
 <a id="DEP0014"></a>
 ### DEP0014: fs.read legacy String interface
