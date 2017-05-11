@@ -465,14 +465,8 @@ parser.add_option('--no-browser-globals',
 
 parser.add_option('--without-inspector',
     action='store_true',
-    dest='without_debugger',
-    help='disable V8 inspector support, the only node debugger API')
-
-# more explicit alias to --without-inspector
-parser.add_option('--without-debugger',
-    action='store_true',
-    dest='without_debugger',
-    help='disable V8 inspector support, the only node debugger API')
+    dest='without_inspector',
+    help='disable experimental V8 inspector support')
 
 parser.add_option('--shared',
     action='store_true',
@@ -501,8 +495,6 @@ parser.add_option('-C',
     help=optparse.SUPPRESS_HELP)
 
 (options, args) = parser.parse_args()
-
-
 
 # Expand ~ in the install prefix now, it gets written to multiple files.
 options.prefix = os.path.expanduser(options.prefix or '')
@@ -1307,12 +1299,15 @@ def configure_intl(o):
 def configure_debugger(o):
   implicit_disable = (options.with_intl in (None, 'none') or
                       options.without_ssl)
-  if implicit_disable and not options.without_debugger:
-    raise Exception('Setting --without_ssl or --without-intl will disable the '
-                    '`inspector` protocol. Ever since the removal of the '
-                    '`debug` protocol this is the only available debugger '
-                    'API, so it will leave the binary with no debug interfacehence --without-debugger must be set explicitly.')
-  o['variables']['v8_enable_inspector'] = 0 if options.without_debugger else 1
+  if implicit_disable and not options.without_inspector:
+    options.without_inspector = True
+    print('********************* Warning *************************')
+    print('Setting --without_ssl or --without-intl will disable the')
+    print('`inspector` protocol. Ever since the removal of the `debug`')
+    print('protocol this is the only available debugger API, so it will leave')
+    print('the binary with no debug interface.')
+  print('*********************************************************')
+  o['variables']['v8_enable_inspector'] = 0 if options.without_inspector else 1
 
 output = {
   'variables': {},
