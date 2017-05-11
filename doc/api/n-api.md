@@ -2936,7 +2936,7 @@ been started.  If it has already started executing, it cannot be
 cancelled and `napi_generic_failure` will be returned. If successful, 
 the `complete` callback will be invoked with a status value of
 `napi_cancelled`. The work should not be deleted before the `complete`
-callback invocation, even when it was successfuly cancelled.
+callback invocation, even when it was successfully cancelled.
 
 
 [Aynchronous Operations]: #n_api_asynchronous_operations
