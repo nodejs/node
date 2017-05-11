@@ -39,19 +39,28 @@ The stability indices are as follows:
 
 ```txt
 Stability: 0 - Deprecated
-This feature is known to be problematic, and changes are planned. Do
+This feature is known to be problematic, and changes may be planned. Do
 not rely on it. Use of the feature may cause warnings to be emitted.
-Backwards compatibility should not be expected.
+Backwards compatibility across major versions should not be expected.
 ```
 
 ```txt
 Stability: 1 - Experimental
 This feature is still under active development and subject to non-backwards
 compatible changes, or even removal, in any future version. Use of the feature
-is not recommended in production environments. The feature may only be usable
-after using a command-line flag to enable it. Use of the feature may cause
-warnings to be emitted.
+is not recommended in production environments. Experimental features are not
+subject to the Node.js Semantic Versioning model.
 ```
+
+*Note*: Caution must be used when making use of `Experimental` features,
+particularly within modules that may be used as dependencies (or dependencies
+of dependencies) within a Node.js application. End users may not be aware that
+experimental features are being used, and therefore may experience unexpected
+failures or behavioral changes when changes occur. To help avoid such surprises,
+`Experimental` features may require a command-line flag to explicitly enable
+them, or may cause a process warning to be emitted. By default, such warnings
+are printed to `stderr` and may be handled by attaching a listener to the
+`process.on('warning')` event.
 
 ```txt
 Stability: 2 - Stable
