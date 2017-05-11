@@ -47,3 +47,81 @@ assert.throws(
     code: 'ERR_ASSERTION',
     message: /^fhqwhgads$/
   }));
+
+// common.tag*: tag functions for tagged template literals
+
+const { tagGlue, tagUnwrap, tagLFy, tagCRLFy } = common;
+
+{
+  const unTagged =
+               '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
+  const tagged = tagGlue`
+    0123456789
+    ABCDEFGHIJKLMNOPQRSTUVWXYZ
+    abcdefghijklmnopqrstuvwxyz
+  `;
+
+  assert.strictEqual(unTagged, tagged);
+}
+
+{
+  const unTagged =
+   'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod...';
+
+  const tagged = tagUnwrap`
+    Lorem ipsum dolor sit amet,
+    consectetur adipiscing elit,
+    sed do eiusmod...
+  `;
+
+  assert.strictEqual(unTagged, tagged);
+}
+
+{
+  const unTagged =
+`<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title></title>
+  </head>
+  <body>
+    ${process.versions}
+  </body>
+</html>`;
+
+  const tagged = tagLFy`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <title></title>
+      </head>
+      <body>
+        ${process.versions}
+      </body>
+    </html>
+  `;
+
+  assert.strictEqual(unTagged, tagged);
+}
+
+{
+  const unTagged =
+    'HTTP/1.1 200 OK\r\n' +
+    'Content-Type: text/plain\r\n' +
+    'Content-Length: ' + `${process.versions}`.length + '\r\n' +
+    '\r\n' +
+    process.versions;
+
+  const tagged = tagCRLFy`
+    HTTP/1.1 200 OK
+    Content-Type: text/plain
+    Content-Length: ${`${process.versions}`.length}
+
+    ${process.versions}
+  `;
+
+  assert.strictEqual(unTagged, tagged);
+}
