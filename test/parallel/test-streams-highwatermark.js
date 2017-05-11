@@ -1,6 +1,9 @@
 'use strict';
-
 require('../common');
+
+// This test ensures that the stream implementation correctly handles values
+// for highWaterMark which exceed the range of signed 32 bit integers.
+
 const assert = require('assert');
 const stream = require('stream');
 
