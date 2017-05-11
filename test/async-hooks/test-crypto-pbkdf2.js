@@ -1,16 +1,16 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
 const assert = require('assert');
 const tick = require('./tick');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 const crypto = require('crypto');
 
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
 
 const hooks = initHooks();
 
