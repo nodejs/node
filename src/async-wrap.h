@@ -34,7 +34,7 @@ namespace node {
 
 #define NODE_ASYNC_ID_OFFSET 0xA1C
 
-#define NODE_ASYNC_NONE_CRYPTO_PROVIDER_TYPES(V)                              \
+#define NODE_ASYNC_NO_CRYPTO_PROVIDER_TYPES(V)                                \
   V(NONE)                                                                     \
   V(FSEVENTWRAP)                                                              \
   V(FSREQWRAP)                                                                \
@@ -69,7 +69,7 @@ namespace node {
 #endif  // HAVE_OPENSSL
 
 #define NODE_ASYNC_PROVIDER_TYPES(V)                                          \
-  NODE_ASYNC_NONE_CRYPTO_PROVIDER_TYPES(V)                                    \
+  NODE_ASYNC_NO_CRYPTO_PROVIDER_TYPES(V)                                      \
   NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
 
 class Environment;
