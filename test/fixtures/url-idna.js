@@ -219,15 +219,6 @@ module.exports = {
     {
       url: '\ufffd.com',
       mode: 'ascii'
-    },
-    {
-      url: '\ufffd.com',
-      mode: 'unicode'
-    },
-    // invalid Punycode
-    {
-      url: 'xn---abc.com',
-      mode: 'unicode'
     }
   ]
 }
