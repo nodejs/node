@@ -468,6 +468,21 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
   // #46. Therefore, explicitly filters out that error here.
   info.errors &= ~UIDNA_ERROR_EMPTY_LABEL;
 
+  // These error conditions are mandated unconditionally by UTS #46 version
+  // 9.0.0 (rev. 17), but were found to be incompatible with many actual domain
+  // names in the wild. As such, in the current UTS #46 draft (rev. 18) these
+  // checks are made optional depending on the CheckHyphens flag, which will be
+  // disabled in WHATWG URL's "domain to ASCII" algorithm as soon as the UTS #46
+  // draft becomes standard.
+  // Refs:
+  // - https://github.com/whatwg/url/issues/53
+  // - http://www.unicode.org/review/pri317/
+  // - http://www.unicode.org/reports/tr46/tr46-18.html
+  // - https://www.icann.org/news/announcement-2000-01-07-en
+  info.errors &= ~UIDNA_ERROR_HYPHEN_3_4;
+  info.errors &= ~UIDNA_ERROR_LEADING_HYPHEN;
+  info.errors &= ~UIDNA_ERROR_TRAILING_HYPHEN;
+
   if (U_FAILURE(status) || (!lenient && info.errors != 0)) {
     len = -1;
     buf->SetLength(0);
@@ -516,7 +531,21 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
   info.errors &= ~UIDNA_ERROR_EMPTY_LABEL;
   info.errors &= ~UIDNA_ERROR_LABEL_TOO_LONG;
   info.errors &= ~UIDNA_ERROR_DOMAIN_NAME_TOO_LONG;
+
+  // These error conditions are mandated unconditionally by UTS #46 version
+  // 9.0.0 (rev. 17), but were found to be incompatible with many actual domain
+  // names in the wild. As such, in the current UTS #46 draft (rev. 18) these
+  // checks are made optional depending on the CheckHyphens flag, which will be
+  // disabled in WHATWG URL's "domain to ASCII" algorithm as soon as the UTS #46
+  // draft becomes standard.
+  // Refs:
+  // - https://github.com/whatwg/url/issues/53
+  // - http://www.unicode.org/review/pri317/
+  // - http://www.unicode.org/reports/tr46/tr46-18.html
+  // - https://www.icann.org/news/announcement-2000-01-07-en
   info.errors &= ~UIDNA_ERROR_HYPHEN_3_4;
+  info.errors &= ~UIDNA_ERROR_LEADING_HYPHEN;
+  info.errors &= ~UIDNA_ERROR_TRAILING_HYPHEN;
 
   if (U_FAILURE(status) || (!lenient && info.errors != 0)) {
     len = -1;
