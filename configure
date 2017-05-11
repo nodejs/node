@@ -358,7 +358,7 @@ intl_optgroup.add_option('--without-intl',
     action='store_const',
     dest='with_intl',
     const='none',
-    help='Disable Intl, same as --with-intl=none')
+    help='Disable Intl, same as --with-intl=none (disables inspector)')
 
 intl_optgroup.add_option('--with-icu-path',
     action='store',
@@ -431,7 +431,7 @@ parser.add_option('--without-snapshot',
 parser.add_option('--without-ssl',
     action='store_true',
     dest='without_ssl',
-    help='build without SSL')
+    help='build without SSL (disables crypto, https, inspector, etc.)')
 
 parser.add_option('--without-node-options',
     action='store_true',
@@ -467,7 +467,7 @@ parser.add_option('--no-browser-globals',
 parser.add_option('--without-inspector',
     action='store_true',
     dest='without_inspector',
-    help='disable experimental V8 inspector support')
+    help='disable the V8 inspector protocol')
 
 parser.add_option('--shared',
     action='store_true',
