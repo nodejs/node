@@ -285,8 +285,8 @@ exports.childShouldThrowAndAbort = function() {
     // continuous testing and developers' machines
     testCmd += 'ulimit -c 0 && ';
   }
-  testCmd += `${process.argv[0]} --abort-on-uncaught-exception `;
-  testCmd += `${process.argv[1]} child`;
+  testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception `;
+  testCmd += `"${process.argv[1]}" child`;
   const child = child_process.exec(testCmd);
   child.on('exit', function onExit(exitCode, signal) {
     const errMsg = 'Test should have aborted ' +
