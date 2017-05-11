@@ -220,7 +220,7 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
   // Ensure that arguments are successfully passed to a script.
   // The first argument after '--' should be interpreted as a script
   // filename.
-  const filecmd = `${nodejs} -- ${__filename} ${args}`;
+  const filecmd = `${nodejs} -- "${__filename}" ${args}`;
   child.exec(filecmd, common.mustCall(function(err, stdout, stderr) {
     assert.strictEqual(stdout, `${args}\n`);
     assert.strictEqual(stderr, '');
