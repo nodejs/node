@@ -487,6 +487,16 @@ const parseTests = {
     path: '/bar'
   },
 
+  'https://r4---sn-a5mlrn7s.gevideo.com/bar': {
+    href: 'https://r4---sn-a5mlrn7s.gevideo.com/bar',
+    host: 'r4---sn-a5mlrn7s.gevideo.com',
+    hostname: 'r4---sn-a5mlrn7s.gevideo.com',
+    protocol: 'https:',
+    slashes: true,
+    pathname: '/bar',
+    path: '/bar'
+  },
+
   // IDNA tests
   'http://www.日本語.com/': {
     href: 'http://www.xn--wgv71a119e.com/',

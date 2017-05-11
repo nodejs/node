@@ -516,6 +516,7 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
   info.errors &= ~UIDNA_ERROR_EMPTY_LABEL;
   info.errors &= ~UIDNA_ERROR_LABEL_TOO_LONG;
   info.errors &= ~UIDNA_ERROR_DOMAIN_NAME_TOO_LONG;
+  info.errors &= ~UIDNA_ERROR_HYPHEN_3_4;
 
   if (U_FAILURE(status) || (!lenient && info.errors != 0)) {
     len = -1;
