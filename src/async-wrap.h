@@ -34,33 +34,43 @@ namespace node {
 
 #define NODE_ASYNC_ID_OFFSET 0xA1C
 
-#define NODE_ASYNC_PROVIDER_TYPES(V)                                          \
+#define NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                               \
   V(NONE)                                                                     \
-  V(CONNECTION)                                                               \
   V(FSEVENTWRAP)                                                              \
   V(FSREQWRAP)                                                                \
   V(GETADDRINFOREQWRAP)                                                       \
   V(GETNAMEINFOREQWRAP)                                                       \
   V(HTTPPARSER)                                                               \
   V(JSSTREAM)                                                                 \
-  V(PBKDF2REQUEST)                                                            \
   V(PIPECONNECTWRAP)                                                          \
   V(PIPEWRAP)                                                                 \
   V(PROCESSWRAP)                                                              \
   V(QUERYWRAP)                                                                \
-  V(RANDOMBYTESREQUEST)                                                       \
   V(SHUTDOWNWRAP)                                                             \
   V(SIGNALWRAP)                                                               \
   V(STATWATCHER)                                                              \
   V(TCPCONNECTWRAP)                                                           \
   V(TCPWRAP)                                                                  \
   V(TIMERWRAP)                                                                \
-  V(TLSWRAP)                                                                  \
   V(TTYWRAP)                                                                  \
   V(UDPSENDWRAP)                                                              \
   V(UDPWRAP)                                                                  \
   V(WRITEWRAP)                                                                \
   V(ZLIB)
+
+#if HAVE_OPENSSL
+#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                   \
+  V(CONNECTION)                                                               \
+  V(PBKDF2REQUEST)                                                            \
+  V(RANDOMBYTESREQUEST)                                                       \
+  V(TLSWRAP)
+#else
+#define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
+#endif  // HAVE_OPENSSL
+
+#define NODE_ASYNC_PROVIDER_TYPES(V)                                          \
+  NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                                     \
+  NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
 
 class Environment;
 
