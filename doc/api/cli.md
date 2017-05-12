@@ -411,14 +411,18 @@ Node options that are allowed are:
 - `--enable-fips`
 - `--force-fips`
 - `--icu-data-dir`
+- `--inspect-brk`
+- `--inspect-port`
+- `--inspect`
+- `--napi-modules`
 - `--no-deprecation`
 - `--no-warnings`
 - `--openssl-config`
-- `--prof-process`
 - `--redirect-warnings`
 - `--require`, `-r`
 - `--throw-deprecation`
 - `--trace-deprecation`
+- `--trace-events-categories`
 - `--trace-events-enabled`
 - `--trace-sync-io`
 - `--trace-warnings`
