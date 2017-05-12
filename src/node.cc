@@ -3906,8 +3906,8 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--") == 0) {
       index += 1;
       break;
-    } else if (strcmp(arg, "--abort-on-uncaught-exception") ||
-               strcmp(arg, "--abort_on_uncaught_exception")) {
+    } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
+               strcmp(arg, "--abort_on_uncaught_exception") == 0) {
       abort_on_uncaught_exception = true;
       // Also a V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
