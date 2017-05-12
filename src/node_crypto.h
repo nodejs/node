@@ -402,7 +402,7 @@ class Connection : public AsyncWrap, public SSLWrap<Connection> {
              v8::Local<v8::Object> wrap,
              SecureContext* sc,
              SSLWrap<Connection>::Kind kind)
-      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_CONNECTION),
+      : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_SSLCONNECTION),
         SSLWrap<Connection>(env, sc, kind),
         bio_read_(nullptr),
         bio_write_(nullptr),
