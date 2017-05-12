@@ -24,14 +24,17 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const client = net.connect({host: '***', port: common.PORT});
+const unfindable_host = '***';
+// port 0 is hardcoded since this does not create a network connection
+const arbitrary_port = common.PORT
+const client = net.connect({host: unfindable_host, port: arbitrary_port});
 
 client.once('error', common.mustCall((err) => {
   assert(err);
   assert.strictEqual(err.code, err.errno);
   assert.strictEqual(err.code, 'ENOTFOUND');
   assert.strictEqual(err.host, err.hostname);
-  assert.strictEqual(err.host, '***');
+  assert.strictEqual(err.host, unfindable_host);
   assert.strictEqual(err.syscall, 'getaddrinfo');
 }));
 
