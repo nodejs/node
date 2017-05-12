@@ -5,8 +5,7 @@ const cluster = require('cluster');
 const dgram = require('dgram');
 
 if (common.isWindows) {
-  common.skip('dgram clustering is currently not supported ' +
-              'on windows.');
+  common.skip('dgram clustering is currently not supported on windows.');
   return;
 }
 
