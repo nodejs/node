@@ -24,101 +24,95 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-function testClients(getSocketOpt, getConnectOpt, getConnectCb) {
-  const cloneOptions = (index) =>
-    Object.assign({}, getSocketOpt(index), getConnectOpt(index));
-  return [
-    net.connect(cloneOptions(0), getConnectCb(0)),
-    net.connect(cloneOptions(1))
-      .on('connect', getConnectCb(1)),
-    net.createConnection(cloneOptions(2), getConnectCb(2)),
-    net.createConnection(cloneOptions(3))
-      .on('connect', getConnectCb(3)),
-    new net.Socket(getSocketOpt(4)).connect(getConnectOpt(4), getConnectCb(4)),
-    new net.Socket(getSocketOpt(5)).connect(getConnectOpt(5))
-      .on('connect', getConnectCb(5))
-  ];
-}
-
-const CLIENT_VARIANTS = 6;  // Same length as array above
-const forAllClients = (cb) => common.mustCall(cb, CLIENT_VARIANTS);
-
 // Test allowHalfOpen
 {
   let clientReceivedFIN = 0;
   let serverConnections = 0;
   let clientSentFIN = 0;
   let serverReceivedFIN = 0;
-  const server = net.createServer({
-    allowHalfOpen: true
-  })
-  .on('connection', forAllClients(function serverOnConnection(socket) {
-    const serverConnection = ++serverConnections;
-    let clientId;
-    console.error(`${serverConnections} 'connection' emitted on server`);
+  const host = common.localhostIPv4;
+
+  function serverOnConnection(socket) {
+    console.log(`'connection' ${++serverConnections} emitted on server`);
+    const srvConn = serverConnections;
     socket.resume();
-    // 'end' on each socket must not be emitted twice
-    socket.on('data', common.mustCall(function(data) {
-      clientId = data.toString();
-      console.error(`${serverConnection} server connection is started ` +
-                    `by client No. ${clientId}`);
+    socket.on('data', common.mustCall(function socketOnData(data) {
+      this.clientId = data.toString();
+      console.log(
+        `server connection ${srvConn} is started by client ${this.clientId}`);
     }));
-    socket.on('end', common.mustCall(function() {
-      serverReceivedFIN++;
-      console.error(`Server received FIN sent by No. ${clientId}`);
-      if (serverReceivedFIN === CLIENT_VARIANTS) {
-        setTimeout(() => {
-          server.close();
-          console.error(`No. ${clientId} connection is closing server: ` +
-                        `${serverReceivedFIN} FIN received by server, ` +
-                        `${clientReceivedFIN} FIN received by client, ` +
-                        `${clientSentFIN} FIN sent by client, ` +
-                        `${serverConnections} FIN sent by server`);
-        }, 50);
-      }
+    // 'end' on each socket must not be emitted twice
+    socket.on('end', common.mustCall(function socketOnEnd() {
+      console.log(`Server received FIN sent by client ${this.clientId}`);
+      if (++serverReceivedFIN < CLIENT_VARIANTS) return;
+      setTimeout(() => {
+        server.close();
+        console.log(`connection ${this.clientId} is closing the server:
+          FIN ${serverReceivedFIN} received by server,
+          FIN ${clientReceivedFIN} received by client
+          FIN ${clientSentFIN} sent by client,
+          FIN ${serverConnections} sent by server`.replace(/ {3,}/g, ''));
+      }, 50);
     }, 1));
     socket.end();
-    console.error(`Server has sent ${serverConnections} FIN`);
-  }))
-  .on('close', common.mustCall(function serverOnClose() {
-    console.error('Server has been closed: ' +
-                  `${serverReceivedFIN} FIN received by server, ` +
-                  `${clientReceivedFIN} FIN received by client, ` +
-                  `${clientSentFIN} FIN sent by client, ` +
-                  `${serverConnections} FIN sent by server`);
-  }))
-  .listen(0, 'localhost', common.mustCall(function serverOnListen() {
-    const host = 'localhost';
-    const port = server.address().port;
+    console.log(`Server has sent ${serverConnections} FIN`);
+  }
 
-    console.error(`Server starts at ${host}:${port}`);
-    const getSocketOpt = () => ({ allowHalfOpen: true });
-    const getConnectOpt = () => ({ host, port });
-    const getConnectCb = (index) => common.mustCall(function clientOnConnect() {
+  // These two levels of functions (and not arrows) are necessary in order to
+  // bind the `index`, and the calling socket (`this`)
+  function clientOnConnect(index) {
+    return common.mustCall(function clientOnConnectInner() {
       const client = this;
-      console.error(`'connect' emitted on Client ${index}`);
+      console.log(`'connect' emitted on Client ${index}`);
       client.resume();
       client.on('end', common.mustCall(function clientOnEnd() {
-        setTimeout(function() {
+        setTimeout(function closeServer() {
           // when allowHalfOpen is true, client must still be writable
           // after the server closes the connections, but not readable
-          console.error(`No. ${index} client received FIN`);
+          console.log(`client ${index} received FIN`);
           assert(!client.readable);
           assert(client.writable);
           assert(client.write(String(index)));
           client.end();
           clientSentFIN++;
-          console.error(`No. ${index} client sent FIN, ` +
-                        `${clientSentFIN} have been sent`);
+          console.log(
+            `client ${index} sent FIN, ${clientSentFIN} have been sent`);
         }, 50);
       }));
       client.on('close', common.mustCall(function clientOnClose() {
         clientReceivedFIN++;
-        console.error(`No. ${index} connection has been closed by both ` +
-                      `sides, ${clientReceivedFIN} clients have closed`);
+        console.log(`connection ${index} has been closed by both sides,` +
+          ` ${clientReceivedFIN} clients have closed`);
       }));
     });
+  }
 
-    testClients(getSocketOpt, getConnectOpt, getConnectCb);
-  }));
+  function serverOnClose() {
+    console.log(`Server has been closed:
+      FIN ${serverReceivedFIN} received by server
+      FIN ${clientReceivedFIN} received by client
+      FIN ${clientSentFIN} sent by client
+      FIN ${serverConnections} sent by server`.replace(/ {3,}/g, ''));
+  }
+
+  function serverOnListen() {
+    const port = server.address().port;
+    console.log(`Server started listening at ${host}:${port}`);
+    const opts = { allowHalfOpen: true, host, port };
+    // 6 variations === CLIENT_VARIANTS
+    net.connect(opts, clientOnConnect(1));
+    net.connect(opts).on('connect', clientOnConnect(2));
+    net.createConnection(opts, clientOnConnect(3));
+    net.createConnection(opts).on('connect', clientOnConnect(4));
+    new net.Socket(opts).connect(opts, clientOnConnect(5));
+    new net.Socket(opts).connect(opts).on('connect', clientOnConnect(6));
+  }
+
+  const CLIENT_VARIANTS = 6;
+
+  // The trigger
+  const server = net.createServer({ allowHalfOpen: true })
+    .on('connection', common.mustCall(serverOnConnection, CLIENT_VARIANTS))
+    .on('close', common.mustCall(serverOnClose))
+    .listen(0, host, common.mustCall(serverOnListen));
 }
