@@ -1,7 +1,6 @@
 'use strict';
 if (!process.features.tls_sni) {
-  common.skip('node compiled without OpenSSL or ' +
-              'with old OpenSSL version.');
+  common.skip('node compiled without OpenSSL or with old OpenSSL version.');
   return;
 }
 
