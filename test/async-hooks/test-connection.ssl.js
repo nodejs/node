@@ -37,11 +37,11 @@ function createServerConnection(
 // creating first server connection
 const sc1 = createServerConnection(common.mustCall(onfirstHandShake));
 
-let as = hooks.activitiesOfTypes('CONNECTION');
+let as = hooks.activitiesOfTypes('SSLCONNECTION');
 assert.strictEqual(as.length, 1,
                    'one CONNECTION after first connection created');
 const f1 = as[0];
-assert.strictEqual(f1.type, 'CONNECTION', 'connection');
+assert.strictEqual(f1.type, 'SSLCONNECTION', 'connection');
 assert.strictEqual(typeof f1.uid, 'number', 'uid is a number');
 assert.strictEqual(typeof f1.triggerId, 'number', 'triggerId is a number');
 checkInvocations(f1, { init: 1 }, 'first connection, when first created');
@@ -49,11 +49,11 @@ checkInvocations(f1, { init: 1 }, 'first connection, when first created');
 // creating second server connection
 const sc2 = createServerConnection(common.mustCall(onsecondHandShake));
 
-as = hooks.activitiesOfTypes('CONNECTION');
+as = hooks.activitiesOfTypes('SSLCONNECTION');
 assert.strictEqual(as.length, 2,
-                   'two CONNECTIONs after second connection created');
+                   'two SSLCONNECTIONs after second connection created');
 const f2 = as[1];
-assert.strictEqual(f2.type, 'CONNECTION', 'connection');
+assert.strictEqual(f2.type, 'SSLCONNECTION', 'connection');
 assert.strictEqual(typeof f2.uid, 'number', 'uid is a number');
 assert.strictEqual(typeof f2.triggerId, 'number', 'triggerId is a number');
 checkInvocations(f1, { init: 1 }, 'first connection, when second created');
@@ -81,7 +81,7 @@ process.on('exit', onexit);
 
 function onexit() {
   hooks.disable();
-  hooks.sanityCheck('CONNECTION');
+  hooks.sanityCheck('SSLCONNECTION');
 
   checkInvocations(f1, { init: 1, before: 1, after: 1 },
                    'first connection, when process exits');

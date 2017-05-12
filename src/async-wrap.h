@@ -60,7 +60,7 @@ namespace node {
 
 #if HAVE_OPENSSL
 #define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                   \
-  V(CONNECTION)                                                               \
+  V(SSLCONNECTION)                                                            \
   V(PBKDF2REQUEST)                                                            \
   V(RANDOMBYTESREQUEST)                                                       \
   V(TLSWRAP)
