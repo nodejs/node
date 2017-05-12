@@ -7,8 +7,8 @@ if (!common.hasCrypto) {
 }
 
 if (!process.features.tls_alpn || !process.features.tls_npn) {
-  common.skip('Skipping because node compiled without NPN or ALPN' +
-              ' feature of OpenSSL.');
+  common.skip(
+    'Skipping because node compiled without NPN or ALPN feature of OpenSSL.');
   return;
 }
 
