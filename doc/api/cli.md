@@ -346,15 +346,17 @@ Node options that are allowed are:
 - `--enable-fips`
 - `--force-fips`
 - `--icu-data-dir`
+- `--debug-brk`
+- `--debug-port`
+- `--debug`
+- `--napi-modules`
 - `--no-deprecation`
 - `--no-warnings`
 - `--openssl-config`
-- `--prof-process`
 - `--redirect-warnings`
 - `--require`, `-r`
 - `--throw-deprecation`
 - `--trace-deprecation`
-- `--trace-events-enabled`
 - `--trace-sync-io`
 - `--trace-warnings`
 - `--track-heap-objects`
