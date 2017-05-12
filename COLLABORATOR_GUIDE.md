@@ -4,6 +4,7 @@
 
 * [Issues and Pull Requests](#issues-and-pull-requests)
 * [Accepting Modifications](#accepting-modifications)
+   - [Useful CI Jobs](#useful-ci-jobs)
    - [Internal vs. Public API](#internal-vs-public-api)
    - [Breaking Changes](#breaking-changes)
    - [Deprecations](#deprecations)
@@ -86,6 +87,27 @@ test should *fail* before the change, and *pass* after the change.
 All pull requests that modify executable code should be subjected to
 continuous integration tests on the
 [project CI server](https://ci.nodejs.org/).
+
+#### Useful CI Jobs
+
+* [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
+is the standard CI run we do to check Pull Requests. It triggers `node-test-commit`,
+which runs the `build-ci` and `test-ci` targets on all supported platforms.
+
+* [`node-test-linter`](https://ci.nodejs.org/job/node-test-linter/)
+only runs the linter targets, which is useful for changes that only affect comments
+or documentation.
+
+* [`citgm-smoker`](https://ci.nodejs.org/job/citgm-smoker/)
+uses [`CitGM`](https://github.com/nodejs/citgm) to allow you to run `npm install && npm test`
+on a large selection of common modules. This is useful to check whether a
+change will cause breakage in the ecosystem. To test Node.JS ABI changes
+you can run [`citgm-abi-smoker`](https://ci.nodejs.org/job/citgm-abi-smoker/).
+
+* [`node-stress-single-test`](https://ci.nodejs.org/job/node-stress-single-test/)
+is designed to allow one to run a group of tests over and over on a specific
+platform to confirm that the test is reliable.
+
 
 ### Internal vs. Public API
 
