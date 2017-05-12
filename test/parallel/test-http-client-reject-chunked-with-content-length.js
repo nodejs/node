@@ -5,9 +5,13 @@ const http = require('http');
 const net = require('net');
 const assert = require('assert');
 
-const reqstr = 'HTTP/1.1 200 OK\r\n' +
-               'Content-Length: 1\r\n' +
-               'Transfer-Encoding: chunked\r\n\r\n';
+const reqstr = common.tagCRLFy`
+  HTTP/1.1 200 OK
+  Content-Length: 1
+  Transfer-Encoding: chunked
+
+
+`;
 
 const server = net.createServer((socket) => {
   socket.write(reqstr);

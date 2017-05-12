@@ -5,9 +5,13 @@ const http = require('http');
 const net = require('net');
 const assert = require('assert');
 
-const reqstr = 'POST / HTTP/1.1\r\n' +
-               'Content-Length: 1\r\n' +
-               'Transfer-Encoding: chunked\r\n\r\n';
+const reqstr = common.tagCRLFy`
+  POST / HTTP/1.1
+  Content-Length: 1
+  Transfer-Encoding: chunked
+
+
+`;
 
 const server = http.createServer(common.mustNotCall());
 server.on('clientError', common.mustCall((err) => {

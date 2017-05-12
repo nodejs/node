@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const { tagCRLFy } = require('../common');
 const http = require('http');
 const net = require('net');
 
@@ -29,14 +29,20 @@ check([{
   name: 'keep-alive, no TE header',
   requests: [{
     expectClose: true,
-    data: 'POST / HTTP/1.0\r\n' +
-          'Connection: keep-alive\r\n' +
-          '\r\n'
+    data: tagCRLFy`
+            POST / HTTP/1.0
+            Connection: keep-alive
+
+
+    `
   }, {
     expectClose: true,
-    data: 'POST / HTTP/1.0\r\n' +
-          'Connection: keep-alive\r\n' +
-          '\r\n'
+    data: tagCRLFy`
+            POST / HTTP/1.0
+            Connection: keep-alive
+
+
+    `
   }],
   responses: [{
     headers: {'Connection': 'keep-alive'},
@@ -48,14 +54,20 @@ check([{
   name: 'keep-alive, with TE: chunked',
   requests: [{
     expectClose: false,
-    data: 'POST / HTTP/1.0\r\n' +
-          'Connection: keep-alive\r\n' +
-          'TE: chunked\r\n' +
-          '\r\n'
+    data: tagCRLFy`
+            POST / HTTP/1.0
+            Connection: keep-alive
+            TE: chunked
+
+
+    `
   }, {
     expectClose: true,
-    data: 'POST / HTTP/1.0\r\n' +
-          '\r\n'
+    data: tagCRLFy`
+            POST / HTTP/1.0
+
+
+    `
   }],
   responses: [{
     headers: {'Connection': 'keep-alive'},
@@ -67,13 +79,19 @@ check([{
   name: 'keep-alive, with Transfer-Encoding: chunked',
   requests: [{
     expectClose: false,
-    data: 'POST / HTTP/1.0\r\n' +
-          'Connection: keep-alive\r\n' +
-          '\r\n'
+    data: tagCRLFy`
+            POST / HTTP/1.0
+            Connection: keep-alive
+
+
+    `
   }, {
     expectClose: true,
-    data: 'POST / HTTP/1.0\r\n' +
-          '\r\n'
+    data: tagCRLFy`
+            POST / HTTP/1.0
+
+
+    `
   }],
   responses: [{
     headers: {'Connection': 'keep-alive',
@@ -86,13 +104,19 @@ check([{
   name: 'keep-alive, with Content-Length',
   requests: [{
     expectClose: false,
-    data: 'POST / HTTP/1.0\r\n' +
-          'Connection: keep-alive\r\n' +
-          '\r\n'
+    data: tagCRLFy`
+            POST / HTTP/1.0
+            Connection: keep-alive
+
+
+    `
   }, {
     expectClose: true,
-    data: 'POST / HTTP/1.0\r\n' +
-          '\r\n'
+    data: tagCRLFy`
+            POST / HTTP/1.0
+
+
+    `
   }],
   responses: [{
     headers: {'Connection': 'keep-alive',

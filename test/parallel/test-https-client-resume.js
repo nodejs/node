@@ -26,6 +26,8 @@
 const common = require('../common');
 const assert = require('assert');
 
+const { tagCRLFy } = common;
+
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
@@ -56,9 +58,12 @@ server.listen(0, function() {
     console.log('connect1');
     assert.ok(!client1.isSessionReused(), 'Session *should not* be reused.');
     session1 = client1.getSession();
-    client1.write('GET / HTTP/1.0\r\n' +
-                  'Server: 127.0.0.1\r\n' +
-                  '\r\n');
+    client1.write(tagCRLFy`
+      GET / HTTP/1.0
+      Server: 127.0.0.1
+
+
+    `);
   });
 
   client1.on('close', function() {
@@ -73,9 +78,12 @@ server.listen(0, function() {
     const client2 = tls.connect(opts, function() {
       console.log('connect2');
       assert.ok(client2.isSessionReused(), 'Session *should* be reused.');
-      client2.write('GET / HTTP/1.0\r\n' +
-                    'Server: 127.0.0.1\r\n' +
-                    '\r\n');
+      client2.write(tagCRLFy`
+        GET / HTTP/1.0
+        Server: 127.0.0.1
+
+
+      `);
     });
 
     client2.on('close', function() {

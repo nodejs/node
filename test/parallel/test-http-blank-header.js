@@ -40,12 +40,14 @@ server.listen(0, function() {
   const c = net.createConnection(this.address().port);
 
   c.on('connect', function() {
-    c.write('GET /blah HTTP/1.1\r\n' +
-            'Host: mapdevel.trolologames.ru:443\r\n' +
-            'Cookie:\r\n' +
-            'Origin: http://mapdevel.trolologames.ru\r\n' +
-            '\r\n\r\nhello world'
-    );
+    c.write(common.tagCRLFy`
+                            GET /blah HTTP/1.1
+                            Host: mapdevel.trolologames.ru:443
+                            Cookie:
+                            Origin: http://mapdevel.trolologames.ru
+
+                            hello world
+    `);
   });
 
   c.on('end', function() {

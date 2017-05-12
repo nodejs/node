@@ -48,10 +48,10 @@ function testCipher1(key) {
 function testCipher2(key) {
   // encryption and decryption with Base64
   // reported in https://github.com/joyent/node/issues/738
-  const plaintext =
-      '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
-      'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
-      'jAfaFg**';
+  const plaintext = common.tagGlue`
+    32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELweCBs
+    ThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJjAfaFg**
+  `;
   const cipher = crypto.createCipher('aes256', key);
 
   // encrypt plaintext which is in utf8 format

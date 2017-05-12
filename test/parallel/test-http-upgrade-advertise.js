@@ -47,8 +47,11 @@ const server = http.createServer(function(req, res) {
   });
   res.end('hello world');
 }).on('upgrade', function(req, socket) {
-  socket.end('HTTP/1.1 101 Switching protocols\r\n' +
-             'Connection: upgrade\r\n' +
-             'Upgrade: h2c\r\n\r\n' +
-             'ohai');
+  socket.end(common.tagCRLFy`
+    HTTP/1.1 101 Switching protocols
+    Connection: upgrade
+    Upgrade: h2c
+
+    ohai
+  `);
 }).listen(0, fire);

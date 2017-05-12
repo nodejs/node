@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const { tagLFy } = require('../common');
 const assert = require('assert');
 const inspect = require('util').inspect;
 const StringDecoder = require('string_decoder').StringDecoder;
@@ -152,12 +152,12 @@ function test(encoding, input, expected, singleSequence) {
     });
     output += decoder.end();
     if (output !== expected) {
-      const message =
-        'Expected "' + unicodeEscape(expected) + '", ' +
-        'but got "' + unicodeEscape(output) + '"\n' +
-        'input: ' + input.toString('hex').match(/.{2}/g) + '\n' +
-        'Write sequence: ' + JSON.stringify(sequence) + '\n' +
-        'Full Decoder State: ' + inspect(decoder);
+      const message = tagLFy`
+       Expected "${unicodeEscape(expected)}", but got "${unicodeEscape(output)}"
+       input: ${input.toString('hex').match(/.{2}/g)}
+       Write sequence: ${JSON.stringify(sequence)}
+       Full Decoder State: ${inspect(decoder)}
+      `;
       assert.fail(output, expected, message);
     }
   });

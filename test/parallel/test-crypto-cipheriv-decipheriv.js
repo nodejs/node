@@ -8,12 +8,14 @@ if (!common.hasCrypto) {
 }
 const crypto = require('crypto');
 
+const { tagGlue } = common;
+
 function testCipher1(key, iv) {
   // Test encryption and decryption with explicit key and iv
-  const plaintext =
-          '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
-          'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
-          'jAfaFg**';
+  const plaintext = tagGlue`
+    32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELweCBs
+    ThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJjAfaFg**
+  `;
   const cipher = crypto.createCipheriv('des-ede3-cbc', key, iv);
   let ciph = cipher.update(plaintext, 'utf8', 'hex');
   ciph += cipher.final('hex');
@@ -42,10 +44,10 @@ function testCipher1(key, iv) {
 
 function testCipher2(key, iv) {
   // Test encryption and decryption with explicit key and iv
-  const plaintext =
-          '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
-          'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
-          'jAfaFg**';
+  const plaintext = tagGlue`
+    32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELweCBs
+    ThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJjAfaFg**
+  `;
   const cipher = crypto.createCipheriv('des-ede3-cbc', key, iv);
   let ciph = cipher.update(plaintext, 'utf8', 'buffer');
   ciph = Buffer.concat([ciph, cipher.final('buffer')]);

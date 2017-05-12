@@ -55,9 +55,11 @@ assert.strictEqual(5, global.hello);
 
 
 console.error('pass values in and out');
-global.code = 'foo = 1;' +
-              'bar = 2;' +
-              'if (baz !== 3) throw new Error(\'test fail\');';
+global.code = common.tagLFy`
+  foo = 1;
+  bar = 2;
+  if (baz !== 3) throw new Error('test fail');
+`;
 global.foo = 2;
 global.obj = { foo: 0, baz: 3 };
 script = new Script(global.code);

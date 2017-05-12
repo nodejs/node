@@ -61,10 +61,13 @@ const server = http.createServer(common.mustCall(function(req, res) {
 // Make a bunch of requests pipelined on the same socket
 function generator(seeds) {
   return seeds.map(function(r) {
-    return 'GET /' + r + ' HTTP/1.1\r\n' +
-           `Host: localhost:${server.address().port}\r\n` +
-           '\r\n' +
-           '\r\n';
+    return common.tagCRLFy`
+           GET /${r} HTTP/1.1
+           Host: localhost:${server.address().port}
+
+
+
+    `;
   }).join('');
 }
 

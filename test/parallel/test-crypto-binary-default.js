@@ -26,6 +26,8 @@
 
 const common = require('../common');
 
+const { tagGlue, tagUnwrap } = common;
+
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
@@ -80,72 +82,61 @@ const rfc4231 = [
     hmac: {
       sha224: '896fb1128abbdf196832107cd49df33f47b4b1169912ba4f53684b22',
       sha256:
-          'b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c' +
-          '2e32cff7',
-      sha384:
-          'afd03944d84895626b0825f4ab46907f15f9dadbe4101ec682aa034c' +
-          '7cebc59cfaea9ea9076ede7f4af152e8b2fa9cb6',
-      sha512:
-          '87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b305' +
-          '45e17cdedaa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f170' +
-          '2e696c203a126854'
+          'b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7',
+      sha384: tagGlue`afd03944d84895626b0825f4ab46907f15f9dadbe4101ec682aa034c
+                      7cebc59cfaea9ea9076ede7f4af152e8b2fa9cb6`,
+      sha512: tagGlue`87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b305
+                      45e17cdedaa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f170
+                      2e696c203a126854`
     }
   },
   {
     key: Buffer.from('4a656665', 'hex'), // 'Jefe'
-    data: Buffer.from('7768617420646f2079612077616e7420666f72206e6f74686' +
-                      '96e673f', 'hex'), // 'what do ya want for nothing?'
+    data: Buffer.from(
+            '7768617420646f2079612077616e7420666f72206e6f7468696e673f',
+            'hex'), // 'what do ya want for nothing?'
     hmac: {
       sha224: 'a30e01098bc6dbbf45690f3a7e9e6d0f8bbea2a39e6148008fd05e44',
       sha256:
-          '5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b9' +
-          '64ec3843',
-      sha384:
-          'af45d2e376484031617f78d2b58a6b1b9c7ef464f5a01b47e42ec373' +
-          '6322445e8e2240ca5e69e2c78b3239ecfab21649',
-      sha512:
-          '164b7a7bfcf819e2e395fbe73b56e0a387bd64222e831fd610270cd7' +
-          'ea2505549758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b' +
-          '636e070a38bce737'
+          '5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843',
+      sha384: tagGlue`af45d2e376484031617f78d2b58a6b1b9c7ef464f5a01b47e42ec373
+                      6322445e8e2240ca5e69e2c78b3239ecfab21649`,
+      sha512: tagGlue`164b7a7bfcf819e2e395fbe73b56e0a387bd64222e831fd610270cd7
+                      ea2505549758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b
+                      636e070a38bce737`
     }
   },
   {
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
-    data: Buffer.from('ddddddddddddddddddddddddddddddddddddddddddddddddd' +
-                      'ddddddddddddddddddddddddddddddddddddddddddddddddddd',
-                      'hex'),
+    data: Buffer.from(
+            tagGlue`dddddddddddddddddddddddddddddddddddddddddddddddddd
+                    dddddddddddddddddddddddddddddddddddddddddddddddddd`, 'hex'),
     hmac: {
       sha224: '7fb3cb3588c6c1f6ffa9694d7d6ad2649365b0c1f65d69d1ec8333ea',
       sha256:
-          '773ea91e36800e46854db8ebd09181a72959098b3ef8c122d9635514' +
-          'ced565fe',
-      sha384:
-          '88062608d3e6ad8a0aa2ace014c8a86f0aa635d947ac9febe83ef4e5' +
-          '5966144b2a5ab39dc13814b94e3ab6e101a34f27',
-      sha512:
-          'fa73b0089d56a284efb0f0756c890be9b1b5dbdd8ee81a3655f83e33' +
-          'b2279d39bf3e848279a722c806b485a47e67c807b946a337bee89426' +
-          '74278859e13292fb'
+          '773ea91e36800e46854db8ebd09181a72959098b3ef8c122d9635514ced565fe',
+      sha384: tagGlue`88062608d3e6ad8a0aa2ace014c8a86f0aa635d947ac9febe83ef4e5
+                      5966144b2a5ab39dc13814b94e3ab6e101a34f27`,
+      sha512: tagGlue`fa73b0089d56a284efb0f0756c890be9b1b5dbdd8ee81a3655f83e33
+                      b2279d39bf3e848279a722c806b485a47e67c807b946a337bee89426
+                      74278859e13292fb`
     }
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
                      'hex'),
-    data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
-                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd',
-                      'hex'),
+    data: Buffer.from(
+            tagGlue`cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd
+                    cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd`, 'hex'),
     hmac: {
       sha224: '6c11506874013cac6a2abc1bb382627cec6a90d86efc012de7afec5a',
       sha256:
-          '82558a389a443c0ea4cc819899f2083a85f0faa3e578f8077a2e3ff4' +
-          '6729665b',
-      sha384:
-          '3e8a69b7783c25851933ab6290af6ca77a9981480850009cc5577c6e' +
-          '1f573b4e6801dd23c4a7d679ccf8a386c674cffb',
-      sha512:
-          'b0ba465637458c6990e5a8c5f61d4af7e576d97ff94b872de76f8050' +
-          '361ee3dba91ca5c11aa25eb4d679275cc5788063a5f19741120c4f2d' +
-          'e2adebeb10a298dd'
+          '82558a389a443c0ea4cc819899f2083a85f0faa3e578f8077a2e3ff46729665b',
+      sha384: tagGlue`3e8a69b7783c25851933ab6290af6ca77a9981480850009cc5577c6e
+                      1f573b4e6801dd23c4a7d679ccf8a386c674cffb`,
+      sha512: tagGlue`b0ba465637458c6990e5a8c5f61d4af7e576d97ff94b872de76f8050
+                      361ee3dba91ca5c11aa25eb4d679275cc5788063a5f19741120c4f2d
+                      e2adebeb10a298dd`
     }
   },
 
@@ -162,59 +153,53 @@ const rfc4231 = [
     truncate: true
   },
   {
-    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaa', 'hex'),
+    key: Buffer.from(tagGlue`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaa`, 'hex'),
     // 'Test Using Larger Than Block-Size Key - Hash Key First'
-    data: Buffer.from('54657374205573696e67204c6172676572205468616e20426' +
-                      'c6f636b2d53697a65204b6579202d2048617368204b657920' +
-                      '4669727374', 'hex'),
+    data: Buffer.from(tagGlue`54657374205573696e67204c6172676572205468616e20426
+                              c6f636b2d53697a65204b6579202d2048617368204b657920
+                              4669727374`, 'hex'),
     hmac: {
       sha224: '95e9a0db962095adaebe9b2d6f0dbce2d499f112f2d2b7273fa6870e',
       sha256:
-          '60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f' +
-          '0ee37f54',
-      sha384:
-          '4ece084485813e9088d2c63a041bc5b44f9ef1012a2b588f3cd11f05' +
-          '033ac4c60c2ef6ab4030fe8296248df163f44952',
-      sha512:
-          '80b24263c7c1a3ebb71493c1dd7be8b49b46d1f41b4aeec1121b0137' +
-          '83f8f3526b56d037e05f2598bd0fd2215d6a1e5295e64f73f63f0aec' +
-          '8b915a985d786598'
+          '60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54',
+      sha384: tagGlue`4ece084485813e9088d2c63a041bc5b44f9ef1012a2b588f3cd11f05
+                      033ac4c60c2ef6ab4030fe8296248df163f44952`,
+      sha512: tagGlue`80b24263c7c1a3ebb71493c1dd7be8b49b46d1f41b4aeec1121b0137
+                      83f8f3526b56d037e05f2598bd0fd2215d6a1e5295e64f73f63f0aec
+                      8b915a985d786598`
     }
   },
   {
-    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaa', 'hex'),
+    key: Buffer.from(tagGlue`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaa`, 'hex'),
     // 'This is a test using a larger than block-size key and a larger ' +
     // 'than block-size data. The key needs to be hashed before being ' +
     // 'used by the HMAC algorithm.'
-    data: Buffer.from('5468697320697320612074657374207573696e672061206c6' +
-                      '172676572207468616e20626c6f636b2d73697a65206b6579' +
-                      '20616e642061206c6172676572207468616e20626c6f636b2' +
-                      'd73697a6520646174612e20546865206b6579206e65656473' +
-                      '20746f20626520686173686564206265666f7265206265696' +
-                      'e6720757365642062792074686520484d414320616c676f72' +
-                      '6974686d2e', 'hex'),
+    data: Buffer.from(tagGlue`5468697320697320612074657374207573696e672061206c6
+                              172676572207468616e20626c6f636b2d73697a65206b6579
+                              20616e642061206c6172676572207468616e20626c6f636b2
+                              d73697a6520646174612e20546865206b6579206e65656473
+                              20746f20626520686173686564206265666f7265206265696
+                              e6720757365642062792074686520484d414320616c676f72
+                              6974686d2e`, 'hex'),
     hmac: {
       sha224: '3a854166ac5d9f023f54d517d0b39dbd946770db9c2b95c9f6f565d1',
       sha256:
-          '9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f5153' +
-          '5c3a35e2',
-      sha384:
-          '6617178e941f020d351e2f254e8fd32c602420feb0b8fb9adccebb82' +
-          '461e99c5a678cc31e799176d3860e6110c46523e',
-      sha512:
-          'e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d' +
-          '20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de04460' +
-          '65c97440fa8c6a58'
+          '9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2',
+      sha384: tagGlue`6617178e941f020d351e2f254e8fd32c602420feb0b8fb9adccebb82
+                      461e99c5a678cc31e799176d3860e6110c46523e`,
+      sha512: tagGlue`e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d
+                      20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de04460
+                      65c97440fa8c6a58`
     }
   }
 ];
@@ -249,18 +234,17 @@ const rfc2202_md5 = [
   },
   {
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
-    data: Buffer.from('ddddddddddddddddddddddddddddddddddddddddddddddddd' +
-                      'ddddddddddddddddddddddddddddddddddddddddddddddddddd',
-                      'hex'),
+    data: Buffer.from(
+            tagGlue`dddddddddddddddddddddddddddddddddddddddddddddddddd
+                    dddddddddddddddddddddddddddddddddddddddddddddddddd`, 'hex'),
     hmac: '56be34521d144c88dbb8c733f0e8b3f6'
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
                      'hex'),
-    data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
-                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
-                      'cdcdcdcdcd',
-                      'hex'),
+    data: Buffer.from(
+            tagGlue`cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd
+                    cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd`, 'hex'),
     hmac: '697eaf0aca3a3aea3a75164746ffaa79'
   },
   {
@@ -269,23 +253,20 @@ const rfc2202_md5 = [
     hmac: '56461ef2342edc00f9bab995690efd4c'
   },
   {
-    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaa',
-                     'hex'),
+    key: Buffer.from(tagGlue`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaa`, 'hex'),
     data: 'Test Using Larger Than Block-Size Key - Hash Key First',
     hmac: '6b1ab7fe4bd7bf8f0b62e6ce61b9d0cd'
   },
   {
-    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaa',
-                     'hex'),
-    data:
-        'Test Using Larger Than Block-Size Key and Larger Than One ' +
-        'Block-Size Data',
+    key: Buffer.from(tagGlue`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaa`, 'hex'),
+    data: tagUnwrap`Test Using Larger Than Block-Size Key
+                    and Larger Than One Block-Size Data`,
     hmac: '6f630fad67cda0ee1fb1f562db3aa53e'
   }
 ];
@@ -302,19 +283,17 @@ const rfc2202_sha1 = [
   },
   {
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
-    data: Buffer.from('ddddddddddddddddddddddddddddddddddddddddddddd' +
-                      'ddddddddddddddddddddddddddddddddddddddddddddd' +
-                      'dddddddddd',
-                      'hex'),
+    data: Buffer.from(tagGlue`ddddddddddddddddddddddddddddddddddddddddddddd
+                              ddddddddddddddddddddddddddddddddddddddddddddd
+                              dddddddddd`, 'hex'),
     hmac: '125d7342b9ac11cd91a39af48aa17b4f63f175d3'
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
                      'hex'),
-    data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
-                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
-                      'cdcdcdcdcd',
-                      'hex'),
+    data: Buffer.from(tagGlue`cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc
+                              dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd
+                              cdcdcdcdcd`, 'hex'),
     hmac: '4c9007f4026250c6bc8414f9bf50c86c2d7235da'
   },
   {
@@ -323,23 +302,20 @@ const rfc2202_sha1 = [
     hmac: '4c1a03424b55e07fe7f27be1d58bb9324a9a5a04'
   },
   {
-    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaa',
-                     'hex'),
+    key: Buffer.from(tagGlue`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaa`, 'hex'),
     data: 'Test Using Larger Than Block-Size Key - Hash Key First',
     hmac: 'aa4ae5e15272d00e95705637ce8a3b55ed402112'
   },
   {
-    key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
-                     'aaaaaaaaaaaaaaaaaaaaaa',
-                     'hex'),
-    data:
-        'Test Using Larger Than Block-Size Key and Larger Than One ' +
-        'Block-Size Data',
+    key: Buffer.from(tagGlue`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+                             aaaaaaaaaaaaaaaaaaaaaa`, 'hex'),
+    data: tagUnwrap`Test Using Larger Than Block-Size Key
+                    and Larger Than One Block-Size Data`,
     hmac: 'e8e99d0f45237d786d6bbaa7965c7808bbff1a91'
   }
 ];
@@ -387,11 +363,11 @@ assert.strictEqual(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
 
 assert.strictEqual(
   a3,
-  '\u00c1(4\u00f1\u0003\u001fd\u0097!O\'\u00d4C/&Qz\u00d4' +
-  '\u0094\u0015l\u00b8\u008dQ+\u00db\u001d\u00c4\u00b5}\u00b2' +
-  '\u00d6\u0092\u00a3\u00df\u00a2i\u00a1\u009b\n\n*\u000f' +
-  '\u00d7\u00d6\u00a2\u00a8\u0085\u00e3<\u0083\u009c\u0093' +
-  '\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed\'',
+  tagGlue`\u00c1(4\u00f1\u0003\u001fd\u0097!O'\u00d4C/&Qz\u00d4
+          \u0094\u0015l\u00b8\u008dQ+\u00db\u001d\u00c4\u00b5}\u00b2
+          \u00d6\u0092\u00a3\u00df\u00a2i\u00a1\u009b${'\n\n'}*\u000f
+          \u00d7\u00d6\u00a2\u00a8\u0085\u00e3<\u0083\u009c\u0093
+          \u00c2\u0006\u00da0\u00a1\u00879(G\u00ed'`,
   'Test SHA512 as assumed latin1'
 );
 
@@ -477,10 +453,10 @@ function testCipher1(key) {
 function testCipher2(key) {
   // encryption and decryption with Base64
   // reported in https://github.com/joyent/node/issues/738
-  const plaintext =
-      '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
-      'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
-      'jAfaFg**';
+  const plaintext = tagGlue`
+    32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELweCBs
+    ThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJjAfaFg**
+  `;
   const cipher = crypto.createCipher('aes256', key);
 
   // encrypt plaintext which is in utf8 format
@@ -498,10 +474,10 @@ function testCipher2(key) {
 
 function testCipher3(key, iv) {
   // Test encryption and decryption with explicit key and iv
-  const plaintext =
-      '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
-      'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
-      'jAfaFg**';
+  const plaintext = tagGlue`
+    32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELweCBs
+    ThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJjAfaFg**
+  `;
   const cipher = crypto.createCipheriv('des-ede3-cbc', key, iv);
   let ciph = cipher.update(plaintext, 'utf8', 'hex');
   ciph += cipher.final('hex');
@@ -517,10 +493,10 @@ function testCipher3(key, iv) {
 
 function testCipher4(key, iv) {
   // Test encryption and decryption with explicit key and iv
-  const plaintext =
-      '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
-      'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
-      'jAfaFg**';
+  const plaintext = tagGlue`
+    32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELweCBs
+    ThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJjAfaFg**
+  `;
   const cipher = crypto.createCipheriv('des-ede3-cbc', key, iv);
   let ciph = cipher.update(plaintext, 'utf8', 'buffer');
   ciph = Buffer.concat([ciph, cipher.final('buffer')]);
@@ -584,10 +560,12 @@ const secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 assert.strictEqual(secret1, secret3);
 
 // https://github.com/joyent/node/issues/2338
-const p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
-          '020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F1437' +
-          '4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED' +
-          'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
+const p = tagGlue`
+  FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74
+  020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F1437
+  4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED
+  EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF
+`;
 const d = crypto.createDiffieHellman(p, 'hex');
 assert.strictEqual(d.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
@@ -601,12 +579,13 @@ rsaSign.update(rsaPubPem);
 const rsaSignature = rsaSign.sign(rsaKeyPem, 'hex');
 assert.strictEqual(
   rsaSignature,
-  '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c' +
-  '8f020d7e2688b122bfb54c724ac9ee169f83f66d2fe90abeb95e8' +
-  'e1290e7e177152a4de3d944cf7d4883114a20ed0f78e70e25ef0f' +
-  '60f06b858e6af42a2f276ede95bbc6bc9a9bbdda15bd663186a6f' +
-  '40819a7af19e577bb2efa5e579a1f5ce8a0d4ca8b8f6'
-);
+  tagGlue`
+    5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c
+    8f020d7e2688b122bfb54c724ac9ee169f83f66d2fe90abeb95e8
+    e1290e7e177152a4de3d944cf7d4883114a20ed0f78e70e25ef0f
+    60f06b858e6af42a2f276ede95bbc6bc9a9bbdda15bd663186a6f
+    40819a7af19e577bb2efa5e579a1f5ce8a0d4ca8b8f6
+  `);
 
 rsaVerify.update(rsaPubPem);
 assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
@@ -622,12 +601,13 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 
   const input = 'I AM THE WALRUS';
 
-  const signature =
-      '79d59d34f56d0e94aa6a3e306882b52ed4191f07521f25f505a078dc2f89' +
-      '396e0c8ac89e996fde5717f4cb89199d8fec249961fcb07b74cd3d2a4ffa' +
-      '235417b69618e4bcd76b97e29975b7ce862299410e1b522a328e44ac9bb2' +
-      '8195e0268da7eda23d9825ac43c724e86ceeee0d0d4465678652ccaf6501' +
-      '0ddfb299bedeb1ad';
+  const signature = tagGlue`
+    79d59d34f56d0e94aa6a3e306882b52ed4191f07521f25f505a078dc2f89
+    396e0c8ac89e996fde5717f4cb89199d8fec249961fcb07b74cd3d2a4ffa
+    235417b69618e4bcd76b97e29975b7ce862299410e1b522a328e44ac9bb2
+    8195e0268da7eda23d9825ac43c724e86ceeee0d0d4465678652ccaf6501
+    0ddfb299bedeb1ad
+  `;
 
   const sign = crypto.createSign('RSA-SHA256');
   sign.update(input);
@@ -681,24 +661,24 @@ function testPBKDF2(password, salt, iterations, keylen, expected) {
 
 
 testPBKDF2('password', 'salt', 1, 20,
-           '\x12\x0f\xb6\xcf\xfc\xf8\xb3\x2c\x43\xe7\x22\x52' +
-           '\x56\xc4\xf8\x37\xa8\x65\x48\xc9');
+           tagGlue`\x12\x0f\xb6\xcf\xfc\xf8\xb3\x2c\x43\xe7
+                   \x22\x52\x56\xc4\xf8\x37\xa8\x65\x48\xc9`);
 
 testPBKDF2('password', 'salt', 2, 20,
-           '\xae\x4d\x0c\x95\xaf\x6b\x46\xd3\x2d\x0a\xdf\xf9' +
-           '\x28\xf0\x6d\xd0\x2a\x30\x3f\x8e');
+           tagGlue`\xae\x4d\x0c\x95\xaf\x6b\x46\xd3\x2d${'\x0a'}
+                   \xdf\xf9\x28\xf0\x6d\xd0\x2a\x30\x3f\x8e`);
 
 testPBKDF2('password', 'salt', 4096, 20,
-           '\xc5\xe4\x78\xd5\x92\x88\xc8\x41\xaa\x53\x0d\xb6' +
-           '\x84\x5c\x4c\x8d\x96\x28\x93\xa0');
+           tagGlue`\xc5\xe4\x78\xd5\x92\x88\xc8\x41\xaa\x53
+                   \x0d\xb6\x84\x5c\x4c\x8d\x96\x28\x93\xa0`);
 
 testPBKDF2('passwordPASSWORDpassword',
            'saltSALTsaltSALTsaltSALTsaltSALTsalt',
            4096,
            25,
-           '\x34\x8c\x89\xdb\xcb\xd3\x2b\x2f\x32\xd8\x14\xb8' +
-           '\x11\x6e\x84\xcf\x2b\x17\x34\x7e\xbc\x18\x00\x18\x1c');
+           tagGlue`\x34\x8c\x89\xdb\xcb\xd3\x2b\x2f\x32\xd8\x14\xb8
+                   \x11\x6e\x84\xcf\x2b\x17\x34\x7e\xbc\x18\x00\x18\x1c`);
 
 testPBKDF2('pass\0word', 'sa\0lt', 4096, 16,
-           '\x89\xb6\x9d\x05\x16\xf8\x29\x89\x3c\x69\x62\x26' +
-           '\x65\x0a\x86\x87');
+           tagGlue`\x89\xb6\x9d\x05\x16\xf8\x29\x89
+                   \x3c\x69\x62\x26\x65${'\x0a'}\x86\x87`);

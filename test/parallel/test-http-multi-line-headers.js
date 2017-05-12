@@ -29,15 +29,16 @@ const net = require('net');
 const server = net.createServer(function(conn) {
   const body = 'Yet another node.js server.';
 
-  const response =
-      'HTTP/1.1 200 OK\r\n' +
-      'Connection: close\r\n' +
-      'Content-Length: ' + body.length + '\r\n' +
-      'Content-Type: text/plain;\r\n' +
-      ' x-unix-mode=0600;\r\n' +
-      ' name="hello.txt"\r\n' +
-      '\r\n' +
-      body;
+  const response = common.tagCRLFy`
+      HTTP/1.1 200 OK
+      Connection: close
+      Content-Length: ${body.length}
+      Content-Type: text/plain;
+       x-unix-mode=0600;
+       name="hello.txt"
+
+      ${body}
+  `;
 
   conn.end(response);
   server.close();

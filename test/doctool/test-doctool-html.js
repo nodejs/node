@@ -5,6 +5,8 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
+const { tagUnwrap } = common;
+
 // The doctool currently uses js-yaml from the tool/eslint/ tree.
 try {
   require('../../tools/eslint/node_modules/js-yaml');
@@ -23,70 +25,133 @@ const html = require('../../tools/doc/html.js');
 const testData = [
   {
     file: path.join(common.fixturesDir, 'sample_document.md'),
-    html: '<ol><li>fish</li><li><p>fish</p></li><li><p>Redfish</p></li>' +
-      '<li>Bluefish</li></ol>'
+    html: tagUnwrap`
+      <ol>
+        <li>fish</li>
+        <li><p>fish</p></li>
+        <li><p>Redfish</p></li>
+        <li>Bluefish</li>
+      </ol>
+    `
   },
   {
     file: path.join(common.fixturesDir, 'order_of_end_tags_5873.md'),
-    html: '<h3>ClassMethod: Buffer.from(array) <span> ' +
-      '<a class="mark" href="#foo_class_method_buffer_from_array" ' +
-      'id="foo_class_method_buffer_from_array">#</a> </span> </h3><div' +
-      'class="signature"><ul><li><code>array</code><a ' +
-      'href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/' +
-      'Reference/Global_Objects/Array" class="type">&lt;Array&gt;</a></li>' +
-      '</ul></div>'
+    html: tagUnwrap`
+      <h3>ClassMethod: Buffer.from(array)
+        <span><a class="mark" href="#foo_class_method_buffer_from_array"
+                 id="foo_class_method_buffer_from_array">#</a> </span>
+      </h3>
+      <div class="signature">
+        <ul>
+          <li>
+            <code>array</code>
+            <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/
+               Reference/Global_Objects/Array" class="type">&lt;Array&gt;</a>
+          </li>
+        </ul>
+      </div>
+    `
   },
   {
     file: path.join(common.fixturesDir, 'doc_with_yaml.md'),
-    html: '<h1>Sample Markdown with YAML info' +
-      '<span><a class="mark" href="#foo_sample_markdown_with_yaml_info" ' +
-      ' id="foo_sample_markdown_with_yaml_info">#</a></span></h1>' +
-      '<h2>Foobar<span><a class="mark" href="#foo_foobar" ' +
-      'id="foo_foobar">#</a></span></h2>' +
-      '<div class="api_metadata"><span>Added in: v1.0.0</span></div> ' +
-      '<p>Describe <code>Foobar</code> in more detail here.</p>' +
-      '<h2>Foobar II<span><a class="mark" href="#foo_foobar_ii" ' +
-      'id="foo_foobar_ii">#</a></span></h2>' +
-      '<div class="api_metadata">' +
-      '<details class="changelog"><summary>History</summary>' +
-      '<table><tr><th>Version</th><th>Changes</th></tr>' +
-      '<tr><td>v5.3.0, v4.2.0</td>' +
-      '<td><p><span>Added in: v5.3.0, v4.2.0</span></p>' +
-      '</td></tr>' +
-      '<tr><td>v4.2.0</td><td><p>The <code>error</code> parameter can now be' +
-      'an arrow function.</p></td></tr></table></details>' +
-      '</div> ' +
-      '<p>Describe <code>Foobar II</code> in more detail here.' +
-      '<a href="http://man7.org/linux/man-pages/man1/fg.1.html">fg(1)</a></p>' +
-      '<h2>Deprecated thingy<span><a class="mark" ' +
-      'href="#foo_deprecated_thingy" id="foo_deprecated_thingy">#</a>' +
-      '</span></h2>' +
-      '<div class="api_metadata"><span>Added in: v1.0.0</span>' +
-      '<span>Deprecated since: v2.0.0</span></div><p>Describe ' +
-      '<code>Deprecated thingy</code> in more detail here.' +
-      '<a href="http://man7.org/linux/man-pages/man1/fg.1p.html">fg(1p)</a>' +
-      '</p>' +
-      '<h2>Something<span><a class="mark" href="#foo_something" ' +
-      'id="foo_something">#</a></span></h2> ' +
-      '<!-- This is not a metadata comment --> ' +
-      '<p>Describe <code>Something</code> in more detail here. ' +
-      '</p>'
+    html: tagUnwrap`
+      <h1>
+        Sample Markdown with YAML info
+        <span><a class="mark" href="#foo_sample_markdown_with_yaml_info"
+             id="foo_sample_markdown_with_yaml_info">#</a></span>
+      </h1>
+      <h2>
+        Foobar
+        <span><a class="mark" href="#foo_foobar" id="foo_foobar">#</a></span>
+      </h2>
+      <div class="api_metadata">
+        <span>Added in: v1.0.0</span>
+      </div>
+      <p>
+        Describe <code>Foobar</code> in more detail here.
+      </p>
+      <h2>
+        Foobar II
+        <span>
+          <a class="mark" href="#foo_foobar_ii" id="foo_foobar_ii">#</a>
+        </span>
+      </h2>
+      <div class="api_metadata">
+        <details class="changelog">
+          <summary>History</summary>
+          <table>
+            <tr><th>Version</th><th>Changes</th></tr>
+            <tr>
+              <td>v5.3.0, v4.2.0</td>
+              <td><p><span>Added in: v5.3.0, v4.2.0</span></p></td>
+            </tr>
+            <tr>
+              <td>v4.2.0</td>
+              <td><p>
+                The <code>error</code> parameter can now be an arrow function.
+              </p></td>
+            </tr>
+          </table>
+        </details>
+      </div>
+      <p>
+        Describe <code>Foobar II</code> in more detail here.
+        <a href="http://man7.org/linux/man-pages/man1/fg.1.html">fg(1)</a>
+      </p>
+      <h2>
+        Deprecated thingy
+        <span>
+          <a class="mark" href="#foo_deprecated_thingy"
+             id="foo_deprecated_thingy">#</a>
+        </span>
+      </h2>
+      <div class="api_metadata">
+        <span>Added in: v1.0.0</span>
+        <span>Deprecated since: v2.0.0</span>
+      </div>
+      <p>
+        Describe <code>Deprecated thingy</code> in more detail here.
+        <a href="http://man7.org/linux/man-pages/man1/fg.1p.html">fg(1p)</a>
+      </p>
+      <h2>
+        Something
+        <span>
+          <a class="mark" href="#foo_something" id="foo_something">#</a>
+        </span>
+      </h2>
+      <!-- This is not a metadata comment -->
+      <p>
+        Describe <code>Something</code> in more detail here.
+      </p>
+    `
   },
   {
     file: path.join(common.fixturesDir, 'doc_with_includes.md'),
-    html: '<!-- [start-include:doc_inc_1.md] -->' +
-    '<p>Look <a href="doc_inc_2.html#doc_inc_2_foobar">here</a>!</p>' +
-    '<!-- [end-include:doc_inc_1.md] -->' +
-    '<!-- [start-include:doc_inc_2.md] -->' +
-    '<h1>foobar<span><a class="mark" href="#doc_inc_2_foobar" ' +
-    'id="doc_inc_2_foobar">#</a></span></h1>' +
-    '<p>I exist and am being linked to.</p>' +
-    '<!-- [end-include:doc_inc_2.md] -->'
+    html: tagUnwrap`
+      <!-- [start-include:doc_inc_1.md] -->
+      <p>Look <a href="doc_inc_2.html#doc_inc_2_foobar">here</a>!</p>
+      <!-- [end-include:doc_inc_1.md] -->
+      <!-- [start-include:doc_inc_2.md] -->
+      <h1>
+        foobar
+        <span>
+          <a class="mark" href="#doc_inc_2_foobar" id="doc_inc_2_foobar">#</a>
+        </span>
+      </h1>
+      <p>I exist and am being linked to.</p>
+      <!-- [end-include:doc_inc_2.md] -->
+    `
   },
   {
     file: path.join(common.fixturesDir, 'sample_document.md'),
-    html: '<ol><li>fish</li><li><p>fish</p></li><li><p>Redfish</p></li>' +
-      '<li>Bluefish</li></ol>',
+    html: tagUnwrap`
+      <ol>
+        <li>fish</li>
+        <li><p>fish</p></li>
+        <li><p>Redfish</p></li>
+        <li>Bluefish</li>
+      </ol>
+    `,
     analyticsId: 'UA-67020396-1'
   },
 ];

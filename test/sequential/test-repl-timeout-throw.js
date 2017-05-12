@@ -36,16 +36,19 @@ child.stdout.once('data', function() {
   }
 
   function eeTest() {
-    child.stdin.write('setTimeout(function() {\n' +
-                      '  const events = require("events");\n' +
-                      '  var e = new events.EventEmitter;\n' +
-                      '  process.nextTick(function() {\n' +
-                      '    e.on("x", thrower);\n' +
-                      '    setTimeout(function() {\n' +
-                      '      e.emit("x");\n' +
-                      '    });\n' +
-                      '  });\n' +
-                      '});"";\n');
+    child.stdin.write(common.tagLFy`
+      setTimeout(function() {
+        const events = require('events');
+        var e = new events.EventEmitter;
+        process.nextTick(function() {
+          e.on('x', thrower);
+          setTimeout(function() {
+            e.emit('x');
+          });
+        });
+      });'';
+
+    `);
 
     setTimeout(child.stdin.end.bind(child.stdin), common.platformTimeout(200));
   }

@@ -32,9 +32,11 @@ const message = 'Read, Eval, Print Loop';
 const prompt_unix = 'node via Unix socket> ';
 const prompt_tcp = 'node via TCP socket> ';
 const prompt_multiline = '... ';
-const prompt_npm = 'npm should be run outside of the ' +
-                   'node repl, in your normal shell.\n' +
-                   '(Press Control-D to exit.)\n';
+const prompt_npm = common.tagLFy`
+  npm should be run outside of the node repl, in your normal shell.
+  (Press Control-D to exit.)
+
+`;
 const expect_npm = prompt_npm + prompt_unix;
 let server_tcp, server_unix, client_tcp, client_unix, replServer;
 

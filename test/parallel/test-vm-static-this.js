@@ -41,10 +41,11 @@ assert.strictEqual(2, global.hello);
 
 
 // pass values
-const code = 'foo = 1;' +
-             'bar = 2;' +
-             'if (typeof baz !== \'undefined\')' +
-             'throw new Error(\'test fail\');';
+const code = common.tagLFy`
+  foo = 1;
+  bar = 2;
+  if (typeof baz !== 'undefined') throw new Error('test fail');
+`;
 global.foo = 2;
 global.obj = { foo: 0, baz: 3 };
 /* eslint-disable no-unused-vars */

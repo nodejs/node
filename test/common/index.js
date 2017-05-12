@@ -211,9 +211,11 @@ Object.defineProperty(exports, 'localhostIPv4', {
       if (process.env.LOCALHOST) {
         localhostIPv4 = process.env.LOCALHOST;
       } else {
-        console.error('Looks like we\'re in a FreeBSD Jail. ' +
-                      'Please provide your default interface address ' +
-                      'as LOCALHOST or expect some tests to fail.');
+        console.error(exports.tagUnwrap`
+          Looks like we're in a FreeBSD Jail.
+          Please provide your default interface address as LOCALHOST
+          or expect some tests to fail.
+        `);
       }
     }
 
@@ -289,9 +291,10 @@ exports.childShouldThrowAndAbort = function() {
   testCmd += `"${process.argv[1]}" child`;
   const child = child_process.exec(testCmd);
   child.on('exit', function onExit(exitCode, signal) {
-    const errMsg = 'Test should have aborted ' +
-                   `but instead exited with exit code ${exitCode}` +
-                   ` and signal ${signal}`;
+    const errMsg = exports.tagUnwrap`
+      Test should have aborted
+      but instead exited with exit code ${exitCode} and signal ${signal}
+    `;
     assert(exports.nodeProcessAborted(exitCode, signal), errMsg);
   });
 };

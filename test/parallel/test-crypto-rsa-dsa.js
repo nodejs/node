@@ -10,6 +10,7 @@ if (!common.hasCrypto) {
 const constants = require('crypto').constants;
 const crypto = require('crypto');
 
+const { tagGlue } = common;
 const fixtDir = common.fixturesDir;
 
 // Test certificates
@@ -138,12 +139,12 @@ let rsaVerify = crypto.createVerify('RSA-SHA1');
 assert.ok(rsaSign);
 assert.ok(rsaVerify);
 
-const expectedSignature =
-      '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c' +
-      '8f020d7e2688b122bfb54c724ac9ee169f83f66d2fe90abeb95e8' +
-      'e1290e7e177152a4de3d944cf7d4883114a20ed0f78e70e25ef0f' +
-      '60f06b858e6af42a2f276ede95bbc6bc9a9bbdda15bd663186a6f' +
-      '40819a7af19e577bb2efa5e579a1f5ce8a0d4ca8b8f6';
+const expectedSignature = tagGlue`
+  5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c8f020d7e268
+  8b122bfb54c724ac9ee169f83f66d2fe90abeb95e8e1290e7e177152a4de3d94
+  4cf7d4883114a20ed0f78e70e25ef0f60f06b858e6af42a2f276ede95bbc6bc9
+  a9bbdda15bd663186a6f40819a7af19e577bb2efa5e579a1f5ce8a0d4ca8b8f6
+`;
 
 rsaSign.update(rsaPubPem);
 let rsaSignature = rsaSign.sign(rsaKeyPem, 'hex');
@@ -182,12 +183,12 @@ assert.throws(() => {
 
   const input = 'I AM THE WALRUS';
 
-  const signature =
-      '79d59d34f56d0e94aa6a3e306882b52ed4191f07521f25f505a078dc2f89' +
-      '396e0c8ac89e996fde5717f4cb89199d8fec249961fcb07b74cd3d2a4ffa' +
-      '235417b69618e4bcd76b97e29975b7ce862299410e1b522a328e44ac9bb2' +
-      '8195e0268da7eda23d9825ac43c724e86ceeee0d0d4465678652ccaf6501' +
-      '0ddfb299bedeb1ad';
+  const signature = tagGlue`
+    79d59d34f56d0e94aa6a3e306882b52ed4191f07521f25f505a078dc2f89396e
+    0c8ac89e996fde5717f4cb89199d8fec249961fcb07b74cd3d2a4ffa235417b6
+    9618e4bcd76b97e29975b7ce862299410e1b522a328e44ac9bb28195e0268da7
+    eda23d9825ac43c724e86ceeee0d0d4465678652ccaf65010ddfb299bedeb1ad
+  `;
 
   const sign = crypto.createSign('RSA-SHA256');
   sign.update(input);
