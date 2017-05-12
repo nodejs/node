@@ -155,7 +155,6 @@ std::string extra_root_certs_file;  // NOLINT(runtime/string)
 X509_STORE* root_cert_store;
 
 // Just to generate static methods
-template class SSLWrap<TLSWrap>;
 template void SSLWrap<TLSWrap>::AddMethods(Environment* env,
                                            Local<FunctionTemplate> t);
 template void SSLWrap<TLSWrap>::InitNPN(SecureContext* sc);
