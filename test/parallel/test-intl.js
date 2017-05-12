@@ -72,8 +72,8 @@ if (!common.hasIntl) {
 
   // If list is specified and doesn't contain 'en' then return.
   if (process.config.variables.icu_locales && !haveLocale('en')) {
-    common.skip('detailed Intl tests because English is not ' +
-                'listed as supported.');
+    common.skip(
+      'detailed Intl tests because English is not listed as supported.');
     // Smoke test. Does it format anything, or fail?
     console.log(`Date(0) formatted to: ${dtf.format(date0)}`);
     return;
