@@ -10,7 +10,7 @@ To view this documentation as a manual page in a terminal, run `man node`.
 
 ## Synopsis
 
-`node [options] [v8 options] [script.js | -e "script"] [--] [arguments]`
+`node [options] [v8 options] [script.js | -e "script" | -] [--] [arguments]`
 
 `node debug [script.js | -e "script" | <host>:<port>] …`
 
@@ -344,6 +344,17 @@ added: v0.11.15
 -->
 
 Specify ICU data load path. (overrides `NODE_ICU_DATA`)
+
+
+### `-`
+<!-- YAML
+added: REPLACEME
+-->
+
+Alias for stdin, analogous to the use of - in other command line utilities,
+meaning that the script will be read from stdin, and the rest of the options
+are passed to that script.
+
 
 ### `--`
 <!-- YAML
