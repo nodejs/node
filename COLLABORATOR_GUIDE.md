@@ -252,6 +252,13 @@ not can often be based on many complex factors that are not easily codified. It
 is also possible that the breaking commit can be labeled retroactively as a
 semver-major change that will not be backported to Current or LTS branches.
 
+##### Reverting commits
+
+Commits are reverted with `git revert <HASH>`, or `git revert <FROM>..<TO>` for
+multiple commits. Commit metadata and the reason for the revert should be
+appended. Commit message rules about line length and subsystem can be ignored.
+A Pull Request should be raised and approved like any other change.
+
 ### Deprecations
 
 Deprecation refers to the identification of Public APIs that should no longer
