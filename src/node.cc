@@ -3592,7 +3592,7 @@ void LoadEnvironment(Environment* env) {
 static void PrintHelp() {
   // XXX: If you add an option here, please also add it to doc/node.1 and
   // doc/api/cli.md
-  printf("Usage: node [options] [ -e script | script.js ] [arguments]\n"
+  printf("Usage: node [options] [ -e script | script.js | - ] [arguments]\n"
          "       node inspect script.js [arguments]\n"
          "\n"
          "Options:\n"
@@ -3604,6 +3604,8 @@ static void PrintHelp() {
          "                             does not appear to be a terminal\n"
          "  -r, --require              module to preload (option can be "
          "repeated)\n"
+         "  -                          script read from stdin (default; "
+         "interactive mode if a tty)"
 #if HAVE_INSPECTOR
          "  --inspect[=[host:]port]    activate inspector on host:port\n"
          "                             (default: 127.0.0.1:9229)\n"
@@ -3913,6 +3915,8 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       config_expose_internals = true;
+    } else if (strcmp(arg, "-") == 0) {
+      break;
     } else if (strcmp(arg, "--") == 0) {
       index += 1;
       break;
