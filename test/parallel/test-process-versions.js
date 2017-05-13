@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const util = require('util');
 
 const expected_keys = ['ares', 'http_parser', 'modules', 'node',
                        'uv', 'v8', 'zlib'];
@@ -28,3 +29,29 @@ assert(/^\d+\.\d+\.\d+(-.*)?$/.test(process.versions.uv));
 assert(/^\d+\.\d+\.\d+(-.*)?$/.test(process.versions.zlib));
 assert(/^\d+\.\d+\.\d+(\.\d+)?$/.test(process.versions.v8));
 assert(/^\d+$/.test(process.versions.modules));
+
+const testInspectCustom = () => {
+  const all = process.versions[util.inspect.custom]();
+  assert(all.startsWith('{ '));
+  assert(all.endsWith(' }'));
+  expected_keys.every((key) => {
+    const value = process.versions[key];
+    assert(all.includes(` ${key}: '${value}'`),
+           `Cannot find expected value ${value} for ${key} in ${all}`);
+  });
+};
+
+testInspectCustom();
+
+// run tests again with monkey-patched util.format()
+{
+  const saveFormat = util.format;
+  util.format = () => {
+    assert.fail('monkey-patched util.format() should not be invoked');
+  };
+
+  testInspectCustom();
+
+  // restore util.format to avoid side effects
+  util.format = saveFormat;
+}

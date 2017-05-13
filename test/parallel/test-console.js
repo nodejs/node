@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const util = require('util');
 
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
@@ -159,3 +160,36 @@ assert.throws(() => {
 assert.doesNotThrow(() => {
   console.assert(true, 'this should not throw');
 });
+
+
+// Run with monkey-patched util.format() and util.inspect() to confirm it won't
+// run the monkey- patched functions but instead it will run the correct
+// original functions.
+{
+  const saveFormat = util.format;
+  util.format = () => {
+    assert.fail('monkey-patched util.format() should not be invoked');
+  };
+
+  const saveInspect = util.inspect;
+  util.inspect = () => {
+    assert.fail('monkey-patched util.inspect() should not be invoked');
+  };
+
+  assert.doesNotThrow(() => {
+    console.log('fhqwhgads');
+    console.warn('fhqwhgads');
+    console.dir('fhqwhgads');
+    console.trace('fhqwhgads');
+  });
+
+  // Should throw with `fhqwhgads` and not `monkey-patched ... should not be
+  // invoked`.
+  assert.throws(() => {
+    console.assert(false, 'fhqwhgads');
+  }, /fhqwhgads/);
+
+  // Restore util.format to avoid side effects.
+  util.format = saveFormat;
+  util.inspect = saveInspect;
+}
