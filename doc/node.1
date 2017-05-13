@@ -36,7 +36,10 @@ node \- Server-side JavaScript runtime
 .RI [ v8\ options ]
 .RI [ script.js \ |
 .B -e
-.RI \&" script \&"]
+.RI \&" script \&"
+.R |
+.B -
+.R ]
 .B [--]
 .RI [ arguments ]
 .br
@@ -224,6 +227,12 @@ See \fBSSL_CERT_DIR\fR and \fBSSL_CERT_FILE\fR.
 .TP
 .BR \-\-icu\-data\-dir =\fIfile\fR
 Specify ICU data load path. (overrides \fBNODE_ICU_DATA\fR)
+
+.TP
+.BR \-\fR
+Alias for stdin, analogous to the use of - in other command line utilities,
+meaning that the script will be read from stdin, and the rest of the options
+are passed to that script.
 
 .TP
 .BR \-\-\fR
