@@ -919,17 +919,16 @@ void Compare(const FunctionCallbackInfo<Value> &args) {
 // Computes the offset for starting an indexOf or lastIndexOf search.
 // Returns either a valid offset in [0...<length - 1>], ie inside the Buffer,
 // or -1 to signal that there is no possible match.
-int64_t IndexOfOffset(size_t length, int64_t offset_i64, bool is_forward) {
+int64_t IndexOfOffset(size_t length,
+                      int64_t offset_i64,
+                      int64_t needle_length,
+                      bool is_forward) {
   int64_t length_i64 = static_cast<int64_t>(length);
-  if (length_i64 == 0) {
-    // Empty buffer, no match.
-    return -1;
-  }
   if (offset_i64 < 0) {
     if (offset_i64 + length_i64 >= 0) {
       // Negative offsets count backwards from the end of the buffer.
       return length_i64 + offset_i64;
-    } else if (is_forward) {
+    } else if (is_forward || needle_length == 0) {
       // indexOf from before the start of the buffer: search the whole buffer.
       return 0;
     } else {
@@ -937,9 +936,12 @@ int64_t IndexOfOffset(size_t length, int64_t offset_i64, bool is_forward) {
       return -1;
     }
   } else {
-    if (offset_i64 < length_i64) {
+    if (offset_i64 + needle_length <= length_i64) {
       // Valid positive offset.
       return offset_i64;
+    } else if (needle_length == 0) {
+      // Out of buffer bounds, but empty needle: point to end of buffer.
+      return length_i64;
     } else if (is_forward) {
       // indexOf from past the end of the buffer: no match.
       return -1;
@@ -974,11 +976,21 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
   const size_t needle_length =
       StringBytes::Size(args.GetIsolate(), needle, enc);
 
-  if (needle_length == 0 || haystack_length == 0) {
+  int64_t opt_offset = IndexOfOffset(haystack_length,
+                                     offset_i64,
+                                     needle_length,
+                                     is_forward);
+
+  if (needle_length == 0) {
+    // Match String#indexOf() and String#lastIndexOf() behaviour.
+    args.GetReturnValue().Set(static_cast<double>(opt_offset));
+    return;
+  }
+
+  if (haystack_length == 0) {
     return args.GetReturnValue().Set(-1);
   }
 
-  int64_t opt_offset = IndexOfOffset(haystack_length, offset_i64, is_forward);
   if (opt_offset <= -1) {
     return args.GetReturnValue().Set(-1);
   }
@@ -1077,11 +1089,21 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
   const char* needle = buf_data;
   const size_t needle_length = buf_length;
 
-  if (needle_length == 0 || haystack_length == 0) {
+  int64_t opt_offset = IndexOfOffset(haystack_length,
+                                     offset_i64,
+                                     needle_length,
+                                     is_forward);
+
+  if (needle_length == 0) {
+    // Match String#indexOf() and String#lastIndexOf() behaviour.
+    args.GetReturnValue().Set(static_cast<double>(opt_offset));
+    return;
+  }
+
+  if (haystack_length == 0) {
     return args.GetReturnValue().Set(-1);
   }
 
-  int64_t opt_offset = IndexOfOffset(haystack_length, offset_i64, is_forward);
   if (opt_offset <= -1) {
     return args.GetReturnValue().Set(-1);
   }
@@ -1132,8 +1154,8 @@ void IndexOfNumber(const FunctionCallbackInfo<Value>& args) {
   int64_t offset_i64 = args[2]->IntegerValue();
   bool is_forward = args[3]->IsTrue();
 
-  int64_t opt_offset = IndexOfOffset(ts_obj_length, offset_i64, is_forward);
-  if (opt_offset <= -1) {
+  int64_t opt_offset = IndexOfOffset(ts_obj_length, offset_i64, 1, is_forward);
+  if (opt_offset <= -1 || ts_obj_length == 0) {
     return args.GetReturnValue().Set(-1);
   }
   size_t offset = static_cast<size_t>(opt_offset);
