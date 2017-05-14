@@ -11,7 +11,6 @@ const { domainToASCII, domainToUnicode } = require('url');
 
 // Tests below are not from WPT.
 const tests = require('../fixtures/url-idna.js');
-const testsHyphenDomains = require('../fixtures/url-domains-with-hyphens.js');
 
 {
   const expectedError = common.expectsError(
@@ -36,10 +35,16 @@ const testsHyphenDomains = require('../fixtures/url-domains-with-hyphens.js');
 }
 
 {
-  for (const [i, { ascii, unicode }] of testsHyphenDomains.valid.entries()) {
-    assert.strictEqual(ascii, domainToASCII(unicode),
-                       `domainToASCII(${i + 1})`);
-  }
+  [
+    'r4---sn-a5mlrn7s.gevideo.com',
+    '-sn-a5mlrn7s.gevideo.com',
+    'sn-a5mlrn7s-.gevideo.com',
+    '-sn-a5mlrn7s-.gevideo.com',
+    '-sn--a5mlrn7s-.gevideo.com'
+  ].forEach((domain) => {
+    assert.strictEqual(domain, domainToASCII(domain),
+                       `domainToASCII(${domain})`);
+  })
 }
 
 {
