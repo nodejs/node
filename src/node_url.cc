@@ -130,6 +130,9 @@ enum url_error_cb_args {
     return str.length() >= 2 && name(str[0], str[1]);                         \
   }
 
+// https://infra.spec.whatwg.org/#ascii-code-point
+CHAR_TEST(8, IsASCIICodePoint, (ch >= '\0' && ch <= '\x7f'))
+
 // https://infra.spec.whatwg.org/#ascii-tab-or-newline
 CHAR_TEST(8, IsASCIITabOrNewline, (ch == '\t' || ch == '\n' || ch == '\r'))
 
@@ -829,10 +832,10 @@ static url_host_type ParseOpaqueHost(url_host* host,
   return type;
 }
 
-static inline bool IsAllASCII(std::string* input) {
-  for (size_t n = 0; n < input->size(); n++) {
-    const char ch = (*input)[n];
-    if (ch & 0x80) {
+static inline bool IsAllASCII(const std::string& input) {
+  for (size_t n = 0; n < input.size(); n++) {
+    const char ch = input[n];
+    if (!IsASCIICodePoint(ch)) {
       return false;
     }
   }
@@ -865,13 +868,13 @@ static url_host_type ParseHost(url_host* host,
 
   // Match browser behavior for ASCII only domains
   // and do not run them through ToASCII algorithm.
-  if (IsAllASCII(&decoded)) {
-    // Lowercase aschii domains
+  if (IsAllASCII(decoded)) {
+    // Lowercase ASCII domains
     for (size_t n = 0; n < decoded.size(); n++) {
-      decoded[n] = std::tolower(decoded[n]);
+      decoded[n] = ASCIILowercase(decoded[n]);
     }
   } else {
-    // Then we have to punycode toASCII
+    // Then we have to Unicode IDNA toASCII
     if (!ToASCII(&decoded, &decoded))
       goto end;
   }
