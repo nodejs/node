@@ -131,10 +131,6 @@ enum url_error_cb_args {
     return str.length() >= 2 && name(str[0], str[1]);                         \
   }
 
-CHAR_TEST(8, IsLowerCaseASCII, (ch >='a' && ch <= 'z'))
-
-CHAR_TEST(8, IsLowerCaseASCII, (ch >='a' && ch <= 'z'))
-
 // https://infra.spec.whatwg.org/#ascii-tab-or-newline
 CHAR_TEST(8, IsASCIITabOrNewline, (ch == '\t' || ch == '\n' || ch == '\r'))
 
@@ -865,9 +861,7 @@ static url_host_type ParseHost(url_host* host,
   if (!stringutils::ContainsNonAscii(buf, strlen(buf))) {
     // Lowercase ASCII domains
     for (size_t n = 0; n < decoded.size(); n++) {
-      if (!IsLowerCaseASCII(decoded[n])) {
-        decoded[n] = ASCIILowercase(decoded[n]);
-      }
+      decoded[n] = ASCIILowercase(decoded[n]);
     }
   } else {
     // Then we have to Unicode IDNA toASCII
