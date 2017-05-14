@@ -1840,6 +1840,9 @@ Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/13028
+    description: Pipe/Socket resolve support was added.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using
@@ -1872,10 +1875,16 @@ object with an `encoding` property specifying the character encoding to use for
 the path passed to the callback. If the `encoding` is set to `'buffer'`,
 the path returned will be passed as a `Buffer` object.
 
+*Note*: If `path` resolves to a socket or a pipe, the function will return a
+system dependent name for that object.
+
 ## fs.realpathSync(path[, options])
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/13028
+    description: Pipe/Socket resolve support was added.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using
@@ -1901,6 +1910,9 @@ The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
 the returned value. If the `encoding` is set to `'buffer'`, the path returned
 will be passed as a `Buffer` object.
+
+*Note*: If `path` resolves to a socket or a pipe, the function will return a
+system dependent name for that object.
 
 ## fs.rename(oldPath, newPath, callback)
 <!-- YAML
