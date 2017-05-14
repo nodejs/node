@@ -9,6 +9,7 @@
 #include "base-object.h"
 #include "base-object-inl.h"
 #include "node_i18n.h"
+#include "string_utils.h"
 
 #include <string>
 #include <vector>
@@ -130,8 +131,7 @@ enum url_error_cb_args {
     return str.length() >= 2 && name(str[0], str[1]);                         \
   }
 
-// https://infra.spec.whatwg.org/#ascii-code-point
-CHAR_TEST(8, IsASCIICodePoint, (ch >= '\0' && ch <= '\x7f'))
+CHAR_TEST(8, IsLowerCaseASCII, (ch >='a' && ch <= 'z'))
 
 CHAR_TEST(8, IsLowerCaseASCII, (ch >='a' && ch <= 'z'))
 
@@ -834,16 +834,6 @@ static url_host_type ParseOpaqueHost(url_host* host,
   return type;
 }
 
-static inline bool IsAllASCII(const std::string& input) {
-  for (size_t n = 0; n < input.size(); n++) {
-    const char ch = input[n];
-    if (!IsASCIICodePoint(ch)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 static url_host_type ParseHost(url_host* host,
                                const char* input,
                                size_t length,
@@ -852,6 +842,7 @@ static url_host_type ParseHost(url_host* host,
   url_host_type type = HOST_TYPE_FAILED;
   const char* pointer = input;
   std::string decoded;
+  const char *buf = NULL;
 
   if (length == 0)
     goto end;
@@ -870,7 +861,8 @@ static url_host_type ParseHost(url_host* host,
 
   // Match browser behavior for ASCII only domains
   // and do not run them through ToASCII algorithm.
-  if (IsAllASCII(decoded)) {
+  buf = decoded.c_str();
+  if (!stringutils::ContainsNonAscii(buf, strlen(buf))) {
     // Lowercase ASCII domains
     for (size_t n = 0; n < decoded.size(); n++) {
       if (!IsLowerCaseASCII(decoded[n])) {
