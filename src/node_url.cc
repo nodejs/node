@@ -829,6 +829,16 @@ static url_host_type ParseOpaqueHost(url_host* host,
   return type;
 }
 
+static inline bool IsAllASCII(std::string* input) {
+  for (size_t n = 0; n < input->size(); n++) {
+    const char ch = (*input)[n];
+    if (ch & 0x80) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static url_host_type ParseHost(url_host* host,
                                const char* input,
                                size_t length,
@@ -853,9 +863,18 @@ static url_host_type ParseHost(url_host* host,
   // First, we have to percent decode
   PercentDecode(input, length, &decoded);
 
-  // Then we have to punycode toASCII
-  if (!ToASCII(&decoded, &decoded))
-    goto end;
+  // Match browser behavior for ASCII only domains
+  // and do not run them through ToASCII algorithm.
+  if (IsAllASCII(&decoded)) {
+    // Lowercase aschii domains
+    for (size_t n = 0; n < decoded.size(); n++) {
+      decoded[n] = std::tolower(decoded[n]);
+    }
+  } else {
+    // Then we have to punycode toASCII
+    if (!ToASCII(&decoded, &decoded))
+      goto end;
+  }
 
   // If any of the following characters are still present, we have to fail
   for (size_t n = 0; n < decoded.size(); n++) {
