@@ -982,6 +982,7 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
                                      is_forward);
 
   if (needle_length == 0) {
+    // Match String#indexOf() and String#lastIndexOf() behaviour.
     args.GetReturnValue().Set(static_cast<double>(opt_offset));
     return;
   }
@@ -1094,6 +1095,7 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
                                      is_forward);
 
   if (needle_length == 0) {
+    // Match String#indexOf() and String#lastIndexOf() behaviour.
     args.GetReturnValue().Set(static_cast<double>(opt_offset));
     return;
   }
