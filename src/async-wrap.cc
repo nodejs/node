@@ -268,7 +268,7 @@ static void GetPromiseDomain(Local<v8::Name> name,
 
 
 static void PromiseHook(PromiseHookType type, Local<Promise> promise,
-                        Local<Value> parent) {
+                        Local<Value> parent, void* arg) {
   Local<Context> context = promise->CreationContext();
   Environment* env = Environment::GetCurrent(context);
   const char async_id_key[] = "__async_wrap";
@@ -332,7 +332,7 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   SET_HOOK_FN(before);
   SET_HOOK_FN(after);
   SET_HOOK_FN(destroy);
-  env->isolate()->SetPromiseHook(PromiseHook);
+  env->AddPromiseHook(PromiseHook, nullptr);
 #undef SET_HOOK_FN
 }
 
