@@ -1295,4 +1295,4 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [tls.Server]: #tls_class_tls_server
-[`dns.lookup`]: dns.html#dns_dns_lookup_hostname_options_callback
+[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
