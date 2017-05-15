@@ -262,8 +262,9 @@ static void GetPromiseDomain(Local<v8::Name> name,
                              const v8::PropertyCallbackInfo<v8::Value>& info) {
   Local<Context> context = info.GetIsolate()->GetCurrentContext();
   Environment* env = Environment::GetCurrent(context);
-  info.GetReturnValue().Set(Object::Cast(*info.Data())->Get(context,
-                            env->domain_string()).ToLocalChecked());
+  info.GetReturnValue().Set(
+      info.Data().As<Object>()->Get(context,
+                                    env->domain_string()).ToLocalChecked());
 }
 
 
@@ -281,11 +282,11 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     Local<Object> obj = tem->NewInstance(context).ToLocalChecked();
     PromiseWrap* wrap = new PromiseWrap(env, obj);
     promise->DefineOwnProperty(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), async_id_key),
+              env->promise_async_id(),
               v8::External::New(env->isolate(), wrap),
               v8::PropertyAttribute::DontEnum).FromJust();
     promise->DefineOwnProperty(context,
-              FIXED_ONE_BYTE_STRING(env->isolate(), tag_id_key),
+              env->promise_async_tag(),
               obj, v8::PropertyAttribute::DontEnum).FromJust();
     if (env->in_domain()) {
       obj->Set(context, env->domain_string(),
@@ -296,8 +297,8 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
   } else if (type == PromiseHookType::kResolve) {
     // TODO(matthewloring): need to expose this through the async hooks api.
   }
-  Local<v8::Value> external_wrap = promise->Get(context, FIXED_ONE_BYTE_STRING(env->isolate(),
-               async_id_key)).ToLocalChecked();
+  Local<v8::Value> external_wrap =
+      promise->Get(context, env->promise_async_id()).ToLocalChecked();
   PromiseWrap* wrap =
     static_cast<PromiseWrap*>(v8::External::Cast(*external_wrap)->Value());
   if (type == PromiseHookType::kBefore) {
