@@ -6,7 +6,6 @@ const N = 20;
 let client_error_count = 0;
 let disconnect_count = 0;
 
-// Hopefully nothing is running on common.PORT
 const c = net.createConnection(common.PORT);
 
 c.on('connect', function() {
@@ -14,17 +13,15 @@ c.on('connect', function() {
   assert.ok(false);
 });
 
-c.on('error', function(e) {
-  console.error(`CLIENT error: ${e.code}`);
+c.on('error', common.mustCall((e) => {
   client_error_count++;
   assert.strictEqual('ECONNREFUSED', e.code);
-});
+}, N + 1));
 
-c.on('close', function() {
-  console.log('CLIENT disconnect');
+c.on('close', common.mustCall(() => {
   if (disconnect_count++ < N)
     c.connect(common.PORT); // reconnect
-});
+}, N + 1));
 
 process.on('exit', function() {
   assert.strictEqual(N + 1, disconnect_count);
