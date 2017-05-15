@@ -38,14 +38,14 @@ console.error('thrown error');
 script = new Script('throw new Error(\'test\');');
 assert.throws(function() {
   script.runInNewContext();
-}, /test/);
+}, /^Error: test$/);
 
 
 console.error('undefined reference');
 script = new Script('foo.bar = 5;');
 assert.throws(function() {
   script.runInNewContext();
-}, /not defined/);
+}, /^ReferenceError: foo is not defined$/);
 
 
 global.hello = 5;
@@ -82,9 +82,9 @@ assert.strictEqual(f.a, 2);
 
 assert.throws(function() {
   script.runInNewContext();
-}, /f is not defined/);
+}, /^ReferenceError: f is not defined$/);
 
 console.error('invalid this');
 assert.throws(function() {
   script.runInNewContext.call('\'hello\';');
-}, TypeError);
+}, /^TypeError: this\.runInContext is not a function$/);
