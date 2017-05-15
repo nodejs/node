@@ -42,7 +42,7 @@ const interval = setInterval(function() {
   const rss = process.memoryUsage().rss;
   maxMem = Math.max(rss, maxMem);
 
-  if (Date.now() - start > 5 * 1000) {
+  if (Date.now() - start > 5000) { // 5 * 1000
     // wait 10 seconds.
     clearInterval(interval);
 

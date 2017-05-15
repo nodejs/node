@@ -52,9 +52,7 @@ server.listen(0, function() {
   const client = net.connect({ port: this.address().port,
                                allowHalfOpen: true });
   for (let i = 0; i < numRequests; i++) {
-    client.write('GET / HTTP/1.1\r\n' +
-                 'Host: some.host.name\r\n' +
-                 '\r\n\r\n');
+    client.write('GET / HTTP/1.1\r\nHost: some.host.name\r\n\r\n\r\n');
   }
   client.end();
   client.pipe(process.stdout);
