@@ -405,13 +405,18 @@ test-npm-publish: $(NODE_EXE)
 test-addons-napi: test-build-addons-napi
 	$(PYTHON) tools/test.py --mode=release addons-napi
 
+test-addons-napi-clean:
+	$(RM) -r test/addons-napi/*/build
+	$(RM) test/addons-napi/.buildstamp
+
 test-addons: test-build test-addons-napi
 	$(PYTHON) tools/test.py --mode=release addons
 
 test-addons-clean:
-	$(RM) -rf test/addons/??_*/
-	$(RM) -rf test/addons/*/build
+	$(RM) -r test/addons/??_*/
+	$(RM) -r test/addons/*/build
 	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp
+	$(MAKE) test-addons-napi-clean
 
 test-timers:
 	$(MAKE) --directory=tools faketime
@@ -977,6 +982,7 @@ endif
   test-addons \
   test-addons-clean \
   test-addons-napi \
+  test-addons-napi-clean \
   test-all \
   test-ci \
   test-ci-js \
