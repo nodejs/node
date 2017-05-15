@@ -22,6 +22,7 @@
 #include "unicode/dtfmtsym.h"
 #include "unicode/dtptngen.h"
 #include "unicode/locid.h"
+#include "unicode/normlzr.h"
 #include "unicode/numfmt.h"
 #include "unicode/numsys.h"
 #include "unicode/rbbi.h"
