@@ -68,7 +68,7 @@ function readn(n, then) {
       r.once('readable', read);
     else {
       assert.strictEqual(c.length, n);
-      assert(!r._readableState.flowing);
+      assert(!r.readableFlowing);
       then();
     }
   })();
