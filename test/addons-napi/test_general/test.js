@@ -22,7 +22,7 @@ assert.ok(test_general.testStrictEquals(val1, val1));
 assert.strictEqual(test_general.testStrictEquals(val1, val2), false);
 assert.ok(test_general.testStrictEquals(val2, val3));
 
-// test napi_strict_equals
+// test napi_get_prototype
 assert.strictEqual(test_general.testGetPrototype(baseObject),
                    Object.getPrototypeOf(baseObject));
 assert.strictEqual(test_general.testGetPrototype(extendedObject),
