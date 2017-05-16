@@ -277,7 +277,7 @@
               # Categories to export.
               '-CAES,BF,BIO,DES,DH,DSA,EC,ECDH,ECDSA,ENGINE,EVP,HMAC,MD4,MD5,'
               'NEXTPROTONEG,PSK,RC2,RC4,RSA,SHA,SHA0,SHA1,SHA256,SHA512,SOCK,'
-              'STDIO,TLSEXT',
+              'STDIO,TLSEXT,FP_API',
               # Defines.
               '-DWIN32',
               # Symbols to filter from the export list.
@@ -671,7 +671,7 @@
                 'deps/zlib/zlib.gyp:zlib',
               ]
             }],
-            [ 'node_shared_openssl=="false"', {
+            [ 'node_shared_openssl=="false" and node_shared=="false"', {
               'dependencies': [
                 'deps/openssl/openssl.gyp:openssl'
               ]
