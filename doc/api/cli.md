@@ -245,7 +245,7 @@ used to enable FIPS-compliant crypto if Node.js is built with
 
 ### `--use-openssl-ca`, `--use-bundled-ca`
 <!-- YAML
-added: REPLACEME
+added: v6.11.0
 -->
 
 Use OpenSSL's default CA store or use bundled Mozilla CA store as supplied by
@@ -271,7 +271,7 @@ Specify ICU data load path. (overrides `NODE_ICU_DATA`)
 
 ### `--`
 <!-- YAML
-added: REPLACEME
+added: v6.11.0
 -->
 
 Indicate the end of node options. Pass the rest of the arguments to the script.
@@ -316,7 +316,7 @@ with small-icu support.
 
 ### `NODE_NO_WARNINGS=1`
 <!-- YAML
-added: REPLACEME
+added: v6.11.0
 -->
 
 When set to `1`, process warnings are silenced.
@@ -354,7 +354,7 @@ options property is explicitly specified for a TLS or HTTPS client or server.
 
 ### `OPENSSL_CONF=file`
 <!-- YAML
-added: REPLACEME
+added: v6.11.0
 -->
 
 Load an OpenSSL configuration file on startup. Among other uses, this can be
