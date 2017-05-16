@@ -23,5 +23,6 @@
 const common = require('../common');
 const dns = require('dns');
 
-// Should not segfault, see #6244.
-dns.resolve4('127.0.0.1', common.mustCall(() => { }));
+// Should not segfault.
+// Ref: https://github.com/nodejs/node-v0.x-archive/issues/6244
+dns.resolve4('127.0.0.1', common.mustCall());
