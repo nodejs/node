@@ -45,5 +45,7 @@ client.once('error', common.mustCall((err) => {
     err.message,
     `getaddrinfo ENOTFOUND ${unfindable_host} ${unfindable_host}:${err.port}`
   );
-  client.end();
 }));
+client.on('connect', common.mustNotCall())
+
+client.end();
