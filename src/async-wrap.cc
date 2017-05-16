@@ -420,6 +420,8 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   Local<Object> context = object();
   Local<Object> domain;
   Local<Value> uid;
+  Local<Value> triggerId;
+
   bool has_domain = false;
 
   Environment::AsyncCallbackScope callback_scope(env());
@@ -449,10 +451,12 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
   if (async_hooks->fields()[AsyncHooks::kBefore] > 0) {
     uid = Number::New(env()->isolate(), get_id());
+    triggerId = Number::New(env()->isolate(), get_trigger_id());
+    Local<Value> argv[] = { uid, triggerId };
     Local<Function> fn = env()->async_hooks_before_function();
     TryCatch try_catch(env()->isolate());
     MaybeLocal<Value> ar = fn->Call(
-        env()->context(), Undefined(env()->isolate()), 1, &uid);
+        env()->context(), Undefined(env()->isolate()), 2, argv);
     if (ar.IsEmpty()) {
       ClearFatalExceptionHandlers(env());
       FatalException(env()->isolate(), try_catch);
