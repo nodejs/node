@@ -25,7 +25,7 @@ const assert = require('assert');
 const net = require('net');
 
 const unfindable_host = '***';
-// port 0 is hardcoded since this does not create a network connection
+// since this test should fail with `ENOTFOUND` we pick an arbitrary valid port
 const arbitrary_port = common.PORT
 const client = net.connect({host: unfindable_host, port: arbitrary_port});
 
