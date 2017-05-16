@@ -55,6 +55,7 @@
 #include <unicode/utypes.h>
 #include <unicode/putil.h>
 #include <unicode/uchar.h>
+#include <unicode/uclean.h>
 #include <unicode/udata.h>
 #include <unicode/uidna.h>
 #include <unicode/ucnv.h>
@@ -418,19 +419,19 @@ void GetVersion(const FunctionCallbackInfo<Value>& args) {
 }  // anonymous namespace
 
 bool InitializeICUDirectory(const std::string& path) {
+  UErrorCode status = U_ZERO_ERROR;
   if (path.empty()) {
-    UErrorCode status = U_ZERO_ERROR;
 #ifdef NODE_HAVE_SMALL_ICU
     // install the 'small' data.
     udata_setCommonData(&SMALL_ICUDATA_ENTRY_POINT, &status);
 #else  // !NODE_HAVE_SMALL_ICU
     // no small data, so nothing to do.
 #endif  // !NODE_HAVE_SMALL_ICU
-    return (status == U_ZERO_ERROR);
   } else {
     u_setDataDirectory(path.c_str());
-    return true;  // No error.
+    u_init(&status);
   }
+  return status == U_ZERO_ERROR;
 }
 
 int32_t ToUnicode(MaybeStackBuffer<char>* buf,

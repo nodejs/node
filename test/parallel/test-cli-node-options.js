@@ -57,7 +57,6 @@ if (common.hasCrypto) {
   expect('--use-bundled-ca', 'B\n');
   expect('--openssl-config=_ossl_cfg', 'B\n');
 }
-expect('--icu-data-dir=_d', 'B\n');
 
     // V8 options
 expect('--max_old_space_size=0', 'B\n');

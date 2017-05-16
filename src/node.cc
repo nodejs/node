@@ -4342,8 +4342,11 @@ void Init(int* argc,
   // Initialize ICU.
   // If icu_data_dir is empty here, it will load the 'minimal' data.
   if (!i18n::InitializeICUDirectory(icu_data_dir)) {
-    FatalError(nullptr, "Could not initialize ICU "
-                     "(check NODE_ICU_DATA or --icu-data-dir parameters)");
+    fprintf(stderr,
+            "%s: could not initialize ICU "
+            "(check NODE_ICU_DATA or --icu-data-dir parameters)",
+            argv[0]);
+    exit(9);
   }
 #endif
 
