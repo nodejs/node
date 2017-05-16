@@ -499,7 +499,6 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`][] and [`socket.address().port`][].
 
 [`'close'`]: #dgram_event_close
-[`Buffer`]: buffer.html
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html
 [`close()`]: #dgram_socket_close_callback

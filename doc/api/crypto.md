@@ -2238,12 +2238,10 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
-[OpenSSL cipher list format]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
 [initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
-[publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
 [stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
 [stream]: stream.html

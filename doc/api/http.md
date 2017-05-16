@@ -1770,7 +1770,6 @@ There are a few special headers that should be noted.
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
-[constructor options]: #http_new_agent_options
 [socket.unref()]: net.html#net_socket_unref
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
 [unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address

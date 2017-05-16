@@ -1061,7 +1061,6 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`net.Server`]: #net_class_net_server
 [`net.Socket`]: #net_class_net_socket
 [`net.connect()`]: #net_net_connect
-[`net.connect()`]: #net_net_connect
 [`net.connect(options)`]: #net_net_connect_options_connectlistener
 [`net.connect(path)`]: #net_net_connect_path_connectlistener
 [`net.connect(port, host)`]: #net_net_connect_port_host_connectlistener

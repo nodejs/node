@@ -1272,8 +1272,6 @@ to `stdout` although there are only 4 characters.
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
-[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
-[`child.channel`]: #child_process_child_channel
 [`child.connected`]: #child_process_child_connected
 [`child.disconnect()`]: #child_process_child_disconnect
 [`child.kill()`]: #child_process_child_kill_signal

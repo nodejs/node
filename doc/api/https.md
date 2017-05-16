@@ -228,9 +228,6 @@ const req = https.request(options, (res) => {
 ```
 
 [`Agent`]: #https_class_https_agent
-[`Buffer`]: buffer.html#buffer_buffer
-[`SSL_METHODS`]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
-[`globalAgent`]: #https_https_globalagent
 [`http.Agent`]: http.html#http_class_http_agent
 [`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
 [`http.Server#timeout`]: http.html#http_server_timeout
