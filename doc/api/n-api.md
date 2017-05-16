@@ -2971,7 +2971,6 @@ callback invocation, even if it has been successfully cancelled.
 [`napi_create_range_error`]: #n_api_napi_create_range_error
 [`napi_create_reference`]: #n_api_napi_create_reference
 [`napi_create_type_error`]: #n_api_napi_create_type_error
-[`napi_define_class`]: #n_api_napi_define_class
 [`napi_delete_async_work`]: #n_api_napi_delete_async_work
 [`napi_define_class`]: #n_api_napi_define_class
 [`napi_delete_reference`]: #n_api_napi_delete_reference
