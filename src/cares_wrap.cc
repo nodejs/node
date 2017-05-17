@@ -336,69 +336,38 @@ bool cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
   dest->h_name = nullptr;
 
   /* copy `h_name` */
-  unsigned int name_size = (strlen(src->h_name) + 1) * sizeof(char);
-  dest->h_name = reinterpret_cast<char*>(node::Malloc(name_size));
-  if (!dest->h_name) return false;
+  size_t name_size = strlen(src->h_name) + 1;
+  dest->h_name = node::Malloc<char>(name_size);
   memcpy(dest->h_name, src->h_name, name_size);
 
   /* copy `h_aliases` */
-  unsigned int alias_count;
-  unsigned int alias_size;
-  unsigned int cur_alias_length;
+  size_t alias_count;
+  size_t cur_alias_length;
   for (alias_count = 0;
       src->h_aliases[alias_count] != nullptr;
       alias_count++) {
   }
-  alias_size = sizeof(char*) * (alias_count + 1);
 
-  dest->h_aliases = reinterpret_cast<char**>(node::Malloc(alias_size));
-  if (dest->h_aliases == nullptr) {
-    safe_free_hostent(dest);
-    return false;
-  }
-
-  memset(reinterpret_cast<void*>(dest->h_aliases), 0, alias_size);
-  for (unsigned int i = 0; i < alias_count; i++) {
+  dest->h_aliases = node::Malloc<char*>(alias_count + 1);
+  memset(dest->h_aliases, 0, sizeof(char*) * (alias_count + 1));
+  for (size_t i = 0; i < alias_count; i++) {
     cur_alias_length = strlen(src->h_aliases[i]);
-    dest->h_aliases[i] = reinterpret_cast<char*>(
-        node::Malloc(sizeof(char) * (cur_alias_length + 1)));
-
-    if (dest->h_aliases[i] == nullptr) {
-      safe_free_hostent(dest);
-      return false;
-    }
-
-    memcpy(dest->h_aliases[i],
-        src->h_aliases[i],
-        sizeof(char) * (cur_alias_length + 1));
+    dest->h_aliases[i] = node::Malloc<char>(cur_alias_length + 1);
+    memcpy(dest->h_aliases[i], src->h_aliases[i], cur_alias_length + 1);
   }
 
   /* copy `h_addr_list` */
   unsigned int list_count;
-  unsigned int list_size;
-  unsigned int node_size;
   for (list_count = 0;
       src->h_addr_list[list_count] != nullptr;
       list_count++) {
   }
-  list_size = sizeof(char*) * (list_count + 1);
 
-  dest->h_addr_list = reinterpret_cast<char**>(node::Malloc(list_size));
-  if (dest->h_addr_list == nullptr) {
-    safe_free_hostent(dest);
-    return false;
-  }
-
-  node_size = sizeof(char) * src->h_length;
-  memset(reinterpret_cast<void*>(dest->h_addr_list), 0, list_size);
+  dest->h_addr_list = node::Malloc<char*>(list_count + 1);
+  memset(dest->h_addr_list, 0, sizeof(char*) * (list_count + 1));
   for (unsigned int i = 0; i < list_count; i++) {
-    dest->h_addr_list[i] = reinterpret_cast<char*>(node::Malloc(node_size));
-    if (dest->h_addr_list[i] == nullptr) {
-      safe_free_hostent(dest);
-      return false;
-    }
-
-    memcpy(dest->h_addr_list[i], src->h_addr_list, node_size);
+    dest->h_addr_list[i] = node::Malloc<char>(src->h_length);
+    memcpy(dest->h_addr_list[i], src->h_addr_list[i], src->h_length);
   }
 
   /* work after work */
@@ -452,15 +421,13 @@ class QueryWrap : public AsyncWrap {
 
   static void CaresAsyncClose(uv_handle_t* handle) {
     uv_async_t* async = reinterpret_cast<uv_async_t*>(handle);
-    struct CaresAsyncData* data =
-        static_cast<struct CaresAsyncData*>(async->data);
+    auto data = static_cast<struct CaresAsyncData*>(async->data);
     delete data->wrap;
     delete data;
   }
 
   static void CaresAsyncCb(uv_async_t* handle) {
-    struct CaresAsyncData* data =
-        static_cast<struct CaresAsyncData*>(handle->data);
+    auto data = static_cast<struct CaresAsyncData*>(handle->data);
 
     QueryWrap* wrap = data->wrap;
     int status = data->status;
@@ -487,9 +454,8 @@ class QueryWrap : public AsyncWrap {
 
     unsigned char* buf_copy = nullptr;
     if (status == ARES_SUCCESS) {
-      buf_copy = (unsigned char*)node::Malloc(
-          sizeof(unsigned char) * answer_len);
-      memcpy(buf_copy, answer_buf, sizeof(unsigned char) * answer_len);
+      buf_copy = node::Malloc<unsigned char>(answer_len);
+      memcpy(buf_copy, answer_buf, answer_len);
     }
 
     struct CaresAsyncData* data = new struct CaresAsyncData();
@@ -514,7 +480,7 @@ class QueryWrap : public AsyncWrap {
     bool copy_ret = false;
 
     if (status == ARES_SUCCESS) {
-      host_copy = (struct hostent*)node::Malloc(sizeof(hostent));
+      host_copy = node::Malloc<hostent>(1);
       copy_ret = cares_wrap_hostent_cpy(host_copy, host);
     }
 
