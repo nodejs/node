@@ -1099,8 +1099,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   FSReqWrap::Ownership ownership = FSReqWrap::COPY;
 
   // will assign buf and len if string was external
-  if (!StringBytes::GetExternalParts(env->isolate(),
-                                     string,
+  if (!StringBytes::GetExternalParts(string,
                                      const_cast<const char**>(&buf),
                                      &len)) {
     enum encoding enc = ParseEncoding(env->isolate(), args[3], UTF8);
