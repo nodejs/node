@@ -108,6 +108,10 @@ you can run [`citgm-abi-smoker`](https://ci.nodejs.org/job/citgm-abi-smoker/).
 is designed to allow one to run a group of tests over and over on a specific
 platform to confirm that the test is reliable.
 
+* [`node-test-commit-v8-linux`](https://ci.nodejs.org/job/node-test-commit-v8-linux/)
+is designed to allow validation of changes to the copy of V8 in the Node.js
+tree by running the standard V8 tests. It should be run whenever the
+level of V8 within Node.js is updated or new patches are floated on V8.
 
 ### Internal vs. Public API
 
