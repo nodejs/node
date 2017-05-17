@@ -678,11 +678,7 @@ static void force_ascii(const char* src, char* dst, size_t len) {
 }
 
 
-constexpr uint32_t pack(uint8_t byte) {
-  return byte * 0x01010101u;
-}
-
-
+#define pack(byte) (static_cast<uint8_t>(byte) * 0x01010101u)
 uint32_t nibbles_to_hex(uint32_t nibbles) {
   const uint32_t ascii09 = nibbles + pack('0');
   const uint32_t correction = pack('a' - '0' - 10);
@@ -695,15 +691,47 @@ uint32_t nibbles_to_hex(uint32_t nibbles) {
 }
 
 
-static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
+#define byte_to_hex(src, dst, i, val)                                          \
+  do {                                                                         \
+    val = static_cast<uint8_t>(src[i]);                                        \
+    dst[i * 2] = hex[val >> 4];                                                \
+    dst[i * 2 + 1] = hex[val & 15];                                            \
+    if (slen == i + 1) return;                                                 \
+  } while (0)
+
+static void hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
   // We know how much we'll write, just make sure that there's space.
   CHECK(dlen >= slen * 2 &&
       "not enough space provided for hex encode");
 
-  uint16_t* src16 = reinterpret_cast<uint16_t*>(const_cast<char*>(src));
-  size_t alignment = reinterpret_cast<uintptr_t>(src16) % sizeof(*src16);
+  // Process smaller inputs first
+  {
+    if (slen == 0) return;
+    static const char hex[] = "0123456789abcdef";
+    uint8_t val;
+    byte_to_hex(src, dst, 0, val);
+    byte_to_hex(src, dst, 1, val);
+    byte_to_hex(src, dst, 2, val);
+    byte_to_hex(src, dst, 3, val);
+    byte_to_hex(src, dst, 4, val);
+    byte_to_hex(src, dst, 5, val);
+    byte_to_hex(src, dst, 6, val);
+    byte_to_hex(src, dst, 7, val);
+    byte_to_hex(src, dst, 8, val);
+    byte_to_hex(src, dst, 9, val);
+    byte_to_hex(src, dst, 10, val);
+    byte_to_hex(src, dst, 11, val);
+    byte_to_hex(src, dst, 12, val);
+    byte_to_hex(src, dst, 13, val);
+    byte_to_hex(src, dst, 14, val);
+    byte_to_hex(src, dst, 15, val);
+  }
+
   size_t i = 0;
-  size_t nb = 0;
+  size_t d = 32;
+  size_t nb = 16;
+  uint16_t* src16 = reinterpret_cast<uint16_t*>(const_cast<char*>(src + 16));
+  size_t alignment = reinterpret_cast<uintptr_t>(src16) % sizeof(*src16);
 
   if (alignment != 0) {
     while (alignment < sizeof(*src16) && nb < slen) {
@@ -714,8 +742,8 @@ static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
       uint32_t val = nibbles_to_hex(((src[nb] & 0xf0) << 20) |  // 0x0f000000
                                     ((src[nb] & 0x0f) << 16));  // 0x000f0000
 #endif
-      memcpy(dst, &val, 2);
-      dst += 2;
+      memcpy(dst + d, &val, 2);
+      d += 2;
       ++nb;
       ++alignment;
     }
@@ -735,10 +763,10 @@ static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
                                   ((src16[i] & 0x00f0) << 4) |   // 0x00000f00
                                   ((src16[i] & 0x000f)));        // 0x0000000f
 #endif
-    memcpy(dst, &val, 4);
+    memcpy(dst + d, &val, 4);
     ++i;
     nb += 2;
-    dst += 4;
+    d += 4;
   }
 
   // Process possible leftover byte
@@ -750,10 +778,8 @@ static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
     uint32_t val = nibbles_to_hex(((src[nb] & 0xf0) << 20) |  // 0x0f000000
                                   ((src[nb] & 0x0f) << 16));  // 0x000f0000
 #endif
-    memcpy(dst, &val, 2);
+    memcpy(dst + d, &val, 2);
   }
-
-  return slen * 2;
 }
 
 
@@ -840,8 +866,7 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
         *error = SB_MALLOC_FAILED_ERROR;
         return MaybeLocal<Value>();
       }
-      size_t written = hex_encode(buf, buflen, dst, dlen);
-      CHECK_EQ(written, dlen);
+      hex_encode(buf, buflen, dst, dlen);
 
       return ExternOneByteString::New(isolate, dst, dlen, error);
     }
