@@ -482,9 +482,12 @@ class QueryWrap : public AsyncWrap {
       unsigned char* answer_buf, int answer_len) {
     QueryWrap* wrap = static_cast<QueryWrap*>(arg);
 
-    unsigned char* buf_copy = (unsigned char*)node::Malloc(
-        sizeof(unsigned char) * answer_len);
-    memcpy(buf_copy, answer_buf, sizeof(unsigned char) * answer_len);
+    unsigned char* buf_copy = nullptr;
+    if (status == ARES_SUCCESS) {
+      buf_copy = (unsigned char*)node::Malloc(
+          sizeof(unsigned char) * answer_len);
+      memcpy(buf_copy, answer_buf, sizeof(unsigned char) * answer_len);
+    }
 
     struct CaresAsyncData* data = new struct CaresAsyncData();
     data->status = status;
@@ -504,11 +507,16 @@ class QueryWrap : public AsyncWrap {
       struct hostent* host) {
     QueryWrap* wrap = static_cast<QueryWrap*>(arg);
 
-    struct hostent* host_copy = (struct hostent*)node::Malloc(sizeof(hostent));
-    int ret = cares_wrap_hostent_cpy(host_copy, host);
+    struct hostent* host_copy = nullptr;
+    int copy_ret = 0;
+
+    if (status == ARES_SUCCESS) {
+      host_copy = (struct hostent*)node::Malloc(sizeof(hostent));
+      copy_ret = cares_wrap_hostent_cpy(host_copy, host);
+    }
 
     struct CaresAsyncData* data = new struct CaresAsyncData();
-    if (ret == 0) {
+    if (copy_ret == 0) {
       data->status = status;
       data->buf = host_copy;
     } else {
