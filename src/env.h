@@ -546,6 +546,10 @@ class Environment {
   inline uv_timer_t* cares_timer_handle();
   inline ares_channel cares_channel();
   inline ares_channel* cares_channel_ptr();
+  inline bool cares_query_last_ok();
+  inline void set_cares_query_last_ok(bool ok);
+  inline bool cares_is_servers_default();
+  inline void set_cares_is_servers_default(bool is_default);
   inline node_ares_task_list* cares_task_list();
   inline IsolateData* isolate_data() const;
 
@@ -667,6 +671,8 @@ class Environment {
   const uint64_t timer_base_;
   uv_timer_t cares_timer_handle_;
   ares_channel cares_channel_;
+  bool cares_query_last_ok_;
+  bool cares_is_servers_default_;
   node_ares_task_list cares_task_list_;
   bool using_domains_;
   bool printed_error_;
