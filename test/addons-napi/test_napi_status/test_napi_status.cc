@@ -10,6 +10,14 @@ napi_value createNapiError(napi_env env, napi_callback_info info) {
 
   NAPI_ASSERT(env, status != napi_ok, "Failed to produce error condition");
 
+  const napi_extended_error_info *error_info = 0;
+  NAPI_CALL(env, napi_get_last_error_info(env, &error_info));
+
+  NAPI_ASSERT(env, error_info->error_code == status,
+    "Last error info code should match last status");
+  NAPI_ASSERT(env, error_info->error_message,
+    "Last error info message should not be null");
+
   return nullptr;
 }
 
