@@ -52,6 +52,14 @@ for the N-API C based functions exported by Node.js. These wrappers are not
 part of N-API, nor will they be maintained as part of Node.js. One such
 example is: [node-api](https://github.com/nodejs/node-api).
 
+In order to use the N-API functions, include the file
+[node_api.h](https://github.com/nodejs/node/blob/master/src/node_api.h)
+which is located in the src directory in the node development tree.
+For example:
+```C
+#include <node_api.h>
+```
+
 ## Basic N-API Data Types
 
 N-API exposes the following fundamental datatypes as abstractions that are
