@@ -69,6 +69,8 @@ using v8::Value;
 
 namespace {
 
+#define ARES_HOSTENT_COPY_ERROR -1000
+
 inline const char* ToErrorCodeString(int status) {
   switch (status) {
 #define V(code) case ARES_##code: return #code;
@@ -96,8 +98,10 @@ inline const char* ToErrorCodeString(int status) {
     V(EREFUSED)
     V(ESERVFAIL)
     V(ETIMEOUT)
+    V(HOSTENT_COPY_ERROR)
 #undef V
   }
+
   return "UNKNOWN_ARES_ERROR";
 }
 
@@ -296,6 +300,121 @@ Local<Array> HostentToNames(Environment* env, struct hostent* host) {
   return scope.Escape(names);
 }
 
+/* copies a hostent structure*, returns 0 on success, -1 on error */
+/* this function refers to OpenSIPS */
+int cares_wrap_hostent_cpy(struct hostent *dst, struct hostent* src) {
+  unsigned int len, len2, i, r;
+
+  /* start copying the host entry.. */
+  /* copy h_name */
+  len = strlen(src->h_name) + 1;
+  dst->h_name = reinterpret_cast<char*>(node::Malloc(sizeof(char) * len));
+  if (dst->h_name) {
+    strncpy(dst->h_name, src->h_name, len);
+  } else {
+    return -1;
+  }
+
+  /* copy h_aliases */
+  len = 0;
+  if (src->h_aliases) {
+    for (; src->h_aliases[len]; len++) {}
+  }
+
+  dst->h_aliases = reinterpret_cast<char**>(
+      node::Malloc(sizeof(char*) * (len + 1)));
+
+  if (dst->h_aliases == 0) {
+    free(dst->h_name);
+    return -1;
+  }
+
+  memset(reinterpret_cast<void*>(dst->h_aliases), 0, sizeof(char*) * (len + 1));
+  for (i = 0; i < len; i++) {
+    len2 = strlen(src->h_aliases[i]) + 1;
+    dst->h_aliases[i] = reinterpret_cast<char*>(
+        node::Malloc(sizeof(char) * len2));
+
+    if (dst->h_aliases[i] == 0) {
+      free(dst->h_name);
+      for (r = 0; r < i; r++) free(dst->h_aliases[r]);
+      free(dst->h_aliases);
+      return -1;
+    }
+
+    strncpy(dst->h_aliases[i], src->h_aliases[i], len2);
+  }
+
+  /* copy h_addr_list */
+  len = 0;
+  if (src->h_addr_list) {
+    for (; src->h_addr_list[len]; len++) {}
+  }
+
+  dst->h_addr_list = reinterpret_cast<char**>(
+      node::Malloc(sizeof(char*) * (len + 1)));
+
+  if (dst->h_addr_list == 0) {
+    free(dst->h_name);
+    for (r = 0; dst->h_aliases[r]; r++) free(dst->h_aliases[r]);
+    free(dst->h_aliases);
+    return -1;
+  }
+
+  memset(reinterpret_cast<void*>(
+      dst->h_addr_list), 0, sizeof(char*) * (len + 1));
+
+  for (i=0; i < len; i++) {
+    dst->h_addr_list[i] = reinterpret_cast<char*>(
+        node::Malloc(sizeof(char) * src->h_length));
+    if (dst->h_addr_list[i] == 0) {
+      free(dst->h_name);
+      for (r = 0; dst->h_aliases[r]; r++)  free(dst->h_aliases[r]);
+      free(dst->h_aliases);
+      for (r = 0; r < i; r++) free(dst->h_addr_list[r]);
+      free(dst->h_addr_list);
+      return -1;
+    }
+
+    memcpy(dst->h_addr_list[i], src->h_addr_list[i], src->h_length);
+  }
+
+  /* copy h_addr_type & length */
+  dst->h_addrtype = src->h_addrtype;
+  dst->h_length = src->h_length;
+  /*finished hostent copy */
+
+  return 0;
+}
+
+/* this function refers to OpenSIPS */
+void cares_wrap_free_hostent(struct hostent *dst) {
+  int r;
+  if (dst->h_name) free(dst->h_name);
+  if (dst->h_aliases) {
+    for (r = 0; dst->h_aliases[r]; r++) {
+      free(dst->h_aliases[r]);
+    }
+    free(dst->h_aliases);
+  }
+  if (dst->h_addr_list) {
+    for (r = 0; dst->h_addr_list[r]; r++) {
+      free(dst->h_addr_list[r]);
+    }
+    free(dst->h_addr_list);
+  }
+}
+
+class QueryWrap;
+struct CaresAsyncData {
+  QueryWrap* wrap;
+  int status;
+  bool is_host;
+  void* buf;
+  int len;
+
+  uv_async_t async_handle;
+};
 
 class QueryWrap : public AsyncWrap {
  public:
@@ -328,30 +447,83 @@ class QueryWrap : public AsyncWrap {
     return static_cast<void*>(this);
   }
 
+  static void CaresAsyncClose(uv_handle_t* handle) {
+    uv_async_t* async = reinterpret_cast<uv_async_t*>(handle);
+    struct CaresAsyncData* data =
+        static_cast<struct CaresAsyncData*>(async->data);
+    delete data->wrap;
+    delete data;
+  }
+
+  static void CaresAsyncCb(uv_async_t* handle) {
+    struct CaresAsyncData* data =
+        static_cast<struct CaresAsyncData*>(handle->data);
+
+    QueryWrap* wrap = data->wrap;
+    int status = data->status;
+
+    if (status != ARES_SUCCESS) {
+      wrap->ParseError(status);
+    } else if (!data->is_host) {
+      unsigned char* buf = reinterpret_cast<unsigned char*>(data->buf);
+      wrap->Parse(buf, data->len);
+      free(buf);
+    } else {
+      hostent* host = static_cast<struct hostent*>(data->buf);
+      wrap->Parse(host);
+      cares_wrap_free_hostent(host);
+      free(host);
+    }
+
+    uv_close(reinterpret_cast<uv_handle_t*>(handle), CaresAsyncClose);
+  }
+
   static void Callback(void *arg, int status, int timeouts,
       unsigned char* answer_buf, int answer_len) {
     QueryWrap* wrap = static_cast<QueryWrap*>(arg);
 
-    if (status != ARES_SUCCESS) {
-      wrap->ParseError(status);
-    } else {
-      wrap->Parse(answer_buf, answer_len);
-    }
+    unsigned char* buf_copy = (unsigned char*)node::Malloc(
+        sizeof(unsigned char) * answer_len);
+    memcpy(buf_copy, answer_buf, sizeof(unsigned char) * answer_len);
 
-    delete wrap;
+    struct CaresAsyncData* data = new struct CaresAsyncData();
+    data->status = status;
+    data->wrap = wrap;
+    data->is_host = false;
+    data->buf = buf_copy;
+    data->len = answer_len;
+
+    uv_async_t* async_handle = &data->async_handle;
+    uv_async_init(wrap->env()->event_loop(), async_handle, CaresAsyncCb);
+
+    async_handle->data = data;
+    uv_async_send(async_handle);
   }
 
   static void Callback(void *arg, int status, int timeouts,
       struct hostent* host) {
     QueryWrap* wrap = static_cast<QueryWrap*>(arg);
 
-    if (status != ARES_SUCCESS) {
-      wrap->ParseError(status);
-    } else {
-      wrap->Parse(host);
-    }
+    struct hostent* host_copy = (struct hostent*)node::Malloc(sizeof(hostent));
+    int ret = cares_wrap_hostent_cpy(host_copy, host);
 
-    delete wrap;
+    struct CaresAsyncData* data = new struct CaresAsyncData();
+    if (ret == 0) {
+      data->status = status;
+      data->buf = host_copy;
+    } else {
+      data->status = ARES_HOSTENT_COPY_ERROR;
+      data->buf = nullptr;
+      free(host_copy);
+    }
+    data->wrap = wrap;
+    data->is_host = true;
+
+    uv_async_t* async_handle = &data->async_handle;
+    uv_async_init(wrap->env()->event_loop(), async_handle, CaresAsyncCb);
+
+    async_handle->data = data;
+    uv_async_send(async_handle);
   }
 
   void CallOnComplete(Local<Value> answer,
