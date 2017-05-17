@@ -91,10 +91,8 @@ assert.doesNotThrow(() => dns.setServers([]));
 assert.deepStrictEqual(dns.getServers(), []);
 
 assert.throws(() => {
-  dns.resolve('test.com', [], common.mustNotCall());
-}, function(err) {
-  return !(err instanceof TypeError);
-}, 'Unexpected error');
+  dns.resolve('example.com', [], common.mustNotCall());
+}, /^TypeError: "rrtype" argument must be a string$/);
 
 // dns.lookup should accept only falsey and string values
 {
