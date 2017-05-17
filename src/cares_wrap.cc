@@ -300,109 +300,112 @@ Local<Array> HostentToNames(Environment* env, struct hostent* host) {
   return scope.Escape(names);
 }
 
-/* copies a hostent structure*, returns 0 on success, -1 on error */
-/* this function refers to OpenSIPS */
-int cares_wrap_hostent_cpy(struct hostent *dst, struct hostent* src) {
-  unsigned int len, len2, i, r;
+void safe_free_hostent(struct hostent* host) {
+  int idx;
 
-  /* start copying the host entry.. */
-  /* copy h_name */
-  len = strlen(src->h_name) + 1;
-  dst->h_name = reinterpret_cast<char*>(node::Malloc(sizeof(char) * len));
-  if (dst->h_name) {
-    strncpy(dst->h_name, src->h_name, len);
-  } else {
-    return -1;
-  }
-
-  /* copy h_aliases */
-  len = 0;
-  if (src->h_aliases) {
-    for (; src->h_aliases[len]; len++) {}
-  }
-
-  dst->h_aliases = reinterpret_cast<char**>(
-      node::Malloc(sizeof(char*) * (len + 1)));
-
-  if (dst->h_aliases == 0) {
-    free(dst->h_name);
-    return -1;
-  }
-
-  memset(reinterpret_cast<void*>(dst->h_aliases), 0, sizeof(char*) * (len + 1));
-  for (i = 0; i < len; i++) {
-    len2 = strlen(src->h_aliases[i]) + 1;
-    dst->h_aliases[i] = reinterpret_cast<char*>(
-        node::Malloc(sizeof(char) * len2));
-
-    if (dst->h_aliases[i] == 0) {
-      free(dst->h_name);
-      for (r = 0; r < i; r++) free(dst->h_aliases[r]);
-      free(dst->h_aliases);
-      return -1;
+  if (host->h_addr_list) {
+    idx = 0;
+    while (host->h_addr_list[idx]) {
+      free(host->h_addr_list[idx++]);
     }
-
-    strncpy(dst->h_aliases[i], src->h_aliases[i], len2);
+    free(host->h_addr_list);
+    host->h_addr_list = 0;
   }
 
-  /* copy h_addr_list */
-  len = 0;
-  if (src->h_addr_list) {
-    for (; src->h_addr_list[len]; len++) {}
-  }
-
-  dst->h_addr_list = reinterpret_cast<char**>(
-      node::Malloc(sizeof(char*) * (len + 1)));
-
-  if (dst->h_addr_list == 0) {
-    free(dst->h_name);
-    for (r = 0; dst->h_aliases[r]; r++) free(dst->h_aliases[r]);
-    free(dst->h_aliases);
-    return -1;
-  }
-
-  memset(reinterpret_cast<void*>(
-      dst->h_addr_list), 0, sizeof(char*) * (len + 1));
-
-  for (i=0; i < len; i++) {
-    dst->h_addr_list[i] = reinterpret_cast<char*>(
-        node::Malloc(sizeof(char) * src->h_length));
-    if (dst->h_addr_list[i] == 0) {
-      free(dst->h_name);
-      for (r = 0; dst->h_aliases[r]; r++)  free(dst->h_aliases[r]);
-      free(dst->h_aliases);
-      for (r = 0; r < i; r++) free(dst->h_addr_list[r]);
-      free(dst->h_addr_list);
-      return -1;
+  if (host->h_aliases) {
+    idx = 0;
+    while (host->h_aliases[idx]) {
+      free(host->h_aliases[idx++]);
     }
-
-    memcpy(dst->h_addr_list[i], src->h_addr_list[i], src->h_length);
+    free(host->h_aliases);
+    host->h_aliases = 0;
   }
 
-  /* copy h_addr_type & length */
-  dst->h_addrtype = src->h_addrtype;
-  dst->h_length = src->h_length;
-  /*finished hostent copy */
+  if (host->h_name) {
+    free(host->h_name);
+  }
 
-  return 0;
+  host->h_addrtype = host->h_length = 0;
 }
 
-/* this function refers to OpenSIPS */
-void cares_wrap_free_hostent(struct hostent *dst) {
-  int r;
-  if (dst->h_name) free(dst->h_name);
-  if (dst->h_aliases) {
-    for (r = 0; dst->h_aliases[r]; r++) {
-      free(dst->h_aliases[r]);
-    }
-    free(dst->h_aliases);
+bool cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
+  dest->h_addr_list = nullptr;
+  dest->h_addrtype = 0;
+  dest->h_aliases = nullptr;
+  dest->h_length = 0;
+  dest->h_name = nullptr;
+
+  /* copy `h_name` */
+  unsigned int name_size = (strlen(src->h_name) + 1) * sizeof(char);
+  dest->h_name = reinterpret_cast<char*>(node::Malloc(name_size));
+  if (!dest->h_name) return false;
+  memcpy(dest->h_name, src->h_name, name_size);
+
+  /* copy `h_aliases` */
+  unsigned int alias_count;
+  unsigned int alias_size;
+  unsigned int cur_alias_length;
+  for (alias_count = 0;
+      src->h_aliases[alias_count] != nullptr;
+      alias_count++) {
   }
-  if (dst->h_addr_list) {
-    for (r = 0; dst->h_addr_list[r]; r++) {
-      free(dst->h_addr_list[r]);
-    }
-    free(dst->h_addr_list);
+  alias_size = sizeof(char*) * (alias_count + 1);
+
+  dest->h_aliases = reinterpret_cast<char**>(node::Malloc(alias_size));
+  if (dest->h_aliases == nullptr) {
+    safe_free_hostent(dest);
+    return false;
   }
+
+  memset(reinterpret_cast<void*>(dest->h_aliases), 0, alias_size);
+  for (unsigned int i = 0; i < alias_count; i++) {
+    cur_alias_length = strlen(src->h_aliases[i]);
+    dest->h_aliases[i] = reinterpret_cast<char*>(
+        node::Malloc(sizeof(char) * (cur_alias_length + 1)));
+
+    if (dest->h_aliases[i] == nullptr) {
+      safe_free_hostent(dest);
+      return false;
+    }
+
+    memcpy(dest->h_aliases[i],
+        src->h_aliases[i],
+        sizeof(char) * (cur_alias_length + 1));
+  }
+
+  /* copy `h_addr_list` */
+  unsigned int list_count;
+  unsigned int list_size;
+  unsigned int node_size;
+  for (list_count = 0;
+      src->h_addr_list[list_count] != nullptr;
+      list_count++) {
+  }
+  list_size = sizeof(char*) * (list_count + 1);
+
+  dest->h_addr_list = reinterpret_cast<char**>(node::Malloc(list_size));
+  if (dest->h_addr_list == nullptr) {
+    safe_free_hostent(dest);
+    return false;
+  }
+
+  node_size = sizeof(char) * src->h_length;
+  memset(reinterpret_cast<void*>(dest->h_addr_list), 0, list_size);
+  for (unsigned int i = 0; i < list_count; i++) {
+    dest->h_addr_list[i] = reinterpret_cast<char*>(node::Malloc(node_size));
+    if (dest->h_addr_list[i] == nullptr) {
+      safe_free_hostent(dest);
+      return false;
+    }
+
+    memcpy(dest->h_addr_list[i], src->h_addr_list, node_size);
+  }
+
+  /* work after work */
+  dest->h_length = src->h_length;
+  dest->h_addrtype = src->h_addrtype;
+
+  return true;
 }
 
 class QueryWrap;
@@ -471,7 +474,7 @@ class QueryWrap : public AsyncWrap {
     } else {
       hostent* host = static_cast<struct hostent*>(data->buf);
       wrap->Parse(host);
-      cares_wrap_free_hostent(host);
+      safe_free_hostent(host);
       free(host);
     }
 
@@ -508,7 +511,7 @@ class QueryWrap : public AsyncWrap {
     QueryWrap* wrap = static_cast<QueryWrap*>(arg);
 
     struct hostent* host_copy = nullptr;
-    int copy_ret = 0;
+    bool copy_ret = false;
 
     if (status == ARES_SUCCESS) {
       host_copy = (struct hostent*)node::Malloc(sizeof(hostent));
@@ -516,7 +519,7 @@ class QueryWrap : public AsyncWrap {
     }
 
     struct CaresAsyncData* data = new struct CaresAsyncData();
-    if (copy_ret == 0) {
+    if (copy_ret) {
       data->status = status;
       data->buf = host_copy;
     } else {
