@@ -757,7 +757,7 @@ napi_status napi_get_last_error_info(napi_env env,
       error_messages[env->last_error.error_code];
 
   *result = &(env->last_error);
-  return napi_clear_last_error(env);
+  return napi_ok;
 }
 
 napi_status napi_create_function(napi_env env,
