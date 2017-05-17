@@ -677,6 +677,7 @@ static void force_ascii(const char* src, char* dst, size_t len) {
   }
 }
 
+
 constexpr uint32_t pack(uint8_t byte) {
   return byte * 0x01010101u;
 }
@@ -699,11 +700,28 @@ static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
   CHECK(dlen >= slen * 2 &&
       "not enough space provided for hex encode");
 
-  dlen = slen * 2;
-
-  const uint16_t* src16 = reinterpret_cast<const uint16_t*>(src);
+  uint16_t* src16 = reinterpret_cast<uint16_t*>(const_cast<char*>(src));
+  size_t alignment = reinterpret_cast<uintptr_t>(src16) % sizeof(*src16);
   size_t i = 0;
   size_t nb = 0;
+
+  if (alignment != 0) {
+    while (alignment < sizeof(*src16) && nb < slen) {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+      uint32_t val = nibbles_to_hex(((src[nb] & 0xf0) >> 4) |   // 0x0000000f
+                                    ((src[nb] & 0x0f) << 8));   // 0x00000f00
+#else
+      uint32_t val = nibbles_to_hex(((src[nb] & 0xf0) << 20) |  // 0x0f000000
+                                    ((src[nb] & 0x0f) << 16));  // 0x000f0000
+#endif
+      memcpy(dst, &val, 2);
+      dst += 2;
+      ++nb;
+      ++alignment;
+    }
+    src16 = reinterpret_cast<uint16_t*>(const_cast<char*>(src + nb));
+    ASSERT_EQ(reinterpret_cast<uintptr_t>(src16) % sizeof(*src16), 0);
+  }
 
   while (slen - nb >= 2) {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
@@ -735,7 +753,7 @@ static size_t hex_encode(const char* src, size_t slen, char* dst, size_t dlen) {
     memcpy(dst, &val, 2);
   }
 
-  return dlen;
+  return slen * 2;
 }
 
 
