@@ -88,9 +88,6 @@ extern X509_STORE* root_cert_store;
 
 extern void UseExtraCaCerts(const std::string& file);
 
-// Forward declaration
-class Connection;
-
 class SecureContext : public BaseObject {
  public:
   ~SecureContext() override {
