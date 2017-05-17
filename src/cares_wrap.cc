@@ -98,6 +98,7 @@ inline const char* ToErrorCodeString(int status) {
     V(ETIMEOUT)
 #undef V
   }
+
   return "UNKNOWN_ARES_ERROR";
 }
 
@@ -296,6 +297,94 @@ Local<Array> HostentToNames(Environment* env, struct hostent* host) {
   return scope.Escape(names);
 }
 
+void safe_free_hostent(struct hostent* host) {
+  int idx;
+
+  if (host->h_addr_list != nullptr) {
+    idx = 0;
+    while (host->h_addr_list[idx]) {
+      free(host->h_addr_list[idx++]);
+    }
+    free(host->h_addr_list);
+    host->h_addr_list = 0;
+  }
+
+  if (host->h_aliases != nullptr) {
+    idx = 0;
+    while (host->h_aliases[idx]) {
+      free(host->h_aliases[idx++]);
+    }
+    free(host->h_aliases);
+    host->h_aliases = 0;
+  }
+
+  if (host->h_name != nullptr) {
+    free(host->h_name);
+  }
+
+  host->h_addrtype = host->h_length = 0;
+}
+
+void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
+  dest->h_addr_list = nullptr;
+  dest->h_addrtype = 0;
+  dest->h_aliases = nullptr;
+  dest->h_length = 0;
+  dest->h_name = nullptr;
+
+  /* copy `h_name` */
+  size_t name_size = strlen(src->h_name) + 1;
+  dest->h_name = node::Malloc<char>(name_size);
+  memcpy(dest->h_name, src->h_name, name_size);
+
+  /* copy `h_aliases` */
+  size_t alias_count;
+  size_t cur_alias_length;
+  for (alias_count = 0;
+      src->h_aliases[alias_count] != nullptr;
+      alias_count++) {
+  }
+
+  dest->h_aliases = node::Malloc<char*>(alias_count + 1);
+  for (size_t i = 0; i < alias_count; i++) {
+    cur_alias_length = strlen(src->h_aliases[i]);
+    dest->h_aliases[i] = node::Malloc(cur_alias_length + 1);
+    memcpy(dest->h_aliases[i], src->h_aliases[i], cur_alias_length + 1);
+  }
+  dest->h_aliases[alias_count] = nullptr;
+
+  /* copy `h_addr_list` */
+  size_t list_count;
+  for (list_count = 0;
+      src->h_addr_list[list_count] != nullptr;
+      list_count++) {
+  }
+
+  dest->h_addr_list = node::Malloc<char*>(list_count + 1);
+  for (size_t i = 0; i < list_count; i++) {
+    dest->h_addr_list[i] = node::Malloc(src->h_length);
+    memcpy(dest->h_addr_list[i], src->h_addr_list[i], src->h_length);
+  }
+  dest->h_addr_list[list_count] = nullptr;
+
+  /* work after work */
+  dest->h_length = src->h_length;
+  dest->h_addrtype = src->h_addrtype;
+}
+
+class QueryWrap;
+struct CaresAsyncData {
+  QueryWrap* wrap;
+  int status;
+  bool is_host;
+  union {
+    hostent* host;
+    unsigned char* buf;
+  } data;
+  int len;
+
+  uv_async_t async_handle;
+};
 
 class QueryWrap : public AsyncWrap {
  public:
@@ -328,30 +417,80 @@ class QueryWrap : public AsyncWrap {
     return static_cast<void*>(this);
   }
 
-  static void Callback(void *arg, int status, int timeouts,
-      unsigned char* answer_buf, int answer_len) {
-    QueryWrap* wrap = static_cast<QueryWrap*>(arg);
+  static void CaresAsyncClose(uv_handle_t* handle) {
+    uv_async_t* async = reinterpret_cast<uv_async_t*>(handle);
+    auto data = static_cast<struct CaresAsyncData*>(async->data);
+    delete data->wrap;
+    delete data;
+  }
+
+  static void CaresAsyncCb(uv_async_t* handle) {
+    auto data = static_cast<struct CaresAsyncData*>(handle->data);
+
+    QueryWrap* wrap = data->wrap;
+    int status = data->status;
 
     if (status != ARES_SUCCESS) {
       wrap->ParseError(status);
+    } else if (!data->is_host) {
+      unsigned char* buf = data->data.buf;
+      wrap->Parse(buf, data->len);
+      free(buf);
     } else {
-      wrap->Parse(answer_buf, answer_len);
+      hostent* host = data->data.host;
+      wrap->Parse(host);
+      safe_free_hostent(host);
+      free(host);
     }
 
-    delete wrap;
+    uv_close(reinterpret_cast<uv_handle_t*>(handle), CaresAsyncClose);
   }
 
   static void Callback(void *arg, int status, int timeouts,
-      struct hostent* host) {
+                       unsigned char* answer_buf, int answer_len) {
     QueryWrap* wrap = static_cast<QueryWrap*>(arg);
 
-    if (status != ARES_SUCCESS) {
-      wrap->ParseError(status);
-    } else {
-      wrap->Parse(host);
+    unsigned char* buf_copy = nullptr;
+    if (status == ARES_SUCCESS) {
+      buf_copy = node::Malloc<unsigned char>(answer_len);
+      memcpy(buf_copy, answer_buf, answer_len);
     }
 
-    delete wrap;
+    CaresAsyncData* data = new CaresAsyncData();
+    data->status = status;
+    data->wrap = wrap;
+    data->is_host = false;
+    data->data.buf = buf_copy;
+    data->len = answer_len;
+
+    uv_async_t* async_handle = &data->async_handle;
+    uv_async_init(wrap->env()->event_loop(), async_handle, CaresAsyncCb);
+
+    async_handle->data = data;
+    uv_async_send(async_handle);
+  }
+
+  static void Callback(void *arg, int status, int timeouts,
+                       struct hostent* host) {
+    QueryWrap* wrap = static_cast<QueryWrap*>(arg);
+
+    struct hostent* host_copy = nullptr;
+    if (status == ARES_SUCCESS) {
+      host_copy = node::Malloc<hostent>(1);
+      cares_wrap_hostent_cpy(host_copy, host);
+    }
+
+    CaresAsyncData* data = new CaresAsyncData();
+    data->status = status;
+    data->data.host = host_copy;
+    data->wrap = wrap;
+    data->is_host = true;
+
+    uv_async_t* async_handle = &data->async_handle;
+    uv_async_init(wrap->env()->event_loop(), async_handle, CaresAsyncCb);
+
+    async_handle->data = data;
+    uv_async_send(async_handle);
   }
 
   void CallOnComplete(Local<Value> answer,
