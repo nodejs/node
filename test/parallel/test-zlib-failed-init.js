@@ -10,4 +10,4 @@ const zlib = require('zlib');
 // (http://zlib.net/manual.html#Advanced)
 assert.throws(() => {
   zlib.createDeflateRaw({ windowBits: 8 });
-}, /Init error/);
+}, /^Error: Init error$/);
