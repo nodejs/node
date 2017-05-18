@@ -386,6 +386,17 @@ added: v0.5.8
 Not exported by the `zlib` module. It is documented here because it is the base
 class of the compressor/decompressor classes.
 
+### zlib.bytesRead
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+The `zlib.bytesRead` property specifies the number of bytes read by the engine
+before the bytes are processed (compressed or decompressed, as appropriate for
+the derived class).
+
 ### zlib.flush([kind], callback)
 <!-- YAML
 added: v0.5.8
