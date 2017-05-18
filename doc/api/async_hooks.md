@@ -1,15 +1,14 @@
 # Async Hooks
 
-
 > Stability: 1 - Experimental
-
 
 The `async-hooks` module provides an API to register callbacks tracking the
 lifetime of asynchronous resources created inside a Node.js application.
+It can be accessed using `require('async-hooks')`.
 
 ## Terminology
 
-An async resource represents either a "handle" or a "request".
+An async resource represents either a _handle_ or a _request_.
 
 Handles are a reference to a system resource. Some resources are a simple
 identifier. For example, file system handles are represented by a file
@@ -27,7 +26,7 @@ writing data to disk.
 
 ### Overview
 
-Here is a simple overview of the public API. All of this API is explained in
+Following is a simple overview of the public API. All of this API is explained in
 more detail further down.
 
 ```js
@@ -38,7 +37,7 @@ const cid = async_hooks.currentId();
 
 // Return the id of the handle responsible for triggering the callback of the
 // current execution scope to fire.
-const tid = aysnc_hooks.triggerId();
+const tid = async_hooks.triggerId();
 
 // Create a new AsyncHook instance. All of these callbacks are optional.
 const asyncHook = async_hooks.createHook({ init, before, after, destroy });
@@ -78,6 +77,12 @@ function destroy(id) { }
 
 #### `async_hooks.createHook(callbacks)`
 
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callbacks` {Object} the callbacks to register
+
 Registers functions to be called for different lifetime events of each async
 operation.
 The callbacks `init()`/`before()`/`after()`/`destroy()` are registered via an
@@ -87,14 +92,16 @@ lifetime of the `AsyncWrap` C++ class. These callbacks will also be called to
 emulate the lifetime of handles and requests that do not fit this model. For
 example, `HTTPParser` instances are recycled to improve performance. Therefore the
 `destroy()` callback is called manually after a connection is done using
-it, just before it's placed back into the unused resource pool.
+it, just before it is placed back into the unused resource pool.
 
 All callbacks are optional. So, for example, if only resource cleanup needs to
 be tracked then only the `destroy()` callback needs to be passed. The
 specifics of all functions that can be passed to `callbacks` is in the section
 `Hook Callbacks`.
 
-**Error Handling**: If any `AsyncHook` callbacks throw, the application will
+##### Error Handling
+
+If any `AsyncHook` callbacks throw, the application will
 print the stack trace and exit. The exit path does follow that of any uncaught
 exception. However `'exit'` callbacks will still fire unless the application
 is run with `--abort-on-uncaught-exception`, in which case a stack trace will
@@ -141,7 +148,7 @@ destructor calls are emulated.
 ##### `init(id, type, triggerId, resource)`
 
 * `id` {number} a unique id for the async resource
-* `type` {String} the type of the async resource
+* `type` {string} the type of the async resource
 * `triggerId` {number} the unique id of the async resource in whose
   execution context this async resource was created
 * `resource` {Object} reference to the resource representing the async operation,
@@ -169,7 +176,7 @@ The `type` is a String that represents the type of resource that caused
 Some examples include `TCP`, `GetAddrInfo` and `HTTPParser`. Users will be able
 to define their own `type` when using the public embedder API.
 
-**Note:** It is possible to have type name collisions. Embedders are recommended
+*Note:* It is possible to have type name collisions. Embedders are recommended
 to use unique prefixes per module to prevent collisions when listening to the
 hooks.
 
@@ -181,7 +188,7 @@ The following is a simple demonstration of this:
 ```js
 const async_hooks = require('async_hooks');
 
-asyns_hooks.createHook({
+async_hooks.createHook({
   init (id, type, triggerId) {
     const cId = async_hooks.currentId();
     process._rawDebug(`${type}(${id}): trigger: ${triggerId} scope: ${cId}`);
@@ -272,13 +279,13 @@ First notice that `scope` and the value returned by `currentId()` are always
 the same. That's because `currentId()` simply returns the value of the
 current execution context; which is defined by `before()` and `after()` calls.
 
-Now if we only use `scope` to graph resource allocation we get the following:
+Now only using `scope` to graph resource allocation results in the following:
 
 ```
 TTYWRAP(6) -> Timeout(4) -> TIMERWRAP(5) -> TickObject(3) -> root(1)
 ```
 
-The `TCPWRAP` isn't part of this graph; evne though it was the reason for
+The `TCPWRAP` isn't part of this graph; even though it was the reason for
 `console.log()` being called. This is because binding to a port without a
 hostname is actually synchronous, but to maintain a completely asynchronous API
 the user's callback is placed in a `process.nextTick()`.
@@ -323,9 +330,9 @@ Some resources, such as `HTTPParser`, are not actually destructed but instead
 placed in an unused resource pool to be used later. For these `destroy()` will
 be called just before the resource is placed on the unused resource pool.
 
-**Note:** Some resources depend on GC for cleanup. So if a reference is made to
+*Note:* Some resources depend on GC for cleanup. So if a reference is made to
 the `resource` object passed to `init()` it's possible that `destroy()` is
-never called. Causing a memory leak in the application. Of course if you know
+never called. Causing a memory leak in the application. Of course if 
 the resource doesn't depend on GC then this isn't an issue.
 
 #### `async_hooks.currentId()`
@@ -343,17 +350,17 @@ fs.open(path, (err, fd) => {
 ```
 
 It is important to note that the id returned fom `currentId()` is related to
-execution timing.  Not causality (which is covered by `triggerId()`). For
+execution timing. Not causality (which is covered by `triggerId()`). For
 example:
 
 ```js
-const server = net.createServer(function onconnection(conn) {
+const server = net.createServer(function onConnection(conn) {
   // Returns the id of the server, not of the new connection. Because the
   // on connection callback runs in the execution scope of the server's
   // MakeCallback().
   async_hooks.currentId();
 
-}).listen(port, function onlistening() {
+}).listen(port, function onListening() {
   // Returns the id of a TickObject (i.e. process.nextTick()) because all
   // callbacks passed to .listen() are wrapped in a nextTick().
   async_hooks.currentId();
@@ -390,7 +397,7 @@ this a JavaScript API is provided.
 
 ### `class AsyncEvent()`
 
-The class `AsyncEvent` was designed to be extended from for embedder's async
+The class `AsyncEvent` was designed to be extended by the embedder's async
 resources. Using this users can easily trigger the lifetime events of their
 own resources.
 
@@ -424,7 +431,7 @@ asyncEvent.triggerId();
 #### `AsyncEvent(type[, triggerId])`
 
 * arguments
-  * `type` {String} the type of ascycn event
+  * `type` {string} the type of ascycn event
   * `triggerId` {number} the id of the execution context that created this async
     event
 * Returns {AsyncEvent} A reference to `asyncHook`.
@@ -433,7 +440,7 @@ Example usage:
 
 ```js
 class DBQuery extends AsyncEvent {
-  construtor(db) {
+  constructor(db) {
     this.db = db;
   }
 
@@ -454,7 +461,7 @@ class DBQuery extends AsyncEvent {
 
 #### `asyncEvent.emitBefore()`
 
-* Returns {Undefined}
+* Returns {undefined}
 
 Call all `before()` hooks and let them know a new asynchronous execution
 context is being entered. If nested calls to `emitBefore()` are made the stack
@@ -462,7 +469,7 @@ of `id`s will be tracked and properly unwound.
 
 #### `asyncEvent.emitAfter()`
 
-* Returns {Undefined}
+* Returns {undefined}
 
 Call all `after()` hooks. If nested calls to `emitBefore()` were made then make
 sure the stack is unwound properly. Otherwise an error will be thrown.
@@ -474,7 +481,7 @@ this.
 
 #### `asyncEvent.emitDestroy()`
 
-* Returns {Undefined}
+* Returns {undefined}
 
 Call all `destroy()` hooks. This should only ever be called once. An error will
 be thrown if it is called more than once. This **must** be manually called. If
@@ -556,10 +563,10 @@ responsible for the newly created resource being instantiated. For example:
 #### `async_hooks.emitInit(id, type[, triggerId][, resource])`
 
 * `id` {number} Generated by calling `newId()`
-* `type` {String}
+* `type` {string}
 * `triggerId` {number} **Default:** `currentId()`
 * `resource` {Object}
-* Returns {Undefined}
+* Returns {undefined}
 
 Emit that a resource is being initialized. `id` should be a value returned by
 `async_hooks.newId()`. Usage will probably be as follows:
@@ -585,7 +592,7 @@ constructor.
 
 * `id` {number} Generated by `newId()`
 * `triggerId` {number}
-* Returns {Undefined}
+* Returns {undefined}
 
 Notify `before()` hooks that the resource is about to enter its execution call
 stack. If the `triggerId` of the resource is different from `id` then pass
@@ -610,7 +617,7 @@ MyThing.prototype.done = function done() {
 #### `async_hooks.emitAfter(id)`
 
 * `id` {number} Generated by `newId()`
-* Returns {Undefined}
+* Returns {undefined}
 
 Notify `after()` hooks that the resource is exiting its execution call stack.
 
@@ -629,23 +636,23 @@ after # Foo   <- Should be called after Bar
 after # Bar
 ```
 
-**Note:** It is not necessary to wrap the callback in a try/finally and force
+*Note:* It is not necessary to wrap the callback in a try/finally and force
 emitAfter() if the callback throws. That is automatically handled by the
 fatal exception handler.
 
 #### `async_hooks.emitDestroy(id)`
 
 * `id` {number} Generated by `newId()`
-* Returns {Undefined}
+* Returns {undefined}
 
-Notify hooks that a resource is being destroyed (or being moved to the free'd
+Notify hooks that a resource is being destroyed (or being moved to the freed
 resource pool).
 
 #### `async_hooks.triggerIdScope(triggerId, callback)`
 
 * `triggerId` {number}
 * `callback` {Function}
-* Returns {Undefined}
+* Returns {undefined}
 
 All resources created during the execution of `callback` will be given
 `triggerId`. Unless it was otherwise 1) passed in as an argument to
