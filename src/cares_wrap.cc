@@ -351,6 +351,7 @@ void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
     dest->h_aliases[i] = node::Malloc(cur_alias_length + 1);
     memcpy(dest->h_aliases[i], src->h_aliases[i], cur_alias_length + 1);
   }
+  dest->h_aliases[alias_count] = nullptr;
 
   /* copy `h_addr_list` */
   size_t list_count;
@@ -364,6 +365,7 @@ void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
     dest->h_addr_list[i] = node::Malloc(src->h_length);
     memcpy(dest->h_addr_list[i], src->h_addr_list[i], src->h_length);
   }
+  dest->h_addr_list[list_count] = nullptr;
 
   /* work after work */
   dest->h_length = src->h_length;
