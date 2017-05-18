@@ -37,16 +37,13 @@ namespace node {
 
 class Watchdog {
  public:
-  explicit Watchdog(v8::Isolate* isolate, uint64_t ms);
+  explicit Watchdog(v8::Isolate* isolate,
+                    uint64_t ms,
+                    bool* timed_out = nullptr);
   ~Watchdog();
-
-  void Dispose();
-
   v8::Isolate* isolate() { return isolate_; }
-  bool HasTimedOut() { return timed_out_; }
- private:
-  void Destroy();
 
+ private:
   static void Run(void* arg);
   static void Async(uv_async_t* async);
   static void Timer(uv_timer_t* timer);
@@ -56,27 +53,20 @@ class Watchdog {
   uv_loop_t* loop_;
   uv_async_t async_;
   uv_timer_t timer_;
-  bool timed_out_;
-  bool destroyed_;
+  bool* timed_out_;
 };
 
 class SigintWatchdog {
  public:
-  explicit SigintWatchdog(v8::Isolate* isolate);
+  explicit SigintWatchdog(v8::Isolate* isolate,
+                          bool* received_signal = nullptr);
   ~SigintWatchdog();
-
-  void Dispose();
-
   v8::Isolate* isolate() { return isolate_; }
-  bool HasReceivedSignal() { return received_signal_; }
   void HandleSigint();
 
  private:
-  void Destroy();
-
   v8::Isolate* isolate_;
-  bool received_signal_;
-  bool destroyed_;
+  bool* received_signal_;
 };
 
 class SigintWatchdogHelper {
