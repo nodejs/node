@@ -425,6 +425,8 @@ Construct a new TLSSocket object from existing TCP socket.
   - `secureContext`: An optional TLS context object from
      [`tls.createSecureContext()`][]
 
+  - `lookup`: {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
+
   - `isServer`: If `true` the TLS socket will be instantiated in server-mode.
     Default: `false`
 
@@ -1065,6 +1067,7 @@ console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 [Stream]: stream.html#stream_stream
 [SSL_METHODS]: https://www.openssl.org/docs/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [tls.Server]: #tls_class_tls_server
+[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [SSL_CTX_set_timeout]: https://www.openssl.org/docs/ssl/SSL_CTX_set_timeout.html
 [RFC 4492]: https://www.rfc-editor.org/rfc/rfc4492.txt
 [Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
