@@ -69,8 +69,6 @@ using v8::Value;
 
 namespace {
 
-#define ARES_HOSTENT_COPY_ERROR -1000
-
 inline const char* ToErrorCodeString(int status) {
   switch (status) {
 #define V(code) case ARES_##code: return #code;
@@ -98,7 +96,6 @@ inline const char* ToErrorCodeString(int status) {
     V(EREFUSED)
     V(ESERVFAIL)
     V(ETIMEOUT)
-    V(HOSTENT_COPY_ERROR)
 #undef V
   }
 
@@ -303,7 +300,7 @@ Local<Array> HostentToNames(Environment* env, struct hostent* host) {
 void safe_free_hostent(struct hostent* host) {
   int idx;
 
-  if (host->h_addr_list) {
+  if (host->h_addr_list != nullptr) {
     idx = 0;
     while (host->h_addr_list[idx]) {
       free(host->h_addr_list[idx++]);
@@ -312,7 +309,7 @@ void safe_free_hostent(struct hostent* host) {
     host->h_addr_list = 0;
   }
 
-  if (host->h_aliases) {
+  if (host->h_aliases != nullptr) {
     idx = 0;
     while (host->h_aliases[idx]) {
       free(host->h_aliases[idx++]);
@@ -321,14 +318,14 @@ void safe_free_hostent(struct hostent* host) {
     host->h_aliases = 0;
   }
 
-  if (host->h_name) {
+  if (host->h_name != nullptr) {
     free(host->h_name);
   }
 
   host->h_addrtype = host->h_length = 0;
 }
 
-bool cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
+void cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
   dest->h_addr_list = nullptr;
   dest->h_addrtype = 0;
   dest->h_aliases = nullptr;
@@ -349,32 +346,28 @@ bool cares_wrap_hostent_cpy(struct hostent* dest, struct hostent* src) {
   }
 
   dest->h_aliases = node::Malloc<char*>(alias_count + 1);
-  memset(dest->h_aliases, 0, sizeof(char*) * (alias_count + 1));
   for (size_t i = 0; i < alias_count; i++) {
     cur_alias_length = strlen(src->h_aliases[i]);
-    dest->h_aliases[i] = node::Malloc<char>(cur_alias_length + 1);
+    dest->h_aliases[i] = node::Malloc(cur_alias_length + 1);
     memcpy(dest->h_aliases[i], src->h_aliases[i], cur_alias_length + 1);
   }
 
   /* copy `h_addr_list` */
-  unsigned int list_count;
+  size_t list_count;
   for (list_count = 0;
       src->h_addr_list[list_count] != nullptr;
       list_count++) {
   }
 
   dest->h_addr_list = node::Malloc<char*>(list_count + 1);
-  memset(dest->h_addr_list, 0, sizeof(char*) * (list_count + 1));
-  for (unsigned int i = 0; i < list_count; i++) {
-    dest->h_addr_list[i] = node::Malloc<char>(src->h_length);
+  for (size_t i = 0; i < list_count; i++) {
+    dest->h_addr_list[i] = node::Malloc(src->h_length);
     memcpy(dest->h_addr_list[i], src->h_addr_list[i], src->h_length);
   }
 
   /* work after work */
   dest->h_length = src->h_length;
   dest->h_addrtype = src->h_addrtype;
-
-  return true;
 }
 
 class QueryWrap;
@@ -382,7 +375,10 @@ struct CaresAsyncData {
   QueryWrap* wrap;
   int status;
   bool is_host;
-  void* buf;
+  union {
+    hostent* host;
+    unsigned char* buf;
+  } data;
   int len;
 
   uv_async_t async_handle;
@@ -435,11 +431,11 @@ class QueryWrap : public AsyncWrap {
     if (status != ARES_SUCCESS) {
       wrap->ParseError(status);
     } else if (!data->is_host) {
-      unsigned char* buf = reinterpret_cast<unsigned char*>(data->buf);
+      unsigned char* buf = data->data.buf;
       wrap->Parse(buf, data->len);
       free(buf);
     } else {
-      hostent* host = static_cast<struct hostent*>(data->buf);
+      hostent* host = data->data.host;
       wrap->Parse(host);
       safe_free_hostent(host);
       free(host);
@@ -449,7 +445,7 @@ class QueryWrap : public AsyncWrap {
   }
 
   static void Callback(void *arg, int status, int timeouts,
-      unsigned char* answer_buf, int answer_len) {
+                       unsigned char* answer_buf, int answer_len) {
     QueryWrap* wrap = static_cast<QueryWrap*>(arg);
 
     unsigned char* buf_copy = nullptr;
@@ -458,11 +454,11 @@ class QueryWrap : public AsyncWrap {
       memcpy(buf_copy, answer_buf, answer_len);
     }
 
-    struct CaresAsyncData* data = new struct CaresAsyncData();
+    CaresAsyncData* data = new CaresAsyncData();
     data->status = status;
     data->wrap = wrap;
     data->is_host = false;
-    data->buf = buf_copy;
+    data->data.buf = buf_copy;
     data->len = answer_len;
 
     uv_async_t* async_handle = &data->async_handle;
@@ -473,26 +469,18 @@ class QueryWrap : public AsyncWrap {
   }
 
   static void Callback(void *arg, int status, int timeouts,
-      struct hostent* host) {
+                       struct hostent* host) {
     QueryWrap* wrap = static_cast<QueryWrap*>(arg);
 
     struct hostent* host_copy = nullptr;
-    bool copy_ret = false;
-
     if (status == ARES_SUCCESS) {
       host_copy = node::Malloc<hostent>(1);
-      copy_ret = cares_wrap_hostent_cpy(host_copy, host);
+      cares_wrap_hostent_cpy(host_copy, host);
     }
 
-    struct CaresAsyncData* data = new struct CaresAsyncData();
-    if (copy_ret) {
-      data->status = status;
-      data->buf = host_copy;
-    } else {
-      data->status = ARES_HOSTENT_COPY_ERROR;
-      data->buf = nullptr;
-      free(host_copy);
-    }
+    CaresAsyncData* data = new CaresAsyncData();
+    data->status = status;
+    data->data.host = host_copy;
     data->wrap = wrap;
     data->is_host = true;
 

@@ -1,9 +1,8 @@
 'use strict';
 
-// Refs: https://github.com/nodejs/node/pull/13050
-// We don't care about `err` in the callback function of `dns.resolve4` here.
-// We just want to test whether `dns.setServers` here in the callback of
-// `resolve4` will crash or not. If no crashing here, the test is succeeded.
+// We don't care about `err` in the callback function of `dns.resolve4`. We just
+// want to test whether `dns.setServers` that is run after `resolve4` will cause
+// a crash or not. If it doesn't crash, the test succeeded.
 
 const common = require('../common');
 const dns = require('dns');
