@@ -40,6 +40,7 @@
 namespace node {
 
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -480,9 +481,11 @@ class ZCtx : public AsyncWrap {
       memcpy(dictionary, Buffer::Data(dictionary_), dictionary_len);
     }
 
-    Init(ctx, level, windowBits, memLevel, strategy,
-         dictionary, dictionary_len);
+    bool result = Init(ctx, level, windowBits, memLevel, strategy,
+                       dictionary, dictionary_len);
     SetDictionary(ctx);
+
+    args.GetReturnValue().Set(Boolean::New(args.GetIsolate(), result));
   }
 
   static void Params(const FunctionCallbackInfo<Value>& args) {
@@ -499,7 +502,7 @@ class ZCtx : public AsyncWrap {
     SetDictionary(ctx);
   }
 
-  static void Init(ZCtx *ctx, int level, int windowBits, int memLevel,
+  static bool Init(ZCtx *ctx, int level, int windowBits, int memLevel,
                    int strategy, char* dictionary, size_t dictionary_len) {
     ctx->level_ = level;
     ctx->windowBits_ = windowBits;
@@ -553,6 +556,9 @@ class ZCtx : public AsyncWrap {
 
     if (ctx->err_ != Z_OK) {
       ZCtx::Error(ctx, "Init error");
+      if (dictionary != nullptr)
+        delete[] dictionary;
+      return false;
     }
 
 
@@ -561,6 +567,8 @@ class ZCtx : public AsyncWrap {
 
     ctx->write_in_progress_ = false;
     ctx->init_done_ = true;
+
+    return true;
   }
 
   static void SetDictionary(ZCtx* ctx) {
