@@ -119,7 +119,7 @@ void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
   return;
 
  fail:
-  return End();
+  End();
 }
 
 
