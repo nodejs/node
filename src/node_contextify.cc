@@ -684,8 +684,10 @@ class ContextifyScript : public BaseObject {
       return;
     }
 
-    Local<String> decorated_stack = String::Concat(arrow.As<String>(),
-                                                   stack.As<String>());
+    Local<String> decorated_stack = String::Concat(
+        String::Concat(arrow.As<String>(),
+          FIXED_ONE_BYTE_STRING(env->isolate(), "\n")),
+        stack.As<String>());
     err_obj->Set(env->stack_string(), decorated_stack);
     err_obj->SetPrivate(
         env->context(),
@@ -932,6 +934,9 @@ class ContextifyScript : public BaseObject {
         env->ThrowError("Script execution timed out.");
       } else if (received_signal) {
         env->ThrowError("Script execution interrupted.");
+      } else if (display_errors) {
+        // We should decorate non-termination exceptions
+        DecorateErrorStack(env, *try_catch);
       }
 
       // If there was an exception thrown during script execution, re-throw it.
@@ -941,15 +946,6 @@ class ContextifyScript : public BaseObject {
       // this invocation, this will re-throw a `null` value.
       try_catch->ReThrow();
 
-      return false;
-    }
-
-    if (result.IsEmpty()) {
-      // Error occurred during execution of the script.
-      if (display_errors) {
-        DecorateErrorStack(env, *try_catch);
-      }
-      try_catch->ReThrow();
       return false;
     }
 
