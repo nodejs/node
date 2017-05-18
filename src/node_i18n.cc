@@ -326,7 +326,7 @@ void Transcode(const FunctionCallbackInfo<Value>&args) {
             tfn = &TranscodeUtf8FromUcs2;
             break;
           default:
-            tfn = TranscodeFromUcs2;
+            tfn = &TranscodeFromUcs2;
         }
         break;
       default:
