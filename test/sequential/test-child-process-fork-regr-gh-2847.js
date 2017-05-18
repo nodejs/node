@@ -17,7 +17,6 @@ if (!cluster.isMaster) {
 const server = net.createServer(function(s) {
   if (common.isWindows) {
     s.on('error', function(err) {
-      // Prevent possible ECONNRESET errors from popping up
       if (err.code !== 'ECONNRESET')
         throw err;
     });
@@ -36,10 +35,8 @@ const server = net.createServer(function(s) {
     // Errors can happen if this connection
     // is still happening while the server has been closed.
     s.on('error', function(err) {
-      if ((err.code !== 'ECONNRESET') &&
-          ((err.code !== 'ECONNREFUSED'))) {
+      if (err.code !== 'ECONNREFUSED')
         throw err;
-      }
     });
   }
 
@@ -53,14 +50,7 @@ const server = net.createServer(function(s) {
     send(function(err) {
       assert.ifError(err);
       send(function(err) {
-        // Ignore errors when sending the second handle because the worker
-        // may already have exited.
-        if (err) {
-          if ((err.message !== 'channel closed') &&
-             (err.code !== 'ECONNREFUSED')) {
-            throw err;
-          }
-        }
+        assert.ifError(err);
       });
     });
   });
