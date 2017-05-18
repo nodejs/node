@@ -197,7 +197,10 @@ Benchmark.prototype.end = function(operations) {
     throw new Error('called end() with operation count <= 0');
   }
   if (elapsed[0] === 0 && elapsed[1] === 0) {
-    throw new Error('insufficient time precision for short benchmark');
+    if (!process.env.NODEJS_BENCHMARK_ZERO_ALLOWED)
+      throw new Error('insufficient clock precision for short benchmark');
+    // avoid dividing by zero
+    elapsed[1] = 1;
   }
 
   const time = elapsed[0] + elapsed[1] / 1e9;
