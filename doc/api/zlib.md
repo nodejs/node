@@ -301,6 +301,7 @@ ignored by the decompression classes.
 * `strategy` {integer} (compression only)
 * `dictionary` {Buffer|TypedArray|DataView} (deflate/inflate only, empty dictionary by
   default)
+* `info` {boolean} (If `true`, returns an object with `buffer` and `engine`)
 
 See the description of `deflateInit2` and `inflateInit2` at
 <http://zlib.net/manual.html#Advanced> for more information on these.
