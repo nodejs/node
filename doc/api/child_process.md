@@ -167,6 +167,10 @@ exec('echo "The \\$HOME variable is $HOME"');
 containing shell metacharacters may be used to trigger arbitrary command
 execution.**
 
+**Note: Never pass unsanitised user input to this function. Any input
+containing shell metacharacters may be used to trigger arbitrary command
+execution.**
+
 ```js
 const exec = require('child_process').exec;
 exec('cat *.js bad_file | wc -l', (error, stdout, stderr) => {
