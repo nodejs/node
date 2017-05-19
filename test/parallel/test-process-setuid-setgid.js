@@ -31,7 +31,7 @@ if (process.getuid() !== 0) {
 
   assert.throws(
     () => { process.setuid('nobody'); },
-    /^Error: EPERM, /
+    /^Error: (EPERM, .+|setuid user id does not exist)$/
   );
   return;
 }
