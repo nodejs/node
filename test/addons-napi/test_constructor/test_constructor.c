@@ -2,6 +2,7 @@
 #include "../common.h"
 
 static double value_ = 1;
+static double static_value_ = 10;
 napi_ref constructor_;
 
 napi_value GetValue(napi_env env, napi_callback_info info) {
@@ -45,6 +46,19 @@ napi_value New(napi_env env, napi_callback_info info) {
   return _this;
 }
 
+napi_value GetStaticValue(napi_env env, napi_callback_info info) {
+  size_t argc = 0;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, NULL, NULL, NULL));
+
+  NAPI_ASSERT(env, argc == 0, "Wrong number of arguments");
+
+  napi_value number;
+  NAPI_CALL(env, napi_create_number(env, static_value_, &number));
+
+  return number;
+}
+
+
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_value number;
   NAPI_CALL_RETURN_VOID(env, napi_create_number(env, value_, &number));
@@ -58,6 +72,8 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     { "readwriteAccessor2", 0, 0, GetValue, SetValue, 0, napi_writable, 0},
     { "readonlyAccessor1", 0, 0, GetValue, NULL, 0, napi_default, 0},
     { "readonlyAccessor2", 0, 0, GetValue, NULL, 0, napi_writable, 0},
+    { "staticReadonlyAccessor1", 0, 0, GetStaticValue, NULL, 0,
+        napi_default | napi_static, 0},
   };
 
   napi_value cons;
