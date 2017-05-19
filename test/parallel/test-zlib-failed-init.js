@@ -28,10 +28,10 @@ assert.throws(() => {
 
 {
   const stream = zlib.createGzip({ level: NaN });
-  assert.ok(!Number.isNaN(stream._level));
+  assert.strictEqual(stream._level, zlib.constants.Z_DEFAULT_COMPRESSION);
 }
 
 {
   const stream = zlib.createGzip({ strategy: NaN });
-  assert.ok(!Number.isNaN(stream._strategy));
+  assert.strictEqual(stream._strategy, zlib.constants.Z_DEFAULT_STRATEGY);
 }
