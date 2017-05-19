@@ -72,7 +72,8 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     { "readwriteAccessor2", 0, 0, GetValue, SetValue, 0, napi_writable, 0},
     { "readonlyAccessor1", 0, 0, GetValue, NULL, 0, napi_default, 0},
     { "readonlyAccessor2", 0, 0, GetValue, NULL, 0, napi_writable, 0},
-    { "staticReadonlyAccessor1", 0, 0, GetStaticValue, NULL, 0, napi_default | napi_static, 0},
+    { "staticReadonlyAccessor1", 0, 0, GetStaticValue, NULL, 0,
+        napi_default | napi_static, 0},
   };
 
   napi_value cons;
