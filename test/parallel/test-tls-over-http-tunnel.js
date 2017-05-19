@@ -33,6 +33,8 @@ const fs = require('fs');
 const net = require('net');
 const http = require('http');
 
+const { tagCRLFy } = common;
+
 let gotRequest = false;
 
 const key = fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`);
@@ -60,11 +62,14 @@ const proxy = net.createServer(function(clientSocket) {
   clientSocket.on('data', function(chunk) {
     if (!serverSocket) {
       // Verify the CONNECT request
-      assert.strictEqual(`CONNECT localhost:${server.address().port} ` +
-                         'HTTP/1.1\r\n' +
-                         'Proxy-Connections: keep-alive\r\n' +
-                         `Host: localhost:${proxy.address().port}\r\n` +
-                         'Connection: close\r\n\r\n',
+      assert.strictEqual(tagCRLFy`
+                           CONNECT localhost:${server.address().port} HTTP/1.1
+                           Proxy-Connections: keep-alive
+                           Host: localhost:${proxy.address().port}
+                           Connection: close
+
+
+                         `,
                          chunk.toString());
 
       console.log('PROXY: got CONNECT request');
@@ -75,9 +80,14 @@ const proxy = net.createServer(function(clientSocket) {
         console.log('PROXY: replying to client CONNECT request');
 
         // Send the response
-        clientSocket.write('HTTP/1.1 200 OK\r\nProxy-Connections: keep' +
-                           '-alive\r\nConnections: keep-alive\r\nVia: ' +
-                           `localhost:${proxy.address().port}\r\n\r\n`);
+        clientSocket.write(tagCRLFy`
+          HTTP/1.1 200 OK
+          Proxy-Connections: keep-alive
+          Connections: keep-alive
+          Via: localhost:${proxy.address().port}
+
+
+        `);
       });
 
       serverSocket.on('data', function(chunk) {

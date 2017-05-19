@@ -9,6 +9,8 @@ if (!common.hasCrypto) {
 const crypto = require('crypto');
 const DH_NOT_SUITABLE_GENERATOR = crypto.constants.DH_NOT_SUITABLE_GENERATOR;
 
+const { tagGlue } = common;
+
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
 const dh1 = crypto.createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
@@ -163,10 +165,12 @@ for (const buf of [modp2buf, ...common.getArrayBufferViews(modp2buf)]) {
 }
 
 
-const p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
-          '020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F1437' +
-          '4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED' +
-          'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
+const p = tagGlue`
+  FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74
+  020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F1437
+  4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED
+  EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF
+`;
 const bad_dh = crypto.createDiffieHellman(p, 'hex');
 assert.strictEqual(bad_dh.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
@@ -237,9 +241,10 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   // Associated compressed and uncompressed public keys (points).
   const cafebabePubPtComp =
   '03672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3';
-  const cafebabePubPtUnComp =
-  '04672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3' +
-  '2e02c7f93d13dc2732b760ca377a5897b9dd41a1c1b29dc0442fdce6d0a04d1d';
+  const cafebabePubPtUnComp = tagGlue`
+    04672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a
+    32e02c7f93d13dc2732b760ca377a5897b9dd41a1c1b29dc0442fdce6d0a04d1d
+  `;
   ecdh5.setPrivateKey(cafebabeKey, 'hex');
   assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
   // Show that the public point (key) is generated while setting the
@@ -251,9 +256,10 @@ if (availableCurves.has('prime256v1') && availableCurves.has('secp256k1')) {
   // 0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF
   const peerPubPtComp =
   '02c6b754b20826eb925e052ee2c25285b162b51fdca732bcf67e39d647fb6830ae';
-  const peerPubPtUnComp =
-  '04c6b754b20826eb925e052ee2c25285b162b51fdca732bcf67e39d647fb6830ae' +
-  'b651944a574a362082a77e3f2b5d9223eb54d7f2f76846522bf75f3bedb8178e';
+  const peerPubPtUnComp = tagGlue`
+    04c6b754b20826eb925e052ee2c25285b162b51fdca732bcf67e39d647fb6830a
+    eb651944a574a362082a77e3f2b5d9223eb54d7f2f76846522bf75f3bedb8178e
+  `;
 
   const sharedSecret =
   '1da220b5329bbe8bfd19ceef5a5898593f411a6f12ea40f2a8eead9a5cf59970';

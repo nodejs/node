@@ -261,6 +261,134 @@ Platform normalizes the `pwd` command.
 
 Synchronous version of `spawnPwd`.
 
+_**Note:** tag functions for tagged template literals (begin with `tag*`)
+usually take a multiline template literal with leading and trailing line break:
+this allows dividing code noise (like backticks) and pure data.
+These leading and trailing line breaks are stripped in the result.
+All these functions leave interpolated variables untouched,
+only literal parts are processed._
+
+### tagGlue()
+* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+
+Tag function for tagged template literals:
+removes all literal line breaks and leading spaces.
+Handy to code big text blobs not intended for human reading.
+
+<!-- eslint-disable strict -->
+```js
+const assert = require('assert');
+const common = require('../common');
+
+const unTagged =
+               '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
+const tagged = common.tagGlue`
+  0123456789
+  ABCDEFGHIJKLMNOPQRSTUVWXYZ
+  abcdefghijklmnopqrstuvwxyz
+`;
+
+assert.strictEqual(unTagged, tagged);
+```
+
+### tagUnwrap()
+* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+
+Tag function for tagged template literals:
+replaces all literal line breaks and leading spaces with a space,
+then trims one leading and one trailing space.
+Handy to code long readable text one-liners split for either readability
+or to respect the 80 char rule.
+
+<!-- eslint-disable strict -->
+```js
+const assert = require('assert');
+const common = require('../common');
+
+const unTagged =
+   'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod...';
+
+const tagged = common.tagUnwrap`
+  Lorem ipsum dolor sit amet,
+  consectetur adipiscing elit,
+  sed do eiusmod...
+`;
+
+assert.strictEqual(unTagged, tagged);
+```
+
+### tagLFy()
+* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+
+Tag function for tagged template literals:
+removes one framing line break from the start and the end
+as well as auxiliary indents (based on the indent of the first text line).
+Handy to code multiline readable text, JavaScript metacode, HTML markup.
+
+<!-- eslint-disable strict -->
+```js
+const assert = require('assert');
+const common = require('../common');
+
+const unTagged =
+`<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title></title>
+  </head>
+  <body>
+    ${process.versions}
+  </body>
+</html>`;
+
+const tagged = common.tagLFy`
+  <!doctype html>
+  <html>
+    <head>
+      <meta charset="UTF-8">
+      <title></title>
+    </head>
+    <body>
+      ${process.versions}
+    </body>
+  </html>
+`;
+
+assert.strictEqual(unTagged, tagged);
+```
+
+### tagCRLFy()
+* return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+
+Tag function for tagged template literals:
+same as `tagLFy()`, but replaces all literal `\n` by `\r\n`.
+Handy to code raw HTTP requests/responses.
+
+<!-- eslint-disable strict -->
+```js
+const assert = require('assert');
+const common = require('../common');
+
+const unTagged =
+  'HTTP/1.1 200 OK\r\n' +
+  'Content-Type: text/plain\r\n' +
+  'Content-Length: ' + `${process.versions}`.length + '\r\n' +
+  '\r\n' +
+  process.versions;
+
+const tagged = common.tagCRLFy`
+  HTTP/1.1 200 OK
+  Content-Type: text/plain
+  Content-Length: ${`${process.versions}`.length}
+
+  ${process.versions}
+`;
+
+assert.strictEqual(unTagged, tagged);
+```
+
 ### tmpDir
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 

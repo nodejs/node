@@ -40,8 +40,11 @@ function parent() {
 function test(environ, shouldWrite) {
   let expectErr = '';
   if (shouldWrite) {
-    expectErr = 'TUD %PID%: this { is: \'a\' } /debugging/\n' +
-                'TUD %PID%: number=1234 string=asdf obj={"foo":"bar"}\n';
+    expectErr = common.tagLFy`
+      TUD %PID%: this { is: 'a' } /debugging/
+      TUD %PID%: number=1234 string=asdf obj={"foo":"bar"}
+
+    `;
   }
   const expectOut = 'ok\n';
 

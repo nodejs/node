@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const { tagLFy } = require('../common');
 const assert = require('assert');
 const inspect = require('util').inspect;
 
@@ -168,17 +168,21 @@ function check(actual, expected, input) {
   const expectedKeys = Object.keys(expected).sort();
   let msg;
   if (typeof input === 'string') {
-    msg = `Input: ${inspect(input)}\n` +
-          `Actual keys: ${inspect(actualKeys)}\n` +
-          `Expected keys: ${inspect(expectedKeys)}`;
+    msg = tagLFy`
+      Input: ${inspect(input)}
+      Actual keys: ${inspect(actualKeys)}
+      Expected keys: ${inspect(expectedKeys)}
+    `;
   }
   assert.deepStrictEqual(actualKeys, expectedKeys, msg);
   expectedKeys.forEach(function(key) {
     if (typeof input === 'string') {
-      msg = `Input: ${inspect(input)}\n` +
-            `Key: ${inspect(key)}\n` +
-            `Actual value: ${inspect(actual[key])}\n` +
-            `Expected value: ${inspect(expected[key])}`;
+      msg = tagLFy`
+        Input: ${inspect(input)}
+        Key: ${inspect(key)}
+        Actual value: ${inspect(actual[key])}
+        Expected value: ${inspect(expected[key])}
+      `;
     } else {
       msg = undefined;
     }
@@ -335,8 +339,8 @@ assert.strictEqual(
 }
 
 {
-  const b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
-    '%0d%ac%a2%2f%9d%eb%d8%a2%e6');
+  const b = qs.unescapeBuffer(
+    '%d3%f2Ug%1f6v%24%5e%98%cb%0d%ac%a2%2f%9d%eb%d8%a2%e6');
 // <Buffer d3 f2 55 67 1f 36 76 24 5e 98 cb 0d ac a2 2f 9d eb d8 a2 e6>
   assert.strictEqual(0xd3, b[0]);
   assert.strictEqual(0xf2, b[1]);

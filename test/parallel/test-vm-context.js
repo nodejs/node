@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const { tagLFy } = require('../common');
 const assert = require('assert');
 
 const vm = require('vm');
@@ -78,9 +78,13 @@ const contextifiedSandboxErrorMsg =
 
 // Issue GH-693:
 console.error('test RegExp as argument to assert.throws');
-script = vm.createScript('const assert = require(\'assert\'); assert.throws(' +
-                         'function() { throw "hello world"; }, /hello/);',
-                         'some.js');
+script = vm.createScript(
+  tagLFy`
+    const assert = require('assert');
+    assert.throws(function() { throw "hello world"; }, /hello/);
+  `,
+  'some.js'
+);
 script.runInNewContext({ require: require });
 
 // Issue GH-7529

@@ -45,10 +45,14 @@ server.listen(0, function() {
   const c = net.createConnection(this.address().port);
 
   c.on('connect', function() {
-    c.write('GET /blah HTTP/1.1\r\n' +
-            'Upgrade: WebSocket\r\n' +
-            'Connection: Upgrade\r\n' +
-            '\r\n\r\nhello world');
+    c.write(common.tagCRLFy`
+      GET /blah HTTP/1.1
+      Upgrade: WebSocket
+      Connection: Upgrade
+
+
+      hello world
+    `);
   });
 
   c.on('end', function() {

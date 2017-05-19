@@ -20,20 +20,21 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const { tagLFy } = require('../common');
 const assert = require('assert');
 
 const vm = require('vm');
 
-const code =
-    'Object.defineProperty(this, "f", {\n' +
-    '  get: function() { return x; },\n' +
-    '  set: function(k) { x = k; },\n' +
-    '  configurable: true,\n' +
-    '  enumerable: true\n' +
-    '});\n' +
-    'g = f;\n' +
-    'f;\n';
+const code = tagLFy`
+    Object.defineProperty(this, 'f', {
+      get: function() { return x; },
+      set: function(k) { x = k; },
+      configurable: true,
+      enumerable: true
+    });
+    g = f;
+    f;
+`;
 
 const x = {};
 const o = vm.createContext({ console: console, x: x });

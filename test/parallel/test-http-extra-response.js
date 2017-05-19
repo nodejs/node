@@ -30,16 +30,17 @@ const net = require('net');
 // Demos this bug: https://github.com/joyent/node/issues/680
 
 const body = 'hello world\r\n';
-const fullResponse =
-    'HTTP/1.1 500 Internal Server Error\r\n' +
-    'Content-Length: ' + body.length + '\r\n' +
-    'Content-Type: text/plain\r\n' +
-    'Date: Fri + 18 Feb 2011 06:22:45 GMT\r\n' +
-    'Host: 10.20.149.2\r\n' +
-    'Access-Control-Allow-Credentials: true\r\n' +
-    'Server: badly broken/0.1 (OS NAME)\r\n' +
-    '\r\n' +
-    body;
+const fullResponse = common.tagCRLFy`
+    HTTP/1.1 500 Internal Server Error
+    Content-Length: ${body.length}
+    Content-Type: text/plain
+    Date: Fri + 18 Feb 2011 06:22:45 GMT
+    Host: 10.20.149.2
+    Access-Control-Allow-Credentials: true
+    Server: badly broken/0.1 (OS NAME)
+
+    ${body}
+`;
 
 const server = net.createServer(function(socket) {
   let postBody = '';

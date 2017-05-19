@@ -25,6 +25,8 @@ const assert = require('assert');
 const util = require('util');
 const vm = require('vm');
 
+const { tagLFy } = common;
+
 assert.strictEqual(util.inspect(1), '1');
 assert.strictEqual(util.inspect(false), 'false');
 assert.strictEqual(util.inspect(''), "''");
@@ -105,30 +107,33 @@ for (const showHidden of [true, false]) {
     util.inspect(ab, showHidden),
     'ArrayBuffer { byteLength: 4 }'
   );
-  assert.strictEqual(util.inspect(new DataView(ab, 1, 2), showHidden),
-                     'DataView {\n' +
-                     '  byteLength: 2,\n' +
-                     '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { byteLength: 4 } }');
+  assert.strictEqual(util.inspect(new DataView(ab, 1, 2), showHidden), tagLFy`
+    DataView {
+      byteLength: 2,
+      byteOffset: 1,
+      buffer: ArrayBuffer { byteLength: 4 } }
+  `);
   assert.strictEqual(
     util.inspect(ab, showHidden),
     'ArrayBuffer { byteLength: 4 }'
   );
-  assert.strictEqual(util.inspect(dv, showHidden),
-                     'DataView {\n' +
-                     '  byteLength: 2,\n' +
-                     '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { byteLength: 4 } }');
+  assert.strictEqual(util.inspect(dv, showHidden), tagLFy`
+    DataView {
+      byteLength: 2,
+      byteOffset: 1,
+      buffer: ArrayBuffer { byteLength: 4 } }
+  `);
   ab.x = 42;
   dv.y = 1337;
   assert.strictEqual(util.inspect(ab, showHidden),
                      'ArrayBuffer { byteLength: 4, x: 42 }');
-  assert.strictEqual(util.inspect(dv, showHidden),
-                     'DataView {\n' +
-                     '  byteLength: 2,\n' +
-                     '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { byteLength: 4, x: 42 },\n' +
-                     '  y: 1337 }');
+  assert.strictEqual(util.inspect(dv, showHidden), tagLFy`
+    DataView {
+      byteLength: 2,
+      byteOffset: 1,
+      buffer: ArrayBuffer { byteLength: 4, x: 42 },
+      y: 1337 }
+  `);
 }
 
 // Now do the same checks but from a different context
@@ -139,30 +144,33 @@ for (const showHidden of [true, false]) {
     util.inspect(ab, showHidden),
     'ArrayBuffer { byteLength: 4 }'
   );
-  assert.strictEqual(util.inspect(new DataView(ab, 1, 2), showHidden),
-                     'DataView {\n' +
-                     '  byteLength: 2,\n' +
-                     '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { byteLength: 4 } }');
+  assert.strictEqual(util.inspect(new DataView(ab, 1, 2), showHidden), tagLFy`
+    DataView {
+      byteLength: 2,
+      byteOffset: 1,
+      buffer: ArrayBuffer { byteLength: 4 } }
+  `);
   assert.strictEqual(
     util.inspect(ab, showHidden),
     'ArrayBuffer { byteLength: 4 }'
   );
-  assert.strictEqual(util.inspect(dv, showHidden),
-                     'DataView {\n' +
-                     '  byteLength: 2,\n' +
-                     '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { byteLength: 4 } }');
+  assert.strictEqual(util.inspect(dv, showHidden), tagLFy`
+    DataView {
+      byteLength: 2,
+      byteOffset: 1,
+      buffer: ArrayBuffer { byteLength: 4 } }
+  `);
   ab.x = 42;
   dv.y = 1337;
   assert.strictEqual(util.inspect(ab, showHidden),
                      'ArrayBuffer { byteLength: 4, x: 42 }');
-  assert.strictEqual(util.inspect(dv, showHidden),
-                     'DataView {\n' +
-                     '  byteLength: 2,\n' +
-                     '  byteOffset: 1,\n' +
-                     '  buffer: ArrayBuffer { byteLength: 4, x: 42 },\n' +
-                     '  y: 1337 }');
+  assert.strictEqual(util.inspect(dv, showHidden), tagLFy`
+    DataView {
+      byteLength: 2,
+      byteOffset: 1,
+      buffer: ArrayBuffer { byteLength: 4, x: 42 },
+      y: 1337 }
+  `);
 }
 
 
@@ -182,14 +190,16 @@ for (const showHidden of [true, false]) {
     array[1] = 97;
     assert.strictEqual(
       util.inspect(array, true),
-      `${constructor.name} [\n` +
-      '  65,\n' +
-      '  97,\n' +
-      `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},\n` +
-      `  [length]: ${length},\n` +
-      `  [byteLength]: ${byteLength},\n` +
-      '  [byteOffset]: 0,\n' +
-      `  [buffer]: ArrayBuffer { byteLength: ${byteLength} } ]`);
+      tagLFy`
+        ${constructor.name} [
+          65,
+          97,
+          [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},
+          [length]: ${length},
+          [byteLength]: ${byteLength},
+          [byteOffset]: 0,
+          [buffer]: ArrayBuffer { byteLength: ${byteLength} } ]
+      `);
     assert.strictEqual(
       util.inspect(array, false),
       `${constructor.name} [ 65, 97 ]`
@@ -216,14 +226,16 @@ for (const showHidden of [true, false]) {
     array[1] = 97;
     assert.strictEqual(
       util.inspect(array, true),
-      `${constructor.name} [\n` +
-      '  65,\n' +
-      '  97,\n' +
-      `  [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},\n` +
-      `  [length]: ${length},\n` +
-      `  [byteLength]: ${byteLength},\n` +
-      '  [byteOffset]: 0,\n' +
-      `  [buffer]: ArrayBuffer { byteLength: ${byteLength} } ]`);
+      tagLFy`
+        ${constructor.name} [
+          65,
+          97,
+          [BYTES_PER_ELEMENT]: ${constructor.BYTES_PER_ELEMENT},
+          [length]: ${length},
+          [byteLength]: ${byteLength},
+          [byteOffset]: 0,
+          [buffer]: ArrayBuffer { byteLength: ${byteLength} } ]
+      `);
     assert.strictEqual(
       util.inspect(array, false),
       `${constructor.name} [ 65, 97 ]`

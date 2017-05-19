@@ -27,9 +27,11 @@ oStream.on('data', function(data) {
 });
 
 oStream.on('end', common.mustCall(() => {
-  const expect = 'process.stdout\r\n' +
-                 'process.stdin\r\n' +
-                 'process.stderr';
+  const expect = common.tagCRLFy`
+    process.stdout
+    process.stdin
+    process.stderr
+  `;
   assert(new RegExp(expect).test(output));
 }));
 

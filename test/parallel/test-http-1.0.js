@@ -25,6 +25,13 @@ const assert = require('assert');
 const net = require('net');
 const http = require('http');
 
+const { tagUnwrap, tagCRLFy } = common;
+
+const userAgent = tagUnwrap`
+  curl/7.19.7 (x86_64-pc-linux-gnu) libcurl/7.19.7
+  OpenSSL/0.9.8k zlib/1.2.3.3 libidn/1.15
+`;
+
 const body = 'hello world\n';
 
 function test(handler, request_generator, response_validator) {
@@ -97,20 +104,24 @@ function test(handler, request_generator, response_validator) {
   }
 
   function request_generator() {
-    return ('GET / HTTP/1.0\r\n' +
-        'User-Agent: curl/7.19.7 (x86_64-pc-linux-gnu) libcurl/7.19.7 ' +
-        'OpenSSL/0.9.8k zlib/1.2.3.3 libidn/1.15\r\n' +
-        'Host: 127.0.0.1:1337\r\n' +
-        'Accept: */*\r\n' +
-        '\r\n');
+    return (tagCRLFy`
+      GET / HTTP/1.0
+      User-Agent: ${userAgent}
+      Host: 127.0.0.1:1337
+      Accept: */*
+
+
+    `);
   }
 
   function response_validator(server_response, client_got_eof, timed_out) {
-    const expected_response = 'HTTP/1.1 200 OK\r\n' +
-                              'Content-Type: text/plain\r\n' +
-                              'Connection: close\r\n' +
-                              '\r\n' +
-                              'Hello, world!';
+    const expected_response = tagCRLFy`
+      HTTP/1.1 200 OK
+      Content-Type: text/plain
+      Connection: close
+
+      Hello, world!
+    `;
 
     assert.strictEqual(expected_response, server_response);
     assert.strictEqual(true, client_got_eof);
@@ -133,27 +144,32 @@ function test(handler, request_generator, response_validator) {
   }
 
   function request_generator() {
-    return 'GET / HTTP/1.1\r\n' +
-        'User-Agent: curl/7.19.7 (x86_64-pc-linux-gnu) libcurl/7.19.7 ' +
-        'OpenSSL/0.9.8k zlib/1.2.3.3 libidn/1.15\r\n' +
-        'Connection: close\r\n' +
-        'Host: 127.0.0.1:1337\r\n' +
-        'Accept: */*\r\n' +
-        '\r\n';
+    return tagCRLFy`
+      GET / HTTP/1.1
+      User-Agent: ${userAgent}
+      Connection: close
+      Host: 127.0.0.1:1337
+      Accept: */*
+
+
+    `;
   }
 
   function response_validator(server_response, client_got_eof, timed_out) {
-    const expected_response = 'HTTP/1.1 200 OK\r\n' +
-                              'Content-Type: text/plain\r\n' +
-                              'Connection: close\r\n' +
-                              'Transfer-Encoding: chunked\r\n' +
-                              '\r\n' +
-                              '7\r\n' +
-                              'Hello, \r\n' +
-                              '6\r\n' +
-                              'world!\r\n' +
-                              '0\r\n' +
-                              '\r\n';
+    const expected_response = tagCRLFy`
+      HTTP/1.1 200 OK
+      Content-Type: text/plain
+      Connection: close
+      Transfer-Encoding: chunked
+
+      7
+      Hello,${' '}
+      6
+      world!
+      0
+
+
+    `;
 
     assert.strictEqual(expected_response, server_response);
     assert.strictEqual(true, client_got_eof);

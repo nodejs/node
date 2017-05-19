@@ -1,19 +1,21 @@
 'use strict';
-require('../common');
+const { tagUnwrap } = require('../common');
 const cluster = require('cluster');
 const assert = require('assert');
 
 if (cluster.isMaster) {
   const worker = cluster.fork();
 
-  assert.ok(worker.isConnected(),
-            'isConnected() should return true as soon as the worker has ' +
-            'been created.');
+  assert.ok(worker.isConnected(), tagUnwrap`
+             isConnected() should return true
+             as soon as the worker has been created.
+           `);
 
   worker.on('disconnect', function() {
-    assert.ok(!worker.isConnected(),
-              'After a disconnect event has been emitted, ' +
-              'isConncted should return false');
+    assert.ok(!worker.isConnected(), tagUnwrap`
+               After a disconnect event has been emitted
+               isConncted should return false
+             `);
   });
 
   worker.on('message', function(msg) {
@@ -23,15 +25,17 @@ if (cluster.isMaster) {
   });
 
 } else {
-  assert.ok(cluster.worker.isConnected(),
-            'isConnected() should return true from within a worker at all ' +
-            'times.');
+  assert.ok(cluster.worker.isConnected(), tagUnwrap`
+             isConnected() should return true
+             from within a worker at all times.
+           `);
 
   cluster.worker.process.on('disconnect', function() {
-    assert.ok(!cluster.worker.isConnected(),
-              'isConnected() should return false from within a worker ' +
-              'after its underlying process has been disconnected from ' +
-              'the master');
+    assert.ok(!cluster.worker.isConnected(), tagUnwrap`
+               isConnected() should return false from within a worker
+               after its underlying process has been disconnected
+               from the master
+             `);
   });
 
   process.send('readyToDisconnect');

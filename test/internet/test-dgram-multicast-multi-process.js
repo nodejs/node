@@ -92,8 +92,10 @@ function launchChildProcess() {
       }
 
       if (done === listeners) {
-        console.error('[PARENT] All workers have received the ' +
-                      'required number of messages. Will now compare.');
+        console.error(common.tagUnwrap`
+          [PARENT] All workers have received
+          the required number of messages. Will now compare.
+        `);
 
         Object.keys(workers).forEach(function(pid) {
           const worker = workers[pid];

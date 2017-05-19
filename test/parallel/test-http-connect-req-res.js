@@ -11,12 +11,12 @@ server.on('connect', common.mustCall(function(req, socket, firstBodyChunk) {
 
   // It is legal for the server to send some data intended for the client
   // along with the CONNECT response
-  socket.write(
-    'HTTP/1.1 200 Connection established\r\n' +
-    'Date: Tue, 15 Nov 1994 08:12:31 GMT\r\n' +
-    '\r\n' +
-    'Head'
-  );
+  socket.write(common.tagCRLFy`
+    HTTP/1.1 200 Connection established
+    Date: Tue, 15 Nov 1994 08:12:31 GMT
+
+    Head
+  `);
 
   let data = firstBodyChunk.toString();
   socket.on('data', function(buf) {

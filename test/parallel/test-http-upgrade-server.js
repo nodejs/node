@@ -28,6 +28,7 @@ const util = require('util');
 const net = require('net');
 const http = require('http');
 
+const { tagCRLFy } = common;
 
 let requests_recv = 0;
 let requests_sent = 0;
@@ -51,10 +52,14 @@ function testServer() {
   });
 
   this.on('upgrade', function(req, socket, upgradeHead) {
-    socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
-                 'Upgrade: WebSocket\r\n' +
-                 'Connection: Upgrade\r\n' +
-                 '\r\n\r\n');
+    socket.write(tagCRLFy`
+      HTTP/1.1 101 Web Socket Protocol Handshake
+      Upgrade: WebSocket
+      Connection: Upgrade
+
+
+
+    `);
 
     request_upgradeHead = upgradeHead;
 
@@ -87,12 +92,13 @@ function test_upgrade_with_listener() {
   let state = 0;
 
   conn.on('connect', function() {
-    writeReq(conn,
-             'GET / HTTP/1.1\r\n' +
-             'Upgrade: WebSocket\r\n' +
-             'Connection: Upgrade\r\n' +
-             '\r\n' +
-             'WjN}|M(6');
+    writeReq(conn, tagCRLFy`
+      GET / HTTP/1.1
+      Upgrade: WebSocket
+      Connection: Upgrade
+
+      WjN}|M(6
+    `);
   });
 
   conn.on('data', function(data) {
@@ -128,11 +134,13 @@ function test_upgrade_no_listener() {
   conn.setEncoding('utf8');
 
   conn.on('connect', function() {
-    writeReq(conn,
-             'GET / HTTP/1.1\r\n' +
-             'Upgrade: WebSocket\r\n' +
-             'Connection: Upgrade\r\n' +
-             '\r\n');
+    writeReq(conn, tagCRLFy`
+      GET / HTTP/1.1
+      Upgrade: WebSocket
+      Connection: Upgrade
+
+
+    `);
   });
 
   conn.on('end', function() {

@@ -16,9 +16,12 @@ function run({input, output, event, checkTerminalCodes = true}) {
 
   stream.write = (msg) => found += msg.replace('\r', '');
 
-  let expected = `${terminalCode}.editor\n` +
-                 '// Entering editor mode (^D to finish, ^C to cancel)\n' +
-                 `${input}${output}\n${terminalCode}`;
+  let expected = common.tagLFy`
+    ${terminalCode}.editor
+    // Entering editor mode (^D to finish, ^C to cancel)
+    ${input}${output}
+    ${terminalCode}
+  `;
 
   const replServer = repl.start({
     prompt: '> ',

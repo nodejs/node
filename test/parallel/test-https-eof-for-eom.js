@@ -48,16 +48,19 @@ const options = {
 
 const server = tls.Server(options, function(socket) {
   console.log('2) Server got request');
-  socket.write('HTTP/1.1 200 OK\r\n' +
-               'Date: Tue, 15 Feb 2011 22:14:54 GMT\r\n' +
-               'Expires: -1\r\n' +
-               'Cache-Control: private, max-age=0\r\n' +
-               'Set-Cookie: xyz\r\n' +
-               'Set-Cookie: abc\r\n' +
-               'Server: gws\r\n' +
-               'X-XSS-Protection: 1; mode=block\r\n' +
-               'Connection: close\r\n' +
-               '\r\n');
+  socket.write(common.tagCRLFy`
+    HTTP/1.1 200 OK
+    Date: Tue, 15 Feb 2011 22:14:54 GMT
+    Expires: -1
+    Cache-Control: private, max-age=0
+    Set-Cookie: xyz
+    Set-Cookie: abc
+    Server: gws
+    X-XSS-Protection: 1; mode=block
+    Connection: close
+
+
+  `);
 
   socket.write('hello world\n');
 

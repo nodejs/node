@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const { tagCRLFy } = require('../common');
 const http = require('http');
 const net = require('net');
 
@@ -46,8 +46,15 @@ const server = http.createServer(function(req, res) {
     s.write('GET / HTTP/1.1\r\n\r\n');
   };
   done = function() {
-    s.write('GET / HTTP/1.1\r\n\r\n' +
-            'GET / HTTP/1.1\r\nConnection: upgrade\r\nUpgrade: ws\r\n\r\naaa');
+    s.write(tagCRLFy`
+      GET / HTTP/1.1
+
+      GET / HTTP/1.1
+      Connection: upgrade
+      Upgrade: ws
+
+      aaa
+    `);
   };
   more();
   more();

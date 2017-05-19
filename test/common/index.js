@@ -211,9 +211,11 @@ Object.defineProperty(exports, 'localhostIPv4', {
       if (process.env.LOCALHOST) {
         localhostIPv4 = process.env.LOCALHOST;
       } else {
-        console.error('Looks like we\'re in a FreeBSD Jail. ' +
-                      'Please provide your default interface address ' +
-                      'as LOCALHOST or expect some tests to fail.');
+        console.error(exports.tagUnwrap`
+          Looks like we're in a FreeBSD Jail.
+          Please provide your default interface address as LOCALHOST
+          or expect some tests to fail.
+        `);
       }
     }
 
@@ -289,9 +291,10 @@ exports.childShouldThrowAndAbort = function() {
   testCmd += `"${process.argv[1]}" child`;
   const child = child_process.exec(testCmd);
   child.on('exit', function onExit(exitCode, signal) {
-    const errMsg = 'Test should have aborted ' +
-                   `but instead exited with exit code ${exitCode}` +
-                   ` and signal ${signal}`;
+    const errMsg = exports.tagUnwrap`
+      Test should have aborted
+      but instead exited with exit code ${exitCode} and signal ${signal}
+    `;
     assert(exports.nodeProcessAborted(exitCode, signal), errMsg);
   });
 };
@@ -745,4 +748,50 @@ exports.getTTYfd = function getTTYfd() {
     return -1;
   }
   return tty_fd;
+};
+
+// exports.tag*: tag functions for tagged template literals
+
+// Removes all literal line breaks and leading spaces
+exports.tagGlue = function tagGlue(strings, ...expressions) {
+  const breaks = /\n */g;
+
+  return expressions.reduce(
+    (acc, expr, i) => `${acc}${expr}${strings[i + 1].replace(breaks, '')}`,
+    strings[0].replace(breaks, '')
+  );
+};
+
+// Replaces all literal line breaks and leading spaces with a space,
+// then trims one leading and one trailing space
+exports.tagUnwrap = function tagUnwrap(strings, ...expressions) {
+  const breaks = /(\n *)+/g;
+
+  return expressions.reduce(
+    (acc, expr, i) => `${acc}${expr}${strings[i + 1].replace(breaks, ' ')}`,
+    strings[0].replace(breaks, ' ')
+  ).replace(/^ | $/g, '');
+};
+
+// Removes one framing line break from the start and the end
+// as well as auxiliary indents (based on the indent of the first text line)
+exports.tagLFy = function tagLFy(strings, ...expressions) {
+  const [, firstIndent = ''] = strings[0].match(/\n+( *)/) || [];
+  const indent = new RegExp(`\n {0,${firstIndent.length}}`, 'g');
+
+  return expressions.reduce(
+    (acc, expr, i) => `${acc}${expr}${strings[i + 1].replace(indent, '\n')}`,
+    strings[0].replace(indent, '\n')
+  ).replace(/^\n|\n$/g, '');
+};
+
+// Same as tagLFy(), but replaces all literal \n by \r\n
+exports.tagCRLFy = function tagCRLFy(strings, ...expressions) {
+  const [, firstIndent = ''] = strings[0].match(/\n+( *)/) || [];
+  const indent = new RegExp(`\n {0,${firstIndent.length}}`, 'g');
+
+  return expressions.reduce(
+    (acc, expr, i) => `${acc}${expr}${strings[i + 1].replace(indent, '\r\n')}`,
+    strings[0].replace(indent, '\r\n')
+  ).replace(/^\r\n|\r\n$/g, '');
 };
