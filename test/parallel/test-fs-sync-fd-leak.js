@@ -18,7 +18,7 @@ fs.writeSync = function() {
   throw new Error('BAM');
 };
 
-fs.fstatSync = function() {
+process.binding('fs').fstat = function() {
   throw new Error('BAM');
 };
 
