@@ -534,7 +534,9 @@ class QueryWrap : public AsyncWrap {
     data->len = answer_len;
 
     uv_async_t* async_handle = &data->async_handle;
-    uv_async_init(wrap->env()->event_loop(), async_handle, CaresAsyncCb);
+    CHECK_EQ(0, uv_async_init(wrap->env()->event_loop(),
+                              async_handle,
+                              CaresAsyncCb));
 
     wrap->env()->set_cares_query_last_ok(status != ARES_ECONNREFUSED);
     async_handle->data = data;
@@ -558,7 +560,9 @@ class QueryWrap : public AsyncWrap {
     data->is_host = true;
 
     uv_async_t* async_handle = &data->async_handle;
-    uv_async_init(wrap->env()->event_loop(), async_handle, CaresAsyncCb);
+    CHECK_EQ(0, uv_async_init(wrap->env()->event_loop(),
+                              async_handle,
+                              CaresAsyncCb));
 
     wrap->env()->set_cares_query_last_ok(status != ARES_ECONNREFUSED);
     async_handle->data = data;
