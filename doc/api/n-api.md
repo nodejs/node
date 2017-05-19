@@ -1590,7 +1590,7 @@ x is passed in it returns `napi_string_expected`.
 
 This API returns the UTF8-encoded string corresponding the value passed in.
 
-#### *napi_get_value_string_utf16_length*
+#### *napi_get_value_string_utf16*
 <!-- YAML
 added: v8.0.0
 -->
