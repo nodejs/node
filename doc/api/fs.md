@@ -2297,10 +2297,10 @@ this improves the usability of file watching. This is expected behavior.
 
 <!--type=misc-->
 
-Providing `filename` argument in the callback is only supported on Linux and
-Windows.  Even on supported platforms, `filename` is not always guaranteed to
-be provided. Therefore, don't assume that `filename` argument is always
-provided in the callback, and have some fallback logic if it is null.
+Providing `filename` argument in the callback is only supported on Linux,
+macOS, Windows, and AIX.  Even on supported platforms, `filename` is not always
+guaranteed to be provided. Therefore, don't assume that `filename` argument is
+always provided in the callback, and have some fallback logic if it is null.
 
 ```js
 fs.watch('somedir', (eventType, filename) => {
