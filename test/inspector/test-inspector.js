@@ -1,5 +1,6 @@
 'use strict';
-require('../common');
+const common = require('../common');
+common.skipIfInspectorDisabled();
 const assert = require('assert');
 const helper = require('./inspector-helper.js');
 
