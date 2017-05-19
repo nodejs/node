@@ -63,3 +63,25 @@ fs.watchFile(enoentFile, {interval: 0}, common.mustCall(function(curr, prev) {
     fs.unwatchFile(enoentFile);
   }
 }, 2));
+
+// Watch events should callback with a filename
+if (common.isLinux || common.isOSX) {
+  const dir = common.tmpDir + '/watch';
+
+  fs.mkdir(dir, common.mustCall(function(err) {
+    assert(!err);
+
+    fs.watch(dir, common.mustCall(function(eventType, filename) {
+      this._handle.close();
+      common.refreshTmpDir();
+      assert.strictEqual(filename, 'foo.txt');
+    }));
+
+    fs.writeFile(`${dir}/foo.txt`, 'foo', common.mustCall((err) => {
+      if (err) {
+        common.refreshTmpDir();
+        assert(!err);
+      }
+    }));
+  }));
+}
