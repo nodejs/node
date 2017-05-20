@@ -488,11 +488,9 @@ changes:
   * `secureContext`: Optional TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
-    `tls.createSecureContext()`. *Note*: In effect, all
-    [`tls.createSecureContext()`][] options can be provided, but they will be
-    _completely ignored_ unless the `secureContext` option is missing.
-  * ...: Optional [`tls.createSecureContext()`][] options can be provided, see
-    the `secureContext` option for more information.
+    `tls.createSecureContext()`.
+  * ...: Optional [`tls.createSecureContext()`][] options that are used if the
+    `secureContext` option is missing, otherwise they are ignored.
 
 Construct a new `tls.TLSSocket` object from an existing TCP socket.
 
@@ -667,8 +665,8 @@ added: v0.11.4
 
 Returns the TLS session ticket or `undefined` if no session was negotiated.
 
-*Note*: This only works with client TLS sockets. Useful only for debugging, for
-session reuse provide `session` option to [`tls.connect()`][].
+*Note*: This only works with client TLS sockets. Useful only for debugging,
+for session reuse provide `session` option to [`tls.connect()`][].
 
 ### tlsSocket.localAddress
 <!-- YAML
@@ -809,12 +807,10 @@ changes:
   * `secureContext`: Optional TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
-    `tls.createSecureContext()`. *Note*: In effect, all
-    [`tls.createSecureContext()`][] options can be provided, but they will be
-    _completely ignored_ unless the `secureContext` option is missing.
+    `tls.createSecureContext()`.
   * `lookup`: {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
-  * ...: Optional [`tls.createSecureContext()`][] options can be provided, see
-    the `secureContext` option for more information.
+  * ...: Optional [`tls.createSecureContext()`][] options that are used if the
+    `secureContext` option is missing, otherwise they are ignored.
 * `callback` {Function}
 
 The `callback` function, if specified, will be added as a listener for the
@@ -905,8 +901,8 @@ added: v0.11.3
 Same as [`tls.connect()`][] except that `port` and `host` can be provided
 as arguments instead of options.
 
-*Note*: A port or host option, if specified, will take precedence over any port
-or host argument.
+*Note*: A port or host option, if specified, will take precedence over any
+port or host argument.
 
 
 ## tls.createSecureContext(options)
@@ -971,8 +967,6 @@ changes:
     preferences instead of the client's. When `true`, causes
     `SSL_OP_CIPHER_SERVER_PREFERENCE` to be set in `secureOptions`, see
     [OpenSSL Options][] for more information.
-    *Note*: [`tls.createServer()`][] sets the default value to `true`, other
-    APIs that create secure contexts leave it unset.
   * `ecdhCurve` {string} A string describing a named curve to use for ECDH key
     agreement or `false` to disable ECDH. Defaults to
     [`tls.DEFAULT_ECDH_CURVE`].  Use [`crypto.getCurves()`][] to obtain a list
@@ -994,9 +988,16 @@ changes:
     [OpenSSL Options][].
   * `sessionIdContext` {string} Optional opaque identifier used by servers to
     ensure session state is not shared between applications. Unused by clients.
-    *Note*: [`tls.createServer()`][] uses a 128 bit truncated SHA1 hash value
-    generated from `process.argv`, other APIs that create secure contexts
-    have no default value.
+
+*Note*:
+
+* [`tls.createServer()`][] sets the default value of the
+  `honorCipherOrder` option to `true`, other APIs that create secure contexts
+  leave it unset.
+
+* [`tls.createServer()`][] uses a 128 bit truncated SHA1 hash value
+  generated from `process.argv` as the default value of the `sessionIdContext`
+  option, other APIs that create secure contexts have no default value.
 
 The `tls.createSecureContext()` method creates a credentials object.
 
@@ -1060,14 +1061,16 @@ changes:
     server will time out. See [SSL_CTX_set_timeout] for more details.
   * `ticketKeys`: A 48-byte `Buffer` instance consisting of a 16-byte prefix,
     a 16-byte HMAC key, and a 16-byte AES key. This can be used to accept TLS
-    session tickets on multiple instances of the TLS server. *Note* that this is
-    automatically shared between `cluster` module workers.
+    session tickets on multiple instances of the TLS server.
   * ...: Any [`tls.createSecureContext()`][] options can be provided. For
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
 * `secureConnectionListener` {Function}
 
 Creates a new [tls.Server][].  The `secureConnectionListener`, if provided, is
 automatically set as a listener for the [`'secureConnection'`][] event.
+
+*Note*: The `ticketKeys` options is automatically shared between `cluster`
+module workers.
 
 The following illustrates a simple echo server:
 

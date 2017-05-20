@@ -185,10 +185,11 @@ by the OS through sysctl settings such as `tcp_max_syn_backlog` and `somaxconn`
 on Linux. The default value of this parameter is 511 (not 512).
 
 
-Note:
+*Note*:
 
 * All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for
   details).
+
 * The `server.listen()` method may be called multiple times. Each
   subsequent call will *re-open* the server using the provided options.
 
@@ -294,7 +295,7 @@ If `host` is omitted, the server will accept connections on the
 [unspecified IPv6 address][] (`::`) when IPv6 is available, or the
 [unspecified IPv4 address][] (`0.0.0.0`) otherwise.
 
-*Note*: in most operating systems, listening to the
+*Note*: In most operating systems, listening to the
 [unspecified IPv6 address][] (`::`) may cause the `net.Server` to also listen on
 the [unspecified IPv4 address][] (`0.0.0.0`).
 
@@ -852,7 +853,7 @@ Possible signatures:
 * [`net.createConnection(port[, host][, connectListener])`][`net.createConnection(port, host)`]
   for TCP connections.
 
-*Note*: the [`net.connect()`][] function is an alias to this function.
+*Note*: The [`net.connect()`][] function is an alias to this function.
 
 ### net.createConnection(options[, connectListener])
 <!-- YAML
