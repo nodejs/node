@@ -121,8 +121,8 @@ console.assert(false, 'Whoops %s', 'didn\'t work');
 // AssertionError: Whoops didn't work
 ```
 
-*Note: the `console.assert()` method is implemented differently in Node.js
-than the `console.assert()` method [available in browsers][web-api-assert].*
+*Note*: The `console.assert()` method is implemented differently in Node.js
+than the `console.assert()` method [available in browsers][web-api-assert].
 
 Specifically, in browsers, calling `console.assert()` with a falsy
 assertion will cause the `message` to be printed to the console without
@@ -282,10 +282,10 @@ console.timeEnd('100-elements');
 // prints 100-elements: 225.438ms
 ```
 
-*Note: As of Node.js v6.0.0, `console.timeEnd()` deletes the timer to avoid
+*Note*: As of Node.js v6.0.0, `console.timeEnd()` deletes the timer to avoid
 leaking it. On older versions, the timer persisted. This allowed
 `console.timeEnd()` to be called multiple times for the same label. This
-functionality was unintended and is no longer supported.*
+functionality was unintended and is no longer supported.
 
 ### console.trace([message][, ...args])
 <!-- YAML

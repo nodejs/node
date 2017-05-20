@@ -163,9 +163,9 @@ exec('echo "The \\$HOME variable is $HOME"');
 //The $HOME variable is escaped in the first instance, but not in the second
 ```
 
-**Note: Never pass unsanitised user input to this function. Any input
+*Note*: Never pass unsanitised user input to this function. Any input
 containing shell metacharacters may be used to trigger arbitrary command
-execution.**
+execution.
 
 ```js
 const exec = require('child_process').exec;
@@ -211,8 +211,8 @@ If `timeout` is greater than `0`, the parent will send the signal
 identified by the `killSignal` property (the default is `'SIGTERM'`) if the
 child runs longer than `timeout` milliseconds.
 
-*Note: Unlike the exec(3) POSIX system call, `child_process.exec()` does not
-replace the existing process and uses a shell to execute the command.*
+*Note*: Unlike the exec(3) POSIX system call, `child_process.exec()` does not
+replace the existing process and uses a shell to execute the command.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a Promise for an object with `stdout` and `stderr` properties.
@@ -348,8 +348,8 @@ parent process using the file descriptor (fd) identified using the
 environment variable `NODE_CHANNEL_FD` on the child process. The input and
 output on this fd is expected to be line delimited JSON objects.
 
-*Note: Unlike the fork(2) POSIX system call, `child_process.fork()` does
-not clone the current process.*
+*Note*: Unlike the fork(2) POSIX system call, `child_process.fork()` does
+not clone the current process.
 
 ### child_process.spawn(command[, args][, options])
 <!-- YAML
@@ -387,9 +387,9 @@ The `child_process.spawn()` method spawns a new process using the given
 `command`, with command line arguments in `args`. If omitted, `args` defaults
 to an empty array.
 
-**Note: If the `shell` option is enabled, do not pass unsanitised user input to
+*Note*: If the `shell` option is enabled, do not pass unsanitised user input to
 this function. Any input containing shell metacharacters may be used to
-trigger arbitrary command execution.**
+trigger arbitrary command execution.
 
 A third argument may be used to specify additional options, with these defaults:
 
@@ -476,13 +476,13 @@ child.on('error', (err) => {
 });
 ```
 
-*Note: Certain platforms (macOS, Linux) will use the value of `argv[0]` for the
-process title while others (Windows, SunOS) will use `command`.*
+*Note*: Certain platforms (macOS, Linux) will use the value of `argv[0]` for
+the process title while others (Windows, SunOS) will use `command`.
 
-*Note: Node.js currently overwrites `argv[0]` with `process.execPath` on
+*Note*: Node.js currently overwrites `argv[0]` with `process.execPath` on
 startup, so `process.argv[0]` in a Node.js child process will not match the
 `argv0` parameter passed to `spawn` from the parent, retrieve it with the
-`process.argv0` property instead.*
+`process.argv0` property instead.
 
 #### options.detached
 <!-- YAML
@@ -673,9 +673,11 @@ The `child_process.execFileSync()` method is generally identical to
 [`child_process.execFile()`][] with the exception that the method will not return
 until the child process has fully closed. When a timeout has been encountered
 and `killSignal` is sent, the method won't return until the process has
-completely exited. *Note that if the child process intercepts and handles
-the `SIGTERM` signal and does not exit, the parent process will still wait
-until the child process has exited.*
+completely exited.
+
+*Note*: If the child process intercepts and handles the `SIGTERM` signal and
+does not exit, the parent process will still wait until the child process has
+exited.
 
 If the process times out, or has a non-zero exit code, this method ***will***
 throw.  The [`Error`][] object will contain the entire result from
@@ -729,9 +731,9 @@ If the process times out, or has a non-zero exit code, this method ***will***
 throw.  The [`Error`][] object will contain the entire result from
 [`child_process.spawnSync()`][]
 
-**Note: Never pass unsanitised user input to this function. Any input
+*Note*: Never pass unsanitised user input to this function. Any input
 containing shell metacharacters may be used to trigger arbitrary command
-execution.**
+execution.
 
 ### child_process.spawnSync(command[, args][, options])
 <!-- YAML
@@ -789,9 +791,9 @@ completely exited. Note that if the process intercepts and handles the
 `SIGTERM` signal and doesn't exit, the parent process will wait until the child
 process has exited.
 
-**Note: If the `shell` option is enabled, do not pass unsanitised user input to
-this function. Any input containing shell metacharacters may be used to
-trigger arbitrary command execution.**
+*Note*: If the `shell` option is enabled, do not pass unsanitised user input
+to this function. Any input containing shell metacharacters may be used to
+trigger arbitrary command execution.
 
 ## Class: ChildProcess
 <!-- YAML
@@ -1166,8 +1168,8 @@ tracking when the socket is destroyed. To indicate this, the `.connections`
 property becomes `null`. It is recommended not to use `.maxConnections` when
 this occurs.
 
-*Note: this function uses [`JSON.stringify()`][] internally to serialize the
-`message`.*
+*Note*: This function uses [`JSON.stringify()`][] internally to serialize the
+`message`.
 
 ### child.stderr
 <!-- YAML

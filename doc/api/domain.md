@@ -115,7 +115,7 @@ if (cluster.isMaster) {
     d.on('error', (er) => {
       console.error(`error ${er.stack}`);
 
-      // Note: we're in dangerous territory!
+      // Note: We're in dangerous territory!
       // By definition, something unexpected occurred,
       // which we probably didn't want.
       // Anything can happen now!  Be very careful!

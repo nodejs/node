@@ -57,7 +57,7 @@
   * [Archive](CHANGELOG_ARCHIVE.md)
 
 
-**Note:** Node.js v4 is covered by the
+*Note*: Node.js v4 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
 

@@ -290,8 +290,8 @@ added: v0.1.3
 
 Print v8 command line options.
 
-Note: v8 options allow words to be separated by both dashes (`-`) or underscores
-(`_`).
+*Note*: V8 options allow words to be separated by both dashes (`-`) or
+underscores (`_`).
 
 For example, `--stack-trace-limit` is equivalent to `--stack_trace_limit`.
 
@@ -394,7 +394,7 @@ added: v0.1.32
 
 `':'`-separated list of directories prefixed to the module search path.
 
-_Note: on Windows, this is a `';'`-separated list instead._
+*Note*: On Windows, this is a `';'`-separated list instead.
 
 
 ### `NODE_DISABLE_COLORS=1`
@@ -525,7 +525,7 @@ added: v7.7.0
 If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's directory
 containing trusted certificates.
 
-Note: Be aware that unless the child environment is explicitly set, this
+*Note*: Be aware that unless the child environment is explicitly set, this
 evironment variable will be inherited by any child processes, and if they use
 OpenSSL, it may cause them to trust the same CAs as node.
 
@@ -537,7 +537,7 @@ added: v7.7.0
 If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's file
 containing trusted certificates.
 
-Note: Be aware that unless the child environment is explicitly set, this
+*Note*: Be aware that unless the child environment is explicitly set, this
 evironment variable will be inherited by any child processes, and if they use
 OpenSSL, it may cause them to trust the same CAs as node.
 

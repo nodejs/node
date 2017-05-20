@@ -531,8 +531,8 @@ Type: Documentation-only
 The `http` module `ServerResponse.prototype.writeHeader()` API has been
 deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
 
-*Note*: The `ServerResponse.prototype.writeHeader()` method was never documented
-as an officially supported API.
+*Note*: The `ServerResponse.prototype.writeHeader()` method was never
+documented as an officially supported API.
 
 <a id="DEP0064"></a>
 ### DEP0064: tls.createSecurePair()
@@ -568,8 +568,8 @@ properties have been deprecated. Please instead use one of the public methods
 `outgoingMessage.removeHeader()`, `outgoingMessage.setHeader()`) for working
 with outgoing headers.
 
-*Note*: `outgoingMessage._headers` and `outgoingMessage._headerNames` were never
-documented as officially supported properties.
+*Note*: `outgoingMessage._headers` and `outgoingMessage._headerNames` were
+never documented as officially supported properties.
 
 <a id="DEP0067"></a>
 ### DEP0067: OutgoingMessage.prototype.\_renderHeaders
