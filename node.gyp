@@ -235,6 +235,8 @@
         'src/req-wrap.h',
         'src/req-wrap-inl.h',
         'src/string_bytes.h',
+        'src/string_search.h',
+        'src/string_utils.h',
         'src/stream_base.h',
         'src/stream_base-inl.h',
         'src/stream_wrap.h',

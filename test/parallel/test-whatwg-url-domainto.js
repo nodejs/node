@@ -11,6 +11,7 @@ const { domainToASCII, domainToUnicode } = require('url');
 
 // Tests below are not from WPT.
 const tests = require('../fixtures/url-idna.js');
+const testsHyphenDomains = require('../fixtures/url-domains-with-hyphens.js');
 
 {
   const expectedError = common.expectsError(
@@ -31,6 +32,13 @@ const tests = require('../fixtures/url-idna.js');
                        `domainToASCII(domainToUnicode(${i + 1}))`);
     assert.strictEqual(unicode, domainToUnicode(domainToASCII(unicode)),
                        `domainToUnicode(domainToASCII(${i + 1}))`);
+  }
+}
+
+{
+  for (const [i, { ascii, unicode }] of testsHyphenDomains.valid.entries()) {
+    assert.strictEqual(ascii, domainToASCII(unicode),
+                       `domainToASCII(${i + 1})`);
   }
 }
 

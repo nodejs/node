@@ -9,6 +9,7 @@
 #include "base-object.h"
 #include "base-object-inl.h"
 #include "node_i18n.h"
+#include "string_utils.h"
 
 #include <string>
 #include <vector>
@@ -837,6 +838,7 @@ static url_host_type ParseHost(url_host* host,
   url_host_type type = HOST_TYPE_FAILED;
   const char* pointer = input;
   std::string decoded;
+  const char *buf = NULL;
 
   if (length == 0)
     goto end;
@@ -853,9 +855,19 @@ static url_host_type ParseHost(url_host* host,
   // First, we have to percent decode
   PercentDecode(input, length, &decoded);
 
-  // Then we have to punycode toASCII
-  if (!ToASCII(&decoded, &decoded))
-    goto end;
+  // Match browser behavior for ASCII only domains
+  // and do not run them through ToASCII algorithm.
+  buf = decoded.c_str();
+  if (!stringutils::ContainsNonAscii(buf, strlen(buf))) {
+    // Lowercase ASCII domains
+    for (size_t n = 0; n < decoded.size(); n++) {
+      decoded[n] = ASCIILowercase(decoded[n]);
+    }
+  } else {
+    // Then we have to Unicode IDNA toASCII
+    if (!ToASCII(&decoded, &decoded))
+      goto end;
+  }
 
   // If any of the following characters are still present, we have to fail
   for (size_t n = 0; n < decoded.size(); n++) {
