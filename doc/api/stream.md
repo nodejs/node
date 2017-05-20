@@ -893,7 +893,7 @@ A Readable stream in object mode will always return a single item from
 a call to [`readable.read(size)`][stream-read], regardless of the value of the
 `size` argument.
 
-*Note:* If the `readable.read()` method returns a chunk of data, a `'data'`
+*Note*: If the `readable.read()` method returns a chunk of data, a `'data'`
 event will also be emitted.
 
 *Note*: Calling [`stream.read([size])`][stream-read] after the [`'end'`][]
@@ -1346,7 +1346,7 @@ resource.
 *Note*: [Transform][] streams provide their own implementation of the
 [`writable._write()`][stream-_write].
 
-*Note*: **This function MUST NOT be called by application code directly.** It
+*Note*: This function MUST NOT be called by application code directly. It
 should be implemented by child classes, and called only by the internal Writable
 class methods only.
 
@@ -1381,7 +1381,7 @@ user programs.
 * `callback` {Function} A callback function (optionally with an error
   argument) to be invoked when processing is complete for the supplied chunks.
 
-*Note*: **This function MUST NOT be called by application code directly.** It
+*Note*: This function MUST NOT be called by application code directly. It
 should be implemented by child classes, and called only by the internal Writable
 class methods only.
 
@@ -1536,7 +1536,7 @@ const myReadable = new Readable({
 
 * `size` {number} Number of bytes to read asynchronously
 
-*Note*: **This function MUST NOT be called by application code directly.** It
+*Note*: This function MUST NOT be called by application code directly. It
 should be implemented by child classes, and called only by the internal Readable
 class methods only.
 
@@ -1684,10 +1684,10 @@ Because JavaScript does not have support for multiple inheritance, the
 `stream.Duplex` class is extended to implement a [Duplex][] stream (as opposed
 to extending the `stream.Readable` *and* `stream.Writable` classes).
 
-*Note*: The `stream.Duplex` class prototypically inherits from `stream.Readable`
-and parasitically from `stream.Writable`, but `instanceof` will work properly
-for both base classes due to overriding [`Symbol.hasInstance`][]
-on `stream.Writable`.
+*Note*: The `stream.Duplex` class prototypically inherits from
+`stream.Readable` and parasitically from `stream.Writable`, but `instanceof`
+will work properly for both base classes due to overriding
+[`Symbol.hasInstance`][] on `stream.Writable`.
 
 Custom Duplex streams *must* call the `new stream.Duplex([options])`
 constructor and implement *both* the `readable._read()` and
@@ -1916,7 +1916,7 @@ after all data has been output, which occurs after the callback in
 * `callback` {Function} A callback function (optionally with an error
   argument and data) to be called when remaining data has been flushed.
 
-*Note*: **This function MUST NOT be called by application code directly.** It
+*Note*: This function MUST NOT be called by application code directly. It
 should be implemented by child classes, and called only by the internal Readable
 class methods only.
 
@@ -1951,7 +1951,7 @@ user programs.
   argument and data) to be called after the supplied `chunk` has been
   processed.
 
-*Note*: **This function MUST NOT be called by application code directly.** It
+*Note*: This function MUST NOT be called by application code directly. It
 should be implemented by child classes, and called only by the internal Readable
 class methods only.
 

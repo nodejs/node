@@ -54,8 +54,8 @@ the compression encodings accepted by the client. The [`Content-Encoding`][]
 header is used to identify the compression encodings actually applied to a
 message.
 
-**Note: the examples given below are drastically simplified to show
-the basic concept.**  Using `zlib` encoding can be expensive, and the results
+*Note*: the examples given below are drastically simplified to show
+the basic concept.  Using `zlib` encoding can be expensive, and the results
 ought to be cached.  See [Memory Usage Tuning][] for more information
 on the speed/memory/compression tradeoffs involved in `zlib` usage.
 
@@ -100,7 +100,7 @@ http.createServer((request, response) => {
     acceptEncoding = '';
   }
 
-  // Note: this is not a conformant accept-encoding parser.
+  // Note: This is not a conformant accept-encoding parser.
   // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
   if (acceptEncoding.match(/\bdeflate\b/)) {
     response.writeHead(200, { 'Content-Encoding': 'deflate' });
@@ -437,7 +437,7 @@ added: v0.5.8
 
 Returns a new [DeflateRaw][] object with an [options][].
 
-**Note:** The zlib library rejects requests for 256-byte windows (i.e.,
+*Note*: The zlib library rejects requests for 256-byte windows (i.e.,
 `{ windowBits: 8 }` in `options`). An `Error` will be thrown when creating
 a [DeflateRaw][] object with this specific value of the `windowBits` option.
 

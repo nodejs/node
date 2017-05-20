@@ -38,7 +38,7 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
-**Note:** Official support for the v5 release line is scheduled to expire
+*Note*: Official support for the v5 release line is scheduled to expire
 around June 2016. Users of v5 should upgrade to [Node.js v6](CHANGELOG_V6.md).
 
 <a id="5.12.0"></a>

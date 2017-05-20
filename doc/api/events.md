@@ -142,7 +142,7 @@ myEmitter.emit('error', new Error('whoops!'));
 
 To guard against crashing the Node.js process, a listener can be registered
 on the [`process` object's `uncaughtException` event][] or the [`domain`][] module
-can be used. (_Note, however, that the `domain` module has been deprecated_)
+can be used. (Note, however, that the `domain` module has been deprecated.)
 
 ```js
 const myEmitter = new MyEmitter();
