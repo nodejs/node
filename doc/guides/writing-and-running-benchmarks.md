@@ -27,15 +27,15 @@ either [`wrk`][wrk] or [`autocannon`][autocannon].
 
 `Autocannon` is a Node.js script that can be installed using
 `npm install -g autocannon`. It will use the Node.js executable that is in the
-path. Hence if you want to compare two HTTP benchmark runs, make sure that the
+path. In order to compare two HTTP benchmark runs, make sure that the
 Node.js version in the path is not altered.
 
-`wrk` may be available through your preferred package manager. If not, you can
-easily build it [from source][wrk] via `make`.
+`wrk` may be available through one of the available package managers. If not, it can
+be easily built [from source][wrk] via `make`.
 
 By default, `wrk` will be used as the benchmarker. If it is not available,
-`autocannon` will be used in its place. When creating an HTTP benchmark, you can
-specify which benchmarker should be used by providing it as an argument:
+`autocannon` will be used in its place. When creating an HTTP benchmark, the
+benchmarker to be used should be specified by providing it as an argument:
 
 `node benchmark/run.js --set benchmarker=autocannon http`
 
@@ -43,8 +43,8 @@ specify which benchmarker should be used by providing it as an argument:
 
 ### Benchmark Analysis Requirements
 
-To analyze the results, `R` should be installed. Use your package manager or
-download it from https://www.r-project.org/.
+To analyze the results, `R` should be installed. Use one of the available
+package managers or download it from https://www.r-project.org/.
 
 The R packages `ggplot2` and `plyr` are also used and can be installed using
 the R REPL.
@@ -55,8 +55,8 @@ install.packages("ggplot2")
 install.packages("plyr")
 ```
 
-In the event you get a message that you need to select a CRAN mirror first, you
-can specify a mirror by adding in the repo parameter.
+In the event that a message is reported stating that a CRAN mirror must be
+selected first, specify a mirror by adding in the repo parameter.
 
 If we used the "http://cran.us.r-project.org" mirror, it could look something
 like this:
@@ -65,7 +65,7 @@ like this:
 install.packages("ggplot2", repo="http://cran.us.r-project.org")
 ```
 
-Of course, use the mirror that suits your location.
+Of course, use an appropriate mirror based on location.
 A list of mirrors is [located here](https://cran.r-project.org/mirrors.html).
 
 ## Running benchmarks
@@ -98,7 +98,7 @@ process. This ensures that benchmark results aren't affected by the execution
 order due to v8 optimizations. **The last number is the rate of operations
 measured in ops/sec (higher is better).**
 
-Furthermore you can specify a subset of the configurations, by setting them in
+Furthermore a subset of the configurations can be specified, by setting them in
 the process arguments:
 
 ```console
@@ -179,9 +179,9 @@ In the output, _improvement_ is the relative improvement of the new version,
 hopefully this is positive. _confidence_ tells if there is enough
 statistical evidence to validate the _improvement_. If there is enough evidence
 then there will be at least one star (`*`), more stars is just better. **However
-if there are no stars, then you shouldn't make any conclusions based on the
-_improvement_.** Sometimes this is fine, for example if you are expecting there
-to be no improvements, then there shouldn't be any stars.
+if there are no stars, then don't make any conclusions based on the
+_improvement_.** Sometimes this is fine, for example if no improvements are
+expected, then there shouldn't be any stars.
 
 **A word of caution:** Statistics is not a foolproof tool. If a benchmark shows
 a statistical significant difference, there is a 5% risk that this
@@ -198,9 +198,9 @@ same for both versions. The confidence field will show a star if the p-value
 is less than `0.05`._
 
 The `compare.R` tool can also produce a box plot by using the `--plot filename`
-option. In this case there are 48 different benchmark combinations, thus you
-may want to filter the csv file. This can be done while benchmarking using the
-`--set` parameter (e.g. `--set encoding=ascii`) or by filtering results
+option. In this case there are 48 different benchmark combinations, and there
+may be a need to filter the csv file. This can be done while benchmarking
+using the `--set` parameter (e.g. `--set encoding=ascii`) or by filtering results
 afterwards using tools such as `sed` or `grep`. In the `sed` case be sure to
 keep the first line since that contains the header information.
 
@@ -295,7 +295,7 @@ chunk     encoding       mean confidence.interval
 ### Basics of a benchmark
 
 All benchmarks use the `require('../common.js')` module. This contains the
-`createBenchmark(main, configs[, options])` method which will setup your
+`createBenchmark(main, configs[, options])` method which will setup the
 benchmark.
 
 The arguments of `createBenchmark` are:
@@ -312,20 +312,20 @@ The arguments of `createBenchmark` are:
 `createBenchmark` returns a `bench` object, which is used for timing
 the runtime of the benchmark. Run `bench.start()` after the initialization
 and `bench.end(n)` when the benchmark is done. `n` is the number of operations
-you performed in the benchmark.
+performed in the benchmark.
 
 The benchmark script will be run twice:
 
 The first pass will configure the benchmark with the combination of
 parameters specified in `configs`, and WILL NOT run the `main` function.
 In this pass, no flags except the ones directly passed via commands
-that you run the benchmarks with will be used.
+when running the benchmarks will be used.
 
 In the second pass, the `main` function will be run, and the process
 will be launched with:
 
-* The flags you've passed into `createBenchmark` (the third argument)
-* The flags in the command that you run this benchmark with
+* The flags passed into `createBenchmark` (the third argument)
+* The flags in the command passed when the benchmark was run
 
 Beware that any code outside the `main` function will be run twice
 in different processes. This could be troublesome if the code
@@ -346,7 +346,7 @@ const configs = {
 };
 
 const options = {
-  // Add --expose-internals if you want to require internal modules in main
+  // Add --expose-internals in order to require internal modules in main
   flags: ['--zero-fill-buffers']
 };
 
@@ -357,9 +357,9 @@ const bench = common.createBenchmark(main, configs, options);
 // in different processes, with different command line arguments.
 
 function main(conf) {
-  // You will only get the flags that you have passed to createBenchmark
-  // earlier when main is run. If you want to benchmark the internal modules,
-  // require them here. For example:
+  // Only flags that have been passed to createBenchmark
+  // earlier when main is run will be in effect.
+  // In order to benchmark the internal modules, require them here. For example:
   // const URL = require('internal/url').URL
 
   // Start the timer

@@ -335,6 +335,10 @@ static void websockets_data_cb(uv_stream_t* stream, ssize_t nread,
     if (!inspector->shutting_down && inspector->ws_state->read_cb) {
       inspector->ws_state->read_cb(stream, nread, nullptr);
     }
+    if (inspector->ws_state->close_sent &&
+        !inspector->ws_state->received_close) {
+      shutdown_complete(inspector);  // invoke callback
+    }
   } else {
     #if DUMP_READS
       printf("%s read %ld bytes\n", __FUNCTION__, nread);

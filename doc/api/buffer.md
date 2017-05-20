@@ -1340,6 +1340,10 @@ console.log(b.indexOf('b', null));
 console.log(b.indexOf('b', []));
 ```
 
+If `value` is an empty string or empty `Buffer` and `byteOffset` is less
+than `buf.length`, `byteOffset` will be returned. If `value` is empty and
+`byteOffset` is at least `buf.length`, `buf.length` will be returned.
+
 ### buf.keys()
 <!-- YAML
 added: v1.1.0
@@ -1449,6 +1453,8 @@ console.log(b.lastIndexOf('b', {}));
 console.log(b.lastIndexOf('b', null));
 console.log(b.lastIndexOf('b', []));
 ```
+
+If `value` is an empty string or empty `Buffer`, `byteOffset` will be returned.
 
 ### buf.length
 <!-- YAML

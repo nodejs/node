@@ -12,6 +12,7 @@ LOGLEVEL ?= silent
 OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
 COVTESTS ?= test
 GTEST_FILTER ?= "*"
+GNUMAKEFLAGS += --no-print-directory
 
 ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
@@ -196,7 +197,8 @@ test: all
 	$(MAKE) build-addons-napi
 	$(MAKE) cctest
 	$(PYTHON) tools/test.py --mode=release -J \
-		doctool inspector known_issues message pseudo-tty parallel sequential $(CI_NATIVE_SUITES)
+		doctool inspector known_issues message pseudo-tty parallel sequential \
+		async-hooks $(CI_NATIVE_SUITES)
 	$(MAKE) lint
 
 test-parallel: all
@@ -326,7 +328,7 @@ test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 CI_NATIVE_SUITES := addons addons-napi
-CI_JS_SUITES := doctool inspector known_issues message parallel pseudo-tty sequential
+CI_JS_SUITES := doctool inspector known_issues message parallel pseudo-tty sequential async-hooks
 
 # Build and test addons without building anything else
 test-ci-native: LOGLEVEL := info
@@ -403,13 +405,18 @@ test-npm-publish: $(NODE_EXE)
 test-addons-napi: test-build-addons-napi
 	$(PYTHON) tools/test.py --mode=release addons-napi
 
+test-addons-napi-clean:
+	$(RM) -r test/addons-napi/*/build
+	$(RM) test/addons-napi/.buildstamp
+
 test-addons: test-build test-addons-napi
 	$(PYTHON) tools/test.py --mode=release addons
 
 test-addons-clean:
-	$(RM) -rf test/addons/??_*/
-	$(RM) -rf test/addons/*/build
+	$(RM) -r test/addons/??_*/
+	$(RM) -r test/addons/*/build
 	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp
+	$(MAKE) test-addons-napi-clean
 
 test-timers:
 	$(MAKE) --directory=tools faketime
@@ -417,6 +424,9 @@ test-timers:
 
 test-timers-clean:
 	$(MAKE) --directory=tools clean
+
+test-async-hooks:
+	$(PYTHON) tools/test.py --mode=release async-hooks
 
 
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
@@ -972,6 +982,7 @@ endif
   test-addons \
   test-addons-clean \
   test-addons-napi \
+  test-addons-napi-clean \
   test-all \
   test-ci \
   test-ci-js \

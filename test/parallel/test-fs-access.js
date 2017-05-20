@@ -87,11 +87,11 @@ assert.throws(() => {
 
 assert.throws(() => {
   fs.access(__filename, fs.F_OK);
-}, common.expectsError({code: 'ERR_INVALID_CALLBACK'}));
+}, /^TypeError: "callback" argument must be a function$/);
 
 assert.throws(() => {
   fs.access(__filename, fs.F_OK, {});
-}, common.expectsError({code: 'ERR_INVALID_CALLBACK'}));
+}, /^TypeError: "callback" argument must be a function$/);
 
 assert.doesNotThrow(() => {
   fs.accessSync(__filename);

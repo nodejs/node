@@ -7,7 +7,7 @@ if (process.argv[2] === 'child') {
   process.emitWarning('foo');
 } else {
   function test(env) {
-    const cmd = `${process.execPath} ${__filename} child`;
+    const cmd = `"${process.execPath}" "${__filename}" child`;
 
     cp.exec(cmd, { env }, common.mustCall((err, stdout, stderr) => {
       assert.strictEqual(err, null);

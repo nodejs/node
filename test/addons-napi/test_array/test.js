@@ -19,19 +19,31 @@ const array = [
   ]
 ];
 
-assert.strictEqual(test_array.Test(array, array.length + 1),
-                   'Index out of bound!');
+assert.throws(
+  () => {
+    test_array.TestGetElement(array, array.length + 1);
+  },
+  /^Error: assertion \(\(\(uint32_t\)index < length\)\) failed: Index out of bounds!$/
+);
 
 assert.throws(
   () => {
-    test_array.Test(array, -2);
+    test_array.TestGetElement(array, -2);
   },
-  /Invalid index\. Expects a positive integer\./
+  /^Error: assertion \(index >= 0\) failed: Invalid index\. Expects a positive integer\.$/
 );
 
 array.forEach(function(element, index) {
-  assert.strictEqual(test_array.Test(array, index), element);
+  assert.strictEqual(test_array.TestGetElement(array, index), element);
 });
 
 
 assert.deepStrictEqual(test_array.New(array), array);
+
+assert(test_array.TestHasElement(array, 0));
+assert.strictEqual(test_array.TestHasElement(array, array.length + 1), false);
+
+assert(test_array.NewWithLength(0) instanceof Array);
+assert(test_array.NewWithLength(1) instanceof Array);
+// check max allowed length for an array 2^32 -1
+assert(test_array.NewWithLength(4294967295) instanceof Array);

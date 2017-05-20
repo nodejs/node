@@ -755,7 +755,7 @@ napi_status napi_get_last_error_info(napi_env env,
       error_messages[env->last_error.error_code];
 
   *result = &(env->last_error);
-  return napi_clear_last_error(env);
+  return napi_ok;
 }
 
 napi_status napi_create_function(napi_env env,
@@ -2781,7 +2781,7 @@ class Work {
       // report it as a fatal exception. (There is no JavaScript on the
       // callstack that can possibly handle it.)
       if (!env->last_exception.IsEmpty()) {
-        v8::TryCatch try_catch;
+        v8::TryCatch try_catch(env->isolate);
         env->isolate->ThrowException(
           v8::Local<v8::Value>::New(env->isolate, env->last_exception));
         node::FatalException(env->isolate, try_catch);

@@ -64,6 +64,50 @@ exports.enoughTestCpu = Array.isArray(cpus) &&
 exports.rootDir = exports.isWindows ? 'c:\\' : '/';
 exports.buildType = process.config.target_defaults.default_configuration;
 
+// If env var is set then enable async_hook hooks for all tests.
+if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
+  const destroydIdsList = {};
+  const destroyListList = {};
+  const initHandles = {};
+  const async_wrap = process.binding('async_wrap');
+
+  process.on('exit', () => {
+    // itterate through handles to make sure nothing crashes
+    for (const k in initHandles)
+      util.inspect(initHandles[k]);
+  });
+
+  const _addIdToDestroyList = async_wrap.addIdToDestroyList;
+  async_wrap.addIdToDestroyList = function addIdToDestroyList(id) {
+    if (destroyListList[id] !== undefined) {
+      process._rawDebug(destroyListList[id]);
+      process._rawDebug();
+      throw new Error(`same id added twice (${id})`);
+    }
+    destroyListList[id] = new Error().stack;
+    _addIdToDestroyList(id);
+  };
+
+  require('async_hooks').createHook({
+    init(id, ty, tr, h) {
+      if (initHandles[id]) {
+        throw new Error(`init called twice for same id (${id})`);
+      }
+      initHandles[id] = h;
+    },
+    before() { },
+    after() { },
+    destroy(id) {
+      if (destroydIdsList[id] !== undefined) {
+        process._rawDebug(destroydIdsList[id]);
+        process._rawDebug();
+        throw new Error(`destroy called for same id (${id})`);
+      }
+      destroydIdsList[id] = new Error().stack;
+    },
+  }).enable();
+}
+
 function rimrafSync(p) {
   let st;
   try {
@@ -241,8 +285,8 @@ exports.childShouldThrowAndAbort = function() {
     // continuous testing and developers' machines
     testCmd += 'ulimit -c 0 && ';
   }
-  testCmd += `${process.argv[0]} --abort-on-uncaught-exception `;
-  testCmd += `${process.argv[1]} child`;
+  testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception `;
+  testCmd += `"${process.argv[1]}" child`;
   const child = child_process.exec(testCmd);
   child.on('exit', function onExit(exitCode, signal) {
     const errMsg = 'Test should have aborted ' +
@@ -415,13 +459,19 @@ function runCallChecks(exitCode) {
   if (exitCode !== 0) return;
 
   const failed = mustCallChecks.filter(function(context) {
-    return context.actual !== context.expected;
+    if ('minimum' in context) {
+      context.messageSegment = `at least ${context.minimum}`;
+      return context.actual < context.minimum;
+    } else {
+      context.messageSegment = `exactly ${context.exact}`;
+      return context.actual !== context.exact;
+    }
   });
 
   failed.forEach(function(context) {
-    console.log('Mismatched %s function calls. Expected %d, actual %d.',
+    console.log('Mismatched %s function calls. Expected %s, actual %d.',
                 context.name,
-                context.expected,
+                context.messageSegment,
                 context.actual);
     console.log(context.stack.split('\n').slice(2).join('\n'));
   });
@@ -429,22 +479,29 @@ function runCallChecks(exitCode) {
   if (failed.length) process.exit(1);
 }
 
+exports.mustCall = function(fn, exact) {
+  return _mustCallInner(fn, exact, 'exact');
+};
 
-exports.mustCall = function(fn, expected) {
+exports.mustCallAtLeast = function(fn, minimum) {
+  return _mustCallInner(fn, minimum, 'minimum');
+};
+
+function _mustCallInner(fn, criteria, field) {
   if (typeof fn === 'number') {
-    expected = fn;
+    criteria = fn;
     fn = noop;
   } else if (fn === undefined) {
     fn = noop;
   }
 
-  if (expected === undefined)
-    expected = 1;
-  else if (typeof expected !== 'number')
-    throw new TypeError(`Invalid expected value: ${expected}`);
+  if (criteria === undefined)
+    criteria = 1;
+  else if (typeof criteria !== 'number')
+    throw new TypeError(`Invalid ${field} value: ${criteria}`);
 
   const context = {
-    expected: expected,
+    [field]: criteria,
     actual: 0,
     stack: (new Error()).stack,
     name: fn.name || '<anonymous>'
@@ -459,7 +516,7 @@ exports.mustCall = function(fn, expected) {
     context.actual++;
     return fn.apply(this, arguments);
   };
-};
+}
 
 exports.hasMultiLocalhost = function hasMultiLocalhost() {
   const TCP = process.binding('tcp_wrap').TCP;
@@ -548,10 +605,13 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
   // or SIGABRT (depending on the compiler).
   const expectedSignals = ['SIGILL', 'SIGTRAP', 'SIGABRT'];
 
-  // On Windows, v8's base::OS::Abort triggers an access violation,
+  // On Windows, 'aborts' are of 2 types, depending on the context:
+  // (i) Forced access violation, if --abort-on-uncaught-exception is on
   // which corresponds to exit code 3221225477 (0xC0000005)
+  // (ii) raise(SIGABRT) or abort(), which lands up in CRT library calls
+  // which corresponds to exit code 3.
   if (exports.isWindows)
-    expectedExitCodes = [3221225477];
+    expectedExitCodes = [3221225477, 3];
 
   // When using --abort-on-uncaught-exception, V8 will use
   // base::OS::Abort to terminate the process.
@@ -683,4 +743,19 @@ exports.getArrayBufferViews = function getArrayBufferViews(buf) {
 exports.crashOnUnhandledRejection = function() {
   process.on('unhandledRejection',
              (err) => process.nextTick(() => { throw err; }));
+};
+
+exports.getTTYfd = function getTTYfd() {
+  const tty = require('tty');
+  let tty_fd = 0;
+  if (!tty.isatty(tty_fd)) tty_fd++;
+  else if (!tty.isatty(tty_fd)) tty_fd++;
+  else if (!tty.isatty(tty_fd)) tty_fd++;
+  else try {
+    tty_fd = require('fs').openSync('/dev/tty');
+  } catch (e) {
+    // There aren't any tty fd's available to use.
+    return -1;
+  }
+  return tty_fd;
 };
