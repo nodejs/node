@@ -54,8 +54,8 @@ the compression encodings accepted by the client. The [`Content-Encoding`][]
 header is used to identify the compression encodings actually applied to a
 message.
 
-**Note: the examples given below are drastically simplified to show
-the basic concept.**  Using `zlib` encoding can be expensive, and the results
+**Note:** the examples given below are drastically simplified to show
+the basic concept.  Using `zlib` encoding can be expensive, and the results
 ought to be cached.  See [Memory Usage Tuning][] for more information
 on the speed/memory/compression tradeoffs involved in `zlib` usage.
 
@@ -100,7 +100,7 @@ http.createServer((request, response) => {
     acceptEncoding = '';
   }
 
-  // Note: this is not a conformant accept-encoding parser.
+  // Note: This is not a conformant accept-encoding parser.
   // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
   if (acceptEncoding.match(/\bdeflate\b/)) {
     response.writeHead(200, { 'Content-Encoding': 'deflate' });
@@ -229,7 +229,7 @@ not surprising. This section is taken almost directly from the
 [zlib documentation][].  See <http://zlib.net/manual.html#Constants> for more
 details.
 
-*Note*: Previously, the constants were available directly from
+**Note:** Previously, the constants were available directly from
 `require('zlib')`, for instance `zlib.Z_NO_FLUSH`. Accessing the constants
 directly from the module is currently still possible but should be considered
 deprecated.

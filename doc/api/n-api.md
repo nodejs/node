@@ -2530,7 +2530,7 @@ const myaddon = require('./addon');
 myaddon.sayHello();
 ```
 
-**Note:**  The string passed to require is not necessarily the name passed into
+**Note:** The string passed to require is not necessarily the name passed into
 `NAPI_MODULE` in the earlier snippet but the name of the target in `binding.gyp`
 responsible for creating the `.node` file.
 

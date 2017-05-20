@@ -76,7 +76,7 @@ be omitted, in which case a default callback is used that rethrows errors. To
 get a trace to the original call site, set the `NODE_DEBUG` environment
 variable:
 
-*Note*: Omitting the callback function on asynchronous fs functions is
+**Note:** Omitting the callback function on asynchronous fs functions is
 deprecated and may result in an error being thrown in the future.
 
 ```txt
@@ -113,7 +113,7 @@ const fileUrl = new URL('file:///tmp/hello');
 fs.readFileSync(fileUrl);
 ```
 
-*Note*: `file:` URLs are always absolute paths.
+**Note:** `file:` URLs are always absolute paths.
 
 Using WHATWG [`URL`][] objects might introduce platform-specific behaviors.
 
@@ -138,7 +138,7 @@ fs.readFileSync(new URL('file:///c/p/a/t/h/file'));
 // TypeError [ERR_INVALID_FILE_URL_PATH]: File URL path must be absolute
 ```
 
-*Note*: `file:` URLs with drive letters must use `:` as a separator just after
+**Note:** `file:` URLs with drive letters must use `:` as a separator just after
 the drive letter. Using another separator will result in a throw.
 
 On all other platforms, `file:` URLs with a hostname are unsupported and will
@@ -194,7 +194,7 @@ filesystems that allow for non-UTF-8 filenames. For most typical
 uses, working with paths as Buffers will be unnecessary, as the string
 API converts to and from UTF-8 automatically.
 
-*Note* that on certain file systems (such as NTFS and HFS+) filenames
+**Note:** On certain file systems (such as NTFS and HFS+) filenames
 will always be encoded as UTF-8. On such file systems, passing
 non-UTF-8 encoded Buffers to `fs` functions will not work as expected.
 
@@ -591,7 +591,7 @@ fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 
 Any specified file descriptor has to have been opened for appending.
 
-*Note*: If a file descriptor is specified as the `file`, it will not be closed
+**Note:** If a file descriptor is specified as the `file`, it will not be closed
 automatically.
 
 ## fs.appendFileSync(file, data[, options])
@@ -1428,7 +1428,7 @@ fs.mkdtemp('/tmp/foo-', (err, folder) => {
 });
 ```
 
-*Note*: The `fs.mkdtemp()` method will append the six randomly selected
+**Note:** The `fs.mkdtemp()` method will append the six randomly selected
 characters directly to the `prefix` string. For instance, given a directory
 `/tmp`, if the intention is to create a temporary directory *within* `/tmp`,
 the `prefix` *must* end with a trailing platform-specific path separator
@@ -1546,8 +1546,8 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-*Note*: The behavior of `fs.open()` is platform-specific for some flags. As such,
-opening a directory on macOS and Linux with the `'a+'` flag - see example
+**Note:** The behavior of `fs.open()` is platform-specific for some flags. As
+such, opening a directory on macOS and Linux with the `'a+'` flag - see example
 below - will return an error. In contrast, on Windows and FreeBSD, a file
 descriptor will be returned.
 
@@ -1714,7 +1714,7 @@ If `options` is a string, then it specifies the encoding. Example:
 ```js
 fs.readFile('/etc/passwd', 'utf8', callback);
 ```
-*Note*: When the path is a directory, the behavior of
+**Note:** When the path is a directory, the behavior of
 `fs.readFile()` and [`fs.readFileSync()`][] is platform-specific. On macOS,
 Linux, and Windows, an error will be returned. On FreeBSD, a representation
 of the directory's contents will be returned.
@@ -1733,7 +1733,7 @@ fs.readFile('<directory>', (err, data) => {
 
 Any specified file descriptor has to support reading.
 
-*Note*: If a file descriptor is specified as the `path`, it will not be closed
+**Note:** If a file descriptor is specified as the `path`, it will not be closed
 automatically.
 
 ## fs.readFileSync(path[, options])
@@ -1759,7 +1759,7 @@ Synchronous version of [`fs.readFile`][]. Returns the contents of the `file`.
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
 
-*Note*: Similar to [`fs.readFile()`][], when the path is a directory, the
+**Note:** Similar to [`fs.readFile()`][], when the path is a directory, the
 behavior of `fs.readFileSync()` is platform-specific.
 
 ```js
@@ -2144,9 +2144,9 @@ effectively stopping watching of `filename`.
 Calling `fs.unwatchFile()` with a filename that is not being watched is a
 no-op, not an error.
 
-*Note*: [`fs.watch()`][] is more efficient than `fs.watchFile()` and `fs.unwatchFile()`.
-`fs.watch()` should be used instead of `fs.watchFile()` and `fs.unwatchFile()`
-when possible.
+**Note:** [`fs.watch()`][] is more efficient than `fs.watchFile()` and
+`fs.unwatchFile()`.  `fs.watch()` should be used instead of `fs.watchFile()`
+and `fs.unwatchFile()` when possible.
 
 ## fs.utimes(path, atime, mtime, callback)
 <!-- YAML
@@ -2173,7 +2173,7 @@ changes:
 
 Change file timestamps of the file referenced by the supplied path.
 
-Note: the arguments `atime` and `mtime` of the following related functions
+**Note:** The arguments `atime` and `mtime` of the following related functions
 follow these rules:
 
 - The value should be a Unix timestamp in seconds. For example, `Date.now()`
@@ -2354,13 +2354,14 @@ These stat objects are instances of `fs.Stat`.
 To be notified when the file was modified, not just accessed, it is necessary
 to compare `curr.mtime` and `prev.mtime`.
 
-*Note*: when an `fs.watchFile` operation results in an `ENOENT` error, it will
- invoke the listener once, with all the fields zeroed (or, for dates, the Unix
- Epoch). In Windows, `blksize` and `blocks` fields will be `undefined`, instead
- of zero. If the file is created later on, the listener will be called again,
- with the latest stat objects. This is a change in functionality since v0.10.
+**Note:** When an `fs.watchFile` operation results in an `ENOENT` error, it
+will invoke the listener once, with all the fields zeroed (or, for dates, the
+Unix Epoch). In Windows, `blksize` and `blocks` fields will be `undefined`,
+instead of zero. If the file is created later on, the listener will be called
+again, with the latest stat objects. This is a change in functionality since
+v0.10.
 
-*Note*: [`fs.watch()`][] is more efficient than `fs.watchFile` and
+**Note:** [`fs.watch()`][] is more efficient than `fs.watchFile` and
 `fs.unwatchFile`. `fs.watch` should be used instead of `fs.watchFile` and
 `fs.unwatchFile` when possible.
 
@@ -2505,7 +2506,7 @@ Note that it is unsafe to use `fs.writeFile` multiple times on the same file
 without waiting for the callback. For this scenario,
 `fs.createWriteStream` is strongly recommended.
 
-*Note*: If a file descriptor is specified as the `file`, it will not be closed
+**Note:** If a file descriptor is specified as the `file`, it will not be closed
 automatically.
 
 ## fs.writeFileSync(file, data[, options])
@@ -2565,8 +2566,9 @@ Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
 
 ## FS Constants
 
-The following constants are exported by `fs.constants`. **Note:** Not every
-constant will be available on every operating system.
+The following constants are exported by `fs.constants`.
+
+**Note:** Not every constant will be available on every operating system.
 
 ### File Access Constants
 

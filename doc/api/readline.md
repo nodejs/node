@@ -27,7 +27,7 @@ rl.question('What do you think of Node.js? ', (answer) => {
 });
 ```
 
-*Note* Once this code is invoked, the Node.js application will not
+**Note:** Once this code is invoked, the Node.js application will not
 terminate until the `readline.Interface` is closed because the interface
 waits for data to be received on the `input` stream.
 
@@ -140,7 +140,7 @@ rl.on('SIGCONT', () => {
 });
 ```
 
-*Note*: The `'SIGCONT'` event is _not_ supported on Windows.
+**Note:** The `'SIGCONT'` event is _not_ supported on Windows.
 
 ### Event: 'SIGINT'
 <!-- YAML
@@ -192,7 +192,7 @@ rl.on('SIGTSTP', () => {
 });
 ```
 
-*Note*: The `'SIGTSTP'` event is _not_ supported on Windows.
+**Note:** The `'SIGTSTP'` event is _not_ supported on Windows.
 
 ### rl.close()
 <!-- YAML
@@ -260,7 +260,7 @@ rl.question('What is your favorite food? ', (answer) => {
 });
 ```
 
-*Note*: The `callback` function passed to `rl.question()` does not follow the
+**Note:** The `callback` function passed to `rl.question()` does not follow the
 typical pattern of accepting an `Error` object or `null` as the first argument.
 The `callback` is called with the provided answer as the only argument.
 
@@ -313,7 +313,7 @@ rl.write('Delete this!');
 rl.write(null, {ctrl: true, name: 'u'});
 ```
 
-*Note*: The `rl.write()` method will write the data to the `readline`
+**Note:** The `rl.write()` method will write the data to the `readline`
 Interface's `input` *as if it were provided by the user*.
 
 ## readline.clearLine(stream, dir)
