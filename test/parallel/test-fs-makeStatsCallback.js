@@ -13,7 +13,7 @@ function testMakeStatsCallback(cb) {
 }
 
 // Verify the case where a callback function is provided
-assert.doesNotThrow(testMakeStatsCallback(common.noop));
+assert.doesNotThrow(testMakeStatsCallback(common.mustCall()));
 
 // Passing undefined/nothing calls rethrow() internally
 assert.doesNotThrow(testMakeStatsCallback());
