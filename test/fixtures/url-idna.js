@@ -191,6 +191,27 @@ module.exports = {
     {
       ascii: `${`${'a'.repeat(64)}.`.repeat(4)}com`,
       unicode: `${`${'a'.repeat(64)}.`.repeat(4)}com`
+    },
+    // URLs with hyphen
+    {
+      ascii: 'r4---sn-a5mlrn7s.gevideo.com',
+      unicode: 'r4---sn-a5mlrn7s.gevideo.com'
+    },
+    {
+      ascii: '-sn-a5mlrn7s.gevideo.com',
+      unicode: '-sn-a5mlrn7s.gevideo.com'
+    },
+    {
+      ascii: 'sn-a5mlrn7s-.gevideo.com',
+      unicode: 'sn-a5mlrn7s-.gevideo.com'
+    },
+    {
+      ascii: '-sn-a5mlrn7s-.gevideo.com',
+      unicode: '-sn-a5mlrn7s-.gevideo.com'
+    },
+    {
+      ascii: '-sn--a5mlrn7s-.gevideo.com',
+      unicode: '-sn--a5mlrn7s-.gevideo.com'
     }
   ],
   invalid: [
@@ -198,15 +219,6 @@ module.exports = {
     {
       url: '\ufffd.com',
       mode: 'ascii'
-    },
-    {
-      url: '\ufffd.com',
-      mode: 'unicode'
-    },
-    // invalid Punycode
-    {
-      url: 'xn---abc.com',
-      mode: 'unicode'
     }
   ]
 }
