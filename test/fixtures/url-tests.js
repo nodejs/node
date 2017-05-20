@@ -1,7 +1,7 @@
 'use strict';
 
 /* WPT Refs:
-   https://github.com/w3c/web-platform-tests/blob/0f26c418a5/url/urltestdata.json
+   https://github.com/w3c/web-platform-tests/blob/8df7c9c215/url/urltestdata.json
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
 module.exports =
@@ -3679,7 +3679,7 @@ module.exports =
     "input": "http://你好你好",
     "base": "http://other.com/",
     "href": "http://xn--6qqa088eba/",
-    "origin": "http://你好你好",
+    "origin": "http://xn--6qqa088eba",
     "protocol": "http:",
     "username": "",
     "password": "",
@@ -3694,7 +3694,7 @@ module.exports =
     "input": "https://faß.ExAmPlE/",
     "base": "about:blank",
     "href": "https://xn--fa-hia.example/",
-    "origin": "https://faß.example",
+    "origin": "https://xn--fa-hia.example",
     "protocol": "https:",
     "username": "",
     "password": "",
@@ -3709,6 +3709,7 @@ module.exports =
     "input": "sc://faß.ExAmPlE/",
     "base": "about:blank",
     "href": "sc://fa%C3%9F.ExAmPlE/",
+    "origin": "null",
     "protocol": "sc:",
     "username": "",
     "password": "",
@@ -4617,7 +4618,7 @@ module.exports =
     "input": "ftp://%e2%98%83",
     "base": "about:blank",
     "href": "ftp://xn--n3h/",
-    "origin": "ftp://☃",
+    "origin": "ftp://xn--n3h",
     "protocol": "ftp:",
     "username": "",
     "password": "",
@@ -4632,7 +4633,7 @@ module.exports =
     "input": "https://%e2%98%83",
     "base": "about:blank",
     "href": "https://xn--n3h/",
-    "origin": "https://☃",
+    "origin": "https://xn--n3h",
     "protocol": "https:",
     "username": "",
     "password": "",
