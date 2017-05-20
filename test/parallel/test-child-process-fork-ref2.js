@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const fork = require('child_process').fork;
 
 if (process.argv[2] === 'child') {
@@ -8,7 +8,7 @@ if (process.argv[2] === 'child') {
 
   setTimeout(function() {
     console.log('child -> will this keep it alive?');
-    process.on('message', function() { });
+    process.on('message', common.mustNotCall());
   }, 400);
 
 } else {
