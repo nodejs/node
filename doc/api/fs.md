@@ -1612,6 +1612,9 @@ If `position` is `null`, data will be read from the current file position.
 
 The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
+If this method is invoked as its [`util.promisify()`][]ed version, it returns
+a Promise for an object with `bytesRead` and `buffer` properties.
+
 ## fs.readdir(path[, options], callback)
 <!-- YAML
 added: v0.1.8
@@ -2393,8 +2396,11 @@ an integer specifying the number of bytes to write.
 should be written. If `typeof position !== 'number'`, the data will be written
 at the current position. See pwrite(2).
 
-The callback will be given three arguments `(err, written, buffer)` where
-`written` specifies how many _bytes_ were written from `buffer`.
+The callback will be given three arguments `(err, bytesWritten, buffer)` where
+`bytesWritten` specifies how many _bytes_ were written from `buffer`.
+
+If this method is invoked as its [`util.promisify()`][]ed version, it returns
+a Promise for an object with `bytesWritten` and `buffer` properties.
 
 Note that it is unsafe to use `fs.write` multiple times on the same file
 without waiting for the callback. For this scenario,
@@ -2810,6 +2816,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`net.Socket`]: net.html#net_class_net_socket
 [`stat()`]: fs.html#fs_fs_stat_path_callback
 [`util.inspect(stats)`]: util.html#util_util_inspect_object_options
+[`util.promisify()`]: util.html#util_util_promisify_original
 [Caveats]: #fs_caveats
 [Common System Errors]: errors.html#errors_common_system_errors
 [FS Constants]: #fs_fs_constants_1

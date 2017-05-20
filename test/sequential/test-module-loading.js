@@ -103,7 +103,7 @@ assert.throws(
   function() {
     require('../fixtures/packages/invalid');
   },
-  /^SyntaxError: Error parsing \S+: Unexpected token , in JSON at position 1$/
+  /^SyntaxError: Error parsing .+: Unexpected token , in JSON at position 1$/
 );
 
 assert.strictEqual(require('../fixtures/packages/index').ok, 'ok',

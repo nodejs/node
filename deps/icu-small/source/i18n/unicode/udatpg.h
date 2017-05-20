@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  udatpg.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -86,8 +86,8 @@ typedef enum UDateTimePatternField {
     /** @stable ICU 3.8 */
     UDATPG_ZONE_FIELD,
 
-    // Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
-    // it is needed for layout of DateTimePatternGenerator object.
+    /* Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
+     * it is needed for layout of DateTimePatternGenerator object. */
     /**
      * One more than the highest normal UDateTimePatternField value.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.

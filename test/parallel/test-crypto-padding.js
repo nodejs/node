@@ -66,8 +66,7 @@ const EVEN_LENGTH_ENCRYPTED =
 // openssl enc -aes-128-cbc -e -K 5333632e722e652e742e4b2e652e5921 \
 // -iv 626c616846697a7a3230313142757a7a -nopad | xxd -p -c256
 const EVEN_LENGTH_ENCRYPTED_NOPAD =
-    '7f57859550d4d2fdb9806da2a750461ab46e' +
-    '71b3d78ebe2d9684dfc87f7575b9';
+    '7f57859550d4d2fdb9806da2a750461ab46e71b3d78ebe2d9684dfc87f7575b9';
 
 
 /*

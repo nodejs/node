@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
  *******************************************************************************
@@ -80,7 +80,7 @@ public:
             fSkeleton(other.fSkeleton) { }
     virtual ~DateFmtBestPatternKey();
     virtual int32_t hashCode() const {
-        return 37 * LocaleCacheKey<DateFmtBestPattern>::hashCode() + fSkeleton.hashCode();
+        return (int32_t)(37u * (uint32_t)LocaleCacheKey<DateFmtBestPattern>::hashCode() + (uint32_t)fSkeleton.hashCode());
     }
     virtual UBool operator==(const CacheKeyBase &other) const {
        // reflexive
@@ -498,7 +498,7 @@ DateFormat* U_EXPORT2
 DateFormat::create(EStyle timeStyle, EStyle dateStyle, const Locale& locale)
 {
     UErrorCode status = U_ZERO_ERROR;
-#if U_PLATFORM_HAS_WIN32_API
+#if U_PLATFORM_USES_ONLY_WIN32_API
     char buffer[8];
     int32_t count = locale.getKeywordValue("compat", buffer, sizeof(buffer), status);
 

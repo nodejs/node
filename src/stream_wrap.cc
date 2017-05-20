@@ -62,11 +62,13 @@ void StreamWrap::Initialize(Local<Object> target,
   auto is_construct_call_callback =
       [](const FunctionCallbackInfo<Value>& args) {
     CHECK(args.IsConstructCall());
+    ClearWrap(args.This());
   };
   Local<FunctionTemplate> sw =
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   sw->InstanceTemplate()->SetInternalFieldCount(1);
   sw->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap"));
+  env->SetProtoMethod(sw, "getAsyncId", AsyncWrap::GetAsyncId);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ShutdownWrap"),
               sw->GetFunction());
 
@@ -74,6 +76,7 @@ void StreamWrap::Initialize(Local<Object> target,
       FunctionTemplate::New(env->isolate(), is_construct_call_callback);
   ww->InstanceTemplate()->SetInternalFieldCount(1);
   ww->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap"));
+  env->SetProtoMethod(ww, "getAsyncId", AsyncWrap::GetAsyncId);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "WriteWrap"),
               ww->GetFunction());
   env->set_write_wrap_constructor_function(ww->GetFunction());
@@ -83,13 +86,11 @@ void StreamWrap::Initialize(Local<Object> target,
 StreamWrap::StreamWrap(Environment* env,
                        Local<Object> object,
                        uv_stream_t* stream,
-                       AsyncWrap::ProviderType provider,
-                       AsyncWrap* parent)
+                       AsyncWrap::ProviderType provider)
     : HandleWrap(env,
                  object,
                  reinterpret_cast<uv_handle_t*>(stream),
-                 provider,
-                 parent),
+                 provider),
       StreamBase(env),
       stream_(stream) {
   set_after_write_cb({ OnAfterWriteImpl, this });

@@ -1,3 +1,5 @@
+// Before https://github.com/nodejs/node/pull/2847 a child process trying
+// (asynchronously) to use the closed channel to it's creator caused a segfault.
 'use strict';
 
 const common = require('../common');
@@ -33,11 +35,14 @@ const server = net.createServer(function(s) {
       worker.send({}, s, callback);
     });
 
-    // Errors can happen if this connection
-    // is still happening while the server has been closed.
+    // https://github.com/nodejs/node/issues/3635#issuecomment-157714683
+    // ECONNREFUSED or ECONNRESET errors can happen if this connection is still
+    // establishing while the server has already closed.
+    // EMFILE can happen if the worker __and__ the server had already closed.
     s.on('error', function(err) {
       if ((err.code !== 'ECONNRESET') &&
-          ((err.code !== 'ECONNREFUSED'))) {
+          (err.code !== 'ECONNREFUSED') &&
+          (err.code !== 'EMFILE')) {
         throw err;
       }
     });

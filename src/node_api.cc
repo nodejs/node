@@ -755,7 +755,7 @@ napi_status napi_get_last_error_info(napi_env env,
       error_messages[env->last_error.error_code];
 
   *result = &(env->last_error);
-  return napi_clear_last_error(env);
+  return napi_ok;
 }
 
 napi_status napi_create_function(napi_env env,
@@ -1524,7 +1524,7 @@ napi_status napi_get_cb_info(
 
   if (argv != nullptr) {
     CHECK_ARG(env, argc);
-    info->Args(argv, std::min(*argc, info->ArgsLength()));
+    info->Args(argv, *argc);
   }
   if (argc != nullptr) {
     *argc = info->ArgsLength();
@@ -2766,7 +2766,26 @@ class Work {
     Work* work = static_cast<Work*>(req->data);
 
     if (work->_complete != nullptr) {
-      work->_complete(work->_env, ConvertUVErrorCode(status), work->_data);
+      napi_env env = work->_env;
+
+      // Establish a handle scope here so that every callback doesn't have to.
+      // Also it is needed for the exception-handling below.
+      v8::HandleScope scope(env->isolate);
+
+      work->_complete(env, ConvertUVErrorCode(status), work->_data);
+
+      // Note: Don't access `work` after this point because it was
+      // likely deleted by the complete callback.
+
+      // If there was an unhandled exception in the complete callback,
+      // report it as a fatal exception. (There is no JavaScript on the
+      // callstack that can possibly handle it.)
+      if (!env->last_exception.IsEmpty()) {
+        v8::TryCatch try_catch(env->isolate);
+        env->isolate->ThrowException(
+          v8::Local<v8::Value>::New(env->isolate, env->last_exception));
+        node::FatalException(env->isolate, try_catch);
+      }
     }
   }
 

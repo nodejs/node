@@ -110,7 +110,10 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
     Wrap(object(), this);
   }
 
-  ~FSReqWrap() { ReleaseEarly(); }
+  ~FSReqWrap() {
+    ReleaseEarly();
+    ClearWrap(object());
+  }
 
   void* operator new(size_t size) = delete;
   void* operator new(size_t size, char* storage) { return storage; }
@@ -151,6 +154,7 @@ void FSReqWrap::Dispose() {
 
 void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
+  ClearWrap(args.This());
 }
 
 
@@ -1474,6 +1478,7 @@ void InitFs(Local<Object> target,
   Local<FunctionTemplate> fst =
       FunctionTemplate::New(env->isolate(), NewFSReqWrap);
   fst->InstanceTemplate()->SetInternalFieldCount(1);
+  env->SetProtoMethod(fst, "getAsyncId", AsyncWrap::GetAsyncId);
   fst->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap"),
               fst->GetFunction());

@@ -43,8 +43,7 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
                 bool lenient = false);
 int32_t ToUnicode(MaybeStackBuffer<char>* buf,
                   const char* input,
-                  size_t length,
-                  bool lenient = false);
+                  size_t length);
 
 }  // namespace i18n
 }  // namespace node

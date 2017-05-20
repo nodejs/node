@@ -753,6 +753,9 @@ decrease overall server throughput.
 added: v0.11.3
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12839
+    description: The `lookup` option is supported now.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/11984
     description: The `ALPNProtocols` and `NPNProtocols` options can
                  be `Uint8Array`s now.
@@ -809,6 +812,7 @@ changes:
     `tls.createSecureContext()`. *Note*: In effect, all
     [`tls.createSecureContext()`][] options can be provided, but they will be
     _completely ignored_ unless the `secureContext` option is missing.
+  * `lookup`: {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
   * ...: Optional [`tls.createSecureContext()`][] options can be provided, see
     the `secureContext` option for more information.
 * `callback` {Function}
@@ -1291,3 +1295,4 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [tls.Server]: #tls_class_tls_server
+[`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback

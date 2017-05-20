@@ -12,7 +12,7 @@ napi_value Test(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_typeof(env, args[0], &valuetype0));
 
   NAPI_ASSERT(env, valuetype0 == napi_function,
-    "Wrong type of arguments. Expects a number as first argument.");
+    "Wrong type of arguments. Expects a function as first argument.");
 
   napi_value* argv = args + 1;
   argc = argc - 1;

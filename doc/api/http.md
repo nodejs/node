@@ -556,7 +556,7 @@ Returns `request`.
 added: v0.1.17
 -->
 
-This class inherits from [`net.Server`][] and has the following additional events:
+This class inherits from [`net.Server`][] and has the following additional events:
 
 ### Event: 'checkContinue'
 <!-- YAML
@@ -981,6 +981,11 @@ is used, array values may be mutated without additional calls to various
 header-related http module methods. The keys of the returned object are the
 header names and the values are the respective header values. All header names
 are lowercase.
+
+*Note*: The object returned by the `response.getHeaders()` method _does not_
+prototypically inherit from the JavaScript `Object`. This means that typical
+`Object` methods such as `obj.toString()`, `obj.hasOwnProperty()`, and others
+are not defined and *will not work*.
 
 Example:
 

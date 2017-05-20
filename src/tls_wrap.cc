@@ -939,6 +939,8 @@ void TLSWrap::Initialize(Local<Object> target,
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TLSWrap"));
 
+  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+  env->SetProtoMethod(t, "asyncReset", AsyncWrap::AsyncReset);
   env->SetProtoMethod(t, "receive", Receive);
   env->SetProtoMethod(t, "start", Start);
   env->SetProtoMethod(t, "setVerifyMode", SetVerifyMode);
