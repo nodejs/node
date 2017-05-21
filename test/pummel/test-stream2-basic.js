@@ -125,7 +125,7 @@ test('a most basic test', function(t) {
                    'xxxxxxxxxxxxxxxxxxxxx' ];
 
   r.on('end', function() {
-    t.same(reads, expect);
+    assert.deepStrictEqual(reads, expect);
     t.end();
   });
 
@@ -158,7 +158,7 @@ test('pipe', function(t) {
   const w = new TestWriter();
 
   w.on('end', function(received) {
-    t.same(received, expect);
+    assert.deepStrictEqual(received, expect);
     t.end();
   });
 
@@ -204,7 +204,7 @@ test('pipe', function(t) {
       t.equal(ended0, false);
       ended0 = true;
       ended++;
-      t.same(results, expect[0]);
+      assert.deepStrictEqual(results, expect[0]);
     });
 
     w[1].on('end', function(results) {
@@ -212,7 +212,7 @@ test('pipe', function(t) {
       ended1 = true;
       ended++;
       t.equal(ended, 2);
-      t.same(results, expect[1]);
+      assert.deepStrictEqual(results, expect[1]);
       t.end();
     });
 
@@ -239,11 +239,11 @@ test('multipipe', function(t) {
 
   let c = 2;
   w[0].on('end', function(received) {
-    t.same(received, expect, 'first');
+    assert.deepStrictEqual(received, expect, 'first');
     if (--c === 0) t.end();
   });
   w[1].on('end', function(received) {
-    t.same(received, expect, 'second');
+    assert.deepStrictEqual(received, expect, 'second');
     if (--c === 0) t.end();
   });
 
@@ -284,13 +284,13 @@ test('multipipe', function(t) {
 
     w[0].on('end', function(results) {
       ended++;
-      t.same(results, expect[0]);
+      assert.deepStrictEqual(results, expect[0]);
     });
 
     w[1].on('end', function(results) {
       ended++;
       t.equal(ended, 2);
-      t.same(results, expect[1]);
+      assert.deepStrictEqual(results, expect[1]);
       t.end();
     });
 
@@ -300,10 +300,8 @@ test('multipipe', function(t) {
 });
 
 test('back pressure respected', function(t) {
-  function noop() {}
-
   const r = new R({ objectMode: true });
-  r._read = noop;
+  r._read = common.mustNotCall();
   let counter = 0;
   r.push(['one']);
   r.push(['two']);
@@ -321,7 +319,7 @@ test('back pressure respected', function(t) {
       r.pipe(w3);
     });
   };
-  w1.end = noop;
+  w1.end = common.mustNotCall();
 
   r.pipe(w1);
 
@@ -347,7 +345,7 @@ test('back pressure respected', function(t) {
 
     return false;
   };
-  w2.end = noop;
+  w2.end = common.mustCall();
 
   let w3 = new R();
   w3.write = function(chunk) {
@@ -380,7 +378,7 @@ test('read(0) for ended streams', function(t) {
   const r = new R();
   let written = false;
   let ended = false;
-  r._read = function(n) {};
+  r._read = common.mustNotCall();
 
   r.push(Buffer.from('foo'));
   r.push(null);
@@ -451,7 +449,7 @@ test('adding readable triggers data flow', function(t) {
 
 test('chainable', function(t) {
   const r = new R();
-  r._read = common.noop;
+  r._read = common.mustCall();
   const r2 = r.setEncoding('utf8').pause().resume().pause();
   t.equal(r, r2);
   t.end();
