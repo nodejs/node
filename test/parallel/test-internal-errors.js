@@ -182,7 +182,7 @@ assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', ['b', 'c']]),
                    'The "a" argument must be one of type b or c');
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
                                   ['a', ['b', 'c', 'd']]),
-                   'The "a" argument must be one of type b, c, or d');
+                   'The "a" argument must be one of type b, c or d');
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b', 'c']),
                    'The "a" argument must be of type b. Received type string');
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE',
@@ -201,7 +201,7 @@ assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['file']]),
 assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['http', 'ftp']]),
                    'The URL must be one of scheme http or ftp');
 assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['a', 'b', 'c']]),
-                   'The URL must be one of scheme a, b, or c');
+                   'The URL must be one of scheme a, b or c');
 assert.throws(
   () => errors.message('ERR_INVALID_URL_SCHEME', [[]]),
   common.expectsError({
@@ -215,10 +215,50 @@ assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['name']),
 assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['name', 'value']),
                    'The "name" and "value" arguments must be specified');
 assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['a', 'b', 'c']),
-                   'The "a", "b", and "c" arguments must be specified');
+                   'The "a", "b" and "c" arguments must be specified');
 assert.throws(
   () => errors.message('ERR_MISSING_ARGS'),
   common.expectsError({
     code: 'ERR_ASSERTION',
     message: /^At least one arg needs to be specified$/
-  }));
+  })
+);
+
+// Tests ERR RANGE
+assert.strictEqual(errors.message('ERR_EXCEEDS_MAX_BUFFER_LENGTH',
+                   [84947843812734]),
+                   'Exceeds the max buffer length of 0x4d42760e0d7e bytes');
+
+assert.strictEqual(errors.message('ERR_ZLIB_BINDING_CLOSED'),
+                   'zlib binding closed');
+
+assert.throws(
+  () => errors.message('ERR_OUT_OF_RANGE', [null]),
+  /name is required/
+);
+
+assert.throws(
+  () => errors.message('ERR_OUT_OF_RANGE', ['a', null]),
+  /min must be a number/
+);
+
+assert.throws(
+  () => errors.message('ERR_OUT_OF_RANGE', ['a', 1, null]),
+  /max must be a number/
+);
+
+assert.strictEqual(errors.message('ERR_OUT_OF_RANGE', ['a', 1, 5]),
+                   '"a" is out of range. It should be between 1 and 5.');
+
+assert.throws(
+  () => errors.message('ERR_LESS_THAN_MIN', [null]),
+  /name is required/
+);
+
+assert.throws(
+  () => errors.message('ERR_LESS_THAN_MIN', ['a', null]),
+  /min must be a number/
+);
+
+assert.strictEqual(errors.message('ERR_LESS_THAN_MIN', ['a', 10]),
+                   '"a" must be a number equal or greater than 10.');
