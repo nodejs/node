@@ -101,6 +101,15 @@ class AsyncWrap : public BaseObject {
   static void AsyncReset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QueueDestroyId(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static void EmitAsyncInit(Environment* env,
+                            v8::Local<v8::Object> object,
+                            v8::Local<v8::String> type,
+                            double id,
+                            double trigger_id);
+
+  static bool EmitBefore(Environment* env, double id);
+  static bool EmitAfter(Environment* env, double id);
+
   inline ProviderType provider_type() const;
 
   inline double get_id() const;

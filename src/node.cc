@@ -348,7 +348,12 @@ static void CheckImmediate(uv_check_t* handle) {
   Environment* env = Environment::from_immediate_check_handle(handle);
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
-  MakeCallback(env, env->process_object(), env->immediate_callback_string());
+  MakeCallback(env->isolate(),
+               env->process_object(),
+               env->immediate_callback_string(),
+               0,
+               nullptr,
+               0, 0).ToLocalChecked();
 }
 
 
@@ -1281,18 +1286,20 @@ void AddPromiseHook(v8::Isolate* isolate, promise_hook_func fn, void* arg) {
 }
 
 
-Local<Value> MakeCallback(Environment* env,
-                          Local<Value> recv,
-                          const Local<Function> callback,
-                          int argc,
-                          Local<Value> argv[]) {
+MaybeLocal<Value> MakeCallback(Environment* env,
+                               Local<Value> recv,
+                               const Local<Function> callback,
+                               int argc,
+                               Local<Value> argv[],
+                               double async_id,
+                               double trigger_id) {
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
-  Local<Object> object, domain;
-  bool has_domain = false;
+  Local<Object> object;
 
   Environment::AsyncCallbackScope callback_scope(env);
+  bool disposed_domain = false;
 
   if (recv->IsObject()) {
     object = recv.As<Object>();
@@ -1300,49 +1307,36 @@ Local<Value> MakeCallback(Environment* env,
 
   if (env->using_domains()) {
     CHECK(recv->IsObject());
-    Local<Value> domain_v = object->Get(env->domain_string());
-    has_domain = domain_v->IsObject();
-    if (has_domain) {
-      domain = domain_v.As<Object>();
-      if (domain->Get(env->disposed_string())->IsTrue())
-        return Undefined(env->isolate());
+    disposed_domain = DomainEnter(env, object);
+    if (disposed_domain) return Undefined(env->isolate());
+  }
+
+  MaybeLocal<Value> ret;
+
+  {
+    AsyncHooks::ExecScope exec_scope(env, async_id, trigger_id);
+
+    if (async_id != 0) {
+      if (!AsyncWrap::EmitBefore(env, async_id)) return Local<Value>();
+    }
+
+    ret = callback->Call(env->context(), recv, argc, argv);
+
+    if (ret.IsEmpty()) {
+      // NOTE: For backwards compatibility with public API we return Undefined()
+      // if the top level call threw.
+      return callback_scope.in_makecallback() ?
+          ret : Undefined(env->isolate());
+    }
+
+    if (async_id != 0) {
+      if (!AsyncWrap::EmitAfter(env, async_id)) return Local<Value>();
     }
   }
 
-  if (has_domain) {
-    Local<Value> enter_v = domain->Get(env->enter_string());
-    if (enter_v->IsFunction()) {
-      if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::MakeCallback",
-                   "domain enter callback threw, please report this");
-      }
-    }
-  }
-
-  // TODO(trevnorris): Correct this once node::MakeCallback() support id and
-  // triggerId. Consider completely removing it until then so the async id can
-  // propagate through to the fatalException after hook calls.
-  AsyncHooks::ExecScope exec_scope(env, 0, 0);
-
-  Local<Value> ret = callback->Call(recv, argc, argv);
-
-  if (ret.IsEmpty()) {
-    // NOTE: For backwards compatibility with public API we return Undefined()
-    // if the top level call threw.
-    return callback_scope.in_makecallback() ?
-        ret : Undefined(env->isolate()).As<Value>();
-  }
-
-  exec_scope.Dispose();
-
-  if (has_domain) {
-    Local<Value> exit_v = domain->Get(env->exit_string());
-    if (exit_v->IsFunction()) {
-      if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-        FatalError("node::MakeCallback",
-                   "domain exit callback threw, please report this");
-      }
-    }
+  if (env->using_domains()) {
+    disposed_domain = DomainExit(env, object);
+    if (disposed_domain) return Undefined(env->isolate());
   }
 
   if (callback_scope.in_makecallback()) {
@@ -1357,8 +1351,8 @@ Local<Value> MakeCallback(Environment* env,
 
   // Make sure the stack unwound properly. If there are nested MakeCallback's
   // then it should return early and not reach this code.
-  CHECK_EQ(env->current_async_id(), 0);
-  CHECK_EQ(env->trigger_id(), 0);
+  CHECK_EQ(env->current_async_id(), async_id);
+  CHECK_EQ(env->trigger_id(), trigger_id);
 
   Local<Object> process = env->process_object();
 
@@ -1375,58 +1369,47 @@ Local<Value> MakeCallback(Environment* env,
 }
 
 
-Local<Value> MakeCallback(Environment* env,
-                          Local<Object> recv,
-                          Local<String> symbol,
-                          int argc,
-                          Local<Value> argv[]) {
-  Local<Value> cb_v = recv->Get(symbol);
-  CHECK(cb_v->IsFunction());
-  return MakeCallback(env, recv.As<Value>(), cb_v.As<Function>(), argc, argv);
+// Public MakeCallback()s
+
+
+MaybeLocal<Value> MakeCallback(Isolate* isolate,
+                               Local<Object> recv,
+                               const char* method,
+                               int argc,
+                               Local<Value> argv[],
+                               async_uid async_id,
+                               async_uid trigger_id) {
+  Local<String> method_string =
+      String::NewFromUtf8(isolate, method, v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  return MakeCallback(isolate, recv, method_string, argc, argv,
+                      async_id, trigger_id);
 }
 
 
-Local<Value> MakeCallback(Environment* env,
-                          Local<Object> recv,
-                          const char* method,
-                          int argc,
-                          Local<Value> argv[]) {
-  Local<String> method_string = OneByteString(env->isolate(), method);
-  return MakeCallback(env, recv, method_string, argc, argv);
-}
-
-
-Local<Value> MakeCallback(Isolate* isolate,
-                          Local<Object> recv,
-                          const char* method,
-                          int argc,
-                          Local<Value> argv[]) {
-  EscapableHandleScope handle_scope(isolate);
-  Local<String> method_string = OneByteString(isolate, method);
-  return handle_scope.Escape(
-      MakeCallback(isolate, recv, method_string, argc, argv));
-}
-
-
-Local<Value> MakeCallback(Isolate* isolate,
-                          Local<Object> recv,
-                          Local<String> symbol,
-                          int argc,
-                          Local<Value> argv[]) {
-  EscapableHandleScope handle_scope(isolate);
+MaybeLocal<Value> MakeCallback(Isolate* isolate,
+                               Local<Object> recv,
+                               Local<String> symbol,
+                               int argc,
+                               Local<Value> argv[],
+                               async_uid async_id,
+                               async_uid trigger_id) {
   Local<Value> callback_v = recv->Get(symbol);
   if (callback_v.IsEmpty()) return Local<Value>();
   if (!callback_v->IsFunction()) return Local<Value>();
   Local<Function> callback = callback_v.As<Function>();
-  return handle_scope.Escape(MakeCallback(isolate, recv, callback, argc, argv));
+  return MakeCallback(isolate, recv, callback, argc, argv,
+                      async_id, trigger_id);
 }
 
 
-Local<Value> MakeCallback(Isolate* isolate,
-                          Local<Object> recv,
-                          Local<Function> callback,
-                          int argc,
-                          Local<Value> argv[]) {
+MaybeLocal<Value> MakeCallback(Isolate* isolate,
+                               Local<Object> recv,
+                               Local<Function> callback,
+                               int argc,
+                               Local<Value> argv[],
+                               async_uid async_id,
+                               async_uid trigger_id) {
   // Observe the following two subtleties:
   //
   // 1. The environment is retrieved from the callback function's context.
@@ -1434,11 +1417,48 @@ Local<Value> MakeCallback(Isolate* isolate,
   //
   // Because of the AssignToContext() call in src/node_contextify.cc,
   // the two contexts need not be the same.
-  EscapableHandleScope handle_scope(isolate);
   Environment* env = Environment::GetCurrent(callback->CreationContext());
   Context::Scope context_scope(env->context());
+  return MakeCallback(env, recv.As<Value>(), callback, argc, argv,
+                      async_id, trigger_id);
+}
+
+
+// Legacy MakeCallback()s
+
+Local<Value> MakeCallback(Isolate* isolate,
+                          Local<Object> recv,
+                          const char* method,
+                          int argc,
+                          Local<Value>* argv) {
+  EscapableHandleScope handle_scope(isolate);
   return handle_scope.Escape(
-      MakeCallback(env, recv.As<Value>(), callback, argc, argv));
+      MakeCallback(isolate, recv, method, argc, argv, 0, 0)
+          .FromMaybe(Local<Value>()));
+}
+
+
+Local<Value> MakeCallback(Isolate* isolate,
+    Local<Object> recv,
+    Local<String> symbol,
+    int argc,
+    Local<Value>* argv) {
+  EscapableHandleScope handle_scope(isolate);
+  return handle_scope.Escape(
+      MakeCallback(isolate, recv, symbol, argc, argv, 0, 0)
+          .FromMaybe(Local<Value>()));
+}
+
+
+Local<Value> MakeCallback(Isolate* isolate,
+    Local<Object> recv,
+    Local<Function> callback,
+    int argc,
+    Local<Value>* argv) {
+  EscapableHandleScope handle_scope(isolate);
+  return handle_scope.Escape(
+      MakeCallback(isolate, recv, callback, argc, argv, 0, 0)
+          .FromMaybe(Local<Value>()));
 }
 
 
@@ -4382,7 +4402,9 @@ void EmitBeforeExit(Environment* env) {
     FIXED_ONE_BYTE_STRING(env->isolate(), "beforeExit"),
     process_object->Get(exit_code)->ToInteger(env->isolate())
   };
-  MakeCallback(env, process_object, "emit", arraysize(args), args);
+  MakeCallback(env->isolate(),
+               process_object, "emit", arraysize(args), args,
+               0, 0).ToLocalChecked();
 }
 
 
@@ -4401,7 +4423,9 @@ int EmitExit(Environment* env) {
     Integer::New(env->isolate(), code)
   };
 
-  MakeCallback(env, process_object, "emit", arraysize(args), args);
+  MakeCallback(env->isolate(),
+               process_object, "emit", arraysize(args), args,
+               0, 0).ToLocalChecked();
 
   // Reload exit code, it may be changed by `emit('exit')`
   return process_object->Get(exitCode)->Int32Value();
