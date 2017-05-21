@@ -54,8 +54,8 @@ int StreamBase::Shutdown(const FunctionCallbackInfo<Value>& args) {
   Local<Object> req_wrap_obj = args[0].As<Object>();
 
   AsyncWrap* wrap = GetAsyncWrap();
-  if (wrap != nullptr)
-    env->set_init_trigger_id(wrap->get_id());
+  CHECK_NE(wrap, nullptr);
+  env->set_init_trigger_id(wrap->get_id());
   ShutdownWrap* req_wrap = new ShutdownWrap(env,
                                             req_wrap_obj,
                                             this,
@@ -133,8 +133,6 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
     return UV_ENOBUFS;
 
   AsyncWrap* wrap = GetAsyncWrap();
-  // NOTE: All tests show that GetAsyncWrap() never returns nullptr here. If it
-  // can then replace the CHECK_NE() with if (wrap != nullptr).
   CHECK_NE(wrap, nullptr);
   env->set_init_trigger_id(wrap->get_id());
   WriteWrap* req_wrap = WriteWrap::New(env,
@@ -425,16 +423,9 @@ void StreamBase::EmitData(ssize_t nread,
   if (argv[2].IsEmpty())
     argv[2] = Undefined(env->isolate());
 
-  AsyncWrap* async = GetAsyncWrap();
-  if (async == nullptr) {
-    node::MakeCallback(env,
-                       GetObject(),
-                       env->onread_string(),
-                       arraysize(argv),
-                       argv);
-  } else {
-    async->MakeCallback(env->onread_string(), arraysize(argv), argv);
-  }
+  AsyncWrap* wrap = GetAsyncWrap();
+  CHECK_NE(wrap, nullptr);
+  wrap->MakeCallback(env->onread_string(), arraysize(argv), argv);
 }
 
 
@@ -445,11 +436,6 @@ bool StreamBase::IsIPCPipe() {
 
 int StreamBase::GetFD() {
   return -1;
-}
-
-
-AsyncWrap* StreamBase::GetAsyncWrap() {
-  return nullptr;
 }
 
 
