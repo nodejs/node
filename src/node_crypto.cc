@@ -1237,11 +1237,13 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
                  kTicketPartSize).ToLocalChecked(),
     Boolean::New(env->isolate(), enc != 0)
   };
-  Local<Value> ret = node::MakeCallback(env,
+
+  Local<Value> ret = node::MakeCallback(env->isolate(),
                                         sc->object(),
                                         env->ticketkeycallback_string(),
                                         arraysize(argv),
-                                        argv);
+                                        argv,
+                                        0, 0).ToLocalChecked();
   Local<Array> arr = ret.As<Array>();
 
   int r = arr->Get(kTicketKeyReturnIndex)->Int32Value();

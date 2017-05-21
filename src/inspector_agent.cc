@@ -597,8 +597,8 @@ bool Agent::StartIoThread(bool wait_for_connect) {
     FIXED_ONE_BYTE_STRING(isolate, "internalMessage"),
     message
   };
-  MakeCallback(parent_env_, process_object.As<Value>(), emit_fn.As<Function>(),
-               arraysize(argv), argv);
+  MakeCallback(parent_env_->isolate(), process_object, emit_fn.As<Function>(),
+               arraysize(argv), argv, 0, 0);
 
   return true;
 }
