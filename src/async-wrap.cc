@@ -272,8 +272,6 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
                         Local<Value> parent, void* arg) {
   Local<Context> context = promise->CreationContext();
   Environment* env = Environment::GetCurrent(context);
-  const char async_id_key[] = "__async_wrap";
-  const char tag_id_key[] = "__async_wrap_tag";
   if (type == PromiseHookType::kInit) {
     // Unfortunately, promises don't have internal fields. Need a surrogate that
     // async wrap can wrap.
