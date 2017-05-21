@@ -928,6 +928,9 @@ lint:
 lint-ci: lint
 endif
 
+sync:
+	./tools/sync.sh
+
 .PHONY: $(TARBALL)-headers \
   all \
   bench \
@@ -977,6 +980,7 @@ endif
   release-only \
   run-ci \
   staticlib \
+  sync \
   tar \
   test \
   test-addons \
