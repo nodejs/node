@@ -1157,6 +1157,7 @@ const Writable = require('stream').Writable;
 class MyWritable extends Writable {
   constructor(options) {
     super(options);
+    // ...
   }
 }
 ```
@@ -1288,6 +1289,7 @@ class MyWritable extends Writable {
   constructor(options) {
     // Calls the stream.Writable() constructor
     super(options);
+    // ...
   }
 }
 ```
@@ -1433,6 +1435,7 @@ const Writable = require('stream').Writable;
 class MyWritable extends Writable {
   constructor(options) {
     super(options);
+    // ...
   }
 
   _write(chunk, encoding, callback) {
@@ -1477,6 +1480,7 @@ class MyReadable extends Readable {
   constructor(options) {
     // Calls the stream.Readable(options) constructor
     super(options);
+    // ...
   }
 }
 ```
@@ -1690,6 +1694,7 @@ const Duplex = require('stream').Duplex;
 class MyDuplex extends Duplex {
   constructor(options) {
     super(options);
+    // ...
   }
 }
 ```
@@ -1845,6 +1850,7 @@ const Transform = require('stream').Transform;
 class MyTransform extends Transform {
   constructor(options) {
     super(options);
+    // ...
   }
 }
 ```
