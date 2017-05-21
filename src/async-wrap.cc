@@ -191,7 +191,7 @@ static bool PreCallbackExecution(AsyncWrap* wrap) {
       if (enter_v->IsFunction()) {
         if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
           FatalError("node::AsyncWrap::MakeCallback",
-                    "domain enter callback threw, please report this");
+                     "domain enter callback threw, please report this");
         }
       }
     }
