@@ -179,22 +179,49 @@ static void PushBackDestroyId(Environment* env, double id) {
 }
 
 
-static bool PreCallbackExecution(AsyncWrap* wrap) {
-  AsyncHooks* async_hooks = wrap->env()->async_hooks();
-  if (wrap->env()->using_domains()) {
-    Local<Value> domain_v = wrap->object()->Get(wrap->env()->domain_string());
-    if (domain_v->IsObject()) {
-      Local<Object> domain = domain_v.As<Object>();
-      if (domain->Get(wrap->env()->disposed_string())->IsTrue())
-        return false;
-      Local<Value> enter_v = domain->Get(wrap->env()->enter_string());
-      if (enter_v->IsFunction()) {
-        if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-          FatalError("node::AsyncWrap::MakeCallback",
-                     "domain enter callback threw, please report this");
-        }
+bool DomainEnter(Environment* env, Local<Object> object) {
+  Local<Value> domain_v = object->Get(env->domain_string());
+  if (domain_v->IsObject()) {
+    Local<Object> domain = domain_v.As<Object>();
+    if (domain->Get(env->disposed_string())->IsTrue())
+      return true;
+    Local<Value> enter_v = domain->Get(env->enter_string());
+    if (enter_v->IsFunction()) {
+      if (enter_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
+        FatalError("node::AsyncWrap::MakeCallback",
+                   "domain enter callback threw, please report this");
       }
     }
+  }
+  return false;
+}
+
+
+bool DomainExit(Environment* env, v8::Local<v8::Object> object) {
+  Local<Value> domain_v = object->Get(env->domain_string());
+  if (domain_v->IsObject()) {
+    Local<Object> domain = domain_v.As<Object>();
+    if (domain->Get(env->disposed_string())->IsTrue())
+      return true;
+    Local<Value> exit_v = domain->Get(env->exit_string());
+    if (exit_v->IsFunction()) {
+      if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
+        FatalError("node::AsyncWrap::MakeCallback",
+                  "domain exit callback threw, please report this");
+      }
+    }
+  }
+  return false;
+}
+
+
+static bool PreCallbackExecution(AsyncWrap* wrap, bool run_domain_cbs) {
+  AsyncHooks* async_hooks = wrap->env()->async_hooks();
+
+  if (wrap->env()->using_domains() && run_domain_cbs) {
+    bool is_disposed = DomainEnter(wrap->env(), wrap->object());
+    if (is_disposed)
+      return false;
   }
 
   if (async_hooks->fields()[AsyncHooks::kBefore] > 0) {
@@ -209,11 +236,12 @@ static bool PreCallbackExecution(AsyncWrap* wrap) {
       return false;
     }
   }
+
   return true;
 }
 
 
-static bool PostCallbackExecution(AsyncWrap* wrap) {
+static bool PostCallbackExecution(AsyncWrap* wrap, bool run_domain_cbs) {
   AsyncHooks* async_hooks = wrap->env()->async_hooks();
 
   // If the callback failed then the after() hooks will be called at the end
@@ -231,20 +259,10 @@ static bool PostCallbackExecution(AsyncWrap* wrap) {
     }
   }
 
-  if (wrap->env()->using_domains()) {
-    Local<Value> domain_v = wrap->object()->Get(wrap->env()->domain_string());
-    if (domain_v->IsObject()) {
-      Local<Object> domain = domain_v.As<Object>();
-      if (domain->Get(wrap->env()->disposed_string())->IsTrue())
-        return false;
-      Local<Value> exit_v = domain->Get(wrap->env()->exit_string());
-      if (exit_v->IsFunction()) {
-        if (exit_v.As<Function>()->Call(domain, 0, nullptr).IsEmpty()) {
-          FatalError("node::AsyncWrap::MakeCallback",
-                    "domain exit callback threw, please report this");
-        }
-      }
-    }
+  if (wrap->env()->using_domains() && run_domain_cbs) {
+    bool is_disposed = DomainExit(wrap->env(), wrap->object());
+    if (is_disposed)
+      return false;
   }
 
   return true;
@@ -301,9 +319,9 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     static_cast<PromiseWrap*>(external_wrap.As<v8::External>()->Value());
   CHECK_NE(wrap, nullptr);
   if (type == PromiseHookType::kBefore) {
-    PreCallbackExecution(wrap);
+    PreCallbackExecution(wrap, false);
   } else if (type == PromiseHookType::kAfter) {
-    PostCallbackExecution(wrap);
+    PostCallbackExecution(wrap, false);
   }
 }
 
@@ -554,7 +572,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                                 get_id(),
                                                 get_trigger_id());
 
-  if (!PreCallbackExecution(this)) {
+  if (!PreCallbackExecution(this, true)) {
     return Local<Value>();
   }
 
@@ -566,7 +584,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     return Local<Value>();
   }
 
-  if (!PostCallbackExecution(this)) {
+  if (!PostCallbackExecution(this, true)) {
     return Local<Value>();
   }
 

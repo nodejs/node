@@ -143,6 +143,7 @@ using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
+using v8::PromiseHookType;
 using v8::PromiseRejectMessage;
 using v8::PropertyCallbackInfo;
 using v8::ScriptOrigin;
@@ -1116,6 +1117,29 @@ bool ShouldAbortOnUncaughtException(Isolate* isolate) {
 }
 
 
+void DomainPromiseHook(PromiseHookType type,
+                       Local<Promise> promise,
+                       Local<Value> parent,
+                       void* arg) {
+  Environment* env = static_cast<Environment*>(arg);
+  Local<Context> context = env->context();
+
+  if (type == PromiseHookType::kInit && env->in_domain()) {
+    promise->Set(context,
+                 env->domain_string(),
+                 env->domain_array()->Get(context,
+                                          0).ToLocalChecked()).FromJust();
+    return;
+  }
+
+  if (type == PromiseHookType::kBefore) {
+    DomainEnter(env, promise);
+  } else if (type == PromiseHookType::kAfter) {
+    DomainExit(env, promise);
+  }
+}
+
+
 void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -1154,6 +1178,8 @@ void SetupDomainUse(const FunctionCallbackInfo<Value>& args) {
 
   Local<ArrayBuffer> array_buffer =
       ArrayBuffer::New(env->isolate(), fields, sizeof(*fields) * fields_count);
+
+  env->AddPromiseHook(DomainPromiseHook, static_cast<void*>(env));
 
   args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, fields_count));
 }
