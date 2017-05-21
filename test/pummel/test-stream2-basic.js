@@ -85,9 +85,6 @@ function run() {
   const fn = next[1];
   console.log('# %s', name);
   fn({
-    same: assert.deepStrictEqual,
-    ok: assert,
-    equal: assert.strictEqual,
     end: function() {
       count--;
       run();
@@ -189,10 +186,10 @@ test('pipe', function(t) {
     w[0].on('write', function() {
       if (--writes === 0) {
         r.unpipe();
-        t.equal(r._readableState.pipes, null);
+        assert.strictEqual(r._readableState.pipes, null);
         w[0].end();
         r.pipe(w[1]);
-        t.equal(r._readableState.pipes, w[1]);
+        assert.strictEqual(r._readableState.pipes, w[1]);
       }
     });
 
@@ -201,17 +198,17 @@ test('pipe', function(t) {
     let ended0 = false;
     let ended1 = false;
     w[0].on('end', function(results) {
-      t.equal(ended0, false);
+      assert.strictEqual(ended0, false);
       ended0 = true;
       ended++;
       assert.deepStrictEqual(results, expect[0]);
     });
 
     w[1].on('end', function(results) {
-      t.equal(ended1, false);
+      assert.strictEqual(ended1, false);
       ended1 = true;
       ended++;
-      t.equal(ended, 2);
+      assert.strictEqual(ended, 2);
       assert.deepStrictEqual(results, expect[1]);
       t.end();
     });
@@ -289,7 +286,7 @@ test('multipipe', function(t) {
 
     w[1].on('end', function(results) {
       ended++;
-      t.equal(ended, 2);
+      assert.strictEqual(ended, 2);
       assert.deepStrictEqual(results, expect[1]);
       t.end();
     });
@@ -441,8 +438,8 @@ test('adding readable triggers data flow', function(t) {
   });
 
   r.on('end', function() {
-    t.equal(readCalled, 3);
-    t.ok(onReadable);
+    assert.strictEqual(readCalled, 3);
+    assert.ok(onReadable);
     t.end();
   });
 });
@@ -451,6 +448,6 @@ test('chainable', function(t) {
   const r = new R();
   r._read = common.mustCall();
   const r2 = r.setEncoding('utf8').pause().resume().pause();
-  t.equal(r, r2);
+  assert.strictEqual(r, r2);
   t.end();
 });
