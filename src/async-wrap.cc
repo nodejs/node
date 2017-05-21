@@ -298,7 +298,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
   Local<v8::Value> external_wrap =
       promise->Get(context, env->promise_async_id()).ToLocalChecked();
   PromiseWrap* wrap =
-    static_cast<PromiseWrap*>(v8::External::Cast(*external_wrap)->Value());
+    static_cast<PromiseWrap*>(external_wrap.As<v8::External>()->Value());
   if (type == PromiseHookType::kBefore) {
     PreCallbackExecution(wrap);
   } else if (type == PromiseHookType::kAfter) {
