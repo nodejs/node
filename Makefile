@@ -34,6 +34,18 @@ ifdef DISABLE_V8_I18N
   V8_BUILD_OPTIONS += i18nsupport=off
 endif
 
+# Use Node arch names rather than V8 ones.
+ifeq ($(DESTCPU),ia32)
+  override DESTCPU=x86
+endif
+ifeq ($(DESTCPU),aarch64)
+  override DESTCPU=arm64
+endif
+
+ifdef DESTCPU
+  CONFIG_FLAGS += --dest-cpu=$(DESTCPU)
+endif
+
 BUILDTYPE_LOWER := $(shell echo $(BUILDTYPE) | tr '[A-Z]' '[a-z]')
 
 # Determine EXEEXT
@@ -564,86 +576,53 @@ RELEASE=$(shell sed -ne 's/\#define NODE_VERSION_IS_RELEASE \([01]\)/\1/p' src/n
 PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
 NPMVERSION=v$(shell cat deps/npm/package.json | grep '"version"' | sed 's/^[^:]*: "\([^"]*\)",.*/\1/')
 
-UNAME_M=$(shell uname -m)
-ifeq ($(findstring x86_64,$(UNAME_M)),x86_64)
-DESTCPU ?= x64
+ifdef DESTCPU
+  ARCH = $(DESTCPU)
 else
-ifeq ($(findstring ppc64,$(UNAME_M)),ppc64)
-DESTCPU ?= ppc64
-else
-ifeq ($(findstring ppc,$(UNAME_M)),ppc)
-DESTCPU ?= ppc
-else
-ifeq ($(findstring s390x,$(UNAME_M)),s390x)
-DESTCPU ?= s390x
-else
-ifeq ($(findstring s390,$(UNAME_M)),s390)
-DESTCPU ?= s390
-else
-ifeq ($(findstring arm,$(UNAME_M)),arm)
-DESTCPU ?= arm
-else
-ifeq ($(findstring aarch64,$(UNAME_M)),aarch64)
-DESTCPU ?= aarch64
-else
-ifeq ($(findstring powerpc,$(shell uname -p)),powerpc)
-DESTCPU ?= ppc64
-else
-DESTCPU ?= x86
-endif
-endif
-endif
-endif
-endif
-endif
-endif
-endif
-ifeq ($(DESTCPU),x64)
-ARCH=x64
-else
-ifeq ($(DESTCPU),arm)
-ARCH=arm
-else
-ifeq ($(DESTCPU),aarch64)
-ARCH=arm64
-else
-ifeq ($(DESTCPU),ppc64)
-ARCH=ppc64
-else
-ifeq ($(DESTCPU),ppc)
-ARCH=ppc
-else
-ifeq ($(DESTCPU),s390)
-ARCH=s390
-else
-ifeq ($(DESTCPU),s390x)
-ARCH=s390x
-else
-ARCH=x86
-endif
-endif
-endif
-endif
-endif
-endif
+  UNAME_M=$(shell uname -m)
+  ifeq ($(findstring x86_64,$(UNAME_M)),x86_64)
+    ARCH ?= x64
+  else
+  ifeq ($(findstring ppc64,$(UNAME_M)),ppc64)
+    ARCH ?= ppc64
+  else
+  ifeq ($(findstring ppc,$(UNAME_M)),ppc)
+    ARCH ?= ppc
+  else
+  ifeq ($(findstring s390x,$(UNAME_M)),s390x)
+    ARCH ?= s390x
+  else
+  ifeq ($(findstring s390,$(UNAME_M)),s390)
+    ARCH ?= s390
+  else
+  ifeq ($(findstring arm,$(UNAME_M)),arm)
+    ARCH ?= arm
+  else
+  ifeq ($(findstring aarch64,$(UNAME_M)),aarch64)
+    ARCH ?= aarch64
+  else
+  ifeq ($(findstring powerpc,$(shell uname -p)),powerpc)
+    ARCH ?= ppc64
+  else
+    ARCH ?= x86
+  endif
+  endif
+  endif
+  endif
+  endif
+  endif
+  endif
+  endif
 endif
 
-# node and v8 use different arch names (e.g. node 'x86' vs v8 'ia32').
-# pass the proper v8 arch name to $V8_ARCH based on user-specified $DESTCPU.
-ifeq ($(DESTCPU),x86)
+# Handle Node and V8 arch name differences for x86 and arm64.
+ifeq ($(ARCH),x86)
 V8_ARCH=ia32
-else
-V8_ARCH ?= $(DESTCPU)
-
 endif
-
-# enforce "x86" over "ia32" as the generally accepted way of referring to 32-bit intel
-ifeq ($(ARCH),ia32)
-override ARCH=x86
+ifeq ($(ARCH),arm64)
+V8_ARCH ?= aarch64
 endif
-ifeq ($(DESTCPU),ia32)
-override DESTCPU=x86
-endif
+V8_ARCH ?= $(ARCH)
 
 TARNAME=node-$(FULLVERSION)
 TARBALL=$(TARNAME).tar
@@ -762,7 +741,6 @@ doc-upload: doc
 $(TARBALL)-headers: release-only
 	$(PYTHON) ./configure \
 		--prefix=/ \
-		--dest-cpu=$(DESTCPU) \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
@@ -794,7 +772,6 @@ $(BINARYTAR): release-only
 	$(RM) -r out/deps out/Release
 	$(PYTHON) ./configure \
 		--prefix=/ \
-		--dest-cpu=$(DESTCPU) \
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
