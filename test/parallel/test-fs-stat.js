@@ -113,6 +113,9 @@ fs.stat(__filename, common.mustCall(function(err, s) {
     'ctime', 'birthtime'
   ];
   keys.forEach(function(k) {
-    assert.ok(json[k] !== undefined && json[k] !== null, k + ' should not be null or undefined');
+    assert.ok(
+      json[k] !== undefined && json[k] !== null,
+      k + ' should not be null or undefined'
+    );
   });
 }));
