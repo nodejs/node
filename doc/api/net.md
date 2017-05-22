@@ -199,9 +199,9 @@ on Linux. The default value of this parameter is 511 (not 512).
 
 * All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for
   details).
-
-* The `server.listen()` method may be called multiple times. Each
-  subsequent call will *re-open* the server using the provided options.
+* The `server.listen()` method can be called again if and only if there was an error
+  during the first `server.listen()` call or `server.close()` has been called.
+  Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
 
 One of the most common errors raised when listening is `EADDRINUSE`.
 This happens when another server is already listening on the requested
