@@ -809,8 +809,9 @@ This function is asynchronous. `callback` will be added as a listener for the
 
 Returns `server`.
 
-*Note*: The `server.listen()` method may be called multiple times. Each
-subsequent call will *re-open* the server using the provided options.
+*Note*: The `server.listen()` method can be called again if and only if there was an error
+during the first `server.listen()` call or `server.close()` has been called.
+Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
 
 ### server.listen(path[, callback])
 <!-- YAML
@@ -825,8 +826,9 @@ Start a UNIX socket server listening for connections on the given `path`.
 This function is asynchronous. `callback` will be added as a listener for the
 [`'listening'`][] event.  See also [`net.Server.listen(path)`][].
 
-*Note*: The `server.listen()` method may be called multiple times. Each
-subsequent call will *re-open* the server using the provided options.
+*Note*: The `server.listen()` method can be called again if and only if there was an error
+during the first `server.listen()` call or `server.close()` has been called.
+Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
 
 ### server.listen([port][, hostname][, backlog][, callback])
 <!-- YAML
@@ -861,8 +863,9 @@ parameter is 511 (not 512).
 This function is asynchronous. `callback` will be added as a listener for the
 [`'listening'`][] event.  See also [`net.Server.listen(port)`][].
 
-*Note*: The `server.listen()` method may be called multiple times. Each
-subsequent call will *re-open* the server using the provided options.
+*Note*: The `server.listen()` method can be called again if and only if there was an error
+during the first `server.listen()` call or `server.close()` has been called.
+Otherwise, an `ERR_SERVER_ALREADY_LISTEN` error will be thrown.
 
 ### server.listening
 <!-- YAML
