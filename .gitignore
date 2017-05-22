@@ -104,6 +104,8 @@ deps/npm/node_modules/.bin/
 
 # test artifacts
 tools/faketime
+tools/remark-cli
+tools/remark-preset-lint-node
 icu_config.gypi
 *.tap
 
