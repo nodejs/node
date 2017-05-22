@@ -57,6 +57,8 @@ assert.strictEqual(util.format('%d', '42.0'), '42');
 assert.strictEqual(util.format('%d', 1.5), '1.5');
 assert.strictEqual(util.format('%d', -0.5), '-0.5');
 assert.strictEqual(util.format('%d', ''), '0');
+assert.strictEqual(util.format('%d %d', 42, 43), '42 43');
+assert.strictEqual(util.format('%d %d', 42), '42 %d');
 
 // Integer format specifier
 assert.strictEqual(util.format('%i'), '%i');
@@ -67,6 +69,8 @@ assert.strictEqual(util.format('%i', '42.0'), '42');
 assert.strictEqual(util.format('%i', 1.5), '1');
 assert.strictEqual(util.format('%i', -0.5), '0');
 assert.strictEqual(util.format('%i', ''), 'NaN');
+assert.strictEqual(util.format('%i %i', 42, 43), '42 43');
+assert.strictEqual(util.format('%i %i', 42), '42 %i');
 
 // Float format specifier
 assert.strictEqual(util.format('%f'), '%f');
@@ -78,6 +82,8 @@ assert.strictEqual(util.format('%f', 1.5), '1.5');
 assert.strictEqual(util.format('%f', -0.5), '-0.5');
 assert.strictEqual(util.format('%f', Math.PI), '3.141592653589793');
 assert.strictEqual(util.format('%f', ''), 'NaN');
+assert.strictEqual(util.format('%f %f', 42, 43), '42 43');
+assert.strictEqual(util.format('%f %f', 42), '42 %f');
 
 // String format specifier
 assert.strictEqual(util.format('%s'), '%s');
@@ -85,11 +91,15 @@ assert.strictEqual(util.format('%s', undefined), 'undefined');
 assert.strictEqual(util.format('%s', 'foo'), 'foo');
 assert.strictEqual(util.format('%s', 42), '42');
 assert.strictEqual(util.format('%s', '42'), '42');
+assert.strictEqual(util.format('%s %s', 42, 43), '42 43');
+assert.strictEqual(util.format('%s %s', 42), '42 %s');
 
 // JSON format specifier
 assert.strictEqual(util.format('%j'), '%j');
 assert.strictEqual(util.format('%j', 42), '42');
 assert.strictEqual(util.format('%j', '42'), '"42"');
+assert.strictEqual(util.format('%j %j', 42, 43), '42 43');
+assert.strictEqual(util.format('%j %j', 42), '42 %j');
 
 // Various format specifiers
 assert.strictEqual(util.format('%%s%s', 'foo'), '%sfoo');
