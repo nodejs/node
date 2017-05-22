@@ -57,6 +57,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
                                          IterationKind kind);
   Reduction ReduceArrayPop(Node* node);
   Reduction ReduceArrayPush(Node* node);
+  Reduction ReduceArrayShift(Node* node);
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceDateGetTime(Node* node);
   Reduction ReduceGlobalIsFinite(Node* node);
