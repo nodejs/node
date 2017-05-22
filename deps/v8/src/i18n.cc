@@ -32,6 +32,7 @@
 #include "unicode/ucol.h"
 #include "unicode/ucurr.h"
 #include "unicode/unum.h"
+#include "unicode/ustring.h"
 #include "unicode/uvernum.h"
 #include "unicode/uversion.h"
 
