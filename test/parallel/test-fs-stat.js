@@ -108,11 +108,11 @@ fs.stat(__filename, common.mustCall(function(err, s) {
   const json = JSON.parse(JSON.stringify(s));
   const keys = [
     'dev', 'mode', 'nlink', 'uid',
-    'gid', 'rdev', 'blksize', 'ino',
+    'gid', 'rdev', 'ino',
     'size', 'blocks', 'atime', 'mtime',
     'ctime', 'birthtime'
   ];
   keys.forEach(function(k) {
-    assert.ok(json[k] !== undefined && json[k] !== null);
+    assert.ok(json[k] !== undefined && json[k] !== null, k + ' should not be null or undefined');
   });
 }));
