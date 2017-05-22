@@ -402,19 +402,6 @@ TEST(function test_lookup_failure(done) {
 });
 
 
-TEST(function test_lookup_null(done) {
-  const req = dns.lookup(null, function(err, ip, family) {
-    assert.ifError(err);
-    assert.strictEqual(ip, null);
-    assert.strictEqual(family, 4);
-
-    done();
-  });
-
-  checkWrap(req);
-});
-
-
 TEST(function test_lookup_ip_all(done) {
   const req = dns.lookup('127.0.0.1', {all: true}, function(err, ips, family) {
     assert.ifError(err);
@@ -578,3 +565,12 @@ process.on('exit', function() {
   assert.strictEqual(expected, completed);
   assert.ok(getaddrinfoCallbackCalled);
 });
+
+
+assert.doesNotThrow(() => dns.lookup('nodejs.org', 6, common.mustCall()));
+
+assert.doesNotThrow(() => dns.lookup('nodejs.org', {}, common.mustCall()));
+
+assert.doesNotThrow(() => dns.lookupService('0.0.0.0', '0', common.mustCall()));
+
+assert.doesNotThrow(() => dns.lookupService('0.0.0.0', 0, common.mustCall()));
