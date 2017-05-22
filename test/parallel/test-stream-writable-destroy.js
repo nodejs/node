@@ -170,3 +170,18 @@ const { inherits } = require('util');
 
   new MyWritable();
 }
+
+{
+  // destroy and destroy callback
+  const write = new Writable({
+    write(chunk, enc, cb) { cb(); }
+  });
+
+  write.destroy();
+
+  const expected = new Error('kaboom');
+
+  write.destroy(expected, common.mustCall(function(err) {
+    assert.strictEqual(expected, err);
+  }));
+}
