@@ -23,8 +23,8 @@
   * Pronouns are acceptable in more colloquial documentation, like guides.
   * Use **gender-neutral pronouns** and **mass nouns**. Non-comprehensive
     examples:
-    * **OK**: "they", "their", "them", "folks", "people", "developers", "cats".
-    * **NOT OK**: "his", "hers", "him", "her", "guys", "dudes".
+    * **OK**: "they", "their", "them", "folks", "people", "developers", "cats"
+    * **NOT OK**: "his", "hers", "him", "her", "guys", "dudes"
 * When combining wrapping elements (parentheses and quotes), terminal
   punctuation should be placed:
   * Inside the wrapping element if the wrapping element contains a complete
@@ -55,12 +55,12 @@
     your point, not as complete running programs. If a complete running program
     is necessary, include it as an asset in `assets/code-examples` and link to
     it.
-* When using underscores, asterisks and backticks please use proper escaping
+* When using underscores, asterisks, and backticks, please use proper escaping
   (**\\\_**, **\\\*** and **\\\`** instead of **\_**, **\*** and **\`**).
 * References to constructor functions should use PascalCase.
-* References to constructor instances should be camelCased.
-* References to methods should be used with parentheses: `socket.end()` instead
-  of `socket.end`.
+* References to constructor instances should use camelCase.
+* References to methods should be used with parentheses: for example,
+  `socket.end()` instead of `socket.end`.
 
 [plugin]: http://editorconfig.org/#download
 [Oxford comma]: https://en.wikipedia.org/wiki/Serial_comma
