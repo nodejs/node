@@ -160,3 +160,17 @@ const { inherits } = require('util');
 
   new MyReadable();
 }
+
+{
+  // destroy and destroy callback
+  const read = new Readable({
+    read() {}
+  });
+  read.resume();
+
+  const expected = new Error('kaboom');
+
+  read.destroy(expected, common.mustCall(function(err) {
+    assert.strictEqual(expected, err);
+  }));
+}
