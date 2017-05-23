@@ -24,6 +24,7 @@
 * [Globals](globals.html)
 * [HTTP](http.html)
 * [HTTPS](https.html)
+* [Inspector](inspector.html)
 * [Modules](modules.html)
 * [Net](net.html)
 * [OS](os.html)

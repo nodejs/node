@@ -22,12 +22,17 @@ namespace node {
 namespace inspector {
 namespace {
 using v8::Context;
+using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::Maybe;
+using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Object;
+using v8::Persistent;
 using v8::String;
 using v8::Value;
 
@@ -176,6 +181,143 @@ static int RegisterDebugSignalHandler() {
 }
 #endif  // _WIN32
 
+class JsBindingsSessionDelegate : public InspectorSessionDelegate {
+ public:
+  JsBindingsSessionDelegate(Environment* env,
+                            Local<Object> session,
+                            Local<Object> receiver,
+                            Local<Function> callback)
+                            : env_(env),
+                              session_(env->isolate(), session),
+                              receiver_(env->isolate(), receiver),
+                              callback_(env->isolate(), callback) {
+    session_.SetWeak(this, JsBindingsSessionDelegate::Release,
+                     v8::WeakCallbackType::kParameter);
+  }
+
+  virtual ~JsBindingsSessionDelegate() {
+    session_.Reset();
+    receiver_.Reset();
+    callback_.Reset();
+  }
+
+  bool WaitForFrontendMessage() override {
+    return false;
+  }
+
+  void OnMessage(const v8_inspector::StringView& message) override {
+    Isolate* isolate = env_->isolate();
+    v8::HandleScope handle_scope(isolate);
+    Context::Scope context_scope(env_->context());
+    MaybeLocal<String> v8string =
+        String::NewFromTwoByte(isolate, message.characters16(),
+                               NewStringType::kNormal, message.length());
+    Local<Value> argument = v8string.ToLocalChecked().As<Value>();
+    Local<Function> callback = callback_.Get(isolate);
+    Local<Object> receiver = receiver_.Get(isolate);
+    callback->Call(env_->context(), receiver, 1, &argument);
+  }
+
+  void Disconnect() {
+    Agent* agent = env_->inspector_agent();
+    if (agent->delegate() == this)
+      agent->Disconnect();
+  }
+
+ private:
+  static void Release(
+      const v8::WeakCallbackInfo<JsBindingsSessionDelegate>& info) {
+    info.SetSecondPassCallback(ReleaseSecondPass);
+    info.GetParameter()->session_.Reset();
+  }
+
+  static void ReleaseSecondPass(
+      const v8::WeakCallbackInfo<JsBindingsSessionDelegate>& info) {
+    JsBindingsSessionDelegate* delegate = info.GetParameter();
+    delegate->Disconnect();
+    delete delegate;
+  }
+
+  Environment* env_;
+  Persistent<Object> session_;
+  Persistent<Object> receiver_;
+  Persistent<Function> callback_;
+};
+
+void SetDelegate(Environment* env, Local<Object> inspector,
+                 JsBindingsSessionDelegate* delegate) {
+  inspector->SetPrivate(env->context(),
+                        env->inspector_delegate_private_symbol(),
+                        v8::External::New(env->isolate(), delegate));
+}
+
+Maybe<JsBindingsSessionDelegate*> GetDelegate(
+    const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Value> delegate;
+  MaybeLocal<Value> maybe_delegate =
+      info.This()->GetPrivate(env->context(),
+                              env->inspector_delegate_private_symbol());
+
+  if (maybe_delegate.ToLocal(&delegate)) {
+    CHECK(delegate->IsExternal());
+    void* value = delegate.As<External>()->Value();
+    if (value != nullptr) {
+      return v8::Just(static_cast<JsBindingsSessionDelegate*>(value));
+    }
+  }
+  env->ThrowError("Inspector is not connected");
+  return v8::Nothing<JsBindingsSessionDelegate*>();
+}
+
+void Dispatch(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  if (!info[0]->IsString()) {
+    env->ThrowError("Inspector message must be a string");
+    return;
+  }
+  Maybe<JsBindingsSessionDelegate*> maybe_delegate = GetDelegate(info);
+  if (maybe_delegate.IsNothing())
+    return;
+  Agent* inspector = env->inspector_agent();
+  CHECK_EQ(maybe_delegate.ToChecked(), inspector->delegate());
+  inspector->Dispatch(ToProtocolString(env->isolate(), info[0])->string());
+}
+
+void Disconnect(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Maybe<JsBindingsSessionDelegate*> delegate = GetDelegate(info);
+  if (delegate.IsNothing()) {
+    return;
+  }
+  delegate.ToChecked()->Disconnect();
+  SetDelegate(env, info.This(), nullptr);
+  delete delegate.ToChecked();
+}
+
+void ConnectJSBindingsSession(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  if (!info[0]->IsFunction()) {
+    env->ThrowError("Message callback is required");
+    return;
+  }
+  Agent* inspector = env->inspector_agent();
+  if (inspector->delegate() != nullptr) {
+    env->ThrowError("Session is already attached");
+    return;
+  }
+  Local<Object> session = Object::New(env->isolate());
+  env->SetMethod(session, "dispatch", Dispatch);
+  env->SetMethod(session, "disconnect", Disconnect);
+  info.GetReturnValue().Set(session);
+
+  JsBindingsSessionDelegate* delegate =
+      new JsBindingsSessionDelegate(env, session, info.Holder(),
+                                    info[0].As<Function>());
+  inspector->Connect(delegate);
+  SetDelegate(env, session, delegate);
+}
+
 void InspectorConsoleCall(const v8::FunctionCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   HandleScope handle_scope(isolate);
@@ -229,7 +371,6 @@ void CallAndPauseOnStart(
                                        call_args.size(), call_args.data());
   args.GetReturnValue().Set(retval.ToLocalChecked());
 }
-}  // namespace
 
 // Used in NodeInspectorClient::currentTimeMS() below.
 const int NANOS_PER_MSEC = 1000000;
@@ -283,6 +424,8 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
   InspectorSessionDelegate* const delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
 };
+
+}  // namespace
 
 class NodeInspectorClient : public v8_inspector::V8InspectorClient {
  public:
@@ -510,6 +653,14 @@ void Agent::RunMessageLoop() {
   inspector_->runMessageLoopOnPause(CONTEXT_GROUP_ID);
 }
 
+InspectorSessionDelegate* Agent::delegate() {
+  CHECK_NE(inspector_, nullptr);
+  ChannelImpl* channel = inspector_->channel();
+  if (channel == nullptr)
+    return nullptr;
+  return channel->delegate();
+}
+
 void Agent::PauseOnNextJavascriptStatement(const std::string& reason) {
   ChannelImpl* channel = inspector_->channel();
   if (channel != nullptr)
@@ -524,6 +675,7 @@ void Agent::InitJSBindings(Local<Object> target, Local<Value> unused,
   env->SetMethod(target, "consoleCall", InspectorConsoleCall);
   if (agent->debug_options_.wait_for_connect())
     env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
+  env->SetMethod(target, "connect", ConnectJSBindingsSession);
 }
 
 void Agent::RequestIoStart() {
