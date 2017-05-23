@@ -276,16 +276,6 @@ class PromiseWrap : public AsyncWrap {
 };
 
 
-static void GetPromiseDomain(Local<v8::Name> name,
-                             const v8::PropertyCallbackInfo<v8::Value>& info) {
-  Local<Context> context = info.GetIsolate()->GetCurrentContext();
-  Environment* env = Environment::GetCurrent(context);
-  info.GetReturnValue().Set(
-      info.Data().As<Object>()->Get(context,
-                                    env->domain_string()).ToLocalChecked());
-}
-
-
 static void PromiseHook(PromiseHookType type, Local<Promise> promise,
                         Local<Value> parent, void* arg) {
   Local<Context> context = promise->CreationContext();
@@ -307,12 +297,6 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     promise->DefineOwnProperty(context,
               env->promise_async_tag(),
               obj, v8::PropertyAttribute::DontEnum).FromJust();
-    if (env->in_domain()) {
-      obj->Set(context, env->domain_string(),
-        env->domain_array()->Get(context, 0).ToLocalChecked()).FromJust();
-      promise->SetAccessor(context, env->domain_string(),
-                           GetPromiseDomain, NULL, obj).FromJust();
-    }
   } else if (type == PromiseHookType::kResolve) {
     // TODO(matthewloring): need to expose this through the async hooks api.
   }
