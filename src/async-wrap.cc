@@ -298,9 +298,12 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     Local<Object> obj = tem->NewInstance(context).ToLocalChecked();
     PromiseWrap* wrap = new PromiseWrap(env, obj);
     promise->DefineOwnProperty(context,
-              env->promise_async_id(),
+              env->promise_wrap(),
               v8::External::New(env->isolate(), wrap),
               v8::PropertyAttribute::DontEnum).FromJust();
+    // The async tag will be destroyed at the same time as the promise as the only
+    // reference to it is held by the promise. This allows the promise wrap instance
+    // to be notified when the promise is destroyed.
     promise->DefineOwnProperty(context,
               env->promise_async_tag(),
               obj, v8::PropertyAttribute::DontEnum).FromJust();
@@ -314,7 +317,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     // TODO(matthewloring): need to expose this through the async hooks api.
   }
   Local<v8::Value> external_wrap =
-      promise->Get(context, env->promise_async_id()).ToLocalChecked();
+      promise->Get(context, env->promise_wrap()).ToLocalChecked();
   PromiseWrap* wrap =
     static_cast<PromiseWrap*>(external_wrap.As<v8::External>()->Value());
   CHECK_NE(wrap, nullptr);

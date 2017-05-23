@@ -195,7 +195,7 @@ namespace node {
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
   V(produce_cached_data_string, "produceCachedData")                          \
-  V(promise_async_id, "_promise_async_wrap")                                  \
+  V(promise_wrap, "_promise_async_wrap")                                      \
   V(promise_async_tag, "_promise_async_wrap_tag")                             \
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
