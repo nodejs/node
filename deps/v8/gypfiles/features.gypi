@@ -31,6 +31,8 @@
   'variables': {
     'v8_enable_disassembler%': 0,
 
+    'v8_promise_internal_field_count%': 0,
+
     'v8_enable_gdbjit%': 0,
 
     'v8_enable_verify_csa%': 0,
@@ -76,6 +78,9 @@
     'conditions': [
       ['v8_enable_disassembler==1', {
         'defines': ['ENABLE_DISASSEMBLER',],
+      }],
+      ['v8_promise_internal_field_count!=0', {
+        'defines': ['V8_PROMISE_INTERNAL_FIELD_COUNT','v8_promise_internal_field_count'],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],

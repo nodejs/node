@@ -3741,6 +3741,10 @@ class V8_EXPORT Function : public Object {
   static void CheckCast(Value* obj);
 };
 
+#ifndef V8_PROMISE_INTERNAL_FIELD_COUNT
+// The number of required internal fields can be defined by embedder.
+#define V8_PROMISE_INTERNAL_FIELD_COUNT 0
+#endif
 
 /**
  * An instance of the built-in Promise constructor (ES6 draft).
@@ -3821,6 +3825,8 @@ class V8_EXPORT Promise : public Object {
   PromiseState State();
 
   V8_INLINE static Promise* Cast(Value* obj);
+
+  static const int kEmbedderFieldCount = V8_PROMISE_INTERNAL_FIELD_COUNT;
 
  private:
   Promise();
