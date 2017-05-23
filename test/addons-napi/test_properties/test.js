@@ -39,3 +39,9 @@ test_object.readwriteAccessor2 = 2;
 assert.strictEqual(test_object.readwriteAccessor2, 2);
 assert.strictEqual(test_object.readonlyAccessor2, 2);
 assert.throws(() => { test_object.readonlyAccessor2 = 3; }, TypeError);
+
+assert.strictEqual(test_object.hasNamedProperty(test_object, 'echo'), true);
+assert.strictEqual(test_object.hasNamedProperty(test_object, 'hiddenValue'),
+                   true);
+assert.strictEqual(test_object.hasNamedProperty(test_object, 'doesnotexist'),
+                   false);
