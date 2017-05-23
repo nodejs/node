@@ -295,10 +295,14 @@ argument to `fs.createReadStream()`. If `path` is passed as a string, then
 ## Class: fs.Stats
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/13173
+    description: Added times as numbers.
 -->
 
-Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and their
-synchronous counterparts are of this type.
+Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and
+their synchronous counterparts are of this type.
 
  - `stats.isFile()`
  - `stats.isDirectory()`
@@ -323,20 +327,22 @@ Stats {
   size: 527,
   blksize: 4096,
   blocks: 8,
+  atimeMs: 1318289051000.1,
+  mtimeMs: 1318289051000.1,
+  ctimeMs: 1318289051000.1,
+  birthtimeMs: 1318289051000.1,
   atime: Mon, 10 Oct 2011 23:24:11 GMT,
   mtime: Mon, 10 Oct 2011 23:24:11 GMT,
   ctime: Mon, 10 Oct 2011 23:24:11 GMT,
   birthtime: Mon, 10 Oct 2011 23:24:11 GMT }
 ```
 
-Please note that `atime`, `mtime`, `birthtime`, and `ctime` are
-instances of [`Date`][MDN-Date] object and appropriate methods should be used
-to compare the values of these objects. For most general uses
-[`getTime()`][MDN-Date-getTime] will return the number of milliseconds elapsed
-since _1 January 1970 00:00:00 UTC_ and this integer should be sufficient for
-any comparison, however there are additional methods which can be used for
-displaying fuzzy information. More details can be found in the
-[MDN JavaScript Reference][MDN-Date] page.
+*Note*: `atimeMs`, `mtimeMs`, `ctimeMs`, `birthtimeMs` are [numbers][MDN-Number]
+that hold the corresponding times in milliseconds. Their precision is platform
+specific. `atime`, `mtime`, `ctime`, and `birthtime` are [`Date`][MDN-Date]
+object alternate representations of the various times. The `Date` and number
+values are not connected. Assigning a new number value, or mutating the `Date`
+value, will not be reflected in the corresponding alternate representation.
 
 ### Stat Time Values
 
@@ -527,7 +533,7 @@ The "not recommended" examples above check for accessibility and then use the
 file; the "recommended" examples are better because they use the file directly
 and handle the error, if any.
 
-In general, check for the accessibility of a file only if the file won’t be
+In general, check for the accessibility of a file only if the file won't be
 used directly, for example when its accessibility is a signal from another
 process.
 
@@ -959,7 +965,7 @@ The "not recommended" examples above check for existence and then use the
 file; the "recommended" examples are better because they use the file directly
 and handle the error, if any.
 
-In general, check for the existence of a file only if the file won’t be
+In general, check for the existence of a file only if the file won't be
 used directly, for example when its existence is a signal from another
 process.
 
