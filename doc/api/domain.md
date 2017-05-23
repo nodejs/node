@@ -1,7 +1,7 @@
 # Domain
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: REPLACED
     pr-url: https://github.com/nodejs/node/pull/12489
     description: Handlers for `Promise`s are now invoked in the domain in which
                  the first promise of a chain was created.
@@ -453,7 +453,7 @@ than crashing the program.
 
 ## Domains and Promises
 
-As of Node REPLACEME, the handlers of Promises are run inside the domain in
+As of Node REPLACED, the handlers of Promises are run inside the domain in
 which the call to `.then` or `.catch` itself was made:
 
 ```js

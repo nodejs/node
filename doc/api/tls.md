@@ -752,10 +752,10 @@ decrease overall server throughput.
 <!-- YAML
 added: v0.11.3
 changes:
-  - version: REPLACEME
+  - version: REPLACED
     pr-url: https://github.com/nodejs/node/pull/12839
     description: The `lookup` option is supported now.
-  - version: REPLACEME
+  - version: REPLACED
     pr-url: https://github.com/nodejs/node/pull/11984
     description: The `ALPNProtocols` and `NPNProtocols` options can
                  be `Uint8Array`s now.
@@ -1012,7 +1012,7 @@ publicly trusted list of CAs as given in
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: REPLACEME
+  - version: REPLACED
     pr-url: https://github.com/nodejs/node/pull/11984
     description: The `ALPNProtocols` and `NPNProtocols` options can
                  be `Uint8Array`s now.

@@ -245,10 +245,10 @@ chained.
 <!-- YAML
 added: v0.1.99
 changes:
-  - version: REPLACEME
+  - version: REPLACED
     pr-url: https://github.com/nodejs/node/pull/11985
     description: The `msg` parameter can be an Uint8Array now.
-  - version: REPLACEME
+  - version: REPLACED
     pr-url: https://github.com/nodejs/node/pull/10473
     description: The `address` parameter is always optional now.
   - version: v6.0.0

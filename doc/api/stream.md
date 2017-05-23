@@ -501,7 +501,7 @@ A Writable stream in object mode will always ignore the `encoding` argument.
 
 ##### writable.destroy([error])
 <!-- YAML
-added: REPLACEME
+added: REPLACED
 -->
 
 Destroy the stream, and emit the passed error. After this call, the
@@ -1081,7 +1081,7 @@ myReader.on('readable', () => {
 
 ##### readable.destroy([error])
 <!-- YAML
-added: REPLACEME
+added: REPLACED
 -->
 
 Destroy the stream, and emit `'error'`. After this call, the
@@ -1130,7 +1130,7 @@ Examples of Transform streams include:
 
 ##### transform.destroy([error])
 <!-- YAML
-added: REPLACEME
+added: REPLACED
 -->
 
 Destroy the stream, and emit `'error'`. After this call, the
@@ -1389,7 +1389,7 @@ user programs.
 
 #### writable.\_destroy(err, callback)
 <!-- YAML
-added: REPLACEME
+added: REPLACED
 -->
 
 * `err` {Error} An error.

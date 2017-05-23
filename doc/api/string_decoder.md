@@ -68,7 +68,7 @@ is performed before returning the remaining input.
 <!-- YAML
 added: v0.1.99
 changes:
-  - version: REPLACEME
+  - version: REPLACED
     pr-url: https://github.com/nodejs/node/pull/9618
     description: Each invalid character is now replaced by a single replacement
                  character instead of one for each individual byte.
