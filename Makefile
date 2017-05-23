@@ -767,7 +767,8 @@ ifeq ($(XZ), 0)
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/$(TARNAME)-headers.tar.xz.done"
 endif
 
-$(BINARYTAR): release-only
+$(BINARYTAR): #release-only
+	echo arch=$(ARCH), destcpu=$(DESTCPU), binaryname=$(BINARYNAME), binarytar=$(BINARYTAR) #&& exit 1
 	$(RM) -r $(BINARYNAME)
 	$(RM) -r out/deps out/Release
 	$(PYTHON) ./configure \
@@ -790,7 +791,8 @@ endif
 binary: $(BINARYTAR)
 
 binary-upload: binary
-	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
+	echo arch=$(ARCH), destcpu=$(DESTCPU) #&& exit 1
+	#ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod 664 node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz
 	scp -p node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION)-$(OSTYPE)-$(ARCH).tar.gz.done"
