@@ -67,7 +67,8 @@ function testInitialized(req, ctor_name) {
 
 
 {
-  // TODO: determine the rigth way to expose promise wrap.
+  // We don't want to expose getAsyncId for promises but we need to construct one
+  // so that the cooresponding provider type is removed from the providers list.
   new Promise((res) => res(5));
 }
 
