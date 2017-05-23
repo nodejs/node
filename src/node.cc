@@ -3712,7 +3712,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
   size_t arglen = eq ? eq - arg : strlen(arg);
 
   static const char* whitelist[] = {
-    // Node options
+    // Node options, sorted in `node --help` order for ease of comparison.
     "--require", "-r",
     "--inspect",
     "--inspect-brk",
@@ -3730,6 +3730,7 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
     "--track-heap-objects",
     "--zero-fill-buffers",
     "--v8-pool-size",
+    "--tls-cipher-list",
     "--use-bundled-ca",
     "--use-openssl-ca",
     "--enable-fips",
