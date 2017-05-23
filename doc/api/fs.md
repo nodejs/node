@@ -301,10 +301,14 @@ argument to `fs.createReadStream()`. If `path` is passed as a string, then
 ## Class: fs.Stats
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/13173
+    description: Added times as numbers.
 -->
 
-Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and their
-synchronous counterparts are of this type.
+Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and
+their synchronous counterparts are of this type.
 
  - `stats.isFile()`
  - `stats.isDirectory()`
@@ -329,20 +333,23 @@ Stats {
   size: 527,
   blksize: 4096,
   blocks: 8,
+  atimeMs: 1318289051000.1,
+  mtimeMs: 1318289051000.1,
+  ctimeMs: 1318289051000.1,
+  birthtimeMs: 1318289051000.1,
   atime: Mon, 10 Oct 2011 23:24:11 GMT,
   mtime: Mon, 10 Oct 2011 23:24:11 GMT,
   ctime: Mon, 10 Oct 2011 23:24:11 GMT,
   birthtime: Mon, 10 Oct 2011 23:24:11 GMT }
 ```
 
-Please note that `atime`, `mtime`, `birthtime`, and `ctime` are
-instances of [`Date`][MDN-Date] object and appropriate methods should be used
-to compare the values of these objects. For most general uses
-[`getTime()`][MDN-Date-getTime] will return the number of milliseconds elapsed
-since _1 January 1970 00:00:00 UTC_ and this integer should be sufficient for
-any comparison, however there are additional methods which can be used for
-displaying fuzzy information. More details can be found in the
-[MDN JavaScript Reference][MDN-Date] page.
+*Note*: `atimeMs`, `mtimeMs`, `ctimeMs`, `birthtimeMs` are [numbers][MDN-Number]
+that hold the corresponding times in milliseconds. Their precision is platform
+specific. `atime`, `mtime`, `ctime`, and `birthtime` are [`Date`][MDN-Date]
+object alternate representations of the various times. The `Date` and number
+values are not connected. Assigning a new number value, or mutating the `Date`
+value, will not be reflected in the corresponding alternate representation.
+
 
 ### Stat Time Values
 
@@ -2841,6 +2848,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [FS Constants]: #fs_fs_constants_1
 [MDN-Date-getTime]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date/getTime
 [MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
+[MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [MSDN-Rel-Path]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx#fully_qualified_vs._relative_paths
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
