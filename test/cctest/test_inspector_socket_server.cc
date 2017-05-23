@@ -139,7 +139,7 @@ class TestInspectorServerDelegate : public SocketServerDelegate {
     server_->Send(session_id_, message);
   }
 
-  void ServerDone() {
+  void ServerDone() override {
     done = true;
   }
 
