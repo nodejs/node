@@ -356,6 +356,7 @@ Node options that are allowed are:
 - `--redirect-warnings`
 - `--require`, `-r`
 - `--throw-deprecation`
+- `--tls-cipher-list`
 - `--trace-deprecation`
 - `--trace-sync-io`
 - `--trace-warnings`
