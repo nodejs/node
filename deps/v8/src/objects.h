@@ -8443,6 +8443,8 @@ class JSPromise : public JSObject {
       kFulfillReactionsOffset + kPointerSize;
   static const int kFlagsOffset = kRejectReactionsOffset + kPointerSize;
   static const int kSize = kFlagsOffset + kPointerSize;
+  static const int kSizeWithEmbedderFields =
+      kSize + v8::Promise::kEmbedderFieldCount * kPointerSize;
 
   // Flags layout.
   static const int kHasHandlerBit = 0;
