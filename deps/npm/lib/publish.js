@@ -1,19 +1,26 @@
+'use strict'
 
-module.exports = publish
+const BB = require('bluebird')
 
-var npm = require('./npm.js')
-var log = require('npmlog')
-var path = require('path')
-var readJson = require('read-package-json')
-var lifecycle = require('./utils/lifecycle.js')
-var chain = require('slide').chain
-var mapToRegistry = require('./utils/map-to-registry.js')
-var cachedPackageRoot = require('./cache/cached-package-root.js')
-var createReadStream = require('graceful-fs').createReadStream
-var npa = require('npm-package-arg')
-var semver = require('semver')
-var getPublishConfig = require('./utils/get-publish-config.js')
-var output = require('./utils/output.js')
+const cacache = require('cacache')
+const cache = require('./cache')
+const createReadStream = require('graceful-fs').createReadStream
+const getPublishConfig = require('./utils/get-publish-config.js')
+const lifecycle = BB.promisify(require('./utils/lifecycle.js'))
+const log = require('npmlog')
+const mapToRegistry = require('./utils/map-to-registry.js')
+const npa = require('npm-package-arg')
+const npm = require('./npm.js')
+const output = require('./utils/output.js')
+const pack = require('./pack')
+const pacote = require('pacote')
+const pacoteOpts = require('./config/pacote')
+const path = require('path')
+const pipe = BB.promisify(require('mississippi').pipe)
+const readJson = BB.promisify(require('read-package-json'))
+const semver = require('semver')
+const statAsync = BB.promisify(require('graceful-fs').stat)
+const writeStreamAtomic = require('fs-write-stream-atomic')
 
 publish.usage = 'npm publish [<tarball>|<folder>] [--tag <tag>] [--access <public|restricted>]' +
                 "\n\nPublishes '.' if no argument supplied" +
@@ -26,6 +33,7 @@ publish.completion = function (opts, cb) {
   return cb()
 }
 
+module.exports = publish
 function publish (args, isRetry, cb) {
   if (typeof cb !== 'function') {
     cb = isRetry
@@ -36,89 +44,116 @@ function publish (args, isRetry, cb) {
 
   log.verbose('publish', args)
 
-  var t = npm.config.get('tag').trim()
+  const t = npm.config.get('tag').trim()
   if (semver.validRange(t)) {
-    var er = new Error('Tag name must not be a valid SemVer range: ' + t)
-    return cb(er)
+    return cb(new Error('Tag name must not be a valid SemVer range: ' + t))
   }
 
-  var arg = args[0]
-  // if it's a local folder, then run the prepublish there, first.
-  readJson(path.resolve(arg, 'package.json'), function (er, data) {
-    if (er && er.code !== 'ENOENT' && er.code !== 'ENOTDIR') return cb(er)
+  publish_(args[0]).then((pkg) => {
+    output(`+ ${pkg._id}`)
+    cb()
+  }, cb)
+}
 
-    if (data) {
-      if (!data.name) return cb(new Error('No name provided'))
-      if (!data.version) return cb(new Error('No version provided'))
-    }
-
-    // if readJson errors, the argument might be a tarball or package URL
-    if (er) {
-      npm.commands.cache.add(arg, null, null, false, function (er, data) {
-        if (er) return cb(er)
-        log.silly('publish', data)
-        var cached = path.resolve(cachedPackageRoot(data), 'package') + '.tgz'
-        // *publish* lifecycle scripts aren't run when publishing a built artifact
-        // go to the next step directly
-        publish_(arg, data, isRetry, cached, cb)
-      })
+function publish_ (arg) {
+  return statAsync(arg).then((stat) => {
+    if (stat.isDirectory()) {
+      return stat
     } else {
-      var dir = arg
-      npm.commands.cache.add(dir, null, null, false, function (er, data) {
-        if (er) return cb(er)
-        log.silly('publish', data)
-        var cached = path.resolve(cachedPackageRoot(data), 'package') + '.tgz'
-        // `prepublish` and `prepare` are run by cache.add
-        chain(
-          [
-            [lifecycle, data, 'prepublishOnly', dir],
-            [publish_, dir, data, isRetry, cached],
-            [lifecycle, data, 'publish', dir],
-            [lifecycle, data, 'postpublish', dir]
-          ],
-          cb
-        )
-      })
+      const err = new Error('not a directory')
+      err.code = 'ENOTDIR'
+      throw err
+    }
+  }).then(() => {
+    return publishFromDirectory(arg)
+  }, (err) => {
+    if (err.code !== 'ENOENT' && err.code !== 'ENOTDIR') {
+      throw err
+    } else {
+      return publishFromPackage(arg)
     }
   })
 }
 
-function publish_ (arg, data, isRetry, cached, cb) {
-  if (!data) return cb(new Error('no package.json file found'))
+function publishFromDirectory (arg) {
+  return pack.prepareDirectory(arg).tap((pkg) => {
+    return lifecycle(pkg, 'prepublishOnly', arg)
+  }).tap((pkg) => {
+    return cacache.tmp.withTmp(npm.tmp, {tmpPrefix: 'fromDir'}, (tmpDir) => {
+      const target = path.join(tmpDir, 'package.tgz')
+      return pack.packDirectory(pkg, arg, target).then(() => {
+        return upload(arg, pkg, false, target)
+      })
+    })
+  }).tap((pkg) => {
+    return lifecycle(pkg, 'publish', arg)
+  }).tap((pkg) => {
+    return lifecycle(pkg, 'postpublish', arg)
+  })
+}
 
-  var mappedConfig = getPublishConfig(
-    data.publishConfig,
-    npm.config,
-    npm.registry
-  )
-  var config = mappedConfig.config
-  var registry = mappedConfig.client
+function publishFromPackage (arg) {
+  return cacache.tmp.withTmp(npm.tmp, {tmpPrefix: 'fromPackage'}, (tmp) => {
+    const extracted = path.join(tmp, 'package')
+    const target = path.join(tmp, 'package.json')
+    return cache.add(arg).then((info) => {
+      const opts = pacoteOpts({integrity: info.integrity})
+      return BB.all([
+        pipe(
+          cacache.get.stream.byDigest(opts.cache, info.integrity),
+          writeStreamAtomic(target)
+        ).then(() => target),
+        pacote.extract(arg, extracted, opts).then(() => {
+          return readJson(path.join(extracted, 'package.json'))
+        })
+      ]).spread((target, pkg) => {
+        return upload(arg, pkg, false, target)
+      })
+    })
+  })
+}
 
-  data._npmVersion = npm.version
-  data._nodeVersion = process.versions.node
-
-  delete data.modules
-  if (data.private) {
-    return cb(new Error(
+function upload (arg, pkg, isRetry, cached) {
+  if (!pkg) {
+    return BB.reject(new Error('no package.json file found'))
+  }
+  if (pkg.private) {
+    return BB.reject(new Error(
       'This package has been marked as private\n' +
       "Remove the 'private' field from the package.json to publish it."
     ))
   }
 
-  mapToRegistry(data.name, config, function (er, registryURI, auth, registryBase) {
-    if (er) return cb(er)
+  const mappedConfig = getPublishConfig(
+    pkg.publishConfig,
+    npm.config,
+    npm.registry
+  )
+  const config = mappedConfig.config
+  const registry = mappedConfig.client
 
+  pkg._npmVersion = npm.version
+  pkg._nodeVersion = process.versions.node
+
+  delete pkg.modules
+
+  return BB.fromNode((cb) => {
+    mapToRegistry(pkg.name, config, (err, registryURI, auth, registryBase) => {
+      if (err) { return cb(err) }
+      cb(null, [registryURI, auth, registryBase])
+    })
+  }).spread((registryURI, auth, registryBase) => {
     // we just want the base registry URL in this case
     log.verbose('publish', 'registryBase', registryBase)
     log.silly('publish', 'uploading', cached)
 
-    data._npmUser = {
+    pkg._npmUser = {
       name: auth.username,
       email: auth.email
     }
 
-    var params = {
-      metadata: data,
+    const params = {
+      metadata: pkg,
       body: createReadStream(cached),
       auth: auth
     }
@@ -126,29 +161,35 @@ function publish_ (arg, data, isRetry, cached, cb) {
     // registry-frontdoor cares about the access level, which is only
     // configurable for scoped packages
     if (config.get('access')) {
-      if (!npa(data.name).scope && config.get('access') === 'restricted') {
-        return cb(new Error("Can't restrict access to unscoped packages."))
+      if (!npa(pkg.name).scope && config.get('access') === 'restricted') {
+        throw new Error("Can't restrict access to unscoped packages.")
       }
 
       params.access = config.get('access')
     }
 
-    log.showProgress('publish:' + data._id)
-    registry.publish(registryBase, params, function (er) {
-      if (er && er.code === 'EPUBLISHCONFLICT' &&
-          npm.config.get('force') && !isRetry) {
-        log.warn('publish', 'Forced publish over ' + data._id)
-        return npm.commands.unpublish([data._id], function (er) {
+    log.showProgress('publish:' + pkg._id)
+    return BB.fromNode((cb) => {
+      registry.publish(registryBase, params, cb)
+    }).catch((err) => {
+      if (
+        err.code === 'EPUBLISHCONFLICT' &&
+        npm.config.get('force') &&
+        !isRetry
+      ) {
+        log.warn('publish', 'Forced publish over ' + pkg._id)
+        return BB.fromNode((cb) => {
+          npm.commands.unpublish([pkg._id], cb)
+        }).finally(() => {
           // ignore errors.  Use the force.  Reach out with your feelings.
-          // but if it fails again, then report the first error.
-          publish([arg], er || true, cb)
+          return upload(arg, pkg, true, cached).catch(() => {
+            // but if it fails again, then report the first error.
+            throw err
+          })
         })
+      } else {
+        throw err
       }
-      // report the unpublish error if this was a retry and unpublish failed
-      if (er && isRetry && isRetry !== true) return cb(isRetry)
-      if (er) return cb(er)
-      output('+ ' + data._id)
-      cb()
     })
   })
 }

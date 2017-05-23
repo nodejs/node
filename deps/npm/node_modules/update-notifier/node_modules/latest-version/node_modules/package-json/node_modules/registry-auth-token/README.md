@@ -33,6 +33,14 @@ console.log(getAuthToken('//some.host/registry/deep/path', {recursive: true}))
 // Find the configured registry url for scope `@foobar`.
 // Falls back to the global registry if not defined.
 console.log(getRegistryUrl('@foobar'))
+
+// Use the npm config that is passed in
+console.log(getRegistryUrl('http://registry.foobar.eu/', {
+  npmrc: {
+    'registry': 'http://registry.foobar.eu/',
+    '//registry.foobar.eu/:_authToken': 'qar'
+  }
+}))
 ```
 
 ## Return value

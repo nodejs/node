@@ -6,6 +6,8 @@ var gyp = require('../lib/node-gyp')
 var requireInject = require('require-inject')
 var configure = requireInject('../lib/configure', {
   'graceful-fs': {
+    'openSync': function (file, mode) { return 0; },
+    'closeSync': function (fd) { },
     'writeFile': function (file, data, cb) { cb() },
     'stat': function (file, cb) { cb(null, {}) }
   }
@@ -26,7 +28,7 @@ test('configure PYTHONPATH with no existing env', function (t) {
     t.equal(process.env.PYTHONPATH, EXPECTED_PYPATH)
     return SPAWN_RESULT
   }
-  configure(prog, [])
+  configure(prog, [], t.fail)
 })
 
 test('configure PYTHONPATH with existing env of one dir', function (t) {
@@ -46,7 +48,7 @@ test('configure PYTHONPATH with existing env of one dir', function (t) {
 
     return SPAWN_RESULT
   }
-  configure(prog, [])
+  configure(prog, [], t.fail)
 })
 
 test('configure PYTHONPATH with existing env of multiple dirs', function (t) {
@@ -68,5 +70,5 @@ test('configure PYTHONPATH with existing env of multiple dirs', function (t) {
 
     return SPAWN_RESULT
   }
-  configure(prog, [])
+  configure(prog, [], t.fail)
 })

@@ -68,7 +68,12 @@ function view (args, silent, cb) {
   if (!args.length) args = ['.']
 
   var pkg = args.shift()
-  var nv = npa(pkg)
+  var nv
+  if (/^[.]@/.test(pkg)) {
+    nv = npa.resolve(null, pkg.slice(2))
+  } else {
+    nv = npa(pkg)
+  }
   var name = nv.name
   var local = (name === '.' || !name)
 
