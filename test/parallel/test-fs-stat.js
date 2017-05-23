@@ -109,9 +109,12 @@ fs.stat(__filename, common.mustCall(function(err, s) {
   const keys = [
     'dev', 'mode', 'nlink', 'uid',
     'gid', 'rdev', 'ino',
-    'size', 'blocks', 'atime', 'mtime',
+    'size', 'atime', 'mtime',
     'ctime', 'birthtime'
   ];
+  if (!common.isWindows) {
+    keys.push('blocks', 'blksize');
+  }
   keys.forEach(function(k) {
     assert.ok(
       json[k] !== undefined && json[k] !== null,
