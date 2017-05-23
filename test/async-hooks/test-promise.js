@@ -47,5 +47,6 @@ function onexit() {
   assert.strictEqual(a1.type, 'PROMISE', 'promise request');
   assert.strictEqual(typeof a1.uid, 'number', 'uid is a number');
   assert.strictEqual(a1.triggerId, 1, 'parent uid 1');
+  // We expect a destroy hook as well but we cannot guarentee predictable gc.
   checkInvocations(a1, { init: 1, before: 1, after: 1 }, 'when process exits');
 }
