@@ -37,6 +37,28 @@ napi_value Echo(napi_env env, napi_callback_info info) {
   return args[0];
 }
 
+napi_value HasNamedProperty(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
+  napi_value args[2];
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NAPI_ASSERT(env, argc == 2, "Wrong number of arguments");
+
+  // Extract the name of the property to check
+  char buffer[128];
+  size_t copied;
+  NAPI_CALL(env,
+    napi_get_value_string_utf8(env, args[1], buffer, sizeof(buffer), &copied));
+
+  // do the check and create the boolean return value
+  bool value;
+  napi_value result;
+  NAPI_CALL(env, napi_has_named_property(env, args[0], buffer, &value));
+  NAPI_CALL(env, napi_get_boolean(env, value, &result));
+
+  return result;
+}
+
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_value number;
   NAPI_CALL_RETURN_VOID(env, napi_create_number(env, value_, &number));
@@ -50,6 +72,7 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     { "readwriteAccessor2", 0, 0, GetValue, SetValue, 0, napi_writable, 0},
     { "readonlyAccessor1", 0, 0, GetValue, NULL, 0, napi_default, 0},
     { "readonlyAccessor2", 0, 0, GetValue, NULL, 0, napi_writable, 0},
+    { "hasNamedProperty", 0, HasNamedProperty, 0, 0, 0, napi_default, 0 },
   };
 
   NAPI_CALL_RETURN_VOID(env, napi_define_properties(
