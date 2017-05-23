@@ -227,8 +227,11 @@ void InspectorIo::WaitForDisconnect() {
   if (state_ == State::kConnected) {
     state_ = State::kShutDown;
     Write(TransportAction::kStop, 0, StringView());
-    fprintf(stderr, "Waiting for the debugger to disconnect...\n");
-    fflush(stderr);
+
+    if (options_.out() != NULL) {
+      fprintf(options_.out(), "Waiting for the debugger to disconnect...\n");
+      fflush(options_.out());
+    }
     parent_env_->inspector_agent()->RunMessageLoop();
   }
 }
@@ -289,7 +292,8 @@ void InspectorIo::WorkerRunIO() {
   delegate_ = &delegate;
   InspectorSocketServer server(&delegate,
                                options_.host_name(),
-                               options_.port());
+                               options_.port(),
+                               options_.out());
   TransportAndIo<Transport> queue_transport(&server, this);
   io_thread_req_.data = &queue_transport;
   if (!server.Start(&loop)) {
@@ -368,7 +372,10 @@ void InspectorIo::DispatchMessages() {
         CHECK_EQ(session_delegate_, nullptr);
         session_id_ = std::get<1>(task);
         state_ = State::kConnected;
-        fprintf(stderr, "Debugger attached.\n");
+
+        if (options_.out() != NULL)
+          fprintf(options_.out(), "Debugger attached.\n");
+
         session_delegate_ = std::unique_ptr<InspectorSessionDelegate>(
             new IoSessionDelegate(this));
         parent_env_->inspector_agent()->Connect(session_delegate_.get());
