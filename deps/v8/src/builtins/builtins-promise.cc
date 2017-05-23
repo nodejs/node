@@ -31,6 +31,10 @@ void PromiseBuiltinsAssembler::PromiseInit(Node* promise) {
   StoreObjectField(promise, JSPromise::kStatusOffset,
                    SmiConstant(v8::Promise::kPending));
   StoreObjectField(promise, JSPromise::kFlagsOffset, SmiConstant(0));
+  for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
+    int offset = JSPromise::kSize + i * kPointerSize;
+    StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(Smi::kZero));
+  }
 }
 
 Node* PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Node* context) {
@@ -62,6 +66,10 @@ Node* PromiseBuiltinsAssembler::AllocateAndSetJSPromise(Node* context,
   StoreObjectFieldNoWriteBarrier(instance, JSPromise::kResultOffset, result);
   StoreObjectFieldNoWriteBarrier(instance, JSPromise::kFlagsOffset,
                                  SmiConstant(0));
+  for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
+    int offset = JSPromise::kSize + i * kPointerSize;
+    StoreObjectFieldNoWriteBarrier(instance, offset, SmiConstant(Smi::kZero));
+  }
 
   Label out(this);
   GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &out);

@@ -38,6 +38,9 @@ declare_args() {
   # Sets -dENABLE_DISASSEMBLER.
   v8_enable_disassembler = ""
 
+  # Sets the number of internal fields on promise objects.
+  v8_promise_internal_field_count = 0
+
   # Sets -dENABLE_GDB_JIT_INTERFACE.
   v8_enable_gdbjit = ""
 
@@ -196,6 +199,10 @@ config("features") {
 
   if (v8_enable_disassembler) {
     defines += [ "ENABLE_DISASSEMBLER" ]
+  }
+  if (v8_promise_internal_field_count != 0) {
+    defines +=
+        [ "V8_PROMISE_INTERNAL_FIELD_COUNT=${v8_promise_internal_field_count}" ]
   }
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
