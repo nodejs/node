@@ -4104,10 +4104,12 @@ class V8_EXPORT WasmCompiledModule : public Object {
   // supports move semantics, and does not support copy semantics.
   class TransferrableModule final {
    public:
-    TransferrableModule(TransferrableModule&& src) = default;
+    TransferrableModule(TransferrableModule&& src)
+        : compiled_code(std::move(src.compiled_code)),
+          wire_bytes(std::move(src.wire_bytes)) {}
     TransferrableModule(const TransferrableModule& src) = delete;
 
-    TransferrableModule& operator=(TransferrableModule&& src) = default;
+    TransferrableModule& operator=(TransferrableModule&& src);
     TransferrableModule& operator=(const TransferrableModule& src) = delete;
 
    private:
@@ -4180,9 +4182,11 @@ class V8_EXPORT WasmModuleObjectBuilder final {
   // Disable copy semantics *in this implementation*. We can choose to
   // relax this, albeit it's not clear why.
   WasmModuleObjectBuilder(const WasmModuleObjectBuilder&) = delete;
-  WasmModuleObjectBuilder(WasmModuleObjectBuilder&&) = default;
+  WasmModuleObjectBuilder(WasmModuleObjectBuilder&& src)
+      : received_buffers_(std::move(src.received_buffers_)),
+        total_size_(src.total_size_) {}
   WasmModuleObjectBuilder& operator=(const WasmModuleObjectBuilder&) = delete;
-  WasmModuleObjectBuilder& operator=(WasmModuleObjectBuilder&&) = default;
+  WasmModuleObjectBuilder& operator=(WasmModuleObjectBuilder&&);
 
   std::vector<Buffer> received_buffers_;
   size_t total_size_ = 0;
