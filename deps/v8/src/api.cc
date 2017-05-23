@@ -7592,6 +7592,14 @@ Local<String> WasmCompiledModule::GetWasmWireBytes() {
   return Local<String>::Cast(Utils::ToLocal(wire_bytes));
 }
 
+WasmCompiledModule::TransferrableModule&
+WasmCompiledModule::TransferrableModule::operator=(
+    TransferrableModule&& src) {
+  compiled_code = std::move(src.compiled_code);
+  wire_bytes = std::move(src.wire_bytes);
+  return *this;
+}
+
 // Currently, wasm modules are bound, both to Isolate and to
 // the Context they were created in. The currently-supported means to
 // decontextualize and then re-contextualize a module is via
@@ -7704,6 +7712,13 @@ MaybeLocal<WasmCompiledModule> WasmModuleObjectBuilder::Finish() {
     insert_at += buff.second;
   }
   return WasmCompiledModule::Compile(isolate_, wire_bytes.get(), total_size_);
+}
+
+WasmModuleObjectBuilder&
+WasmModuleObjectBuilder::operator=(WasmModuleObjectBuilder&& src) {
+  received_buffers_ = std::move(src.received_buffers_);
+  total_size_ = src.total_size_;
+  return *this;
 }
 
 // static
