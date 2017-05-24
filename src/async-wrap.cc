@@ -291,9 +291,9 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
               env->promise_wrap(),
               v8::External::New(env->isolate(), wrap),
               v8::PropertyAttribute::DontEnum).FromJust();
-    // The async tag will be destroyed at the same time as the promise as the only
-    // reference to it is held by the promise. This allows the promise wrap instance
-    // to be notified when the promise is destroyed.
+    // The async tag will be destroyed at the same time as the promise as the
+    // only reference to it is held by the promise. This allows the promise
+    // wrap instance to be notified when the promise is destroyed.
     promise->DefineOwnProperty(context,
               env->promise_async_tag(),
               obj, v8::PropertyAttribute::DontEnum).FromJust();

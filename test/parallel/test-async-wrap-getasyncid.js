@@ -67,8 +67,9 @@ function testInitialized(req, ctor_name) {
 
 
 {
-  // We don't want to expose getAsyncId for promises but we need to construct one
-  // so that the cooresponding provider type is removed from the providers list.
+  // We don't want to expose getAsyncId for promises but we need to construct
+  // one so that the cooresponding provider type is removed from the
+  // providers list.
   new Promise((res) => res(5));
 }
 
