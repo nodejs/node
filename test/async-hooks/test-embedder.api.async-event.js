@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const tick = require('./tick');
 const async_hooks = require('async_hooks');
-const { AsyncEvent } = async_hooks;
+const { AsyncResource } = async_hooks;
 
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
@@ -15,7 +15,7 @@ hooks.enable();
 // create first custom event 'alcazares' with triggerId derived
 // from async_hooks currentId
 const alcaTriggerId = async_hooks.currentId();
-const alcaEvent = new AsyncEvent('alcazares', alcaTriggerId);
+const alcaEvent = new AsyncResource('alcazares', alcaTriggerId);
 const alcazaresActivities = hooks.activitiesOfTypes([ 'alcazares' ]);
 
 // alcazares event was constructed and thus only has an `init` call
@@ -49,7 +49,7 @@ function tick1() {
 
   // The below shows that we can pass any number as a trigger id
   const pobTriggerId = 111;
-  const pobEvent = new AsyncEvent('poblado', pobTriggerId);
+  const pobEvent = new AsyncResource('poblado', pobTriggerId);
   const pobladoActivities = hooks.activitiesOfTypes([ 'poblado' ]);
   const poblado = pobladoActivities[0];
   assert.strictEqual(poblado.type, 'poblado', 'poblado');

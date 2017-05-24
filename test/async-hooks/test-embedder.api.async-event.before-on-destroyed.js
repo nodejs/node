@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
-const { AsyncEvent } = async_hooks;
+const { AsyncResource } = async_hooks;
 const { spawn } = require('child_process');
 const corruptedMsg = /async hook stack has become corrupted/;
 const heartbeatMsg = /heartbeat: still alive/;
@@ -17,13 +17,13 @@ if (process.argv[2] === 'child') {
   // once 'destroy' has been emitted, we can no longer emit 'before'
 
   // Emitting 'before', 'after' and then 'destroy'
-  const event1 = new AsyncEvent('event1', async_hooks.currentId());
+  const event1 = new AsyncResource('event1', async_hooks.currentId());
   event1.emitBefore();
   event1.emitAfter();
   event1.emitDestroy();
 
   // Emitting 'before' after 'destroy'
-  const event2 = new AsyncEvent('event2', async_hooks.currentId());
+  const event2 = new AsyncResource('event2', async_hooks.currentId());
   event2.emitDestroy();
 
   console.log('heartbeat: still alive');
