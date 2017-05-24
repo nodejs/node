@@ -85,8 +85,8 @@ a response is received. `callback` is a function that accepts two optional
 arguments - error and message-specific result.
 
 ```js
-session.post('Runtime.evaluate', {'expression': '2 + 2'},
-             (error, {result}) => console.log(result.value));
+session.post('Runtime.evaluate', { expression: '2 + 2' },
+             (error, { result }) => console.log(result));
 // Output: { type: 'number', value: 4, description: '4' }
 ```
 
