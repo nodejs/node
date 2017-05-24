@@ -317,8 +317,7 @@ function isWarned(emitter) {
     });
   }, common.expectsError({
     type: TypeError,
-    code: 'ERR_INVALID_CALLBACK',
-    message: 'callback must be a function'
+    code: 'ERR_INVALID_OPT_VALUE'
   }));
 
   // duplicate lines are removed from history when
