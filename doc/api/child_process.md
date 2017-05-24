@@ -1050,8 +1050,9 @@ const { fork } = require('child_process');
 const normal = fork('subprocess.js', ['normal']);
 const special = fork('subprocess.js', ['special']);
 
-// Open up the server and send sockets to child
-const server = require('net').createServer();
+// Open up the server and send sockets to child. Use pauseOnConnect to prevent
+// the sockets from being read before they are sent to the child process.
+const server = require('net').createServer({ pauseOnConnect: true });
 server.on('connection', (socket) => {
 
   // If this is special priority
@@ -1071,7 +1072,12 @@ passed to the event callback function:
 ```js
 process.on('message', (m, socket) => {
   if (m === 'socket') {
-    socket.end(`Request handled with ${process.argv[2]} priority`);
+    if (socket) {
+      // Check that the client socket exists.
+      // It is possible for the socket to be closed between the time it is
+      // sent and the time it is received in the child process.
+      socket.end(`Request handled with ${process.argv[2]} priority`);
+    }
   }
 });
 ```
@@ -1080,6 +1086,10 @@ Once a socket has been passed to a child, the parent is no longer capable of
 tracking when the socket is destroyed. To indicate this, the `.connections`
 property becomes `null`. It is recommended not to use `.maxConnections` when
 this occurs.
+
+It is also recommended that any `'message'` handlers in the child process
+verify that `socket` exists, as the connection may have been closed during the
+time it takes to send the connection to the child.
 
 *Note: this function uses [`JSON.stringify()`][] internally to serialize the
 `message`.*
