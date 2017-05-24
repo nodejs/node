@@ -38,7 +38,8 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
 [crypto.randomBytes, crypto.pseudoRandomBytes].forEach(function(f) {
   [-1, undefined, null, false, true, {}, []].forEach(function(value) {
     assert.throws(function() { f(value); }, expectedErrorRegexp);
-    assert.throws(function() { f(value, common.noop); }, expectedErrorRegexp);
+    assert.throws(function() { f(value, common.mustNotCall()); },
+                  expectedErrorRegexp);
   });
 
   [0, 1, 2, 4, 16, 256, 1024].forEach(function(len) {
@@ -153,11 +154,11 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     }, /offset must be a number/);
 
     assert.throws(() => {
-      crypto.randomFill(buf, 'test', common.noop);
+      crypto.randomFill(buf, 'test', common.mustNotCall());
     }, /offset must be a number/);
 
     assert.throws(() => {
-      crypto.randomFill(buf, NaN, common.noop);
+      crypto.randomFill(buf, NaN, common.mustNotCall());
     }, /offset must be a number/);
 
     const max = require('buffer').kMaxLength + 1;
@@ -171,11 +172,11 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     }, /offset out of range/);
 
     assert.throws(() => {
-      crypto.randomFill(buf, 11, common.noop);
+      crypto.randomFill(buf, 11, common.mustNotCall());
     }, /offset out of range/);
 
     assert.throws(() => {
-      crypto.randomFill(buf, max, common.noop);
+      crypto.randomFill(buf, max, common.mustNotCall());
     }, /offset out of range/);
 
     assert.throws(() => {
@@ -187,11 +188,11 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     }, /size must be a number/);
 
     assert.throws(() => {
-      crypto.randomFill(buf, 0, 'test', common.noop);
+      crypto.randomFill(buf, 0, 'test', common.mustNotCall());
     }, /size must be a number/);
 
     assert.throws(() => {
-      crypto.randomFill(buf, 0, NaN, common.noop);
+      crypto.randomFill(buf, 0, NaN, common.mustNotCall());
     }, /size must be a number/);
 
     {
@@ -206,11 +207,11 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
       }, /size must be a uint32/);
 
       assert.throws(() => {
-        crypto.randomFill(buf, 0, -10, common.noop);
+        crypto.randomFill(buf, 0, -10, common.mustNotCall());
       }, /size must be a uint32/);
 
       assert.throws(() => {
-        crypto.randomFill(buf, 0, size, common.noop);
+        crypto.randomFill(buf, 0, size, common.mustNotCall());
       }, /size must be a uint32/);
     }
 
@@ -219,7 +220,7 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     }, /offset must be a uint32/);
 
     assert.throws(() => {
-      crypto.randomFill(buf, -10, common.noop);
+      crypto.randomFill(buf, -10, common.mustNotCall());
     }, /offset must be a uint32/);
 
     assert.throws(() => {
@@ -227,7 +228,7 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     }, /buffer too small/);
 
     assert.throws(() => {
-      crypto.randomFill(buf, 1, 10, common.noop);
+      crypto.randomFill(buf, 1, 10, common.mustNotCall());
     }, /buffer too small/);
 
     assert.throws(() => {
@@ -235,7 +236,7 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
     }, /buffer too small/);
 
     assert.throws(() => {
-      crypto.randomFill(buf, 0, 12, common.noop);
+      crypto.randomFill(buf, 0, 12, common.mustNotCall());
     }, /buffer too small/);
 
     {
@@ -246,7 +247,7 @@ const expectedErrorRegexp = /^TypeError: size must be a number >= 0$/;
       }, /offset must be a uint32/);
 
       assert.throws(() => {
-        crypto.randomFill(buf, offset, 10, common.noop);
+        crypto.randomFill(buf, offset, 10, common.mustNotCall());
       }, /offset must be a uint32/);
     }
   }
