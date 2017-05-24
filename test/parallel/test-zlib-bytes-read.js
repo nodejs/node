@@ -9,12 +9,13 @@ const expectBuf = Buffer.from(expectStr);
 function createWriter(target, buffer) {
   const writer = { size: 0 };
   const write = () => {
-    target.write(Buffer.from([buffer[writer.size++]]));
-    if (writer.size < buffer.length) {
-      setTimeout(write, 25);
-    } else {
-      target.end();
-    }
+    target.write(Buffer.from([buffer[writer.size++]]), () => {
+      if (writer.size < buffer.length) {
+        target.flush(write);
+      } else {
+        target.end();
+      }
+    });
   };
   write();
   return writer;
