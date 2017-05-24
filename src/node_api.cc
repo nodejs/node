@@ -20,6 +20,8 @@
 #include "env-inl.h"
 #include "node_api_backport.h"
 
+#define NAPI_VERSION  1
+
 static
 napi_status napi_set_last_error(napi_env env, napi_status error_code,
                                 uint32_t engine_error_code = 0,
@@ -2712,6 +2714,13 @@ napi_status napi_get_typedarray_info(napi_env env,
     *byte_offset = array->ByteOffset();
   }
 
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_get_version(napi_env env, uint32_t* result) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, result);
+  *result = NAPI_VERSION;
   return napi_clear_last_error(env);
 }
 
