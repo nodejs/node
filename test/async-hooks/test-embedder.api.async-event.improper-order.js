@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
-const { AsyncEvent } = async_hooks;
+const { AsyncResource } = async_hooks;
 const { spawn } = require('child_process');
 const corruptedMsg = /async hook stack has become corrupted/;
 const heartbeatMsg = /heartbeat: still alive/;
@@ -17,13 +17,13 @@ if (process.argv[2] === 'child') {
   // async hooks enforce proper order of 'before' and 'after' invocations
 
   // Proper ordering
-  const event1 = new AsyncEvent('event1', async_hooks.currentId());
+  const event1 = new AsyncResource('event1', async_hooks.currentId());
   event1.emitBefore();
   event1.emitAfter();
 
   // Improper ordering
   // Emitting 'after' without 'before' which is illegal
-  const event2 = new AsyncEvent('event2', async_hooks.currentId());
+  const event2 = new AsyncResource('event2', async_hooks.currentId());
 
   console.log('heartbeat: still alive');
   event2.emitAfter();

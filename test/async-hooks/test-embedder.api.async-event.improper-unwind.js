@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
-const { AsyncEvent } = async_hooks;
+const { AsyncResource } = async_hooks;
 const { spawn } = require('child_process');
 const corruptedMsg = /async hook stack has become corrupted/;
 const heartbeatMsg = /heartbeat: still alive/;
@@ -21,8 +21,8 @@ if (process.argv[2] === 'child') {
   // The first test of the two below follows that rule,
   // the second one doesnt.
 
-  const event1 = new AsyncEvent('event1', async_hooks.currentId());
-  const event2 = new AsyncEvent('event2', async_hooks.currentId());
+  const event1 = new AsyncResource('event1', async_hooks.currentId());
+  const event2 = new AsyncResource('event2', async_hooks.currentId());
 
   // Proper unwind
   event1.emitBefore();
