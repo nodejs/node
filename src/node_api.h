@@ -480,4 +480,4 @@ NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
 
 EXTERN_C_END
 
-#endif  // SRC_NODE_API_H__
+#endif  // SRC_NODE_API_H_
