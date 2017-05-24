@@ -1,5 +1,6 @@
 'use strict';
-require('../common');
+const common = require('../common');
+common.skipIfInspectorDisabled();
 const assert = require('assert');
 const inspector = require('inspector');
 const path = require('path');
@@ -81,7 +82,7 @@ function testSampleDebugSession() {
   }, TypeError);
   session.post('Debugger.enable', () => cbAsSecondArgCalled = true);
   session.post('Debugger.setBreakpointByUrl', {
-    'lineNumber': 11,
+    'lineNumber': 12,
     'url': path.resolve(__dirname, __filename),
     'columnNumber': 0,
     'condition': ''
