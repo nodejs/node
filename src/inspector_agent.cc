@@ -195,7 +195,7 @@ class JsBindingsSessionDelegate : public InspectorSessionDelegate {
                      v8::WeakCallbackType::kParameter);
   }
 
-  virtual ~JsBindingsSessionDelegate() {
+  ~JsBindingsSessionDelegate() override {
     session_.Reset();
     receiver_.Reset();
     callback_.Reset();
