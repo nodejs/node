@@ -215,7 +215,7 @@ class JsBindingsSessionDelegate : public InspectorSessionDelegate {
     Local<Value> argument = v8string.ToLocalChecked().As<Value>();
     Local<Function> callback = callback_.Get(isolate);
     Local<Object> receiver = receiver_.Get(isolate);
-    callback->Call(env_->context(), receiver, 1, &argument);
+    static_cast<void>(callback->Call(env_->context(), receiver, 1, &argument));
   }
 
   void Disconnect() {
