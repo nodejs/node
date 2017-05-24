@@ -283,20 +283,21 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
   if (type == PromiseHookType::kInit) {
     // Unfortunately, promises don't have internal fields. Need a surrogate that
     // async wrap can wrap.
-    Local<v8::ObjectTemplate> tem = v8::ObjectTemplate::New(env->isolate());
-    tem->SetInternalFieldCount(1);
-    Local<Object> obj = tem->NewInstance(context).ToLocalChecked();
+    Local<Object> obj =
+      env->async_hooks_promise_object()->NewInstance(context).ToLocalChecked();
     PromiseWrap* wrap = new PromiseWrap(env, obj);
+    v8::PropertyAttribute hidden =
+      static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete | v8::DontEnum);
     promise->DefineOwnProperty(context,
               env->promise_wrap(),
               v8::External::New(env->isolate(), wrap),
-              v8::PropertyAttribute::DontEnum).FromJust();
+              hidden).FromJust();
     // The async tag will be destroyed at the same time as the promise as the
     // only reference to it is held by the promise. This allows the promise
     // wrap instance to be notified when the promise is destroyed.
     promise->DefineOwnProperty(context,
               env->promise_async_tag(),
-              obj, v8::PropertyAttribute::DontEnum).FromJust();
+              obj, hidden).FromJust();
   } else if (type == PromiseHookType::kResolve) {
     // TODO(matthewloring): need to expose this through the async hooks api.
   }
@@ -398,6 +399,11 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "popAsyncIds", PopAsyncIds);
   env->SetMethod(target, "clearIdStack", ClearIdStack);
   env->SetMethod(target, "addIdToDestroyList", QueueDestroyId);
+
+  Local<v8::ObjectTemplate> promise_object_template =
+    v8::ObjectTemplate::New(env->isolate());
+  promise_object_template->SetInternalFieldCount(1);
+  env->set_async_hooks_promise_object(promise_object_template);
 
   v8::PropertyAttribute ReadOnlyDontDelete =
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
