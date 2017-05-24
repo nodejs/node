@@ -287,7 +287,9 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
       env->async_hooks_promise_object()->NewInstance(context).ToLocalChecked();
     PromiseWrap* wrap = new PromiseWrap(env, obj);
     v8::PropertyAttribute hidden =
-      static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete | v8::DontEnum);
+      static_cast<v8::PropertyAttribute>(v8::ReadOnly
+                                         | v8::DontDelete
+                                         | v8::DontEnum);
     promise->DefineOwnProperty(context,
               env->promise_wrap(),
               v8::External::New(env->isolate(), wrap),
