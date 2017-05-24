@@ -60,6 +60,8 @@ ipch/
 *.VC.opendb
 .vs/
 .vscode/
+/deps/v8/src/debug/obj
+/*.exe
 
 /config.mk
 /config.gypi
