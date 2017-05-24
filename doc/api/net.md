@@ -185,11 +185,13 @@ by the OS through sysctl settings such as `tcp_max_syn_backlog` and `somaxconn`
 on Linux. The default value of this parameter is 511 (not 512).
 
 
-*Note*: All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for
-details).
+*Note*:
 
-*Note*: The `server.listen()` method may be called multiple times. Each
-subsequent call will *re-open* the server using the provided options.
+* All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for
+  details).
+
+* The `server.listen()` method may be called multiple times. Each
+  subsequent call will *re-open* the server using the provided options.
 
 One of the most common errors raised when listening is `EADDRINUSE`.
 This happens when another server is already listening on the requested

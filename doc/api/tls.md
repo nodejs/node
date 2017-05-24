@@ -989,13 +989,15 @@ changes:
   * `sessionIdContext` {string} Optional opaque identifier used by servers to
     ensure session state is not shared between applications. Unused by clients.
 
-*Note*: [`tls.createServer()`][] sets the default value of the
-`honorCipherOrder` option to `true`, other APIs that create secure contexts
-leave it unset.
+*Note*:
 
-*Note*: [`tls.createServer()`][] uses a 128 bit truncated SHA1 hash value
-generated from `process.argv` as the default value of the `sessionIdContext`
-option, other APIs that create secure contexts have no default value.
+* [`tls.createServer()`][] sets the default value of the
+  `honorCipherOrder` option to `true`, other APIs that create secure contexts
+  leave it unset.
+
+* [`tls.createServer()`][] uses a 128 bit truncated SHA1 hash value
+  generated from `process.argv` as the default value of the `sessionIdContext`
+  option, other APIs that create secure contexts have no default value.
 
 The `tls.createSecureContext()` method creates a credentials object.
 
