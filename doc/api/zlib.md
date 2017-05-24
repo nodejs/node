@@ -389,7 +389,9 @@ class of the compressor/decompressor classes.
 
 * {number}
 
-The `zlib.bytesRead` property specifies the number of bytes read by the engine.
+The `zlib.bytesRead` property specifies the number of bytes read by the engine
+before the bytes are processed (compressed or decompressed, as appropriate for
+the derived class).
 
 ### zlib.flush([kind], callback)
 <!-- YAML
