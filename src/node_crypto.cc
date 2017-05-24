@@ -152,7 +152,7 @@ const char* const root_certs[] = {
 
 std::string extra_root_certs_file;  // NOLINT(runtime/string)
 
-X509_STORE* root_cert_store;
+static X509_STORE* root_cert_store;
 
 // Just to generate static methods
 template void SSLWrap<TLSWrap>::AddMethods(Environment* env,
