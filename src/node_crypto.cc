@@ -146,13 +146,13 @@ static X509_NAME *cnnic_ev_name =
 
 static Mutex* mutexes;
 
-const char* const root_certs[] = {
+static const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
 };
 
-std::string extra_root_certs_file;  // NOLINT(runtime/string)
+static std::string extra_root_certs_file;  // NOLINT(runtime/string)
 
-X509_STORE* root_cert_store;
+static X509_STORE* root_cert_store;
 
 // Just to generate static methods
 template void SSLWrap<TLSWrap>::AddMethods(Environment* env,
