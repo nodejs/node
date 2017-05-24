@@ -46,13 +46,11 @@ napi_value HasNamedProperty(napi_env env, napi_callback_info info) {
 
   // Extract the name of the property to check
   char buffer[128];
-  size_t buffer_size = 128;
   size_t copied;
-  buffer[buffer_size - 1] = 0;
   NAPI_CALL(env,
-    napi_get_value_string_utf8(env, args[1], buffer, buffer_size - 1, &copied));
+    napi_get_value_string_utf8(env, args[1], buffer, sizeof(buffer), &copied));
 
-  // do the check and create the boolean retutn value
+  // do the check and create the boolean return value
   bool value;
   napi_value result;
   NAPI_CALL(env, napi_has_named_property(env, args[0], buffer, &value));
