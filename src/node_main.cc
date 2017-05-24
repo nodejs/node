@@ -78,7 +78,7 @@ int wmain(int argc, wchar_t *wargv[]) {
 #else
 #define Elf_auxv_t Elf32_auxv_t
 #endif  // __LP64__
-extern char **environ;
+extern char** environ;
 #endif  // __linux__
 
 namespace node {
