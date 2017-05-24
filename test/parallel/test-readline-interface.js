@@ -315,7 +315,11 @@ function isWarned(emitter) {
       input: fi,
       completer: 'string is not valid'
     });
-  }, common.expectsError('ERR_INVALID_CALLBACK', TypeError));
+  }, common.expectsError({
+    type: TypeError,
+    code: 'ERR_INVALID_CALLBACK',
+    message: 'callback must be a function'
+  }));
 
   // duplicate lines are removed from history when
   // `options.removeHistoryDuplicates` is `true`
