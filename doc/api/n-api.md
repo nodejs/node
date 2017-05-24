@@ -2946,6 +2946,34 @@ the `complete` callback will be invoked with a status value of
 `napi_cancelled`. The work should not be deleted before the `complete`
 callback invocation, even if it has been successfully cancelled.
 
+## Version Management
+
+### napi_get_version
+<!-- YAML
+added: v8.0.0
+-->
+```C
+NAPI_EXTERN napi_status napi_get_version(napi_env env,
+                                        uint32_t* result);
+```
+
+- `[in] env`: The environment that the API is invoked under.
+- `[out] result`: The highest version of N-API supported.
+
+Returns `napi_ok` if the API succeeded.
+
+This API returns the highest N-API version supported by the
+Node.js runtime.  N-API is planned to be additive such that
+newer releases of Node.js may support additional API functions.  Since
+the goal is forward compatibility, older versions may not support
+the new functions even if we port empty stubs to earlier Node.js
+versions in order to facilitate use of the new functions with later
+Node.js releases.  To support this case an addon can call
+`napi_get_version` to check which level of N-API is supported
+at run time. Based on the result of this check the addon can
+implement appropriate code paths when functions
+are, or are not, fully implemented. 
+
 
 [Aynchronous Operations]: #n_api_asynchronous_operations
 [Basic N-API Data Types]: #n_api_basic_n_api_data_types

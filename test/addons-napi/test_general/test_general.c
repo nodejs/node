@@ -25,10 +25,19 @@ napi_value testGetPrototype(napi_env env, napi_callback_info info) {
   return result;
 }
 
+napi_value testGetVersion(napi_env env, napi_callback_info info) {
+  uint32_t version;
+  napi_value result;
+  NAPI_CALL(env, napi_get_version(env, &version));
+  NAPI_CALL(env ,napi_create_number(env, version, &result));
+  return result;
+}
+
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("testStrictEquals", testStrictEquals),
     DECLARE_NAPI_PROPERTY("testGetPrototype", testGetPrototype),
+    DECLARE_NAPI_PROPERTY("testGetVersion", testGetVersion),
   };
 
   NAPI_CALL_RETURN_VOID(env, napi_define_properties(
