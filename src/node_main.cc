@@ -73,7 +73,6 @@ int wmain(int argc, wchar_t *wargv[]) {
 // UNIX
 #ifdef __linux__
 #include <elf.h>
-#include <inttypes.h>
 #ifdef __LP64__
 #define Elf_auxv_t Elf64_auxv_t
 #else
