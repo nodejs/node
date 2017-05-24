@@ -185,10 +185,10 @@ by the OS through sysctl settings such as `tcp_max_syn_backlog` and `somaxconn`
 on Linux. The default value of this parameter is 511 (not 512).
 
 
-**Note:** All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for
+*Note*: All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for
 details).
 
-**Note:** The `server.listen()` method may be called multiple times. Each
+*Note*: The `server.listen()` method may be called multiple times. Each
 subsequent call will *re-open* the server using the provided options.
 
 One of the most common errors raised when listening is `EADDRINUSE`.
@@ -224,7 +224,7 @@ The `handle` object can be either a server, a socket (anything with an
 underlying `_handle` member), or an object with a `fd` member that is a
 valid file descriptor.
 
-**Note:** Listening on a file descriptor is not supported on Windows.
+*Note*: Listening on a file descriptor is not supported on Windows.
 
 #### server.listen(options[, callback])
 <!-- YAML
@@ -293,7 +293,7 @@ If `host` is omitted, the server will accept connections on the
 [unspecified IPv6 address][] (`::`) when IPv6 is available, or the
 [unspecified IPv4 address][] (`0.0.0.0`) otherwise.
 
-**Note:** In most operating systems, listening to the
+*Note*: In most operating systems, listening to the
 [unspecified IPv6 address][] (`::`) may cause the `net.Server` to also listen on
 the [unspecified IPv4 address][] (`0.0.0.0`).
 
@@ -851,7 +851,7 @@ Possible signatures:
 * [`net.createConnection(port[, host][, connectListener])`][`net.createConnection(port, host)`]
   for TCP connections.
 
-**Note:** The [`net.connect()`][] function is an alias to this function.
+*Note*: The [`net.connect()`][] function is an alias to this function.
 
 ### net.createConnection(options[, connectListener])
 <!-- YAML

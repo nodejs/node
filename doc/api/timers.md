@@ -36,7 +36,7 @@ added: v0.9.1
 When called, requests that the Node.js event loop *not* exit so long as the
 `Timeout` is active. Calling `timeout.ref()` multiple times will have no effect.
 
-**Note:** By default, all `Timeout` objects are "ref'd", making it normally
+*Note*: By default, all `Timeout` objects are "ref'd", making it normally
 unnecessary to call `timeout.ref()` unless `timeout.unref()` had been called
 previously.
 
@@ -52,7 +52,7 @@ to remain active. If there is no other activity keeping the event loop running,
 the process may exit before the `Timeout` object's callback is invoked. Calling
 `timeout.unref()` multiple times will have no effect.
 
-**Note:** Calling `timeout.unref()` creates an internal timer that will wake the
+*Note*: Calling `timeout.unref()` creates an internal timer that will wake the
 Node.js event loop. Creating too many of these can adversely impact performance
 of the Node.js application.
 
@@ -85,7 +85,7 @@ next event loop iteration.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
-**Note:** This method has a custom variant for promises that is available using
+*Note*: This method has a custom variant for promises that is available using
 [`util.promisify()`][]:
 
 ```js
@@ -142,12 +142,12 @@ Node.js makes no guarantees about the exact timing of when callbacks will fire,
 nor of their ordering. The callback will be called as close as possible to the
 time specified.
 
-**Note:** When `delay` is larger than `2147483647` or less than `1`, the `delay`
+*Note*: When `delay` is larger than `2147483647` or less than `1`, the `delay`
 will be set to `1`.
 
 If `callback` is not a function, a [`TypeError`][] will be thrown.
 
-**Note:** This method has a custom variant for promises that is available using
+*Note*: This method has a custom variant for promises that is available using
 [`util.promisify()`][]:
 
 ```js

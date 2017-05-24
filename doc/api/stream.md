@@ -186,7 +186,7 @@ Examples of [Writable][] streams include:
 * [child process stdin][]
 * [`process.stdout`][], [`process.stderr`][]
 
-**Note:** Some of these examples are actually [Duplex][] streams that implement
+*Note*: Some of these examples are actually [Duplex][] streams that implement
 the [Writable][] interface.
 
 All [Writable][] streams implement the interface defined by the
@@ -268,7 +268,7 @@ added: v0.9.4
 The `'error'` event is emitted if an error occurred while writing or piping
 data. The listener callback is passed a single `Error` argument when called.
 
-**Note:** The stream is not closed when the `'error'` event is emitted.
+*Note*: The stream is not closed when the `'error'` event is emitted.
 
 ##### Event: 'finish'
 <!-- YAML
@@ -558,13 +558,13 @@ until a mechanism for either consuming or ignoring that data is provided. If
 the consuming mechanism is disabled or taken away, the Readable will *attempt*
 to stop generating the data.
 
-**Note:** For backwards compatibility reasons, removing [`'data'`][] event
+*Note*: For backwards compatibility reasons, removing [`'data'`][] event
 handlers will **not** automatically pause the stream. Also, if there are piped
 destinations, then calling [`stream.pause()`][stream-pause] will not guarantee
 that the stream will *remain* paused once those destinations drain and ask for
 more data.
 
-**Note:** If a [Readable][] is switched into flowing mode and there are no
+*Note*: If a [Readable][] is switched into flowing mode and there are no
 consumers available to handle the data, that data will be lost. This can occur,
 for instance, when the `readable.resume()` method is called without a listener
 attached to the `'data'` event, or when a `'data'` event handler is removed
@@ -670,7 +670,7 @@ added: v0.9.4
 The `'end'` event is emitted when there is no more data to be consumed from
 the stream.
 
-**Note:** The `'end'` event **will not be emitted** unless the data is
+*Note*: The `'end'` event **will not be emitted** unless the data is
 completely consumed. This can be accomplished by switching the stream into
 flowing mode, or by calling [`stream.read()`][stream-read] repeatedly until
 all data has been consumed.
@@ -742,7 +742,7 @@ readable: null
 end
 ```
 
-**Note:** In general, the `readable.pipe()` and `'data'` event mechanisms are
+*Note*: In general, the `readable.pipe()` and `'data'` event mechanisms are
 preferred over the use of the `'readable'` event.
 
 ##### readable.isPaused()
@@ -845,7 +845,7 @@ processing, the Writable destination *is not closed* automatically. If an
 error occurs, it will be necessary to *manually* close each stream in order
 to prevent memory leaks.
 
-**Note:** The [`process.stderr`][] and [`process.stdout`][] Writable streams are
+*Note*: The [`process.stderr`][] and [`process.stdout`][] Writable streams are
 never closed until the Node.js process exits, regardless of the specified
 options.
 
@@ -893,10 +893,10 @@ A Readable stream in object mode will always return a single item from
 a call to [`readable.read(size)`][stream-read], regardless of the value of the
 `size` argument.
 
-**Note:** If the `readable.read()` method returns a chunk of data, a `'data'`
+*Note*: If the `readable.read()` method returns a chunk of data, a `'data'`
 event will also be emitted.
 
-**Note:** Calling [`stream.read([size])`][stream-read] after the [`'end'`][]
+*Note*: Calling [`stream.read([size])`][stream-read] after the [`'end'`][]
 event has been emitted will return `null`. No runtime error will be raised.
 
 ##### readable.resume()
@@ -994,7 +994,7 @@ buffer. This is useful in certain situations where a stream is being consumed by
 code that needs to "un-consume" some amount of data that it has optimistically
 pulled out of the source, so that the data can be passed on to some other party.
 
-**Note:** The `stream.unshift(chunk)` method cannot be called after the
+*Note*: The `stream.unshift(chunk)` method cannot be called after the
 [`'end'`][] event has been emitted or a runtime error will be thrown.
 
 Developers using `stream.unshift()` often should consider switching to
@@ -1037,7 +1037,7 @@ function parseHeader(stream, callback) {
 }
 ```
 
-**Note:** Unlike [`stream.push(chunk)`][stream-push], `stream.unshift(chunk)`
+*Note*: Unlike [`stream.push(chunk)`][stream-push], `stream.unshift(chunk)`
 will not end the reading process by resetting the internal reading state of the
 stream. This can cause unexpected results if `readable.unshift()` is called
 during a read (i.e. from within a [`stream._read()`][stream-_read]
@@ -1224,7 +1224,7 @@ on the type of stream being created, as detailed in the chart below:
   </tr>
 </table>
 
-**Note:** The implementation code for a stream should *never* call the "public"
+*Note*: The implementation code for a stream should *never* call the "public"
 methods of a stream that are intended for use by consumers (as described in
 the [API for Stream Consumers][] section). Doing so may lead to adverse
 side effects in application code consuming the stream.
@@ -1336,10 +1336,10 @@ All Writable stream implementations must provide a
 [`writable._write()`][stream-_write] method to send data to the underlying
 resource.
 
-**Note:** [Transform][] streams provide their own implementation of the
+*Note*: [Transform][] streams provide their own implementation of the
 [`writable._write()`][stream-_write].
 
-**Note:** This function MUST NOT be called by application code directly. It
+*Note*: This function MUST NOT be called by application code directly. It
 should be implemented by child classes, and called only by the internal Writable
 class methods only.
 
@@ -1374,7 +1374,7 @@ user programs.
 * `callback` {Function} A callback function (optionally with an error
   argument) to be invoked when processing is complete for the supplied chunks.
 
-**Note:** This function MUST NOT be called by application code directly. It
+*Note*: This function MUST NOT be called by application code directly. It
 should be implemented by child classes, and called only by the internal Writable
 class methods only.
 
@@ -1511,7 +1511,7 @@ const myReadable = new Readable({
 
 * `size` {number} Number of bytes to read asynchronously
 
-**Note:** This function MUST NOT be called by application code directly. It
+*Note*: This function MUST NOT be called by application code directly. It
 should be implemented by child classes, and called only by the internal Readable
 class methods only.
 
@@ -1525,7 +1525,7 @@ from the resource and pushing data until `readable.push()` returns `false`. Only
 when `_read()` is called again after it has stopped should it resume pushing
 additional data onto the queue.
 
-**Note:** Once the `readable._read()` method has been called, it will not be
+*Note*: Once the `readable._read()` method has been called, it will not be
 called again until the [`readable.push()`][stream-push] method is called.
 
 The `size` argument is advisory. For implementations where a "read" is a
@@ -1593,7 +1593,7 @@ class SourceWrapper extends Readable {
   }
 }
 ```
-**Note:** The `readable.push()` method is intended be called only by Readable
+*Note*: The `readable.push()` method is intended be called only by Readable
 Implementers, and only from within the `readable._read()` method.
 
 #### Errors While Reading
@@ -1659,7 +1659,7 @@ Because JavaScript does not have support for multiple inheritance, the
 `stream.Duplex` class is extended to implement a [Duplex][] stream (as opposed
 to extending the `stream.Readable` *and* `stream.Writable` classes).
 
-**Note:** The `stream.Duplex` class prototypically inherits from
+*Note*: The `stream.Duplex` class prototypically inherits from
 `stream.Readable` and parasitically from `stream.Writable`, but `instanceof`
 will work properly for both base classes due to overriding
 [`Symbol.hasInstance`][] on `stream.Writable`.
@@ -1810,7 +1810,7 @@ A [Transform][] stream is a [Duplex][] stream where the output is computed
 in some way from the input. Examples include [zlib][] streams or [crypto][]
 streams that compress, encrypt, or decrypt data.
 
-**Note:** There is no requirement that the output be the same size as the input,
+*Note*: There is no requirement that the output be the same size as the input,
 the same number of chunks, or arrive at the same time. For example, a
 Hash stream will only ever have a single chunk of output which is
 provided when the input is ended. A `zlib` stream will produce output
@@ -1824,7 +1824,7 @@ methods. Custom Transform implementations *must* implement the
 [`transform._transform()`][stream-_transform] method and *may* also implement
 the [`transform._flush()`][stream-_flush] method.
 
-**Note:** Care must be taken when using Transform streams in that data written
+*Note*: Care must be taken when using Transform streams in that data written
 to the stream can cause the Writable side of the stream to become paused if
 the output on the Readable side is not consumed.
 
@@ -1889,7 +1889,7 @@ after all data has been output, which occurs after the callback in
 * `callback` {Function} A callback function (optionally with an error
   argument and data) to be called when remaining data has been flushed.
 
-**Note:** This function MUST NOT be called by application code directly. It
+*Note*: This function MUST NOT be called by application code directly. It
 should be implemented by child classes, and called only by the internal Readable
 class methods only.
 
@@ -1924,7 +1924,7 @@ user programs.
   argument and data) to be called after the supplied `chunk` has been
   processed.
 
-**Note:** This function MUST NOT be called by application code directly. It
+*Note*: This function MUST NOT be called by application code directly. It
 should be implemented by child classes, and called only by the internal Readable
 class methods only.
 

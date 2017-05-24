@@ -14,7 +14,7 @@ const vm = require('vm');
 JavaScript code can be compiled and run immediately or compiled, saved, and run
 later.
 
-**Note:** The vm module is not a security mechanism.
+*Note*: The vm module is not a security mechanism.
 **Do not use it to run untrusted code**.
 
 ## Class: vm.Script
@@ -125,7 +125,7 @@ console.log(util.inspect(sandbox));
 // { animal: 'cat', count: 12, name: 'kitty' }
 ```
 
-**Note:** Using the `timeout` or `breakOnSigint` options will result in new
+*Note*: Using the `timeout` or `breakOnSigint` options will result in new
 event loops and corresponding threads being started, which have a non-zero
 performance overhead.
 
@@ -327,7 +327,7 @@ console.log(Debug.findScript(process.emit).name);  // 'events.js'
 console.log(Debug.findScript(process.exit).name);  // 'internal/process.js'
 ```
 
-**Note:** The debug context and object are intrinsically tied to V8's debugger
+*Note*: The debug context and object are intrinsically tied to V8's debugger
 implementation and may change (or even be removed) without prior warning.
 
 The `Debug` object can also be made available using the V8-specific
@@ -458,7 +458,7 @@ const code =
 vm.runInThisContext(code)(require);
  ```
 
-**Note:** The `require()` in the above case shares the state with the context it
+*Note*: The `require()` in the above case shares the state with the context it
 is passed from. This may introduce risks when untrusted code is executed, e.g.
 altering objects in the context in unwanted ways.
 

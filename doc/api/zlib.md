@@ -54,7 +54,7 @@ the compression encodings accepted by the client. The [`Content-Encoding`][]
 header is used to identify the compression encodings actually applied to a
 message.
 
-**Note:** the examples given below are drastically simplified to show
+*Note*: the examples given below are drastically simplified to show
 the basic concept.  Using `zlib` encoding can be expensive, and the results
 ought to be cached.  See [Memory Usage Tuning][] for more information
 on the speed/memory/compression tradeoffs involved in `zlib` usage.
@@ -229,7 +229,7 @@ not surprising. This section is taken almost directly from the
 [zlib documentation][].  See <http://zlib.net/manual.html#Constants> for more
 details.
 
-**Note:** Previously, the constants were available directly from
+*Note*: Previously, the constants were available directly from
 `require('zlib')`, for instance `zlib.Z_NO_FLUSH`. Accessing the constants
 directly from the module is currently still possible but should be considered
 deprecated.
@@ -437,7 +437,7 @@ added: v0.5.8
 
 Returns a new [DeflateRaw][] object with an [options][].
 
-**Note:** The zlib library rejects requests for 256-byte windows (i.e.,
+*Note*: The zlib library rejects requests for 256-byte windows (i.e.,
 `{ windowBits: 8 }` in `options`). An `Error` will be thrown when creating
 a [DeflateRaw][] object with this specific value of the `windowBits` option.
 

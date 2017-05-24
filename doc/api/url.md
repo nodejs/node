@@ -290,7 +290,7 @@ console.log(url.format(myURL, {fragment: false, unicode: true, auth: false}));
   // Prints 'https://你好你好?abc'
 ```
 
-**Note:** This variation of the `url.format()` method is currently considered to
+*Note*: This variation of the `url.format()` method is currently considered to
 be experimental.
 
 ## url.parse(urlString[, parseQueryString[, slashesDenoteHost]])
@@ -380,7 +380,7 @@ console.log(myURL.hostname); // example.org
 console.log(myURL.pathname); // /foo
 ```
 
-**Note:** Using the `delete` keyword (e.g. `delete myURL.protocol`,
+*Note*: Using the `delete` keyword (e.g. `delete myURL.protocol`,
 `delete myURL.pathname`, etc) has no effect but will still return `true`.
 
 A comparison between this API and `url.parse()` is given below. Above the URL
@@ -388,7 +388,7 @@ A comparison between this API and `url.parse()` is given below. Above the URL
 object returned by `url.parse()` are shown. Below it are properties of a WHATWG
 `URL` object.
 
-**Note:** WHATWG URL's `origin` property includes `protocol` and `host`, but not
+*Note*: WHATWG URL's `origin` property includes `protocol` and `host`, but not
 `username` or `password`.
 
 ```txt
@@ -835,7 +835,7 @@ added: v7.10.0
 Instantiate a new `URLSearchParams` object with a query hash map. The key and
 value of each property of `obj` are always coerced to strings.
 
-**Note:** Unlike [`querystring`][] module, duplicate keys in the form of array
+*Note*: Unlike [`querystring`][] module, duplicate keys in the form of array
 values are not allowed. Arrays are stringified using [`array.toString()`][],
 which simply joins all array elements with commas.
 

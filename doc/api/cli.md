@@ -144,7 +144,7 @@ added: REPLACEME
 
 Emit pending deprecation warnings.
 
-**Note:** Pending deprecations are generally identical to a runtime deprecation
+*Note*: Pending deprecations are generally identical to a runtime deprecation
 with the notable exception that they are turned *off* by default and will not
 be emitted unless either the `--pending-deprecation` command line flag, or the
 `NODE_PENDING_DEPRECATION=1` environment variable, is set. Pending deprecations
@@ -278,7 +278,7 @@ added: v0.1.3
 
 Print v8 command line options.
 
-**Note:** V8 options allow words to be separated by both dashes (`-`) or
+*Note*: V8 options allow words to be separated by both dashes (`-`) or
 underscores (`_`).
 
 For example, `--stack-trace-limit` is equivalent to `--stack_trace_limit`.
@@ -382,7 +382,7 @@ added: v0.1.32
 
 `':'`-separated list of directories prefixed to the module search path.
 
-**Note:** On Windows, this is a `';'`-separated list instead.
+*Note*: On Windows, this is a `';'`-separated list instead.
 
 
 ### `NODE_DISABLE_COLORS=1`
@@ -453,7 +453,7 @@ added: REPLACEME
 
 When set to `1`, emit pending deprecation warnings.
 
-**Note:** Pending deprecations are generally identical to a runtime deprecation
+*Note*: Pending deprecations are generally identical to a runtime deprecation
 with the notable exception that they are turned *off* by default and will not
 be emitted unless either the `--pending-deprecation` command line flag, or the
 `NODE_PENDING_DEPRECATION=1` environment variable, is set. Pending deprecations
@@ -512,7 +512,7 @@ added: v7.7.0
 If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's directory
 containing trusted certificates.
 
-**Note:** Be aware that unless the child environment is explicitly set, this
+*Note*: Be aware that unless the child environment is explicitly set, this
 evironment variable will be inherited by any child processes, and if they use
 OpenSSL, it may cause them to trust the same CAs as node.
 
@@ -524,7 +524,7 @@ added: v7.7.0
 If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's file
 containing trusted certificates.
 
-**Note:** Be aware that unless the child environment is explicitly set, this
+*Note*: Be aware that unless the child environment is explicitly set, this
 evironment variable will be inherited by any child processes, and if they use
 OpenSSL, it may cause them to trust the same CAs as node.
 

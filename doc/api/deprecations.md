@@ -531,7 +531,7 @@ Type: Documentation-only
 The `http` module `ServerResponse.prototype.writeHeader()` API has been
 deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
 
-**Note:** The `ServerResponse.prototype.writeHeader()` method was never
+*Note*: The `ServerResponse.prototype.writeHeader()` method was never
 documented as an officially supported API.
 
 <a id="DEP0064"></a>
@@ -568,7 +568,7 @@ properties have been deprecated. Please instead use one of the public methods
 `outgoingMessage.removeHeader()`, `outgoingMessage.setHeader()`) for working
 with outgoing headers.
 
-**Note:** `outgoingMessage._headers` and `outgoingMessage._headerNames` were
+*Note*: `outgoingMessage._headers` and `outgoingMessage._headerNames` were
 never documented as officially supported properties.
 
 <a id="DEP0067"></a>
@@ -579,7 +579,7 @@ Type: Documentation-only
 The `http` module `OutgoingMessage.prototype._renderHeaders()` API has been
 deprecated.
 
-**Note:** `OutgoingMessage.prototype._renderHeaders` was never documented as
+*Note*: `OutgoingMessage.prototype._renderHeaders` was never documented as
 an officially supported API.
 
 <a id="DEP0068"></a>
@@ -598,7 +598,7 @@ Type: Documentation-only
 The DebugContext will be removed in V8 soon and will not be available in Node
 10+.
 
-**Note:** DebugContext was an experimental API.
+*Note*: DebugContext was an experimental API.
 
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array

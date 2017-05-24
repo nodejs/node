@@ -62,7 +62,7 @@
 * References to methods should be used with parentheses: for example,
   `socket.end()` instead of `socket.end`.
 * To draw special attention to a note, adhere to the following guidelines:
-  * Make the "Note:" label bold, i.e. `**Note:**`.
+  * Make the "Note:" label italic, i.e. `*Note*:`.
   * Use a capital letter after the "Note:" label.
   * Preferably, make the note a new paragraph for better visual distinction.
 

@@ -193,7 +193,7 @@ The character encodings currently supported by Node.js include:
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
-**Note:** Today's browsers follow the [WHATWG spec] which aliases both 'latin1'
+*Note*: Today's browsers follow the [WHATWG spec] which aliases both 'latin1'
 and ISO-8859-1 to win-1252. This means that while doing something like
 `http.get()`, if the returned charset is one of those listed in the WHATWG spec
 it's possible that the server actually returned win-1252-encoded data, and
@@ -686,7 +686,7 @@ Returns the actual byte length of a string. This is not the same as
 [`String.prototype.length`] since that returns the number of *characters* in
 a string.
 
-**Note:** For `'base64'` and `'hex'`, this function assumes valid input. For
+*Note*: For `'base64'` and `'hex'`, this function assumes valid input. For
 strings that contain non-Base64/Hex-encoded data (e.g. whitespace), the return
 value might be greater than the length of a `Buffer` created from the string.
 
@@ -1868,7 +1868,7 @@ changes:
 Returns a new `Buffer` that references the same memory as the original, but
 offset and cropped by the `start` and `end` indices.
 
-**Note:** Modifying the new `Buffer` slice will modify the memory in the
+*Note*: Modifying the new `Buffer` slice will modify the memory in the
 original `Buffer` because the allocated memory of the two objects overlap.
 
 Example: Create a `Buffer` with the ASCII alphabet, take a slice, and then modify

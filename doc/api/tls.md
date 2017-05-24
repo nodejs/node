@@ -115,7 +115,7 @@ handshake extensions:
 * SNI - Allows the use of one TLS server for multiple hostnames with different
   SSL certificates.
 
-**Note:** Use of ALPN is recommended over NPN. The NPN extension has never been
+*Note*: Use of ALPN is recommended over NPN. The NPN extension has never been
 formally defined or documented and generally not recommended for use.
 
 ### Client-initiated renegotiation attack mitigation
@@ -136,7 +136,7 @@ threshold is exceeded. The limits are configurable:
 * `tls.CLIENT_RENEG_WINDOW` {number} Specifies the time renegotiation window
   in seconds. Defaults to `600` (10 minutes).
 
-**Note:** The default renegotiation limits should not be modified without a full
+*Note*: The default renegotiation limits should not be modified without a full
 understanding of the implications and risks.
 
 To test the renegotiation limits on a server, connect to it using the OpenSSL
@@ -187,7 +187,7 @@ in [`tls.createServer()`], [`tls.connect()`], and when creating new
 
 Consult [OpenSSL cipher list format documentation][] for details on the format.
 
-**Note:** The default cipher suite included within Node.js has been carefully
+*Note*: The default cipher suite included within Node.js has been carefully
 selected to reflect current security best practices and risk mitigation.
 Changing the default cipher suite can have a significant impact on the security
 of an application. The `--tls-cipher-list` switch and `ciphers` option should by
@@ -228,7 +228,7 @@ three arguments when called:
 * `callback` {Function} A callback function taking no arguments that must be
   invoked in order for data to be sent or received over the secure connection.
 
-**Note:** Listening for this event will have an effect only on connections
+*Note*: Listening for this event will have an effect only on connections
 established after the addition of the event listener.
 
 ### Event: 'OCSPRequest'
@@ -269,14 +269,14 @@ The typical flow of an OCSP Request is as follows:
 5. Client validates the response and either destroys the socket or performs a
    handshake.
 
-**Note:** The `issuer` can be `null` if the certificate is either self-signed or
+*Note*: The `issuer` can be `null` if the certificate is either self-signed or
 the issuer is not in the root certificates list. (An issuer may be provided
 via the `ca` option when establishing the TLS connection.)
 
-**Note:** Listening for this event will have an effect only on connections
+*Note*: Listening for this event will have an effect only on connections
 established after the addition of the event listener.
 
-**Note:** An npm module like [asn1.js] may be used to parse the certificates.
+*Note*: An npm module like [asn1.js] may be used to parse the certificates.
 
 ### Event: 'resumeSession'
 <!-- YAML
@@ -297,7 +297,7 @@ the session cannot be resumed (i.e., doesn't exist in storage) the callback may
 be invoked as `callback(null, null)`. Calling `callback(err)` will terminate the
 incoming connection and destroy the socket.
 
-**Note:** Listening for this event will have an effect only on connections
+*Note*: Listening for this event will have an effect only on connections
 established after the addition of the event listener.
 
 The following illustrates resuming a TLS session:
@@ -435,11 +435,11 @@ added: v3.0.0
 
 Updates the keys for encryption/decryption of the [TLS Session Tickets][].
 
-**Note:** The key's `Buffer` should be 48 bytes long. See `ticketKeys` option in
+*Note*: The key's `Buffer` should be 48 bytes long. See `ticketKeys` option in
 [tls.createServer](#tls_tls_createserver_options_secureconnectionlistener) for
 more information on how it is used.
 
-**Note:** Changes to the ticket keys are effective only for future server
+*Note*: Changes to the ticket keys are effective only for future server
 connections. Existing or currently pending server connections will use the
 previous keys.
 
@@ -454,7 +454,7 @@ encryption of written data and all required TLS negotiation.
 
 Instances of `tls.TLSSocket` implement the duplex [Stream][] interface.
 
-**Note:** Methods that return TLS connection metadata (e.g.
+*Note*: Methods that return TLS connection metadata (e.g.
 [`tls.TLSSocket.getPeerCertificate()`][] will only return data while the
 connection is open.
 
@@ -665,7 +665,7 @@ added: v0.11.4
 
 Returns the TLS session ticket or `undefined` if no session was negotiated.
 
-**Note:** This only works with client TLS sockets. Useful only for debugging,
+*Note*: This only works with client TLS sockets. Useful only for debugging,
 for session reuse provide `session` option to [`tls.connect()`][].
 
 ### tlsSocket.localAddress
@@ -722,10 +722,10 @@ The `tlsSocket.renegotiate()` method initiates a TLS renegotiation process.
 Upon completion, the `callback` function will be passed a single argument
 that is either an `Error` (if the request failed) or `null`.
 
-**Note:** This method can be used to request a peer's certificate after the
+*Note*: This method can be used to request a peer's certificate after the
 secure connection has been established.
 
-**Note:** When running as the server, the socket will be destroyed with an error
+*Note*: When running as the server, the socket will be destroyed with an error
 after `handshakeTimeout` timeout.
 
 ### tlsSocket.setMaxSendFragment(size)
@@ -885,7 +885,7 @@ added: v0.11.3
 Same as [`tls.connect()`][] except that `path` can be provided
 as an argument instead of an option.
 
-**Note:** A path option, if specified, will take precedence over the path
+*Note*: A path option, if specified, will take precedence over the path
 argument.
 
 ## tls.connect(port[, host][, options][, callback])
@@ -901,7 +901,7 @@ added: v0.11.3
 Same as [`tls.connect()`][] except that `port` and `host` can be provided
 as arguments instead of options.
 
-**Note:** A port or host option, if specified, will take precedence over any
+*Note*: A port or host option, if specified, will take precedence over any
 port or host argument.
 
 
@@ -989,11 +989,11 @@ changes:
   * `sessionIdContext` {string} Optional opaque identifier used by servers to
     ensure session state is not shared between applications. Unused by clients.
 
-**Note:** [`tls.createServer()`][] sets the default value of the
+*Note*: [`tls.createServer()`][] sets the default value of the
 `honorCipherOrder` option to `true`, other APIs that create secure contexts
 leave it unset.
 
-**Note:** [`tls.createServer()`][] uses a 128 bit truncated SHA1 hash value
+*Note*: [`tls.createServer()`][] uses a 128 bit truncated SHA1 hash value
 generated from `process.argv` as the default value of the `sessionIdContext`
 option, other APIs that create secure contexts have no default value.
 
@@ -1067,7 +1067,7 @@ changes:
 Creates a new [tls.Server][].  The `secureConnectionListener`, if provided, is
 automatically set as a listener for the [`'secureConnection'`][] event.
 
-**Note:** The `ticketKeys` options is automatically shared between `cluster`
+*Note*: The `ticketKeys` options is automatically shared between `cluster`
 module workers.
 
 The following illustrates a simple echo server:
@@ -1245,9 +1245,9 @@ stream.
 `tls.createSecurePair()` returns a `tls.SecurePair` object with `cleartext` and
 `encrypted` stream properties.
 
-**Note:** `cleartext` has the same API as [`tls.TLSSocket`][].
+*Note*: `cleartext` has the same API as [`tls.TLSSocket`][].
 
-**Note:** The `tls.createSecurePair()` method is now deprecated in favor of
+*Note*: The `tls.createSecurePair()` method is now deprecated in favor of
 `tls.TLSSocket()`. For example, the code:
 
 ```js
