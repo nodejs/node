@@ -282,6 +282,8 @@ more information about the governance of the Node.js project, see
 **Italo A. Casas** &lt;me@italoacasas.com&gt; (he/him)
 * [JacksonTian](https://github.com/JacksonTian) -
 **Jackson Tian** &lt;shyvo1987@gmail.com&gt;
+* [jasongin](https://github.com/jasongin) -
+**Jason Ginchereau** &lt;jasongin@microsoft.com&gt;
 * [jbergstroem](https://github.com/jbergstroem) -
 **Johan Bergström** &lt;bugs@bergstroem.nu&gt;
 * [jhamhader](https://github.com/jhamhader) -
@@ -298,6 +300,8 @@ more information about the governance of the Node.js project, see
 **Julian Duque** &lt;julianduquej@gmail.com&gt; (he/him)
 * [JungMinu](https://github.com/JungMinu) -
 **Minwoo Jung** &lt;minwoo@nodesource.com&gt; (he/him)
+* [kunalspathak](https://github.com/kunalspathak) -
+**Kunal Pathak** &lt;kunal.pathak@microsoft.com&gt;
 * [lance](https://github.com/lance) -
 **Lance Ball** &lt;lball@redhat.com&gt;
 * [lucamaraschi](https://github.com/lucamaraschi) -
