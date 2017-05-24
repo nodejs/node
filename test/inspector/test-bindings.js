@@ -82,7 +82,7 @@ function testSampleDebugSession() {
   }, TypeError);
   session.post('Debugger.enable', () => cbAsSecondArgCalled = true);
   session.post('Debugger.setBreakpointByUrl', {
-    'lineNumber': 11,
+    'lineNumber': 12,
     'url': path.resolve(__dirname, __filename),
     'columnNumber': 0,
     'condition': ''
