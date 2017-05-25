@@ -294,32 +294,12 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
   Local<Context> context = promise->CreationContext();
   Environment* env = Environment::GetCurrent(context);
   if (type == PromiseHookType::kInit) {
-    // Unfortunately, promises don't have internal fields. Need a surrogate that
-    // async wrap can wrap.
-    Local<Object> obj =
-      env->async_hooks_promise_object()->NewInstance(context).ToLocalChecked();
-    PromiseWrap* wrap = new PromiseWrap(env, obj);
-    v8::PropertyAttribute hidden =
-      static_cast<v8::PropertyAttribute>(v8::ReadOnly
-                                         | v8::DontDelete
-                                         | v8::DontEnum);
-    promise->DefineOwnProperty(context,
-              env->promise_wrap(),
-              v8::External::New(env->isolate(), wrap),
-              hidden).FromJust();
-    // The async tag will be destroyed at the same time as the promise as the
-    // only reference to it is held by the promise. This allows the promise
-    // wrap instance to be notified when the promise is destroyed.
-    promise->DefineOwnProperty(context,
-              env->promise_async_tag(),
-              obj, hidden).FromJust();
+    PromiseWrap* wrap = new PromiseWrap(env, promise);
+    wrap->MakeWeak(wrap);
   } else if (type == PromiseHookType::kResolve) {
     // TODO(matthewloring): need to expose this through the async hooks api.
   }
-  Local<v8::Value> external_wrap =
-      promise->Get(context, env->promise_wrap()).ToLocalChecked();
-  PromiseWrap* wrap =
-    static_cast<PromiseWrap*>(external_wrap.As<v8::External>()->Value());
+  PromiseWrap* wrap = Unwrap<PromiseWrap>(promise);
   CHECK_NE(wrap, nullptr);
   if (type == PromiseHookType::kBefore) {
     PreCallbackExecution(wrap, false);
@@ -414,11 +394,6 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "popAsyncIds", PopAsyncIds);
   env->SetMethod(target, "clearIdStack", ClearIdStack);
   env->SetMethod(target, "addIdToDestroyList", QueueDestroyId);
-
-  Local<v8::ObjectTemplate> promise_object_template =
-    v8::ObjectTemplate::New(env->isolate());
-  promise_object_template->SetInternalFieldCount(1);
-  env->set_async_hooks_promise_object(promise_object_template);
 
   v8::PropertyAttribute ReadOnlyDontDelete =
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
