@@ -1381,7 +1381,9 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                Local<Value> argv[],
                                async_uid async_id,
                                async_uid trigger_id) {
-  Local<String> method_string = OneByteString(isolate, method);
+  Local<String> method_string =
+      String::NewFromUtf8(isolate, method, v8::NewStringType::kNormal)
+          .ToLocalChecked();
   return MakeCallback(isolate, recv, method_string, argc, argv,
                       async_id, trigger_id);
 }
