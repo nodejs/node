@@ -5085,9 +5085,6 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size, size_t max_old_space_size,
     max_old_generation_size_ =
         static_cast<size_t>(FLAG_max_old_space_size) * MB;
   }
-  if (FLAG_max_executable_size > 0) {
-    max_executable_size_ = static_cast<size_t>(FLAG_max_executable_size) * MB;
-  }
 
   if (Page::kPageSize > MB) {
     max_semi_space_size_ = ROUND_UP(max_semi_space_size_, Page::kPageSize);
