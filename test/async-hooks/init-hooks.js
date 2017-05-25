@@ -170,11 +170,11 @@ class ActivityCollector {
     this.oninit(uid, type, triggerId, handle);
   }
 
-  _before(uid) {
+  _before(uid, triggerId) {
     const h = this._getActivity(uid, 'before');
     this._stamp(h, 'before');
     this._maybeLog(uid, h && h.type, 'before');
-    this.onbefore(uid);
+    this.onbefore(uid, triggerId);
   }
 
   _after(uid) {
