@@ -46,9 +46,9 @@ const server = http.createServer(function(req, res) {
 
   const requestHeaders = Object.keys(req.headers);
   requestHeaders.forEach(function(header) {
-    assert.notStrictEqual(
-      expectedHeaders[req.method].indexOf(header.toLowerCase()),
-      -1,
+    assert.strictEqual(
+      expectedHeaders[req.method].includes(header.toLowerCase()),
+      true,
       `${header} should not exist for method ${req.method}`
     );
   });
