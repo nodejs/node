@@ -20,7 +20,14 @@ using v8::Value;
 void CreateAsyncResource(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   assert(args[0]->IsObject());
-  AsyncResource* r = new AsyncResource(isolate, args[0].As<Object>(), "foobär");
+  AsyncResource* r;
+  if (args[1]->IsInt32()) {
+    r = new AsyncResource(isolate, args[0].As<Object>(), "foobär",
+                          args[1].As<Integer>()->Value());
+  } else {
+    r = new AsyncResource(isolate, args[0].As<Object>(), "foobär");
+  }
+
   args.GetReturnValue().Set(
       External::New(isolate, static_cast<void*>(r)));
 }
@@ -73,12 +80,26 @@ void CallViaUtf8Name(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ret.FromMaybe(Local<Value>()));
 }
 
+void GetUid(const FunctionCallbackInfo<Value>& args) {
+  assert(args[0]->IsExternal());
+  auto r = static_cast<AsyncResource*>(args[0].As<External>()->Value());
+  args.GetReturnValue().Set(r->get_uid());
+}
+
+void GetResource(const FunctionCallbackInfo<Value>& args) {
+  assert(args[0]->IsExternal());
+  auto r = static_cast<AsyncResource*>(args[0].As<External>()->Value());
+  args.GetReturnValue().Set(r->get_resource());
+}
+
 void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "createAsyncResource", CreateAsyncResource);
   NODE_SET_METHOD(exports, "destroyAsyncResource", DestroyAsyncResource);
   NODE_SET_METHOD(exports, "callViaFunction", CallViaFunction);
   NODE_SET_METHOD(exports, "callViaString", CallViaString);
   NODE_SET_METHOD(exports, "callViaUtf8Name", CallViaUtf8Name);
+  NODE_SET_METHOD(exports, "getUid", GetUid);
+  NODE_SET_METHOD(exports, "getResource", GetResource);
 }
 
 }  // namespace
