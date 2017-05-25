@@ -551,10 +551,14 @@ checks fail, and does nothing otherwise.
 <!-- YAML
 added: v0.6.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7831
     description: The passed `options` object will never be modified.
@@ -619,6 +623,10 @@ The synchronous version of [`fs.appendFile()`][]. Returns `undefined`.
 <!-- YAML
 added: v0.1.30
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -626,7 +634,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `path` {string|Buffer|URL}
@@ -655,6 +663,10 @@ Synchronous chmod(2). Returns `undefined`.
 <!-- YAML
 added: v0.1.97
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -662,7 +674,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `path` {string|Buffer|URL}
@@ -693,10 +705,14 @@ Synchronous chown(2). Returns `undefined`.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `fd` {integer}
@@ -987,10 +1003,14 @@ a callback.)
 <!-- YAML
 added: v0.4.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `fd` {integer}
@@ -1014,10 +1034,14 @@ Synchronous fchmod(2). Returns `undefined`.
 <!-- YAML
 added: v0.4.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `fd` {integer}
@@ -1043,10 +1067,14 @@ Synchronous fchown(2). Returns `undefined`.
 <!-- YAML
 added: v0.1.96
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `fd` {integer}
@@ -1068,10 +1096,14 @@ Synchronous fdatasync(2). Returns `undefined`.
 <!-- YAML
 added: v0.1.95
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `fd` {integer}
@@ -1094,10 +1126,14 @@ Synchronous fstat(2). Returns an instance of [`fs.Stats`][].
 <!-- YAML
 added: v0.1.96
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `fd` {integer}
@@ -1119,10 +1155,14 @@ Synchronous fsync(2). Returns `undefined`.
 <!-- YAML
 added: v0.8.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `fd` {integer}
@@ -1187,10 +1227,14 @@ Synchronous ftruncate(2). Returns `undefined`.
 <!-- YAML
 added: v0.4.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
   - version: v4.1.0
     pr-url: https://github.com/nodejs/node/pull/2387
     description: Numeric strings, `NaN` and `Infinity` are now allowed
@@ -1225,10 +1269,14 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 deprecated: v0.4.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `path` {string|Buffer}
@@ -1254,10 +1302,14 @@ Synchronous lchmod(2). Returns `undefined`.
 <!-- YAML
 deprecated: v0.4.7
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `path` {string|Buffer}
@@ -1283,6 +1335,10 @@ Synchronous lchown(2). Returns `undefined`.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `existingPath` and `newPath` parameters can be WHATWG
@@ -1291,7 +1347,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `existingPath` {string|Buffer|URL}
@@ -1321,6 +1377,10 @@ Synchronous link(2). Returns `undefined`.
 <!-- YAML
 added: v0.1.30
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -1328,7 +1388,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `path` {string|Buffer|URL}
@@ -1357,6 +1417,10 @@ Synchronous lstat(2). Returns an instance of [`fs.Stats`][].
 <!-- YAML
 added: v0.1.8
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -1364,7 +1428,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `path` {string|Buffer|URL}
@@ -1393,10 +1457,14 @@ Synchronous mkdir(2). Returns `undefined`.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
   - version: v6.2.1
     pr-url: https://github.com/nodejs/node/pull/6828
     description: The `callback` parameter is optional now.
@@ -1619,6 +1687,10 @@ a Promise for an object with `bytesRead` and `buffer` properties.
 <!-- YAML
 added: v0.1.8
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -1626,7 +1698,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5616
     description: The `options` parameter was added.
@@ -1672,6 +1744,10 @@ the filenames returned will be passed as `Buffer` objects.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -1679,7 +1755,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
   - version: v5.1.0
     pr-url: https://github.com/nodejs/node/pull/3740
     description: The `callback` will always be called with `null` as the `error`
@@ -1775,6 +1851,10 @@ fs.readFileSync('<directory>'); // => null, <data>
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -1782,7 +1862,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `path` {string|Buffer|URL}
@@ -1840,6 +1920,10 @@ Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using
@@ -1847,7 +1931,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
   - version: v6.4.0
     pr-url: https://github.com/nodejs/node/pull/7899
     description: Calling `realpath` now works again for various edge cases
@@ -1906,6 +1990,10 @@ will be passed as a `Buffer` object.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `oldPath` and `newPath` parameters can be WHATWG `URL`
@@ -1914,7 +2002,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `oldPath` {string|Buffer|URL}
@@ -1944,6 +2032,10 @@ Synchronous rename(2). Returns `undefined`.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameters can be a WHATWG `URL` object using
@@ -1951,7 +2043,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `path` {string|Buffer|URL}
@@ -1978,6 +2070,10 @@ Synchronous rmdir(2). Returns `undefined`.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -1985,7 +2081,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `path` {string|Buffer|URL}
@@ -2070,10 +2166,14 @@ Synchronous symlink(2). Returns `undefined`.
 <!-- YAML
 added: v0.8.6
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `path` {string|Buffer}
@@ -2099,6 +2199,10 @@ passed as the first argument. In this case, `fs.ftruncateSync()` is called.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -2106,7 +2210,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `path` {string|Buffer|URL}
@@ -2152,6 +2256,10 @@ when possible.
 <!-- YAML
 added: v0.4.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `path` parameter can be a WHATWG `URL` object using `file:`
@@ -2159,7 +2267,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
   - version: v4.1.0
     pr-url: https://github.com/nodejs/node/pull/2387
     description: Numeric strings, `NaN` and `Infinity` are now allowed
@@ -2368,6 +2476,10 @@ to compare `curr.mtime` and `prev.mtime`.
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.4.0
     pr-url: https://github.com/nodejs/node/pull/10382
     description: The `buffer` parameter can now be a `Uint8Array`.
@@ -2377,7 +2489,7 @@ changes:
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `fd` {integer}
@@ -2414,13 +2526,17 @@ the end of the file.
 <!-- YAML
 added: v0.11.5
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.2.0
     pr-url: https://github.com/nodejs/node/pull/7856
     description: The `position` parameter is optional now.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
 -->
 
 * `fd` {integer}
@@ -2458,13 +2574,17 @@ the end of the file.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/12562
+    description: The `callback` parameter is no longer optional. Not passing
+                 it will throw a `TypeError` at runtime.
   - version: v7.4.0
     pr-url: https://github.com/nodejs/node/pull/10382
     description: The `data` parameter can now be a `Uint8Array`.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7897
     description: The `callback` parameter is no longer optional. Not passing
-                 it will emit a deprecation warning.
+                 it will emit a deprecation warning with id DEP0013.
   - version: v5.0.0
     pr-url: https://github.com/nodejs/node/pull/3163
     description: The `file` parameter can be a file descriptor now.
