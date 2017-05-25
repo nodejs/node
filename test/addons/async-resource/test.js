@@ -5,6 +5,8 @@ const assert = require('assert');
 const binding = require(`./build/${common.buildType}/binding`);
 const async_hooks = require('async_hooks');
 
+const kObjectTag = Symbol('kObjectTag');
+
 const bindingUids = [];
 let expectedTriggerId;
 let before = 0;
@@ -13,7 +15,11 @@ let destroy = 0;
 
 async_hooks.createHook({
   init(id, type, triggerId, resource) {
+    assert.strictEqual(typeof id, 'number');
+    assert.strictEqual(typeof resource, 'object');
+    assert(id > 1);
     if (type === 'foobär') {
+      assert.strictEqual(resource.kObjectTag, kObjectTag);
       assert.strictEqual(triggerId, expectedTriggerId);
       bindingUids.push(id);
     }
@@ -32,16 +38,21 @@ async_hooks.createHook({
   }
 }).enable();
 
+assert.strictEqual(binding.getCurrentId(), 1);
+
 for (const call of [binding.callViaFunction,
                     binding.callViaString,
                     binding.callViaUtf8Name]) {
   for (const passedTriggerId of [undefined, 12345]) {
+    let uid;
     const object = {
       methöd(arg) {
         assert.strictEqual(this, object);
         assert.strictEqual(arg, 42);
+        assert.strictEqual(binding.getCurrentId(), uid);
         return 'baz';
-      }
+      },
+      kObjectTag
     };
 
     if (passedTriggerId === undefined)
@@ -50,12 +61,12 @@ for (const call of [binding.callViaFunction,
       expectedTriggerId = passedTriggerId;
 
     const resource = binding.createAsyncResource(object, passedTriggerId);
+    uid = bindingUids[bindingUids.length - 1];
+
     const ret = call(resource);
     assert.strictEqual(ret, 'baz');
     assert.strictEqual(binding.getResource(resource), object);
-
-    const mostRecentUid = bindingUids[bindingUids.length - 1];
-    assert.strictEqual(binding.getUid(resource), mostRecentUid);
+    assert.strictEqual(binding.getUid(resource), uid);
 
     binding.destroyAsyncResource(resource);
   }
