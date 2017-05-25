@@ -2964,16 +2964,17 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns the highest N-API version supported by the
 Node.js runtime.  N-API is planned to be additive such that
-newer releases of Node.js may support additional API functions.  Since
-the goal is forward compatibility, older versions may not support
-the new functions even if we port empty stubs to earlier Node.js
-versions in order to facilitate use of the new functions with later
-Node.js releases.  To support this case an addon can call
-`napi_get_version` to check which level of N-API is supported
-at run time. Based on the result of this check the addon can
-implement appropriate code paths when functions
-are, or are not, fully implemented. 
+newer releases of Node.js may support additional API functions.
+In order to allow an addon to use a newer function when running with
+versions of Node.js that support it, while providing
+fallback behaviour when runnign with Node.js versions that don't 
+support it:
 
+* Call `napi_get_version()` to determine if the API is available.
+* If available, dynamically load a pointer to the function using `uv_dlsym()`.
+* Use the dynamically loaded pointer to invoke the function.
+* If the function is not available, provide an alternate implementation
+  that does not use the function.
 
 [Aynchronous Operations]: #n_api_asynchronous_operations
 [Basic N-API Data Types]: #n_api_basic_n_api_data_types
