@@ -1612,7 +1612,7 @@ added: v0.11.14
 - `buffer` {Buffer | TypedArray | DataView}
 
 Decrypts `buffer` with `private_key`.
-* Returns: New [`Buffer`][] with decrypted content
+* Returns: New [`Buffer`][] with decrypted content.
 
 `private_key` can be an object or a string. If `private_key` is a string, it is
 treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
@@ -1630,7 +1630,7 @@ added: v1.1.0
 - `buffer` {Buffer | TypedArray | DataView}
 
 Encrypts `buffer` with `private_key`.
-* Returns: New [`Buffer`][] with encrypted content
+* Returns: New [`Buffer`][] with encrypted content.
 
 `private_key` can be an object or a string. If `private_key` is a string, it is
 treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
@@ -1648,7 +1648,7 @@ added: v1.1.0
 - `buffer` {Buffer | TypedArray | DataView}
 
 Decrypts `buffer` with `public_key`.
-* Returns: New [`Buffer`][] with decrypted content
+* Returns: New [`Buffer`][] with decrypted content.
 
 `public_key` can be an object or a string. If `public_key` is a string, it is
 treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
@@ -1669,7 +1669,7 @@ added: v0.11.14
 - `buffer` {Buffer | TypedArray | DataView}
 
 Encrypts the content of `buffer` with `public_key`
-* Returns: New [`Buffer`][] with encrypted content
+* Returns: New [`Buffer`][] with encrypted content.
 
 `public_key` can be an object or a string. If `public_key` is a string, it is
 treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
