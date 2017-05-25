@@ -2950,11 +2950,11 @@ callback invocation, even if it has been successfully cancelled.
 
 ### napi_get_version
 <!-- YAML
-added: v8.0.0
+added: REPLACEME
 -->
 ```C
 NAPI_EXTERN napi_status napi_get_version(napi_env env,
-                                        uint32_t* result);
+                                         uint32_t* result);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
