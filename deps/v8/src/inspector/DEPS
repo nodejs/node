@@ -1,5 +1,6 @@
 include_rules = [
   "-src",
+  "-include/v8-debug.h",
   "+src/base/atomicops.h",
   "+src/base/macros.h",
   "+src/base/logging.h",
@@ -7,6 +8,6 @@ include_rules = [
   "+src/conversions.h",
   "+src/inspector",
   "+src/tracing",
-  "-include/v8-debug.h",
   "+src/debug/debug-interface.h",
+  "+src/debug/interface-types.h",
 ]

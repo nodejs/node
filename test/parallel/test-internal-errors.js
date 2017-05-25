@@ -41,47 +41,89 @@ assert.strictEqual(err5.code, 'TEST_ERROR_1');
 
 assert.throws(
   () => new errors.Error('TEST_FOO_KEY'),
-  /^AssertionError: An invalid error message key was used: TEST_FOO_KEY\.$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^An invalid error message key was used: TEST_FOO_KEY\.$/
+  }));
 // Calling it twice yields same result (using the key does not create it)
 assert.throws(
   () => new errors.Error('TEST_FOO_KEY'),
-  /^AssertionError: An invalid error message key was used: TEST_FOO_KEY\.$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^An invalid error message key was used: TEST_FOO_KEY\.$/
+  }));
 assert.throws(
   () => new errors.Error(1),
-  /^AssertionError: 'number' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^'number' === 'string'$/
+  }));
 assert.throws(
   () => new errors.Error({}),
-  /^AssertionError: 'object' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^'object' === 'string'$/
+  }));
 assert.throws(
   () => new errors.Error([]),
-  /^AssertionError: 'object' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^'object' === 'string'$/
+  }));
 assert.throws(
   () => new errors.Error(true),
-  /^AssertionError: 'boolean' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^'boolean' === 'string'$/
+  }));
 assert.throws(
   () => new errors.TypeError(1),
-  /^AssertionError: 'number' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^'number' === 'string'$/
+  }));
 assert.throws(
   () => new errors.TypeError({}),
-  /^AssertionError: 'object' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^'object' === 'string'$/
+  }));
 assert.throws(
   () => new errors.TypeError([]),
-  /^AssertionError: 'object' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^'object' === 'string'$/
+  }));
 assert.throws(
   () => new errors.TypeError(true),
-  /^AssertionError: 'boolean' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^'boolean' === 'string'$/
+  }));
 assert.throws(
   () => new errors.RangeError(1),
-  /^AssertionError: 'number' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^'number' === 'string'$/
+  }));
 assert.throws(
   () => new errors.RangeError({}),
-  /^AssertionError: 'object' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^'object' === 'string'$/
+  }));
 assert.throws(
   () => new errors.RangeError([]),
-  /^AssertionError: 'object' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^'object' === 'string'$/
+  }));
 assert.throws(
   () => new errors.RangeError(true),
-  /^AssertionError: 'boolean' === 'string'$/);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^'boolean' === 'string'$/
+  }));
 
 
 // Tests for common.expectsError
@@ -115,7 +157,10 @@ assert.throws(() => {
   assert.throws(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
   }, common.expectsError({ code: 'TEST_ERROR_1', type: RangeError }));
-}, /^AssertionError: .+ is not the expected type \S/);
+}, common.expectsError({
+  code: 'ERR_ASSERTION',
+  message: /^.+ is not the expected type \S/
+}));
 
 assert.throws(() => {
   assert.throws(() => {
@@ -123,7 +168,10 @@ assert.throws(() => {
   }, common.expectsError({ code: 'TEST_ERROR_1',
                            type: TypeError,
                            message: /^Error for testing 2/ }));
-}, /AssertionError: .+ does not match \S/);
+}, common.expectsError({
+  code: 'ERR_ASSERTION',
+  message: /.+ does not match \S/
+}));
 
 // // Test ERR_INVALID_ARG_TYPE
 assert.strictEqual(errors.message('ERR_INVALID_ARG_TYPE', ['a', 'b']),
@@ -156,8 +204,10 @@ assert.strictEqual(errors.message('ERR_INVALID_URL_SCHEME', [['a', 'b', 'c']]),
                    'The URL must be one of scheme a, b, or c');
 assert.throws(
   () => errors.message('ERR_INVALID_URL_SCHEME', [[]]),
-  /^AssertionError: At least one expected value needs to be specified$/
-);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^At least one expected value needs to be specified$/
+  }));
 
 // Test ERR_MISSING_ARGS
 assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['name']),
@@ -168,5 +218,7 @@ assert.strictEqual(errors.message('ERR_MISSING_ARGS', ['a', 'b', 'c']),
                    'The "a", "b", and "c" arguments must be specified');
 assert.throws(
   () => errors.message('ERR_MISSING_ARGS'),
-  /^AssertionError: At least one arg needs to be specified$/
-);
+  common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: /^At least one arg needs to be specified$/
+  }));

@@ -12,7 +12,7 @@ compiled for one version to run on later versions of Node.js without
 recompilation.
 
 Addons are built/packaged with the same approach/tools
-outlined in the section titled  [C/C++ Addons](addons.html).
+outlined in the section titled  [C++ Addons](addons.html).
 The only difference is the set of APIs that are used by the native code.
 Instead of using the V8 or [Native Abstractions for Node.js][] APIs,
 the functions available in the N-API are used.
@@ -51,6 +51,14 @@ API. Binaries built with these wrapper modules will depend on the symbols
 for the N-API C based functions exported by Node.js. These wrappers are not
 part of N-API, nor will they be maintained as part of Node.js. One such
 example is: [node-api](https://github.com/nodejs/node-api).
+
+In order to use the N-API functions, include the file
+[node_api.h](https://github.com/nodejs/node/blob/master/src/node_api.h)
+which is located in the src directory in the node development tree.
+For example:
+```C
+#include <node_api.h>
+```
 
 ## Basic N-API Data Types
 
@@ -952,7 +960,7 @@ The Array's length property is set to the passed-in length parameter.
 However, the underlying buffer is not guaranteed to be pre-allocated by the VM
 when the array is created - that behavior is left to the underlying VM
 implementation.
-if the buffer must be a contiguous block of memory that can be
+If the buffer must be a contiguous block of memory that can be
 directly read and/or written via C, consider using
 [`napi_create_external_arraybuffer`][].
 
@@ -1582,7 +1590,7 @@ x is passed in it returns `napi_string_expected`.
 
 This API returns the UTF8-encoded string corresponding the value passed in.
 
-#### *napi_get_value_string_utf16_length*
+#### *napi_get_value_string_utf16*
 <!-- YAML
 added: v8.0.0
 -->
@@ -2855,13 +2863,6 @@ will be invoked with a status value of `napi_cancelled`.
 The work should not be deleted before the `complete`
 callback invocation, even when it was cancelled.
 
-**Note:** As mentioned in the section on memory management, if
-the code to be run in the callbacks will create N-API values, then
-N-API handle scope functions must be used to create/destroy a
-`napi_handle_scope` such that the scope is active when
-objects can be created.
-
-
 ### napi_create_async_work
 <!-- YAML
 added: v8.0.0
@@ -2938,11 +2939,12 @@ NAPI_EXTERN napi_status napi_cancel_async_work(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This API cancels a previously allocated work, provided
-it has not yet been queued for execution. After this function is called
+This API cancels queued work if it has not yet
+been started.  If it has already started executing, it cannot be
+cancelled and `napi_generic_failure` will be returned. If successful,
 the `complete` callback will be invoked with a status value of
 `napi_cancelled`. The work should not be deleted before the `complete`
-callback invocation, even when it was cancelled.
+callback invocation, even if it has been successfully cancelled.
 
 
 [Aynchronous Operations]: #n_api_asynchronous_operations
@@ -2965,13 +2967,12 @@ callback invocation, even when it was cancelled.
 [`napi_close_handle_scope`]: #n_api_napi_close_handle_scope
 [`napi_create_async_work`]: #n_api_napi_create_async_work
 [`napi_create_error`]: #n_api_napi_create_error
-[`napi_create_external_arraybuffer`][]: #n_api_napi_create_external_arraybuffer
+[`napi_create_external_arraybuffer`]: #n_api_napi_create_external_arraybuffer
 [`napi_create_range_error`]: #n_api_napi_create_range_error
 [`napi_create_reference`]: #n_api_napi_create_reference
 [`napi_create_type_error`]: #n_api_napi_create_type_error
-[`napi_define_class`]: #n_api_napi_define_class
 [`napi_delete_async_work`]: #n_api_napi_delete_async_work
-[`napi_define_class`][]: #n_api_napi_define_class
+[`napi_define_class`]: #n_api_napi_define_class
 [`napi_delete_reference`]: #n_api_napi_delete_reference
 [`napi_escape_handle`]: #n_api_napi_escape_handle
 [`napi_get_array_length`]: #n_api_napi_get_array_length

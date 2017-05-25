@@ -538,8 +538,6 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
   JSFunction::SetInitialMap(object_function, object_map,
                             isolate->factory()->null_value());
   object_map->set_is_access_check_needed(true);
-  object_map->set_is_callable();
-  object_map->set_is_constructor(true);
 
   Handle<JSObject> object = isolate->factory()->NewJSObject(object_function);
   JSObject::ForceSetPrototype(object, isolate->factory()->null_value());

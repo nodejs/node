@@ -29,7 +29,7 @@ if (process.argv[2] === 'server') {
 
   const server = net.createServer(function(conn) {
     conn.on('data', function(data) {
-      console.log('server received ' + data.length + ' bytes');
+      console.log(`server received ${data.length} bytes`);
     });
 
     conn.on('close', function() {

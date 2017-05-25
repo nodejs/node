@@ -7,7 +7,7 @@
 
 * [Assertion Testing](assert.html)
 * [Buffer](buffer.html)
-* [C/C++ Addons](addons.html)
+* [C++ Addons](addons.html)
 * [C/C++ Addons - N-API](n-api.html)
 * [Child Processes](child_process.html)
 * [Cluster](cluster.html)
@@ -24,6 +24,7 @@
 * [Globals](globals.html)
 * [HTTP](http.html)
 * [HTTPS](https.html)
+* [Inspector](inspector.html)
 * [Modules](modules.html)
 * [Net](net.html)
 * [OS](os.html)

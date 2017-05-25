@@ -1300,12 +1300,9 @@ class MacroAssembler : public Assembler {
     MacroAssembler* masm_;
   };
 
-  // ---------------------------------------------------------------------------
-  // Debugger Support
+  // Frame restart support
+  void MaybeDropFrames();
 
-  void DebugBreak();
-
-  // ---------------------------------------------------------------------------
   // Exception handling
 
   // Push a new stack handler and link into stack handler chain.
@@ -1370,9 +1367,6 @@ class MacroAssembler : public Assembler {
   // |temp| holds |result|'s map when done, and |temp2| its instance type.
   void GetMapConstructor(Register result, Register map, Register temp,
                          Register temp2);
-
-  void TryGetFunctionPrototype(Register function, Register result,
-                               Register scratch, Label* miss);
 
   // Compare object type for heap object.  heap_object contains a non-Smi
   // whose object type should be compared with the given type.  This both
@@ -2002,12 +1996,6 @@ class MacroAssembler : public Assembler {
   CPURegList tmp_list_;
   CPURegList fptmp_list_;
 
-  void InitializeNewString(Register string,
-                           Register length,
-                           Heap::RootListIndex map_index,
-                           Register scratch1,
-                           Register scratch2);
-
  public:
   // Far branches resolving.
   //
@@ -2157,6 +2145,8 @@ class InlineSmiCheckInfo {
     return smi_check_;
   }
 
+  int SmiCheckDelta() const { return smi_check_delta_; }
+
   // Use MacroAssembler::InlineData to emit information about patchable inline
   // SMI checks. The caller may specify 'reg' as NoReg and an unbound 'site' to
   // indicate that there is no inline SMI check. Note that 'reg' cannot be csp.
@@ -2174,6 +2164,7 @@ class InlineSmiCheckInfo {
 
  private:
   Register reg_;
+  int smi_check_delta_;
   Instruction* smi_check_;
 
   // Fields in the data encoded by InlineData.

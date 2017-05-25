@@ -51,7 +51,7 @@ server.listen(0, options.host, function() {
     }));
 
     res.on('data', common.mustCall(function(data) {
-      assert.strictEqual('' + data, '*');
+      assert.strictEqual(String(data), '*');
       nchunks++;
     }, 2));
 

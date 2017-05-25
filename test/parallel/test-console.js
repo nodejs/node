@@ -123,13 +123,13 @@ const expectedStrings = [
 ];
 
 for (const expected of expectedStrings) {
-  assert.strictEqual(expected + '\n', strings.shift());
-  assert.strictEqual(expected + '\n', errStrings.shift());
+  assert.strictEqual(`${expected}\n`, strings.shift());
+  assert.strictEqual(`${expected}\n`, errStrings.shift());
 }
 
 for (const expected of expectedStrings) {
-  assert.strictEqual(expected + '\n', strings.shift());
-  assert.strictEqual(expected + '\n', errStrings.shift());
+  assert.strictEqual(`${expected}\n`, strings.shift());
+  assert.strictEqual(`${expected}\n`, errStrings.shift());
 }
 
 assert.strictEqual("{ foo: 'bar', inspect: [Function: inspect] }\n",
@@ -151,7 +151,10 @@ assert.strictEqual(errStrings.length, 0);
 
 assert.throws(() => {
   console.assert(false, 'should throw');
-}, /^AssertionError: should throw$/);
+}, common.expectsError({
+  code: 'ERR_ASSERTION',
+  message: /^should throw$/
+}));
 
 assert.doesNotThrow(() => {
   console.assert(true, 'this should not throw');

@@ -30,7 +30,7 @@ const N = 40;
 let finished = false;
 
 function doSpawn(i) {
-  const child = spawn('python', ['-c', 'print ' + SIZE + ' * "C"']);
+  const child = spawn('python', ['-c', `print ${SIZE} * "C"`]);
   let count = 0;
 
   child.stdout.setEncoding('ascii');
@@ -39,7 +39,7 @@ function doSpawn(i) {
   });
 
   child.stderr.on('data', (chunk) => {
-    console.log('stderr: ' + chunk);
+    console.log(`stderr: ${chunk}`);
   });
 
   child.on('close', () => {

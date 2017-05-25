@@ -35,7 +35,7 @@ class ActionStream extends stream.Stream {
       if (typeof action === 'object') {
         this.emit('keypress', '', action);
       } else {
-        this.emit('data', action + '\n');
+        this.emit('data', `${action}\n`);
       }
       setImmediate(doAction);
     };
@@ -117,19 +117,19 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY: historyPath },
     test: [UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_FILE: oldHistoryPath },
     test: [UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_FILE: '' },
     test: [UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
     env: {},
@@ -139,27 +139,27 @@ const tests = [
   {
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath },
     test: [UP, CLEAR, '\'42\'', ENTER],
-    expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt, '\'',
+    expected: [prompt, convertMsg, prompt, `${prompt}'=^.^='`, prompt, '\'',
                '4', '2', '\'', '\'42\'\n', prompt, prompt],
     clean: false
   },
   { // Requires the above testcase
     env: {},
     test: [UP, UP, ENTER],
-    expected: [prompt, prompt + '\'42\'', prompt + '\'=^.^=\'', '\'=^.^=\'\n',
+    expected: [prompt, `${prompt}'42'`, `${prompt}'=^.^='`, '\'=^.^=\'\n',
                prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP, UP, CLEAR],
-    expected: [prompt, prompt + '\'you look fabulous today\'', prompt]
+    expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
   {
     env: { NODE_REPL_HISTORY_FILE: oldHistoryPath,
            NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP, UP, UP, CLEAR],
-    expected: [prompt, convertMsg, prompt, prompt + '\'=^.^=\'', prompt]
+    expected: [prompt, convertMsg, prompt, `${prompt}'=^.^='`, prompt]
   },
   {
     env: { NODE_REPL_HISTORY: historyPathFail,
@@ -204,12 +204,6 @@ const tests = [
 const numtests = tests.length;
 
 
-let testsNotRan = tests.length;
-
-process.on('beforeExit', () =>
-  assert.strictEqual(testsNotRan, 0)
-);
-
 function cleanupTmpFile() {
   try {
     // Write over the file, clearing any history
@@ -224,6 +218,8 @@ function cleanupTmpFile() {
 // Copy our fixture to the tmp directory
 fs.createReadStream(historyFixturePath)
   .pipe(fs.createWriteStream(historyPath)).on('unpipe', () => runTest());
+
+const runTestWrap = common.mustCall(runTest, numtests);
 
 function runTest(assertCleaned) {
   const opts = tests.shift();
@@ -294,8 +290,7 @@ function runTest(assertCleaned) {
       try {
         // Ensure everything that we expected was output
         assert.strictEqual(expected.length, 0);
-        testsNotRan--;
-        setImmediate(runTest, cleaned);
+        setImmediate(runTestWrap, cleaned);
       } catch (err) {
         console.error(`Failed test # ${numtests - tests.length}`);
         throw err;

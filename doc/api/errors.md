@@ -238,7 +238,7 @@ function MyError() {
 
 // Without passing MyError to captureStackTrace, the MyError
 // frame would show up in the .stack property. By passing
-// the constructor, we omit that frame and all frames above it.
+// the constructor, we omit that frame, and retain all frames below it.
 new MyError().stack;
 ```
 
@@ -703,6 +703,35 @@ in some cases may accept `func(undefined)` but not `func()`). In most native
 Node.js APIs, `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
+<a id="ERR_SOCKET_ALREADY_BOUND"></a>
+### ERR_SOCKET_ALREADY_BOUND
+An error using the `'ERR_SOCKET_ALREADY_BOUND'` code is thrown when an attempt
+is made to bind a socket that has already been bound.
+
+<a id="ERR_SOCKET_BAD_PORT"></a>
+### ERR_SOCKET_BAD_PORT
+
+An error using the `'ERR_SOCKET_BAD_PORT'` code is thrown when an API
+function expecting a port > 0 and < 65536 receives an invalid value.
+
+<a id="ERR_SOCKET_BAD_TYPE"></a>
+### ERR_SOCKET_BAD_TYPE
+
+An error using the `'ERR_SOCKET_BAD_TYPE'` code is thrown when an API
+function expecting a socket type (`udp4` or `udp6`) receives an invalid value.
+
+<a id="ERR_SOCKET_CANNOT_SEND"></a>
+### ERR_SOCKET_CANNOT_SEND
+
+An error using the `'ERR_SOCKET_CANNOT_SEND'` code is thrown when data
+cannot be sent on a socket.
+
+<a id="ERR_SOCKET_DGRAM_NOT_RUNNING"></a>
+### ERR_SOCKET_DGRAM_NOT_RUNNING
+
+An error using the `'ERR_SOCKET_DGRAM_NOT_RUNNING'` code is thrown
+when a call is made and the UDP subsystem is not running.
+
 <a id="ERR_STDERR_CLOSE"></a>
 ### ERR_STDERR_CLOSE
 
@@ -751,29 +780,29 @@ in user code, although it is not impossible. Occurrences of this error are most
 likely an indication of a bug within Node.js itself.
 
 
+[`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`child.kill()`]: child_process.html#child_process_child_kill_signal
 [`child.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
-[`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
-[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
+[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
 [`fs`]: fs.html
 [`http`]: http.html
 [`https`]: https.html
 [`libuv Error handling`]: http://docs.libuv.org/en/v1.x/errors.html
 [`net`]: net.html
+[`new URL(input)`]: url.html#url_constructor_new_url_input_base
+[`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
 [`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
+[`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
+[Node.js Error Codes]: #nodejs-error-codes
+[V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
+[WHATWG URL API]: url.html#url_the_whatwg_url_api
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
-[`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
-[Node.js Error Codes]: #nodejs-error-codes
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
-[`new URL(input)`]: url.html#url_constructor_new_url_input_base
-[`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
-[V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [vm]: vm.html
-[WHATWG URL API]: url.html#url_the_whatwg_url_api

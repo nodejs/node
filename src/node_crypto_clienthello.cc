@@ -21,7 +21,6 @@
 
 #include "node_crypto_clienthello.h"
 #include "node_crypto_clienthello-inl.h"
-#include "node_buffer.h"  // Buffer
 
 namespace node {
 
@@ -120,7 +119,7 @@ void ClientHelloParser::ParseHeader(const uint8_t* data, size_t avail) {
   return;
 
  fail:
-  return End();
+  End();
 }
 
 

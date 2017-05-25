@@ -60,6 +60,7 @@ function RegClient (config) {
   client.get = require('./lib/get')
   client.initialize = require('./lib/initialize')
   client.logout = require('./lib/logout')
+  client.org = require('./lib/org')
   client.ping = require('./lib/ping')
   client.publish = require('./lib/publish')
   client.request = require('./lib/request')

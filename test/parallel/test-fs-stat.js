@@ -49,7 +49,7 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
   fs.fstat(fd, common.mustCall(function(err, stats) {
     assert.ifError(err);
     assert.ok(stats.mtime instanceof Date);
-    fs.close(fd);
+    fs.close(fd, assert.ifError);
     assert.strictEqual(this, global);
   }));
 
@@ -68,7 +68,7 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
     console.dir(stats);
     assert.ok(stats.mtime instanceof Date);
   }
-  fs.close(fd);
+  fs.close(fd, assert.ifError);
 }));
 
 console.log(`stating:  ${__filename}`);
@@ -77,26 +77,48 @@ fs.stat(__filename, common.mustCall(function(err, s) {
 
   console.dir(s);
 
-  console.log('isDirectory: ' + JSON.stringify(s.isDirectory()));
+  console.log(`isDirectory: ${JSON.stringify(s.isDirectory())}`);
   assert.strictEqual(false, s.isDirectory());
 
-  console.log('isFile: ' + JSON.stringify(s.isFile()));
+  console.log(`isFile: ${JSON.stringify(s.isFile())}`);
   assert.strictEqual(true, s.isFile());
 
-  console.log('isSocket: ' + JSON.stringify(s.isSocket()));
+  console.log(`isSocket: ${JSON.stringify(s.isSocket())}`);
   assert.strictEqual(false, s.isSocket());
 
-  console.log('isBlockDevice: ' + JSON.stringify(s.isBlockDevice()));
+  console.log(`isBlockDevice: ${JSON.stringify(s.isBlockDevice())}`);
   assert.strictEqual(false, s.isBlockDevice());
 
-  console.log('isCharacterDevice: ' + JSON.stringify(s.isCharacterDevice()));
+  console.log(`isCharacterDevice: ${JSON.stringify(s.isCharacterDevice())}`);
   assert.strictEqual(false, s.isCharacterDevice());
 
-  console.log('isFIFO: ' + JSON.stringify(s.isFIFO()));
+  console.log(`isFIFO: ${JSON.stringify(s.isFIFO())}`);
   assert.strictEqual(false, s.isFIFO());
 
-  console.log('isSymbolicLink: ' + JSON.stringify(s.isSymbolicLink()));
+  console.log(`isSymbolicLink: ${JSON.stringify(s.isSymbolicLink())}`);
   assert.strictEqual(false, s.isSymbolicLink());
 
+  assert.ok(s.atime instanceof Date);
   assert.ok(s.mtime instanceof Date);
+  assert.ok(s.ctime instanceof Date);
+  assert.ok(s.birthtime instanceof Date);
+}));
+
+fs.stat(__filename, common.mustCall(function(err, s) {
+  const json = JSON.parse(JSON.stringify(s));
+  const keys = [
+    'dev', 'mode', 'nlink', 'uid',
+    'gid', 'rdev', 'ino',
+    'size', 'atime', 'mtime',
+    'ctime', 'birthtime'
+  ];
+  if (!common.isWindows) {
+    keys.push('blocks', 'blksize');
+  }
+  keys.forEach(function(k) {
+    assert.ok(
+      json[k] !== undefined && json[k] !== null,
+      k + ' should not be null or undefined'
+    );
+  });
 }));

@@ -195,12 +195,10 @@ assert.strictEqual(path.win32.dirname('foo'), '.');
     }
     const actual = extname(input);
     const expected = test[1];
-    const fn = `path.${os}.extname(`;
-    const message = fn + JSON.stringify(input) + ')' +
-                    '\n  expect=' + JSON.stringify(expected) +
-                    '\n  actual=' + JSON.stringify(actual);
+    const message = `path.${os}.extname(${JSON.stringify(input)})\n  expect=${
+      JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
     if (actual !== expected)
-      failures.push('\n' + message);
+      failures.push(`\n${message}`);
   });
 });
 assert.strictEqual(failures.length, 0, failures.join(''));
@@ -352,10 +350,9 @@ joinTests.forEach((test) => {
       } else {
         os = 'posix';
       }
-      const fn = `path.${os}.join(`;
-      const message = fn + test[0].map(JSON.stringify).join(',') + ')' +
-                      '\n  expect=' + JSON.stringify(expected) +
-                      '\n  actual=' + JSON.stringify(actual);
+      const message =
+        `path.${os}.join(${test[0].map(JSON.stringify).join(',')})\n  expect=${
+          JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
       if (actual !== expected && actualAlt !== expected)
         failures.push(`\n${message}`);
     });
@@ -459,12 +456,11 @@ resolveTests.forEach((test) => {
       actualAlt = actual.replace(/\//g, '\\');
 
     const expected = test[1];
-    const fn = `path.${os}.resolve(`;
-    const message = fn + test[0].map(JSON.stringify).join(',') + ')' +
-                    '\n  expect=' + JSON.stringify(expected) +
-                    '\n  actual=' + JSON.stringify(actual);
+    const message =
+      `path.${os}.resolve(${test[0].map(JSON.stringify).join(',')})\n  expect=${
+      JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
     if (actual !== expected && actualAlt !== expected)
-      failures.push('\n' + message);
+      failures.push(`\n${message}`);
   });
 });
 assert.strictEqual(failures.length, 0, failures.join(''));
@@ -560,12 +556,9 @@ relativeTests.forEach((test) => {
     const actual = relative(test[0], test[1]);
     const expected = test[2];
     const os = relative === path.win32.relative ? 'win32' : 'posix';
-    const fn = `path.${os}.relative(`;
-    const message = fn +
-                    test.slice(0, 2).map(JSON.stringify).join(',') +
-                    ')' +
-                    '\n  expect=' + JSON.stringify(expected) +
-                    '\n  actual=' + JSON.stringify(actual);
+    const message = `path.${os}.relative(${
+      test.slice(0, 2).map(JSON.stringify).join(',')})\n  expect=${
+      JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
     if (actual !== expected)
       failures.push(`\n${message}`);
   });

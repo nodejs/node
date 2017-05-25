@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --crankshaft
 // Test functionality of block scopes.
 
 // Hoisting of var declarations.
@@ -40,7 +40,7 @@ function f1() {
 for (var j = 0; j < 5; ++j) f1();
 %OptimizeFunctionOnNextCall(f1);
 f1();
-assertTrue(%GetOptimizationStatus(f1) != 2);
+assertOptimized(f1);
 
 // Dynamic lookup in and through block contexts.
 function f2(one) {

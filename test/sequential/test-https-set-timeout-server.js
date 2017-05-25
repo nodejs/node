@@ -21,22 +21,22 @@
 
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-const https = require('https');
 
-const tls = require('tls');
+const assert = require('assert');
 const fs = require('fs');
+const https = require('https');
+const tls = require('tls');
 
 const tests = [];
 
 const serverOptions = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
-  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+  key: fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`),
+  cert: fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`)
 };
 
 function test(fn) {
@@ -69,7 +69,7 @@ test(function serverTimeout(cb) {
     https.get({
       port: this.address().port,
       rejectUnauthorized: false
-    }).on('error', common.noop);
+    }).on('error', common.mustCall());
   }));
 });
 
@@ -90,7 +90,7 @@ test(function serverRequestTimeout(cb) {
       method: 'POST',
       rejectUnauthorized: false
     });
-    req.on('error', common.noop);
+    req.on('error', common.mustCall());
     req.write('Hello');
     // req is in progress
   });
@@ -111,7 +111,7 @@ test(function serverResponseTimeout(cb) {
     https.get({
       port: this.address().port,
       rejectUnauthorized: false
-    }).on('error', common.noop);
+    }).on('error', common.mustCall());
   });
 });
 
@@ -131,7 +131,7 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
     https.get({
       port: this.address().port,
       rejectUnauthorized: false
-    }).on('error', common.noop);
+    }).on('error', common.mustCall());
   });
 });
 

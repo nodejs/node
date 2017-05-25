@@ -44,7 +44,6 @@ class SimpleTestCase(test.TestCase):
     self.config = config
     self.arch = arch
     self.mode = mode
-    self.tmpdir = join(dirname(self.config.root), 'tmp')
     if additional is not None:
       self.additional_flags = additional
     else:
@@ -62,7 +61,7 @@ class SimpleTestCase(test.TestCase):
     source = open(self.file).read()
     flags_match = FLAGS_PATTERN.search(source)
     if flags_match:
-      # PORT should match the definition in test/common.js.
+      # PORT should match the definition in test/common/index.js.
       env = { 'PORT': int(os.getenv('NODE_COMMON_PORT', '12346')) }
       env['PORT'] += self.thread_id * 100
       flag = flags_match.group(1).strip().format(**env).split()
@@ -168,4 +167,16 @@ class AddonTestConfiguration(SimpleTestConfiguration):
         file_path = join(self.root, reduce(join, test[1:], "") + ".js")
         result.append(
             SimpleTestCase(test, file_path, arch, mode, self.context, self, self.additional_flags))
+    return result
+
+class AsyncHooksTestConfiguration(SimpleTestConfiguration):
+  def __init__(self, context, root, section, additional=None):
+    super(AsyncHooksTestConfiguration, self).__init__(context, root, section,
+                                                    additional)
+
+  def ListTests(self, current_path, path, arch, mode):
+    result = super(AsyncHooksTestConfiguration, self).ListTests(
+         current_path, path, arch, mode)
+    for test in result:
+      test.parallel = True
     return result

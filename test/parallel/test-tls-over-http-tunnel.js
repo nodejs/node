@@ -35,8 +35,8 @@ const http = require('http');
 
 let gotRequest = false;
 
-const key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
-const cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
+const key = fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`);
+const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`);
 
 const options = {
   key: key,

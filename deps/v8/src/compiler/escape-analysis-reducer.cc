@@ -139,7 +139,6 @@ Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
   if (escape_analysis()->IsVirtual(
           SkipTypeGuards(NodeProperties::GetValueInput(node, 0)))) {
     if (Node* rep = escape_analysis()->GetReplacement(node)) {
-      isolate()->counters()->turbo_escape_loads_replaced()->Increment();
       TRACE("Replaced #%d (%s) with #%d (%s)\n", node->id(),
             node->op()->mnemonic(), rep->id(), rep->op()->mnemonic());
       rep = MaybeGuard(jsgraph(), zone(), node, rep);
@@ -175,7 +174,6 @@ Reduction EscapeAnalysisReducer::ReduceAllocate(Node* node) {
   }
   if (escape_analysis()->IsVirtual(node)) {
     RelaxEffectsAndControls(node);
-    isolate()->counters()->turbo_escape_allocs_replaced()->Increment();
     TRACE("Removed allocate #%d from effect chain\n", node->id());
     return Changed(node);
   }
@@ -381,8 +379,6 @@ void EscapeAnalysisReducer::VerifyReplacement() const {
   }
 #endif  // DEBUG
 }
-
-Isolate* EscapeAnalysisReducer::isolate() const { return jsgraph_->isolate(); }
 
 }  // namespace compiler
 }  // namespace internal

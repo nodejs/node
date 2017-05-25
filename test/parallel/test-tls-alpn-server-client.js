@@ -7,8 +7,8 @@ if (!common.hasCrypto) {
 }
 
 if (!process.features.tls_alpn || !process.features.tls_npn) {
-  common.skip('Skipping because node compiled without NPN or ALPN' +
-              ' feature of OpenSSL.');
+  common.skip(
+    'Skipping because node compiled without NPN or ALPN feature of OpenSSL.');
   return;
 }
 
@@ -17,7 +17,7 @@ const fs = require('fs');
 const tls = require('tls');
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
+  return require('path').join(common.fixturesDir, 'keys', `${n}.pem`);
 }
 
 function loadPEM(n) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ***************************************************************************
@@ -294,7 +294,7 @@ class U_COMMON_API UnicodeSet U_FINAL : public UnicodeFilter {
      * indicating that toPattern() must generate a pattern
      * representation from the inversion list.
      */
-    UChar *pat;
+    char16_t *pat;
     UVector* strings; // maintained in sorted order
     UnicodeSetStringSpan *stringSpan;
 
@@ -891,7 +891,7 @@ public:
      * @stable ICU 3.8
      * @see USetSpanCondition
      */
-    int32_t span(const UChar *s, int32_t length, USetSpanCondition spanCondition) const;
+    int32_t span(const char16_t *s, int32_t length, USetSpanCondition spanCondition) const;
 
     /**
      * Returns the end of the substring of the input string according to the USetSpanCondition.
@@ -924,7 +924,7 @@ public:
      * @stable ICU 3.8
      * @see USetSpanCondition
      */
-    int32_t spanBack(const UChar *s, int32_t length, USetSpanCondition spanCondition) const;
+    int32_t spanBack(const char16_t *s, int32_t length, USetSpanCondition spanCondition) const;
 
     /**
      * Returns the start of the substring of the input string according to the USetSpanCondition.

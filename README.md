@@ -159,7 +159,8 @@ the binary verification command above.
 ## Building Node.js
 
 See [BUILDING.md](BUILDING.md) for instructions on how to build
-Node.js from source.
+Node.js from source. The document also contains a list of
+officially supported platforms.
 
 ## Security
 
@@ -193,7 +194,7 @@ more information about the governance of the Node.js project, see
 **Evan Lucas** &lt;evanlucas@me.com&gt; (he/him)
 * [fhinkel](https://github.com/fhinkel) -
 **Franziska Hinkelmann** &lt;franziska.hinkelmann@gmail.com&gt;
-* [fishrock123](https://github.com/fishrock123) -
+* [Fishrock123](https://github.com/Fishrock123) -
 **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt;
 * [indutny](https://github.com/indutny) -
 **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt;
@@ -272,16 +273,18 @@ more information about the governance of the Node.js project, see
 **Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [iarna](https://github.com/iarna) -
 **Rebecca Turner** &lt;me@re-becca.org&gt;
+* [imran-iq](https://github.com/imran-iq) -
+**Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [imyller](https://github.com/imyller) -
 **Ilkka Myller** &lt;ilkka.myller@nodefield.com&gt;
 * [isaacs](https://github.com/isaacs) -
 **Isaac Z. Schlueter** &lt;i@izs.me&gt;
 * [italoacasas](https://github.com/italoacasas) -
 **Italo A. Casas** &lt;me@italoacasas.com&gt; (he/him)
-* [iWuzHere](https://github.com/iWuzHere) -
-**Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [JacksonTian](https://github.com/JacksonTian) -
 **Jackson Tian** &lt;shyvo1987@gmail.com&gt;
+* [jasongin](https://github.com/jasongin) -
+**Jason Ginchereau** &lt;jasongin@microsoft.com&gt;
 * [jbergstroem](https://github.com/jbergstroem) -
 **Johan Bergström** &lt;bugs@bergstroem.nu&gt;
 * [jhamhader](https://github.com/jhamhader) -
@@ -298,6 +301,8 @@ more information about the governance of the Node.js project, see
 **Julian Duque** &lt;julianduquej@gmail.com&gt; (he/him)
 * [JungMinu](https://github.com/JungMinu) -
 **Minwoo Jung** &lt;minwoo@nodesource.com&gt; (he/him)
+* [kunalspathak](https://github.com/kunalspathak) -
+**Kunal Pathak** &lt;kunal.pathak@microsoft.com&gt;
 * [lance](https://github.com/lance) -
 **Lance Ball** &lt;lball@redhat.com&gt;
 * [lpinca](https://github.com/lpinca) -
@@ -334,7 +339,7 @@ more information about the governance of the Node.js project, see
 **Minqi Pan** &lt;pmq2001@gmail.com&gt;
 * [princejwesley](https://github.com/princejwesley) -
 **Prince John Wesley** &lt;princejohnwesley@gmail.com&gt;
-* [qard](https://github.com/qard) -
+* [Qard](https://github.com/Qard) -
 **Stephen Belanger** &lt;admin@stephenbelanger.com&gt; (he/him)
 * [refack](https://github.com/refack) -
 **Refael Ackermann** &lt;refack@gmail.com&gt; (he/him)

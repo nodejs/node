@@ -21,27 +21,34 @@ using namespace v8::internal::wasm;
 
 namespace {
 
+// Forward declaration.
+class InterpreterHandle;
+InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info);
+
 class InterpreterHandle {
   AccountingAllocator allocator_;
   WasmInstance instance_;
   WasmInterpreter interpreter_;
+  Isolate* isolate_;
+  StepAction next_step_action_ = StepNone;
+  int last_step_stack_depth_ = 0;
 
  public:
   // Initialize in the right order, using helper methods to make this possible.
   // WasmInterpreter has to be allocated in place, since it is not movable.
   InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info)
       : instance_(debug_info->wasm_instance()->compiled_module()->module()),
-        interpreter_(GetBytesEnv(&instance_, debug_info), &allocator_) {
-    Handle<JSArrayBuffer> mem_buffer =
-        handle(debug_info->wasm_instance()->memory_buffer(), isolate);
-    if (mem_buffer->IsUndefined(isolate)) {
-      DCHECK_EQ(0, instance_.module->min_mem_pages);
-      instance_.mem_start = nullptr;
-      instance_.mem_size = 0;
-    } else {
+        interpreter_(GetBytesEnv(&instance_, debug_info), &allocator_),
+        isolate_(isolate) {
+    if (debug_info->wasm_instance()->has_memory_buffer()) {
+      JSArrayBuffer* mem_buffer = debug_info->wasm_instance()->memory_buffer();
       instance_.mem_start =
           reinterpret_cast<byte*>(mem_buffer->backing_store());
       CHECK(mem_buffer->byte_length()->ToUint32(&instance_.mem_size));
+    } else {
+      DCHECK_EQ(0, instance_.module->min_mem_pages);
+      instance_.mem_start = nullptr;
+      instance_.mem_size = 0;
     }
   }
 
@@ -58,6 +65,18 @@ class InterpreterHandle {
   WasmInterpreter* interpreter() { return &interpreter_; }
   const WasmModule* module() { return instance_.module; }
 
+  void PrepareStep(StepAction step_action) {
+    next_step_action_ = step_action;
+    last_step_stack_depth_ = CurrentStackDepth();
+  }
+
+  void ClearStepping() { next_step_action_ = StepNone; }
+
+  int CurrentStackDepth() {
+    DCHECK_EQ(1, interpreter()->GetThreadCount());
+    return interpreter()->GetThread(0)->GetFrameCount();
+  }
+
   void Execute(uint32_t func_index, uint8_t* arg_buffer) {
     DCHECK_GE(module()->functions.size(), func_index);
     FunctionSig* sig = module()->functions[func_index].sig;
@@ -66,7 +85,7 @@ class InterpreterHandle {
     ScopedVector<WasmVal> wasm_args(num_params);
     uint8_t* arg_buf_ptr = arg_buffer;
     for (int i = 0; i < num_params; ++i) {
-      uint32_t param_size = 1 << ElementSizeLog2Of(sig->GetParam(i));
+      int param_size = 1 << ElementSizeLog2Of(sig->GetParam(i));
 #define CASE_ARG_TYPE(type, ctype)                                  \
   case type:                                                        \
     DCHECK_EQ(param_size, sizeof(ctype));                           \
@@ -81,7 +100,7 @@ class InterpreterHandle {
         default:
           UNREACHABLE();
       }
-      arg_buf_ptr += param_size;
+      arg_buf_ptr += RoundUpToMultipleOfPowOf2(param_size, 8);
     }
 
     WasmInterpreter::Thread* thread = interpreter_.GetThread(0);
@@ -91,16 +110,17 @@ class InterpreterHandle {
            thread->state() == WasmInterpreter::FINISHED);
     thread->Reset();
     thread->PushFrame(&module()->functions[func_index], wasm_args.start());
-    WasmInterpreter::State state;
-    do {
-      state = thread->Run();
+    bool finished = false;
+    while (!finished) {
+      // TODO(clemensh): Add occasional StackChecks.
+      WasmInterpreter::State state = ContinueExecution(thread);
       switch (state) {
-        case WasmInterpreter::State::PAUSED: {
-          // We hit a breakpoint.
-          // TODO(clemensh): Handle this.
-        } break;
+        case WasmInterpreter::State::PAUSED:
+          NotifyDebugEventListeners(thread);
+          break;
         case WasmInterpreter::State::FINISHED:
           // Perfect, just break the switch and exit the loop.
+          finished = true;
           break;
         case WasmInterpreter::State::TRAPPED:
           // TODO(clemensh): Generate appropriate JS exception.
@@ -112,7 +132,7 @@ class InterpreterHandle {
         default:
           UNREACHABLE();
       }
-    } while (state != WasmInterpreter::State::FINISHED);
+    }
 
     // Copy back the return value
     DCHECK_GE(kV8MaxWasmFunctionReturns, sig->return_count());
@@ -136,6 +156,128 @@ class InterpreterHandle {
       }
     }
   }
+
+  WasmInterpreter::State ContinueExecution(WasmInterpreter::Thread* thread) {
+    switch (next_step_action_) {
+      case StepNone:
+        return thread->Run();
+      case StepIn:
+        return thread->Step();
+      case StepOut:
+        thread->AddBreakFlags(WasmInterpreter::BreakFlag::AfterReturn);
+        return thread->Run();
+      case StepNext: {
+        int stack_depth = thread->GetFrameCount();
+        if (stack_depth == last_step_stack_depth_) return thread->Step();
+        thread->AddBreakFlags(stack_depth > last_step_stack_depth_
+                                  ? WasmInterpreter::BreakFlag::AfterReturn
+                                  : WasmInterpreter::BreakFlag::AfterCall);
+        return thread->Run();
+      }
+      default:
+        UNREACHABLE();
+        return WasmInterpreter::STOPPED;
+    }
+  }
+
+  Handle<WasmInstanceObject> GetInstanceObject() {
+    StackTraceFrameIterator it(isolate_);
+    WasmInterpreterEntryFrame* frame =
+        WasmInterpreterEntryFrame::cast(it.frame());
+    Handle<WasmInstanceObject> instance_obj(frame->wasm_instance(), isolate_);
+    DCHECK_EQ(this, GetInterpreterHandle(instance_obj->debug_info()));
+    return instance_obj;
+  }
+
+  void NotifyDebugEventListeners(WasmInterpreter::Thread* thread) {
+    // Enter the debugger.
+    DebugScope debug_scope(isolate_->debug());
+    if (debug_scope.failed()) return;
+
+    // Postpone interrupt during breakpoint processing.
+    PostponeInterruptsScope postpone(isolate_);
+
+    // Check whether we hit a breakpoint.
+    if (isolate_->debug()->break_points_active()) {
+      Handle<WasmCompiledModule> compiled_module(
+          GetInstanceObject()->compiled_module(), isolate_);
+      int position = GetTopPosition(compiled_module);
+      Handle<FixedArray> breakpoints;
+      if (compiled_module->CheckBreakPoints(position).ToHandle(&breakpoints)) {
+        // We hit one or several breakpoints. Clear stepping, notify the
+        // listeners and return.
+        ClearStepping();
+        Handle<Object> hit_breakpoints_js =
+            isolate_->factory()->NewJSArrayWithElements(breakpoints);
+        isolate_->debug()->OnDebugBreak(hit_breakpoints_js);
+        return;
+      }
+    }
+
+    // We did not hit a breakpoint, so maybe this pause is related to stepping.
+    bool hit_step = false;
+    switch (next_step_action_) {
+      case StepNone:
+        break;
+      case StepIn:
+        hit_step = true;
+        break;
+      case StepOut:
+        hit_step = thread->GetFrameCount() < last_step_stack_depth_;
+        break;
+      case StepNext: {
+        hit_step = thread->GetFrameCount() == last_step_stack_depth_;
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+    if (!hit_step) return;
+    ClearStepping();
+    isolate_->debug()->OnDebugBreak(isolate_->factory()->undefined_value());
+  }
+
+  int GetTopPosition(Handle<WasmCompiledModule> compiled_module) {
+    DCHECK_EQ(1, interpreter()->GetThreadCount());
+    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
+    DCHECK_LT(0, thread->GetFrameCount());
+
+    wasm::InterpretedFrame frame =
+        thread->GetFrame(thread->GetFrameCount() - 1);
+    return compiled_module->GetFunctionOffset(frame.function()->func_index) +
+           frame.pc();
+  }
+
+  std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
+      Address frame_pointer) {
+    // TODO(clemensh): Use frame_pointer.
+    USE(frame_pointer);
+
+    DCHECK_EQ(1, interpreter()->GetThreadCount());
+    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
+    std::vector<std::pair<uint32_t, int>> stack(thread->GetFrameCount());
+    for (int i = 0, e = thread->GetFrameCount(); i < e; ++i) {
+      wasm::InterpretedFrame frame = thread->GetFrame(i);
+      stack[i] = {frame.function()->func_index, frame.pc()};
+    }
+    return stack;
+  }
+
+  std::unique_ptr<wasm::InterpretedFrame> GetInterpretedFrame(
+      Address frame_pointer, int idx) {
+    // TODO(clemensh): Use frame_pointer.
+    USE(frame_pointer);
+
+    DCHECK_EQ(1, interpreter()->GetThreadCount());
+    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
+    return std::unique_ptr<wasm::InterpretedFrame>(
+        new wasm::InterpretedFrame(thread->GetMutableFrame(idx)));
+  }
+
+  uint64_t NumInterpretedCalls() {
+    DCHECK_EQ(1, interpreter()->GetThreadCount());
+    return interpreter()->GetThread(0)->NumInterpretedCalls();
+  }
 };
 
 InterpreterHandle* GetOrCreateInterpreterHandle(
@@ -149,6 +291,18 @@ InterpreterHandle* GetOrCreateInterpreterHandle(
   }
 
   return Handle<Managed<InterpreterHandle>>::cast(handle)->get();
+}
+
+InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info) {
+  Object* handle_obj = debug_info->get(WasmDebugInfo::kInterpreterHandle);
+  DCHECK(!handle_obj->IsUndefined(debug_info->GetIsolate()));
+  return Managed<InterpreterHandle>::cast(handle_obj)->get();
+}
+
+InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
+  Object* handle_obj = debug_info->get(WasmDebugInfo::kInterpreterHandle);
+  if (handle_obj->IsUndefined(debug_info->GetIsolate())) return nullptr;
+  return Managed<InterpreterHandle>::cast(handle_obj)->get();
 }
 
 int GetNumFunctions(WasmInstanceObject* instance) {
@@ -202,32 +356,13 @@ void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
   }
 }
 
-void EnsureRedirectToInterpreter(Isolate* isolate,
-                                 Handle<WasmDebugInfo> debug_info,
-                                 int func_index) {
-  Handle<FixedArray> interpreted_functions =
-      GetOrCreateInterpretedFunctions(isolate, debug_info);
-  if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) return;
-
-  Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
-  Handle<Code> new_code = compiler::CompileWasmInterpreterEntry(
-      isolate, func_index,
-      instance->compiled_module()->module()->functions[func_index].sig,
-      instance);
-
-  Handle<FixedArray> code_table = instance->compiled_module()->code_table();
-  Handle<Code> old_code(Code::cast(code_table->get(func_index)), isolate);
-  interpreted_functions->set(func_index, *new_code);
-
-  RedirectCallsitesInInstance(isolate, *instance, *old_code, *new_code);
-}
-
 }  // namespace
 
 Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   Isolate* isolate = instance->GetIsolate();
   Factory* factory = isolate->factory();
   Handle<FixedArray> arr = factory->NewFixedArray(kFieldCount, TENURED);
+  arr->set(kWrapperTracerHeader, Smi::kZero);
   arr->set(kInstance, *instance);
   return Handle<WasmDebugInfo>::cast(arr);
 }
@@ -257,18 +392,57 @@ void WasmDebugInfo::SetBreakpoint(Handle<WasmDebugInfo> debug_info,
                                   int func_index, int offset) {
   Isolate* isolate = debug_info->GetIsolate();
   InterpreterHandle* handle = GetOrCreateInterpreterHandle(isolate, debug_info);
-  WasmInterpreter* interpreter = handle->interpreter();
-  DCHECK_LE(0, func_index);
-  DCHECK_GT(handle->module()->functions.size(), func_index);
+  RedirectToInterpreter(debug_info, func_index);
   const WasmFunction* func = &handle->module()->functions[func_index];
-  interpreter->SetBreakpoint(func, offset, true);
-  EnsureRedirectToInterpreter(isolate, debug_info, func_index);
+  handle->interpreter()->SetBreakpoint(func, offset, true);
 }
 
-void WasmDebugInfo::RunInterpreter(Handle<WasmDebugInfo> debug_info,
-                                   int func_index, uint8_t* arg_buffer) {
+void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
+                                          int func_index) {
+  Isolate* isolate = debug_info->GetIsolate();
   DCHECK_LE(0, func_index);
-  InterpreterHandle* interp_handle =
-      GetOrCreateInterpreterHandle(debug_info->GetIsolate(), debug_info);
-  interp_handle->Execute(static_cast<uint32_t>(func_index), arg_buffer);
+  DCHECK_GT(debug_info->wasm_instance()->module()->functions.size(),
+            func_index);
+  Handle<FixedArray> interpreted_functions =
+      GetOrCreateInterpretedFunctions(isolate, debug_info);
+  if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) return;
+
+  // Ensure that the interpreter is instantiated.
+  GetOrCreateInterpreterHandle(isolate, debug_info);
+  Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
+  Handle<Code> new_code = compiler::CompileWasmInterpreterEntry(
+      isolate, func_index,
+      instance->compiled_module()->module()->functions[func_index].sig,
+      instance);
+
+  Handle<FixedArray> code_table = instance->compiled_module()->code_table();
+  Handle<Code> old_code(Code::cast(code_table->get(func_index)), isolate);
+  interpreted_functions->set(func_index, *new_code);
+
+  RedirectCallsitesInInstance(isolate, *instance, *old_code, *new_code);
+}
+
+void WasmDebugInfo::PrepareStep(StepAction step_action) {
+  GetInterpreterHandle(this)->PrepareStep(step_action);
+}
+
+void WasmDebugInfo::RunInterpreter(int func_index, uint8_t* arg_buffer) {
+  DCHECK_LE(0, func_index);
+  GetInterpreterHandle(this)->Execute(static_cast<uint32_t>(func_index),
+                                      arg_buffer);
+}
+
+std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(
+    Address frame_pointer) {
+  return GetInterpreterHandle(this)->GetInterpretedStack(frame_pointer);
+}
+
+std::unique_ptr<wasm::InterpretedFrame> WasmDebugInfo::GetInterpretedFrame(
+    Address frame_pointer, int idx) {
+  return GetInterpreterHandle(this)->GetInterpretedFrame(frame_pointer, idx);
+}
+
+uint64_t WasmDebugInfo::NumInterpretedCalls() {
+  auto handle = GetInterpreterHandleOrNull(this);
+  return handle ? handle->NumInterpretedCalls() : 0;
 }

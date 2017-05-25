@@ -23,7 +23,7 @@ function createManyParams(count) {
 
   for (let i = 1; i < count; i++) {
     const n = i.toString(36);
-    str += '&' + n + '=' + n;
+    str += `&${n}=${n}`;
   }
 
   return str;

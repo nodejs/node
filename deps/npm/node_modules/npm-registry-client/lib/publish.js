@@ -2,11 +2,11 @@ module.exports = publish
 
 var url = require('url')
 var semver = require('semver')
-var crypto = require('crypto')
 var Stream = require('stream').Stream
 var assert = require('assert')
 var fixer = require('normalize-package-data').fixer
 var concat = require('concat-stream')
+var ssri = require('ssri')
 
 function escaped (name) {
   return name.replace('/', '%2f')
@@ -84,10 +84,16 @@ function putFirst (registry, data, tarbuffer, access, auth, cb) {
 
   var tbName = data.name + '-' + data.version + '.tgz'
   var tbURI = data.name + '/-/' + tbName
+  var integrity = ssri.fromData(tarbuffer, {
+    algorithms: ['sha1', 'sha512']
+  })
 
   data._id = data.name + '@' + data.version
   data.dist = data.dist || {}
-  data.dist.shasum = crypto.createHash('sha1').update(tarbuffer).digest('hex')
+  // Don't bother having sha1 in the actual integrity field
+  data.dist.integrity = integrity['sha512'][0].toString()
+  // Legacy shasum support
+  data.dist.shasum = integrity['sha1'][0].hexDigest()
   data.dist.tarball = url.resolve(registry, tbURI)
                          .replace(/^https:\/\//, 'http://')
 

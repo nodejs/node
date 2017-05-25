@@ -37,7 +37,7 @@ Support is divided into three tiers:
 |--------------|--------------|----------------------------------|----------------------|------------------|
 | GNU/Linux    | Tier 1       | kernel >= 2.6.18, glibc >= 2.5   | x86, x64, arm, arm64 |                  |
 | macOS        | Tier 1       | >= 10.10                         | x64                  |                  |
-| Windows      | Tier 1       | >= Windows 7 or >= Windows2008R2 | x86, x64             |                  |
+| Windows      | Tier 1       | >= Windows 7 / 2008 R2           | x86, x64             | vs2015 or vs2017 |
 | SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1        |
 | FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le >=power8     |                  |
@@ -123,15 +123,6 @@ To run the tests:
 $ make test
 ```
 
-To run the npm test suite:
-
-*note: to run the suite on node v4 or earlier you must first*
-*run `make install`*
-
-```console
-$ make test-npm
-```
-
 To build the documentation:
 
 This will build Node.js first (if necessary) and then use it to build the docs:
@@ -175,6 +166,8 @@ Prerequisites:
   * [Visual Studio 2015 Update 3](https://www.visualstudio.com/), all editions
     including the Community edition (remember to select
     "Common Tools for Visual C++ 2015" feature during installation).
+  * [Visual Studio 2017](https://www.visualstudio.com/downloads/), any edition (including the Build Tools SKU).
+    __Required Components:__ "MSbuild", "VC++ 2017 v141 toolset" and one of the Windows SDKs (10 or 8.1).
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.

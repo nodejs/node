@@ -193,7 +193,7 @@ TEST(LoadAddress) {
   __ bind(&skip);
   __ li(a4, Operand(masm->jump_address(&to_jump)), ADDRESS_LOAD);
   int check_size = masm->InstructionsGeneratedSince(&skip);
-  CHECK_EQ(check_size, 4);
+  CHECK_EQ(4, check_size);
   __ jr(a4);
   __ nop();
   __ stop("invalid");

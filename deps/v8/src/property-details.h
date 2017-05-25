@@ -7,6 +7,8 @@
 
 #include "include/v8.h"
 #include "src/allocation.h"
+// TODO(ishell): remove once FLAG_track_constant_fields is removed.
+#include "src/flags.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -71,6 +73,14 @@ enum PropertyKind { kData = 0, kAccessor = 1 };
 // Order of modes is significant.
 // Must fit in the BitField PropertyDetails::LocationField.
 enum PropertyLocation { kField = 0, kDescriptor = 1 };
+
+// Order of modes is significant.
+// Must fit in the BitField PropertyDetails::ConstnessField.
+enum PropertyConstness { kMutable = 0, kConst = 1 };
+
+// TODO(ishell): remove once constant field tracking is done.
+const PropertyConstness kDefaultFieldConstness =
+    FLAG_track_constant_fields ? kConst : kMutable;
 
 class Representation {
  public:
@@ -231,10 +241,11 @@ class PropertyDetails BASE_EMBEDDED {
 
   // Property details for fast mode properties.
   PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
-                  PropertyLocation location, Representation representation,
-                  int field_index = 0) {
-    value_ = KindField::encode(kind) | LocationField::encode(location) |
-             AttributesField::encode(attributes) |
+                  PropertyLocation location, PropertyConstness constness,
+                  Representation representation, int field_index = 0) {
+    value_ = KindField::encode(kind) | AttributesField::encode(attributes) |
+             LocationField::encode(location) |
+             ConstnessField::encode(constness) |
              RepresentationField::encode(EncodeRepresentation(representation)) |
              FieldIndexField::encode(field_index);
   }
@@ -265,6 +276,9 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyDetails CopyWithRepresentation(Representation representation) const {
     return PropertyDetails(value_, representation);
   }
+  PropertyDetails CopyWithConstness(PropertyConstness constness) const {
+    return PropertyDetails(value_, constness);
+  }
   PropertyDetails CopyAddAttributes(PropertyAttributes new_attributes) const {
     new_attributes =
         static_cast<PropertyAttributes>(attributes() | new_attributes);
@@ -285,6 +299,7 @@ class PropertyDetails BASE_EMBEDDED {
 
   PropertyKind kind() const { return KindField::decode(value_); }
   PropertyLocation location() const { return LocationField::decode(value_); }
+  PropertyConstness constness() const { return ConstnessField::decode(value_); }
 
   PropertyAttributes attributes() const {
     return AttributesField::decode(value_);
@@ -317,22 +332,30 @@ class PropertyDetails BASE_EMBEDDED {
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.
   class KindField : public BitField<PropertyKind, 0, 1> {};
-  class LocationField : public BitField<PropertyLocation, 1, 1> {};
-  class AttributesField : public BitField<PropertyAttributes, 2, 3> {};
+  class LocationField : public BitField<PropertyLocation, KindField::kNext, 1> {
+  };
+  class ConstnessField
+      : public BitField<PropertyConstness, LocationField::kNext, 1> {};
+  class AttributesField
+      : public BitField<PropertyAttributes, ConstnessField::kNext, 3> {};
   static const int kAttributesReadOnlyMask =
       (READ_ONLY << AttributesField::kShift);
 
   // Bit fields for normalized objects.
-  class PropertyCellTypeField : public BitField<PropertyCellType, 5, 2> {};
-  class DictionaryStorageField : public BitField<uint32_t, 7, 24> {};
+  class PropertyCellTypeField
+      : public BitField<PropertyCellType, AttributesField::kNext, 2> {};
+  class DictionaryStorageField
+      : public BitField<uint32_t, PropertyCellTypeField::kNext, 23> {};
 
   // Bit fields for fast objects.
-  class RepresentationField : public BitField<uint32_t, 5, 4> {};
+  class RepresentationField
+      : public BitField<uint32_t, AttributesField::kNext, 4> {};
   class DescriptorPointer
-      : public BitField<uint32_t, 9, kDescriptorIndexBitCount> {};  // NOLINT
-  class FieldIndexField
-      : public BitField<uint32_t, 9 + kDescriptorIndexBitCount,
+      : public BitField<uint32_t, RepresentationField::kNext,
                         kDescriptorIndexBitCount> {};  // NOLINT
+  class FieldIndexField : public BitField<uint32_t, DescriptorPointer::kNext,
+                                          kDescriptorIndexBitCount> {
+  };  // NOLINT
 
   // All bits for both fast and slow objects must fit in a smi.
   STATIC_ASSERT(DictionaryStorageField::kNext <= 31);
@@ -366,6 +389,9 @@ class PropertyDetails BASE_EMBEDDED {
     value_ = RepresentationField::update(
         value, EncodeRepresentation(representation));
   }
+  PropertyDetails(int value, PropertyConstness constness) {
+    value_ = ConstnessField::update(value, constness);
+  }
   PropertyDetails(int value, PropertyAttributes attributes) {
     value_ = AttributesField::update(value, attributes);
   }
@@ -373,6 +399,22 @@ class PropertyDetails BASE_EMBEDDED {
   uint32_t value_;
 };
 
+// kField location is more general than kDescriptor, kDescriptor generalizes
+// only to itself.
+inline bool IsGeneralizableTo(PropertyLocation a, PropertyLocation b) {
+  return b == kField || a == kDescriptor;
+}
+
+// kMutable constness is more general than kConst, kConst generalizes only to
+// itself.
+inline bool IsGeneralizableTo(PropertyConstness a, PropertyConstness b) {
+  return b == kMutable || a == kConst;
+}
+
+inline PropertyConstness GeneralizeConstness(PropertyConstness a,
+                                             PropertyConstness b) {
+  return a == kMutable ? kMutable : b;
+}
 
 std::ostream& operator<<(std::ostream& os,
                          const PropertyAttributes& attributes);

@@ -239,15 +239,16 @@ if (process.argv[2] === 'child') {
       testCmd += 'ulimit -c 0 && ';
     }
 
-    testCmd += `${process.argv[0]} --abort-on-uncaught-exception ` +
-               `${process.argv[1]} child ${testIndex}`;
+    testCmd += `"${process.argv[0]}" --abort-on-uncaught-exception ` +
+               `"${process.argv[1]}" child ${testIndex}`;
 
     const child = child_process.exec(testCmd);
 
     child.on('exit', function onExit(code, signal) {
-      assert.strictEqual(code, 0, 'Test at index ' + testIndex +
-        ' should have exited with exit code 0 but instead exited with code ' +
-        code + ' and signal ' + signal);
+      assert.strictEqual(
+        code, 0, `Test at index ${testIndex
+        } should have exited with exit code 0 but instead exited with code ${
+        code} and signal ${signal}`);
     });
   });
 }

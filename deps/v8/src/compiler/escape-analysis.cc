@@ -694,6 +694,15 @@ void EscapeStatusAnalysis::Process(Node* node) {
           RevisitInputs(rep);
           RevisitUses(rep);
         }
+      } else {
+        Node* from = NodeProperties::GetValueInput(node, 0);
+        from = object_analysis_->ResolveReplacement(from);
+        if (SetEscaped(from)) {
+          TRACE("Setting #%d (%s) to escaped because of unresolved load #%i\n",
+                from->id(), from->op()->mnemonic(), node->id());
+          RevisitInputs(from);
+          RevisitUses(from);
+        }
       }
       RevisitUses(node);
       break;
@@ -828,7 +837,9 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kPlainPrimitiveToFloat64:
       case IrOpcode::kStringCharAt:
       case IrOpcode::kStringCharCodeAt:
-      case IrOpcode::kObjectIsCallable:
+      case IrOpcode::kStringIndexOf:
+      case IrOpcode::kObjectIsDetectableCallable:
+      case IrOpcode::kObjectIsNonCallable:
       case IrOpcode::kObjectIsNumber:
       case IrOpcode::kObjectIsReceiver:
       case IrOpcode::kObjectIsString:
@@ -844,9 +855,9 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
         if (use->op()->EffectInputCount() == 0 &&
             uses->op()->EffectInputCount() > 0 &&
             !IrOpcode::IsJsOpcode(use->opcode())) {
-          TRACE("Encountered unaccounted use by #%d (%s)\n", use->id(),
-                use->op()->mnemonic());
-          UNREACHABLE();
+          V8_Fatal(__FILE__, __LINE__,
+                   "Encountered unaccounted use by #%d (%s)\n", use->id(),
+                   use->op()->mnemonic());
         }
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
@@ -867,6 +878,7 @@ void EscapeStatusAnalysis::ProcessFinishRegion(Node* node) {
   }
   if (CheckUsesForEscape(node, true)) {
     RevisitInputs(node);
+    RevisitUses(node);
   }
 }
 
@@ -896,7 +908,7 @@ EscapeAnalysis::EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common,
 
 EscapeAnalysis::~EscapeAnalysis() {}
 
-void EscapeAnalysis::Run() {
+bool EscapeAnalysis::Run() {
   replacements_.resize(graph()->NodeCount());
   status_analysis_->AssignAliases();
   if (status_analysis_->AliasCount() > 0) {
@@ -905,6 +917,9 @@ void EscapeAnalysis::Run() {
     status_analysis_->ResizeStatusVector();
     RunObjectAnalysis();
     status_analysis_->RunStatusAnalysis();
+    return true;
+  } else {
+    return false;
   }
 }
 

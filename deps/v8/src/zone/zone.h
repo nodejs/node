@@ -50,6 +50,9 @@ class V8_EXPORT_PRIVATE Zone final {
     return static_cast<T*>(New(length * sizeof(T)));
   }
 
+  // Seals the zone to prevent any further allocation.
+  void Seal() { sealed_ = true; }
+
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
   bool excess_allocation() const {
@@ -106,6 +109,7 @@ class V8_EXPORT_PRIVATE Zone final {
 
   Segment* segment_head_;
   const char* name_;
+  bool sealed_;
 };
 
 // ZoneObject is an abstraction that helps define classes of objects

@@ -1637,7 +1637,7 @@ treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
 <!-- YAML
 added: v1.1.0
 -->
-- `private_key` {Object | string}
+- `public_key` {Object | string}
   - `key` {string} A PEM encoded private key.
   - `passphrase` {string} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
@@ -1657,7 +1657,7 @@ be passed instead of a public key.
 <!-- YAML
 added: v0.11.14
 -->
-- `private_key` {Object | string}
+- `public_key` {Object | string}
   - `key` {string} A PEM encoded private key.
   - `passphrase` {string} An optional passphrase for the private key.
   - `padding` {crypto.constants} An optional padding value defined in
@@ -1665,7 +1665,8 @@ added: v0.11.14
     `RSA_PKCS1_PADDING`, or `crypto.constants.RSA_PKCS1_OAEP_PADDING`.
 - `buffer` {Buffer | TypedArray | DataView}
 
-Encrypts `buffer` with `public_key`.
+Encrypts the content of `buffer` with `public_key` and returns a new
+[`Buffer`][] with encrypted content.
 
 `public_key` can be an object or a string. If `public_key` is a string, it is
 treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
@@ -2199,6 +2200,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
 
 [`Buffer`]: buffer.html
+[`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_BytesToKey.html
 [`cipher.final()`]: #crypto_cipher_final_output_encoding
 [`cipher.update()`]: #crypto_cipher_update_data_input_encoding_output_encoding
 [`crypto.createCipher()`]: #crypto_crypto_createcipher_algorithm_password
@@ -2222,7 +2224,6 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`ecdh.generateKeys()`]: #crypto_ecdh_generatekeys_encoding_format
 [`ecdh.setPrivateKey()`]: #crypto_ecdh_setprivatekey_private_key_encoding
 [`ecdh.setPublicKey()`]: #crypto_ecdh_setpublickey_public_key_encoding
-[`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_BytesToKey.html
 [`hash.digest()`]: #crypto_hash_digest_encoding
 [`hash.update()`]: #crypto_hash_update_data_input_encoding
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
@@ -2233,16 +2234,14 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`verify.update()`]: #crypto_verifier_update_data_input_encoding
 [`verify.verify()`]: #crypto_verifier_verify_object_signature_signature_format
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
+[Crypto Constants]: #crypto_crypto_constants_1
 [HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element
-[initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
 [NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
-[OpenSSL cipher list format]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
-[publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
 [RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
 [RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
 [RFC 4055]: https://www.rfc-editor.org/rfc/rfc4055.txt
-[stream]: stream.html
+[initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
 [stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
-[Crypto Constants]: #crypto_crypto_constants_1
+[stream]: stream.html

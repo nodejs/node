@@ -81,6 +81,8 @@ class V8StackTraceImpl final : public V8StackTrace {
       const override;
   std::unique_ptr<StringBuffer> toString() const override;
 
+  void setCreation(std::unique_ptr<V8StackTraceImpl> creation);
+
  private:
   V8StackTraceImpl(int contextGroupId, const String16& description,
                    std::vector<Frame>& frames,
@@ -90,6 +92,7 @@ class V8StackTraceImpl final : public V8StackTrace {
   String16 m_description;
   std::vector<Frame> m_frames;
   std::unique_ptr<V8StackTraceImpl> m_parent;
+  std::unique_ptr<V8StackTraceImpl> m_creation;
 
   DISALLOW_COPY_AND_ASSIGN(V8StackTraceImpl);
 };

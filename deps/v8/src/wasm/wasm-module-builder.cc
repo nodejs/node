@@ -5,11 +5,13 @@
 #include "src/signature.h"
 
 #include "src/handles.h"
+#include "src/objects-inl.h"
 #include "src/v8.h"
 #include "src/zone/zone-containers.h"
 
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/leb-helper.h"
+#include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
@@ -61,13 +63,20 @@ WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
       direct_calls_(builder->zone()),
       asm_offsets_(builder->zone(), 8) {}
 
-void WasmFunctionBuilder::EmitVarInt(uint32_t val) {
-  byte buffer[8];
+void WasmFunctionBuilder::EmitVarInt(int32_t val) {
+  byte buffer[5];
+  byte* ptr = buffer;
+  LEBHelper::write_i32v(&ptr, val);
+  DCHECK_GE(5, ptr - buffer);
+  body_.insert(body_.end(), buffer, ptr);
+}
+
+void WasmFunctionBuilder::EmitVarUint(uint32_t val) {
+  byte buffer[5];
   byte* ptr = buffer;
   LEBHelper::write_u32v(&ptr, val);
-  for (byte* p = buffer; p < ptr; p++) {
-    body_.push_back(*p);
-  }
+  DCHECK_GE(5, ptr - buffer);
+  body_.insert(body_.end(), buffer, ptr);
 }
 
 void WasmFunctionBuilder::SetSignature(FunctionSig* sig) {
@@ -82,15 +91,15 @@ uint32_t WasmFunctionBuilder::AddLocal(ValueType type) {
 }
 
 void WasmFunctionBuilder::EmitGetLocal(uint32_t local_index) {
-  EmitWithVarInt(kExprGetLocal, local_index);
+  EmitWithVarUint(kExprGetLocal, local_index);
 }
 
 void WasmFunctionBuilder::EmitSetLocal(uint32_t local_index) {
-  EmitWithVarInt(kExprSetLocal, local_index);
+  EmitWithVarUint(kExprSetLocal, local_index);
 }
 
 void WasmFunctionBuilder::EmitTeeLocal(uint32_t local_index) {
-  EmitWithVarInt(kExprTeeLocal, local_index);
+  EmitWithVarUint(kExprTeeLocal, local_index);
 }
 
 void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size) {
@@ -115,20 +124,19 @@ void WasmFunctionBuilder::EmitWithU8U8(WasmOpcode opcode, const byte imm1,
   body_.push_back(imm2);
 }
 
-void WasmFunctionBuilder::EmitWithVarInt(WasmOpcode opcode,
-                                         uint32_t immediate) {
+void WasmFunctionBuilder::EmitWithVarInt(WasmOpcode opcode, int32_t immediate) {
   body_.push_back(static_cast<byte>(opcode));
   EmitVarInt(immediate);
 }
 
+void WasmFunctionBuilder::EmitWithVarUint(WasmOpcode opcode,
+                                          uint32_t immediate) {
+  body_.push_back(static_cast<byte>(opcode));
+  EmitVarUint(immediate);
+}
+
 void WasmFunctionBuilder::EmitI32Const(int32_t value) {
-  if (-64 <= value && value <= 63) {
-    EmitWithU8(kExprI32Const, static_cast<byte>(value & 0x7F));
-  } else {
-    // TODO(titzer): variable-length signed and unsigned i32 constants.
-    byte code[] = {WASM_I32V_5(value)};
-    EmitCode(code, sizeof(code));
-  }
+  EmitWithVarInt(kExprI32Const, value);
 }
 
 void WasmFunctionBuilder::EmitDirectCallIndex(uint32_t index) {

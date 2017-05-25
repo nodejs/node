@@ -38,6 +38,16 @@ Print a v8 FeedbackVector object
 Usage: jfv tagged_ptr
 end
 
+# Print FeedbackMetadata
+define jfm
+call _v8_internal_Print_FeedbackMetadata((void*)($arg0))
+end
+document jfm
+Print a v8 FeedbackMetadata object
+Usage: jfm tagged_ptr
+end
+
+
 # Print DescriptorArray.
 define jda
 call _v8_internal_Print_DescriptorArray((void*)($arg0))

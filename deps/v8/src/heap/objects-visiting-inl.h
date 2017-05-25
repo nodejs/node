@@ -6,6 +6,7 @@
 #define V8_OBJECTS_VISITING_INL_H_
 
 #include "src/heap/array-buffer-tracker.h"
+#include "src/heap/mark-compact.h"
 #include "src/heap/objects-visiting.h"
 #include "src/ic/ic-state.h"
 #include "src/macro-assembler.h"
@@ -30,6 +31,10 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
   table_.Register(
       kVisitConsString,
       &FixedBodyVisitor<StaticVisitor, ConsString::BodyDescriptor, int>::Visit);
+
+  table_.Register(
+      kVisitThinString,
+      &FixedBodyVisitor<StaticVisitor, ThinString::BodyDescriptor, int>::Visit);
 
   table_.Register(kVisitSlicedString,
                   &FixedBodyVisitor<StaticVisitor, SlicedString::BodyDescriptor,
@@ -115,6 +120,10 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitConsString,
                   &FixedBodyVisitor<StaticVisitor, ConsString::BodyDescriptor,
+                                    void>::Visit);
+
+  table_.Register(kVisitThinString,
+                  &FixedBodyVisitor<StaticVisitor, ThinString::BodyDescriptor,
                                     void>::Visit);
 
   table_.Register(kVisitSlicedString,
@@ -259,16 +268,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(Heap* heap,
                                                           RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
   Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-  // Monomorphic ICs are preserved when possible, but need to be flushed
-  // when they might be keeping a Context alive, or when the heap is about
-  // to be serialized.
-  if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub() &&
-      (heap->isolate()->serializer_enabled() ||
-       target->ic_age() != heap->global_ic_age())) {
-    ICUtility::Clear(heap->isolate(), rinfo->pc(),
-                     rinfo->host()->constant_pool());
-    target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-  }
   Code* host = rinfo->host();
   heap->mark_compact_collector()->RecordRelocSlot(host, rinfo, target);
   StaticVisitor::MarkObject(heap, target);
@@ -334,7 +333,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitWeakCell(Map* map,
   // contain smi zero.
   if (weak_cell->next_cleared() && !weak_cell->cleared()) {
     HeapObject* value = HeapObject::cast(weak_cell->value());
-    if (MarkCompactCollector::IsMarked(value)) {
+    if (ObjectMarking::IsBlackOrGrey(value)) {
       // Weak cells with live values are directly processed here to reduce
       // the processing time of weak cells during the main GC pause.
       Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
@@ -453,9 +452,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSFunction(Map* map,
                                                           HeapObject* object) {
   Heap* heap = map->GetHeap();
   JSFunction* function = JSFunction::cast(object);
-  if (FLAG_cleanup_code_caches_at_gc) {
-    function->ClearTypeFeedbackInfoAtGCTime();
-  }
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->is_code_flushing_enabled()) {
     if (IsFlushable(heap, function)) {
@@ -526,8 +522,7 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(Heap* heap,
 
   // Code is either on stack, in compilation cache or referenced
   // by optimized version of function.
-  MarkBit code_mark = ObjectMarking::MarkBitFrom(function->code());
-  if (Marking::IsBlackOrGrey(code_mark)) {
+  if (ObjectMarking::IsBlackOrGrey(function->code())) {
     return false;
   }
 
@@ -550,8 +545,7 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     Heap* heap, SharedFunctionInfo* shared_info) {
   // Code is either on stack, in compilation cache or referenced
   // by optimized version of function.
-  MarkBit code_mark = ObjectMarking::MarkBitFrom(shared_info->code());
-  if (Marking::IsBlackOrGrey(code_mark)) {
+  if (ObjectMarking::IsBlackOrGrey(shared_info->code())) {
     return false;
   }
 

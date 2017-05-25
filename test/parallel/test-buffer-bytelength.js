@@ -106,3 +106,12 @@ assert.strictEqual(Buffer.byteLength('Il était tué', 'utf8'), 14);
 // Test that ArrayBuffer from a different context is detected correctly
 const arrayBuf = vm.runInNewContext('new ArrayBuffer()');
 assert.strictEqual(Buffer.byteLength(arrayBuf), 0);
+
+// Verify that invalid encodings are treated as utf8
+for (let i = 1; i < 10; i++) {
+  const encoding = String(i).repeat(i);
+
+  assert.ok(!Buffer.isEncoding(encoding));
+  assert.strictEqual(Buffer.byteLength('foo', encoding),
+                     Buffer.byteLength('foo', 'utf8'));
+}

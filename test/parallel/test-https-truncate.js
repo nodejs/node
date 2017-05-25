@@ -32,8 +32,8 @@ const https = require('https');
 
 const fs = require('fs');
 
-const key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
-const cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
+const key = fs.readFileSync(`${common.fixturesDir}/keys/agent1-key.pem`);
+const cert = fs.readFileSync(`${common.fixturesDir}/keys/agent1-cert.pem`);
 
 // number of bytes discovered empirically to trigger the bug
 const data = Buffer.alloc(1024 * 32 + 1);

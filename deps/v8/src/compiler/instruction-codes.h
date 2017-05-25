@@ -206,11 +206,11 @@ typedef int32_t InstructionCode;
 // for code generation. We encode the instruction, addressing mode, and flags
 // continuation into a single InstructionCode which is stored as part of
 // the instruction.
-typedef BitField<ArchOpcode, 0, 8> ArchOpcodeField;
-typedef BitField<AddressingMode, 8, 5> AddressingModeField;
-typedef BitField<FlagsMode, 13, 3> FlagsModeField;
-typedef BitField<FlagsCondition, 16, 5> FlagsConditionField;
-typedef BitField<int, 21, 11> MiscField;
+typedef BitField<ArchOpcode, 0, 9> ArchOpcodeField;
+typedef BitField<AddressingMode, 9, 5> AddressingModeField;
+typedef BitField<FlagsMode, 14, 3> FlagsModeField;
+typedef BitField<FlagsCondition, 17, 5> FlagsConditionField;
+typedef BitField<int, 22, 10> MiscField;
 
 }  // namespace compiler
 }  // namespace internal

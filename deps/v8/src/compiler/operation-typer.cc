@@ -864,12 +864,29 @@ Type* OperationTyper::NumberShiftRightLogical(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (!lhs->IsInhabited()) return Type::None();
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) return Type::None();
 
   lhs = NumberToUint32(lhs);
+  rhs = NumberToUint32(rhs);
 
-  // Logical right-shifting any value cannot make it larger.
-  return Type::Range(0.0, lhs->Max(), zone());
+  uint32_t min_lhs = lhs->Min();
+  uint32_t max_lhs = lhs->Max();
+  uint32_t min_rhs = rhs->Min();
+  uint32_t max_rhs = rhs->Max();
+  if (max_rhs > 31) {
+    // rhs can be larger than the bitmask
+    max_rhs = 31;
+    min_rhs = 0;
+  }
+
+  double min = min_lhs >> max_rhs;
+  double max = max_lhs >> min_rhs;
+  DCHECK_LE(0, min);
+  DCHECK_LE(max, kMaxUInt32);
+
+  if (min == 0 && max == kMaxInt) return Type::Unsigned31();
+  if (min == 0 && max == kMaxUInt32) return Type::Unsigned32();
+  return Type::Range(min, max, zone());
 }
 
 Type* OperationTyper::NumberAtan2(Type* lhs, Type* rhs) {

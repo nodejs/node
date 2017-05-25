@@ -198,6 +198,7 @@ struct Register : public CPURegister {
 };
 
 static const bool kSimpleFPAliasing = true;
+static const bool kSimdMaskRegisters = false;
 
 struct FPRegister : public CPURegister {
   enum Code {

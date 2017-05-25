@@ -32,6 +32,10 @@
 
   ##############################################################################
 
+  # This test is so detailed in it's look at the literals array, I can't
+  # maintain it until the CL is done.
+  'test-heap-profiler/AllocationSitesAreVisible': [FAIL],
+
   # BUG(382): Weird test. Can't guarantee that it never times out.
   'test-api/ApplyInterruption': [PASS, TIMEOUT],
 
@@ -102,6 +106,7 @@
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
+  'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -146,6 +151,9 @@
   'test-api/ExternalFloatArray': [SKIP],
   'test-api/Float32Array': [SKIP],
   'test-api/Float64Array': [SKIP],
+
+  # BUG(v8:5193): Flaky crash.
+  'test-sampler/LibSamplerCollectSample': [SKIP],
 }],  # 'arch == arm64 and mode == debug and simulator_run == True'
 
 ##############################################################################
@@ -210,7 +218,18 @@
 
   # BUG(5193): Flaky timeout.
   'test-sampler/LibSamplerCollectSample': [PASS, ['arch == x64', SKIP]],
+
+  # BUG(5920): Flaky crash.
+  'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
 }],  # 'system == windows'
+
+##############################################################################
+['system == macos', {
+  # BUG(v8:5193) Flaky failures.
+  'test-cpu-profiler/FunctionApplySample': [SKIP],
+  'test-cpu-profiler/JsNativeJsSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
+}],  # 'system == macos'
 
 ##############################################################################
 ['arch == arm', {
@@ -296,6 +315,10 @@
   'test-gap-resolver/FuzzResolver': [SKIP],
   'test-run-wasm/RunWasmCompiled_MultiReturnSelect_f32': [SKIP],
   'test-run-wasm/RunWasmCompiled_MultiReturnSelect_f64': [SKIP],
+  'test-run-wasm/RunWasmCompiled_SignallingNanSurvivesI32ReinterpretF32': [SKIP],
+  'test-run-wasm-64/RunWasmCompiled_SignallingNanSurvivesI64ReinterpretF64': [SKIP],
+  'test-run-wasm/RunWasmInterpreted_SignallingNanSurvivesI32ReinterpretF32': [SKIP],
+  'test-run-wasm-64/RunWasmInterpreted_SignallingNanSurvivesI64ReinterpretF64': [SKIP],
 }],  # 'arch == x87'
 
 ##############################################################################
@@ -345,9 +368,6 @@
 ['variant == turbofan or variant == ignition_turbofan', {
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
-
-  # TODO(vogelheim,5548): Turbofan does support cached accessors.
-  'test-api-accessors/CachedAccessorCrankshaft': [FAIL],
 }],  # variant == turbofan or variant == ignition_turbofan
 
 ##############################################################################

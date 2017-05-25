@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -131,7 +131,7 @@ typedef enum {
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
   UCOL_ATTRIBUTE_VALUE_COUNT
-#endif  // U_HIDE_DEPRECATED_API
+#endif  /* U_HIDE_DEPRECATED_API */
 } UColAttributeValue;
 
 /**
@@ -204,7 +204,7 @@ typedef enum {
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     UCOL_REORDER_CODE_LIMIT         = 0x1005
-#endif  // U_HIDE_DEPRECATED_API
+#endif  /* U_HIDE_DEPRECATED_API */
 } UColReorderCode;
 
 /**
@@ -342,8 +342,8 @@ typedef enum {
       */
      UCOL_NUMERIC_COLLATION = UCOL_STRENGTH + 2,
 
-    // Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
-    // it is needed for layout of RuleBasedCollator object.
+    /* Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
+     * it is needed for layout of RuleBasedCollator object. */
     /**
      * One more than the highest normal UColAttribute value.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
@@ -1067,7 +1067,7 @@ typedef enum {
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     UCOL_BOUND_VALUE_COUNT
-#endif  // U_HIDE_DEPRECATED_API
+#endif  /* U_HIDE_DEPRECATED_API */
 } UColBoundMode;
 
 /**

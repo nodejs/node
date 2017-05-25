@@ -142,6 +142,8 @@ class Test262TestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     return (testcase.flags + context.mode_flags + self.harness +
+            ([os.path.join(self.root, "harness-agent.js")]
+             if testcase.path.startswith('built-ins/Atomics') else []) +
             self.GetIncludesForTest(testcase) +
             (["--module"] if "module" in self.GetTestRecord(testcase) else []) +
             [self.GetPathForTest(testcase)] +

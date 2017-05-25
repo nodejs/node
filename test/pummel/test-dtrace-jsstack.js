@@ -40,7 +40,7 @@ const stalloogle = (str) => {
 };
 
 const bagnoogle = (arg0, arg1) => {
-  stalloogle(arg0 + ' is ' + arg1 + ' except that it is read-only');
+  stalloogle(`${arg0} is ${arg1} except that it is read-only`);
 };
 
 let done = false;
@@ -59,13 +59,13 @@ const spawn = require('child_process').spawn;
  * when we call getloadavg() -- with the implicit assumption that our
  * deepest function is the only caller of os.loadavg().
  */
-const dtrace = spawn('dtrace', [ '-qwn', 'syscall::getloadavg:entry/pid == ' +
-  process.pid + '/{ustack(100, 8192); exit(0); }' ]);
+const dtrace = spawn('dtrace', [ '-qwn', `syscall::getloadavg:entry/pid == ${
+                                process.pid}/{ustack(100, 8192); exit(0); }` ]);
 
 let output = '';
 
 dtrace.stderr.on('data', function(data) {
-  console.log('dtrace: ' + data);
+  console.log(`dtrace: ${data}`);
 });
 
 dtrace.stdout.on('data', function(data) {
@@ -74,7 +74,7 @@ dtrace.stdout.on('data', function(data) {
 
 dtrace.on('exit', function(code) {
   if (code !== 0) {
-    console.error('dtrace exited with code ' + code);
+    console.error(`dtrace exited with code ${code}`);
     process.exit(code);
   }
 
@@ -92,12 +92,12 @@ dtrace.on('exit', function(code) {
     const frame = line.substr(line.indexOf(sentinel) + sentinel.length);
     const top = frames.shift();
 
-    assert.strictEqual(frame.indexOf(top), 0, 'unexpected frame where ' +
-      top + ' was expected');
+    assert.strictEqual(frame.indexOf(top), 0,
+                       `unexpected frame where ${top} was expected`);
   }
 
   assert.strictEqual(frames.length, 0,
-                     'did not find expected frame ' + frames[0]);
+                     `did not find expected frame ${frames[0]}`);
   process.exit(0);
 });
 

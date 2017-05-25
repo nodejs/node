@@ -43,7 +43,7 @@ if (common.isWindows) {
   process.env.TEMP = '';
   assert.strictEqual(os.tmpdir(), '/tmp');
   process.env.TMP = '';
-  const expected = (process.env.SystemRoot || process.env.windir) + '\\temp';
+  const expected = `${process.env.SystemRoot || process.env.windir}\\temp`;
   assert.strictEqual(os.tmpdir(), expected);
   process.env.TEMP = '\\temp\\';
   assert.strictEqual(os.tmpdir(), '\\temp');

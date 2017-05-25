@@ -371,13 +371,13 @@ void Decoder::UnknownFormat(Instruction* instr, const char* name) {
 
 
 void Decoder::DecodeExt1(Instruction* instr) {
-  switch (instr->Bits(10, 1) << 1) {
+  switch (EXT1 | (instr->BitField(10, 1))) {
     case MCRF: {
       UnknownFormat(instr, "mcrf");  // not used by V8
       break;
     }
     case BCLRX: {
-      int bo = instr->Bits(25, 21) << 21;
+      int bo = instr->BitField(25, 21);
       int bi = instr->Bits(20, 16);
       CRBit cond = static_cast<CRBit>(bi & (CRWIDTH - 1));
       switch (bo) {
@@ -447,7 +447,7 @@ void Decoder::DecodeExt1(Instruction* instr) {
       break;
     }
     case BCCTRX: {
-      switch (instr->Bits(25, 21) << 21) {
+      switch (instr->BitField(25, 21)) {
         case DCBNZF: {
           UnknownFormat(instr, "bcctrx-dcbnzf");
           break;
@@ -541,7 +541,7 @@ void Decoder::DecodeExt1(Instruction* instr) {
 
 void Decoder::DecodeExt2(Instruction* instr) {
   // Some encodings are 10-1 bits, handle those first
-  switch (instr->Bits(10, 1) << 1) {
+  switch (EXT2 | (instr->BitField(10, 1))) {
     case SRWX: {
       Format(instr, "srw'.    'ra, 'rs, 'rb");
       return;
@@ -642,7 +642,7 @@ void Decoder::DecodeExt2(Instruction* instr) {
 #endif
   }
 
-  switch (instr->Bits(10, 2) << 2) {
+  switch (EXT2 | (instr->BitField(10, 2))) {
     case SRADIX: {
       Format(instr, "sradi'.  'ra,'rs,'sh");
       return;
@@ -650,7 +650,7 @@ void Decoder::DecodeExt2(Instruction* instr) {
   }
 
   // ?? are all of these xo_form?
-  switch (instr->Bits(9, 1) << 1) {
+  switch (EXT2 | (instr->BitField(9, 1))) {
     case CMP: {
 #if V8_TARGET_ARCH_PPC64
       if (instr->Bit(21)) {
@@ -899,7 +899,7 @@ void Decoder::DecodeExt2(Instruction* instr) {
 #endif
   }
 
-  switch (instr->Bits(5, 1) << 1) {
+  switch (EXT2 | (instr->BitField(5, 1))) {
     case ISEL: {
       Format(instr, "isel    'rt, 'ra, 'rb");
       return;
@@ -912,7 +912,7 @@ void Decoder::DecodeExt2(Instruction* instr) {
 
 
 void Decoder::DecodeExt3(Instruction* instr) {
-  switch (instr->Bits(10, 1) << 1) {
+  switch (EXT3 | (instr->BitField(10, 1))) {
     case FCFID: {
       Format(instr, "fcfids'. 'Dt, 'Db");
       break;
@@ -929,7 +929,7 @@ void Decoder::DecodeExt3(Instruction* instr) {
 
 
 void Decoder::DecodeExt4(Instruction* instr) {
-  switch (instr->Bits(5, 1) << 1) {
+  switch (EXT4 | (instr->BitField(5, 1))) {
     case FDIV: {
       Format(instr, "fdiv'.   'Dt, 'Da, 'Db");
       return;
@@ -964,7 +964,7 @@ void Decoder::DecodeExt4(Instruction* instr) {
     }
   }
 
-  switch (instr->Bits(10, 1) << 1) {
+  switch (EXT4 | (instr->BitField(10, 1))) {
     case FCMPU: {
       Format(instr, "fcmpu   'Da, 'Db");
       break;
@@ -1065,7 +1065,7 @@ void Decoder::DecodeExt4(Instruction* instr) {
 
 
 void Decoder::DecodeExt5(Instruction* instr) {
-  switch (instr->Bits(4, 2) << 2) {
+  switch (EXT5 | (instr->BitField(4, 2))) {
     case RLDICL: {
       Format(instr, "rldicl'. 'ra, 'rs, 'sh, 'mb");
       return;
@@ -1083,7 +1083,7 @@ void Decoder::DecodeExt5(Instruction* instr) {
       return;
     }
   }
-  switch (instr->Bits(4, 1) << 1) {
+  switch (EXT5 | (instr->BitField(4, 1))) {
     case RLDCL: {
       Format(instr, "rldcl'.  'ra, 'rs, 'sb, 'mb");
       return;
@@ -1093,22 +1093,22 @@ void Decoder::DecodeExt5(Instruction* instr) {
 }
 
 void Decoder::DecodeExt6(Instruction* instr) {
-  switch (instr->Bits(10, 3) << 3) {
+  switch (EXT6 | (instr->BitField(10, 3))) {
 #define DECODE_XX3_INSTRUCTIONS(name, opcode_name, opcode_value) \
   case opcode_name: {                                            \
     Format(instr, #name" 'Dt, 'Da, 'Db");                        \
     return;                                                      \
   }
-    XX3_OPCODE_LIST(DECODE_XX3_INSTRUCTIONS)
+    PPC_XX3_OPCODE_LIST(DECODE_XX3_INSTRUCTIONS)
 #undef DECODE_XX3_INSTRUCTIONS
   }
-  switch (instr->Bits(10, 2) << 2) {
+  switch (EXT6 | (instr->BitField(10, 2))) {
 #define DECODE_XX2_INSTRUCTIONS(name, opcode_name, opcode_value) \
   case opcode_name: {                                            \
     Format(instr, #name" 'Dt, 'Db");                             \
     return;                                                      \
   }
-    XX2_OPCODE_LIST(DECODE_XX2_INSTRUCTIONS)
+    PPC_XX2_OPCODE_LIST(DECODE_XX2_INSTRUCTIONS)
   }
 #undef DECODE_XX3_INSTRUCTIONS
   Unknown(instr);  // not used by V8
@@ -1130,7 +1130,8 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
     return Instruction::kInstrSize;
   }
 
-  switch (instr->OpcodeValue() << 26) {
+  uint32_t opcode = instr->OpcodeValue() << 26;
+  switch (opcode) {
     case TWI: {
       PrintSoftwareInterrupt(instr->SvcValue());
       break;

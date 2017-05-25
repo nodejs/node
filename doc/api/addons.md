@@ -1,6 +1,6 @@
-# C/C++ Addons
+# C++ Addons
 
-Node.js Addons are dynamically-linked shared objects, written in C or C++, that
+Node.js Addons are dynamically-linked shared objects, written in C++, that
 can be loaded into Node.js using the [`require()`][require] function, and used
 just as if they were an ordinary Node.js module. They are used primarily to
 provide an interface between JavaScript running in Node.js and C/C++ libraries.
@@ -26,7 +26,7 @@ involving knowledge of several components and APIs :
    off-loading work via libuv to non-blocking system operations, worker threads
    or a custom use of libuv's threads.
 
- - Internal Node.js libraries. Node.js itself exports a number of C/C++ APIs
+ - Internal Node.js libraries. Node.js itself exports a number of C++ APIs
    that Addons can use &mdash; the most important of which is the
    `node::ObjectWrap` class.
 
@@ -1116,7 +1116,7 @@ void init(Local<Object> exports) {
   AtExit(at_exit_cb1, exports->GetIsolate());
 }
 
-NODE_MODULE(addon, init);
+NODE_MODULE(addon, init)
 
 }  // namespace demo
 ```
@@ -1128,14 +1128,14 @@ Test in JavaScript by running:
 const addon = require('./build/Release/addon');
 ```
 
+[Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
+[Linking to Node.js' own dependencies]: #addons_linking_to_node_js_own_dependencies
+[Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
-[Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
 [examples]: https://github.com/nodejs/nan/tree/master/examples/
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
-[Linking to Node.js' own dependencies]: #addons_linking_to_node_js_own_dependencies
-[Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [node-gyp]: https://github.com/nodejs/node-gyp
 [require]: globals.html#globals_require
 [v8-docs]: https://v8docs.nodesource.com/

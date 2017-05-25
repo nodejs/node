@@ -90,13 +90,13 @@ function createTestCmdLine(options) {
     testCmd += 'ulimit -c 0 && ';
   }
 
-  testCmd += process.argv[0];
+  testCmd += `"${process.argv[0]}"`;
 
   if (options && options.withAbortOnUncaughtException) {
     testCmd += ' --abort-on-uncaught-exception';
   }
 
-  testCmd += ` ${process.argv[1]} child`;
+  testCmd += ` "${process.argv[1]}" child`;
 
   return testCmd;
 }

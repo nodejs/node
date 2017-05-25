@@ -11,6 +11,7 @@
 #include "src/interpreter/bytecode-peephole-optimizer.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
 #include "src/interpreter/interpreter-intrinsics.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -21,8 +22,9 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
     int locals_count, FunctionLiteral* literal,
     SourcePositionTableBuilder::RecordingMode source_position_mode)
     : zone_(zone),
+      literal_(literal),
       bytecode_generated_(false),
-      constant_array_builder_(zone, isolate->factory()->the_hole_value()),
+      constant_array_builder_(zone),
       handler_table_builder_(zone),
       return_seen_in_block_(false),
       parameter_count_(parameter_count),
@@ -67,6 +69,12 @@ Register BytecodeArrayBuilder::last_context_register() const {
 Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
   DCHECK_GE(parameter_index, 0);
   return Register::FromParameterIndex(parameter_index, parameter_count());
+}
+
+Register BytecodeArrayBuilder::Local(int index) const {
+  // TODO(marja): Make a DCHECK once crbug.com/706234 is fixed.
+  CHECK_LT(index, locals_count());
+  return Register(index);
 }
 
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
@@ -382,10 +390,52 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(Handle<Object> object) {
-  size_t entry = GetConstantPoolEntry(object);
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
+    const AstRawString* raw_string) {
+  size_t entry = GetConstantPoolEntry(raw_string);
   OutputLdaConstant(entry);
   return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(const Scope* scope) {
+  size_t entry = GetConstantPoolEntry(scope);
+  OutputLdaConstant(entry);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
+    const AstValue* ast_value) {
+  if (ast_value->IsSmi()) {
+    return LoadLiteral(ast_value->AsSmi());
+  } else if (ast_value->IsUndefined()) {
+    return LoadUndefined();
+  } else if (ast_value->IsTrue()) {
+    return LoadTrue();
+  } else if (ast_value->IsFalse()) {
+    return LoadFalse();
+  } else if (ast_value->IsNull()) {
+    return LoadNull();
+  } else if (ast_value->IsTheHole()) {
+    return LoadTheHole();
+  } else if (ast_value->IsString()) {
+    return LoadLiteral(ast_value->AsString());
+  } else if (ast_value->IsHeapNumber()) {
+    size_t entry = GetConstantPoolEntry(ast_value);
+    OutputLdaConstant(entry);
+    return *this;
+  } else {
+    // This should be the only ast value type left.
+    DCHECK(ast_value->IsSymbol());
+    size_t entry;
+    switch (ast_value->AsSymbol()) {
+      case AstSymbol::kHomeObjectSymbol:
+        entry = HomeObjectSymbolConstantPoolEntry();
+        break;
+        // No default case so that we get a warning if AstSymbol changes
+    }
+    OutputLdaConstant(entry);
+    return *this;
+  }
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadUndefined() {
@@ -444,9 +494,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
-    const Handle<String> name, int feedback_slot, TypeofMode typeof_mode) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(const AstRawString* name,
+                                                       int feedback_slot,
+                                                       TypeofMode typeof_mode) {
   size_t name_index = GetConstantPoolEntry(name);
+  // Ensure that typeof mode is in sync with the IC slot kind if the function
+  // literal is available (not a unit test case).
+  // TODO(ishell): check only in debug mode.
+  if (literal_) {
+    FeedbackSlot slot = FeedbackVector::ToSlot(feedback_slot);
+    CHECK_EQ(GetTypeofModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
+             typeof_mode);
+  }
   if (typeof_mode == INSIDE_TYPEOF) {
     OutputLdaGlobalInsideTypeof(name_index, feedback_slot);
   } else {
@@ -457,7 +516,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
-    const Handle<String> name, int feedback_slot, LanguageMode language_mode) {
+    const AstRawString* name, int feedback_slot, LanguageMode language_mode) {
   size_t name_index = GetConstantPoolEntry(name);
   if (language_mode == SLOPPY) {
     OutputStaGlobalSloppy(name_index, feedback_slot);
@@ -468,12 +527,20 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
-                                                            int slot_index,
-                                                            int depth) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(
+    Register context, int slot_index, int depth,
+    ContextSlotMutability mutability) {
   if (context.is_current_context() && depth == 0) {
-    OutputLdaCurrentContextSlot(slot_index);
+    if (mutability == kImmutableSlot) {
+      OutputLdaImmutableCurrentContextSlot(slot_index);
+    } else {
+      DCHECK_EQ(kMutableSlot, mutability);
+      OutputLdaCurrentContextSlot(slot_index);
+    }
+  } else if (mutability == kImmutableSlot) {
+    OutputLdaImmutableContextSlot(context, slot_index, depth);
   } else {
+    DCHECK_EQ(mutability, kMutableSlot);
     OutputLdaContextSlot(context, slot_index, depth);
   }
   return *this;
@@ -491,7 +558,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupSlot(
-    const Handle<String> name, TypeofMode typeof_mode) {
+    const AstRawString* name, TypeofMode typeof_mode) {
   size_t name_index = GetConstantPoolEntry(name);
   if (typeof_mode == INSIDE_TYPEOF) {
     OutputLdaLookupSlotInsideTypeof(name_index);
@@ -503,7 +570,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupSlot(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupContextSlot(
-    const Handle<String> name, TypeofMode typeof_mode, int slot_index,
+    const AstRawString* name, TypeofMode typeof_mode, int slot_index,
     int depth) {
   size_t name_index = GetConstantPoolEntry(name);
   if (typeof_mode == INSIDE_TYPEOF) {
@@ -516,7 +583,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupContextSlot(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupGlobalSlot(
-    const Handle<String> name, TypeofMode typeof_mode, int feedback_slot,
+    const AstRawString* name, TypeofMode typeof_mode, int feedback_slot,
     int depth) {
   size_t name_index = GetConstantPoolEntry(name);
   if (typeof_mode == INSIDE_TYPEOF) {
@@ -529,7 +596,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupGlobalSlot(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreLookupSlot(
-    const Handle<String> name, LanguageMode language_mode) {
+    const AstRawString* name, LanguageMode language_mode) {
   size_t name_index = GetConstantPoolEntry(name);
   if (language_mode == SLOPPY) {
     OutputStaLookupSlotSloppy(name_index);
@@ -541,7 +608,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreLookupSlot(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
-    Register object, const Handle<Name> name, int feedback_slot) {
+    Register object, const AstRawString* name, int feedback_slot) {
   size_t name_index = GetConstantPoolEntry(name);
   OutputLdaNamedProperty(object, name_index, feedback_slot);
   return *this;
@@ -553,6 +620,20 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
+    Register object, int feedback_slot) {
+  size_t name_index = IteratorSymbolConstantPoolEntry();
+  OutputLdaNamedProperty(object, name_index, feedback_slot);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAsyncIteratorProperty(
+    Register object, int feedback_slot) {
+  size_t name_index = AsyncIteratorSymbolConstantPoolEntry();
+  OutputLdaNamedProperty(object, name_index, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreDataPropertyInLiteral(
     Register object, Register name, DataPropertyInLiteralFlags flags,
     int feedback_slot) {
@@ -561,9 +642,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreDataPropertyInLiteral(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
-    Register object, const Handle<Name> name, int feedback_slot,
+    Register object, size_t name_index, int feedback_slot,
     LanguageMode language_mode) {
-  size_t name_index = GetConstantPoolEntry(name);
+  // Ensure that language mode is in sync with the IC slot kind if the function
+  // literal is available (not a unit test case).
+  // TODO(ishell): check only in debug mode.
+  if (literal_) {
+    FeedbackSlot slot = FeedbackVector::ToSlot(feedback_slot);
+    CHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
+             language_mode);
+  }
   if (language_mode == SLOPPY) {
     OutputStaNamedPropertySloppy(object, name_index, feedback_slot);
   } else {
@@ -573,9 +661,39 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
+    Register object, const AstRawString* name, int feedback_slot,
+    LanguageMode language_mode) {
+  size_t name_index = GetConstantPoolEntry(name);
+  return StoreNamedProperty(object, name_index, feedback_slot, language_mode);
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedOwnProperty(
+    Register object, const AstRawString* name, int feedback_slot) {
+  size_t name_index = GetConstantPoolEntry(name);
+  // Ensure that the store operation is in sync with the IC slot kind if
+  // the function literal is available (not a unit test case).
+  // TODO(ishell): check only in debug mode.
+  if (literal_) {
+    FeedbackSlot slot = FeedbackVector::ToSlot(feedback_slot);
+    CHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
+             feedback_vector_spec()->GetKind(slot));
+  }
+  OutputStaNamedOwnProperty(object, name_index, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
     Register object, Register key, int feedback_slot,
     LanguageMode language_mode) {
+  // Ensure that language mode is in sync with the IC slot kind if the function
+  // literal is available (not a unit test case).
+  // TODO(ishell): check only in debug mode.
+  if (literal_) {
+    FeedbackSlot slot = FeedbackVector::ToSlot(feedback_slot);
+    CHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
+             language_mode);
+  }
   if (language_mode == SLOPPY) {
     OutputStaKeyedPropertySloppy(object, key, feedback_slot);
   } else {
@@ -585,6 +703,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreHomeObjectProperty(
+    Register object, int feedback_slot, LanguageMode language_mode) {
+  size_t name_index = HomeObjectSymbolConstantPoolEntry();
+  return StoreNamedProperty(object, name_index, feedback_slot, language_mode);
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
     size_t shared_function_info_entry, int slot, int flags) {
   OutputCreateClosure(shared_function_info_entry, slot, flags);
@@ -592,17 +716,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateBlockContext(
-    Handle<ScopeInfo> scope_info) {
-  size_t entry = GetConstantPoolEntry(scope_info);
+    const Scope* scope) {
+  size_t entry = GetConstantPoolEntry(scope);
   OutputCreateBlockContext(entry);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateCatchContext(
-    Register exception, Handle<String> name, Handle<ScopeInfo> scope_info) {
+    Register exception, const AstRawString* name, const Scope* scope) {
   size_t name_index = GetConstantPoolEntry(name);
-  size_t scope_info_index = GetConstantPoolEntry(scope_info);
-  OutputCreateCatchContext(exception, name_index, scope_info_index);
+  size_t scope_index = GetConstantPoolEntry(scope);
+  OutputCreateCatchContext(exception, name_index, scope_index);
   return *this;
 }
 
@@ -617,9 +741,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEvalContext(int slots) {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateWithContext(
-    Register object, Handle<ScopeInfo> scope_info) {
-  size_t scope_info_index = GetConstantPoolEntry(scope_info);
-  OutputCreateWithContext(object, scope_info_index);
+    Register object, const Scope* scope) {
+  size_t scope_index = GetConstantPoolEntry(scope);
+  OutputCreateWithContext(object, scope_index);
   return *this;
 }
 
@@ -642,7 +766,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArguments(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
-    Handle<String> pattern, int literal_index, int flags) {
+    const AstRawString* pattern, int literal_index, int flags) {
   size_t pattern_entry = GetConstantPoolEntry(pattern);
   OutputCreateRegExpLiteral(pattern_entry, literal_index, flags);
   return *this;
@@ -707,6 +831,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Jump(BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
   OutputJump(label, 0);
   return *this;
 }
@@ -714,40 +839,47 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Jump(BytecodeLabel* label) {
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfTrue(BytecodeLabel* label) {
   // The peephole optimizer attempts to simplify JumpIfToBooleanTrue
   // to JumpIfTrue.
+  DCHECK(!label->is_bound());
   OutputJumpIfToBooleanTrue(label, 0);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfFalse(BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
   OutputJumpIfToBooleanFalse(label, 0);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNull(BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
   OutputJumpIfNull(label, 0);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
     BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
   OutputJumpIfUndefined(label, 0);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(
     BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
   OutputJumpIfNotHole(label, 0);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfJSReceiver(
     BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
   OutputJumpIfJSReceiver(label, 0);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(BytecodeLabel* label,
                                                      int loop_depth) {
+  DCHECK(label->is_bound());
   OutputJumpLoop(label, 0, loop_depth);
   return *this;
 }
@@ -891,10 +1023,22 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
-                                                RegisterList args,
-                                                int feedback_slot_id) {
-  OutputNew(constructor, args, args.register_count(), feedback_slot_id);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CallWithSpread(Register callable,
+                                                           RegisterList args) {
+  OutputCallWithSpread(callable, args, args.register_count());
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::Construct(Register constructor,
+                                                      RegisterList args,
+                                                      int feedback_slot_id) {
+  OutputConstruct(constructor, args, args.register_count(), feedback_slot_id);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ConstructWithSpread(
+    Register constructor, RegisterList args) {
+  OutputConstructWithSpread(constructor, args, args.register_count());
   return *this;
 }
 
@@ -947,11 +1091,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::NewWithSpread(RegisterList args) {
-  OutputNewWithSpread(args, args.register_count());
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::Delete(Register object,
                                                    LanguageMode language_mode) {
   if (language_mode == SLOPPY) {
@@ -963,17 +1102,34 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Delete(Register object,
   return *this;
 }
 
-size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
-  return constant_array_builder()->Insert(object);
+size_t BytecodeArrayBuilder::GetConstantPoolEntry(
+    const AstRawString* raw_string) {
+  return constant_array_builder()->Insert(raw_string);
 }
 
-size_t BytecodeArrayBuilder::AllocateConstantPoolEntry() {
-  return constant_array_builder()->AllocateEntry();
+size_t BytecodeArrayBuilder::GetConstantPoolEntry(const AstValue* heap_number) {
+  DCHECK(heap_number->IsHeapNumber());
+  return constant_array_builder()->Insert(heap_number);
 }
 
-void BytecodeArrayBuilder::InsertConstantPoolEntryAt(size_t entry,
-                                                     Handle<Object> object) {
-  constant_array_builder()->InsertAllocatedEntry(entry, object);
+size_t BytecodeArrayBuilder::GetConstantPoolEntry(const Scope* scope) {
+  return constant_array_builder()->Insert(scope);
+}
+
+#define ENTRY_GETTER(NAME, ...)                            \
+  size_t BytecodeArrayBuilder::NAME##ConstantPoolEntry() { \
+    return constant_array_builder()->Insert##NAME();       \
+  }
+SINGLETON_CONSTANT_ENTRY_TYPES(ENTRY_GETTER)
+#undef ENTRY_GETTER
+
+size_t BytecodeArrayBuilder::AllocateDeferredConstantPoolEntry() {
+  return constant_array_builder()->InsertDeferred();
+}
+
+void BytecodeArrayBuilder::SetDeferredConstantPoolEntry(size_t entry,
+                                                        Handle<Object> object) {
+  constant_array_builder()->SetDeferredAt(entry, object);
 }
 
 void BytecodeArrayBuilder::SetReturnPosition() {

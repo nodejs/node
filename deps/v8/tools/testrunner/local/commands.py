@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import os
 import subprocess
 import sys
 from threading import Timer
@@ -62,11 +63,19 @@ def RunProcess(verbose, timeout, args, **rest):
     prev_error_mode = Win32SetErrorMode(error_mode)
     Win32SetErrorMode(error_mode | prev_error_mode)
 
+  env = os.environ.copy()
+  # GTest shard information is read by the V8 tests runner. Make sure it
+  # doesn't leak into the execution of gtests we're wrapping. Those might
+  # otherwise apply a second level of sharding and as a result skip tests.
+  env.pop('GTEST_TOTAL_SHARDS', None)
+  env.pop('GTEST_SHARD_INDEX', None)
+
   try:
     process = subprocess.Popen(
       args=popen_args,
       stdout=subprocess.PIPE,
       stderr=subprocess.PIPE,
+      env=env,
       **rest
     )
   except Exception as e:

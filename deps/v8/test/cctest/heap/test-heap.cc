@@ -28,9 +28,12 @@
 #include <stdlib.h>
 #include <utility>
 
+#include "src/api.h"
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/context-measure.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/execution.h"
@@ -38,11 +41,15 @@
 #include "src/field-type.h"
 #include "src/global-handles.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/incremental-marking.h"
+#include "src/heap/mark-compact.h"
 #include "src/heap/memory-reducer.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/snapshot/snapshot.h"
+#include "src/transitions.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -68,14 +75,68 @@ TEST(HeapMaps) {
   Heap* heap = CcTest::heap();
   CheckMap(heap->meta_map(), MAP_TYPE, Map::kSize);
   CheckMap(heap->heap_number_map(), HEAP_NUMBER_TYPE, HeapNumber::kSize);
-#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
-  CheckMap(heap->type##_map(), SIMD128_VALUE_TYPE, Type::kSize);
-  SIMD128_TYPES(SIMD128_TYPE)
-#undef SIMD128_TYPE
   CheckMap(heap->fixed_array_map(), FIXED_ARRAY_TYPE, kVariableSizeSentinel);
   CheckMap(heap->string_map(), STRING_TYPE, kVariableSizeSentinel);
 }
 
+static void VerifyStoredPrototypeMap(Isolate* isolate,
+                                     int stored_map_context_index,
+                                     int stored_ctor_context_index) {
+  Handle<Context> context = isolate->native_context();
+
+  Handle<Map> this_map(Map::cast(context->get(stored_map_context_index)));
+
+  Handle<JSFunction> fun(
+      JSFunction::cast(context->get(stored_ctor_context_index)));
+  Handle<JSObject> proto(JSObject::cast(fun->initial_map()->prototype()));
+  Handle<Map> that_map(proto->map());
+
+  CHECK(proto->HasFastProperties());
+  CHECK_EQ(*this_map, *that_map);
+}
+
+// Checks that critical maps stored on the context (mostly used for fast-path
+// checks) are unchanged after initialization.
+TEST(ContextMaps) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handle_scope(isolate);
+
+  VerifyStoredPrototypeMap(isolate,
+                           Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX,
+                           Context::STRING_FUNCTION_INDEX);
+  VerifyStoredPrototypeMap(isolate, Context::REGEXP_PROTOTYPE_MAP_INDEX,
+                           Context::REGEXP_FUNCTION_INDEX);
+  VerifyStoredPrototypeMap(isolate, Context::PROMISE_PROTOTYPE_MAP_INDEX,
+                           Context::PROMISE_FUNCTION_INDEX);
+}
+
+TEST(InitialObjects) {
+  LocalContext env;
+  HandleScope scope(CcTest::i_isolate());
+  Handle<Context> context = v8::Utils::OpenHandle(*env);
+  // Initial ArrayIterator prototype.
+  CHECK_EQ(
+      context->initial_array_iterator_prototype(),
+      *v8::Utils::OpenHandle(*CompileRun("[][Symbol.iterator]().__proto__")));
+  // Initial ArrayIterator prototype map.
+  CHECK_EQ(context->initial_array_iterator_prototype_map(),
+           context->initial_array_iterator_prototype()->map());
+  // Initial Array prototype.
+  CHECK_EQ(context->initial_array_prototype(),
+           *v8::Utils::OpenHandle(*CompileRun("Array.prototype")));
+  // Initial Generator prototype.
+  CHECK_EQ(context->initial_generator_prototype(),
+           *v8::Utils::OpenHandle(
+               *CompileRun("(function*(){}).__proto__.prototype")));
+  // Initial Iterator prototype.
+  CHECK_EQ(context->initial_iterator_prototype(),
+           *v8::Utils::OpenHandle(
+               *CompileRun("[][Symbol.iterator]().__proto__.__proto__")));
+  // Initial Object prototype.
+  CHECK_EQ(context->initial_object_prototype(),
+           *v8::Utils::OpenHandle(*CompileRun("Object.prototype")));
+}
 
 static void CheckOddball(Isolate* isolate, Object* obj, const char* string) {
   CHECK(obj->IsOddball());
@@ -265,206 +326,6 @@ TEST(HeapObjects) {
 
   CheckFindCodeObject(isolate);
 }
-
-
-template <typename T, typename LANE_TYPE, int LANES>
-static void CheckSimdValue(T* value, LANE_TYPE lane_values[LANES],
-                           LANE_TYPE other_value) {
-  // Check against lane_values, and check that all lanes can be set to
-  // other_value without disturbing the other lanes.
-  for (int i = 0; i < LANES; i++) {
-    CHECK_EQ(lane_values[i], value->get_lane(i));
-  }
-  for (int i = 0; i < LANES; i++) {
-    value->set_lane(i, other_value);  // change the value
-    for (int j = 0; j < LANES; j++) {
-      if (i != j)
-        CHECK_EQ(lane_values[j], value->get_lane(j));
-      else
-        CHECK_EQ(other_value, value->get_lane(j));
-    }
-    value->set_lane(i, lane_values[i]);  // restore the lane
-  }
-  CHECK(value->BooleanValue());  // SIMD values are 'true'.
-}
-
-
-TEST(SimdObjects) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-
-  HandleScope sc(isolate);
-
-  // Float32x4
-  {
-    float lanes[4] = {1, 2, 3, 4};
-    float quiet_NaN = std::numeric_limits<float>::quiet_NaN();
-    float signaling_NaN = std::numeric_limits<float>::signaling_NaN();
-
-    Handle<Float32x4> value = factory->NewFloat32x4(lanes);
-    CHECK(value->IsFloat32x4());
-    CheckSimdValue<Float32x4, float, 4>(*value, lanes, 3.14f);
-
-    // Check special lane values.
-    value->set_lane(1, -0.0);
-    CHECK_EQ(-0.0f, value->get_lane(1));
-    CHECK(std::signbit(value->get_lane(1)));  // Sign bit should be preserved.
-    value->set_lane(2, quiet_NaN);
-    CHECK(std::isnan(value->get_lane(2)));
-    value->set_lane(3, signaling_NaN);
-    CHECK(std::isnan(value->get_lane(3)));
-
-#ifdef OBJECT_PRINT
-    // Check value printing.
-    {
-      value = factory->NewFloat32x4(lanes);
-      std::ostringstream os;
-      value->Float32x4Print(os);
-      CHECK_EQ("1, 2, 3, 4", os.str());
-    }
-    {
-      float special_lanes[4] = {0, -0.0, quiet_NaN, signaling_NaN};
-      value = factory->NewFloat32x4(special_lanes);
-      std::ostringstream os;
-      value->Float32x4Print(os);
-      // Value printing doesn't preserve signed zeroes.
-      CHECK_EQ("0, 0, NaN, NaN", os.str());
-    }
-#endif  // OBJECT_PRINT
-  }
-  // Int32x4
-  {
-    int32_t lanes[4] = {1, 2, 3, 4};
-
-    Handle<Int32x4> value = factory->NewInt32x4(lanes);
-    CHECK(value->IsInt32x4());
-    CheckSimdValue<Int32x4, int32_t, 4>(*value, lanes, 3);
-
-#ifdef OBJECT_PRINT
-    std::ostringstream os;
-    value->Int32x4Print(os);
-    CHECK_EQ("1, 2, 3, 4", os.str());
-#endif  // OBJECT_PRINT
-  }
-  // Uint32x4
-  {
-    uint32_t lanes[4] = {1, 2, 3, 4};
-
-    Handle<Uint32x4> value = factory->NewUint32x4(lanes);
-    CHECK(value->IsUint32x4());
-    CheckSimdValue<Uint32x4, uint32_t, 4>(*value, lanes, 3);
-
-#ifdef OBJECT_PRINT
-    std::ostringstream os;
-    value->Uint32x4Print(os);
-    CHECK_EQ("1, 2, 3, 4", os.str());
-#endif  // OBJECT_PRINT
-  }
-  // Bool32x4
-  {
-    bool lanes[4] = {true, false, true, false};
-
-    Handle<Bool32x4> value = factory->NewBool32x4(lanes);
-    CHECK(value->IsBool32x4());
-    CheckSimdValue<Bool32x4, bool, 4>(*value, lanes, false);
-
-#ifdef OBJECT_PRINT
-    std::ostringstream os;
-    value->Bool32x4Print(os);
-    CHECK_EQ("true, false, true, false", os.str());
-#endif  // OBJECT_PRINT
-  }
-  // Int16x8
-  {
-    int16_t lanes[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-
-    Handle<Int16x8> value = factory->NewInt16x8(lanes);
-    CHECK(value->IsInt16x8());
-    CheckSimdValue<Int16x8, int16_t, 8>(*value, lanes, 32767);
-
-#ifdef OBJECT_PRINT
-    std::ostringstream os;
-    value->Int16x8Print(os);
-    CHECK_EQ("1, 2, 3, 4, 5, 6, 7, 8", os.str());
-#endif  // OBJECT_PRINT
-  }
-  // Uint16x8
-  {
-    uint16_t lanes[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-
-    Handle<Uint16x8> value = factory->NewUint16x8(lanes);
-    CHECK(value->IsUint16x8());
-    CheckSimdValue<Uint16x8, uint16_t, 8>(*value, lanes, 32767);
-
-#ifdef OBJECT_PRINT
-    std::ostringstream os;
-    value->Uint16x8Print(os);
-    CHECK_EQ("1, 2, 3, 4, 5, 6, 7, 8", os.str());
-#endif  // OBJECT_PRINT
-  }
-  // Bool16x8
-  {
-    bool lanes[8] = {true, false, true, false, true, false, true, false};
-
-    Handle<Bool16x8> value = factory->NewBool16x8(lanes);
-    CHECK(value->IsBool16x8());
-    CheckSimdValue<Bool16x8, bool, 8>(*value, lanes, false);
-
-#ifdef OBJECT_PRINT
-    std::ostringstream os;
-    value->Bool16x8Print(os);
-    CHECK_EQ("true, false, true, false, true, false, true, false", os.str());
-#endif  // OBJECT_PRINT
-  }
-  // Int8x16
-  {
-    int8_t lanes[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-
-    Handle<Int8x16> value = factory->NewInt8x16(lanes);
-    CHECK(value->IsInt8x16());
-    CheckSimdValue<Int8x16, int8_t, 16>(*value, lanes, 127);
-
-#ifdef OBJECT_PRINT
-    std::ostringstream os;
-    value->Int8x16Print(os);
-    CHECK_EQ("1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16", os.str());
-#endif  // OBJECT_PRINT
-  }
-  // Uint8x16
-  {
-    uint8_t lanes[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-
-    Handle<Uint8x16> value = factory->NewUint8x16(lanes);
-    CHECK(value->IsUint8x16());
-    CheckSimdValue<Uint8x16, uint8_t, 16>(*value, lanes, 127);
-
-#ifdef OBJECT_PRINT
-    std::ostringstream os;
-    value->Uint8x16Print(os);
-    CHECK_EQ("1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16", os.str());
-#endif  // OBJECT_PRINT
-  }
-  // Bool8x16
-  {
-    bool lanes[16] = {true, false, true, false, true, false, true, false,
-                      true, false, true, false, true, false, true, false};
-
-    Handle<Bool8x16> value = factory->NewBool8x16(lanes);
-    CHECK(value->IsBool8x16());
-    CheckSimdValue<Bool8x16, bool, 16>(*value, lanes, false);
-
-#ifdef OBJECT_PRINT
-    std::ostringstream os;
-    value->Bool8x16Print(os);
-    CHECK_EQ(
-        "true, false, true, false, true, false, true, false, true, false, "
-        "true, false, true, false, true, false",
-        os.str());
-#endif  // OBJECT_PRINT
-  }
-}
-
 
 TEST(Tagging) {
   CcTest::InitializeVM();
@@ -1646,37 +1507,37 @@ TEST(CompilationCacheCachingBehavior) {
   }
 
   // The script should be in the cache now.
-  MaybeHandle<SharedFunctionInfo> info = compilation_cache->LookupScript(
+  InfoVectorPair pair = compilation_cache->LookupScript(
       source, Handle<Object>(), 0, 0, v8::ScriptOriginOptions(true, false),
       native_context, language_mode);
-  CHECK(!info.is_null());
+  CHECK(pair.has_shared());
 
   // Check that the code cache entry survives at least on GC.
   // (Unless --optimize-for-size, in which case it might get collected
   // immediately.)
   if (!FLAG_optimize_for_size) {
     CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-    info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
+    pair = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
                                            v8::ScriptOriginOptions(true, false),
                                            native_context, language_mode);
-    CHECK(!info.is_null());
+    CHECK(pair.has_shared());
   }
 
   // Progress code age until it's old and ready for GC.
   const int kAgingThreshold = 6;
   for (int i = 0; i < kAgingThreshold; i++) {
-    info.ToHandleChecked()->code()->MakeOlder();
-    if (info.ToHandleChecked()->HasBytecodeArray()) {
-      info.ToHandleChecked()->bytecode_array()->MakeOlder();
+    pair.shared()->code()->MakeOlder();
+    if (pair.shared()->HasBytecodeArray()) {
+      pair.shared()->bytecode_array()->MakeOlder();
     }
   }
 
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   // Ensure code aging cleared the entry from the cache.
-  info = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
+  pair = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
                                          v8::ScriptOriginOptions(true, false),
                                          native_context, language_mode);
-  CHECK(info.is_null());
+  CHECK(!pair.has_shared());
 }
 
 
@@ -2015,16 +1876,12 @@ HEAP_TEST(TestSizeOfObjects) {
 TEST(TestAlignmentCalculations) {
   // Maximum fill amounts are consistent.
   int maximum_double_misalignment = kDoubleSize - kPointerSize;
-  int maximum_simd128_misalignment = kSimd128Size - kPointerSize;
   int max_word_fill = Heap::GetMaximumFillToAlign(kWordAligned);
   CHECK_EQ(0, max_word_fill);
   int max_double_fill = Heap::GetMaximumFillToAlign(kDoubleAligned);
   CHECK_EQ(maximum_double_misalignment, max_double_fill);
   int max_double_unaligned_fill = Heap::GetMaximumFillToAlign(kDoubleUnaligned);
   CHECK_EQ(maximum_double_misalignment, max_double_unaligned_fill);
-  int max_simd128_unaligned_fill =
-      Heap::GetMaximumFillToAlign(kSimd128Unaligned);
-  CHECK_EQ(maximum_simd128_misalignment, max_simd128_unaligned_fill);
 
   Address base = static_cast<Address>(NULL);
   int fill = 0;
@@ -2045,16 +1902,6 @@ TEST(TestAlignmentCalculations) {
   fill = Heap::GetFillToAlign(base, kDoubleUnaligned);
   CHECK_EQ(maximum_double_misalignment, fill);
   fill = Heap::GetFillToAlign(base + kPointerSize, kDoubleUnaligned);
-  CHECK_EQ(0, fill);
-
-  // 128 bit SIMD types have 2 or 4 possible alignments, depending on platform.
-  fill = Heap::GetFillToAlign(base, kSimd128Unaligned);
-  CHECK_EQ((3 * kPointerSize) & kSimd128AlignmentMask, fill);
-  fill = Heap::GetFillToAlign(base + kPointerSize, kSimd128Unaligned);
-  CHECK_EQ((2 * kPointerSize) & kSimd128AlignmentMask, fill);
-  fill = Heap::GetFillToAlign(base + 2 * kPointerSize, kSimd128Unaligned);
-  CHECK_EQ(kPointerSize, fill);
-  fill = Heap::GetFillToAlign(base + 3 * kPointerSize, kSimd128Unaligned);
   CHECK_EQ(0, fill);
 }
 
@@ -2123,42 +1970,6 @@ TEST(TestAlignedAllocation) {
           filler->Size() == kPointerSize);
     CHECK_EQ(kPointerSize + double_misalignment, *top_addr - start);
   }
-
-  // Now test SIMD alignment. There are 2 or 4 possible alignments, depending
-  // on platform.
-  start = AlignNewSpace(kSimd128Unaligned, 0);
-  obj = NewSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-  CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-  // There is no filler.
-  CHECK_EQ(kPointerSize, *top_addr - start);
-  start = AlignNewSpace(kSimd128Unaligned, kPointerSize);
-  obj = NewSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-  CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-  // There is a filler object before the object.
-  filler = HeapObject::FromAddress(start);
-  CHECK(obj != filler && filler->IsFiller() &&
-        filler->Size() == kSimd128Size - kPointerSize);
-  CHECK_EQ(kPointerSize + kSimd128Size - kPointerSize, *top_addr - start);
-
-  if (double_misalignment) {
-    // Test the 2 other alignments possible on 32 bit platforms.
-    start = AlignNewSpace(kSimd128Unaligned, 2 * kPointerSize);
-    obj = NewSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-    CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-    // There is a filler object before the object.
-    filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler->IsFiller() &&
-          filler->Size() == 2 * kPointerSize);
-    CHECK_EQ(kPointerSize + 2 * kPointerSize, *top_addr - start);
-    start = AlignNewSpace(kSimd128Unaligned, 3 * kPointerSize);
-    obj = NewSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-    CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-    // There is a filler object before the object.
-    filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler->IsFiller() &&
-          filler->Size() == kPointerSize);
-    CHECK_EQ(kPointerSize + kPointerSize, *top_addr - start);
-  }
 }
 
 
@@ -2207,83 +2018,41 @@ TEST(TestAlignedOverAllocation) {
   const intptr_t double_misalignment = kDoubleSize - kPointerSize;
   Address start;
   HeapObject* obj;
-  HeapObject* filler1;
-  HeapObject* filler2;
+  HeapObject* filler;
   if (double_misalignment) {
     start = AlignOldSpace(kDoubleAligned, 0);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
     // The object is aligned, and a filler object is created after.
     CHECK(IsAddressAligned(obj->address(), kDoubleAlignment));
-    filler1 = HeapObject::FromAddress(start + kPointerSize);
-    CHECK(obj != filler1 && filler1->IsFiller() &&
-          filler1->Size() == kPointerSize);
+    filler = HeapObject::FromAddress(start + kPointerSize);
+    CHECK(obj != filler && filler->IsFiller() &&
+          filler->Size() == kPointerSize);
     // Try the opposite alignment case.
     start = AlignOldSpace(kDoubleAligned, kPointerSize);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
     CHECK(IsAddressAligned(obj->address(), kDoubleAlignment));
-    filler1 = HeapObject::FromAddress(start);
-    CHECK(obj != filler1);
-    CHECK(filler1->IsFiller());
-    CHECK(filler1->Size() == kPointerSize);
-    CHECK(obj != filler1 && filler1->IsFiller() &&
-          filler1->Size() == kPointerSize);
+    filler = HeapObject::FromAddress(start);
+    CHECK(obj != filler);
+    CHECK(filler->IsFiller());
+    CHECK(filler->Size() == kPointerSize);
+    CHECK(obj != filler && filler->IsFiller() &&
+          filler->Size() == kPointerSize);
 
     // Similarly for kDoubleUnaligned.
     start = AlignOldSpace(kDoubleUnaligned, 0);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
     // The object is aligned, and a filler object is created after.
     CHECK(IsAddressAligned(obj->address(), kDoubleAlignment, kPointerSize));
-    filler1 = HeapObject::FromAddress(start + kPointerSize);
-    CHECK(obj != filler1 && filler1->IsFiller() &&
-          filler1->Size() == kPointerSize);
+    filler = HeapObject::FromAddress(start + kPointerSize);
+    CHECK(obj != filler && filler->IsFiller() &&
+          filler->Size() == kPointerSize);
     // Try the opposite alignment case.
     start = AlignOldSpace(kDoubleUnaligned, kPointerSize);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
     CHECK(IsAddressAligned(obj->address(), kDoubleAlignment, kPointerSize));
-    filler1 = HeapObject::FromAddress(start);
-    CHECK(obj != filler1 && filler1->IsFiller() &&
-          filler1->Size() == kPointerSize);
-  }
-
-  // Now test SIMD alignment. There are 2 or 4 possible alignments, depending
-  // on platform.
-  start = AlignOldSpace(kSimd128Unaligned, 0);
-  obj = OldSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-  CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-  // There is a filler object after the object.
-  filler1 = HeapObject::FromAddress(start + kPointerSize);
-  CHECK(obj != filler1 && filler1->IsFiller() &&
-        filler1->Size() == kSimd128Size - kPointerSize);
-  start = AlignOldSpace(kSimd128Unaligned, kPointerSize);
-  obj = OldSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-  CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-  // There is a filler object before the object.
-  filler1 = HeapObject::FromAddress(start);
-  CHECK(obj != filler1 && filler1->IsFiller() &&
-        filler1->Size() == kSimd128Size - kPointerSize);
-
-  if (double_misalignment) {
-    // Test the 2 other alignments possible on 32 bit platforms.
-    start = AlignOldSpace(kSimd128Unaligned, 2 * kPointerSize);
-    obj = OldSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-    CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-    // There are filler objects before and after the object.
-    filler1 = HeapObject::FromAddress(start);
-    CHECK(obj != filler1 && filler1->IsFiller() &&
-          filler1->Size() == 2 * kPointerSize);
-    filler2 = HeapObject::FromAddress(start + 3 * kPointerSize);
-    CHECK(obj != filler2 && filler2->IsFiller() &&
-          filler2->Size() == kPointerSize);
-    start = AlignOldSpace(kSimd128Unaligned, 3 * kPointerSize);
-    obj = OldSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-    CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-    // There are filler objects before and after the object.
-    filler1 = HeapObject::FromAddress(start);
-    CHECK(obj != filler1 && filler1->IsFiller() &&
-          filler1->Size() == kPointerSize);
-    filler2 = HeapObject::FromAddress(start + 2 * kPointerSize);
-    CHECK(obj != filler2 && filler2->IsFiller() &&
-          filler2->Size() == 2 * kPointerSize);
+    filler = HeapObject::FromAddress(start);
+    CHECK(obj != filler && filler->IsFiller() &&
+          filler->Size() == kPointerSize);
   }
 }
 
@@ -2337,6 +2106,10 @@ TEST(GrowAndShrinkNewSpace) {
   if (heap->MaxSemiSpaceSize() == heap->InitialSemiSpaceSize()) {
     return;
   }
+
+  // Make sure we're in a consistent state to start out.
+  CcTest::CollectGarbage(NEW_SPACE);
+  CcTest::CollectGarbage(NEW_SPACE);
 
   // Explicitly growing should double the space capacity.
   size_t old_capacity, new_capacity;
@@ -3739,12 +3512,12 @@ static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
                           InlineCacheState desired_state) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>(f->feedback_vector());
   FeedbackVectorHelper helper(vector);
-  FeedbackVectorSlot slot = helper.slot(slot_index);
-  if (vector->GetKind(slot) == FeedbackVectorSlotKind::LOAD_IC) {
+  FeedbackSlot slot = helper.slot(slot_index);
+  if (vector->IsLoadIC(slot)) {
     LoadICNexus nexus(vector, slot);
     CHECK(nexus.StateFromFeedback() == desired_state);
   } else {
-    CHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC, vector->GetKind(slot));
+    CHECK(vector->IsKeyedLoadIC(slot));
     KeyedLoadICNexus nexus(vector, slot);
     CHECK(nexus.StateFromFeedback() == desired_state);
   }
@@ -3766,12 +3539,12 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
   Handle<FeedbackVector> vector(f->feedback_vector());
-  CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
+  CHECK(vector->Get(FeedbackSlot(0))->IsWeakCell());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 
-  CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
+  CHECK(vector->Get(FeedbackSlot(0))->IsWeakCell());
 }
 
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
@@ -4296,10 +4069,6 @@ TEST(Regress513507) {
     if (!code->is_optimized_code()) return;
   }
 
-  Handle<FeedbackVector> vector =
-      FeedbackVector::New(isolate, handle(shared->feedback_metadata()));
-  Handle<LiteralsArray> lit =
-      LiteralsArray::New(isolate, vector, shared->num_literals());
   Handle<Context> context(isolate->context());
 
   // Add the new code several times to the optimized code map and also set an
@@ -4308,210 +4077,10 @@ TEST(Regress513507) {
   FLAG_gc_interval = 1000;
   for (int i = 0; i < 10; ++i) {
     BailoutId id = BailoutId(i);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
+    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, id);
   }
 }
 #endif  // DEBUG
-
-TEST(Regress514122) {
-  if (!i::FLAG_incremental_marking) return;
-  i::FLAG_allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  LocalContext env;
-  Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
-
-  // Perfrom one initial GC to enable code flushing.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-
-  // Prepare function whose optimized code map we can use.
-  Handle<SharedFunctionInfo> shared;
-  {
-    HandleScope inner_scope(isolate);
-    CompileRun(
-        "function f() { return 1 }"
-        "f(); %OptimizeFunctionOnNextCall(f); f();");
-
-    Handle<JSFunction> f = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            CcTest::global()->Get(env.local(), v8_str("f")).ToLocalChecked())));
-    shared = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
-    CompileRun("f = null");
-  }
-
-  // Prepare optimized code that we can use.
-  Handle<Code> code;
-  {
-    HandleScope inner_scope(isolate);
-    CompileRun(
-        "function g() { return 2 }"
-        "g(); %OptimizeFunctionOnNextCall(g); g();");
-
-    Handle<JSFunction> g = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            CcTest::global()->Get(env.local(), v8_str("g")).ToLocalChecked())));
-    code = inner_scope.CloseAndEscape(handle(g->code(), isolate));
-    if (!code->is_optimized_code()) return;
-  }
-
-  Handle<FeedbackVector> vector =
-      FeedbackVector::New(isolate, handle(shared->feedback_metadata()));
-  Handle<LiteralsArray> lit =
-      LiteralsArray::New(isolate, vector, shared->num_literals(), TENURED);
-  Handle<Context> context(isolate->context());
-
-  // Add the code several times to the optimized code map.
-  for (int i = 0; i < 3; ++i) {
-    HandleScope inner_scope(isolate);
-    BailoutId id = BailoutId(i);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
-  }
-  shared->optimized_code_map()->Print();
-
-  // Add the code with a literals array to be evacuated.
-  Page* evac_page;
-  {
-    HandleScope inner_scope(isolate);
-    AlwaysAllocateScope always_allocate(isolate);
-    // Make sure literal is placed on an old-space evacuation candidate.
-    heap::SimulateFullSpace(heap->old_space());
-
-    // Make sure there the number of literals is > 0.
-    Handle<LiteralsArray> lit = LiteralsArray::New(isolate, vector, 23);
-
-    evac_page = Page::FromAddress(lit->address());
-    BailoutId id = BailoutId(100);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
-  }
-
-  // Heap is ready, force {lit_page} to become an evacuation candidate and
-  // simulate incremental marking to enqueue optimized code map.
-  FLAG_manual_evacuation_candidates_selection = true;
-  heap::ForceEvacuationCandidate(evac_page);
-  heap::SimulateIncrementalMarking(heap);
-
-  // No matter whether reachable or not, {boomer} is doomed.
-  Handle<Object> boomer(shared->optimized_code_map(), isolate);
-
-  // Add the code several times to the optimized code map. This will leave old
-  // copies of the optimized code map unreachable but still marked.
-  for (int i = 3; i < 6; ++i) {
-    HandleScope inner_scope(isolate);
-    BailoutId id = BailoutId(i);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
-  }
-
-  // Trigger a GC to flush out the bug.
-  CcTest::CollectGarbage(i::OLD_SPACE);
-  boomer->Print();
-}
-
-TEST(OptimizedCodeMapReuseEntries) {
-  i::FLAG_allow_natives_syntax = true;
-  // BUG(v8:4598): Since TurboFan doesn't treat maps in code weakly, we can't
-  // run this test.
-  if (i::FLAG_turbo) return;
-  CcTest::InitializeVM();
-  v8::Isolate* v8_isolate = CcTest::isolate();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  // Create 3 contexts, allow the 2nd one to be disposed, and verify that
-  // a 4th context will re-use the weak slots in the optimized code map
-  // to hold data, rather than expanding the map.
-  v8::Local<v8::Context> c1 = v8::Context::New(v8_isolate);
-  const char* source = "function foo(x) { var l = [1]; return x+l[0]; }";
-  v8::ScriptCompiler::Source script_source(
-      v8::String::NewFromUtf8(v8_isolate, source, v8::NewStringType::kNormal)
-          .ToLocalChecked());
-  v8::Local<v8::UnboundScript> indep =
-      v8::ScriptCompiler::CompileUnboundScript(v8_isolate, &script_source)
-          .ToLocalChecked();
-  const char* toplevel = "foo(3); %OptimizeFunctionOnNextCall(foo); foo(3);";
-  // Perfrom one initial GC to enable code flushing.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-
-  c1->Enter();
-  indep->BindToCurrentContext()->Run(c1).ToLocalChecked();
-  CompileRun(toplevel);
-
-  Handle<SharedFunctionInfo> shared;
-  Handle<JSFunction> foo = Handle<JSFunction>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-          CcTest::global()->Get(c1, v8_str("foo")).ToLocalChecked())));
-  CHECK(foo->shared()->is_compiled());
-  shared = handle(foo->shared());
-  c1->Exit();
-
-  {
-    HandleScope scope(isolate);
-    v8::Local<v8::Context> c2 = v8::Context::New(v8_isolate);
-    c2->Enter();
-    indep->BindToCurrentContext()->Run(c2).ToLocalChecked();
-    CompileRun(toplevel);
-    c2->Exit();
-  }
-
-  {
-    HandleScope scope(isolate);
-    v8::Local<v8::Context> c3 = v8::Context::New(v8_isolate);
-    c3->Enter();
-    indep->BindToCurrentContext()->Run(c3).ToLocalChecked();
-    CompileRun(toplevel);
-    c3->Exit();
-
-    // Now, collect garbage. Context c2 should have no roots to it, and it's
-    // entry in the optimized code map should be free for a new context.
-    for (int i = 0; i < 4; i++) {
-      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-    }
-
-    Handle<FixedArray> optimized_code_map =
-        handle(shared->optimized_code_map());
-    // There should be 3 entries in the map.
-    CHECK_EQ(
-        3, ((optimized_code_map->length() - SharedFunctionInfo::kEntriesStart) /
-            SharedFunctionInfo::kEntryLength));
-    // But one of them (formerly for c2) should be cleared.
-    int cleared_count = 0;
-    for (int i = SharedFunctionInfo::kEntriesStart;
-         i < optimized_code_map->length();
-         i += SharedFunctionInfo::kEntryLength) {
-      cleared_count +=
-          WeakCell::cast(
-              optimized_code_map->get(i + SharedFunctionInfo::kContextOffset))
-                  ->cleared()
-              ? 1
-              : 0;
-    }
-    CHECK_EQ(1, cleared_count);
-
-    // Verify that a new context uses the cleared entry rather than creating a
-    // new
-    // optimized code map array.
-    v8::Local<v8::Context> c4 = v8::Context::New(v8_isolate);
-    c4->Enter();
-    indep->BindToCurrentContext()->Run(c4).ToLocalChecked();
-    CompileRun(toplevel);
-    c4->Exit();
-    CHECK_EQ(*optimized_code_map, shared->optimized_code_map());
-
-    // Now each entry is in use.
-    cleared_count = 0;
-    for (int i = SharedFunctionInfo::kEntriesStart;
-         i < optimized_code_map->length();
-         i += SharedFunctionInfo::kEntryLength) {
-      cleared_count +=
-          WeakCell::cast(
-              optimized_code_map->get(i + SharedFunctionInfo::kContextOffset))
-                  ->cleared()
-              ? 1
-              : 0;
-    }
-    CHECK_EQ(0, cleared_count);
-  }
-}
 
 TEST(Regress513496) {
   i::FLAG_allow_natives_syntax = true;
@@ -4558,9 +4127,9 @@ TEST(Regress513496) {
   }
 
   // Lookup the optimized code and keep it alive.
-  CodeAndLiterals result = shared->SearchOptimizedCodeMap(
+  Code* result = shared->SearchOptimizedCodeMap(
       isolate->context()->native_context(), BailoutId::None());
-  Handle<Code> optimized_code(result.code, isolate);
+  Handle<Code> optimized_code(result, isolate);
 
   // Finish a full GC cycle so that the unoptimized code of 'g' is flushed even
   // though the optimized code for 'f' is reachable via the optimized code map.
@@ -4780,7 +4349,6 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
 TEST(CellsInOptimizedCodeAreWeak) {
   if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
-  i::FLAG_weak_embedded_objects_in_optimized_code = true;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4825,7 +4393,6 @@ TEST(CellsInOptimizedCodeAreWeak) {
 
 TEST(ObjectsInOptimizedCodeAreWeak) {
   if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
-  i::FLAG_weak_embedded_objects_in_optimized_code = true;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4867,7 +4434,6 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 
 TEST(NewSpaceObjectsInOptimizedCode) {
   if (i::FLAG_always_opt || !i::FLAG_crankshaft || i::FLAG_turbo) return;
-  i::FLAG_weak_embedded_objects_in_optimized_code = true;
   i::FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4930,7 +4496,6 @@ TEST(NewSpaceObjectsInOptimizedCode) {
 TEST(NoWeakHashTableLeakWithIncrementalMarking) {
   if (i::FLAG_always_opt || !i::FLAG_crankshaft) return;
   if (!i::FLAG_incremental_marking) return;
-  i::FLAG_weak_embedded_objects_in_optimized_code = true;
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_compilation_cache = false;
   i::FLAG_retain_maps_for_n_gc = 0;
@@ -5134,18 +4699,18 @@ TEST(WeakFunctionInConstructor) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(createObj->feedback_vector(), CcTest::i_isolate());
   for (int i = 0; i < 20; i++) {
-    Object* slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
+    Object* slot_value = feedback_vector->Get(FeedbackSlot(0));
     CHECK(slot_value->IsWeakCell());
     if (WeakCell::cast(slot_value)->cleared()) break;
     CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   }
 
-  Object* slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
+  Object* slot_value = feedback_vector->Get(FeedbackSlot(0));
   CHECK(slot_value->IsWeakCell() && WeakCell::cast(slot_value)->cleared());
   CompileRun(
       "function coat() { this.x = 6; }"
       "createObj(coat);");
-  slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
+  slot_value = feedback_vector->Get(FeedbackSlot(0));
   CHECK(slot_value->IsWeakCell() && !WeakCell::cast(slot_value)->cleared());
 }
 
@@ -5334,18 +4899,14 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
 
 void CheckIC(Handle<JSFunction> function, Code::Kind kind, int slot_index,
              InlineCacheState state) {
-  if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
-      kind == Code::CALL_IC) {
+  if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC) {
     FeedbackVector* vector = function->feedback_vector();
-    FeedbackVectorSlot slot(slot_index);
+    FeedbackSlot slot(slot_index);
     if (kind == Code::LOAD_IC) {
       LoadICNexus nexus(vector, slot);
       CHECK_EQ(nexus.StateFromFeedback(), state);
     } else if (kind == Code::KEYED_LOAD_IC) {
       KeyedLoadICNexus nexus(vector, slot);
-      CHECK_EQ(nexus.StateFromFeedback(), state);
-    } else if (kind == Code::CALL_IC) {
-      CallICNexus nexus(vector, slot);
       CHECK_EQ(nexus.StateFromFeedback(), state);
     }
   } else {
@@ -5742,7 +5303,7 @@ TEST(Regress388880) {
   Handle<String> name = factory->NewStringFromStaticChars("foo");
   name = factory->InternalizeString(name);
   Handle<Map> map2 =
-      Map::CopyWithField(map1, name, FieldType::Any(isolate), NONE,
+      Map::CopyWithField(map1, name, FieldType::Any(isolate), NONE, kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 
@@ -5941,18 +5502,6 @@ TEST(RegressArrayListGC) {
   }
   CcTest::CollectGarbage(OLD_SPACE);
 }
-
-
-#ifdef DEBUG
-TEST(PathTracer) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-
-  v8::Local<v8::Value> result = CompileRun("'abc'");
-  Handle<Object> o = v8::Utils::OpenHandle(*result);
-  CcTest::i_isolate()->heap()->TracePathToObject(*o);
-}
-#endif  // DEBUG
 
 
 TEST(WritableVsImmortalRoots) {
@@ -6158,6 +5707,7 @@ TEST(NewSpaceAllocationCounter) {
   Heap* heap = isolate->heap();
   size_t counter1 = heap->NewSpaceAllocationCounter();
   CcTest::CollectGarbage(NEW_SPACE);
+  CcTest::CollectGarbage(NEW_SPACE);  // Ensure new space is empty.
   const size_t kSize = 1024;
   AllocateInSpace(isolate, kSize, NEW_SPACE);
   size_t counter2 = heap->NewSpaceAllocationCounter();

@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
@@ -8,7 +8,7 @@
 *
 *******************************************************************************
 *   file name:  listformatter.cpp
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -25,6 +25,7 @@
 #include "charstr.h"
 #include "ucln_cmn.h"
 #include "uresimp.h"
+#include "resource.h"
 
 U_NAMESPACE_BEGIN
 
@@ -77,17 +78,6 @@ uprv_deleteListFormatInternal(void *obj) {
 }
 
 U_CDECL_END
-
-static ListFormatInternal* loadListFormatInternal(
-        const Locale& locale,
-        const char* style,
-        UErrorCode& errorCode);
-
-static void getStringByKey(
-        const UResourceBundle* rb,
-        const char* key,
-        UnicodeString& result,
-        UErrorCode& errorCode);
 
 ListFormatter::ListFormatter(const ListFormatter& other) :
         owned(other.owned), data(other.data) {
@@ -171,30 +161,107 @@ const ListFormatInternal* ListFormatter::getListFormatInternal(
     return result;
 }
 
-static ListFormatInternal* loadListFormatInternal(
+static const UChar solidus = 0x2F;
+static const UChar aliasPrefix[] = { 0x6C,0x69,0x73,0x74,0x50,0x61,0x74,0x74,0x65,0x72,0x6E,0x2F }; // "listPattern/"
+enum {
+    kAliasPrefixLen = UPRV_LENGTHOF(aliasPrefix),
+    kStyleLenMax = 24 // longest currently is 14
+};
+
+struct ListFormatter::ListPatternsSink : public ResourceSink {
+    UnicodeString two, start, middle, end;
+#if ((U_PLATFORM == U_PF_AIX) || (U_PLATFORM == U_PF_OS390)) && (U_CPLUSPLUS_VERSION < 11)
+    char aliasedStyle[kStyleLenMax+1];
+    ListPatternsSink() {
+      uprv_memset(aliasedStyle, 0, kStyleLenMax+1);
+    }
+#else
+    char aliasedStyle[kStyleLenMax+1] = {0};
+
+    ListPatternsSink() {}
+#endif
+    virtual ~ListPatternsSink();
+
+    void setAliasedStyle(UnicodeString alias) {
+        int32_t startIndex = alias.indexOf(aliasPrefix, kAliasPrefixLen, 0);
+        if (startIndex < 0) {
+            return;
+        }
+        startIndex += kAliasPrefixLen;
+        int32_t endIndex = alias.indexOf(solidus, startIndex);
+        if (endIndex < 0) {
+            endIndex = alias.length();
+        }
+        alias.extract(startIndex, endIndex-startIndex, aliasedStyle, kStyleLenMax+1, US_INV);
+        aliasedStyle[kStyleLenMax] = 0;
+    }
+
+    void handleValueForPattern(ResourceValue &value, UnicodeString &pattern, UErrorCode &errorCode) {
+        if (pattern.isEmpty()) {
+            if (value.getType() == URES_ALIAS) {
+                if (aliasedStyle[0] == 0) {
+                    setAliasedStyle(value.getAliasUnicodeString(errorCode));
+                }
+            } else {
+                pattern = value.getUnicodeString(errorCode);
+            }
+        }
+    }
+
+    virtual void put(const char *key, ResourceValue &value, UBool /*noFallback*/,
+            UErrorCode &errorCode) {
+        aliasedStyle[0] = 0;
+        if (value.getType() == URES_ALIAS) {
+            setAliasedStyle(value.getAliasUnicodeString(errorCode));
+            return;
+        }
+        ResourceTable listPatterns = value.getTable(errorCode);
+        for (int i = 0; U_SUCCESS(errorCode) && listPatterns.getKeyAndValue(i, key, value); ++i) {
+            if (uprv_strcmp(key, "2") == 0) {
+                handleValueForPattern(value, two, errorCode);
+            } else if (uprv_strcmp(key, "end") == 0) {
+                handleValueForPattern(value, end, errorCode);
+            } else if (uprv_strcmp(key, "middle") == 0) {
+                handleValueForPattern(value, middle, errorCode);
+            } else if (uprv_strcmp(key, "start") == 0) {
+                handleValueForPattern(value, start, errorCode);
+            }
+        }
+    }
+};
+
+// Virtual destructors must be defined out of line.
+ListFormatter::ListPatternsSink::~ListPatternsSink() {}
+
+ListFormatInternal* ListFormatter::loadListFormatInternal(
         const Locale& locale, const char * style, UErrorCode& errorCode) {
     UResourceBundle* rb = ures_open(NULL, locale.getName(), &errorCode);
-    if (U_FAILURE(errorCode)) {
-        ures_close(rb);
-        return NULL;
-    }
     rb = ures_getByKeyWithFallback(rb, "listPattern", rb, &errorCode);
-    rb = ures_getByKeyWithFallback(rb, style, rb, &errorCode);
-
     if (U_FAILURE(errorCode)) {
         ures_close(rb);
         return NULL;
     }
-    UnicodeString two, start, middle, end;
-    getStringByKey(rb, "2", two, errorCode);
-    getStringByKey(rb, "start", start, errorCode);
-    getStringByKey(rb, "middle", middle, errorCode);
-    getStringByKey(rb, "end", end, errorCode);
+    ListFormatter::ListPatternsSink sink;
+    char currentStyle[kStyleLenMax+1];
+    uprv_strncpy(currentStyle, style, kStyleLenMax);
+    currentStyle[kStyleLenMax] = 0;
+
+    for (;;) {
+        ures_getAllItemsWithFallback(rb, currentStyle, sink, errorCode);
+        if (U_FAILURE(errorCode) || sink.aliasedStyle[0] == 0 || uprv_strcmp(currentStyle, sink.aliasedStyle) == 0) {
+            break;
+        }
+        uprv_strcpy(currentStyle, sink.aliasedStyle);
+    }
     ures_close(rb);
     if (U_FAILURE(errorCode)) {
         return NULL;
     }
-    ListFormatInternal* result = new ListFormatInternal(two, start, middle, end, errorCode);
+    if (sink.two.isEmpty() || sink.start.isEmpty() || sink.middle.isEmpty() || sink.end.isEmpty()) {
+        errorCode = U_MISSING_RESOURCE_ERROR;
+        return NULL;
+    }
+    ListFormatInternal* result = new ListFormatInternal(sink.two, sink.start, sink.middle, sink.end, errorCode);
     if (result == NULL) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
         return NULL;
@@ -204,15 +271,6 @@ static ListFormatInternal* loadListFormatInternal(
         return NULL;
     }
     return result;
-}
-
-static void getStringByKey(const UResourceBundle* rb, const char* key, UnicodeString& result, UErrorCode& errorCode) {
-    int32_t len;
-    const UChar* ustr = ures_getStringByKeyWithFallback(rb, key, &len, &errorCode);
-    if (U_FAILURE(errorCode)) {
-      return;
-    }
-    result.setTo(ustr, len);
 }
 
 ListFormatter* ListFormatter::createInstance(UErrorCode& errorCode) {

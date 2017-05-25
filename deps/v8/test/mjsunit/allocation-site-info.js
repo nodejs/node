@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc
-// Flags: --noalways-opt
+// Flags: --crankshaft --no-always-opt
 
 var elements_kind = {
   fast_smi_only            :  'fast smi only elements',
@@ -350,7 +350,7 @@ assertOptimized(instanceof_check);
 // to be monomorphic on first call. Only after crankshafting do we introduce
 // realmBArray. This should deopt the method.
   %DeoptimizeFunction(instanceof_check);
-  %ClearFunctionTypeFeedback(instanceof_check);
+  %ClearFunctionFeedback(instanceof_check);
 instanceof_check(Array);
 instanceof_check(Array);
   %OptimizeFunctionOnNextCall(instanceof_check);

@@ -10,7 +10,7 @@ To view this documentation as a manual page in a terminal, run `man node`.
 
 ## Synopsis
 
-`node [options] [v8 options] [script.js | -e "script"] [--] [arguments]`
+`node [options] [v8 options] [script.js | -e "script" | -] [--] [arguments]`
 
 `node debug [script.js | -e "script" | <host>:<port>] …`
 
@@ -112,6 +112,18 @@ added: v7.6.0
 -->
 
 Activate inspector on host:port and break at start of user script.
+Default host:port is 127.0.0.1:9229.
+
+
+### `--inspect-port=[host:]port`
+<!-- YAML
+added: v7.6.0
+-->
+
+Set the host:port to be used when the inspector is activated.
+Useful when activating the inspector by sending the `SIGUSR1` signal.
+
+Default host is 127.0.0.1.
 
 
 ### `--no-deprecation`
@@ -345,6 +357,17 @@ added: v0.11.15
 
 Specify ICU data load path. (overrides `NODE_ICU_DATA`)
 
+
+### `-`
+<!-- YAML
+added: REPLACEME
+-->
+
+Alias for stdin, analogous to the use of - in other command line utilities,
+meaning that the script will be read from stdin, and the rest of the options
+are passed to that script.
+
+
 ### `--`
 <!-- YAML
 added: v7.5.0
@@ -411,14 +434,18 @@ Node options that are allowed are:
 - `--enable-fips`
 - `--force-fips`
 - `--icu-data-dir`
+- `--inspect-brk`
+- `--inspect-port`
+- `--inspect`
+- `--napi-modules`
 - `--no-deprecation`
 - `--no-warnings`
 - `--openssl-config`
-- `--prof-process`
 - `--redirect-warnings`
 - `--require`, `-r`
 - `--throw-deprecation`
 - `--trace-deprecation`
+- `--trace-events-categories`
 - `--trace-events-enabled`
 - `--trace-sync-io`
 - `--trace-warnings`
@@ -524,10 +551,10 @@ appended to if it does. If an error occurs while attempting to write the
 warning to the file, the warning will be written to stderr instead. This is
 equivalent to using the `--redirect-warnings=file` command-line flag.
 
-[emit_warning]: process.html#process_process_emitwarning_warning_name_ctor
+[`--openssl-config`]: #cli_openssl_config_file
 [Buffer]: buffer.html#buffer_buffer
 [Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer
-[debugger]: debugger.html
 [REPL]: repl.html
 [SlowBuffer]: buffer.html#buffer_class_slowbuffer
-[`--openssl-config`]: #cli_openssl_config_file
+[debugger]: debugger.html
+[emit_warning]: process.html#process_process_emitwarning_warning_name_ctor

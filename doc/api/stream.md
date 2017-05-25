@@ -134,7 +134,7 @@ const server = http.createServer((req, res) => {
       res.write(typeof data);
       res.end();
     } catch (er) {
-      // uh oh!  bad json!
+      // uh oh! bad json!
       res.statusCode = 400;
       return res.end(`error: ${er.message}`);
     }
@@ -143,12 +143,12 @@ const server = http.createServer((req, res) => {
 
 server.listen(1337);
 
-// $ curl localhost:1337 -d '{}'
+// $ curl localhost:1337 -d "{}"
 // object
-// $ curl localhost:1337 -d '"foo"'
+// $ curl localhost:1337 -d "\"foo\""
 // string
-// $ curl localhost:1337 -d 'not json'
-// error: Unexpected token o
+// $ curl localhost:1337 -d "not json"
+// error: Unexpected token o in JSON at position 1
 ```
 
 [Writable][] streams (such as `res` in the example) expose methods such as
@@ -499,6 +499,15 @@ write('hello', () => {
 
 A Writable stream in object mode will always ignore the `encoding` argument.
 
+##### writable.destroy([error])
+<!-- YAML
+added: REPLACEME
+-->
+
+Destroy the stream, and emit the passed error. After this call, the
+writible stream has ended. Implementors should not override this method,
+but instead implement [`writable._destroy`][writable-_destroy].
+
 ### Readable Streams
 
 Readable streams are an abstraction for a *source* from which data is
@@ -684,7 +693,7 @@ added: v0.9.4
 * {Error}
 
 The `'error'` event may be emitted by a Readable implementation at any time.
-Typically, this may occur if the underlying stream in unable to generate data
+Typically, this may occur if the underlying stream is unable to generate data
 due to an underlying internal failure, or when a stream implementation attempts
 to push an invalid chunk of data.
 
@@ -920,23 +929,20 @@ added: v0.9.4
 * `encoding` {string} The encoding to use.
 * Returns: `this`
 
-The `readable.setEncoding()` method sets the default character encoding for
+The `readable.setEncoding()` method sets the character encoding for
 data read from the Readable stream.
 
-Setting an encoding causes the stream data
-to be returned as string of the specified encoding rather than as `Buffer`
+By default, no encoding is assigned and stream data will be returned as
+`Buffer` objects. Setting an encoding causes the stream data
+to be returned as strings of the specified encoding rather than as `Buffer`
 objects. For instance, calling `readable.setEncoding('utf8')` will cause the
-output data will be interpreted as UTF-8 data, and passed as strings. Calling
+output data to be interpreted as UTF-8 data, and passed as strings. Calling
 `readable.setEncoding('hex')` will cause the data to be encoded in hexadecimal
 string format.
 
 The Readable stream will properly handle multi-byte characters delivered through
 the stream that would otherwise become improperly decoded if simply pulled from
 the stream as `Buffer` objects.
-
-Encoding can be disabled by calling `readable.setEncoding(null)`. This approach
-is useful when working with binary data or with large multi-byte strings spread
-out over multiple chunks.
 
 ```js
 const readable = getReadableStreamSomehow();
@@ -1073,6 +1079,16 @@ myReader.on('readable', () => {
 });
 ```
 
+##### readable.destroy([error])
+<!-- YAML
+added: REPLACEME
+-->
+
+Destroy the stream, and emit `'error'`. After this call, the
+readable stream will release any internal resources.
+Implementors should not override this method, but instead implement
+[`readable._destroy`][readable-_destroy].
+
 ### Duplex and Transform Streams
 
 #### Class: stream.Duplex
@@ -1112,6 +1128,16 @@ Examples of Transform streams include:
 * [zlib streams][zlib]
 * [crypto streams][crypto]
 
+##### transform.destroy([error])
+<!-- YAML
+added: REPLACEME
+-->
+
+Destroy the stream, and emit `'error'`. After this call, the
+transform stream would release any internal resources.
+implementors should not override this method, but instead implement
+[`readable._destroy`][readable-_destroy].
+The default implementation of `_destroy` for `Transform` also emit `'close'`.
 
 ## API for Stream Implementers
 
@@ -1131,6 +1157,7 @@ const Writable = require('stream').Writable;
 class MyWritable extends Writable {
   constructor(options) {
     super(options);
+    // ...
   }
 }
 ```
@@ -1171,7 +1198,8 @@ on the type of stream being created, as detailed in the chart below:
       <p>[Writable](#stream_class_stream_writable)</p>
     </td>
     <td>
-      <p><code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code></p>
+      <p><code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>,
+      <code>[_final][stream-_final]</code></p>
     </td>
   </tr>
   <tr>
@@ -1182,7 +1210,8 @@ on the type of stream being created, as detailed in the chart below:
       <p>[Duplex](#stream_class_stream_duplex)</p>
     </td>
     <td>
-      <p><code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code></p>
+      <p><code>[_read][stream-_read]</code>, <code>[_write][stream-_write]</code>, <code>[_writev][stream-_writev]</code>,
+      <code>[_final][stream-_final]</code></p>
     </td>
   </tr>
   <tr>
@@ -1193,7 +1222,8 @@ on the type of stream being created, as detailed in the chart below:
       <p>[Transform](#stream_class_stream_transform)</p>
     </td>
     <td>
-      <p><code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code></p>
+      <p><code>[_transform][stream-_transform]</code>, <code>[_flush][stream-_flush]</code>,
+      <code>[_final][stream-_final]</code></p>
     </td>
   </tr>
 </table>
@@ -1250,6 +1280,10 @@ constructor and implement the `writable._write()` method. The
     [`stream._write()`][stream-_write] method.
   * `writev` {Function} Implementation for the
     [`stream._writev()`][stream-_writev] method.
+  * `destroy` {Function} Implementation for the
+    [`stream._destroy()`][writable-_destroy] method.
+  * `final` {Function} Implementation for the
+    [`stream._final()`][stream-_final] method.
 
 For example:
 
@@ -1260,6 +1294,7 @@ class MyWritable extends Writable {
   constructor(options) {
     // Calls the stream.Writable() constructor
     super(options);
+    // ...
   }
 }
 ```
@@ -1359,6 +1394,31 @@ The `writable._writev()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
+#### writable.\_destroy(err, callback)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `err` {Error} An error.
+* `callback` {Function} A callback function that takes an optional error argument
+  which is invoked when the writable is destroyed.
+
+#### writable.\_final(callback)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callback` {Function} Call this function (optionally with an error
+  argument) when you are done writing any remaining data.
+
+Note: `_final()` **must not** be called directly.  It MAY be implemented
+by child classes, and if so, will be called by the internal Writable
+class methods only.
+
+This optional function will be called before the stream closes, delaying the
+`finish` event until `callback` is called. This is useful to close resources
+or write buffered data before a stream ends.
+
 #### Errors While Writing
 
 It is recommended that errors occurring during the processing of the
@@ -1396,6 +1456,7 @@ const Writable = require('stream').Writable;
 class MyWritable extends Writable {
   constructor(options) {
     super(options);
+    // ...
   }
 
   _write(chunk, encoding, callback) {
@@ -1428,6 +1489,8 @@ constructor and implement the `readable._read()` method.
     a single value instead of a Buffer of size n. Defaults to `false`
   * `read` {Function} Implementation for the [`stream._read()`][stream-_read]
     method.
+  * `destroy` {Function} Implementation for the [`stream._destroy()`][readable-_destroy]
+    method.
 
 For example:
 
@@ -1438,6 +1501,7 @@ class MyReadable extends Readable {
   constructor(options) {
     // Calls the stream.Readable(options) constructor
     super(options);
+    // ...
   }
 }
 ```
@@ -1651,6 +1715,7 @@ const Duplex = require('stream').Duplex;
 class MyDuplex extends Duplex {
   constructor(options) {
     super(options);
+    // ...
   }
 }
 ```
@@ -1806,6 +1871,7 @@ const Transform = require('stream').Transform;
 class MyTransform extends Transform {
   constructor(options) {
     super(options);
+    // ...
   }
 }
 ```
@@ -2034,6 +2100,10 @@ readable buffer so there is nothing for a user to consume.
 [`'finish'`]: #stream_event_finish
 [`'readable'`]: #stream_event_readable
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`Symbol.hasInstance`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/hasInstance
+[`fs.createReadStream()`]: fs.html#fs_fs_createreadstream_path_options
+[`fs.createWriteStream()`]: fs.html#fs_fs_createwritestream_path_options
+[`net.Socket`]: net.html#net_class_net_socket
 [`process.stderr`]: process.html#process_process_stderr
 [`process.stdin`]: process.html#process_process_stdin
 [`process.stdout`]: process.html#process_process_stdout
@@ -2044,36 +2114,37 @@ readable buffer so there is nothing for a user to consume.
 [`stream.wrap()`]: #stream_readable_wrap_stream
 [`writable.cork()`]: #stream_writable_cork
 [`writable.uncork()`]: #stream_writable_uncork
+[`zlib.createDeflate()`]: zlib.html#zlib_zlib_createdeflate_options
 [API for Stream Consumers]: #stream_api_for_stream_consumers
 [API for Stream Implementers]: #stream_api_for_stream_implementers
-[child process stdin]: child_process.html#child_process_child_stdin
-[child process stdout and stderr]: child_process.html#child_process_child_stdout
 [Compatibility]: #stream_compatibility_with_older_node_js_versions
-[crypto]: crypto.html
 [Duplex]: #stream_class_stream_duplex
-[fs read streams]: fs.html#fs_class_fs_readstream
-[fs write streams]: fs.html#fs_class_fs_writestream
-[`fs.createReadStream()`]: fs.html#fs_fs_createreadstream_path_options
-[`fs.createWriteStream()`]: fs.html#fs_fs_createwritestream_path_options
-[`net.Socket`]: net.html#net_class_net_socket
-[`zlib.createDeflate()`]: zlib.html#zlib_zlib_createdeflate_options
 [HTTP requests, on the client]: http.html#http_class_http_clientrequest
 [HTTP responses, on the server]: http.html#http_class_http_serverresponse
-[http-incoming-message]: http.html#http_class_http_incomingmessage
 [Readable]: #stream_class_stream_readable
+[TCP sockets]: net.html#net_class_net_socket
+[Transform]: #stream_class_stream_transform
+[Writable]: #stream_class_stream_writable
+[child process stdin]: child_process.html#child_process_child_stdin
+[child process stdout and stderr]: child_process.html#child_process_child_stdout
+[crypto]: crypto.html
+[fs read streams]: fs.html#fs_class_fs_readstream
+[fs write streams]: fs.html#fs_class_fs_writestream
+[http-incoming-message]: http.html#http_class_http_incomingmessage
 [stream-_flush]: #stream_transform_flush_callback
 [stream-_read]: #stream_readable_read_size_1
 [stream-_transform]: #stream_transform_transform_chunk_encoding_callback
 [stream-_write]: #stream_writable_write_chunk_encoding_callback_1
 [stream-_writev]: #stream_writable_writev_chunks_callback
+[stream-_final]: #stream_writable_final_callback
 [stream-end]: #stream_writable_end_chunk_encoding_callback
 [stream-pause]: #stream_readable_pause
 [stream-push]: #stream_readable_push_chunk_encoding
 [stream-read]: #stream_readable_read_size
 [stream-resume]: #stream_readable_resume
 [stream-write]: #stream_writable_write_chunk_encoding_callback
+[readable-_destroy]: #stream_readable_destroy_err_callback
+[writable-_destroy]: #stream_writable_destroy_err_callback
 [TCP sockets]: net.html#net_class_net_socket
 [Transform]: #stream_class_stream_transform
 [Writable]: #stream_class_stream_writable
-[zlib]: zlib.html
-[`Symbol.hasInstance`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/hasInstance

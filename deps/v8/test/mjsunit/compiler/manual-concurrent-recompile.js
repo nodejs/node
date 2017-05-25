@@ -27,6 +27,7 @@
 
 // Flags: --allow-natives-syntax --expose-gc
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --crankshaft --no-always-opt
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");

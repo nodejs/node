@@ -6,6 +6,9 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/conversions.h"
+#include "src/counters.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -60,7 +63,7 @@ TF_BUILTIN(NumberIsFinite, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(number), &return_true);
 
   // Check if {number} is a HeapNumber.
-  GotoUnless(IsHeapNumberMap(LoadMap(number)), &return_false);
+  GotoIfNot(IsHeapNumberMap(LoadMap(number)), &return_false);
 
   // Check if {number} contains a finite, non-NaN value.
   Node* number_value = LoadHeapNumberValue(number);
@@ -84,7 +87,7 @@ TF_BUILTIN(NumberIsInteger, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(number), &return_true);
 
   // Check if {number} is a HeapNumber.
-  GotoUnless(IsHeapNumberMap(LoadMap(number)), &return_false);
+  GotoIfNot(IsHeapNumberMap(LoadMap(number)), &return_false);
 
   // Load the actual value of {number}.
   Node* number_value = LoadHeapNumberValue(number);
@@ -113,7 +116,7 @@ TF_BUILTIN(NumberIsNaN, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(number), &return_false);
 
   // Check if {number} is a HeapNumber.
-  GotoUnless(IsHeapNumberMap(LoadMap(number)), &return_false);
+  GotoIfNot(IsHeapNumberMap(LoadMap(number)), &return_false);
 
   // Check if {number} contains a NaN value.
   Node* number_value = LoadHeapNumberValue(number);
@@ -136,7 +139,7 @@ TF_BUILTIN(NumberIsSafeInteger, CodeStubAssembler) {
   GotoIf(TaggedIsSmi(number), &return_true);
 
   // Check if {number} is a HeapNumber.
-  GotoUnless(IsHeapNumberMap(LoadMap(number)), &return_false);
+  GotoIfNot(IsHeapNumberMap(LoadMap(number)), &return_false);
 
   // Load the actual value of {number}.
   Node* number_value = LoadHeapNumberValue(number);
@@ -145,7 +148,7 @@ TF_BUILTIN(NumberIsSafeInteger, CodeStubAssembler) {
   Node* integer = Float64Trunc(number_value);
 
   // Check if {number}s value matches the integer (ruling out the infinities).
-  GotoUnless(
+  GotoIfNot(
       Float64Equal(Float64Sub(number_value, integer), Float64Constant(0.0)),
       &return_false);
 
@@ -299,8 +302,8 @@ TF_BUILTIN(NumberParseInt, CodeStubAssembler) {
       // Check if the absolute {input} value is in the ]0.01,1e9[ range.
       Node* input_value_abs = Float64Abs(input_value);
 
-      GotoUnless(Float64LessThan(input_value_abs, Float64Constant(1e9)),
-                 &if_generic);
+      GotoIfNot(Float64LessThan(input_value_abs, Float64Constant(1e9)),
+                &if_generic);
       Branch(Float64LessThan(Float64Constant(0.01), input_value_abs),
              &if_inputissigned32, &if_generic);
 

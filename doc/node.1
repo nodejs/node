@@ -36,7 +36,10 @@ node \- Server-side JavaScript runtime
 .RI [ v8\ options ]
 .RI [ script.js \ |
 .B -e
-.RI \&" script \&"]
+.RI \&" script \&"
+.R |
+.B -
+.R ]
 .B [--]
 .RI [ arguments ]
 .br
@@ -102,6 +105,10 @@ instances for debugging and profiling. It uses the Chrome Debugging Protocol.
 .TP
 .BR \-\-inspect-brk \fI[=[host:]port]\fR
 Activate inspector on host:port and break at start of user script.
+
+.TP
+.BR \-\-inspect-port \fI=[host:]port\fR
+Set the host:port to be used when the inspector is activated.
 
 .TP
 .BR \-\-no\-deprecation
@@ -224,6 +231,12 @@ See \fBSSL_CERT_DIR\fR and \fBSSL_CERT_FILE\fR.
 .TP
 .BR \-\-icu\-data\-dir =\fIfile\fR
 Specify ICU data load path. (overrides \fBNODE_ICU_DATA\fR)
+
+.TP
+.BR \-\fR
+Alias for stdin, analogous to the use of - in other command line utilities,
+meaning that the script will be read from stdin, and the rest of the options
+are passed to that script.
 
 .TP
 .BR \-\-\fR

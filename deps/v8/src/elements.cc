@@ -187,7 +187,7 @@ static void CopyDictionaryToObjectElements(
                                             : SKIP_WRITE_BARRIER;
   Isolate* isolate = from->GetIsolate();
   for (int i = 0; i < copy_size; i++) {
-    int entry = from->FindEntry(i + from_start);
+    int entry = from->FindEntry(isolate, i + from_start);
     if (entry != SeededNumberDictionary::kNotFound) {
       Object* value = from->ValueAt(entry);
       DCHECK(!value->IsTheHole(isolate));
@@ -417,8 +417,9 @@ static void CopyDictionaryToDoubleElements(FixedArrayBase* from_base,
   if (to_start + copy_size > to_length) {
     copy_size = to_length - to_start;
   }
+  Isolate* isolate = from->GetIsolate();
   for (int i = 0; i < copy_size; i++) {
-    int entry = from->FindEntry(i + from_start);
+    int entry = from->FindEntry(isolate, i + from_start);
     if (entry != SeededNumberDictionary::kNotFound) {
       to->set(i + to_start, from->ValueAt(entry)->Number());
     } else {
@@ -1628,7 +1629,7 @@ class DictionaryElementsAccessor
     // Iterate through entire range, as accessing elements out of order is
     // observable
     for (uint32_t k = start_from; k < length; ++k) {
-      int entry = dictionary->FindEntry(k);
+      int entry = dictionary->FindEntry(isolate, k);
       if (entry == SeededNumberDictionary::kNotFound) {
         if (search_for_hole) return Just(true);
         continue;
@@ -1694,7 +1695,7 @@ class DictionaryElementsAccessor
     // Iterate through entire range, as accessing elements out of order is
     // observable.
     for (uint32_t k = start_from; k < length; ++k) {
-      int entry = dictionary->FindEntry(k);
+      int entry = dictionary->FindEntry(isolate, k);
       if (entry == SeededNumberDictionary::kNotFound) {
         continue;
       }
@@ -2637,9 +2638,9 @@ class FastDoubleElementsAccessor
     FixedArrayBase* elements_base = receiver->elements();
     Object* value = *search_value;
 
-    if (start_from >= length) return Just<int64_t>(-1);
-
     length = std::min(static_cast<uint32_t>(elements_base->length()), length);
+
+    if (start_from >= length) return Just<int64_t>(-1);
 
     if (!value->IsNumber()) {
       return Just<int64_t>(-1);

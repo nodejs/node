@@ -44,11 +44,11 @@ function makeCallback(c) {
   let called = false;
   return function() {
     if (called)
-      throw new Error('called callback #' + c + ' more than once');
+      throw new Error(`called callback #${c} more than once`);
     called = true;
     if (c < lastCalled)
-      throw new Error('callbacks out of order. last=' + lastCalled +
-                      ' current=' + c);
+      throw new Error(
+        `callbacks out of order. last=${lastCalled} current=${c}`);
     lastCalled = c;
     cbcount++;
   };

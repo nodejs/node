@@ -41,13 +41,14 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   Handle<Context> context = isolate->native_context();
   Handle<JSObject> receiver(context->global_proxy());
   Handle<SharedFunctionInfo> outer_info(context->closure()->shared(), isolate);
-  return Evaluate(isolate, outer_info, context, receiver, source);
+  return Evaluate(isolate, outer_info, context, receiver, source, false);
 }
 
 MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
                                          StackFrame::Id frame_id,
                                          int inlined_jsframe_index,
-                                         Handle<String> source) {
+                                         Handle<String> source,
+                                         bool throw_on_side_effect) {
   // Handle the processing of break.
   DisableBreak disable_break_scope(isolate->debug());
 
@@ -74,8 +75,9 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
 
   Handle<Context> context = context_builder.evaluation_context();
   Handle<JSObject> receiver(context->global_proxy());
-  MaybeHandle<Object> maybe_result = Evaluate(
-      isolate, context_builder.outer_info(), context, receiver, source);
+  MaybeHandle<Object> maybe_result =
+      Evaluate(isolate, context_builder.outer_info(), context, receiver, source,
+               throw_on_side_effect);
   if (!maybe_result.is_null()) context_builder.UpdateValues();
   return maybe_result;
 }
@@ -84,19 +86,19 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
 // Compile and evaluate source for the given context.
 MaybeHandle<Object> DebugEvaluate::Evaluate(
     Isolate* isolate, Handle<SharedFunctionInfo> outer_info,
-    Handle<Context> context, Handle<Object> receiver, Handle<String> source) {
+    Handle<Context> context, Handle<Object> receiver, Handle<String> source,
+    bool throw_on_side_effect) {
   Handle<JSFunction> eval_fun;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, eval_fun,
       Compiler::GetFunctionFromEval(source, outer_info, context, SLOPPY,
                                     NO_PARSE_RESTRICTION, kNoSourcePosition,
-                                    kNoSourcePosition),
+                                    kNoSourcePosition, kNoSourcePosition),
       Object);
 
   Handle<Object> result;
   {
-    NoSideEffectScope no_side_effect(isolate,
-                                     FLAG_side_effect_free_debug_evaluate);
+    NoSideEffectScope no_side_effect(isolate, throw_on_side_effect);
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result, Execution::Call(isolate, eval_fun, receiver, 0, NULL),
         Object);
@@ -269,10 +271,33 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
     case Runtime::kInlineToString:
     case Runtime::kToLength:
     case Runtime::kInlineToLength:
+    case Runtime::kToNumber:
+    // Type checks.
+    case Runtime::kIsJSReceiver:
+    case Runtime::kInlineIsJSReceiver:
+    case Runtime::kIsSmi:
+    case Runtime::kInlineIsSmi:
+    case Runtime::kIsArray:
+    case Runtime::kInlineIsArray:
+    case Runtime::kIsFunction:
+    case Runtime::kIsDate:
+    case Runtime::kIsJSProxy:
+    case Runtime::kIsRegExp:
+    case Runtime::kIsTypedArray:
     // Loads.
     case Runtime::kLoadLookupSlotForCall:
+    // Arrays.
+    case Runtime::kArraySpeciesConstructor:
+    case Runtime::kNormalizeElements:
+    case Runtime::kGetArrayKeys:
+    case Runtime::kHasComplexElements:
+    case Runtime::kEstimateNumberOfElements:
     // Errors.
+    case Runtime::kReThrow:
     case Runtime::kThrowReferenceError:
+    case Runtime::kThrowSymbolIteratorInvalid:
+    case Runtime::kThrowIteratorResultNotAnObject:
+    case Runtime::kNewTypeError:
     // Strings.
     case Runtime::kInlineStringCharCodeAt:
     case Runtime::kStringCharCodeAt:
@@ -280,14 +305,13 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
     case Runtime::kStringReplaceOneCharWithString:
     case Runtime::kSubString:
     case Runtime::kInlineSubString:
-    case Runtime::kStringToLowerCase:
-    case Runtime::kStringToUpperCase:
     case Runtime::kRegExpInternalReplace:
     // Literals.
     case Runtime::kCreateArrayLiteral:
     case Runtime::kCreateObjectLiteral:
     case Runtime::kCreateRegExpLiteral:
     // Misc.
+    case Runtime::kForInPrepare:
     case Runtime::kInlineCall:
     case Runtime::kCall:
     case Runtime::kInlineMaxSmi:
@@ -306,7 +330,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
   typedef interpreter::Bytecode Bytecode;
   typedef interpreter::Bytecodes Bytecodes;
   if (Bytecodes::IsWithoutExternalSideEffects(bytecode)) return true;
-  if (Bytecodes::IsCallOrNew(bytecode)) return true;
+  if (Bytecodes::IsCallOrConstruct(bytecode)) return true;
   if (Bytecodes::WritesBooleanToAccumulator(bytecode)) return true;
   if (Bytecodes::IsJumpIfToBoolean(bytecode)) return true;
   if (Bytecodes::IsPrefixScalingBytecode(bytecode)) return true;
@@ -350,9 +374,19 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kCreateArrayLiteral:
     case Bytecode::kCreateObjectLiteral:
     case Bytecode::kCreateRegExpLiteral:
-    // Misc.
+    // Allocations.
+    case Bytecode::kCreateClosure:
     case Bytecode::kCreateUnmappedArguments:
+    // Conversions.
+    case Bytecode::kToObject:
+    case Bytecode::kToNumber:
+    // Misc.
+    case Bytecode::kForInPrepare:
+    case Bytecode::kForInContinue:
+    case Bytecode::kForInNext:
+    case Bytecode::kForInStep:
     case Bytecode::kThrow:
+    case Bytecode::kReThrow:
     case Bytecode::kIllegal:
     case Bytecode::kCallJSRuntime:
     case Bytecode::kStackCheck:
@@ -371,6 +405,14 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
 bool BuiltinHasNoSideEffect(Builtins::Name id) {
   switch (id) {
     // Whitelist for builtins.
+    // Array builtins.
+    case Builtins::kArrayCode:
+    case Builtins::kArrayIndexOf:
+    case Builtins::kArrayPrototypeValues:
+    case Builtins::kArrayIncludes:
+    case Builtins::kArrayPrototypeEntries:
+    case Builtins::kArrayPrototypeKeys:
+    case Builtins::kArrayForEach:
     // Math builtins.
     case Builtins::kMathAbs:
     case Builtins::kMathAcos:
@@ -434,6 +476,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeSubstr:
     case Builtins::kStringPrototypeSubstring:
     case Builtins::kStringPrototypeToString:
+    case Builtins::kStringPrototypeToLowerCase:
+    case Builtins::kStringPrototypeToUpperCase:
     case Builtins::kStringPrototypeTrim:
     case Builtins::kStringPrototypeTrimLeft:
     case Builtins::kStringPrototypeTrimRight:
@@ -441,6 +485,12 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     // JSON builtins.
     case Builtins::kJsonParse:
     case Builtins::kJsonStringify:
+    // Error builtins.
+    case Builtins::kMakeError:
+    case Builtins::kMakeTypeError:
+    case Builtins::kMakeSyntaxError:
+    case Builtins::kMakeRangeError:
+    case Builtins::kMakeURIError:
       return true;
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {

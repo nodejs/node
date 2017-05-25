@@ -38,7 +38,7 @@ Object.defineProperty(ctx, 'setter', {
     val = _val;
   },
   get: function() {
-    return 'ok=' + val;
+    return `ok=${val}`;
   }
 });
 

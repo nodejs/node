@@ -5,7 +5,7 @@ const assert = require('assert');
 
 [Infinity, -Infinity, NaN].forEach((input) => {
   assert.throws(() => fs._toUnixTimestamp(input),
-                new RegExp('^Error: Cannot parse time: ' + input + '$'));
+                new RegExp(`^Error: Cannot parse time: ${input}$`));
 });
 
 assert.throws(() => fs._toUnixTimestamp({}),

@@ -21,7 +21,7 @@ namespace v8 {
 namespace internal {
 
 namespace {
-Handle<WasmInstanceObject> GetWasmInstanceOnStackTop(Isolate* isolate) {
+WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   DisallowHeapAllocation no_allocation;
   const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
   Address pc =
@@ -30,7 +30,12 @@ Handle<WasmInstanceObject> GetWasmInstanceOnStackTop(Isolate* isolate) {
   DCHECK_EQ(Code::WASM_FUNCTION, code->kind());
   WasmInstanceObject* owning_instance = wasm::GetOwningWasmInstance(code);
   CHECK_NOT_NULL(owning_instance);
-  return handle(owning_instance, isolate);
+  return owning_instance;
+}
+Context* GetWasmContextOnStackTop(Isolate* isolate) {
+  return GetWasmInstanceOnStackTop(isolate)
+      ->compiled_module()
+      ->ptr_to_native_context();
 }
 }  // namespace
 
@@ -38,7 +43,8 @@ RUNTIME_FUNCTION(Runtime_WasmMemorySize) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
 
-  Handle<WasmInstanceObject> instance = GetWasmInstanceOnStackTop(isolate);
+  Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
+                                      isolate);
   return *isolate->factory()->NewNumberFromInt(
       wasm::GetInstanceMemorySize(isolate, instance));
 }
@@ -47,7 +53,13 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_UINT32_ARG_CHECKED(delta_pages, 0);
-  Handle<WasmInstanceObject> instance = GetWasmInstanceOnStackTop(isolate);
+  Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
+                                      isolate);
+
+  // Set the current isolate's context.
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(instance->compiled_module()->ptr_to_native_context());
+
   return *isolate->factory()->NewNumberFromInt(
       wasm::GrowMemory(isolate, instance, delta_pages));
 }
@@ -55,6 +67,8 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
 Object* ThrowRuntimeError(Isolate* isolate, int message_id, int byte_offset,
                           bool patch_source_position) {
   HandleScope scope(isolate);
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(GetWasmContextOnStackTop(isolate));
   Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
       static_cast<MessageTemplate::Template>(message_id));
 
@@ -108,20 +122,18 @@ Object* ThrowRuntimeError(Isolate* isolate, int message_id, int byte_offset,
   return isolate->Throw(*error_obj);
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowWasmErrorFromTrapIf) {
+  DCHECK_EQ(1, args.length());
+  CONVERT_SMI_ARG_CHECKED(message_id, 0);
+  return ThrowRuntimeError(isolate, message_id, 0, false);
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
   CONVERT_SMI_ARG_CHECKED(byte_offset, 1);
   return ThrowRuntimeError(isolate, message_id, byte_offset, true);
 }
-
-#define DECLARE_ENUM(name)                                                    \
-  RUNTIME_FUNCTION(Runtime_ThrowWasm##name) {                                 \
-    int message_id = wasm::WasmOpcodes::TrapReasonToMessageId(wasm::k##name); \
-    return ThrowRuntimeError(isolate, message_id, 0, false);                  \
-  }
-FOREACH_WASM_TRAPREASON(DECLARE_ENUM)
-#undef DECLARE_ENUM
 
 RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
   HandleScope scope(isolate);
@@ -138,6 +150,10 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
 
   const int32_t thrown_value = (upper << 16) | lower;
 
+  // Set the current isolate's context.
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(GetWasmContextOnStackTop(isolate));
+
   return isolate->Throw(*isolate->factory()->NewNumberFromInt(thrown_value));
 }
 
@@ -153,12 +169,14 @@ RUNTIME_FUNCTION(Runtime_WasmGetCaughtExceptionValue) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, instance_obj, 0);
   CONVERT_NUMBER_CHECKED(int32_t, func_index, Int32, args[1]);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg_buffer_obj, 2);
   CHECK(WasmInstanceObject::IsWasmInstanceObject(*instance_obj));
+  Handle<WasmInstanceObject> instance =
+      Handle<WasmInstanceObject>::cast(instance_obj);
 
   // The arg buffer is the raw pointer to the caller's stack. It looks like a
   // Smi (lowest bit not set, as checked by IsSmi), but is no valid Smi. We just
@@ -167,12 +185,27 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   CHECK(arg_buffer_obj->IsSmi());
   uint8_t* arg_buffer = reinterpret_cast<uint8_t*>(*arg_buffer_obj);
 
-  Handle<WasmInstanceObject> instance =
-      Handle<WasmInstanceObject>::cast(instance_obj);
-  Handle<WasmDebugInfo> debug_info =
-      WasmInstanceObject::GetOrCreateDebugInfo(instance);
-  WasmDebugInfo::RunInterpreter(debug_info, func_index, arg_buffer);
+  // Set the current isolate's context.
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(instance->compiled_module()->ptr_to_native_context());
+
+  instance->debug_info()->RunInterpreter(func_index, arg_buffer);
   return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+
+  // Set the current isolate's context.
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(GetWasmContextOnStackTop(isolate));
+
+  // Check if this is a real stack overflow.
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed()) return isolate->StackOverflow();
+
+  return isolate->stack_guard()->HandleInterrupts();
 }
 
 }  // namespace internal

@@ -8,10 +8,13 @@
 
 #include "test/common/wasm/test-signatures.h"
 
+#include "src/objects-inl.h"
 #include "src/objects.h"
 
+#include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/signature-map.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -372,22 +375,22 @@ TEST_F(FunctionBodyDecoderTest, GetLocal_off_end) {
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalBelowLimit) {
-  AddLocals(kWasmI32, kMaxNumWasmLocals - 1);
+  AddLocals(kWasmI32, kV8MaxWasmFunctionLocals - 1);
   EXPECT_VERIFIES(v_v, WASM_NOP);
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalAtLimit) {
-  AddLocals(kWasmI32, kMaxNumWasmLocals);
+  AddLocals(kWasmI32, kV8MaxWasmFunctionLocals);
   EXPECT_VERIFIES(v_v, WASM_NOP);
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalAboveLimit) {
-  AddLocals(kWasmI32, kMaxNumWasmLocals + 1);
+  AddLocals(kWasmI32, kV8MaxWasmFunctionLocals + 1);
   EXPECT_FAILURE(v_v, WASM_NOP);
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal_varint) {
-  const int kMaxLocals = kMaxNumWasmLocals - 1;
+  const int kMaxLocals = kV8MaxWasmFunctionLocals - 1;
   AddLocals(kWasmI32, kMaxLocals);
 
   EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_1(66));
@@ -408,7 +411,7 @@ TEST_F(FunctionBodyDecoderTest, GetLocal_varint) {
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal_toomany) {
-  AddLocals(kWasmI32, kMaxNumWasmLocals - 100);
+  AddLocals(kWasmI32, kV8MaxWasmFunctionLocals - 100);
   AddLocals(kWasmI32, 100);
 
   EXPECT_VERIFIES(i_v, kExprGetLocal, U32V_1(66));

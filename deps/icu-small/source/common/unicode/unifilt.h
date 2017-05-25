@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
@@ -30,7 +30,7 @@ U_NAMESPACE_BEGIN
  * defined range.
  * @stable ICU 3.0
  */
-#define U_ETHER ((UChar)0xFFFF)
+#define U_ETHER ((char16_t)0xFFFF)
 
 /**
  *

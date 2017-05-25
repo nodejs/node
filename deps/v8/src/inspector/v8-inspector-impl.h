@@ -36,7 +36,6 @@
 #include "src/base/macros.h"
 #include "src/inspector/protocol/Protocol.h"
 
-#include "include/v8-debug.h"
 #include "include/v8-inspector.h"
 
 namespace v8_inspector {

@@ -31,10 +31,10 @@ assert.strictEqual(b.indexOf('bc', -Infinity), 1);
 assert.strictEqual(b.indexOf('bc', Infinity), -1);
 assert.strictEqual(b.indexOf('f'), b.length - 1);
 assert.strictEqual(b.indexOf('z'), -1);
-assert.strictEqual(b.indexOf(''), -1);
-assert.strictEqual(b.indexOf('', 1), -1);
-assert.strictEqual(b.indexOf('', b.length + 1), -1);
-assert.strictEqual(b.indexOf('', Infinity), -1);
+assert.strictEqual(b.indexOf(''), 0);
+assert.strictEqual(b.indexOf('', 1), 1);
+assert.strictEqual(b.indexOf('', b.length + 1), b.length);
+assert.strictEqual(b.indexOf('', Infinity), b.length);
 assert.strictEqual(b.indexOf(buf_a), 0);
 assert.strictEqual(b.indexOf(buf_a, 1), -1);
 assert.strictEqual(b.indexOf(buf_a, -1), -1);
@@ -53,10 +53,10 @@ assert.strictEqual(b.indexOf(buf_bc, -Infinity), 1);
 assert.strictEqual(b.indexOf(buf_bc, Infinity), -1);
 assert.strictEqual(b.indexOf(buf_f), b.length - 1);
 assert.strictEqual(b.indexOf(buf_z), -1);
-assert.strictEqual(b.indexOf(buf_empty), -1);
-assert.strictEqual(b.indexOf(buf_empty, 1), -1);
-assert.strictEqual(b.indexOf(buf_empty, b.length + 1), -1);
-assert.strictEqual(b.indexOf(buf_empty, Infinity), -1);
+assert.strictEqual(b.indexOf(buf_empty), 0);
+assert.strictEqual(b.indexOf(buf_empty, 1), 1);
+assert.strictEqual(b.indexOf(buf_empty, b.length + 1), b.length);
+assert.strictEqual(b.indexOf(buf_empty, Infinity), b.length);
 assert.strictEqual(b.indexOf(0x61), 0);
 assert.strictEqual(b.indexOf(0x61, 1), -1);
 assert.strictEqual(b.indexOf(0x61, -1), -1);
@@ -255,7 +255,7 @@ let pattern = 'ABACABADABACABA';
 for (let i = 0; i < longBufferString.length - pattern.length; i += 7) {
   const index = longBufferString.indexOf(pattern, i);
   assert.strictEqual((i + 15) & ~0xf, index,
-                     'Long ABACABA...-string at index ' + i);
+                     `Long ABACABA...-string at index ${i}`);
 }
 assert.strictEqual(510, longBufferString.indexOf('AJABACA'),
                    'Long AJABACA, First J');
@@ -429,10 +429,10 @@ assert.strictEqual(b.lastIndexOf(buf_bc, -Infinity), -1);
 assert.strictEqual(b.lastIndexOf(buf_bc, Infinity), 1);
 assert.strictEqual(b.lastIndexOf(buf_f), b.length - 1);
 assert.strictEqual(b.lastIndexOf(buf_z), -1);
-assert.strictEqual(b.lastIndexOf(buf_empty), -1);
-assert.strictEqual(b.lastIndexOf(buf_empty, 1), -1);
-assert.strictEqual(b.lastIndexOf(buf_empty, b.length + 1), -1);
-assert.strictEqual(b.lastIndexOf(buf_empty, Infinity), -1);
+assert.strictEqual(b.lastIndexOf(buf_empty), b.length);
+assert.strictEqual(b.lastIndexOf(buf_empty, 1), 1);
+assert.strictEqual(b.lastIndexOf(buf_empty, b.length + 1), b.length);
+assert.strictEqual(b.lastIndexOf(buf_empty, Infinity), b.length);
 // lastIndexOf number:
 assert.strictEqual(b.lastIndexOf(0x61), 0);
 assert.strictEqual(b.lastIndexOf(0x61, 1), 0);

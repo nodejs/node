@@ -43,8 +43,9 @@ const s = http.createServer(common.mustCall((req, res) => {
   switch (test) {
     case 'headers':
       // Check that header-related functions work before setting any headers
-      // eslint-disable-next-line no-restricted-properties
-      assert.deepEqual(res.getHeaders(), {});
+      const headers = res.getHeaders();
+      const exoticObj = Object.create(null);
+      assert.deepStrictEqual(headers, exoticObj);
       assert.deepStrictEqual(res.getHeaderNames(), []);
       assert.deepStrictEqual(res.hasHeader('Connection'), false);
       assert.deepStrictEqual(res.getHeader('Connection'), undefined);
@@ -72,16 +73,14 @@ const s = http.createServer(common.mustCall((req, res) => {
       assert.strictEqual(res.getHeader('x-test-header2'), 'testing');
 
       const headersCopy = res.getHeaders();
-      // eslint-disable-next-line no-restricted-properties
-      assert.deepEqual(headersCopy, {
+      const expected = {
         'x-test-header': 'testing',
         'x-test-header2': 'testing',
         'set-cookie': cookies,
         'x-test-array-header': arrayValues
-      });
-      // eslint-disable-next-line no-restricted-properties
-      assert.deepEqual(headersCopy['set-cookie'], cookies);
-      assert.strictEqual(headersCopy['x-test-array-header'], arrayValues);
+      };
+      Object.setPrototypeOf(expected, null);
+      assert.deepStrictEqual(headersCopy, expected);
 
       assert.deepStrictEqual(res.getHeaderNames(),
                              ['x-test-header', 'x-test-header2',

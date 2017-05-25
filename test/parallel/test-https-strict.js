@@ -149,7 +149,7 @@ function makeReq(path, port, error, host, ca) {
       port === server2.address().port ? server2 :
       port === server3.address().port ? server3 :
       null;
-  if (!server) throw new Error('invalid port: ' + port);
+  if (!server) throw new Error(`invalid port: ${port}`);
   server.expectCount++;
 
   req.on('response', common.mustCall((res) => {

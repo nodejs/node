@@ -123,6 +123,10 @@ dns.lookup('example.com', options, (err, addresses) =>
 // addresses: [{"address":"2606:2800:220:1:248:1893:25c8:1946","family":6}]
 ```
 
+If this method is invoked as its [`util.promisify()`][]ed version, and `all`
+is not set to `true`, it returns a Promise for an object with `address` and
+`family` properties.
+
 ### Supported getaddrinfo flags
 
 The following flags can be passed as hints to [`dns.lookup()`][].
@@ -162,6 +166,9 @@ dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
   // Prints: localhost ssh
 });
 ```
+
+If this method is invoked as its [`util.promisify()`][]ed version, it returns a
+Promise for an object with `hostname` and `service` properties.
 
 ## dns.resolve(hostname[, rrtype], callback)
 <!-- YAML
@@ -512,7 +519,7 @@ processing that happens on libuv's threadpool that [`dns.lookup()`][] can have.
 They do not use the same set of configuration files than what [`dns.lookup()`][]
 uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 
-[DNS error codes]: #dns_error_codes
+[`Error`]: errors.html#errors_class_error
 [`dns.lookup()`]: #dns_dns_lookup_hostname_options_callback
 [`dns.resolve4()`]: #dns_dns_resolve4_hostname_options_callback
 [`dns.resolve6()`]: #dns_dns_resolve6_hostname_options_callback
@@ -524,7 +531,8 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`dns.resolveSoa()`]: #dns_dns_resolvesoa_hostname_callback
 [`dns.resolveSrv()`]: #dns_dns_resolvesrv_hostname_callback
 [`dns.resolveTxt()`]: #dns_dns_resolvetxt_hostname_callback
-[`Error`]: errors.html#errors_class_error
+[DNS error codes]: #dns_error_codes
 [Implementation considerations section]: #dns_implementation_considerations
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
 [the official libuv documentation]: http://docs.libuv.org/en/latest/threadpool.html
+[`util.promisify()`]: util.html#util_util_promisify_original

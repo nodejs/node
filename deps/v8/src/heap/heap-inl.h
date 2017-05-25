@@ -225,6 +225,8 @@ AllocationResult Heap::AllocateInternalizedStringImpl(T t, int chars,
 AllocationResult Heap::AllocateOneByteInternalizedString(
     Vector<const uint8_t> str, uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, str.length());
+  // The canonical empty_string is the only zero-length string we allow.
+  DCHECK_IMPLIES(str.length() == 0, roots_[kempty_stringRootIndex] == nullptr);
   // Compute map and object size.
   Map* map = one_byte_internalized_string_map();
   int size = SeqOneByteString::SizeFor(str.length());
@@ -256,6 +258,7 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
 AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
                                                          uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, str.length());
+  DCHECK_NE(0, str.length());  // Use Heap::empty_string() instead.
   // Compute map and object size.
   Map* map = internalized_string_map();
   int size = SeqTwoByteString::SizeFor(str.length());
@@ -689,6 +692,10 @@ Isolate* Heap::isolate() {
       reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(16)->heap()) + 16);
 }
 
+void Heap::ExternalStringTable::PromoteAllNewSpaceStrings() {
+  old_space_strings_.AddAll(new_space_strings_);
+  new_space_strings_.Clear();
+}
 
 void Heap::ExternalStringTable::AddString(String* string) {
   DCHECK(string->IsExternalString());
@@ -785,9 +792,14 @@ void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
   set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
-void Heap::SetConstructStubDeoptPCOffset(int pc_offset) {
-  DCHECK(construct_stub_deopt_pc_offset() == Smi::kZero);
-  set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
+  DCHECK(construct_stub_create_deopt_pc_offset() == Smi::kZero);
+  set_construct_stub_create_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+void Heap::SetConstructStubInvokeDeoptPCOffset(int pc_offset) {
+  DCHECK(construct_stub_invoke_deopt_pc_offset() == Smi::kZero);
+  set_construct_stub_invoke_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {
@@ -850,6 +862,8 @@ void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
       HeapObject* object = HeapObject::cast(*current);
       CHECK(object->GetIsolate()->heap()->Contains(object));
       CHECK(object->map()->IsMap());
+    } else {
+      CHECK((*current)->IsSmi());
     }
   }
 }

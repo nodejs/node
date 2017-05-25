@@ -468,7 +468,12 @@ class MacroAssembler: public Assembler {
     test(value, Immediate(kSmiTagMask));
     j(not_zero, not_smi_label, distance);
   }
-
+  // Jump if the operand is not a smi.
+  inline void JumpIfNotSmi(Operand value, Label* smi_label,
+                           Label::Distance distance = Label::kFar) {
+    test(value, Immediate(kSmiTagMask));
+    j(not_zero, smi_label, distance);
+  }
   // Jump if the value cannot be represented by a smi.
   inline void JumpIfNotValidSmiValue(Register value, Register scratch,
                                      Label* on_invalid,
@@ -631,14 +636,6 @@ class MacroAssembler: public Assembler {
   // Machine code version of Map::GetConstructor().
   // |temp| holds |result|'s map when done.
   void GetMapConstructor(Register result, Register map, Register temp);
-
-  // Try to get function prototype of a function and puts the value in
-  // the result register. Checks that the function really is a
-  // function and jumps to the miss label if the fast checks fail. The
-  // function register will be untouched; the other registers may be
-  // clobbered.
-  void TryGetFunctionPrototype(Register function, Register result,
-                               Register scratch, Label* miss);
 
   // ---------------------------------------------------------------------------
   // Runtime calls

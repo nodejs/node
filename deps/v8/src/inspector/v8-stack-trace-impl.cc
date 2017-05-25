@@ -9,7 +9,6 @@
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 
-#include "include/v8-debug.h"
 #include "include/v8-version.h"
 
 namespace v8_inspector {
@@ -141,10 +140,13 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::create(
     maxAsyncCallChainDepth = 1;
   }
 
-  // Only the top stack in the chain may be empty, so ensure that second stack
-  // is non-empty (it's the top of appended chain).
-  if (asyncCallChain && asyncCallChain->isEmpty())
+  // Only the top stack in the chain may be empty and doesn't contain creation
+  // stack , so ensure that second stack is non-empty (it's the top of appended
+  // chain).
+  if (asyncCallChain && asyncCallChain->isEmpty() &&
+      !asyncCallChain->m_creation) {
     asyncCallChain = asyncCallChain->m_parent.get();
+  }
 
   if (stackTrace.IsEmpty() && !asyncCallChain) return nullptr;
 
@@ -180,9 +182,11 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::capture(
 
 std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::cloneImpl() {
   std::vector<Frame> framesCopy(m_frames);
-  return std::unique_ptr<V8StackTraceImpl>(
+  std::unique_ptr<V8StackTraceImpl> copy(
       new V8StackTraceImpl(m_contextGroupId, m_description, framesCopy,
                            m_parent ? m_parent->cloneImpl() : nullptr));
+  if (m_creation) copy->setCreation(m_creation->cloneImpl());
+  return copy;
 }
 
 std::unique_ptr<V8StackTrace> V8StackTraceImpl::clone() {
@@ -204,6 +208,19 @@ V8StackTraceImpl::V8StackTraceImpl(int contextGroupId,
 }
 
 V8StackTraceImpl::~V8StackTraceImpl() {}
+
+void V8StackTraceImpl::setCreation(std::unique_ptr<V8StackTraceImpl> creation) {
+  m_creation = std::move(creation);
+  // When async call chain is empty but doesn't contain useful schedule stack
+  // and parent async call chain contains creationg stack but doesn't
+  // synchronous we can merge them together.
+  // e.g. Promise ThenableJob.
+  if (m_parent && isEmpty() && m_description == m_parent->m_description &&
+      !m_parent->m_creation) {
+    m_frames.swap(m_parent->m_frames);
+    m_parent = std::move(m_parent->m_parent);
+  }
+}
 
 StringView V8StackTraceImpl::topSourceURL() const {
   DCHECK(m_frames.size());
@@ -243,6 +260,10 @@ V8StackTraceImpl::buildInspectorObjectImpl() const {
           .build();
   if (!m_description.isEmpty()) stackTrace->setDescription(m_description);
   if (m_parent) stackTrace->setParent(m_parent->buildInspectorObjectImpl());
+  if (m_creation && m_creation->m_frames.size()) {
+    stackTrace->setPromiseCreationFrame(
+        m_creation->m_frames[0].buildInspectorObject());
+  }
   return stackTrace;
 }
 

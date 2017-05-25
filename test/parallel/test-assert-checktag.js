@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 
@@ -13,7 +13,10 @@ function re(literals, ...values) {
     result += str.replace(/[\\^$.*+?()[\]{}|=!<>:-]/g, '\\$&');
     result += literals[i + 1];
   }
-  return new RegExp('^AssertionError: ' + result + '$');
+  return common.expectsError({
+    code: 'ERR_ASSERTION',
+    message: new RegExp(`^${result}$`)
+  });
 }
 
 // Turn off no-restricted-properties because we are testing deepEqual!

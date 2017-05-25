@@ -178,7 +178,10 @@ Handle<Object> BytecodeArrayAccessor::GetConstantForIndexOperand(
 int BytecodeArrayAccessor::GetJumpTargetOffset() const {
   Bytecode bytecode = current_bytecode();
   if (interpreter::Bytecodes::IsJumpImmediate(bytecode)) {
-    int relative_offset = GetImmediateOperand(0);
+    int relative_offset = GetUnsignedImmediateOperand(0);
+    if (bytecode == Bytecode::kJumpLoop) {
+      relative_offset = -relative_offset;
+    }
     return current_offset() + relative_offset + current_prefix_offset();
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
     Smi* smi = Smi::cast(*GetConstantForIndexOperand(0));

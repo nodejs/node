@@ -783,7 +783,7 @@ bytecodes: [
                 B(Star), R(0),
   /* 2591 S> */ B(LdaConstant), U8(255),
                 B(Star), R(0),
-  /* 2601 S> */ B(Wide), B(CreateRegExpLiteral), U16(256), U16(0), U8(0),
+  /* 2601 S> */ B(Wide), B(CreateRegExpLiteral), U16(256), U16(2), U8(0),
   /* 2616 S> */ B(Return),
 ]
 constant pool: [

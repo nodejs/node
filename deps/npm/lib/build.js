@@ -211,7 +211,7 @@ function linkBins (pkg, folder, parent, gtop, cb) {
           var out = npm.config.get('parseable')
                   ? dest + '::' + src + ':BINFILE'
                   : dest + ' -> ' + src
-          output(out)
+          if (!npm.config.get('json') && !npm.config.get('parseable')) output(out)
           cb()
         })
       }

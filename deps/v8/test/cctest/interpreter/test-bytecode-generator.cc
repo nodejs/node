@@ -2343,6 +2343,73 @@ TEST(SuperCallAndSpread) {
                      LoadGolden("SuperCallAndSpread.golden")));
 }
 
+TEST(CallAndSpread) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  const char* snippets[] = {"Math.max(...[1, 2, 3]);\n",
+                            "Math.max(0, ...[1, 2, 3]);\n",
+                            "Math.max(0, ...[1, 2, 3], 4);\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("CallAndSpread.golden")));
+}
+
+TEST(NewAndSpread) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  const char* snippets[] = {
+      "class A { constructor(...args) { this.args = args; } }\n"
+      "new A(...[1, 2, 3]);\n",
+
+      "class A { constructor(...args) { this.args = args; } }\n"
+      "new A(0, ...[1, 2, 3]);\n",
+
+      "class A { constructor(...args) { this.args = args; } }\n"
+      "new A(0, ...[1, 2, 3], 4);\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("NewAndSpread.golden")));
+}
+
+TEST(ForAwaitOf) {
+  bool old_flag = i::FLAG_harmony_async_iteration;
+  i::FLAG_harmony_async_iteration = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_test_function_name("f");
+
+  const char* snippets[] = {
+      "async function f() {\n"
+      "  for await (let x of [1, 2, 3]) {}\n"
+      "}\n"
+      "f();\n",
+
+      "async function f() {\n"
+      "  for await (let x of [1, 2, 3]) { return x; }\n"
+      "}\n"
+      "f();\n",
+
+      "async function f() {\n"
+      "  for await (let x of [10, 20, 30]) {\n"
+      "    if (x == 10) continue;\n"
+      "    if (x == 20) break;\n"
+      "  }\n"
+      "}\n"
+      "f();\n",
+
+      "async function f() {\n"
+      "  var x = { 'a': 1, 'b': 2 };\n"
+      "  for (x['a'] of [1,2,3]) { return x['a']; }\n"
+      "}\n"
+      "f();\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ForAwaitOf.golden")));
+
+  i::FLAG_harmony_async_iteration = old_flag;
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

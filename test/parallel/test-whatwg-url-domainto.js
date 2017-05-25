@@ -35,11 +35,8 @@ const tests = require('../fixtures/url-idna.js');
 }
 
 {
-  const convertFunc = {
-    ascii: domainToASCII,
-    unicode: domainToUnicode
-  };
-
-  for (const [i, { url, mode }] of tests.invalid.entries())
-    assert.strictEqual(convertFunc[mode](url), '', `Invalid case ${i + 1}`);
+  for (const [i, url] of tests.invalid.entries()) {
+    assert.strictEqual(domainToASCII(url), '', `Invalid case ${i + 1}`);
+    assert.strictEqual(domainToUnicode(url), '', `Invalid case ${i + 1}`);
+  }
 }

@@ -32,9 +32,27 @@ class StringUtil {
     return String::fromInteger(number);
   }
   static String fromDouble(double number) { return String::fromDouble(number); }
+  static size_t find(const String& s, const char* needle) {
+    return s.find(needle);
+  }
+  static size_t find(const String& s, const String& needle) {
+    return s.find(needle);
+  }
   static const size_t kNotFound = String::kNotFound;
+  static void builderAppend(StringBuilder& builder, const String& s) {
+    builder.append(s);
+  }
+  static void builderAppend(StringBuilder& builder, UChar c) {
+    builder.append(c);
+  }
+  static void builderAppend(StringBuilder& builder, const char* s, size_t len) {
+    builder.append(s, len);
+  }
   static void builderReserve(StringBuilder& builder, size_t capacity) {
     builder.reserveCapacity(capacity);
+  }
+  static String builderToString(StringBuilder& builder) {
+    return builder.toString();
   }
   static std::unique_ptr<protocol::Value> parseJSON(const String16& json);
   static std::unique_ptr<protocol::Value> parseJSON(const StringView& json);

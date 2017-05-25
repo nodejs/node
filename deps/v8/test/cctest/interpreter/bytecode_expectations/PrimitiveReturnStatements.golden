@@ -115,7 +115,7 @@ parameter count: 1
 bytecode array length: 4
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaSmi), U8(1),
+  /*   34 S> */ B(LdaSmi), I8(1),
   /*   45 S> */ B(Return),
 ]
 constant pool: [
@@ -132,7 +132,7 @@ parameter count: 1
 bytecode array length: 4
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaSmi), U8(-1),
+  /*   34 S> */ B(LdaSmi), I8(-1),
   /*   45 S> */ B(Return),
 ]
 constant pool: [
@@ -149,7 +149,7 @@ parameter count: 1
 bytecode array length: 4
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaSmi), U8(127),
+  /*   34 S> */ B(LdaSmi), I8(127),
   /*   47 S> */ B(Return),
 ]
 constant pool: [
@@ -166,7 +166,7 @@ parameter count: 1
 bytecode array length: 4
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaSmi), U8(-128),
+  /*   34 S> */ B(LdaSmi), I8(-128),
   /*   47 S> */ B(Return),
 ]
 constant pool: [
@@ -183,7 +183,7 @@ parameter count: 1
 bytecode array length: 4
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaSmi), U8(2),
+  /*   34 S> */ B(LdaSmi), I8(2),
   /*   46 S> */ B(Return),
 ]
 constant pool: [

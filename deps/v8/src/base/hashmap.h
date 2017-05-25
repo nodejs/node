@@ -40,6 +40,11 @@ class TemplateHashMapImpl {
                       MatchFun match = MatchFun(),
                       AllocationPolicy allocator = AllocationPolicy());
 
+  // Clones the given hashmap and creates a copy with the same entries.
+  TemplateHashMapImpl(const TemplateHashMapImpl<Key, Value, MatchFun,
+                                                AllocationPolicy>* original,
+                      AllocationPolicy allocator = AllocationPolicy());
+
   ~TemplateHashMapImpl();
 
   // If an entry with matching key is found, returns that entry.
@@ -119,6 +124,8 @@ class TemplateHashMapImpl {
                         uint32_t hash,
                         AllocationPolicy allocator = AllocationPolicy());
   void Resize(AllocationPolicy allocator);
+
+  DISALLOW_COPY_AND_ASSIGN(TemplateHashMapImpl);
 };
 template <typename Key, typename Value, typename MatchFun,
           class AllocationPolicy>
@@ -127,6 +134,19 @@ TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::
                         AllocationPolicy allocator)
     : match_(match) {
   Initialize(initial_capacity, allocator);
+}
+
+template <typename Key, typename Value, typename MatchFun,
+          class AllocationPolicy>
+TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::
+    TemplateHashMapImpl(const TemplateHashMapImpl<Key, Value, MatchFun,
+                                                  AllocationPolicy>* original,
+                        AllocationPolicy allocator)
+    : capacity_(original->capacity_),
+      occupancy_(original->occupancy_),
+      match_(original->match_) {
+  map_ = reinterpret_cast<Entry*>(allocator.New(capacity_ * sizeof(Entry)));
+  memcpy(map_, original->map_, capacity_ * sizeof(Entry));
 }
 
 template <typename Key, typename Value, typename MatchFun,
@@ -382,6 +402,14 @@ class CustomMatcherTemplateHashMapImpl
       AllocationPolicy allocator = AllocationPolicy())
       : Base(capacity, HashEqualityThenKeyMatcher<void*, MatchFun>(match),
              allocator) {}
+
+  CustomMatcherTemplateHashMapImpl(
+      const CustomMatcherTemplateHashMapImpl<AllocationPolicy>* original,
+      AllocationPolicy allocator = AllocationPolicy())
+      : Base(original, allocator) {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(CustomMatcherTemplateHashMapImpl);
 };
 
 typedef CustomMatcherTemplateHashMapImpl<DefaultAllocationPolicy>

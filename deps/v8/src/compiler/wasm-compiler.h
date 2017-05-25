@@ -68,12 +68,14 @@ class WasmCompilationUnit final {
 
  private:
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
-  Handle<FixedArray> PackProtectedInstructions() const;
+  char* GetTaggedFunctionName(const wasm::WasmFunction* function);
 
   wasm::ErrorThrower* thrower_;
   Isolate* isolate_;
   wasm::ModuleBytesEnv* module_env_;
   const wasm::WasmFunction* function_;
+  // Function name is tagged with uint32 func_index - wasm#<func_index>
+  char function_name_[16];
   // The graph zone is deallocated at the end of ExecuteCompilation.
   std::unique_ptr<Zone> graph_zone_;
   JSGraph* jsgraph_;
@@ -232,6 +234,12 @@ class WasmGraphBuilder {
 
   Node* SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
                    const NodeVector& inputs);
+
+  Node* SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
+                    const NodeVector& inputs);
+
+  Node* SimdSwizzleOp(wasm::WasmOpcode opcode, uint32_t swizzle,
+                      const NodeVector& inputs);
 
   bool has_simd() const { return has_simd_; }
 

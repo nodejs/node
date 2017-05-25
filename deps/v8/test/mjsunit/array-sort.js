@@ -480,6 +480,29 @@ function TestSortOnProxy() {
 }
 TestSortOnProxy();
 
+function TestSortOnNonExtensible() {
+  {
+    var arr = [1,,2];
+    Object.preventExtensions(arr);
+    assertThrows(() => arr.sort(), TypeError);
+    assertEquals(arr, [1,,2]);
+  }
+  {
+    var arr = [1,,undefined];
+    Object.preventExtensions(arr);
+    assertThrows(() => arr.sort(), TypeError);
+    assertFalse(arr.hasOwnProperty(1));
+    assertEquals(arr, [1,,undefined]);
+  }
+  {
+    var arr = [1,undefined,2];
+    Object.preventExtensions(arr);
+    arr.sort();
+    assertEquals(arr, [1,2,undefined]);
+  }
+}
+TestSortOnNonExtensible();
+
 
 // Test special prototypes
 (function testSortSpecialPrototypes() {

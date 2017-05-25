@@ -48,7 +48,7 @@ bytecodes: [
   /*   28 E> */ B(StackCheck),
   /*   51 S> */ B(LdaGlobal), U8(0), U8(2),
                 B(Star), R(0),
-                B(LdaSmi), U8(1),
+                B(LdaSmi), I8(1),
                 B(DeletePropertyStrict), R(0),
   /*   71 S> */ B(Return),
 ]

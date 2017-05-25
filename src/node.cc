@@ -154,6 +154,8 @@ using v8::Uint32Array;
 using v8::V8;
 using v8::Value;
 
+using AsyncHooks = node::Environment::AsyncHooks;
+
 static bool print_eval = false;
 static bool force_repl = false;
 static bool syntax_check_only = false;
@@ -174,6 +176,7 @@ static node_module* modlist_linked;
 static node_module* modlist_addon;
 static bool trace_enabled = false;
 static std::string trace_enabled_categories;  // NOLINT(runtime/string)
+static bool abort_on_uncaught_exception = false;
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 // Path to ICU data (for i18n / Intl)
@@ -229,7 +232,6 @@ bool v8_initialized = false;
 
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
-static bool debugger_running;
 
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
@@ -257,6 +259,10 @@ static struct {
   bool StartInspector(Environment *env, const char* script_path,
                       const node::DebugOptions& options) {
     return env->inspector_agent()->Start(platform_, script_path, options);
+  }
+
+  bool InspectorStarted(Environment *env) {
+    return env->inspector_agent()->IsStarted();
   }
 #endif  // HAVE_INSPECTOR
 
@@ -287,6 +293,9 @@ static struct {
                     "so event tracing is not available.\n");
   }
   void StopTracingAgent() {}
+  bool InspectorStarted(Environment *env) {
+    return false;
+  }
 #endif  // !NODE_USE_V8_PLATFORM
 } v8_platform;
 
@@ -1302,21 +1311,13 @@ Local<Value> MakeCallback(Environment* env,
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
-  Local<Function> pre_fn = env->async_hooks_pre_function();
-  Local<Function> post_fn = env->async_hooks_post_function();
   Local<Object> object, domain;
-  bool ran_init_callback = false;
   bool has_domain = false;
 
   Environment::AsyncCallbackScope callback_scope(env);
 
-  // TODO(trevnorris): Adding "_asyncQueue" to the "this" in the init callback
-  // is a horrible way to detect usage. Rethink how detection should happen.
   if (recv->IsObject()) {
     object = recv.As<Object>();
-    Local<Value> async_queue_v = object->Get(env->async_queue_string());
-    if (async_queue_v->IsObject())
-      ran_init_callback = true;
   }
 
   if (env->using_domains()) {
@@ -1340,33 +1341,12 @@ Local<Value> MakeCallback(Environment* env,
     }
   }
 
-  if (ran_init_callback && !pre_fn.IsEmpty()) {
-    TryCatch try_catch(env->isolate());
-    MaybeLocal<Value> ar = pre_fn->Call(env->context(), object, 0, nullptr);
-    if (ar.IsEmpty()) {
-      ClearFatalExceptionHandlers(env);
-      FatalException(env->isolate(), try_catch);
-      return Local<Value>();
-    }
-  }
+  // TODO(trevnorris): Correct this once node::MakeCallback() support id and
+  // triggerId. Consider completely removing it until then so the async id can
+  // propagate through to the fatalException after hook calls.
+  AsyncHooks::ExecScope exec_scope(env, 0, 0);
 
   Local<Value> ret = callback->Call(recv, argc, argv);
-
-  if (ran_init_callback && !post_fn.IsEmpty()) {
-    Local<Value> did_throw = Boolean::New(env->isolate(), ret.IsEmpty());
-    // Currently there's no way to retrieve an uid from node::MakeCallback().
-    // This needs to be fixed.
-    Local<Value> vals[] =
-        { Undefined(env->isolate()).As<Value>(), did_throw };
-    TryCatch try_catch(env->isolate());
-    MaybeLocal<Value> ar =
-        post_fn->Call(env->context(), object, arraysize(vals), vals);
-    if (ar.IsEmpty()) {
-      ClearFatalExceptionHandlers(env);
-      FatalException(env->isolate(), try_catch);
-      return Local<Value>();
-    }
-  }
 
   if (ret.IsEmpty()) {
     // NOTE: For backwards compatibility with public API we return Undefined()
@@ -1374,6 +1354,8 @@ Local<Value> MakeCallback(Environment* env,
     return callback_scope.in_makecallback() ?
         ret : Undefined(env->isolate()).As<Value>();
   }
+
+  exec_scope.Dispose();
 
   if (has_domain) {
     Local<Value> exit_v = domain->Get(env->exit_string());
@@ -1395,6 +1377,11 @@ Local<Value> MakeCallback(Environment* env,
     env->isolate()->RunMicrotasks();
   }
 
+  // Make sure the stack unwound properly. If there are nested MakeCallback's
+  // then it should return early and not reach this code.
+  CHECK_EQ(env->current_async_id(), 0);
+  CHECK_EQ(env->trigger_id(), 0);
+
   Local<Object> process = env->process_object();
 
   if (tick_info->length() == 0) {
@@ -1411,10 +1398,10 @@ Local<Value> MakeCallback(Environment* env,
 
 
 Local<Value> MakeCallback(Environment* env,
-                           Local<Object> recv,
-                           Local<String> symbol,
-                           int argc,
-                           Local<Value> argv[]) {
+                          Local<Object> recv,
+                          Local<String> symbol,
+                          int argc,
+                          Local<Value> argv[]) {
   Local<Value> cb_v = recv->Get(symbol);
   CHECK(cb_v->IsFunction());
   return MakeCallback(env, recv.As<Value>(), cb_v.As<Function>(), argc, argv);
@@ -1422,10 +1409,10 @@ Local<Value> MakeCallback(Environment* env,
 
 
 Local<Value> MakeCallback(Environment* env,
-                           Local<Object> recv,
-                           const char* method,
-                           int argc,
-                           Local<Value> argv[]) {
+                          Local<Object> recv,
+                          const char* method,
+                          int argc,
+                          Local<Value> argv[]) {
   Local<String> method_string = OneByteString(env->isolate(), method);
   return MakeCallback(env, recv, method_string, argc, argv);
 }
@@ -2667,9 +2654,9 @@ void FatalException(Isolate* isolate,
 
 void FatalException(Isolate* isolate, const TryCatch& try_catch) {
   HandleScope scope(isolate);
-  // TODO(bajtos) do not call FatalException if try_catch is verbose
-  // (requires V8 API to expose getter for try_catch.is_verbose_)
-  FatalException(isolate, try_catch.Exception(), try_catch.Message());
+  if (!try_catch.IsVerbose()) {
+    FatalException(isolate, try_catch.Exception(), try_catch.Message());
+  }
 }
 
 
@@ -3605,7 +3592,7 @@ void LoadEnvironment(Environment* env) {
 static void PrintHelp() {
   // XXX: If you add an option here, please also add it to doc/node.1 and
   // doc/api/cli.md
-  printf("Usage: node [options] [ -e script | script.js ] [arguments]\n"
+  printf("Usage: node [options] [ -e script | script.js | - ] [arguments]\n"
          "       node inspect script.js [arguments]\n"
          "\n"
          "Options:\n"
@@ -3617,12 +3604,16 @@ static void PrintHelp() {
          "                             does not appear to be a terminal\n"
          "  -r, --require              module to preload (option can be "
          "repeated)\n"
+         "  -                          script read from stdin (default; "
+         "interactive mode if a tty)"
 #if HAVE_INSPECTOR
          "  --inspect[=[host:]port]    activate inspector on host:port\n"
          "                             (default: 127.0.0.1:9229)\n"
          "  --inspect-brk[=[host:]port]\n"
          "                             activate inspector on host:port\n"
          "                             and break at start of user script\n"
+         "  --inspect-port=[host:]port\n"
+         "                             set host:port for inspector\n"
 #endif
          "  --no-deprecation           silence deprecation warnings\n"
          "  --trace-deprecation        show stack traces on deprecations\n"
@@ -3631,8 +3622,8 @@ static void PrintHelp() {
          "  --no-warnings              silence all process warnings\n"
          "  --napi-modules             load N-API modules\n"
          "  --trace-warnings           show stack traces on process warnings\n"
-         "  --redirect-warnings=path\n"
-         "                             write warnings to path instead of\n"
+         "  --redirect-warnings=file\n"
+         "                             write warnings to file instead of\n"
          "                             stderr\n"
          "  --trace-sync-io            show stack trace when use of sync IO\n"
          "                             is detected after the first tick\n"
@@ -3722,25 +3713,29 @@ static void CheckIfAllowedInEnv(const char* exe, bool is_env,
 
   static const char* whitelist[] = {
     // Node options
-    "-r", "--require",
+    "--require", "-r",
+    "--inspect",
+    "--inspect-brk",
+    "--inspect-port",
     "--no-deprecation",
+    "--trace-deprecation",
+    "--throw-deprecation",
     "--no-warnings",
+    "--napi-modules",
     "--trace-warnings",
     "--redirect-warnings",
-    "--trace-deprecation",
     "--trace-sync-io",
     "--trace-events-enabled",
+    "--trace-events-categories",
     "--track-heap-objects",
-    "--throw-deprecation",
     "--zero-fill-buffers",
     "--v8-pool-size",
-    "--use-openssl-ca",
     "--use-bundled-ca",
+    "--use-openssl-ca",
     "--enable-fips",
     "--force-fips",
     "--openssl-config",
     "--icu-data-dir",
-    "--napi-modules",
 
     // V8 options
     "--max_old_space_size",
@@ -3805,7 +3800,7 @@ static void ParseArgs(int* argc,
 
     CheckIfAllowedInEnv(argv[0], is_env, arg);
 
-    if (debug_options.ParseOption(arg)) {
+    if (debug_options.ParseOption(argv[0], arg)) {
       // Done, consumed by DebugOptions::ParseOption().
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
@@ -3922,9 +3917,17 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       config_expose_internals = true;
+    } else if (strcmp(arg, "-") == 0) {
+      break;
     } else if (strcmp(arg, "--") == 0) {
       index += 1;
       break;
+    } else if (strcmp(arg, "--abort-on-uncaught-exception") == 0 ||
+               strcmp(arg, "--abort_on_uncaught_exception") == 0) {
+      abort_on_uncaught_exception = true;
+      // Also a V8 option.  Pass through as-is.
+      new_v8_argv[new_v8_argc] = arg;
+      new_v8_argc += 1;
     } else {
       // V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
@@ -3981,9 +3984,9 @@ static void ParseArgs(int* argc,
 
 static void StartDebug(Environment* env, const char* path,
                        DebugOptions debug_options) {
-  CHECK(!debugger_running);
 #if HAVE_INSPECTOR
-  debugger_running = v8_platform.StartInspector(env, path, debug_options);
+  CHECK(!env->inspector_agent()->IsStarted());
+  v8_platform.StartInspector(env, path, debug_options);
 #endif  // HAVE_INSPECTOR
 }
 
@@ -4128,13 +4131,12 @@ static void DebugPause(const FunctionCallbackInfo<Value>& args) {
 
 
 static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
-  if (debugger_running) {
 #if HAVE_INSPECTOR
-    Environment* env = Environment::GetCurrent(args);
+  Environment* env = Environment::GetCurrent(args);
+  if (env->inspector_agent()->IsStarted()) {
     env->inspector_agent()->Stop();
-#endif
-    debugger_running = false;
   }
+#endif
 }
 
 
@@ -4351,8 +4353,11 @@ void Init(int* argc,
   // Initialize ICU.
   // If icu_data_dir is empty here, it will load the 'minimal' data.
   if (!i18n::InitializeICUDirectory(icu_data_dir)) {
-    FatalError(nullptr, "Could not initialize ICU "
-                     "(check NODE_ICU_DATA or --icu-data-dir parameters)");
+    fprintf(stderr,
+            "%s: could not initialize ICU "
+            "(check NODE_ICU_DATA or --icu-data-dir parameters)",
+            argv[0]);
+    exit(9);
   }
 #endif
 
@@ -4468,11 +4473,14 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   const char* path = argc > 1 ? argv[1] : nullptr;
   StartDebug(&env, path, debug_options);
 
-  if (debug_options.inspector_enabled() && !debugger_running)
+  if (debug_options.inspector_enabled() && !v8_platform.InspectorStarted(&env))
     return 12;  // Signal internal error.
+
+  env.set_abort_on_uncaught_exception(abort_on_uncaught_exception);
 
   {
     Environment::AsyncCallbackScope callback_scope(&env);
+    Environment::AsyncHooks::ExecScope exec_scope(&env, 1, 0);
     LoadEnvironment(&env);
   }
 
@@ -4624,3 +4632,9 @@ int Start(int argc, char** argv) {
 
 
 }  // namespace node
+
+#if !HAVE_INSPECTOR
+static void InitEmptyBindings() {}
+
+NODE_MODULE_CONTEXT_AWARE_BUILTIN(inspector, InitEmptyBindings)
+#endif  // !HAVE_INSPECTOR

@@ -21,6 +21,7 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
+struct FieldAccess;
 class JSOperatorBuilder;
 class JSGraph;
 class SimplifiedOperatorBuilder;
@@ -51,7 +52,6 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceIsSmi(Node* node);
   Reduction ReduceFixedArrayGet(Node* node);
   Reduction ReduceFixedArraySet(Node* node);
-  Reduction ReduceRegExpExec(Node* node);
   Reduction ReduceSubString(Node* node);
   Reduction ReduceToInteger(Node* node);
   Reduction ReduceToLength(Node* node);
@@ -60,6 +60,22 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
   Reduction ReduceGetSuperConstructor(Node* node);
+
+  // TODO(turbofan): typedarray.js support; drop once TypedArrays are
+  // converted to proper CodeStubAssembler based builtins.
+  Reduction ReduceArrayBufferViewField(Node* node, FieldAccess const& access);
+  Reduction ReduceMaxSmi(Node* node);
+  Reduction ReduceTypedArrayMaxSizeInHeap(Node* node);
+
+  // TODO(turbofan): collection.js support; drop once Maps and Sets are
+  // converted to proper CodeStubAssembler based builtins.
+  Reduction ReduceJSCollectionGetTable(Node* node);
+  Reduction ReduceStringGetRawHashField(Node* node);
+  Reduction ReduceTheHole(Node* node);
+
+  // TODO(turbofan): JavaScript builtins support; drop once all uses of
+  // %_ClassOf in JavaScript builtins are eliminated.
+  Reduction ReduceClassOf(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);

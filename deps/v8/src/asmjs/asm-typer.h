@@ -82,6 +82,8 @@ class AsmTyper final {
   Handle<JSMessageObject> error_message() const { return error_message_; }
   const MessageLocation* message_location() const { return &message_location_; }
 
+  AsmType* TriggerParsingError();
+
   AsmType* TypeOf(AstNode* node) const;
   AsmType* TypeOf(Variable* v) const;
   StandardMember VariableAsStandardMember(Variable* var);
@@ -362,7 +364,7 @@ class AsmTyper final {
   AsmType* ParameterTypeAnnotations(Variable* parameter,
                                     Expression* annotation);
   // 5.2 ReturnTypeAnnotations
-  AsmType* ReturnTypeAnnotations(ReturnStatement* statement);
+  AsmType* ReturnTypeAnnotations(Expression* ret_expr);
   // 5.4 VariableTypeAnnotations
   // 5.5 GlobalVariableTypeAnnotations
   AsmType* VariableTypeAnnotations(

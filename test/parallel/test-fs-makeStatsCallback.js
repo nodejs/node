@@ -16,7 +16,7 @@ function testMakeStatsCallback(cb) {
 common.expectWarning('DeprecationWarning', warn);
 
 // Verify the case where a callback function is provided
-assert.doesNotThrow(testMakeStatsCallback(common.noop));
+assert.doesNotThrow(testMakeStatsCallback(common.mustCall()));
 
 // Passing undefined/nothing calls rethrow() internally, which emits a warning
 assert.doesNotThrow(testMakeStatsCallback());

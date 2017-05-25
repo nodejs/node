@@ -103,7 +103,7 @@ assert.throws(
   function() {
     require('../fixtures/packages/invalid');
   },
-  /^SyntaxError: Error parsing \S+: Unexpected token , in JSON at position 1$/
+  /^SyntaxError: Error parsing .+: Unexpected token , in JSON at position 1$/
 );
 
 assert.strictEqual(require('../fixtures/packages/index').ok, 'ok',
@@ -189,25 +189,25 @@ try {
   require.extensions['.reg'] = require.extensions['.js'];
   require.extensions['.reg2'] = require.extensions['.js'];
 
-  assert.strictEqual(require(loadOrder + 'file1').file1, 'file1', msg);
-  assert.strictEqual(require(loadOrder + 'file2').file2, 'file2.js', msg);
+  assert.strictEqual(require(`${loadOrder}file1`).file1, 'file1', msg);
+  assert.strictEqual(require(`${loadOrder}file2`).file2, 'file2.js', msg);
   try {
-    require(loadOrder + 'file3');
+    require(`${loadOrder}file3`);
   } catch (e) {
     // Not a real .node module, but we know we require'd the right thing.
     assert.ok(e.message.replace(/\\/g, '/').match(/file3\.node/));
   }
-  assert.strictEqual(require(loadOrder + 'file4').file4, 'file4.reg', msg);
-  assert.strictEqual(require(loadOrder + 'file5').file5, 'file5.reg2', msg);
-  assert.strictEqual(require(loadOrder + 'file6').file6, 'file6/index.js', msg);
+  assert.strictEqual(require(`${loadOrder}file4`).file4, 'file4.reg', msg);
+  assert.strictEqual(require(`${loadOrder}file5`).file5, 'file5.reg2', msg);
+  assert.strictEqual(require(`${loadOrder}file6`).file6, 'file6/index.js', msg);
   try {
-    require(loadOrder + 'file7');
+    require(`${loadOrder}file7`);
   } catch (e) {
     assert.ok(e.message.replace(/\\/g, '/').match(/file7\/index\.node/));
   }
-  assert.strictEqual(require(loadOrder + 'file8').file8, 'file8/index.reg',
+  assert.strictEqual(require(`${loadOrder}file8`).file8, 'file8/index.reg',
                      msg);
-  assert.strictEqual(require(loadOrder + 'file9').file9, 'file9/index.reg2',
+  assert.strictEqual(require(`${loadOrder}file9`).file9, 'file9/index.reg2',
                      msg);
 }
 
@@ -243,7 +243,7 @@ try {
   }, {});
 
   assert.deepStrictEqual(children, {
-    'common.js': {},
+    'common/index.js': {},
     'fixtures/not-main-module.js': {},
     'fixtures/a.js': {
       'fixtures/b/c.js': {

@@ -8,7 +8,10 @@ const _createSocketHandle = dgram._createSocketHandle;
 // Throws if an "existing fd" is passed in.
 assert.throws(() => {
   _createSocketHandle(common.localhostIPv4, 0, 'udp4', 42);
-}, /^AssertionError: false == true$/);
+}, common.expectsError({
+  code: 'ERR_ASSERTION',
+  message: /^false == true$/
+}));
 
 {
   // Create a handle that is not bound.

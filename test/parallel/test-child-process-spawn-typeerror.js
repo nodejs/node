@@ -32,7 +32,7 @@ const invalidArgsMsg = /Incorrect value of args option/;
 const invalidOptionsMsg = /"options" argument must be an object/;
 const invalidFileMsg =
   /^TypeError: "file" argument must be a non-empty string$/;
-const empty = common.fixturesDir + '/empty.js';
+const empty = `${common.fixturesDir}/empty.js`;
 
 assert.throws(function() {
   const child = spawn(invalidcmd, 'this is not an array');

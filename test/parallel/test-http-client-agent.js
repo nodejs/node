@@ -49,7 +49,7 @@ server.listen(0, function() {
 function request(i) {
   const req = http.get({
     port: server.address().port,
-    path: '/' + i
+    path: `/${i}`
   }, function(res) {
     const socket = req.socket;
     socket.on('close', function() {

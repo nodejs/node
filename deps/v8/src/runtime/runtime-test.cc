@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "src/arguments.h"
+#include "src/assembler-inl.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
 #include "src/deoptimizer.h"
@@ -275,21 +276,28 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   return isolate->heap()->undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1 || args.length() == 2);
+  int status = 0;
   if (!isolate->use_crankshaft()) {
-    return Smi::FromInt(4);  // 4 == "never".
+    status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
+  }
+  if (FLAG_always_opt || FLAG_prepare_always_opt) {
+    status |= static_cast<int>(OptimizationStatus::kAlwaysOptimize);
+  }
+  if (FLAG_deopt_every_n_times) {
+    status |= static_cast<int>(OptimizationStatus::kMaybeDeopted);
   }
 
   // This function is used by fuzzers to get coverage for optimizations
   // in compiler. Ignore calls on non-function objects to avoid runtime errors.
   CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
   if (!function_object->IsJSFunction()) {
-    return isolate->heap()->undefined_value();
+    return Smi::FromInt(status);
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
+  status |= static_cast<int>(OptimizationStatus::kIsFunction);
 
   bool sync_with_compiler_thread = true;
   if (args.length() == 2) {
@@ -308,22 +316,16 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
       base::OS::Sleep(base::TimeDelta::FromMilliseconds(50));
     }
   }
-  if (FLAG_always_opt || FLAG_prepare_always_opt) {
-    // With --always-opt, optimization status expectations might not
-    // match up, so just return a sentinel.
-    return Smi::FromInt(3);  // 3 == "always".
-  }
-  if (FLAG_deopt_every_n_times) {
-    return Smi::FromInt(6);  // 6 == "maybe deopted".
-  }
-  if (function->IsOptimized() && function->code()->is_turbofanned()) {
-    return Smi::FromInt(7);  // 7 == "TurboFan compiler".
+  if (function->IsOptimized()) {
+    status |= static_cast<int>(OptimizationStatus::kOptimized);
+    if (function->code()->is_turbofanned()) {
+      status |= static_cast<int>(OptimizationStatus::kTurboFanned);
+    }
   }
   if (function->IsInterpreted()) {
-    return Smi::FromInt(8);  // 8 == "Interpreted".
+    status |= static_cast<int>(OptimizationStatus::kInterpreted);
   }
-  return function->IsOptimized() ? Smi::FromInt(1)   // 1 == "yes".
-                                 : Smi::FromInt(2);  // 2 == "no".
+  return Smi::FromInt(status);
 }
 
 
@@ -392,7 +394,7 @@ RUNTIME_FUNCTION(Runtime_GetCallable) {
   return *Utils::OpenHandle(*instance);
 }
 
-RUNTIME_FUNCTION(Runtime_ClearFunctionTypeFeedback) {
+RUNTIME_FUNCTION(Runtime_ClearFunctionFeedback) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);

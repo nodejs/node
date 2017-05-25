@@ -110,7 +110,10 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
     Wrap(object(), this);
   }
 
-  ~FSReqWrap() { ReleaseEarly(); }
+  ~FSReqWrap() {
+    ReleaseEarly();
+    ClearWrap(object());
+  }
 
   void* operator new(size_t size) = delete;
   void* operator new(size_t size, char* storage) { return storage; }
@@ -151,6 +154,7 @@ void FSReqWrap::Dispose() {
 
 void NewFSReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
+  ClearWrap(args.This());
 }
 
 
@@ -1095,8 +1099,7 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   FSReqWrap::Ownership ownership = FSReqWrap::COPY;
 
   // will assign buf and len if string was external
-  if (!StringBytes::GetExternalParts(env->isolate(),
-                                     string,
+  if (!StringBytes::GetExternalParts(string,
                                      const_cast<const char**>(&buf),
                                      &len)) {
     enum encoding enc = ParseEncoding(env->isolate(), args[3], UTF8);
@@ -1474,6 +1477,7 @@ void InitFs(Local<Object> target,
   Local<FunctionTemplate> fst =
       FunctionTemplate::New(env->isolate(), NewFSReqWrap);
   fst->InstanceTemplate()->SetInternalFieldCount(1);
+  env->SetProtoMethod(fst, "getAsyncId", AsyncWrap::GetAsyncId);
   fst->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap"),
               fst->GetFunction());

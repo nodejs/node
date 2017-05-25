@@ -13,10 +13,10 @@ function foo() {
 }
 
 function test() {
+  debugger;
   var resolve1;
   var p1 = new Promise(resolve => resolve1 = resolve);
   var p2 = p1.then(foo);
-  debugger;
   resolve1(); // asyncTaskScheduled
   debugger;
   return p2;

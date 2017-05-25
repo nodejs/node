@@ -281,59 +281,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ ret(0);
 }
 
-
-void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
-  Label miss;
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  // With careful management, we won't have to save slot and vector on
-  // the stack. Simply handle the possibly missing case first.
-  // TODO(mvstanton): this code can be more efficient.
-  __ cmp(FieldOperand(receiver, JSFunction::kPrototypeOrInitialMapOffset),
-         Immediate(isolate()->factory()->the_hole_value()));
-  __ j(equal, &miss);
-  __ TryGetFunctionPrototype(receiver, eax, ebx, &miss);
-  __ ret(0);
-
-  __ bind(&miss);
-  PropertyAccessCompiler::TailCallBuiltin(
-      masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
-}
-
-
-void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
-  // Return address is on the stack.
-  Label miss;
-
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register index = LoadDescriptor::NameRegister();
-  Register scratch = edi;
-  DCHECK(!scratch.is(receiver) && !scratch.is(index));
-  Register result = eax;
-  DCHECK(!result.is(scratch));
-  DCHECK(!scratch.is(LoadWithVectorDescriptor::VectorRegister()) &&
-         result.is(LoadDescriptor::SlotRegister()));
-
-  // StringCharAtGenerator doesn't use the result register until it's passed
-  // the different miss possibilities. If it did, we would have a conflict
-  // when FLAG_vector_ics is true.
-
-  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
-                                          &miss,  // When not a string.
-                                          &miss,  // When not a number.
-                                          &miss,  // When index out of range.
-                                          RECEIVER_IS_STRING);
-  char_at_generator.GenerateFast(masm);
-  __ ret(0);
-
-  StubRuntimeCallHelper call_helper;
-  char_at_generator.GenerateSlow(masm, PART_OF_IC_HANDLER, call_helper);
-
-  __ bind(&miss);
-  PropertyAccessCompiler::TailCallBuiltin(
-      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
-}
-
-
 void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
@@ -425,7 +372,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (8) Is the external string one byte?  If yes, go to (5).
   // (9) Two byte sequential.  Load regexp code for two byte. Go to (E).
   // (10) Short external string or not a string?  If yes, bail out to runtime.
-  // (11) Sliced string.  Replace subject with parent. Go to (1).
+  // (11) Sliced or thin string.  Replace subject with parent. Go to (1).
 
   Label seq_one_byte_string /* 5 */, seq_two_byte_string /* 9 */,
       external_string /* 7 */, check_underlying /* 1 */,
@@ -455,6 +402,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // have already been covered.
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
+  STATIC_ASSERT(kThinStringTag > kExternalStringTag);
   STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
   STATIC_ASSERT(kShortExternalStringTag > kExternalStringTag);
   __ cmp(ebx, Immediate(kExternalStringTag));
@@ -733,10 +681,17 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ test(ebx, Immediate(kIsNotStringMask | kShortExternalStringTag));
   __ j(not_zero, &runtime);
 
-  // (11) Sliced string.  Replace subject with parent.  Go to (1).
+  // (11) Sliced or thin string.  Replace subject with parent.  Go to (1).
+  Label thin_string;
+  __ cmp(ebx, Immediate(kThinStringTag));
+  __ j(equal, &thin_string, Label::kNear);
   // Load offset into edi and replace subject string with parent.
   __ mov(edi, FieldOperand(eax, SlicedString::kOffsetOffset));
   __ mov(eax, FieldOperand(eax, SlicedString::kParentOffset));
+  __ jmp(&check_underlying);  // Go to (1).
+
+  __ bind(&thin_string);
+  __ mov(eax, FieldOperand(eax, ThinString::kActualOffset));
   __ jmp(&check_underlying);  // Go to (1).
 #endif  // V8_INTERPRETED_REGEXP
 }
@@ -836,9 +791,6 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
       __ j(above_equal, &runtime_call, Label::kFar);
       // Call runtime on identical symbols since we need to throw a TypeError.
       __ cmpb(ecx, Immediate(SYMBOL_TYPE));
-      __ j(equal, &runtime_call, Label::kFar);
-      // Call runtime on identical SIMD values since we must throw a TypeError.
-      __ cmpb(ecx, Immediate(SIMD128_VALUE_TYPE));
       __ j(equal, &runtime_call, Label::kFar);
     }
     __ Move(eax, Immediate(Smi::FromInt(EQUAL)));
@@ -1821,52 +1773,6 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ Abort(kUnexpectedFallthroughFromCharCodeAtSlowCase);
 }
 
-
-// -------------------------------------------------------------------------
-// StringCharFromCodeGenerator
-
-void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
-  // Fast case of Heap::LookupSingleCharacterStringFromCode.
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiShiftSize == 0);
-  DCHECK(base::bits::IsPowerOfTwo32(String::kMaxOneByteCharCodeU + 1));
-  __ test(code_, Immediate(kSmiTagMask |
-                           ((~String::kMaxOneByteCharCodeU) << kSmiTagSize)));
-  __ j(not_zero, &slow_case_);
-
-  Factory* factory = masm->isolate()->factory();
-  __ Move(result_, Immediate(factory->single_character_string_cache()));
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kSmiShiftSize == 0);
-  // At this point code register contains smi tagged one byte char code.
-  __ mov(result_, FieldOperand(result_,
-                               code_, times_half_pointer_size,
-                               FixedArray::kHeaderSize));
-  __ cmp(result_, factory->undefined_value());
-  __ j(equal, &slow_case_);
-  __ bind(&exit_);
-}
-
-
-void StringCharFromCodeGenerator::GenerateSlow(
-    MacroAssembler* masm,
-    const RuntimeCallHelper& call_helper) {
-  __ Abort(kUnexpectedFallthroughToCharFromCodeSlowCase);
-
-  __ bind(&slow_case_);
-  call_helper.BeforeCall(masm);
-  __ push(code_);
-  __ CallRuntime(Runtime::kStringCharFromCode);
-  if (!result_.is(eax)) {
-    __ mov(result_, eax);
-  }
-  call_helper.AfterCall(masm);
-  __ jmp(&exit_);
-
-  __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
-}
-
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
                                                    Register left,
                                                    Register right,
@@ -2726,12 +2632,6 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
       function_mode() == JS_FUNCTION_STUB_MODE ? kPointerSize : 0;
   __ lea(esp, MemOperand(esp, ebx, times_pointer_size, additional_offset));
   __ jmp(ecx);  // Return to IC Miss stub, continuation still on stack.
-}
-
-void CallICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadFeedbackVector(ebx);
-  CallICStub stub(isolate(), state());
-  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {

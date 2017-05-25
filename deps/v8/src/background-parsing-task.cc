@@ -4,7 +4,7 @@
 
 #include "src/background-parsing-task.h"
 
-#include "src/debug/debug.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parser.h"
 
 namespace v8 {
@@ -13,7 +13,6 @@ namespace internal {
 void StreamedSource::Release() {
   parser.reset();
   info.reset();
-  zone.reset();
 }
 
 BackgroundParsingTask::BackgroundParsingTask(
@@ -29,10 +28,8 @@ BackgroundParsingTask::BackgroundParsingTask(
 
   // Prepare the data for the internalization phase and compilation phase, which
   // will happen in the main thread after parsing.
-  Zone* zone = new Zone(isolate->allocator(), ZONE_NAME);
-  ParseInfo* info = new ParseInfo(zone);
+  ParseInfo* info = new ParseInfo(isolate->allocator());
   info->set_toplevel();
-  source->zone.reset(zone);
   source->info.reset(info);
   info->set_isolate(isolate);
   info->set_source_stream(source->source_stream.get());

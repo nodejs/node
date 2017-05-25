@@ -10,6 +10,11 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class CompilationDependencies;
+class Factory;
+
 namespace compiler {
 
 // Forward declarations.
@@ -18,7 +23,7 @@ class JSGraph;
 class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
 
-// Performs strength reduction on {JSCallConstruct} and {JSCallFunction} nodes,
+// Performs strength reduction on {JSConstruct} and {JSCall} nodes,
 // which might allow inlining or other optimizations to be performed afterwards.
 class JSCallReducer final : public AdvancedReducer {
  public:
@@ -30,11 +35,13 @@ class JSCallReducer final : public AdvancedReducer {
   typedef base::Flags<Flag> Flags;
 
   JSCallReducer(Editor* editor, JSGraph* jsgraph, Flags flags,
-                Handle<Context> native_context)
+                Handle<Context> native_context,
+                CompilationDependencies* dependencies)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
         flags_(flags),
-        native_context_(native_context) {}
+        native_context_(native_context),
+        dependencies_(dependencies) {}
 
   Reduction Reduce(Node* node) final;
 
@@ -48,8 +55,11 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceFunctionPrototypeCall(Node* node);
   Reduction ReduceFunctionPrototypeHasInstance(Node* node);
   Reduction ReduceObjectPrototypeGetProto(Node* node);
-  Reduction ReduceJSCallConstruct(Node* node);
-  Reduction ReduceJSCallFunction(Node* node);
+  Reduction ReduceSpreadCall(Node* node, int arity);
+  Reduction ReduceJSConstruct(Node* node);
+  Reduction ReduceJSConstructWithSpread(Node* node);
+  Reduction ReduceJSCall(Node* node);
+  Reduction ReduceJSCallWithSpread(Node* node);
 
   enum HolderLookup { kHolderNotFound, kHolderIsReceiver, kHolderFound };
 
@@ -61,14 +71,17 @@ class JSCallReducer final : public AdvancedReducer {
   Flags flags() const { return flags_; }
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
+  Factory* factory() const;
   Handle<Context> native_context() const { return native_context_; }
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
+  CompilationDependencies* dependencies() const { return dependencies_; }
 
   JSGraph* const jsgraph_;
   Flags const flags_;
   Handle<Context> const native_context_;
+  CompilationDependencies* const dependencies_;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSCallReducer::Flags)

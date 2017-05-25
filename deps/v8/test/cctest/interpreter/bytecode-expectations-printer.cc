@@ -11,7 +11,9 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 
+#include "src/api.h"
 #include "src/base/logging.h"
+#include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -70,7 +72,11 @@ v8::Local<v8::Script> BytecodeExpectationsPrinter::CompileScript(
 
 v8::Local<v8::Module> BytecodeExpectationsPrinter::CompileModule(
     const char* program) const {
-  v8::ScriptCompiler::Source source(V8StringFromUTF8(program));
+  ScriptOrigin origin(
+      Local<v8::Value>(), Local<v8::Integer>(), Local<v8::Integer>(),
+      Local<v8::Boolean>(), Local<v8::Integer>(), Local<v8::Value>(),
+      Local<v8::Boolean>(), Local<v8::Boolean>(), True(isolate_));
+  v8::ScriptCompiler::Source source(V8StringFromUTF8(program), origin);
   return v8::ScriptCompiler::CompileModule(isolate_, &source).ToLocalChecked();
 }
 
@@ -171,13 +177,13 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
       stream << '(' << register_value.index() << ')';
     }
   } else {
-    stream << 'U' << size_tag << '(';
-
     switch (op_type) {
       case OperandType::kFlag8:
+        stream << 'U' << size_tag << '(';
         stream << bytecode_iterator.GetFlagOperand(op_index);
         break;
       case OperandType::kIdx: {
+        stream << 'U' << size_tag << '(';
         uint32_t idx = bytecode_iterator.GetIndexOperand(op_index);
         if (bytecode == Bytecode::kCallJSRuntime && op_index == 0) {
           stream << "%" << NameForNativeContextIntrinsicIndex(idx);
@@ -187,21 +193,26 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
         break;
       }
       case OperandType::kUImm:
+        stream << 'U' << size_tag << '(';
         stream << bytecode_iterator.GetUnsignedImmediateOperand(op_index);
         break;
       case OperandType::kImm:
+        stream << 'I' << size_tag << '(';
         stream << bytecode_iterator.GetImmediateOperand(op_index);
         break;
       case OperandType::kRegCount:
+        stream << 'U' << size_tag << '(';
         stream << bytecode_iterator.GetRegisterCountOperand(op_index);
         break;
       case OperandType::kRuntimeId: {
+        stream << 'U' << size_tag << '(';
         Runtime::FunctionId id =
             bytecode_iterator.GetRuntimeIdOperand(op_index);
         stream << "Runtime::k" << i::Runtime::FunctionForId(id)->name;
         break;
       }
       case OperandType::kIntrinsicId: {
+        stream << 'U' << size_tag << '(';
         Runtime::FunctionId id =
             bytecode_iterator.GetIntrinsicIdOperand(op_index);
         stream << "Runtime::k" << i::Runtime::FunctionForId(id)->name;

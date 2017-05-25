@@ -254,7 +254,7 @@ qsWeirdObjects.forEach(function(testCase) {
 // invalid surrogate pair throws URIError
 assert.throws(function() {
   qs.stringify({ foo: '\udc00' });
-}, URIError);
+}, /^URIError: URI malformed$/);
 
 // coerce numbers to string
 assert.strictEqual('foo=0', qs.stringify({ foo: 0 }));
@@ -318,43 +318,47 @@ assert.strictEqual(
     0);
 
 // Test removing limit
-function testUnlimitedKeys() {
-  const query = {};
+{
+  function testUnlimitedKeys() {
+    const query = {};
 
-  for (let i = 0; i < 2000; i++) query[i] = i;
+    for (let i = 0; i < 2000; i++) query[i] = i;
 
-  const url = qs.stringify(query);
+    const url = qs.stringify(query);
 
-  assert.strictEqual(
-      Object.keys(qs.parse(url, null, null, { maxKeys: 0 })).length,
+    assert.strictEqual(
+      Object.keys(qs.parse(url, null, null, {maxKeys: 0})).length,
       2000);
+  }
+
+  testUnlimitedKeys();
 }
-testUnlimitedKeys();
 
-
-const b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
-                          '%0d%ac%a2%2f%9d%eb%d8%a2%e6');
+{
+  const b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
+    '%0d%ac%a2%2f%9d%eb%d8%a2%e6');
 // <Buffer d3 f2 55 67 1f 36 76 24 5e 98 cb 0d ac a2 2f 9d eb d8 a2 e6>
-assert.strictEqual(0xd3, b[0]);
-assert.strictEqual(0xf2, b[1]);
-assert.strictEqual(0x55, b[2]);
-assert.strictEqual(0x67, b[3]);
-assert.strictEqual(0x1f, b[4]);
-assert.strictEqual(0x36, b[5]);
-assert.strictEqual(0x76, b[6]);
-assert.strictEqual(0x24, b[7]);
-assert.strictEqual(0x5e, b[8]);
-assert.strictEqual(0x98, b[9]);
-assert.strictEqual(0xcb, b[10]);
-assert.strictEqual(0x0d, b[11]);
-assert.strictEqual(0xac, b[12]);
-assert.strictEqual(0xa2, b[13]);
-assert.strictEqual(0x2f, b[14]);
-assert.strictEqual(0x9d, b[15]);
-assert.strictEqual(0xeb, b[16]);
-assert.strictEqual(0xd8, b[17]);
-assert.strictEqual(0xa2, b[18]);
-assert.strictEqual(0xe6, b[19]);
+  assert.strictEqual(0xd3, b[0]);
+  assert.strictEqual(0xf2, b[1]);
+  assert.strictEqual(0x55, b[2]);
+  assert.strictEqual(0x67, b[3]);
+  assert.strictEqual(0x1f, b[4]);
+  assert.strictEqual(0x36, b[5]);
+  assert.strictEqual(0x76, b[6]);
+  assert.strictEqual(0x24, b[7]);
+  assert.strictEqual(0x5e, b[8]);
+  assert.strictEqual(0x98, b[9]);
+  assert.strictEqual(0xcb, b[10]);
+  assert.strictEqual(0x0d, b[11]);
+  assert.strictEqual(0xac, b[12]);
+  assert.strictEqual(0xa2, b[13]);
+  assert.strictEqual(0x2f, b[14]);
+  assert.strictEqual(0x9d, b[15]);
+  assert.strictEqual(0xeb, b[16]);
+  assert.strictEqual(0xd8, b[17]);
+  assert.strictEqual(0xa2, b[18]);
+  assert.strictEqual(0xe6, b[19]);
+}
 
 assert.strictEqual(qs.unescapeBuffer('a+b', true).toString(), 'a b');
 assert.strictEqual(qs.unescapeBuffer('a+b').toString(), 'a+b');
@@ -368,29 +372,38 @@ assert.strictEqual(qs.unescapeBuffer('a%%').toString(), 'a%%');
 check(qs.parse('%\u0100=%\u0101'), { '%Ā': '%ā' });
 
 // Test custom decode
-function demoDecode(str) {
-  return str + str;
+{
+  function demoDecode(str) {
+    return str + str;
+  }
+
+  check(qs.parse('a=a&b=b&c=c', null, null, {decodeURIComponent: demoDecode}),
+    {aa: 'aa', bb: 'bb', cc: 'cc'});
+  check(qs.parse('a=a&b=b&c=c', null, '==', {decodeURIComponent: (str) => str}),
+    {'a=a': '', 'b=b': '', 'c=c': ''});
 }
-check(qs.parse('a=a&b=b&c=c', null, null, { decodeURIComponent: demoDecode }),
-      { aa: 'aa', bb: 'bb', cc: 'cc' });
-check(qs.parse('a=a&b=b&c=c', null, '==', { decodeURIComponent: (str) => str }),
-      { 'a=a': '', 'b=b': '', 'c=c': '' });
 
 // Test QueryString.unescape
-function errDecode(str) {
-  throw new Error('To jump to the catch scope');
+{
+  function errDecode(str) {
+    throw new Error('To jump to the catch scope');
+  }
+
+  check(qs.parse('a=a', null, null, {decodeURIComponent: errDecode}),
+    {a: 'a'});
 }
-check(qs.parse('a=a', null, null, { decodeURIComponent: errDecode }),
-      { a: 'a' });
 
 // Test custom encode
-function demoEncode(str) {
-  return str[0];
+{
+  function demoEncode(str) {
+    return str[0];
+  }
+
+  const obj = {aa: 'aa', bb: 'bb', cc: 'cc'};
+  assert.strictEqual(
+    qs.stringify(obj, null, null, {encodeURIComponent: demoEncode}),
+    'a=a&b=b&c=c');
 }
-const obj = { aa: 'aa', bb: 'bb', cc: 'cc' };
-assert.strictEqual(
-  qs.stringify(obj, null, null, { encodeURIComponent: demoEncode }),
-  'a=a&b=b&c=c');
 
 // Test QueryString.unescapeBuffer
 qsUnescapeTestCases.forEach(function(testCase) {
@@ -399,12 +412,15 @@ qsUnescapeTestCases.forEach(function(testCase) {
 });
 
 // test overriding .unescape
-const prevUnescape = qs.unescape;
-qs.unescape = function(str) {
-  return str.replace(/o/g, '_');
-};
-check(qs.parse('foo=bor'), createWithNoPrototype([{key: 'f__', value: 'b_r'}]));
-qs.unescape = prevUnescape;
-
+{
+  const prevUnescape = qs.unescape;
+  qs.unescape = function(str) {
+    return str.replace(/o/g, '_');
+  };
+  check(
+    qs.parse('foo=bor'),
+    createWithNoPrototype([{key: 'f__', value: 'b_r'}]));
+  qs.unescape = prevUnescape;
+}
 // test separator and "equals" parsing order
 check(qs.parse('foo&bar', '&', '&'), { foo: '', bar: '' });

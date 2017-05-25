@@ -1,4 +1,4 @@
-// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// © 2016 and later: Unicode, Inc. and others.
 // License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
@@ -6,7 +6,7 @@
 *                Corporation and others. All Rights Reserved.
 ******************************************************************************
 *   file name:  uclean.h
-*   encoding:   US-ASCII
+*   encoding:   UTF-8
 *   tab size:   8 (not used)
 *   indentation:4
 *
@@ -101,7 +101,7 @@ u_init(UErrorCode *status);
 U_STABLE void U_EXPORT2
 u_cleanup(void);
 
-
+U_CDECL_BEGIN
 /**
   *  Pointer type for a user supplied memory allocation function.
   *  @param context user supplied value, obtained from from u_setMemoryFunctions().
@@ -149,9 +149,10 @@ typedef void  U_CALLCONV UMemFreeFn (const void *context, void *mem);
  *  @system
  */
 U_STABLE void U_EXPORT2
-u_setMemoryFunctions(const void *context, UMemAllocFn *a, UMemReallocFn *r, UMemFreeFn *f,
+u_setMemoryFunctions(const void *context, UMemAllocFn * U_CALLCONV a, UMemReallocFn * U_CALLCONV r, UMemFreeFn * U_CALLCONV f,
                     UErrorCode *status);
 
+U_CDECL_END
 
 #ifndef U_HIDE_DEPRECATED_API
 /*********************************************************************************
@@ -172,6 +173,7 @@ u_setMemoryFunctions(const void *context, UMemAllocFn *a, UMemReallocFn *r, UMem
   */
 typedef void *UMTX;
 
+U_CDECL_BEGIN
 /**
   *  Function Pointer type for a user supplied mutex initialization function.
   *  The user-supplied function will be called by ICU whenever ICU needs to create a
@@ -201,7 +203,7 @@ typedef void U_CALLCONV UMtxInitFn (const void *context, UMTX  *mutex, UErrorCod
   *  @system
   */
 typedef void U_CALLCONV UMtxFn   (const void *context, UMTX  *mutex);
-
+U_CDECL_END
 
 /**
   *  Set the functions that ICU will use for mutex operations

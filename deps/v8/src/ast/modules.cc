@@ -7,6 +7,7 @@
 #include "src/ast/scopes.h"
 #include "src/objects-inl.h"
 #include "src/objects/module-info.h"
+#include "src/pending-compilation-error-handler.h"
 
 namespace v8 {
 namespace internal {

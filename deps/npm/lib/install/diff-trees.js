@@ -9,13 +9,13 @@ function nonRegistrySource (pkg) {
   if (!requested) return false
 
   if (requested.type === 'hosted') return true
-  if (requested.type === 'local') return true
+  if (requested.type === 'file' || requested.type === 'directory') return true
   return false
 }
 
 function pkgAreEquiv (aa, bb) {
-  var aaSha = (aa.dist && aa.dist.shasum) || aa._shasum
-  var bbSha = (bb.dist && bb.dist.shasum) || bb._shasum
+  var aaSha = (aa.dist && aa.dist.integrity) || aa._integrity
+  var bbSha = (bb.dist && bb.dist.integrity) || bb._integrity
   if (aaSha === bbSha) return true
   if (aaSha || bbSha) return false
   if (nonRegistrySource(aa) || nonRegistrySource(bb)) return false
@@ -24,13 +24,13 @@ function pkgAreEquiv (aa, bb) {
 }
 
 function getUniqueId (pkg) {
-  var versionspec = pkg._shasum
+  var versionspec = pkg._integrity
 
   if (!versionspec && nonRegistrySource(pkg)) {
     if (pkg._requested) {
-      versionspec = pkg._requested.spec
+      versionspec = pkg._requested.fetchSpec
     } else if (pkg._from) {
-      versionspec = npa(pkg._from).spec
+      versionspec = npa(pkg._from).fetchSpec
     }
   }
   if (!versionspec) {
@@ -48,15 +48,6 @@ module.exports = function (oldTree, newTree, differences, log, next) {
   pushAll(differences, sortActions(diffTrees(oldTree, newTree)))
   log.finish()
   next()
-}
-
-function isLink (node) {
-  return node && node.isLink
-}
-
-function requiredByAllLinked (node) {
-  if (!node.requiredBy.length) return false
-  return node.requiredBy.filter(isLink).length === node.requiredBy.length
 }
 
 function isNotTopOrExtraneous (node) {
@@ -136,16 +127,9 @@ var diffTrees = module.exports._diffTrees = function (oldTree, newTree) {
   Object.keys(flatNewTree).forEach(function (path) {
     var pkg = flatNewTree[path]
     pkg.oldPkg = flatOldTree[path]
-    pkg.isInLink = (pkg.oldPkg && isLink(pkg.oldPkg.parent)) ||
-                   (pkg.parent && isLink(pkg.parent)) ||
-                   requiredByAllLinked(pkg)
     if (pkg.oldPkg) {
       if (!pkg.userRequired && pkgAreEquiv(pkg.oldPkg.package, pkg.package)) return
-      if (!pkg.isInLink && (isLink(pkg.oldPkg) || isLink(pkg))) {
-        setAction(differences, 'update-linked', pkg)
-      } else {
-        setAction(differences, 'update', pkg)
-      }
+      setAction(differences, 'update', pkg)
     } else {
       var vername = getUniqueId(pkg.package)
       var removing = toRemoveByUniqueId[vername] && toRemoveByUniqueId[vername].length
@@ -155,7 +139,7 @@ var diffTrees = module.exports._diffTrees = function (oldTree, newTree) {
         pkg.fromPath = toRemove[flatname].path
         setAction(differences, 'move', pkg)
         delete toRemove[flatname]
-      } else {
+      } else if (!(pkg.isInLink && pkg.fromBundle)) {
         setAction(differences, 'add', pkg)
       }
     }

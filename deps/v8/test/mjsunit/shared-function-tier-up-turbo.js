@@ -2,7 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --mark-shared-functions-for-tier-up --allow-natives-syntax --ignition-staging --turbo
+// Flags: --mark-shared-functions-for-tier-up --allow-natives-syntax
+// Flags: --ignition-staging --turbo --no-always-opt
+
+// If we are always or never optimizing it is useless.
+assertFalse(isAlwaysOptimize());
+assertFalse(isNeverOptimize());
 
 (function() {
   var sum = 0;
@@ -13,20 +18,15 @@
     }
     sum += f(i);
 
-    if (%GetOptimizationStatus(f) == 3 || %GetOptimizationStatus(f) == 4) {
-      // If we are always or never optimizing f, just exit, this test is useless.
-      return;
-    }
-
     if (i == 1) {
       // f must be interpreted code.
-      assertEquals(8, %GetOptimizationStatus(f));
+      assertTrue(isInterpreted(f));
 
       // Run twice (i = 0, 1), then tier-up.
       %OptimizeFunctionOnNextCall(f);
     } else if (i == 2) {
       // Tier-up at i = 2 should go up to turbofan.
-      assertEquals(7, %GetOptimizationStatus(f));
+      assertTrue(isTurboFanned(f));
     }
   }
 })()

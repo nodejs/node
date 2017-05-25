@@ -1589,10 +1589,10 @@ TEST(seleqz_selnez) {
 
     (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
 
-    CHECK_EQ(test.a, 1);
-    CHECK_EQ(test.b, 0);
-    CHECK_EQ(test.c, 0);
-    CHECK_EQ(test.d, 1);
+    CHECK_EQ(1, test.a);
+    CHECK_EQ(0, test.b);
+    CHECK_EQ(0, test.c);
+    CHECK_EQ(1, test.d);
 
     const int test_size = 3;
     const int input_size = 5;
@@ -1616,18 +1616,18 @@ TEST(seleqz_selnez) {
         test.i = inputs_S[i];
         test.j = tests_S[j];
         (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-        CHECK_EQ(test.g, outputs_D[i]);
-        CHECK_EQ(test.h, 0);
-        CHECK_EQ(test.k, outputs_S[i]);
-        CHECK_EQ(test.l, 0);
+        CHECK_EQ(outputs_D[i], test.g);
+        CHECK_EQ(0, test.h);
+        CHECK_EQ(outputs_S[i], test.k);
+        CHECK_EQ(0, test.l);
 
         test.f = tests_D[j+1];
         test.j = tests_S[j+1];
         (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-        CHECK_EQ(test.g, 0);
-        CHECK_EQ(test.h, outputs_D[i]);
-        CHECK_EQ(test.k, 0);
-        CHECK_EQ(test.l, outputs_S[i]);
+        CHECK_EQ(0, test.g);
+        CHECK_EQ(outputs_D[i], test.h);
+        CHECK_EQ(0, test.k);
+        CHECK_EQ(outputs_S[i], test.l);
       }
     }
   }
@@ -3315,7 +3315,7 @@ TEST(jump_tables1) {
   __ jr(ra);
   __ nop();
 
-  CHECK_EQ(assm.UnboundLabelsCount(), 0);
+  CHECK_EQ(0, assm.UnboundLabelsCount());
 
   CodeDesc desc;
   assm.GetCode(&desc);
@@ -3829,14 +3829,14 @@ TEST(ABS) {
   test.a = std::numeric_limits<double>::quiet_NaN();
   test.b = std::numeric_limits<float>::quiet_NaN();
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(std::isnan(test.a), true);
-  CHECK_EQ(std::isnan(test.b), true);
+  CHECK(std::isnan(test.a));
+  CHECK(std::isnan(test.b));
 
   test.a = std::numeric_limits<double>::signaling_NaN();
   test.b = std::numeric_limits<float>::signaling_NaN();
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(std::isnan(test.a), true);
-  CHECK_EQ(std::isnan(test.b), true);
+  CHECK(std::isnan(test.a));
+  CHECK(std::isnan(test.b));
 }
 
 
@@ -3896,16 +3896,16 @@ TEST(ADD_FMT) {
   test.fa = std::numeric_limits<float>::max();
   test.fb = std::numeric_limits<float>::max();
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(std::isfinite(test.c), false);
-  CHECK_EQ(std::isfinite(test.fc), false);
+  CHECK(!std::isfinite(test.c));
+  CHECK(!std::isfinite(test.fc));
 
   test.a = 5.0;
   test.b = std::numeric_limits<double>::signaling_NaN();
   test.fa = 5.0;
   test.fb = std::numeric_limits<float>::signaling_NaN();
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(std::isnan(test.c), true);
-  CHECK_EQ(std::isnan(test.fc), true);
+  CHECK(std::isnan(test.c));
+  CHECK(std::isnan(test.fc));
 }
 
 
@@ -4425,14 +4425,13 @@ TEST(CVT) {
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
   CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
-  CHECK_EQ(test.cvt_l_s_out, -1);
-  CHECK_EQ(test.cvt_l_d_out, -1);
+  CHECK_EQ(-1, test.cvt_l_s_out);
+  CHECK_EQ(-1, test.cvt_l_d_out);
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
   CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
-  CHECK_EQ(test.cvt_w_s_out, -1);
-  CHECK_EQ(test.cvt_w_d_out, -1);
-
+  CHECK_EQ(-1, test.cvt_w_s_out);
+  CHECK_EQ(-1, test.cvt_w_d_out);
 
   test.cvt_d_s_in = 0.49;
   test.cvt_d_w_in = 1;
@@ -4449,13 +4448,13 @@ TEST(CVT) {
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
   CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
-  CHECK_EQ(test.cvt_l_s_out, 0);
-  CHECK_EQ(test.cvt_l_d_out, 0);
+  CHECK_EQ(0, test.cvt_l_s_out);
+  CHECK_EQ(0, test.cvt_l_d_out);
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
   CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
-  CHECK_EQ(test.cvt_w_s_out, 0);
-  CHECK_EQ(test.cvt_w_d_out, 0);
+  CHECK_EQ(0, test.cvt_w_s_out);
+  CHECK_EQ(0, test.cvt_w_d_out);
 
   test.cvt_d_s_in = std::numeric_limits<float>::max();
   test.cvt_d_w_in = std::numeric_limits<int32_t>::max();
@@ -4527,13 +4526,13 @@ TEST(CVT) {
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
   CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
-  CHECK_EQ(test.cvt_l_s_out, 0);
-  CHECK_EQ(test.cvt_l_d_out, 0);
+  CHECK_EQ(0, test.cvt_l_s_out);
+  CHECK_EQ(0, test.cvt_l_d_out);
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
   CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
-  CHECK_EQ(test.cvt_w_s_out, 0);
-  CHECK_EQ(test.cvt_w_d_out, 0);
+  CHECK_EQ(0, test.cvt_w_s_out);
+  CHECK_EQ(0, test.cvt_w_d_out);
 }
 
 
@@ -4634,8 +4633,8 @@ TEST(DIV_FMT) {
   test.fOp2 = -0.0;
 
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(false, std::isfinite(test.dRes));
-  CHECK_EQ(false, std::isfinite(test.fRes));
+  CHECK(!std::isfinite(test.dRes));
+  CHECK(!std::isfinite(test.fRes));
 
   test.dOp1 = 0.0;
   test.dOp2 = -0.0;
@@ -4643,8 +4642,8 @@ TEST(DIV_FMT) {
   test.fOp2 = -0.0;
 
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(true, std::isnan(test.dRes));
-  CHECK_EQ(true, std::isnan(test.fRes));
+  CHECK(std::isnan(test.dRes));
+  CHECK(std::isnan(test.fRes));
 
   test.dOp1 = std::numeric_limits<double>::quiet_NaN();
   test.dOp2 = -5.0;
@@ -4652,8 +4651,8 @@ TEST(DIV_FMT) {
   test.fOp2 = -5.0;
 
   (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
-  CHECK_EQ(true, std::isnan(test.dRes));
-  CHECK_EQ(true, std::isnan(test.fRes));
+  CHECK(std::isnan(test.dRes));
+  CHECK(std::isnan(test.fRes));
 }
 
 
@@ -5931,7 +5930,7 @@ TEST(Trampoline) {
 
   int64_t res = reinterpret_cast<int64_t>(
       CALL_GENERATED_CODE(isolate, f, 42, 42, 0, 0, 0));
-  CHECK_EQ(res, 0);
+  CHECK_EQ(0, res);
 }
 
 template <class T>

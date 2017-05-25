@@ -184,10 +184,8 @@ Object.keys(tests).forEach(function(file) {
 
                 // verify that the same exact buffer comes out the other end.
                 buf.on('data', function(c) {
-                  const msg = file + ' ' +
-                              chunkSize + ' ' +
-                              JSON.stringify(opts) + ' ' +
-                              Def.name + ' -> ' + Inf.name;
+                  const msg = `${file} ${chunkSize} ${
+                              JSON.stringify(opts)} ${Def.name} -> ${Inf.name}`;
                   let ok = true;
                   const testNum = ++done;
                   let i;
@@ -199,17 +197,17 @@ Object.keys(tests).forEach(function(file) {
                     }
                   }
                   if (ok) {
-                    console.log('ok ' + (testNum) + ' ' + msg);
+                    console.log(`ok ${testNum} ${msg}`);
                   } else {
-                    console.log('not ok ' + (testNum) + ' ' + msg);
+                    console.log(`not ok ${testNum} msg`);
                     console.log('  ...');
-                    console.log('  testfile: ' + file);
-                    console.log('  type: ' + Def.name + ' -> ' + Inf.name);
-                    console.log('  position: ' + i);
-                    console.log('  options: ' + JSON.stringify(opts));
-                    console.log('  expect: ' + test[i]);
-                    console.log('  actual: ' + c[i]);
-                    console.log('  chunkSize: ' + chunkSize);
+                    console.log(`  testfile: ${file}`);
+                    console.log(`  type: ${Def.name} -> ${Inf.name}`);
+                    console.log(`  position: ${i}`);
+                    console.log(`  options: ${JSON.stringify(opts)}`);
+                    console.log(`  expect: ${test[i]}`);
+                    console.log(`  actual: ${c[i]}`);
+                    console.log(`  chunkSize: ${chunkSize}`);
                     console.log('  ---');
                   }
                 });
@@ -227,7 +225,7 @@ Object.keys(tests).forEach(function(file) {
 });
 
 process.on('exit', function(code) {
-  console.log('1..' + done);
-  assert.strictEqual(done, total, (total - done) + ' tests left unfinished');
+  console.log(`1..${done}`);
+  assert.strictEqual(done, total, `${total - done} tests left unfinished`);
   assert.strictEqual(failures, 0, 'some test failures');
 });

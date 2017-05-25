@@ -145,13 +145,13 @@ consts_misc = [
         'value': 'Representation::Kind::kExternal' },
 
     { 'name': 'prop_desc_key',
-        'value': 'DescriptorArray::kDescriptorKey' },
+        'value': 'DescriptorArray::kEntryKeyIndex' },
     { 'name': 'prop_desc_details',
-        'value': 'DescriptorArray::kDescriptorDetails' },
+        'value': 'DescriptorArray::kEntryDetailsIndex' },
     { 'name': 'prop_desc_value',
-        'value': 'DescriptorArray::kDescriptorValue' },
+        'value': 'DescriptorArray::kEntryValueIndex' },
     { 'name': 'prop_desc_size',
-        'value': 'DescriptorArray::kDescriptorSize' },
+        'value': 'DescriptorArray::kEntrySize' },
 
     { 'name': 'elements_fast_holey_elements',
         'value': 'FAST_HOLEY_ELEMENTS' },
@@ -171,6 +171,8 @@ consts_misc = [
     { 'name': 'bit_field3_number_of_own_descriptors_shift',
         'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
 
+    { 'name': 'off_fp_context_or_frame_type',
+        'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'},
     { 'name': 'off_fp_context',
         'value': 'StandardFrameConstants::kContextOffset' },
     { 'name': 'off_fp_constant_pool',

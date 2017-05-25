@@ -41,7 +41,8 @@ tls.createServer(assert.fail)
 tls.createServer({})
   .listen(0, common.mustCall(close));
 
-assert.throws(() => tls.createServer('this is not valid'), TypeError);
+assert.throws(() => tls.createServer('this is not valid'),
+              /^TypeError: options must be an object$/);
 
 tls.createServer()
   .listen(0, common.mustCall(close));

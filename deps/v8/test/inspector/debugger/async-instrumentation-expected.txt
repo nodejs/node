@@ -1,7 +1,7 @@
 Checks async instrumentation enabled in the middle.
 
 Running test: beforeAsyncTaskScheduled
-test (test.js:19:2)
+test (test.js:16:2)
 (anonymous) (expr1.js:0:0)
 
 test (test.js:21:2)
@@ -19,7 +19,7 @@ test (test.js:20:2)
 
 
 Running test: afterAsyncTaskScheduled
-test (test.js:19:2)
+test (test.js:16:2)
 (anonymous) (expr1.js:0:0)
 
 test (test.js:21:2)
@@ -31,7 +31,7 @@ foo (test.js:12:2)
 
 
 Running test: afterAsyncTaskStarted
-test (test.js:19:2)
+test (test.js:16:2)
 (anonymous) (expr1.js:0:0)
 
 test (test.js:21:2)

@@ -12,6 +12,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Local;
+using v8::Maybe;
 using v8::Object;
 using v8::Private;
 using v8::Promise;
@@ -20,6 +21,7 @@ using v8::Value;
 
 
 #define VALUE_METHOD_MAP(V)                                                   \
+  V(isAsyncFunction, IsAsyncFunction)                                         \
   V(isDataView, IsDataView)                                                   \
   V(isDate, IsDate)                                                           \
   V(isExternal, IsExternal)                                                   \
@@ -147,6 +149,36 @@ void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void CreatePromise(const FunctionCallbackInfo<Value>& args) {
+  Local<Context> context = args.GetIsolate()->GetCurrentContext();
+  auto maybe_resolver = Promise::Resolver::New(context);
+  if (!maybe_resolver.IsEmpty())
+    args.GetReturnValue().Set(maybe_resolver.ToLocalChecked());
+}
+
+
+void PromiseResolve(const FunctionCallbackInfo<Value>& args) {
+  Local<Context> context = args.GetIsolate()->GetCurrentContext();
+  Local<Value> promise = args[0];
+  CHECK(promise->IsPromise());
+  if (promise.As<Promise>()->State() != Promise::kPending) return;
+  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();  // sic
+  Maybe<bool> ret = resolver->Resolve(context, args[1]);
+  args.GetReturnValue().Set(ret.FromMaybe(false));
+}
+
+
+void PromiseReject(const FunctionCallbackInfo<Value>& args) {
+  Local<Context> context = args.GetIsolate()->GetCurrentContext();
+  Local<Value> promise = args[0];
+  CHECK(promise->IsPromise());
+  if (promise.As<Promise>()->State() != Promise::kPending) return;
+  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();  // sic
+  Maybe<bool> ret = resolver->Reject(context, args[1]);
+  args.GetReturnValue().Set(ret.FromMaybe(false));
+}
+
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
@@ -192,6 +224,10 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "startSigintWatchdog", StartSigintWatchdog);
   env->SetMethod(target, "stopSigintWatchdog", StopSigintWatchdog);
   env->SetMethod(target, "watchdogHasPendingSigint", WatchdogHasPendingSigint);
+
+  env->SetMethod(target, "createPromise", CreatePromise);
+  env->SetMethod(target, "promiseResolve", PromiseResolve);
+  env->SetMethod(target, "promiseReject", PromiseReject);
 }
 
 }  // namespace util

@@ -27,6 +27,12 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
 
   static v8_inspector::V8Inspector* InspectorFromContext(
       v8::Local<v8::Context> context);
+  static v8_inspector::V8InspectorSession* SessionFromContext(
+      v8::Local<v8::Context> context);
+
+  void setCurrentTimeMSForTest(double time);
+
+  v8_inspector::V8InspectorSession* session() const { return session_.get(); }
 
  private:
   // V8InspectorClient implementation.
@@ -35,9 +41,6 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
   double currentTimeMS() override;
   void runMessageLoopOnPause(int context_group_id) override;
   void quitMessageLoopOnPause() override;
-
-  static v8_inspector::V8InspectorSession* SessionFromContext(
-      v8::Local<v8::Context> context);
 
   friend class SendMessageToBackendTask;
 
@@ -53,6 +56,9 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
 
   TaskRunner* task_runner_;
   FrontendChannel* frontend_channel_;
+
+  bool current_time_set_for_test_ = false;
+  double current_time_ = 0.0;
 
   DISALLOW_COPY_AND_ASSIGN(InspectorClientImpl);
 };

@@ -14,9 +14,9 @@ if (!process.argv[2]) {
   const spawn = require('child_process').spawn;
   const path = require('path');
 
-  const pipeNamePrefix = path.basename(__filename) + '.' + process.pid;
-  const stdinPipeName = '\\\\.\\pipe\\' + pipeNamePrefix + '.stdin';
-  const stdoutPipeName = '\\\\.\\pipe\\' + pipeNamePrefix + '.stdout';
+  const pipeNamePrefix = `${path.basename(__filename)}.${process.pid}`;
+  const stdinPipeName = `\\\\.\\pipe\\${pipeNamePrefix}.stdin`;
+  const stdoutPipeName = `\\\\.\\pipe\\${pipeNamePrefix}.stdout`;
 
   const stdinPipeServer = net.createServer(function(c) {
     c.on('end', common.mustCall(function() {
@@ -37,15 +37,10 @@ if (!process.argv[2]) {
   });
   stdoutPipeServer.listen(stdoutPipeName);
 
-  const comspec = process.env['comspec'];
-  if (!comspec || comspec.length === 0) {
-    assert.fail('Failed to get COMSPEC');
-  }
+  const args =
+    [`"${__filename}"`, 'child', '<', stdinPipeName, '>', stdoutPipeName];
 
-  const args = ['/c', process.execPath, __filename, 'child',
-                '<', stdinPipeName, '>', stdoutPipeName];
-
-  const child = spawn(comspec, args);
+  const child = spawn(`"${process.execPath}"`, args, { shell: true });
 
   child.on('exit', common.mustCall(function(exitCode) {
     stdinPipeServer.close();

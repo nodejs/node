@@ -5,7 +5,9 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/utils.h"
 
+#include "src/base/iterator.h"
 #include "src/debug/debug-interface.h"
+#include "src/objects-inl.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-text.h"
@@ -37,6 +39,15 @@ using namespace v8::internal::wasm;
     return !getter(field)->IsUndefined(GetIsolate());                      \
   }
 
+#define DEFINE_OPTIONAL_GETTER0(getter, Container, name, field, type) \
+  DEFINE_GETTER0(getter, Container, name, field, type)                \
+  bool Container::has_##name() {                                      \
+    return !getter(field)->IsUndefined(GetIsolate());                 \
+  }
+
+#define DEFINE_GETTER0(getter, Container, name, field, type) \
+  type* Container::name() { return type::cast(getter(field)); }
+
 #define DEFINE_OBJ_GETTER(Container, name, field, type) \
   DEFINE_GETTER0(GetInternalField, Container, name, field, type)
 #define DEFINE_OBJ_ACCESSORS(Container, name, field, type)               \
@@ -51,6 +62,8 @@ using namespace v8::internal::wasm;
   DEFINE_ACCESSORS0(get, set, Container, name, field, type)
 #define DEFINE_OPTIONAL_ARR_ACCESSORS(Container, name, field, type) \
   DEFINE_OPTIONAL_ACCESSORS0(get, set, Container, name, field, type)
+#define DEFINE_OPTIONAL_ARR_GETTER(Container, name, field, type) \
+  DEFINE_OPTIONAL_GETTER0(get, Container, name, field, type)
 
 namespace {
 
@@ -77,6 +90,129 @@ int32_t SafeInt32(Object* value) {
   CHECK_LE(num->value(), Smi::kMaxValue);
   return static_cast<int32_t>(num->value());
 }
+
+// An iterator that returns first the module itself, then all modules linked via
+// next, then all linked via prev.
+class CompiledModulesIterator
+    : public std::iterator<std::input_iterator_tag,
+                           Handle<WasmCompiledModule>> {
+ public:
+  CompiledModulesIterator(Isolate* isolate,
+                          Handle<WasmCompiledModule> start_module, bool at_end)
+      : isolate_(isolate),
+        start_module_(start_module),
+        current_(at_end ? Handle<WasmCompiledModule>::null() : start_module) {}
+
+  Handle<WasmCompiledModule> operator*() const {
+    DCHECK(!current_.is_null());
+    return current_;
+  }
+
+  void operator++() { Advance(); }
+
+  bool operator!=(const CompiledModulesIterator& other) {
+    DCHECK(start_module_.is_identical_to(other.start_module_));
+    return !current_.is_identical_to(other.current_);
+  }
+
+ private:
+  void Advance() {
+    DCHECK(!current_.is_null());
+    if (!is_backwards_) {
+      if (current_->has_weak_next_instance()) {
+        WeakCell* weak_next = current_->ptr_to_weak_next_instance();
+        if (!weak_next->cleared()) {
+          current_ =
+              handle(WasmCompiledModule::cast(weak_next->value()), isolate_);
+          return;
+        }
+      }
+      // No more modules in next-links, now try the previous-links.
+      is_backwards_ = true;
+      current_ = start_module_;
+    }
+    if (current_->has_weak_prev_instance()) {
+      WeakCell* weak_prev = current_->ptr_to_weak_prev_instance();
+      if (!weak_prev->cleared()) {
+        current_ =
+            handle(WasmCompiledModule::cast(weak_prev->value()), isolate_);
+        return;
+      }
+    }
+    current_ = Handle<WasmCompiledModule>::null();
+  }
+
+  friend class CompiledModuleInstancesIterator;
+  Isolate* isolate_;
+  Handle<WasmCompiledModule> start_module_;
+  Handle<WasmCompiledModule> current_;
+  bool is_backwards_ = false;
+};
+
+// An iterator based on the CompiledModulesIterator, but it returns all live
+// instances, not the WasmCompiledModules itself.
+class CompiledModuleInstancesIterator
+    : public std::iterator<std::input_iterator_tag,
+                           Handle<WasmInstanceObject>> {
+ public:
+  CompiledModuleInstancesIterator(Isolate* isolate,
+                                  Handle<WasmCompiledModule> start_module,
+                                  bool at_end)
+      : it(isolate, start_module, at_end) {
+    while (NeedToAdvance()) ++it;
+  }
+
+  Handle<WasmInstanceObject> operator*() {
+    return handle(
+        WasmInstanceObject::cast((*it)->weak_owning_instance()->value()),
+        it.isolate_);
+  }
+
+  void operator++() {
+    do {
+      ++it;
+    } while (NeedToAdvance());
+  }
+
+  bool operator!=(const CompiledModuleInstancesIterator& other) {
+    return it != other.it;
+  }
+
+ private:
+  bool NeedToAdvance() {
+    return !it.current_.is_null() &&
+           (!it.current_->has_weak_owning_instance() ||
+            it.current_->ptr_to_weak_owning_instance()->cleared());
+  }
+  CompiledModulesIterator it;
+};
+
+v8::base::iterator_range<CompiledModuleInstancesIterator>
+iterate_compiled_module_instance_chain(
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
+  return {CompiledModuleInstancesIterator(isolate, compiled_module, false),
+          CompiledModuleInstancesIterator(isolate, compiled_module, true)};
+}
+
+#ifdef DEBUG
+bool IsBreakablePosition(Handle<WasmCompiledModule> compiled_module,
+                         int func_index, int offset_in_func) {
+  DisallowHeapAllocation no_gc;
+  AccountingAllocator alloc;
+  Zone tmp(&alloc, ZONE_NAME);
+  BodyLocalDecls locals(&tmp);
+  const byte* module_start = compiled_module->module_bytes()->GetChars();
+  WasmFunction& func = compiled_module->module()->functions[func_index];
+  BytecodeIterator iterator(module_start + func.code_start_offset,
+                            module_start + func.code_end_offset, &locals);
+  DCHECK_LT(0, locals.encoded_size);
+  for (uint32_t offset : iterator.offsets()) {
+    if (offset > static_cast<uint32_t>(offset_in_func)) break;
+    if (offset == static_cast<uint32_t>(offset_in_func)) return true;
+  }
+  return false;
+}
+#endif  // DEBUG
 
 }  // namespace
 
@@ -127,6 +263,8 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
   Handle<JSFunction> table_ctor(
       isolate->native_context()->wasm_table_constructor());
   Handle<JSObject> table_obj = isolate->factory()->NewJSObject(table_ctor);
+  table_obj->SetInternalField(kWrapperTracerHeader, Smi::kZero);
+
   *js_functions = isolate->factory()->NewFixedArray(initial);
   Object* null = isolate->heap()->null_value();
   for (int i = 0; i < static_cast<int>(initial); ++i) {
@@ -204,6 +342,8 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
       isolate->native_context()->wasm_memory_constructor());
   Handle<JSObject> memory_obj =
       isolate->factory()->NewJSObject(memory_ctor, TENURED);
+  memory_obj->SetInternalField(kWrapperTracerHeader, Smi::kZero);
+
   memory_obj->SetInternalField(kArrayBuffer, *buffer);
   Handle<Object> max = isolate->factory()->NewNumber(maximum);
   memory_obj->SetInternalField(kMaximum, *max);
@@ -311,6 +451,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       isolate->native_context()->wasm_instance_constructor());
   Handle<JSObject> instance_object =
       isolate->factory()->NewJSObject(instance_cons, TENURED);
+  instance_object->SetInternalField(kWrapperTracerHeader, Smi::kZero);
+
   Handle<Symbol> instance_sym(isolate->native_context()->wasm_instance_sym());
   Object::SetProperty(instance_object, instance_sym, instance_object, STRICT)
       .Check();
@@ -363,6 +505,8 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   shared->set_internal_formal_parameter_count(arity);
   Handle<JSFunction> function = isolate->factory()->NewFunction(
       isolate->wasm_function_map(), name, export_wrapper);
+  function->SetInternalField(kWrapperTracerHeader, Smi::kZero);
+
   function->set_shared(*shared);
 
   function->SetInternalField(kInstance, *instance);
@@ -383,6 +527,9 @@ bool WasmSharedModuleData::IsWasmSharedModuleData(Object* object) {
   if (!arr->get(kAsmJsOffsetTable)->IsUndefined(isolate) &&
       !arr->get(kAsmJsOffsetTable)->IsByteArray())
     return false;
+  if (!arr->get(kBreakPointInfos)->IsUndefined(isolate) &&
+      !arr->get(kBreakPointInfos)->IsFixedArray())
+    return false;
   return true;
 }
 
@@ -392,7 +539,13 @@ WasmSharedModuleData* WasmSharedModuleData::cast(Object* object) {
 }
 
 wasm::WasmModule* WasmSharedModuleData::module() {
-  return reinterpret_cast<WasmModuleWrapper*>(get(kModuleWrapper))->get();
+  // We populate the kModuleWrapper field with a Foreign holding the
+  // address to the address of a WasmModule. This is because we can
+  // handle both cases when the WasmModule's lifetime is managed through
+  // a Managed<WasmModule> object, as well as cases when it's managed
+  // by the embedder. CcTests fall into the latter case.
+  return *(reinterpret_cast<wasm::WasmModule**>(
+      Foreign::cast(get(kModuleWrapper))->foreign_address()));
 }
 
 DEFINE_OPTIONAL_ARR_ACCESSORS(WasmSharedModuleData, module_bytes, kModuleBytes,
@@ -400,6 +553,8 @@ DEFINE_OPTIONAL_ARR_ACCESSORS(WasmSharedModuleData, module_bytes, kModuleBytes,
 DEFINE_ARR_GETTER(WasmSharedModuleData, script, kScript, Script);
 DEFINE_OPTIONAL_ARR_ACCESSORS(WasmSharedModuleData, asm_js_offset_table,
                               kAsmJsOffsetTable, ByteArray);
+DEFINE_OPTIONAL_ARR_GETTER(WasmSharedModuleData, breakpoint_infos,
+                           kBreakPointInfos, FixedArray);
 
 Handle<WasmSharedModuleData> WasmSharedModuleData::New(
     Isolate* isolate, Handle<Foreign> module_wrapper,
@@ -407,7 +562,7 @@ Handle<WasmSharedModuleData> WasmSharedModuleData::New(
     Handle<ByteArray> asm_js_offset_table) {
   Handle<FixedArray> arr =
       isolate->factory()->NewFixedArray(kFieldCount, TENURED);
-
+  arr->set(kWrapperTracerHeader, Smi::kZero);
   arr->set(kModuleWrapper, *module_wrapper);
   if (!module_bytes.is_null()) {
     arr->set(kModuleBytes, *module_bytes);
@@ -430,9 +585,19 @@ bool WasmSharedModuleData::is_asm_js() {
   return asm_js;
 }
 
-void WasmSharedModuleData::RecreateModuleWrapper(
+void WasmSharedModuleData::ReinitializeAfterDeserialization(
     Isolate* isolate, Handle<WasmSharedModuleData> shared) {
   DCHECK(shared->get(kModuleWrapper)->IsUndefined(isolate));
+#ifdef DEBUG
+  // No BreakpointInfo objects should survive deserialization.
+  if (shared->has_breakpoint_infos()) {
+    for (int i = 0, e = shared->breakpoint_infos()->length(); i < e; ++i) {
+      DCHECK(shared->breakpoint_infos()->get(i)->IsUndefined(isolate));
+    }
+  }
+#endif
+
+  shared->set(kBreakPointInfos, isolate->heap()->undefined_value());
 
   WasmModule* module = nullptr;
   {
@@ -457,6 +622,126 @@ void WasmSharedModuleData::RecreateModuleWrapper(
 
   shared->set(kModuleWrapper, *module_wrapper);
   DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*shared));
+}
+
+namespace {
+
+int GetBreakpointPos(Isolate* isolate, Object* break_point_info_or_undef) {
+  if (break_point_info_or_undef->IsUndefined(isolate)) return kMaxInt;
+  return BreakPointInfo::cast(break_point_info_or_undef)->source_position();
+}
+
+int FindBreakpointInfoInsertPos(Isolate* isolate,
+                                Handle<FixedArray> breakpoint_infos,
+                                int position) {
+  // Find insert location via binary search, taking care of undefined values on
+  // the right. Position is always greater than zero.
+  DCHECK_LT(0, position);
+
+  int left = 0;                            // inclusive
+  int right = breakpoint_infos->length();  // exclusive
+  while (right - left > 1) {
+    int mid = left + (right - left) / 2;
+    Object* mid_obj = breakpoint_infos->get(mid);
+    if (GetBreakpointPos(isolate, mid_obj) <= position) {
+      left = mid;
+    } else {
+      right = mid;
+    }
+  }
+
+  int left_pos = GetBreakpointPos(isolate, breakpoint_infos->get(left));
+  return left_pos < position ? left + 1 : left;
+}
+
+}  // namespace
+
+void WasmSharedModuleData::AddBreakpoint(Handle<WasmSharedModuleData> shared,
+                                         int position,
+                                         Handle<Object> break_point_object) {
+  Isolate* isolate = shared->GetIsolate();
+  Handle<FixedArray> breakpoint_infos;
+  if (shared->has_breakpoint_infos()) {
+    breakpoint_infos = handle(shared->breakpoint_infos(), isolate);
+  } else {
+    breakpoint_infos = isolate->factory()->NewFixedArray(4, TENURED);
+    shared->set(kBreakPointInfos, *breakpoint_infos);
+  }
+
+  int insert_pos =
+      FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
+
+  // If a BreakPointInfo object already exists for this position, add the new
+  // breakpoint object and return.
+  if (insert_pos < breakpoint_infos->length() &&
+      GetBreakpointPos(isolate, breakpoint_infos->get(insert_pos)) ==
+          position) {
+    Handle<BreakPointInfo> old_info(
+        BreakPointInfo::cast(breakpoint_infos->get(insert_pos)), isolate);
+    BreakPointInfo::SetBreakPoint(old_info, break_point_object);
+    return;
+  }
+
+  // Enlarge break positions array if necessary.
+  bool need_realloc = !breakpoint_infos->get(breakpoint_infos->length() - 1)
+                           ->IsUndefined(isolate);
+  Handle<FixedArray> new_breakpoint_infos = breakpoint_infos;
+  if (need_realloc) {
+    new_breakpoint_infos = isolate->factory()->NewFixedArray(
+        2 * breakpoint_infos->length(), TENURED);
+    shared->set(kBreakPointInfos, *new_breakpoint_infos);
+    // Copy over the entries [0, insert_pos).
+    for (int i = 0; i < insert_pos; ++i)
+      new_breakpoint_infos->set(i, breakpoint_infos->get(i));
+  }
+
+  // Move elements [insert_pos+1, ...] up by one.
+  for (int i = insert_pos + 1; i < breakpoint_infos->length(); ++i) {
+    Object* entry = breakpoint_infos->get(i);
+    if (entry->IsUndefined(isolate)) break;
+    new_breakpoint_infos->set(i + 1, entry);
+  }
+
+  // Generate new BreakpointInfo.
+  Handle<BreakPointInfo> breakpoint_info =
+      isolate->factory()->NewBreakPointInfo(position);
+  BreakPointInfo::SetBreakPoint(breakpoint_info, break_point_object);
+
+  // Now insert new position at insert_pos.
+  new_breakpoint_infos->set(insert_pos, *breakpoint_info);
+}
+
+void WasmSharedModuleData::SetBreakpointsOnNewInstance(
+    Handle<WasmSharedModuleData> shared, Handle<WasmInstanceObject> instance) {
+  if (!shared->has_breakpoint_infos()) return;
+  Isolate* isolate = shared->GetIsolate();
+  Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
+                                             isolate);
+  Handle<WasmDebugInfo> debug_info =
+      WasmInstanceObject::GetOrCreateDebugInfo(instance);
+
+  Handle<FixedArray> breakpoint_infos(shared->breakpoint_infos(), isolate);
+  // If the array exists, it should not be empty.
+  DCHECK_LT(0, breakpoint_infos->length());
+
+  for (int i = 0, e = breakpoint_infos->length(); i < e; ++i) {
+    Handle<Object> obj(breakpoint_infos->get(i), isolate);
+    if (obj->IsUndefined(isolate)) {
+      for (; i < e; ++i) {
+        DCHECK(breakpoint_infos->get(i)->IsUndefined(isolate));
+      }
+      break;
+    }
+    Handle<BreakPointInfo> breakpoint_info = Handle<BreakPointInfo>::cast(obj);
+    int position = breakpoint_info->source_position();
+
+    // Find the function for this breakpoint, and set the breakpoint.
+    int func_index = compiled_module->GetContainingFunction(position);
+    DCHECK_LE(0, func_index);
+    WasmFunction& func = compiled_module->module()->functions[func_index];
+    int offset_in_func = position - func.code_start_offset;
+    WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
+  }
 }
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
@@ -536,7 +821,7 @@ void WasmCompiledModule::PrintInstancesChain() {
 #endif
 }
 
-void WasmCompiledModule::RecreateModuleWrapper(
+void WasmCompiledModule::ReinitializeAfterDeserialization(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   // This method must only be called immediately after deserialization.
   // At this point, no module wrapper exists, so the shared module data is
@@ -545,7 +830,7 @@ void WasmCompiledModule::RecreateModuleWrapper(
       static_cast<WasmSharedModuleData*>(compiled_module->get(kID_shared)),
       isolate);
   DCHECK(!WasmSharedModuleData::IsWasmSharedModuleData(*shared));
-  WasmSharedModuleData::RecreateModuleWrapper(isolate, shared);
+  WasmSharedModuleData::ReinitializeAfterDeserialization(isolate, shared);
   DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*shared));
 }
 
@@ -833,13 +1118,66 @@ bool WasmCompiledModule::GetPossibleBreakpoints(
   return true;
 }
 
+bool WasmCompiledModule::SetBreakPoint(
+    Handle<WasmCompiledModule> compiled_module, int* position,
+    Handle<Object> break_point_object) {
+  Isolate* isolate = compiled_module->GetIsolate();
+
+  // Find the function for this breakpoint.
+  int func_index = compiled_module->GetContainingFunction(*position);
+  if (func_index < 0) return false;
+  WasmFunction& func = compiled_module->module()->functions[func_index];
+  int offset_in_func = *position - func.code_start_offset;
+
+  // According to the current design, we should only be called with valid
+  // breakable positions.
+  DCHECK(IsBreakablePosition(compiled_module, func_index, offset_in_func));
+
+  // Insert new break point into break_positions of shared module data.
+  WasmSharedModuleData::AddBreakpoint(compiled_module->shared(), *position,
+                                      break_point_object);
+
+  // Iterate over all instances of this module and tell them to set this new
+  // breakpoint.
+  for (Handle<WasmInstanceObject> instance :
+       iterate_compiled_module_instance_chain(isolate, compiled_module)) {
+    Handle<WasmDebugInfo> debug_info =
+        WasmInstanceObject::GetOrCreateDebugInfo(instance);
+    WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
+  }
+
+  return true;
+}
+
+MaybeHandle<FixedArray> WasmCompiledModule::CheckBreakPoints(int position) {
+  Isolate* isolate = GetIsolate();
+  if (!shared()->has_breakpoint_infos()) return {};
+
+  Handle<FixedArray> breakpoint_infos(shared()->breakpoint_infos(), isolate);
+  int insert_pos =
+      FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
+  if (insert_pos >= breakpoint_infos->length()) return {};
+
+  Handle<Object> maybe_breakpoint_info(breakpoint_infos->get(insert_pos),
+                                       isolate);
+  if (maybe_breakpoint_info->IsUndefined(isolate)) return {};
+  Handle<BreakPointInfo> breakpoint_info =
+      Handle<BreakPointInfo>::cast(maybe_breakpoint_info);
+  if (breakpoint_info->source_position() != position) return {};
+
+  Handle<Object> breakpoint_objects(breakpoint_info->break_point_objects(),
+                                    isolate);
+  return isolate->debug()->GetHitBreakPointObjects(breakpoint_objects);
+}
+
 Handle<WasmInstanceWrapper> WasmInstanceWrapper::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance) {
   Handle<FixedArray> array =
       isolate->factory()->NewFixedArray(kWrapperPropertyCount, TENURED);
   Handle<WasmInstanceWrapper> instance_wrapper(
       reinterpret_cast<WasmInstanceWrapper*>(*array), isolate);
-  instance_wrapper->set_instance_object(instance, isolate);
+  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(instance);
+  instance_wrapper->set(kWrapperInstanceObject, *cell);
   return instance_wrapper;
 }
 
@@ -856,10 +1194,4 @@ bool WasmInstanceWrapper::IsWasmInstanceWrapper(Object* obj) {
       !array->get(kPreviousInstanceWrapper)->IsFixedArray())
     return false;
   return true;
-}
-
-void WasmInstanceWrapper::set_instance_object(Handle<JSObject> instance,
-                                              Isolate* isolate) {
-  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(instance);
-  set(kWrapperInstanceObject, *cell);
 }

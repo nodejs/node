@@ -29,8 +29,8 @@ const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
 
-const id = '' + process.argv[2];
-const port = '' + process.argv[3];
+const id = String(process.argv[2]);
+const port = String(process.argv[3]);
 
 if (id === 'undefined') {
   const server = net.createServer(common.mustNotCall());

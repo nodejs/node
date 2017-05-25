@@ -1047,6 +1047,12 @@ TEST(Neon) {
               "f2142860       vadd.i16 q1, q2, q8");
       COMPARE(vadd(Neon32, q15, q0, q8),
               "f260e860       vadd.i32 q15, q0, q8");
+      COMPARE(vqadd(NeonU8, q0, q1, q2),
+              "f3020054       vqadd.u8 q0, q1, q2");
+      COMPARE(vqadd(NeonS16, q1, q2, q8),
+              "f2142070       vqadd.s16 q1, q2, q8");
+      COMPARE(vqadd(NeonU32, q15, q0, q8),
+              "f360e070       vqadd.u32 q15, q0, q8");
       COMPARE(vsub(q15, q0, q8),
               "f260ed60       vsub.f32 q15, q0, q8");
       COMPARE(vsub(Neon8, q0, q1, q2),
@@ -1055,6 +1061,12 @@ TEST(Neon) {
               "f3142860       vsub.i16 q1, q2, q8");
       COMPARE(vsub(Neon32, q15, q0, q8),
               "f360e860       vsub.i32 q15, q0, q8");
+      COMPARE(vqsub(NeonU8, q0, q1, q2),
+              "f3020254       vqsub.u8 q0, q1, q2");
+      COMPARE(vqsub(NeonS16, q1, q2, q8),
+              "f2142270       vqsub.s16 q1, q2, q8");
+      COMPARE(vqsub(NeonU32, q15, q0, q8),
+              "f360e270       vqsub.u32 q15, q0, q8");
       COMPARE(vmul(q0, q1, q2),
               "f3020d54       vmul.f32 q0, q1, q2");
       COMPARE(vmul(Neon8, q0, q1, q2),
@@ -1063,6 +1075,18 @@ TEST(Neon) {
               "f2142970       vmul.i16 q1, q2, q8");
       COMPARE(vmul(Neon32, q15, q0, q8),
               "f260e970       vmul.i32 q15, q0, q8");
+      COMPARE(vshl(NeonS8, q15, q0, 6),
+              "f2cee550       vshl.i8 q15, q0, #6");
+      COMPARE(vshl(NeonU16, q15, q0, 10),
+              "f2dae550       vshl.i16 q15, q0, #10");
+      COMPARE(vshl(NeonS32, q15, q0, 17),
+              "f2f1e550       vshl.i32 q15, q0, #17");
+      COMPARE(vshr(NeonS8, q15, q0, 6),
+              "f2cae050       vshr.s8 q15, q0, #6");
+      COMPARE(vshr(NeonU16, q15, q0, 10),
+              "f3d6e050       vshr.u16 q15, q0, #10");
+      COMPARE(vshr(NeonS32, q15, q0, 17),
+              "f2efe050       vshr.s32 q15, q0, #17");
       COMPARE(vrecpe(q15, q0),
               "f3fbe540       vrecpe.f32 q15, q0");
       COMPARE(vrecps(q15, q0, q8),

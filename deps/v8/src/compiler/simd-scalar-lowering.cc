@@ -9,6 +9,7 @@
 #include "src/compiler/node-properties.h"
 
 #include "src/compiler/node.h"
+#include "src/objects-inl.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {

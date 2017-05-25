@@ -251,9 +251,7 @@ assert.strictEqual(result, 'return value');
 
 
 // check if the executed function take in count the applied parameters
-result = d.run(function(a, b) {
-  return a + ' ' + b;
-}, 'return', 'value');
+result = d.run((a, b) => `${a} ${b}`, 'return', 'value');
 assert.strictEqual(result, 'return value');
 
 

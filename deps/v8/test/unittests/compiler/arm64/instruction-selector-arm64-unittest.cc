@@ -745,7 +745,7 @@ TEST_F(InstructionSelectorTest, SubZeroOnLeftWithShift) {
         EXPECT_TRUE(s[0]->InputAt(0)->IsImmediate());
         EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(0)));
         EXPECT_EQ(shift.mode, s[0]->addressing_mode());
-        EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(2)));
+        EXPECT_EQ(0x3f & imm, 0x3f & s.ToInt32(s[0]->InputAt(2)));
         EXPECT_EQ(1U, s[0]->OutputCount());
       }
     }
@@ -771,7 +771,7 @@ TEST_F(InstructionSelectorTest, SubZeroOnLeftWithShift) {
         EXPECT_TRUE(s[0]->InputAt(0)->IsImmediate());
         EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(0)));
         EXPECT_EQ(shift.mode, s[0]->addressing_mode());
-        EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(2)));
+        EXPECT_EQ(0x3f & imm, 0x3f & s.ToInt32(s[0]->InputAt(2)));
         EXPECT_EQ(1U, s[0]->OutputCount());
       }
     }
@@ -835,7 +835,7 @@ TEST_F(InstructionSelectorTest, AddShiftByImmediateOnLeft) {
       EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
       EXPECT_EQ(shift.mode, s[0]->addressing_mode());
       EXPECT_EQ(3U, s[0]->InputCount());
-      EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(2)));
+      EXPECT_EQ(0x3f & imm, 0x3f & s.ToInt64(s[0]->InputAt(2)));
       EXPECT_EQ(1U, s[0]->OutputCount());
     }
   }
@@ -859,7 +859,7 @@ TEST_F(InstructionSelectorTest, AddShiftByImmediateOnLeft) {
       EXPECT_EQ(kArm64Add, s[0]->arch_opcode());
       EXPECT_EQ(shift.mode, s[0]->addressing_mode());
       EXPECT_EQ(3U, s[0]->InputCount());
-      EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(2)));
+      EXPECT_EQ(0x3f & imm, 0x3f & s.ToInt64(s[0]->InputAt(2)));
       EXPECT_EQ(1U, s[0]->OutputCount());
     }
   }
@@ -2924,7 +2924,7 @@ TEST_F(InstructionSelectorTest, Word32EqualWithWord32Shift) {
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
       EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
-      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(2)));
+      EXPECT_EQ(0x3f & imm, 0x3f & s.ToInt32(s[0]->InputAt(2)));
       ASSERT_EQ(1U, s[0]->OutputCount());
     }
     TRACED_FORRANGE(int32_t, imm, -32, 63) {
@@ -2941,7 +2941,7 @@ TEST_F(InstructionSelectorTest, Word32EqualWithWord32Shift) {
       ASSERT_EQ(3U, s[0]->InputCount());
       EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
       EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
-      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(2)));
+      EXPECT_EQ(0x3f & imm, 0x3f & s.ToInt32(s[0]->InputAt(2)));
       ASSERT_EQ(1U, s[0]->OutputCount());
     }
   }
@@ -3203,7 +3203,7 @@ TEST_F(InstructionSelectorTest, Word32CompareNegateWithWord32Shift) {
         EXPECT_EQ(kArm64Cmn32, s[0]->arch_opcode());
         EXPECT_EQ(3U, s[0]->InputCount());
         EXPECT_EQ(shift.mode, s[0]->addressing_mode());
-        EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(2)));
+        EXPECT_EQ(0x3f & imm, 0x3f & s.ToInt32(s[0]->InputAt(2)));
         EXPECT_EQ(1U, s[0]->OutputCount());
         EXPECT_EQ(kFlags_set, s[0]->flags_mode());
         EXPECT_EQ(cmp.cond, s[0]->flags_condition());
@@ -3311,7 +3311,7 @@ TEST_F(InstructionSelectorTest, CmpShiftByImmediateOnLeft) {
         EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
         EXPECT_EQ(shift.mode, s[0]->addressing_mode());
         EXPECT_EQ(3U, s[0]->InputCount());
-        EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(2)));
+        EXPECT_EQ(0x3f & imm, 0x3f & s.ToInt64(s[0]->InputAt(2)));
         EXPECT_EQ(1U, s[0]->OutputCount());
         EXPECT_EQ(kFlags_set, s[0]->flags_mode());
         EXPECT_EQ(cmp.commuted_cond, s[0]->flags_condition());
@@ -3345,7 +3345,7 @@ TEST_F(InstructionSelectorTest, CmnShiftByImmediateOnLeft) {
         EXPECT_EQ(kArm64Cmn32, s[0]->arch_opcode());
         EXPECT_EQ(shift.mode, s[0]->addressing_mode());
         EXPECT_EQ(3U, s[0]->InputCount());
-        EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(2)));
+        EXPECT_EQ(0x3f & imm, 0x3f & s.ToInt64(s[0]->InputAt(2)));
         EXPECT_EQ(1U, s[0]->OutputCount());
         EXPECT_EQ(kFlags_set, s[0]->flags_mode());
         EXPECT_EQ(cmp.cond, s[0]->flags_condition());

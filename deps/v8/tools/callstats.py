@@ -177,7 +177,7 @@ def run_site(site, domain, args, timeout=None):
           user_data_dir = args.user_data_dir
         else:
           user_data_dir = tempfile.mkdtemp(prefix="chr_")
-        js_flags = "--runtime-call-stats"
+        js_flags = "--runtime-call-stats --noconcurrent-recompilation"
         if args.replay_wpr: js_flags += " --allow-natives-syntax"
         if args.js_flags: js_flags += " " + args.js_flags
         chrome_flags = get_chrome_flags(js_flags, user_data_dir)

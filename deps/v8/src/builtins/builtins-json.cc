@@ -5,8 +5,10 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
 
+#include "src/counters.h"
 #include "src/json-parser.h"
 #include "src/json-stringifier.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

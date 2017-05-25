@@ -41,7 +41,7 @@
 
 #include "src/assembler.h"
 #include "src/debug/debug.h"
-
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -131,6 +131,17 @@ Address RelocInfo::constant_pool_entry_address() {
 
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
+Address Assembler::target_address_at(Address pc, Code* code) {
+  Address constant_pool = code ? code->constant_pool() : NULL;
+  return target_address_at(pc, constant_pool);
+}
+
+void Assembler::set_target_address_at(Isolate* isolate, Address pc, Code* code,
+                                      Address target,
+                                      ICacheFlushMode icache_flush_mode) {
+  Address constant_pool = code ? code->constant_pool() : NULL;
+  set_target_address_at(isolate, pc, constant_pool, target, icache_flush_mode);
+}
 
 Address Assembler::target_address_from_return_address(Address pc) {
 // Returns the address of the call target from the return address that will
@@ -466,9 +477,9 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 
 
 #if V8_TARGET_ARCH_PPC64
-const int kLoadIntptrOpcode = LD;
+const uint32_t kLoadIntptrOpcode = LD;
 #else
-const int kLoadIntptrOpcode = LWZ;
+const uint32_t kLoadIntptrOpcode = LWZ;
 #endif
 
 // Constant pool load sequence detection:
@@ -481,7 +492,7 @@ const int kLoadIntptrOpcode = LWZ;
 bool Assembler::IsConstantPoolLoadStart(Address pc,
                                         ConstantPoolEntry::Access* access) {
   Instr instr = instr_at(pc);
-  int opcode = instr & kOpcodeMask;
+  uint32_t opcode = instr & kOpcodeMask;
   if (!GetRA(instr).is(kConstantPoolRegister)) return false;
   bool overflowed = (opcode == ADDIS);
 #ifdef DEBUG
@@ -501,7 +512,7 @@ bool Assembler::IsConstantPoolLoadStart(Address pc,
 bool Assembler::IsConstantPoolLoadEnd(Address pc,
                                       ConstantPoolEntry::Access* access) {
   Instr instr = instr_at(pc);
-  int opcode = instr & kOpcodeMask;
+  uint32_t opcode = instr & kOpcodeMask;
   bool overflowed = false;
   if (!(opcode == kLoadIntptrOpcode || opcode == LFD)) return false;
   if (!GetRA(instr).is(kConstantPoolRegister)) {

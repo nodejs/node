@@ -51,9 +51,9 @@ String16 consoleAPITypeValue(ConsoleAPIType type) {
     case ConsoleAPIType::kAssert:
       return protocol::Runtime::ConsoleAPICalled::TypeEnum::Assert;
     case ConsoleAPIType::kTimeEnd:
-      return protocol::Runtime::ConsoleAPICalled::TypeEnum::Debug;
+      return protocol::Runtime::ConsoleAPICalled::TypeEnum::TimeEnd;
     case ConsoleAPIType::kCount:
-      return protocol::Runtime::ConsoleAPICalled::TypeEnum::Debug;
+      return protocol::Runtime::ConsoleAPICalled::TypeEnum::Count;
   }
   return protocol::Runtime::ConsoleAPICalled::TypeEnum::Log;
 }
@@ -382,22 +382,25 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
   if (arguments.size())
     message->m_message = V8ValueStringBuilder::toString(arguments[0], context);
 
-  V8ConsoleAPIType clientType = V8ConsoleAPIType::kLog;
+  v8::Isolate::MessageErrorLevel clientLevel = v8::Isolate::kMessageInfo;
   if (type == ConsoleAPIType::kDebug || type == ConsoleAPIType::kCount ||
-      type == ConsoleAPIType::kTimeEnd)
-    clientType = V8ConsoleAPIType::kDebug;
-  else if (type == ConsoleAPIType::kError || type == ConsoleAPIType::kAssert)
-    clientType = V8ConsoleAPIType::kError;
-  else if (type == ConsoleAPIType::kWarning)
-    clientType = V8ConsoleAPIType::kWarning;
-  else if (type == ConsoleAPIType::kInfo)
-    clientType = V8ConsoleAPIType::kInfo;
-  else if (type == ConsoleAPIType::kClear)
-    clientType = V8ConsoleAPIType::kClear;
-  inspector->client()->consoleAPIMessage(
-      contextGroupId, clientType, toStringView(message->m_message),
-      toStringView(message->m_url), message->m_lineNumber,
-      message->m_columnNumber, message->m_stackTrace.get());
+      type == ConsoleAPIType::kTimeEnd) {
+    clientLevel = v8::Isolate::kMessageDebug;
+  } else if (type == ConsoleAPIType::kError ||
+             type == ConsoleAPIType::kAssert) {
+    clientLevel = v8::Isolate::kMessageError;
+  } else if (type == ConsoleAPIType::kWarning) {
+    clientLevel = v8::Isolate::kMessageWarning;
+  } else if (type == ConsoleAPIType::kInfo || type == ConsoleAPIType::kLog) {
+    clientLevel = v8::Isolate::kMessageInfo;
+  }
+
+  if (type != ConsoleAPIType::kClear) {
+    inspector->client()->consoleAPIMessage(
+        contextGroupId, clientLevel, toStringView(message->m_message),
+        toStringView(message->m_url), message->m_lineNumber,
+        message->m_columnNumber, message->m_stackTrace.get());
+  }
 
   return message;
 }

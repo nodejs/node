@@ -4,75 +4,48 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
-#include "src/code-stub-assembler.h"
 #include "src/ic/accessor-assembler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
-TF_BUILTIN(LoadIC, CodeStubAssembler) {
-  AccessorAssembler::GenerateLoadIC(state());
-}
+#define IC_BUILTIN(Name)                                                \
+  void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) { \
+    AccessorAssembler assembler(state);                                 \
+    assembler.Generate##Name();                                         \
+  }
 
-TF_BUILTIN(KeyedLoadIC, CodeStubAssembler) {
-  AccessorAssembler::GenerateKeyedLoadICTF(state());
-}
+#define IC_BUILTIN_PARAM(BuiltinName, GeneratorName, parameter)                \
+  void Builtins::Generate_##BuiltinName(compiler::CodeAssemblerState* state) { \
+    AccessorAssembler assembler(state);                                        \
+    assembler.Generate##GeneratorName(parameter);                              \
+  }
 
-TF_BUILTIN(LoadICTrampoline, CodeStubAssembler) {
-  AccessorAssembler::GenerateLoadICTrampoline(state());
-}
+IC_BUILTIN(LoadIC)
+IC_BUILTIN(KeyedLoadIC)
+IC_BUILTIN(LoadICTrampoline)
+IC_BUILTIN(LoadField)
+IC_BUILTIN(KeyedLoadICTrampoline)
+IC_BUILTIN(KeyedLoadIC_Megamorphic)
+IC_BUILTIN(StoreIC)
+IC_BUILTIN(StoreICTrampoline)
 
-TF_BUILTIN(KeyedLoadICTrampoline, CodeStubAssembler) {
-  AccessorAssembler::GenerateKeyedLoadICTrampolineTF(state());
-}
+IC_BUILTIN_PARAM(StoreICStrict, StoreIC, /* no param */)
+IC_BUILTIN_PARAM(StoreICStrictTrampoline, StoreICTrampoline, /* no param */)
 
-TF_BUILTIN(StoreIC, CodeStubAssembler) {
-  AccessorAssembler::GenerateStoreIC(state());
-}
-
-TF_BUILTIN(StoreICTrampoline, CodeStubAssembler) {
-  AccessorAssembler::GenerateStoreICTrampoline(state());
-}
-
-TF_BUILTIN(StoreICStrict, CodeStubAssembler) {
-  AccessorAssembler::GenerateStoreIC(state());
-}
-
-TF_BUILTIN(StoreICStrictTrampoline, CodeStubAssembler) {
-  AccessorAssembler::GenerateStoreICTrampoline(state());
-}
-
-TF_BUILTIN(KeyedStoreIC, CodeStubAssembler) {
-  AccessorAssembler::GenerateKeyedStoreICTF(state(), SLOPPY);
-}
-
-TF_BUILTIN(KeyedStoreICTrampoline, CodeStubAssembler) {
-  AccessorAssembler::GenerateKeyedStoreICTrampolineTF(state(), SLOPPY);
-}
-
-TF_BUILTIN(KeyedStoreICStrict, CodeStubAssembler) {
-  AccessorAssembler::GenerateKeyedStoreICTF(state(), STRICT);
-}
-
-TF_BUILTIN(KeyedStoreICStrictTrampoline, CodeStubAssembler) {
-  AccessorAssembler::GenerateKeyedStoreICTrampolineTF(state(), STRICT);
-}
-
-TF_BUILTIN(LoadGlobalIC, CodeStubAssembler) {
-  AccessorAssembler::GenerateLoadGlobalIC(state(), NOT_INSIDE_TYPEOF);
-}
-
-TF_BUILTIN(LoadGlobalICInsideTypeof, CodeStubAssembler) {
-  AccessorAssembler::GenerateLoadGlobalIC(state(), INSIDE_TYPEOF);
-}
-
-TF_BUILTIN(LoadGlobalICTrampoline, CodeStubAssembler) {
-  AccessorAssembler::GenerateLoadGlobalICTrampoline(state(), NOT_INSIDE_TYPEOF);
-}
-
-TF_BUILTIN(LoadGlobalICInsideTypeofTrampoline, CodeStubAssembler) {
-  AccessorAssembler::GenerateLoadGlobalICTrampoline(state(), INSIDE_TYPEOF);
-}
+IC_BUILTIN_PARAM(KeyedStoreIC, KeyedStoreIC, SLOPPY)
+IC_BUILTIN_PARAM(KeyedStoreICTrampoline, KeyedStoreICTrampoline, SLOPPY)
+IC_BUILTIN_PARAM(KeyedStoreICStrict, KeyedStoreIC, STRICT)
+IC_BUILTIN_PARAM(KeyedStoreICStrictTrampoline, KeyedStoreICTrampoline, STRICT)
+IC_BUILTIN_PARAM(LoadGlobalIC, LoadGlobalIC, NOT_INSIDE_TYPEOF)
+IC_BUILTIN_PARAM(LoadGlobalICInsideTypeof, LoadGlobalIC, INSIDE_TYPEOF)
+IC_BUILTIN_PARAM(LoadGlobalICTrampoline, LoadGlobalICTrampoline,
+                 NOT_INSIDE_TYPEOF)
+IC_BUILTIN_PARAM(LoadGlobalICInsideTypeofTrampoline, LoadGlobalICTrampoline,
+                 INSIDE_TYPEOF)
+IC_BUILTIN_PARAM(LoadICProtoArray, LoadICProtoArray, false)
+IC_BUILTIN_PARAM(LoadICProtoArrayThrowIfNonexistent, LoadICProtoArray, true)
 
 }  // namespace internal
 }  // namespace v8

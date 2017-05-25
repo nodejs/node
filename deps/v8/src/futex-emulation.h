@@ -13,7 +13,6 @@
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
-#include "src/handles.h"
 
 // Support for emulating futexes, a low-level synchronization primitive. They
 // are natively supported by Linux, but must be emulated for other platforms.
@@ -31,6 +30,8 @@ class TimeDelta;
 
 namespace internal {
 
+template <typename T>
+class Handle;
 class Isolate;
 class JSArrayBuffer;
 
@@ -81,6 +82,9 @@ class FutexWaitList {
 
 class FutexEmulation : public AllStatic {
  public:
+  // Pass to Wake() to wake all waiters.
+  static const uint32_t kWakeAll = UINT32_MAX;
+
   // Check that array_buffer[addr] == value, and return "not-equal" if not. If
   // they are equal, block execution on |isolate|'s thread until woken via
   // |Wake|, or when the time given in |rel_timeout_ms| elapses. Note that
@@ -91,10 +95,11 @@ class FutexEmulation : public AllStatic {
                       size_t addr, int32_t value, double rel_timeout_ms);
 
   // Wake |num_waiters_to_wake| threads that are waiting on the given |addr|.
-  // The rest of the waiters will continue to wait. The return value is the
-  // number of woken waiters.
+  // |num_waiters_to_wake| can be kWakeAll, in which case all waiters are
+  // woken. The rest of the waiters will continue to wait. The return value is
+  // the number of woken waiters.
   static Object* Wake(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
-                      size_t addr, int num_waiters_to_wake);
+                      size_t addr, uint32_t num_waiters_to_wake);
 
   // Return the number of threads waiting on |addr|. Should only be used for
   // testing.

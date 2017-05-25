@@ -80,15 +80,24 @@ FOREACH_UNION_MEMBER(DECLARE_CAST)
 #undef DECLARE_CAST
 
 // Representation of frames within the interpreter.
-class WasmFrame {
+class InterpretedFrame {
  public:
   const WasmFunction* function() const { return function_; }
   int pc() const { return pc_; }
 
+  //==========================================================================
+  // Stack frame inspection.
+  //==========================================================================
+  int GetParameterCount() const;
+  WasmVal GetLocalVal(int index) const;
+  WasmVal GetExprVal(int pc) const;
+  void SetLocalVal(int index, WasmVal val);
+  void SetExprVal(int pc, WasmVal val);
+
  private:
   friend class WasmInterpreter;
 
-  WasmFrame(const WasmFunction* function, int pc, int fp, int sp)
+  InterpretedFrame(const WasmFunction* function, int pc, int fp, int sp)
       : function_(function), pc_(pc), fp_(fp), sp_(sp) {}
 
   const WasmFunction* function_;
@@ -111,32 +120,50 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   //                       +------------- Finish -------------> FINISHED
   enum State { STOPPED, RUNNING, PAUSED, FINISHED, TRAPPED };
 
+  // Tells a thread to pause after certain instructions.
+  enum BreakFlag : uint8_t {
+    None = 0,
+    AfterReturn = 1 << 0,
+    AfterCall = 1 << 1
+  };
+
   // Representation of a thread in the interpreter.
-  class Thread {
+  class V8_EXPORT_PRIVATE Thread {
+    // Don't instante Threads; they will be allocated as ThreadImpl in the
+    // interpreter implementation.
+    Thread() = delete;
+
    public:
     // Execution control.
-    virtual State state() = 0;
-    virtual void PushFrame(const WasmFunction* function, WasmVal* args) = 0;
-    virtual State Run() = 0;
-    virtual State Step() = 0;
-    virtual void Pause() = 0;
-    virtual void Reset() = 0;
-    virtual ~Thread() {}
+    State state();
+    void PushFrame(const WasmFunction* function, WasmVal* args);
+    State Run();
+    State Step();
+    void Pause();
+    void Reset();
 
     // Stack inspection and modification.
-    virtual pc_t GetBreakpointPc() = 0;
-    virtual int GetFrameCount() = 0;
-    virtual const WasmFrame* GetFrame(int index) = 0;
-    virtual WasmFrame* GetMutableFrame(int index) = 0;
-    virtual WasmVal GetReturnValue(int index = 0) = 0;
+    pc_t GetBreakpointPc();
+    int GetFrameCount();
+    const InterpretedFrame GetFrame(int index);
+    InterpretedFrame GetMutableFrame(int index);
+    WasmVal GetReturnValue(int index = 0);
+
     // Returns true if the thread executed an instruction which may produce
     // nondeterministic results, e.g. float div, float sqrt, and float mul,
     // where the sign bit of a NaN is nondeterministic.
-    virtual bool PossibleNondeterminism() = 0;
+    bool PossibleNondeterminism();
+
+    // Returns the number of calls / function frames executed on this thread.
+    uint64_t NumInterpretedCalls();
 
     // Thread-specific breakpoints.
-    bool SetBreakpoint(const WasmFunction* function, int pc, bool enabled);
-    bool GetBreakpoint(const WasmFunction* function, int pc);
+    // TODO(wasm): Implement this once we support multiple threads.
+    // bool SetBreakpoint(const WasmFunction* function, int pc, bool enabled);
+    // bool GetBreakpoint(const WasmFunction* function, int pc);
+
+    void AddBreakFlags(uint8_t flags);
+    void ClearBreakFlags();
   };
 
   WasmInterpreter(const ModuleBytesEnv& env, AccountingAllocator* allocator);
@@ -163,14 +190,6 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   //==========================================================================
   int GetThreadCount();
   Thread* GetThread(int id);
-
-  //==========================================================================
-  // Stack frame inspection.
-  //==========================================================================
-  WasmVal GetLocalVal(const WasmFrame* frame, int index);
-  WasmVal GetExprVal(const WasmFrame* frame, int pc);
-  void SetLocalVal(WasmFrame* frame, int index, WasmVal val);
-  void SetExprVal(WasmFrame* frame, int pc, WasmVal val);
 
   //==========================================================================
   // Memory access.

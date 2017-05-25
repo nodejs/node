@@ -5,10 +5,12 @@
 #ifndef V8_PARSING_PARSE_INFO_H_
 #define V8_PARSING_PARSE_INFO_H_
 
+#include <memory>
+
 #include "include/v8.h"
 #include "src/globals.h"
 #include "src/handles.h"
-#include "src/objects/scope-info.h"
+#include "src/parsing/preparsed-scope-data.h"
 
 namespace v8 {
 
@@ -16,9 +18,11 @@ class Extension;
 
 namespace internal {
 
+class AccountingAllocator;
 class AstRawString;
 class AstValueFactory;
 class DeclarationScope;
+class DeferredHandles;
 class FunctionLiteral;
 class ScriptData;
 class SharedFunctionInfo;
@@ -29,13 +33,26 @@ class Zone;
 // A container for the inputs, configuration options, and outputs of parsing.
 class V8_EXPORT_PRIVATE ParseInfo {
  public:
-  explicit ParseInfo(Zone* zone);
-  ParseInfo(Zone* zone, Handle<Script> script);
-  ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared);
+  explicit ParseInfo(AccountingAllocator* zone_allocator);
+  ParseInfo(Handle<Script> script);
+  ParseInfo(Handle<SharedFunctionInfo> shared);
+
+  // TODO(rmcilroy): Remove once Hydrogen no longer needs this.
+  ParseInfo(Handle<SharedFunctionInfo> shared, std::shared_ptr<Zone> zone);
 
   ~ParseInfo();
 
-  Zone* zone() const { return zone_; }
+  static ParseInfo* AllocateWithoutScript(Handle<SharedFunctionInfo> shared);
+
+  Zone* zone() const { return zone_.get(); }
+
+  std::shared_ptr<Zone> zone_shared() const { return zone_; }
+
+  void set_deferred_handles(std::shared_ptr<DeferredHandles> deferred_handles);
+  void set_deferred_handles(DeferredHandles* deferred_handles);
+  std::shared_ptr<DeferredHandles> deferred_handles() const {
+    return deferred_handles_;
+  }
 
 // Convenience accessor methods for flags.
 #define FLAG_ACCESSOR(flag, getter, setter)     \
@@ -94,6 +111,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   ScriptData** cached_data() const { return cached_data_; }
   void set_cached_data(ScriptData** cached_data) { cached_data_ = cached_data; }
 
+  PreParsedScopeData* preparsed_scope_data() { return &preparsed_scope_data_; }
+
   ScriptCompiler::CompileOptions compile_options() const {
     return compile_options_;
   }
@@ -150,6 +169,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int end_position() const { return end_position_; }
   void set_end_position(int end_position) { end_position_ = end_position; }
 
+  int parameters_end_pos() const { return parameters_end_pos_; }
+  void set_parameters_end_pos(int parameters_end_pos) {
+    parameters_end_pos_ = parameters_end_pos;
+  }
+
   int function_literal_id() const { return function_literal_id_; }
   void set_function_literal_id(int function_literal_id) {
     function_literal_id_ = function_literal_id;
@@ -191,8 +215,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
   }
 
   void ReopenHandlesInNewHandleScope() {
-    shared_ = Handle<SharedFunctionInfo>(*shared_);
-    script_ = Handle<Script>(*script_);
+    if (!script_.is_null()) {
+      script_ = Handle<Script>(*script_);
+    }
+    if (!shared_.is_null()) {
+      shared_ = Handle<SharedFunctionInfo>(*shared_);
+    }
     Handle<ScopeInfo> outer_scope_info;
     if (maybe_outer_scope_info_.ToHandle(&outer_scope_info)) {
       maybe_outer_scope_info_ = Handle<ScopeInfo>(*outer_scope_info);
@@ -224,7 +252,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
-  Zone* zone_;
+  std::shared_ptr<Zone> zone_;
   unsigned flags_;
   ScriptCompiler::ExternalSourceStream* source_stream_;
   ScriptCompiler::StreamedSource::Encoding source_stream_encoding_;
@@ -239,6 +267,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int compiler_hints_;
   int start_position_;
   int end_position_;
+  int parameters_end_pos_;
   int function_literal_id_;
   int max_function_literal_id_;
 
@@ -250,11 +279,13 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   ScriptData** cached_data_;  // used if available, populated if requested.
+  PreParsedScopeData preparsed_scope_data_;
   AstValueFactory* ast_value_factory_;  // used if available, otherwise new.
   const AstRawString* function_name_;
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
+  std::shared_ptr<DeferredHandles> deferred_handles_;
 
   void SetFlag(Flag f) { flags_ |= f; }
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }

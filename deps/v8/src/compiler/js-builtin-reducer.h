@@ -103,6 +103,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceStringCharAt(Node* node);
   Reduction ReduceStringCharCodeAt(Node* node);
   Reduction ReduceStringFromCharCode(Node* node);
+  Reduction ReduceStringIndexOf(Node* node);
   Reduction ReduceStringIterator(Node* node);
   Reduction ReduceStringIteratorNext(Node* node);
   Reduction ReduceArrayBufferViewAccessor(Node* node,

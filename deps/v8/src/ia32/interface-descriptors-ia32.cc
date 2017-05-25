@@ -69,27 +69,6 @@ void FastNewClosureDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
 
-void FastNewRestParameterDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {edi};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
-}
-
-
-void FastNewSloppyArgumentsDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {edi};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
-}
-
-
-void FastNewStrictArgumentsDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {edi};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
-}
-
-
 // static
 const Register TypeConversionDescriptor::ArgumentRegister() { return eax; }
 
@@ -141,15 +120,13 @@ void CallFunctionDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
 }
 
-
-void CallFunctionWithFeedbackDescriptor::InitializePlatformSpecific(
+void CallICTrampolineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {edi, edx};
+  Register registers[] = {edi, eax, edx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-
-void CallFunctionWithFeedbackAndVectorDescriptor::InitializePlatformSpecific(
+void CallICDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {edi, eax, edx, ebx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
@@ -178,6 +155,13 @@ void CallTrampolineDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void CallForwardVarargsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // ecx : start index (to support rest parameters)
+  // edi : the target to call
+  Register registers[] = {edi, ecx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
 
 void ConstructStubDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
@@ -213,13 +197,12 @@ void AllocateHeapNumberDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(0, nullptr, nullptr);
 }
 
-#define SIMD128_ALLOC_DESC(TYPE, Type, type, lane_count, lane_type) \
-  void Allocate##Type##Descriptor::InitializePlatformSpecific(      \
-      CallInterfaceDescriptorData* data) {                          \
-    data->InitializePlatformSpecific(0, nullptr, nullptr);          \
-  }
-SIMD128_TYPES(SIMD128_ALLOC_DESC)
-#undef SIMD128_ALLOC_DESC
+void ArrayConstructorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kNewTarget, kActualArgumentsCount, kAllocationSite
+  Register registers[] = {edi, edx, eax, ebx};
+  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+}
 
 void ArrayNoArgumentConstructorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
@@ -408,6 +391,14 @@ void ResumeGeneratorDescriptor::InitializePlatformSpecific(
       eax,  // the value to pass to the generator
       ebx,  // the JSGeneratorObject to resume
       edx   // the resume mode (tagged)
+  };
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void FrameDropperTrampolineDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      ebx,  // loaded new FP
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

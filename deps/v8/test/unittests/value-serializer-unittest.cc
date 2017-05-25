@@ -54,6 +54,17 @@ class ValueSerializerTest : public TestWithIsolate {
           .ToChecked();
     }
     host_object_constructor_template_ = function_template;
+    isolate_ = reinterpret_cast<i::Isolate*>(isolate());
+  }
+
+  ~ValueSerializerTest() {
+    // In some cases unhandled scheduled exceptions from current test produce
+    // that Context::New(isolate()) from next test's constructor returns NULL.
+    // In order to prevent that, we added destructor which will clear scheduled
+    // exceptions just for the current test from test case.
+    if (isolate_->has_scheduled_exception()) {
+      isolate_->clear_scheduled_exception();
+    }
   }
 
   const Local<Context>& serialization_context() {
@@ -263,6 +274,7 @@ class ValueSerializerTest : public TestWithIsolate {
   Local<Context> serialization_context_;
   Local<Context> deserialization_context_;
   Local<FunctionTemplate> host_object_constructor_template_;
+  i::Isolate* isolate_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueSerializerTest);
 };
@@ -1217,7 +1229,7 @@ TEST_F(ValueSerializerTest, RoundTripArrayWithTrickyGetters) {
 TEST_F(ValueSerializerTest, DecodeSparseArrayVersion0) {
   // Empty (sparse) array.
   DecodeTestForVersion0({0x40, 0x00, 0x00, 0x00},
-                        [this](Local<Value> value) {
+                        [](Local<Value> value) {
                           ASSERT_TRUE(value->IsArray());
                           ASSERT_EQ(0u, Array::Cast(*value)->Length());
                         });
@@ -1279,16 +1291,16 @@ TEST_F(ValueSerializerTest, DecodeDenseArrayContainingUndefined) {
 }
 
 TEST_F(ValueSerializerTest, RoundTripDate) {
-  RoundTripTest("new Date(1e6)", [this](Local<Value> value) {
+  RoundTripTest("new Date(1e6)", [](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
     EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
     EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
   });
-  RoundTripTest("new Date(Date.UTC(1867, 6, 1))", [this](Local<Value> value) {
+  RoundTripTest("new Date(Date.UTC(1867, 6, 1))", [](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
     EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
   });
-  RoundTripTest("new Date(NaN)", [this](Local<Value> value) {
+  RoundTripTest("new Date(NaN)", [](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
     EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
   });
@@ -1304,7 +1316,7 @@ TEST_F(ValueSerializerTest, DecodeDate) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x80, 0x84,
               0x2e, 0x41, 0x00},
-             [this](Local<Value> value) {
+             [](Local<Value> value) {
                ASSERT_TRUE(value->IsDate());
                EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
                EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
@@ -1312,13 +1324,13 @@ TEST_F(ValueSerializerTest, DecodeDate) {
   DecodeTest(
       {0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x20, 0x45, 0x27, 0x89, 0x87,
        0xc2, 0x00},
-      [this](Local<Value> value) {
+      [](Local<Value> value) {
         ASSERT_TRUE(value->IsDate());
         EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
       });
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
               0xf8, 0x7f, 0x00},
-             [this](Local<Value> value) {
+             [](Local<Value> value) {
                ASSERT_TRUE(value->IsDate());
                EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
              });

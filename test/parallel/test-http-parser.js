@@ -82,7 +82,7 @@ function mustCall(f, times) {
 
 function expectBody(expected) {
   return mustCall(function(buf, start, len) {
-    const body = '' + buf.slice(start, start + len);
+    const body = String(buf.slice(start, start + len));
     assert.strictEqual(body, expected);
   });
 }
@@ -92,9 +92,7 @@ function expectBody(expected) {
 // Simple request test.
 //
 {
-  const request = Buffer.from(
-      'GET /hello HTTP/1.1' + CRLF +
-      CRLF);
+  const request = Buffer.from(`GET /hello HTTP/1.1${CRLF}${CRLF}`);
 
   const onHeadersComplete = (versionMajor, versionMinor, headers,
                              method, url, statusCode, statusMessage,
@@ -148,7 +146,7 @@ function expectBody(expected) {
   };
 
   const onBody = (buf, start, len) => {
-    const body = '' + buf.slice(start, start + len);
+    const body = String(buf.slice(start, start + len));
     assert.strictEqual(body, 'pong');
   };
 
@@ -164,8 +162,7 @@ function expectBody(expected) {
 //
 {
   const request = Buffer.from(
-      'HTTP/1.0 200 Connection established' + CRLF +
-      CRLF);
+    `HTTP/1.0 200 Connection established${CRLF}${CRLF}`);
 
   const onHeadersComplete = (versionMajor, versionMinor, headers,
                              method, url, statusCode, statusMessage,
@@ -219,7 +216,7 @@ function expectBody(expected) {
   };
 
   const onBody = (buf, start, len) => {
-    const body = '' + buf.slice(start, start + len);
+    const body = String(buf.slice(start, start + len));
     assert.strictEqual(body, 'ping');
     seen_body = true;
   };
@@ -264,8 +261,7 @@ function expectBody(expected) {
 //
 {
   // 256 X-Filler headers
-  let lots_of_headers = 'X-Filler: 42' + CRLF;
-  lots_of_headers = lots_of_headers.repeat(256);
+  const lots_of_headers = `X-Filler: 42${CRLF}`.repeat(256);
 
   const request = Buffer.from(
       'GET /foo/bar/baz?quux=42#1337 HTTP/1.0' + CRLF +
@@ -316,7 +312,7 @@ function expectBody(expected) {
   };
 
   const onBody = (buf, start, len) => {
-    const body = '' + buf.slice(start, start + len);
+    const body = String(buf.slice(start, start + len));
     assert.strictEqual(body, 'foo=42&bar=1337');
   };
 
@@ -357,7 +353,7 @@ function expectBody(expected) {
   const body_parts = ['123', '123456', '1234567890'];
 
   const onBody = (buf, start, len) => {
-    const body = '' + buf.slice(start, start + len);
+    const body = String(buf.slice(start, start + len));
     assert.strictEqual(body, body_parts[body_part++]);
   };
 
@@ -396,7 +392,7 @@ function expectBody(expected) {
           ['123', '123456', '123456789', '123456789ABC', '123456789ABCDEF'];
 
   const onBody = (buf, start, len) => {
-    const body = '' + buf.slice(start, start + len);
+    const body = String(buf.slice(start, start + len));
     assert.strictEqual(body, body_parts[body_part++]);
   };
 
@@ -452,7 +448,7 @@ function expectBody(expected) {
     let expected_body = '123123456123456789123456789ABC123456789ABCDEF';
 
     const onBody = (buf, start, len) => {
-      const chunk = '' + buf.slice(start, start + len);
+      const chunk = String(buf.slice(start, start + len));
       assert.strictEqual(expected_body.indexOf(chunk), 0);
       expected_body = expected_body.slice(chunk.length);
     };
@@ -468,11 +464,9 @@ function expectBody(expected) {
 
   for (let i = 1; i < request.length - 1; ++i) {
     const a = request.slice(0, i);
-    console.error('request.slice(0, ' + i + ') = ',
-                  JSON.stringify(a.toString()));
+    console.error(`request.slice(0, ${i}) = ${JSON.stringify(a.toString())}`);
     const b = request.slice(i);
-    console.error('request.slice(' + i + ') = ',
-                  JSON.stringify(b.toString()));
+    console.error(`request.slice(${i}) = ${JSON.stringify(b.toString())}`);
     test(a, b);
   }
 }
@@ -514,7 +508,7 @@ function expectBody(expected) {
   let expected_body = '123123456123456789123456789ABC123456789ABCDEF';
 
   const onBody = (buf, start, len) => {
-    const chunk = '' + buf.slice(start, start + len);
+    const chunk = String(buf.slice(start, start + len));
     assert.strictEqual(expected_body.indexOf(chunk), 0);
     expected_body = expected_body.slice(chunk.length);
   };
@@ -590,9 +584,7 @@ function expectBody(expected) {
 // Test parser 'this' safety
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {
-  const request = Buffer.from(
-      'GET /hello HTTP/1.1' + CRLF +
-      CRLF);
+  const request = Buffer.from(`GET /hello HTTP/1.1${CRLF}${CRLF}`);
 
   const parser = newParser(REQUEST);
   const notparser = { execute: parser.execute };

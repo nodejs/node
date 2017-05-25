@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 var s = "test test test";
 
 assertEquals(0, s.indexOf("t"));
@@ -204,4 +206,98 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   assertEquals(2, "aba".indexOf("a", "1.00000"));
   assertEquals(2, "aba".indexOf("a", "2.00000"));
   assertEquals(-1, "aba".indexOf("a", "3.00000"));
+})();
+
+(function optimize() {
+  function f() {
+    return 'abc'.indexOf('a');
+  }
+  assertEquals(0, f());
+  assertEquals(0, f());
+  assertEquals(0, f());
+  % OptimizeFunctionOnNextCall(f);
+  assertEquals(0, f());
+
+  function f2() {
+    return 'abc'.indexOf('a', 1);
+  }
+  assertEquals(-1, f2());
+  assertEquals(-1, f2());
+  assertEquals(-1, f2());
+  % OptimizeFunctionOnNextCall(f2);
+  assertEquals(-1, f2());
+
+  function f3() {
+    return 'abc'.indexOf('a');
+  }
+  assertEquals(0, f3());
+  assertEquals(0, f3());
+  assertEquals(0, f3());
+  % OptimizeFunctionOnNextCall(f3);
+  assertEquals(0, f3());
+
+  function f4() {
+    return 'abcbc'.indexOf('bc', 2);
+  }
+  assertEquals(3, f4());
+  assertEquals(3, f4());
+  assertEquals(3, f4());
+  % OptimizeFunctionOnNextCall(f4);
+  assertEquals(3, f4());
+
+  function f5() {
+    return 'abcbc'.indexOf('b', -1);
+  }
+  assertEquals(1, f5());
+  assertEquals(1, f5());
+  assertEquals(1, f5());
+  % OptimizeFunctionOnNextCall(f5);
+  assertEquals(1, f5());
+
+  function f6() {
+    return 'abcbc'.indexOf('b', -10737418);
+  }
+  assertEquals(1, f6());
+  assertEquals(1, f6());
+  assertEquals(1, f6());
+  % OptimizeFunctionOnNextCall(f6);
+  assertEquals(1, f6());
+})();
+
+(function optimizeOSR() {
+  function f() {
+    var result;
+    for (var i = 0; i < 100000; i++) {
+      result = 'abc'.indexOf('a');
+    }
+    return result;
+  }
+  assertEquals(0, f());
+
+  function f2() {
+    var result;
+    for (var i = 0; i < 100000; i++) {
+      result = 'abc'.indexOf('a', 1);
+    }
+    return result;
+  }
+  assertEquals(-1, f2());
+
+  function f3() {
+    var result;
+    for (var i = 0; i < 100000; i++) {
+      result = 'abc'.indexOf('a');
+    }
+    return result;
+  }
+  assertEquals(0, f3());
+
+  function f4() {
+    var result;
+    for (var i = 0; i < 100000; i++) {
+      result = 'abcbc'.indexOf('bc', 2);
+    }
+    return result;
+  }
+  assertEquals(3, f4());
 })();

@@ -8,7 +8,12 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
+#include "src/counters.h"
 #include "src/elements.h"
+#include "src/isolate.h"
+#include "src/lookup.h"
+#include "src/objects-inl.h"
+#include "src/prototype.h"
 
 namespace v8 {
 namespace internal {
@@ -201,7 +206,7 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
   Node* context = assembler.Parameter(BuiltinDescriptor::kContext);
   Node* new_target = assembler.Parameter(BuiltinDescriptor::kNewTarget);
 
-  CodeStubArguments args(&assembler, argc);
+  CodeStubArguments args(&assembler, assembler.ChangeInt32ToIntPtr(argc));
   Node* receiver = args.GetReceiver();
   Node* kind = nullptr;
 
@@ -270,6 +275,15 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
     assembler.CallRuntime(Runtime::kSetProperty, context, receiver, length, arg,
                           assembler.SmiConstant(STRICT));
     assembler.Increment(arg_index);
+    // The runtime SetProperty call could have converted the array to dictionary
+    // mode, which must be detected to abort the fast-path.
+    Node* map = assembler.LoadMap(receiver);
+    Node* bit_field2 = assembler.LoadMapBitField2(map);
+    Node* kind = assembler.DecodeWord32<Map::ElementsKindBits>(bit_field2);
+    assembler.GotoIf(assembler.Word32Equal(
+                         kind, assembler.Int32Constant(DICTIONARY_ELEMENTS)),
+                     &default_label);
+
     assembler.GotoIfNotNumber(arg, &object_push);
     assembler.Goto(&double_push);
   }
@@ -310,6 +324,14 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
     assembler.CallRuntime(Runtime::kSetProperty, context, receiver, length, arg,
                           assembler.SmiConstant(STRICT));
     assembler.Increment(arg_index);
+    // The runtime SetProperty call could have converted the array to dictionary
+    // mode, which must be detected to abort the fast-path.
+    Node* map = assembler.LoadMap(receiver);
+    Node* bit_field2 = assembler.LoadMapBitField2(map);
+    Node* kind = assembler.DecodeWord32<Map::ElementsKindBits>(bit_field2);
+    assembler.GotoIf(assembler.Word32Equal(
+                         kind, assembler.Int32Constant(DICTIONARY_ELEMENTS)),
+                     &default_label);
     assembler.Goto(&object_push);
   }
 
@@ -318,7 +340,7 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
   assembler.Bind(&default_label);
   {
     args.ForEach(
-        [&assembler, receiver, context, &arg_index](Node* arg) {
+        [&assembler, receiver, context](Node* arg) {
           Node* length = assembler.LoadJSArrayLength(receiver);
           assembler.CallRuntime(Runtime::kSetProperty, context, receiver,
                                 length, arg, assembler.SmiConstant(STRICT));
@@ -407,6 +429,242 @@ BUILTIN(ArrayUnshift) {
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = accessor->Unshift(array, &args, to_add);
   return Smi::FromInt(new_length);
+}
+
+class ForEachCodeStubAssembler : public CodeStubAssembler {
+ public:
+  explicit ForEachCodeStubAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  void VisitOneElement(Node* context, Node* this_arg, Node* o, Node* k,
+                       Node* callbackfn) {
+    Comment("begin VisitOneElement");
+
+    // a. Let Pk be ToString(k).
+    Node* p_k = ToString(context, k);
+
+    // b. Let kPresent be HasProperty(O, Pk).
+    // c. ReturnIfAbrupt(kPresent).
+    Node* k_present =
+        CallStub(CodeFactory::HasProperty(isolate()), context, p_k, o);
+
+    // d. If kPresent is true, then
+    Label not_present(this);
+    GotoIf(WordNotEqual(k_present, TrueConstant()), &not_present);
+
+    // i. Let kValue be Get(O, Pk).
+    // ii. ReturnIfAbrupt(kValue).
+    Node* k_value =
+        CallStub(CodeFactory::GetProperty(isolate()), context, o, k);
+
+    // iii. Let funcResult be Call(callbackfn, T, «kValue, k, O»).
+    // iv. ReturnIfAbrupt(funcResult).
+    CallJS(CodeFactory::Call(isolate()), context, callbackfn, this_arg, k_value,
+           k, o);
+
+    Goto(&not_present);
+    Bind(&not_present);
+    Comment("end VisitOneElement");
+  }
+
+  void VisitAllFastElements(Node* context, ElementsKind kind, Node* this_arg,
+                            Node* o, Node* len, Node* callbackfn,
+                            ParameterMode mode) {
+    Comment("begin VisitAllFastElements");
+    Variable original_map(this, MachineRepresentation::kTagged);
+    original_map.Bind(LoadMap(o));
+    VariableList list({&original_map}, zone());
+    BuildFastLoop(
+        list, IntPtrOrSmiConstant(0, mode), TaggedToParameter(len, mode),
+        [context, kind, this, o, &original_map, callbackfn, this_arg,
+         mode](Node* index) {
+          Label one_element_done(this), array_changed(this, Label::kDeferred),
+              hole_element(this);
+
+          // Check if o's map has changed during the callback. If so, we have to
+          // fall back to the slower spec implementation for the rest of the
+          // iteration.
+          Node* o_map = LoadMap(o);
+          GotoIf(WordNotEqual(o_map, original_map.value()), &array_changed);
+
+          // Check if o's length has changed during the callback and if the
+          // index is now out of range of the new length.
+          Node* tagged_index = ParameterToTagged(index, mode);
+          GotoIf(SmiGreaterThanOrEqual(tagged_index, LoadJSArrayLength(o)),
+                 &array_changed);
+
+          // Re-load the elements array. If may have been resized.
+          Node* elements = LoadElements(o);
+
+          // Fast case: load the element directly from the elements FixedArray
+          // and call the callback if the element is not the hole.
+          DCHECK(kind == FAST_ELEMENTS || kind == FAST_DOUBLE_ELEMENTS);
+          int base_size = kind == FAST_ELEMENTS
+                              ? FixedArray::kHeaderSize
+                              : (FixedArray::kHeaderSize - kHeapObjectTag);
+          Node* offset = ElementOffsetFromIndex(index, kind, mode, base_size);
+          Node* value = nullptr;
+          if (kind == FAST_ELEMENTS) {
+            value = LoadObjectField(elements, offset);
+            GotoIf(WordEqual(value, TheHoleConstant()), &hole_element);
+          } else {
+            Node* double_value =
+                LoadDoubleWithHoleCheck(elements, offset, &hole_element);
+            value = AllocateHeapNumberWithValue(double_value);
+          }
+          CallJS(CodeFactory::Call(isolate()), context, callbackfn, this_arg,
+                 value, tagged_index, o);
+          Goto(&one_element_done);
+
+          Bind(&hole_element);
+          BranchIfPrototypesHaveNoElements(o_map, &one_element_done,
+                                           &array_changed);
+
+          // O's changed during the forEach. Use the implementation precisely
+          // specified in the spec for the rest of the iteration, also making
+          // the failed original_map sticky in case of a subseuent change that
+          // goes back to the original map.
+          Bind(&array_changed);
+          VisitOneElement(context, this_arg, o, ParameterToTagged(index, mode),
+                          callbackfn);
+          original_map.Bind(UndefinedConstant());
+          Goto(&one_element_done);
+
+          Bind(&one_element_done);
+        },
+        1, mode, IndexAdvanceMode::kPost);
+    Comment("end VisitAllFastElements");
+  }
+};
+
+TF_BUILTIN(ArrayForEach, ForEachCodeStubAssembler) {
+  Label non_array(this), examine_elements(this), fast_elements(this),
+      slow(this), maybe_double_elements(this), fast_double_elements(this);
+
+  Node* receiver = Parameter(ForEachDescriptor::kReceiver);
+  Node* callbackfn = Parameter(ForEachDescriptor::kCallback);
+  Node* this_arg = Parameter(ForEachDescriptor::kThisArg);
+  Node* context = Parameter(ForEachDescriptor::kContext);
+
+  // TODO(danno): Seriously? Do we really need to throw the exact error message
+  // on null and undefined so that the webkit tests pass?
+  Label throw_null_undefined_exception(this, Label::kDeferred);
+  GotoIf(WordEqual(receiver, NullConstant()), &throw_null_undefined_exception);
+  GotoIf(WordEqual(receiver, UndefinedConstant()),
+         &throw_null_undefined_exception);
+
+  // By the book: taken directly from the ECMAScript 2015 specification
+
+  // 1. Let O be ToObject(this value).
+  // 2. ReturnIfAbrupt(O)
+  Node* o = CallStub(CodeFactory::ToObject(isolate()), context, receiver);
+
+  // 3. Let len be ToLength(Get(O, "length")).
+  // 4. ReturnIfAbrupt(len).
+  Variable merged_length(this, MachineRepresentation::kTagged);
+  Label has_length(this, &merged_length), not_js_array(this);
+  GotoIf(DoesntHaveInstanceType(o, JS_ARRAY_TYPE), &not_js_array);
+  merged_length.Bind(LoadJSArrayLength(o));
+  Goto(&has_length);
+  Bind(&not_js_array);
+  Node* len_property =
+      CallStub(CodeFactory::GetProperty(isolate()), context, o,
+               HeapConstant(isolate()->factory()->length_string()));
+  merged_length.Bind(
+      CallStub(CodeFactory::ToLength(isolate()), context, len_property));
+  Goto(&has_length);
+  Bind(&has_length);
+  Node* len = merged_length.value();
+
+  // 5. If IsCallable(callbackfn) is false, throw a TypeError exception.
+  Label type_exception(this, Label::kDeferred);
+  GotoIf(TaggedIsSmi(callbackfn), &type_exception);
+  GotoIfNot(IsCallableMap(LoadMap(callbackfn)), &type_exception);
+
+  // 6. If thisArg was supplied, let T be thisArg; else let T be undefined.
+  // [Already done by the arguments adapter]
+
+  // Non-smi lengths must use the slow path.
+  GotoIf(TaggedIsNotSmi(len), &slow);
+
+  BranchIfFastJSArray(o, context,
+                      CodeStubAssembler::FastJSArrayAccessMode::INBOUNDS_READ,
+                      &examine_elements, &slow);
+
+  Bind(&examine_elements);
+
+  ParameterMode mode = OptimalParameterMode();
+
+  // Select by ElementsKind
+  Node* o_map = LoadMap(o);
+  Node* bit_field2 = LoadMapBitField2(o_map);
+  Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
+  Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
+         &maybe_double_elements, &fast_elements);
+
+  Bind(&fast_elements);
+  {
+    VisitAllFastElements(context, FAST_ELEMENTS, this_arg, o, len, callbackfn,
+                         mode);
+
+    // No exception, return success
+    Return(UndefinedConstant());
+  }
+
+  Bind(&maybe_double_elements);
+  Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
+         &slow, &fast_double_elements);
+
+  Bind(&fast_double_elements);
+  {
+    VisitAllFastElements(context, FAST_DOUBLE_ELEMENTS, this_arg, o, len,
+                         callbackfn, mode);
+
+    // No exception, return success
+    Return(UndefinedConstant());
+  }
+
+  Bind(&slow);
+  {
+    // By the book: taken from the ECMAScript 2015 specification (cont.)
+
+    // 7. Let k be 0.
+    Variable k(this, MachineRepresentation::kTagged);
+    k.Bind(SmiConstant(0));
+
+    // 8. Repeat, while k < len
+    Label loop(this, &k);
+    Label after_loop(this);
+    Goto(&loop);
+    Bind(&loop);
+    {
+      GotoUnlessNumberLessThan(k.value(), len, &after_loop);
+
+      VisitOneElement(context, this_arg, o, k.value(), callbackfn);
+
+      // e. Increase k by 1.
+      k.Bind(NumberInc(k.value()));
+      Goto(&loop);
+    }
+    Bind(&after_loop);
+    Return(UndefinedConstant());
+  }
+
+  Bind(&throw_null_undefined_exception);
+  {
+    CallRuntime(Runtime::kThrowTypeError, context,
+                SmiConstant(MessageTemplate::kCalledOnNullOrUndefined),
+                HeapConstant(isolate()->factory()->NewStringFromAsciiChecked(
+                    "Array.prototype.forEach")));
+    Unreachable();
+  }
+
+  Bind(&type_exception);
+  {
+    CallRuntime(Runtime::kThrowTypeError, context,
+                SmiConstant(MessageTemplate::kCalledNonCallable), callbackfn);
+    Unreachable();
+  }
 }
 
 BUILTIN(ArraySlice) {
@@ -1421,442 +1679,310 @@ void Builtins::Generate_ArrayIsArray(compiler::CodeAssemblerState* state) {
       assembler.CallRuntime(Runtime::kArrayIsArray, context, object));
 }
 
-void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
+  Node* const array = Parameter(0);
+  Node* const search_element = Parameter(1);
+  Node* const start_from = Parameter(2);
+  Node* const context = Parameter(3 + 2);
 
-  Node* array = assembler.Parameter(0);
-  Node* search_element = assembler.Parameter(1);
-  Node* start_from = assembler.Parameter(2);
-  Node* context = assembler.Parameter(3 + 2);
+  Variable len_var(this, MachineType::PointerRepresentation()),
+      index_var(this, MachineType::PointerRepresentation());
 
-  Node* intptr_zero = assembler.IntPtrConstant(0);
-  Node* intptr_one = assembler.IntPtrConstant(1);
+  Label init_k(this), return_true(this), return_false(this), call_runtime(this);
+  Label init_len(this), select_loop(this);
 
-  Node* the_hole = assembler.TheHoleConstant();
-  Node* undefined = assembler.UndefinedConstant();
-
-  Variable len_var(&assembler, MachineType::PointerRepresentation()),
-      index_var(&assembler, MachineType::PointerRepresentation()),
-      start_from_var(&assembler, MachineType::PointerRepresentation());
-
-  Label init_k(&assembler), return_true(&assembler), return_false(&assembler),
-      call_runtime(&assembler);
-
-  Label init_len(&assembler);
-
-  index_var.Bind(intptr_zero);
-  len_var.Bind(intptr_zero);
+  index_var.Bind(IntPtrConstant(0));
+  len_var.Bind(IntPtrConstant(0));
 
   // Take slow path if not a JSArray, if retrieving elements requires
   // traversing prototype, or if access checks are required.
-  assembler.BranchIfFastJSArray(
-      array, context, CodeStubAssembler::FastJSArrayAccessMode::INBOUNDS_READ,
-      &init_len, &call_runtime);
+  BranchIfFastJSArray(array, context,
+                      CodeStubAssembler::FastJSArrayAccessMode::INBOUNDS_READ,
+                      &init_len, &call_runtime);
 
-  assembler.Bind(&init_len);
+  Bind(&init_len);
   {
     // Handle case where JSArray length is not an Smi in the runtime
-    Node* len = assembler.LoadObjectField(array, JSArray::kLengthOffset);
-    assembler.GotoUnless(assembler.TaggedIsSmi(len), &call_runtime);
+    Node* len = LoadObjectField(array, JSArray::kLengthOffset);
+    GotoIfNot(TaggedIsSmi(len), &call_runtime);
 
-    len_var.Bind(assembler.SmiToWord(len));
-    assembler.Branch(assembler.WordEqual(len_var.value(), intptr_zero),
-                     &return_false, &init_k);
+    len_var.Bind(SmiToWord(len));
+
+    GotoIf(IsUndefined(start_from), &select_loop);
+
+    // Bailout to slow path if startIndex is not an Smi.
+    Branch(TaggedIsSmi(start_from), &init_k, &call_runtime);
   }
 
-  assembler.Bind(&init_k);
-  {
-    Label done(&assembler), init_k_smi(&assembler), init_k_heap_num(&assembler),
-        init_k_zero(&assembler), init_k_n(&assembler);
-    Node* tagged_n = assembler.ToInteger(context, start_from);
+  Bind(&init_k);
+  CSA_ASSERT(this, TaggedIsSmi(start_from));
+  Node* const untagged_start_from = SmiToWord(start_from);
+  index_var.Bind(Select(
+      IntPtrGreaterThanOrEqual(untagged_start_from, IntPtrConstant(0)),
+      [=]() { return untagged_start_from; },
+      [=]() {
+        Node* const index = IntPtrAdd(len_var.value(), untagged_start_from);
+        return SelectConstant(IntPtrLessThan(index, IntPtrConstant(0)),
+                              IntPtrConstant(0), index,
+                              MachineType::PointerRepresentation());
+      },
+      MachineType::PointerRepresentation()));
 
-    assembler.Branch(assembler.TaggedIsSmi(tagged_n), &init_k_smi,
-                     &init_k_heap_num);
-
-    assembler.Bind(&init_k_smi);
-    {
-      start_from_var.Bind(assembler.SmiUntag(tagged_n));
-      assembler.Goto(&init_k_n);
-    }
-
-    assembler.Bind(&init_k_heap_num);
-    {
-      Label do_return_false(&assembler);
-      // This round is lossless for all valid lengths.
-      Node* fp_len = assembler.RoundIntPtrToFloat64(len_var.value());
-      Node* fp_n = assembler.LoadHeapNumberValue(tagged_n);
-      assembler.GotoIf(assembler.Float64GreaterThanOrEqual(fp_n, fp_len),
-                       &do_return_false);
-      start_from_var.Bind(assembler.ChangeInt32ToIntPtr(
-          assembler.TruncateFloat64ToWord32(fp_n)));
-      assembler.Goto(&init_k_n);
-
-      assembler.Bind(&do_return_false);
-      {
-        index_var.Bind(intptr_zero);
-        assembler.Goto(&return_false);
-      }
-    }
-
-    assembler.Bind(&init_k_n);
-    {
-      Label if_positive(&assembler), if_negative(&assembler), done(&assembler);
-      assembler.Branch(
-          assembler.IntPtrLessThan(start_from_var.value(), intptr_zero),
-          &if_negative, &if_positive);
-
-      assembler.Bind(&if_positive);
-      {
-        index_var.Bind(start_from_var.value());
-        assembler.Goto(&done);
-      }
-
-      assembler.Bind(&if_negative);
-      {
-        index_var.Bind(
-            assembler.IntPtrAdd(len_var.value(), start_from_var.value()));
-        assembler.Branch(
-            assembler.IntPtrLessThan(index_var.value(), intptr_zero),
-            &init_k_zero, &done);
-      }
-
-      assembler.Bind(&init_k_zero);
-      {
-        index_var.Bind(intptr_zero);
-        assembler.Goto(&done);
-      }
-
-      assembler.Bind(&done);
-    }
-  }
-
+  Goto(&select_loop);
+  Bind(&select_loop);
   static int32_t kElementsKind[] = {
       FAST_SMI_ELEMENTS,   FAST_HOLEY_SMI_ELEMENTS, FAST_ELEMENTS,
       FAST_HOLEY_ELEMENTS, FAST_DOUBLE_ELEMENTS,    FAST_HOLEY_DOUBLE_ELEMENTS,
   };
 
-  Label if_smiorobjects(&assembler), if_packed_doubles(&assembler),
-      if_holey_doubles(&assembler);
+  Label if_smiorobjects(this), if_packed_doubles(this), if_holey_doubles(this);
   Label* element_kind_handlers[] = {&if_smiorobjects,   &if_smiorobjects,
                                     &if_smiorobjects,   &if_smiorobjects,
                                     &if_packed_doubles, &if_holey_doubles};
 
-  Node* map = assembler.LoadMap(array);
-  Node* elements_kind = assembler.LoadMapElementsKind(map);
-  Node* elements = assembler.LoadElements(array);
-  assembler.Switch(elements_kind, &return_false, kElementsKind,
-                   element_kind_handlers, arraysize(kElementsKind));
+  Node* map = LoadMap(array);
+  Node* elements_kind = LoadMapElementsKind(map);
+  Node* elements = LoadElements(array);
+  Switch(elements_kind, &return_false, kElementsKind, element_kind_handlers,
+         arraysize(kElementsKind));
 
-  assembler.Bind(&if_smiorobjects);
+  Bind(&if_smiorobjects);
   {
-    Variable search_num(&assembler, MachineRepresentation::kFloat64);
-    Label ident_loop(&assembler, &index_var),
-        heap_num_loop(&assembler, &search_num),
-        string_loop(&assembler, &index_var), simd_loop(&assembler),
-        undef_loop(&assembler, &index_var), not_smi(&assembler),
-        not_heap_num(&assembler);
+    Variable search_num(this, MachineRepresentation::kFloat64);
+    Label ident_loop(this, &index_var), heap_num_loop(this, &search_num),
+        string_loop(this, &index_var), undef_loop(this, &index_var),
+        not_smi(this), not_heap_num(this);
 
-    assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &not_smi);
-    search_num.Bind(assembler.SmiToFloat64(search_element));
-    assembler.Goto(&heap_num_loop);
+    GotoIfNot(TaggedIsSmi(search_element), &not_smi);
+    search_num.Bind(SmiToFloat64(search_element));
+    Goto(&heap_num_loop);
 
-    assembler.Bind(&not_smi);
-    assembler.GotoIf(assembler.WordEqual(search_element, undefined),
-                     &undef_loop);
-    Node* map = assembler.LoadMap(search_element);
-    assembler.GotoUnless(assembler.IsHeapNumberMap(map), &not_heap_num);
-    search_num.Bind(assembler.LoadHeapNumberValue(search_element));
-    assembler.Goto(&heap_num_loop);
+    Bind(&not_smi);
+    GotoIf(WordEqual(search_element, UndefinedConstant()), &undef_loop);
+    Node* map = LoadMap(search_element);
+    GotoIfNot(IsHeapNumberMap(map), &not_heap_num);
+    search_num.Bind(LoadHeapNumberValue(search_element));
+    Goto(&heap_num_loop);
 
-    assembler.Bind(&not_heap_num);
-    Node* search_type = assembler.LoadMapInstanceType(map);
-    assembler.GotoIf(assembler.IsStringInstanceType(search_type), &string_loop);
-    assembler.GotoIf(
-        assembler.Word32Equal(search_type,
-                              assembler.Int32Constant(SIMD128_VALUE_TYPE)),
-        &simd_loop);
-    assembler.Goto(&ident_loop);
+    Bind(&not_heap_num);
+    Node* search_type = LoadMapInstanceType(map);
+    GotoIf(IsStringInstanceType(search_type), &string_loop);
+    Goto(&ident_loop);
 
-    assembler.Bind(&ident_loop);
+    Bind(&ident_loop);
     {
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_false);
-      Node* element_k =
-          assembler.LoadFixedArrayElement(elements, index_var.value());
-      assembler.GotoIf(assembler.WordEqual(element_k, search_element),
-                       &return_true);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+                &return_false);
+      Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+      GotoIf(WordEqual(element_k, search_element), &return_true);
 
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&ident_loop);
+      index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
+      Goto(&ident_loop);
     }
 
-    assembler.Bind(&undef_loop);
+    Bind(&undef_loop);
     {
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_false);
-      Node* element_k =
-          assembler.LoadFixedArrayElement(elements, index_var.value());
-      assembler.GotoIf(assembler.WordEqual(element_k, undefined), &return_true);
-      assembler.GotoIf(assembler.WordEqual(element_k, the_hole), &return_true);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+                &return_false);
+      Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+      GotoIf(WordEqual(element_k, UndefinedConstant()), &return_true);
+      GotoIf(WordEqual(element_k, TheHoleConstant()), &return_true);
 
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&undef_loop);
+      index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
+      Goto(&undef_loop);
     }
 
-    assembler.Bind(&heap_num_loop);
+    Bind(&heap_num_loop);
     {
-      Label nan_loop(&assembler, &index_var),
-          not_nan_loop(&assembler, &index_var);
-      assembler.BranchIfFloat64IsNaN(search_num.value(), &nan_loop,
-                                     &not_nan_loop);
+      Label nan_loop(this, &index_var), not_nan_loop(this, &index_var);
+      BranchIfFloat64IsNaN(search_num.value(), &nan_loop, &not_nan_loop);
 
-      assembler.Bind(&not_nan_loop);
+      Bind(&not_nan_loop);
       {
-        Label continue_loop(&assembler), not_smi(&assembler);
-        assembler.GotoUnless(
-            assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-            &return_false);
-        Node* element_k =
-            assembler.LoadFixedArrayElement(elements, index_var.value());
-        assembler.GotoUnless(assembler.TaggedIsSmi(element_k), &not_smi);
-        assembler.Branch(
-            assembler.Float64Equal(search_num.value(),
-                                   assembler.SmiToFloat64(element_k)),
-            &return_true, &continue_loop);
+        Label continue_loop(this), not_smi(this);
+        GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+                  &return_false);
+        Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+        GotoIfNot(TaggedIsSmi(element_k), &not_smi);
+        Branch(Float64Equal(search_num.value(), SmiToFloat64(element_k)),
+               &return_true, &continue_loop);
 
-        assembler.Bind(&not_smi);
-        assembler.GotoUnless(
-            assembler.IsHeapNumberMap(assembler.LoadMap(element_k)),
-            &continue_loop);
-        assembler.Branch(
-            assembler.Float64Equal(search_num.value(),
-                                   assembler.LoadHeapNumberValue(element_k)),
-            &return_true, &continue_loop);
+        Bind(&not_smi);
+        GotoIfNot(IsHeapNumber(element_k), &continue_loop);
+        Branch(Float64Equal(search_num.value(), LoadHeapNumberValue(element_k)),
+               &return_true, &continue_loop);
 
-        assembler.Bind(&continue_loop);
-        index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-        assembler.Goto(&not_nan_loop);
+        Bind(&continue_loop);
+        index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
+        Goto(&not_nan_loop);
       }
 
-      assembler.Bind(&nan_loop);
+      Bind(&nan_loop);
       {
-        Label continue_loop(&assembler);
-        assembler.GotoUnless(
-            assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-            &return_false);
-        Node* element_k =
-            assembler.LoadFixedArrayElement(elements, index_var.value());
-        assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-        assembler.GotoUnless(
-            assembler.IsHeapNumberMap(assembler.LoadMap(element_k)),
-            &continue_loop);
-        assembler.BranchIfFloat64IsNaN(assembler.LoadHeapNumberValue(element_k),
-                                       &return_true, &continue_loop);
+        Label continue_loop(this);
+        GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+                  &return_false);
+        Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+        GotoIf(TaggedIsSmi(element_k), &continue_loop);
+        GotoIfNot(IsHeapNumber(element_k), &continue_loop);
+        BranchIfFloat64IsNaN(LoadHeapNumberValue(element_k), &return_true,
+                             &continue_loop);
 
-        assembler.Bind(&continue_loop);
-        index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-        assembler.Goto(&nan_loop);
+        Bind(&continue_loop);
+        index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
+        Goto(&nan_loop);
       }
     }
 
-    assembler.Bind(&string_loop);
+    Bind(&string_loop);
     {
-      Label continue_loop(&assembler);
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_false);
-      Node* element_k =
-          assembler.LoadFixedArrayElement(elements, index_var.value());
-      assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-      assembler.GotoUnless(
-          assembler.IsStringInstanceType(assembler.LoadInstanceType(element_k)),
-          &continue_loop);
+      Label continue_loop(this);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+                &return_false);
+      Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+      GotoIf(TaggedIsSmi(element_k), &continue_loop);
+      GotoIfNot(IsStringInstanceType(LoadInstanceType(element_k)),
+                &continue_loop);
 
       // TODO(bmeurer): Consider inlining the StringEqual logic here.
-      Callable callable = CodeFactory::StringEqual(assembler.isolate());
-      Node* result =
-          assembler.CallStub(callable, context, search_element, element_k);
-      assembler.Branch(
-          assembler.WordEqual(assembler.BooleanConstant(true), result),
-          &return_true, &continue_loop);
+      Node* result = CallStub(CodeFactory::StringEqual(isolate()), context,
+                              search_element, element_k);
+      Branch(WordEqual(BooleanConstant(true), result), &return_true,
+             &continue_loop);
 
-      assembler.Bind(&continue_loop);
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&string_loop);
-    }
-
-    assembler.Bind(&simd_loop);
-    {
-      Label continue_loop(&assembler, &index_var),
-          loop_body(&assembler, &index_var);
-      Node* map = assembler.LoadMap(search_element);
-
-      assembler.Goto(&loop_body);
-      assembler.Bind(&loop_body);
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_false);
-
-      Node* element_k =
-          assembler.LoadFixedArrayElement(elements, index_var.value());
-      assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-
-      Node* map_k = assembler.LoadMap(element_k);
-      assembler.BranchIfSimd128Equal(search_element, map, element_k, map_k,
-                                     &return_true, &continue_loop);
-
-      assembler.Bind(&continue_loop);
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&loop_body);
+      Bind(&continue_loop);
+      index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
+      Goto(&string_loop);
     }
   }
 
-  assembler.Bind(&if_packed_doubles);
+  Bind(&if_packed_doubles);
   {
-    Label nan_loop(&assembler, &index_var),
-        not_nan_loop(&assembler, &index_var), hole_loop(&assembler, &index_var),
-        search_notnan(&assembler);
-    Variable search_num(&assembler, MachineRepresentation::kFloat64);
+    Label nan_loop(this, &index_var), not_nan_loop(this, &index_var),
+        hole_loop(this, &index_var), search_notnan(this);
+    Variable search_num(this, MachineRepresentation::kFloat64);
 
-    assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &search_notnan);
-    search_num.Bind(assembler.SmiToFloat64(search_element));
-    assembler.Goto(&not_nan_loop);
+    GotoIfNot(TaggedIsSmi(search_element), &search_notnan);
+    search_num.Bind(SmiToFloat64(search_element));
+    Goto(&not_nan_loop);
 
-    assembler.Bind(&search_notnan);
-    assembler.GotoUnless(
-        assembler.IsHeapNumberMap(assembler.LoadMap(search_element)),
-        &return_false);
+    Bind(&search_notnan);
+    GotoIfNot(IsHeapNumber(search_element), &return_false);
 
-    search_num.Bind(assembler.LoadHeapNumberValue(search_element));
+    search_num.Bind(LoadHeapNumberValue(search_element));
 
-    assembler.BranchIfFloat64IsNaN(search_num.value(), &nan_loop,
-                                   &not_nan_loop);
+    BranchIfFloat64IsNaN(search_num.value(), &nan_loop, &not_nan_loop);
 
     // Search for HeapNumber
-    assembler.Bind(&not_nan_loop);
+    Bind(&not_nan_loop);
     {
-      Label continue_loop(&assembler);
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_false);
-      Node* element_k = assembler.LoadFixedDoubleArrayElement(
-          elements, index_var.value(), MachineType::Float64());
-      assembler.Branch(assembler.Float64Equal(element_k, search_num.value()),
-                       &return_true, &continue_loop);
-      assembler.Bind(&continue_loop);
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&not_nan_loop);
+      Label continue_loop(this);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+                &return_false);
+      Node* element_k = LoadFixedDoubleArrayElement(elements, index_var.value(),
+                                                    MachineType::Float64());
+      Branch(Float64Equal(element_k, search_num.value()), &return_true,
+             &continue_loop);
+      Bind(&continue_loop);
+      index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
+      Goto(&not_nan_loop);
     }
 
     // Search for NaN
-    assembler.Bind(&nan_loop);
+    Bind(&nan_loop);
     {
-      Label continue_loop(&assembler);
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_false);
-      Node* element_k = assembler.LoadFixedDoubleArrayElement(
-          elements, index_var.value(), MachineType::Float64());
-      assembler.BranchIfFloat64IsNaN(element_k, &return_true, &continue_loop);
-      assembler.Bind(&continue_loop);
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&nan_loop);
+      Label continue_loop(this);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+                &return_false);
+      Node* element_k = LoadFixedDoubleArrayElement(elements, index_var.value(),
+                                                    MachineType::Float64());
+      BranchIfFloat64IsNaN(element_k, &return_true, &continue_loop);
+      Bind(&continue_loop);
+      index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
+      Goto(&nan_loop);
     }
   }
 
-  assembler.Bind(&if_holey_doubles);
+  Bind(&if_holey_doubles);
   {
-    Label nan_loop(&assembler, &index_var),
-        not_nan_loop(&assembler, &index_var), hole_loop(&assembler, &index_var),
-        search_notnan(&assembler);
-    Variable search_num(&assembler, MachineRepresentation::kFloat64);
+    Label nan_loop(this, &index_var), not_nan_loop(this, &index_var),
+        hole_loop(this, &index_var), search_notnan(this);
+    Variable search_num(this, MachineRepresentation::kFloat64);
 
-    assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &search_notnan);
-    search_num.Bind(assembler.SmiToFloat64(search_element));
-    assembler.Goto(&not_nan_loop);
+    GotoIfNot(TaggedIsSmi(search_element), &search_notnan);
+    search_num.Bind(SmiToFloat64(search_element));
+    Goto(&not_nan_loop);
 
-    assembler.Bind(&search_notnan);
-    assembler.GotoIf(assembler.WordEqual(search_element, undefined),
-                     &hole_loop);
-    assembler.GotoUnless(
-        assembler.IsHeapNumberMap(assembler.LoadMap(search_element)),
-        &return_false);
+    Bind(&search_notnan);
+    GotoIf(WordEqual(search_element, UndefinedConstant()), &hole_loop);
+    GotoIfNot(IsHeapNumber(search_element), &return_false);
 
-    search_num.Bind(assembler.LoadHeapNumberValue(search_element));
+    search_num.Bind(LoadHeapNumberValue(search_element));
 
-    assembler.BranchIfFloat64IsNaN(search_num.value(), &nan_loop,
-                                   &not_nan_loop);
+    BranchIfFloat64IsNaN(search_num.value(), &nan_loop, &not_nan_loop);
 
     // Search for HeapNumber
-    assembler.Bind(&not_nan_loop);
+    Bind(&not_nan_loop);
     {
-      Label continue_loop(&assembler);
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_false);
+      Label continue_loop(this);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+                &return_false);
 
       // Load double value or continue if it contains a double hole.
-      Node* element_k = assembler.LoadFixedDoubleArrayElement(
+      Node* element_k = LoadFixedDoubleArrayElement(
           elements, index_var.value(), MachineType::Float64(), 0,
           CodeStubAssembler::INTPTR_PARAMETERS, &continue_loop);
 
-      assembler.Branch(assembler.Float64Equal(element_k, search_num.value()),
-                       &return_true, &continue_loop);
-      assembler.Bind(&continue_loop);
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&not_nan_loop);
+      Branch(Float64Equal(element_k, search_num.value()), &return_true,
+             &continue_loop);
+      Bind(&continue_loop);
+      index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
+      Goto(&not_nan_loop);
     }
 
     // Search for NaN
-    assembler.Bind(&nan_loop);
+    Bind(&nan_loop);
     {
-      Label continue_loop(&assembler);
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_false);
+      Label continue_loop(this);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+                &return_false);
 
       // Load double value or continue if it contains a double hole.
-      Node* element_k = assembler.LoadFixedDoubleArrayElement(
+      Node* element_k = LoadFixedDoubleArrayElement(
           elements, index_var.value(), MachineType::Float64(), 0,
           CodeStubAssembler::INTPTR_PARAMETERS, &continue_loop);
 
-      assembler.BranchIfFloat64IsNaN(element_k, &return_true, &continue_loop);
-      assembler.Bind(&continue_loop);
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&nan_loop);
+      BranchIfFloat64IsNaN(element_k, &return_true, &continue_loop);
+      Bind(&continue_loop);
+      index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
+      Goto(&nan_loop);
     }
 
     // Search for the Hole
-    assembler.Bind(&hole_loop);
+    Bind(&hole_loop);
     {
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_false);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
+                &return_false);
 
       // Check if the element is a double hole, but don't load it.
-      assembler.LoadFixedDoubleArrayElement(
+      LoadFixedDoubleArrayElement(
           elements, index_var.value(), MachineType::None(), 0,
           CodeStubAssembler::INTPTR_PARAMETERS, &return_true);
 
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&hole_loop);
+      index_var.Bind(IntPtrAdd(index_var.value(), IntPtrConstant(1)));
+      Goto(&hole_loop);
     }
   }
 
-  assembler.Bind(&return_true);
-  assembler.Return(assembler.BooleanConstant(true));
+  Bind(&return_true);
+  Return(TrueConstant());
 
-  assembler.Bind(&return_false);
-  assembler.Return(assembler.BooleanConstant(false));
+  Bind(&return_false);
+  Return(FalseConstant());
 
-  assembler.Bind(&call_runtime);
-  assembler.Return(assembler.CallRuntime(Runtime::kArrayIncludes_Slow, context,
-                                         array, search_element, start_from));
+  Bind(&call_runtime);
+  Return(CallRuntime(Runtime::kArrayIncludes_Slow, context, array,
+                     search_element, start_from));
 }
 
 void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
@@ -1897,7 +2023,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
   {
     // Handle case where JSArray length is not an Smi in the runtime
     Node* len = assembler.LoadObjectField(array, JSArray::kLengthOffset);
-    assembler.GotoUnless(assembler.TaggedIsSmi(len), &call_runtime);
+    assembler.GotoIfNot(assembler.TaggedIsSmi(len), &call_runtime);
 
     len_var.Bind(assembler.SmiToWord(len));
     assembler.Branch(assembler.WordEqual(len_var.value(), intptr_zero),
@@ -1906,36 +2032,29 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
 
   assembler.Bind(&init_k);
   {
-    Label done(&assembler), init_k_smi(&assembler), init_k_heap_num(&assembler),
+    // For now only deal with undefined and Smis here; we must be really careful
+    // with side-effects from the ToInteger conversion as the side-effects might
+    // render our assumptions about the receiver being a fast JSArray and the
+    // length invalid.
+    Label done(&assembler), init_k_smi(&assembler), init_k_other(&assembler),
         init_k_zero(&assembler), init_k_n(&assembler);
-    Node* tagged_n = assembler.ToInteger(context, start_from);
 
-    assembler.Branch(assembler.TaggedIsSmi(tagged_n), &init_k_smi,
-                     &init_k_heap_num);
+    assembler.Branch(assembler.TaggedIsSmi(start_from), &init_k_smi,
+                     &init_k_other);
 
     assembler.Bind(&init_k_smi);
     {
-      start_from_var.Bind(assembler.SmiUntag(tagged_n));
+      start_from_var.Bind(assembler.SmiUntag(start_from));
       assembler.Goto(&init_k_n);
     }
 
-    assembler.Bind(&init_k_heap_num);
+    assembler.Bind(&init_k_other);
     {
-      Label do_return_not_found(&assembler);
-      // This round is lossless for all valid lengths.
-      Node* fp_len = assembler.RoundIntPtrToFloat64(len_var.value());
-      Node* fp_n = assembler.LoadHeapNumberValue(tagged_n);
-      assembler.GotoIf(assembler.Float64GreaterThanOrEqual(fp_n, fp_len),
-                       &do_return_not_found);
-      start_from_var.Bind(assembler.ChangeInt32ToIntPtr(
-          assembler.TruncateFloat64ToWord32(fp_n)));
+      // The fromIndex must be undefined here, otherwise bailout and let the
+      // runtime deal with the full ToInteger conversion.
+      assembler.GotoIfNot(assembler.IsUndefined(start_from), &call_runtime);
+      start_from_var.Bind(intptr_zero);
       assembler.Goto(&init_k_n);
-
-      assembler.Bind(&do_return_not_found);
-      {
-        index_var.Bind(intptr_zero);
-        assembler.Goto(&return_not_found);
-      }
     }
 
     assembler.Bind(&init_k_n);
@@ -1992,11 +2111,10 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     Variable search_num(&assembler, MachineRepresentation::kFloat64);
     Label ident_loop(&assembler, &index_var),
         heap_num_loop(&assembler, &search_num),
-        string_loop(&assembler, &index_var), simd_loop(&assembler),
-        undef_loop(&assembler, &index_var), not_smi(&assembler),
-        not_heap_num(&assembler);
+        string_loop(&assembler, &index_var), undef_loop(&assembler, &index_var),
+        not_smi(&assembler), not_heap_num(&assembler);
 
-    assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &not_smi);
+    assembler.GotoIfNot(assembler.TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(assembler.SmiToFloat64(search_element));
     assembler.Goto(&heap_num_loop);
 
@@ -2004,22 +2122,18 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.GotoIf(assembler.WordEqual(search_element, undefined),
                      &undef_loop);
     Node* map = assembler.LoadMap(search_element);
-    assembler.GotoUnless(assembler.IsHeapNumberMap(map), &not_heap_num);
+    assembler.GotoIfNot(assembler.IsHeapNumberMap(map), &not_heap_num);
     search_num.Bind(assembler.LoadHeapNumberValue(search_element));
     assembler.Goto(&heap_num_loop);
 
     assembler.Bind(&not_heap_num);
     Node* search_type = assembler.LoadMapInstanceType(map);
     assembler.GotoIf(assembler.IsStringInstanceType(search_type), &string_loop);
-    assembler.GotoIf(
-        assembler.Word32Equal(search_type,
-                              assembler.Int32Constant(SIMD128_VALUE_TYPE)),
-        &simd_loop);
     assembler.Goto(&ident_loop);
 
     assembler.Bind(&ident_loop);
     {
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
       Node* element_k =
@@ -2033,7 +2147,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
 
     assembler.Bind(&undef_loop);
     {
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
       Node* element_k =
@@ -2054,19 +2168,19 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
       assembler.Bind(&not_nan_loop);
       {
         Label continue_loop(&assembler), not_smi(&assembler);
-        assembler.GotoUnless(
+        assembler.GotoIfNot(
             assembler.UintPtrLessThan(index_var.value(), len_var.value()),
             &return_not_found);
         Node* element_k =
             assembler.LoadFixedArrayElement(elements, index_var.value());
-        assembler.GotoUnless(assembler.TaggedIsSmi(element_k), &not_smi);
+        assembler.GotoIfNot(assembler.TaggedIsSmi(element_k), &not_smi);
         assembler.Branch(
             assembler.Float64Equal(search_num.value(),
                                    assembler.SmiToFloat64(element_k)),
             &return_found, &continue_loop);
 
         assembler.Bind(&not_smi);
-        assembler.GotoUnless(
+        assembler.GotoIfNot(
             assembler.IsHeapNumberMap(assembler.LoadMap(element_k)),
             &continue_loop);
         assembler.Branch(
@@ -2083,13 +2197,13 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.Bind(&string_loop);
     {
       Label continue_loop(&assembler);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
       Node* element_k =
           assembler.LoadFixedArrayElement(elements, index_var.value());
       assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.IsStringInstanceType(assembler.LoadInstanceType(element_k)),
           &continue_loop);
 
@@ -2105,31 +2219,6 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
       index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
       assembler.Goto(&string_loop);
     }
-
-    assembler.Bind(&simd_loop);
-    {
-      Label continue_loop(&assembler, &index_var),
-          loop_body(&assembler, &index_var);
-      Node* map = assembler.LoadMap(search_element);
-
-      assembler.Goto(&loop_body);
-      assembler.Bind(&loop_body);
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_not_found);
-
-      Node* element_k =
-          assembler.LoadFixedArrayElement(elements, index_var.value());
-      assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-
-      Node* map_k = assembler.LoadMap(element_k);
-      assembler.BranchIfSimd128Equal(search_element, map, element_k, map_k,
-                                     &return_found, &continue_loop);
-
-      assembler.Bind(&continue_loop);
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&loop_body);
-    }
   }
 
   assembler.Bind(&if_packed_doubles);
@@ -2137,12 +2226,12 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     Label not_nan_loop(&assembler, &index_var), search_notnan(&assembler);
     Variable search_num(&assembler, MachineRepresentation::kFloat64);
 
-    assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &search_notnan);
+    assembler.GotoIfNot(assembler.TaggedIsSmi(search_element), &search_notnan);
     search_num.Bind(assembler.SmiToFloat64(search_element));
     assembler.Goto(&not_nan_loop);
 
     assembler.Bind(&search_notnan);
-    assembler.GotoUnless(
+    assembler.GotoIfNot(
         assembler.IsHeapNumberMap(assembler.LoadMap(search_element)),
         &return_not_found);
 
@@ -2155,7 +2244,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.Bind(&not_nan_loop);
     {
       Label continue_loop(&assembler);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
       Node* element_k = assembler.LoadFixedDoubleArrayElement(
@@ -2173,12 +2262,12 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     Label not_nan_loop(&assembler, &index_var), search_notnan(&assembler);
     Variable search_num(&assembler, MachineRepresentation::kFloat64);
 
-    assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &search_notnan);
+    assembler.GotoIfNot(assembler.TaggedIsSmi(search_element), &search_notnan);
     search_num.Bind(assembler.SmiToFloat64(search_element));
     assembler.Goto(&not_nan_loop);
 
     assembler.Bind(&search_notnan);
-    assembler.GotoUnless(
+    assembler.GotoIfNot(
         assembler.IsHeapNumberMap(assembler.LoadMap(search_element)),
         &return_not_found);
 
@@ -2191,7 +2280,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.Bind(&not_nan_loop);
     {
       Label continue_loop(&assembler);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
 
@@ -2347,7 +2436,7 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
     CSA_ASSERT(&assembler, assembler.TaggedIsSmi(length));
     CSA_ASSERT(&assembler, assembler.TaggedIsSmi(index));
 
-    assembler.GotoUnless(assembler.SmiBelow(index, length), &set_done);
+    assembler.GotoIfNot(assembler.SmiBelow(index, length), &set_done);
 
     Node* one = assembler.SmiConstant(Smi::FromInt(1));
     assembler.StoreObjectFieldNoWriteBarrier(iterator,
@@ -2552,7 +2641,7 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
       CSA_ASSERT(&assembler, assembler.TaggedIsSmi(length));
       CSA_ASSERT(&assembler, assembler.TaggedIsSmi(index));
 
-      assembler.GotoUnless(assembler.SmiBelow(index, length), &set_done);
+      assembler.GotoIfNot(assembler.SmiBelow(index, length), &set_done);
 
       Node* one = assembler.SmiConstant(1);
       assembler.StoreObjectFieldNoWriteBarrier(
@@ -2744,19 +2833,17 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
   assembler.Bind(&throw_bad_receiver);
   {
     // The {receiver} is not a valid JSArrayIterator.
-    Node* result = assembler.CallRuntime(
-        Runtime::kThrowIncompatibleMethodReceiver, context,
-        assembler.HeapConstant(operation), iterator);
-    assembler.Return(result);
+    assembler.CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
+                          assembler.HeapConstant(operation), iterator);
+    assembler.Unreachable();
   }
 
   assembler.Bind(&if_isdetached);
   {
     Node* message = assembler.SmiConstant(MessageTemplate::kDetachedOperation);
-    Node* result =
-        assembler.CallRuntime(Runtime::kThrowTypeError, context, message,
-                              assembler.HeapConstant(operation));
-    assembler.Return(result);
+    assembler.CallRuntime(Runtime::kThrowTypeError, context, message,
+                          assembler.HeapConstant(operation));
+    assembler.Unreachable();
   }
 }
 

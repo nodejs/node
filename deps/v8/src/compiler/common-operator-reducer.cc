@@ -126,7 +126,7 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kDeoptimizeIf ||
          node->opcode() == IrOpcode::kDeoptimizeUnless);
   bool condition_is_true = node->opcode() == IrOpcode::kDeoptimizeUnless;
-  DeoptimizeReason reason = DeoptimizeReasonOf(node->op());
+  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   Node* condition = NodeProperties::GetValueInput(node, 0);
   Node* frame_state = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -137,9 +137,10 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
   // (as guaranteed by the graph reduction logic).
   if (condition->opcode() == IrOpcode::kBooleanNot) {
     NodeProperties::ReplaceValueInput(node, condition->InputAt(0), 0);
-    NodeProperties::ChangeOp(node, condition_is_true
-                                       ? common()->DeoptimizeIf(reason)
-                                       : common()->DeoptimizeUnless(reason));
+    NodeProperties::ChangeOp(
+        node, condition_is_true
+                  ? common()->DeoptimizeIf(p.kind(), p.reason())
+                  : common()->DeoptimizeUnless(p.kind(), p.reason()));
     return Changed(node);
   }
   Decision const decision = DecideCondition(condition);
@@ -147,9 +148,8 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
   if (condition_is_true == (decision == Decision::kTrue)) {
     ReplaceWithValue(node, dead(), effect, control);
   } else {
-    control =
-        graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager, reason),
-                         frame_state, effect, control);
+    control = graph()->NewNode(common()->Deoptimize(p.kind(), p.reason()),
+                               frame_state, effect, control);
     // TODO(bmeurer): This should be on the AdvancedReducer somehow.
     NodeProperties::MergeControlToEnd(graph(), common(), control);
     Revisit(graph()->end());
@@ -284,54 +284,90 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
   return Replace(value);
 }
 
-
 Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
   DCHECK_EQ(IrOpcode::kReturn, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
-  bool changed = false;
   if (effect->opcode() == IrOpcode::kCheckpoint) {
     // Any {Return} node can never be used to insert a deoptimization point,
     // hence checkpoints can be cut out of the effect chain flowing into it.
     effect = NodeProperties::GetEffectInput(effect);
     NodeProperties::ReplaceEffectInput(node, effect);
-    changed = true;
+    Reduction const reduction = ReduceReturn(node);
+    return reduction.Changed() ? reduction : Changed(node);
   }
   // TODO(ahaas): Extend the reduction below to multiple return values.
   if (ValueInputCountOfReturn(node->op()) != 1) {
     return NoChange();
   }
-  Node* const value = node->InputAt(1);
+  Node* pop_count = NodeProperties::GetValueInput(node, 0);
+  Node* value = NodeProperties::GetValueInput(node, 1);
+  Node* control = NodeProperties::GetControlInput(node);
   if (value->opcode() == IrOpcode::kPhi &&
       NodeProperties::GetControlInput(value) == control &&
-      effect->opcode() == IrOpcode::kEffectPhi &&
-      NodeProperties::GetControlInput(effect) == control &&
       control->opcode() == IrOpcode::kMerge) {
+    // This optimization pushes {Return} nodes through merges. It checks that
+    // the return value is actually a {Phi} and the return control dependency
+    // is the {Merge} to which the {Phi} belongs.
+
+    // Value1 ... ValueN Control1 ... ControlN
+    //   ^          ^       ^            ^
+    //   |          |       |            |
+    //   +----+-----+       +------+-----+
+    //        |                    |
+    //       Phi --------------> Merge
+    //        ^                    ^
+    //        |                    |
+    //        |  +-----------------+
+    //        |  |
+    //       Return -----> Effect
+    //         ^
+    //         |
+    //        End
+
+    // Now the effect input to the {Return} node can be either an {EffectPhi}
+    // hanging off the same {Merge}, or the {Merge} node is only connected to
+    // the {Return} and the {Phi}, in which case we know that the effect input
+    // must somehow dominate all merged branches.
+
     Node::Inputs control_inputs = control->inputs();
     Node::Inputs value_inputs = value->inputs();
-    Node::Inputs effect_inputs = effect->inputs();
     DCHECK_NE(0, control_inputs.count());
     DCHECK_EQ(control_inputs.count(), value_inputs.count() - 1);
-    DCHECK_EQ(control_inputs.count(), effect_inputs.count() - 1);
     DCHECK_EQ(IrOpcode::kEnd, graph()->end()->opcode());
     DCHECK_NE(0, graph()->end()->InputCount());
-    for (int i = 0; i < control_inputs.count(); ++i) {
-      // Create a new {Return} and connect it to {end}. We don't need to mark
-      // {end} as revisit, because we mark {node} as {Dead} below, which was
-      // previously connected to {end}, so we know for sure that at some point
-      // the reducer logic will visit {end} again.
-      Node* ret = graph()->NewNode(common()->Return(), node->InputAt(0),
-                                   value_inputs[i], effect_inputs[i],
-                                   control_inputs[i]);
-      NodeProperties::MergeControlToEnd(graph(), common(), ret);
+    if (control->OwnedBy(node, value)) {
+      for (int i = 0; i < control_inputs.count(); ++i) {
+        // Create a new {Return} and connect it to {end}. We don't need to mark
+        // {end} as revisit, because we mark {node} as {Dead} below, which was
+        // previously connected to {end}, so we know for sure that at some point
+        // the reducer logic will visit {end} again.
+        Node* ret = graph()->NewNode(node->op(), pop_count, value_inputs[i],
+                                     effect, control_inputs[i]);
+        NodeProperties::MergeControlToEnd(graph(), common(), ret);
+      }
+      // Mark the Merge {control} and Return {node} as {dead}.
+      Replace(control, dead());
+      return Replace(dead());
+    } else if (effect->opcode() == IrOpcode::kEffectPhi &&
+               NodeProperties::GetControlInput(effect) == control) {
+      Node::Inputs effect_inputs = effect->inputs();
+      DCHECK_EQ(control_inputs.count(), effect_inputs.count() - 1);
+      for (int i = 0; i < control_inputs.count(); ++i) {
+        // Create a new {Return} and connect it to {end}. We don't need to mark
+        // {end} as revisit, because we mark {node} as {Dead} below, which was
+        // previously connected to {end}, so we know for sure that at some point
+        // the reducer logic will visit {end} again.
+        Node* ret = graph()->NewNode(node->op(), pop_count, value_inputs[i],
+                                     effect_inputs[i], control_inputs[i]);
+        NodeProperties::MergeControlToEnd(graph(), common(), ret);
+      }
+      // Mark the Merge {control} and Return {node} as {dead}.
+      Replace(control, dead());
+      return Replace(dead());
     }
-    // Mark the merge {control} and return {node} as {dead}.
-    Replace(control, dead());
-    return Replace(dead());
   }
-  return changed ? Changed(node) : NoChange();
+  return NoChange();
 }
-
 
 Reduction CommonOperatorReducer::ReduceSelect(Node* node) {
   DCHECK_EQ(IrOpcode::kSelect, node->opcode());
