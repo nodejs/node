@@ -975,19 +975,16 @@ Local<Value> UVException(Isolate* isolate,
 // Look up environment variable unless running as setuid root.
 bool SafeGetenv(const char* key, std::string* text) {
 #ifndef _WIN32
-  if (getuid() != geteuid() || getgid() != getegid()) {
-    text->clear();
-    return false;
-  }
+  if (linux_at_secure || getuid() != geteuid() || getgid() != getegid())
+    goto fail;
 #endif
-  if (linux_at_secure) {
-    text->clear();
-    return false;
-  }
+
   if (const char* value = getenv(key)) {
     *text = value;
     return true;
   }
+
+fail:
   text->clear();
   return false;
 }
