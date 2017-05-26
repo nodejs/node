@@ -295,12 +295,11 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
   Environment* env = Environment::GetCurrent(context);
   if (type == PromiseHookType::kInit) {
     PromiseWrap* wrap = new PromiseWrap(env, promise);
-    promise->SetAlignedPointerInInternalField(0, wrap);
+    wrap->MakeWeak(wrap);
   } else if (type == PromiseHookType::kResolve) {
     // TODO(matthewloring): need to expose this through the async hooks api.
   }
-  PromiseWrap* wrap =
-    static_cast<PromiseWrap*>(promise->GetAlignedPointerFromInternalField(0));
+  PromiseWrap* wrap = Unwrap<PromiseWrap>(promise);
   CHECK_NE(wrap, nullptr);
   if (type == PromiseHookType::kBefore) {
     PreCallbackExecution(wrap, false);
