@@ -1,21 +1,21 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const Agent = http.Agent;
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer((req, res) => {
   res.end('hello world');
 });
 
-server.listen(0, function() {
+server.listen(0, () => {
   const agent = new Agent({
     keepAlive: true,
   });
 
   const requestParams = {
     host: 'localhost',
-    port: this.address().port,
+    port: server.address().port,
     agent: agent,
     path: '/'
   };
@@ -25,8 +25,8 @@ server.listen(0, function() {
   get(function(res) {
     assert.strictEqual(res.statusCode, 200);
     res.resume();
-    res.on('end', function() {
-      process.nextTick(function() {
+    res.on('end', common.mustCall(() => {
+      process.nextTick(() => {
         const freeSockets = agent.freeSockets[socketKey];
         assert.strictEqual(freeSockets.length, 1,
                            `expect a free socket on ${socketKey}`);
@@ -37,7 +37,7 @@ server.listen(0, function() {
 
         get(done);
       });
-    });
+    }));
   });
 
   function get(callback) {

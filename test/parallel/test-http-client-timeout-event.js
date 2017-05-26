@@ -32,12 +32,10 @@ const options = {
 
 const server = http.createServer();
 
-server.listen(0, options.host, function() {
-  options.port = this.address().port;
+server.listen(0, options.host, common.mustCall(() => {
+  options.port = server.address().port;
   const req = http.request(options);
-  req.on('error', function() {
-    // this space is intentionally left blank
-  });
+  req.on('error', common.mustCall());
   req.on('close', common.mustCall(() => server.close()));
 
   req.setTimeout(1);
@@ -48,4 +46,4 @@ server.listen(0, options.host, function() {
       }, 100);
     });
   }));
-});
+}));

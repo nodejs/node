@@ -33,11 +33,7 @@ server.listen(0, function() {
     port: this.address().port
   });
 
-  req.on('error', function(ex) {
-    // https://github.com/joyent/node/issues/1399#issuecomment-2597359
-    // abort() should emit an Error, not the net.Socket object
-    assert(ex instanceof Error);
-  });
+  req.on('error', common.mustNotCall());
 
   req.abort();
   req.end();

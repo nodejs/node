@@ -23,42 +23,24 @@
 const common = require('../common');
 const http = require('http');
 
-const server = http.Server(function(req, res) {
-  console.log('Server accepted request.');
+const server = http.Server(common.mustCall((req, res) => {
   res.writeHead(200);
   res.write('Part of my res.');
 
   res.destroy();
-});
+}));
 
-server.listen(0, common.mustCall(function() {
+server.listen(0, common.mustCall(() => {
   http.get({
-    port: this.address().port,
+    port: server.address().port,
     headers: { connection: 'keep-alive' }
-  }, common.mustCall(function(res) {
+  }, common.mustCall((res) => {
     server.close();
 
-    console.log(`Got res: ${res.statusCode}`);
-    console.dir(res.headers);
-
-    res.on('data', function(chunk) {
-      console.log(`Read ${chunk.length} bytes`);
-      console.log(' chunk=%j', chunk.toString());
-    });
-
-    res.on('end', function() {
-      console.log('Response ended.');
-    });
-
-    res.on('aborted', function() {
-      console.log('Response aborted.');
-    });
-
-    res.socket.on('close', function() {
-      console.log('socket closed, but not res');
-    });
-
-    // it would be nice if this worked:
+    res.on('data', common.mustCall());
+    res.on('end', common.mustCall());
+    res.on('aborted', common.mustCall());
+    res.socket.on('close', common.mustCall());
     res.on('close', common.mustCall());
   }));
 }));
