@@ -50,7 +50,9 @@ arrayTypes.forEach((currentType, key) => {
 
   assert.ok(theArray instanceof currentType,
             'Type of new array should match that of the template');
-  assert.ok(theArray !== template);
+  assert.notStrictEqual(theArray,
+                        template,
+                        'the new array should not be a copy of the template');
   assert.strictEqual(theArray.buffer,
                      buffer,
                      'Buffer for array should match the one passed in');
