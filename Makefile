@@ -945,6 +945,10 @@ bench: bench-net bench-http bench-fs bench-tls
 
 bench-ci: bench
 
+lint-md-clean:
+	$(RM) -r tools/remark-cli/node_modules
+	$(RM) -r tools/remark-preset-lint-node/node_modules
+
 lint-md-build:
 	if [ ! -d tools/remark-cli/node_modules ]; then \
 		cd tools/remark-cli && ../../$(NODE) ../../$(NPM) install; fi
@@ -1080,6 +1084,8 @@ endif
   lint-js-ci \
   list-gtests \
   lint-md \
+  lint-md-build \
+  lint-md-clean \
   pkg \
   release-only \
   run-ci \
