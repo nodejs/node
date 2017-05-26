@@ -38,12 +38,12 @@ function onlistening() {
     .on('secureConnect', common.mustCall(onsecureConnect));
 
   const as = hooks.activitiesOfTypes('TLSWRAP');
-  assert.strictEqual(as.length, 1, 'one TLSWRAP when client connecting');
+  assert.strictEqual(as.length, 1);
   svr = as[0];
 
-  assert.strictEqual(svr.type, 'TLSWRAP', 'tls wrap');
-  assert.strictEqual(typeof svr.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof svr.triggerId, 'number', 'triggerId is a number');
+  assert.strictEqual(svr.type, 'TLSWRAP');
+  assert.strictEqual(typeof svr.uid, 'number');
+  assert.strictEqual(typeof svr.triggerId, 'number');
   checkInvocations(svr, { init: 1 }, 'server: when client connecting');
 }
 
@@ -52,13 +52,11 @@ function onsecureConnection() {
   // Server received client connection
   //
   const as = hooks.activitiesOfTypes('TLSWRAP');
-  assert.strictEqual(as.length, 2,
-                     'two TLSWRAPs when server has secure connection');
+  assert.strictEqual(as.length, 2);
   client = as[1];
-  assert.strictEqual(client.type, 'TLSWRAP', 'tls wrap');
-  assert.strictEqual(typeof client.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof client.triggerId, 'number',
-                     'triggerId is a number');
+  assert.strictEqual(client.type, 'TLSWRAP');
+  assert.strictEqual(typeof client.uid, 'number');
+  assert.strictEqual(typeof client.triggerId, 'number');
 
   // TODO(thlorenz) which callback did the server wrap execute that already
   // finished as well?

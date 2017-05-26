@@ -25,20 +25,17 @@ function onlistening() {
   // callback in a next tick even if no lookup is needed
   // TODO (trevnorris) submit patch to fix creation of tick objects and instead
   // create the send wrap synchronously.
-  assert.strictEqual(
-    hooks.activitiesOfTypes('UDPSENDWRAP').length, 0,
-    'no udpsendwrap after sock connected and sock.send called');
+  assert.strictEqual(hooks.activitiesOfTypes('UDPSENDWRAP').length, 0);
 }
 
 function onsent() {
   const as = hooks.activitiesOfTypes('UDPSENDWRAP');
   send = as[0];
 
-  assert.strictEqual(as.length, 1,
-                     'one UDPSENDWRAP created synchronously when message sent');
-  assert.strictEqual(send.type, 'UDPSENDWRAP', 'send wrap');
-  assert.strictEqual(typeof send.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof send.triggerId, 'number', 'triggerId is a number');
+  assert.strictEqual(as.length, 1);
+  assert.strictEqual(send.type, 'UDPSENDWRAP');
+  assert.strictEqual(typeof send.uid, 'number');
+  assert.strictEqual(typeof send.triggerId, 'number');
   checkInvocations(send, { init: 1, before: 1 }, 'when message sent');
 
   sock.close(common.mustCall(onsockClosed));
