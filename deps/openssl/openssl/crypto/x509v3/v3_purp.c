@@ -321,6 +321,7 @@ int X509_supported_extension(X509_EXTENSION *ex)
         NID_subject_alt_name,   /* 85 */
         NID_basic_constraints,  /* 87 */
         NID_certificate_policies, /* 89 */
+        NID_crl_distribution_points, /* 103 */
         NID_ext_key_usage,      /* 126 */
 #ifndef OPENSSL_NO_RFC3779
         NID_sbgp_ipAddrBlock,   /* 290 */

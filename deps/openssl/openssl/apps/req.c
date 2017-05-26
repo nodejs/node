@@ -331,7 +331,6 @@ int MAIN(int argc, char **argv)
         else if (strcmp(*argv, "-text") == 0)
             text = 1;
         else if (strcmp(*argv, "-x509") == 0) {
-            newreq = 1;
             x509 = 1;
         } else if (strcmp(*argv, "-asn1-kludge") == 0)
             kludge = 1;
@@ -446,6 +445,9 @@ int MAIN(int argc, char **argv)
                    " -reqopt arg    - various request text options\n\n");
         goto end;
     }
+
+    if (x509 && infile == NULL)
+        newreq = 1;
 
     ERR_load_crypto_strings();
     if (!app_passwd(bio_err, passargin, passargout, &passin, &passout)) {
@@ -753,7 +755,7 @@ int MAIN(int argc, char **argv)
         }
     }
 
-    if (newreq) {
+    if (newreq || x509) {
         if (pkey == NULL) {
             BIO_printf(bio_err, "you need to specify a private key\n");
             goto end;

@@ -7,6 +7,10 @@
 #if defined(__linux) || defined(_AIX)
 # include <sys/utsname.h>
 #endif
+#if defined(__APPLE__) && defined(__MACH__)
+# include <sys/types.h>
+# include <sys/sysctl.h>
+#endif
 #include <openssl/crypto.h>
 #include <openssl/bn.h>
 
@@ -120,6 +124,26 @@ void OPENSSL_cpuid_setup(void)
 # endif
         if (uname(&uts) != 0 || atoi(uts.version) < 6)
             return;
+    }
+#endif
+
+#if defined(__APPLE__) && defined(__MACH__)
+    {
+        int val;
+        size_t len = sizeof(val);
+
+        if (sysctlbyname("hw.optional.64bitops", &val, &len, NULL, 0) == 0) {
+            if (val)
+                OPENSSL_ppccap_P |= PPC_FPU64;
+        }
+
+        len = sizeof(val);
+        if (sysctlbyname("hw.optional.altivec", &val, &len, NULL, 0) == 0) {
+            if (val)
+                OPENSSL_ppccap_P |= PPC_ALTIVEC;
+        }
+
+        return;
     }
 #endif
 

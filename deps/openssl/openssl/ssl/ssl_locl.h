@@ -1158,7 +1158,7 @@ long ssl2_default_timeout(void);
 
 const SSL_CIPHER *ssl3_get_cipher_by_char(const unsigned char *p);
 int ssl3_put_cipher_by_char(const SSL_CIPHER *c, unsigned char *p);
-void ssl3_init_finished_mac(SSL *s);
+int ssl3_init_finished_mac(SSL *s);
 int ssl3_send_server_certificate(SSL *s);
 int ssl3_send_newsession_ticket(SSL *s);
 int ssl3_send_cert_status(SSL *s);
@@ -1430,7 +1430,7 @@ int ssl_parse_clienthello_renegotiate_ext(SSL *s, unsigned char *d, int len,
 long ssl_get_algorithm2(SSL *s);
 int tls1_save_sigalgs(SSL *s, const unsigned char *data, int dsize);
 int tls1_process_sigalgs(SSL *s);
-size_t tls12_get_psigalgs(SSL *s, const unsigned char **psigs);
+size_t tls12_get_psigalgs(SSL *s, int sent, const unsigned char **psigs);
 int tls12_check_peer_sigalg(const EVP_MD **pmd, SSL *s,
                             const unsigned char *sig, EVP_PKEY *pkey);
 void ssl_set_client_disabled(SSL *s);
@@ -1482,6 +1482,8 @@ int custom_ext_add(SSL *s, int server,
                    unsigned char **pret, unsigned char *limit, int *al);
 
 int custom_exts_copy(custom_ext_methods *dst, const custom_ext_methods *src);
+int custom_exts_copy_flags(custom_ext_methods *dst,
+                           const custom_ext_methods *src);
 void custom_exts_free(custom_ext_methods *exts);
 
 # else
