@@ -2881,14 +2881,14 @@ inline int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx) {
   // Failure on verification of the cert is handled in
   // Connection::VerifyError.
   if (preverify_ok == 0 || X509_STORE_CTX_get_error(ctx) != X509_V_OK)
-    return 1;
+    return CHECK_OK;
 
   // Server does not need to check the whitelist.
   SSL* ssl = static_cast<SSL*>(
       X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx()));
 
   if (SSL_is_server(ssl))
-    return 1;
+    return CHECK_OK;
 
   // Client needs to check if the server cert is listed in the
   // whitelist when it is issued by the specific rootCAs.
