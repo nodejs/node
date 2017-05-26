@@ -4176,11 +4176,19 @@ class V8_EXPORT ArrayBuffer : public Object {
      */
     virtual void* AllocateUninitialized(size_t length) = 0;
 
+    virtual void* Reserve(size_t length);
+
     /**
      * Free the memory block of size |length|, pointed to by |data|.
      * That memory is guaranteed to be previously allocated by |Allocate|.
      */
     virtual void Free(void* data, size_t length) = 0;
+
+    enum class AllocationMode { kNormal, kReservation };
+    virtual void Free(void* data, size_t length, AllocationMode mode);
+    enum class Protection { kNoAccess, kReadWrite };
+    virtual void SetProtection(void* data, size_t length,
+                               Protection protection);
 
     /**
      * malloc/free based convenience allocator.
