@@ -2174,6 +2174,3 @@ readable buffer so there is nothing for a user to consume.
 [stream-write]: #stream_writable_write_chunk_encoding_callback
 [readable-_destroy]: #stream_readable_destroy_err_callback
 [writable-_destroy]: #stream_writable_destroy_err_callback
-[TCP sockets]: net.html#net_class_net_socket
-[Transform]: #stream_class_stream_transform
-[Writable]: #stream_class_stream_writable
