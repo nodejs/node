@@ -296,8 +296,17 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
   PromiseWrap* wrap = Unwrap<PromiseWrap>(promise);
   if (type == PromiseHookType::kInit ||
       wrap == nullptr) {
+    uint32_t stored_init_field;
+    if (type != PromiseHookType::kInit) {
+      // Do not emit an init event.
+      stored_init_field = env->async_hooks()->fields()[AsyncHooks::kInit];
+      env->async_hooks()->fields()[AsyncHooks::kInit] = 0;
+    }
     wrap = new PromiseWrap(env, promise);
     wrap->MakeWeak(wrap);
+    if (type != PromiseHookType::kInit) {
+      env->async_hooks()->fields()[AsyncHooks::kInit] = stored_init_field;
+    }
   } else if (type == PromiseHookType::kResolve) {
     // TODO(matthewloring): need to expose this through the async hooks api.
   }
