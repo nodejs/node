@@ -29,16 +29,12 @@ const server = net
   server.listen(common.PORT);
   const tcps = hooks.activitiesOfTypes('TCPWRAP');
   const tcpconnects = hooks.activitiesOfTypes('TCPCONNECTWRAP');
-  assert.strictEqual(
-    tcps.length, 1,
-    'one TCPWRAP created synchronously when calling server.listen');
-  assert.strictEqual(
-    tcpconnects.length, 0,
-    'no TCPCONNECTWRAP created synchronously when calling server.listen');
+  assert.strictEqual(tcps.length, 1);
+  assert.strictEqual(tcpconnects.length, 0);
   tcp1 = tcps[0];
-  assert.strictEqual(tcp1.type, 'TCPWRAP', 'tcp wrap');
-  assert.strictEqual(typeof tcp1.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof tcp1.triggerId, 'number', 'triggerId is a number');
+  assert.strictEqual(tcp1.type, 'TCPWRAP');
+  assert.strictEqual(typeof tcp1.uid, 'number');
+  assert.strictEqual(typeof tcp1.triggerId, 'number');
   checkInvocations(tcp1, { init: 1 }, 'when calling server.listen');
 }
 
@@ -48,30 +44,24 @@ const server = net
     { port: server.address().port, host: server.address().address },
     common.mustCall(onconnected));
   const tcps = hooks.activitiesOfTypes('TCPWRAP');
-  assert.strictEqual(
-    tcps.length, 2,
-    '2 TCPWRAPs present when client is connecting');
+  assert.strictEqual(tcps.length, 2);
   process.nextTick(() => {
     const tcpconnects = hooks.activitiesOfTypes('TCPCONNECTWRAP');
-    assert.strictEqual(
-      tcpconnects.length, 1,
-      '1 TCPCONNECTWRAP present when client is connecting');
+    assert.strictEqual(tcpconnects.length, 1);
   });
 
   tcp2 = tcps[1];
-  assert.strictEqual(tcps.length, 2,
-                     '2 TCPWRAP present when client is connecting');
-  assert.strictEqual(tcp2.type, 'TCPWRAP', 'tcp wrap');
-  assert.strictEqual(typeof tcp2.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof tcp2.triggerId, 'number', 'triggerId is a number');
+  assert.strictEqual(tcps.length, 2);
+  assert.strictEqual(tcp2.type, 'TCPWRAP');
+  assert.strictEqual(typeof tcp2.uid, 'number');
+  assert.strictEqual(typeof tcp2.triggerId, 'number');
 
   checkInvocations(tcp1, { init: 1 }, 'tcp1 when client is connecting');
   checkInvocations(tcp2, { init: 1 }, 'tcp2 when client is connecting');
 }
 
 function onlistening() {
-  assert.strictEqual(hooks.activitiesOfTypes('TCPWRAP').length, 2,
-                     'two TCPWRAPs when server is listening');
+  assert.strictEqual(hooks.activitiesOfTypes('TCPWRAP').length, 2);
 }
 
 // Depending on timing we see client: onconnected or server: onconnection first
@@ -92,14 +82,11 @@ function ontcpConnection(serverConnection) {
 
   // only focusing on TCPCONNECTWRAP here
   const tcpconnects = hooks.activitiesOfTypes('TCPCONNECTWRAP');
-  assert.strictEqual(
-    tcpconnects.length, 1,
-    'one TCPCONNECTWRAP present on tcp connection');
+  assert.strictEqual(tcpconnects.length, 1);
   tcpconnect = tcpconnects[0];
-  assert.strictEqual(tcpconnect.type, 'TCPCONNECTWRAP', 'tcpconnect wrap');
-  assert.strictEqual(typeof tcpconnect.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof tcpconnect.triggerId,
-                     'number', 'triggerId is a number');
+  assert.strictEqual(tcpconnect.type, 'TCPCONNECTWRAP');
+  assert.strictEqual(typeof tcpconnect.uid, 'number');
+  assert.strictEqual(typeof tcpconnect.triggerId, 'number');
   // When client receives connection first ('onconnected'), we 'before' has
   // been invoked at this point already, otherwise it only was 'init'ed
   const expected = serverConnection ? { init: 1 } : { init: 1, before: 1 };
@@ -125,16 +112,12 @@ function onconnection(c) {
 
   const tcps = hooks.activitiesOfTypes([ 'TCPWRAP' ]);
   const tcpconnects = hooks.activitiesOfTypes('TCPCONNECTWRAP');
-  assert.strictEqual(
-    tcps.length, 3,
-    '3 TCPWRAPs present when server receives connection');
-  assert.strictEqual(
-    tcpconnects.length, 1,
-    'one TCPCONNECTWRAP present when server receives connection');
+  assert.strictEqual(tcps.length, 3);
+  assert.strictEqual(tcpconnects.length, 1);
   tcp3 = tcps[2];
-  assert.strictEqual(tcp3.type, 'TCPWRAP', 'tcp wrap');
-  assert.strictEqual(typeof tcp3.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof tcp3.triggerId, 'number', 'triggerId is a number');
+  assert.strictEqual(tcp3.type, 'TCPWRAP');
+  assert.strictEqual(typeof tcp3.uid, 'number');
+  assert.strictEqual(typeof tcp3.triggerId, 'number');
 
   checkInvocations(tcp1, { init: 1, before: 1 },
                    'tcp1 when server receives connection');

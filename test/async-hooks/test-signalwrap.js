@@ -12,12 +12,11 @@ hooks.enable();
 process.on('SIGUSR2', common.mustCall(onsigusr2, 2));
 
 const as = hooks.activitiesOfTypes('SIGNALWRAP');
-assert.strictEqual(as.length, 1,
-                   'one signal wrap when SIGUSR2 handler is set up');
+assert.strictEqual(as.length, 1);
 const signal1 = as[0];
-assert.strictEqual(signal1.type, 'SIGNALWRAP', 'signal wrap');
-assert.strictEqual(typeof signal1.uid, 'number', 'uid is a number');
-assert.strictEqual(typeof signal1.triggerId, 'number', 'triggerId is a number');
+assert.strictEqual(signal1.type, 'SIGNALWRAP');
+assert.strictEqual(typeof signal1.uid, 'number');
+assert.strictEqual(typeof signal1.triggerId, 'number');
 checkInvocations(signal1, { init: 1 }, 'when SIGUSR2 handler is set up');
 
 let count = 0;
@@ -47,14 +46,11 @@ function onsigusr2() {
     process.on('SIGUSR2', common.mustCall(onsigusr2Again));
 
     const as = hooks.activitiesOfTypes('SIGNALWRAP');
-    assert.strictEqual(
-      as.length, 2,
-      'two signal wraps when second SIGUSR2 handler is set up');
+    assert.strictEqual(as.length, 2);
     signal2 = as[1];
-    assert.strictEqual(signal2.type, 'SIGNALWRAP', 'signal wrap');
-    assert.strictEqual(typeof signal2.uid, 'number', 'uid is a number');
-    assert.strictEqual(typeof signal2.triggerId, 'number',
-                       'triggerId is a number');
+    assert.strictEqual(signal2.type, 'SIGNALWRAP');
+    assert.strictEqual(typeof signal2.uid, 'number');
+    assert.strictEqual(typeof signal2.triggerId, 'number');
 
     checkInvocations(
       signal1, { init: 1, before: 2, after: 1 },

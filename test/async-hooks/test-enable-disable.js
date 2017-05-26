@@ -145,22 +145,17 @@ function onfirstImmediate() {
   const as1 = hook1.activitiesOfTypes(types);
   const as2 = hook2.activitiesOfTypes(types);
   const as3 = hook3.activitiesOfTypes(types);
-  assert.strictEqual(as1.length, 1,
-                     'hook1 captured one immediate on first callback');
+  assert.strictEqual(as1.length, 1);
   // hook2 was not enabled yet .. it is enabled after hook3's "before" completed
-  assert.strictEqual(as2.length, 0,
-                     'hook2 captured no immediate on first callback');
-  assert.strictEqual(as3.length, 1,
-                     'hook3 captured one immediate on first callback');
+  assert.strictEqual(as2.length, 0);
+  assert.strictEqual(as3.length, 1);
 
   // Check that hook1 and hook3 captured the same Immediate and that it is valid
   const firstImmediate = as1[0];
-  assert.strictEqual(as3[0].uid, as1[0].uid,
-                     'hook1 and hook3 captured same first immediate');
-  assert.strictEqual(firstImmediate.type, 'Immediate', 'immediate');
-  assert.strictEqual(typeof firstImmediate.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof firstImmediate.triggerId,
-                     'number', 'triggerId is a number');
+  assert.strictEqual(as3[0].uid, as1[0].uid);
+  assert.strictEqual(firstImmediate.type, 'Immediate');
+  assert.strictEqual(typeof firstImmediate.uid, 'number');
+  assert.strictEqual(typeof firstImmediate.triggerId, 'number');
   checkInvocations(as1[0], { init: 1, before: 1 },
                    'hook1[0]: on first immediate');
   checkInvocations(as3[0], { init: 1, before: 1 },
@@ -187,15 +182,9 @@ function onsecondImmediate() {
   const as1 = hook1.activitiesOfTypes(types);
   const as2 = hook2.activitiesOfTypes(types);
   const as3 = hook3.activitiesOfTypes(types);
-  assert.strictEqual(
-    as1.length, 2,
-    'hook1 captured first and second immediate on second callback');
-  assert.strictEqual(
-    as2.length, 2,
-    'hook2 captured first and second immediate on second callback');
-  assert.strictEqual(
-    as3.length, 2,
-    'hook3 captured first and second immediate on second callback');
+  assert.strictEqual(as1.length, 2);
+  assert.strictEqual(as2.length, 2);
+  assert.strictEqual(as3.length, 2);
 
   // Assign the info collected by each hook for each immediate for easier
   // reference.
@@ -210,14 +199,11 @@ function onsecondImmediate() {
 
   // Check that all hooks captured the same Immediate and that it is valid
   const secondImmediate = hook1Second;
-  assert.strictEqual(hook2Second.uid, hook3Second.uid,
-                     'hook2 and hook3 captured same second immediate');
-  assert.strictEqual(hook1Second.uid, hook3Second.uid,
-                     'hook1 and hook3 captured same second immediate');
-  assert.strictEqual(secondImmediate.type, 'Immediate', 'immediate');
-  assert.strictEqual(typeof secondImmediate.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof secondImmediate.triggerId, 'number',
-                     'triggerId is a number');
+  assert.strictEqual(hook2Second.uid, hook3Second.uid);
+  assert.strictEqual(hook1Second.uid, hook3Second.uid);
+  assert.strictEqual(secondImmediate.type, 'Immediate');
+  assert.strictEqual(typeof secondImmediate.uid, 'number');
+  assert.strictEqual(typeof secondImmediate.triggerId, 'number');
 
   checkInvocations(hook1First, { init: 1, before: 1, after: 1, destroy: 1 },
                    'hook1First: on second immediate');

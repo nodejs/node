@@ -24,36 +24,27 @@ net.createServer(common.mustCall(function(c) {
 function onlisten() {
   let pipes = hooks.activitiesOfTypes('PIPEWRAP');
   let pipeconnects = hooks.activitiesOfTypes('PIPECONNECTWRAP');
-  assert.strictEqual(
-    pipes.length, 1,
-    'one pipe wrap created when net server is listening');
-  assert.strictEqual(
-    pipeconnects.length, 0,
-    'no pipeconnect wrap created when net server is listening');
+  assert.strictEqual(pipes.length, 1);
+  assert.strictEqual(pipeconnects.length, 0);
 
   net.connect(common.PIPE,
               common.mustCall(maybeOnconnect.bind(null, 'client')));
 
   pipes = hooks.activitiesOfTypes('PIPEWRAP');
   pipeconnects = hooks.activitiesOfTypes('PIPECONNECTWRAP');
-  assert.strictEqual(pipes.length, 2,
-                     '2 pipe wraps created when connecting client');
-  assert.strictEqual(pipeconnects.length, 1,
-                     '1 connectwrap created when connecting client');
+  assert.strictEqual(pipes.length, 2);
+  assert.strictEqual(pipeconnects.length, 1);
 
   pipe1 = pipes[0];
   pipe2 = pipes[1];
   pipeconnect = pipeconnects[0];
 
-  assert.strictEqual(pipe1.type, 'PIPEWRAP', 'first is pipe wrap');
-  assert.strictEqual(pipe2.type, 'PIPEWRAP', 'second is pipe wrap');
-  assert.strictEqual(pipeconnect.type, 'PIPECONNECTWRAP',
-                     'third is pipeconnect wrap');
-  [ pipe1, pipe2, pipeconnect ].forEach(check);
-
-  function check(a) {
-    assert.strictEqual(typeof a.uid, 'number', 'uid is a number');
-    assert.strictEqual(typeof a.triggerId, 'number', 'triggerId is a number');
+  assert.strictEqual(pipe1.type, 'PIPEWRAP');
+  assert.strictEqual(pipe2.type, 'PIPEWRAP');
+  assert.strictEqual(pipeconnect.type, 'PIPECONNECTWRAP');
+  for (const a of [ pipe1, pipe2, pipeconnect ]) {
+    assert.strictEqual(typeof a.uid, 'number');
+    assert.strictEqual(typeof a.triggerId, 'number');
     checkInvocations(a, { init: 1 }, 'after net.connect');
   }
 }
@@ -69,13 +60,11 @@ function maybeOnconnect(source) {
   const pipes = hooks.activitiesOfTypes('PIPEWRAP');
   const pipeconnects = hooks.activitiesOfTypes('PIPECONNECTWRAP');
 
-  assert.strictEqual(pipes.length, 3,
-                     '3 pipe wraps created when client connected');
-  assert.strictEqual(pipeconnects.length, 1,
-                     '1 connectwrap created when client connected');
+  assert.strictEqual(pipes.length, 3);
+  assert.strictEqual(pipeconnects.length, 1);
   pipe3 = pipes[2];
-  assert.strictEqual(typeof pipe3.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof pipe3.triggerId, 'number', 'triggerId is a number');
+  assert.strictEqual(typeof pipe3.uid, 'number');
+  assert.strictEqual(typeof pipe3.triggerId, 'number');
 
   checkInvocations(pipe1, { init: 1, before: 1, after: 1 },
                    'pipe1, client connected');
