@@ -35,6 +35,8 @@ B<openssl> B<s_server>
 [B<-CAfile filename>]
 [B<-no_alt_chains>]
 [B<-nocert>]
+[B<-client_sigalgs sigalglist>]
+[B<-named_curve curve>]
 [B<-cipher cipherlist>]
 [B<-serverpref>]
 [B<-quiet>]
@@ -233,6 +235,18 @@ option enables various workarounds.
 
 this option enables a further workaround for some some early Netscape
 SSL code (?).
+
+=item B<-client_sigalgs sigalglist>
+
+Signature algorithms to support for client certificate authentication
+(colon-separated list)
+
+=item B<-named_curve curve>
+
+Specifies the elliptic curve to use. NOTE: this is single curve, not a list.
+For a list of all possible curves, use:
+
+    $ openssl ecparam -list_curves
 
 =item B<-cipher cipherlist>
 

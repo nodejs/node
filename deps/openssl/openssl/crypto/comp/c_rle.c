@@ -31,12 +31,11 @@ static int rle_compress_block(COMP_CTX *ctx, unsigned char *out,
                               unsigned int olen, unsigned char *in,
                               unsigned int ilen)
 {
-    /* int i; */
+    if (ilen == 0)
+        return 0;
 
-    if (ilen == 0 || olen < (ilen - 1)) {
-        /* ZZZZZZZZZZZZZZZZZZZZZZ */
-        return (-1);
-    }
+    if (olen <= ilen)
+        return -1;
 
     *(out++) = 0;
     memcpy(out, in, ilen);
@@ -49,14 +48,16 @@ static int rle_expand_block(COMP_CTX *ctx, unsigned char *out,
 {
     int i;
 
-    if (olen < (ilen - 1)) {
-        /* ZZZZZZZZZZZZZZZZZZZZZZ */
-        return (-1);
-    }
+    if (ilen == 0)
+        return 0;
+
+    if (olen < (ilen - 1))
+        return -1;
 
     i = *(in++);
-    if (i == 0) {
-        memcpy(out, in, ilen - 1);
-    }
+    if (i != 0)
+        return -1;
+
+    memcpy(out, in, ilen - 1);
     return (ilen - 1);
 }

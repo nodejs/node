@@ -8,10 +8,10 @@ RSA_private_encrypt, RSA_public_decrypt - low level signature operations
 
  #include <openssl/rsa.h>
 
- int RSA_private_encrypt(int flen, unsigned char *from,
+ int RSA_private_encrypt(int flen, const unsigned char *from,
     unsigned char *to, RSA *rsa, int padding);
 
- int RSA_public_decrypt(int flen, unsigned char *from, 
+ int RSA_public_decrypt(int flen, const unsigned char *from,
     unsigned char *to, RSA *rsa, int padding);
 
 =head1 DESCRIPTION
