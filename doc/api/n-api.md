@@ -1059,20 +1059,24 @@ napi_status napi_create_external(napi_env env,
 ```
 
 - `[in] env`: The environment that the API is invoked under.
-- `[in] data`: Raw pointer to the external data being wrapped.
-- `[in] finalize_cb`: Optional callback to call when the wrapped object
+- `[in] data`: Raw pointer to the external data.
+- `[in] finalize_cb`: Optional callback to call when the external value
 is being collected.
 - `[in] finalize_hint`: Optional hint to pass to the finalize callback
 during collection.
-- `[out] result`: A `napi_value` representing an external object.
+- `[out] result`: A `napi_value` representing an external value.
 
 Returns `napi_ok` if the API succeeded.
 
-This API allocates a JavaScript object with external data attached to it.
-This is used to wrap native objects and project them into JavaScript.
-The API allows the caller to pass in a finalize callback, in case the
-underlying native resource needs to be cleaned up when the wrapper
-JavaScript object gets collected.
+This API allocates a JavaScript value with external data attached to it. This
+is used to pass external data through JavaScript code, so it can be retrieved
+later by native code. The API allows the caller to pass in a finalize callback,
+in case the underlying native resource needs to be cleaned up when the external
+JavaScript value gets collected.
+
+*Note*: The created value is not an object, and therefore does not support
+additional properties. It is considered a distinct value type: calling
+`napi_typeof()` with an external value yields `napi_external`.
 
 #### napi_create_external_arraybuffer
 <!-- YAML
@@ -1364,7 +1368,8 @@ Returns `napi_ok` if the API succeeded.
 
 This API is used to retrieve the underlying data buffer of an ArrayBuffer and
 its length.
-WARNING: Use caution while using this API. The lifetime of the underlying data
+
+*WARNING*: Use caution while using this API. The lifetime of the underlying data
 buffer is managed by the ArrayBuffer even after it's returned. A
 possible safe way to use this API is in conjunction with [`napi_create_reference`][],
 which can be used to guarantee control over the lifetime of the
@@ -1391,7 +1396,8 @@ Returns `napi_ok` if the API succeeded.
 
 This API is used to retrieve the underlying data buffer of a `node::Buffer`
 and it's length.
-Warning: Use caution while using this API since the underlying data buffer's
+
+*Warning*: Use caution while using this API since the underlying data buffer's
 lifetime is not guaranteed if it's managed by the VM.
 
 #### *napi_get_prototype*
@@ -1438,7 +1444,8 @@ to start projecting the TypedArray.
 Returns `napi_ok` if the API succeeded.
 
 This API returns various properties of a typed array.
-Warning: Use caution while using this API since the underlying data buffer
+
+*Warning*: Use caution while using this API since the underlying data buffer
 is managed by the VM
 
 #### *napi_get_value_bool*
@@ -1457,8 +1464,8 @@ Boolean.
 Returns `napi_ok` if the API succeeded. If a non-boolean `napi_value` is
 passed in it returns `napi_boolean_expected`.
 
-This API returns C boolean primitive equivalent of the given JavaScript
-Boolea
+This API returns the C boolean primitive equivalent of the given JavaScript
+Boolean.
 
 #### *napi_get_value_double*
 <!-- YAML
@@ -1493,14 +1500,14 @@ napi_status napi_get_value_external(napi_env env,
 ```
 
 - `[in] env`: The environment that the API is invoked under.
-- `[in] value`: `napi_value` representing JavaScript External value.
-- `[out] result`: Pointer to the data wrapped by the JavaScript External value.
+- `[in] value`: `napi_value` representing JavaScript external value.
+- `[out] result`: Pointer to the data wrapped by the JavaScript external value.
 
 Returns `napi_ok` if the API succeeded. If a non-external `napi_value` is
 passed in it returns `napi_invalid_arg`.
 
-This API returns the pointer to the data wrapped by the JavaScript
-External value
+This API retrieves the external data pointer that was previously passed to
+`napi_create_external()`.
 
 #### *napi_get_value_int32*
 <!-- YAML
@@ -2770,6 +2777,7 @@ napi_status napi_wrap(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 Wraps a native instance in JavaScript object of the corresponding type.
+The native instance can be retrieved later using `napi_unwrap()`.
 
 When JavaScript code invokes a constructor for a class that was defined using
 `napi_define_class()`, the `napi_callback` for the constructor is invoked.
@@ -2787,11 +2795,15 @@ The optional returned reference is initially a weak reference, meaning it
 has a reference count of 0. Typically this reference count would be incremented
 temporarily during async operations that require the instance to remain valid.
 
-Caution: The optional returned reference (if obtained) should be deleted via
-[`napi_delete_reference`][] ONLY in response to the finalize callback invocation.
-(If it is deleted before then, then the finalize callback may never be
-invoked.) Therefore when obtaining a reference a finalize callback is also
+*Caution*: The optional returned reference (if obtained) should be deleted via
+[`napi_delete_reference`][] ONLY in response to the finalize callback
+invocation. (If it is deleted before then, then the finalize callback may never
+be invoked.) Therefore, when obtaining a reference a finalize callback is also
 required in order to enable correct proper of the reference.
+
+*Note*: This API may modify the prototype chain of the wrapper object.
+Afterward, additional manipulation of the wrapper's prototype chain may cause
+`napi_unwrap()` to fail.
 
 ### *napi_unwrap*
 <!-- YAML
@@ -2808,6 +2820,9 @@ napi_status napi_unwrap(napi_env env,
  - `[out] result`: Pointer to the wrapped C++ class instance.
 
 Returns `napi_ok` if the API succeeded.
+
+Retrieves a native instance that was previously wrapped in a JavaScript
+object using `napi_wrap()`.
 
 When JavaScript code invokes a method or property accessor on the class, the
 corresponding `napi_callback` is invoked. If the callback is for an instance
