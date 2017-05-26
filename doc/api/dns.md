@@ -425,11 +425,11 @@ treated separately.
   - `err` {Error}
   - `ret` {Object[][]}
 
-Uses the DNS protocol to resolve any queries (`ANY` records) for the `hostname`.
+Uses the DNS protocol to resolve all records (also known as `ANY` or `*` query).
 The `ret` argument passed to the `callback` function will be an array of objects
 with uncertain type of records. Each object has a property `type` that indicates
-the type of current record. And for each type of record, the object structure
-will be like:
+the type of current record. And depending on the `type`, additional properties
+will be present on the object:
 
 | Type | Properties |
 |------|------------|
@@ -444,23 +444,23 @@ will be like:
 | `"SRV"` | Refer to [`dns.resolveSrv()`][] |
 | `"TXT"` | This is an array-liked object with `length` and `indexes`, eg. `{'0':'sth','length':1}` |
 
-Following is a example of the `ret` object passed to the callback:
+Here is a example of the `ret` object passed to the callback:
 
 <!-- eslint-disable -->
 ```js
-[ { address: '127.0.0.1', ttl: 299, type: 'A' },
-  { value: 'example.com', type: 'CNAME' }, // in fact, CNAME can't stay with A
-  { exchange: 'alt4.aspmx.l.example.com', priority: 50, type: 'MX' },
-  { value: 'ns1.example.com', type: 'NS' },
-  { '0': 'v=spf1 include:_spf.example.com ~all', type: 'TXT', length: 1 },
-  { nsname: 'ns1.example.com',
+[ { type: 'A', address: '127.0.0.1', ttl: 299 },
+  { type: 'CNAME', value: 'example.com' },
+  { type: 'MX', exchange: 'alt4.aspmx.l.example.com', priority: 50 },
+  { type: 'NS', value: 'ns1.example.com', type: 'NS' },
+  { type: 'TXT', '0': 'v=spf1 include:_spf.example.com ~all', length: 1 },
+  { type: 'SOA',
+    nsname: 'ns1.example.com',
     hostmaster: 'admin.example.com',
     serial: 156696742,
     refresh: 900,
     retry: 900,
     expire: 1800,
-    minttl: 60,
-    type: 'SOA' } ]
+    minttl: 60 } ]
 ```
 
 ## dns.reverse(ip, callback)
