@@ -43,6 +43,7 @@ ifeq ($(DESTCPU),aarch64)
 endif
 
 ifdef DESTCPU
+  # TODO(gib): only add if not already there
   CONFIG_FLAGS += --dest-cpu=$(DESTCPU)
 endif
 
