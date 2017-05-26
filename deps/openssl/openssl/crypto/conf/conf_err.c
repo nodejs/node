@@ -115,6 +115,8 @@ static ERR_STRING_DATA CONF_str_reasons[] = {
     {ERR_REASON(CONF_R_UNABLE_TO_CREATE_NEW_SECTION),
      "unable to create new section"},
     {ERR_REASON(CONF_R_UNKNOWN_MODULE_NAME), "unknown module name"},
+    {ERR_REASON(CONF_R_VARIABLE_EXPANSION_TOO_LONG),
+     "variable expansion too long"},
     {ERR_REASON(CONF_R_VARIABLE_HAS_NO_VALUE), "variable has no value"},
     {0, NULL}
 };
