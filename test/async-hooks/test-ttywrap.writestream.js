@@ -23,18 +23,18 @@ const hooks = initHooks();
 hooks.enable();
 
 const as = hooks.activitiesOfTypes('TTYWRAP');
-assert.strictEqual(as.length, 1, 'one TTYWRAP when tty created');
+assert.strictEqual(as.length, 1);
 const tty = as[0];
-assert.strictEqual(tty.type, 'TTYWRAP', 'tty wrap');
-assert.strictEqual(typeof tty.uid, 'number', 'uid is a number');
-assert.strictEqual(typeof tty.triggerId, 'number', 'triggerId is a number');
+assert.strictEqual(tty.type, 'TTYWRAP');
+assert.strictEqual(typeof tty.uid, 'number');
+assert.strictEqual(typeof tty.triggerId, 'number');
 checkInvocations(tty, { init: 1 }, 'when tty created');
 
 ttyStream
   .on('finish', common.mustCall(onfinish))
   .end(common.mustCall(onend));
 
-checkInvocations(tty, { init: 1}, 'when tty.end() was invoked ');
+checkInvocations(tty, { init: 1 }, 'when tty.end() was invoked ');
 
 function onend() {
   tick(2, common.mustCall(() =>
