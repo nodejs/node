@@ -6,6 +6,7 @@
 
 #include "src/compilation-info.h"
 #include "src/compiler/pipeline.h"
+#include "src/debug/debug-interface.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
@@ -2966,16 +2967,22 @@ TEST(BytecodeGraphBuilderIllegalConstDeclaration) {
   }
 }
 
-static int debug_break_count = 0;
-static void DebugEventCounter(const v8::Debug::EventDetails& event_details) {
-  if (event_details.GetEvent() == v8::Break) debug_break_count++;
-}
+class CountBreakDebugDelegate : public v8::debug::DebugDelegate {
+ public:
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             v8::Local<v8::Object> exec_state,
+                             v8::Local<v8::Value> break_points_hit) override {
+    debug_break_count++;
+  }
+  int debug_break_count = 0;
+};
 
 TEST(BytecodeGraphBuilderDebuggerStatement) {
+  CountBreakDebugDelegate delegate;
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
 
-  v8::Debug::SetDebugEventListener(CcTest::isolate(), DebugEventCounter);
+  v8::debug::SetDebugDelegate(CcTest::isolate(), &delegate);
 
   ExpectedSnippet<0> snippet = {
       "function f() {"
@@ -2988,9 +2995,9 @@ TEST(BytecodeGraphBuilderDebuggerStatement) {
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
 
-  v8::Debug::SetDebugEventListener(CcTest::isolate(), nullptr);
+  v8::debug::SetDebugDelegate(CcTest::isolate(), nullptr);
   CHECK(return_value.is_identical_to(snippet.return_value()));
-  CHECK_EQ(2, debug_break_count);
+  CHECK_EQ(2, delegate.debug_break_count);
 }
 
 }  // namespace compiler
