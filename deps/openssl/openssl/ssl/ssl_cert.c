@@ -412,6 +412,7 @@ CERT *ssl_cert_dup(CERT *cert)
 #endif
 
     ssl_cert_clear_certs(ret);
+    OPENSSL_free(ret);
 
     return NULL;
 }

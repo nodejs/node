@@ -747,7 +747,6 @@ const char *UI_get0_action_string(UI_STRING *uis)
     if (!uis)
         return NULL;
     switch (uis->type) {
-    case UIT_PROMPT:
     case UIT_BOOLEAN:
         return uis->_.boolean_data.action_desc;
     default:
