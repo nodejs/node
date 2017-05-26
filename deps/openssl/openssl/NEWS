@@ -5,6 +5,10 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.2k and OpenSSL 1.0.2l [25 May 2017]
+
+      o config now recognises 64-bit mingw and chooses mingw64 instead of mingw
+
   Major changes between OpenSSL 1.0.2j and OpenSSL 1.0.2k [26 Jan 2017]
 
       o Truncated packet could crash via OOB read (CVE-2017-3731)

@@ -282,7 +282,12 @@ int dtls1_accept(SSL *s)
                         goto end;
                     }
 
-                ssl3_init_finished_mac(s);
+                if (!ssl3_init_finished_mac(s)) {
+                    ret = -1;
+                    s->state = SSL_ST_ERR;
+                    goto end;
+                }
+
                 s->state = SSL3_ST_SR_CLNT_HELLO_A;
                 s->ctx->stats.sess_accept++;
             } else if (!s->s3->send_connection_binding &&
@@ -322,7 +327,11 @@ int dtls1_accept(SSL *s)
             s->state = SSL3_ST_SW_FLUSH;
             s->init_num = 0;
 
-            ssl3_init_finished_mac(s);
+            if (!ssl3_init_finished_mac(s)) {
+                ret = -1;
+                s->state = SSL_ST_ERR;
+                goto end;
+            }
             break;
 
         case SSL3_ST_SW_HELLO_REQ_C:
@@ -345,15 +354,6 @@ int dtls1_accept(SSL *s)
                 s->state = SSL3_ST_SW_SRVR_HELLO_A;
 
             s->init_num = 0;
-
-            /*
-             * Reflect ClientHello sequence to remain stateless while
-             * listening
-             */
-            if (listen) {
-                memcpy(s->s3->write_sequence, s->s3->read_sequence,
-                       sizeof(s->s3->write_sequence));
-            }
 
             /* If we're just listening, stop here */
             if (listen && s->state == SSL3_ST_SW_SRVR_HELLO_A) {
@@ -381,7 +381,11 @@ int dtls1_accept(SSL *s)
 
             /* HelloVerifyRequest resets Finished MAC */
             if (s->version != DTLS1_BAD_VER)
-                ssl3_init_finished_mac(s);
+                if (!ssl3_init_finished_mac(s)) {
+                    ret = -1;
+                    s->state = SSL_ST_ERR;
+                    goto end;
+                }
             break;
 
 #ifndef OPENSSL_NO_SCTP

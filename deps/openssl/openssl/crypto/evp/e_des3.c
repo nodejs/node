@@ -212,6 +212,8 @@ static int des_ede3_cfb1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     size_t n;
     unsigned char c[1], d[1];
 
+    if (!EVP_CIPHER_CTX_test_flags(ctx, EVP_CIPH_FLAG_LENGTH_BITS))
+            inl *= 8;
     for (n = 0; n < inl; ++n) {
         c[0] = (in[n / 8] & (1 << (7 - n % 8))) ? 0x80 : 0;
         DES_ede3_cfb_encrypt(c, d, 1, 1,
