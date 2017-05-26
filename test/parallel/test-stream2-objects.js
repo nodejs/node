@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const Readable = require('_stream_readable');
 const Writable = require('_stream_writable');
 const assert = require('assert');
@@ -54,7 +54,7 @@ function toArray(callback) {
 
 function fromArray(list) {
   const r = new Readable({ objectMode: true });
-  r._read = noop;
+  r._read = common.mustNotCall();
   list.forEach(function(chunk) {
     r.push(chunk);
   });
@@ -62,8 +62,6 @@ function fromArray(list) {
 
   return r;
 }
-
-function noop() {}
 
 test('can read objects from stream', function(t) {
   const r = fromArray([{ one: '1'}, { two: '2' }]);
@@ -144,7 +142,7 @@ test('can read strings as objects', function(t) {
   const r = new Readable({
     objectMode: true
   });
-  r._read = noop;
+  r._read = common.mustNotCall();
   const list = ['one', 'two', 'three'];
   list.forEach(function(str) {
     r.push(str);
@@ -162,7 +160,7 @@ test('read(0) for object streams', function(t) {
   const r = new Readable({
     objectMode: true
   });
-  r._read = noop;
+  r._read = common.mustNotCall();
 
   r.push('foobar');
   r.push(null);
@@ -178,7 +176,7 @@ test('falsey values', function(t) {
   const r = new Readable({
     objectMode: true
   });
-  r._read = noop;
+  r._read = common.mustNotCall();
 
   r.push(false);
   r.push(0);
@@ -229,7 +227,7 @@ test('high watermark push', function(t) {
     highWaterMark: 6,
     objectMode: true
   });
-  r._read = function(n) {};
+  r._read = common.mustNotCall();
   for (let i = 0; i < 6; i++) {
     const bool = r.push(i);
     assert.strictEqual(bool, i !== 5);
