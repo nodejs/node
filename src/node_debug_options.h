@@ -21,6 +21,7 @@ class DebugOptions {
   }
   bool wait_for_connect() const { return break_first_line_; }
   std::string host_name() const { return host_name_; }
+  void set_host_name(std::string host_name) { host_name_ = host_name; }
   int port() const;
   void set_port(int port) { port_ = port; }
 
