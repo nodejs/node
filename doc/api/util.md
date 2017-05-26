@@ -443,7 +443,7 @@ will return its value, see [Custom promisified functions][].
 
 `promisify()` assumes that `original` is a function taking a callback as its
 final argument in all cases, and the returned function will result in undefined
-behaviour if it does not.
+behavior if it does not.
 
 ### Custom promisified functions
 
