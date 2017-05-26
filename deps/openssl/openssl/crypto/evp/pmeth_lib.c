@@ -188,6 +188,7 @@ static EVP_PKEY_CTX *int_ctx_new(EVP_PKEY *pkey, ENGINE *e, int id)
 
     if (pmeth->init) {
         if (pmeth->init(ret) <= 0) {
+            ret->pmeth = NULL;
             EVP_PKEY_CTX_free(ret);
             return NULL;
         }
@@ -315,6 +316,7 @@ EVP_PKEY_CTX *EVP_PKEY_CTX_dup(EVP_PKEY_CTX *pctx)
     if (pctx->pmeth->copy(rctx, pctx) > 0)
         return rctx;
 
+    rctx->pmeth = NULL;
     EVP_PKEY_CTX_free(rctx);
     return NULL;
 

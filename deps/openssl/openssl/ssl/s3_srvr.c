@@ -311,7 +311,12 @@ int ssl3_accept(SSL *s)
                     goto end;
                 }
 
-                ssl3_init_finished_mac(s);
+                if (!ssl3_init_finished_mac(s)) {
+                    ret = -1;
+                    s->state = SSL_ST_ERR;
+                    goto end;
+                }
+
                 s->state = SSL3_ST_SR_CLNT_HELLO_A;
                 s->ctx->stats.sess_accept++;
             } else if (!s->s3->send_connection_binding &&
@@ -348,7 +353,11 @@ int ssl3_accept(SSL *s)
             s->state = SSL3_ST_SW_FLUSH;
             s->init_num = 0;
 
-            ssl3_init_finished_mac(s);
+            if (!ssl3_init_finished_mac(s)) {
+                ret = -1;
+                s->state = SSL_ST_ERR;
+                goto end;
+            }
             break;
 
         case SSL3_ST_SW_HELLO_REQ_C:
@@ -1704,6 +1713,12 @@ int ssl3_send_server_key_exchange(SSL *s)
         if (type & SSL_kEECDH) {
             const EC_GROUP *group;
 
+            if (s->s3->tmp.ecdh != NULL) {
+                SSLerr(SSL_F_SSL3_SEND_SERVER_KEY_EXCHANGE,
+                       ERR_R_INTERNAL_ERROR);
+                goto err;
+            }
+
             ecdhp = cert->ecdh_tmp;
             if (s->cert->ecdh_tmp_auto) {
                 /* Get NID of appropriate shared curve */
@@ -1724,17 +1739,7 @@ int ssl3_send_server_key_exchange(SSL *s)
                 goto f_err;
             }
 
-            if (s->s3->tmp.ecdh != NULL) {
-                SSLerr(SSL_F_SSL3_SEND_SERVER_KEY_EXCHANGE,
-                       ERR_R_INTERNAL_ERROR);
-                goto err;
-            }
-
             /* Duplicate the ECDH structure. */
-            if (ecdhp == NULL) {
-                SSLerr(SSL_F_SSL3_SEND_SERVER_KEY_EXCHANGE, ERR_R_ECDH_LIB);
-                goto err;
-            }
             if (s->cert->ecdh_tmp_auto)
                 ecdh = ecdhp;
             else if ((ecdh = EC_KEY_dup(ecdhp)) == NULL) {
@@ -2084,7 +2089,7 @@ int ssl3_send_certificate_request(SSL *s)
 
         if (SSL_USE_SIGALGS(s)) {
             const unsigned char *psigs;
-            nl = tls12_get_psigalgs(s, &psigs);
+            nl = tls12_get_psigalgs(s, 1, &psigs);
             s2n(nl, p);
             memcpy(p, psigs, nl);
             p += nl;
@@ -3018,6 +3023,11 @@ int ssl3_get_cert_verify(SSL *s)
 
     peer = s->session->peer;
     pkey = X509_get_pubkey(peer);
+    if (pkey == NULL) {
+        al = SSL_AD_INTERNAL_ERROR;
+        goto f_err;
+    }
+
     type = X509_certificate_type(peer, pkey);
 
     if (!(type & EVP_PKT_SIGN)) {
@@ -3154,7 +3164,9 @@ int ssl3_get_cert_verify(SSL *s)
             goto f_err;
         }
         if (i != 64) {
+#ifdef SSL_DEBUG
             fprintf(stderr, "GOST signature length is %d", i);
+#endif
         }
         for (idx = 0; idx < 64; idx++) {
             signature[63 - idx] = p[idx];
@@ -3463,8 +3475,22 @@ int ssl3_send_newsession_ticket(SSL *s)
          * all the work otherwise use generated values from parent ctx.
          */
         if (tctx->tlsext_ticket_key_cb) {
-            if (tctx->tlsext_ticket_key_cb(s, key_name, iv, &ctx,
-                                           &hctx, 1) < 0)
+            /* if 0 is returned, write en empty ticket */
+            int ret = tctx->tlsext_ticket_key_cb(s, key_name, iv, &ctx,
+                                                 &hctx, 1);
+
+            if (ret == 0) {
+                l2n(0, p); /* timeout */
+                s2n(0, p); /* length */
+                ssl_set_handshake_header(s, SSL3_MT_NEWSESSION_TICKET,
+                                         p - ssl_handshake_start(s));
+                s->state = SSL3_ST_SW_SESSION_TICKET_B;
+                OPENSSL_free(senc);
+                EVP_CIPHER_CTX_cleanup(&ctx);
+                HMAC_CTX_cleanup(&hctx);
+                return ssl_do_write(s);
+            }
+            if (ret < 0)
                 goto err;
         } else {
             if (RAND_bytes(iv, 16) <= 0)
