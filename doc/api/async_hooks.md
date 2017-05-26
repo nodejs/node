@@ -395,51 +395,52 @@ Library developers that handle their own I/O will need to hook into the
 AsyncWrap API so that all the appropriate callbacks are called. To accommodate
 this a JavaScript API is provided.
 
-### `class AsyncEvent()`
+### `class AsyncResource()`
 
-The class `AsyncEvent` was designed to be extended by the embedder's async
+The class `AsyncResource` was designed to be extended by the embedder's async
 resources. Using this users can easily trigger the lifetime events of their
 own resources.
 
-The `init()` hook will trigger when an `AsyncEvent` is instantiated.
+The `init()` hook will trigger when an `AsyncResource` is instantiated.
 
 It is important that before/after calls are unwound
 in the same order they are called. Otherwise an unrecoverable exception
 will be made.
 
 ```js
-// AsyncEvent() is meant to be extended. Instantiating a new AsyncEvent() also
-// triggers init(). If triggerId is omitted then currentId() is used.
-const asyncEvent = new AsyncEvent(type[, triggerId]);
+// AsyncResource() is meant to be extended. Instantiating a
+// new AsyncResource() also triggers init(). If triggerId is omitted then
+// currentId() is used.
+const asyncResource = new AsyncResource(type[, triggerId]);
 
 // Call before() hooks.
-asyncEvent.emitBefore();
+asyncResource.emitBefore();
 
 // Call after() hooks.
-asyncEvent.emitAfter();
+asyncResource.emitAfter();
 
 // Call destroy() hooks.
-asyncEvent.emitDestroy();
+asyncResource.emitDestroy();
 
-// Return the unique id assigned to the AsyncEvent instance.
-asyncEvent.asyncId();
+// Return the unique id assigned to the AsyncResource instance.
+asyncResource.asyncId();
 
-// Return the trigger id for the AsyncEvent instance.
-asyncEvent.triggerId();
+// Return the trigger id for the AsyncResource instance.
+asyncResource.triggerId();
 ```
 
-#### `AsyncEvent(type[, triggerId])`
+#### `AsyncResource(type[, triggerId])`
 
 * arguments
   * `type` {string} the type of ascycn event
   * `triggerId` {number} the id of the execution context that created this async
     event
-* Returns {AsyncEvent} A reference to `asyncHook`.
+* Returns {AsyncResource} A reference to `asyncHook`.
 
 Example usage:
 
 ```js
-class DBQuery extends AsyncEvent {
+class DBQuery extends AsyncResource {
   constructor(db) {
     this.db = db;
   }
@@ -459,7 +460,7 @@ class DBQuery extends AsyncEvent {
 }
 ```
 
-#### `asyncEvent.emitBefore()`
+#### `asyncResource.emitBefore()`
 
 * Returns {undefined}
 
@@ -467,7 +468,7 @@ Call all `before()` hooks and let them know a new asynchronous execution
 context is being entered. If nested calls to `emitBefore()` are made the stack
 of `id`s will be tracked and properly unwound.
 
-#### `asyncEvent.emitAfter()`
+#### `asyncResource.emitAfter()`
 
 * Returns {undefined}
 
@@ -479,7 +480,7 @@ automatically be called for all `id`'s on the stack if the error is handled by
 a domain or `'uncaughtException'` handler. So there is no need to guard against
 this.
 
-#### `asyncEvent.emitDestroy()`
+#### `asyncResource.emitDestroy()`
 
 * Returns {undefined}
 
@@ -488,10 +489,10 @@ be thrown if it is called more than once. This **must** be manually called. If
 the resource is left to be collected by the GC then the `destroy()` hooks will
 never be called.
 
-#### `asyncEvent.asyncId()`
+#### `asyncResource.asyncId()`
 
 * Returns {number} the unique `id` assigned to the resource.
 
-#### `asyncEvent.triggerId()`
+#### `asyncResource.triggerId()`
 
 * Returns {number} the same `triggerId` that is passed to `init()` hooks.
