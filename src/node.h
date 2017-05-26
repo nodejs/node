@@ -528,27 +528,28 @@ NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
 /* Returns the id of the current execution context. If the return value is
  * zero then no execution has been set. This will happen if the user handles
  * I/O from native code. */
-async_uid AsyncHooksGetCurrentId(v8::Isolate* isolate);
+NODE_EXTERN async_uid AsyncHooksGetCurrentId(v8::Isolate* isolate);
 
 /* Return same value as async_hooks.triggerId(); */
-async_uid AsyncHooksGetTriggerId(v8::Isolate* isolate);
+NODE_EXTERN async_uid AsyncHooksGetTriggerId(v8::Isolate* isolate);
 
 /* If the native API doesn't inherit from the helper class then the callbacks
  * must be triggered manually. This triggers the init() callback. The return
  * value is the uid assigned to the resource. */
-async_uid EmitAsyncInit(v8::Isolate* isolate,
-                        v8::Local<v8::Object> resource,
-                        const char* name,
-                        async_uid trigger_id = -1);
+NODE_EXTERN async_uid EmitAsyncInit(v8::Isolate* isolate,
+                                    v8::Local<v8::Object> resource,
+                                    const char* name,
+                                    async_uid trigger_id = -1);
 
 /* Emit the destroy() callback. */
-void EmitAsyncDestroy(v8::Isolate* isolate, async_uid id);
+NODE_EXTERN void EmitAsyncDestroy(v8::Isolate* isolate, async_uid id);
 
 /* An API specific to emit before/after callbacks is unnecessary because
  * MakeCallback will automatically call them for you.
  *
  * These methods may create handles on their own, so run them inside a
  * HandleScope. */
+NODE_EXTERN
 v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Object> recv,
                                        v8::Local<v8::Function> callback,
@@ -556,6 +557,7 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Value>* argv,
                                        async_uid asyncId,
                                        async_uid triggerId = -1);
+NODE_EXTERN
 v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Object> recv,
                                        const char* method,
@@ -563,6 +565,7 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Value>* argv,
                                        async_uid asyncId,
                                        async_uid triggerId = -1);
+NODE_EXTERN
 v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Object> recv,
                                        v8::Local<v8::String> symbol,
