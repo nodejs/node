@@ -2967,7 +2967,7 @@ Node.js runtime.  N-API is planned to be additive such that
 newer releases of Node.js may support additional API functions.
 In order to allow an addon to use a newer function when running with
 versions of Node.js that support it, while providing
-fallback behaviour when runnign with Node.js versions that don't 
+fallback behavior when running with Node.js versions that don't 
 support it:
 
 * Call `napi_get_version()` to determine if the API is available.
