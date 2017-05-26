@@ -293,13 +293,14 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
                         Local<Value> parent, void* arg) {
   Local<Context> context = promise->CreationContext();
   Environment* env = Environment::GetCurrent(context);
-  if (type == PromiseHookType::kInit) {
-    PromiseWrap* wrap = new PromiseWrap(env, promise);
+  PromiseWrap* wrap = Unwrap<PromiseWrap>(promise);
+  if (type == PromiseHookType::kInit ||
+      wrap == nullptr) {
+    wrap = new PromiseWrap(env, promise);
     wrap->MakeWeak(wrap);
   } else if (type == PromiseHookType::kResolve) {
     // TODO(matthewloring): need to expose this through the async hooks api.
   }
-  PromiseWrap* wrap = Unwrap<PromiseWrap>(promise);
   CHECK_NE(wrap, nullptr);
   if (type == PromiseHookType::kBefore) {
     PreCallbackExecution(wrap, false);
