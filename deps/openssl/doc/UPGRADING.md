@@ -280,6 +280,13 @@ and the other is the older one. sections 6.1 and 6.2 describe the two
 types of files. Section 6.3 explains the steps to update the files.
 In the case of upgrading 1.0.2f there were no changes to the asm files.
 
+Files changed between two tags can be manually inspected using:
+```
+https://github.com/openssl/openssl/compare/OpenSSL_1_0_2e...OpenSSL_1_0_2f#files_bucket
+```
+If any source files in `asm` directory were changed then please follow the rest of the
+steps in this section otherwise these steps can be skipped.
+
 ### 6.1. asm files for the latest compiler
 This was made in `deps/openssl/asm/Makefile`
 - Updated asm files for each platforms which are required in
