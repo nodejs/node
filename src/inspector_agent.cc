@@ -562,6 +562,7 @@ bool Agent::Start(v8::Platform* platform, const char* path,
   // Ignore failure, SIGUSR1 won't work, but that should not block node start.
   StartDebugSignalHandler();
   if (options.inspector_enabled()) {
+    // This will return false if listen failed on the inspector port.
     return StartIoThread(options.wait_for_connect());
   }
   return true;
@@ -666,6 +667,50 @@ void Agent::PauseOnNextJavascriptStatement(const std::string& reason) {
     channel->schedulePauseOnNextStatement(reason);
 }
 
+void Open(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  inspector::Agent* agent = env->inspector_agent();
+  bool wait_for_connect = false;
+
+  if (args.Length() > 0 && args[0]->IsUint32()) {
+    uint32_t port = args[0]->Uint32Value();
+    agent->options().set_port(static_cast<int>(port));
+  }
+
+  if (args.Length() > 1 && args[1]->IsString()) {
+    node::Utf8Value host(env->isolate(), args[1].As<String>());
+    agent->options().set_host_name(*host);
+  }
+
+  if (args.Length() > 2 && args[2]->IsBoolean()) {
+    wait_for_connect =  args[2]->BooleanValue();
+  }
+
+  agent->StartIoThread(wait_for_connect);
+}
+
+void Url(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  inspector::Agent* agent = env->inspector_agent();
+  inspector::InspectorIo* io = agent->io();
+
+  if (!io) return;
+
+  std::vector<std::string> ids = io->GetTargetIds();
+
+  if (ids.empty()) return;
+
+  std::string url = "ws://";
+  url += io->host();
+  url += ":";
+  url += std::to_string(io->port());
+  url += "/";
+  url += ids[0];
+
+  args.GetReturnValue().Set(OneByteString(env->isolate(), url.c_str()));
+}
+
+
 // static
 void Agent::InitInspector(Local<Object> target, Local<Value> unused,
                           Local<Context> context, void* priv) {
@@ -675,11 +720,13 @@ void Agent::InitInspector(Local<Object> target, Local<Value> unused,
   if (agent->debug_options_.wait_for_connect())
     env->SetMethod(target, "callAndPauseOnStart", CallAndPauseOnStart);
   env->SetMethod(target, "connect", ConnectJSBindingsSession);
+  env->SetMethod(target, "open", Open);
+  env->SetMethod(target, "url", Url);
 }
 
 void Agent::RequestIoThreadStart() {
   // We need to attempt to interrupt V8 flow (in case Node is running
-  // continuous JS code) and to wake up libuv thread (in case Node is wating
+  // continuous JS code) and to wake up libuv thread (in case Node is waiting
   // for IO events)
   uv_async_send(&start_io_thread_async);
   v8::Isolate* isolate = parent_env_->isolate();

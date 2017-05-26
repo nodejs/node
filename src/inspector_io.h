@@ -72,6 +72,8 @@ class InspectorIo {
   }
 
   int port() const { return port_; }
+  std::string host() const { return options_.host_name(); }
+  std::vector<std::string> GetTargetIds() const;
 
  private:
   template <typename Action>
@@ -152,7 +154,6 @@ class InspectorIo {
 
   std::string script_name_;
   std::string script_path_;
-  const std::string id_;
   const bool wait_for_connect_;
   int port_;
 

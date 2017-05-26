@@ -354,6 +354,10 @@ void InspectorIo::PostIncomingMessage(InspectorAction action, int session_id,
   NotifyMessageReceived();
 }
 
+std::vector<std::string> InspectorIo::GetTargetIds() const {
+  return delegate_ ? delegate_->GetTargetIds() : std::vector<std::string>();
+}
+
 void InspectorIo::WaitForFrontendMessageWhilePaused() {
   dispatching_messages_ = false;
   Mutex::ScopedLock scoped_lock(state_lock_);

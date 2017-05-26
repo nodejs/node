@@ -95,6 +95,8 @@ class Agent {
   // Calls StartIoThread() from off the main thread.
   void RequestIoThreadStart();
 
+  DebugOptions& options() { return debug_options_; }
+
  private:
   node::Environment* parent_env_;
   std::unique_ptr<NodeInspectorClient> client_;
