@@ -821,9 +821,6 @@ napi_status napi_define_class(napi_env env,
   v8::Local<v8::FunctionTemplate> tpl = v8::FunctionTemplate::New(
       isolate, v8impl::FunctionCallbackWrapper::Invoke, cbdata);
 
-  // we need an internal field to stash the wrapped object
-  tpl->InstanceTemplate()->SetInternalFieldCount(1);
-
   v8::Local<v8::String> name_string;
   CHECK_NEW_FROM_UTF8(env, name_string, utf8name);
   tpl->SetClassName(name_string);
@@ -1952,14 +1949,24 @@ napi_status napi_wrap(napi_env env,
   CHECK_ARG(env, js_object);
 
   v8::Isolate* isolate = env->isolate;
-  v8::Local<v8::Object> obj =
-      v8impl::V8LocalValueFromJsValue(js_object).As<v8::Object>();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-  // Only objects that were created from a NAPI constructor's prototype
-  // via napi_define_class() can be (un)wrapped.
-  RETURN_STATUS_IF_FALSE(env, obj->InternalFieldCount() > 0, napi_invalid_arg);
+  v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(js_object);
+  RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
+  v8::Local<v8::Object> obj = value.As<v8::Object>();
 
-  obj->SetInternalField(0, v8::External::New(isolate, native_object));
+  // Create a wrapper object with an internal field to hold the wrapped pointer.
+  v8::Local<v8::ObjectTemplate> wrapperTemplate =
+    v8::ObjectTemplate::New(isolate);
+  wrapperTemplate->SetInternalFieldCount(1);
+  v8::Local<v8::Object> wrapper =
+    wrapperTemplate->NewInstance(context).ToLocalChecked();
+  wrapper->SetInternalField(0, v8::External::New(isolate, native_object));
+
+  // Insert the wrapper into the object's prototype chain.
+  v8::Local<v8::Value> proto = obj->GetPrototype();
+  wrapper->SetPrototype(proto);
+  obj->SetPrototype(wrapper);
 
   if (result != nullptr) {
     // The returned reference should be deleted via napi_delete_reference()
@@ -1990,11 +1997,18 @@ napi_status napi_unwrap(napi_env env, napi_value js_object, void** result) {
   RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
   v8::Local<v8::Object> obj = value.As<v8::Object>();
 
-  // Only objects that were created from a NAPI constructor's prototype
-  // via napi_define_class() can be (un)wrapped.
-  RETURN_STATUS_IF_FALSE(env, obj->InternalFieldCount() > 0, napi_invalid_arg);
+  // Search the object's prototype chain for the wrapper with an internal field.
+  // Usually the wrapper would be the first in the chain, but it is OK for
+  // other objects to be inserted in the prototype chain.
+  v8::Local<v8::Object> wrapper = obj;
+  do {
+    v8::Local<v8::Value> proto = wrapper->GetPrototype();
+    RETURN_STATUS_IF_FALSE(
+      env, !proto.IsEmpty() && proto->IsObject(), napi_invalid_arg);
+    wrapper = proto.As<v8::Object>();
+  } while (wrapper->InternalFieldCount() != 1);
 
-  v8::Local<v8::Value> unwrappedValue = obj->GetInternalField(0);
+  v8::Local<v8::Value> unwrappedValue = wrapper->GetInternalField(0);
   RETURN_STATUS_IF_FALSE(env, unwrappedValue->IsExternal(), napi_invalid_arg);
 
   *result = unwrappedValue.As<v8::External>()->Value();

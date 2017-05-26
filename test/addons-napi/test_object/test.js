@@ -31,35 +31,73 @@ assert(test_object.Has(newObject, 'test_number'));
 assert.strictEqual(newObject.test_number, 987654321);
 assert.strictEqual(newObject.test_string, 'test string');
 
-// test_object.Inflate increases all properties by 1
-const cube = {
-  x: 10,
-  y: 10,
-  z: 10
-};
+{
+  // test_object.Inflate increases all properties by 1
+  const cube = {
+    x: 10,
+    y: 10,
+    z: 10
+  };
 
-assert.deepStrictEqual(test_object.Inflate(cube), {x: 11, y: 11, z: 11});
-assert.deepStrictEqual(test_object.Inflate(cube), {x: 12, y: 12, z: 12});
-assert.deepStrictEqual(test_object.Inflate(cube), {x: 13, y: 13, z: 13});
-cube.t = 13;
-assert.deepStrictEqual(test_object.Inflate(cube), {x: 14, y: 14, z: 14, t: 14});
+  assert.deepStrictEqual(test_object.Inflate(cube), {x: 11, y: 11, z: 11});
+  assert.deepStrictEqual(test_object.Inflate(cube), {x: 12, y: 12, z: 12});
+  assert.deepStrictEqual(test_object.Inflate(cube), {x: 13, y: 13, z: 13});
+  cube.t = 13;
+  assert.deepStrictEqual(
+    test_object.Inflate(cube), {x: 14, y: 14, z: 14, t: 14});
 
-const sym1 = Symbol('1');
-const sym2 = Symbol('2');
-const sym3 = Symbol('3');
-const sym4 = Symbol('4');
-const object2 = {
-  [sym1]: '@@iterator',
-  [sym2]: sym3
-};
+  const sym1 = Symbol('1');
+  const sym2 = Symbol('2');
+  const sym3 = Symbol('3');
+  const sym4 = Symbol('4');
+  const object2 = {
+    [sym1]: '@@iterator',
+    [sym2]: sym3
+  };
 
-assert(test_object.Has(object2, sym1));
-assert(test_object.Has(object2, sym2));
-assert.strictEqual(test_object.Get(object2, sym1), '@@iterator');
-assert.strictEqual(test_object.Get(object2, sym2), sym3);
-assert(test_object.Set(object2, 'string', 'value'));
-assert(test_object.Set(object2, sym4, 123));
-assert(test_object.Has(object2, 'string'));
-assert(test_object.Has(object2, sym4));
-assert.strictEqual(test_object.Get(object2, 'string'), 'value');
-assert.strictEqual(test_object.Get(object2, sym4), 123);
+  assert(test_object.Has(object2, sym1));
+  assert(test_object.Has(object2, sym2));
+  assert.strictEqual(test_object.Get(object2, sym1), '@@iterator');
+  assert.strictEqual(test_object.Get(object2, sym2), sym3);
+  assert(test_object.Set(object2, 'string', 'value'));
+  assert(test_object.Set(object2, sym4, 123));
+  assert(test_object.Has(object2, 'string'));
+  assert(test_object.Has(object2, sym4));
+  assert.strictEqual(test_object.Get(object2, 'string'), 'value');
+  assert.strictEqual(test_object.Get(object2, sym4), 123);
+}
+
+{
+  // Wrap a pointer in a JS object, then verify the pointer can be unwrapped.
+  const wrapper = {};
+  test_object.Wrap(wrapper);
+
+  assert(test_object.Unwrap(wrapper));
+}
+
+{
+  // Verify that wrapping doesn't break an object's prototype chain.
+  const wrapper = {};
+  const protoA = { protoA: true };
+  Object.setPrototypeOf(wrapper, protoA);
+  test_object.Wrap(wrapper);
+
+  assert(test_object.Unwrap(wrapper));
+  assert(wrapper.protoA);
+}
+
+{
+  // Verify the pointer can be unwrapped after inserting in the prototype chain.
+  const wrapper = {};
+  const protoA = { protoA: true };
+  Object.setPrototypeOf(wrapper, protoA);
+  test_object.Wrap(wrapper);
+
+  const protoB = { protoB: true };
+  Object.setPrototypeOf(protoB, Object.getPrototypeOf(wrapper));
+  Object.setPrototypeOf(wrapper, protoB);
+
+  assert(test_object.Unwrap(wrapper));
+  assert(wrapper.protoA, true);
+  assert(wrapper.protoB, true);
+}
