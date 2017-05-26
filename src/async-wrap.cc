@@ -283,8 +283,8 @@ bool AsyncWrap::EmitAfter(Environment* env, double async_id) {
 
 class PromiseWrap : public AsyncWrap {
  public:
-  PromiseWrap(Environment* env, Local<Object> object)
-    : AsyncWrap(env, object, PROVIDER_PROMISE) {}
+  PromiseWrap(Environment* env, Local<Object> object, bool silent)
+    : AsyncWrap(env, object, PROVIDER_PROMISE, silent) {}
   size_t self_size() const override { return sizeof(*this); }
 };
 
@@ -293,13 +293,14 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
                         Local<Value> parent, void* arg) {
   Local<Context> context = promise->CreationContext();
   Environment* env = Environment::GetCurrent(context);
-  if (type == PromiseHookType::kInit) {
-    PromiseWrap* wrap = new PromiseWrap(env, promise);
+  PromiseWrap* wrap = Unwrap<PromiseWrap>(promise);
+  if (type == PromiseHookType::kInit || wrap == nullptr) {
+    bool silent = type != PromiseHookType::kInit;
+    wrap = new PromiseWrap(env, promise, silent);
     wrap->MakeWeak(wrap);
   } else if (type == PromiseHookType::kResolve) {
     // TODO(matthewloring): need to expose this through the async hooks api.
   }
-  PromiseWrap* wrap = Unwrap<PromiseWrap>(promise);
   CHECK_NE(wrap, nullptr);
   if (type == PromiseHookType::kBefore) {
     PreCallbackExecution(wrap, false);
@@ -491,7 +492,8 @@ void LoadAsyncWrapperInfo(Environment* env) {
 
 AsyncWrap::AsyncWrap(Environment* env,
                      Local<Object> object,
-                     ProviderType provider)
+                     ProviderType provider,
+                     bool silent)
     : BaseObject(env, object),
       provider_type_(provider) {
   CHECK_NE(provider, PROVIDER_NONE);
@@ -501,7 +503,7 @@ AsyncWrap::AsyncWrap(Environment* env,
   persistent().SetWrapperClassId(NODE_ASYNC_ID_OFFSET + provider);
 
   // Use AsyncReset() call to execute the init() callbacks.
-  AsyncReset();
+  AsyncReset(silent);
 }
 
 
@@ -513,9 +515,11 @@ AsyncWrap::~AsyncWrap() {
 // Generalized call for both the constructor and for handles that are pooled
 // and reused over their lifetime. This way a new uid can be assigned when
 // the resource is pulled out of the pool and put back into use.
-void AsyncWrap::AsyncReset() {
+void AsyncWrap::AsyncReset(bool silent) {
   async_id_ = env()->new_async_id();
   trigger_id_ = env()->get_init_trigger_id();
+
+  if (silent) return;
 
   EmitAsyncInit(env(), object(),
                 env()->async_hooks()->provider_string(provider_type()),

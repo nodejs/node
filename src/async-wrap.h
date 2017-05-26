@@ -86,7 +86,8 @@ class AsyncWrap : public BaseObject {
 
   AsyncWrap(Environment* env,
             v8::Local<v8::Object> object,
-            ProviderType provider);
+            ProviderType provider,
+            bool silent = false);
 
   virtual ~AsyncWrap();
 
@@ -116,7 +117,7 @@ class AsyncWrap : public BaseObject {
 
   inline double get_trigger_id() const;
 
-  void AsyncReset();
+  void AsyncReset(bool silent = false);
 
   // Only call these within a valid HandleScope.
   // TODO(trevnorris): These should return a MaybeLocal.
