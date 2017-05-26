@@ -19,13 +19,11 @@ const alcaEvent = new AsyncResource('alcazares', alcaTriggerId);
 const alcazaresActivities = hooks.activitiesOfTypes([ 'alcazares' ]);
 
 // alcazares event was constructed and thus only has an `init` call
-assert.strictEqual(alcazaresActivities.length, 1,
-                   'one alcazares activity after one was constructed');
+assert.strictEqual(alcazaresActivities.length, 1);
 const alcazares = alcazaresActivities[0];
-assert.strictEqual(alcazares.type, 'alcazares', 'alcazares');
-assert.strictEqual(typeof alcazares.uid, 'number', 'uid is a number');
-assert.strictEqual(alcazares.triggerId, alcaTriggerId,
-                   'triggerId is the one supplied');
+assert.strictEqual(alcazares.type, 'alcazares');
+assert.strictEqual(typeof alcazares.uid, 'number');
+assert.strictEqual(alcazares.triggerId, alcaTriggerId);
 checkInvocations(alcazares, { init: 1 }, 'alcazares constructed');
 
 alcaEvent.emitBefore();
@@ -52,10 +50,9 @@ function tick1() {
   const pobEvent = new AsyncResource('poblado', pobTriggerId);
   const pobladoActivities = hooks.activitiesOfTypes([ 'poblado' ]);
   const poblado = pobladoActivities[0];
-  assert.strictEqual(poblado.type, 'poblado', 'poblado');
-  assert.strictEqual(typeof poblado.uid, 'number', 'uid is a number');
-  assert.strictEqual(poblado.triggerId, pobTriggerId,
-                     'triggerId is the one supplied');
+  assert.strictEqual(poblado.type, 'poblado');
+  assert.strictEqual(typeof poblado.uid, 'number');
+  assert.strictEqual(poblado.triggerId, pobTriggerId);
   checkInvocations(poblado, { init: 1 }, 'poblado constructed');
   pobEvent.emitBefore();
   checkInvocations(poblado, { init: 1, before: 1 },

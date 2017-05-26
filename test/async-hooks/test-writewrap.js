@@ -27,12 +27,10 @@ const server = tls
   .on('secureConnection', common.mustCall(onsecureConnection))
   .listen(common.PORT);
 
-assert.strictEqual(hooks.activitiesOfTypes('WRITEWRAP').length, 0,
-                   'no WRITEWRAP when server created');
+assert.strictEqual(hooks.activitiesOfTypes('WRITEWRAP').length, 0);
 
 function onlistening() {
-  assert.strictEqual(hooks.activitiesOfTypes('WRITEWRAP').length, 0,
-                     'no WRITEWRAP when server is listening');
+  assert.strictEqual(hooks.activitiesOfTypes('WRITEWRAP').length, 0);
   //
   // Creating client and connecting it to server
   //
@@ -40,20 +38,19 @@ function onlistening() {
     .connect(common.PORT, { rejectUnauthorized: false })
     .on('secureConnect', common.mustCall(onsecureConnect));
 
-  assert.strictEqual(hooks.activitiesOfTypes('WRITEWRAP').length, 0,
-                     'no WRITEWRAP when client created');
+  assert.strictEqual(hooks.activitiesOfTypes('WRITEWRAP').length, 0);
 }
 
 function checkDestroyedWriteWraps(n, stage) {
   const as = hooks.activitiesOfTypes('WRITEWRAP');
-  assert.strictEqual(as.length, n, n + ' WRITEWRAPs when ' + stage);
+  assert.strictEqual(as.length, n, `${n} WRITEWRAPs when ${stage}`);
 
   function checkValidWriteWrap(w) {
-    assert.strictEqual(w.type, 'WRITEWRAP', 'write wrap');
-    assert.strictEqual(typeof w.uid, 'number', 'uid is a number');
-    assert.strictEqual(typeof w.triggerId, 'number', 'triggerId is a number');
+    assert.strictEqual(w.type, 'WRITEWRAP');
+    assert.strictEqual(typeof w.uid, 'number');
+    assert.strictEqual(typeof w.triggerId, 'number');
 
-    checkInvocations(w, { init: 1 }, 'when ' + stage);
+    checkInvocations(w, { init: 1 }, `when ${stage}`);
   }
   as.forEach(checkValidWriteWrap);
 }
