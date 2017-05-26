@@ -1333,7 +1333,7 @@ bsaes_cbc_encrypt:
 	vmov	@XMM[4],@XMM[15]		@ just in case ensure that IV
 	vmov	@XMM[5],@XMM[0]			@ and input are preserved
 	bl	AES_decrypt
-	vld1.8	{@XMM[0]}, [$fp,:64]		@ load result
+	vld1.8	{@XMM[0]}, [$fp]		@ load result
 	veor	@XMM[0], @XMM[0], @XMM[4]	@ ^= IV
 	vmov	@XMM[15], @XMM[5]		@ @XMM[5] holds input
 	vst1.8	{@XMM[0]}, [$rounds]		@ write output

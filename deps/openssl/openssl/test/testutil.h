@@ -103,7 +103,7 @@
  * TEST_CASE_NAME is defined as the name of the test case function where
  * possible; otherwise we get by with the file name and line number.
  */
-# if __STDC_VERSION__ < 199901L
+# if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901L
 #  if defined(_MSC_VER)
 #   define TEST_CASE_NAME __FUNCTION__
 #  else

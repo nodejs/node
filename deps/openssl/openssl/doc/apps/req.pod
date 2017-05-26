@@ -237,6 +237,9 @@ a self signed root CA. The extensions added to the certificate
 using the B<set_serial> option, a large random number will be used for
 the serial number.
 
+If existing request is specified with the B<-in> option, it is converted
+to the self signed certificate otherwise new request is created.
+
 =item B<-days n>
 
 when the B<-x509> option is being used this specifies the number of

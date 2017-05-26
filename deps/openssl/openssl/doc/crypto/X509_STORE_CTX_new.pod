@@ -41,7 +41,7 @@ is no longer valid.
 X509_STORE_CTX_init() sets up B<ctx> for a subsequent verification operation.
 It must be called before each call to X509_verify_cert(), i.e. a B<ctx> is only
 good for one call to X509_verify_cert(); if you want to verify a second
-certificate with the same B<ctx> then you must call X509_XTORE_CTX_cleanup()
+certificate with the same B<ctx> then you must call X509_STORE_CTX_cleanup()
 and then X509_STORE_CTX_init() again before the second call to
 X509_verify_cert(). The trusted certificate store is set to B<store>, the end
 entity certificate to be verified is set to B<x509> and a set of additional
