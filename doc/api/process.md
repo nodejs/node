@@ -1635,7 +1635,7 @@ important ways:
    - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on Unix
    - Pipes (and sockets): *synchronous* on Windows, *asynchronous* on Unix
 
-These behaviours are partly for historical reasons, as changing them would
+These behaviors are partly for historical reasons, as changing them would
 create backwards incompatibility, but they are also expected by some users.
 
 Synchronous writes avoid problems such as output written with `console.log()` or
