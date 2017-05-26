@@ -37,3 +37,23 @@ assert.strictEqual(externalResult.length, 3);
 assert.strictEqual(externalResult[0], 0);
 assert.strictEqual(externalResult[1], 1);
 assert.strictEqual(externalResult[2], 2);
+
+// validate creation of all kinds of TypedArrays
+const buffer = new ArrayBuffer(128);
+const arrayTypes = [ Int8Array, Uint8Array, Uint8ClampedArray, Int16Array,
+                     Uint16Array, Int32Array, Uint32Array, Float32Array,
+                     Float64Array ];
+
+arrayTypes.forEach((currentType, key) => {
+  const template = Reflect.construct(currentType, buffer);
+  const theArray = test_typedarray.CreateTypedArray(template, buffer);
+
+  assert.ok(theArray instanceof currentType,
+            'Type of new array should match that of the template');
+  assert.notStrictEqual(theArray,
+                        template,
+                        'the new array should not be a copy of the template');
+  assert.strictEqual(theArray.buffer,
+                     buffer,
+                     'Buffer for array should match the one passed in');
+});

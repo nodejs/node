@@ -95,10 +95,58 @@ napi_value External(napi_env env, napi_callback_info info) {
   return output_array;
 }
 
+napi_value CreateTypedArray(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
+  napi_value args[2];
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NAPI_ASSERT(env, argc == 2, "Wrong number of arguments");
+
+  napi_value input_array = args[0];
+  napi_valuetype valuetype0;
+  NAPI_CALL(env, napi_typeof(env, input_array, &valuetype0));
+
+  NAPI_ASSERT(env, valuetype0 == napi_object,
+    "Wrong type of argments. Expects a typed array as first argument.");
+
+  bool is_typedarray;
+  NAPI_CALL(env, napi_is_typedarray(env, input_array, &is_typedarray));
+
+  NAPI_ASSERT(env, is_typedarray,
+    "Wrong type of argments. Expects a typed array as first argument.");
+
+  napi_valuetype valuetype1;
+  napi_value input_buffer = args[1];
+  NAPI_CALL(env, napi_typeof(env, input_buffer, &valuetype1));
+
+  NAPI_ASSERT(env, valuetype1 == napi_object,
+    "Wrong type of argments. Expects an array buffer as second argument.");
+
+  bool is_arraybuffer;
+  NAPI_CALL(env, napi_is_arraybuffer(env, input_buffer, &is_arraybuffer));
+
+  NAPI_ASSERT(env, is_arraybuffer,
+    "Wrong type of argments. Expects an array buffer as second argument.");
+
+  napi_typedarray_type type;
+  napi_value in_array_buffer;
+  size_t byte_offset;
+  size_t length;
+  NAPI_CALL(env, napi_get_typedarray_info(
+    env, input_array, &type, &length, NULL, &in_array_buffer, &byte_offset));
+
+  napi_value output_array;
+  NAPI_CALL(env, napi_create_typedarray(
+      env, type, length, input_buffer, byte_offset, &output_array));
+
+  return output_array;
+}
+
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("Multiply", Multiply),
     DECLARE_NAPI_PROPERTY("External", External),
+    DECLARE_NAPI_PROPERTY("CreateTypedArray", CreateTypedArray),
   };
 
   NAPI_CALL_RETURN_VOID(env, napi_define_properties(
