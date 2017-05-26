@@ -59,7 +59,7 @@ OPENSSL_ia32_cpuid:
 	mov	%rbx,%r8		# save %rbx
 
 	xor	%eax,%eax
-	mov	%eax,8(%rdi)		# clear 3rd word
+	mov	%eax,8(%rdi)		# clear extended feature flags
 	cpuid
 	mov	%eax,%r11d		# max value for standard query level
 
@@ -127,14 +127,6 @@ OPENSSL_ia32_cpuid:
 	shr	\$14,%r10d
 	and	\$0xfff,%r10d		# number of cores -1 per L1D
 
-	cmp	\$7,%r11d
-	jb	.Lnocacheinfo
-
-	mov	\$7,%eax
-	xor	%ecx,%ecx
-	cpuid
-	mov	%ebx,8(%rdi)
-
 .Lnocacheinfo:
 	mov	\$1,%eax
 	cpuid
@@ -164,6 +156,15 @@ OPENSSL_ia32_cpuid:
 	or	%ecx,%r9d		# merge AMD XOP flag
 
 	mov	%edx,%r10d		# %r9d:%r10d is copy of %ecx:%edx
+
+	cmp	\$7,%r11d
+	jb	.Lno_extended_info
+	mov	\$7,%eax
+	xor	%ecx,%ecx
+	cpuid
+	mov	%ebx,8(%rdi)		# save extended feature flags
+.Lno_extended_info:
+
 	bt	\$27,%r9d		# check OSXSAVE bit
 	jnc	.Lclear_avx
 	xor	%ecx,%ecx		# XCR0

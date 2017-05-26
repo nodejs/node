@@ -2,6 +2,12 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.2k and 1.0.2l [25 May 2017]
+
+  *) Have 'config' recognise 64-bit mingw and choose 'mingw64' as the target
+     platform rather than 'mingw'.
+     [Richard Levitte]
+
  Changes between 1.0.2j and 1.0.2k [26 Jan 2017]
 
   *) Truncated packet could crash via OOB read

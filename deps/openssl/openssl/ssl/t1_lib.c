@@ -1035,7 +1035,7 @@ static unsigned char suiteb_sigalgs[] = {
         tlsext_sigalg_ecdsa(TLSEXT_hash_sha384)
 };
 # endif
-size_t tls12_get_psigalgs(SSL *s, const unsigned char **psigs)
+size_t tls12_get_psigalgs(SSL *s, int sent, const unsigned char **psigs)
 {
     /*
      * If Suite B mode use Suite B sigalgs only, ignore any other
@@ -1057,7 +1057,7 @@ size_t tls12_get_psigalgs(SSL *s, const unsigned char **psigs)
     }
 # endif
     /* If server use client authentication sigalgs if not NULL */
-    if (s->server && s->cert->client_sigalgs) {
+    if (s->server == sent && s->cert->client_sigalgs) {
         *psigs = s->cert->client_sigalgs;
         return s->cert->client_sigalgslen;
     } else if (s->cert->conf_sigalgs) {
@@ -1121,7 +1121,7 @@ int tls12_check_peer_sigalg(const EVP_MD **pmd, SSL *s,
 # endif
 
     /* Check signature matches a type we sent */
-    sent_sigslen = tls12_get_psigalgs(s, &sent_sigs);
+    sent_sigslen = tls12_get_psigalgs(s, 1, &sent_sigs);
     for (i = 0; i < sent_sigslen; i += 2, sent_sigs += 2) {
         if (sig[0] == sent_sigs[0] && sig[1] == sent_sigs[1])
             break;
@@ -1169,7 +1169,7 @@ void ssl_set_client_disabled(SSL *s)
      * Now go through all signature algorithms seeing if we support any for
      * RSA, DSA, ECDSA. Do this for all versions not just TLS 1.2.
      */
-    sigalgslen = tls12_get_psigalgs(s, &sigalgs);
+    sigalgslen = tls12_get_psigalgs(s, 1, &sigalgs);
     for (i = 0; i < sigalgslen; i += 2, sigalgs += 2) {
         switch (sigalgs[1]) {
 # ifndef OPENSSL_NO_RSA
@@ -1440,7 +1440,7 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *buf,
     if (SSL_CLIENT_USE_SIGALGS(s)) {
         size_t salglen;
         const unsigned char *salg;
-        salglen = tls12_get_psigalgs(s, &salg);
+        salglen = tls12_get_psigalgs(s, 1, &salg);
 
         /*-
          * check for enough space.
@@ -1769,6 +1769,9 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *buf,
             return NULL;
         s2n(TLSEXT_TYPE_session_ticket, ret);
         s2n(0, ret);
+    } else {
+        /* if we don't add the above TLSEXT, we can't add a session ticket later */
+        s->tlsext_ticket_expected = 0;
     }
 
     if (s->tlsext_status_expected) {
@@ -3574,8 +3577,14 @@ static int tls_decrypt_ticket(SSL *s, const unsigned char *etick,
     p = sdec;
 
     sess = d2i_SSL_SESSION(NULL, &p, slen);
+    slen -= p - sdec;
     OPENSSL_free(sdec);
     if (sess) {
+        /* Some additional consistency checks */
+        if (slen != 0 || sess->session_id_length != 0) {
+            SSL_SESSION_free(sess);
+            return 2;
+        }
         /*
          * The session ID, if non-empty, is used by some clients to detect
          * that the ticket has been accepted. So we copy it to the session
@@ -3803,7 +3812,7 @@ static int tls1_set_shared_sigalgs(SSL *s)
         conf = c->conf_sigalgs;
         conflen = c->conf_sigalgslen;
     } else
-        conflen = tls12_get_psigalgs(s, &conf);
+        conflen = tls12_get_psigalgs(s, 0, &conf);
     if (s->options & SSL_OP_CIPHER_SERVER_PREFERENCE || is_suiteb) {
         pref = conf;
         preflen = conflen;

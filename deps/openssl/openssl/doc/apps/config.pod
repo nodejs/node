@@ -47,7 +47,8 @@ or B<${section::name}>. By using the form B<$ENV::name> environment
 variables can be substituted. It is also possible to assign values to
 environment variables by using the name B<ENV::name>, this will work
 if the program looks up environment variables using the B<CONF> library
-instead of calling B<getenv()> directly.
+instead of calling B<getenv()> directly. The value string must not exceed 64k in
+length after variable expansion. Otherwise an error will occur.
 
 It is possible to escape certain characters by using any kind of quote
 or the B<\> character. By making the last character of a line a B<\>

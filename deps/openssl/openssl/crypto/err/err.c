@@ -172,6 +172,7 @@ static ERR_STRING_DATA ERR_str_functs[] = {
 # endif
     {ERR_PACK(0, SYS_F_OPENDIR, 0), "opendir"},
     {ERR_PACK(0, SYS_F_FREAD, 0), "fread"},
+    {ERR_PACK(0, SYS_F_FFLUSH, 0), "fflush"},
     {0, NULL},
 };
 
