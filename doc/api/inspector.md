@@ -10,6 +10,30 @@ It can be accessed using:
 const inspector = require('inspector');
 ```
 
+## inspector.open([port[, host[, wait]]])
+
+* port {number} Port to listen on for inspector connections. Optional,
+  defaults to what was specified on the CLI.
+* host {string} Host to listen on for inspector connections. Optional,
+  defaults to what was specified on the CLI.
+* wait {boolean} Block until a client has connected. Optional, defaults
+  to false.
+
+Activate inspector on host and port. Equivalent to `node
+--inspect=[[host:]port]`, but can be done programatically after node has
+started.
+
+If wait is `true`, will block until a client has connected to the inspect port
+and flow control has been passed to the debugger client.
+
+### inspector.close()
+
+Deactivate the inspector. Blocks until there are no active connections.
+
+### inspector.url()
+
+Return the URL of the active inspector, or `undefined` if there is none.
+
 ## Class: inspector.Session
 
 The `inspector.Session` is used for dispatching messages to the V8 inspector
@@ -109,6 +133,7 @@ Immediately close the session. All pending message callbacks will be called
 with an error. [`session.connect()`] will need to be called to be able to send
 messages again. Reconnected session will lose all inspector state, such as
 enabled agents or configured breakpoints.
+
 
 [`session.connect()`]: #sessionconnect
 [`Debugger.paused`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger/#event-paused
