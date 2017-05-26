@@ -185,14 +185,16 @@ X509_STORE *X509_STORE_new(void)
 
     if ((ret = (X509_STORE *)OPENSSL_malloc(sizeof(X509_STORE))) == NULL)
         return NULL;
-    ret->objs = sk_X509_OBJECT_new(x509_object_cmp);
+    if ((ret->objs = sk_X509_OBJECT_new(x509_object_cmp)) == NULL)
+        goto err0;
     ret->cache = 1;
-    ret->get_cert_methods = sk_X509_LOOKUP_new_null();
+    if ((ret->get_cert_methods = sk_X509_LOOKUP_new_null()) == NULL)
+        goto err1;
     ret->verify = 0;
     ret->verify_cb = 0;
 
     if ((ret->param = X509_VERIFY_PARAM_new()) == NULL)
-        return NULL;
+        goto err2;
 
     ret->get_issuer = 0;
     ret->check_issued = 0;
@@ -204,14 +206,21 @@ X509_STORE *X509_STORE_new(void)
     ret->lookup_crls = 0;
     ret->cleanup = 0;
 
-    if (!CRYPTO_new_ex_data(CRYPTO_EX_INDEX_X509_STORE, ret, &ret->ex_data)) {
-        sk_X509_OBJECT_free(ret->objs);
-        OPENSSL_free(ret);
-        return NULL;
-    }
+    if (!CRYPTO_new_ex_data(CRYPTO_EX_INDEX_X509_STORE, ret, &ret->ex_data))
+       goto err3;
 
     ret->references = 1;
     return ret;
+
+ err3:
+    X509_VERIFY_PARAM_free(ret->param);
+ err2:
+    sk_X509_LOOKUP_free(ret->get_cert_methods);
+ err1:
+    sk_X509_OBJECT_free(ret->objs);
+ err0:
+    OPENSSL_free(ret);
+    return NULL;
 }
 
 static void cleanup(X509_OBJECT *a)
@@ -360,8 +369,12 @@ int X509_STORE_add_cert(X509_STORE *ctx, X509 *x)
         X509err(X509_F_X509_STORE_ADD_CERT,
                 X509_R_CERT_ALREADY_IN_HASH_TABLE);
         ret = 0;
-    } else
-        sk_X509_OBJECT_push(ctx->objs, obj);
+    } else if (!sk_X509_OBJECT_push(ctx->objs, obj)) {
+        X509_OBJECT_free_contents(obj);
+        OPENSSL_free(obj);
+        X509err(X509_F_X509_STORE_ADD_CERT, ERR_R_MALLOC_FAILURE);
+        ret = 0;
+    }
 
     CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
 
@@ -392,8 +405,12 @@ int X509_STORE_add_crl(X509_STORE *ctx, X509_CRL *x)
         OPENSSL_free(obj);
         X509err(X509_F_X509_STORE_ADD_CRL, X509_R_CERT_ALREADY_IN_HASH_TABLE);
         ret = 0;
-    } else
-        sk_X509_OBJECT_push(ctx->objs, obj);
+    } else if (!sk_X509_OBJECT_push(ctx->objs, obj)) {
+        X509_OBJECT_free_contents(obj);
+        OPENSSL_free(obj);
+        X509err(X509_F_X509_STORE_ADD_CRL, ERR_R_MALLOC_FAILURE);
+        ret = 0;
+    }
 
     CRYPTO_w_unlock(CRYPTO_LOCK_X509_STORE);
 

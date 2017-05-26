@@ -150,12 +150,12 @@ static long (*get_debug_options_func) (void) = NULL;
 int CRYPTO_set_mem_functions(void *(*m) (size_t), void *(*r) (void *, size_t),
                              void (*f) (void *))
 {
-    /* Dummy call just to ensure OPENSSL_init() gets linked in */
-    OPENSSL_init();
     if (!allow_customize)
         return 0;
     if ((m == 0) || (r == 0) || (f == 0))
         return 0;
+    /* Dummy call just to ensure OPENSSL_init() gets linked in */
+    OPENSSL_init();
     malloc_func = m;
     malloc_ex_func = default_malloc_ex;
     realloc_func = r;

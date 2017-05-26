@@ -50,11 +50,3 @@ build_script:
 
 test_script:
     - nmake /f ms\%MAK% test
-
-notifications:
-    - provider: Email
-      to:
-          - openssl-commits@openssl.org
-      on_build_success: false
-      on_build_failure: true
-      on_build_status_changed: true
