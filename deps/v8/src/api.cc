@@ -8931,16 +8931,11 @@ bool Debug::SetDebugEventListener(Isolate* isolate, EventCallback that,
   return true;
 }
 
-void Debug::DebugBreak(Isolate* isolate) {
-  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->RequestDebugBreak();
-}
-
+void Debug::DebugBreak(Isolate* isolate) { debug::DebugBreak(isolate); }
 
 void Debug::CancelDebugBreak(Isolate* isolate) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->stack_guard()->ClearDebugBreak();
+  debug::CancelDebugBreak(isolate);
 }
-
 
 bool Debug::CheckDebugBreak(Isolate* isolate) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -8956,28 +8951,14 @@ void Debug::SendCommand(Isolate* isolate, const uint16_t* command, int length,
 MaybeLocal<Value> Debug::Call(Local<Context> context,
                               v8::Local<v8::Function> fun,
                               v8::Local<v8::Value> data) {
-  PREPARE_FOR_EXECUTION(context, Debug, Call, Value);
-  i::Handle<i::Object> data_obj;
-  if (data.IsEmpty()) {
-    data_obj = isolate->factory()->undefined_value();
-  } else {
-    data_obj = Utils::OpenHandle(*data);
-  }
-  Local<Value> result;
-  has_pending_exception =
-      !ToLocal<Value>(isolate->debug()->Call(Utils::OpenHandle(*fun), data_obj),
-                      &result);
-  RETURN_ON_FAILED_EXECUTION(Value);
-  RETURN_ESCAPED(result);
+  return debug::Call(context, fun, data);
 }
-
 
 void Debug::ProcessDebugMessages(Isolate* isolate) {}
 
 Local<Context> Debug::GetDebugContext(Isolate* isolate) {
   return debug::GetDebugContext(isolate);
 }
-
 
 MaybeLocal<Context> Debug::GetDebuggedContext(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -8989,8 +8970,7 @@ MaybeLocal<Context> Debug::GetDebuggedContext(Isolate* isolate) {
 }
 
 void Debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->debug()->set_live_edit_enabled(enable);
+  debug::SetLiveEditEnabled(isolate, enable);
 }
 
 bool Debug::IsTailCallEliminationEnabled(Isolate* isolate) {
@@ -9005,13 +8985,7 @@ void Debug::SetTailCallEliminationEnabled(Isolate* isolate, bool enabled) {
 
 MaybeLocal<Array> Debug::GetInternalProperties(Isolate* v8_isolate,
                                                Local<Value> value) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ENTER_V8(isolate);
-  i::Handle<i::Object> val = Utils::OpenHandle(*value);
-  i::Handle<i::JSArray> result;
-  if (!i::Runtime::GetInternalProperties(isolate, val).ToHandle(&result))
-    return MaybeLocal<Array>();
-  return Utils::ToLocal(result);
+  return debug::GetInternalProperties(v8_isolate, value);
 }
 
 Local<Context> debug::GetDebugContext(Isolate* isolate) {
@@ -9023,22 +8997,43 @@ Local<Context> debug::GetDebugContext(Isolate* isolate) {
 MaybeLocal<Value> debug::Call(Local<Context> context,
                               v8::Local<v8::Function> fun,
                               v8::Local<v8::Value> data) {
-  return Debug::Call(context, fun, data);
+  PREPARE_FOR_EXECUTION(context, Debug, Call, Value);
+  i::Handle<i::Object> data_obj;
+  if (data.IsEmpty()) {
+    data_obj = isolate->factory()->undefined_value();
+  } else {
+    data_obj = Utils::OpenHandle(*data);
+  }
+  Local<Value> result;
+  has_pending_exception = !ToLocal<Value>(
+      isolate->debug()->Call(Utils::OpenHandle(*fun), data_obj), &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
 }
 
 void debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
-  Debug::SetLiveEditEnabled(isolate, enable);
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_isolate->debug()->set_live_edit_enabled(enable);
 }
 
-void debug::DebugBreak(Isolate* isolate) { Debug::DebugBreak(isolate); }
+void debug::DebugBreak(Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->RequestDebugBreak();
+}
 
 void debug::CancelDebugBreak(Isolate* isolate) {
-  Debug::CancelDebugBreak(isolate);
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_isolate->stack_guard()->ClearDebugBreak();
 }
 
-MaybeLocal<Array> debug::GetInternalProperties(Isolate* isolate,
+MaybeLocal<Array> debug::GetInternalProperties(Isolate* v8_isolate,
                                                Local<Value> value) {
-  return Debug::GetInternalProperties(isolate, value);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  i::Handle<i::Object> val = Utils::OpenHandle(*value);
+  i::Handle<i::JSArray> result;
+  if (!i::Runtime::GetInternalProperties(isolate, val).ToHandle(&result))
+    return MaybeLocal<Array>();
+  return Utils::ToLocal(result);
 }
 
 void debug::ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {

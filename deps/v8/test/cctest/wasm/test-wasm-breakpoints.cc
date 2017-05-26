@@ -54,7 +54,7 @@ void CheckLocationsFail(WasmCompiledModule *compiled_module,
   CHECK(!success);
 }
 
-class BreakHandler {
+class BreakHandler : public debug::DebugDelegate {
  public:
   enum Action {
     Continue = StepAction::LastStepAction + 1,
@@ -72,18 +72,13 @@ class BreakHandler {
   explicit BreakHandler(Isolate* isolate,
                         std::initializer_list<BreakPoint> expected_breaks)
       : isolate_(isolate), expected_breaks_(expected_breaks) {
-    current_handler = this;
-    v8::Debug::SetDebugEventListener(reinterpret_cast<v8::Isolate*>(isolate),
-                                     DebugEventListener);
+    v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_), this);
   }
   ~BreakHandler() {
     // Check that all expected breakpoints have been hit.
     CHECK_EQ(count_, expected_breaks_.size());
-    // BreakHandlers must be correctly stacked.
-    CHECK_EQ(this, current_handler);
-    current_handler = nullptr;
-    v8::Debug::SetDebugEventListener(reinterpret_cast<v8::Isolate*>(isolate_),
-                                     nullptr);
+    v8::debug::SetDebugDelegate(reinterpret_cast<v8::Isolate*>(isolate_),
+                                nullptr);
   }
 
   int count() const { return count_; }
@@ -93,9 +88,9 @@ class BreakHandler {
   int count_ = 0;
   std::vector<BreakPoint> expected_breaks_;
 
-  static BreakHandler* current_handler;
-
-  void HandleBreak() {
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             v8::Local<v8::Object> exec_state,
+                             v8::Local<v8::Value> break_points_hit) override {
     printf("Break #%d\n", count_);
     CHECK_GT(expected_breaks_.size(), count_);
 
@@ -118,17 +113,7 @@ class BreakHandler {
     }
     ++count_;
   }
-
-  static void DebugEventListener(const v8::Debug::EventDetails& event_details) {
-    if (event_details.GetEvent() != v8::DebugEvent::Break) return;
-
-    CHECK_NOT_NULL(current_handler);
-    current_handler->HandleBreak();
-  }
 };
-
-// static
-BreakHandler* BreakHandler::current_handler = nullptr;
 
 Handle<JSObject> MakeFakeBreakpoint(Isolate* isolate, int position) {
   Handle<JSObject> obj =
