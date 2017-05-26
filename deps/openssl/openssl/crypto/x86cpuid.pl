@@ -20,10 +20,10 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&pop	("eax");
 	&xor	("ecx","eax");
 	&xor	("eax","eax");
+	&mov	("esi",&wparam(0));
+	&mov	(&DWP(8,"esi"),"eax");	# clear extended feature flags
 	&bt	("ecx",21);
 	&jnc	(&label("nocpuid"));
-	&mov	("esi",&wparam(0));
-	&mov	(&DWP(8,"esi"),"eax");	# clear 3rd word
 	&cpuid	();
 	&mov	("edi","eax");		# max value for standard query level
 
@@ -81,26 +81,16 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&jmp	(&label("generic"));
 	
 &set_label("intel");
-	&cmp	("edi",7);
-	&jb	(&label("cacheinfo"));
-
-	&mov	("esi",&wparam(0));
-	&mov	("eax",7);
-	&xor	("ecx","ecx");
-	&cpuid	();
-	&mov	(&DWP(8,"esi"),"ebx");
-
-&set_label("cacheinfo");
 	&cmp	("edi",4);
-	&mov	("edi",-1);
+	&mov	("esi",-1);
 	&jb	(&label("nocacheinfo"));
 
 	&mov	("eax",4);
 	&mov	("ecx",0);		# query L1D
 	&cpuid	();
-	&mov	("edi","eax");
-	&shr	("edi",14);
-	&and	("edi",0xfff);		# number of cores -1 per L1D
+	&mov	("esi","eax");
+	&shr	("esi",14);
+	&and	("esi",0xfff);		# number of cores -1 per L1D
 
 &set_label("nocacheinfo");
 	&mov	("eax",1);
@@ -118,7 +108,7 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&bt	("edx",28);		# test hyper-threading bit
 	&jnc	(&label("generic"));
 	&and	("edx",0xefffffff);
-	&cmp	("edi",0);
+	&cmp	("esi",0);
 	&je	(&label("generic"));
 
 	&or	("edx",0x10000000);
@@ -130,10 +120,19 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 &set_label("generic");
 	&and	("ebp",1<<11);		# isolate AMD XOP flag
 	&and	("ecx",0xfffff7ff);	# force 11th bit to 0
-	&mov	("esi","edx");
+	&mov	("esi","edx");		# %ebp:%esi is copy of %ecx:%edx
 	&or	("ebp","ecx");		# merge AMD XOP flag
 
-	&bt	("ecx",27);		# check OSXSAVE bit
+	&cmp	("edi",7);
+	&mov	("edi",&wparam(0));
+	&jb	(&label("no_extended_info"));
+	&mov	("eax",7);
+	&xor	("ecx","ecx");
+	&cpuid	();
+	&mov	(&DWP(8,"edi"),"ebx");	# save extended feature flag
+&set_label("no_extended_info");
+
+	&bt	("ebp",27);		# check OSXSAVE bit
 	&jnc	(&label("clear_avx"));
 	&xor	("ecx","ecx");
 	&data_byte(0x0f,0x01,0xd0);	# xgetbv
@@ -147,7 +146,6 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&and	("esi",0xfeffffff);	# clear FXSR
 &set_label("clear_avx");
 	&and	("ebp",0xefffe7ff);	# clear AVX, FMA and AMD XOP bits
-	&mov	("edi",&wparam(0));
 	&and	(&DWP(8,"edi"),0xffffffdf);	# clear AVX2
 &set_label("done");
 	&mov	("eax","esi");

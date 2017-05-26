@@ -155,5 +155,8 @@ int MAIN(int argc, char **argv)
     BIO_printf(bio_err, "options are\n");
     BIO_printf(bio_err, "%-14s hex\n", "-hex");
     BIO_printf(bio_err, "%-14s number of checks\n", "-checks <n>");
+    BIO_printf(bio_err, "%-14s generate prime\n", "-generate");
+    BIO_printf(bio_err, "%-14s number of bits\n", "-bits <n>");
+    BIO_printf(bio_err, "%-14s safe prime\n", "-safe");
     return 1;
 }
