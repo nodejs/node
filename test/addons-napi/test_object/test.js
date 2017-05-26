@@ -63,3 +63,8 @@ assert(test_object.Has(object2, 'string'));
 assert(test_object.Has(object2, sym4));
 assert.strictEqual(test_object.Get(object2, 'string'), 'value');
 assert.strictEqual(test_object.Get(object2, sym4), 123);
+
+// Wrap a pointer in a JS object, then verify that the pointer can be unwrapped.
+const wrapper = {};
+test_object.Wrap(wrapper);
+assert(test_object.Unwrap(wrapper));
