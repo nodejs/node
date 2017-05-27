@@ -36,6 +36,10 @@ const opts = {
   chunkSize: 1024,
 };
 
+const optsInfo = {
+  info: true
+};
+
 for (const [type, expect] of [
   ['string', expectStr],
   ['Buffer', expectBuf],
@@ -44,10 +48,10 @@ for (const [type, expect] of [
   )
 ]) {
   for (const method of [
-    ['gzip', 'gunzip'],
-    ['gzip', 'unzip'],
-    ['deflate', 'inflate'],
-    ['deflateRaw', 'inflateRaw'],
+    ['gzip', 'gunzip', false],
+    ['gzip', 'unzip', false],
+    ['deflate', 'inflate', true],
+    ['deflateRaw', 'inflateRaw', true],
   ]) {
     zlib[method[0]](expect, opts, common.mustCall((err, result) => {
       zlib[method[1]](result, opts, common.mustCall((err, result) => {
@@ -65,6 +69,35 @@ for (const [type, expect] of [
       }));
     }));
 
+    zlib[method[0]](expect, optsInfo, common.mustCall((err, result) => {
+      assert.strictEqual(result.engine.bytesRead, expectStr.length,
+                         `Should get input size after ${method[0]} ` +
+                         `${type} with info option.`);
+
+      const compressed = result.buffer;
+      zlib[method[1]](compressed, optsInfo, common.mustCall((err, result) => {
+        assert.strictEqual(result.buffer.toString(), expectStr,
+                           `Should get original string after ${method[0]}/` +
+                           `${method[1]} ${type} with info option.`);
+        assert.strictEqual(result.engine.bytesRead, compressed.length,
+                           `Should get compressed size after ${method[0]}/` +
+                           `${method[1]} ${type} with info option.`);
+      }));
+
+      // Some methods should allow extra data after the compressed data
+      if (method[2]) {
+        const extra = Buffer.concat([compressed, new Buffer('extra')]);
+        zlib[method[1]](extra, optsInfo, common.mustCall((err, result) => {
+          assert.strictEqual(result.buffer.toString(), expectStr,
+                             `Should get original string after ${method[0]}/` +
+                             `${method[1]} ${type} with extra data.`);
+          assert.strictEqual(result.engine.bytesRead, compressed.length,
+                             `Should get compressed size after ${method[0]}/` +
+                             `${method[1]} ${type} with info option.`);
+        }));
+      }
+    }));
+
     {
       const compressed = zlib[`${method[0]}Sync`](expect, opts);
       const decompressed = zlib[`${method[1]}Sync`](compressed, opts);
@@ -80,6 +113,35 @@ for (const [type, expect] of [
       assert.strictEqual(decompressed.toString(), expectStr,
                          `Should get original string after ${method[0]}Sync/` +
                          `${method[1]}Sync ${type} without options.`);
+    }
+
+
+    {
+      const compressed = zlib[`${method[0]}Sync`](expect, optsInfo);
+      assert.strictEqual(compressed.engine.bytesRead, expectStr.length,
+                         `Should get input size after ${method[0]} ` +
+                         `${type} with info option.`);
+      const decompressed = zlib[`${method[1]}Sync`](compressed.buffer,
+                                                    optsInfo);
+      assert.strictEqual(decompressed.buffer.toString(), expectStr,
+                         `Should get original string after ${method[0]}Sync/` +
+                         `${method[1]}Sync ${type} without options.`);
+      assert.strictEqual(decompressed.engine.bytesRead,
+                         compressed.buffer.length,
+                         `Should get input size after ${method[0]}/` +
+                         `${method[1]} ${type} with info option.`);
+
+      if (method[2]) {
+        const extra = Buffer.concat([compressed.buffer, new Buffer('extra')]);
+        const decompressed = zlib[`${method[1]}Sync`](extra, optsInfo);
+        assert.strictEqual(decompressed.buffer.toString(), expectStr,
+                           `Should get original string after ${method[0]}/` +
+                           `${method[1]} ${type} with extra data.`);
+        assert.strictEqual(decompressed.engine.bytesRead,
+                           compressed.buffer.length,
+                           `Should get compressed size after ${method[0]}/` +
+                           `${method[1]} ${type} with info option.`);
+      }
     }
   }
 }
