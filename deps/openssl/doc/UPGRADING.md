@@ -282,7 +282,7 @@ In the case of upgrading 1.0.2f there were no changes to the asm files.
 
 Files changed between two tags can be manually inspected using:
 ```
-https://github.com/openssl/openssl/compare/OpenSSL_1_0_2k...OpenSSL_1_0_2l#files_bucket
+https://github.com/openssl/openssl/compare/OpenSSL_1_0_2e...OpenSSL_1_0_2f#files_bucket
 ```
 If any source files in `asm` directory were changed then please follow the rest of the
 steps in this section otherwise these steps can be skipped.
