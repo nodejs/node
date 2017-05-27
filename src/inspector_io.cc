@@ -175,7 +175,7 @@ InspectorIo::InspectorIo(Environment* env, v8::Platform* platform,
                            io_thread_req_(), platform_(platform),
                            dispatching_messages_(false), session_id_(0),
                            script_name_(path),
-                           wait_for_connect_(wait_for_connect) {
+                           wait_for_connect_(wait_for_connect), port_(-1) {
   main_thread_req_ = new AsyncAndAgent({uv_async_t(), env->inspector_agent()});
   CHECK_EQ(0, uv_async_init(env->event_loop(), &main_thread_req_->first,
                             InspectorIo::MainThreadAsyncCb));
@@ -298,6 +298,7 @@ void InspectorIo::WorkerRunIO() {
     uv_sem_post(&start_sem_);
     return;
   }
+  port_ = server.port();  // Safe, main thread is waiting on semaphore.
   if (!wait_for_connect_) {
     uv_sem_post(&start_sem_);
   }
