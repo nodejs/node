@@ -72,12 +72,15 @@ if (common.isLinux || common.isOSX || common.isWindows || common.isAix) {
     if (err) assert.fail(err);
 
     fs.watch(dir, common.mustCall(function(eventType, filename) {
+      clearInterval(interval);
       this._handle.close();
       assert.strictEqual(filename, 'foo.txt');
     }));
 
-    fs.writeFile(`${dir}/foo.txt`, 'foo', common.mustCall(function(err) {
-      if (err) assert.fail(err);
-    }));
+    const interval = setInterval(() => {
+      fs.writeFile(`${dir}/foo.txt`, 'foo', common.mustCall(function(err) {
+        if (err) assert.fail(err);
+      }));
+    }, 1);
   }));
 }
