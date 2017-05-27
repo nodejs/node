@@ -535,11 +535,15 @@ NODE_EXTERN async_uid AsyncHooksGetTriggerId(v8::Isolate* isolate);
 
 /* If the native API doesn't inherit from the helper class then the callbacks
  * must be triggered manually. This triggers the init() callback. The return
- * value is the uid assigned to the resource. */
+ * value is the uid assigned to the resource.
+ *
+ * The `trigger_id` parameter should correspond to the resource which is
+ * creating the new resource, which will usually be the return value of
+ * `AsyncHooksGetTriggerId()`. */
 NODE_EXTERN async_uid EmitAsyncInit(v8::Isolate* isolate,
                                     v8::Local<v8::Object> resource,
                                     const char* name,
-                                    async_uid trigger_id = -1);
+                                    async_uid trigger_id);
 
 /* Emit the destroy() callback. */
 NODE_EXTERN void EmitAsyncDestroy(v8::Isolate* isolate, async_uid id);

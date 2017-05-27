@@ -665,8 +665,6 @@ async_uid EmitAsyncInit(Isolate* isolate,
                      async_uid trigger_id) {
   Environment* env = Environment::GetCurrent(isolate);
   async_uid async_id = env->new_async_id();
-  if (trigger_id == -1)
-    trigger_id = env->get_init_trigger_id();
 
   Local<String> type =
       String::NewFromUtf8(isolate, name, v8::NewStringType::kInternalized)
