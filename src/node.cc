@@ -40,6 +40,10 @@
 #include "node_i18n.h"
 #endif
 
+#if HAVE_INSPECTOR
+#include "inspector_io.h"
+#endif
+
 #if defined HAVE_DTRACE || defined HAVE_ETW
 #include "node_dtrace.h"
 #endif
@@ -3048,7 +3052,15 @@ static Local<Object> GetFeatures(Environment* env) {
 
 static void DebugPortGetter(Local<Name> property,
                             const PropertyCallbackInfo<Value>& info) {
-  info.GetReturnValue().Set(debug_options.port());
+  int port = debug_options.port();
+#if HAVE_INSPECTOR
+  if (port == 0) {
+    Environment* env = Environment::GetCurrent(info);
+    if (env->inspector_agent()->IsStarted())
+      port = env->inspector_agent()->io()->port();
+  }
+#endif  // HAVE_INSPECTOR
+  info.GetReturnValue().Set(port);
 }
 
 
