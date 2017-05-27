@@ -68,6 +68,8 @@ class InspectorIo {
     uv_close(reinterpret_cast<uv_handle_t*>(&io_thread_req_), nullptr);
   }
 
+  int port() const { return port_; }
+
  private:
   template <typename Action>
   using MessageQueue =
@@ -129,6 +131,7 @@ class InspectorIo {
   std::string script_path_;
   const std::string id_;
   const bool wait_for_connect_;
+  int port_;
 
   friend class DispatchMessagesTask;
   friend class IoSessionDelegate;
