@@ -516,7 +516,6 @@ AsyncWrap::~AsyncWrap() {
 // and reused over their lifetime. This way a new uid can be assigned when
 // the resource is pulled out of the pool and put back into use.
 void AsyncWrap::AsyncReset(bool silent) {
-  AsyncHooks* async_hooks = env()->async_hooks();
   async_id_ = env()->new_async_id();
   trigger_id_ = env()->get_init_trigger_id();
 
