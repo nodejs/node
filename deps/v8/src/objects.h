@@ -2038,17 +2038,18 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object, uint32_t index,
       LanguageMode language_mode = SLOPPY);
 
-  MUST_USE_RESULT static Object* DefineProperty(Isolate* isolate,
-                                                Handle<Object> object,
-                                                Handle<Object> name,
-                                                Handle<Object> attributes);
+  MUST_USE_RESULT static Object* DefineProperty(
+      Isolate* isolate, Handle<Object> object, Handle<Object> name,
+      Handle<Object> attributes,
+      CallInterceptors call_interceptors = DONT_SKIP_INTERCEPTORS);
   MUST_USE_RESULT static MaybeHandle<Object> DefineProperties(
       Isolate* isolate, Handle<Object> object, Handle<Object> properties);
 
   // "virtual" dispatcher to the correct [[DefineOwnProperty]] implementation.
   MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, ShouldThrow should_throw,
+      CallInterceptors call_interceptors = DONT_SKIP_INTERCEPTORS);
 
   // ES6 7.3.4 (when passed DONT_THROW)
   MUST_USE_RESULT static Maybe<bool> CreateDataProperty(
@@ -2057,7 +2058,8 @@ class JSReceiver: public HeapObject {
   // ES6 9.1.6.1
   MUST_USE_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       Isolate* isolate, Handle<JSObject> object, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, ShouldThrow should_throw,
+      CallInterceptors call_interceptors = DONT_SKIP_INTERCEPTORS);
   MUST_USE_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       LookupIterator* it, PropertyDescriptor* desc, ShouldThrow should_throw);
   // ES6 9.1.6.2
@@ -6272,7 +6274,8 @@ class JSProxy: public JSReceiver {
   // ES6 9.5.6
   MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSProxy> object, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, ShouldThrow should_throw,
+      CallInterceptors call_interceptors = DONT_SKIP_INTERCEPTORS);
 
   // ES6 9.5.7
   MUST_USE_RESULT static Maybe<bool> HasProperty(Isolate* isolate,
@@ -6686,7 +6689,8 @@ class JSTypedArray: public JSArrayBufferView {
   // ES6 9.4.5.3
   MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSTypedArray> o, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, ShouldThrow should_throw,
+      CallInterceptors call_interceptors = DONT_SKIP_INTERCEPTORS);
 
   DECL_CAST(JSTypedArray)
 
@@ -6816,15 +6820,15 @@ class JSArray: public JSObject {
   // ES6 9.4.2.1
   MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSArray> o, Handle<Object> name,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, ShouldThrow should_throw,
+      CallInterceptors call_interceptors = DONT_SKIP_INTERCEPTORS);
 
   static bool AnythingToArrayLength(Isolate* isolate,
                                     Handle<Object> length_object,
                                     uint32_t* output);
   MUST_USE_RESULT static Maybe<bool> ArraySetLength(Isolate* isolate,
-                                                    Handle<JSArray> a,
-                                                    PropertyDescriptor* desc,
-                                                    ShouldThrow should_throw);
+      Handle<JSArray> a, PropertyDescriptor* desc, ShouldThrow should_throw,
+      CallInterceptors call_interceptors = DONT_SKIP_INTERCEPTORS);
 
   // Checks whether the Array has the current realm's Array.prototype as its
   // prototype. This function is best-effort and only gives a conservative

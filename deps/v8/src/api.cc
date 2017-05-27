@@ -4436,7 +4436,8 @@ bool v8::PropertyDescriptor::has_configurable() const {
 Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
                                           v8::Local<Name> key,
                                           v8::Local<Value> value,
-                                          v8::PropertyAttribute attributes) {
+                                          v8::PropertyAttribute attributes,
+																					CallInterceptors call_interceptors) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(isolate, context, Object, DefineOwnProperty, Nothing<bool>(),
            i::HandleScope);
@@ -4450,7 +4451,7 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   desc.set_configurable(!(attributes & v8::DontDelete));
   desc.set_value(value_obj);
   Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
-      isolate, self, key_obj, &desc, i::Object::DONT_THROW);
+      isolate, self, key_obj, &desc, i::Object::DONT_THROW, call_interceptors);
   // Even though we said DONT_THROW, there might be accessors that do throw.
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return success;
@@ -4458,7 +4459,8 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
 
 Maybe<bool> v8::Object::DefineProperty(v8::Local<v8::Context> context,
                                        v8::Local<Name> key,
-                                       PropertyDescriptor& descriptor) {
+                                       PropertyDescriptor& descriptor,
+                                       CallInterceptors call_interceptors) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(isolate, context, Object, DefineOwnProperty, Nothing<bool>(),
            i::HandleScope);
@@ -4467,7 +4469,7 @@ Maybe<bool> v8::Object::DefineProperty(v8::Local<v8::Context> context,
 
   Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
       isolate, self, key_obj, &descriptor.get_private()->desc,
-      i::Object::DONT_THROW);
+      i::Object::DONT_THROW, call_interceptors);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return success;
 }

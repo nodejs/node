@@ -1,6 +1,6 @@
 'use strict';
 
-// Sandbox throws in CopyProperties() despite no code being run
+// Fixed by removing CopyProperties()
 // Issue: https://github.com/nodejs/node/issues/11902
 
 

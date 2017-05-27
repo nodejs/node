@@ -117,9 +117,8 @@ Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
   // To preserve legacy behavior, we ignore errors silently rather than
   // throwing an exception.
   Maybe<bool> success = JSReceiver::DefineOwnProperty(
-      isolate, receiver, name, &desc,
-      FLAG_harmony_strict_legacy_accessor_builtins ? Object::THROW_ON_ERROR
-                                                   : Object::DONT_THROW);
+      isolate, receiver, name, &desc, Object::DONT_THROW,
+      DONT_SKIP_INTERCEPTORS);
   MAYBE_RETURN(success, isolate->heap()->exception());
   if (!success.FromJust()) {
     isolate->CountUsage(v8::Isolate::kDefineGetterOrSetterWouldThrow);
