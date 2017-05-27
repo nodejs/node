@@ -340,7 +340,7 @@ displaying fuzzy information. More details can be found in the
 [MDN JavaScript Reference][MDN-Date] page.
 * For copying a `Stats` object in a backward compatible way with versions < 8,
 the `toJSON` method can be used:  
-  `const copy = stats.toJSON ? stats.toJSON() : Object.assign({}, stats);`
+`const copy = stats.toJSON ? stats.toJSON() : Object.assign({}, stats);`
 
 ### Stat Time Values
 
