@@ -598,7 +598,7 @@ bool Agent::StartIoThread(bool wait_for_connect) {
     message
   };
   MakeCallback(parent_env_->isolate(), process_object, emit_fn.As<Function>(),
-               arraysize(argv), argv, 0);
+               arraysize(argv), argv, 0, 0);
 
   return true;
 }

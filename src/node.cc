@@ -353,7 +353,7 @@ static void CheckImmediate(uv_check_t* handle) {
                env->immediate_callback_string(),
                0,
                nullptr,
-               0).ToLocalChecked();
+               0, 0).ToLocalChecked();
 }
 
 
@@ -1314,8 +1314,6 @@ MaybeLocal<Value> MakeCallback(Environment* env,
   MaybeLocal<Value> ret;
 
   {
-    if (trigger_id == -1)
-      trigger_id = async_id;
     AsyncHooks::ExecScope exec_scope(env, async_id, trigger_id);
 
     if (async_id != 0) {
@@ -1435,7 +1433,7 @@ Local<Value> MakeCallback(Isolate* isolate,
                           Local<Value>* argv) {
   EscapableHandleScope handle_scope(isolate);
   return handle_scope.Escape(
-      MakeCallback(isolate, recv, method, argc, argv, 0)
+      MakeCallback(isolate, recv, method, argc, argv, 0, 0)
           .FromMaybe(Local<Value>()));
 }
 
@@ -1447,7 +1445,7 @@ Local<Value> MakeCallback(Isolate* isolate,
     Local<Value>* argv) {
   EscapableHandleScope handle_scope(isolate);
   return handle_scope.Escape(
-      MakeCallback(isolate, recv, symbol, argc, argv, 0)
+      MakeCallback(isolate, recv, symbol, argc, argv, 0, 0)
           .FromMaybe(Local<Value>()));
 }
 
@@ -1459,7 +1457,7 @@ Local<Value> MakeCallback(Isolate* isolate,
     Local<Value>* argv) {
   EscapableHandleScope handle_scope(isolate);
   return handle_scope.Escape(
-      MakeCallback(isolate, recv, callback, argc, argv, 0)
+      MakeCallback(isolate, recv, callback, argc, argv, 0, 0)
           .FromMaybe(Local<Value>()));
 }
 
@@ -4406,7 +4404,7 @@ void EmitBeforeExit(Environment* env) {
   };
   MakeCallback(env->isolate(),
                process_object, "emit", arraysize(args), args,
-               0).ToLocalChecked();
+               0, 0).ToLocalChecked();
 }
 
 
@@ -4427,7 +4425,7 @@ int EmitExit(Environment* env) {
 
   MakeCallback(env->isolate(),
                process_object, "emit", arraysize(args), args,
-               0).ToLocalChecked();
+               0, 0).ToLocalChecked();
 
   // Reload exit code, it may be changed by `emit('exit')`
   return process_object->Get(exitCode)->Int32Value();

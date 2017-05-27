@@ -548,7 +548,12 @@ NODE_EXTERN void EmitAsyncDestroy(v8::Isolate* isolate, async_uid id);
  * MakeCallback will automatically call them for you.
  *
  * These methods may create handles on their own, so run them inside a
- * HandleScope. */
+ * HandleScope.
+ *
+ * `asyncId` and `triggerId` should correspond to the values returned by
+ * `EmitAsyncInit()` and `AsyncHooksGetTriggerId()`, respectively, when the
+ * invoking resource was created. If these values are unknown, 0 can be passed.
+ * */
 NODE_EXTERN
 v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Object> recv,
@@ -556,7 +561,7 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        int argc,
                                        v8::Local<v8::Value>* argv,
                                        async_uid asyncId,
-                                       async_uid triggerId = -1);
+                                       async_uid triggerId);
 NODE_EXTERN
 v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Object> recv,
@@ -564,7 +569,7 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        int argc,
                                        v8::Local<v8::Value>* argv,
                                        async_uid asyncId,
-                                       async_uid triggerId = -1);
+                                       async_uid triggerId);
 NODE_EXTERN
 v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Object> recv,
@@ -572,7 +577,7 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        int argc,
                                        v8::Local<v8::Value>* argv,
                                        async_uid asyncId,
-                                       async_uid triggerId = -1);
+                                       async_uid triggerId);
 
 /* Helper class users can optionally inherit from. If
  * `AsyncResource::MakeCallback()` is used, then all four callbacks will be
