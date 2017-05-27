@@ -541,7 +541,7 @@ function isWarned(emitter) {
     });
 
     const rl = readline.createInterface({
-      input: new Readable({ read: () => {} }),
+      input: new Readable({ read: common.mustCall() }),
       output: output,
       prompt: '$ ',
       terminal: terminal
