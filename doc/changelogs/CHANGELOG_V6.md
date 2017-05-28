@@ -1491,7 +1491,7 @@ This is also a security release. All Node.js users should consult the security r
 * [[`86b9db601d`](https://github.com/nodejs/node/commit/86b9db601d)] - **src**: add missing length argument to send comment (Daniel Bevenius) [#8816](https://github.com/nodejs/node/pull/8816)
 * [[`aa11205f71`](https://github.com/nodejs/node/commit/aa11205f71)] - **src**: rename CHECK_NOT_OOB() macro (Ben Noordhuis) [#8784](https://github.com/nodejs/node/pull/8784)
 * [[`8be818eb07`](https://github.com/nodejs/node/commit/8be818eb07)] - **src**: fix minor typo in comments (Daniel Bevenius) [#8736](https://github.com/nodejs/node/pull/8736)
-* [[`41ad6e3965`](https://github.com/nodejs/node/commit/41ad6e3965)] - **src**: rename handle__ to handle_ in HandleWrap (Daniel Bevenius) [#8712](https://github.com/nodejs/node/pull/8712)
+* [[`41ad6e3965`](https://github.com/nodejs/node/commit/41ad6e3965)] - **src**: rename `handle__` to `handle_` in HandleWrap (Daniel Bevenius) [#8712](https://github.com/nodejs/node/pull/8712)
 * [[`9205edc35c`](https://github.com/nodejs/node/commit/9205edc35c)] - **src**: don't abort when c-ares initialization fails (Ben Noordhuis) [#8710](https://github.com/nodejs/node/pull/8710)
 * [[`6ddfe89fdf`](https://github.com/nodejs/node/commit/6ddfe89fdf)] - **src**: remove VS 2013 compatibility hacks (Ben Noordhuis) [#8067](https://github.com/nodejs/node/pull/8067)
 * [[`a9491f1604`](https://github.com/nodejs/node/commit/a9491f1604)] - **src**: make ReqWrap req_ member private (Daniel Bevenius) [#8532](https://github.com/nodejs/node/pull/8532)
