@@ -104,6 +104,17 @@ class V8_EXPORT_PRIVATE Graph final : public NON_EXPORTED_BASE(ZoneObject) {
     Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7, n8, n9};
     return NewNode(op, arraysize(nodes), nodes);
   }
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5, Node* n6, Node* n7, Node* n8, Node* n9, Node* n10) {
+    Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7, n8, n9, n10};
+    return NewNode(op, arraysize(nodes), nodes);
+  }
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5, Node* n6, Node* n7, Node* n8, Node* n9, Node* n10,
+                Node* n11) {
+    Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7, n8, n9, n10, n11};
+    return NewNode(op, arraysize(nodes), nodes);
+  }
 
   // Clone the {node}, and assign a new node id to the copy.
   Node* CloneNode(const Node* node);
