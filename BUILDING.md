@@ -81,13 +81,12 @@ Prerequisites:
 * Python 2.6 or 2.7
 * GNU Make 3.81 or newer
 
-On macOS, you will also need:
-* [Xcode](https://developer.apple.com/xcode/download/)
-  - You also need to install the `Command Line Tools` via Xcode. You can find
-    this under the menu `Xcode -> Preferences -> Downloads`
-  - This step will install `gcc` and the related toolchain containing `make`
-
-* After building, you may want to setup [firewall rules](tools/macosx-firewall.sh)
+On macOS you will need to install the `Xcode Command Line Tools` by running
+`xcode-select --install`. Alternatively, if you already have the full Xcode
+installed, you can find them under the menu `Xcode -> Open Developer Tool ->
+More Developer Tools...`. This step will install `clang`, `clang++`, and
+`make`.
+* You may want to setup [firewall rules](tools/macosx-firewall.sh)
 to avoid popups asking to accept incoming network connections when running tests:
 
 ```console
