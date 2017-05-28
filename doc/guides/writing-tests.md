@@ -319,14 +319,14 @@ static void at_exit_callback(void* arg) {
 ```
 
 Next add the test to the `sources` in the `cctest` target in node.gyp:
-```
+```console
 'sources': [
   'test/cctest/test_env.cc',
   ...
 ],
 ```
 The test can be executed by running the `cctest` target:
-```
+```console
 $ make cctest
 ```
 
