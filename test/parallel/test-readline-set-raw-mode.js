@@ -74,6 +74,8 @@ assert(!rawModeCalled);
 assert(resumeCalled);
 assert(!pauseCalled);
 
+// One data listener for the keypress events.
+assert.strictEqual(stream.listeners('data').length, 1);
 
 // close() should call setRawMode(false)
 expectedRawMode = false;
@@ -86,5 +88,5 @@ assert(!resumeCalled);
 assert(pauseCalled);
 
 assert.deepStrictEqual(stream.listeners('keypress'), []);
-// one data listener for the keypress events.
-assert.strictEqual(stream.listeners('data').length, 1);
+// Data listener is removed once interface is closed.
+assert.strictEqual(stream.listeners('data').length, 0);
