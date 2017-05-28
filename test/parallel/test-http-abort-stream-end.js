@@ -20,27 +20,27 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 
 const http = require('http');
 
-var maxSize = 1024;
-var size = 0;
+const maxSize = 1024;
+let size = 0;
 
-var s = http.createServer(function(req, res) {
+const s = http.createServer(function(req, res) {
   this.close();
 
   res.writeHead(200, {'Content-Type': 'text/plain'});
-  for (var i = 0; i < maxSize; i++) {
+  for (let i = 0; i < maxSize; i++) {
     res.write('x' + i);
   }
   res.end();
 });
 
-var aborted = false;
-s.listen(common.PORT, function() {
-  var req = http.get('http://localhost:' + common.PORT, function(res) {
+let aborted = false;
+s.listen(0, function() {
+  const req = http.get('http://localhost:' + s.address().port, function(res) {
     res.on('data', function(chunk) {
       size += chunk.length;
       assert(!aborted, 'got data after abort');
@@ -51,8 +51,6 @@ s.listen(common.PORT, function() {
       }
     });
   });
-
-  req.end();
 });
 
 process.on('exit', function() {
