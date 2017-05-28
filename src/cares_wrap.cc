@@ -288,7 +288,6 @@ Local<Array> HostentToAddresses(Environment* env,
                                 Local<Array> append_to = Local<Array>()) {
   EscapableHandleScope scope(env->isolate());
   auto context = env->context();
-  Context::Scope context_scope(context);
   bool append = !append_to.IsEmpty();
   Local<Array> addresses = append ? append_to : Array::New(env->isolate());
   size_t offset = addresses->Length();
@@ -309,7 +308,6 @@ Local<Array> HostentToNames(Environment* env,
                             Local<Array> append_to = Local<Array>()) {
   EscapableHandleScope scope(env->isolate());
   auto context = env->context();
-  Context::Scope context_scope(context);
   bool append = !append_to.IsEmpty();
   Local<Array> names = append ? append_to : Array::New(env->isolate());
   size_t offset = names->Length();
@@ -558,7 +556,6 @@ Local<Array> AddrTTLToArray(Environment* env,
   auto isolate = env->isolate();
   EscapableHandleScope escapable_handle_scope(isolate);
   auto context = env->context();
-  Context::Scope context_scope(context);
 
   Local<Array> ttls = Array::New(isolate, naddrttls);
   for (size_t i = 0; i < naddrttls; i++) {
@@ -579,7 +576,6 @@ int ParseGeneralReply(Environment* env,
                       int* naddrttls = nullptr) {
   HandleScope handle_scope(env->isolate());
   auto context = env->context();
-  Context::Scope context_scope(context);
   hostent* host;
 
   int status;
@@ -658,7 +654,6 @@ int ParseMxReply(Environment* env,
                  bool need_type = false) {
   HandleScope handle_scope(env->isolate());
   auto context = env->context();
-  Context::Scope context_scope(context);
 
   struct ares_mx_reply* mx_start;
   int status = ares_parse_mx_reply(buf, len, &mx_start);
@@ -698,7 +693,6 @@ int ParseTxtReply(Environment* env,
                   bool need_type = false) {
   HandleScope handle_scope(env->isolate());
   auto context = env->context();
-  Context::Scope context_scope(context);
 
   struct ares_txt_ext* txt_out;
 
@@ -738,8 +732,9 @@ int ParseTxtReply(Environment* env,
       j = 0;
     }
 
-    need_type ?
-      txt_chunk_obj->Set(context, j++, txt).FromJust() :
+    if (need_type)
+      txt_chunk_obj->Set(context, j++, txt).FromJust();
+    else
       txt_chunk->Set(context, j++, txt).FromJust();
   }
 
@@ -768,7 +763,6 @@ int ParseSrvReply(Environment* env,
                   bool need_type = false) {
   HandleScope handle_scope(env->isolate());
   auto context = env->context();
-  Context::Scope context_scope(context);
 
   struct ares_srv_reply* srv_start;
   int status = ares_parse_srv_reply(buf, len, &srv_start);
@@ -817,7 +811,6 @@ int ParseNaptrReply(Environment* env,
                     bool need_type = false) {
   HandleScope handle_scope(env->isolate());
   auto context = env->context();
-  Context::Scope context_scope(context);
 
   ares_naptr_reply* naptr_start;
   int status = ares_parse_naptr_reply(buf, len, &naptr_start);
@@ -878,7 +871,6 @@ int ParseSoaReply(Environment* env,
                   Local<Object>* ret) {
   EscapableHandleScope handle_scope(env->isolate());
   auto context = env->context();
-  Context::Scope context_scope(context);
 
   /* Can't use ares_parse_soa_reply() here which can only parse single record */
   unsigned int ancount = cares_get_16bit(buf + 6);
@@ -918,71 +910,67 @@ int ParseSoaReply(Environment* env,
 
     /* only need SOA */
     if (rr_type == ns_t_soa) {
-      ares_soa_reply* soa = node::Malloc<ares_soa_reply>(1);
+      ares_soa_reply soa;
+      // ares_soa_reply* soa = node::Malloc<ares_soa_reply>(1);
 
-      status = ares_expand_name(ptr, buf, len, &soa->nsname, &temp_len);
+      status = ares_expand_name(ptr, buf, len, &soa.nsname, &temp_len);
       if (status != ARES_SUCCESS) {
         free(rr_name);
-        free(soa);
         break;
       }
       ptr += temp_len;
 
-      status = ares_expand_name(ptr, buf, len, &soa->hostmaster, &temp_len);
+      status = ares_expand_name(ptr, buf, len, &soa.hostmaster, &temp_len);
       if (status != ARES_SUCCESS) {
         free(rr_name);
-        free(soa->nsname);
-        free(soa);
+        free(soa.nsname);
         break;
       }
       ptr += temp_len;
 
       if (ptr + 5 * 4 > buf + len) {
         free(rr_name);
-        free(soa->nsname);
-        free(soa->hostmaster);
-        free(soa);
+        free(soa.nsname);
+        free(soa.hostmaster);
         status = ARES_EBADRESP;
         break;
       }
 
-      soa->serial = cares_get_32bit(ptr + 0 * 4);
-      soa->refresh = cares_get_32bit(ptr + 1 * 4);
-      soa->retry = cares_get_32bit(ptr + 2 * 4);
-      soa->expire = cares_get_32bit(ptr + 3 * 4);
-      soa->minttl = cares_get_32bit(ptr + 4 * 4);
+      soa.serial = cares_get_32bit(ptr + 0 * 4);
+      soa.refresh = cares_get_32bit(ptr + 1 * 4);
+      soa.retry = cares_get_32bit(ptr + 2 * 4);
+      soa.expire = cares_get_32bit(ptr + 3 * 4);
+      soa.minttl = cares_get_32bit(ptr + 4 * 4);
 
       Local<Object> soa_record = Object::New(env->isolate());
       soa_record->Set(context,
                       env->nsname_string(),
-                      OneByteString(env->isolate(), soa->nsname)).FromJust();
+                      OneByteString(env->isolate(), soa.nsname)).FromJust();
       soa_record->Set(context,
                       env->hostmaster_string(),
                       OneByteString(env->isolate(),
-                                    soa->hostmaster)).FromJust();
+                                    soa.hostmaster)).FromJust();
       soa_record->Set(context,
                       env->serial_string(),
-                      Integer::New(env->isolate(), soa->serial)).FromJust();
+                      Integer::New(env->isolate(), soa.serial)).FromJust();
       soa_record->Set(context,
                       env->refresh_string(),
-                      Integer::New(env->isolate(), soa->refresh)).FromJust();
+                      Integer::New(env->isolate(), soa.refresh)).FromJust();
       soa_record->Set(context,
                       env->retry_string(),
-                      Integer::New(env->isolate(), soa->retry)).FromJust();
+                      Integer::New(env->isolate(), soa.retry)).FromJust();
       soa_record->Set(context,
                       env->expire_string(),
-                      Integer::New(env->isolate(), soa->expire)).FromJust();
+                      Integer::New(env->isolate(), soa.expire)).FromJust();
       soa_record->Set(context,
                       env->minttl_string(),
-                      Integer::New(env->isolate(), soa->minttl)).FromJust();
+                      Integer::New(env->isolate(), soa.minttl)).FromJust();
       soa_record->Set(context,
                       env->type_string(),
                       env->dns_soa_string()).FromJust();
 
-      free(soa->nsname);
-      free(soa->hostmaster);
-      free(soa);
-      free(rr_name);
+      free(soa.nsname);
+      free(soa.hostmaster);
 
       *ret = handle_scope.Escape(soa_record);
       break;
@@ -1195,6 +1183,7 @@ class QueryAWrap: public QueryWrap {
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     ares_addrttl addrttls[256];
     int naddrttls = arraysize(addrttls), status;
@@ -1243,6 +1232,7 @@ class QueryAaaaWrap: public QueryWrap {
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     ares_addr6ttl addrttls[256];
     int naddrttls = arraysize(addrttls), status;
@@ -1291,6 +1281,7 @@ class QueryCnameWrap: public QueryWrap {
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     Local<Array> ret = Array::New(env()->isolate());
     int type = ns_t_cname;
@@ -1326,6 +1317,7 @@ class QueryMxWrap: public QueryWrap {
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     Local<Array> mx_records = Array::New(env()->isolate());
     int status = ParseMxReply(env(), buf, len, mx_records);
@@ -1361,6 +1353,7 @@ class QueryNsWrap: public QueryWrap {
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     int type = ns_t_ns;
     Local<Array> names = Array::New(env()->isolate());
@@ -1396,6 +1389,7 @@ class QueryTxtWrap: public QueryWrap {
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     Local<Array> txt_records = Array::New(env()->isolate());
     int status = ParseTxtReply(env(), buf, len, txt_records);
@@ -1430,6 +1424,7 @@ class QuerySrvWrap: public QueryWrap {
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     Local<Array> srv_records = Array::New(env()->isolate());
     int status = ParseSrvReply(env(), buf, len, srv_records);
@@ -1463,6 +1458,7 @@ class QueryPtrWrap: public QueryWrap {
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     int type = ns_t_ptr;
     Local<Array> aliases = Array::New(env()->isolate());
@@ -1498,6 +1494,7 @@ class QueryNaptrWrap: public QueryWrap {
  protected:
   void Parse(unsigned char* buf, int len) override {
     HandleScope handle_scope(env()->isolate());
+    Context::Scope context_scope(env()->context());
 
     Local<Array> naptr_records = Array::New(env()->isolate());
     int status = ParseNaptrReply(env(), buf, len, naptr_records);

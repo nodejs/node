@@ -426,9 +426,9 @@ treated separately.
   - `ret` {Object[][]}
 
 Uses the DNS protocol to resolve all records (also known as `ANY` or `*` query).
-The `ret` argument passed to the `callback` function will be an array of objects
-with uncertain type of records. Each object has a property `type` that indicates
-the type of current record. And depending on the `type`, additional properties
+The `ret` argument passed to the `callback` function will be an array containing
+various types of records. Each object has a property `type` that indicates the
+type of the current record. And depending on the `type`, additional properties
 will be present on the object:
 
 | Type | Properties |
@@ -442,7 +442,7 @@ will be present on the object:
 | `"PTR"` | `value` |
 | `"SOA"` | Refer to [`dns.resolveSoa()`][] |
 | `"SRV"` | Refer to [`dns.resolveSrv()`][] |
-| `"TXT"` | This is an array-liked object with `length` and `indexes`, eg. `{'0':'sth','length':1}` |
+| `"TXT"` | This is an array-like object with `length` and `indexes`, eg. `{'0':'sth','length':1}` |
 
 Here is a example of the `ret` object passed to the callback:
 
