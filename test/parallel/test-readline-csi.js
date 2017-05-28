@@ -88,3 +88,15 @@ assert.strictEqual(writable.data, '\x1b[2G');
 writable.data = '';
 assert.doesNotThrow(() => readline.cursorTo(writable, 1, 2));
 assert.strictEqual(writable.data, '\x1b[3;2H');
+
+writable.data = '';
+assert.doesNotThrow(() => readline.cursorTo(writable, '1', 2));
+assert.strictEqual(writable.data, '\x1b[3;2H');
+
+writable.data = '';
+assert.doesNotThrow(() => readline.cursorTo(writable, 1, '2'));
+assert.strictEqual(writable.data, '\x1b[3;2H');
+
+writable.data = '';
+assert.doesNotThrow(() => readline.cursorTo(writable, '1', '2'));
+assert.strictEqual(writable.data, '\x1b[3;2H');

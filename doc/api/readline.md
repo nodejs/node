@@ -439,7 +439,7 @@ added: v0.7.7
 * `y` {number}
 
 The `readline.cursorTo()` method moves cursor to the specified position in a
-given [TTY][] `stream`.
+given [TTY][] `stream`. `x` and `y` can be numeric strings.
 
 ## readline.emitKeypressEvents(stream[, interface])
 <!-- YAML
