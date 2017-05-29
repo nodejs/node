@@ -3,9 +3,6 @@
     <img alt="Node.js" src="https://nodejs.org/static/images/logo-light.svg" width="400"/>
   </a>
 </p>
-<p align="center">
-  <a title="CII Best Practices" href="https://bestpractices.coreinfrastructure.org/projects/29"><img src="https://bestpractices.coreinfrastructure.org/projects/29/badge"></a>
-</p>
 
 Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. Node.js
 uses an event-driven, non-blocking I/O model that makes it lightweight and
@@ -446,6 +443,10 @@ Previous releases may also have been signed with one of the following GPG keys:
 
 Information on the current Node.js Working Groups can be found in the
 [CTC repository](https://github.com/nodejs/CTC/blob/master/WORKING_GROUPS.md).
+
+<p align="center">
+  <a title="CII Best Practices" href="https://bestpractices.coreinfrastructure.org/projects/29"><img src="https://bestpractices.coreinfrastructure.org/projects/29/badge"></a>
+</p>
 
 [npm]: https://www.npmjs.com
 [Website]: https://nodejs.org/en/
