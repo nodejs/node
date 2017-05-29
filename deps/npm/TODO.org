@@ -1,4 +1,18 @@
 * Finished
+  * [COMPLETED] npm: remove packageIntegrity
+  * [COMPLETED] npm: fix lifecycle stuff
+    * pack:
+      * pre-: immediately before tarball contents are packed. Need to re-read package.json immediately after
+      * pack: No pack lifecycle
+      * post-: immediately after tarball reaches its final destination (not immediately after packaging)
+    * prepare: `npm install`, immediately before `postinstall`, and immediately before `prepack`, never if `--prod`, after prepublish, before prepublishOnly
+    * prepublish: alias for `prepare`
+    * prepublishOnly: ONLY on `npm publish` (never on `npm pack`), runs before prepack (which takes care of re-reading package.json), re-reads package.json immediately after
+  * [COMPLETED] pacote: fix always-auth bug
+  * [COMPLETED] pacote: figure out why cache is being written as root
+  * [COMPLETED] npm: make `npm update` save files as the right type
+  * [COMPLETED] npm: update docs with npm5 changes
+  * [COMPLETED] npm: don't write "problems" into package-lock
   * [COMPLETED] npm: add `created-with`, `shrinkwrap-version`, and `package-integrity`
   * [COMPLETED] npm: warn on incompatible package-lock version
   * [COMPLETED] npm: warn if both shrinkwrap and package-lock are there
@@ -46,6 +60,12 @@
   * [COMPLETED] npm: fix bundle replacement issues (see: npm i nyc warning spam)
     * need fromBundle attribute on shrinkwrap and pass it through. the sw.version && sw.integrity-based fake node needs to have this there.
 * Backlog
+  * [TODO] make-fetch-happen: integrity failures are being thrown
+  * [TODO] write-file-atomic: review https://github.com/npm/write-file-atomic/pull/22
+  * [TODO] pacote: write tests for git handlers
+    * https://github.com/zkat/pacote/issues/70
+  * [TODO] pacote: offline feature support for git deps
+  * [TODO] npm: get logging working during the recalculateMetadata spam
   * [TODO] pacote: opts.extraHeaders
     * https://github.com/zkat/pacote/issues/79
   * [TODO] pacote: ECONNRESET recovery
@@ -59,14 +79,8 @@
     * https://github.com/zkat/make-fetch-happen/issues/16
   * [TODO] make-fetch-happen: retry notification
     * https://github.com/zkat/make-fetch-happen/issues/21
-  * [TODO] npm: move addBundled call from inflate-shrinkwrap to extract
-    * fix the fucking bundling thing while at it
+  * [TODO] npm: more informative logging when building git deps
 * Needed for npm@5
-  * [TODO] pacote: write tests for git handlers
-    * https://github.com/zkat/pacote/issues/70
-  * [TODO] pacote: offline feature support for git deps
-  * [TODO] npm: get logging working during the recalculateMetadata spam
-  * [TODO] write-file-atomic: review https://github.com/npm/write-file-atomic/pull/22
 * Active
-  * [TODO] npm: make `npm update` save files as the right type
-  * [TODO] node: track down lifecycle signal failure
+  * [TODO] npm: figure out https://github.com/npm/npm/issues/16665
+  * [TODO] npm: first-run notice about npm5 still having known issues

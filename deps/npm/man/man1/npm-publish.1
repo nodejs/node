@@ -53,6 +53,10 @@ Once a package is published with a given name and version, that
 specific name and version combination can never be used again, even if
 it is removed with npm help unpublish\.
 .P
+As of \fBnpm@5\fP, both a sha1sum and an integrity field with a sha512sum of the
+tarball will be submitted to the registry during publication\. Subsequent
+installs will use the strongest supported algorithm to verify downloads\.
+.P
 For a "dry run" that does everything except actually publishing to the
 registry, see npm help \fBnpm\-pack\fP, which figures out the files to be included and
 packs them into a tarball to be uploaded to the registry\.

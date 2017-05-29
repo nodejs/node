@@ -15,14 +15,20 @@
 following scripts:</p>
 <ul>
 <li>prepublish:
-Run BEFORE the package is published.  (Also run on local <code>npm
-install</code> without any arguments. See below.)</li>
+Run BEFORE the package is packed and published, as well as on local <code>npm
+install</code> without any arguments. (See below)</li>
 <li>prepare:
-Run both BEFORE the package is published, and on local <code>npm
-install</code> without any arguments. (See below.) This is run
+Run both BEFORE the package is packed and published, and on local <code>npm
+install</code> without any arguments (See below). This is run
 AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code>.</li>
 <li>prepublishOnly:
-Run BEFORE the package is published. (See below.)</li>
+Run BEFORE the package is prepared and packed, ONLY on <code>npm publish</code>. (See
+below.)</li>
+<li>prepack:
+run BEFORE a tarball is packed (on <code>npm pack</code>, <code>npm publish</code>, and when
+installing git dependencies)</li>
+<li>postpack:
+Run AFTER the tarball has been generated and moved to its final destination.</li>
 <li>publish, postpublish:
 Run AFTER the package is published.</li>
 <li>preinstall:
@@ -237,5 +243,5 @@ scripts is for compilation which must be done on the target architecture.</li>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-scripts &mdash; npm@5.0.0-beta.56</p>
+<p id="footer">npm-scripts &mdash; npm@5.0.0</p>
 

@@ -7,6 +7,7 @@ const fs = require('graceful-fs')
 const PassThrough = require('stream').PassThrough
 const pipe = BB.promisify(require('mississippi').pipe)
 const ssri = require('ssri')
+const Y = require('../util/y.js')
 
 BB.promisifyAll(fs)
 
@@ -86,7 +87,7 @@ function pickContentSri (cache, integrity) {
 }
 
 function sizeError (expected, found) {
-  var err = new Error('stream data size mismatch')
+  var err = new Error(Y`Bad data size: expected inserted data to be ${expected} bytes, but got ${found} instead`)
   err.expected = expected
   err.found = found
   err.code = 'EBADSIZE'
@@ -94,7 +95,7 @@ function sizeError (expected, found) {
 }
 
 function integrityError (sri, path) {
-  var err = new Error(`Integrity verification failed for ${sri} (${path})`)
+  var err = new Error(Y`Integrity verification failed for ${sri} (${path})`)
   err.code = 'EINTEGRITY'
   err.sri = sri
   err.path = path

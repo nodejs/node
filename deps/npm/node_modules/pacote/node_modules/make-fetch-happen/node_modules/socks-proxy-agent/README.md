@@ -70,7 +70,7 @@ var opts = url.parse(endpoint);
 var agent = new SocksProxyAgent(proxy, true);
 opts.agent = agent;
 
-http.get(opts, function (res) {
+https.get(opts, function (res) {
   console.log('"response" event!', res.headers);
   res.pipe(process.stdout);
 });
