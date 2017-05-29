@@ -15,7 +15,7 @@ const async_hooks = require('async_hooks');
 An asynchronous resource represents an object with an associated callback.
 This callback may be called multiple times, for example, the `connection` event
 in `net.createServer`, or just a single time like in `fs.open`. A resource
-can also be closed the callback is fired. AsyncHooks does not explicitly
+can also be closed the callback is called. AsyncHooks does not explicitly
 distinguish between these different cases but will represent them as the
 abstract concept that is a resource.
 
@@ -32,13 +32,13 @@ const async_hooks = require('async_hooks');
 const cid = async_hooks.currentId();
 
 // Return the ID of the handle responsible for triggering the callback of the
-// current execution scope to fire.
+// current execution scope to call.
 const tid = async_hooks.triggerId();
 
 // Create a new AsyncHook instance. All of these callbacks are optional.
 const asyncHook = async_hooks.createHook({ init, before, after, destroy });
 
-// Allow callbacks of this AsyncHook instance to fire. This is not an implicit
+// Allow callbacks of this AsyncHook instance to call. This is not an implicit
 // action after running the constructor, and must be explicitly run to begin
 // executing callbacks.
 asyncHook.enable();
@@ -56,18 +56,14 @@ asyncHook.disable();
 function init(id, type, triggerId, resource) { }
 
 // before() is called just before the resource's callback is called. It can be
-// called 0-N times for handles (e.g. TCPWrap), and should be called exactly 1
+// called 0-N times for handles (e.g. TCPWrap), and will be called exactly 1
 // time for requests (e.g. FSReqWrap).
 function before(id) { }
 
 // after() is called just after the resource's callback has finished.
-// This hook will not be called if an uncaught exception occurred.
 function after(id) { }
 
-// destroy() is called when an AsyncWrap instance is destroyed. In cases like
-// HTTPParser where the resource is reused, or timers where the handle is only
-// a JS object, destroy() will be triggered manually soon after after() has
-// completed.
+// destroy() is called when an AsyncWrap instance is destroyed.
 function destroy(id) { }
 ```
 
@@ -89,15 +85,16 @@ in the lifetime of the event loop.
 All callbacks are optional. So, for example, if only resource cleanup needs to
 be tracked then only the `destroy()` callback needs to be passed. The
 specifics of all functions that can be passed to `callbacks` is in the section
-`Hook Callbacks`.
+[`Hook Callbacks`][].
 
 ##### Error Handling
 
-If any `AsyncHook` callbacks throw, the application will
-print the stack trace and exit. The exit path does follow that of any uncaught
-exception. However, `'exit'` callbacks will still fire unless the application
-is run with `--abort-on-uncaught-exception`, in which case a stack trace will
-be printed and the application exits, leaving a core file.
+If any `AsyncHook` callbacks throw, the application will print the stack trace
+and exit. The exit path does follow that of an uncaught exception but
+all `uncaughtException` listeners are removed, thus forceing the process to
+exit. The `'exit'` callbacks will still call unless the application is run with
+`--abort-on-uncaught-exception`, in which case a stack trace will be printed
+and the application exits, leaving a core file.
 
 The reason for this error handling behavior is that these callbacks are running
 at potentially volatile points in an object's lifetime, for example during
@@ -131,7 +128,7 @@ function debug() {
 If an asynchronous operation is needed for logging, it is possible to keep
 track of what caused the asynchronous operation using the information
 provided by AsyncHooks itself. The logging should then be skipped when
-it was the logging itself that caused AsyncHooks callback to fire. By
+it was the logging itself that caused AsyncHooks callback to call. By
 doing this the otherwise infinite recursion is broken.
 
 #### `asyncHook.enable()`
@@ -151,8 +148,8 @@ const hook = async_hooks.createHook(callbacks).enable();
 * Returns {AsyncHook} A reference to `asyncHook`.
 
 Disable the callbacks for a given `AsyncHook` instance from the global pool of
-hooks to be executed. Once a hook has been disabled it will not fire again
-until enabled.
+AsyncHook callbacks to be executed. Once a hook has been disabled it will not
+be called again until enabled.
 
 For API consistency `disable()` also returns the `AsyncHook` instance.
 
@@ -160,8 +157,7 @@ For API consistency `disable()` also returns the `AsyncHook` instance.
 
 Key events in the lifetime of asynchronous events have been categorized into
 four areas: instantiation, before/after the callback is called, and when the
-instance is destructed. For cases where resources are reused, instantiation and
-destructor calls are emulated.
+instance is destructed.
 
 ##### `init(id, type, triggerId, resource)`
 
@@ -190,7 +186,7 @@ clearTimeout(setTimeout(() => {}, 10));
 Every new resource is assigned a unique ID.
 
 The `type` is a string that represents the type of resource that caused
-`init()` to fire. Generally it will be the name of the resource's constructor.
+`init()` to call. Generally it will be the name of the resource's constructor.
 The resource types provided by the build in Node.js modules are:
 
 ```
@@ -208,7 +204,7 @@ to use unique prefixes per module to prevent collisions when listening to the
 hooks.
 
 `triggerId` is the `id` of the resource that caused (or "triggered") the
-new resource to initialize and that caused `init()` to fire.
+new resource to initialize and that caused `init()` to call.
 
 The following is a simple demonstration of this:
 
@@ -358,8 +354,8 @@ the resource doesn't depend on GC then this isn't an issue.
 
 #### `async_hooks.currentId()`
 
-* Returns {number} the `id` of the current execution context. Useful to track when
-  something fires.
+* Returns {number} the `id` of the current execution context. Useful to track
+  when something calls.
 
 For example:
 
@@ -516,3 +512,5 @@ never be called.
 #### `asyncResource.triggerId()`
 
 * Returns {number} the same `triggerId` that is passed to `init()` hooks.
+
+[`Hook Callbacks`]: #hook_callbacks
