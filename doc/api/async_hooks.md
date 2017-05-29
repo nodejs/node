@@ -14,14 +14,11 @@ const async_hooks = require('async_hooks');
 
 An async resource represents either a _handle_ or a _request_.
 
-Handles are a reference to a system resource. Some resources are a simple
-identifier. For example, file system handles are represented by a file
-descriptor. Other handles are represented by libuv as a platform abstracted
-struct, e.g. `uv_tcp_t`. Each handle can be continually reused to access and
-operate on the referenced resource.
+Handles are a reference to a system resource. Each handle can be continually
+reused to access and operate on the referenced resource.
 
 Requests are short lived data structures created to accomplish one task. The
-callback for a request should always and only ever fire one time. Which is when
+callback for a request should always and only ever fire one time, which is when
 the assigned task has either completed or encountered an error. Requests are
 used by handles to perform tasks such as accepting a new connection or
 writing data to disk.
@@ -86,17 +83,13 @@ added: REPLACEME
 -->
 
 * `callbacks` {Object} the callbacks to register
+* Returns: `{AsyncHook}` instance used for disabling and enabling hooks
 
 Registers functions to be called for different lifetime events of each async
 operation.
 The callbacks `init()`/`before()`/`after()`/`destroy()` are registered via an
-`AsyncHooks` instance and fire during the respective asynchronous events in the
-lifetime of the event loop. The focal point of these calls centers around the
-lifetime of the `AsyncWrap` C++ class. These callbacks will also be called to
-emulate the lifetime of handles and requests that do not fit this model. For
-example, `HTTPParser` instances are recycled to improve performance. Therefore the
-`destroy()` callback is called manually after a connection is done using
-it, just before it is placed back into the unused resource pool.
+`AsyncHook` instance and are called during the respective asynchronous events
+in the lifetime of the event loop.
 
 All callbacks are optional. So, for example, if only resource cleanup needs to
 be tracked then only the `destroy()` callback needs to be passed. The
@@ -107,12 +100,12 @@ specifics of all functions that can be passed to `callbacks` is in the section
 
 If any `AsyncHook` callbacks throw, the application will
 print the stack trace and exit. The exit path does follow that of any uncaught
-exception. However `'exit'` callbacks will still fire unless the application
+exception. However, `'exit'` callbacks will still fire unless the application
 is run with `--abort-on-uncaught-exception`, in which case a stack trace will
 be printed and the application exits, leaving a core file.
 
 The reason for this error handling behavior is that these callbacks are running
-at potentially volatile points in an object's lifetime. For example, during
+at potentially volatile points in an object's lifetime, for example during
 class construction and destruction. Because of this, it is deemed necessary to
 bring down the process quickly in order to prevent an unintentional abort in the
 future. This is subject to change in the future if a comprehensive analysis is
@@ -186,7 +179,7 @@ destructor calls are emulated.
 
 Called when a class is constructed that has the _possibility_ to trigger an
 asynchronous event. This _does not_ mean the instance must trigger
-`before()`/`after()` before `destroy()` is called. Only that the possibility
+`before()`/`after()` before `destroy()` is called, only that the possibility
 exists.
 
 This behavior can be observed by doing something like opening a resource then
@@ -201,10 +194,19 @@ clearTimeout(setTimeout(() => {}, 10));
 
 Every new resource is assigned a unique id.
 
-The `type` is a String that represents the type of resource that caused
+The `type` is a string that represents the type of resource that caused
 `init()` to fire. Generally it will be the name of the resource's constructor.
-Some examples include `TCP`, `GetAddrInfo` and `HTTPParser`. Users will be able
-to define their own `type` when using the public embedder API.
+The resource types provided by the build in Node.js modules are:
+
+```
+FSEVENTWRAP, FSREQWRAP, GETADDRINFOREQWRAP, GETNAMEINFOREQWRAP, HTTPPARSER,
+JSSTREAM, PIPECONNECTWRAP, PIPEWRAP, PROCESSWRAP, QUERYWRAP, SHUTDOWNWRAP,
+SIGNALWRAP, STATWATCHER, TCPCONNECTWRAP, TCPWRAP, TIMERWRAP, TTYWRAP,
+UDPSENDWRAP, UDPWRAP, WRITEWRAP, ZLIB, SSLCONNECTION, PBKDF2REQUEST,
+RANDOMBYTESREQUEST, TLSWRAP
+```
+
+Users are be able to define their own `type` when using the public embedder API.
 
 *Note:* It is possible to have type name collisions. Embedders are recommended
 to use unique prefixes per module to prevent collisions when listening to the
@@ -240,34 +242,34 @@ connection is made the `TCPWrap` instance is immediately constructed. This
 happens outside of any JavaScript stack (side note: a `currentId()` of `0`
 means it's being executed in "the void", with no JavaScript stack above it).
 With only that information it would be impossible to link resources together in
-terms of what caused them to be created. So `triggerId` is given the task of
+terms of what caused them to be created, so `triggerId` is given the task of
 propagating what resource is responsible for the new resource's existence.
 
 Below is another example with additional information about the calls to
-`init()` between the `before()` and `after()` calls. Specifically what the
+`init()` between the `before()` and `after()` calls, specifically what the
 callback to `listen()` will look like. The output formatting is slightly more
 elaborate to make calling context easier to see.
 
 ```js
 const async_hooks = require('async_hooks');
 
-let ws = 0;
+let indent = 0;
 async_hooks.createHook({
-  init (id, type, triggerId) {
+  init(id, type, triggerId) {
     const cId = async_hooks.currentId();
-    fs.writeSync(1, ' '.repeat(ws) +
+    fs.writeSync(1, ' '.repeat(indent) +
                     `${type}(${id}): trigger: ${triggerId} scope: ${cId}\n`);
   },
-  before (id) {
-    fs.writeSync(1, ' '.repeat(ws) + `before:  ${id}`);
-    ws += 2;
+  before(id) {
+    fs.writeSync(1, ' '.repeat(indent) + `before:  ${id}`);
+    indent += 2;
   },
-  after (id) {
-    ws -= 2;
-    fs.writeSync(1, ' '.repeat(ws) + `after:   ${id}`);
+  after(id) {
+    indent -= 2;
+    fs.writeSync(1, ' '.repeat(indent) + `after:   ${id}`);
   },
-  destroy (id) {
-    fs.writeSync(1, ' '.repeat(ws) + `destroy: ${id}`);
+  destroy(id) {
+    fs.writeSync(1, ' '.repeat(indent) + `destroy: ${id}`);
   },
 }).enable();
 
@@ -351,18 +353,12 @@ will run after the `'uncaughtException'` event or a `domain`'s handler runs.
 
 * `id` {number}
 
-Called either when the class destructor is run or if the resource is manually
-marked as free. For core C++ classes that have a destructor the callback will
-fire during deconstruction. It is also called synchronously from the embedder
-API `emitDestroy()`.
+Called after the resource corresponding to `id` is destroyed. It is also called
+asynchronously from the embedder API `emitDestroy()`.
 
-Some resources, such as `HTTPParser`, are not actually destructed but instead
-placed in an unused resource pool to be used later. For these `destroy()` will
-be called just before the resource is placed on the unused resource pool.
-
-*Note:* Some resources depend on GC for cleanup. So if a reference is made to
+*Note:* Some resources depend on GC for cleanup, so if a reference is made to
 the `resource` object passed to `init()` it's possible that `destroy()` is
-never called. Causing a memory leak in the application. Of course if
+never called, causing a memory leak in the application. Of course if
 the resource doesn't depend on GC then this isn't an issue.
 
 #### `async_hooks.currentId()`
@@ -380,13 +376,13 @@ fs.open(path, (err, fd) => {
 ```
 
 It is important to note that the id returned fom `currentId()` is related to
-execution timing. Not causality (which is covered by `triggerId()`). For
+execution timing, not causality (which is covered by `triggerId()`). For
 example:
 
 ```js
 const server = net.createServer(function onConnection(conn) {
-  // Returns the id of the server, not of the new connection. Because the
-  // on connection callback runs in the execution scope of the server's
+  // Returns the id of the server, not of the new connection, because the
+  // onConnection callback runs in the execution scope of the server's
   // MakeCallback().
   async_hooks.currentId();
 
@@ -507,8 +503,7 @@ sure the stack is unwound properly. Otherwise an error will be thrown.
 
 If the user's callback throws an exception then `emitAfter()` will
 automatically be called for all `id`'s on the stack if the error is handled by
-a domain or `'uncaughtException'` handler. So there is no need to guard against
-this.
+a domain or `'uncaughtException'` handler.
 
 #### `asyncResource.emitDestroy()`
 
