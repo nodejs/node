@@ -12,7 +12,7 @@ const npmlog = require('npmlog')
 const limit = require('call-limit')
 const tempFilename = require('./utils/temp-filename')
 const pacote = require('pacote')
-const pacoteOpts = require('./config/pacote')
+let pacoteOpts
 const isWindows = require('./utils/is-windows.js')
 
 function andLogAndFinish (spec, tracker, done) {
@@ -52,7 +52,9 @@ function fetchPackageMetadata (spec, where, opts, done) {
     err.code = 'EWINDOWSPATH'
     return logAndFinish(err)
   }
-
+  if (!pacoteOpts) {
+    pacoteOpts = require('./config/pacote')
+  }
   pacote.manifest(dep, pacoteOpts({
     annotate: true,
     fullMetadata: opts.fullMetadata,
@@ -83,6 +85,9 @@ function fetchPackageMetadata (spec, where, opts, done) {
 module.exports.addBundled = addBundled
 function addBundled (pkg, next) {
   validate('OF', arguments)
+  if (!pacoteOpts) {
+    pacoteOpts = require('./config/pacote')
+  }
   if (pkg._bundled !== undefined) return next(null, pkg)
 
   if (!pkg.bundleDependencies && pkg._requested.type !== 'directory') return next(null, pkg)

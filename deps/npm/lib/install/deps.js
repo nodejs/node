@@ -183,7 +183,9 @@ function packageRelativePath (tree) {
   if (!tree) return ''
   var requested = tree.package._requested || {}
   var isLocal = requested.type === 'directory' || requested.type === 'file'
-  return isLocal ? requested.fetchSpec : tree.path
+  return isLocal ? requested.fetchSpec
+       : (tree.isLink || tree.isInLink) && !preserveSymlinks() ? tree.realpath
+       : tree.path
 }
 
 function matchingDep (tree, name) {
@@ -227,14 +229,24 @@ exports.loadRequestedDeps = function (args, tree, saveToDependencies, log, next)
       }
       var childName = moduleName(child)
       child.saveSpec = computeVersionSpec(tree, child)
-      if (saveToDependencies) {
-        tree.package[getSaveType(tree, child)][childName] = child.saveSpec
-      }
-      if (getSaveType(tree, child) === 'optionalDependencies') {
-        tree.package.dependencies[childName] = child.saveSpec
-      }
       child.userRequired = true
-      child.save = saveToDependencies
+      child.save = getSaveType(tree, child)
+      const types = ['dependencies', 'devDependencies', 'optionalDependencies']
+      if (child.save) {
+        tree.package[child.save][childName] = child.saveSpec
+        // Astute readers might notice that this exact same code exists in
+        // save.js under a different guise. That code is responsible for deps
+        // being removed from the final written `package.json`. The removal in
+        // this function is specifically to prevent "installed as both X and Y"
+        // warnings when moving an existing dep between different dep fields.
+        //
+        // Or, try it by removing this loop, and do `npm i -P x && npm i -D x`
+        for (let saveType of types) {
+          if (child.save !== saveType) {
+            delete tree.package[saveType][childName]
+          }
+        }
+      }
 
       // For things the user asked to install, that aren't a dependency (or
       // won't be when we're done), flag it as "depending" on the user
@@ -246,9 +258,17 @@ exports.loadRequestedDeps = function (args, tree, saveToDependencies, log, next)
   }, andForEachChild(loadDeps, andFinishTracker(log, next)))
 }
 
+module.exports.computeVersionSpec = computeVersionSpec
 function computeVersionSpec (tree, child) {
   validate('OO', arguments)
-  var requested = child.package._requested
+  var requested
+  if (child.package._requested) {
+    requested = child.package._requested
+  } else if (child.package._from) {
+    requested = npa(child.package._from)
+  } else {
+    requested = npa.resolve(child.package.name, child.package.version)
+  }
   if (requested.registry) {
     var version = child.package.version
     var rangeDescriptor = ''
@@ -275,26 +295,38 @@ function noModuleNameMatches (name) {
 
 // while this implementation does not require async calling, doing so
 // gives this a consistent interface with loadDeps et al
-exports.removeDeps = function (args, tree, saveToDependencies, log, next) {
-  validate('AOOF', [args, tree, log, next])
-  args.forEach(function (pkg) {
+exports.removeDeps = function (args, tree, saveToDependencies, next) {
+  validate('AOSF|AOZF', [args, tree, saveToDependencies, next])
+  for (let pkg of args) {
     var pkgName = moduleName(pkg)
     var toRemove = tree.children.filter(moduleNameMatches(pkgName))
     var pkgToRemove = toRemove[0] || createChild({package: {name: pkgName}})
-    if (tree.isTop) {
-      if (saveToDependencies) {
-        pkgToRemove.save = getSaveType(tree, pkg)
-        delete tree.package[pkgToRemove.save][pkgName]
-        if (pkgToRemove.save === 'optionalDependencies') {
-          delete tree.package.dependencies[pkgName]
-        }
-        replaceModuleByPath(tree, 'removed', pkgToRemove)
-      }
-      pkgToRemove.requiredBy = pkgToRemove.requiredBy.filter((parent) => parent !== tree)
+    var saveType = getSaveType(tree, pkg) || 'dependencies'
+    if (tree.isTop && saveToDependencies) {
+      pkgToRemove.save = saveType
     }
-    if (pkgToRemove.requiredBy.length === 0) removeObsoleteDep(pkgToRemove)
-  })
-  log.finish()
+    if (tree.package[saveType][pkgName]) {
+      delete tree.package[saveType][pkgName]
+      if (saveType === 'optionalDependencies' && tree.package.dependencies[pkgName]) {
+        delete tree.package.dependencies[pkgName]
+      }
+    }
+    replaceModuleByPath(tree, 'removedChildren', pkgToRemove)
+    for (let parent of pkgToRemove.requiredBy) {
+      parent.requires = parent.requires.filter((child) => child !== pkgToRemove)
+    }
+    pkgToRemove.requiredBy = pkgToRemove.requiredBy.filter((parent) => parent !== tree)
+  }
+  next()
+}
+exports.removeExtraneous = function (args, tree, next) {
+  for (let pkg of args) {
+    var pkgName = moduleName(pkg)
+    var toRemove = tree.children.filter(moduleNameMatches(pkgName))
+    if (toRemove.length) {
+      removeObsoleteDep(toRemove[0])
+    }
+  }
   next()
 }
 
@@ -639,6 +671,13 @@ var findRequirement = exports.findRequirement = function (tree, name, requested,
   return findRequirement(tree.parent, name, requested, requestor)
 }
 
+function preserveSymlinks () {
+  if (!('NODE_PRESERVE_SYMLINKS' in process.env)) return false
+  const value = process.env.NODE_PRESERVE_SYMLINKS
+  if (value == null || value === '' || value === 'false' || value === 'no' || value === '0') return false
+  return true
+}
+
 // Find the highest level in the tree that we can install this module in.
 // If the module isn't installed above us yet, that'd be the very top.
 // If it is, then it's the level below where its installed.
@@ -670,7 +709,7 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
 
   var devDeps = tree.package.devDependencies || {}
   if (tree.isTop && devDeps[pkg.name]) {
-    var requested = npa.resolve(pkg.name, devDeps[pkg.name], tree.path)
+    var requested = childDependencySpecifier(tree, pkg.name, devDeps[pkg.name])
     if (!doesChildVersionMatch({package: pkg}, requested, tree)) {
       return null
     }
@@ -684,7 +723,7 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
   if (npm.config.get('global-style') && tree.parent.isTop) return tree
   if (npm.config.get('legacy-bundling')) return tree
 
-  if (!process.env.NODE_PRESERVE_SYMLINKS && /^[.][.][\\/]/.test(path.relative(tree.parent.realpath, tree.realpath))) return tree
+  if (!preserveSymlinks() && /^[.][.][\\/]/.test(path.relative(tree.parent.realpath, tree.realpath))) return tree
 
   return (earliestInstallable(requiredBy, tree.parent, pkg) || tree)
 }

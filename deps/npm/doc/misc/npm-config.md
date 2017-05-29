@@ -63,6 +63,7 @@ The following shorthands are parsed on the command-line:
 * `-f`: `--force`
 * `-desc`: `--description`
 * `-S`: `--save`
+* `-P`: `--save-prod`
 * `-D`: `--save-dev`
 * `-O`: `--save-optional`
 * `-B`: `--save-bundle`
@@ -682,6 +683,16 @@ Attempt to install packages in the `optionalDependencies` object.  Note
 that if these packages fail to install, the overall installation
 process is not aborted.
 
+### package-lock
+
+* Default: true
+* Type: Boolean
+
+If set to false, then ignore `package-lock.json` files when installing. This
+will also prevent _writing_ `package-lock.json` if `save` is true.
+
+This option is an alias for `--shrinkwrap`.
+
 ### parseable
 
 * Default: false
@@ -802,6 +813,17 @@ If a package would be saved at install time by the use of `--save`,
 
 When used with the `npm rm` command, it removes it from the
 bundledDependencies list.
+
+### save-prod
+
+* Default: false
+* Type: Boolean
+
+Makes sure that a package will be saved into `dependencies` specifically. This
+is useful if a package already exists in `devDependencies` or
+`optionalDependencies`, but you want to move it to be a production dep. This is
+also the default behavior if `--save` is true, and neither `--save-dev` or
+`--save-optional` are true.
 
 ### save-dev
 
@@ -934,8 +956,10 @@ The shell to run for the `npm explore` command.
 * Default: true
 * Type: Boolean
 
-If set to false, then ignore `npm-shrinkwrap.json` files when
-installing.
+If set to false, then ignore `npm-shrinkwrap.json` files when installing. This
+will also prevent _writing_ `npm-shrinkwrap.json` if `save` is true.
+
+This option is an alias for `--package-lock`.
 
 ### sign-git-tag
 

@@ -7,14 +7,10 @@ const mr = require('npm-registry-mock')
 const npm = require('../../lib/npm.js')
 const osenv = require('osenv')
 const path = require('path')
-const pkgSri = require('../../lib/utils/package-integrity.js')
 const rimraf = require('rimraf')
 const test = require('tap').test
 
 const pkg = path.join(__dirname, path.basename(__filename, '.js'))
-
-const EXEC_OPTS = {
-  cwd: pkg }
 
 const json = {
   author: 'Rockbert',
@@ -54,7 +50,6 @@ test('adds additional metadata fields from the pkglock spec', function (t) {
               'name': 'shrinkwrap-extra-metadata',
               'version': '0.0.0',
               'lockfileVersion': npm.lockfileVersion,
-              'packageIntegrity': pkgSri.hash(json),
               'preserveSymlinks': 'foo'
             },
             JSON.parse(desired),

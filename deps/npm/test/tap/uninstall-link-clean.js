@@ -3,15 +3,15 @@ var path = require('path')
 var existsSync = fs.existsSync || path.existsSync
 
 var mkdirp = require('mkdirp')
-var osenv = require('osenv')
 var rimraf = require('rimraf')
 var test = require('tap').test
 
 var common = require('../common-tap.js')
 
-var pkg = path.join(__dirname, 'uninstall-link-clean')
-var dep = path.join(__dirname, 'dep')
-var work = path.join(__dirname, 'uninstall-link-clean-TEST')
+var testdir = path.join(__dirname, path.basename(__filename, '.js'))
+var pkg = path.join(testdir, 'pkg')
+var dep = path.join(testdir, 'dep')
+var work = path.join(testdir, 'uninstall-link-clean-TEST')
 var modules = path.join(work, 'node_modules')
 
 var EXEC_OPTS = { cwd: work, stdio: [0, 'ignore', 2] }
@@ -54,7 +54,6 @@ test('setup', function (t) {
   fs.writeFileSync(path.join(dep, 'world.js'), world)
 
   mkdirp.sync(modules)
-  process.chdir(work)
 
   t.end()
 })
@@ -110,8 +109,5 @@ test('cleanup', function (t) {
 })
 
 function cleanup () {
-  process.chdir(osenv.tmpdir())
-  rimraf.sync(dep)
-  rimraf.sync(work)
-  rimraf.sync(pkg)
+  rimraf.sync(testdir)
 }

@@ -76,15 +76,23 @@ function publish_ (arg) {
 }
 
 function publishFromDirectory (arg) {
-  return pack.prepareDirectory(arg).tap((pkg) => {
+  // All this readJson is because any of the given scripts might modify the
+  // package.json in question, so we need to refresh after every step.
+  return pack.prepareDirectory(arg).then(() => {
+    return readJson(path.join(arg, 'package.json'))
+  }).then((pkg) => {
     return lifecycle(pkg, 'prepublishOnly', arg)
-  }).tap((pkg) => {
+  }).then(() => {
+    return readJson(path.join(arg, 'package.json'))
+  }).then((pkg) => {
     return cacache.tmp.withTmp(npm.tmp, {tmpPrefix: 'fromDir'}, (tmpDir) => {
       const target = path.join(tmpDir, 'package.tgz')
       return pack.packDirectory(pkg, arg, target).then(() => {
         return upload(arg, pkg, false, target)
       })
     })
+  }).then(() => {
+    return readJson(path.join(arg, 'package.json'))
   }).tap((pkg) => {
     return lifecycle(pkg, 'publish', arg)
   }).tap((pkg) => {

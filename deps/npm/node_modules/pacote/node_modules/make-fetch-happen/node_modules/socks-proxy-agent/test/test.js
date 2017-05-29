@@ -44,8 +44,8 @@ describe('SocksProxyAgent', function () {
   before(function (done) {
     // setup target SSL HTTPS server
     var options = {
-      key: fs.readFileSync(__dirname + '/server.key'),
-      cert: fs.readFileSync(__dirname + '/server.crt')
+      key: fs.readFileSync(__dirname + '/ssl-cert-snakeoil.key'),
+      cert: fs.readFileSync(__dirname + '/ssl-cert-snakeoil.pem')
     };
     httpsServer = https.createServer(options);
     httpsServer.listen(function () {

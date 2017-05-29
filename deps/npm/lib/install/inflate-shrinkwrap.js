@@ -2,10 +2,10 @@
 
 const BB = require('bluebird')
 
-const addBundled = BB.promisify(require('../fetch-package-metadata.js').addBundled)
+let addBundled
 const childPath = require('../utils/child-path.js')
 const createChild = require('./node.js').create
-const fetchPackageMetadata = BB.promisify(require('../fetch-package-metadata.js'))
+let fetchPackageMetadata
 const inflateBundled = require('./inflate-bundled.js')
 const moduleName = require('../utils/module-name.js')
 const normalizePackageData = require('normalize-package-data')
@@ -14,17 +14,28 @@ const realizeShrinkwrapSpecifier = require('./realize-shrinkwrap-specifier.js')
 const validate = require('aproba')
 const path = require('path')
 
-module.exports = function (tree, swdeps, finishInflating) {
-  if (!npm.config.get('shrinkwrap')) return finishInflating()
+module.exports = function (tree, swdeps, opts, finishInflating) {
+  if (!fetchPackageMetadata) {
+    fetchPackageMetadata = BB.promisify(require('../fetch-package-metadata.js'))
+    addBundled = BB.promisify(fetchPackageMetadata.addBundled)
+  }
+  if (!npm.config.get('shrinkwrap') || !npm.config.get('package-lock')) {
+    return finishInflating()
+  }
+  if (arguments.length === 3) {
+    finishInflating = opts
+    opts = {}
+  }
   tree.loaded = true
-  return inflateShrinkwrap(tree.path, tree, swdeps).then(
+  return inflateShrinkwrap(tree.path, tree, swdeps, opts).then(
     () => finishInflating(),
     finishInflating
   )
 }
 
-function inflateShrinkwrap (topPath, tree, swdeps) {
-  validate('SOO', arguments)
+function inflateShrinkwrap (topPath, tree, swdeps, opts) {
+  validate('SOO|SOOO', arguments)
+  if (!opts) opts = {}
   const onDisk = {}
   tree.children.forEach((child) => {
     onDisk[moduleName(child)] = child
@@ -43,7 +54,7 @@ function inflateShrinkwrap (topPath, tree, swdeps) {
     const dependencies = sw.dependencies || {}
     const requested = realizeShrinkwrapSpecifier(name, sw, topPath)
     return inflatableChild(
-      onDisk[name], name, topPath, tree, sw, requested
+      onDisk[name], name, topPath, tree, sw, requested, opts
     ).then((child) => {
       return inflateShrinkwrap(topPath, child, dependencies)
     })
@@ -58,8 +69,8 @@ function normalizePackageDataNoErrors (pkg) {
   }
 }
 
-function inflatableChild (onDiskChild, name, topPath, tree, sw, requested) {
-  validate('OSSOOO|ZSSOOO', arguments)
+function inflatableChild (onDiskChild, name, topPath, tree, sw, requested, opts) {
+  validate('OSSOOOO|ZSSOOOO', arguments)
   if (onDiskChild && childIsEquivalent(sw, requested, onDiskChild)) {
     // The version on disk matches the shrinkwrap entry.
     if (!onDiskChild.fromShrinkwrap) onDiskChild.fromShrinkwrap = true
@@ -77,7 +88,7 @@ function inflatableChild (onDiskChild, name, topPath, tree, sw, requested) {
     normalizePackageDataNoErrors(onDiskChild.package)
     tree.children.push(onDiskChild)
     return BB.resolve(onDiskChild)
-  } else if (sw.version && sw.integrity) {
+  } else if (opts.fakeChildren !== false && sw.version && sw.integrity) {
     // The shrinkwrap entry has an integrity field. We can fake a pkg to get
     // the installer to do a content-address fetch from the cache, if possible.
     return BB.resolve(makeFakeChild(name, topPath, tree, sw, requested))
@@ -101,8 +112,7 @@ function makeFakeChild (name, topPath, tree, sw, requested) {
     _from: from,
     _spec: requested.rawSpec,
     _where: topPath,
-    _args: [[requested.toString(), topPath]],
-    _injectedFromShrinkwrap: sw
+    _args: [[requested.toString(), topPath]]
   }
   let bundleAdded = BB.resolve()
   if (Object.keys(sw.dependencies || {}).some((d) => {
@@ -118,6 +128,7 @@ function makeFakeChild (name, topPath, tree, sw, requested) {
       parent: tree,
       children: pkg._bundled || [],
       fromShrinkwrap: true,
+      fakeChild: sw,
       fromBundle: sw.bundled ? tree.fromBundle || tree : null,
       path: childPath(tree.path, pkg),
       realpath: childPath(tree.realpath, pkg),
