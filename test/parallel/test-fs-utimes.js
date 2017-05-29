@@ -163,8 +163,40 @@ runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
   });
 });
 
-
 process.on('exit', function() {
-  console.log('Tests run / ok:', tests_run, '/', tests_ok);
   assert.strictEqual(tests_ok, tests_run);
 });
+
+
+// Ref: https://github.com/nodejs/node/issues/13255
+common.refreshTmpDir();
+const path = `${common.tmpDir}/test-utimes-precision`;
+fs.writeFileSync(path, '');
+
+// test Y2K38 for all platforms [except 'arm', and 'SunOS']
+if (!process.arch.includes('arm') && !common.isSunOS) {
+  // because 2 ** 31 doesn't look right
+  // eslint-disable-next-line space-infix-ops
+  const Y2K38_mtime = 2**31;
+  fs.utimesSync(path, Y2K38_mtime, Y2K38_mtime);
+  const Y2K38_stats = fs.statSync(path);
+  assert.strictEqual(Y2K38_mtime, Y2K38_stats.mtime.getTime() / 1000);
+}
+
+if (common.isWindows) {
+  // this value would get converted to (double)1713037251359.9998
+  const truncate_mtime = 1713037251360;
+  fs.utimesSync(path, truncate_mtime / 1000, truncate_mtime / 1000);
+  const truncate_stats = fs.statSync(path);
+  assert.strictEqual(truncate_mtime, truncate_stats.mtime.getTime());
+
+  // test Y2K38 for windows
+  // This value if treaded as a `signed long` gets converted to -2135622133469.
+  // POSIX systems stores timestamps in {long t_sec, long t_usec}.
+  // NTFS stores times in nanoseconds in a single `uint64_t`, so when libuv
+  // calculates (long)`uv_timespec_t.tv_sec` we get 2's complement.
+  const overflow_mtime = 2159345162531;
+  fs.utimesSync(path, overflow_mtime / 1000, overflow_mtime / 1000);
+  const overflow_stats = fs.statSync(path);
+  assert.strictEqual(overflow_mtime, overflow_stats.mtime.getTime());
+}
