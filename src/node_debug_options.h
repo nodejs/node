@@ -10,25 +10,24 @@ class DebugOptions {
  public:
   DebugOptions();
   bool ParseOption(const char* argv0, const std::string& option);
-  bool inspector_enabled() const {
-#if HAVE_INSPECTOR
-    return inspector_enabled_;
-#else
-    return false;
-#endif  // HAVE_INSPECTOR
+  bool inspector_enabled() const { return inspector_enabled_; }
+  bool deprecated_invocation() const {
+    return deprecated_debug_ &&
+      inspector_enabled_ &&
+      break_first_line_;
   }
-  bool ToolsServerEnabled();
-  bool wait_for_connect() const { return wait_connect_; }
+  bool invalid_invocation() const {
+    return deprecated_debug_ && !inspector_enabled_;
+  }
+  bool wait_for_connect() const { return break_first_line_; }
   std::string host_name() const { return host_name_; }
   int port() const;
   void set_port(int port) { port_ = port; }
 
  private:
-#if HAVE_INSPECTOR
   bool inspector_enabled_;
-#endif  // HAVE_INSPECTOR
-  bool wait_connect_;
-  bool http_enabled_;
+  bool deprecated_debug_;
+  bool break_first_line_;
   std::string host_name_;
   int port_;
 };
