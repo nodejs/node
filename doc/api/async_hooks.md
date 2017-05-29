@@ -12,23 +12,18 @@ const async_hooks = require('async_hooks');
 
 ## Terminology
 
-An async resource represents either a _handle_ or a _request_.
-
-Handles are a reference to a system resource. Each handle can be continually
-reused to access and operate on the referenced resource.
-
-Requests are short lived data structures created to accomplish one task. The
-callback for a request should always and only ever fire one time, which is when
-the assigned task has either completed or encountered an error. Requests are
-used by handles to perform tasks such as accepting a new connection or
-writing data to disk.
+An asynchronous resource represents an object with an associated callback.
+This callback may be called multiple times, for example, the `connection` event
+in `net.createServer`, or just a single time like in `fs.open`. A resource
+can also be closed the callback is fired. AsyncHooks does not explicitly
+distinguish between these different cases but will represent them as the
+abstract concept that is a resource.
 
 ## Public API
 
 ### Overview
 
-Following is a simple overview of the public API. All of this API is explained in
-more detail further down.
+Following is a simple overview of the public API.
 
 ```js
 const async_hooks = require('async_hooks');
@@ -307,11 +302,11 @@ destroy: 9
 destroy: 5
 ```
 
-First notice that `scope` and the value returned by `currentId()` are always
-the same. That's because `currentId()` simply returns the value of the
-current execution context; which is defined by `before()` and `after()` calls.
+*Note*: As illustrated in the example, `currentId()` and `scope` each specify
+the value of the current execution context; which is delineated by calls to
+`before()` and `after()`.
 
-Now only using `scope` to graph resource allocation results in the following:
+Only using `scope` to graph resource allocation results in the following:
 
 ```
 TTYWRAP(6) -> Timeout(4) -> TIMERWRAP(5) -> TickObject(3) -> root(1)
