@@ -72,8 +72,13 @@ def try_remove(path, dst):
   try_unlink(target_path)
   try_rmdir_r(os.path.dirname(target_path))
 
-def install(paths, dst): map(lambda path: try_copy(path, dst), paths)
-def uninstall(paths, dst): map(lambda path: try_remove(path, dst), paths)
+def install(paths, dst):
+  for path in paths:
+    try_copy(path, dst)
+
+def uninstall(paths, dst):
+  for path in paths:
+    try_remove(path, dst)
 
 def npm_files(action):
   target_path = 'lib/node_modules/npm/'
