@@ -19,6 +19,10 @@ policies, and releases are managed under an
 If you need help using or installing Node.js, please use the
 [nodejs/help](https://github.com/nodejs/help) issue tracker.
 
+<p align="center">
+  <a title="CII Best Practices" href="https://bestpractices.coreinfrastructure.org/projects/29"><img src="https://bestpractices.coreinfrastructure.org/projects/29/badge"></a>
+</p>
+
 
 # Table of Contents
 
@@ -443,10 +447,6 @@ Previous releases may also have been signed with one of the following GPG keys:
 
 Information on the current Node.js Working Groups can be found in the
 [CTC repository](https://github.com/nodejs/CTC/blob/master/WORKING_GROUPS.md).
-
-<p align="center">
-  <a title="CII Best Practices" href="https://bestpractices.coreinfrastructure.org/projects/29"><img src="https://bestpractices.coreinfrastructure.org/projects/29/badge"></a>
-</p>
 
 [npm]: https://www.npmjs.com
 [Website]: https://nodejs.org/en/
