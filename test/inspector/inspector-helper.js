@@ -496,9 +496,9 @@ Harness.prototype.kill = function() {
 };
 
 exports.startNodeForInspectorTest = function(callback,
-                                             inspectorFlag = '--inspect-brk',
+                                             inspectorFlags = ['--inspect-brk'],
                                              opt_script_contents) {
-  const args = [inspectorFlag];
+  const args = [].concat(inspectorFlags);
   if (opt_script_contents) {
     args.push('-e', opt_script_contents);
   } else {
