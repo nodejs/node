@@ -168,8 +168,8 @@ instance is destructed.
 * `resource` {Object} reference to the resource representing the async operation,
   needs to be released during _destroy_
 
-Called when a class is constructed that has the _possibility_ to trigger an
-asynchronous event. This _does not_ mean the instance must trigger
+Called when a class is constructed that has the _possibility_ to emit an
+asynchronous event. This _does not_ mean the instance must call
 `before()`/`after()` before `destroy()` is called, only that the possibility
 exists.
 
@@ -199,9 +199,9 @@ RANDOMBYTESREQUEST, TLSWRAP
 
 Users are be able to define their own `type` when using the public embedder API.
 
-*Note:* It is possible to have type name collisions. Embedders are recommended
-to use unique prefixes per module to prevent collisions when listening to the
-hooks.
+*Note:* It is possible to have type name collisions. Embedders are encouraged
+to use a unique prefixes, such as the npm package name, to prevent collisions
+when listening to the hooks.
 
 `triggerId` is the `id` of the resource that caused (or "triggered") the
 new resource to initialize and that caused `init()` to call.
@@ -239,10 +239,12 @@ TCPWRAP(2): trigger: 1 scope: 1
 TCPWRAP(4): trigger: 2 scope: 0
 ```
 
+The first `TCPWRAP` is the server which receives the connections.
+
 The second `TCPWRAP` is the new connection from the client. When a new
 connection is made the `TCPWrap` instance is immediately constructed. This
 happens outside of any JavaScript stack (side note: a `currentId()` of `0`
-means it's being executed in "the void", with no JavaScript stack above it).
+means it's being executed from C++, with no JavaScript stack above it).
 With only that information it would be impossible to link resources together in
 terms of what caused them to be created, so `triggerId` is given the task of
 propagating what resource is responsible for the new resource's existence.
@@ -332,9 +334,9 @@ the **why** use `triggerId`.
 
 * `id` {number}
 
-When an asynchronous operation is triggered (such as a TCP server receiving a
+When an asynchronous operation is initiated (such as a TCP server receiving a
 new connection) or completes (such as writing data to disk) a callback is
-called to notify Node. The `before()` callback is called just before said
+called to notify the user. The `before()` callback is called just before said
 callback is executed. `id` is the unique identifier assigned to the
 resource about to execute the callback.
 
@@ -348,7 +350,8 @@ and exactly 1 time if the resource is a request.
 
 Called immediately after the callback specified in `before()` is completed. If
 an uncaught exception occurs during execution of the callback then `after()`
-will run after the `'uncaughtException'` event or a `domain`'s handler runs.
+will run after the `'uncaughtException'` event is emitted or a `domain`'s
+handler runs.
 
 
 ##### `destroy(id)`
@@ -419,9 +422,10 @@ const server = net.createServer(conn => {
 
 ## Embedder API
 
-Library developers that handle their own I/O will need to hook into the
-AsyncWrap API so that all the appropriate callbacks are called. To accommodate
-this a JavaScript API is provided.
+Library developers that handle their own I/O, a connection pool, or
+callback queues will need to hook into the AsyncWrap API so that all the
+appropriate callbacks are called. To accommodate this a JavaScript API is
+provided.
 
 ### `class AsyncResource()`
 
@@ -431,23 +435,23 @@ own resources.
 
 The `init()` hook will trigger when an `AsyncResource` is instantiated.
 
-It is important that before/after calls are unwound
+It is important that before/after calls are unwined
 in the same order they are called. Otherwise an unrecoverable exception
-will be made.
+will occur and node will abort.
 
 ```js
 // AsyncResource() is meant to be extended. Instantiating a
 // new AsyncResource() also triggers init(). If triggerId is omitted then
-// currentId() is used.
+// async_hook.currentId() is used.
 const asyncResource = new AsyncResource(type[, triggerId]);
 
-// Call before() hooks.
+// Call AsyncHooks before callbacks.
 asyncResource.emitBefore();
 
-// Call after() hooks.
+// Call AsyncHooks after callbacks.
 asyncResource.emitAfter();
 
-// Call destroy() hooks.
+// Call AsyncHooks destroy callbacks.
 asyncResource.emitDestroy();
 
 // Return the unique ID assigned to the AsyncResource instance.
@@ -460,10 +464,9 @@ asyncResource.triggerId();
 #### `AsyncResource(type[, triggerId])`
 
 * arguments
-  * `type` {string} the type of ascycn event
+  * `type` {string} the type of ascyc event
   * `triggerId` {number} the ID of the execution context that created this async
     event
-* Returns {AsyncResource} A reference to `asyncHook`.
 
 Example usage:
 
@@ -492,7 +495,7 @@ class DBQuery extends AsyncResource {
 
 * Returns {undefined}
 
-Call all `before()` hooks and let them know a new asynchronous execution
+Call all `before()` callbacks and let them know a new asynchronous execution
 context is being entered. If nested calls to `emitBefore()` are made the stack
 of `id`s will be tracked and properly unwound.
 
@@ -500,8 +503,8 @@ of `id`s will be tracked and properly unwound.
 
 * Returns {undefined}
 
-Call all `after()` hooks. If nested calls to `emitBefore()` were made then make
-sure the stack is unwound properly. Otherwise an error will be thrown.
+Call all `after()` callbacks. If nested calls to `emitBefore()` were made then
+make sure the stack is unwound properly. Otherwise an error will be thrown.
 
 If the user's callback throws an exception then `emitAfter()` will
 automatically be called for all `id`'s on the stack if the error is handled by
@@ -522,6 +525,7 @@ never be called.
 
 #### `asyncResource.triggerId()`
 
-* Returns {number} the same `triggerId` that is passed to `init()` hooks.
+* Returns {number} the same `triggerId` that is passed to the `AsyncResource`
+constructor.
 
 [`Hook Callbacks`]: #hook_callbacks
