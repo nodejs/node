@@ -101,7 +101,7 @@ that an effort will be made to coerce the given values into strings. For
 instance:
 
 ```js
-const myURL = new URL({toString: () => 'https://example.org/'});
+const myURL = new URL({ toString: () => 'https://example.org/' });
   // https://example.org/
 ```
 
@@ -817,7 +817,7 @@ console.log(myURL.href);
 console.log(myURL.toString());
   // Prints https://a:b@xn--6qqa088eba/?abc#foo
 
-console.log(url.format(myURL, {fragment: false, unicode: true, auth: false}));
+console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
   // Prints 'https://你好你好/?abc'
 ```
 
