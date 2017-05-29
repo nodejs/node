@@ -286,8 +286,8 @@ console.log(myURL.href);
 console.log(myURL.toString());
   // Prints https://a:b@xn--6qqa088eba/?abc#foo
 
-console.log(url.format(myURL, {fragment: false, unicode: true, auth: false}));
-  // Prints 'https://你好你好?abc'
+console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
+  // Prints 'https://你好你好/?abc'
 ```
 
 *Note*: This variation of the `url.format()` method is currently considered to
@@ -432,7 +432,7 @@ that an effort will be made to coerce the given values into strings. For
 instance:
 
 ```js
-const myURL = new URL({toString: () => 'https://example.org/'});
+const myURL = new URL({ toString: () => 'https://example.org/' });
   // https://example.org/
 ```
 
@@ -517,6 +517,7 @@ console.log(myURL.href);
   // Prints https://example.org/foo
 
 myURL.href = 'https://example.com/bar';
+console.log(myURL.href);
   // Prints https://example.com/bar
 ```
 
@@ -663,7 +664,7 @@ console.log(myURL.protocol);
 
 myURL.protocol = 'ftp';
 console.log(myURL.href);
-  // Prints ftp://example.org
+  // Prints ftp://example.org/
 ```
 
 Invalid URL protocol values assigned to the `protocol` property are ignored.
@@ -711,7 +712,7 @@ console.log(myURL.username);
 
 myURL.username = '123';
 console.log(myURL.href);
-  // Prints https://123:xyz@example.com
+  // Prints https://123:xyz@example.com/
 ```
 
 Any invalid URL characters appearing in the value assigned the `username`
@@ -846,7 +847,7 @@ const params = new URLSearchParams({
   query: ['first', 'second']
 });
 console.log(params.getAll('query'));
-  // Prints ['first,second']
+  // Prints [ 'first,second' ]
 console.log(params.toString());
   // Prints 'user=abc&query=first%2Csecond'
 ```
@@ -902,7 +903,8 @@ console.log(params.toString());
 new URLSearchParams([
   ['user', 'abc', 'error']
 ]);
-  // Throws TypeError: Each query pair must be a name/value tuple
+  // Throws TypeError [ERR_INVALID_TUPLE]:
+  //        Each query pair must be an iterable [name, value] tuple
 ```
 
 #### urlSearchParams.append(name, value)
