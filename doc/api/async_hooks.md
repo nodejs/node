@@ -116,6 +116,32 @@ performed to ensure an exception can follow the normal control flow without
 unintentional side effects.
 
 
+##### Printing in AsyncHooks callbacks
+
+Because printing to the console is an asynchronous operations `console.log()`
+will cause the AsyncHooks callbacks to write. Using `console.log()` or similar
+asynchronous operations inside an AsyncHooks callback function will thus
+cause an infinite recursion. An easily solution to this when debugging is
+to use a synchronous logging operation such as `fs.writeSync(1, msg)`. This
+will print to stdout because `1` is the file descriptor for stdout and will
+not invoke AsyncHooks recursively because it is synchronous.
+
+```js
+const fs = require('fs');
+const util = require('util');
+
+function debug() {
+  // use a function like this one when debugging inside an AsyncHooks callback
+  fs.writeSync(1, util.format.apply(null, arguments));
+};
+```
+
+If an asynchronous operation is needed for logging, it is possible to keep
+track of what caused the asynchronous operation using the information
+provided by AsyncHooks itself. The logging should then be skipped when
+it was the logging itself that caused AsyncHooks callback to fire. By
+doing this the otherwise infinite recursion is broken.
+
 #### `asyncHook.enable()`
 
 * Returns {AsyncHook} A reference to `asyncHook`.
@@ -191,7 +217,7 @@ const async_hooks = require('async_hooks');
 async_hooks.createHook({
   init (id, type, triggerId) {
     const cId = async_hooks.currentId();
-    process._rawDebug(`${type}(${id}): trigger: ${triggerId} scope: ${cId}`);
+    fs.writeSync(1, `${type}(${id}): trigger: ${triggerId} scope: ${cId}\n`);
   }
 }).enable();
 
@@ -225,19 +251,19 @@ let ws = 0;
 async_hooks.createHook({
   init (id, type, triggerId) {
     const cId = async_hooks.currentId();
-    process._rawDebug(' '.repeat(ws) +
-                      `${type}(${id}): trigger: ${triggerId} scope: ${cId}`);
+    fs.writeSync(1, ' '.repeat(ws) +
+                    `${type}(${id}): trigger: ${triggerId} scope: ${cId}\n`);
   },
   before (id) {
-    process._rawDebug(' '.repeat(ws) + 'before: ', id);
+    fs.writeSync(1, ' '.repeat(ws) + `before:  ${id}`);
     ws += 2;
   },
   after (id) {
     ws -= 2;
-    process._rawDebug(' '.repeat(ws) + 'after:  ', id);
+    fs.writeSync(1, ' '.repeat(ws) + `after:   ${id}`);
   },
   destroy (id) {
-    process._rawDebug(' '.repeat(ws) + 'destroy:', id);
+    fs.writeSync(1, ' '.repeat(ws) + `destroy: ${id}`);
   },
 }).enable();
 
