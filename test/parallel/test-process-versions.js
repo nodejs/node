@@ -26,5 +26,5 @@ assert(/^\d+\.\d+\.\d+(-.*)?$/.test(process.versions.http_parser));
 assert(/^\d+\.\d+\.\d+(-.*)?$/.test(process.versions.node));
 assert(/^\d+\.\d+\.\d+(-.*)?$/.test(process.versions.uv));
 assert(/^\d+\.\d+\.\d+(-.*)?$/.test(process.versions.zlib));
-assert(/^\d+\.\d+\.\d+(\.\d+)?$/.test(process.versions.v8));
+assert(/^\d+\.\d+\.\d+(\.\d+)?( \(candidate\))?$/.test(process.versions.v8));
 assert(/^\d+$/.test(process.versions.modules));
