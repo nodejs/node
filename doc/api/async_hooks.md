@@ -91,10 +91,10 @@ specifics of all functions that can be passed to `callbacks` is in the section
 
 If any `AsyncHook` callbacks throw, the application will print the stack trace
 and exit. The exit path does follow that of an uncaught exception but
-all `uncaughtException` listeners are removed, thus forceing the process to
-exit. The `'exit'` callbacks will still call unless the application is run with
-`--abort-on-uncaught-exception`, in which case a stack trace will be printed
-and the application exits, leaving a core file.
+all `uncaughtException` listeners are removed, thus forcing the process to
+exit. The `'exit'` callbacks will still be called unless the application is run
+with `--abort-on-uncaught-exception`, in which case a stack trace will be
+printed and the application exits, leaving a core file.
 
 The reason for this error handling behavior is that these callbacks are running
 at potentially volatile points in an object's lifetime, for example during
@@ -107,9 +107,9 @@ unintentional side effects.
 
 ##### Printing in AsyncHooks callbacks
 
-Because printing to the console is an asynchronous operations `console.log()`
-will cause the AsyncHooks callbacks to write. Using `console.log()` or similar
-asynchronous operations inside an AsyncHooks callback function will thus
+Because printing to the console is an asynchronous operation, `console.log()`
+will cause the AsyncHooks callbacks to be called. Using `console.log()` or
+similar asynchronous operations inside an AsyncHooks callback function will thus
 cause an infinite recursion. An easily solution to this when debugging is
 to use a synchronous logging operation such as `fs.writeSync(1, msg)`. This
 will print to stdout because `1` is the file descriptor for stdout and will
@@ -122,7 +122,7 @@ const util = require('util');
 function debug() {
   // use a function like this one when debugging inside an AsyncHooks callback
   fs.writeSync(1, util.format.apply(null, arguments));
-};
+}
 ```
 
 If an asynchronous operation is needed for logging, it is possible to keep
@@ -178,7 +178,7 @@ closing it before the resource can be used. The following snippet demonstrates
 this.
 
 ```js
-require('net').createServer().listen(function() { this.close() });
+require('net').createServer().listen(function() { this.close(); });
 // OR
 clearTimeout(setTimeout(() => {}, 10));
 ```
@@ -187,7 +187,7 @@ Every new resource is assigned a unique ID.
 
 The `type` is a string that represents the type of resource that caused
 `init()` to call. Generally it will be the name of the resource's constructor.
-The resource types provided by the build in Node.js modules are:
+The resource types provided by the built-in Node.js modules are:
 
 ```
 FSEVENTWRAP, FSREQWRAP, GETADDRINFOREQWRAP, GETNAMEINFOREQWRAP, HTTPPARSER,
@@ -223,13 +223,13 @@ The following is a simple demonstration of `triggerId`:
 const async_hooks = require('async_hooks');
 
 async_hooks.createHook({
-  init (id, type, triggerId) {
+  init(id, type, triggerId) {
     const cId = async_hooks.currentId();
     fs.writeSync(1, `${type}(${id}): trigger: ${triggerId} scope: ${cId}\n`);
   }
 }).enable();
 
-require('net').createServer(c => {}).listen(8080);
+require('net').createServer((conn) => {}).listen(8080);
 ```
 
 Output when hitting the server with `nc localhost 8080`:
@@ -326,8 +326,8 @@ The `TCPWRAP` isn't part of this graph; even though it was the reason for
 hostname is actually synchronous, but to maintain a completely asynchronous API
 the user's callback is placed in a `process.nextTick()`.
 
-The graph only shows **when** a resource was created. Not **why**. So to track
-the **why** use `triggerId`.
+The graph only shows *when* a resource was created, not *why*, so to track
+the *why* use `triggerId`.
 
 
 ##### `before(id)`
@@ -377,7 +377,7 @@ For example:
 console.log(async_hooks.currentId());  // 1 - bootstrap
 fs.open(path, (err, fd) => {
   console.log(async_hooks.currentId());  // 2 - open()
-}):
+});
 ```
 
 It is important to note that the ID returned fom `currentId()` is related to
@@ -406,7 +406,7 @@ const server = net.createServer(function onConnection(conn) {
 For example:
 
 ```js
-const server = net.createServer(conn => {
+const server = net.createServer((conn) => {
   // Though the resource that caused (or triggered) this callback to
   // be called was that of the new connection. Thus the return value
   // of triggerId() is the ID of "conn".
@@ -443,7 +443,7 @@ will occur and node will abort.
 // AsyncResource() is meant to be extended. Instantiating a
 // new AsyncResource() also triggers init(). If triggerId is omitted then
 // async_hook.currentId() is used.
-const asyncResource = new AsyncResource(type[, triggerId]);
+const asyncResource = new AsyncResource(type, triggerId);
 
 // Call AsyncHooks before callbacks.
 asyncResource.emitBefore();
@@ -473,13 +473,14 @@ Example usage:
 ```js
 class DBQuery extends AsyncResource {
   constructor(db) {
+    super();
     this.db = db;
   }
 
   getInfo(query, callback) {
     this.db.get(query, (err, data) => {
       this.emitBefore();
-      callback(err, data)
+      callback(err, data);
       this.emitAfter();
     });
   }
@@ -496,18 +497,18 @@ class DBQuery extends AsyncResource {
 * Returns {undefined}
 
 Call all `before()` callbacks and let them know a new asynchronous execution
-context is being entered. If nested calls to `emitBefore()` are made the stack
+context is being entered. If nested calls to `emitBefore()` are made, the stack
 of `id`s will be tracked and properly unwound.
 
 #### `asyncResource.emitAfter()`
 
 * Returns {undefined}
 
-Call all `after()` callbacks. If nested calls to `emitBefore()` were made then
+Call all `after()` callbacks. If nested calls to `emitBefore()` were made, then
 make sure the stack is unwound properly. Otherwise an error will be thrown.
 
 If the user's callback throws an exception then `emitAfter()` will
-automatically be called for all `id`'s on the stack if the error is handled by
+automatically be called for all `id`s on the stack if the error is handled by
 a domain or `'uncaughtException'` handler.
 
 #### `asyncResource.emitDestroy()`
