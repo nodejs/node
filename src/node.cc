@@ -27,13 +27,14 @@
 #include "node_internals.h"
 #include "node_revert.h"
 #include "node_debug_options.h"
+#include <iostream>
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
 #endif
 
 #if HAVE_OPENSSL
-#include "crypto_impl/node_crypto.h"
+#include "node_crypto_factory.h"
 #endif
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
@@ -208,6 +209,12 @@ bool enable_fips_crypto = false;
 bool force_fips_crypto = false;
 # endif  // NODE_FIPS_MODE
 std::string openssl_config;  // NOLINT(runtime/string)
+
+#define MACRO_VALUE(s) TO_STRING(s)
+#define TO_STRING(s) #s
+
+//  NOLINTNEXTLINE(runtime/string)
+std::string crypto_version = MACRO_VALUE(NODE_CRYPTO_VERSION);
 #endif  // HAVE_OPENSSL
 
 // true if process warnings should be suppressed
@@ -3017,33 +3024,19 @@ static Local<Object> GetFeatures(Environment* env) {
   // TODO(bnoordhuis) ping libuv
   obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "ipv6"), True(env->isolate()));
 
-#ifndef OPENSSL_NO_NEXTPROTONEG
-  Local<Boolean> tls_npn = True(env->isolate());
-#else
-  Local<Boolean> tls_npn = False(env->isolate());
-#endif
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_npn"), tls_npn);
+  auto crypto = crypto::CryptoFactory::Get(crypto_version, env);
 
-#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-  Local<Boolean> tls_alpn = True(env->isolate());
-#else
-  Local<Boolean> tls_alpn = False(env->isolate());
-#endif
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_alpn"), tls_alpn);
+  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_npn"),
+      Boolean::New(env->isolate(), crypto->HasNPN()));
 
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  Local<Boolean> tls_sni = True(env->isolate());
-#else
-  Local<Boolean> tls_sni = False(env->isolate());
-#endif
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_sni"), tls_sni);
+  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_alpn"),
+      Boolean::New(env->isolate(), crypto->HasALPN()));
 
-#if !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
-  Local<Boolean> tls_ocsp = True(env->isolate());
-#else
-  Local<Boolean> tls_ocsp = False(env->isolate());
-#endif  // !defined(OPENSSL_NO_TLSEXT) && defined(SSL_CTX_set_tlsext_status_cb)
-  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_ocsp"), tls_ocsp);
+  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_sni"),
+      Boolean::New(env->isolate(), crypto->HasSNI()));
+
+  obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls_ocsp"),
+      Boolean::New(env->isolate(), crypto->HasOCSP()));
 
   obj->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "tls"),
            Boolean::New(env->isolate(),
@@ -3225,25 +3218,12 @@ void SetupProcessObject(Environment* env,
                                  v8::kPromiseHandlerAddedAfterReject));
 
 #if HAVE_OPENSSL
-  // Stupid code to slice out the version string.
   {  // NOLINT(whitespace/braces)
-    size_t i, j, k;
-    int c;
-    for (i = j = 0, k = sizeof(OPENSSL_VERSION_TEXT) - 1; i < k; ++i) {
-      c = OPENSSL_VERSION_TEXT[i];
-      if ('0' <= c && c <= '9') {
-        for (j = i + 1; j < k; ++j) {
-          c = OPENSSL_VERSION_TEXT[j];
-          if (c == ' ')
-            break;
-        }
-        break;
-      }
-    }
+    auto crypto = crypto::CryptoFactory::Get(crypto_version, env);
     READONLY_PROPERTY(
         versions,
-        "openssl",
-        OneByteString(env->isolate(), &OPENSSL_VERSION_TEXT[i], j - i));
+        crypto->Name().c_str(),
+        OneByteString(env->isolate(), crypto->Version().c_str()));
   }
 #endif
 
@@ -4619,19 +4599,21 @@ int Start(int argc, char** argv) {
   Init(&argc, const_cast<const char**>(argv), &exec_argc, &exec_argv);
 
 #if HAVE_OPENSSL
+  auto crypto = crypto::CryptoFactory::Get(crypto_version);
   {
     std::string extra_ca_certs;
-    if (SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
-      crypto::UseExtraCaCerts(extra_ca_certs);
+    if (SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs)) {
+      crypto->UseExtraCaCerts(extra_ca_certs);
+    }
   }
 #ifdef NODE_FIPS_MODE
   // In the case of FIPS builds we should make sure
   // the random source is properly initialized first.
-  OPENSSL_init();
+  crypto->init();
 #endif  // NODE_FIPS_MODE
   // V8 on Windows doesn't have a good source of entropy. Seed it from
   // OpenSSL's pool.
-  V8::SetEntropySource(crypto::EntropySource);
+  V8::SetEntropySource(crypto->GetEntropySource());
 #endif  // HAVE_OPENSSL
 
   v8_platform.Initialize(v8_thread_pool_size);

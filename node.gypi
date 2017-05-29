@@ -98,6 +98,11 @@
     [ 'node_use_openssl=="true"', {
       'defines': [ 'HAVE_OPENSSL=1' ],
       'sources': [
+        'src/node_crypto.h',
+        'src/node_crypto_factory.h',
+        'src/node_crypto_factory.cc',
+        'src/crypto_impl/openssl.h',
+        'src/crypto_impl/openssl_1_0_2e.cc',
         'src/crypto_impl/node_crypto.cc',
         'src/crypto_impl/node_crypto_bio.cc',
         'src/crypto_impl/node_crypto_clienthello.cc',
