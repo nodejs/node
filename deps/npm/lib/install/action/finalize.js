@@ -23,10 +23,11 @@ module.exports = function (staging, pkg, log) {
 
   const requested = pkg.package._requested || getRequested(pkg)
   if (requested.type === 'directory') {
+    const relative = path.relative(path.dirname(pkg.path), pkg.realpath)
     return makeParentPath(pkg.path)
-      .then(() => symlink(pkg.realpath, pkg.path, 'junction'))
+      .then(() => symlink(relative, pkg.path, 'junction'))
       .catch((ex) => {
-        return rimraf(pkg.path).then(() => symlink(pkg.realpath, pkg.path, 'junction'))
+        return rimraf(pkg.path).then(() => symlink(relative, pkg.path, 'junction'))
       })
   } else {
     return makeParentPath(pkg.realpath)

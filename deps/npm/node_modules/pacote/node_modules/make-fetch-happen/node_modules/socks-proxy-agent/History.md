@@ -1,4 +1,14 @@
 
+2.1.0 / 2017-05-24
+==================
+
+  * DRY post-lookup logic
+  * Fix an error in readme (#13, @599316527)
+  * travis: test node v5
+  * travis: test iojs v1, 2, 3 and node.js v4
+  * test: use ssl-cert-snakeoil cert files
+  * Authentication support (#9, @baryshev)
+
 2.0.0 / 2015-07-10
 ==================
 

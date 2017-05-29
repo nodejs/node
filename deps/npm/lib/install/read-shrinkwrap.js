@@ -9,7 +9,6 @@ const log = require('npmlog')
 const parseJSON = require('../utils/parse-json.js')
 const path = require('path')
 const PKGLOCK_VERSION = require('../npm.js').lockfileVersion
-const pkgSri = require('../utils/package-integrity.js')
 
 const readFileAsync = BB.promisify(fs.readFile)
 
@@ -34,14 +33,6 @@ function readShrinkwrap (child, next) {
           throw ex
         }
       }
-      if (
-        pkgJson &&
-        parsed &&
-        parsed.packageIntegrity &&
-        !pkgSri.check(JSON.parse(pkgJson), parsed.packageIntegrity)
-      ) {
-        log.info('read-shrinkwrap', `${name} will be updated because package.json does not match what it was generated against.`)
-      }
       if (parsed && parsed.lockfileVersion !== PKGLOCK_VERSION) {
         log.warn('read-shrinkwrap', `This version of npm is compatible with lockfileVersion@${PKGLOCK_VERSION}, but ${name} was generated for lockfileVersion@${parsed.lockfileVersion || 0}. I'll try to do my best with it!`)
       }
@@ -56,10 +47,14 @@ function maybeReadFile (name, child) {
   ).catch({code: 'ENOENT'}, () => null)
 }
 
-module.exports.andInflate = function (child, next) {
+module.exports.andInflate = function (child, opts, next) {
+  if (arguments.length === 2) {
+    next = opts
+    opts = {}
+  }
   readShrinkwrap(child, iferr(next, function () {
     if (child.package._shrinkwrap) {
-      return inflateShrinkwrap(child, child.package._shrinkwrap.dependencies || {}, next)
+      return inflateShrinkwrap(child, child.package._shrinkwrap.dependencies || {}, opts, next)
     } else {
       return next()
     }

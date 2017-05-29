@@ -10,13 +10,13 @@ module.exports = function (staging, pkg, log) {
 
   return readJson(path.join(pkg.path, 'package.json'), false).then((metadata) => {
     Object.keys(pkg.package).forEach(function (key) {
-      if (key !== '_injectedFromShrinkwrap' && !isEmpty(pkg.package[key])) {
+      if (!isEmpty(pkg.package[key])) {
         metadata[key] = pkg.package[key]
-        if (key === '_resolved' && metadata[key] == null && pkg.package._injectedFromShrinkwrap) {
-          metadata[key] = pkg.package._injectedFromShrinkwrap.resolved
-        }
       }
     })
+    if (metadata._resolved == null && pkg.fakeChild) {
+      metadata._resolved = pkg.fakeChild.resolved
+    }
     // These two sneak in and it's awful
     delete metadata.readme
     delete metadata.readmeFilename

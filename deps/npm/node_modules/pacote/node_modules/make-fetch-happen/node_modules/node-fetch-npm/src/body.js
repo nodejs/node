@@ -11,6 +11,7 @@ const Buffer = require('safe-buffer').Buffer
 const Blob = require('./blob.js')
 const BUFFER = Blob.BUFFER
 const convert = require('encoding').convert
+const parseJson = require('json-parse-helpfulerror').parse
 const FetchError = require('./fetch-error.js')
 const Stream = require('stream')
 
@@ -92,7 +93,7 @@ Body.prototype = {
    * @return  Promise
    */
   json () {
-    return consumeBody.call(this).then(buffer => JSON.parse(buffer.toString()))
+    return consumeBody.call(this).then(buffer => parseJson(buffer.toString()))
   },
 
   /**

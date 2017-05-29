@@ -3,8 +3,6 @@
 // commands for packing and unpacking tarballs
 // this file is used by lib/cache.js
 
-const BB = require('bluebird')
-
 var fs = require('graceful-fs')
 var path = require('path')
 var writeFileAtomic = require('write-file-atomic')
@@ -28,11 +26,6 @@ var moduleName = require('./module-name.js')
 var packageId = require('./package-id.js')
 var pulseTillDone = require('../utils/pulse-till-done.js')
 
-const cacache = require('cacache')
-const packAsync = BB.promisify(pack)
-const PassThrough = require('stream').PassThrough
-const pipe = BB.promisify(require('mississippi').pipe)
-
 if (process.env.SUDO_UID && myUid === 0) {
   if (!isNaN(process.env.SUDO_UID)) myUid = +process.env.SUDO_UID
   if (!isNaN(process.env.SUDO_GID)) myGid = +process.env.SUDO_GID
@@ -40,18 +33,6 @@ if (process.env.SUDO_UID && myUid === 0) {
 
 exports.pack = pack
 exports.unpack = unpack
-
-module.exports.packToStream = packToStream
-function packToStream (mani, dir) {
-  const stream = new PassThrough()
-  cacache.tmp.withTmp(npm.tmp, (tmp) => {
-    const tmpTarget = path.join(tmp, 'package.tgz')
-    return packAsync(tmpTarget, dir, mani).then(() => {
-      return pipe(fs.createReadStream(tmpTarget), stream)
-    })
-  }).catch((err) => stream.emit('error', err))
-  return stream
-}
 
 function pack (tarball, folder, pkg, cb) {
   log.verbose('tar pack', [tarball, folder])

@@ -13,6 +13,7 @@ const rimraf = BB.promisify(require('rimraf'))
 const ssri = require('ssri')
 const to = require('mississippi').to
 const uniqueFilename = require('unique-filename')
+const Y = require('../util/y.js')
 
 const writeFileAsync = BB.promisify(fs.writeFile)
 
@@ -21,7 +22,7 @@ function write (cache, data, opts) {
   opts = opts || {}
   if (opts.algorithms && opts.algorithms.length > 1) {
     throw new Error(
-      'opts.algorithms only supports a single algorithm for now'
+      Y`opts.algorithms only supports a single algorithm for now`
     )
   }
   if (typeof opts.size === 'number' && data.length !== opts.size) {
@@ -58,7 +59,7 @@ function writeStream (cache, opts) {
   }, cb => {
     inputStream.end(() => {
       if (!allDone) {
-        const e = new Error('Input stream was empty')
+        const e = new Error(Y`Cache input stream was empty`)
         e.code = 'ENODATA'
         return ret.emit('error', e)
       }
@@ -143,7 +144,7 @@ function moveToDestination (tmp, cache, sri, opts, errCheck) {
 }
 
 function sizeError (expected, found) {
-  var err = new Error('stream data size mismatch')
+  var err = new Error(Y`Bad data size: expected inserted data to be ${expected} bytes, but got ${found} instead`)
   err.expected = expected
   err.found = found
   err.code = 'EBADSIZE'
@@ -151,7 +152,9 @@ function sizeError (expected, found) {
 }
 
 function checksumError (expected, found) {
-  var err = new Error('checksum failed')
+  var err = new Error(Y`Integrity check failed:
+  Wanted: ${expected}
+   Found: ${found}`)
   err.code = 'EINTEGRITY'
   err.expected = expected
   err.found = found

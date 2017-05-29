@@ -19,6 +19,7 @@ var exceptions = [
   path.resolve(lib, 'adduser.js'),
   path.resolve(lib, 'config.js'),
   path.resolve(lib, 'config', 'pacote.js'),
+  path.resolve(lib, 'pack.js'),
   path.resolve(lib, 'publish.js'),
   path.resolve(lib, 'install', 'inflate-shrinkwrap.js'),
   path.resolve(lib, 'utils', 'lifecycle.js'),

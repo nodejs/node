@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="2.0.1"></a>
+## [2.0.1](https://github.com/npm/node-fetch-npm/compare/v2.0.0...v2.0.1) (2017-05-24)
+
+
+### Bug Fixes
+
+* **json:** improve JSON parse error reporting ([1c810df](https://github.com/npm/node-fetch-npm/commit/1c810df))
+
+
+
 <a name="2.0.0"></a>
 # [2.0.0](https://github.com/npm/node-fetch-npm/compare/v1.0.1...v2.0.0) (2017-05-06)
 

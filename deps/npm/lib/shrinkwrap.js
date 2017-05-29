@@ -9,7 +9,6 @@ const getRequested = require('./install/get-requested.js')
 const id = require('./install/deps.js')
 const iferr = require('iferr')
 const isDevDep = require('./install/is-dev-dep.js')
-const isExtraneous = require('./install/is-extraneous.js')
 const isOptDep = require('./install/is-opt-dep.js')
 const isProdDep = require('./install/is-prod-dep.js')
 const lifecycle = require('./utils/lifecycle.js')
@@ -17,9 +16,7 @@ const log = require('npmlog')
 const moduleName = require('./utils/module-name.js')
 const move = require('move-concurrently')
 const npm = require('./npm.js')
-const packageId = require('./utils/package-id.js')
 const path = require('path')
-const pkgSri = require('./utils/package-integrity.js')
 const readPackageTree = BB.promisify(require('read-package-tree'))
 const ssri = require('ssri')
 const validate = require('aproba')
@@ -92,33 +89,21 @@ function treeToShrinkwrap (tree) {
   var pkginfo = {}
   if (tree.package.name) pkginfo.name = tree.package.name
   if (tree.package.version) pkginfo.version = tree.package.version
-  var problems = []
   if (tree.children.length) {
-    shrinkwrapDeps(problems, pkginfo.dependencies = {}, tree, tree)
+    shrinkwrapDeps(pkginfo.dependencies = {}, tree, tree)
   }
-  if (problems.length) pkginfo.problems = problems
   return pkginfo
 }
 
-function shrinkwrapDeps (problems, deps, top, tree, seen) {
-  validate('AOOO', [problems, deps, top, tree])
+function shrinkwrapDeps (deps, top, tree, seen) {
+  validate('OOO', [deps, top, tree])
   if (!seen) seen = {}
   if (seen[tree.path]) return
   seen[tree.path] = true
-  Object.keys(tree.missingDeps).forEach(function (name) {
-    var invalid = tree.children.filter(function (dep) { return moduleName(dep) === name })[0]
-    if (invalid) {
-      problems.push('invalid: have ' + invalid.package._id + ' (expected: ' + tree.missingDeps[name] + ') ' + invalid.path)
-    } else if (!tree.package.optionalDependencies || !tree.package.optionalDependencies[name]) {
-      var topname = packageId(tree)
-      problems.push('missing: ' + name + '@' + tree.package.dependencies[name] +
-        (topname ? ', required by ' + topname : ''))
-    }
-  })
   tree.children.sort(function (aa, bb) { return moduleName(aa).localeCompare(moduleName(bb)) }).forEach(function (child) {
     var childIsOnlyDev = isOnlyDev(child)
-    if (child.package._injectedFromShrinkwrap) {
-      deps[moduleName(child)] = child.package._injectedFromShrinkwrap
+    if (child.fakeChild) {
+      deps[moduleName(child)] = child.fakeChild
       return
     }
     var pkginfo = deps[moduleName(child)] = {}
@@ -148,16 +133,9 @@ function shrinkwrapDeps (problems, deps, top, tree, seen) {
     }
     if (childIsOnlyDev) pkginfo.dev = true
     if (isOptional(child)) pkginfo.optional = true
-    if (isExtraneous(child)) {
-      problems.push('extraneous: ' + child.package._id + ' ' + child.path)
-    }
-    id.validatePeerDeps(child, function (tree, pkgname, version) {
-      problems.push('peer invalid: ' + pkgname + '@' + version +
-        ', required by ' + child.package._id)
-    })
     if (child.children.length) {
       pkginfo.dependencies = {}
-      shrinkwrapDeps(problems, pkginfo.dependencies, top, child, seen)
+      shrinkwrapDeps(pkginfo.dependencies, top, child, seen)
     }
   })
 }
@@ -205,7 +183,6 @@ function updateLockfileMetadata (pkginfo, pkgJson) {
   let metainfoWritten = false
   const metainfo = new Set([
     'lockfileVersion',
-    'packageIntegrity',
     'preserveSymlinks'
   ])
   Object.keys(pkginfo).forEach((k) => {
@@ -224,7 +201,6 @@ function updateLockfileMetadata (pkginfo, pkgJson) {
   }
   function writeMetainfo (pkginfo) {
     pkginfo.lockfileVersion = PKGLOCK_VERSION
-    pkginfo.packageIntegrity = pkgJson && pkgSri.hash(pkgJson)
     if (process.env.NODE_PRESERVE_SYMLINKS) {
       pkginfo.preserveSymlinks = process.env.NODE_PRESERVE_SYMLINKS
     }

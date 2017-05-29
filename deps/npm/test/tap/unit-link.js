@@ -227,7 +227,7 @@ function testLink (opts, cb) {
         }
       }
     },
-    '../../lib/utils/gently-rm.js': dezalgo(function (toRemove, gently, cb) {
+    '../../lib/utils/gently-rm.js': dezalgo(function (toRemove, gently, basedir, cb) {
       if (opts.rm[toRemove] && opts.rm[toRemove].gently === gently) {
         cb()
       } else {
