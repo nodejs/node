@@ -26,6 +26,7 @@ function prune (args, cb) {
 
 function Pruner (where, dryrun, args) {
   Installer.call(this, where, dryrun, args)
+  this.fakeChildren = false
 }
 util.inherits(Pruner, Installer)
 
@@ -59,7 +60,7 @@ Pruner.prototype.loadAllDepsIntoIdealTree = function (cb) {
   var toPrune = this.idealTree.children.filter(shouldPrune).map(getModuleName).filter(matchesArg).map(nameObj)
 
   steps.push(
-    [removeDeps, toPrune, this.idealTree, null, cg.newGroup('removeDeps')],
+    [removeDeps, toPrune, this.idealTree, null],
     [loadExtraneous, this.idealTree, cg.newGroup('loadExtraneous')])
   chain(steps, cb)
 }

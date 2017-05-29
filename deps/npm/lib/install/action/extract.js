@@ -10,22 +10,19 @@ const moduleName = require('../../utils/module-name.js')
 const moduleStagingPath = require('../module-staging-path.js')
 const move = BB.promisify(require('../../utils/move.js'))
 const npa = require('npm-package-arg')
-const npm = require('../../npm.js')
 const packageId = require('../../utils/package-id.js')
 const pacote = require('pacote')
-const pacoteOpts = require('../../config/pacote')
+let pacoteOpts
 const path = require('path')
 
 module.exports = extract
 function extract (staging, pkg, log) {
   log.silly('extract', packageId(pkg))
-  const up = npm.config.get('unsafe-perm')
-  const user = up ? null : npm.config.get('user')
-  const group = up ? null : npm.config.get('group')
   const extractTo = moduleStagingPath(staging, pkg)
+  if (!pacoteOpts) {
+    pacoteOpts = require('../../config/pacote')
+  }
   const opts = pacoteOpts({
-    uid: user,
-    gid: group,
     integrity: pkg.package._integrity
   })
   return pacote.extract(

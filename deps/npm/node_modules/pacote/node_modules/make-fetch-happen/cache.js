@@ -95,7 +95,7 @@ module.exports = class Cache {
             }
           })
         }
-        return Promise.resolve(new fetch.Response(body, {
+        return this.Promise.resolve(new fetch.Response(body, {
           url: req.url,
           headers: resHeaders,
           status: 200,

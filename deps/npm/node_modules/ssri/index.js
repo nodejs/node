@@ -95,7 +95,9 @@ class Integrity {
     const pickAlgorithm = (opts && opts.pickAlgorithm) || getPrioritizedHash
     const keys = Object.keys(this)
     if (!keys.length) {
-      throw new Error(`No algorithms available for ${this}`)
+      throw new Error(`No algorithms available for ${
+        JSON.stringify(this.toString())
+      }`)
     }
     return keys.reduce((acc, algo) => {
       return pickAlgorithm(acc, algo) || acc
@@ -199,8 +201,9 @@ module.exports.checkData = checkData
 function checkData (data, sri, opts) {
   opts = opts || {}
   sri = parse(sri, opts)
+  if (!Object.keys(sri).length) { return false }
   const algorithm = sri.pickAlgorithm(opts)
-  const digests = sri[algorithm]
+  const digests = sri[algorithm] || []
   const digest = crypto.createHash(algorithm).update(data).digest('base64')
   return digests.find(hash => hash.digest === digest) || false
 }
@@ -231,8 +234,9 @@ function integrityStream (opts) {
   opts = opts || {}
   // For verification
   const sri = opts.integrity && parse(opts.integrity, opts)
-  const algorithm = sri && sri.pickAlgorithm(opts)
-  const digests = sri && sri[algorithm]
+  const goodSri = sri && Object.keys(sri).length
+  const algorithm = goodSri && sri.pickAlgorithm(opts)
+  const digests = goodSri && sri[algorithm]
   // Calculating stream
   const algorithms = opts.algorithms || [algorithm || 'sha512']
   const hashes = algorithms.map(crypto.createHash)
@@ -253,6 +257,7 @@ function integrityStream (opts) {
     const match = (
       // Integrity verification mode
       opts.integrity &&
+      digests &&
       digests.find(hash => {
         return newSri[algorithm].find(newhash => {
           return hash.digest === newhash.digest

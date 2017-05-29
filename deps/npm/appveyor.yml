@@ -15,7 +15,6 @@ install:
   - ps: Install-Product node $env:nodejs_version $env:platform
   - npm config set spin false
   - npm rebuild
-  - npm i -g "npm/npm#release-beta-5"
   - node . install -g .
   - set "PATH=%APPDATA%\npm;C:\Program Files\Git\mingw64\libexec;%PATH%"
   - npm install --loglevel=http

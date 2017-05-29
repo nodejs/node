@@ -81,6 +81,8 @@ The following shorthands are parsed on the command\-line:
 .IP \(bu 2
 \fB\-S\fP: \fB\-\-save\fP
 .IP \(bu 2
+\fB\-P\fP: \fB\-\-save\-prod\fP
+.IP \(bu 2
 \fB\-D\fP: \fB\-\-save\-dev\fP
 .IP \(bu 2
 \fB\-O\fP: \fB\-\-save\-optional\fP
@@ -943,6 +945,19 @@ Type: Boolean
 Attempt to install packages in the \fBoptionalDependencies\fP object\.  Note
 that if these packages fail to install, the overall installation
 process is not aborted\.
+.SS package\-lock
+.RS 0
+.IP \(bu 2
+Default: true
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If set to false, then ignore \fBpackage\-lock\.json\fP files when installing\. This
+will also prevent \fIwriting\fR \fBpackage\-lock\.json\fP if \fBsave\fP is true\.
+.P
+This option is an alias for \fB\-\-shrinkwrap\fP\|\.
 .SS parseable
 .RS 0
 .IP \(bu 2
@@ -1107,6 +1122,20 @@ If a package would be saved at install time by the use of \fB\-\-save\fP,
 .P
 When used with the \fBnpm rm\fP command, it removes it from the
 bundledDependencies list\.
+.SS save\-prod
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+Makes sure that a package will be saved into \fBdependencies\fP specifically\. This
+is useful if a package already exists in \fBdevDependencies\fP or
+\fBoptionalDependencies\fP, but you want to move it to be a production dep\. This is
+also the default behavior if \fB\-\-save\fP is true, and neither \fB\-\-save\-dev\fP or
+\fB\-\-save\-optional\fP are true\.
 .SS save\-dev
 .RS 0
 .IP \(bu 2
@@ -1278,8 +1307,10 @@ Type: Boolean
 
 .RE
 .P
-If set to false, then ignore \fBnpm\-shrinkwrap\.json\fP files when
-installing\.
+If set to false, then ignore \fBnpm\-shrinkwrap\.json\fP files when installing\. This
+will also prevent \fIwriting\fR \fBnpm\-shrinkwrap\.json\fP if \fBsave\fP is true\.
+.P
+This option is an alias for \fB\-\-package\-lock\fP\|\.
 .SS sign\-git\-tag
 .RS 0
 .IP \(bu 2

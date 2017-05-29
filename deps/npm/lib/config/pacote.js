@@ -1,25 +1,24 @@
 'use strict'
 
-const BB = require('bluebird')
+const Buffer = require('safe-buffer').Buffer
 
-const cp = require('child_process')
 const npm = require('../npm')
 const log = require('npmlog')
-const packToStream = require('../utils/tar').packToStream
+let pack
 const path = require('path')
-const pipe = BB.promisify(require('mississippi').pipe)
-const readJson = BB.promisify(require('read-package-json'))
-const PassThrough = require('stream').PassThrough
 
 let effectiveOwner
 
 module.exports = pacoteOpts
 function pacoteOpts (moreOpts) {
+  if (!pack) {
+    pack = require('../pack.js')
+  }
   const ownerStats = calculateOwner()
   const opts = {
     cache: path.join(npm.config.get('cache'), '_cacache'),
     defaultTag: npm.config.get('tag'),
-    dirPacker: prepareAndPack,
+    dirPacker: pack.packGitDep,
     hashAlgorithm: 'sha1',
     localAddress: npm.config.get('local-address'),
     log: log,
@@ -44,17 +43,34 @@ function pacoteOpts (moreOpts) {
   }
 
   if (ownerStats.uid || ownerStats.gid) {
-    Object.assign(opts, ownerStats, {
-      cacheUid: ownerStats.uid,
-      cacheGid: ownerStats.gid
-    })
+    Object.assign(opts, ownerStats)
   }
 
   npm.config.keys.forEach(function (k) {
-    if (k[0] === '/' && k.match(/.*:_authToken$/)) {
+    const authMatch = k[0] === '/' && k.match(
+      /(.*):(_authToken|username|_password|password|email|always-auth)$/
+    )
+    if (authMatch) {
+      const nerfDart = authMatch[1]
+      const key = authMatch[2]
+      const val = npm.config.get(k)
       if (!opts.auth) { opts.auth = {} }
-      opts.auth[k.replace(/:_authToken$/, '')] = {
-        token: npm.config.get(k)
+      if (!opts.auth[nerfDart]) {
+        opts.auth[nerfDart] = {
+          alwaysAuth: !!npm.config.get('always-auth')
+        }
+      }
+      if (key === '_authToken') {
+        opts.auth[nerfDart].token = val
+      } else if (key.match(/password$/i)) {
+        opts.auth[nerfDart].password =
+        // the config file stores password auth already-encoded. pacote expects
+        // the actual username/password pair.
+        Buffer.from(val, 'base64').toString('utf8')
+      } else if (key === 'always-auth') {
+        opts.auth[nerfDart].alwaysAuth = val === 'false' ? false : !!val
+      } else {
+        opts.auth[nerfDart][key] = val
       }
     }
     if (k[0] === '@') {
@@ -89,87 +105,4 @@ function calculateOwner () {
   }
 
   return effectiveOwner
-}
-
-const PASSTHROUGH_OPTS = [
-  'always-auth',
-  'auth-type',
-  'ca',
-  'cafile',
-  'cert',
-  'git',
-  'local-address',
-  'maxsockets',
-  'offline',
-  'prefer-offline',
-  'prefer-online',
-  'proxy',
-  'https-proxy',
-  'registry',
-  'send-metrics',
-  'sso-poll-frequency',
-  'sso-type',
-  'strict-ssl'
-]
-
-function prepareAndPack (manifest, dir) {
-  const stream = new PassThrough()
-  readJson(path.join(dir, 'package.json')).then((pkg) => {
-    if (pkg.scripts && pkg.scripts.prepare) {
-      log.verbose('prepareGitDep', `${manifest._spec}: installing devDeps and running prepare script.`)
-      const cliArgs = PASSTHROUGH_OPTS.reduce((acc, opt) => {
-        if (npm.config.get(opt, 'cli') != null) {
-          acc.push(`--${opt}=${npm.config.get(opt)}`)
-        }
-        return acc
-      }, [])
-      const child = cp.spawn(process.env.NODE || process.execPath, [
-        require.main.filename,
-        'install',
-        '--ignore-prepublish',
-        '--no-progress',
-        '--no-save'
-      ].concat(cliArgs), {
-        cwd: dir,
-        env: process.env
-      })
-      let errData = []
-      let errDataLen = 0
-      let outData = []
-      let outDataLen = 0
-      child.stdout.on('data', (data) => {
-        outData.push(data)
-        outDataLen += data.length
-        log.gauge.pulse('preparing git package')
-      })
-      child.stderr.on('data', (data) => {
-        errData.push(data)
-        errDataLen += data.length
-        log.gauge.pulse('preparing git package')
-      })
-      return BB.fromNode((cb) => {
-        child.on('error', cb)
-        child.on('exit', (code, signal) => {
-          if (code > 0) {
-            const err = new Error(`${signal}: npm exited with code ${code} while attempting to build ${manifest._requested}. Clone the repository manually and run 'npm install' in it for more information.`)
-            err.code = code
-            err.signal = signal
-            cb(err)
-          } else {
-            cb()
-          }
-        })
-      }).then(() => {
-        if (outDataLen > 0) log.silly('prepareGitDep', '1>', Buffer.concat(outData, outDataLen).toString())
-        if (errDataLen > 0) log.silly('prepareGitDep', '2>', Buffer.concat(errData, errDataLen).toString())
-      }, (err) => {
-        if (outDataLen > 0) log.error('prepareGitDep', '1>', Buffer.concat(outData, outDataLen).toString())
-        if (errDataLen > 0) log.error('prepareGitDep', '2>', Buffer.concat(errData, errDataLen).toString())
-        throw err
-      })
-    }
-  }).then(() => {
-    return pipe(packToStream(manifest, dir), stream)
-  }).catch((err) => stream.emit('error', err))
-  return stream
 }

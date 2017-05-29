@@ -89,7 +89,10 @@ var contents = '@scoped:registry=' + common.registry + '\n' +
 
 var json = {
   name: 'test-package-install',
-  version: '1.0.0'
+  version: '1.0.0',
+  dependencies: {
+    '@scoped/underscore': '1.3.1'
+  }
 }
 
 var shrinkwrap = {
