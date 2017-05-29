@@ -28,10 +28,10 @@ Following is a simple overview of the public API.
 ```js
 const async_hooks = require('async_hooks');
 
-// Return the id of the current execution context.
+// Return the ID of the current execution context.
 const cid = async_hooks.currentId();
 
-// Return the id of the handle responsible for triggering the callback of the
+// Return the ID of the handle responsible for triggering the callback of the
 // current execution scope to fire.
 const tid = async_hooks.triggerId();
 
@@ -165,9 +165,9 @@ destructor calls are emulated.
 
 ##### `init(id, type, triggerId, resource)`
 
-* `id` {number} a unique id for the async resource
+* `id` {number} a unique ID for the async resource
 * `type` {string} the type of the async resource
-* `triggerId` {number} the unique id of the async resource in whose
+* `triggerId` {number} the unique ID of the async resource in whose
   execution context this async resource was created
 * `resource` {Object} reference to the resource representing the async operation,
   needs to be released during _destroy_
@@ -187,7 +187,7 @@ require('net').createServer().listen(function() { this.close() });
 clearTimeout(setTimeout(() => {}, 10));
 ```
 
-Every new resource is assigned a unique id.
+Every new resource is assigned a unique ID.
 
 The `type` is a string that represents the type of resource that caused
 `init()` to fire. Generally it will be the name of the resource's constructor.
@@ -370,19 +370,19 @@ fs.open(path, (err, fd) => {
 }):
 ```
 
-It is important to note that the id returned fom `currentId()` is related to
+It is important to note that the ID returned fom `currentId()` is related to
 execution timing, not causality (which is covered by `triggerId()`). For
 example:
 
 ```js
 const server = net.createServer(function onConnection(conn) {
-  // Returns the id of the server, not of the new connection, because the
+  // Returns the ID of the server, not of the new connection, because the
   // onConnection callback runs in the execution scope of the server's
   // MakeCallback().
   async_hooks.currentId();
 
 }).listen(port, function onListening() {
-  // Returns the id of a TickObject (i.e. process.nextTick()) because all
+  // Returns the ID of a TickObject (i.e. process.nextTick()) because all
   // callbacks passed to .listen() are wrapped in a nextTick().
   async_hooks.currentId();
 });
@@ -390,7 +390,7 @@ const server = net.createServer(function onConnection(conn) {
 
 #### `async_hooks.triggerId()`
 
-* Returns {number} the id of the resource responsible for calling the callback
+* Returns {number} the ID of the resource responsible for calling the callback
   that is currently being executed.
 
 For example:
@@ -399,13 +399,13 @@ For example:
 const server = net.createServer(conn => {
   // Though the resource that caused (or triggered) this callback to
   // be called was that of the new connection. Thus the return value
-  // of triggerId() is the id of "conn".
+  // of triggerId() is the ID of "conn".
   async_hooks.triggerId();
 
 }).listen(port, () => {
   // Even though all callbacks passed to .listen() are wrapped in a nextTick()
   // the callback itself exists because the call to the server's .listen()
-  // was made. So the return value would be the id of the server.
+  // was made. So the return value would be the ID of the server.
   async_hooks.triggerId();
 });
 ```
@@ -443,10 +443,10 @@ asyncResource.emitAfter();
 // Call destroy() hooks.
 asyncResource.emitDestroy();
 
-// Return the unique id assigned to the AsyncResource instance.
+// Return the unique ID assigned to the AsyncResource instance.
 asyncResource.asyncId();
 
-// Return the trigger id for the AsyncResource instance.
+// Return the trigger ID for the AsyncResource instance.
 asyncResource.triggerId();
 ```
 
@@ -454,7 +454,7 @@ asyncResource.triggerId();
 
 * arguments
   * `type` {string} the type of ascycn event
-  * `triggerId` {number} the id of the execution context that created this async
+  * `triggerId` {number} the ID of the execution context that created this async
     event
 * Returns {AsyncResource} A reference to `asyncHook`.
 
