@@ -8,7 +8,8 @@ const stream = new Transform({
 
 stream.on('error', common.mustCall((err) => {
   assert.strictEqual(err.toString(),
-                     'Error: write callback called multiple times');
+                     'Error [ERR_TRANSFORM_MULTIPLE_CALLBACK]: ' +
+                     'Callback called multiple times');
 }));
 
 stream.write('foo');
