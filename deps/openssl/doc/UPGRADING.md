@@ -346,6 +346,7 @@ ohtsu@ubuntu:~/github/node/deps/openssl/asm_obsolete$ make clean
 find . -iname '*.asm' -exec rm "{}" \;
 find . -iname '*.s' -exec rm "{}" \;
 find . -iname '*.S' -exec rm "{}" \;
+ohtsu@ubuntu:~/github/node/deps/openssl/asm_obsolete$ make
 ohtsu@ubuntu:~/github/node/deps/openssl$ git status
 ohtsu@ubuntu:~/github/node/deps/openssl$ git commit asm asm_obsolete
 ````
@@ -353,6 +354,8 @@ The commit message can be
 
 >deps: update openssl asm and asm_obsolete files
 >
->Regenerate asm files with Makefile and CC=gcc and ASM=gcc where
->gcc-4.8.4. Also asm files in asm_obsolete dir to support old compiler
->and assembler are regenerated without CC and ASM envs.
+>Regenerate asm files with Makefile and CC=gcc and ASM=nasm where gcc
+>version was 5.4.0 and nasm version was 2.11.08.
+>
+>Also asm files in asm_obsolete dir to support old compiler and
+>assembler are regenerated without CC and ASM envs.
