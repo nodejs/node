@@ -9,6 +9,7 @@ common.crashOnUnhandledRejection();
 
 const read = promisify(fs.read);
 const write = promisify(fs.write);
+const exists = promisify(fs.exists);
 
 {
   const fd = fs.openSync(__filename, 'r');
@@ -27,5 +28,11 @@ common.refreshTmpDir();
     assert.strictEqual(typeof obj.bytesWritten, 'number');
     assert.strictEqual(obj.buffer.toString(), 'foobar');
     fs.closeSync(fd);
+  }));
+}
+
+{
+  exists(__filename).then(common.mustCall((x) => {
+    assert.strictEqual(x, true);
   }));
 }
