@@ -326,8 +326,8 @@ class Box {
     // Five space padding because that's the size of "Box< ".
     const padding = ' '.repeat(5);
     const inner = util.inspect(this.value, newOptions)
-                      .replace(/\n/g, '\n' + padding);
-    return options.stylize('Box', 'special') + '< ' + inner + ' >';
+                      .replace(/\n/g, `\n${padding}`);
+    return `${options.stylize('Box', 'special')}< ${inner} >`;
   }
 }
 
