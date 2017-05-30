@@ -232,8 +232,8 @@ For performance considerations, we only use a selected subset of ES.Next
 features in JavaScript code in the `lib` directory. However, when writing
 tests, for the ease of backporting, it is encouraged to use those ES.Next
 features that can be used directly without a flag in [all maintained branches]
-(https://github.com/nodejs/lts), you can check [node.green](http://node.green)
-for all available features in each release.
+(https://github.com/nodejs/lts). [node.green](http://node.green/) lists
+available features in each release.
 
 For example:
 
@@ -274,8 +274,8 @@ These imported tests will be wrapped like this:
 /* eslint-enable */
 ```
 
-If you want to improve tests that have been imported this way, please send
-a PR to the upstream project first. When your proposed change is merged in
+To improve tests that have been imported this way, please send
+a PR to the upstream project first. When the proposed change is merged in
 the upstream project, send another PR here to update Node.js accordingly.
 Be sure to update the hash in the URL following `WPT Refs:`.
 
