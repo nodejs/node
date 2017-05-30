@@ -196,9 +196,6 @@ ES6 example using `class` and `extends`
 const EventEmitter = require('events');
 
 class MyStream extends EventEmitter {
-  constructor() {
-    super();
-  }
   write(data) {
     this.emit('data', data);
   }
