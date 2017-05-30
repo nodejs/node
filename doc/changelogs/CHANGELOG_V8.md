@@ -136,7 +136,7 @@ LTS codename `'Carbon'`. Note that the
 
 * **Src**
   * `NODE_MODULE_VERSION` has been updated to 57
-    (https://github.com/nodejs/node/commit/ec7cbaf266)]
+    [[`ec7cbaf266`](https://github.com/nodejs/node/commit/ec7cbaf266)]
     [#12995](https://github.com/nodejs/node/pull/12995).
   * Add `--pending-deprecation` command-line argument and
     `NODE_PENDING_DEPRECATION` environment variable
