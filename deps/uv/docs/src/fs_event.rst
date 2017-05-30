@@ -66,7 +66,7 @@ Data types
             UV_FS_EVENT_WATCH_ENTRY = 1,
             /*
             * By default uv_fs_event will try to use a kernel interface such as inotify
-            * or kqueue to detect events. This may not work on remote filesystems such
+            * or kqueue to detect events. This may not work on remote file systems such
             * as NFS mounts. This flag makes fs_event fall back to calling stat() on a
             * regular interval.
             * This flag is currently not implemented yet on any backend.
@@ -74,7 +74,7 @@ Data types
             UV_FS_EVENT_STAT = 2,
             /*
             * By default, event watcher, when watching directory, is not registering
-            * (is ignoring) changes in it's subdirectories.
+            * (is ignoring) changes in its subdirectories.
             * This flag will override this behaviour on platforms that support it.
             */
             UV_FS_EVENT_RECURSIVE = 4
@@ -113,10 +113,14 @@ API
     Get the path being monitored by the handle. The buffer must be preallocated
     by the user. Returns 0 on success or an error code < 0 in case of failure.
     On success, `buffer` will contain the path and `size` its length. If the buffer
-    is not big enough UV_ENOBUFS will be returned and len will be set to the
-    required size.
+    is not big enough `UV_ENOBUFS` will be returned and `size` will be set to
+    the required size, including the null terminator.
 
     .. versionchanged:: 1.3.0 the returned length no longer includes the terminating null byte,
                         and the buffer is not null terminated.
+
+    .. versionchanged:: 1.9.0 the returned length includes the terminating null
+                        byte on `UV_ENOBUFS`, and the buffer is null terminated
+                        on success.
 
 .. seealso:: The :c:type:`uv_handle_t` API functions also apply.
