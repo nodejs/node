@@ -33,7 +33,7 @@
 #endif
 
 #if HAVE_OPENSSL
-#include "node_crypto.h"
+#include "crypto_impl/node_crypto.h"
 #endif
 
 #if defined(NODE_HAVE_I18N_SUPPORT)

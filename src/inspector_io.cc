@@ -4,7 +4,7 @@
 #include "env.h"
 #include "env-inl.h"
 #include "node.h"
-#include "node_crypto.h"
+#include "crypto_impl/node_crypto.h"
 #include "node_mutex.h"
 #include "v8-inspector.h"
 #include "util.h"

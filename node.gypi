@@ -98,14 +98,14 @@
     [ 'node_use_openssl=="true"', {
       'defines': [ 'HAVE_OPENSSL=1' ],
       'sources': [
-        'src/node_crypto.cc',
-        'src/node_crypto_bio.cc',
-        'src/node_crypto_clienthello.cc',
-        'src/node_crypto.h',
-        'src/node_crypto_bio.h',
-        'src/node_crypto_clienthello.h',
-        'src/tls_wrap.cc',
-        'src/tls_wrap.h'
+        'src/crypto_impl/node_crypto.cc',
+        'src/crypto_impl/node_crypto_bio.cc',
+        'src/crypto_impl/node_crypto_clienthello.cc',
+        'src/crypto_impl/node_crypto.h',
+        'src/crypto_impl/node_crypto_bio.h',
+        'src/crypto_impl/node_crypto_clienthello.h',
+        'src/crypto_impl/tls_wrap.cc',
+        'src/crypto_impl/tls_wrap.h'
       ],
       'conditions': [
         ['openssl_fips != ""', {
