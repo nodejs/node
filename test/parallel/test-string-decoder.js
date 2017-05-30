@@ -106,7 +106,7 @@ assert.strictEqual(decoder.end(), '\ufffd');
 
 // Additional utf8Text test
 decoder = new StringDecoder('utf8');
-assert.strictEqual(decoder.text(Buffer.from([0x41]), 2), '');
+assert.strictEqual(decoder.text(Buffer.from([0x41]), 1), '');
 
 // Additional UTF-16LE surrogate pair tests
 decoder = new StringDecoder('utf16le');
@@ -144,23 +144,28 @@ function test(encoding, input, expected, singleSequence) {
   } else {
     sequences = [singleSequence];
   }
-  sequences.forEach((sequence) => {
-    const decoder = new StringDecoder(encoding);
-    let output = '';
-    sequence.forEach((write) => {
-      output += decoder.write(input.slice(write[0], write[1]));
+  for (const useUint8array of [ false, true ]) {
+    sequences.forEach((sequence) => {
+      const decoder = new StringDecoder(encoding);
+      let output = '';
+      sequence.forEach((write) => {
+        let slice = input.slice(write[0], write[1]);
+        if (useUint8array)
+          slice = new Uint8Array(slice);
+        output += decoder.write(slice);
+      });
+      output += decoder.end();
+      if (output !== expected) {
+        const message =
+          'Expected "' + unicodeEscape(expected) + '", ' +
+          'but got "' + unicodeEscape(output) + '"\n' +
+          'input: ' + input.toString('hex').match(/.{2}/g) + '\n' +
+          'Write sequence: ' + JSON.stringify(sequence) + '\n' +
+          'Full Decoder State: ' + inspect(decoder);
+        assert.fail(output, expected, message);
+      }
     });
-    output += decoder.end();
-    if (output !== expected) {
-      const message =
-        'Expected "' + unicodeEscape(expected) + '", ' +
-        'but got "' + unicodeEscape(output) + '"\n' +
-        'input: ' + input.toString('hex').match(/.{2}/g) + '\n' +
-        'Write sequence: ' + JSON.stringify(sequence) + '\n' +
-        'Full Decoder State: ' + inspect(decoder);
-      assert.fail(output, expected, message);
-    }
-  });
+  }
 }
 
 // unicodeEscape prints the str contents as unicode escape codes.
