@@ -209,22 +209,30 @@ long int process_output_size(process_info_t *p) {
 
 
 int process_copy_output(process_info_t* p, FILE* stream) {
-  DWORD read;
   char buf[1024];
+  int fd, r;
+  FILE* f;
 
-  if (SetFilePointer(p->stdio_out,
-                     0,
-                     0,
-                     FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
+  fd = _open_osfhandle((intptr_t)p->stdio_out, _O_RDONLY | _O_TEXT);
+  if (fd == -1)
+    return -1;
+  f = _fdopen(fd, "rt");
+  if (f == NULL) {
+    _close(fd);
     return -1;
   }
 
-  while (ReadFile(p->stdio_out, &buf, sizeof(buf), &read, NULL) && read > 0)
-    print_lines(buf, read, stream);
-
-  if (GetLastError() != ERROR_HANDLE_EOF)
+  r = fseek(f, 0, SEEK_SET);
+  if (r < 0)
     return -1;
 
+  while (fgets(buf, sizeof(buf), f) != NULL)
+    print_lines(buf, strlen(buf), stream);
+  
+  if (ferror(f))
+    return -1;
+
+  fclose(f);
   return 0;
 }
 

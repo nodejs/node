@@ -244,7 +244,7 @@ TEST_IMPL(tty_empty_write) {
   ASSERT(r == 0);
 
   bufs[0].len = 0;
-  bufs[0].base = &dummy;
+  bufs[0].base = &dummy[0];
 
   r = uv_try_write((uv_stream_t*) &tty_out, bufs, 1);
   ASSERT(r == 0);

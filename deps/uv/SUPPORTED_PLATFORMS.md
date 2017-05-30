@@ -2,7 +2,7 @@
 
 |  System | Support type | Supported versions | Notes |
 |---|---|---|---|
-| GNU/Linux | Tier 1 | Linux >= 2.6.18 with glibc >= 2.5 | |
+| GNU/Linux | Tier 1 | Linux >= 2.6.32 with glibc >= 2.12 | |
 | macOS | Tier 1 | macOS >= 10.7 | |
 | Windows | Tier 1 | Windows >= XP SP1 | MSVC 2008 and later are supported |
 | FreeBSD | Tier 1 | >= 9 (see note) | |

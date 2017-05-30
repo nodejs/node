@@ -1,3 +1,178 @@
+2017.05.31, Version 1.12.0 (Stable), d6ac141ac674657049598c36604f26e031fae917
+
+Changes since version 1.11.0:
+
+* Now working on version 1.11.1 (cjihrig)
+
+* test: fix tests on OpenBSD (Santiago Gimeno)
+
+* test: fix -Wformat warning (Santiago Gimeno)
+
+* win,fs: avoid double freeing uv_fs_event_t.dirw (Vladimir Matveev)
+
+* unix: remove unused code in `uv__io_start` (Fedor Indutny)
+
+* signal: add uv_signal_start_oneshot method (Santiago Gimeno)
+
+* unix: factor out reusable POSIX hrtime impl (Brad King)
+
+* unix,win: add uv_os_{get,set,unset}env() (cjihrig)
+
+* win: add uv__convert_utf8_to_utf16() (cjihrig)
+
+* docs: improve UV_ENOBUFS scenario documentation (cjihrig)
+
+* unix: return UV_EINVAL for NULL env name (jBarz)
+
+* unix: filter getifaddrs results consistently (Brad King)
+
+* unix: factor out getifaddrs result filter (Brad King)
+
+* unix: factor out reusable BSD ifaddrs impl (Brad King)
+
+* unix: use union to follow strict aliasing rules (jBarz)
+
+* unix: simplify async watcher dispatch logic (Ben Noordhuis)
+
+* samples: update timer callback prototype (Ben Noordhuis)
+
+* unix: make loops and watchers usable after fork() (Jason Madden)
+
+* win: free uv__loops once empty (cjihrig)
+
+* tools: add make_dist_html.py script (Ben Noordhuis)
+
+* win,sunos: stop handle on uv_fs_event_start() err (cjihrig)
+
+* unix,windows: refactor request init logic (Ben Noordhuis)
+
+* win: fix memory leak inside uv__pipe_getname (A. Hauptmann)
+
+* fsevent: support for files without short name (Bartosz Sosnowski)
+
+* doc: fix multiple doc typos (Jamie Davis)
+
+* test,osx: fix flaky kill test (Santiago Gimeno)
+
+* unix: inline uv_pipe_bind() err_bind goto target (cjihrig)
+
+* unix,test: deadstore fixes (Rasmus Christian Pedersen)
+
+* win: fix memory leak inside uv_fs_access() (A. Hauptmann)
+
+* doc: fix docs/src/fs.rst build warning (Daniel Bevenius)
+
+* doc: minor grammar fix in Installation section (Daniel Bevenius)
+
+* doc: suggestions for design page (Daniel Bevenius)
+
+* doc: libuv does not touch uv_loop_t.data (Ben Noordhuis)
+
+* github: add ISSUE_TEMPLATE.md (Ben Noordhuis)
+
+* doc: add link to libuv/help to README (Ben Noordhuis)
+
+* udp: fix fast path in uv_udp_send() on unix (Fedor Indutny)
+
+* test: add test for uv_udp_send() fix (Trevor Norris)
+
+* doc: fix documentation for uv_handle_t.type (Daniel Kahn Gillmor)
+
+* zos: use proper prototype for epoll_init() (Ben Noordhuis)
+
+* doc: rename docs to "libuv documentation" (Saúl Ibarra Corretgé)
+
+* doc: update copyright years (Saúl Ibarra Corretgé)
+
+* doc: move TOC to a dedicated document (Saúl Ibarra Corretgé)
+
+* doc: move documentation section up (Saúl Ibarra Corretgé)
+
+* doc: move "upgrading" to a standalone document (Saúl Ibarra Corretgé)
+
+* doc: add initial version of the User Guide (Saúl Ibarra Corretgé)
+
+* doc: removed unused file (Saúl Ibarra Corretgé)
+
+* doc: update guide/about and mention new maintainership (Saúl Ibarra Corretgé)
+
+* doc: remove licensing note from guide/about (Saúl Ibarra Corretgé)
+
+* doc: add warning note to user guide (Saúl Ibarra Corretgé)
+
+* doc: change license to CC BY 4.0 (Saúl Ibarra Corretgé)
+
+* doc: remove ubvook reference from README (Saúl Ibarra Corretgé)
+
+* doc: add code samples from uvbook (unadapted) (Saúl Ibarra Corretgé)
+
+* doc: update supported linux/glibc baseline (Ben Noordhuis)
+
+* win: avoid leaking pipe handles to child processes (Jameson Nash)
+
+* win,test: support stdout output larger than 1kb (Bartosz Sosnowski)
+
+* win: remove __declspec(inline) from atomic op (Keane)
+
+* test: fix VC++ compilation warning (Rasmus Christian Pedersen)
+
+* build: add -Wstrict-prototypes (Jameson Nash)
+
+* zos: implement uv__io_fork, skip fs event tests (jBarz)
+
+* unix: do not close udp sockets on bind error (Marc Schlaich)
+
+* unix: remove FSEventStreamFlushSync() call (cjihrig)
+
+* build,openbsd: remove kvm-related code (James McCoy)
+
+* test: fix flaky tcp-write-queue-order (Santiago Gimeno)
+
+* unix,win: add uv_os_gethostname() (cjihrig)
+
+* zos: increase timeout for tcp_writealot (jBarz)
+
+* zos: do not inline OOB data by default (jBarz)
+
+* test: fix -Wstrict-prototypes compiler warnings (Ben Noordhuis)
+
+* unix: factor out reusable no-proctitle impl (Brad King)
+
+* test: factor out fsevents skip explanation (Brad King)
+
+* test: skip fork fsevent cases when lacking support (Brad King)
+
+* unix: factor out reusable no-fsevents impl (Brad King)
+
+* unix: factor out reusable sysinfo memory lookup (Brad King)
+
+* unix: factor out reusable sysinfo loadavg impl (Brad King)
+
+* unix: factor out reusable procfs exepath impl (Brad King)
+
+* unix: add a uv__io_poll impl using POSIX poll(2) (Brad King)
+
+* cygwin: implement support for cygwin and msys2 (Brad King)
+
+* cygwin: recognize EOF on named pipe closure (Brad King)
+
+* cygwin: fix uv_pipe_connect report of ENOTSOCK (Brad King)
+
+* cygwin: disable non-functional ipc handle send (Brad King)
+
+* test: skip self-connecting tests on cygwin (Brad King)
+
+* doc: mark uv_loop_fork() as experimental (cjihrig)
+
+* doc: add bzoz to maintainers (Bartosz Sosnowski)
+
+* doc: fix memory leak in tcp-echo-server example (Bernardo Ramos)
+
+* win: make uv__get_osfhandle() public (Juan Cruz Viotti)
+
+* doc: use valid pipe name in pipe-echo-server (Bernardo Ramos)
+
+
 2017.02.02, Version 1.11.0 (Stable), 7452ef4e06a4f99ee26b694c65476401534f2725
 
 Changes since version 1.10.2:

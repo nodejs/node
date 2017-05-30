@@ -86,9 +86,9 @@ Public members
 
     Pointer to the :c:type:`uv_loop_t` where the handle is running on. Readonly.
 
-.. c:member:: uv_loop_t* uv_handle_t.type
+.. c:member:: uv_handle_type uv_handle_t.type
 
-    Pointer to the :c:type:`uv_handle_type`. Readonly.
+    The :c:type:`uv_handle_type`, indicating the type of the underlying handle. Readonly.
 
 .. c:member:: void* uv_handle_t.data
 

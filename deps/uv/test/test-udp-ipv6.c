@@ -163,6 +163,11 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
 
 
 TEST_IMPL(udp_dual_stack) {
+#if defined(__CYGWIN__) || defined(__MSYS__)
+  /* FIXME: Does Cygwin support this?  */
+  RETURN_SKIP("FIXME: This test needs more investigation on Cygwin");
+#endif
+
   if (!can_ipv6())
     RETURN_SKIP("IPv6 not supported");
 
