@@ -6,7 +6,7 @@ const assert = require('assert');
 
 // addon is referenced through the eval expression in testFile
 // eslint-disable-next-line no-unused-vars
-const addon = require(`./build/${common.buildType}/test_instanceof`);
+const addon = require(`./build/${common.buildType}/test_general`);
 const path = require('path');
 
 // The following assert functions are referenced by v8's unit tests
