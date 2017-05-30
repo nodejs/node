@@ -158,6 +158,16 @@ assertNotDeepOrStrict(new Set([1, 2, 3, 4]), new Set([1, 2, 3]));
 assertDeepAndStrictEqual(new Set(['1', '2', '3']), new Set(['1', '2', '3']));
 assertDeepAndStrictEqual(new Set([[1, 2], [3, 4]]), new Set([[3, 4], [1, 2]]));
 
+const a = [ 1, 2 ];
+const b = [ 3, 4 ];
+const c = [ 1, 2 ];
+const d = [ 3, 4 ];
+
+assertDeepAndStrictEqual(
+  { a: a, b: b, s: new Set([a, b]) },
+  { a: c, b: d, s: new Set([d, c]) }
+);
+
 assertDeepAndStrictEqual(new Map([[1, 1], [2, 2]]), new Map([[1, 1], [2, 2]]));
 assertDeepAndStrictEqual(new Map([[1, 1], [2, 2]]), new Map([[2, 2], [1, 1]]));
 assertNotDeepOrStrict(new Map([[1, 1], [2, 2]]), new Map([[1, 2], [2, 1]]));
