@@ -61,6 +61,8 @@ static void uv__inotify_read(uv_loop_t* loop,
                              uv__io_t* w,
                              unsigned int revents);
 
+static void maybe_free_watcher_list(struct watcher_list* w,
+                                    uv_loop_t* loop);
 
 static int new_inotify_fd(void) {
   int err;
@@ -103,6 +105,71 @@ static int init_inotify(uv_loop_t* loop) {
   loop->inotify_fd = err;
   uv__io_init(&loop->inotify_read_watcher, uv__inotify_read, loop->inotify_fd);
   uv__io_start(loop, &loop->inotify_read_watcher, POLLIN);
+
+  return 0;
+}
+
+
+int uv__inotify_fork(uv_loop_t* loop, void* old_watchers) {
+  /* Open the inotify_fd, and re-arm all the inotify watchers. */
+  int err;
+  struct watcher_list* tmp_watcher_list_iter;
+  struct watcher_list* watcher_list;
+  struct watcher_list tmp_watcher_list;
+  QUEUE queue;
+  QUEUE* q;
+  uv_fs_event_t* handle;
+  char* tmp_path;
+
+  if (old_watchers != NULL) {
+    /* We must restore the old watcher list to be able to close items
+     * out of it.
+     */
+    loop->inotify_watchers = old_watchers;
+
+    QUEUE_INIT(&tmp_watcher_list.watchers);
+    /* Note that the queue we use is shared with the start and stop()
+     * functions, making QUEUE_FOREACH unsafe to use. So we use the
+     * QUEUE_MOVE trick to safely iterate. Also don't free the watcher
+     * list until we're done iterating. c.f. uv__inotify_read.
+     */
+    RB_FOREACH_SAFE(watcher_list, watcher_root,
+                    CAST(&old_watchers), tmp_watcher_list_iter) {
+      watcher_list->iterating = 1;
+      QUEUE_MOVE(&watcher_list->watchers, &queue);
+      while (!QUEUE_EMPTY(&queue)) {
+        q = QUEUE_HEAD(&queue);
+        handle = QUEUE_DATA(q, uv_fs_event_t, watchers);
+        /* It's critical to keep a copy of path here, because it
+         * will be set to NULL by stop() and then deallocated by
+         * maybe_free_watcher_list
+         */
+        tmp_path = uv__strdup(handle->path);
+        assert(tmp_path != NULL);
+        QUEUE_REMOVE(q);
+        QUEUE_INSERT_TAIL(&watcher_list->watchers, q);
+        uv_fs_event_stop(handle);
+
+        QUEUE_INSERT_TAIL(&tmp_watcher_list.watchers, &handle->watchers);
+        handle->path = tmp_path;
+      }
+      watcher_list->iterating = 0;
+      maybe_free_watcher_list(watcher_list, loop);
+    }
+
+    QUEUE_MOVE(&tmp_watcher_list.watchers, &queue);
+    while (!QUEUE_EMPTY(&queue)) {
+        q = QUEUE_HEAD(&queue);
+        QUEUE_REMOVE(q);
+        handle = QUEUE_DATA(q, uv_fs_event_t, watchers);
+        tmp_path = handle->path;
+        handle->path = NULL;
+        err = uv_fs_event_start(handle, handle->cb, tmp_path, 0);
+        uv__free(tmp_path);
+        if (err)
+          return err;
+    }
+  }
 
   return 0;
 }

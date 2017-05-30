@@ -44,15 +44,17 @@ The ABI/API changes can be tracked [here](http://abi-laboratory.pro/tracker/time
 ## Licensing
 
 libuv is licensed under the MIT license. Check the [LICENSE file](LICENSE).
+The documentation is licensed under the CC BY 4.0 license. Check the [LICENSE-docs file](LICENSE-docs).
 
 ## Community
 
+ * [Support](https://github.com/libuv/help)
  * [Mailing list](http://groups.google.com/group/libuv)
  * [IRC chatroom (#libuv@irc.freenode.org)](http://webchat.freenode.net?channels=libuv&uio=d4)
 
 ## Documentation
 
-### Official API documentation
+### Official documentation
 
 Located in the docs/ subdirectory. It uses the [Sphinx](http://sphinx-doc.org/)
 framework, which makes it possible to build the documentation in multiple
@@ -88,8 +90,6 @@ also serve as API specification and usage examples.
 
 ### Other resources
 
- * [An Introduction to libuv](http://nikhilm.github.com/uvbook/)
-   &mdash; An overview of libuv with tutorials.
  * [LXJS 2012 talk](http://www.youtube.com/watch?v=nGn60vDSxQ4)
    &mdash; High-level introductory talk about libuv.
  * [libuv-dox](https://github.com/thlorenz/libuv-dox)

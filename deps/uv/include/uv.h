@@ -274,6 +274,7 @@ UV_EXTERN void uv_loop_delete(uv_loop_t*);
 UV_EXTERN size_t uv_loop_size(void);
 UV_EXTERN int uv_loop_alive(const uv_loop_t* loop);
 UV_EXTERN int uv_loop_configure(uv_loop_t* loop, uv_loop_option option, ...);
+UV_EXTERN int uv_loop_fork(uv_loop_t* loop);
 
 UV_EXTERN int uv_run(uv_loop_t*, uv_run_mode mode);
 UV_EXTERN void uv_stop(uv_loop_t*);
@@ -1033,6 +1034,7 @@ UV_EXTERN int uv_get_process_title(char* buffer, size_t size);
 UV_EXTERN int uv_set_process_title(const char* title);
 UV_EXTERN int uv_resident_set_memory(size_t* rss);
 UV_EXTERN int uv_uptime(double* uptime);
+UV_EXTERN uv_os_fd_t uv_get_osfhandle(int fd);
 
 typedef struct {
   long tv_sec;
@@ -1072,6 +1074,12 @@ UV_EXTERN int uv_interface_addresses(uv_interface_address_t** addresses,
                                      int* count);
 UV_EXTERN void uv_free_interface_addresses(uv_interface_address_t* addresses,
                                            int count);
+
+UV_EXTERN int uv_os_getenv(const char* name, char* buffer, size_t* size);
+UV_EXTERN int uv_os_setenv(const char* name, const char* value);
+UV_EXTERN int uv_os_unsetenv(const char* name);
+
+UV_EXTERN int uv_os_gethostname(char* buffer, size_t* size);
 
 
 typedef enum {
@@ -1324,6 +1332,9 @@ UV_EXTERN int uv_signal_init(uv_loop_t* loop, uv_signal_t* handle);
 UV_EXTERN int uv_signal_start(uv_signal_t* handle,
                               uv_signal_cb signal_cb,
                               int signum);
+UV_EXTERN int uv_signal_start_oneshot(uv_signal_t* handle,
+                                      uv_signal_cb signal_cb,
+                                      int signum);
 UV_EXTERN int uv_signal_stop(uv_signal_t* handle);
 
 UV_EXTERN void uv_loadavg(double avg[3]);
