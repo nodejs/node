@@ -20,7 +20,7 @@ signcmd=dist-sign
 
 echo "# Selecting GPG key ..."
 
-gpgkey=$(gpg --list-secret-keys | awk -F'( +|/)' '/^(sec|ssb)/{print $3}')
+gpgkey=$(gpg --list-secret-keys --keyid-format SHORT | awk -F'( +|/)' '/^(sec|ssb)/{print $3}')
 keycount=$(echo $gpgkey | wc -w)
 
 if [ $keycount -eq 0 ]; then
