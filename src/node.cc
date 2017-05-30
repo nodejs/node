@@ -3632,7 +3632,7 @@ static void PrintHelp() {
          "  -r, --require              module to preload (option can be "
          "repeated)\n"
          "  -                          script read from stdin (default; "
-         "interactive mode if a tty)"
+         "interactive mode if a tty)\n"
 #if HAVE_INSPECTOR
          "  --inspect[=[host:]port]    activate inspector on host:port\n"
          "                             (default: 127.0.0.1:9229)\n"
