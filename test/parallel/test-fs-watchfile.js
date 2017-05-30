@@ -64,9 +64,12 @@ fs.watchFile(enoentFile, {interval: 0}, common.mustCall(function(curr, prev) {
   }
 }, 2));
 
+common.refreshTmpDir();
+
 // Watch events should callback with a filename on supported systems
 if (common.isLinux || common.isOSX || common.isWindows || common.isAix) {
   const dir = common.tmpDir + '/watch';
+  const file = `${dir}/foo.txt`;
 
   fs.mkdir(dir, common.mustCall(function(err) {
     if (err) assert.fail(err);
@@ -76,7 +79,7 @@ if (common.isLinux || common.isOSX || common.isWindows || common.isAix) {
       assert.strictEqual(filename, 'foo.txt');
     }));
 
-    fs.writeFile(`${dir}/foo.txt`, 'foo', common.mustCall(function(err) {
+    fs.writeFile(file, 'foo', common.mustCall(function(err) {
       if (err) assert.fail(err);
     }));
   }));
