@@ -31,20 +31,18 @@ function run() {
 
 test(function serverKeepAliveTimeoutWithPipeline(cb) {
   let socket;
-  let destroyedSockets = 0;
   let timeoutCount = 0;
   let requestCount = 0;
   process.on('exit', function() {
     assert.strictEqual(timeoutCount, 1);
     assert.strictEqual(requestCount, 3);
-    assert.strictEqual(destroyedSockets, 1);
   });
   const server = https.createServer(serverOptions, (req, res) => {
     socket = req.socket;
     requestCount++;
     res.end();
   });
-  server.setTimeout(200, (socket) => {
+  server.setTimeout(500, (socket) => {
     timeoutCount++;
     socket.destroy();
   });
@@ -60,29 +58,29 @@ test(function serverKeepAliveTimeoutWithPipeline(cb) {
       c.write('GET /2 HTTP/1.1\r\nHost: localhost\r\n\r\n');
       c.write('GET /3 HTTP/1.1\r\nHost: localhost\r\n\r\n');
     });
-    setTimeout(() => {
-      server.close();
-      if (socket.destroyed) destroyedSockets++;
-      cb();
-    }, 1000);
+    const interval = setInterval(() => {
+      if (socket && socket.destroyed && requestCount === 3) {
+        clearInterval(interval);
+        server.close();
+        cb();
+      }
+    }, 1);
   }));
 });
 
 test(function serverNoEndKeepAliveTimeoutWithPipeline(cb) {
   let socket;
-  let destroyedSockets = 0;
   let timeoutCount = 0;
   let requestCount = 0;
   process.on('exit', () => {
     assert.strictEqual(timeoutCount, 1);
     assert.strictEqual(requestCount, 3);
-    assert.strictEqual(destroyedSockets, 1);
   });
   const server = https.createServer(serverOptions, (req, res) => {
     socket = req.socket;
     requestCount++;
   });
-  server.setTimeout(200, (socket) => {
+  server.setTimeout(500, (socket) => {
     timeoutCount++;
     socket.destroy();
   });
@@ -98,10 +96,12 @@ test(function serverNoEndKeepAliveTimeoutWithPipeline(cb) {
       c.write('GET /2 HTTP/1.1\r\nHost: localhost\r\n\r\n');
       c.write('GET /3 HTTP/1.1\r\nHost: localhost\r\n\r\n');
     });
-    setTimeout(() => {
-      server.close();
-      if (socket && socket.destroyed) destroyedSockets++;
-      cb();
-    }, 1000);
+    const interval = setInterval(() => {
+      if (socket && socket.destroyed && requestCount === 3) {
+        clearInterval(interval);
+        server.close();
+        cb();
+      }
+    }, 1);
   }));
 });
