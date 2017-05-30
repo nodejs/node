@@ -702,7 +702,6 @@ int ParseTxtReply(Environment* env,
   }
 
   Local<Array> txt_chunk;
-  Local<Object> txt_chunk_obj;
 
   struct ares_txt_ext* current = txt_out;
   uint32_t i = 0, j;
@@ -712,43 +711,38 @@ int ParseTxtReply(Environment* env,
 
     // New record found - write out the current chunk
     if (current->record_start) {
-      if (!need_type) {
-        if (!txt_chunk.IsEmpty())
+      if (!txt_chunk.IsEmpty()) {
+        if (need_type) {
+          Local<Object> elem = Object::New(env->isolate());
+          elem->Set(context, env->entries_string(), txt_chunk).FromJust();
+          elem->Set(context,
+                    env->type_string(),
+                    env->dns_txt_string()).FromJust();
+          ret->Set(context, offset + i++, elem).FromJust();
+        } else {
           ret->Set(context, offset + i++, txt_chunk).FromJust();
-        txt_chunk = Array::New(env->isolate());
-      } else {
-        if (!txt_chunk_obj.IsEmpty()) {
-          txt_chunk_obj->Set(context,
-                             env->type_string(),
-                             env->dns_txt_string()).FromJust();
-          txt_chunk_obj->Set(context,
-                             env->length_string(),
-                             Integer::New(env->isolate(), j)).FromJust();
-          ret->Set(context, offset + i++, txt_chunk_obj).FromJust();
         }
-        txt_chunk_obj = Object::New(env->isolate());
       }
 
+      txt_chunk = Array::New(env->isolate());
       j = 0;
     }
 
-    if (need_type)
-      txt_chunk_obj->Set(context, j++, txt).FromJust();
-    else
-      txt_chunk->Set(context, j++, txt).FromJust();
+    txt_chunk->Set(context, j++, txt).FromJust();
   }
 
   // Push last chunk if it isn't empty
-  if (!need_type && !txt_chunk.IsEmpty()) {
-    ret->Set(context, offset + i, txt_chunk).FromJust();
-  } else if (need_type && !txt_chunk_obj.IsEmpty()) {
-    txt_chunk_obj->Set(context,
-                       env->type_string(),
-                       env->dns_txt_string()).FromJust();
-    txt_chunk_obj->Set(context,
-                       env->length_string(),
-                       Integer::New(env->isolate(), j)).FromJust();
-    ret->Set(context, offset + i, txt_chunk_obj).FromJust();
+  if (!txt_chunk.IsEmpty()) {
+    if (need_type) {
+      Local<Object> elem = Object::New(env->isolate());
+      elem->Set(context, env->entries_string(), txt_chunk).FromJust();
+      elem->Set(context,
+                env->type_string(),
+                env->dns_txt_string()).FromJust();
+      ret->Set(context, offset + i, elem).FromJust();
+    } else {
+      ret->Set(context, offset + i, txt_chunk).FromJust();
+    }
   }
 
   ares_free_data(txt_out);
@@ -911,7 +905,6 @@ int ParseSoaReply(Environment* env,
     /* only need SOA */
     if (rr_type == ns_t_soa) {
       ares_soa_reply soa;
-      // ares_soa_reply* soa = node::Malloc<ares_soa_reply>(1);
 
       status = ares_expand_name(ptr, buf, len, &soa.nsname, &temp_len);
       if (status != ARES_SUCCESS) {

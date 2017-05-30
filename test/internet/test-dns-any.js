@@ -12,7 +12,7 @@ const queue = [];
 const isIPv4 = net.isIPv4;
 const isIPv6 = net.isIPv6;
 
-dns.setServers(['8.8.8.8', '8.8.4.4']);
+dns.setServers([ '8.8.8.8', '8.8.4.4' ]);
 
 function checkWrap(req) {
   assert.ok(typeof req === 'object');
@@ -57,8 +57,9 @@ const checkers = {
     assert.strictEqual(r.type, 'PTR');
   },
   checkTXT(r) {
-    assert.ok(r.length > 0);
-    Array.prototype.forEach.call(r, (txt) => {
+    assert.ok(Array.isArray(r.entries));
+    assert.ok(r.entries.length > 0);
+    r.entries.forEach((txt) => {
       assert.strictEqual(txt.indexOf('v=spf1'), 0);
     });
     assert.strictEqual(r.type, 'TXT');

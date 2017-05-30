@@ -442,7 +442,7 @@ will be present on the object:
 | `"PTR"` | `value` |
 | `"SOA"` | Refer to [`dns.resolveSoa()`][] |
 | `"SRV"` | Refer to [`dns.resolveSrv()`][] |
-| `"TXT"` | This is an array-like object with `length` and `indexes`, eg. `{'0':'sth','length':1}` |
+| `"TXT"` | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], eg. `{ entries: ['...'], type: 'TXT' }` |
 
 Here is a example of the `ret` object passed to the callback:
 
@@ -452,7 +452,7 @@ Here is a example of the `ret` object passed to the callback:
   { type: 'CNAME', value: 'example.com' },
   { type: 'MX', exchange: 'alt4.aspmx.l.example.com', priority: 50 },
   { type: 'NS', value: 'ns1.example.com', type: 'NS' },
-  { type: 'TXT', '0': 'v=spf1 include:_spf.example.com ~all', length: 1 },
+  { type: 'TXT', entries: [ 'v=spf1 include:_spf.example.com ~all' ] },
   { type: 'SOA',
     nsname: 'ns1.example.com',
     hostmaster: 'admin.example.com',

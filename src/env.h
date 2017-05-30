@@ -123,6 +123,7 @@ namespace node {
   V(irq_string, "irq")                                                        \
   V(encoding_string, "encoding")                                              \
   V(enter_string, "enter")                                                    \
+  V(entries_string, "entries")                                                \
   V(env_pairs_string, "envPairs")                                             \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
