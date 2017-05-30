@@ -306,9 +306,9 @@ class SocketWrapper {
 class ServerHolder {
  public:
   template <typename Delegate>
-  ServerHolder(Delegate* delegate, int port, FILE* out = NULL)
+  ServerHolder(Delegate* delegate, uv_loop_t* loop, int port, FILE* out = NULL)
                : closed(false), paused(false),
-                 server_(delegate, HOST, port, out) {
+                 server_(delegate, loop, HOST, port, out) {
     delegate->Connect(&server_);
   }
 
@@ -387,8 +387,8 @@ static const std::string WsHandshakeRequest(const std::string& target_id) {
 
 TEST_F(InspectorSocketServerTest, InspectorSessions) {
   TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, 0);
-  ASSERT_TRUE(server->Start(&loop));
+  ServerHolder server(&delegate, &loop, 0);
+  ASSERT_TRUE(server->Start());
 
   SocketWrapper well_behaved_socket(&loop);
   // Regular connection
@@ -474,8 +474,8 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
 
 TEST_F(InspectorSocketServerTest, ServerDoesNothing) {
   TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, 0);
-  ASSERT_TRUE(server->Start(&loop));
+  ServerHolder server(&delegate, &loop, 0);
+  ASSERT_TRUE(server->Start());
 
   server->Stop(ServerHolder::CloseCallback);
   server->TerminateConnections();
@@ -485,8 +485,8 @@ TEST_F(InspectorSocketServerTest, ServerDoesNothing) {
 
 TEST_F(InspectorSocketServerTest, ServerWithoutTargets) {
   ServerDelegateNoTargets delegate;
-  ServerHolder server(&delegate, 0);
-  ASSERT_TRUE(server->Start(&loop));
+  ServerHolder server(&delegate, &loop, 0);
+  ASSERT_TRUE(server->Start());
   TestHttpRequest(server.port(), "/json/list", "[ ]");
   TestHttpRequest(server.port(), "/json", "[ ]");
 
@@ -503,10 +503,10 @@ TEST_F(InspectorSocketServerTest, ServerWithoutTargets) {
 
 TEST_F(InspectorSocketServerTest, ServerCannotStart) {
   ServerDelegateNoTargets delegate1, delegate2;
-  ServerHolder server1(&delegate1, 0);
-  ASSERT_TRUE(server1->Start(&loop));
-  ServerHolder server2(&delegate2, server1.port());
-  ASSERT_FALSE(server2->Start(&loop));
+  ServerHolder server1(&delegate1, &loop, 0);
+  ASSERT_TRUE(server1->Start());
+  ServerHolder server2(&delegate2, &loop, server1.port());
+  ASSERT_FALSE(server2->Start());
   server1->Stop(ServerHolder::CloseCallback);
   server1->TerminateConnections();
   SPIN_WHILE(!server1.closed);
@@ -515,8 +515,8 @@ TEST_F(InspectorSocketServerTest, ServerCannotStart) {
 
 TEST_F(InspectorSocketServerTest, StoppingServerDoesNotKillConnections) {
   ServerDelegateNoTargets delegate;
-  ServerHolder server(&delegate, 0);
-  ASSERT_TRUE(server->Start(&loop));
+  ServerHolder server(&delegate, &loop, 0);
+  ASSERT_TRUE(server->Start());
   SocketWrapper socket1(&loop);
   socket1.Connect(HOST, server.port());
   socket1.TestHttpRequest("/json/list", "[ ]");
@@ -530,8 +530,8 @@ TEST_F(InspectorSocketServerTest, StoppingServerDoesNotKillConnections) {
 
 TEST_F(InspectorSocketServerTest, ClosingConnectionReportsDone) {
   ServerDelegateNoTargets delegate;
-  ServerHolder server(&delegate, 0);
-  ASSERT_TRUE(server->Start(&loop));
+  ServerHolder server(&delegate, &loop, 0);
+  ASSERT_TRUE(server->Start());
   SocketWrapper socket1(&loop);
   socket1.Connect(HOST, server.port());
   socket1.TestHttpRequest("/json/list", "[ ]");
@@ -545,8 +545,8 @@ TEST_F(InspectorSocketServerTest, ClosingConnectionReportsDone) {
 
 TEST_F(InspectorSocketServerTest, ClosingSocketReportsDone) {
   TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, 0);
-  ASSERT_TRUE(server->Start(&loop));
+  ServerHolder server(&delegate, &loop, 0);
+  ASSERT_TRUE(server->Start());
   SocketWrapper socket1(&loop);
   socket1.Connect(HOST, server.port());
   socket1.Write(WsHandshakeRequest(MAIN_TARGET_ID));
@@ -560,8 +560,8 @@ TEST_F(InspectorSocketServerTest, ClosingSocketReportsDone) {
 
 TEST_F(InspectorSocketServerTest, TerminatingSessionReportsDone) {
   TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, 0);
-  ASSERT_TRUE(server->Start(&loop));
+  ServerHolder server(&delegate, &loop, 0);
+  ASSERT_TRUE(server->Start());
   SocketWrapper socket1(&loop);
   socket1.Connect(HOST, server.port());
   socket1.Write(WsHandshakeRequest(MAIN_TARGET_ID));
