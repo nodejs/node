@@ -196,9 +196,6 @@ ES6 example using `class` and `extends`
 const EventEmitter = require('events');
 
 class MyStream extends EventEmitter {
-  constructor() {
-    super();
-  }
   write(data) {
     this.emit('data', data);
   }
@@ -329,8 +326,8 @@ class Box {
     // Five space padding because that's the size of "Box< ".
     const padding = ' '.repeat(5);
     const inner = util.inspect(this.value, newOptions)
-                      .replace(/\n/g, '\n' + padding);
-    return options.stylize('Box', 'special') + '< ' + inner + ' >';
+                      .replace(/\n/g, `\n${padding}`);
+    return `${options.stylize('Box', 'special')}< ${inner} >`;
   }
 }
 
@@ -392,7 +389,7 @@ option properties directly is also supported.
 
 ```js
 const util = require('util');
-const arr = Array(101);
+const arr = Array(101).fill(0);
 
 console.log(arr); // logs the truncated array
 util.inspect.defaultOptions.maxArrayLength = null;
