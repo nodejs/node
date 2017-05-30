@@ -300,9 +300,7 @@ function printData (data, name, cb) {
   log.disableProgress()
 
   // print directly to stdout to not unnecessarily add blank lines
-  process.stdout.write(msg)
-
-  cb(null, data)
+  process.stdout.write(msg, () => cb(null, data))
 }
 function cleanup (data) {
   if (Array.isArray(data)) {
