@@ -389,7 +389,7 @@ option properties directly is also supported.
 
 ```js
 const util = require('util');
-const arr = Array(101);
+const arr = Array(101).fill(0);
 
 console.log(arr); // logs the truncated array
 util.inspect.defaultOptions.maxArrayLength = null;
