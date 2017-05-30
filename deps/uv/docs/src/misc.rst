@@ -270,11 +270,19 @@ API
 
 .. c:function:: int uv_cwd(char* buffer, size_t* size)
 
-    Gets the current working directory.
+    Gets the current working directory, and stores it in `buffer`. If the
+    current working directory is too large to fit in `buffer`, this function
+    returns `UV_ENOBUFS`, and sets `size` to the required length, including the
+    null terminator.
 
     .. versionchanged:: 1.1.0
 
         On Unix the path no longer ends in a slash.
+
+    .. versionchanged:: 1.9.0 the returned length includes the terminating null
+                        byte on `UV_ENOBUFS`, and the buffer is null terminated
+                        on success.
+
 
 .. c:function:: int uv_chdir(const char* dir)
 
@@ -386,3 +394,49 @@ API
         stability guarantees.
 
     .. versionadded:: 1.8.0
+
+.. c:function:: int uv_os_getenv(const char* name, char* buffer, size_t* size)
+
+    Retrieves the environment variable specified by `name`, copies its value
+    into `buffer`, and sets `size` to the string length of the value. When
+    calling this function, `size` must be set to the amount of storage available
+    in `buffer`, including the null terminator. If the environment variable
+    exceeds the storage available in `buffer`, `UV_ENOBUFS` is returned, and
+    `size` is set to the amount of storage required to hold the value. If no
+    matching environment variable exists, `UV_ENOENT` is returned.
+
+    .. warning::
+        This function is not thread safe.
+
+    .. versionadded:: 1.12.0
+
+.. c:function:: int uv_os_setenv(const char* name, const char* value)
+
+    Creates or updates the environment variable specified by `name` with
+    `value`.
+
+    .. warning::
+        This function is not thread safe.
+
+    .. versionadded:: 1.12.0
+
+.. c:function:: int uv_os_unsetenv(const char* name)
+
+    Deletes the environment variable specified by `name`. If no such environment
+    variable exists, this function returns successfully.
+
+    .. warning::
+        This function is not thread safe.
+
+    .. versionadded:: 1.12.0
+
+.. c:function:: int uv_os_gethostname(char* buffer, size_t* size)
+
+    Returns the hostname as a null-terminated string in `buffer`, and sets
+    `size` to the string length of the hostname. When calling this function,
+    `size` must be set to the amount of storage available in `buffer`, including
+    the null terminator. If the hostname exceeds the storage available in
+    `buffer`, `UV_ENOBUFS` is returned, and `size` is set to the amount of
+    storage required to hold the value.
+
+    .. versionadded:: 1.12.0

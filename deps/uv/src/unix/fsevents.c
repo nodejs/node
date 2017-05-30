@@ -378,9 +378,6 @@ static void uv__fsevents_destroy_stream(uv_loop_t* loop) {
   if (state->fsevent_stream == NULL)
     return;
 
-  /* Flush all accumulated events */
-  pFSEventStreamFlushSync(state->fsevent_stream);
-
   /* Stop emitting events */
   pFSEventStreamStop(state->fsevent_stream);
 

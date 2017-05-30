@@ -411,6 +411,9 @@ static int run_ipc_test(const char* helper, uv_read_cb read_cb) {
 
 
 TEST_IMPL(ipc_listen_before_write) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
   int r = run_ipc_test("ipc_helper_listen_before_write", on_read);
   ASSERT(local_conn_accepted == 1);
   ASSERT(remote_conn_accepted == 1);
@@ -421,6 +424,9 @@ TEST_IMPL(ipc_listen_before_write) {
 
 
 TEST_IMPL(ipc_listen_after_write) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
   int r = run_ipc_test("ipc_helper_listen_after_write", on_read);
   ASSERT(local_conn_accepted == 1);
   ASSERT(remote_conn_accepted == 1);
@@ -431,6 +437,9 @@ TEST_IMPL(ipc_listen_after_write) {
 
 
 TEST_IMPL(ipc_tcp_connection) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
   int r = run_ipc_test("ipc_helper_tcp_connection", on_read_connection);
   ASSERT(read_cb_called == 1);
   ASSERT(tcp_write_cb_called == 1);
@@ -491,6 +500,9 @@ TEST_IMPL(listen_no_simultaneous_accepts) {
 }
 
 TEST_IMPL(ipc_listen_after_bind_twice) {
+#if defined(NO_SEND_HANDLE_ON_PIPE)
+  RETURN_SKIP(NO_SEND_HANDLE_ON_PIPE);
+#endif
   int r = run_ipc_test("ipc_helper_bind_twice", on_read_listen_after_bound_twice);
   ASSERT(read_cb_called == 2);
   ASSERT(exit_cb_called == 1);

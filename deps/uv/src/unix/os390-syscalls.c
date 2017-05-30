@@ -120,7 +120,7 @@ static void maybe_resize(uv__os390_epoll* lst, unsigned int len) {
 }
 
 
-static void epoll_init() {
+static void epoll_init(void) {
   QUEUE_INIT(&global_epoll_queue);
   if (uv_mutex_init(&global_epoll_lock))
     abort();
