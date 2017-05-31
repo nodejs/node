@@ -119,7 +119,7 @@ By default, the `zlib` methods will throw an error when decompressing
 truncated data. However, if it is known that the data is incomplete, or
 the desire is to inspect only the beginning of a compressed file, it is
 possible to suppress the default error handling by changing the flushing
-method that is used to compressed the last chunk of input data:
+method that is used to decompress the last chunk of input data:
 
 ```js
 // This is a truncated version of the buffer from the above examples
