@@ -530,7 +530,7 @@ Taking the earlier example, adding calls to [`napi_open_handle_scope`][] and
 is valid throughout the execution of the loop:
 
 ```C
-for (int i = 0; i < 1000000; i++) {napi_
+for (int i = 0; i < 1000000; i++) {
   napi_handle_scope scope;
   napi_status status = napi_open_handle_scope(env, &scope);
   if (status != napi_ok) {
