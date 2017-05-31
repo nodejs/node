@@ -22,12 +22,12 @@
 | `lib/timers` | @fishrock123, @misterdjules |
 | `lib/util` | @bnoordhuis, @cjihrig, @evanlucas |
 | `lib/zlib` | @addaleax, @bnoordhuis, @indutny |
-| `src/async-wrap.*` | @trevnorris |
+| `src/async-wrap.*` | @nodejs/async_hooks |
 | `src/node_api.*` | @nodejs/n-api |
 | `src/node_crypto.*` | @nodejs/crypto |
 | `test/*` | @nodejs/testing |
 | `tools/eslint`, `.eslintrc` | @not-an-aardvark, @silverwind, @trott |
-| async_hooks | @nodejs/diagnostics |
+| async_hooks | @nodejs/async_hooks for bugs/reviews (+ @nodejs/diagnostics for API) |
 | performance | @nodejs/performance |
 | upgrading V8 | @nodejs/v8, @nodejs/post-mortem |
 | upgrading npm | @fishrock123, @MylesBorins |
