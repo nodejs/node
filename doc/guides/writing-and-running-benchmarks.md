@@ -335,7 +335,7 @@ the code inside the `main` function if it's more than just declaration.
 ```js
 'use strict';
 const common = require('../common.js');
-const SlowBuffer = require('buffer').SlowBuffer;
+const { SlowBuffer } = require('buffer');
 
 const configs = {
   // Number of operations, specified here so they show up in the report.
