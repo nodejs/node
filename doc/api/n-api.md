@@ -1074,7 +1074,7 @@ later by native code. The API allows the caller to pass in a finalize callback,
 in case the underlying native resource needs to be cleaned up when the external
 JavaScript value gets collected.
 
-Note: The created value is not an object, and therefore does not support
+*Note*: The created value is not an object, and therefore does not support
 additional properties. It is considered a distinct value type: calling
 `napi_typeof()` with an external value yields `napi_external`.
 
@@ -1368,7 +1368,8 @@ Returns `napi_ok` if the API succeeded.
 
 This API is used to retrieve the underlying data buffer of an ArrayBuffer and
 its length.
-WARNING: Use caution while using this API. The lifetime of the underlying data
+
+*WARNING*: Use caution while using this API. The lifetime of the underlying data
 buffer is managed by the ArrayBuffer even after it's returned. A
 possible safe way to use this API is in conjunction with [`napi_create_reference`][],
 which can be used to guarantee control over the lifetime of the
@@ -1395,7 +1396,8 @@ Returns `napi_ok` if the API succeeded.
 
 This API is used to retrieve the underlying data buffer of a `node::Buffer`
 and it's length.
-Warning: Use caution while using this API since the underlying data buffer's
+
+*Warning*: Use caution while using this API since the underlying data buffer's
 lifetime is not guaranteed if it's managed by the VM.
 
 #### *napi_get_prototype*
@@ -1442,7 +1444,8 @@ to start projecting the TypedArray.
 Returns `napi_ok` if the API succeeded.
 
 This API returns various properties of a typed array.
-Warning: Use caution while using this API since the underlying data buffer
+
+*Warning*: Use caution while using this API since the underlying data buffer
 is managed by the VM
 
 #### *napi_get_value_bool*
@@ -2792,13 +2795,13 @@ The optional returned reference is initially a weak reference, meaning it
 has a reference count of 0. Typically this reference count would be incremented
 temporarily during async operations that require the instance to remain valid.
 
-Caution: The optional returned reference (if obtained) should be deleted via
+*Caution*: The optional returned reference (if obtained) should be deleted via
 [`napi_delete_reference`][] ONLY in response to the finalize callback
 invocation. (If it is deleted before then, then the finalize callback may never
-be invoked.) Therefore when obtaining a reference a finalize callback is also
+be invoked.) Therefore, when obtaining a reference a finalize callback is also
 required in order to enable correct proper of the reference.
 
-Note: This API may modify the prototype chain of the wrapper object.
+*Note*: This API may modify the prototype chain of the wrapper object.
 Afterward, additional manipulation of the wrapper's prototype chain may cause
 `napi_unwrap()` to fail.
 

@@ -1995,13 +1995,16 @@ napi_status napi_unwrap(napi_env env, napi_value js_object, void** result) {
   RETURN_STATUS_IF_FALSE(env, value->IsObject(), napi_invalid_arg);
   v8::Local<v8::Object> obj = value.As<v8::Object>();
 
-  // The object's prototype should be a wrapper with an internal field.
-  v8::Local<v8::Value> proto = obj->GetPrototype();
-  RETURN_STATUS_IF_FALSE(
-    env, !proto.IsEmpty() && proto->IsObject(), napi_invalid_arg);
-  v8::Local<v8::Object> wrapper = proto.As<v8::Object>();
-  RETURN_STATUS_IF_FALSE(
-    env, wrapper->InternalFieldCount() == 1, napi_invalid_arg);
+  // Search the object's prototype chain for the wrapper with an internal field.
+  // Usually the wrapper would be the first in the chain, but it is OK for
+  // other objects to be inserted in the prototype chain.
+  v8::Local<v8::Object> wrapper = obj;
+  do {
+    v8::Local<v8::Value> proto = wrapper->GetPrototype();
+    RETURN_STATUS_IF_FALSE(
+      env, !proto.IsEmpty() && proto->IsObject(), napi_invalid_arg);
+    wrapper = proto.As<v8::Object>();
+  } while (wrapper->InternalFieldCount() != 1);
 
   v8::Local<v8::Value> unwrappedValue = wrapper->GetInternalField(0);
   RETURN_STATUS_IF_FALSE(env, unwrappedValue->IsExternal(), napi_invalid_arg);
