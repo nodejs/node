@@ -224,7 +224,7 @@ const util = require('util');
 const exec = util.promisify(require('child_process').exec);
 
 async function lsExample() {
-  const {stdout, stderr} = await exec('ls');
+  const { stdout, stderr } = await exec('ls');
   console.log('stdout:', stdout);
   console.log('stderr:', stderr);
 }
@@ -287,7 +287,7 @@ a Promise for an object with `stdout` and `stderr` properties.
 const util = require('util');
 const execFile = util.promisify(require('child_process').execFile);
 async function getVersion() {
-  const {stdout} = await execFile('node', ['--version']);
+  const { stdout } = await execFile('node', ['--version']);
   console.log(stdout);
 }
 getVersion();

@@ -228,7 +228,7 @@ support. If `filename` is provided, it will be provided as a `Buffer` if
 
 ```js
 // Example when handled through fs.watch listener
-fs.watch('./tmp', {encoding: 'buffer'}, (eventType, filename) => {
+fs.watch('./tmp', { encoding: 'buffer' }, (eventType, filename) => {
   if (filename)
     console.log(filename);
     // Prints: <Buffer ...>
@@ -787,7 +787,7 @@ file was created.
 An example to read the last 10 bytes of a file which is 100 bytes long:
 
 ```js
-fs.createReadStream('sample.txt', {start: 90, end: 99});
+fs.createReadStream('sample.txt', { start: 90, end: 99 });
 ```
 
 If `options` is a string, then it specifies the encoding.
