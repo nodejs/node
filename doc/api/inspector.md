@@ -58,7 +58,9 @@ event, and prints the reason for program suspension whenever program
 execution is suspended (through breakpoints, for example):
 
 ```js
-session.on('Debugger.paused', ({params}) => console.log(params.hitBreakpoints));
+session.on('Debugger.paused', ({ params }) => {
+  console.log(params.hitBreakpoints);
+});
 // [ '/node/test/inspector/test-bindings.js:11:0' ]
 ```
 

@@ -180,7 +180,7 @@ function myEval(cmd, context, filename, callback) {
   callback(null, myTranslator.translate(cmd));
 }
 
-repl.start({prompt: '> ', eval: myEval});
+repl.start({ prompt: '> ', eval: myEval });
 ```
 
 #### Recoverable Errors
@@ -226,7 +226,7 @@ following example, for instance, simply converts any input text to upper case:
 ```js
 const repl = require('repl');
 
-const r = repl.start({prompt: '> ', eval: myEval, writer: myWriter});
+const r = repl.start({ prompt: '> ', eval: myEval, writer: myWriter });
 
 function myEval(cmd, context, filename, callback) {
   callback(null, cmd);
@@ -284,7 +284,7 @@ function initializeContext(context) {
   context.m = 'test';
 }
 
-const r = repl.start({prompt: '> '});
+const r = repl.start({ prompt: '> ' });
 initializeContext(r.context);
 
 r.on('reset', initializeContext);
@@ -331,7 +331,7 @@ The following example shows two new commands added to the REPL instance:
 ```js
 const repl = require('repl');
 
-const replServer = repl.start({prompt: '> '});
+const replServer = repl.start({ prompt: '> ' });
 replServer.defineCommand('sayhello', {
   help: 'Say hello',
   action(name) {
