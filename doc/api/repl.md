@@ -172,7 +172,7 @@ translation of text from one language to another:
 
 ```js
 const repl = require('repl');
-const Translator = require('translator').Translator;
+const { Translator } = require('translator');
 
 const myTranslator = new Translator('en', 'fr');
 

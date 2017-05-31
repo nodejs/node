@@ -1023,7 +1023,7 @@ section for more information.
 // Pull off a header delimited by \n\n
 // use unshift() if we get too much
 // Call the callback with (error, header, stream)
-const StringDecoder = require('string_decoder').StringDecoder;
+const { StringDecoder } = require('string_decoder');
 function parseHeader(stream, callback) {
   stream.on('error', callback);
   stream.on('readable', onReadable);
@@ -1087,8 +1087,8 @@ libraries.
 For example:
 
 ```js
-const OldReader = require('./old-api-module.js').OldReader;
-const Readable = require('stream').Readable;
+const { OldReader } = require('./old-api-module.js');
+const { Readable } = require('stream');
 const oreader = new OldReader();
 const myReader = new Readable().wrap(oreader);
 
@@ -1170,7 +1170,7 @@ of the four basic stream classes (`stream.Writable`, `stream.Readable`,
 parent class constructor:
 
 ```js
-const Writable = require('stream').Writable;
+const { Writable } = require('stream');
 
 class MyWritable extends Writable {
   constructor(options) {
@@ -1264,7 +1264,7 @@ objects and passing appropriate methods as constructor options.
 For example:
 
 ```js
-const Writable = require('stream').Writable;
+const { Writable } = require('stream');
 
 const myWritable = new Writable({
   write(chunk, encoding, callback) {
@@ -1307,7 +1307,7 @@ constructor and implement the `writable._write()` method. The
 For example:
 
 ```js
-const Writable = require('stream').Writable;
+const { Writable } = require('stream');
 
 class MyWritable extends Writable {
   constructor(options) {
@@ -1321,7 +1321,7 @@ class MyWritable extends Writable {
 Or, when using pre-ES6 style constructors:
 
 ```js
-const Writable = require('stream').Writable;
+const { Writable } = require('stream');
 const util = require('util');
 
 function MyWritable(options) {
@@ -1335,7 +1335,7 @@ util.inherits(MyWritable, Writable);
 Or, using the Simplified Constructor approach:
 
 ```js
-const Writable = require('stream').Writable;
+const { Writable } = require('stream');
 
 const myWritable = new Writable({
   write(chunk, encoding, callback) {
@@ -1449,7 +1449,7 @@ on how the stream is being used.  Using the callback ensures consistent and
 predictable handling of errors.
 
 ```js
-const Writable = require('stream').Writable;
+const { Writable } = require('stream');
 
 const myWritable = new Writable({
   write(chunk, encoding, callback) {
@@ -1470,7 +1470,7 @@ is not of any real particular usefulness, the example illustrates each of the
 required elements of a custom [Writable][] stream instance:
 
 ```js
-const Writable = require('stream').Writable;
+const { Writable } = require('stream');
 
 class MyWritable extends Writable {
   constructor(options) {
@@ -1514,7 +1514,7 @@ constructor and implement the `readable._read()` method.
 For example:
 
 ```js
-const Readable = require('stream').Readable;
+const { Readable } = require('stream');
 
 class MyReadable extends Readable {
   constructor(options) {
@@ -1528,7 +1528,7 @@ class MyReadable extends Readable {
 Or, when using pre-ES6 style constructors:
 
 ```js
-const Readable = require('stream').Readable;
+const { Readable } = require('stream');
 const util = require('util');
 
 function MyReadable(options) {
@@ -1542,7 +1542,7 @@ util.inherits(MyReadable, Readable);
 Or, using the Simplified Constructor approach:
 
 ```js
-const Readable = require('stream').Readable;
+const { Readable } = require('stream');
 
 const myReadable = new Readable({
   read(size) {
@@ -1661,7 +1661,7 @@ consistent and predictable handling of errors.
 
 <!-- eslint-disable no-useless-return -->
 ```js
-const Readable = require('stream').Readable;
+const { Readable } = require('stream');
 
 const myReadable = new Readable({
   read(size) {
@@ -1682,7 +1682,7 @@ The following is a basic example of a Readable stream that emits the numerals
 from 1 to 1,000,000 in ascending order, and then ends.
 
 ```js
-const Readable = require('stream').Readable;
+const { Readable } = require('stream');
 
 class Counter extends Readable {
   constructor(opt) {
@@ -1739,7 +1739,7 @@ constructor and implement *both* the `readable._read()` and
 For example:
 
 ```js
-const Duplex = require('stream').Duplex;
+const { Duplex } = require('stream');
 
 class MyDuplex extends Duplex {
   constructor(options) {
@@ -1752,7 +1752,7 @@ class MyDuplex extends Duplex {
 Or, when using pre-ES6 style constructors:
 
 ```js
-const Duplex = require('stream').Duplex;
+const { Duplex } = require('stream');
 const util = require('util');
 
 function MyDuplex(options) {
@@ -1766,7 +1766,7 @@ util.inherits(MyDuplex, Duplex);
 Or, using the Simplified Constructor approach:
 
 ```js
-const Duplex = require('stream').Duplex;
+const { Duplex } = require('stream');
 
 const myDuplex = new Duplex({
   read(size) {
@@ -1789,7 +1789,7 @@ incoming written data via the [Writable][] interface that is read back out
 via the [Readable][] interface.
 
 ```js
-const Duplex = require('stream').Duplex;
+const { Duplex } = require('stream');
 const kSource = Symbol('source');
 
 class MyDuplex extends Duplex {
@@ -1830,7 +1830,7 @@ that accepts JavaScript numbers that are converted to hexadecimal strings on
 the Readable side.
 
 ```js
-const Transform = require('stream').Transform;
+const { Transform } = require('stream');
 
 // All Transform streams are also Duplex Streams
 const myTransform = new Transform({
@@ -1895,7 +1895,7 @@ the output on the Readable side is not consumed.
 For example:
 
 ```js
-const Transform = require('stream').Transform;
+const { Transform } = require('stream');
 
 class MyTransform extends Transform {
   constructor(options) {
@@ -1908,7 +1908,7 @@ class MyTransform extends Transform {
 Or, when using pre-ES6 style constructors:
 
 ```js
-const Transform = require('stream').Transform;
+const { Transform } = require('stream');
 const util = require('util');
 
 function MyTransform(options) {
@@ -1922,7 +1922,7 @@ util.inherits(MyTransform, Transform);
 Or, using the Simplified Constructor approach:
 
 ```js
-const Transform = require('stream').Transform;
+const { Transform } = require('stream');
 
 const myTransform = new Transform({
   transform(chunk, encoding, callback) {
