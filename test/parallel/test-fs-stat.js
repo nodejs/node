@@ -65,60 +65,55 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
     assert.fail(err);
   }
   if (stats) {
-    console.dir(stats);
     assert.ok(stats.mtime instanceof Date);
   }
   fs.close(fd, assert.ifError);
 }));
 
-console.log(`stating:  ${__filename}`);
 fs.stat(__filename, common.mustCall(function(err, s) {
   assert.ifError(err);
-
-  console.dir(s);
-
-  console.log(`isDirectory: ${JSON.stringify(s.isDirectory())}`);
   assert.strictEqual(false, s.isDirectory());
-
-  console.log(`isFile: ${JSON.stringify(s.isFile())}`);
   assert.strictEqual(true, s.isFile());
-
-  console.log(`isSocket: ${JSON.stringify(s.isSocket())}`);
   assert.strictEqual(false, s.isSocket());
-
-  console.log(`isBlockDevice: ${JSON.stringify(s.isBlockDevice())}`);
   assert.strictEqual(false, s.isBlockDevice());
-
-  console.log(`isCharacterDevice: ${JSON.stringify(s.isCharacterDevice())}`);
   assert.strictEqual(false, s.isCharacterDevice());
-
-  console.log(`isFIFO: ${JSON.stringify(s.isFIFO())}`);
   assert.strictEqual(false, s.isFIFO());
-
-  console.log(`isSymbolicLink: ${JSON.stringify(s.isSymbolicLink())}`);
   assert.strictEqual(false, s.isSymbolicLink());
-
-  assert.ok(s.atime instanceof Date);
-  assert.ok(s.mtime instanceof Date);
-  assert.ok(s.ctime instanceof Date);
-  assert.ok(s.birthtime instanceof Date);
-}));
-
-fs.stat(__filename, common.mustCall(function(err, s) {
-  const json = JSON.parse(JSON.stringify(s));
   const keys = [
     'dev', 'mode', 'nlink', 'uid',
-    'gid', 'rdev', 'ino',
-    'size', 'atime', 'mtime',
-    'ctime', 'birthtime'
+    'gid', 'rdev', 'ino', 'size',
+    'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs',
+    'atime', 'mtime', 'ctime', 'birthtime'
+  ];
+  const dateFields = [ 'atime', 'mtime', 'ctime', 'birthtime' ];
+  const numberFields = [
+    'dev', 'mode', 'nlink', 'uid', 'gid', 'rdev', 'ino', 'size',
+    'atimeMs', 'mtimeMs', 'ctimeMs', 'birthtimeMs'
   ];
   if (!common.isWindows) {
     keys.push('blocks', 'blksize');
+    numberFields.push('blocks', 'blksize');
   }
+  const actualKeys = Object.keys(s);
+  keys.forEach((k) => assert.strictEqual(actualKeys.includes(k), true,
+                                         `${k} should a field of s`));
+  numberFields.forEach((k) => {
+    assert.strictEqual(typeof s[k], 'number', `${k} should be a number`);
+  });
+  dateFields.forEach((k) => {
+    assert.ok(s[k] instanceof Date, `${k} should be a Date`);
+  });
+  const parsed = JSON.parse(JSON.stringify(s));
   keys.forEach(function(k) {
     assert.ok(
-      json[k] !== undefined && json[k] !== null,
+      parsed[k] !== undefined && parsed[k] !== null,
       k + ' should not be null or undefined'
     );
+  });
+  numberFields.forEach((k) => {
+    assert.strictEqual(typeof parsed[k], 'number', `${k} should be a number`);
+  });
+  dateFields.forEach((k) => {
+    assert.strictEqual(typeof parsed[k], 'string', `${k} should be a string`);
   });
 }));
