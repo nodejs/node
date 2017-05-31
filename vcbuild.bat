@@ -498,6 +498,7 @@ echo   vcbuild.bat enable-vtune   : builds nodejs with Intel VTune profiling sup
 goto exit
 
 :exit
+exit /b %errorlevel%
 goto :EOF
 
 rem ***************
