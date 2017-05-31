@@ -203,7 +203,7 @@ class JsBindingsSessionDelegate : public InspectorSessionDelegate {
     callback_.Reset();
   }
 
-  bool WaitForFrontendMessage() override {
+  bool WaitForFrontendMessageWhilePaused() override {
     return false;
   }
 
@@ -393,7 +393,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel {
   }
 
   bool waitForFrontendMessage() {
-    return delegate_->WaitForFrontendMessage();
+    return delegate_->WaitForFrontendMessageWhilePaused();
   }
 
   void schedulePauseOnNextStatement(const std::string& reason) {

@@ -134,7 +134,7 @@ std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string& message) {
 class IoSessionDelegate : public InspectorSessionDelegate {
  public:
   explicit IoSessionDelegate(InspectorIo* io) : io_(io) { }
-  bool WaitForFrontendMessage() override;
+  bool WaitForFrontendMessageWhilePaused() override;
   void SendMessageToFrontend(const v8_inspector::StringView& message) override;
  private:
   InspectorIo* io_;
@@ -354,7 +354,8 @@ void InspectorIo::PostIncomingMessage(InspectorAction action, int session_id,
   NotifyMessageReceived();
 }
 
-void InspectorIo::WaitForIncomingMessage() {
+void InspectorIo::WaitForFrontendMessageWhilePaused() {
+  dispatching_messages_ = false;
   Mutex::ScopedLock scoped_lock(state_lock_);
   if (incoming_message_queue_.empty())
     incoming_message_cond_.Wait(scoped_lock);
@@ -373,11 +374,15 @@ void InspectorIo::DispatchMessages() {
   if (dispatching_messages_)
     return;
   dispatching_messages_ = true;
-  MessageQueue<InspectorAction> tasks;
+  bool had_messages = false;
   do {
-    tasks.clear();
-    SwapBehindLock(&incoming_message_queue_, &tasks);
-    for (const auto& task : tasks) {
+    if (dispatching_message_queue_.empty())
+      SwapBehindLock(&incoming_message_queue_, &dispatching_message_queue_);
+    had_messages = !dispatching_message_queue_.empty();
+    while (!dispatching_message_queue_.empty()) {
+      MessageQueue<InspectorAction>::value_type task;
+      std::swap(dispatching_message_queue_.front(), task);
+      dispatching_message_queue_.pop_front();
       StringView message = std::get<2>(task)->string();
       switch (std::get<0>(task)) {
       case InspectorAction::kStartSession:
@@ -404,7 +409,7 @@ void InspectorIo::DispatchMessages() {
         break;
       }
     }
-  } while (!tasks.empty());
+  } while (had_messages);
   dispatching_messages_ = false;
 }
 
@@ -485,8 +490,8 @@ std::string InspectorIoDelegate::GetTargetUrl(const std::string& id) {
   return "file://" + script_path_;
 }
 
-bool IoSessionDelegate::WaitForFrontendMessage() {
-  io_->WaitForIncomingMessage();
+bool IoSessionDelegate::WaitForFrontendMessageWhilePaused() {
+  io_->WaitForFrontendMessageWhilePaused();
   return true;
 }
 

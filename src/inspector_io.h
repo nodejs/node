@@ -6,9 +6,9 @@
 #include "node_mutex.h"
 #include "uv.h"
 
+#include <deque>
 #include <memory>
 #include <stddef.h>
-#include <vector>
 
 #if !HAVE_INSPECTOR
 #error("This header can only be used when inspector is enabled")
@@ -76,7 +76,7 @@ class InspectorIo {
  private:
   template <typename Action>
   using MessageQueue =
-      std::vector<std::tuple<Action, int,
+      std::deque<std::tuple<Action, int,
                   std::unique_ptr<v8_inspector::StringBuffer>>>;
   enum class State {
     kNew,
@@ -115,7 +115,7 @@ class InspectorIo {
   void SwapBehindLock(MessageQueue<ActionType>* vector1,
                       MessageQueue<ActionType>* vector2);
   // Wait on incoming_message_cond_
-  void WaitForIncomingMessage();
+  void WaitForFrontendMessageWhilePaused();
   // Broadcast incoming_message_cond_
   void NotifyMessageReceived();
 
@@ -145,6 +145,7 @@ class InspectorIo {
   Mutex state_lock_;  // Locked before mutating either queue.
   MessageQueue<InspectorAction> incoming_message_queue_;
   MessageQueue<TransportAction> outgoing_message_queue_;
+  MessageQueue<InspectorAction> dispatching_message_queue_;
 
   bool dispatching_messages_;
   int session_id_;
