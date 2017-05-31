@@ -38,7 +38,7 @@ namespace inspector {
 class InspectorSessionDelegate {
  public:
   virtual ~InspectorSessionDelegate() = default;
-  virtual bool WaitForFrontendMessage() = 0;
+  virtual bool WaitForFrontendMessageWhilePaused() = 0;
   virtual void SendMessageToFrontend(const v8_inspector::StringView& message)
                                      = 0;
 };
