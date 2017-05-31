@@ -127,7 +127,7 @@ const buffer = Buffer.from('eJzT0yMA', 'base64');
 
 zlib.unzip(
   buffer,
-  {finishFlush: zlib.constants.Z_SYNC_FLUSH},
+  { finishFlush: zlib.constants.Z_SYNC_FLUSH },
   (err, buffer) => {
     if (!err) {
       console.log(buffer.toString());
