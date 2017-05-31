@@ -312,7 +312,7 @@ const url = require('url');
 
 // Create an HTTP tunneling proxy
 const proxy = http.createServer((req, res) => {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('okay');
 });
 proxy.on('connect', (req, cltSocket, head) => {
@@ -408,7 +408,7 @@ const http = require('http');
 
 // Create an HTTP server
 const srv = http.createServer((req, res) => {
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('okay');
 });
 srv.on('upgrade', (req, socket, head) => {
@@ -912,7 +912,7 @@ emit trailers, with a list of the header fields in its value. E.g.,
 response.writeHead(200, { 'Content-Type': 'text/plain',
                           'Trailer': 'Content-MD5' });
 response.write(fileData);
-response.addTrailers({'Content-MD5': '7895bf4b8828b55ceaf47747b4bca667'});
+response.addTrailers({ 'Content-MD5': '7895bf4b8828b55ceaf47747b4bca667' });
 response.end();
 ```
 
@@ -1103,7 +1103,7 @@ any headers passed to [`response.writeHead()`][], with the headers passed to
 const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('ok');
 });
 ```
@@ -1257,7 +1257,7 @@ any headers passed to [`response.writeHead()`][], with the headers passed to
 const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
-  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('ok');
 });
 ```
