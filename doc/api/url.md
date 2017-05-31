@@ -55,7 +55,7 @@ properties of a WHATWG `URL` object.
 Parsing the URL string using the WHATWG API:
 
 ```js
-const URL = require('url').URL;
+const { URL } = require('url');
 const myURL =
   new URL('https://user:pass@sub.host.com:8080/p/a/t/h?query=string#hash');
 ```
@@ -607,7 +607,7 @@ Alias for [`urlSearchParams[@@iterator]()`][`urlSearchParams@@iterator()`].
 Iterates over each name-value pair in the query and invokes the given function.
 
 ```js
-const URL = require('url').URL;
+const { URL } = require('url');
 const myURL = new URL('https://example.org/?a=b&c=d');
 myURL.searchParams.forEach((value, name, searchParams) => {
   console.log(name, value, myURL.searchParams === searchParams);
@@ -1098,7 +1098,7 @@ using the [Punycode][] algorithm. Note, however, that a hostname *may* contain
 *both* Punycode encoded and percent-encoded characters. For example:
 
 ```js
-const URL = require('url').URL;
+const { URL } = require('url');
 const myURL = new URL('https://%CF%80.com/foo');
 console.log(myURL.href);
   // Prints https://xn--1xa.com/foo

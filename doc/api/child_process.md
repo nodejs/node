@@ -7,7 +7,7 @@ a manner that is similar, but not identical, to popen(3). This capability
 is primarily provided by the [`child_process.spawn()`][] function:
 
 ```js
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 const ls = spawn('ls', ['-lh', '/usr']);
 
 ls.stdout.on('data', (data) => {
@@ -87,7 +87,7 @@ spaces it needs to be quoted.
 
 ```js
 // On Windows Only ...
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 const bat = spawn('cmd.exe', ['/c', 'my.bat']);
 
 bat.stdout.on('data', (data) => {
@@ -105,7 +105,7 @@ bat.on('exit', (code) => {
 
 ```js
 // OR...
-const exec = require('child_process').exec;
+const { exec } = require('child_process');
 exec('my.bat', (err, stdout, stderr) => {
   if (err) {
     console.error(err);
@@ -168,7 +168,7 @@ containing shell metacharacters may be used to trigger arbitrary command
 execution.
 
 ```js
-const exec = require('child_process').exec;
+const { exec } = require('child_process');
 exec('cat *.js bad_file | wc -l', (error, stdout, stderr) => {
   if (error) {
     console.error(`exec error: ${error}`);
@@ -264,7 +264,7 @@ The same options as [`child_process.exec()`][] are supported. Since a shell is n
 spawned, behaviors such as I/O redirection and file globbing are not supported.
 
 ```js
-const execFile = require('child_process').execFile;
+const { execFile } = require('child_process');
 const child = execFile('node', ['--version'], (error, stdout, stderr) => {
   if (error) {
     throw error;
@@ -410,7 +410,7 @@ Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the
 exit code:
 
 ```js
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 const ls = spawn('ls', ['-lh', '/usr']);
 
 ls.stdout.on('data', (data) => {
@@ -430,7 +430,7 @@ ls.on('close', (code) => {
 Example: A very elaborate way to run `ps ax | grep ssh`
 
 ```js
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 const ps = spawn('ps', ['ax']);
 const grep = spawn('grep', ['ssh']);
 
@@ -468,7 +468,7 @@ grep.on('close', (code) => {
 Example of checking for failed exec:
 
 ```js
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 const child = spawn('bad_command');
 
 child.on('error', (err) => {
@@ -515,7 +515,7 @@ Example of a long-running process, by detaching and also ignoring its parent
 `stdio` file descriptors, in order to ignore the parent's termination:
 
 ```js
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 
 const child = spawn(process.argv[0], ['child_program.js'], {
   detached: true,
@@ -529,7 +529,7 @@ Alternatively one can redirect the child process' output into files:
 
 ```js
 const fs = require('fs');
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 const out = fs.openSync('./out.log', 'a');
 const err = fs.openSync('./out.log', 'a');
 
@@ -601,7 +601,7 @@ pipes between the parent and child. The value is one of the following:
 Example:
 
 ```js
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 
 // Child will use parent's stdios
 spawn('prg', [], { stdio: 'inherit' });
@@ -933,7 +933,7 @@ is given, the process will be sent the `'SIGTERM'` signal. See signal(7) for
 a list of available signals.
 
 ```js
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 const grep = spawn('grep', ['ssh']);
 
 grep.on('close', (code, signal) => {
@@ -963,7 +963,7 @@ as in this example:
 
 ```js
 'use strict';
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 
 const child = spawn(
   'sh',
@@ -994,7 +994,7 @@ Returns the process identifier (PID) of the child process.
 Example:
 
 ```js
-const spawn = require('child_process').spawn;
+const { spawn } = require('child_process');
 const grep = spawn('grep', ['ssh']);
 
 console.log(`Spawned child pid: ${grep.pid}`);
