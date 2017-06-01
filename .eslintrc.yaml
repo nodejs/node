@@ -13,7 +13,6 @@ parserOptions:
 rules:
   # Possible Errors
   # http://eslint.org/docs/rules/#possible-errors
-  comma-dangle: [2, only-multiline]
   no-control-regex: 2
   no-debugger: 2
   no-dupe-args: 2
@@ -28,7 +27,6 @@ rules:
   no-invalid-regexp: 2
   no-irregular-whitespace: 2
   no-obj-calls: 2
-  no-proto: 2
   no-template-curly-in-string: 2
   no-unexpected-multiline: 2
   no-unreachable: 2
@@ -44,7 +42,23 @@ rules:
   no-global-assign: 2
   no-multi-spaces: 2
   no-octal: 2
+  no-proto: 2
   no-redeclare: 2
+  no-restricted-properties:
+    - 2
+    - object: assert
+      property: deepEqual
+      message: Use assert.deepStrictEqual().
+    - object: assert
+      property: equal
+      message: Use assert.strictEqual() rather than assert.equal().
+    - object: assert
+      property: notEqual
+      message: Use assert.notStrictEqual() rather than assert.notEqual().
+    - property: __defineGetter__
+      message: __defineGetter__ is deprecated.
+    - property: __defineSetter__
+      message: __defineSetter__ is deprecated.
   no-self-assign: 2
   no-throw-literal: 2
   no-unused-labels: 2
@@ -71,26 +85,12 @@ rules:
   no-new-require: 2
   no-path-concat: 2
   no-restricted-modules: [2, sys]
-  no-restricted-properties:
-    - 2
-    - object: assert
-      property: deepEqual
-      message: Use assert.deepStrictEqual().
-    - object: assert
-      property: equal
-      message: Use assert.strictEqual() rather than assert.equal().
-    - object: assert
-      property: notEqual
-      message: Use assert.notStrictEqual() rather than assert.notEqual().
-    - property: __defineGetter__
-      message: __defineGetter__ is deprecated.
-    - property: __defineSetter__,
-      message: __defineSetter__ is deprecated.
 
   # Stylistic Issues
   # http://eslint.org/docs/rules/#stylistic-issues
   block-spacing: 2
   brace-style: [2, 1tbs, {allowSingleLine: true}]
+  comma-dangle: [2, only-multiline]
   comma-spacing: 2
   comma-style: 2
   computed-property-spacing: 2
