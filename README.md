@@ -380,9 +380,9 @@ more information about the governance of the Node.js project, see
 * [thlorenz](https://github.com/thlorenz) -
 **Thorsten Lorenz** &lt;thlorenz@gmx.de&gt;
 * [TimothyGu](https://github.com/TimothyGu) -
-**Tobias Nießen** &lt;tniessen@tnie.de&gt;
-* [tniessen](https://github.com/tniessen)
 **Timothy Gu** &lt;timothygu99@gmail.com&gt; (he/him)
+* [tniessen](https://github.com/tniessen) -
+**Tobias Nießen** &lt;tniessen@tnie.de&gt;
 * [tunniclm](https://github.com/tunniclm) -
 **Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
 * [vkurchatkin](https://github.com/vkurchatkin) -
