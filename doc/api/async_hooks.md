@@ -15,7 +15,7 @@ const async_hooks = require('async_hooks');
 An asynchronous resource represents an object with an associated callback.
 This callback may be called multiple times, for example, the `connection` event
 in `net.createServer`, or just a single time like in `fs.open`. A resource
-can also be closed before the callback is called. AsyncHooks does not
+can also be closed before the callback is called. AsyncHook does not
 explicitly distinguish between these different cases but will represent them
 as the abstract concept that is a resource.
 
@@ -50,21 +50,21 @@ asyncHook.disable();
 // The following are the callbacks that can be passed to createHook().
 //
 
-// init() is called during object construction. The resource may not have
+// init is called during object construction. The resource may not have
 // completed construction when this callback runs, therefore all fields of the
-// resource referenced by "id" may not have been populated.
-function init(id, type, triggerId, resource) { }
+// resource referenced by "asyncId" may not have been populated.
+function init(asyncId, type, triggerId, resource) { }
 
-// before() is called just before the resource's callback is called. It can be
+// before is called just before the resource's callback is called. It can be
 // called 0-N times for handles (e.g. TCPWrap), and will be called exactly 1
 // time for requests (e.g. FSReqWrap).
-function before(id) { }
+function before(asyncId) { }
 
-// after() is called just after the resource's callback has finished.
-function after(id) { }
+// after is called just after the resource's callback has finished.
+function after(asyncId) { }
 
-// destroy() is called when an AsyncWrap instance is destroyed.
-function destroy(id) { }
+// destroy is called when an AsyncWrap instance is destroyed.
+function destroy(asyncId) { }
 ```
 
 #### `async_hooks.createHook(callbacks)`
@@ -78,12 +78,12 @@ added: REPLACEME
 
 Registers functions to be called for different lifetime events of each async
 operation.
-The callbacks `init()`/`before()`/`after()`/`destroy()` are registered via an
-`AsyncHook` instance and are called during the respective asynchronous events
-in the lifetime of the event loop.
+
+The callbacks `init()`/`before()`/`after()`/`destroy()` are called for the
+respective asynchronous event during a resource's lifetime.
 
 All callbacks are optional. So, for example, if only resource cleanup needs to
-be tracked then only the `destroy()` callback needs to be passed. The
+be tracked then only the `destroy` callback needs to be passed. The
 specifics of all functions that can be passed to `callbacks` is in the section
 [`Hook Callbacks`][].
 
@@ -135,7 +135,11 @@ doing this the otherwise infinite recursion is broken.
 
 * Returns {AsyncHook} A reference to `asyncHook`.
 
-Enable the callbacks for a given `AsyncHook` instance.
+Enable the callbacks for a given `AsyncHook` instance. If no callbacks are
+provided enabling is a noop.
+
+The `AsyncHook` instance is by default disabled. If the `AsyncHook` instance
+should be enabled immediately after creation, the following pattern can be used.
 
 ```js
 const async_hooks = require('async_hooks');
@@ -159,9 +163,9 @@ Key events in the lifetime of asynchronous events have been categorized into
 four areas: instantiation, before/after the callback is called, and when the
 instance is destructed.
 
-##### `init(id, type, triggerId, resource)`
+##### `init(asyncId, type, triggerId, resource)`
 
-* `id` {number} a unique ID for the async resource
+* `asyncId` {number} a unique ID for the async resource
 * `type` {string} the type of the async resource
 * `triggerId` {number} the unique ID of the async resource in whose
   execution context this async resource was created
@@ -170,7 +174,7 @@ instance is destructed.
 
 Called when a class is constructed that has the _possibility_ to emit an
 asynchronous event. This _does not_ mean the instance must call
-`before()`/`after()` before `destroy()` is called, only that the possibility
+`before`/`after` before `destroy` is called, only that the possibility
 exists.
 
 This behavior can be observed by doing something like opening a resource then
@@ -185,8 +189,10 @@ clearTimeout(setTimeout(() => {}, 10));
 
 Every new resource is assigned a unique ID.
 
+###### `type`
+
 The `type` is a string that represents the type of resource that caused
-`init()` to call. Generally it will be the name of the resource's constructor.
+`init` to call. Generally it will be the name of the resource's constructor.
 The resource types provided by the built-in Node.js modules are:
 
 ```
@@ -203,19 +209,13 @@ Users are be able to define their own `type` when using the public embedder API.
 to use a unique prefixes, such as the npm package name, to prevent collisions
 when listening to the hooks.
 
-`triggerId` is the `id` of the resource that caused (or "triggered") the
-new resource to initialize and that caused `init()` to call.
+###### `triggerid`
 
-`resource` is an object that represents the actual resource. This can contain
-useful information such as the hostname for the `GETADDRINFOREQWRAP` resource
-type, which will be used when looking up the ip for the hostname in
-`net.Server.listen`. The API for getting this information is currently not
-considered public, but using the Embedder API users can provide and document
-their own resource objects. Such as resource object could for example contain
-the SQL query being executed.
+`triggerId` is the `asyncId` of the resource that caused (or "triggered") the
+new resource to initialize and that caused `init` to call. This is different
+from `async_hooks.currentId()` that only shows *when* a resource was created,
+while `triggerId` shows *why* a resource was created.
 
-*Note:* In some cases the resource object is reused for performance reasons,
-it is thus not safe to use it as a key in a `WeakMap` or add properties to it.
 
 The following is a simple demonstration of `triggerId`:
 
@@ -223,9 +223,9 @@ The following is a simple demonstration of `triggerId`:
 const async_hooks = require('async_hooks');
 
 async_hooks.createHook({
-  init(id, type, triggerId) {
+  init(asyncId, type, triggerId) {
     const cId = async_hooks.currentId();
-    fs.writeSync(1, `${type}(${id}): trigger: ${triggerId} scope: ${cId}\n`);
+    fs.writeSync(1, `${type}(${asyncId}): trigger: ${triggerId} scope: ${cId}\n`);
   }
 }).enable();
 
@@ -249,8 +249,23 @@ With only that information it would be impossible to link resources together in
 terms of what caused them to be created, so `triggerId` is given the task of
 propagating what resource is responsible for the new resource's existence.
 
+###### `resource`
+
+`resource` is an object that represents the actual resource. This can contain
+useful information such as the hostname for the `GETADDRINFOREQWRAP` resource
+type, which will be used when looking up the ip for the hostname in
+`net.Server.listen`. The API for getting this information is currently not
+considered public, but using the Embedder API users can provide and document
+their own resource objects. Such as resource object could for example contain
+the SQL query being executed.
+
+*Note:* In some cases the resource object is reused for performance reasons,
+it is thus not safe to use it as a key in a `WeakMap` or add properties to it.
+
+###### asynchronous context example
+
 Below is another example with additional information about the calls to
-`init()` between the `before()` and `after()` calls, specifically what the
+`init` between the `before` and `after` calls, specifically what the
 callback to `listen()` will look like. The output formatting is slightly more
 elaborate to make calling context easier to see.
 
@@ -259,21 +274,21 @@ const async_hooks = require('async_hooks');
 
 let indent = 0;
 async_hooks.createHook({
-  init(id, type, triggerId) {
+  init(asyncId, type, triggerId) {
     const cId = async_hooks.currentId();
     fs.writeSync(1, ' '.repeat(indent) +
-                    `${type}(${id}): trigger: ${triggerId} scope: ${cId}\n`);
+                    `${type}(${asyncId}): trigger: ${triggerId} scope: ${cId}\n`);
   },
-  before(id) {
-    fs.writeSync(1, ' '.repeat(indent) + `before:  ${id}`);
+  before(asyncId) {
+    fs.writeSync(1, ' '.repeat(indent) + `before:  ${asyncId}`);
     indent += 2;
   },
-  after(id) {
+  after(asyncId) {
     indent -= 2;
-    fs.writeSync(1, ' '.repeat(indent) + `after:   ${id}`);
+    fs.writeSync(1, ' '.repeat(indent) + `after:   ${asyncId}`);
   },
-  destroy(id) {
-    fs.writeSync(1, ' '.repeat(indent) + `destroy: ${id}`);
+  destroy(asyncId) {
+    fs.writeSync(1, ' '.repeat(indent) + `destroy: ${asyncId}`);
   },
 }).enable();
 
@@ -313,7 +328,7 @@ destroy: 5
 
 *Note*: As illustrated in the example, `currentId()` and `scope` each specify
 the value of the current execution context; which is delineated by calls to
-`before()` and `after()`.
+`before` and `after`.
 
 Only using `scope` to graph resource allocation results in the following:
 
@@ -330,45 +345,49 @@ The graph only shows *when* a resource was created, not *why*, so to track
 the *why* use `triggerId`.
 
 
-##### `before(id)`
+##### `before(asyncId)`
 
-* `id` {number}
+* `asyncId` {number}
 
 When an asynchronous operation is initiated (such as a TCP server receiving a
 new connection) or completes (such as writing data to disk) a callback is
-called to notify the user. The `before()` callback is called just before said
-callback is executed. `id` is the unique identifier assigned to the
+called to notify the user. The `before` callback is called just before said
+callback is executed. `asyncId` is the unique identifier assigned to the
 resource about to execute the callback.
 
-The `before()` callback will be called 0-N times if the resource is a handle,
-and exactly 1 time if the resource is a request.
+The `before` callback will be called 0 to N times. The `before` callback
+will typically be called 0 times if the asynchronous operation was cancelled
+or for example if no connections are received by a TCP server. Asynchronous
+like the TCP server will typically call the `before` callback multiple times,
+while other operations like `fs.open()` will only call it once.
 
 
-##### `after(id)`
+##### `after(asyncId)`
 
-* `id` {number}
+* `asyncId` {number}
 
-Called immediately after the callback specified in `before()` is completed. If
-an uncaught exception occurs during execution of the callback then `after()`
-will run after the `'uncaughtException'` event is emitted or a `domain`'s
-handler runs.
+Called immediately after the callback specified in `before` is completed.
+
+*Note:* If an uncaught exception occurs during execution of the callback then
+`after` will run after the `'uncaughtException'` event is emitted or a
+`domain`'s handler runs.
 
 
-##### `destroy(id)`
+##### `destroy(asyncId)`
 
-* `id` {number}
+* `asyncId` {number}
 
-Called after the resource corresponding to `id` is destroyed. It is also called
+Called after the resource corresponding to `asyncId` is destroyed. It is also called
 asynchronously from the embedder API `emitDestroy()`.
 
 *Note:* Some resources depend on GC for cleanup, so if a reference is made to
-the `resource` object passed to `init()` it's possible that `destroy()` is
+the `resource` object passed to `init` it's possible that `destroy` is
 never called, causing a memory leak in the application. Of course if
 the resource doesn't depend on GC then this isn't an issue.
 
 #### `async_hooks.currentId()`
 
-* Returns {number} the `id` of the current execution context. Useful to track
+* Returns {number} the `asyncId` of the current execution context. Useful to track
   when something calls.
 
 For example:
@@ -420,7 +439,7 @@ const server = net.createServer((conn) => {
 });
 ```
 
-## Embedder API
+## JavaScript Embedder API
 
 Library developers that handle their own I/O, a connection pool, or
 callback queues will need to hook into the AsyncWrap API so that all the
@@ -433,15 +452,17 @@ The class `AsyncResource` was designed to be extended by the embedder's async
 resources. Using this users can easily trigger the lifetime events of their
 own resources.
 
-The `init()` hook will trigger when an `AsyncResource` is instantiated.
+The `init` hook will trigger when an `AsyncResource` is instantiated.
 
-It is important that before/after calls are unwined
+It is important that `before`/`after` calls are unwound
 in the same order they are called. Otherwise an unrecoverable exception
 will occur and node will abort.
 
+The following is an overview of the `AsyncResource` API.
+
 ```js
 // AsyncResource() is meant to be extended. Instantiating a
-// new AsyncResource() also triggers init(). If triggerId is omitted then
+// new AsyncResource() also triggers init. If triggerId is omitted then
 // async_hook.currentId() is used.
 const asyncResource = new AsyncResource(type, triggerId);
 
@@ -473,7 +494,7 @@ Example usage:
 ```js
 class DBQuery extends AsyncResource {
   constructor(db) {
-    super();
+    super('DBQuery');
     this.db = db;
   }
 
@@ -496,33 +517,33 @@ class DBQuery extends AsyncResource {
 
 * Returns {undefined}
 
-Call all `before()` callbacks and let them know a new asynchronous execution
+Call all `before` callbacks and let them know a new asynchronous execution
 context is being entered. If nested calls to `emitBefore()` are made, the stack
-of `id`s will be tracked and properly unwound.
+of `asyncId`s will be tracked and properly unwound.
 
 #### `asyncResource.emitAfter()`
 
 * Returns {undefined}
 
-Call all `after()` callbacks. If nested calls to `emitBefore()` were made, then
+Call all `after` callbacks. If nested calls to `emitBefore()` were made, then
 make sure the stack is unwound properly. Otherwise an error will be thrown.
 
 If the user's callback throws an exception then `emitAfter()` will
-automatically be called for all `id`s on the stack if the error is handled by
+automatically be called for all `asyncId`s on the stack if the error is handled by
 a domain or `'uncaughtException'` handler.
 
 #### `asyncResource.emitDestroy()`
 
 * Returns {undefined}
 
-Call all `destroy()` hooks. This should only ever be called once. An error will
+Call all `destroy` hooks. This should only ever be called once. An error will
 be thrown if it is called more than once. This **must** be manually called. If
-the resource is left to be collected by the GC then the `destroy()` hooks will
+the resource is left to be collected by the GC then the `destroy` hooks will
 never be called.
 
 #### `asyncResource.asyncId()`
 
-* Returns {number} the unique `id` assigned to the resource.
+* Returns {number} the unique `asyncId` assigned to the resource.
 
 #### `asyncResource.triggerId()`
 
