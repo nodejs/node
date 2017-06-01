@@ -53,7 +53,7 @@ function checkDestroyedWriteWraps(n, stage) {
     assert.strictEqual(typeof w.uid, 'number', 'uid is a number');
     assert.strictEqual(typeof w.triggerId, 'number', 'triggerId is a number');
 
-    checkInvocations(w, { init: 1, destroy: 1 }, 'when ' + stage);
+    checkInvocations(w, { init: 1 }, 'when ' + stage);
   }
   as.forEach(checkValidWriteWrap);
 }
