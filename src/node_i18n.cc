@@ -450,6 +450,9 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
                                         &info,
                                         &status);
 
+  // Do not check info.errors like we do with ToASCII since ToUnicode always
+  // returns a string, despite any possible errors that may have occurred.
+
   if (status == U_BUFFER_OVERFLOW_ERROR) {
     status = U_ZERO_ERROR;
     buf->AllocateSufficientStorage(len);
@@ -477,9 +480,18 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
 int32_t ToASCII(MaybeStackBuffer<char>* buf,
                 const char* input,
                 size_t length,
-                bool lenient) {
+                enum idna_mode mode) {
   UErrorCode status = U_ZERO_ERROR;
-  uint32_t options = UIDNA_NONTRANSITIONAL_TO_ASCII | UIDNA_CHECK_BIDI;
+  uint32_t options =                  // CheckHyphens = false; handled later
+    UIDNA_CHECK_BIDI |                // CheckBidi = true
+    UIDNA_CHECK_CONTEXTJ |            // CheckJoiners = true
+    UIDNA_NONTRANSITIONAL_TO_ASCII;   // Nontransitional_Processing
+  if (mode == IDNA_STRICT) {
+    options |= UIDNA_USE_STD3_RULES;  // UseSTD3ASCIIRules = beStrict
+                                      // VerifyDnsLength = beStrict;
+                                      //   handled later
+  }
+
   UIDNA* uidna = uidna_openUTS46(options, &status);
   if (U_FAILURE(status))
     return -1;
@@ -501,21 +513,17 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
                                  &status);
   }
 
-  // The WHATWG URL "domain to ASCII" algorithm explicitly sets the
-  // VerifyDnsLength flag to false, which disables the domain name length
-  // verification step in ToASCII (as specified by UTS #46). Unfortunately,
-  // ICU4C's IDNA module does not support disabling this flag through `options`,
-  // so just filter out the errors that may be caused by the verification step
-  // afterwards.
-  info.errors &= ~UIDNA_ERROR_EMPTY_LABEL;
-  info.errors &= ~UIDNA_ERROR_LABEL_TOO_LONG;
-  info.errors &= ~UIDNA_ERROR_DOMAIN_NAME_TOO_LONG;
+  // In UTS #46 which specifies ToASCII, certain error conditions are
+  // configurable through options, and the WHATWG URL Standard promptly elects
+  // to disable some of them to accomodate for real-world use cases.
+  // Unfortunately, ICU4C's IDNA module does not support disabling some of
+  // these options through `options` above, and thus continues throwing
+  // unnecessary errors. To counter this situation, we just filter out the
+  // errors that may have happened afterwards, before deciding whether to
+  // return an error from this function.
 
-  // These error conditions are mandated unconditionally by UTS #46 version
-  // 9.0.0 (rev. 17), but were found to be incompatible with actual domain
-  // names in the wild. As such, in the current UTS #46 draft (rev. 18) these
-  // checks are made optional depending on the CheckHyphens flag, which will be
-  // disabled in WHATWG URL's "domain to ASCII" algorithm soon.
+  // CheckHyphens = false
+  // (Specified in the current UTS #46 draft rev. 18.)
   // Refs:
   // - https://github.com/whatwg/url/issues/53
   // - https://github.com/whatwg/url/pull/309
@@ -526,7 +534,14 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
   info.errors &= ~UIDNA_ERROR_LEADING_HYPHEN;
   info.errors &= ~UIDNA_ERROR_TRAILING_HYPHEN;
 
-  if (U_FAILURE(status) || (!lenient && info.errors != 0)) {
+  if (mode != IDNA_STRICT) {
+    // VerifyDnsLength = beStrict
+    info.errors &= ~UIDNA_ERROR_EMPTY_LABEL;
+    info.errors &= ~UIDNA_ERROR_LABEL_TOO_LONG;
+    info.errors &= ~UIDNA_ERROR_DOMAIN_NAME_TOO_LONG;
+  }
+
+  if (U_FAILURE(status) || (mode != IDNA_LENIENT && info.errors != 0)) {
     len = -1;
     buf->SetLength(0);
   } else {
@@ -564,9 +579,10 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
   Utf8Value val(env->isolate(), args[0]);
   // optional arg
   bool lenient = args[1]->BooleanValue(env->context()).FromJust();
+  enum idna_mode mode = lenient ? IDNA_LENIENT : IDNA_DEFAULT;
 
   MaybeStackBuffer<char> buf;
-  int32_t len = ToASCII(&buf, *val, val.length(), lenient);
+  int32_t len = ToASCII(&buf, *val, val.length(), mode);
 
   if (len < 0) {
     return env->ThrowError("Cannot convert name to ASCII");

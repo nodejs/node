@@ -10,9 +10,10 @@ const icu = process.binding('icu');
 const assert = require('assert');
 
 const tests = require('../fixtures/url-idna.js');
+const wptToASCIITests = require('../fixtures/url-toascii.js');
 
 {
-  for (const [i, { ascii, unicode }] of tests.valid.entries()) {
+  for (const [i, { ascii, unicode }] of tests.entries()) {
     assert.strictEqual(ascii, icu.toASCII(unicode), `toASCII(${i + 1})`);
     assert.strictEqual(unicode, icu.toUnicode(ascii), `toUnicode(${i + 1})`);
     assert.strictEqual(ascii, icu.toASCII(icu.toUnicode(ascii)),
@@ -23,13 +24,24 @@ const tests = require('../fixtures/url-idna.js');
 }
 
 {
-  for (const [i, url] of tests.invalid.entries()) {
-    assert.throws(() => icu.toASCII(url),
-                  /^Error: Cannot convert name to ASCII$/,
-                  `ToASCII invalid case ${i + 1}`);
-    assert.doesNotThrow(() => icu.toASCII(url, true),
-                        `ToASCII invalid case ${i + 1} in lenient mode`);
-    assert.doesNotThrow(() => icu.toUnicode(url),
-                        `ToUnicode invalid case ${i + 1}`);
+  for (const [i, test] of wptToASCIITests.entries()) {
+    if (typeof test === 'string')
+      continue; // skip comments
+    const { comment, input, output } = test;
+    let caseComment = `case ${i + 1}`;
+    if (comment)
+      caseComment += ` (${comment})`;
+    if (output === null) {
+      assert.throws(() => icu.toASCII(input),
+                    /^Error: Cannot convert name to ASCII$/,
+                    `ToASCII ${caseComment}`);
+      assert.doesNotThrow(() => icu.toASCII(input, true),
+                          `ToASCII ${caseComment} in lenient mode`);
+    } else {
+      assert.strictEqual(icu.toASCII(input), output, `ToASCII ${caseComment}`);
+      assert.strictEqual(icu.toASCII(input, true), output,
+                         `ToASCII ${caseComment} in lenient mode`);
+    }
+    assert.doesNotThrow(() => icu.toUnicode(input), `ToUnicode ${caseComment}`);
   }
 }
