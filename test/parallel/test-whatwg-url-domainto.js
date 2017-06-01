@@ -11,6 +11,7 @@ const { domainToASCII, domainToUnicode } = require('url');
 
 // Tests below are not from WPT.
 const tests = require('../fixtures/url-idna.js');
+const wptToASCIITests = require('../fixtures/url-toascii.js');
 
 {
   const expectedError = common.expectsError(
@@ -22,7 +23,7 @@ const tests = require('../fixtures/url-idna.js');
 }
 
 {
-  for (const [i, { ascii, unicode }] of tests.valid.entries()) {
+  for (const [i, { ascii, unicode }] of tests.entries()) {
     assert.strictEqual(ascii, domainToASCII(unicode),
                        `domainToASCII(${i + 1})`);
     assert.strictEqual(unicode, domainToUnicode(ascii),
@@ -35,8 +36,20 @@ const tests = require('../fixtures/url-idna.js');
 }
 
 {
-  for (const [i, url] of tests.invalid.entries()) {
-    assert.strictEqual(domainToASCII(url), '', `Invalid case ${i + 1}`);
-    assert.strictEqual(domainToUnicode(url), '', `Invalid case ${i + 1}`);
+  for (const [i, test] of wptToASCIITests.entries()) {
+    if (typeof test === 'string')
+      continue; // skip comments
+    const { comment, input, output } = test;
+    let caseComment = `Case ${i + 1}`;
+    if (comment)
+      caseComment += ` (${comment})`;
+    if (output === null) {
+      assert.strictEqual(domainToASCII(input), '', caseComment);
+      assert.strictEqual(domainToUnicode(input), '', caseComment);
+    } else {
+      assert.strictEqual(domainToASCII(input), output, caseComment);
+      const roundtripped = domainToASCII(domainToUnicode(input));
+      assert.strictEqual(roundtripped, output, caseComment);
+    }
   }
 }
