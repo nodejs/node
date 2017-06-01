@@ -1,6 +1,8 @@
 ## Docs-specific linter rules
 
 rules:
+  object-curly-spacing: [2, always]
+
   # ease some restrictions in doc examples
   no-restricted-properties: 0
   no-undef: 0
