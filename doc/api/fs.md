@@ -94,10 +94,10 @@ Error: EISDIR: illegal operation on a directory, read
     <stack trace.>
 ```
 
-*Note:* On Windows Node follows the concept of per-drive working directory.
-This behavior can be observed when using a drive path without backslash, e.g.
-`fs.readdirSync('c:\\')` can potentially return different result than
-`fs.readdirSync('c:')`. For more information see
+*Note:* On Windows Node.js follows the concept of per-drive working directory.
+This behavior can be observed when using a drive path without a backslash. For
+example `fs.readdirSync('c:\\')` can potentially return a different result than
+`fs.readdirSync('c:')`. For more information, see
 [this MSDN page][MSDN-Rel-Path].
 
 ## WHATWG URL object support
