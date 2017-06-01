@@ -1,6 +1,8 @@
 'use strict';
-
 const common = require('../common');
+
+if (common.isWindows) return common.skip('no signals in Windows');
+
 const assert = require('assert');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
