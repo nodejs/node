@@ -294,6 +294,23 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
   PromiseWrap* wrap = Unwrap<PromiseWrap>(promise);
   if (type == PromiseHookType::kInit || wrap == nullptr) {
     bool silent = type != PromiseHookType::kInit;
+    // set parent promise's async Id as this promise's triggerId
+    if (parent->IsPromise()) {
+      // parent promise exists, current promise
+      // is a chained promise, so we set parent promise's id as
+      // current promise's triggerId
+      Local<Promise> parent_promise = parent.As<Promise>();
+      auto parent_wrap = Unwrap<PromiseWrap>(parent_promise);
+
+      if (parent_wrap == nullptr) {
+        // create a new PromiseWrap for parent promise with silent parameter
+        parent_wrap = new PromiseWrap(env, parent_promise, true);
+        parent_wrap->MakeWeak(parent_wrap);
+      }
+      // get id from parentWrap
+      double trigger_id = parent_wrap->get_id();
+      env->set_init_trigger_id(trigger_id);
+    }
     wrap = new PromiseWrap(env, promise, silent);
     wrap->MakeWeak(wrap);
   } else if (type == PromiseHookType::kResolve) {
