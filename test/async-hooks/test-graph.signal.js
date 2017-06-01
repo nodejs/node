@@ -1,6 +1,11 @@
 'use strict';
 
 const common = require('../common');
+if (common.isWindows) {
+  common.skip('no signals on Windows');
+  return;
+}
+
 const initHooks = require('./init-hooks');
 const verifyGraph = require('./verify-graph');
 const exec = require('child_process').exec;

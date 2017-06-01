@@ -16,13 +16,13 @@ switch (process.argv[2]) {
 }
 
 const c1 = spawnSync(process.execPath, [__filename, 'test_invalid_async_id']);
-assert.strictEqual(c1.stderr.toString().split('\n')[0],
+assert.strictEqual(c1.stderr.toString().split(/[\r\n]+/g)[0],
                    'Error: before(): asyncId or triggerAsyncId is less than ' +
                    'zero (asyncId: -1, triggerAsyncId: -1)');
 assert.strictEqual(c1.status, 1);
 
 const c2 = spawnSync(process.execPath, [__filename, 'test_invalid_trigger_id']);
-assert.strictEqual(c2.stderr.toString().split('\n')[0],
+assert.strictEqual(c2.stderr.toString().split(/[\r\n]+/g)[0],
                    'Error: before(): asyncId or triggerAsyncId is less than ' +
                    'zero (asyncId: 1, triggerAsyncId: -1)');
 assert.strictEqual(c2.status, 1);
