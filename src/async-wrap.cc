@@ -138,10 +138,8 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
 // end RetainedAsyncInfo
 
 
-static void DestroyIdsCb(uv_idle_t* handle) {
-  uv_idle_stop(handle);
-
-  Environment* env = Environment::from_destroy_ids_idle_handle(handle);
+static void DestroyIdsCb(uv_timer_t* handle) {
+  Environment* env = Environment::from_destroy_ids_timer_handle(handle);
 
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
@@ -149,23 +147,23 @@ static void DestroyIdsCb(uv_idle_t* handle) {
 
   TryCatch try_catch(env->isolate());
 
-  std::vector<double> destroy_ids_list;
-  destroy_ids_list.swap(*env->destroy_ids_list());
-  for (auto current_id : destroy_ids_list) {
-    // Want each callback to be cleaned up after itself, instead of cleaning
-    // them all up after the while() loop completes.
-    HandleScope scope(env->isolate());
-    Local<Value> argv = Number::New(env->isolate(), current_id);
-    MaybeLocal<Value> ret = fn->Call(
-        env->context(), Undefined(env->isolate()), 1, &argv);
+  do {
+    std::vector<double> destroy_ids_list;
+    destroy_ids_list.swap(*env->destroy_ids_list());
+    for (auto current_id : destroy_ids_list) {
+      // Want each callback to be cleaned up after itself, instead of cleaning
+      // them all up after the while() loop completes.
+      HandleScope scope(env->isolate());
+      Local<Value> argv = Number::New(env->isolate(), current_id);
+      MaybeLocal<Value> ret = fn->Call(
+          env->context(), Undefined(env->isolate()), 1, &argv);
 
-    if (ret.IsEmpty()) {
-      ClearFatalExceptionHandlers(env);
-      FatalException(env->isolate(), try_catch);
+      if (ret.IsEmpty()) {
+        ClearFatalExceptionHandlers(env);
+        FatalException(env->isolate(), try_catch);
+      }
     }
-  }
-
-  env->destroy_ids_list()->clear();
+  } while (!env->destroy_ids_list()->empty());
 }
 
 
@@ -174,7 +172,7 @@ static void PushBackDestroyId(Environment* env, double id) {
     return;
 
   if (env->destroy_ids_list()->empty())
-    uv_idle_start(env->destroy_ids_idle_handle(), DestroyIdsCb);
+    uv_timer_start(env->destroy_ids_timer_handle(), DestroyIdsCb, 0, 0);
 
   env->destroy_ids_list()->push_back(id);
 }
