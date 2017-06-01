@@ -22,7 +22,7 @@
   * [Archive](CHANGELOG_ARCHIVE.md)
 
 <a id="8.0.0"></a>
-## 2017-04-25, Version 8.0.0 (Current), @jasnell
+## 2017-05-30, Version 8.0.0 (Current), @jasnell
 
 Node.js 8.0.0 is a major new release that includes a significant number of
 `semver-major` and `semver-minor` changes. Notable changes are listed below.
