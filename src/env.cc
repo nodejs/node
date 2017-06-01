@@ -49,8 +49,7 @@ void Environment::Start(int argc,
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
 
-  uv_idle_init(event_loop(), destroy_ids_idle_handle());
-  uv_unref(reinterpret_cast<uv_handle_t*>(destroy_ids_idle_handle()));
+  uv_timer_init(event_loop(), destroy_ids_timer_handle());
 
   auto close_and_finish = [](Environment* env, uv_handle_t* handle, void* arg) {
     handle->data = env;
@@ -101,16 +100,6 @@ void Environment::CleanupHandles() {
 
   while (handle_cleanup_waiting_ != 0)
     uv_run(event_loop(), UV_RUN_ONCE);
-
-  // Closing the destroy_ids_idle_handle_ within the handle cleanup queue
-  // prevents the async wrap destroy hook from being called.
-  uv_handle_t* handle =
-    reinterpret_cast<uv_handle_t*>(&destroy_ids_idle_handle_);
-  handle->data = this;
-  handle_cleanup_waiting_ = 1;
-  uv_close(handle, [](uv_handle_t* handle) {
-    static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
-  });
 
   while (handle_cleanup_waiting_ != 0)
     uv_run(event_loop(), UV_RUN_ONCE);
