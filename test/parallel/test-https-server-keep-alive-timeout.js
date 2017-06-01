@@ -39,6 +39,7 @@ test(function serverKeepAliveTimeoutWithPipeline(cb) {
     res.end();
   });
   server.setTimeout(500, common.mustCall((socket) => {
+    // End this test and call `run()` for the next test (if any).
     socket.destroy();
     server.close();
     cb();
@@ -67,6 +68,7 @@ test(function serverNoEndKeepAliveTimeoutWithPipeline(cb) {
     requestCount++;
   });
   server.setTimeout(500, common.mustCall((socket) => {
+    // End this test and call `run()` for the next test (if any).
     socket.destroy();
     server.close();
     cb();
