@@ -20,6 +20,9 @@ const path = require('path');
 
 const runjs = path.join(__dirname, '..', '..', 'benchmark', 'run.js');
 
+const env = Object.assign({}, process.env,
+                          { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+
 const child = fork(runjs, ['--set', 'benchmarker=test-double',
                            '--set', 'c=1',
                            '--set', 'chunks=0',
@@ -28,7 +31,7 @@ const child = fork(runjs, ['--set', 'benchmarker=test-double',
                            '--set', 'len=1',
                            '--set', 'n=1',
                            'http'],
-                   {env: {NODEJS_BENCHMARK_ZERO_ALLOWED: 1}});
+                   {env});
 child.on('exit', (code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
