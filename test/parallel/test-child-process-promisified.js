@@ -33,13 +33,13 @@ const execFile = promisify(child_process.execFile);
   }));
 }
 const failingCodeWithStdoutErr =
-  'console.log("out");console.error("err");process.exit(1)';
+  'console.log(42);console.error(42);process.exit(1)';
 {
   exec(`${process.execPath} -e '${failingCodeWithStdoutErr}'`)
     .catch(common.mustCall((err) => {
       assert.strictEqual(err.code, 1);
-      assert.strictEqual(err.stdout, 'out\n');
-      assert.strictEqual(err.stderr, 'err\n');
+      assert.strictEqual(err.stdout, '42\n');
+      assert.strictEqual(err.stderr, '43\n');
     }));
 }
 
@@ -47,7 +47,7 @@ const failingCodeWithStdoutErr =
   execFile(process.execPath, ['-e', failingCodeWithStdoutErr])
     .catch(common.mustCall((err) => {
       assert.strictEqual(err.code, 1);
-      assert.strictEqual(err.stdout, 'out\n');
-      assert.strictEqual(err.stderr, 'err\n');
+      assert.strictEqual(err.stdout, '42\n');
+      assert.strictEqual(err.stderr, '43\n');
     }));
 }
