@@ -11,6 +11,7 @@
 #endif
 
 #include <stdio.h>
+#include <algorithm>
 
 namespace node {
 
@@ -193,6 +194,23 @@ void Environment::AddPromiseHook(promise_hook_func fn, void* arg) {
   if (promise_hooks_.size() == 1) {
     isolate_->SetPromiseHook(EnvPromiseHook);
   }
+}
+
+bool Environment::RemovePromiseHook(promise_hook_func fn, void* arg) {
+  auto it = std::find_if(
+      promise_hooks_.begin(), promise_hooks_.end(),
+      [&](const PromiseHookCallback& hook) {
+        return hook.cb_ == fn && hook.arg_ == arg;
+      });
+
+  if (it == promise_hooks_.end()) return false;
+
+  promise_hooks_.erase(it);
+  if (promise_hooks_.empty()) {
+    isolate_->SetPromiseHook(nullptr);
+  }
+
+  return true;
 }
 
 void Environment::EnvPromiseHook(v8::PromiseHookType type,

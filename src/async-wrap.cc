@@ -291,8 +291,7 @@ class PromiseWrap : public AsyncWrap {
 
 static void PromiseHook(PromiseHookType type, Local<Promise> promise,
                         Local<Value> parent, void* arg) {
-  Local<Context> context = promise->CreationContext();
-  Environment* env = Environment::GetCurrent(context);
+  Environment* env = static_cast<Environment*>(arg);
   PromiseWrap* wrap = Unwrap<PromiseWrap>(promise);
   if (type == PromiseHookType::kInit || wrap == nullptr) {
     bool silent = type != PromiseHookType::kInit;
@@ -334,8 +333,24 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   SET_HOOK_FN(before);
   SET_HOOK_FN(after);
   SET_HOOK_FN(destroy);
-  env->AddPromiseHook(PromiseHook, nullptr);
 #undef SET_HOOK_FN
+
+  env->AddPromiseHook(PromiseHook, static_cast<void*>(env));
+}
+
+
+static void TearDownHooks(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(!env->async_hooks_init_function().IsEmpty());
+
+  env->set_async_hooks_init_function(Local<Function>());
+  env->set_async_hooks_before_function(Local<Function>());
+  env->set_async_hooks_after_function(Local<Function>());
+  env->set_async_hooks_destroy_function(Local<Function>());
+
+  bool removed = env->RemovePromiseHook(PromiseHook, static_cast<void*>(env));
+  CHECK(removed);
 }
 
 
@@ -391,6 +406,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   HandleScope scope(isolate);
 
   env->SetMethod(target, "setupHooks", SetupHooks);
+  env->SetMethod(target, "tearDownHooks", TearDownHooks);
   env->SetMethod(target, "pushAsyncIds", PushAsyncIds);
   env->SetMethod(target, "popAsyncIds", PopAsyncIds);
   env->SetMethod(target, "clearIdStack", ClearIdStack);
