@@ -164,8 +164,6 @@ static void DestroyIdsCb(uv_idle_t* handle) {
       FatalException(env->isolate(), try_catch);
     }
   }
-
-  env->destroy_ids_list()->clear();
 }
 
 
