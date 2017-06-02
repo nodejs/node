@@ -24,10 +24,9 @@ maintained by the CTC and additional Collaborators who are added by the
 CTC on an ongoing basis.
 
 Individuals identified by the CTC as making significant and valuable
-contributions are made Collaborators and given commit access to the project.
-
-_Note:_ If you make a significant contribution and are not considered
-for commit access, log an issue or contact a CTC member directly.
+contributions are made Collaborators and given commit access to the project. If
+you make a significant contribution and are not considered for commit access,
+log an issue or contact a CTC member directly.
 
 Modifications of the contents of the nodejs/node repository are made on
 a collaborative basis. Anybody with a GitHub account may propose a
