@@ -428,9 +428,9 @@ For example:
 
 ```js
 const server = net.createServer((conn) => {
-  // Though the resource that caused (or triggered) this callback to
-  // be called was that of the new connection. Thus the return value
-  // of triggerId() is the ID of "conn".
+  // The resource that caused (or triggered) this callback to be called
+  // was that of the new connection. Thus the return value of triggerId()
+  // is the asyncId of "conn".
   async_hooks.triggerId();
 
 }).listen(port, () => {
