@@ -220,8 +220,6 @@ while `triggerId` shows *why* a resource was created.
 The following is a simple demonstration of `triggerId`:
 
 ```js
-const async_hooks = require('async_hooks');
-
 async_hooks.createHook({
   init(asyncId, type, triggerId) {
     const cId = async_hooks.currentId();
@@ -271,8 +269,6 @@ callback to `listen()` will look like. The output formatting is slightly more
 elaborate to make calling context easier to see.
 
 ```js
-const async_hooks = require('async_hooks');
-
 let indent = 0;
 async_hooks.createHook({
   init(asyncId, type, triggerId) {
@@ -462,6 +458,8 @@ will occur and node will abort.
 The following is an overview of the `AsyncResource` API.
 
 ```js
+const { AsyncResource } = require('async_hooks');
+
 // AsyncResource() is meant to be extended. Instantiating a
 // new AsyncResource() also triggers init. If triggerId is omitted then
 // async_hook.currentId() is used.
