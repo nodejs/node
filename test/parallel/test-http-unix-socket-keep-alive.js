@@ -7,15 +7,15 @@ const server = http.createServer((req, res) => res.end());
 
 common.refreshTmpDir();
 
-server.listen(common.PIPE, () =>
-  asyncLoop(makeKeepAliveRequest, 10, () =>
+server.listen(common.PIPE, common.mustCall(() =>
+  asyncLoop(makeKeepAliveRequest, 10, common.mustCall(() =>
     server.getConnections(common.mustCall((err, conns) => {
       assert.ifError(err);
-      assert.strictEqual(1, conns);
+      assert.strictEqual(conns, 1);
       server.close();
     }))
-  )
-);
+  ))
+));
 
 function asyncLoop(fn, times, cb) {
   fn(function handler() {
@@ -29,6 +29,9 @@ function asyncLoop(fn, times, cb) {
 function makeKeepAliveRequest(cb) {
   http.get({
     socketPath: common.PIPE,
-    headers: {connection: 'keep-alive'}
-  }, (res) => res.on('data', () => {}).on('error', assert.fail).on('end', cb));
+    headers: { connection: 'keep-alive' }
+  }, (res) => res.on('data', common.mustNotCall())
+    .on('error', assert.fail)
+    .on('end', cb)
+  );
 }
