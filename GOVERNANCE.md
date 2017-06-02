@@ -67,9 +67,9 @@ Typical activities of a Collaborator include:
 * participation in working groups
 * merging pull requests
 
-While the above are typical things done by Collaborators, there are no required
-activities to retain Collaborator status. There is currently no process by which
-inactive Collaborators are removed from the project.
+The CTC periodically reviews the Collaborator list to identify inactive
+Collaborators. Past Collaborators are typically given _Emeritus_ status. Emeriti
+may request that the CTC restore them to active status.
 
 ## CTC Membership
 
