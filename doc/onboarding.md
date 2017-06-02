@@ -43,7 +43,7 @@ onboarding session.
     * Use [https://github.com/notifications](https://github.com/notifications) or set up email
     * Watching the main repo will flood your inbox (several hundred notifications on typical weekdays), so be prepared
 
-  * `#node-dev` on [webchat.freenode.net](https://webchat.freenode.net/) is the best place to interact with the CTC / other collaborators
+  * `#node-dev` on [webchat.freenode.net](https://webchat.freenode.net/) is the best place to interact with the CTC / other Collaborators
     * If there are any questions after the session, a good place to ask is there!
     * Presence is not mandatory, but please drop a note there if force-pushing to `master`
 
@@ -79,7 +79,7 @@ onboarding session.
     * For many of the teams listed there, you can ask to be added if you are interested
       * Some are WGs with some process around adding people, others are only there for notifications
 
-  * When a discussion gets heated, you can request that other collaborators keep an eye on it by opening an issue at the private [nodejs/moderation](https://github.com/nodejs/moderation) repository.
+  * When a discussion gets heated, you can request that other Collaborators keep an eye on it by opening an issue at the private [nodejs/moderation](https://github.com/nodejs/moderation) repository.
     * This is a repository to which all members of the `nodejs` GitHub organization (not just Collaborators on Node.js core) have access. Its contents should not be shared externally.
     * You can find the full moderation policy [here](https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md).
 
@@ -116,7 +116,7 @@ onboarding session.
       usually be addressed even if you don’t use it.
       * If you do, it is nice if you are available later to check whether your
         comments have been addressed
-      * Other collaborators will usually take `Changes requested` to mean that
+      * Other Collaborators will usually take `Changes requested` to mean that
         you are considering some of your comments to block the PR from landing.
 
   * What belongs in Node.js:
@@ -163,7 +163,7 @@ onboarding session.
 
   * Don't worry about making mistakes: everybody makes them, there's a lot to internalize and that takes time (and we recognize that!)
   * Almost any mistake you could make can be fixed or reverted.
-  * The existing collaborators trust you and are grateful for your help!
+  * The existing Collaborators trust you and are grateful for your help!
   * Other repositories:
     * [https://github.com/nodejs/CTC](https://github.com/nodejs/CTC)
     * [https://github.com/nodejs/build](https://github.com/nodejs/build)
