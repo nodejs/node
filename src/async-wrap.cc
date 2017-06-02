@@ -560,8 +560,8 @@ void AsyncWrap::EmitAsyncInit(Environment* env,
   Local<Value> argv[] = {
     Number::New(env->isolate(), async_id),
     type,
-    object,
     Number::New(env->isolate(), trigger_id),
+    object,
   };
 
   TryCatch try_catch(env->isolate());
