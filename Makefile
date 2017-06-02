@@ -237,6 +237,9 @@ test-internet: all
 test-debugger: all
 	$(PYTHON) tools/test.py debugger
 
+test-hash-seed: all
+	$(NODE) test/pummel/test-hash-seed.js
+
 test-known-issues: all
 	$(PYTHON) tools/test.py known_issues --expect-fail
 
@@ -256,7 +259,7 @@ test-timers:
 test-timers-clean:
 	$(MAKE) --directory=tools clean
 
-test-v8: v8
+test-v8: v8 test-hash-seed
 #	note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) $(V8_TEST_NO_I18N) $(QUICKCHECK_ARG) \
@@ -734,4 +737,5 @@ lint-ci: lint
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
 	bench-http bench-fs bench-tls cctest run-ci lint-ci bench-ci \
 	test-v8 test-v8-intl test-v8-benchmarks test-v8-all v8 \
-	$(TARBALL)-headers test-ci test-ci-native test-ci-js build-ci doc-only
+	$(TARBALL)-headers test-ci test-ci-native test-ci-js build-ci doc-only \
+	test-hash-seed
