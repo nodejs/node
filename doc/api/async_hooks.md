@@ -320,10 +320,10 @@ before:  5
 >>> 4
     TickObject(9): trigger: 4 scope: 4
   after:   4
-  destroy: 4
 after:   5
 before:  9
 after:   9
+destroy: 4
 destroy: 9
 destroy: 5
 ```
@@ -397,7 +397,7 @@ For example:
 ```js
 console.log(async_hooks.currentId());  // 1 - bootstrap
 fs.open(path, 'r', (err, fd) => {
-  console.log(async_hooks.currentId());  // 2 - open()
+  console.log(async_hooks.currentId());  // 6 - open()
 });
 ```
 
