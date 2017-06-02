@@ -215,7 +215,9 @@ child runs longer than `timeout` milliseconds.
 replace the existing process and uses a shell to execute the command.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a Promise for an object with `stdout` and `stderr` properties.
+a Promise for an object with `stdout` and `stderr` properties. In case of an
+error, a rejected promise is returned, with the same `error` object given in the
+callback, but with an additional two properties `stdout` and `stderr`.
 
 For example:
 
@@ -281,7 +283,9 @@ stderr output. If `encoding` is `'buffer'`, or an unrecognized character
 encoding, `Buffer` objects will be passed to the callback instead.
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a Promise for an object with `stdout` and `stderr` properties.
+a Promise for an object with `stdout` and `stderr` properties. In case of an
+error, a rejected promise is returned, with the same `error` object given in the
+callback, but with an additional two properties `stdout` and `stderr`.
 
 ```js
 const util = require('util');
