@@ -75,8 +75,9 @@ onboarding session.
       * When adding a semver label, add a comment explaining why you're adding it. Do it right away so you don't forget!
 
   * [**See "Who to CC in issues"**](./onboarding-extras.md#who-to-cc-in-issues)
-    * For many of the teams listed there, you can just ask to be added if you are interested
     * This will come more naturally over time
+    * For many of the teams listed there, you can ask to be added if you are interested
+      * Some are WGs with some process around adding people, others are only there for notifications
 
   * When a discussion gets heated, you can request that other collaborators keep an eye on it by opening an issue at the private [nodejs/moderation](https://github.com/nodejs/moderation) repository.
     * This is a repository to which all members of the `nodejs` GitHub organization (not just Collaborators on Node.js core) have access. Its contents should not be shared externally.
@@ -118,9 +119,9 @@ onboarding session.
       * Other collaborators will usually take `Changes requested` to mean that
         you are considering some of your comments to block the PR from landing.
 
-  * What belongs in node:
+  * What belongs in Node.js:
     * Opinions vary – it’s good to have a broad collaborator base for that reason!
-    * If node itself needs it (due to historic reasons), then it belongs in node
+    * If Node.js itself needs it (due to historic reasons), then it belongs in Node.js
       * That is to say, url is there because of http, freelist is there because of http, etc.
     * Things that cannot be done outside of core, or only with significant pain (for example `async_hooks`)
 
