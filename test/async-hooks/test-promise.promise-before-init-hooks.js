@@ -5,28 +5,26 @@ const assert = require('assert');
 const initHooks = require('./init-hooks');
 const { checkInvocations } = require('./hook-checks');
 
-const hooks = initHooks();
+const p = (new Promise(common.mustCall(executor)));
 
+// init hooks after promise was created
+const hooks = initHooks();
+hooks._allowNoInit = true;
 hooks.enable();
 
-const p = (new Promise(common.mustCall(executor)));
 p.then(afterresolution);
 
 function executor(resolve, reject) {
-  const as = hooks.activitiesOfTypes('PROMISE');
-  assert.strictEqual(as.length, 1, 'one activity');
-  const a = as[0];
-  checkInvocations(a, { init: 1 }, 'while in promise executor');
   resolve(5);
 }
 
 function afterresolution(val) {
   assert.strictEqual(val, 5);
   const as = hooks.activitiesOfTypes('PROMISE');
-  assert.strictEqual(as.length, 2, 'two activities');
-  checkInvocations(as[0], { init: 1 }, 'after resolution parent promise');
-  checkInvocations(as[1], { init: 1, before: 1 },
+  assert.strictEqual(as.length, 1, 'one activity');
+  checkInvocations(as[0], { init: 1, before: 1 },
                    'after resolution child promise');
+  return val;
 }
 
 process.on('exit', onexit);
@@ -35,19 +33,15 @@ function onexit() {
   hooks.sanityCheck('PROMISE');
 
   const as = hooks.activitiesOfTypes('PROMISE');
-  assert.strictEqual(as.length, 2, 'two activities');
+  assert.strictEqual(as.length, 1,
+                     'should only get one activity(child promise)');
 
   const a0 = as[0];
   assert.strictEqual(a0.type, 'PROMISE', 'promise request');
   assert.strictEqual(typeof a0.uid, 'number', 'uid is a number');
-  assert.strictEqual(a0.triggerId, 1, 'parent uid 1');
-  checkInvocations(a0, { init: 1 }, 'when process exits');
-
-  const a1 = as[1];
-  assert.strictEqual(a1.type, 'PROMISE', 'promise request');
-  assert.strictEqual(typeof a1.uid, 'number', 'uid is a number');
-  assert.strictEqual(a1.triggerId, a0.uid,
+  // we can't get the triggerId dynamically, we have to use static number here
+  assert.strictEqual(a0.triggerId - (a0.uid - 3), 2,
                      'child promise should use parent uid as triggerId');
   // We expect a destroy hook as well but we cannot guarentee predictable gc.
-  checkInvocations(a1, { init: 1, before: 1, after: 1 }, 'when process exits');
+  checkInvocations(a0, { init: 1, before: 1, after: 1 }, 'when process exits');
 }
