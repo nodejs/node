@@ -33,7 +33,7 @@ const execFile = promisify(child_process.execFile);
   }));
 }
 const failingCodeWithStdoutErr =
-  'console.log(42);console.error(42);process.exit(1)';
+  'console.log(42);console.error(43);process.exit(1)';
 {
   exec(`${process.execPath} -e '${failingCodeWithStdoutErr}'`)
     .catch(common.mustCall((err) => {
