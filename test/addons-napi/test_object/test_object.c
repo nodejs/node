@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+static int test_value = 3;
+
 napi_value Get(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
@@ -145,7 +147,7 @@ napi_value Wrap(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &arg, NULL, NULL));
 
   int32_t* data = malloc(sizeof(int32_t));
-  *data = 3;
+  *data = test_value;
   NAPI_CALL(env, napi_wrap(env, arg, data, NULL, NULL, NULL));
   return NULL;
 }
@@ -155,11 +157,12 @@ napi_value Unwrap(napi_env env, napi_callback_info info) {
   napi_value arg;
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &arg, NULL, NULL));
 
-  int32_t* data;
+  void* data;
   NAPI_CALL(env, napi_unwrap(env, arg, &data));
 
+  bool is_expected = (data != NULL && *(int*)data == 3);
   napi_value result;
-  NAPI_CALL(env, napi_get_boolean(env, data != NULL && *data == 3, &result));
+  NAPI_CALL(env, napi_get_boolean(env, is_expected, &result));
   return result;
 }
 
