@@ -50,7 +50,7 @@ onboarding session.
 
 ## Project goals & values
 
-  * Collaborators are effectively the collective owners of the project
+  * Collaborators are the collective owners of the project
     * The project has the goals of its contributors
 
   * There are some higher-level goals and values
