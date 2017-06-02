@@ -349,6 +349,9 @@ test-node-inspect: $(NODE_EXE)
 test-tick-processor: all
 	$(PYTHON) tools/test.py tick-processor
 
+test-hash-seed: all
+	$(NODE) test/pummel/test-hash-seed.js
+
 test-known-issues: all
 	$(PYTHON) tools/test.py known_issues
 
@@ -375,7 +378,7 @@ test-timers-clean:
 
 
 ifneq ("","$(wildcard deps/v8/tools/run-tests.py)")
-test-v8: v8
+test-v8: v8 test-hash-seed
 #	note: performs full test unless QUICKCHECK is specified
 	deps/v8/tools/run-tests.py --arch=$(V8_ARCH) \
         --mode=$(BUILDTYPE_LOWER) $(V8_TEST_OPTIONS) $(QUICKCHECK_ARG) \
@@ -879,4 +882,4 @@ endif
 	test-v8-intl test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci \
 	doc-only $(TARBALL)-headers test-ci test-ci-native test-ci-js build-ci \
 	clear-stalled coverage-clean coverage-build coverage-test coverage \
-	list-gtests
+	list-gtests test-hash-seed
