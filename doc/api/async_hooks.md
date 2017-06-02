@@ -220,13 +220,11 @@ while `triggerId` shows *why* a resource was created.
 The following is a simple demonstration of `triggerId`:
 
 ```js
-const async_hooks = require('async_hooks');
-
 async_hooks.createHook({
   init(asyncId, type, triggerId) {
     const cId = async_hooks.currentId();
-    fs.writeSync(1, `${type}(${asyncId}): ` +
-                    `trigger: ${triggerId} scope: ${cId}\n`);
+    fs.writeSync(
+      1, `${type}(${asyncId}): trigger: ${triggerId} scope: ${cId}\n`);
   }
 }).enable();
 
@@ -271,25 +269,28 @@ callback to `listen()` will look like. The output formatting is slightly more
 elaborate to make calling context easier to see.
 
 ```js
-const async_hooks = require('async_hooks');
-
 let indent = 0;
 async_hooks.createHook({
   init(asyncId, type, triggerId) {
     const cId = async_hooks.currentId();
-    fs.writeSync(1, ' '.repeat(indent) + `${type}(${asyncId}): ` +
-                    `trigger: ${triggerId} scope: ${cId}\n`);
+    const indentStr = ' '.repeat(indent);
+    fs.writeSync(
+      1,
+      `${indentStr}${type}(${asyncId}): trigger: ${triggerId} scope: ${cId}\n`);
   },
   before(asyncId) {
-    fs.writeSync(1, ' '.repeat(indent) + `before:  ${asyncId}`);
+    const indentStr = ' '.repeat(indent);
+    fs.writeSync(1, `${indentStr}before:  ${asyncId}\n`);
     indent += 2;
   },
   after(asyncId) {
     indent -= 2;
-    fs.writeSync(1, ' '.repeat(indent) + `after:   ${asyncId}`);
+    const indentStr = ' '.repeat(indent);
+    fs.writeSync(1, `${indentStr}after:   ${asyncId}\n`);
   },
   destroy(asyncId) {
-    fs.writeSync(1, ' '.repeat(indent) + `destroy: ${asyncId}`);
+    const indentStr = ' '.repeat(indent);
+    fs.writeSync(1, `${indentStr}destroy: ${asyncId}\n`);
   },
 }).enable();
 
@@ -319,10 +320,10 @@ before:  5
 >>> 4
     TickObject(9): trigger: 4 scope: 4
   after:   4
-  destroy: 4
 after:   5
 before:  9
 after:   9
+destroy: 4
 destroy: 9
 destroy: 5
 ```
@@ -395,8 +396,8 @@ For example:
 
 ```js
 console.log(async_hooks.currentId());  // 1 - bootstrap
-fs.open(path, (err, fd) => {
-  console.log(async_hooks.currentId());  // 2 - open()
+fs.open(path, 'r', (err, fd) => {
+  console.log(async_hooks.currentId());  // 6 - open()
 });
 ```
 
@@ -427,9 +428,9 @@ For example:
 
 ```js
 const server = net.createServer((conn) => {
-  // Though the resource that caused (or triggered) this callback to
-  // be called was that of the new connection. Thus the return value
-  // of triggerId() is the ID of "conn".
+  // The resource that caused (or triggered) this callback to be called
+  // was that of the new connection. Thus the return value of triggerId()
+  // is the asyncId of "conn".
   async_hooks.triggerId();
 
 }).listen(port, () => {
@@ -462,6 +463,8 @@ will occur and node will abort.
 The following is an overview of the `AsyncResource` API.
 
 ```js
+const { AsyncResource } = require('async_hooks');
+
 // AsyncResource() is meant to be extended. Instantiating a
 // new AsyncResource() also triggers init. If triggerId is omitted then
 // async_hook.currentId() is used.
