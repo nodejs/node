@@ -44,7 +44,7 @@ onboarding session.
     * Watching the main repo will flood your inbox (several hundred notifications on typical weekdays), so be prepared
 
   * `#node-dev` on [webchat.freenode.net](https://webchat.freenode.net/) is the best place to interact with the CTC / other collaborators
-    * If there are any questions after the session, this is a good place to ask!
+    * If there are any questions after the session, a good place to ask is there!
     * Presence is not mandatory, but please drop a note there if force-pushing to `master`
 
 
@@ -109,18 +109,20 @@ onboarding session.
     * Collaborators indicate that they have reviewed and approve of the
         the changes in a pull request using Github’s approval interface
     * Some people like to comment `LGTM` (“Looks Good To Me”)
-    * You have the power to approve any other collaborator's work.
-    * You may not approve your own pull requests.
+    * You have the authority to approve any other collaborator’s work.
+    * You cannot approve your own pull requests.
     * When explicitly using `Changes requested`, show empathy – comments will
       usually be addressed even if you don’t use it.
       * If you do, it is nice if you are available later to check whether your
         comments have been addressed
+      * Other collaborators will usually take `Changes requested` to mean that
+        you are considering some of your comments to block the PR from landing.
 
   * What belongs in node:
     * Opinions vary – it’s good to have a broad collaborator base for that reason!
     * If node itself needs it (due to historic reasons), then it belongs in node
-      * That is to say, url is there because of http, freelist is there because of http, et al
-    * Also, things that cannot be done outside of core, or only with significant pain (for example `async_hooks`)
+      * That is to say, url is there because of http, freelist is there because of http, etc.
+    * Things that cannot be done outside of core, or only with significant pain (for example `async_hooks`)
 
   * Continuous Integration (CI) Testing:
     * [https://ci.nodejs.org/](https://ci.nodejs.org/)
@@ -159,7 +161,7 @@ onboarding session.
 ## Final notes
 
   * Don't worry about making mistakes: everybody makes them, there's a lot to internalize and that takes time (and we recognize that!)
-  * No mistakes are unrecoverable!
+  * Almost any mistake you could make can be fixed or reverted.
   * The existing collaborators trust you and are grateful for your help!
   * Other repositories:
     * [https://github.com/nodejs/CTC](https://github.com/nodejs/CTC)
