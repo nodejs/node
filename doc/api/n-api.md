@@ -11,6 +11,13 @@ changes in the underlying JavaScript engine and allow modules
 compiled for one version to run on later versions of Node.js without
 recompilation.
 
+As the feature is currently experimental it must be enabled with the
+following command line option:
+
+```bash
+--napi-modules
+```
+
 Addons are built/packaged with the same approach/tools
 outlined in the section titled  [C++ Addons](addons.html).
 The only difference is the set of APIs that are used by the native code.
