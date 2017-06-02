@@ -223,8 +223,8 @@ The following is a simple demonstration of `triggerId`:
 async_hooks.createHook({
   init(asyncId, type, triggerId) {
     const cId = async_hooks.currentId();
-    fs.writeSync(1, `${type}(${asyncId}): ` +
-                    `trigger: ${triggerId} scope: ${cId}\n`);
+    fs.writeSync(
+      1, `${type}(${asyncId}): trigger: ${triggerId} scope: ${cId}\n`);
   }
 }).enable();
 
@@ -273,19 +273,24 @@ let indent = 0;
 async_hooks.createHook({
   init(asyncId, type, triggerId) {
     const cId = async_hooks.currentId();
-    fs.writeSync(1, ' '.repeat(indent) + `${type}(${asyncId}): ` +
-                    `trigger: ${triggerId} scope: ${cId}\n`);
+    const indentStr = ' '.repeat(indent);
+    fs.writeSync(
+      1,
+      `${indentStr}${type}(${asyncId}): trigger: ${triggerId} scope: ${cId}\n`);
   },
   before(asyncId) {
-    fs.writeSync(1, ' '.repeat(indent) + `before:  ${asyncId}\n`);
+    const indentStr = ' '.repeat(indent);
+    fs.writeSync(1, `${indentStr}before:  ${asyncId}\n`);
     indent += 2;
   },
   after(asyncId) {
     indent -= 2;
-    fs.writeSync(1, ' '.repeat(indent) + `after:   ${asyncId}\n`);
+    const indentStr = ' '.repeat(indent);
+    fs.writeSync(1, `${indentStr}after:   ${asyncId}\n`);
   },
   destroy(asyncId) {
-    fs.writeSync(1, ' '.repeat(indent) + `destroy: ${asyncId}\n`);
+    const indentStr = ' '.repeat(indent);
+    fs.writeSync(1, `${indentStr}destroy: ${asyncId}\n`);
   },
 }).enable();
 
