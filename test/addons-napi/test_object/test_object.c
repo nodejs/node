@@ -156,7 +156,7 @@ napi_value Unwrap(napi_env env, napi_callback_info info) {
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &arg, NULL, NULL));
 
   int32_t* data;
-  NAPI_CALL(env, napi_unwrap(env, arg, &data));
+  NAPI_CALL(env, napi_unwrap(env, arg, (void**)&data));
 
   napi_value result;
   NAPI_CALL(env, napi_get_boolean(env, data != NULL && *data == 3, &result));
