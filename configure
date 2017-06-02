@@ -419,12 +419,12 @@ parser.add_option('--without-perfctr',
 # Dummy option for backwards compatibility
 parser.add_option('--with-snapshot',
     action='store_true',
-    dest='unused_with_snapshot',
+    dest='with_snapshot',
     help=optparse.SUPPRESS_HELP)
 
 parser.add_option('--without-snapshot',
     action='store_true',
-    dest='without_snapshot',
+    dest='unused_without_snapshot',
     help=optparse.SUPPRESS_HELP)
 
 parser.add_option('--without-ssl',
@@ -802,7 +802,7 @@ def configure_node(o):
   cross_compiling = (options.cross_compiling
                      if options.cross_compiling is not None
                      else target_arch != host_arch)
-  want_snapshots = not options.without_snapshot
+  want_snapshots = 1 if options.with_snapshot else 0
   o['variables']['want_separate_host_toolset'] = int(
       cross_compiling and want_snapshots)
 
@@ -946,7 +946,7 @@ def configure_v8(o):
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
   o['variables']['v8_optimized_debug'] = 0  # Compile with -O0 in debug builds.
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
-  o['variables']['v8_use_snapshot'] = 'false' if options.without_snapshot else 'true'
+  o['variables']['v8_use_snapshot'] = b(options.with_snapshot)
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
