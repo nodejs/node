@@ -63,7 +63,7 @@ onboarding session.
 
 ## Managing the issue tracker
 
-  * You have (mostly) free rein – don't hesitate to close an issue if you are confident that it should be closed
+  * You have (mostly) free rein; don't hesitate to close an issue if you are confident that it should be closed
     * Be nice about closing issues! Let people know why, and that issues and PRs can be reopened if necessary
 
   * [**See "Labels"**](./onboarding-extras.md#labels)
