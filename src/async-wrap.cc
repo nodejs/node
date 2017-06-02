@@ -142,9 +142,13 @@ static void DestroyIdsCb(uv_idle_t* handle) {
   uv_idle_stop(handle);
 
   Environment* env = Environment::from_destroy_ids_idle_handle(handle);
-
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
+
+  AsyncWrap::RunDestroyCbs(env);
+}
+
+void AsyncWrap::RunDestroyCbs(Environment* env) {
   Local<Function> fn = env->async_hooks_destroy_function();
 
   TryCatch try_catch(env->isolate());
@@ -164,8 +168,6 @@ static void DestroyIdsCb(uv_idle_t* handle) {
       FatalException(env->isolate(), try_catch);
     }
   }
-
-  env->destroy_ids_list()->clear();
 }
 
 

@@ -4543,6 +4543,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     } while (more == true);
   }
 
+  AsyncWrap::RunDestroyCbs(&env);
+
   env.set_trace_sync_io(false);
 
   const int exit_code = EmitExit(&env);

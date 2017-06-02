@@ -111,6 +111,8 @@ class AsyncWrap : public BaseObject {
   static bool EmitBefore(Environment* env, double id);
   static bool EmitAfter(Environment* env, double id);
 
+  static void RunDestroyCbs(Environment* env);
+
   inline ProviderType provider_type() const;
 
   inline double get_id() const;
