@@ -55,6 +55,7 @@ added: v0.8.0
 The `util.deprecate()` method wraps the given `function` or class in such a way that
 it is marked as deprecated.
 
+<!-- eslint-disable prefer-rest-params -->
 ```js
 const util = require('util');
 

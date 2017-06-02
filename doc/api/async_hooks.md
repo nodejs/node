@@ -119,9 +119,9 @@ not invoke AsyncHooks recursively because it is synchronous.
 const fs = require('fs');
 const util = require('util');
 
-function debug() {
+function debug(...args) {
   // use a function like this one when debugging inside an AsyncHooks callback
-  fs.writeSync(1, util.format.apply(null, arguments));
+  fs.writeSync(1, `${util.format(...args)}\n`);
 }
 ```
 
