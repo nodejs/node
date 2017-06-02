@@ -324,6 +324,7 @@ added: v0.11.15
 * `path` {string|Buffer}
 * `mode` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
@@ -460,6 +461,7 @@ added: v0.6.7
   * `mode` {integer} default = `0o666`
   * `flag` {string} default = `'a'`
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronously append data to a file, creating the file if it does not yet exist.
 `data` can be a string or a buffer.
@@ -506,6 +508,7 @@ added: v0.1.30
 * `path` {string|Buffer}
 * `mode` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous chmod(2). No arguments other than a possible exception are given
 to the completion callback.
@@ -529,6 +532,7 @@ added: v0.1.97
 * `uid` {integer}
 * `gid` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous chown(2). No arguments other than a possible exception are given
 to the completion callback.
@@ -551,6 +555,7 @@ added: v0.0.2
 
 * `fd` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous close(2).  No arguments other than a possible exception are given
 to the completion callback.
@@ -688,6 +693,7 @@ deprecated: v1.0.0
 
 * `path` {string|Buffer}
 * `callback` {Function}
+  * `exists` {Boolean}
 
 Test whether or not the given path exists by checking with the file system.
 Then call the `callback` argument with either true or false.  Example:
@@ -806,6 +812,7 @@ added: v0.4.7
 * `fd` {integer}
 * `mode` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous fchmod(2). No arguments other than a possible exception
 are given to the completion callback.
@@ -829,6 +836,7 @@ added: v0.4.7
 * `uid` {integer}
 * `gid` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous fchown(2). No arguments other than a possible exception are given
 to the completion callback.
@@ -851,6 +859,7 @@ added: v0.1.96
 
 * `fd` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous fdatasync(2). No arguments other than a possible exception are
 given to the completion callback.
@@ -871,6 +880,8 @@ added: v0.1.95
 
 * `fd` {integer}
 * `callback` {Function}
+  * `err` {Error}
+  * `stats` {fs.Stats}
 
 Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where
 `stats` is an [`fs.Stats`][] object. `fstat()` is identical to [`stat()`][],
@@ -892,6 +903,7 @@ added: v0.1.96
 
 * `fd` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous fsync(2). No arguments other than a possible exception are given
 to the completion callback.
@@ -913,6 +925,7 @@ added: v0.8.6
 * `fd` {integer}
 * `len` {integer} default = `0`
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous ftruncate(2). No arguments other than a possible exception are
 given to the completion callback.
@@ -977,6 +990,7 @@ added: v0.4.2
 * `atime` {integer}
 * `mtime` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Change the file timestamps of a file referenced by the supplied file
 descriptor.
@@ -1003,6 +1017,7 @@ deprecated: v0.4.7
 * `path` {string|Buffer}
 * `mode` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous lchmod(2). No arguments other than a possible exception
 are given to the completion callback.
@@ -1028,6 +1043,7 @@ deprecated: v0.4.7
 * `uid` {integer}
 * `gid` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous lchown(2). No arguments other than a possible exception are given
 to the completion callback.
@@ -1051,6 +1067,7 @@ added: v0.1.31
 * `existingPath` {string|Buffer}
 * `newPath` {string|Buffer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous link(2). No arguments other than a possible exception are given to
 the completion callback.
@@ -1072,6 +1089,8 @@ added: v0.1.30
 
 * `path` {string|Buffer}
 * `callback` {Function}
+  * `err` {Error}
+  * `stats` {fs.Stats}
 
 Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where
 `stats` is a [`fs.Stats`][] object. `lstat()` is identical to `stat()`,
@@ -1095,6 +1114,7 @@ added: v0.1.8
 * `path` {string|Buffer}
 * `mode` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous mkdir(2). No arguments other than a possible exception are given
 to the completion callback. `mode` defaults to `0o777`.
@@ -1118,6 +1138,8 @@ added: v5.10.0
 * `options` {string|Object}
   * `encoding` {string} default = `'utf8'`
 * `callback` {Function}
+  * `err` {Error}
+  * `folder` {string}
 
 Creates a unique temporary directory.
 
@@ -1195,6 +1217,8 @@ added: v0.0.2
 * `flags` {string|number}
 * `mode` {integer}
 * `callback` {Function}
+  * `err` {Error}
+  * `fd` {integer}
 
 Asynchronous file open. See open(2). `flags` can be:
 
@@ -1301,6 +1325,9 @@ added: v0.0.2
 * `length` {integer}
 * `position` {integer}
 * `callback` {Function}
+  * `err` {Error}
+  * `bytesRead` {integer}
+  * `buffer` {Buffer}
 
 Read data from the file specified by `fd`.
 
@@ -1326,6 +1353,8 @@ added: v0.1.8
 * `options` {string|Object}
   * `encoding` {string} default = `'utf8'`
 * `callback` {Function}
+  * `err` {Error}
+  * `files` {string[]|Buffer[]}
 
 Asynchronous readdir(3).  Reads the contents of a directory.
 The callback gets two arguments `(err, files)` where `files` is an array of
@@ -1363,6 +1392,8 @@ added: v0.1.29
   * `encoding` {string|null} default = `null`
   * `flag` {string} default = `'r'`
 * `callback` {Function}
+  * `err` {Error}
+  * `data` {string|Buffer}
 
 Asynchronously reads the entire contents of a file. Example:
 
@@ -1441,6 +1472,8 @@ added: v0.1.31
 * `options` {string|Object}
   * `encoding` {string} default = `'utf8'`
 * `callback` {Function}
+  * `err` {Error}
+  * `linkString` {string|Buffer}
 
 Asynchronous readlink(2). The callback gets two arguments `(err,
 linkString)`.
@@ -1488,6 +1521,8 @@ added: v0.1.31
 * `options` {string|Object}
   * `encoding` {string} default = `'utf8'`
 * `callback` {Function}
+  * `err` {Error}
+  * `resolvedPath` {string|Buffer}
 
 Asynchronous realpath(3). The `callback` gets two arguments `(err,
 resolvedPath)`. May use `process.cwd` to resolve relative paths.
@@ -1525,6 +1560,7 @@ added: v0.0.2
 * `oldPath` {string|Buffer}
 * `newPath` {string|Buffer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous rename(2). No arguments other than a possible exception are given
 to the completion callback.
@@ -1546,6 +1582,7 @@ added: v0.0.2
 
 * `path` {string|Buffer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous rmdir(2). No arguments other than a possible exception are given
 to the completion callback.
@@ -1572,6 +1609,8 @@ added: v0.0.2
 
 * `path` {string|Buffer}
 * `callback` {Function}
+  * `err` {Error}
+  * `stats` {fs.Stats}
 
 Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
 `stats` is an [`fs.Stats`][] object.
@@ -1604,6 +1643,7 @@ added: v0.1.31
 * `path` {string|Buffer}
 * `type` {string}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
 to the completion callback. The `type` argument can be set to `'dir'`,
@@ -1639,6 +1679,7 @@ added: v0.8.6
 * `path` {string|Buffer}
 * `len` {integer} default = `0`
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous truncate(2). No arguments other than a possible exception are
 given to the completion callback. A file descriptor can also be passed as the
@@ -1662,6 +1703,7 @@ added: v0.0.2
 
 * `path` {string|Buffer}
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronous unlink(2). No arguments other than a possible exception are given
 to the completion callback.
@@ -1682,6 +1724,8 @@ added: v0.1.31
 
 * `filename` {string|Buffer}
 * `listener` {Function}
+  * `eventType` {string}
+  * `filename` {string|Buffer}
 
 Stop watching for changes on `filename`. If `listener` is specified, only that
 particular listener is removed. Otherwise, *all* listeners are removed and you
@@ -1703,6 +1747,7 @@ added: v0.4.2
 * `atime` {integer}
 * `mtime` {integer}
 * `callback` {Function}
+  * `err` {Error}
 
 Change file timestamps of the file referenced by the supplied path.
 
@@ -1743,6 +1788,8 @@ added: v0.5.10
   * `encoding` {string} Specifies the character encoding to be used for the
      filename passed to the listener. default = `'utf8'`
 * `listener` {Function}
+  * `eventType` {string}
+  * `filename` {string|Buffer}
 
 Watch for changes on `filename`, where `filename` is either a file or a
 directory.  The returned object is a [`fs.FSWatcher`][].
@@ -1840,6 +1887,8 @@ added: v0.1.31
   * `persistent` {boolean}
   * `interval` {integer}
 * `listener` {Function}
+  * `current` {fs.Stats}
+  * `previous` {fs.Stats}
 
 Watch for changes on `filename`. The callback `listener` will be called each
 time the file is accessed.
@@ -1887,6 +1936,9 @@ added: v0.0.2
 * `length` {integer}
 * `position` {integer}
 * `callback` {Function}
+  * `err` {Error}
+  * `bytesWritten` {integer}
+  * `buffer` {Buffer|Uint8Array}
 
 Write `buffer` to the file specified by `fd`.
 
@@ -1918,6 +1970,9 @@ added: v0.11.5
 * `position` {integer}
 * `encoding` {string}
 * `callback` {Function}
+  * `err` {Error}
+  * `written` {integer}
+  * `string` {string}
 
 Write `string` to the file specified by `fd`.  If `string` is not a string, then
 the value will be coerced to one.
@@ -1956,6 +2011,7 @@ added: v0.1.29
   * `mode` {integer} default = `0o666`
   * `flag` {string} default = `'w'`
 * `callback` {Function}
+  * `err` {Error}
 
 Asynchronously writes data to a file, replacing the file if it already exists.
 `data` can be a string or a buffer.
