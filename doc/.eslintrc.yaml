@@ -12,3 +12,4 @@ rules:
   # add new ECMAScript features gradually
   no-var: 2
   prefer-const: 2
+  prefer-rest-params: 2
