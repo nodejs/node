@@ -391,7 +391,7 @@ For example:
 
 ```js
 console.log(async_hooks.currentId());  // 1 - bootstrap
-fs.open(path, (err, fd) => {
+fs.open(path, 'r', (err, fd) => {
   console.log(async_hooks.currentId());  // 2 - open()
 });
 ```
