@@ -277,15 +277,15 @@ async_hooks.createHook({
                     `trigger: ${triggerId} scope: ${cId}\n`);
   },
   before(asyncId) {
-    fs.writeSync(1, ' '.repeat(indent) + `before:  ${asyncId}`);
+    fs.writeSync(1, ' '.repeat(indent) + `before:  ${asyncId}\n`);
     indent += 2;
   },
   after(asyncId) {
     indent -= 2;
-    fs.writeSync(1, ' '.repeat(indent) + `after:   ${asyncId}`);
+    fs.writeSync(1, ' '.repeat(indent) + `after:   ${asyncId}\n`);
   },
   destroy(asyncId) {
-    fs.writeSync(1, ' '.repeat(indent) + `destroy: ${asyncId}`);
+    fs.writeSync(1, ' '.repeat(indent) + `destroy: ${asyncId}\n`);
   },
 }).enable();
 
