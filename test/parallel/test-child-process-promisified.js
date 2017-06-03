@@ -35,7 +35,7 @@ const execFile = promisify(child_process.execFile);
 const failingCodeWithStdoutErr =
   'console.log(42);console.error(43);process.exit(1)';
 {
-  exec(`${process.execPath} -e '${failingCodeWithStdoutErr}'`)
+  exec(`${process.execPath} -e "${failingCodeWithStdoutErr}"`)
     .catch(common.mustCall((err) => {
       assert.strictEqual(err.code, 1);
       assert.strictEqual(err.stdout, '42\n');
