@@ -1,5 +1,6 @@
 'use strict';
 require('../common');
+
 const spawn = require('child_process').spawn;
 
 const child = spawn(process.execPath,
