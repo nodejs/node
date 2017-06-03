@@ -754,7 +754,8 @@ end
 ```
 
 *Note*: In general, the `readable.pipe()` and `'data'` event mechanisms are
-preferred over the use of the `'readable'` event.
+easier to understand compared to the `'readable'` event.
+However, handling `'readable'` might result in increased throughput.
 
 ##### readable.isPaused()
 <!-- YAML
