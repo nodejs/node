@@ -187,6 +187,20 @@ assertOnlyDeepEqual(new Map([['a', '1']]), new Map([['a', 1]]));
 
 assertDeepAndStrictEqual(new Set([{}]), new Set([{}]));
 
+// Discussion of these test cases here - https://github.com/nodejs/node/issues/13347
+assertNotDeepOrStrict(
+  new Set([{a: 1}, {a: 1}]),
+  new Set([{a: 1}, {a: 2}])
+);
+assertNotDeepOrStrict(
+  new Set([{a: 1}, {a: 1}, {a: 2}]),
+  new Set([{a: 1}, {a: 2}, {a: 2}])
+);
+assertNotDeepOrStrict(
+  new Map([[{x: 1}, 5], [{x: 1}, 5]]),
+  new Map([[{x: 1}, 5], [{x: 2}, 5]])
+);
+
 // This is an awful case, where a map contains multiple equivalent keys:
 assertOnlyDeepEqual(
   new Map([[1, 'a'], ['1', 'b']]),
