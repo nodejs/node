@@ -237,7 +237,7 @@ The `os.getNetworkInterfaces()` method is deprecated. Please use the
 <a id="DEP0024"></a>
 ### DEP0024: REPLServer.prototype.convertToContext()
 
-Type: Runtime
+Type: End-of-Life
 
 The `REPLServer.prototype.convertToContext()` API is deprecated and should
 not be used.
