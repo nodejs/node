@@ -14,7 +14,7 @@ p.then(afterresolution);
 
 function executor(resolve, reject) {
   const as = hooks.activitiesOfTypes('PROMISE');
-  assert.strictEqual(as.length, 1, 'one activity');
+  assert.strictEqual(as.length, 1, 'one activities');
   const a = as[0];
   checkInvocations(a, { init: 1 }, 'while in promise executor');
   resolve(5);
@@ -46,8 +46,7 @@ function onexit() {
   const a1 = as[1];
   assert.strictEqual(a1.type, 'PROMISE', 'promise request');
   assert.strictEqual(typeof a1.uid, 'number', 'uid is a number');
-  assert.strictEqual(a1.triggerId, a0.uid,
-                     'child promise should use parent uid as triggerId');
+  assert.strictEqual(a1.triggerId, a0.uid);
   // We expect a destroy hook as well but we cannot guarentee predictable gc.
   checkInvocations(a1, { init: 1, before: 1, after: 1 }, 'when process exits');
 }
