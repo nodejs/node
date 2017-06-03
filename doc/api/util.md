@@ -396,7 +396,7 @@ util.inspect.defaultOptions.maxArrayLength = null;
 console.log(arr); // logs the full array
 ```
 
-## util.promisify(original)
+## util.promisify(original[, thisArg])
 <!-- YAML
 added: v8.0.0
 -->
@@ -406,6 +406,9 @@ added: v8.0.0
 Takes a function following the common Node.js callback style, i.e. taking a
 `(err, value) => ...` callback as the last argument, and returns a version
 that returns promises.
+
+`thisArg` can be optionally specified to be used as the `this` value inside of
+the function.
 
 For example:
 
