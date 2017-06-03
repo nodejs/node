@@ -187,7 +187,7 @@ assertOnlyDeepEqual(new Map([['a', '1']]), new Map([['a', 1]]));
 
 assertDeepAndStrictEqual(new Set([{}]), new Set([{}]));
 
-// Discussion of these test cases here - https://github.com/nodejs/node/issues/13347
+// Ref: https://github.com/nodejs/node/issues/13347
 assertNotDeepOrStrict(
   new Set([{a: 1}, {a: 1}]),
   new Set([{a: 1}, {a: 2}])
