@@ -32,12 +32,12 @@ assert.throws(function() {
 // Test 2: Timeout must be >= 0ms
 assert.throws(function() {
   vm.runInThisContext('', { timeout: -1 });
-}, RangeError);
+}, /^RangeError: timeout must be a positive number$/);
 
 // Test 3: Timeout of 0ms
 assert.throws(function() {
   vm.runInThisContext('', { timeout: 0 });
-}, RangeError);
+}, /^RangeError: timeout must be a positive number$/);
 
 // Test 4: Timeout of 1000ms, script finishes first
 vm.runInThisContext('', { timeout: 1000 });
