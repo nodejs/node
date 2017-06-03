@@ -152,23 +152,21 @@ TEST(function test_sip2sip_for_naptr(done) {
   checkWrap(req);
 });
 
-TEST(function test_toshihikojs_for_cname_and_srv(done) {
+TEST(function test_google_for_cname_and_srv(done) {
   const req = dns.resolve(
-    '_sipfederationtls._tcp.toshihikojs.com',
+    '_jabber._tcp.google.com',
     'ANY',
     common.mustCall(function(err, ret) {
       assert.ifError(err);
       assert.ok(Array.isArray(ret));
       assert.ok(ret.length > 0);
 
-      /* current _sipfederationtls._tcp.toshihikojs.com has SRV and */
-      /* CNAME records */
       const types = {};
       ret.forEach((obj) => {
         types[obj.type] = true;
         checkers[`check${obj.type}`](obj);
       });
-      assert.ok(types.SRV && types.CNAME);
+      assert.ok(types.SRV);
 
       done();
     }));
