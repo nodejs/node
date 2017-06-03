@@ -201,6 +201,14 @@ assertNotDeepOrStrict(
   new Map([[{x: 1}, 5], [{x: 2}, 5]])
 );
 
+assertNotDeepOrStrict(new Set([3, '3']), new Set([3, 4]));
+assertNotDeepOrStrict(new Map([[3, 0], ['3', 0]]), new Map([[3, 0], [4, 0]]));
+
+assertNotDeepOrStrict(
+  new Set([{a:1}, {a:1}, {a:2}]),
+  new Set([{a:1}, {a:2}, {a:2}])
+);
+
 // This is an awful case, where a map contains multiple equivalent keys:
 assertOnlyDeepEqual(
   new Map([[1, 'a'], ['1', 'b']]),
