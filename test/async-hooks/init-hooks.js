@@ -1,11 +1,11 @@
 'use strict';
 // Flags: --expose-gc
 
+require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 const util = require('util');
 const print = process._rawDebug;
-require('../common');
 
 if (typeof global.gc === 'function') {
   (function exity(cntr) {
@@ -109,7 +109,7 @@ class ActivityCollector {
     }
     if (violations.length) {
       console.error(violations.join('\n'));
-      assert.fail(violations.length, 0, 'Failed sanity check');
+      assert.fail(violations.length, 0, `Failed sanity checks: ${violations}`);
     }
   }
 
@@ -151,8 +151,8 @@ class ActivityCollector {
         this._activities.set(uid, stub);
         return stub;
       } else {
-        const err = new Error('Found a handle who\'s ' + hook +
-                              ' hook was invoked but not it\'s init hook');
+        const err = new Error(`Found a handle whose ${hook}` +
+                              ' hook was invoked but not its init hook');
         // Don't throw if we see invocations due to an assertion in a test
         // failing since we want to list the assertion failure instead
         if (/process\._fatalException/.test(err.stack)) return null;
