@@ -1,10 +1,11 @@
 'use strict';
+const common = require('../common');
+
+common.skipIfInspectorDisabled();
+
 const assert = require('assert');
 const execFile = require('child_process').execFile;
 const path = require('path');
-
-const common = require('../common');
-common.skipIfInspectorDisabled();
 
 const mainScript = path.join(common.fixturesDir, 'loop.js');
 const expected =
