@@ -22,23 +22,38 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { execSync } = require('child_process');
 
-const error_desc = {
+const errorMessagesByPlatform = {
   win32: ['%1 is not a valid Win32 application'],
   linux: ['file too short', 'Exec format error'],
   sunos: ['unknown file type', 'not an ELF file'],
   darwin: ['file too short']
 };
-const dlerror_msg = error_desc[process.platform];
+// If we don't know a priori what the error would be, we accept anything.
+const errorMessages = errorMessagesByPlatform[process.platform] || [''];
+
+// On Windows, error messages are MUI dependent
+// Ref: https://github.com/nodejs/node/issues/13376
+let localeOk = true;
+if (common.isWindows) {
+  const powerShellFindMUI =
+    'powershell -NoProfile -ExecutionPolicy Unrestricted -c ' +
+    '"(Get-UICulture).TwoLetterISOLanguageName"';
+  try {
+    // If MUI != 'en' we'll ignore the content of the message
+    localeOk = execSync(powerShellFindMUI).toString('utf8').trim() === 'en';
+  } catch (_) {
+    // It's only a best effort try to find the MUI
+  }
+}
 
 assert.throws(
   () => { require('../fixtures/module-loading-error.node'); },
   (e) => {
-    if (dlerror_msg && !dlerror_msg.some((msg) => e.message.includes(msg)))
+    if (localeOk && !errorMessages.some((msg) => e.message.includes(msg)))
       return false;
-    if (e.name !== 'Error')
-      return false;
-    return true;
+    return e.name === 'Error';
   }
 );
 
