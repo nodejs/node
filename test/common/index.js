@@ -759,3 +759,19 @@ exports.getTTYfd = function getTTYfd() {
   }
   return tty_fd;
 };
+
+// Hijack stdout and stderr
+function hijackStdWritable(name, listener) {
+  const stream = process[name];
+  const _write = stream.write.bind(stream);
+
+  stream.writeTimes = 0;
+  stream.write = function(data) {
+    listener(data);
+    _write(data);
+    stream.writeTimes++;
+  };
+}
+
+exports.hijackStdout = hijackStdWritable.bind(null, 'stdout');
+exports.hijackStderr = hijackStdWritable.bind(null, 'stderr');
