@@ -291,7 +291,7 @@ class PromiseWrap : public AsyncWrap {
   size_t self_size() const override { return sizeof(*this); }
 
   static constexpr int kPromiseField = 1;
-  static constexpr int kParentField = 2;
+  static constexpr int kParentIdField = 2;
   static constexpr int kInternalFieldCount = 3;
 
   static PromiseWrap* New(Environment* env,
@@ -300,8 +300,8 @@ class PromiseWrap : public AsyncWrap {
                           bool silent);
   static void GetPromise(Local<String> property,
                          const PropertyCallbackInfo<Value>& info);
-  static void GetParent(Local<String> property,
-                        const PropertyCallbackInfo<Value>& info);
+  static void GetParentId(Local<String> property,
+                          const PropertyCallbackInfo<Value>& info);
 };
 
 PromiseWrap* PromiseWrap::New(Environment* env,
@@ -311,9 +311,11 @@ PromiseWrap* PromiseWrap::New(Environment* env,
   Local<Object> object = env->promise_wrap_template()
                             ->NewInstance(env->context()).ToLocalChecked();
   object->SetInternalField(PromiseWrap::kPromiseField, promise);
-  object->SetAlignedPointerInInternalField(
-      PromiseWrap::kParentField,
-      static_cast<void*>(parent_wrap));
+  if (parent_wrap != nullptr) {
+    object->SetInternalField(PromiseWrap::kParentIdField,
+                             Number::New(env->isolate(),
+                                         parent_wrap->get_id()));
+  }
   CHECK_EQ(promise->GetAlignedPointerFromInternalField(0), nullptr);
   promise->SetInternalField(0, object);
   return new PromiseWrap(env, object, silent);
@@ -324,15 +326,9 @@ void PromiseWrap::GetPromise(Local<String> property,
   info.GetReturnValue().Set(info.Holder()->GetInternalField(kPromiseField));
 }
 
-void PromiseWrap::GetParent(Local<String> property,
-                            const PropertyCallbackInfo<Value>& info) {
-  Isolate* isolate = info.GetIsolate();
-  PromiseWrap* parent = static_cast<PromiseWrap*>(
-      info.Holder()->GetAlignedPointerFromInternalField(kParentField));
-  if (parent == nullptr)
-    info.GetReturnValue().Set(Undefined(isolate));
-  else
-    info.GetReturnValue().Set(parent->object());
+void PromiseWrap::GetParentId(Local<String> property,
+                              const PropertyCallbackInfo<Value>& info) {
+  info.GetReturnValue().Set(info.Holder()->GetInternalField(kParentIdField));
 }
 
 static void PromiseHook(PromiseHookType type, Local<Promise> promise,
@@ -420,8 +416,8 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
         FIXED_ONE_BYTE_STRING(env->isolate(), "promise"),
         PromiseWrap::GetPromise);
     promise_wrap_template->SetAccessor(
-        FIXED_ONE_BYTE_STRING(env->isolate(), "parent"),
-        PromiseWrap::GetParent);
+        FIXED_ONE_BYTE_STRING(env->isolate(), "parentId"),
+        PromiseWrap::GetParentId);
     env->SetProtoMethod(ctor, "getAsyncId", AsyncWrap::GetAsyncId);
     env->set_promise_wrap_template(promise_wrap_template);
   }
