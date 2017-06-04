@@ -1,7 +1,7 @@
 'use strict';
 var common = require('../common.js');
 var bench = common.createBenchmark(main, {
-  millions: [2]
+  millions: [12]
 });
 
 process.maxTickDepth = Infinity;
