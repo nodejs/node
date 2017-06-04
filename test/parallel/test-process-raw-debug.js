@@ -63,7 +63,7 @@ function child() {
     throw new Error('No ticking!');
   };
 
-  common.hijackStderr(common.mustNotCall('stderr.write mustn\'t be called.'));
+  common.hijackStderr(common.mustNotCall('stderr.write must not be called.'));
 
   process._rawDebug('I can still %s!', 'debug');
 }

@@ -31,7 +31,7 @@ const strings = [];
 common.hijackStdout(function(data) {
   strings.push(data);
 });
-common.hijackStderr(common.mustNotCall('stderr.write mustn\'t be called'));
+common.hijackStderr(common.mustNotCall('stderr.write must not be called'));
 
 const tests = [
   {input: 'foo', output: 'foo'},
