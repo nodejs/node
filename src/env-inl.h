@@ -146,7 +146,7 @@ inline bool Environment::AsyncHooks::pop_ids(double async_id) {
   if (uid_fields_[kCurrentAsyncId] != async_id) {
     fprintf(stderr,
             "Error: async hook stack has become corrupted ("
-            "actual: %'.f, expected: %'.f)\n",
+            "actual: %.f, expected: %.f)\n",
             uid_fields_[kCurrentAsyncId],
             async_id);
     Environment* env = Environment::GetCurrent(isolate_);
