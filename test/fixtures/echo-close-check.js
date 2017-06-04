@@ -26,9 +26,15 @@ const fs = require('fs');
 
 process.stdout.write('hello world\r\n');
 
-var stdin = process.openStdin();
+const stdin = process.openStdin();
+
+let current;
+common.hijackStdout(function(data) {
+  assert.equal(data, current);
+});
 
 stdin.on('data', function(data) {
+  current = data;
   process.stdout.write(data.toString());
 });
 

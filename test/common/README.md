@@ -116,15 +116,15 @@ Checks whether `IPv6` is supported on this platform.
 
 Checks if there are multiple localhosts available.
 
-### hijackStdout(listener)
-* `listener` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Normal_objects_and_functions): An listener with a single parameter called `data`;
-
-Hijack `process.stdout` to listen `write` action. Once `process.stdout.write` is called, `listener` will also be called and the `data` of `write` function will be passed to `listener`. What's more, `process.stdout.writeTimes` will plus one then.
-
 ### hijackStderr(listener)
 * `listener` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Normal_objects_and_functions): An listener with a single parameter called `data`;
 
 Hijack `process.stderr` to listen `write` action. Once `process.stderr.write` is called, `listener` will also be called and the `data` of `write` function will be passed to `listener`. What's more, `process.stderr.writeTimes` will plus one then.
+
+### hijackStdout(listener)
+* `listener` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Normal_objects_and_functions): An listener with a single parameter called `data`;
+
+Hijack `process.stdout` to listen `write` action. Once `process.stdout.write` is called, `listener` will also be called and the `data` of `write` function will be passed to `listener`. What's more, `process.stdout.writeTimes` will plus one then.
 
 ### inFreeBSDJail
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
@@ -259,6 +259,14 @@ Port tests are running on.
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 
 Deletes the 'tmp' dir and recreates it
+
+### restoreStderr
+
+Restore the original `process.stderr.write`.
+
+### restoreStdout
+
+Restore the original `process.stdout.write`.
 
 ### rootDir
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)

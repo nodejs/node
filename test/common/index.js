@@ -761,17 +761,25 @@ exports.getTTYfd = function getTTYfd() {
 };
 
 // Hijack stdout and stderr
+const stdWrite = {};
 function hijackStdWritable(name, listener) {
   const stream = process[name];
-  const _write = stream.write.bind(stream);
+  const _write = stdWrite[name] = stream.write.bind(stream);
 
   stream.writeTimes = 0;
-  stream.write = function(data) {
+  stream.write = function(data, callback) {
     listener(data);
-    _write(data);
+    _write(data, callback);
     stream.writeTimes++;
   };
 }
 
+function restoreWritable(name) {
+  process[name].write = stdWrite[name];
+  delete process[name].writeTimes;
+}
+
 exports.hijackStdout = hijackStdWritable.bind(null, 'stdout');
 exports.hijackStderr = hijackStdWritable.bind(null, 'stderr');
+exports.restoreStdout = restoreWritable.bind(null, 'stdout');
+exports.restoreStderr = restoreWritable.bind(null, 'stderr');
