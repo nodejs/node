@@ -157,7 +157,8 @@ assert.doesNotThrow(() => {
   console.assert(true, 'this should not throw');
 });
 
-// hijack stderr to catch `process.emitWarning` which using `process.nextTick`
+// hijack stderr to catch `process.emitWarning` which is using
+// `process.nextTick`
 common.hijackStderr(common.mustCall(function(data) {
   common.restoreStderr();
 

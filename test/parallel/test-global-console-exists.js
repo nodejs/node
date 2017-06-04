@@ -9,13 +9,13 @@ const assert = require('assert');
 const EventEmitter = require('events');
 const leakWarning = /EventEmitter memory leak detected\. 2 hello listeners/;
 
-common.hijackStderr(function(data) {
+common.hijackStderr(common.mustCall(function(data) {
   if (process.stderr.writeTimes === 0) {
     assert.ok(data.match(leakWarning));
   } else {
     assert.fail('stderr.write should be called only once');
   }
-});
+}));
 
 process.on('warning', function(warning) {
   // This will be called after the default internal
