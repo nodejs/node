@@ -371,7 +371,9 @@ void CallAndPauseOnStart(
   v8::MaybeLocal<v8::Value> retval =
       args[0].As<v8::Function>()->Call(env->context(), args[1],
                                        call_args.size(), call_args.data());
-  args.GetReturnValue().Set(retval.ToLocalChecked());
+  if (!retval.IsEmpty()) {
+    args.GetReturnValue().Set(retval.ToLocalChecked());
+  }
 }
 
 // Used in NodeInspectorClient::currentTimeMS() below.
