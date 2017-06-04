@@ -418,7 +418,6 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
     promise_wrap_template->SetAccessor(
         FIXED_ONE_BYTE_STRING(env->isolate(), "parentId"),
         PromiseWrap::GetParentId);
-    env->SetProtoMethod(ctor, "getAsyncId", AsyncWrap::GetAsyncId);
     env->set_promise_wrap_template(promise_wrap_template);
   }
 }
