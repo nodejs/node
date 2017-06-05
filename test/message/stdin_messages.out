@@ -7,9 +7,8 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
-    at nextTickCallbackWith0Args (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at Immediate._onImmediate (node.js:*:*)
+    at processImmediate [as _immediateCallback] (timers.js:*:*)
 42
 42
 
@@ -21,9 +20,8 @@ Error: hello
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
-    at nextTickCallbackWith0Args (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at Immediate._onImmediate (node.js:*:*)
+    at processImmediate [as _immediateCallback] (timers.js:*:*)
 
 [stdin]:1
 throw new Error("hello")
@@ -33,9 +31,8 @@ Error: hello
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
-    at nextTickCallbackWith0Args (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at Immediate._onImmediate (node.js:*:*)
+    at processImmediate [as _immediateCallback] (timers.js:*:*)
 100
 
 [stdin]:1
@@ -46,9 +43,8 @@ ReferenceError: y is not defined
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
-    at nextTickCallbackWith0Args (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at Immediate._onImmediate (node.js:*:*)
+    at processImmediate [as _immediateCallback] (timers.js:*:*)
 
 [stdin]:1
 var ______________________________________________; throw 10
