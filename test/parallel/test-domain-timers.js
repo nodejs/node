@@ -51,4 +51,4 @@ immediated.run(function() {
   });
 });
 
-const timeout = setTimeout(common.noop, 10 * 1000);
+const timeout = setTimeout(common.mustNotCall(), 10 * 1000);
