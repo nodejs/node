@@ -1,11 +1,11 @@
 'use strict'
-var validate = require('aproba')
+
 var childPath = require('../utils/child-path.js')
 var reset = require('./node.js').reset
 
 module.exports = function inflateBundled (bundler, parent, children) {
-  validate('OOA', arguments)
   children.forEach(function (child) {
+    if (child.fromBundle === bundler) return
     reset(child)
     child.fromBundle = bundler
     child.isInLink = bundler.isLink

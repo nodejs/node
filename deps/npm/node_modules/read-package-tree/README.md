@@ -35,7 +35,7 @@ mutate package.json data objects (beyond what
 doesn't limit its search to include/exclude `devDependencies`, or
 anything else.
 
-Just follows the links in the `node_modules` heirarchy and reads the
+Just follows the links in the `node_modules` hierarchy and reads the
 package.json files it finds therein.
 
 ## Symbolic Links

@@ -24,11 +24,16 @@ module.exports = Agent;
 
 function Agent (callback) {
   if (!(this instanceof Agent)) return new Agent(callback);
-  if ('function' != typeof callback) throw new Error('Must pass a "callback function"');
   EventEmitter.call(this);
-  this.callback = callback;
+  if ('function' === typeof callback) {
+    this.callback = callback;
+  }
 }
 inherits(Agent, EventEmitter);
+
+Agent.prototype.callback = function callback (req, opts, fn) {
+  fn(new Error('"agent-base" has no default implementation, you must subclass and override `callback()`'));
+};
 
 /**
  * Called by node-core's "_http_client.js" module when creating
@@ -37,7 +42,7 @@ inherits(Agent, EventEmitter);
  * @api public
  */
 
-Agent.prototype.addRequest = function (req, host, port, localAddress) {
+Agent.prototype.addRequest = function addRequest (req, host, port, localAddress) {
   var opts;
   if ('object' == typeof host) {
     // >= v0.11.x API

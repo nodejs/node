@@ -741,6 +741,11 @@ Installer.prototype.printInstalledForHuman = function (diffs, cb) {
     }
   })
   var report = ''
+  if (this.args.length && (added || updated)) {
+    report += this.args.map((p) => {
+      return `+ ${p.name}@${p.version}`
+    }).join('\n') + '\n'
+  }
   var actions = []
   if (added) actions.push('added ' + packages(added))
   if (removed) actions.push('removed ' + packages(removed))
