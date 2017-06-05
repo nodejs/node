@@ -63,6 +63,7 @@ class InspectorSocket {
   bool ws_mode;
   bool shutting_down;
   bool connection_eof;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(InspectorSocket);
 };

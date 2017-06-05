@@ -313,7 +313,7 @@ void InspectorIo::ThreadMain() {
     uv_sem_post(&thread_start_sem_);
     return;
   }
-  port_ = server.port();  // Safe, main thread is waiting on semaphore.
+  port_ = server.Port();  // Safe, main thread is waiting on semaphore.
   if (!wait_for_connect_) {
     uv_sem_post(&thread_start_sem_);
   }
