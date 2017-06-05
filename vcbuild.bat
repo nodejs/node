@@ -166,12 +166,16 @@ if %target_arch%==x64 if %msvs_host_arch%==amd64 set vcvarsall_arg=amd64
 :vs-set-2017
 if "%target_env%" NEQ "vs2017" goto vs-set-2015
 echo Looking for Visual Studio 2017
-if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2017
+@rem check if VS2017 is already setup, and for the requested arch
+if "_%VisualStudioVersion%_" == "_15.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2017
+set "VSINSTALLDIR="
 call tools\msvs\vswhere_usability_wrapper.cmd
 if "_%VCINSTALLDIR%_" == "__" goto vs-set-2015
+@rem need to clear VSINSTALLDIR for vcvarsall to work as expected
 set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
 echo calling: %vcvars_call%
 call %vcvars_call%
+
 :found_vs2017
 echo Found MSVS version %VisualStudioVersion%
 set GYP_MSVS_VERSION=2017
@@ -193,10 +197,9 @@ if defined msi (
     goto wix-not-found
   )
 )
-if "%VCVARS_VER%" NEQ "140" (
-  call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat"
-  SET VCVARS_VER=140
-)
+@rem VS2015 vsvarsall is quick, so run anyway
+call "%VS140COMNTOOLS%\..\..\vc\vcvarsall.bat"
+SET VCVARS_VER=140
 if not defined VCINSTALLDIR goto msbuild-not-found
 set GYP_MSVS_VERSION=2015
 set PLATFORM_TOOLSET=v140
