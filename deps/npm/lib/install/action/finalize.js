@@ -90,6 +90,6 @@ module.exports = function (staging, pkg, log) {
 
 module.exports.rollback = function (top, staging, pkg, next) {
   const requested = pkg.package._requested || getRequested(pkg)
-  if (requested.type === 'directory') return next()
+  if (requested && requested.type === 'directory') return next()
   gentlyRm(pkg.realpath, false, top, next)
 }

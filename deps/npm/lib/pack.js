@@ -92,8 +92,8 @@ function prepareDirectory (dir) {
       if (pkg.scripts && pkg.scripts.prepublish) {
         prepublishWarning([
           'As of npm@5, `prepublish` scripts are deprecated.',
-          'Use `prepare` for build steps and `prepublishOnly` for upload-only',
-          'See the deprecation note in `npm help scripts` for more information'
+          'Use `prepare` for build steps and `prepublishOnly` for upload-only.',
+          'See the deprecation note in `npm help scripts` for more information.'
         ])
       }
       if (npm.config.get('ignore-prepublish')) {

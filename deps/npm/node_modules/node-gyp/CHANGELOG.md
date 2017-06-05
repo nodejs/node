@@ -1,3 +1,13 @@
+v3.6.2 2017-06-01
+=================
+
+* [[`72afdd62cd`](https://github.com/nodejs/node-gyp/commit/72afdd62cd)] - **build**: rename copyNodeLib() to doBuild() (Liu Chao) [#1206](https://github.com/nodejs/node-gyp/pull/1206)
+* [[`bad903ac70`](https://github.com/nodejs/node-gyp/commit/bad903ac70)] - **win**: more robust parsing of SDK version (Refael Ackermann) [#1198](https://github.com/nodejs/node-gyp/pull/1198)
+* [[`241752f381`](https://github.com/nodejs/node-gyp/commit/241752f381)] - Log dist-url. (Ben Noordhuis) [#1170](https://github.com/nodejs/node-gyp/pull/1170)
+* [[`386746c7d1`](https://github.com/nodejs/node-gyp/commit/386746c7d1)] - **configure**: use full path in node_lib_file GYP var (Pavel Medvedev) [#964](https://github.com/nodejs/node-gyp/pull/964)
+* [[`0913b2dd99`](https://github.com/nodejs/node-gyp/commit/0913b2dd99)] - **build, win**: use target_arch to link with node.lib (Pavel Medvedev) [#964](https://github.com/nodejs/node-gyp/pull/964)
+* [[`c307b302f7`](https://github.com/nodejs/node-gyp/commit/c307b302f7)] - **doc**: blorb about setting `npm_config_OPTION_NAME` (Refael Ackermann) [#1185](https://github.com/nodejs/node-gyp/pull/1185)
+
 v3.6.1 2017-04-30
 =================
 

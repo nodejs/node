@@ -228,9 +228,12 @@ namespace VisualStudioConfiguration
                     hasMSBuild = true;
                 else if (id == "Microsoft.VisualStudio.Component.VC.Tools.x86.x64")
                     hasVCTools = true;
-                else if (id.StartsWith(Win10SDKPrefix))
-                    Win10SDKVer = Math.Max(Win10SDKVer, UInt32.Parse(id.Substring(Win10SDKPrefix.Length)));
-                else if (id == "Microsoft.VisualStudio.Component.Windows81SDK")
+                else if (id.StartsWith(Win10SDKPrefix)) {
+                    string[] parts = id.Substring(Win10SDKPrefix.Length).Split('.');
+                    if (parts.Length > 1 && parts[1] != "Desktop")
+                        continue;
+                    Win10SDKVer = Math.Max(Win10SDKVer, UInt32.Parse(parts[0]));
+                } else if (id == "Microsoft.VisualStudio.Component.Windows81SDK")
                     hasWin8SDK = true;
                 else
                     continue;

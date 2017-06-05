@@ -120,7 +120,7 @@ function exit (code, noLog) {
     })
     rollbacks.length = 0
   } else if (code && !noLog) {
-    writeLogFile(reallyExit)
+    writeLogFile()
   } else {
     reallyExit()
   }

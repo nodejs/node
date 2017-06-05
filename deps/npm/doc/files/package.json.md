@@ -204,6 +204,7 @@ Conversely, some files are always ignored:
 * `node_modules`
 * `config.gypi`
 * `*.orig`
+* `package-lock.json` (use shrinkwrap instead)
 
 ## main
 

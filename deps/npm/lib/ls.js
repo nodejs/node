@@ -429,7 +429,7 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
 
   if (long) {
     if (dir === data.path) out.label += '\n' + dir
-    out.label += '\n' + getExtras(data, dir)
+    out.label += '\n' + getExtras(data)
   } else if (dir === data.path) {
     if (out.label) out.label += ' '
     out.label += dir
