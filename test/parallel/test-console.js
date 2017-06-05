@@ -164,6 +164,6 @@ common.hijackStderr(common.mustCall(function(data) {
 
   // stderr.write will catch sync error, so use `process.nextTick` here
   process.nextTick(function() {
-    assert(/no such label/.test(data));
+    assert.strictEqual(data.includes('no such label'), true);
   });
 }));

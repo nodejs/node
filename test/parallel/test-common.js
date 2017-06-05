@@ -88,3 +88,23 @@ for (const p of failFixtures) {
     assert.strictEqual(firstLine, expected);
   }));
 }
+
+// hijackStderr and hijackStdout
+const HIJACK_TEST_ARRAY = [ 'foo\n', 'bar\n', 'baz\n' ];
+[ 'err', 'out' ].forEach((txt) => {
+  const stream = process[`std${txt}`];
+  const originalWrite = stream.write;
+
+  common[`hijackStd${txt}`](common.mustCall(function(data) {
+    assert.strictEqual(data, HIJACK_TEST_ARRAY[stream.writeTimes]);
+  }, HIJACK_TEST_ARRAY.length));
+  assert.notStrictEqual(originalWrite, stream.write);
+
+  HIJACK_TEST_ARRAY.forEach((val) => {
+    stream.write(val, common.mustCall(common.noop));
+  });
+
+  assert.strictEqual(HIJACK_TEST_ARRAY.length, stream.writeTimes);
+  common[`restoreStd${txt}`]();
+  assert.strictEqual(originalWrite, stream.write);
+});

@@ -28,13 +28,7 @@ process.stdout.write('hello world\r\n');
 
 const stdin = process.openStdin();
 
-let current;
-common.hijackStdout(common.mustCall(function(data) {
-  assert.strictEqual(data, current);
-}));
-
 stdin.on('data', function(data) {
-  current = data.toString();
   process.stdout.write(data.toString());
 });
 

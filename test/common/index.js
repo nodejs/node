@@ -764,12 +764,12 @@ exports.getTTYfd = function getTTYfd() {
 const stdWrite = {};
 function hijackStdWritable(name, listener) {
   const stream = process[name];
-  const _write = stdWrite[name] = stream.write.bind(stream);
+  const _write = stdWrite[name] = stream.write;
 
   stream.writeTimes = 0;
   stream.write = function(data, callback) {
     listener(data);
-    _write(data, callback);
+    _write.call(stream, data, callback);
     stream.writeTimes++;
   };
 }
