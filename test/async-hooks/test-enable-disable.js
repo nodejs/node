@@ -103,6 +103,8 @@ const hook3 = initHooks({ onbefore: onhook3Before, onafter: onhook3After });
 // Enabling hook1 and hook3 only, hook2 is still disabled
 //
 hook1.enable();
+// Verify that the hook is enabled even if .enable() is called twice.
+hook1.enable();
 hook3.enable();
 
 //
@@ -121,6 +123,8 @@ function onhook3Before() {
 let disabledHook3 = false;
 function onhook2Before() {
   if (disabledHook3) return;
+  hook1.disable();
+  // Verify that the hook is disabled even if .disable() is called twice.
   hook1.disable();
   disabledHook3 = true;
 }
