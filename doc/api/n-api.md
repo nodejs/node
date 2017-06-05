@@ -11,13 +11,6 @@ changes in the underlying JavaScript engine and allow modules
 compiled for one version to run on later versions of Node.js without
 recompilation.
 
-As the feature is currently experimental it must be enabled with the
-following command line option:
-
-```bash
---napi-modules
-```
-
 Addons are built/packaged with the same approach/tools
 outlined in the section titled  [C++ Addons](addons.html).
 The only difference is the set of APIs that are used by the native code.
@@ -65,6 +58,14 @@ which is located in the src directory in the node development tree.
 For example:
 ```C
 #include <node_api.h>
+```
+
+As the feature is experimental it must be enabled with the
+following command line
+[option](https://nodejs.org/dist/latest-v8.x/docs/api/cli.html#cli_napi_modules):
+
+```bash
+--napi-modules
 ```
 
 ## Basic N-API Data Types
