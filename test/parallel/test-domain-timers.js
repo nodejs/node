@@ -3,8 +3,6 @@ const common = require('../common');
 const domain = require('domain');
 const assert = require('assert');
 
-let timeout;
-
 const timeoutd = domain.create();
 
 timeoutd.on('error', common.mustCall(function(e) {
@@ -32,4 +30,4 @@ immediated.run(function() {
   });
 });
 
-timeout = setTimeout(common.noop, 10 * 1000);
+const timeout = setTimeout(common.mustNotCall(), 10 * 1000);
