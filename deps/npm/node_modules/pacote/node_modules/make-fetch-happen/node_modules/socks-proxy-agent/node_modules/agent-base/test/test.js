@@ -9,13 +9,45 @@ var net = require('net');
 var tls = require('tls');
 var http = require('http');
 var https = require('https');
+var WebSocket = require('ws');
 var assert = require('assert');
 var events = require('events');
+var inherits = require('util').inherits;
+var semver = require('semver');
 var Agent = require('../');
 
 describe('Agent', function () {
+  describe('subclass', function () {
+    it('should be subclassable', function (done) {
+      function MyAgent () {
+        Agent.call(this);
+      }
+      inherits(MyAgent, Agent);
+
+      MyAgent.prototype.callback = function (req, opts, fn) {
+        assert.equal(req.path, '/foo');
+        assert.equal(req.getHeader('host'), '127.0.0.1:1234');
+        assert.equal(opts.secureEndpoint, true);
+        done();
+      };
+
+      var info = url.parse('https://127.0.0.1:1234/foo');
+      info.agent = new MyAgent;
+      https.get(info);
+    });
+  });
   describe('"error" event', function () {
-    it('should be invoked on `http.ClientRequest` instance if passed to callback function on the first tick', function (done) {
+    it('should be invoked on `http.ClientRequest` instance if `callback()` has not been defined', function (done) {
+      var agent = new Agent();
+      var info = url.parse('http://127.0.0.1/foo');
+      info.agent = agent;
+      var req = http.get(info);
+      req.on('error', function (err) {
+        assert.equal('"agent-base" has no default implementation, you must subclass and override `callback()`', err.message);
+        done();
+      });
+    });
+    it('should be invoked on `http.ClientRequest` instance if Error passed to callback function on the first tick', function (done) {
       var agent = new Agent(function (req, opts, fn) {
         fn(new Error('is this caught?'));
       });
@@ -27,7 +59,7 @@ describe('Agent', function () {
         done();
       });
     });
-    it('should be invoked on `http.ClientRequest` instance if passed to callback function after the first tick', function (done) {
+    it('should be invoked on `http.ClientRequest` instance if Error passed to callback function after the first tick', function (done) {
       var agent = new Agent(function (req, opts, fn) {
         setTimeout(function () {
           fn(new Error('is this caught?'));
@@ -52,6 +84,10 @@ describe('Agent', function () {
       stream.write = function (str) {
         assert(0 == str.indexOf('GET / HTTP/1.1'));
         done();
+      };
+
+      // needed for `http` module in Node.js 4
+      stream.cork = function () {
       };
 
       var opts = {
@@ -297,4 +333,119 @@ describe('"https" module', function () {
       rejectUnauthorized: false
     });
   });
+});
+
+describe('"ws" server', function () {
+  var wss;
+  var server;
+  var port;
+
+  // setup test HTTP server
+  before(function (done) {
+    server = http.createServer()
+    wss = new WebSocket.Server({ server: server });
+    server.listen(0, function () {
+      port = server.address().port;
+      done();
+    });
+  });
+
+  // shut down test HTTP server
+  after(function (done) {
+    server.once('close', function () {
+      done();
+    });
+    server.close();
+  });
+
+  it('should work for basic WebSocket connections', function (done) {
+    function onconnection(ws) {
+      ws.on('message', function (data) {
+        assert.equal('ping', data);
+        ws.send('pong');
+      });
+    }
+    wss.on('connection', onconnection);
+
+    var agent = new Agent(function (req, opts, fn) {
+      var socket = net.connect(opts);
+      fn(null, socket);
+    });
+
+    var client = new WebSocket('ws://127.0.0.1:' + port + '/', {
+      agent: agent
+    });
+
+    client.on('open', function () {
+      client.send('ping');
+    });
+
+    client.on('message', function (data) {
+      assert.equal('pong', data);
+      client.close();
+      wss.removeListener('connection', onconnection);
+      done();
+    });
+  });
+
+});
+
+describe('"wss" server', function () {
+  var wss;
+  var server;
+  var port;
+
+  // setup test HTTP server
+  before(function (done) {
+    var options = {
+      key: fs.readFileSync(__dirname + '/ssl-cert-snakeoil.key'),
+      cert: fs.readFileSync(__dirname + '/ssl-cert-snakeoil.pem')
+    };
+    server = https.createServer(options);
+    wss = new WebSocket.Server({ server: server });
+    server.listen(0, function () {
+      port = server.address().port;
+      done();
+    });
+  });
+
+  // shut down test HTTP server
+  after(function (done) {
+    server.once('close', function () {
+      done();
+    });
+    server.close();
+  });
+
+  it('should work for secure WebSocket connections', function (done) {
+    function onconnection(ws) {
+      ws.on('message', function (data) {
+        assert.equal('ping', data);
+        ws.send('pong');
+      });
+    }
+    wss.on('connection', onconnection);
+
+    var agent = new Agent(function (req, opts, fn) {
+      var socket = tls.connect(opts);
+      fn(null, socket);
+    });
+
+    var client = new WebSocket('wss://127.0.0.1:' + port + '/', {
+      agent: agent,
+      rejectUnauthorized: false
+    });
+
+    client.on('open', function () {
+      client.send('ping');
+    });
+
+    client.on('message', function (data) {
+      assert.equal('pong', data);
+      client.close();
+      wss.removeListener('connection', onconnection);
+      done();
+    });
+  });
+
 });

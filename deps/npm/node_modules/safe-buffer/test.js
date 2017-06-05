@@ -1,3 +1,5 @@
+/* eslint-disable node/no-deprecated-api */
+
 var test = require('tape')
 var SafeBuffer = require('./').Buffer
 

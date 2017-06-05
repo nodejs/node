@@ -74,6 +74,8 @@ function processRelease (argv, gyp, defaultVersion, defaultRelease) {
     }
   }
 
+  if (overrideDistUrl)
+    log.verbose('download', 'using dist-url', overrideDistUrl)
 
   if (overrideDistUrl)
     distBaseUrl = overrideDistUrl.replace(/\/+$/, '')
