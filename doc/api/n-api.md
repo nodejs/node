@@ -695,7 +695,7 @@ added: v8.0.0
 NODE_EXTERN napi_status napi_create_reference(napi_env env,
                                               napi_value value,
                                               int initial_refcount,
-                                              ndapi_ref* result);
+                                              napi_ref* result);
 ```
 
 - `[in] env`: The environment that the API is invoked under.
