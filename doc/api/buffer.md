@@ -447,8 +447,8 @@ changes:
 * `size` {integer} The desired length of the new `Buffer`
 
 Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
-[`buffer.kMaxLength`] or smaller than 0, a [`RangeError`] will be thrown.
-A zero-length `Buffer` will be created if `size` is 0.
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
+thrown. A zero-length `Buffer` will be created if `size` is 0.
 
 Prior to Node.js 8.0.0, the underlying memory for `Buffer` instances
 created in this way is *not initialized*. The contents of a newly created
@@ -528,8 +528,8 @@ console.log(buf);
 ```
 
 Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
-[`buffer.kMaxLength`] or smaller than 0, a [`RangeError`] will be thrown.
-A zero-length `Buffer` will be created if `size` is 0.
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
+thrown. A zero-length `Buffer` will be created if `size` is 0.
 
 If `fill` is specified, the allocated `Buffer` will be initialized by calling
 [`buf.fill(fill)`][`buf.fill()`].
@@ -573,8 +573,8 @@ changes:
 * `size` {integer} The desired length of the new `Buffer`
 
 Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
-[`buffer.kMaxLength`] or smaller than 0, a [`RangeError`] will be thrown.
-A zero-length `Buffer` will be created if `size` is 0.
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
+thrown. A zero-length `Buffer` will be created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
@@ -619,8 +619,8 @@ added: v5.10.0
 * `size` {integer} The desired length of the new `Buffer`
 
 Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
-[`buffer.kMaxLength`] or smaller than 0, a [`RangeError`] will be thrown.
-A zero-length `Buffer` will be created if `size` is 0.
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
+thrown. A zero-length `Buffer` will be created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is *not
 initialized*. The contents of the newly created `Buffer` are unknown and
@@ -2050,6 +2050,9 @@ added: v0.1.90
 Decodes `buf` to a string according to the specified character encoding in
 `encoding`. `start` and `end` may be passed to decode only a subset of `buf`.
 
+The maximum length of a string instance (in UTF-16 code units) is available
+as [`buffer.constants.MAX_STRING_LENGTH`][].
+
 Examples:
 
 ```js
@@ -2507,8 +2510,7 @@ added: v3.0.0
 
 * {integer} The largest size allowed for a single `Buffer` instance
 
-On 32-bit architectures, this value is `(2^30)-1` (~1GB).
-On 64-bit architectures, this value is `(2^31)-1` (~2GB).
+An alias for [`buffer.constants.MAX_LENGTH`][]
 
 Note that this is a property on the `buffer` module returned by
 `require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
@@ -2599,8 +2601,8 @@ deprecated: v6.0.0
 * `size` {integer} The desired length of the new `SlowBuffer`
 
 Allocates a new `Buffer` of `size` bytes.  If the `size` is larger than
-[`buffer.kMaxLength`] or smaller than 0, a [`RangeError`] will be thrown.
-A zero-length `Buffer` will be created if `size` is 0.
+[`buffer.constants.MAX_LENGTH`] or smaller than 0, a [`RangeError`] will be
+thrown. A zero-length `Buffer` will be created if `size` is 0.
 
 The underlying memory for `SlowBuffer` instances is *not initialized*. The
 contents of a newly created `SlowBuffer` are unknown and may contain
@@ -2621,6 +2623,39 @@ buf.fill(0);
 // Prints: <Buffer 00 00 00 00 00>
 console.log(buf);
 ```
+
+
+## Buffer Constants
+<!-- YAML
+added: REPLACEME
+-->
+
+Note that `buffer.constants` is a property on the `buffer` module returned by
+`require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
+
+### buffer.constants.MAX_LENGTH
+<!-- YAML
+added: REPLACEME
+-->
+
+* {integer} The largest size allowed for a single `Buffer` instance
+
+On 32-bit architectures, this value is `(2^30)-1` (~1GB).
+On 64-bit architectures, this value is `(2^31)-1` (~2GB).
+
+This value is also available as [`buffer.kMaxLength`][].
+
+### buffer.constants.MAX_STRING_LENGTH
+<!-- YAML
+added: REPLACEME
+-->
+
+* {integer} The largest length allowed for a single `string` instance
+
+Represents the largest `length` that a `string` primitive can have, counted
+in UTF-16 code units.
+
+This value may depend on the JS engine that is being used.
 
 [`ArrayBuffer#slice()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/slice
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
@@ -2652,6 +2687,8 @@ console.log(buf);
 [`buf.slice()`]: #buffer_buf_slice_start_end
 [`buf.values()`]: #buffer_buf_values
 [`buffer.kMaxLength`]: #buffer_buffer_kmaxlength
+[`buffer.constants.MAX_LENGTH`]: #buffer_buffer_constants_max_length
+[`buffer.constants.MAX_STRING_LENGTH`]: #buffer_buffer_constants_max_string_length
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [RFC1345]: https://tools.ietf.org/html/rfc1345
 [RFC4648, Section 5]: https://tools.ietf.org/html/rfc4648#section-5
