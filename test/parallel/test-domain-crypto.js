@@ -17,7 +17,7 @@ global.domain = require('domain');
 
 // should not throw a 'TypeError: undefined is not a function' exception
 crypto.randomBytes(8);
-crypto.randomBytes(8, common.noop);
+crypto.randomBytes(8, common.mustCall());
 crypto.pseudoRandomBytes(8);
-crypto.pseudoRandomBytes(8, common.noop);
-crypto.pbkdf2('password', 'salt', 8, 8, common.noop);
+crypto.pseudoRandomBytes(8, common.mustCall());
+crypto.pbkdf2('password', 'salt', 8, 8, 'sha1', common.mustCall());
