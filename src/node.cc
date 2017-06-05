@@ -3400,13 +3400,7 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
-  // TODO(refack): move the following 4 to `node_config`
-  // --inspect
-  if (debug_options.inspector_enabled()) {
-    READONLY_DONT_ENUM_PROPERTY(process,
-                                "_inspectorEnbale", True(env->isolate()));
-  }
-
+  // TODO(refack): move the following 3 to `node_config`
   // --inspect-brk
   if (debug_options.wait_for_connect()) {
     READONLY_DONT_ENUM_PROPERTY(process,
