@@ -26,7 +26,7 @@ static const char WS_HANDSHAKE_RESPONSE[] =
   {                                                                            \
     Timeout timeout(&loop);                                                    \
     while ((condition) && !timeout.timed_out) {                                \
-      uv_run(&loop, UV_RUN_NOWAIT);                                            \
+      uv_run(&loop, UV_RUN_ONCE);                                              \
     }                                                                          \
     ASSERT_FALSE((condition));                                                 \
   }
@@ -41,6 +41,7 @@ class Timeout {
   explicit Timeout(uv_loop_t* loop) : timed_out(false), done_(false) {
     uv_timer_init(loop, &timer_);
     uv_timer_start(&timer_, Timeout::set_flag, 5000, 0);
+    uv_unref(reinterpret_cast<uv_handle_t*>(&timer_));
   }
 
   ~Timeout() {
@@ -163,18 +164,20 @@ class SocketWrapper {
                                             connected_(false),
                                             sending_(false) { }
 
-  void Connect(std::string host, int port) {
+  void Connect(std::string host, int port, bool v6 = false) {
     closed_ = false;
     connection_failed_ = false;
     connected_ = false;
     eof_ = false;
     contents_.clear();
     uv_tcp_init(loop_, &socket_);
-    sockaddr_in addr;
-    uv_ip4_addr(host.c_str(), port, &addr);
-    int err = uv_tcp_connect(&connect_, &socket_,
-                             reinterpret_cast<const sockaddr*>(&addr),
-                             Connected_);
+    union {sockaddr generic; sockaddr_in v4; sockaddr_in6 v6;} addr;
+    if (v6) {
+      uv_ip6_addr(host.c_str(), port, &addr.v6);
+    } else {
+      uv_ip4_addr(host.c_str(), port, &addr.v4);
+    }
+    int err = uv_tcp_connect(&connect_, &socket_, &addr.generic, Connected_);
     ASSERT_EQ(0, err);
     SPIN_WHILE(!connected_)
     uv_read_start(reinterpret_cast<uv_stream_t*>(&socket_), AllocCallback,
@@ -306,9 +309,14 @@ class SocketWrapper {
 class ServerHolder {
  public:
   template <typename Delegate>
-  ServerHolder(Delegate* delegate, uv_loop_t* loop, int port, FILE* out = NULL)
+  ServerHolder(Delegate* delegate, uv_loop_t* loop, int port)
+               : ServerHolder(delegate, loop, HOST, port, NULL) { }
+
+  template <typename Delegate>
+  ServerHolder(Delegate* delegate, uv_loop_t* loop, const std::string host,
+               int port, FILE* out)
                : closed(false), paused(false),
-                 server_(delegate, loop, HOST, port, out) {
+                 server_(delegate, loop, host, port, out) {
     delegate->Connect(&server_);
   }
 
@@ -317,7 +325,7 @@ class ServerHolder {
   }
 
   int port() {
-    return server_.port();
+    return server_.Port();
   }
 
   static void CloseCallback(InspectorSocketServer* server) {
@@ -573,5 +581,49 @@ TEST_F(InspectorSocketServerTest, TerminatingSessionReportsDone) {
   socket1.Expect(SERVER_CLOSE_FRAME);
   socket1.Write(CLIENT_CLOSE_FRAME);
   socket1.ExpectEOF();
+  SPIN_WHILE(!delegate.done);
+}
+
+TEST_F(InspectorSocketServerTest, FailsToBindToNodejsHost) {
+  TestInspectorServerDelegate delegate;
+  ServerHolder server(&delegate, &loop, "nodejs.org", 0, nullptr);
+  ASSERT_FALSE(server->Start());
+  SPIN_WHILE(uv_loop_alive(&loop));
+}
+
+bool has_ipv6_address() {
+  uv_interface_address_s* addresses = nullptr;
+  int address_count = 0;
+  int err = uv_interface_addresses(&addresses, &address_count);
+  if (err != 0) {
+    return false;
+  }
+  bool has_address = false;
+  for (int i = 0; i < address_count; i++) {
+    if (addresses[i].address.address6.sin6_family == AF_INET6) {
+      has_address = true;
+    }
+  }
+  uv_free_interface_addresses(addresses, address_count);
+  return has_address;
+}
+
+TEST_F(InspectorSocketServerTest, BindsToIpV6) {
+  if (!has_ipv6_address()) {
+    fprintf(stderr, "No IPv6 network detected\n");
+    return;
+  }
+  TestInspectorServerDelegate delegate;
+  ServerHolder server(&delegate, &loop, "::", 0, NULL);
+  ASSERT_TRUE(server->Start());
+
+  SocketWrapper socket1(&loop);
+  socket1.Connect("[::]", server.port(), true);
+  socket1.Write(WsHandshakeRequest(MAIN_TARGET_ID));
+  socket1.Expect(WS_HANDSHAKE_RESPONSE);
+  server->Stop(ServerHolder::CloseCallback);
+  SPIN_WHILE(!server.closed);
+  ASSERT_FALSE(delegate.done);
+  socket1.Close();
   SPIN_WHILE(!delegate.done);
 }
