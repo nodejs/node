@@ -3323,7 +3323,7 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
 
 
 void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(args.IsConstructCall(), true);
+  CHECK(args.IsConstructCall());
   CipherKind kind = args[0]->IsTrue() ? kCipher : kDecipher;
   Environment* env = Environment::GetCurrent(args);
   new CipherBase(env, args.This(), kind);
