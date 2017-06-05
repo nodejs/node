@@ -16,6 +16,11 @@ var types = {
   Z: {label: 'null', check: function (thingy) { return thingy == null }}
 }
 
+function addSchema (schema, arity) {
+  var group = arity[schema.length] = arity[schema.length] || []
+  if (group.indexOf(schema) === -1) group.push(schema)
+}
+
 var validate = module.exports = function (rawSchemas, args) {
   if (arguments.length !== 2) throw wrongNumberOfArgs(['SA'], arguments.length)
   if (!rawSchemas) throw missingRequiredArg(0, 'rawSchemas')
@@ -24,21 +29,18 @@ var validate = module.exports = function (rawSchemas, args) {
   if (!types.A.check(args)) throw invalidType(1, ['array'], args)
   var schemas = rawSchemas.split('|')
   var arity = {}
-  function addSchema (schema) {
-    var group = arity[schema.length] = arity[schema.length] || []
-    if (group.indexOf(schema) === -1) group.push(schema)
-  }
+
   schemas.forEach(function (schema) {
     for (var ii = 0; ii < schema.length; ++ii) {
       var type = schema[ii]
       if (!types[type]) throw unknownType(ii, type)
     }
     if (/E.*E/.test(schema)) throw moreThanOneError(schema)
-    addSchema(schema)
+    addSchema(schema, arity)
     if (/E/.test(schema)) {
-      addSchema(schema.replace(/E.*$/, 'E'))
-      addSchema(schema.replace(/E/, 'Z'))
-      if (schema.length === 1) addSchema('')
+      addSchema(schema.replace(/E.*$/, 'E'), arity)
+      addSchema(schema.replace(/E/, 'Z'), arity)
+      if (schema.length === 1) addSchema('', arity)
     }
   })
   var matching = arity[args.length]

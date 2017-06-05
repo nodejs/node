@@ -6,7 +6,7 @@ var log = require('npmlog')
 var npm = require('../npm.js')
 var fileCompletion = require('../utils/completion/file-completion.js')
 
-function checkFilesPermission (root, mask, cb) {
+function checkFilesPermission (root, fmask, dmask, cb) {
   if (process.platform === 'win32') return cb(null, true)
   getUid(npm.config.get('user'), npm.config.get('group'), function (e, uid, gid) {
     var tracker = log.newItem('checkFilePermissions', 1)
@@ -37,10 +37,10 @@ function checkFilesPermission (root, mask, cb) {
         fs.lstat(file, function (e, stat) {
           tracker.completeWork(1)
           if (e) return next(e)
-          if (!stat.isFile()) return next()
+          if (!stat.isDirectory() && !stat.isFile()) return next()
           // 6 = fs.constants.R_OK | fs.constants.W_OK
           // constants aren't available on v4
-          fs.access(file, 6, (err) => {
+          fs.access(file, stat.isFile() ? fmask : dmask, (err) => {
             if (err) {
               tracker.error('checkFilePermissions', `Missing permissions on ${file}`)
               return next(new Error('Missing permissions for ' + file))

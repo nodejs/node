@@ -17,8 +17,10 @@ matrix:
     # previous LTS is next most important
     - node_js: "4"
       env: DEPLOY_VERSION=testing
-    # then master
     - node_js: "7"
+      env: DEPLOY_VERSION=testing
+      # then master
+    - node_js: "8"
       env: DEPLOY_VERSION=testing
 before_install:
   # required by test/tap/registry.js
