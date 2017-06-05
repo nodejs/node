@@ -388,7 +388,7 @@ class of the compressor/decompressor classes.
 
 ### zlib.bytesRead
 <!-- YAML
-added: REPLACEME
+added: v8.1.0
 -->
 
 * {number}

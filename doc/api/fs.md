@@ -302,7 +302,7 @@ argument to `fs.createReadStream()`. If `path` is passed as a string, then
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v8.1.0
     pr-url: https://github.com/nodejs/node/pull/13173
     description: Added times as numbers.
 -->
