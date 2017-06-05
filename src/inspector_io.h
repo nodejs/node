@@ -28,6 +28,10 @@ class StringView;
 namespace node {
 namespace inspector {
 
+std::string FormatWsAddress(const std::string& host, int port,
+                            const std::string& target_id,
+                            bool include_protocol);
+
 class InspectorIoDelegate;
 
 enum class InspectorAction {
