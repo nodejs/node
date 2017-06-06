@@ -357,6 +357,7 @@ class Environment {
       kBefore,
       kAfter,
       kDestroy,
+      kTotals,
       kFieldsCount,
     };
 
