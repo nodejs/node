@@ -98,26 +98,30 @@ test('call destroy if error', (t) => {
   let wsDestroyCalled = false;
   let rsDestroyCalled = false;
   let callbackCalled = false;
-  const rs = new stream.Readable({
-    read(size) {
+  class RS extends stream.Readable {
+    _read(size) {
       this.push(crypto.randomBytes(size));
     }
-  });
-  rs.destroy = function() {
-    this.emit('close');
-    rsDestroyCalled = true;
-    check();
-  };
-  const ws = new stream.Writable({
-    write(chunk, enc, next) {
+    _destroy(err, cb) {
+      rsDestroyCalled = true;
+      check();
+      super._destroy(err, cb);
+    }
+  }
+  class WS extends stream.Writable {
+    _write(chunk, enc, next) {
       setImmediate(next);
     }
-  });
-  ws.destroy = function() {
-    this.emit('close');
-    wsDestroyCalled = true;
-    check();
-  };
+    _destroy(error, cb) {
+      t.equal(error && error.message, 'lets end this');
+      this.emit('close');
+      wsDestroyCalled = true;
+      check();
+      super._destroy(error, cb);
+    }
+  }
+  const rs = new RS();
+  const ws = new WS();
   function throwError() {
     const reverse = new stream.Transform();
     let i = 0;
