@@ -279,9 +279,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
     # hard to decipher what test is running when only the filename is printed.
     prefix = abspath(join(dirname(__file__), '../test')) + os.sep
     command = output.command[-1]
-    if command.endswith('.js'): command = command[:-3]
-    if command.startswith(prefix): command = command[len(prefix):]
-    command = command.replace('\\', '/')
+    command = NormalizePath(command, prefix)
 
     if output.UnexpectedOutput():
       status_line = 'not ok %i %s' % (self._done, command)
@@ -352,9 +350,7 @@ class DeoptsCheckProgressIndicator(SimpleProgressIndicator):
     # hard to decipher what test is running when only the filename is printed.
     prefix = abspath(join(dirname(__file__), '../test')) + os.sep
     command = output.command[-1]
-    if command.endswith('.js'): command = command[:-3]
-    if command.startswith(prefix): command = command[len(prefix):]
-    command = command.replace('\\', '/')
+    command = NormalizePath(command, prefix)
 
     stdout = output.output.stdout.strip()
     printed_file = False
@@ -1509,12 +1505,16 @@ def SplitPath(s):
   stripped = [ c.strip() for c in s.split('/') ]
   return [ Pattern(s) for s in stripped if len(s) > 0 ]
 
-def NormalizePath(path):
+def NormalizePath(path, prefix='test/'):
   # strip the extra path information of the specified test
-  if path.startswith('test/'):
-    path = path[5:]
+  prefix = prefix.replace('\\', '/')
+  path = path.replace('\\', '/')
+  if path.startswith(prefix):
+    path = path[len(prefix):]
   if path.endswith('.js'):
     path = path[:-3]
+  elif path.endswith('.mjs'):
+    path = path[:-4]
   return path
 
 def GetSpecialCommandProcessor(value):
