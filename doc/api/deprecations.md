@@ -616,7 +616,7 @@ The DebugContext will be removed in V8 soon and will not be available in Node
 [`crypto.createCredentials()`]: crypto.html#crypto_crypto_createcredentials_details
 [`crypto.pbkdf2()`]: crypto.html#crypto_crypto_pbkdf2_password_salt_iterations_keylen_digest_callback
 [`domain`]: domain.html
-[`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_public_key_encoding
+[`ecdh.setPublicKey()`]: crypto.html#crypto_ecdh_setpublickey_publickey_encoding
 [`emitter.listenerCount(eventName)`]: events.html#events_emitter_listenercount_eventname
 [`fs.access()`]: fs.html#fs_fs_access_path_mode_callback
 [`fs.exists(path, callback)`]: fs.html#fs_fs_exists_path_callback
