@@ -115,6 +115,14 @@ const int kPCRegister = 34;
 const int kNumFPURegisters = 32;
 const int kInvalidFPURegister = -1;
 
+// Number of MSA registers
+const int kNumMSARegisters = 32;
+const int kInvalidMSARegister = -1;
+
+const int kInvalidMSAControlRegister = -1;
+const int kMSAIRRegister = 0;
+const int kMSACSRRegister = 1;
+
 // FPU (coprocessor 1) control registers. Currently only FCSR is implemented.
 const int kFCSRRegister = 31;
 const int kInvalidFPUControlRegister = -1;
@@ -200,6 +208,24 @@ class FPURegisters {
   static const RegisterAlias aliases_[];
 };
 
+// Helper functions for converting between register numbers and names.
+class MSARegisters {
+ public:
+  // Return the name of the register.
+  static const char* Name(int reg);
+
+  // Lookup the register number for the name provided.
+  static int Number(const char* name);
+
+  struct RegisterAlias {
+    int creg;
+    const char* name;
+  };
+
+ private:
+  static const char* names_[kNumMSARegisters];
+  static const RegisterAlias aliases_[];
+};
 
 // -----------------------------------------------------------------------------
 // Instructions encoding constants.
@@ -260,6 +286,14 @@ const int kImm28Shift = 0;
 const int kImm28Bits  = 28;
 const int kImm32Shift = 0;
 const int kImm32Bits  = 32;
+const int kMsaImm8Shift = 16;
+const int kMsaImm8Bits = 8;
+const int kMsaImm5Shift = 16;
+const int kMsaImm5Bits = 5;
+const int kMsaImm10Shift = 11;
+const int kMsaImm10Bits = 10;
+const int kMsaImmMI10Shift = 16;
+const int kMsaImmMI10Bits = 10;
 
 // In branches and jumps immediate fields point to words, not bytes,
 // and are therefore shifted by 2.
@@ -279,6 +313,12 @@ const int kFBccShift     = 18;
 const int kFBccBits      = 3;
 const int kFBtrueShift   = 16;
 const int kFBtrueBits    = 1;
+const int kWtBits = 5;
+const int kWtShift = 16;
+const int kWsBits = 5;
+const int kWsShift = 11;
+const int kWdBits = 5;
+const int kWdShift = 6;
 
 // ----- Miscellaneous useful masks.
 // Instruction bit masks.
@@ -289,6 +329,10 @@ const int kImm19Mask = ((1 << kImm19Bits) - 1) << kImm19Shift;
 const int kImm21Mask = ((1 << kImm21Bits) - 1) << kImm21Shift;
 const int  kImm26Mask    = ((1 << kImm26Bits) - 1) << kImm26Shift;
 const int  kImm28Mask    = ((1 << kImm28Bits) - 1) << kImm28Shift;
+const int kImm5Mask = ((1 << 5) - 1);
+const int kImm8Mask = ((1 << 8) - 1);
+const int kImm10Mask = ((1 << 10) - 1);
+const int kMsaI5I10Mask = ((7U << 23) | ((1 << 6) - 1));
 const int  kRsFieldMask  = ((1 << kRsBits) - 1) << kRsShift;
 const int  kRtFieldMask  = ((1 << kRtBits) - 1) << kRtShift;
 const int  kRdFieldMask  = ((1 << kRdBits) - 1) << kRdShift;
@@ -342,6 +386,7 @@ enum Opcode : uint32_t {
   LDL = ((3U << 3) + 2) << kOpcodeShift,
   LDR = ((3U << 3) + 3) << kOpcodeShift,
   SPECIAL2 = ((3U << 3) + 4) << kOpcodeShift,
+  MSA = ((3U << 3) + 6) << kOpcodeShift,
   SPECIAL3 = ((3U << 3) + 7) << kOpcodeShift,
 
   LB = ((4U << 3) + 0) << kOpcodeShift,
@@ -672,7 +717,265 @@ enum SecondaryField : uint32_t {
   // POP76 Encoding of rs Field.
   JIALC = ((0U << 5) + 0),
 
+  // COP1 Encoding of rs Field for MSA Branch Instructions
+  BZ_V = (((1U << 3) + 3) << kRsShift),
+  BNZ_V = (((1U << 3) + 7) << kRsShift),
+  BZ_B = (((3U << 3) + 0) << kRsShift),
+  BZ_H = (((3U << 3) + 1) << kRsShift),
+  BZ_W = (((3U << 3) + 2) << kRsShift),
+  BZ_D = (((3U << 3) + 3) << kRsShift),
+  BNZ_B = (((3U << 3) + 4) << kRsShift),
+  BNZ_H = (((3U << 3) + 5) << kRsShift),
+  BNZ_W = (((3U << 3) + 6) << kRsShift),
+  BNZ_D = (((3U << 3) + 7) << kRsShift),
+
+  // MSA: Operation Field for MI10 Instruction Formats
+  MSA_LD = (8U << 2),
+  MSA_ST = (9U << 2),
+  LD_B = ((8U << 2) + 0),
+  LD_H = ((8U << 2) + 1),
+  LD_W = ((8U << 2) + 2),
+  LD_D = ((8U << 2) + 3),
+  ST_B = ((9U << 2) + 0),
+  ST_H = ((9U << 2) + 1),
+  ST_W = ((9U << 2) + 2),
+  ST_D = ((9U << 2) + 3),
+
+  // MSA: Operation Field for I5 Instruction Format
+  ADDVI = ((0U << 23) + 6),
+  SUBVI = ((1U << 23) + 6),
+  MAXI_S = ((2U << 23) + 6),
+  MAXI_U = ((3U << 23) + 6),
+  MINI_S = ((4U << 23) + 6),
+  MINI_U = ((5U << 23) + 6),
+  CEQI = ((0U << 23) + 7),
+  CLTI_S = ((2U << 23) + 7),
+  CLTI_U = ((3U << 23) + 7),
+  CLEI_S = ((4U << 23) + 7),
+  CLEI_U = ((5U << 23) + 7),
+  LDI = ((6U << 23) + 7),  // I10 instruction format
+  I5_DF_b = (0U << 21),
+  I5_DF_h = (1U << 21),
+  I5_DF_w = (2U << 21),
+  I5_DF_d = (3U << 21),
+
+  // MSA: Operation Field for I8 Instruction Format
+  ANDI_B = ((0U << 24) + 0),
+  ORI_B = ((1U << 24) + 0),
+  NORI_B = ((2U << 24) + 0),
+  XORI_B = ((3U << 24) + 0),
+  BMNZI_B = ((0U << 24) + 1),
+  BMZI_B = ((1U << 24) + 1),
+  BSELI_B = ((2U << 24) + 1),
+  SHF_B = ((0U << 24) + 2),
+  SHF_H = ((1U << 24) + 2),
+  SHF_W = ((2U << 24) + 2),
+
+  MSA_VEC_2R_2RF_MINOR = ((3U << 3) + 6),
+
+  // MSA: Operation Field for VEC Instruction Formats
+  AND_V = (((0U << 2) + 0) << 21),
+  OR_V = (((0U << 2) + 1) << 21),
+  NOR_V = (((0U << 2) + 2) << 21),
+  XOR_V = (((0U << 2) + 3) << 21),
+  BMNZ_V = (((1U << 2) + 0) << 21),
+  BMZ_V = (((1U << 2) + 1) << 21),
+  BSEL_V = (((1U << 2) + 2) << 21),
+
+  // MSA: Operation Field for 2R Instruction Formats
+  MSA_2R_FORMAT = (((6U << 2) + 0) << 21),
+  FILL = (0U << 18),
+  PCNT = (1U << 18),
+  NLOC = (2U << 18),
+  NLZC = (3U << 18),
+  MSA_2R_DF_b = (0U << 16),
+  MSA_2R_DF_h = (1U << 16),
+  MSA_2R_DF_w = (2U << 16),
+  MSA_2R_DF_d = (3U << 16),
+
+  // MSA: Operation Field for 2RF Instruction Formats
+  MSA_2RF_FORMAT = (((6U << 2) + 1) << 21),
+  FCLASS = (0U << 17),
+  FTRUNC_S = (1U << 17),
+  FTRUNC_U = (2U << 17),
+  FSQRT = (3U << 17),
+  FRSQRT = (4U << 17),
+  FRCP = (5U << 17),
+  FRINT = (6U << 17),
+  FLOG2 = (7U << 17),
+  FEXUPL = (8U << 17),
+  FEXUPR = (9U << 17),
+  FFQL = (10U << 17),
+  FFQR = (11U << 17),
+  FTINT_S = (12U << 17),
+  FTINT_U = (13U << 17),
+  FFINT_S = (14U << 17),
+  FFINT_U = (15U << 17),
+  MSA_2RF_DF_w = (0U << 16),
+  MSA_2RF_DF_d = (1U << 16),
+
+  // MSA: Operation Field for 3R Instruction Format
+  SLL_MSA = ((0U << 23) + 13),
+  SRA_MSA = ((1U << 23) + 13),
+  SRL_MSA = ((2U << 23) + 13),
+  BCLR = ((3U << 23) + 13),
+  BSET = ((4U << 23) + 13),
+  BNEG = ((5U << 23) + 13),
+  BINSL = ((6U << 23) + 13),
+  BINSR = ((7U << 23) + 13),
+  ADDV = ((0U << 23) + 14),
+  SUBV = ((1U << 23) + 14),
+  MAX_S = ((2U << 23) + 14),
+  MAX_U = ((3U << 23) + 14),
+  MIN_S = ((4U << 23) + 14),
+  MIN_U = ((5U << 23) + 14),
+  MAX_A = ((6U << 23) + 14),
+  MIN_A = ((7U << 23) + 14),
+  CEQ = ((0U << 23) + 15),
+  CLT_S = ((2U << 23) + 15),
+  CLT_U = ((3U << 23) + 15),
+  CLE_S = ((4U << 23) + 15),
+  CLE_U = ((5U << 23) + 15),
+  ADD_A = ((0U << 23) + 16),
+  ADDS_A = ((1U << 23) + 16),
+  ADDS_S = ((2U << 23) + 16),
+  ADDS_U = ((3U << 23) + 16),
+  AVE_S = ((4U << 23) + 16),
+  AVE_U = ((5U << 23) + 16),
+  AVER_S = ((6U << 23) + 16),
+  AVER_U = ((7U << 23) + 16),
+  SUBS_S = ((0U << 23) + 17),
+  SUBS_U = ((1U << 23) + 17),
+  SUBSUS_U = ((2U << 23) + 17),
+  SUBSUU_S = ((3U << 23) + 17),
+  ASUB_S = ((4U << 23) + 17),
+  ASUB_U = ((5U << 23) + 17),
+  MULV = ((0U << 23) + 18),
+  MADDV = ((1U << 23) + 18),
+  MSUBV = ((2U << 23) + 18),
+  DIV_S_MSA = ((4U << 23) + 18),
+  DIV_U = ((5U << 23) + 18),
+  MOD_S = ((6U << 23) + 18),
+  MOD_U = ((7U << 23) + 18),
+  DOTP_S = ((0U << 23) + 19),
+  DOTP_U = ((1U << 23) + 19),
+  DPADD_S = ((2U << 23) + 19),
+  DPADD_U = ((3U << 23) + 19),
+  DPSUB_S = ((4U << 23) + 19),
+  DPSUB_U = ((5U << 23) + 19),
+  SLD = ((0U << 23) + 20),
+  SPLAT = ((1U << 23) + 20),
+  PCKEV = ((2U << 23) + 20),
+  PCKOD = ((3U << 23) + 20),
+  ILVL = ((4U << 23) + 20),
+  ILVR = ((5U << 23) + 20),
+  ILVEV = ((6U << 23) + 20),
+  ILVOD = ((7U << 23) + 20),
+  VSHF = ((0U << 23) + 21),
+  SRAR = ((1U << 23) + 21),
+  SRLR = ((2U << 23) + 21),
+  HADD_S = ((4U << 23) + 21),
+  HADD_U = ((5U << 23) + 21),
+  HSUB_S = ((6U << 23) + 21),
+  HSUB_U = ((7U << 23) + 21),
+  MSA_3R_DF_b = (0U << 21),
+  MSA_3R_DF_h = (1U << 21),
+  MSA_3R_DF_w = (2U << 21),
+  MSA_3R_DF_d = (3U << 21),
+
+  // MSA: Operation Field for 3RF Instruction Format
+  FCAF = ((0U << 22) + 26),
+  FCUN = ((1U << 22) + 26),
+  FCEQ = ((2U << 22) + 26),
+  FCUEQ = ((3U << 22) + 26),
+  FCLT = ((4U << 22) + 26),
+  FCULT = ((5U << 22) + 26),
+  FCLE = ((6U << 22) + 26),
+  FCULE = ((7U << 22) + 26),
+  FSAF = ((8U << 22) + 26),
+  FSUN = ((9U << 22) + 26),
+  FSEQ = ((10U << 22) + 26),
+  FSUEQ = ((11U << 22) + 26),
+  FSLT = ((12U << 22) + 26),
+  FSULT = ((13U << 22) + 26),
+  FSLE = ((14U << 22) + 26),
+  FSULE = ((15U << 22) + 26),
+  FADD = ((0U << 22) + 27),
+  FSUB = ((1U << 22) + 27),
+  FMUL = ((2U << 22) + 27),
+  FDIV = ((3U << 22) + 27),
+  FMADD = ((4U << 22) + 27),
+  FMSUB = ((5U << 22) + 27),
+  FEXP2 = ((7U << 22) + 27),
+  FEXDO = ((8U << 22) + 27),
+  FTQ = ((10U << 22) + 27),
+  FMIN = ((12U << 22) + 27),
+  FMIN_A = ((13U << 22) + 27),
+  FMAX = ((14U << 22) + 27),
+  FMAX_A = ((15U << 22) + 27),
+  FCOR = ((1U << 22) + 28),
+  FCUNE = ((2U << 22) + 28),
+  FCNE = ((3U << 22) + 28),
+  MUL_Q = ((4U << 22) + 28),
+  MADD_Q = ((5U << 22) + 28),
+  MSUB_Q = ((6U << 22) + 28),
+  FSOR = ((9U << 22) + 28),
+  FSUNE = ((10U << 22) + 28),
+  FSNE = ((11U << 22) + 28),
+  MULR_Q = ((12U << 22) + 28),
+  MADDR_Q = ((13U << 22) + 28),
+  MSUBR_Q = ((14U << 22) + 28),
+
+  // MSA: Operation Field for ELM Instruction Format
+  MSA_ELM_MINOR = ((3U << 3) + 1),
+  SLDI = (0U << 22),
+  CTCMSA = ((0U << 22) | (62U << 16)),
+  SPLATI = (1U << 22),
+  CFCMSA = ((1U << 22) | (62U << 16)),
+  COPY_S = (2U << 22),
+  MOVE_V = ((2U << 22) | (62U << 16)),
+  COPY_U = (3U << 22),
+  INSERT = (4U << 22),
+  INSVE = (5U << 22),
+  ELM_DF_B = ((0U << 4) << 16),
+  ELM_DF_H = ((4U << 3) << 16),
+  ELM_DF_W = ((12U << 2) << 16),
+  ELM_DF_D = ((28U << 1) << 16),
+
+  // MSA: Operation Field for BIT Instruction Format
+  SLLI = ((0U << 23) + 9),
+  SRAI = ((1U << 23) + 9),
+  SRLI = ((2U << 23) + 9),
+  BCLRI = ((3U << 23) + 9),
+  BSETI = ((4U << 23) + 9),
+  BNEGI = ((5U << 23) + 9),
+  BINSLI = ((6U << 23) + 9),
+  BINSRI = ((7U << 23) + 9),
+  SAT_S = ((0U << 23) + 10),
+  SAT_U = ((1U << 23) + 10),
+  SRARI = ((2U << 23) + 10),
+  SRLRI = ((3U << 23) + 10),
+  BIT_DF_b = ((14U << 3) << 16),
+  BIT_DF_h = ((6U << 4) << 16),
+  BIT_DF_w = ((2U << 5) << 16),
+  BIT_DF_d = ((0U << 6) << 16),
+
   NULLSF = 0U
+};
+
+enum MSAMinorOpcode : uint32_t {
+  kMsaMinorUndefined = 0,
+  kMsaMinorI8,
+  kMsaMinorI5,
+  kMsaMinorI10,
+  kMsaMinorBIT,
+  kMsaMinor3R,
+  kMsaMinor3RF,
+  kMsaMinorELM,
+  kMsaMinorVEC,
+  kMsaMinor2R,
+  kMsaMinor2RF,
+  kMsaMinorMI10
 };
 
 // ----- Emulated conditions.
@@ -1014,6 +1317,62 @@ class InstructionBase {
   // Get the encoding type of the instruction.
   inline Type InstructionType() const;
 
+  inline MSAMinorOpcode MSAMinorOpcodeField() const {
+    int op = this->FunctionFieldRaw();
+    switch (op) {
+      case 0:
+      case 1:
+      case 2:
+        return kMsaMinorI8;
+      case 6:
+        return kMsaMinorI5;
+      case 7:
+        return (((this->InstructionBits() & kMsaI5I10Mask) == LDI)
+                    ? kMsaMinorI10
+                    : kMsaMinorI5);
+      case 9:
+      case 10:
+        return kMsaMinorBIT;
+      case 13:
+      case 14:
+      case 15:
+      case 16:
+      case 17:
+      case 18:
+      case 19:
+      case 20:
+      case 21:
+        return kMsaMinor3R;
+      case 25:
+        return kMsaMinorELM;
+      case 26:
+      case 27:
+      case 28:
+        return kMsaMinor3RF;
+      case 30:
+        switch (this->RsFieldRawNoAssert()) {
+          case MSA_2R_FORMAT:
+            return kMsaMinor2R;
+          case MSA_2RF_FORMAT:
+            return kMsaMinor2RF;
+          default:
+            return kMsaMinorVEC;
+        }
+        break;
+      case 32:
+      case 33:
+      case 34:
+      case 35:
+      case 36:
+      case 37:
+      case 38:
+      case 39:
+        return kMsaMinorMI10;
+      default:
+        return kMsaMinorUndefined;
+    }
+  }
+
  protected:
   InstructionBase() {}
 };
@@ -1068,6 +1427,18 @@ class InstructionGetters : public T {
 
   inline int FrValue() const {
     return this->Bits(kFrShift + kFrBits - 1, kFrShift);
+  }
+
+  inline int WdValue() const {
+    return this->Bits(kWdShift + kWdBits - 1, kWdShift);
+  }
+
+  inline int WsValue() const {
+    return this->Bits(kWsShift + kWsBits - 1, kWsShift);
+  }
+
+  inline int WtValue() const {
+    return this->Bits(kWtShift + kWtBits - 1, kWtShift);
   }
 
   inline int Bp2Value() const {
@@ -1177,6 +1548,68 @@ class InstructionGetters : public T {
     return this->Bits(kImm26Shift + kImm26Bits - 1, kImm26Shift);
   }
 
+  inline int32_t MsaImm8Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kMsaImm8Shift + kMsaImm8Bits - 1, kMsaImm8Shift);
+  }
+
+  inline int32_t MsaImm5Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kMsaImm5Shift + kMsaImm5Bits - 1, kMsaImm5Shift);
+  }
+
+  inline int32_t MsaImm10Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kMsaImm10Shift + kMsaImm10Bits - 1, kMsaImm10Shift);
+  }
+
+  inline int32_t MsaImmMI10Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kMsaImmMI10Shift + kMsaImmMI10Bits - 1, kMsaImmMI10Shift);
+  }
+
+  inline int32_t MsaBitDf() const {
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    int32_t df_m = this->Bits(22, 16);
+    if (((df_m >> 6) & 1U) == 0) {
+      return 3;
+    } else if (((df_m >> 5) & 3U) == 2) {
+      return 2;
+    } else if (((df_m >> 4) & 7U) == 6) {
+      return 1;
+    } else if (((df_m >> 3) & 15U) == 14) {
+      return 0;
+    } else {
+      return -1;
+    }
+  }
+
+  inline int32_t MsaBitMValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(16 + this->MsaBitDf() + 3, 16);
+  }
+
+  inline int32_t MsaElmDf() const {
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    int32_t df_n = this->Bits(21, 16);
+    if (((df_n >> 4) & 3U) == 0) {
+      return 0;
+    } else if (((df_n >> 3) & 7U) == 4) {
+      return 1;
+    } else if (((df_n >> 2) & 15U) == 12) {
+      return 2;
+    } else if (((df_n >> 1) & 31U) == 28) {
+      return 3;
+    } else {
+      return -1;
+    }
+  }
+
+  inline int32_t MsaElmNValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(16 + 4 - this->MsaElmDf(), 16);
+  }
+
   static bool IsForbiddenAfterBranchInstr(Instr instr);
 
   // Say if the instruction should not be used in a branch delay slot or
@@ -1193,6 +1626,33 @@ class InstructionGetters : public T {
   bool IsLinkingInstruction() const;
   // Say if the instruction is a break or a trap.
   bool IsTrap() const;
+
+  inline bool IsMSABranchInstr() const {
+    if (this->OpcodeFieldRaw() == COP1) {
+      switch (this->RsFieldRaw()) {
+        case BZ_V:
+        case BZ_B:
+        case BZ_H:
+        case BZ_W:
+        case BZ_D:
+        case BNZ_V:
+        case BNZ_B:
+        case BNZ_H:
+        case BNZ_W:
+        case BNZ_D:
+          return true;
+        default:
+          return false;
+      }
+    }
+    return false;
+  }
+
+  inline bool IsMSAInstr() const {
+    if (this->IsMSABranchInstr() || (this->OpcodeFieldRaw() == MSA))
+      return true;
+    return false;
+  }
 };
 
 class Instruction : public InstructionGetters<InstructionBase> {
@@ -1295,6 +1755,18 @@ InstructionBase::Type InstructionBase::InstructionType() const {
         case BC1EQZ:
         case BC1NEZ:
           return kImmediateType;
+        // MSA Branch instructions
+        case BZ_V:
+        case BNZ_V:
+        case BZ_B:
+        case BZ_H:
+        case BZ_W:
+        case BZ_D:
+        case BNZ_B:
+        case BNZ_H:
+        case BNZ_W:
+        case BNZ_D:
+          return kImmediateType;
         default:
           return kRegisterType;
       }
@@ -1306,6 +1778,18 @@ InstructionBase::Type InstructionBase::InstructionType() const {
     case J:
     case JAL:
       return kJumpType;
+
+    case MSA:
+      switch (MSAMinorOpcodeField()) {
+        case kMsaMinor3R:
+        case kMsaMinor3RF:
+        case kMsaMinorVEC:
+        case kMsaMinor2R:
+        case kMsaMinor2RF:
+          return kRegisterType;
+        default:
+          return kImmediateType;
+      }
 
     default:
       return kImmediateType;

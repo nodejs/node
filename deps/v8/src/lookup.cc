@@ -108,7 +108,7 @@ template <bool is_element>
 void LookupIterator::RestartInternal(InterceptorState interceptor_state) {
   interceptor_state_ = interceptor_state;
   property_details_ = PropertyDetails::Empty();
-  number_ = DescriptorArray::kNotFound;
+  number_ = static_cast<uint32_t>(DescriptorArray::kNotFound);
   Start<is_element>();
 }
 
@@ -252,7 +252,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 
   if (old_map.is_identical_to(new_map)) {
     // Update the property details if the representation was None.
-    if (representation().IsNone()) {
+    if (constness() != new_constness || representation().IsNone()) {
       property_details_ =
           new_map->instance_descriptors()->GetDetails(descriptor_number());
     }
@@ -286,7 +286,9 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
                                           kMutable, value);
     JSObject::MigrateToMap(holder, new_map);
     ReloadPropertyInformation<false>();
-  } else {
+  }
+
+  if (!IsElement() && !holder->HasFastProperties()) {
     PropertyDetails details(kData, attributes, 0, PropertyCellType::kMutable);
     if (holder->IsJSGlobalObject()) {
       Handle<GlobalDictionary> dictionary(holder->global_dictionary());
@@ -762,7 +764,9 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
 template <bool is_element>
 bool LookupIterator::SkipInterceptor(JSObject* holder) {
   auto info = GetInterceptor<is_element>(holder);
-  // TODO(dcarney): check for symbol/can_intercept_symbols here as well.
+  if (!is_element && name_->IsSymbol() && !info->can_intercept_symbols()) {
+    return true;
+  }
   if (info->non_masking()) {
     switch (interceptor_state_) {
       case InterceptorState::kUninitialized:

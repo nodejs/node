@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Tests that Runtime.evaluate will generate correct previews.");
+InspectorTest.log("Tests that Runtime.evaluate will generate correct previews.");
 
 InspectorTest.addScript(
 `
@@ -43,7 +43,29 @@ var inheritingObj = {};
 var inheritingArr = [];
 inheritingObj.prototype = obj;
 inheritingArr.prototype = arr;
+
+var shortTypedArray = new Uint8Array(3);
+var longTypedArray = new Uint8Array(500001);
+var set = new Set([1, 2, 3]);
+var bigSet = new Set();
+var mixedSet = new Set();
+for (var i = 0; i < 10; i++) {
+  bigSet.add(i);
+  mixedSet["_prop_" + i] = 1;
+  mixedSet.add(i);
+}
+
+var deterministicNativeFunction = Math.log;
+var parentObj = {};
+Object.defineProperty(parentObj, 'propNotNamedProto', {
+  get: deterministicNativeFunction,
+  set: function() {}
+});
+var objInheritsGetterProperty = {__proto__: parentObj};
+allowAccessorFormatting(objInheritsGetterProperty);
 `);
+
+InspectorTest.setupInjectedScriptEnvironment();
 
 InspectorTest.runTestSuite([
   function testObjectPropertiesPreview(next)
@@ -70,6 +92,55 @@ InspectorTest.runTestSuite([
   function testInheritingArrayPropertiesPreview(next)
   {
     Protocol.Runtime.evaluate({ "expression": "inheritingArr", "generatePreview": true })
+        .then(result => InspectorTest.logMessage(result.result.result.preview))
+        .then(next);
+  },
+
+  function testShortTypedArrayPropertiesPreview(next)
+  {
+    Protocol.Runtime.evaluate({ "expression": "shortTypedArray", "generatePreview": true })
+        .then(result => InspectorTest.logMessage(result.result.result.preview))
+        .then(next);
+  },
+
+  function testLongTypedArrayPropertiesPreview(next)
+  {
+    Protocol.Runtime.evaluate({ "expression": "longTypedArray", "generatePreview": true })
+        .then(result => InspectorTest.logMessage(result.result.result.preview))
+        .then(next);
+  },
+
+  function testSetPropertiesPreview(next)
+  {
+    Protocol.Runtime.evaluate({ "expression": "set", "generatePreview": true })
+        .then(result => InspectorTest.logMessage(result.result.result.preview))
+        .then(next);
+  },
+
+  function testBigSetPropertiesPreview(next)
+  {
+    Protocol.Runtime.evaluate({ "expression": "bigSet", "generatePreview": true })
+        .then(result => InspectorTest.logMessage(result.result.result.preview))
+        .then(next);
+  },
+
+  function testMixedSetPropertiesPreview(next)
+  {
+    Protocol.Runtime.evaluate({ "expression": "mixedSet", "generatePreview": true })
+        .then(result => InspectorTest.logMessage(result.result.result.preview))
+        .then(next);
+  },
+
+  function testObjInheritsGetterProperty(next)
+  {
+    Protocol.Runtime.evaluate({ "expression": "objInheritsGetterProperty", "generatePreview": true })
+        .then(result => InspectorTest.logMessage(result.result.result.preview))
+        .then(next);
+  },
+
+  function testObjWithArrayAsProto(next)
+  {
+    Protocol.Runtime.evaluate({ "expression": "Object.create([1,2])", "generatePreview": true })
         .then(result => InspectorTest.logMessage(result.result.result.preview))
         .then(next);
   }

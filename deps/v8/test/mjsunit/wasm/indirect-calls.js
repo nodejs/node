@@ -74,7 +74,7 @@ module = (function () {
       kExprCallIndirect, sig_i_ii, kTableZero
     ])
     .exportFunc();
-  builder.appendToTable([mul.index, add.index, popcnt.index, main.index]);
+  builder.appendToTable([mul, add.index, popcnt.index, main.index]);
 
   return builder.instantiate({q: {mul: function(a, b) { return a * b | 0; }}});
 })();

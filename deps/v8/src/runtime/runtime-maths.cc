@@ -41,10 +41,18 @@ RUNTIME_FUNCTION(Runtime_GenerateRandomNumbers) {
     cache = Handle<FixedDoubleArray>::cast(
         isolate->factory()->NewFixedDoubleArray(kCacheSize, TENURED));
     native_context->set_math_random_cache(*cache);
-    // Initialize state if not yet initialized.
-    while (state0 == 0 || state1 == 0) {
-      isolate->random_number_generator()->NextBytes(&state0, sizeof(state0));
-      isolate->random_number_generator()->NextBytes(&state1, sizeof(state1));
+    // Initialize state if not yet initialized. If a fixed random seed was
+    // requested, use it to reset our state the first time a script asks for
+    // random numbers in this context. This ensures the script sees a consistent
+    // sequence.
+    if (FLAG_random_seed != 0) {
+      state0 = FLAG_random_seed;
+      state1 = FLAG_random_seed;
+    } else {
+      while (state0 == 0 || state1 == 0) {
+        isolate->random_number_generator()->NextBytes(&state0, sizeof(state0));
+        isolate->random_number_generator()->NextBytes(&state1, sizeof(state1));
+      }
     }
   }
 

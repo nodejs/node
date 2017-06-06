@@ -167,6 +167,9 @@ DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
   HandleScopeData* data = impl_->isolate()->handle_scope_data();
   Object** new_next = impl_->GetSpareOrNewBlock();
   Object** new_limit = &new_next[kHandleBlockSize];
+  // Check that at least one HandleScope exists, see the class description.
+  DCHECK(!impl_->blocks()->is_empty());
+  // Check that we are not in a SealedHandleScope.
   DCHECK(data->limit == &impl_->blocks()->last()[kHandleBlockSize]);
   impl_->blocks()->Add(new_next);
 

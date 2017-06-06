@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks async instrumentation enabled in the middle.');
+InspectorTest.log('Checks async instrumentation enabled in the middle.');
 
 InspectorTest.addScript(`
 function foo() {

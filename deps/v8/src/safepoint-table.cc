@@ -4,6 +4,7 @@
 
 #include "src/safepoint-table.h"
 
+#include "src/assembler-inl.h"
 #include "src/deoptimizer.h"
 #include "src/disasm.h"
 #include "src/frames-inl.h"

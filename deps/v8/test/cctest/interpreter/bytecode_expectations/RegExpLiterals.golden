@@ -56,7 +56,7 @@ bytecodes: [
                 B(Star), R(0),
                 B(LdaConstant), U8(2),
                 B(Star), R(2),
-  /*   48 E> */ B(CallProperty), R(0), R(1), U8(2), U8(2),
+  /*   48 E> */ B(CallProperty1), R(0), R(1), R(2), U8(2),
   /*   62 S> */ B(Return),
 ]
 constant pool: [

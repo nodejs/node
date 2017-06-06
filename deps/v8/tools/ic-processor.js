@@ -36,7 +36,7 @@ function IcProcessor() {
                           null, null, null];
   LogReader.call(this, {
       'code-creation': {
-          parsers: [null, parseInt, parseInt, parseInt, null, 'var-args'],
+          parsers: [null, parseInt, parseInt, parseInt, parseInt, null, 'var-args'],
           processor: this.processCodeCreation },
       'code-move': { parsers: [parseInt, parseInt],
           processor: this.processCodeMove },
@@ -92,8 +92,25 @@ IcProcessor.prototype.printError = function(str) {
   print(str);
 };
 
+IcProcessor.prototype.processString = function(string) {
+  var end = string.length;
+  var current = 0;
+  var next = 0;
+  var line;
+  var i = 0;
+  var entry;
+  while (current < end) {
+    next = string.indexOf("\n", current);
+    if (next === -1) break;
+    i++;
+    line = string.substring(current, next);
+    current = next + 1;
+    this.processLogLine(line);
+  }
+}
 
 IcProcessor.prototype.processLogFile = function(fileName) {
+  this.collectEntries = true
   this.lastLogFileName_ = fileName;
   var line;
   while (line = readline()) {
@@ -111,16 +128,22 @@ IcProcessor.prototype.processLogFile = function(fileName) {
   print("PatchIC: " + this.PatchIC);
 };
 
+IcProcessor.prototype.addEntry = function(entry) {
+  this.entries.push(entry);
+}
 
 IcProcessor.prototype.processCodeCreation = function(
-    type, kind, start, size, name, maybe_func) {
+    type, kind, timestamp, start, size, name, maybe_func) {
   name = this.deserializedEntriesNames_[start] || name;
+  if (name.startsWith("onComplete")) {
+    console.log(name);
+  }
   if (maybe_func.length) {
     var funcAddr = parseInt(maybe_func[0]);
     var state = parseState(maybe_func[1]);
-    this.profile_.addFuncCode(type, name, start, size, funcAddr, state);
+    this.profile_.addFuncCode(type, name, timestamp, start, size, funcAddr, state);
   } else {
-    this.profile_.addCode(type, name, start, size);
+    this.profile_.addCode(type, name, timestamp, start, size);
   }
 };
 

@@ -56,6 +56,12 @@ const Register MathPowIntegerDescriptor::exponent() {
   return MathPowTaggedDescriptor::exponent();
 }
 
+const Register RegExpExecDescriptor::StringRegister() { return r2; }
+const Register RegExpExecDescriptor::LastIndexRegister() { return r3; }
+const Register RegExpExecDescriptor::StringStartRegister() { return r4; }
+const Register RegExpExecDescriptor::StringEndRegister() { return r5; }
+const Register RegExpExecDescriptor::CodeRegister() { return r9; }
+
 const Register GrowArrayElementsDescriptor::ObjectRegister() { return r2; }
 const Register GrowArrayElementsDescriptor::KeyRegister() { return r5; }
 
@@ -263,30 +269,6 @@ void StringAddDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void KeyedDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      r4,  // key
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void NamedDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      r4,  // name
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void CallHandlerDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {
-      r2,  // receiver
-  };
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
@@ -317,7 +299,7 @@ void InterpreterDispatchDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void InterpreterPushArgsAndCallDescriptor::InitializePlatformSpecific(
+void InterpreterPushArgsThenCallDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       r2,  // argument count (not including receiver)
@@ -327,7 +309,7 @@ void InterpreterPushArgsAndCallDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void InterpreterPushArgsAndConstructDescriptor::InitializePlatformSpecific(
+void InterpreterPushArgsThenConstructDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       r2,  // argument count (not including receiver)
@@ -339,8 +321,8 @@ void InterpreterPushArgsAndConstructDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void InterpreterPushArgsAndConstructArrayDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
+void InterpreterPushArgsThenConstructArrayDescriptor::
+    InitializePlatformSpecific(CallInterfaceDescriptorData* data) {
   Register registers[] = {
       r2,  // argument count (not including receiver)
       r3,  // target to call checked to be Array function
@@ -365,7 +347,8 @@ void ResumeGeneratorDescriptor::InitializePlatformSpecific(
   Register registers[] = {
       r2,  // the value to pass to the generator
       r3,  // the JSGeneratorObject to resume
-      r4   // the resume mode (tagged)
+      r4,  // the resume mode (tagged)
+      r5   // SuspendFlags (tagged)
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

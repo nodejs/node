@@ -8,6 +8,16 @@ function assertUndef(x) {
 }
 
 
+// ClassDeclaration
+
+assertUndef(eval('class C {}'));
+assertUndef(eval('class C {m() {}}'));
+assertUndef(eval('class C extends null {}'));
+assertEquals(42, eval('42; class C {}'));
+assertEquals(42, eval('42; class C {m() {}}'));
+assertEquals(42, eval('42; class C extends null {}'));
+
+
 // IfStatement [13.6.7]
 
 assertUndef(eval('42; if (true) ; else 0;'));  // ES5: 42

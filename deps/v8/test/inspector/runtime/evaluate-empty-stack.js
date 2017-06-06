@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Tests that Runtime.evaluate works with an empty stack");
+InspectorTest.log("Tests that Runtime.evaluate works with an empty stack");
 
 InspectorTest.addScript("var text = [48116210, 34460128, 1406661984071834]");
 

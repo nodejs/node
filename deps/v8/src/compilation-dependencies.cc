@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-DependentCode* CompilationDependencies::Get(Handle<Object> object) {
+DependentCode* CompilationDependencies::Get(Handle<Object> object) const {
   if (object->IsMap()) {
     return Handle<Map>::cast(object)->dependent_code();
   } else if (object->IsPropertyCell()) {

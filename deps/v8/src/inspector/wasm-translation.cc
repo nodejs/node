@@ -123,16 +123,18 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
     }
 
     int found_byte_offset = 0;
-    // If we found an exact match, use it. Otherwise check whether the next
-    // bigger entry is still in the same line. Report that one then.
-    // Otherwise we might have hit the special case of pointing after the last
-    // line, which is translated to the end of the function (one byte after the
-    // last function byte).
+    // [left] is <= <line,column>, or left==0 and [0] > <line,column>.
+    // We are searching for the smallest entry >= <line,column> which is still
+    // on the same line. This must be either [left] or [left + 1].
+    // If we don't find such an entry, we might have hit the special case of
+    // pointing after the last line, which is translated to the end of the
+    // function (one byte after the last function byte).
     if ((*reverse_table)[left].line == loc->line &&
-        (*reverse_table)[left].column == loc->column) {
+        (*reverse_table)[left].column >= loc->column) {
       found_byte_offset = (*reverse_table)[left].byte_offset;
     } else if (left + 1 < reverse_table->size() &&
-               (*reverse_table)[left + 1].line == loc->line) {
+               (*reverse_table)[left + 1].line == loc->line &&
+               (*reverse_table)[left + 1].column >= loc->column) {
       found_byte_offset = (*reverse_table)[left + 1].byte_offset;
     } else if (left == reverse_table->size() - 1 &&
                (*reverse_table)[left].line == loc->line - 1 &&

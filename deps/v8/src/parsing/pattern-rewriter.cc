@@ -744,6 +744,7 @@ NOT_A_PATTERN(FunctionDeclaration)
 NOT_A_PATTERN(FunctionLiteral)
 NOT_A_PATTERN(GetIterator)
 NOT_A_PATTERN(IfStatement)
+NOT_A_PATTERN(ImportCallExpression)
 NOT_A_PATTERN(Literal)
 NOT_A_PATTERN(NativeFunctionLiteral)
 NOT_A_PATTERN(RegExpLiteral)
@@ -761,7 +762,7 @@ NOT_A_PATTERN(UnaryOperation)
 NOT_A_PATTERN(VariableDeclaration)
 NOT_A_PATTERN(WhileStatement)
 NOT_A_PATTERN(WithStatement)
-NOT_A_PATTERN(Yield)
+NOT_A_PATTERN(Suspend)
 
 #undef NOT_A_PATTERN
 }  // namespace internal

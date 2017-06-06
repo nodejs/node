@@ -314,6 +314,9 @@ void TestRegExpParser(bool lookbehind) {
   CheckParseEq("\\u0034", "'\x34'");
   CheckParseEq("\\u003z", "'u003z'");
   CheckParseEq("foo[z]*", "(: 'foo' (# 0 - g [z]))");
+  CheckParseEq("^^^$$$\\b\\b\\b\\b", "(: @^i @$i @b)");
+  CheckParseEq("\\b\\b\\b\\b\\B\\B\\B\\B\\b\\b\\b\\b", "(: @b @B @b)");
+  CheckParseEq("\\b\\B\\b", "(: @b @B @b)");
 
   // Unicode regexps
   CheckParseEq("\\u{12345}", "'\\ud808\\udf45'", true);

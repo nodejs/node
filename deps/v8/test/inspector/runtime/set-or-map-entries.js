@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Test that Runtime.getProperties doesn't truncate set and map entries in internalProperties.")
+InspectorTest.log("Test that Runtime.getProperties doesn't truncate set and map entries in internalProperties.")
 
 InspectorTest.addScript(`
   function createSet(size) {
@@ -21,6 +21,8 @@ InspectorTest.addScript(`
     return m;
   }
 `);
+
+InspectorTest.setupInjectedScriptEnvironment();
 
 Protocol.Debugger.enable();
 Protocol.Runtime.enable();

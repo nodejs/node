@@ -41,6 +41,7 @@ namespace compiler {
   V(Word32Shl)                            \
   V(IntAdd)                               \
   V(IntSub)                               \
+  V(IntLessThan)                          \
   V(UintLessThan)                         \
   V(Int32Add)                             \
   V(Int32Sub)                             \
@@ -243,6 +244,8 @@ class GraphAssembler {
   Node* HeapConstant(Handle<HeapObject> object);
   Node* CEntryStubConstant(int result_size);
   Node* ExternalConstant(ExternalReference ref);
+
+  Node* LoadFramePointer();
 
 #define SINGLETON_CONST_DECL(Name) Node* Name();
   JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DECL)

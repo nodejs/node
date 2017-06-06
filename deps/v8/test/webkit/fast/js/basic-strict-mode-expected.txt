@@ -110,8 +110,8 @@ PASS (function (){'misc directive'; 'use strict'; with({}){}}) threw exception S
 PASS 'use strict'; return threw exception SyntaxError: Illegal return statement.
 PASS 'use strict'; break threw exception SyntaxError: Illegal break statement.
 PASS (function (){'use strict'; break}) threw exception SyntaxError: Illegal break statement.
-PASS 'use strict'; continue threw exception SyntaxError: Illegal continue statement.
-PASS (function (){'use strict'; continue}) threw exception SyntaxError: Illegal continue statement.
+PASS 'use strict'; continue threw exception SyntaxError: Illegal continue statement: no surrounding iteration statement.
+PASS (function (){'use strict'; continue}) threw exception SyntaxError: Illegal continue statement: no surrounding iteration statement.
 PASS 'use strict'; for(;;)return threw exception SyntaxError: Illegal return statement.
 PASS 'use strict'; for(;;)break missingLabel threw exception SyntaxError: Undefined label 'missingLabel'.
 PASS (function (){'use strict'; for(;;)break missingLabel}) threw exception SyntaxError: Undefined label 'missingLabel'.

@@ -354,7 +354,7 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
   V(IfException, Operator::kKontrol, 0, 1, 1, 1, 1, 1)                        \
   V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
-  V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)                              \
+  V(Throw, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                              \
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                          \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)                    \
   V(OsrLoopEntry, Operator::kFoldable | Operator::kNoThrow, 0, 1, 1, 0, 1, 1) \
@@ -1232,11 +1232,24 @@ const Operator* CommonOperatorBuilder::TypedStateValues(
       TypedStateValueInfo(types, bitmask));            // parameters
 }
 
-const Operator* CommonOperatorBuilder::ArgumentsObjectState() {
-  return new (zone()) Operator(                          // --
-      IrOpcode::kArgumentsObjectState, Operator::kPure,  // opcode
-      "ArgumentsObjectState",                            // name
-      0, 0, 0, 1, 0, 0);                                 // counts
+const Operator* CommonOperatorBuilder::ArgumentsElementsState(bool is_rest) {
+  return new (zone()) Operator1<bool>(                     // --
+      IrOpcode::kArgumentsElementsState, Operator::kPure,  // opcode
+      "ArgumentsElementsState",                            // name
+      0, 0, 0, 1, 0, 0, is_rest);                          // counts
+}
+
+const Operator* CommonOperatorBuilder::ArgumentsLengthState(bool is_rest) {
+  return new (zone()) Operator1<bool>(                   // --
+      IrOpcode::kArgumentsLengthState, Operator::kPure,  // opcode
+      "ArgumentsLengthState",                            // name
+      0, 0, 0, 1, 0, 0, is_rest);                        // counts
+}
+
+bool IsRestOf(Operator const* op) {
+  DCHECK(op->opcode() == IrOpcode::kArgumentsElementsState ||
+         op->opcode() == IrOpcode::kArgumentsLengthState);
+  return OpParameter<bool>(op);
 }
 
 const Operator* CommonOperatorBuilder::ObjectState(int pointer_slots) {

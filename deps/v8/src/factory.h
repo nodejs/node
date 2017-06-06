@@ -166,29 +166,6 @@ class V8_EXPORT_PRIVATE Factory final {
         OneByteVector(str), pretenure).ToHandleChecked();
   }
 
-
-  // Allocates and fully initializes a String.  There are two String encodings:
-  // one-byte and two-byte. One should choose between the threestring
-  // allocation functions based on the encoding of the string buffer used to
-  // initialized the string.
-  //   - ...FromOneByte initializes the string from a buffer that is Latin1
-  //     encoded (it does not check that the buffer is Latin1 encoded) and the
-  //     result will be Latin1 encoded.
-  //   - ...FromUTF8 initializes the string from a buffer that is UTF-8
-  //     encoded.  If the characters are all ASCII characters, the result
-  //     will be Latin1 encoded, otherwise it will converted to two-byte.
-  //   - ...FromTwoByte initializes the string from a buffer that is two-byte
-  //     encoded.  If the characters are all Latin1 characters, the
-  //     result will be converted to Latin1, otherwise it will be left as
-  //     two-byte.
-
-  // TODO(dcarney): remove this function.
-  MUST_USE_RESULT inline MaybeHandle<String> NewStringFromAscii(
-      Vector<const char> str,
-      PretenureFlag pretenure = NOT_TENURED) {
-    return NewStringFromOneByte(Vector<const uint8_t>::cast(str), pretenure);
-  }
-
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
   MUST_USE_RESULT MaybeHandle<String> NewStringFromUtf8(
@@ -252,6 +229,10 @@ class V8_EXPORT_PRIVATE Factory final {
   MUST_USE_RESULT MaybeHandle<String> NewConsString(Handle<String> left,
                                                     Handle<String> right);
 
+  MUST_USE_RESULT Handle<String> NewConsString(Handle<String> left,
+                                               Handle<String> right, int length,
+                                               bool one_byte);
+
   // Create or lookup a single characters tring made up of a utf16 surrogate
   // pair.
   Handle<String> NewSurrogatePairString(uint16_t lead, uint16_t trail);
@@ -284,6 +265,9 @@ class V8_EXPORT_PRIVATE Factory final {
   // Create a symbol.
   Handle<Symbol> NewSymbol();
   Handle<Symbol> NewPrivateSymbol();
+
+  // Create a promise.
+  Handle<JSPromise> NewJSPromise();
 
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewNativeContext();
@@ -340,6 +324,7 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Script> NewScript(Handle<String> source);
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
+  Handle<StackFrameInfo> NewStackFrameInfo();
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
@@ -536,6 +521,9 @@ class V8_EXPORT_PRIVATE Factory final {
       SharedFlag shared = SharedFlag::kNotShared,
       PretenureFlag pretenure = NOT_TENURED);
 
+  ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind);
+  size_t GetExternalArrayElementSize(ExternalArrayType type);
+
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type,
                                        PretenureFlag pretenure = NOT_TENURED);
 
@@ -687,7 +675,14 @@ class V8_EXPORT_PRIVATE Factory final {
                                 bool check_number_string_cache = true);
 
   Handle<String> Uint32ToString(uint32_t value) {
-    return NumberToString(NewNumberFromUint(value));
+    Handle<String> result = NumberToString(NewNumberFromUint(value));
+
+    if (result->length() <= String::kMaxArrayIndexSize) {
+      uint32_t field =
+          StringHasher::MakeArrayIndexHash(value, result->length());
+      result->set_hash_field(field);
+    }
+    return result;
   }
 
   Handle<JSFunction> InstallMembers(Handle<JSFunction> function);

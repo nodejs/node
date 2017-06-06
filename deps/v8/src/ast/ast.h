@@ -91,7 +91,7 @@ namespace internal {
   V(Conditional)                \
   V(VariableProxy)              \
   V(Literal)                    \
-  V(Yield)                      \
+  V(Suspend)                    \
   V(Throw)                      \
   V(CallRuntime)                \
   V(UnaryOperation)             \
@@ -105,7 +105,8 @@ namespace internal {
   V(EmptyParentheses)           \
   V(GetIterator)                \
   V(DoExpression)               \
-  V(RewritableExpression)
+  V(RewritableExpression)       \
+  V(ImportCallExpression)
 
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
@@ -563,11 +564,11 @@ class IterationStatement : public BreakableStatement {
   Statement* body() const { return body_; }
   void set_body(Statement* s) { body_ = s; }
 
-  int yield_count() const { return yield_count_; }
-  int first_yield_id() const { return first_yield_id_; }
-  void set_yield_count(int yield_count) { yield_count_ = yield_count; }
-  void set_first_yield_id(int first_yield_id) {
-    first_yield_id_ = first_yield_id;
+  int suspend_count() const { return suspend_count_; }
+  int first_suspend_id() const { return first_suspend_id_; }
+  void set_suspend_count(int suspend_count) { suspend_count_ = suspend_count; }
+  void set_first_suspend_id(int first_suspend_id) {
+    first_suspend_id_ = first_suspend_id;
   }
 
   static int num_ids() { return parent_num_ids() + 1; }
@@ -581,8 +582,8 @@ class IterationStatement : public BreakableStatement {
                      NodeType type)
       : BreakableStatement(labels, TARGET_FOR_ANONYMOUS, pos, type),
         body_(NULL),
-        yield_count_(0),
-        first_yield_id_(0) {}
+        suspend_count_(0),
+        first_suspend_id_(0) {}
   static int parent_num_ids() { return BreakableStatement::num_ids(); }
   void Initialize(Statement* body) { body_ = body; }
 
@@ -594,8 +595,8 @@ class IterationStatement : public BreakableStatement {
 
   Statement* body_;
   Label continue_target_;
-  int yield_count_;
-  int first_yield_id_;
+  int suspend_count_;
+  int first_suspend_id_;
 };
 
 
@@ -1101,7 +1102,6 @@ class TryStatement : public Statement {
 class TryCatchStatement final : public TryStatement {
  public:
   Scope* scope() { return scope_; }
-  Variable* variable() { return variable_; }
   Block* catch_block() const { return catch_block_; }
   void set_catch_block(Block* b) { catch_block_ = b; }
 
@@ -1122,18 +1122,15 @@ class TryCatchStatement final : public TryStatement {
  private:
   friend class AstNodeFactory;
 
-  TryCatchStatement(Block* try_block, Scope* scope, Variable* variable,
-                    Block* catch_block,
+  TryCatchStatement(Block* try_block, Scope* scope, Block* catch_block,
                     HandlerTable::CatchPrediction catch_prediction, int pos)
       : TryStatement(try_block, pos, kTryCatchStatement),
         scope_(scope),
-        variable_(variable),
         catch_block_(catch_block) {
     catch_prediction_ = catch_prediction;
   }
 
   Scope* scope_;
-  Variable* variable_;
   Block* catch_block_;
 };
 
@@ -1203,6 +1200,11 @@ class Literal final : public Expression {
   const AstRawString* AsRawPropertyName() {
     DCHECK(IsPropertyName());
     return value_->AsString();
+  }
+
+  Smi* AsSmiLiteral() {
+    DCHECK(IsSmiLiteral());
+    return raw_value()->AsSmi();
   }
 
   bool ToBooleanIsTrue() const { return raw_value()->BooleanValue(); }
@@ -2138,6 +2140,11 @@ class BinaryOperation final : public Expression {
   TypeFeedbackId BinaryOperationFeedbackId() const {
     return TypeFeedbackId(local_id(1));
   }
+
+  // Returns true if one side is a Smi literal, returning the other side's
+  // sub-expression in |subexpr| and the literal Smi in |literal|.
+  bool IsSmiLiteralOperation(Expression** subexpr, Smi** literal);
+
   Maybe<int> fixed_right_arg() const {
     return has_fixed_right_arg_ ? Just(fixed_right_arg_value_) : Nothing<int>();
   }
@@ -2279,7 +2286,7 @@ class CompareOperation final : public Expression {
   FeedbackSlot CompareOperationFeedbackSlot() const { return feedback_slot_; }
 
   // Match special cases.
-  bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
+  bool IsLiteralCompareTypeof(Expression** expr, Literal** literal);
   bool IsLiteralCompareUndefined(Expression** expr);
   bool IsLiteralCompareNull(Expression** expr);
 
@@ -2493,10 +2500,16 @@ class RewritableExpression final : public Expression {
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
 };
 
+// There are several types of Suspend node:
+//
+// Yield
+// YieldStar
+// Await
+//
 // Our Yield is different from the JS yield in that it "returns" its argument as
 // is, without wrapping it in an iterator result object.  Such wrapping, if
 // desired, must be done beforehand (see the parser).
-class Yield final : public Expression {
+class Suspend final : public Expression {
  public:
   enum OnException { kOnExceptionThrow, kOnExceptionRethrow };
 
@@ -2508,30 +2521,59 @@ class Yield final : public Expression {
   bool rethrow_on_exception() const {
     return on_exception() == kOnExceptionRethrow;
   }
-  int yield_id() const { return yield_id_; }
+
+  int suspend_id() const { return suspend_id_; }
+  SuspendFlags flags() const { return FlagsField::decode(bit_field_); }
+  SuspendFlags suspend_type() const {
+    return flags() & SuspendFlags::kSuspendTypeMask;
+  }
+  SuspendFlags generator_type() const {
+    return flags() & SuspendFlags::kGeneratorTypeMask;
+  }
+  bool is_yield() const { return suspend_type() == SuspendFlags::kYield; }
+  bool is_yield_star() const {
+    return suspend_type() == SuspendFlags::kYieldStar;
+  }
+  bool is_await() const { return suspend_type() == SuspendFlags::kAwait; }
+  bool is_async_generator() const {
+    return generator_type() == SuspendFlags::kAsyncGenerator;
+  }
+  inline bool IsNonInitialAsyncGeneratorYield() const {
+    // Return true if is_async_generator() && !is_await() && yield_id() > 0
+    return suspend_id() > 0 && (flags() & SuspendFlags::kAsyncGeneratorAwait) ==
+                                   SuspendFlags::kAsyncGenerator;
+  }
 
   void set_generator_object(Expression* e) { generator_object_ = e; }
   void set_expression(Expression* e) { expression_ = e; }
-  void set_yield_id(int yield_id) { yield_id_ = yield_id; }
+  void set_suspend_id(int id) { suspend_id_ = id; }
+  void set_suspend_type(SuspendFlags type) {
+    DCHECK_EQ(0, static_cast<int>(type & ~SuspendFlags::kSuspendTypeMask));
+    bit_field_ = FlagsField::update(bit_field_, type);
+  }
 
  private:
   friend class AstNodeFactory;
 
-  Yield(Expression* generator_object, Expression* expression, int pos,
-        OnException on_exception)
-      : Expression(pos, kYield),
-        yield_id_(-1),
+  Suspend(Expression* generator_object, Expression* expression, int pos,
+          OnException on_exception, SuspendFlags flags)
+      : Expression(pos, kSuspend),
+        suspend_id_(-1),
         generator_object_(generator_object),
         expression_(expression) {
-    bit_field_ |= OnExceptionField::encode(on_exception);
+    bit_field_ |=
+        OnExceptionField::encode(on_exception) | FlagsField::encode(flags);
   }
 
-  int yield_id_;
+  int suspend_id_;
   Expression* generator_object_;
   Expression* expression_;
 
   class OnExceptionField
       : public BitField<OnException, Expression::kNextBitFieldIndex, 1> {};
+  class FlagsField
+      : public BitField<SuspendFlags, OnExceptionField::kNext,
+                        static_cast<int>(SuspendFlags::kBitWidth)> {};
 };
 
 
@@ -2566,8 +2608,8 @@ class FunctionLiteral final : public Expression {
   enum EagerCompileHint { kShouldEagerCompile, kShouldLazyCompile };
 
   Handle<String> name() const { return raw_name_->string(); }
-  const AstString* raw_name() const { return raw_name_; }
-  void set_raw_name(const AstString* name) { raw_name_ = name; }
+  const AstConsString* raw_name() const { return raw_name_; }
+  void set_raw_name(const AstConsString* name) { raw_name_ = name; }
   DeclarationScope* scope() const { return scope_; }
   ZoneList<Statement*>* body() const { return body_; }
   void set_function_token_position(int pos) { function_token_position_ = pos; }
@@ -2593,7 +2635,11 @@ class FunctionLiteral final : public Expression {
 
   static bool NeedsHomeObject(Expression* expr);
 
-  int expected_property_count() { return expected_property_count_; }
+  int expected_property_count() {
+    // Not valid for lazy functions.
+    DCHECK_NOT_NULL(body_);
+    return expected_property_count_;
+  }
   int parameter_count() { return parameter_count_; }
   int function_length() { return function_length_; }
 
@@ -2626,7 +2672,7 @@ class FunctionLiteral final : public Expression {
     raw_inferred_name_ = NULL;
   }
 
-  void set_raw_inferred_name(const AstString* raw_inferred_name) {
+  void set_raw_inferred_name(const AstConsString* raw_inferred_name) {
     DCHECK(raw_inferred_name != NULL);
     raw_inferred_name_ = raw_inferred_name;
     DCHECK(inferred_name_.is_null());
@@ -2637,6 +2683,8 @@ class FunctionLiteral final : public Expression {
   void set_pretenure() { bit_field_ = Pretenure::update(bit_field_, true); }
 
   bool has_duplicate_parameters() const {
+    // Not valid for lazy functions.
+    DCHECK_NOT_NULL(body_);
     return HasDuplicateParameters::decode(bit_field_);
   }
 
@@ -2682,8 +2730,8 @@ class FunctionLiteral final : public Expression {
     return is_anonymous_expression();
   }
 
-  int yield_count() { return yield_count_; }
-  void set_yield_count(int yield_count) { yield_count_ = yield_count; }
+  int suspend_count() { return suspend_count_; }
+  void set_suspend_count(int suspend_count) { suspend_count_ = suspend_count; }
 
   int return_position() {
     return std::max(start_position(), end_position() - (has_braces_ ? 1 : 0));
@@ -2697,7 +2745,7 @@ class FunctionLiteral final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  FunctionLiteral(Zone* zone, const AstString* name,
+  FunctionLiteral(Zone* zone, const AstRawString* name,
                   AstValueFactory* ast_value_factory, DeclarationScope* scope,
                   ZoneList<Statement*>* body, int expected_property_count,
                   int parameter_count, int function_length,
@@ -2710,12 +2758,12 @@ class FunctionLiteral final : public Expression {
         parameter_count_(parameter_count),
         function_length_(function_length),
         function_token_position_(kNoSourcePosition),
-        yield_count_(0),
+        suspend_count_(0),
         has_braces_(has_braces),
-        raw_name_(name),
+        raw_name_(ast_value_factory->NewConsString(name)),
         scope_(scope),
         body_(body),
-        raw_inferred_name_(ast_value_factory->empty_string()),
+        raw_inferred_name_(ast_value_factory->empty_cons_string()),
         ast_properties_(zone),
         function_literal_id_(function_literal_id) {
     bit_field_ |= FunctionTypeBits::encode(function_type) |
@@ -2725,6 +2773,7 @@ class FunctionLiteral final : public Expression {
                   ShouldNotBeUsedOnceHintField::encode(false) |
                   DontOptimizeReasonField::encode(kNoReason);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
+    DCHECK_EQ(body == nullptr, expected_property_count < 0);
   }
 
   class FunctionTypeBits
@@ -2741,13 +2790,13 @@ class FunctionLiteral final : public Expression {
   int parameter_count_;
   int function_length_;
   int function_token_position_;
-  int yield_count_;
+  int suspend_count_;
   bool has_braces_;
 
-  const AstString* raw_name_;
+  const AstConsString* raw_name_;
   DeclarationScope* scope_;
   ZoneList<Statement*>* body_;
-  const AstString* raw_inferred_name_;
+  const AstConsString* raw_inferred_name_;
   Handle<String> inferred_name_;
   AstProperties ast_properties_;
   int function_literal_id_;
@@ -2925,6 +2974,21 @@ class SuperCallReference final : public Expression {
   VariableProxy* this_function_var_;
 };
 
+// This AST Node is used to represent a dynamic import call --
+// import(argument).
+class ImportCallExpression final : public Expression {
+ public:
+  Expression* argument() const { return argument_; }
+  void set_argument(Expression* argument) { argument_ = argument; }
+
+ private:
+  friend class AstNodeFactory;
+
+  ImportCallExpression(Expression* argument, int pos)
+      : Expression(pos, kImportCallExpression), argument_(argument) {}
+
+  Expression* argument_;
+};
 
 // This class is produced when parsing the () in arrow functions without any
 // arguments and is not actually a valid expression.
@@ -3245,38 +3309,33 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   TryCatchStatement* NewTryCatchStatement(Block* try_block, Scope* scope,
-                                          Variable* variable,
                                           Block* catch_block, int pos) {
-    return new (zone_) TryCatchStatement(
-        try_block, scope, variable, catch_block, HandlerTable::CAUGHT, pos);
+    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
+                                         HandlerTable::CAUGHT, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForReThrow(Block* try_block,
                                                     Scope* scope,
-                                                    Variable* variable,
                                                     Block* catch_block,
                                                     int pos) {
-    return new (zone_) TryCatchStatement(
-        try_block, scope, variable, catch_block, HandlerTable::UNCAUGHT, pos);
+    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
+                                         HandlerTable::UNCAUGHT, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForDesugaring(Block* try_block,
                                                        Scope* scope,
-                                                       Variable* variable,
                                                        Block* catch_block,
                                                        int pos) {
-    return new (zone_) TryCatchStatement(
-        try_block, scope, variable, catch_block, HandlerTable::DESUGARING, pos);
+    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
+                                         HandlerTable::DESUGARING, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForAsyncAwait(Block* try_block,
                                                        Scope* scope,
-                                                       Variable* variable,
                                                        Block* catch_block,
                                                        int pos) {
-    return new (zone_)
-        TryCatchStatement(try_block, scope, variable, catch_block,
-                          HandlerTable::ASYNC_AWAIT, pos);
+    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
+                                         HandlerTable::ASYNC_AWAIT, pos);
   }
 
   TryFinallyStatement* NewTryFinallyStatement(Block* try_block,
@@ -3481,10 +3540,12 @@ class AstNodeFactory final BASE_EMBEDDED {
     return assign;
   }
 
-  Yield* NewYield(Expression* generator_object, Expression* expression, int pos,
-                  Yield::OnException on_exception) {
+  Suspend* NewSuspend(Expression* generator_object, Expression* expression,
+                      int pos, Suspend::OnException on_exception,
+                      SuspendFlags flags) {
     if (!expression) expression = NewUndefinedLiteral(pos);
-    return new (zone_) Yield(generator_object, expression, pos, on_exception);
+    return new (zone_)
+        Suspend(generator_object, expression, pos, on_exception, flags);
   }
 
   Throw* NewThrow(Expression* exception, int pos) {
@@ -3576,6 +3637,10 @@ class AstNodeFactory final BASE_EMBEDDED {
   GetIterator* NewGetIterator(Expression* iterable, IteratorType hint,
                               int pos) {
     return new (zone_) GetIterator(iterable, hint, pos);
+  }
+
+  ImportCallExpression* NewImportCallExpression(Expression* args, int pos) {
+    return new (zone_) ImportCallExpression(args, pos);
   }
 
   Zone* zone() const { return zone_; }
