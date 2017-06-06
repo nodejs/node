@@ -380,6 +380,58 @@ class JsonTestProgressIndicator(ProgressIndicator):
     })
 
 
+class FlakinessTestProgressIndicator(ProgressIndicator):
+
+  def __init__(self, json_test_results):
+    self.json_test_results = json_test_results
+    self.results = {}
+    self.summary = {
+      "PASS": 0,
+      "FAIL": 0,
+      "CRASH": 0,
+      "TIMEOUT": 0,
+    }
+    self.seconds_since_epoch = time.time()
+
+  def Done(self):
+    with open(self.json_test_results, "w") as f:
+      json.dump({
+        "interrupted": False,
+        "num_failures_by_type": self.summary,
+        "path_delimiter": "/",
+        "seconds_since_epoch": self.seconds_since_epoch,
+        "tests": self.results,
+        "version": 3,
+      }, f)
+
+  def HasRun(self, test, has_unexpected_output):
+    key = "/".join(
+        sorted(flag.lstrip("-")
+               for flag in self.runner.context.extra_flags + test.flags) +
+        ["test", test.GetLabel()],
+    )
+    outcome = test.suite.GetOutcome(test)
+    assert outcome in ["PASS", "FAIL", "CRASH", "TIMEOUT"]
+    if test.run == 1:
+      # First run of this test.
+      expected_outcomes = ([
+        expected
+        for expected in (test.outcomes or ["PASS"])
+        if expected in ["PASS", "FAIL", "CRASH", "TIMEOUT"]
+      ] or ["PASS"])
+      self.results[key] = {
+        "actual": outcome,
+        "expected": " ".join(expected_outcomes),
+        "times": [test.duration],
+      }
+      self.summary[outcome] = self.summary[outcome] + 1
+    else:
+      # This is a rerun and a previous result exists.
+      result = self.results[key]
+      result["actual"] = "%s %s" % (result["actual"], outcome)
+      result["times"].append(test.duration)
+
+
 PROGRESS_INDICATORS = {
   'verbose': VerboseProgressIndicator,
   'dots': DotsProgressIndicator,

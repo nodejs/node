@@ -13,6 +13,8 @@ bool InstructionScheduler::SchedulerSupported() { return true; }
 int InstructionScheduler::GetTargetInstructionFlags(
     const Instruction* instr) const {
   switch (instr->arch_opcode()) {
+    case kS390_Abs32:
+    case kS390_Abs64:
     case kS390_And32:
     case kS390_And64:
     case kS390_Or32:

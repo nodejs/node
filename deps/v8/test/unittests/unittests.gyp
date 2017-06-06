@@ -10,9 +10,11 @@
     'unittests_sources': [  ### gcmole(all) ###
       'api/access-check-unittest.cc',
       'api/exception-unittest.cc',
+      'api/interceptor-unittest.cc',
       'api/isolate-unittest.cc',
       'api/remote-object-unittest.cc',
       'api/v8-object-unittest.cc',
+      'asmjs/asm-scanner-unittest.cc',
       'base/atomic-utils-unittest.cc',
       'base/bits-unittest.cc',
       'base/cpu-unittest.cc',
@@ -101,10 +103,8 @@
       'interpreter/bytecode-array-iterator-unittest.cc',
       'interpreter/bytecode-array-random-iterator-unittest.cc',
       'interpreter/bytecode-array-writer-unittest.cc',
-      'interpreter/bytecode-dead-code-optimizer-unittest.cc',
       'interpreter/bytecode-decoder-unittest.cc',
       'interpreter/bytecode-operands-unittest.cc',
-      'interpreter/bytecode-peephole-optimizer-unittest.cc',
       'interpreter/bytecode-pipeline-unittest.cc',
       'interpreter/bytecode-register-allocator-unittest.cc',
       'interpreter/bytecode-register-optimizer-unittest.cc',
@@ -124,6 +124,7 @@
       'heap/heap-unittest.cc',
       'heap/scavenge-job-unittest.cc',
       'heap/slot-set-unittest.cc',
+      'heap/spaces-unittest.cc',
       'heap/unmapper-unittest.cc',
       'locked-queue-unittest.cc',
       'object-unittest.cc',
@@ -135,6 +136,7 @@
       'unicode-unittest.cc',
       'value-serializer-unittest.cc',
       'zone/segmentpool-unittest.cc',
+      'zone/zone-allocator-unittest.cc',
       'zone/zone-chunk-list-unittest.cc',
       'zone/zone-unittest.cc',
       'wasm/asm-types-unittest.cc',
@@ -254,18 +256,6 @@
             '<(icu_gyp_path):icui18n',
             '<(icu_gyp_path):icuuc',
           ],
-        }],
-        ['os_posix == 1', {
-          # TODO(svenpanne): This is a temporary work-around to fix the warnings
-          # that show up because we use -std=gnu++0x instead of -std=c++11.
-          'cflags!': [
-            '-pedantic',
-          ],
-          'direct_dependent_settings': {
-            'cflags!': [
-              '-pedantic',
-            ],
-          },
         }],
       ],
     },

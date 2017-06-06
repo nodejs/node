@@ -113,6 +113,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   RegList restored_regs = kJSCallerSaved | kCalleeSaved;
 
   const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
+  const int kFloatRegsSize = kFloatSize * FloatRegister::kNumRegisters;
 
   // Save all double registers before messing with them.
   __ lay(sp, MemOperand(sp, -kDoubleRegsSize));
@@ -123,6 +124,14 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     int offset = code * kDoubleSize;
     __ StoreDouble(dreg, MemOperand(sp, offset));
   }
+  // Save all float registers before messing with them.
+  __ lay(sp, MemOperand(sp, -kFloatRegsSize));
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    const FloatRegister dreg = FloatRegister::from_code(code);
+    int offset = code * kFloatSize;
+    __ StoreFloat32(dreg, MemOperand(sp, offset));
+  }
 
   // Push all GPRs onto the stack
   __ lay(sp, MemOperand(sp, -kNumberOfRegisters * kPointerSize));
@@ -132,7 +141,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ StoreP(fp, MemOperand(ip));
 
   const int kSavedRegistersAreaSize =
-      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize;
+      (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
 
   // Get the bailout id from the stack.
   __ LoadP(r4, MemOperand(sp, kSavedRegistersAreaSize));
@@ -193,12 +202,24 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
-    int src_offset = code * kDoubleSize + kNumberOfRegisters * kPointerSize;
+    int src_offset =
+        code * kDoubleSize + kNumberOfRegisters * kPointerSize + kFloatRegsSize;
     // TODO(joransiu): MVC opportunity
     __ LoadDouble(d0, MemOperand(sp, src_offset));
     __ StoreDouble(d0, MemOperand(r3, dst_offset));
   }
 
+  int float_regs_offset = FrameDescription::float_registers_offset();
+  // Copy float registers to
+  // float_registers_[FloatRegister::kNumRegisters]
+  for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
+    int code = config->GetAllocatableFloatCode(i);
+    int dst_offset = code * kFloatSize + float_regs_offset;
+    int src_offset = code * kFloatSize + kNumberOfRegisters * kPointerSize;
+    // TODO(joransiu): MVC opportunity
+    __ LoadFloat32(d0, MemOperand(sp, src_offset));
+    __ StoreFloat32(d0, MemOperand(r3, dst_offset));
+  }
   // Remove the bailout id and the saved registers from the stack.
   __ la(sp, MemOperand(sp, kSavedRegistersAreaSize + (1 * kPointerSize)));
 

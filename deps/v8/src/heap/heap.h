@@ -19,6 +19,8 @@
 #include "src/heap-symbols.h"
 #include "src/list.h"
 #include "src/objects.h"
+#include "src/objects/hash-table.h"
+#include "src/objects/string-table.h"
 
 namespace v8 {
 namespace internal {
@@ -67,7 +69,6 @@ using v8::MemoryPressureLevel;
   /* This means they are never in new space and never on a page that is     */ \
   /* being compacted.                                                       */ \
   /* Oddballs */                                                               \
-  V(Oddball, no_interceptor_result_sentinel, NoInterceptorResultSentinel)      \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
   V(Oddball, exception, Exception)                                             \
   V(Oddball, termination_exception, TerminationException)                      \
@@ -177,12 +178,6 @@ using v8::MemoryPressureLevel;
   V(Object, instanceof_cache_function, InstanceofCacheFunction)                \
   V(Object, instanceof_cache_map, InstanceofCacheMap)                          \
   V(Object, instanceof_cache_answer, InstanceofCacheAnswer)                    \
-  V(FixedArray, natives_source_cache, NativesSourceCache)                      \
-  V(FixedArray, experimental_natives_source_cache,                             \
-    ExperimentalNativesSourceCache)                                            \
-  V(FixedArray, extra_natives_source_cache, ExtraNativesSourceCache)           \
-  V(FixedArray, experimental_extra_natives_source_cache,                       \
-    ExperimentalExtraNativesSourceCache)                                       \
   /* Lists and dictionaries */                                                 \
   V(NameDictionary, empty_properties_dictionary, EmptyPropertiesDictionary)    \
   V(NameDictionary, public_symbol_table, PublicSymbolTable)                    \
@@ -218,7 +213,6 @@ using v8::MemoryPressureLevel;
   V(Map, boolean_map, BooleanMap)                                              \
   V(Map, uninitialized_map, UninitializedMap)                                  \
   V(Map, arguments_marker_map, ArgumentsMarkerMap)                             \
-  V(Map, no_interceptor_result_sentinel_map, NoInterceptorResultSentinelMap)   \
   V(Map, exception_map, ExceptionMap)                                          \
   V(Map, termination_exception_map, TerminationExceptionMap)                   \
   V(Map, optimized_out_map, OptimizedOutMap)                                   \
@@ -280,7 +274,6 @@ using v8::MemoryPressureLevel;
   V(FixedDoubleArrayMap)                \
   V(WeakCellMap)                        \
   V(TransitionArrayMap)                 \
-  V(NoInterceptorResultSentinel)        \
   V(HashTableMap)                       \
   V(OrderedHashTableMap)                \
   V(EmptyFixedArray)                    \
@@ -318,6 +311,7 @@ using v8::MemoryPressureLevel;
 // Forward declarations.
 class AllocationObserver;
 class ArrayBufferTracker;
+class ConcurrentMarking;
 class GCIdleTimeAction;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
@@ -329,6 +323,7 @@ class Isolate;
 class LocalEmbedderHeapTracer;
 class MemoryAllocator;
 class MemoryReducer;
+class MinorMarkCompactCollector;
 class ObjectIterator;
 class ObjectStats;
 class Page;
@@ -563,7 +558,7 @@ class Heap {
 
   enum FindMementoMode { kForRuntime, kForGC };
 
-  enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
+  enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT, MINOR_MARK_COMPACT };
 
   enum UpdateAllocationSiteMode { kGlobal, kCached };
 
@@ -749,8 +744,8 @@ class Heap {
   // when introducing gaps within pages. If slots could have been recorded in
   // the freed area, then pass ClearRecordedSlots::kYes as the mode. Otherwise,
   // pass ClearRecordedSlots::kNo.
-  HeapObject* CreateFillerObjectAt(Address addr, int size,
-                                   ClearRecordedSlots mode);
+  V8_EXPORT_PRIVATE HeapObject* CreateFillerObjectAt(Address addr, int size,
+                                                     ClearRecordedSlots mode);
 
   bool CanMoveObjectStart(HeapObject* object);
 
@@ -1046,6 +1041,10 @@ class Heap {
     return mark_compact_collector_;
   }
 
+  MinorMarkCompactCollector* minor_mark_compact_collector() {
+    return minor_mark_compact_collector_;
+  }
+
   // ===========================================================================
   // Root set access. ==========================================================
   // ===========================================================================
@@ -1090,9 +1089,7 @@ class Heap {
   Object** roots_array_start() { return roots_; }
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  void SetRootCodeStubs(UnseededNumberDictionary* value) {
-    roots_[kCodeStubsRootIndex] = value;
-  }
+  void SetRootCodeStubs(UnseededNumberDictionary* value);
 
   void SetRootMaterializedObjects(FixedArray* objects) {
     roots_[kMaterializedObjectsRootIndex] = objects;
@@ -1234,9 +1231,16 @@ class Heap {
   bool TryFinalizeIdleIncrementalMarking(double idle_time_in_ms,
                                          GarbageCollectionReason gc_reason);
 
-  void RegisterReservationsForBlackAllocation(Reservation* reservations);
+  void RegisterDeserializedObjectsForBlackAllocation(
+      Reservation* reservations, List<HeapObject*>* large_objects);
 
   IncrementalMarking* incremental_marking() { return incremental_marking_; }
+
+  // ===========================================================================
+  // Concurrent marking API. ===================================================
+  // ===========================================================================
+
+  ConcurrentMarking* concurrent_marking() { return concurrent_marking_; }
 
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
@@ -1650,15 +1654,15 @@ class Heap {
   }
 
   inline bool ShouldReduceMemory() const {
-    return current_gc_flags_ & kReduceMemoryFootprintMask;
+    return (current_gc_flags_ & kReduceMemoryFootprintMask) != 0;
   }
 
   inline bool ShouldAbortIncrementalMarking() const {
-    return current_gc_flags_ & kAbortIncrementalMarkingMask;
+    return (current_gc_flags_ & kAbortIncrementalMarkingMask) != 0;
   }
 
   inline bool ShouldFinalizeIncrementalMarking() const {
-    return current_gc_flags_ & kFinalizeIncrementalMarkingMask;
+    return (current_gc_flags_ & kFinalizeIncrementalMarkingMask) != 0;
   }
 
   void PreprocessStackTraces();
@@ -2284,12 +2288,14 @@ class Heap {
   Scavenger* scavenge_collector_;
 
   MarkCompactCollector* mark_compact_collector_;
+  MinorMarkCompactCollector* minor_mark_compact_collector_;
 
   MemoryAllocator* memory_allocator_;
 
   StoreBuffer* store_buffer_;
 
   IncrementalMarking* incremental_marking_;
+  ConcurrentMarking* concurrent_marking_;
 
   GCIdleTimeHandler* gc_idle_time_handler_;
 
@@ -2373,6 +2379,7 @@ class Heap {
 
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
+  friend class ConcurrentMarking;
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class HeapIterator;
@@ -2381,6 +2388,7 @@ class Heap {
   friend class IncrementalMarkingJob;
   friend class LargeObjectSpace;
   friend class MarkCompactCollector;
+  friend class MinorMarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
   friend class NewSpace;
   friend class ObjectStatsCollector;
@@ -2564,65 +2572,6 @@ class WeakObjectRetainer {
   // should be returned as in some GC situations the object has been moved.
   virtual Object* RetainAs(Object* object) = 0;
 };
-
-
-#ifdef DEBUG
-// Helper class for tracing paths to a search target Object from all roots.
-// The TracePathFrom() method can be used to trace paths from a specific
-// object to the search target object.
-class PathTracer : public ObjectVisitor {
- public:
-  enum WhatToFind {
-    FIND_ALL,   // Will find all matches.
-    FIND_FIRST  // Will stop the search after first match.
-  };
-
-  // Tags 0, 1, and 3 are used. Use 2 for marking visited HeapObject.
-  static const int kMarkTag = 2;
-
-  // For the WhatToFind arg, if FIND_FIRST is specified, tracing will stop
-  // after the first match.  If FIND_ALL is specified, then tracing will be
-  // done for all matches.
-  PathTracer(Object* search_target, WhatToFind what_to_find,
-             VisitMode visit_mode)
-      : search_target_(search_target),
-        found_target_(false),
-        found_target_in_trace_(false),
-        what_to_find_(what_to_find),
-        visit_mode_(visit_mode),
-        object_stack_(20),
-        no_allocation() {}
-
-  void VisitPointers(Object** start, Object** end) override;
-
-  void Reset();
-  void TracePathFrom(Object** root);
-
-  bool found() const { return found_target_; }
-
-  static Object* const kAnyGlobalObject;
-
- protected:
-  class MarkVisitor;
-  class UnmarkVisitor;
-
-  void MarkRecursively(Object** p, MarkVisitor* mark_visitor);
-  void UnmarkRecursively(Object** p, UnmarkVisitor* unmark_visitor);
-  virtual void ProcessResults();
-
-  Object* search_target_;
-  bool found_target_;
-  bool found_target_in_trace_;
-  WhatToFind what_to_find_;
-  VisitMode visit_mode_;
-  List<Object*> object_stack_;
-
-  DisallowHeapAllocation no_allocation;  // i.e. no gc allowed.
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PathTracer);
-};
-#endif  // DEBUG
 
 // -----------------------------------------------------------------------------
 // Allows observation of allocations.

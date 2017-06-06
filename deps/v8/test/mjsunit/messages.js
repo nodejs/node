@@ -371,7 +371,7 @@ test(function() {
 // kParenthesisInArgString
 test(function() {
   new Function(")", "");
-}, "Function arg string contains parenthesis", SyntaxError);
+}, "Arg string terminates parameters early", SyntaxError);
 
 // === ReferenceError ===
 
@@ -417,7 +417,7 @@ test(function() {
 // kInvalidArrayBufferLength
 test(function() {
   new Uint16Array(-1);
-}, "Invalid typed array length", RangeError);
+}, "Invalid typed array length: -1", RangeError);
 
 // kNormalizationForm
 test(function() {

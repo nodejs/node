@@ -27,9 +27,19 @@ const char* Truncation::description() const {
     case TruncationKind::kWord64:
       return "truncate-to-word64";
     case TruncationKind::kFloat64:
-      return "truncate-to-float64";
+      switch (identify_zeros()) {
+        case kIdentifyZeros:
+          return "truncate-to-float64 (identify zeros)";
+        case kDistinguishZeros:
+          return "truncate-to-float64 (distinguish zeros)";
+      }
     case TruncationKind::kAny:
-      return "no-truncation";
+      switch (identify_zeros()) {
+        case kIdentifyZeros:
+          return "no-truncation (but identify zeros)";
+        case kDistinguishZeros:
+          return "no-truncation (but distinguish zeros)";
+      }
   }
   UNREACHABLE();
   return nullptr;
@@ -38,10 +48,10 @@ const char* Truncation::description() const {
 
 // Partial order for truncations:
 //
-//  kWord64       kAny
-//     ^            ^
-//     \            |
-//      \         kFloat64  <--+
+//  kWord64       kAny <-------+
+//     ^            ^          |
+//     \            |          |
+//      \         kFloat64     |
 //       \        ^            |
 //        \       /            |
 //         kWord32           kBool
@@ -52,6 +62,8 @@ const char* Truncation::description() const {
 //                  \      /
 //                   \    /
 //                   kNone
+//
+// TODO(jarin) We might consider making kBool < kFloat64.
 
 // static
 Truncation::TruncationKind Truncation::Generalize(TruncationKind rep1,
@@ -73,6 +85,15 @@ Truncation::TruncationKind Truncation::Generalize(TruncationKind rep1,
   return TruncationKind::kNone;
 }
 
+// static
+IdentifyZeros Truncation::GeneralizeIdentifyZeros(IdentifyZeros i1,
+                                                  IdentifyZeros i2) {
+  if (i1 == i2) {
+    return i1;
+  } else {
+    return kDistinguishZeros;
+  }
+}
 
 // static
 bool Truncation::LessGeneral(TruncationKind rep1, TruncationKind rep2) {
@@ -96,6 +117,10 @@ bool Truncation::LessGeneral(TruncationKind rep1, TruncationKind rep2) {
   return false;
 }
 
+// static
+bool Truncation::LessGeneralIdentifyZeros(IdentifyZeros i1, IdentifyZeros i2) {
+  return i1 == i2 || i1 == kIdentifyZeros;
+}
 
 namespace {
 
@@ -282,12 +307,16 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedSigned);
     }
-  } else if (output_rep == MachineRepresentation::kBit &&
-             use_info.type_check() == TypeCheckKind::kSignedSmall) {
-    // TODO(turbofan): Consider adding a Bailout operator that just deopts.
-    // Also use that for MachineRepresentation::kPointer case above.
-    node = InsertChangeBitToTagged(node);
-    op = simplified()->CheckedTaggedToTaggedSigned();
+  } else if (output_rep == MachineRepresentation::kBit) {
+    if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
+      // TODO(turbofan): Consider adding a Bailout operator that just deopts.
+      // Also use that for MachineRepresentation::kPointer case above.
+      node = InsertChangeBitToTagged(node);
+      op = simplified()->CheckedTaggedToTaggedSigned();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kTaggedSigned);
+    }
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kTaggedSigned);
@@ -407,7 +436,10 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   } else if (output_rep ==
              MachineRepresentation::kFloat32) {  // float32 -> float64 -> tagged
     node = InsertChangeFloat32ToFloat64(node);
-    op = simplified()->ChangeFloat64ToTagged();
+    op = simplified()->ChangeFloat64ToTagged(
+        output_type->Maybe(Type::MinusZero())
+            ? CheckForMinusZeroMode::kCheckForMinusZero
+            : CheckForMinusZeroMode::kDontCheckForMinusZero);
   } else if (output_rep == MachineRepresentation::kFloat64) {
     if (output_type->Is(Type::Signed31())) {  // float64 -> int32 -> tagged
       node = InsertChangeFloat64ToInt32(node);
@@ -421,7 +453,10 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
       node = InsertChangeFloat64ToUint32(node);
       op = simplified()->ChangeUint32ToTagged();
     } else {
-      op = simplified()->ChangeFloat64ToTagged();
+      op = simplified()->ChangeFloat64ToTagged(
+          output_type->Maybe(Type::MinusZero())
+              ? CheckForMinusZeroMode::kCheckForMinusZero
+              : CheckForMinusZeroMode::kDontCheckForMinusZero);
     }
   } else {
     return TypeError(node, output_rep, output_type,
@@ -469,8 +504,7 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
       node = jsgraph()->graph()->NewNode(op, node);
       op = machine()->TruncateFloat64ToFloat32();
     }
-  } else if (output_rep == MachineRepresentation::kTagged ||
-             output_rep == MachineRepresentation::kTaggedPointer) {
+  } else if (IsAnyTagged(output_rep)) {
     if (output_type->Is(Type::NumberOrOddball())) {
       // tagged -> float64 -> float32
       if (output_type->Is(Type::Number())) {
@@ -608,6 +642,9 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
       op = machine()->TruncateFloat64ToWord32();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord32);
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
     node = InsertChangeFloat32ToFloat64(node);  // float32 -> float64 -> int32
@@ -623,6 +660,9 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = machine()->ChangeFloat64ToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
       op = machine()->TruncateFloat64ToWord32();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord32);
     }
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
     if (output_type->Is(Type::Signed32())) {
@@ -633,6 +673,9 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       } else {
         op = simplified()->TruncateTaggedToWord32();
       }
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord32);
     }
   } else if (output_rep == MachineRepresentation::kTagged ||
              output_rep == MachineRepresentation::kTaggedPointer) {
@@ -652,7 +695,13 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
         op = simplified()->TruncateTaggedToWord32();
       } else if (use_info.type_check() != TypeCheckKind::kNone) {
         op = simplified()->CheckedTruncateTaggedToWord32();
+      } else {
+        return TypeError(node, output_rep, output_type,
+                         MachineRepresentation::kWord32);
       }
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord32);
     }
   } else if (output_rep == MachineRepresentation::kWord32) {
     // Only the checked case should get here, the non-checked case is
@@ -663,6 +712,9 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
         return node;
       } else if (output_type->Is(Type::Unsigned32())) {
         op = simplified()->CheckedUint32ToInt32();
+      } else {
+        return TypeError(node, output_rep, output_type,
+                         MachineRepresentation::kWord32);
       }
     } else {
       DCHECK_EQ(TypeCheckKind::kNumberOrOddball, use_info.type_check());
@@ -725,7 +777,14 @@ Node* RepresentationChanger::GetBitRepresentationFor(
       // true is the only trueish Oddball.
       op = simplified()->ChangeTaggedToBit();
     } else {
-      op = simplified()->TruncateTaggedToBit();
+      if (output_rep == MachineRepresentation::kTagged &&
+          output_type->Maybe(Type::SignedSmall())) {
+        op = simplified()->TruncateTaggedToBit();
+      } else {
+        // The {output_type} either doesn't include the Smi range,
+        // or the {output_rep} is known to be TaggedPointer.
+        op = simplified()->TruncateTaggedPointerToBit();
+      }
     }
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
     node = jsgraph()->graph()->NewNode(machine()->WordEqual(), node,
