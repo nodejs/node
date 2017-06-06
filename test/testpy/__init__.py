@@ -27,7 +27,7 @@
 
 import test
 import os
-from os.path import join, dirname, exists
+from os.path import join, dirname, exists, splitext
 import re
 import ast
 
@@ -109,18 +109,17 @@ class SimpleTestConfiguration(test.TestConfiguration):
       self.additional_flags = []
 
   def Ls(self, path):
-    def SelectTest(name):
-      return name.startswith('test-') and name.endswith('.js')
-    return [f[:-3] for f in os.listdir(path) if SelectTest(f)]
+    return [f for f in os.listdir(path) if re.match('^test-.*\.m?js$', f)]
 
   def ListTests(self, current_path, path, arch, mode):
     all_tests = [current_path + [t] for t in self.Ls(join(self.root))]
     result = []
     for test in all_tests:
       if self.Contains(path, test):
-        file_path = join(self.root, reduce(join, test[1:], "") + ".js")
-        result.append(SimpleTestCase(test, file_path, arch, mode, self.context,
-                                     self, self.additional_flags))
+        file_path = join(self.root, reduce(join, test[1:], ""))
+        test_name = test[:-1] + [splitext(test[-1])[0]]
+        result.append(SimpleTestCase(test_name, file_path, arch, mode,
+                                     self.context, self, self.additional_flags))
     return result
 
   def GetBuildRequirements(self):

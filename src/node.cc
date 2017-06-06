@@ -225,6 +225,11 @@ bool trace_warnings = false;
 // that is used by lib/module.js
 bool config_preserve_symlinks = false;
 
+// Set in node.cc by ParseArgs when --experimental-modules is used.
+// Used in node_config.cc to set a constant on process.binding('config')
+// that is used by lib/module.js
+bool config_experimental_modules = false;
+
 // Set by ParseArgs when --pending-deprecation or NODE_PENDING_DEPRECATION
 // is used.
 bool config_pending_deprecation = false;
@@ -3711,6 +3716,7 @@ static void PrintHelp() {
          "                             note: linked-in ICU data is present\n"
 #endif
          "  --preserve-symlinks        preserve symbolic links when resolving\n"
+         "  --experimental-modules     experimental ES Module support\n"
          "                             and caching modules\n"
 #endif
          "\n"
@@ -3947,6 +3953,8 @@ static void ParseArgs(int* argc,
       Revert(cve);
     } else if (strcmp(arg, "--preserve-symlinks") == 0) {
       config_preserve_symlinks = true;
+    } else if (strcmp(arg, "--experimental-modules") == 0) {
+      config_experimental_modules = true;
     } else if (strcmp(arg, "--prof-process") == 0) {
       prof_process = true;
       short_circuit = true;
