@@ -369,11 +369,11 @@ see [`path.sep`][].
 
 The returned object will have the following properties:
 
-* `root` {string}
 * `dir` {string}
+* `root` {string}
 * `base` {string}
-* `ext` {string}
 * `name` {string}
+* `ext` {string}
 
 For example on POSIX:
 

@@ -440,14 +440,14 @@ Provides an object enumerating Zlib-related constants.
 added: v0.5.8
 -->
 
-Returns a new [Deflate][] object with an [options][].
+Creates and returns a new [Deflate][] object with the given [options][].
 
 ## zlib.createDeflateRaw([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Returns a new [DeflateRaw][] object with an [options][].
+Creates and returns a new [DeflateRaw][] object with the given [options][].
 
 *Note*: The zlib library rejects requests for 256-byte windows (i.e.,
 `{ windowBits: 8 }` in `options`). An `Error` will be thrown when creating
@@ -458,35 +458,35 @@ a [DeflateRaw][] object with this specific value of the `windowBits` option.
 added: v0.5.8
 -->
 
-Returns a new [Gunzip][] object with an [options][].
+Creates and returns a new [Gunzip][] object with the given [options][].
 
 ## zlib.createGzip([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Returns a new [Gzip][] object with an [options][].
+Creates and returns a new [Gzip][] object with the given [options][].
 
 ## zlib.createInflate([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Returns a new [Inflate][] object with an [options][].
+Creates and returns a new [Inflate][] object with the given [options][].
 
 ## zlib.createInflateRaw([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Returns a new [InflateRaw][] object with an [options][].
+Creates and returns a new [InflateRaw][] object with the given [options][].
 
 ## zlib.createUnzip([options])
 <!-- YAML
 added: v0.5.8
 -->
 
-Returns a new [Unzip][] object with an [options][].
+Creates and returns a new [Unzip][] object with the given [options][].
 
 ## Convenience Methods
 

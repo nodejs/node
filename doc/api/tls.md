@@ -391,7 +391,10 @@ when the server has no more open connections.
 ### server.connections
 <!-- YAML
 added: v0.3.2
+deprecated: v0.9.7
 -->
+
+> Stability: 0 - Deprecated: Use [`server.getConnections()`][] instead.
 
 Returns the current number of concurrent connections on the server.
 
@@ -585,7 +588,7 @@ if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
 
 For Example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`
 
-### tlsSocket.getPeerCertificate([ detailed ])
+### tlsSocket.getPeerCertificate([detailed])
 <!-- YAML
 added: v0.11.4
 -->
@@ -1272,6 +1275,7 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [`net.Server.address()`]: net.html#net_server_address
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
+[`server.getConnections()`]: net.html#net_server_getconnections_callback
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
 [`tls.TLSSocket`]: #tls_class_tls_tlssocket
