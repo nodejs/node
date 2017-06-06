@@ -63,14 +63,14 @@ function isWarned(emitter) {
 }
 
 {
-  // Maximum crlfDelay is 2000ms
+  // set crlfDelay to 5000ms
   const fi = new FakeInput();
   const rli = new readline.Interface({
     input: fi,
     output: fi,
-    crlfDelay: 1 << 30
+    crlfDelay: 5000
   });
-  assert.strictEqual(rli.crlfDelay, 2000);
+  assert.strictEqual(rli.crlfDelay, 5000);
   rli.close();
 }
 
@@ -248,7 +248,7 @@ function isWarned(emitter) {
   rli.close();
 
   // Emit two line events when the delay
-  //   between \r and \n exceeds crlfDelay
+  // between \r and \n exceeds crlfDelay
   {
     const fi = new FakeInput();
     const delay = 200;
@@ -270,8 +270,32 @@ function isWarned(emitter) {
     }), delay * 2);
   }
 
+  // Emit one line events when the delay between \r and \n is
+  // over the default crlfDelay but within the setting value
+  {
+    const fi = new FakeInput();
+    const delay = 200;
+    const crlfDelay = 500;
+    const rli = new readline.Interface({
+      input: fi,
+      output: fi,
+      terminal: terminal,
+      crlfDelay
+    });
+    let callCount = 0;
+    rli.on('line', function(line) {
+      callCount++;
+    });
+    fi.emit('data', '\r');
+    setTimeout(common.mustCall(() => {
+      fi.emit('data', '\n');
+      assert.strictEqual(callCount, 1);
+      rli.close();
+    }), delay);
+  }
+
   // \t when there is no completer function should behave like an ordinary
-  //   character
+  // character
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: true });
   called = false;
@@ -513,7 +537,7 @@ function isWarned(emitter) {
     assert.strictEqual(isWarned(process.stdout._events), false);
   }
 
-  //can create a new readline Interface with a null output arugument
+  // can create a new readline Interface with a null output arugument
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: null, terminal: terminal });
 
