@@ -25,10 +25,18 @@ assert.ok(propertyNames.includes('echo'));
 assert.ok(propertyNames.includes('readwriteValue'));
 assert.ok(propertyNames.includes('readonlyValue'));
 assert.ok(!propertyNames.includes('hiddenValue'));
+assert.ok(propertyNames.includes('NameKeyValue'));
 assert.ok(!propertyNames.includes('readwriteAccessor1'));
 assert.ok(!propertyNames.includes('readwriteAccessor2'));
 assert.ok(!propertyNames.includes('readonlyAccessor1'));
 assert.ok(!propertyNames.includes('readonlyAccessor2'));
+
+// validate property created with symbol
+const start = 'Symbol('.length;
+const end = start + 'NameKeySymbol'.length;
+const symbolDescription =
+    String(Object.getOwnPropertySymbols(test_object)[0]).slice(start, end);
+assert.strictEqual(symbolDescription, 'NameKeySymbol');
 
 // The napi_writable attribute should be ignored for accessors.
 test_object.readwriteAccessor1 = 1;
