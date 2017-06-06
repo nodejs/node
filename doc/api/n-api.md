@@ -2991,7 +2991,7 @@ support it:
 * If the function is not available, provide an alternate implementation
   that does not use the function.
 
-[Aynchronous Operations]: #n_api_asynchronous_operations
+[Asynchronous Operations]: #n_api_asynchronous_operations
 [Basic N-API Data Types]: #n_api_basic_n_api_data_types
 [ECMAScript Language Specification]: https://tc39.github.io/ecma262/
 [Error Handling]: #n_api_error_handling
