@@ -667,6 +667,7 @@ class Environment {
   static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
 
   void AddPromiseHook(promise_hook_func fn, void* arg);
+  bool RemovePromiseHook(promise_hook_func fn, void* arg);
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
