@@ -7,7 +7,7 @@ const assert = require('assert');
 const { URL } = require('url');
 const { spawn } = require('child_process');
 
-function test(arg) {
+function test(arg, port = '') {
   const args = [arg, '-p', 'process.debugPort'];
   const proc = spawn(process.execPath, args);
   proc.stdout.setEncoding('utf8');
@@ -18,7 +18,6 @@ function test(arg) {
   proc.stderr.on('data', (data) => stderr += data);
   proc.stdout.on('close', assert.ifError);
   proc.stderr.on('close', assert.ifError);
-  let port = '';
   proc.stderr.on('data', () => {
     if (!stderr.includes('\n')) return;
     assert(/Debugger listening on (.+)/.test(stderr));
@@ -46,3 +45,9 @@ test('--inspect=localhost:0');
 test('--inspect-brk=0');
 test('--inspect-brk=127.0.0.1:0');
 test('--inspect-brk=localhost:0');
+
+// In these cases, the inspector doesn't listen, so an ephemeral port is not
+// allocated and the expected value of `process.debugPort` is `0`.
+test('--inspect-port=0', '0');
+test('--inspect-port=127.0.0.1:0', '0');
+test('--inspect-port=localhost:0', '0');
