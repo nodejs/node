@@ -422,6 +422,18 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void EnablePromiseHook(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->AddPromiseHook(PromiseHook, nullptr);
+}
+
+
+static void DisablePromiseHook(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->RemovePromiseHook(PromiseHook, nullptr);
+}
+
+
 void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
   args.GetReturnValue().Set(-1);
@@ -478,6 +490,8 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "popAsyncIds", PopAsyncIds);
   env->SetMethod(target, "clearIdStack", ClearIdStack);
   env->SetMethod(target, "addIdToDestroyList", QueueDestroyId);
+  env->SetMethod(target, "enablePromiseHook", EnablePromiseHook);
+  env->SetMethod(target, "disablePromiseHook", DisablePromiseHook);
 
   v8::PropertyAttribute ReadOnlyDontDelete =
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
