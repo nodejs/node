@@ -335,12 +335,17 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
                         Local<Value> parent, void* arg) {
   Local<Context> context = promise->CreationContext();
   Environment* env = Environment::GetCurrent(context);
+
+  // PromiseHook() should never be called if no hooks have been enabled.
+  CHECK_GT(env->async_hooks()->fields()[AsyncHooks::kTotals], 0);
+
   Local<Value> resource_object_value = promise->GetInternalField(0);
   PromiseWrap* wrap = nullptr;
   if (resource_object_value->IsObject()) {
     Local<Object> resource_object = resource_object_value.As<Object>();
     wrap = Unwrap<PromiseWrap>(resource_object);
   }
+
   if (type == PromiseHookType::kInit || wrap == nullptr) {
     bool silent = type != PromiseHookType::kInit;
     PromiseWrap* parent_wrap = nullptr;
@@ -368,6 +373,7 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
   } else if (type == PromiseHookType::kResolve) {
     // TODO(matthewloring): need to expose this through the async hooks api.
   }
+
   CHECK_NE(wrap, nullptr);
   if (type == PromiseHookType::kBefore) {
     PreCallbackExecution(wrap, false);
@@ -401,7 +407,6 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   SET_HOOK_FN(before);
   SET_HOOK_FN(after);
   SET_HOOK_FN(destroy);
-  env->AddPromiseHook(PromiseHook, nullptr);
 #undef SET_HOOK_FN
 
   {
@@ -542,6 +547,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   SET_HOOKS_CONSTANT(kBefore);
   SET_HOOKS_CONSTANT(kAfter);
   SET_HOOKS_CONSTANT(kDestroy);
+  SET_HOOKS_CONSTANT(kTotals);
   SET_HOOKS_CONSTANT(kCurrentAsyncId);
   SET_HOOKS_CONSTANT(kCurrentTriggerId);
   SET_HOOKS_CONSTANT(kAsyncUidCntr);
