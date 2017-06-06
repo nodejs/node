@@ -29,7 +29,7 @@ Following is a simple overview of the public API.
 const async_hooks = require('async_hooks');
 
 // Return the ID of the current execution context.
-const cid = async_hooks.currentId();
+const cid = async_hooks.currentAsyncId();
 
 // Return the ID of the handle responsible for triggering the callback of the
 // current execution scope to call.
@@ -216,7 +216,7 @@ when listening to the hooks.
 
 `triggerId` is the `asyncId` of the resource that caused (or "triggered") the
 new resource to initialize and that caused `init` to call. This is different
-from `async_hooks.currentId()` that only shows *when* a resource was created,
+from `async_hooks.currentAsyncId()` that only shows *when* a resource was created,
 while `triggerId` shows *why* a resource was created.
 
 
@@ -225,7 +225,7 @@ The following is a simple demonstration of `triggerId`:
 ```js
 async_hooks.createHook({
   init(asyncId, type, triggerId) {
-    const cId = async_hooks.currentId();
+    const cId = async_hooks.currentAsyncId();
     fs.writeSync(
       1, `${type}(${asyncId}): trigger: ${triggerId} scope: ${cId}\n`);
   }
@@ -245,7 +245,7 @@ The first `TCPWRAP` is the server which receives the connections.
 
 The second `TCPWRAP` is the new connection from the client. When a new
 connection is made the `TCPWrap` instance is immediately constructed. This
-happens outside of any JavaScript stack (side note: a `currentId()` of `0`
+happens outside of any JavaScript stack (side note: a `currentAsyncId()` of `0`
 means it's being executed from C++, with no JavaScript stack above it).
 With only that information it would be impossible to link resources together in
 terms of what caused them to be created, so `triggerId` is given the task of
@@ -281,7 +281,7 @@ elaborate to make calling context easier to see.
 let indent = 0;
 async_hooks.createHook({
   init(asyncId, type, triggerId) {
-    const cId = async_hooks.currentId();
+    const cId = async_hooks.currentAsyncId();
     const indentStr = ' '.repeat(indent);
     fs.writeSync(
       1,
@@ -306,7 +306,7 @@ async_hooks.createHook({
 require('net').createServer(() => {}).listen(8080, () => {
   // Let's wait 10ms before logging the server started.
   setTimeout(() => {
-    console.log('>>>', async_hooks.currentId());
+    console.log('>>>', async_hooks.currentAsyncId());
   }, 10);
 });
 ```
@@ -337,7 +337,7 @@ destroy: 9
 destroy: 5
 ```
 
-*Note*: As illustrated in the example, `currentId()` and `scope` each specify
+*Note*: As illustrated in the example, `currentAsyncId()` and `scope` each specify
 the value of the current execution context; which is delineated by calls to
 `before` and `after`.
 
@@ -396,7 +396,7 @@ the `resource` object passed to `init` it's possible that `destroy` is
 never called, causing a memory leak in the application. Of course if
 the resource doesn't depend on GC then this isn't an issue.
 
-#### `async_hooks.currentId()`
+#### `async_hooks.currentAsyncId()`
 
 * Returns {number} the `asyncId` of the current execution context. Useful to track
   when something calls.
@@ -404,13 +404,13 @@ the resource doesn't depend on GC then this isn't an issue.
 For example:
 
 ```js
-console.log(async_hooks.currentId());  // 1 - bootstrap
+console.log(async_hooks.currentAsyncId());  // 1 - bootstrap
 fs.open(path, 'r', (err, fd) => {
-  console.log(async_hooks.currentId());  // 6 - open()
+  console.log(async_hooks.currentAsyncId());  // 6 - open()
 });
 ```
 
-It is important to note that the ID returned fom `currentId()` is related to
+It is important to note that the ID returned fom `currentAsyncId()` is related to
 execution timing, not causality (which is covered by `triggerId()`). For
 example:
 
@@ -419,12 +419,12 @@ const server = net.createServer(function onConnection(conn) {
   // Returns the ID of the server, not of the new connection, because the
   // onConnection callback runs in the execution scope of the server's
   // MakeCallback().
-  async_hooks.currentId();
+  async_hooks.currentAsyncId();
 
 }).listen(port, function onListening() {
   // Returns the ID of a TickObject (i.e. process.nextTick()) because all
   // callbacks passed to .listen() are wrapped in a nextTick().
-  async_hooks.currentId();
+  async_hooks.currentAsyncId();
 });
 ```
 
@@ -476,7 +476,7 @@ const { AsyncResource } = require('async_hooks');
 
 // AsyncResource() is meant to be extended. Instantiating a
 // new AsyncResource() also triggers init. If triggerId is omitted then
-// async_hook.currentId() is used.
+// async_hook.currentAsyncId() is used.
 const asyncResource = new AsyncResource(type, triggerId);
 
 // Call AsyncHooks before callbacks.
