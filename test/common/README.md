@@ -116,13 +116,21 @@ Checks whether `IPv6` is supported on this platform.
 
 Checks if there are multiple localhosts available.
 
-### hijackStderr/Stdout(listener)
+### hijackStderr(listener)
 * `listener` [&lt;Function>][MDN-Function]: a listener with a single parameter called `data`.
 
-Eavesdrop to `process.stderr.write` or `process.stdout.write` calls. Once
-`process.std*.write` is called, `listener` will also be called and the `data` of
-`write` function will be passed to `listener`. What's more,
-`process.std*.writeTimes` is a count of the number of calls.
+Eavesdrop to `process.stderr.write` calls. Once `process.stderr.write` is
+called, `listener` will also be called and the `data` of `write` function will
+be passed to `listener`. What's more, `process.stderr.writeTimes` is a count of
+the number of calls.
+
+### hijackStdout(listener)
+* `listener` [&lt;Function>][MDN-Function]: a listener with a single parameter called `data`.
+
+Eavesdrop to `process.stdout.write` calls. Once `process.stdout.write` is
+called, `listener` will also be called and the `data` of `write` function will
+be passed to `listener`. What's more, `process.stdout.writeTimes` is a count of
+the number of calls.
 
 ### inFreeBSDJail
 * return [&lt;Boolean>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type)
@@ -258,11 +266,11 @@ Port tests are running on.
 
 Deletes the 'tmp' dir and recreates it
 
-### restoreStderr
+### restoreStderr()
 
 Restore the original `process.stderr.write`.
 
-### restoreStdout
+### restoreStdout()
 
 Restore the original `process.stdout.write`.
 
