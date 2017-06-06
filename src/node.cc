@@ -3059,8 +3059,8 @@ static void DebugPortGetter(Local<Name> property,
 #if HAVE_INSPECTOR
   if (port == 0) {
     Environment* env = Environment::GetCurrent(info);
-    if (env->inspector_agent()->IsStarted())
-      port = env->inspector_agent()->io()->port();
+    if (auto io = env->inspector_agent()->io())
+      port = io->port();
   }
 #endif  // HAVE_INSPECTOR
   info.GetReturnValue().Set(port);
