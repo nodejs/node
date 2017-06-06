@@ -8,6 +8,6 @@ const encoding = 'foo-8';
 const filename = 'bar.txt';
 
 assert.throws(
-  fs.readFile.bind(fs, filename, { encoding }, common.noop),
-  new RegExp(`Error: Unknown encoding: ${encoding}$`)
+  fs.readFile.bind(fs, filename, { encoding }, common.mustNotCall()),
+  new RegExp(`^Error: Unknown encoding: ${encoding}$`)
 );
