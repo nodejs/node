@@ -216,8 +216,8 @@ when listening to the hooks.
 
 `triggerId` is the `asyncId` of the resource that caused (or "triggered") the
 new resource to initialize and that caused `init` to call. This is different
-from `async_hooks.currentAsyncId()` that only shows *when* a resource was created,
-while `triggerId` shows *why* a resource was created.
+from `async_hooks.currentAsyncId()` that only shows *when* a resource was
+created, while `triggerId` shows *why* a resource was created.
 
 
 The following is a simple demonstration of `triggerId`:
@@ -337,9 +337,9 @@ destroy: 9
 destroy: 5
 ```
 
-*Note*: As illustrated in the example, `currentAsyncId()` and `scope` each specify
-the value of the current execution context; which is delineated by calls to
-`before` and `after`.
+*Note*: As illustrated in the example, `currentAsyncId()` and `scope` each
+specify the value of the current execution context; which is delineated by
+calls to `before` and `after`.
 
 Only using `scope` to graph resource allocation results in the following:
 
@@ -410,8 +410,8 @@ fs.open(path, 'r', (err, fd) => {
 });
 ```
 
-It is important to note that the ID returned fom `currentAsyncId()` is related to
-execution timing, not causality (which is covered by `triggerId()`). For
+It is important to note that the ID returned fom `currentAsyncId()` is related
+to execution timing, not causality (which is covered by `triggerId()`). For
 example:
 
 ```js
