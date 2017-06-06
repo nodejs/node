@@ -10,6 +10,11 @@ env:
 parserOptions:
   ecmaVersion: 2017
 
+overrides:
+  - files: ["doc/api/esm.md", "*.mjs"]
+    parserOptions:
+      sourceType: module
+
 rules:
   # Possible Errors
   # http://eslint.org/docs/rules/#possible-errors

@@ -79,3 +79,28 @@ TEST_F(URLTest, Base3) {
   EXPECT_EQ(simple.host(), "example.org");
   EXPECT_EQ(simple.path(), "/baz");
 }
+
+TEST_F(URLTest, ToFilePath) {
+#define T(url, path) EXPECT_EQ(path, URL(url).ToFilePath())
+  T("http://example.org/foo/bar", "");
+
+#ifdef _WIN32
+  T("file:///C:/Program%20Files/", "C:\\Program Files\\");
+  T("file:///C:/a/b/c?query#fragment", "C:\\a\\b\\c");
+  T("file://host/path/a/b/c?query#fragment", "\\\\host\\path\\a\\b\\c");
+  T("file://xn--weird-prdj8vva.com/host/a", "\\\\wͪ͊eiͬ͋rd.com\\host\\a");
+  T("file:///C:/a%2Fb", "");
+  T("file:///", "");
+  T("file:///home", "");
+#else
+  T("file:///", "/");
+  T("file:///home/user?query#fragment", "/home/user");
+  T("file:///home/user/?query#fragment", "/home/user/");
+  T("file:///home/user/%20space", "/home/user/ space");
+  T("file:///home/us%5Cer", "/home/us\\er");
+  T("file:///home/us%2Fer", "");
+  T("file://host/path", "");
+#endif
+
+#undef T
+}
