@@ -600,6 +600,16 @@ The DebugContext will be removed in V8 soon and will not be available in Node
 
 *Note*: DebugContext was an experimental API.
 
+<a id="DEP0070"></a>
+### DEP0070: async_hooks.currentId()
+
+Type: Runtime
+
+`async_hooks.currentId()` was renamed to `async_hooks.currentAsyncId()` for
+clarity.
+
+*Note*: `async_hooks` was an experimental API.
+
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
 [`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
 [`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
