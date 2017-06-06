@@ -53,6 +53,7 @@ If you need help using or installing Node.js, please use the
 * IRC (general questions): [#node.js on chat.freenode.net][]. Please see
 <http://nodeirc.info/> for more information regarding the `#node.js` IRC
 channel.
+* https://gitter.im/nodejs/node (join this great community)
 
 _Please note that unofficial resources are neither managed by (nor necessarily
 endorsed by) the Node.js TSC/CTC. Specifically, such resources are not
