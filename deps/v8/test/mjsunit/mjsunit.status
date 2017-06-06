@@ -148,7 +148,7 @@
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
   'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
-  'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
+  'es6/typedarray-construct-offset-not-smi': [PASS, SLOW, NO_VARIANTS],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
