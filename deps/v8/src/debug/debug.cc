@@ -42,7 +42,7 @@ Debug::Debug(Isolate* isolate)
       is_active_(false),
       hook_on_function_call_(false),
       is_suppressed_(false),
-      live_edit_enabled_(true),  // TODO(yangguo): set to false by default.
+      live_edit_enabled_(false),
       break_disabled_(false),
       break_points_active_(true),
       break_on_exception_(false),
@@ -123,6 +123,20 @@ bool BreakLocation::HasBreakPoint(Handle<DebugInfo> debug_info) const {
     it.SkipToPosition(position_, BREAK_POSITION_ALIGNED);
     return it.code_offset() == code_offset_;
   }
+}
+
+debug::BreakLocationType BreakLocation::type() const {
+  switch (type_) {
+    case DEBUGGER_STATEMENT:
+      return debug::kDebuggerStatementBreakLocation;
+    case DEBUG_BREAK_SLOT_AT_CALL:
+      return debug::kCallBreakLocation;
+    case DEBUG_BREAK_SLOT_AT_RETURN:
+      return debug::kReturnBreakLocation;
+    default:
+      return debug::kCommonBreakLocation;
+  }
+  return debug::kCommonBreakLocation;
 }
 
 std::unique_ptr<BreakIterator> BreakIterator::GetIterator(
@@ -375,6 +389,8 @@ void Debug::ThreadInit() {
   thread_local_.last_step_action_ = StepNone;
   thread_local_.last_statement_position_ = kNoSourcePosition;
   thread_local_.last_frame_count_ = -1;
+  thread_local_.fast_forward_to_return_ = false;
+  thread_local_.ignore_step_into_function_ = Smi::kZero;
   thread_local_.target_frame_count_ = -1;
   thread_local_.return_value_ = Smi::kZero;
   thread_local_.async_task_count_ = 0;
@@ -404,13 +420,13 @@ int Debug::ArchiveSpacePerThread() { return 0; }
 void Debug::Iterate(ObjectVisitor* v) {
   v->VisitPointer(&thread_local_.return_value_);
   v->VisitPointer(&thread_local_.suspended_generator_);
+  v->VisitPointer(&thread_local_.ignore_step_into_function_);
 }
 
 DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
   // Globalize the request debug info object and make it weak.
   GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
-  debug_info_ =
-      Handle<DebugInfo>::cast(global_handles->Create(debug_info)).location();
+  debug_info_ = global_handles->Create(debug_info).location();
 }
 
 
@@ -444,14 +460,13 @@ bool Debug::Load() {
   static const int kFirstContextSnapshotIndex = 0;
   Handle<Context> context = isolate_->bootstrapper()->CreateEnvironment(
       MaybeHandle<JSGlobalProxy>(), v8::Local<ObjectTemplate>(), &no_extensions,
-      kFirstContextSnapshotIndex, v8::DeserializeInternalFieldsCallback(),
+      kFirstContextSnapshotIndex, v8::DeserializeEmbedderFieldsCallback(),
       DEBUG_CONTEXT);
 
   // Fail if no context could be created.
   if (context.is_null()) return false;
 
-  debug_context_ = Handle<Context>::cast(
-      isolate_->global_handles()->Create(*context));
+  debug_context_ = isolate_->global_handles()->Create(*context);
 
   feature_tracker()->Track(DebugFeatureTracker::kActive);
 
@@ -514,6 +529,17 @@ void Debug::Break(JavaScriptFrame* frame) {
   int current_frame_count = CurrentFrameCount();
   int target_frame_count = thread_local_.target_frame_count_;
   int last_frame_count = thread_local_.last_frame_count_;
+
+  // StepOut at not return position was requested and return break locations
+  // were flooded with one shots.
+  if (thread_local_.fast_forward_to_return_) {
+    DCHECK(location.IsReturn());
+    // We have to ignore recursive calls to function.
+    if (current_frame_count > target_frame_count) return;
+    ClearStepping();
+    PrepareStep(StepOut);
+    return;
+  }
 
   bool step_break = false;
   switch (step_action) {
@@ -800,19 +826,22 @@ void Debug::ClearAllBreakPoints() {
   }
 }
 
-void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
-  if (!shared->IsSubjectToDebugging() || IsBlackboxed(shared)) return;
+void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
+                             bool returns_only) {
+  if (IsBlackboxed(shared)) return;
   // Make sure the function is compiled and has set up the debug info.
   if (!EnsureDebugInfo(shared)) return;
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Flood the function with break points.
   if (debug_info->HasDebugCode()) {
     for (CodeBreakIterator it(debug_info); !it.Done(); it.Next()) {
+      if (returns_only && !it.GetBreakLocation().IsReturn()) continue;
       it.SetDebugBreak();
     }
   }
   if (debug_info->HasDebugBytecodeArray()) {
     for (BytecodeArrayBreakIterator it(debug_info); !it.Done(); it.Next()) {
+      if (returns_only && !it.GetBreakLocation().IsReturn()) continue;
       it.SetDebugBreak();
     }
   }
@@ -866,6 +895,10 @@ void Debug::PrepareStepIn(Handle<JSFunction> function) {
   if (ignore_events()) return;
   if (in_debug_scope()) return;
   if (break_disabled()) return;
+  Handle<SharedFunctionInfo> shared(function->shared());
+  if (IsBlackboxed(shared)) return;
+  if (*function == thread_local_.ignore_step_into_function_) return;
+  thread_local_.ignore_step_into_function_ = Smi::kZero;
   FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared(), isolate_));
 }
 
@@ -946,7 +979,7 @@ void Debug::PrepareStepOnThrow() {
         }
         Handle<SharedFunctionInfo> info(
             summaries[i].AsJavaScript().function()->shared());
-        if (!info->IsSubjectToDebugging() || IsBlackboxed(info)) continue;
+        if (IsBlackboxed(info)) continue;
         FloodWithOneShot(info);
         return;
       }
@@ -971,7 +1004,6 @@ void Debug::PrepareStep(StepAction step_action) {
   feature_tracker()->Track(DebugFeatureTracker::kStepping);
 
   thread_local_.last_step_action_ = step_action;
-  UpdateHookOnFunctionCall();
 
   StackTraceFrameIterator frames_it(isolate_, frame_id);
   StandardFrame* frame = frames_it.frame();
@@ -998,8 +1030,19 @@ void Debug::PrepareStep(StepAction step_action) {
 
   BreakLocation location = BreakLocation::FromFrame(debug_info, js_frame);
 
-  // Any step at a return is a step-out.
-  if (location.IsReturn()) step_action = StepOut;
+  // Any step at a return is a step-out and we need to schedule DebugOnFunction
+  // call callback.
+  if (location.IsReturn()) {
+    // On StepOut we'll ignore our further calls to current function in
+    // PrepareStepIn callback.
+    if (last_step_action() == StepOut) {
+      thread_local_.ignore_step_into_function_ = *function;
+    }
+    step_action = StepOut;
+    thread_local_.last_step_action_ = StepIn;
+  }
+  UpdateHookOnFunctionCall();
+
   // A step-next at a tail call is a step-out.
   if (location.IsTailCall() && step_action == StepNext) step_action = StepOut;
   // A step-next in blackboxed function is a step-out.
@@ -1020,6 +1063,14 @@ void Debug::PrepareStep(StepAction step_action) {
       // Clear last position info. For stepping out it does not matter.
       thread_local_.last_statement_position_ = kNoSourcePosition;
       thread_local_.last_frame_count_ = -1;
+      if (!location.IsReturn() && !IsBlackboxed(shared)) {
+        // At not return position we flood return positions with one shots and
+        // will repeat StepOut automatically at next break.
+        thread_local_.target_frame_count_ = current_frame_count;
+        thread_local_.fast_forward_to_return_ = true;
+        FloodWithOneShot(shared, true);
+        return;
+      }
       // Skip the current frame, find the first frame we want to step out to
       // and deoptimize every frame along the way.
       bool in_current_frame = true;
@@ -1041,7 +1092,7 @@ void Debug::PrepareStep(StepAction step_action) {
             in_current_frame = false;
             continue;
           }
-          if (!info->IsSubjectToDebugging() || IsBlackboxed(info)) continue;
+          if (IsBlackboxed(info)) continue;
           FloodWithOneShot(info);
           thread_local_.target_frame_count_ = current_frame_count;
           return;
@@ -1110,6 +1161,8 @@ void Debug::ClearStepping() {
 
   thread_local_.last_step_action_ = StepNone;
   thread_local_.last_statement_position_ = kNoSourcePosition;
+  thread_local_.ignore_step_into_function_ = Smi::kZero;
+  thread_local_.fast_forward_to_return_ = false;
   thread_local_.last_frame_count_ = -1;
   thread_local_.target_frame_count_ = -1;
   UpdateHookOnFunctionCall();
@@ -1277,7 +1330,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
     HeapIterator iterator(isolate_->heap());
     HeapObject* obj;
 
-    while ((obj = iterator.next())) {
+    while ((obj = iterator.next()) != nullptr) {
       if (obj->IsJSFunction()) {
         JSFunction* function = JSFunction::cast(obj);
         if (!function->Inlines(*shared)) continue;
@@ -1315,35 +1368,47 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
 namespace {
 template <typename Iterator>
 void GetBreakablePositions(Iterator* it, int start_position, int end_position,
-                           BreakPositionAlignment alignment,
-                           std::set<int>* positions) {
-  it->SkipToPosition(start_position, alignment);
+                           std::vector<BreakLocation>* locations) {
+  it->SkipToPosition(start_position, BREAK_POSITION_ALIGNED);
   while (!it->Done() && it->position() < end_position &&
          it->position() >= start_position) {
-    positions->insert(alignment == STATEMENT_ALIGNED ? it->statement_position()
-                                                     : it->position());
+    locations->push_back(it->GetBreakLocation());
     it->Next();
   }
 }
 
 void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
-                            int end_position, BreakPositionAlignment alignment,
-                            std::set<int>* positions) {
+                            int end_position,
+                            std::vector<BreakLocation>* locations) {
   if (debug_info->HasDebugCode()) {
     CodeBreakIterator it(debug_info);
-    GetBreakablePositions(&it, start_position, end_position, alignment,
-                          positions);
+    GetBreakablePositions(&it, start_position, end_position, locations);
   } else {
     DCHECK(debug_info->HasDebugBytecodeArray());
     BytecodeArrayBreakIterator it(debug_info);
-    GetBreakablePositions(&it, start_position, end_position, alignment,
-                          positions);
+    GetBreakablePositions(&it, start_position, end_position, locations);
   }
 }
 }  // namespace
 
 bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
-                                   int end_position, std::set<int>* positions) {
+                                   int end_position, bool restrict_to_function,
+                                   std::vector<BreakLocation>* locations) {
+  if (restrict_to_function) {
+    Handle<Object> result =
+        FindSharedFunctionInfoInScript(script, start_position);
+    if (result->IsUndefined(isolate_)) return false;
+
+    // Make sure the function has set up the debug info.
+    Handle<SharedFunctionInfo> shared =
+        Handle<SharedFunctionInfo>::cast(result);
+    if (!EnsureDebugInfo(shared)) return false;
+
+    Handle<DebugInfo> debug_info(shared->GetDebugInfo());
+    FindBreakablePositions(debug_info, start_position, end_position, locations);
+    return true;
+  }
+
   while (true) {
     HandleScope scope(isolate_);
     List<Handle<SharedFunctionInfo>> candidates;
@@ -1378,7 +1443,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
       CHECK(candidates[i]->HasDebugInfo());
       Handle<DebugInfo> debug_info(candidates[i]->GetDebugInfo());
       FindBreakablePositions(debug_info, start_position, end_position,
-                             BREAK_POSITION_ALIGNED, positions);
+                             locations);
     }
     return true;
   }
@@ -1611,7 +1676,7 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   {
     Script::Iterator iterator(isolate_);
     Script* script;
-    while ((script = iterator.Next())) {
+    while ((script = iterator.Next()) != nullptr) {
       if (script->HasValidSource()) results->set(length++, script);
     }
   }
@@ -1706,30 +1771,23 @@ v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
 }  // anonymous namespace
 
 bool Debug::IsExceptionBlackboxed(bool uncaught) {
-  JavaScriptFrameIterator it(isolate_);
-  if (it.done()) return false;
   // Uncaught exception is blackboxed if all current frames are blackboxed,
   // caught exception if top frame is blackboxed.
-  bool is_top_frame_blackboxed = IsFrameBlackboxed(it.frame());
+  StackTraceFrameIterator it(isolate_);
+  while (!it.done() && it.is_wasm()) it.Advance();
+  bool is_top_frame_blackboxed =
+      !it.done() ? IsFrameBlackboxed(it.javascript_frame()) : true;
   if (!uncaught || !is_top_frame_blackboxed) return is_top_frame_blackboxed;
-  it.Advance();
-  while (!it.done()) {
-    if (!IsFrameBlackboxed(it.frame())) return false;
-    it.Advance();
-  }
-  return true;
+  return AllFramesOnStackAreBlackboxed();
 }
 
 bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
-  if (!frame->HasInlinedFrames()) {
-    Handle<SharedFunctionInfo> shared(frame->function()->shared(), isolate_);
-    return IsBlackboxed(shared);
-  }
   List<Handle<SharedFunctionInfo>> infos;
   frame->GetFunctions(&infos);
-  for (const auto& info : infos)
+  for (const auto& info : infos) {
     if (!IsBlackboxed(info)) return false;
+  }
   return true;
 }
 
@@ -1949,27 +2007,36 @@ debug::Location GetDebugLocation(Handle<Script> script, int source_position) {
 }  // namespace
 
 bool Debug::IsBlackboxed(Handle<SharedFunctionInfo> shared) {
-  if (!debug_delegate_) return false;
+  if (!debug_delegate_) return !shared->IsSubjectToDebugging();
   if (!shared->computed_debug_is_blackboxed()) {
-    bool is_blackboxed = false;
-    if (shared->script()->IsScript()) {
+    bool is_blackboxed =
+        !shared->IsSubjectToDebugging() || !shared->script()->IsScript();
+    if (!is_blackboxed) {
       SuppressDebug while_processing(this);
       HandleScope handle_scope(isolate_);
       PostponeInterruptsScope no_interrupts(isolate_);
       DisableBreak no_recursive_break(this);
+      DCHECK(shared->script()->IsScript());
       Handle<Script> script(Script::cast(shared->script()));
-      if (script->type() == i::Script::TYPE_NORMAL) {
-        debug::Location start =
-            GetDebugLocation(script, shared->start_position());
-        debug::Location end = GetDebugLocation(script, shared->end_position());
-        is_blackboxed = debug_delegate_->IsFunctionBlackboxed(
-            ToApiHandle<debug::Script>(script), start, end);
-      }
+      DCHECK(script->IsUserJavaScript());
+      debug::Location start =
+          GetDebugLocation(script, shared->start_position());
+      debug::Location end = GetDebugLocation(script, shared->end_position());
+      is_blackboxed = debug_delegate_->IsFunctionBlackboxed(
+          ToApiHandle<debug::Script>(script), start, end);
     }
     shared->set_debug_is_blackboxed(is_blackboxed);
     shared->set_computed_debug_is_blackboxed(true);
   }
   return shared->debug_is_blackboxed();
+}
+
+bool Debug::AllFramesOnStackAreBlackboxed() {
+  HandleScope scope(isolate_);
+  for (StackTraceFrameIterator it(isolate_); !it.done(); it.Advance()) {
+    if (!IsFrameBlackboxed(it.javascript_frame())) return false;
+  }
+  return true;
 }
 
 void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
@@ -1982,13 +2049,27 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
   HandleScope scope(isolate_);
   PostponeInterruptsScope no_interrupts(isolate_);
   DisableBreak no_recursive_break(this);
-  debug_delegate_->PromiseEventOccurred(type, id, parent_id);
+  bool created_by_user = false;
+  if (type == debug::kDebugPromiseCreated) {
+    JavaScriptFrameIterator it(isolate_);
+    // We need to skip top frame which contains instrumentation.
+    it.Advance();
+    created_by_user =
+        !it.done() &&
+        !IsFrameBlackboxed(it.frame());
+  }
+  debug_delegate_->PromiseEventOccurred(
+      Utils::ToLocal(debug_scope.GetContext()), type, id, parent_id,
+      created_by_user);
 }
 
 void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
+  // Attach the correct debug id to the script. The debug id is used by the
+  // inspector to filter scripts by native context.
+  FixedArray* array = isolate_->native_context()->embedder_data();
+  script->set_context_data(array->get(v8::Context::kDebugIdIndex));
   if (ignore_events()) return;
-  if (script->type() != i::Script::TYPE_NORMAL &&
-      script->type() != i::Script::TYPE_WASM) {
+  if (!script->IsUserJavaScript() && script->type() != i::Script::TYPE_WASM) {
     return;
   }
   if (!debug_delegate_) return;
@@ -2089,8 +2170,7 @@ MaybeHandle<Object> Debug::Call(Handle<Object> fun, Handle<Object> data) {
       argv);
 }
 
-
-void Debug::HandleDebugBreak() {
+void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
   // Initialize LiveEdit.
   LiveEdit::InitializeThreadLocal(this);
   // Ignore debug break during bootstrapping.
@@ -2111,7 +2191,10 @@ void Debug::HandleDebugBreak() {
       // Don't stop in builtin and blackboxed functions.
       Handle<SharedFunctionInfo> shared(JSFunction::cast(fun)->shared(),
                                         isolate_);
-      if (!shared->IsSubjectToDebugging() || IsBlackboxed(shared)) {
+      bool ignore_break = ignore_break_mode == kIgnoreIfTopFrameBlackboxed
+                              ? IsBlackboxed(shared)
+                              : AllFramesOnStackAreBlackboxed();
+      if (ignore_break) {
         // Inspector uses pause on next statement for asynchronous breakpoints.
         // When breakpoint is fired we try to break on first not blackboxed
         // statement. To achieve this goal we need to deoptimize current
@@ -2119,7 +2202,9 @@ void Debug::HandleDebugBreak() {
         // to be able to break on not blackboxed function call.
         // TODO(yangguo): introduce break_on_function_entry since current
         // implementation is slow.
-        Deoptimizer::DeoptimizeFunction(JSFunction::cast(fun));
+        if (isolate_->stack_guard()->CheckDebugBreak()) {
+          Deoptimizer::DeoptimizeFunction(JSFunction::cast(fun));
+        }
         return;
       }
       JSGlobalObject* global =
@@ -2262,7 +2347,8 @@ bool Debug::PerformSideEffectCheckForCallback(Address function) {
 }
 
 void LegacyDebugDelegate::PromiseEventOccurred(
-    v8::debug::PromiseDebugActionType type, int id, int parent_id) {
+    v8::Local<v8::Context> context, v8::debug::PromiseDebugActionType type,
+    int id, int parent_id, bool created_by_user) {
   Handle<Object> event_data;
   if (isolate_->debug()->MakeAsyncTaskEvent(type, id).ToHandle(&event_data)) {
     ProcessDebugEvent(v8::AsyncTaskEvent, Handle<JSObject>::cast(event_data));
@@ -2322,7 +2408,7 @@ JavaScriptDebugDelegate::JavaScriptDebugDelegate(Isolate* isolate,
                                                  Handle<Object> data)
     : LegacyDebugDelegate(isolate) {
   GlobalHandles* global_handles = isolate->global_handles();
-  listener_ = Handle<JSFunction>::cast(global_handles->Create(*listener));
+  listener_ = global_handles->Create(*listener);
   data_ = global_handles->Create(*data);
 }
 

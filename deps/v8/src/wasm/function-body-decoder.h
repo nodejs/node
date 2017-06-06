@@ -170,8 +170,7 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   }
 
   WasmOpcode current() {
-    return static_cast<WasmOpcode>(
-        checked_read_u8(pc_, 0, "expected bytecode"));
+    return static_cast<WasmOpcode>(read_u8<false>(pc_, "expected bytecode"));
   }
 
   void next() {

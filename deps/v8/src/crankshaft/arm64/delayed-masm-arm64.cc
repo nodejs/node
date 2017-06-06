@@ -5,7 +5,9 @@
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/crankshaft/arm64/delayed-masm-arm64.h"
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/crankshaft/arm64/lithium-codegen-arm64.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

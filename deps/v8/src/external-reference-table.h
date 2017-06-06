@@ -23,6 +23,7 @@ class ExternalReferenceTable {
   Address address(uint32_t i) { return refs_[i].address; }
   const char* name(uint32_t i) { return refs_[i].name; }
   bool is_api_reference(uint32_t i) { return i >= api_refs_start_; }
+  uint32_t num_api_references() { return size() - api_refs_start_; }
 
 #ifdef DEBUG
   void increment_count(uint32_t i) { refs_[i].count++; }
@@ -32,8 +33,6 @@ class ExternalReferenceTable {
 #endif  // DEBUG
 
   static const char* ResolveSymbol(void* address);
-
-  static const int kDeoptTableSerializeEntryCount = 64;
 
  private:
   struct ExternalReferenceEntry {
@@ -61,7 +60,6 @@ class ExternalReferenceTable {
   void AddIsolateAddresses(Isolate* isolate);
   void AddAccessors(Isolate* isolate);
   void AddStubCache(Isolate* isolate);
-  void AddDeoptEntries(Isolate* isolate);
   void AddApiReferences(Isolate* isolate);
 
   List<ExternalReferenceEntry> refs_;

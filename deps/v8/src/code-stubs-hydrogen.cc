@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "src/assembler-inl.h"
 #include "src/bailout-reason.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"

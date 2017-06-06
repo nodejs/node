@@ -1221,13 +1221,21 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjFieldToHeapObj) {
         {kConst, Representation::HeapObject(), new_type},
         {kConst, Representation::HeapObject(), expected_type});
 
-    // Currently, kConst to kMutable migration causes map change, therefore
-    // non-trivial generalization.
-    TestReconfigureDataFieldAttribute_GeneralizeField(
-        {kConst, Representation::HeapObject(), current_type},
-        {kMutable, Representation::HeapObject(), new_type},
-        {kMutable, Representation::HeapObject(), expected_type});
-
+    if (FLAG_modify_map_inplace) {
+      // kConst to kMutable migration does not create a new map, therefore
+      // trivial generalization.
+      TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
+          {kConst, Representation::HeapObject(), current_type},
+          {kMutable, Representation::HeapObject(), new_type},
+          {kMutable, Representation::HeapObject(), expected_type});
+    } else {
+      // kConst to kMutable migration causes map change, therefore
+      // non-trivial generalization.
+      TestReconfigureDataFieldAttribute_GeneralizeField(
+          {kConst, Representation::HeapObject(), current_type},
+          {kMutable, Representation::HeapObject(), new_type},
+          {kMutable, Representation::HeapObject(), expected_type});
+    }
     TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
         {kMutable, Representation::HeapObject(), current_type},
         {kConst, Representation::HeapObject(), new_type},
@@ -1248,13 +1256,21 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjFieldToHeapObj) {
         {kConst, Representation::HeapObject(), new_type},
         {kConst, Representation::HeapObject(), any_type}, false);
 
-    // Currently, kConst to kMutable migration causes map change, therefore
-    // non-trivial generalization.
-    TestReconfigureDataFieldAttribute_GeneralizeField(
-        {kConst, Representation::HeapObject(), any_type},
-        {kMutable, Representation::HeapObject(), new_type},
-        {kMutable, Representation::HeapObject(), any_type});
-
+    if (FLAG_modify_map_inplace) {
+      // kConst to kMutable migration does not create a new map, therefore
+      // trivial generalization.
+      TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
+          {kConst, Representation::HeapObject(), any_type},
+          {kMutable, Representation::HeapObject(), new_type},
+          {kMutable, Representation::HeapObject(), any_type});
+    } else {
+      // kConst to kMutable migration causes map change, therefore
+      // non-trivial generalization.
+      TestReconfigureDataFieldAttribute_GeneralizeField(
+          {kConst, Representation::HeapObject(), any_type},
+          {kMutable, Representation::HeapObject(), new_type},
+          {kMutable, Representation::HeapObject(), any_type});
+    }
     TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
         {kMutable, Representation::HeapObject(), any_type},
         {kConst, Representation::HeapObject(), new_type},
@@ -1963,13 +1979,21 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
         {kConst, Representation::HeapObject(), new_type},
         {kConst, Representation::HeapObject(), expected_type});
 
-    // Currently, kConst to kMutable migration causes map change, therefore
-    // non-trivial generalization.
-    TestReconfigureElementsKind_GeneralizeField(
-        {kConst, Representation::HeapObject(), current_type},
-        {kMutable, Representation::HeapObject(), new_type},
-        {kMutable, Representation::HeapObject(), expected_type});
-
+    if (FLAG_modify_map_inplace) {
+      // kConst to kMutable migration does not create a new map, therefore
+      // trivial generalization.
+      TestReconfigureElementsKind_GeneralizeFieldTrivial(
+          {kConst, Representation::HeapObject(), current_type},
+          {kMutable, Representation::HeapObject(), new_type},
+          {kMutable, Representation::HeapObject(), expected_type});
+    } else {
+      // kConst to kMutable migration causes map change, therefore
+      // non-trivial generalization.
+      TestReconfigureElementsKind_GeneralizeField(
+          {kConst, Representation::HeapObject(), current_type},
+          {kMutable, Representation::HeapObject(), new_type},
+          {kMutable, Representation::HeapObject(), expected_type});
+    }
     TestReconfigureElementsKind_GeneralizeFieldTrivial(
         {kMutable, Representation::HeapObject(), current_type},
         {kConst, Representation::HeapObject(), new_type},
@@ -1990,12 +2014,21 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
         {kConst, Representation::HeapObject(), new_type},
         {kConst, Representation::HeapObject(), any_type}, false);
 
-    // Currently, kConst to kMutable migration causes map change, therefore
-    // non-trivial generalization.
-    TestReconfigureElementsKind_GeneralizeField(
-        {kConst, Representation::HeapObject(), any_type},
-        {kMutable, Representation::HeapObject(), new_type},
-        {kMutable, Representation::HeapObject(), any_type});
+    if (FLAG_modify_map_inplace) {
+      // kConst to kMutable migration does not create a new map, therefore
+      // trivial generalization.
+      TestReconfigureElementsKind_GeneralizeFieldTrivial(
+          {kConst, Representation::HeapObject(), any_type},
+          {kMutable, Representation::HeapObject(), new_type},
+          {kMutable, Representation::HeapObject(), any_type});
+    } else {
+      // kConst to kMutable migration causes map change, therefore
+      // non-trivial generalization.
+      TestReconfigureElementsKind_GeneralizeField(
+          {kConst, Representation::HeapObject(), any_type},
+          {kMutable, Representation::HeapObject(), new_type},
+          {kMutable, Representation::HeapObject(), any_type});
+    }
 
     TestReconfigureElementsKind_GeneralizeFieldTrivial(
         {kMutable, Representation::HeapObject(), any_type},

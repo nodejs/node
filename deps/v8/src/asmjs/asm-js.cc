@@ -6,6 +6,7 @@
 
 #include "src/api-natives.h"
 #include "src/api.h"
+#include "src/asmjs/asm-parser.h"
 #include "src/asmjs/asm-typer.h"
 #include "src/asmjs/asm-wasm-builder.h"
 #include "src/assert-scope.h"
@@ -164,46 +165,89 @@ bool IsStdlibMemberValid(i::Isolate* isolate, Handle<JSReceiver> stdlib,
 }  // namespace
 
 MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
-  ErrorThrower thrower(info->isolate(), "Asm.js -> WebAssembly conversion");
+  wasm::ZoneBuffer* module = nullptr;
+  wasm::ZoneBuffer* asm_offsets = nullptr;
+  Handle<FixedArray> uses_array;
+  Handle<FixedArray> foreign_globals;
   base::ElapsedTimer asm_wasm_timer;
   asm_wasm_timer.Start();
   wasm::AsmWasmBuilder builder(info);
-  Handle<FixedArray> foreign_globals;
-  auto asm_wasm_result = builder.Run(&foreign_globals);
-  if (!asm_wasm_result.success) {
-    DCHECK(!info->isolate()->has_pending_exception());
-    if (!FLAG_suppress_asm_messages) {
-      MessageHandler::ReportMessage(info->isolate(),
-                                    builder.typer()->message_location(),
-                                    builder.typer()->error_message());
+  if (FLAG_fast_validate_asm) {
+    wasm::AsmJsParser parser(info->isolate(), info->zone(), info->script(),
+                             info->literal()->start_position(),
+                             info->literal()->end_position());
+    if (!parser.Run()) {
+      DCHECK(!info->isolate()->has_pending_exception());
+      if (!FLAG_suppress_asm_messages) {
+        MessageLocation location(info->script(), parser.failure_location(),
+                                 parser.failure_location());
+        Handle<String> message =
+            info->isolate()
+                ->factory()
+                ->NewStringFromUtf8(CStrVector(parser.failure_message()))
+                .ToHandleChecked();
+        Handle<JSMessageObject> error_message =
+            MessageHandler::MakeMessageObject(
+                info->isolate(), MessageTemplate::kAsmJsInvalid, &location,
+                message, Handle<JSArray>::null());
+        error_message->set_error_level(v8::Isolate::kMessageWarning);
+        MessageHandler::ReportMessage(info->isolate(), &location,
+                                      error_message);
+      }
+      return MaybeHandle<FixedArray>();
     }
-    return MaybeHandle<FixedArray>();
+    Zone* zone = info->zone();
+    module = new (zone) wasm::ZoneBuffer(zone);
+    parser.module_builder()->WriteTo(*module);
+    asm_offsets = new (zone) wasm::ZoneBuffer(zone);
+    parser.module_builder()->WriteAsmJsOffsetTable(*asm_offsets);
+    // TODO(bradnelson): Remove foreign_globals plumbing (as we don't need it
+    // for the new parser).
+    foreign_globals = info->isolate()->factory()->NewFixedArray(0);
+    uses_array = info->isolate()->factory()->NewFixedArray(
+        static_cast<int>(parser.stdlib_uses()->size()));
+    int count = 0;
+    for (auto i : *parser.stdlib_uses()) {
+      uses_array->set(count++, Smi::FromInt(i));
+    }
+  } else {
+    auto asm_wasm_result = builder.Run(&foreign_globals);
+    if (!asm_wasm_result.success) {
+      DCHECK(!info->isolate()->has_pending_exception());
+      if (!FLAG_suppress_asm_messages) {
+        MessageHandler::ReportMessage(info->isolate(),
+                                      builder.typer()->message_location(),
+                                      builder.typer()->error_message());
+      }
+      return MaybeHandle<FixedArray>();
+    }
+    module = asm_wasm_result.module_bytes;
+    asm_offsets = asm_wasm_result.asm_offset_table;
+    wasm::AsmTyper::StdlibSet uses = builder.typer()->StdlibUses();
+    uses_array = info->isolate()->factory()->NewFixedArray(
+        static_cast<int>(uses.size()));
+    int count = 0;
+    for (auto i : uses) {
+      uses_array->set(count++, Smi::FromInt(i));
+    }
   }
-  double asm_wasm_time = asm_wasm_timer.Elapsed().InMillisecondsF();
 
-  wasm::ZoneBuffer* module = asm_wasm_result.module_bytes;
-  wasm::ZoneBuffer* asm_offsets = asm_wasm_result.asm_offset_table;
+  double asm_wasm_time = asm_wasm_timer.Elapsed().InMillisecondsF();
   Vector<const byte> asm_offsets_vec(asm_offsets->begin(),
                                      static_cast<int>(asm_offsets->size()));
 
   base::ElapsedTimer compile_timer;
   compile_timer.Start();
+  ErrorThrower thrower(info->isolate(), "Asm.js -> WebAssembly conversion");
   MaybeHandle<JSObject> compiled = SyncCompileTranslatedAsmJs(
       info->isolate(), &thrower,
       wasm::ModuleWireBytes(module->begin(), module->end()), info->script(),
       asm_offsets_vec);
   DCHECK(!compiled.is_null());
+  DCHECK(!thrower.error());
   double compile_time = compile_timer.Elapsed().InMillisecondsF();
   DCHECK_GE(module->end(), module->begin());
   uintptr_t wasm_size = module->end() - module->begin();
-
-  wasm::AsmTyper::StdlibSet uses = builder.typer()->StdlibUses();
-  Handle<FixedArray> uses_array =
-      info->isolate()->factory()->NewFixedArray(static_cast<int>(uses.size()));
-  int count = 0;
-  for (auto i : uses) {
-    uses_array->set(count++, Smi::FromInt(i));
-  }
 
   Handle<FixedArray> result =
       info->isolate()->factory()->NewFixedArray(kWasmDataEntryCount);
@@ -264,8 +308,6 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
   i::Handle<i::FixedArray> foreign_globals(
       i::FixedArray::cast(wasm_data->get(kWasmDataForeignGlobals)));
 
-  ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
-
   // Create the ffi object for foreign functions {"": foreign}.
   Handle<JSObject> ffi_object;
   if (!foreign.is_null()) {
@@ -276,40 +318,46 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
                           foreign, NONE);
   }
 
+  ErrorThrower thrower(isolate, "Asm.js -> WebAssembly instantiation");
   i::MaybeHandle<i::Object> maybe_module_object =
       i::wasm::SyncInstantiate(isolate, &thrower, module, ffi_object, memory);
   if (maybe_module_object.is_null()) {
+    thrower.Reify();  // Ensure exceptions do not propagate.
     return MaybeHandle<Object>();
   }
+  DCHECK(!thrower.error());
   i::Handle<i::Object> module_object = maybe_module_object.ToHandleChecked();
 
-  i::Handle<i::Name> init_name(isolate->factory()->InternalizeUtf8String(
-      wasm::AsmWasmBuilder::foreign_init_name));
-  i::Handle<i::Object> init =
-      i::Object::GetProperty(module_object, init_name).ToHandleChecked();
+  if (!FLAG_fast_validate_asm) {
+    i::Handle<i::Name> init_name(isolate->factory()->InternalizeUtf8String(
+        wasm::AsmWasmBuilder::foreign_init_name));
+    i::Handle<i::Object> init =
+        i::Object::GetProperty(module_object, init_name).ToHandleChecked();
 
-  i::Handle<i::Object> undefined(isolate->heap()->undefined_value(), isolate);
-  i::Handle<i::Object>* foreign_args_array =
-      new i::Handle<i::Object>[foreign_globals->length()];
-  for (int j = 0; j < foreign_globals->length(); j++) {
-    if (!foreign.is_null()) {
-      i::MaybeHandle<i::Name> name = i::Object::ToName(
-          isolate, i::Handle<i::Object>(foreign_globals->get(j), isolate));
-      if (!name.is_null()) {
-        i::MaybeHandle<i::Object> val =
-            i::Object::GetProperty(foreign, name.ToHandleChecked());
-        if (!val.is_null()) {
-          foreign_args_array[j] = val.ToHandleChecked();
-          continue;
+    i::Handle<i::Object> undefined(isolate->heap()->undefined_value(), isolate);
+    i::Handle<i::Object>* foreign_args_array =
+        new i::Handle<i::Object>[foreign_globals->length()];
+    for (int j = 0; j < foreign_globals->length(); j++) {
+      if (!foreign.is_null()) {
+        i::MaybeHandle<i::Name> name = i::Object::ToName(
+            isolate, i::Handle<i::Object>(foreign_globals->get(j), isolate));
+        if (!name.is_null()) {
+          i::MaybeHandle<i::Object> val =
+              i::Object::GetProperty(foreign, name.ToHandleChecked());
+          if (!val.is_null()) {
+            foreign_args_array[j] = val.ToHandleChecked();
+            continue;
+          }
         }
       }
+      foreign_args_array[j] = undefined;
     }
-    foreign_args_array[j] = undefined;
+    i::MaybeHandle<i::Object> retval =
+        i::Execution::Call(isolate, init, undefined, foreign_globals->length(),
+                           foreign_args_array);
+    delete[] foreign_args_array;
+    DCHECK(!retval.is_null());
   }
-  i::MaybeHandle<i::Object> retval = i::Execution::Call(
-      isolate, init, undefined, foreign_globals->length(), foreign_args_array);
-  delete[] foreign_args_array;
-  DCHECK(!retval.is_null());
 
   i::Handle<i::Name> single_function_name(
       isolate->factory()->InternalizeUtf8String(

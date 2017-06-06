@@ -31,8 +31,7 @@ static Handle<Code> GetDummyCode(Isolate* isolate) {
                    nullptr,   // unwinding_info
                    0,         // unwinding_info_size
                    nullptr};  // origin
-  Code::Flags flags =
-      Code::ComputeFlags(Code::LOAD_IC, kNoExtraICState, kCacheOnReceiver);
+  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, kNoExtraICState);
   Handle<Code> self_ref;
   return isolate->factory()->NewCode(desc, flags, self_ref);
 }
@@ -60,9 +59,7 @@ TEST(CodeCache) {
     codes.Add(GetDummyCode(isolate));
   }
   Handle<Name> bad_name = isolate->factory()->NewSymbol();
-  Code::Flags bad_flags =
-      Code::ComputeFlags(Code::LOAD_IC, kNoExtraICState, kCacheOnPrototype);
-  DCHECK(bad_flags != codes[0]->flags());
+  Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, kNoExtraICState);
 
   // Cache name/code pairs.
   for (int i = 0; i < kEntries; i++) {
@@ -70,9 +67,8 @@ TEST(CodeCache) {
     Handle<Code> code = codes.at(i);
     Map::UpdateCodeCache(map, name, code);
     CHECK_EQ(*code, map->LookupInCodeCache(*name, code->flags()));
-    CHECK_NULL(map->LookupInCodeCache(*name, bad_flags));
   }
-  CHECK_NULL(map->LookupInCodeCache(*bad_name, bad_flags));
+  CHECK_NULL(map->LookupInCodeCache(*bad_name, flags));
 
   // Check that lookup works not only right after storing.
   for (int i = 0; i < kEntries; i++) {

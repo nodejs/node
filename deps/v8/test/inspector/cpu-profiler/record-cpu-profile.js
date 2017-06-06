@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Test that profiler is able to record a profile. Also it tests that profiler returns an error when it unable to find the profile.");
+InspectorTest.log("Test that profiler is able to record a profile. Also it tests that profiler returns an error when it unable to find the profile.");
 
 Protocol.Profiler.enable();
 Protocol.Profiler.start().then(didStartFrontendProfile);

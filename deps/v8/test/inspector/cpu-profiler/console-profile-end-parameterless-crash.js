@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Tests that \"console.profileEnd()\" does not cause crash. (webkit:105759)");
+InspectorTest.log("Tests that \"console.profileEnd()\" does not cause crash. (webkit:105759)");
 
 InspectorTest.addScript(`
 function collectProfiles()

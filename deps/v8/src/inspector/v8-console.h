@@ -12,16 +12,16 @@
 namespace v8_inspector {
 
 class InspectedContext;
+class V8InspectorImpl;
 
 // Console API
 // https://console.spec.whatwg.org/#console-interface
 class V8Console {
  public:
-  static v8::Local<v8::Object> createConsole(InspectedContext*,
-                                             bool hasMemoryAttribute);
-  static void clearInspectedContextIfNeeded(v8::Local<v8::Context>,
-                                            v8::Local<v8::Object> console);
-  static v8::Local<v8::Object> createCommandLineAPI(InspectedContext*);
+  v8::Local<v8::Object> createConsole(v8::Local<v8::Context> context);
+  v8::Local<v8::Object> createCommandLineAPI(v8::Local<v8::Context> context);
+  void installMemoryGetter(v8::Local<v8::Context> context,
+                           v8::Local<v8::Object> console);
 
   class CommandLineAPIScope {
    public:
@@ -46,72 +46,74 @@ class V8Console {
     DISALLOW_COPY_AND_ASSIGN(CommandLineAPIScope);
   };
 
+  explicit V8Console(V8InspectorImpl* inspector);
+
  private:
-  static void debugCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void errorCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void infoCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void logCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void warnCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void dirCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void dirxmlCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void tableCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void traceCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void groupCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void groupCollapsedCallback(
-      const v8::FunctionCallbackInfo<v8::Value>&);
-  static void groupEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void clearCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void countCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void assertCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void markTimelineCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void profileCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void profileEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void timelineCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void timelineEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void timeCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void timeEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void timeStampCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void debugCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void errorCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void infoCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void logCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void warnCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void dirCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void dirxmlCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void tableCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void traceCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void groupCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void groupCollapsedCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void groupEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void clearCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void countCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void assertCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void markTimelineCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void profileCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void profileEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void timelineCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void timelineEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void timeCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void timeEndCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void timeStampCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+
+  template <void (V8Console::*func)(const v8::FunctionCallbackInfo<v8::Value>&)>
+  static void call(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    V8Console* console =
+        static_cast<V8Console*>(info.Data().As<v8::External>()->Value());
+    (console->*func)(info);
+  }
+
   // TODO(foolip): There is no spec for the Memory Info API, see blink-dev:
   // https://groups.google.com/a/chromium.org/d/msg/blink-dev/g5YRCGpC9vs/b4OJz71NmPwJ
-  static void memoryGetterCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void memorySetterCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void memoryGetterCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void memorySetterCallback(const v8::FunctionCallbackInfo<v8::Value>&);
 
   // CommandLineAPI
-  static void keysCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void valuesCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void debugFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void undebugFunctionCallback(
-      const v8::FunctionCallbackInfo<v8::Value>&);
-  static void monitorFunctionCallback(
-      const v8::FunctionCallbackInfo<v8::Value>&);
-  static void unmonitorFunctionCallback(
-      const v8::FunctionCallbackInfo<v8::Value>&);
-  static void lastEvaluationResultCallback(
-      const v8::FunctionCallbackInfo<v8::Value>&);
-  static void inspectCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void copyCallback(const v8::FunctionCallbackInfo<v8::Value>&);
-  static void inspectedObject(const v8::FunctionCallbackInfo<v8::Value>&,
-                              unsigned num);
-  static void inspectedObject0(
-      const v8::FunctionCallbackInfo<v8::Value>& info) {
+  void keysCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void valuesCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void debugFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void undebugFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void monitorFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void unmonitorFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void lastEvaluationResultCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void inspectCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void copyCallback(const v8::FunctionCallbackInfo<v8::Value>&);
+  void inspectedObject(const v8::FunctionCallbackInfo<v8::Value>&,
+                       unsigned num);
+  void inspectedObject0(const v8::FunctionCallbackInfo<v8::Value>& info) {
     inspectedObject(info, 0);
   }
-  static void inspectedObject1(
-      const v8::FunctionCallbackInfo<v8::Value>& info) {
+  void inspectedObject1(const v8::FunctionCallbackInfo<v8::Value>& info) {
     inspectedObject(info, 1);
   }
-  static void inspectedObject2(
-      const v8::FunctionCallbackInfo<v8::Value>& info) {
+  void inspectedObject2(const v8::FunctionCallbackInfo<v8::Value>& info) {
     inspectedObject(info, 2);
   }
-  static void inspectedObject3(
-      const v8::FunctionCallbackInfo<v8::Value>& info) {
+  void inspectedObject3(const v8::FunctionCallbackInfo<v8::Value>& info) {
     inspectedObject(info, 3);
   }
-  static void inspectedObject4(
-      const v8::FunctionCallbackInfo<v8::Value>& info) {
+  void inspectedObject4(const v8::FunctionCallbackInfo<v8::Value>& info) {
     inspectedObject(info, 4);
   }
+
+  V8InspectorImpl* m_inspector;
 };
 
 }  // namespace v8_inspector

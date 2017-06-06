@@ -234,12 +234,14 @@ void LoopVariableOptimizer::VisitIf(Node* node, bool polarity) {
   // Normalize to less than comparison.
   switch (cond->opcode()) {
     case IrOpcode::kJSLessThan:
+    case IrOpcode::kSpeculativeNumberLessThan:
       AddCmpToLimits(limits, cond, InductionVariable::kStrict, polarity);
       break;
     case IrOpcode::kJSGreaterThan:
       AddCmpToLimits(limits, cond, InductionVariable::kNonStrict, !polarity);
       break;
     case IrOpcode::kJSLessThanOrEqual:
+    case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       AddCmpToLimits(limits, cond, InductionVariable::kNonStrict, polarity);
       break;
     case IrOpcode::kJSGreaterThanOrEqual:
@@ -315,7 +317,8 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
 
   // TODO(jarin) Support both sides.
   if (arith->InputAt(0) != phi) {
-    if (arith->InputAt(0)->opcode() != IrOpcode::kJSToNumber ||
+    if ((arith->InputAt(0)->opcode() != IrOpcode::kJSToNumber &&
+         arith->InputAt(0)->opcode() != IrOpcode::kSpeculativeToNumber) ||
         arith->InputAt(0)->InputAt(0) != phi) {
       return nullptr;
     }

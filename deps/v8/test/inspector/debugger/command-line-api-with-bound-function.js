@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Check that debug and monitor methods from Command Line API works with bound function.");
+InspectorTest.log("Check that debug and monitor methods from Command Line API works with bound function.");
 
 InspectorTest.addScript(`
 function foo() {}

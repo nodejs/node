@@ -31,7 +31,7 @@ MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
   if (!accumulator.is_receiver_simple_enum()) {
     Handle<FixedArray> keys;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, keys, accumulator.GetKeys(GetKeysConversion::kKeepNumbers),
+        isolate, keys, accumulator.GetKeys(GetKeysConversion::kConvertToString),
         HeapObject);
     // Test again, since cache may have been built by GetKeys() calls above.
     if (!accumulator.is_receiver_simple_enum()) return keys;

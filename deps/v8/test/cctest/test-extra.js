@@ -70,12 +70,32 @@
     v8.rejectPromise(rejectedButHandledPromise, 4);
     v8.markPromiseAsHandled(rejectedButHandledPromise);
 
+    function promiseStateToString(promise) {
+      switch (v8.promiseState(promise)) {
+        case v8.kPROMISE_PENDING:
+          return "pending";
+        case v8.kPROMISE_FULFILLED:
+          return "fulfilled";
+        case v8.kPROMISE_REJECTED:
+          return "rejected";
+        default:
+          throw new Error("Unexpected value for promiseState");
+      }
+    }
+
+    let promiseStates = promiseStateToString(new Promise(() => {})) + ' ' +
+                        promiseStateToString(fulfilledPromise) + ' ' +
+                        promiseStateToString(rejectedPromise);
+
     return {
       privateSymbol: v8.createPrivateSymbol('sym'),
       fulfilledPromise, // should be fulfilled with 1
       fulfilledPromise2, // should be fulfilled with 2
       rejectedPromise, // should be rejected with 3
-      rejectedButHandledPromise // should be rejected but have a handler
+      rejectedButHandledPromise, // should be rejected but have a handler
+      promiseStates, // should be the string "pending fulfilled rejected"
+      promiseIsPromise: v8.isPromise(fulfilledPromise), // should be true
+      thenableIsPromise: v8.isPromise({ then() { } })  // should be false
     };
   };
 })

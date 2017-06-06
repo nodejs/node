@@ -22,6 +22,7 @@
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/code-stats.h"
+#include "src/heap/concurrent-marking.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
@@ -132,9 +133,11 @@ Heap::Heap()
       last_gc_time_(0.0),
       scavenge_collector_(nullptr),
       mark_compact_collector_(nullptr),
+      minor_mark_compact_collector_(nullptr),
       memory_allocator_(nullptr),
       store_buffer_(nullptr),
       incremental_marking_(nullptr),
+      concurrent_marking_(nullptr),
       gc_idle_time_handler_(nullptr),
       memory_reducer_(nullptr),
       live_object_stats_(nullptr),
@@ -413,6 +416,7 @@ void Heap::IncrementDeferredCount(v8::Isolate::UseCounterFeature feature) {
 bool Heap::UncommitFromSpace() { return new_space_->UncommitFromSpace(); }
 
 void Heap::GarbageCollectionPrologue() {
+  TRACE_GC(tracer(), GCTracer::Scope::HEAP_PROLOGUE);
   {
     AllowHeapAllocation for_the_first_part_of_prologue;
     gc_count_++;
@@ -479,6 +483,9 @@ const char* Heap::GetSpaceName(int idx) {
   return nullptr;
 }
 
+void Heap::SetRootCodeStubs(UnseededNumberDictionary* value) {
+  roots_[kCodeStubsRootIndex] = value;
+}
 
 void Heap::RepairFreeListsAfterDeserialization() {
   PagedSpaces spaces(this);
@@ -639,6 +646,7 @@ void Heap::DeoptMarkedAllocationSites() {
 
 
 void Heap::GarbageCollectionEpilogue() {
+  TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE);
   // In release mode, we only zap the from space under heap verification.
   if (Heap::ShouldZapGarbage()) {
     ZapFromSpace();
@@ -744,14 +752,17 @@ void Heap::GarbageCollectionEpilogue() {
   new_space_top_after_last_gc_ = new_space()->top();
   last_gc_time_ = MonotonicallyIncreasingTimeInMs();
 
-  ReduceNewSpaceSize();
+  {
+    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_REDUCE_NEW_SPACE);
+    ReduceNewSpaceSize();
+  }
 }
 
 
 void Heap::PreprocessStackTraces() {
   WeakFixedArray::Iterator iterator(weak_stack_trace_list());
   FixedArray* elements;
-  while ((elements = iterator.Next<FixedArray>())) {
+  while ((elements = iterator.Next<FixedArray>()) != nullptr) {
     for (int j = 1; j < elements->length(); j += 4) {
       Object* maybe_code = elements->get(j + 2);
       // If GC happens while adding a stack trace to the weak fixed array,
@@ -1310,7 +1321,7 @@ bool Heap::PerformGarbageCollection(
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      TRACE_GC(tracer(), GCTracer::Scope::EXTERNAL_PROLOGUE);
+      TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
@@ -1342,8 +1353,9 @@ bool Heap::PerformGarbageCollection(
         MinorMarkCompact();
         break;
       case SCAVENGER:
-        if (fast_promotion_mode_ &&
-            CanExpandOldGeneration(new_space()->Size())) {
+        if ((fast_promotion_mode_ &&
+             CanExpandOldGeneration(new_space()->Size())) ||
+            concurrent_marking_->IsTaskPending()) {
           tracer()->NotifyYoungGenerationHandling(
               YoungGenerationHandling::kFastPromotionDuringScavenge);
           EvacuateYoungGeneration();
@@ -1371,7 +1383,7 @@ bool Heap::PerformGarbageCollection(
   gc_post_processing_depth_++;
   {
     AllowHeapAllocation allow_allocation;
-    TRACE_GC(tracer(), GCTracer::Scope::EXTERNAL_WEAK_GLOBAL_HANDLES);
+    TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES);
     freed_global_handles =
         isolate_->global_handles()->PostGarbageCollectionProcessing(
             collector, gc_callback_flags);
@@ -1401,7 +1413,7 @@ bool Heap::PerformGarbageCollection(
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      TRACE_GC(tracer(), GCTracer::Scope::EXTERNAL_EPILOGUE);
+      TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_EPILOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
@@ -1431,10 +1443,6 @@ void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
         gc_prologue_callbacks_[i].callback(isolate, gc_type, flags);
       }
     }
-  }
-  if (FLAG_trace_object_groups && (gc_type == kGCTypeIncrementalMarking ||
-                                   gc_type == kGCTypeMarkSweepCompact)) {
-    isolate_->global_handles()->PrintObjectGroups();
   }
 }
 
@@ -1483,7 +1491,21 @@ void Heap::MarkCompact() {
   }
 }
 
-void Heap::MinorMarkCompact() { UNREACHABLE(); }
+void Heap::MinorMarkCompact() {
+  DCHECK(FLAG_minor_mc);
+
+  SetGCState(MINOR_MARK_COMPACT);
+  LOG(isolate_, ResourceEvent("MinorMarkCompact", "begin"));
+
+  TRACE_GC(tracer(), GCTracer::Scope::MC_MINOR_MC);
+  AlwaysAllocateScope always_allocate(isolate());
+  PauseAllocationObserversScope pause_observers(this);
+
+  minor_mark_compact_collector()->CollectGarbage();
+
+  LOG(isolate_, ResourceEvent("MinorMarkCompact", "end"));
+  SetGCState(NOT_IN_GC);
+}
 
 void Heap::MarkCompactEpilogue() {
   TRACE_GC(tracer(), GCTracer::Scope::MC_EPILOGUE);
@@ -1605,8 +1627,10 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 
 void Heap::EvacuateYoungGeneration() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_EVACUATE);
-  DCHECK(fast_promotion_mode_);
-  DCHECK(CanExpandOldGeneration(new_space()->Size()));
+  if (!FLAG_concurrent_marking) {
+    DCHECK(fast_promotion_mode_);
+    DCHECK(CanExpandOldGeneration(new_space()->Size()));
+  }
 
   mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
 
@@ -2334,7 +2358,6 @@ bool Heap::CreateInitialMaps() {
                            Context::BOOLEAN_FUNCTION_INDEX);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, uninitialized);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, arguments_marker);
-    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, no_interceptor_result_sentinel);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, exception);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, termination_exception);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, optimized_out);
@@ -2674,11 +2697,6 @@ void Heap::CreateInitialObjects() {
                            handle(Smi::FromInt(-4), isolate()), "undefined",
                            Oddball::kArgumentsMarker));
 
-  set_no_interceptor_result_sentinel(*factory->NewOddball(
-      factory->no_interceptor_result_sentinel_map(),
-      "no_interceptor_result_sentinel", handle(Smi::FromInt(-2), isolate()),
-      "undefined", Oddball::kOther));
-
   set_termination_exception(*factory->NewOddball(
       factory->termination_exception_map(), "termination_exception",
       handle(Smi::FromInt(-3), isolate()), "undefined", Oddball::kOther));
@@ -2765,19 +2783,6 @@ void Heap::CreateInitialObjects() {
       RegExpResultsCache::kRegExpResultsCacheSize, TENURED));
   set_regexp_multiple_cache(*factory->NewFixedArray(
       RegExpResultsCache::kRegExpResultsCacheSize, TENURED));
-
-  // Allocate cache for external strings pointing to native source code.
-  set_natives_source_cache(
-      *factory->NewFixedArray(Natives::GetBuiltinsCount()));
-
-  set_experimental_natives_source_cache(
-      *factory->NewFixedArray(ExperimentalNatives::GetBuiltinsCount()));
-
-  set_extra_natives_source_cache(
-      *factory->NewFixedArray(ExtraNatives::GetBuiltinsCount()));
-
-  set_experimental_extra_natives_source_cache(
-      *factory->NewFixedArray(ExperimentalExtraNatives::GetBuiltinsCount()));
 
   set_undefined_cell(*factory->NewCell(factory->undefined_value()));
 
@@ -2962,8 +2967,9 @@ bool Heap::IsUnmodifiedHeapObject(Object** p) {
   if (!object->IsJSObject()) return false;
   JSObject* js_object = JSObject::cast(object);
   if (!js_object->WasConstructedFromApiFunction()) return false;
-  JSFunction* constructor =
-      JSFunction::cast(js_object->map()->GetConstructor());
+  Object* maybe_constructor = js_object->map()->GetConstructor();
+  if (!maybe_constructor->IsJSFunction()) return false;
+  JSFunction* constructor = JSFunction::cast(maybe_constructor);
 
   return constructor->initial_map() == heap_object->map();
 }
@@ -3156,9 +3162,9 @@ void Heap::AdjustLiveBytes(HeapObject* object, int by) {
     lo_space()->AdjustLiveBytes(by);
   } else if (!in_heap_iterator() &&
              !mark_compact_collector()->sweeping_in_progress() &&
-             ObjectMarking::IsBlack(object)) {
+             ObjectMarking::IsBlack(object, MarkingState::Internal(object))) {
     DCHECK(MemoryChunk::FromAddress(object->address())->SweepingDone());
-    MemoryChunk::IncrementLiveBytes(object, by);
+    MarkingState::Internal(object).IncrementLiveBytes(by);
   }
 }
 
@@ -3193,8 +3199,9 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // Transfer the mark bits to their new location if the object is not within
   // a black area.
   if (!incremental_marking()->black_allocation() ||
-      !Marking::IsBlack(
-          ObjectMarking::MarkBitFrom(HeapObject::FromAddress(new_start)))) {
+      !Marking::IsBlack(ObjectMarking::MarkBitFrom(
+          HeapObject::FromAddress(new_start),
+          MarkingState::Internal(HeapObject::FromAddress(new_start))))) {
     IncrementalMarking::TransferMark(this, object,
                                      HeapObject::FromAddress(new_start));
   }
@@ -3203,16 +3210,6 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
   CreateFillerObjectAt(old_start, bytes_to_trim, ClearRecordedSlots::kYes);
-
-  // Clear the mark bits of the black area that belongs now to the filler.
-  // This is an optimization. The sweeper will release black fillers anyway.
-  if (incremental_marking()->black_allocation() &&
-      Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(object))) {
-    Page* page = Page::FromAddress(old_start);
-    page->markbits()->ClearRange(
-        page->AddressToMarkbitIndex(old_start),
-        page->AddressToMarkbitIndex(old_start + bytes_to_trim));
-  }
 
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
@@ -3287,9 +3284,9 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
     if (incremental_marking()->black_allocation() &&
-        ObjectMarking::IsBlackOrGrey(filler)) {
+        ObjectMarking::IsBlackOrGrey(filler, MarkingState::Internal(filler))) {
       Page* page = Page::FromAddress(new_end);
-      page->markbits()->ClearRange(
+      MarkingState::Internal(page).bitmap()->ClearRange(
           page->AddressToMarkbitIndex(new_end),
           page->AddressToMarkbitIndex(new_end + bytes_to_trim));
     }
@@ -3526,7 +3523,7 @@ void Heap::InitializeJSObjectBody(JSObject* obj, Map* map, int start_offset) {
   DCHECK_LT(start_offset, map->instance_size());
 
   // We cannot always fill with one_pointer_filler_map because objects
-  // created from API functions expect their internal fields to be initialized
+  // created from API functions expect their embedder fields to be initialized
   // with undefined_value.
   // Pre-allocated fields need to be initialized with undefined_value as well
   // so that object accesses before the constructor completes (e.g. in the
@@ -4260,30 +4257,36 @@ bool Heap::TryFinalizeIdleIncrementalMarking(
   return false;
 }
 
-void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
+void Heap::RegisterDeserializedObjectsForBlackAllocation(
+    Reservation* reservations, List<HeapObject*>* large_objects) {
   // TODO(hpayer): We do not have to iterate reservations on black objects
   // for marking. We just have to execute the special visiting side effect
   // code that adds objects to global data structures, e.g. for array buffers.
 
-  if (incremental_marking()->black_allocation()) {
-    // Iterate black objects in old space, code space, map space, and large
-    // object space for side effects.
-    for (int i = OLD_SPACE; i < Serializer::kNumberOfSpaces; i++) {
-      const Heap::Reservation& res = reservations[i];
-      for (auto& chunk : res) {
-        Address addr = chunk.start;
-        while (addr < chunk.end) {
-          HeapObject* obj = HeapObject::FromAddress(addr);
-          // There might be grey objects due to black to grey transitions in
-          // incremental marking. E.g. see VisitNativeContextIncremental.
-          DCHECK(ObjectMarking::IsBlackOrGrey(obj));
-          if (ObjectMarking::IsBlack(obj)) {
-            incremental_marking()->IterateBlackObject(obj);
-          }
-          addr += obj->Size();
+  if (!incremental_marking()->black_allocation()) return;
+
+  // Iterate black objects in old space, code space, map space, and large
+  // object space for side effects.
+  for (int i = OLD_SPACE; i < Serializer::kNumberOfSpaces; i++) {
+    const Heap::Reservation& res = reservations[i];
+    for (auto& chunk : res) {
+      Address addr = chunk.start;
+      while (addr < chunk.end) {
+        HeapObject* obj = HeapObject::FromAddress(addr);
+        // There might be grey objects due to black to grey transitions in
+        // incremental marking. E.g. see VisitNativeContextIncremental.
+        DCHECK(
+            ObjectMarking::IsBlackOrGrey(obj, MarkingState::Internal(obj)));
+        if (ObjectMarking::IsBlack(obj, MarkingState::Internal(obj))) {
+          incremental_marking()->IterateBlackObject(obj);
         }
+        addr += obj->Size();
       }
     }
+  }
+  // Large object space doesn't use reservations, so it needs custom handling.
+  for (HeapObject* object : *large_objects) {
+    incremental_marking()->IterateBlackObject(object);
   }
 }
 
@@ -4596,7 +4599,7 @@ void Heap::ReportHeapStatistics(const char* title) {
   USE(title);
   PrintF(">>>>>> =============== %s (%d) =============== >>>>>>\n", title,
          gc_count_);
-  PrintF("old_generation_allocation_limit_ %" V8PRIdPTR "\n",
+  PrintF("old_generation_allocation_limit_ %" PRIuS "\n",
          old_generation_allocation_limit_);
 
   PrintF("\n");
@@ -4875,7 +4878,8 @@ void Heap::IterateAndScavengePromotedObject(HeapObject* target, int size,
   // it would be a violation of the invariant to record it's slots.
   bool record_slots = false;
   if (incremental_marking()->IsCompacting()) {
-    record_slots = ObjectMarking::IsBlack(target);
+    record_slots =
+        ObjectMarking::IsBlack(target, MarkingState::Internal(target));
   }
 
   IterateAndScavengePromotedObjectsVisitor visitor(this, target, record_slots);
@@ -5419,7 +5423,9 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation() {
 // The kSoftLimit means that incremental marking should be started soon.
 // The kHardLimit means that incremental marking should be started immediately.
 Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
-  if (!incremental_marking()->CanBeActivated() ||
+  // Code using an AlwaysAllocateScope assumes that the GC state does not
+  // change; that implies that no marking steps must be performed.
+  if (!incremental_marking()->CanBeActivated() || always_allocate() ||
       PromotedSpaceSizeOfObjects() <=
           IncrementalMarking::kActivationThreshold) {
     // Incremental marking is disabled or it is too early to start.
@@ -5506,11 +5512,11 @@ bool Heap::SetUp() {
                                 code_range_size_))
     return false;
 
-  // Initialize store buffer.
   store_buffer_ = new StoreBuffer(this);
 
-  // Initialize incremental marking.
   incremental_marking_ = new IncrementalMarking(this);
+
+  concurrent_marking_ = new ConcurrentMarking(this);
 
   for (int i = 0; i <= LAST_SPACE; i++) {
     space_[i] = nullptr;
@@ -5557,6 +5563,8 @@ bool Heap::SetUp() {
   tracer_ = new GCTracer(this);
   scavenge_collector_ = new Scavenger(this);
   mark_compact_collector_ = new MarkCompactCollector(this);
+  if (FLAG_minor_mc)
+    minor_mark_compact_collector_ = new MinorMarkCompactCollector(this);
   gc_idle_time_handler_ = new GCIdleTimeHandler();
   memory_reducer_ = new MemoryReducer(this);
   if (V8_UNLIKELY(FLAG_gc_stats)) {
@@ -5572,6 +5580,9 @@ bool Heap::SetUp() {
   store_buffer()->SetUp();
 
   mark_compact_collector()->SetUp();
+  if (minor_mark_compact_collector() != nullptr) {
+    minor_mark_compact_collector()->SetUp();
+  }
 
   idle_scavenge_observer_ = new IdleScavengeObserver(
       *this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask);
@@ -5645,18 +5656,21 @@ void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
 
 void Heap::TracePossibleWrapper(JSObject* js_object) {
   DCHECK(js_object->WasConstructedFromApiFunction());
-  if (js_object->GetInternalFieldCount() >= 2 &&
-      js_object->GetInternalField(0) &&
-      js_object->GetInternalField(0) != undefined_value() &&
-      js_object->GetInternalField(1) != undefined_value()) {
-    DCHECK(reinterpret_cast<intptr_t>(js_object->GetInternalField(0)) % 2 == 0);
+  if (js_object->GetEmbedderFieldCount() >= 2 &&
+      js_object->GetEmbedderField(0) &&
+      js_object->GetEmbedderField(0) != undefined_value() &&
+      js_object->GetEmbedderField(1) != undefined_value()) {
+    DCHECK(reinterpret_cast<intptr_t>(js_object->GetEmbedderField(0)) % 2 == 0);
     local_embedder_heap_tracer()->AddWrapperToTrace(std::pair<void*, void*>(
-        reinterpret_cast<void*>(js_object->GetInternalField(0)),
-        reinterpret_cast<void*>(js_object->GetInternalField(1))));
+        reinterpret_cast<void*>(js_object->GetEmbedderField(0)),
+        reinterpret_cast<void*>(js_object->GetEmbedderField(1))));
   }
 }
 
 void Heap::RegisterExternallyReferencedObject(Object** object) {
+  // The embedder is not aware of whether numbers are materialized as heap
+  // objects are just passed around as Smis.
+  if (!(*object)->IsHeapObject()) return;
   HeapObject* heap_object = HeapObject::cast(*object);
   DCHECK(Contains(heap_object));
   if (FLAG_incremental_marking_wrappers && incremental_marking()->IsMarking()) {
@@ -5693,8 +5707,17 @@ void Heap::TearDown() {
     mark_compact_collector_ = nullptr;
   }
 
+  if (minor_mark_compact_collector_ != nullptr) {
+    minor_mark_compact_collector_->TearDown();
+    delete minor_mark_compact_collector_;
+    minor_mark_compact_collector_ = nullptr;
+  }
+
   delete incremental_marking_;
   incremental_marking_ = nullptr;
+
+  delete concurrent_marking_;
+  concurrent_marking_ = nullptr;
 
   delete gc_idle_time_handler_;
   gc_idle_time_handler_ = nullptr;
@@ -6095,7 +6118,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   bool SkipObject(HeapObject* object) {
     if (object->IsFiller()) return true;
-    return ObjectMarking::IsWhite(object);
+    return ObjectMarking::IsWhite(object, MarkingState::Internal(object));
   }
 
  private:
@@ -6109,7 +6132,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
         HeapObject* obj = HeapObject::cast(*p);
         // Use Marking instead of ObjectMarking to avoid adjusting live bytes
         // counter.
-        MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
+        MarkBit mark_bit =
+            ObjectMarking::MarkBitFrom(obj, MarkingState::Internal(obj));
         if (Marking::IsWhite(mark_bit)) {
           Marking::WhiteToBlack(mark_bit);
           marking_stack_.Add(obj);

@@ -35,7 +35,7 @@ class Vector {
   // spanning from and including 'from', to but not including 'to'.
   Vector<T> SubVector(int from, int to) const {
     DCHECK(0 <= from);
-    SLOW_DCHECK(from < to);
+    SLOW_DCHECK(from <= to);
     SLOW_DCHECK(static_cast<unsigned>(to) <= static_cast<unsigned>(length_));
     return Vector<T>(start() + from, to - from);
   }

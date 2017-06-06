@@ -213,13 +213,6 @@ RUNTIME_FUNCTION(Runtime_IsSmi) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetRootNaN) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
-  return isolate->heap()->nan_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_GetHoleNaNUpper) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());

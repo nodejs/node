@@ -101,11 +101,6 @@ template("v8_isolate_run") {
       } else {
         icu_use_data_file_flag = "0"
       }
-      if (v8_enable_inspector) {
-        enable_inspector = "1"
-      } else {
-        enable_inspector = "0"
-      }
       if (v8_use_external_startup_data) {
         use_external_startup_data = "1"
       } else {
@@ -176,8 +171,6 @@ template("v8_isolate_run") {
         "component=$component",
         "--config-variable",
         "target_arch=$target_arch",
-        "--config-variable",
-        "v8_enable_inspector=$enable_inspector",
         "--config-variable",
         "v8_use_external_startup_data=$use_external_startup_data",
         "--config-variable",

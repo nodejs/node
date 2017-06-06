@@ -596,7 +596,10 @@ CPU::CPU()
   CPUInfo cpu_info;
   char* cpu_model = cpu_info.ExtractField("cpu model");
   has_fpu_ = HasListItem(cpu_model, "FPU");
+  char* ASEs = cpu_info.ExtractField("ASEs implemented");
+  has_msa_ = HasListItem(ASEs, "msa");
   delete[] cpu_model;
+  delete[] ASEs;
 #ifdef V8_HOST_ARCH_MIPS
   is_fp64_mode_ = __detect_fp64_mode();
   architecture_ = __detect_mips_arch_revision();

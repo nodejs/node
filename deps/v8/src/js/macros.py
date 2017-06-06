@@ -82,7 +82,7 @@ macro IS_CALLABLE(arg) = (typeof(arg) === 'function');
 macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL(%IS_VAR(arg)) || IS_UNDEFINED(arg)) throw %make_type_error(kCalledOnNullOrUndefined, functionName);
 
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
-macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
+macro NUMBER_IS_NAN(arg) = (%IS_VAR(arg) !== arg);
 macro NUMBER_IS_FINITE(arg) = (%_IsSmi(%IS_VAR(arg)) || ((arg == arg) && (arg != 1/0) && (arg != -1/0)));
 macro TO_BOOLEAN(arg) = (!!(arg));
 macro TO_INTEGER(arg) = (%_ToInteger(arg));

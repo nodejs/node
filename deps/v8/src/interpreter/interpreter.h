@@ -23,10 +23,7 @@ class Isolate;
 class Callable;
 class CompilationInfo;
 class CompilationJob;
-
-namespace compiler {
-class Node;
-}  // namespace compiler
+class SetupIsolateDelegate;
 
 namespace interpreter {
 
@@ -36,9 +33,6 @@ class Interpreter {
  public:
   explicit Interpreter(Isolate* isolate);
   virtual ~Interpreter() {}
-
-  // Initializes the interpreter dispatch table.
-  void Initialize();
 
   // Returns the interrupt budget which should be used for the profiler counter.
   static int InterruptBudget();
@@ -53,7 +47,6 @@ class Interpreter {
   void IterateDispatchTable(ObjectVisitor* v);
 
   // Disassembler support (only useful with ENABLE_DISASSEMBLER defined).
-  void TraceCodegen(Handle<Code> code);
   const char* LookupNameOfBytecodeHandler(Code* code);
 
   V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
@@ -67,102 +60,11 @@ class Interpreter {
   }
 
   // TODO(ignition): Tune code size multiplier.
-  static const int kCodeSizeMultiplier = 32;
+  static const int kCodeSizeMultiplier = 24;
 
  private:
-// Bytecode handler generator functions.
-#define DECLARE_BYTECODE_HANDLER_GENERATOR(Name, ...) \
-  void Do##Name(InterpreterAssembler* assembler);
-  BYTECODE_LIST(DECLARE_BYTECODE_HANDLER_GENERATOR)
-#undef DECLARE_BYTECODE_HANDLER_GENERATOR
-
-  typedef void (Interpreter::*BytecodeGeneratorFunc)(InterpreterAssembler*);
-
-  // Generates handler for given |bytecode| and |operand_scale| using
-  // |generator| and installs it into the dispatch table.
-  void InstallBytecodeHandler(Zone* zone, Bytecode bytecode,
-                              OperandScale operand_scale,
-                              BytecodeGeneratorFunc generator);
-
-  // Generates code to perform the binary operation via |Generator|.
-  template <class Generator>
-  void DoBinaryOpWithFeedback(InterpreterAssembler* assembler);
-
-  // Generates code to perform the comparison via |Generator| while gathering
-  // type feedback.
-  void DoCompareOpWithFeedback(Token::Value compare_op,
-                               InterpreterAssembler* assembler);
-
-  // Generates code to perform the bitwise binary operation corresponding to
-  // |bitwise_op| while gathering type feedback.
-  void DoBitwiseBinaryOp(Token::Value bitwise_op,
-                         InterpreterAssembler* assembler);
-
-  // Generates code to perform the binary operation via |Generator| using
-  // an immediate value rather the accumulator as the rhs operand.
-  template <class Generator>
-  void DoBinaryOpWithImmediate(InterpreterAssembler* assembler);
-
-  // Generates code to perform the unary operation via |Generator| while
-  // gatering type feedback.
-  template <class Generator>
-  void DoUnaryOpWithFeedback(InterpreterAssembler* assembler);
-
-  // Generates code to perform the comparison operation associated with
-  // |compare_op|.
-  void DoCompareOp(Token::Value compare_op, InterpreterAssembler* assembler);
-
-  // Generates code to perform a global store via |ic|.
-  void DoStaGlobal(Callable ic, InterpreterAssembler* assembler);
-
-  // Generates code to perform a named property store via |ic|.
-  void DoStoreIC(Callable ic, InterpreterAssembler* assembler);
-
-  // Generates code to perform a keyed property store via |ic|.
-  void DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler);
-
-  // Generates code to perform a JS call that collects type feedback.
-  void DoJSCall(InterpreterAssembler* assembler, TailCallMode tail_call_mode);
-
-  // Generates code to perform delete via function_id.
-  void DoDelete(Runtime::FunctionId function_id,
-                InterpreterAssembler* assembler);
-
-  // Generates code to perform a lookup slot load via |function_id|.
-  void DoLdaLookupSlot(Runtime::FunctionId function_id,
-                       InterpreterAssembler* assembler);
-
-  // Generates code to perform a lookup slot load via |function_id| that can
-  // fast path to a context slot load.
-  void DoLdaLookupContextSlot(Runtime::FunctionId function_id,
-                              InterpreterAssembler* assembler);
-
-  // Generates code to perform a lookup slot load via |function_id| that can
-  // fast path to a global load.
-  void DoLdaLookupGlobalSlot(Runtime::FunctionId function_id,
-                             InterpreterAssembler* assembler);
-
-  // Generates code to perform a lookup slot store depending on
-  // |language_mode|.
-  void DoStaLookupSlot(LanguageMode language_mode,
-                       InterpreterAssembler* assembler);
-
-  // Generates code to load a global.
-  void BuildLoadGlobal(int slot_operand_index, int name_operand_index,
-                       TypeofMode typeof_mode, InterpreterAssembler* assembler);
-
-  // Generates code to prepare the result for ForInPrepare. Cache data
-  // are placed into the consecutive series of registers starting at
-  // |output_register|.
-  void BuildForInPrepareResult(compiler::Node* output_register,
-                               compiler::Node* cache_type,
-                               compiler::Node* cache_array,
-                               compiler::Node* cache_length,
-                               InterpreterAssembler* assembler);
-
-  // Generates code to perform the unary operation via |callable|.
-  compiler::Node* BuildUnaryOp(Callable callable,
-                               InterpreterAssembler* assembler);
+  friend class SetupInterpreter;
+  friend class v8::internal::SetupIsolateDelegate;
 
   uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
 
@@ -171,7 +73,6 @@ class Interpreter {
                                       OperandScale operand_scale);
 
   bool IsDispatchTableInitialized();
-  bool ShouldInitializeDispatchTable();
 
   static const int kNumberOfWideVariants = 3;
   static const int kDispatchTableSize = kNumberOfWideVariants * (kMaxUInt8 + 1);

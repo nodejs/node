@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Test for Debugger.getPossibleBreakpoints');
+InspectorTest.log('Test for Debugger.getPossibleBreakpoints');
 
 Protocol.Runtime.enable();
 Protocol.Debugger.enable();
@@ -153,7 +153,7 @@ function foo6() { Promise.resolve().then(() => 42) }`;
 function compileScript(source, origin) {
   var promise = Protocol.Debugger.onceScriptParsed().then(message => message.params.scriptId);
   if (!origin) origin = { name: '', line_offset: 0, column_offset: 0 };
-  compileAndRunWithOrigin(source, origin.name, origin.line_offset, origin.column_offset, false);
+  utils.compileAndRunWithOrigin(source, origin.name, origin.line_offset, origin.column_offset, false);
   return promise;
 }
 

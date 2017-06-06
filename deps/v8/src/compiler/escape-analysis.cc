@@ -635,6 +635,11 @@ void EscapeStatusAnalysis::ResizeStatusVector() {
 size_t EscapeStatusAnalysis::GetStatusVectorSize() { return status_.size(); }
 
 void EscapeStatusAnalysis::RunStatusAnalysis() {
+  // TODO(tebbi): This checks for faulty VirtualObject states, which can happen
+  // due to bug https://bugs.chromium.org/p/v8/issues/detail?id=6302. As a
+  // workaround, we set everything to escaped if such a faulty state was
+  // detected.
+  bool all_objects_complete = object_analysis_->AllObjectsComplete();
   ResizeStatusVector();
   while (!status_stack_.empty()) {
     Node* node = status_stack_.back();
@@ -642,6 +647,7 @@ void EscapeStatusAnalysis::RunStatusAnalysis() {
     status_[node->id()] &= ~kOnStack;
     Process(node);
     status_[node->id()] |= kVisited;
+    if (!all_objects_complete) SetEscaped(node);
   }
 }
 
@@ -807,6 +813,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kStateValues:
       case IrOpcode::kReferenceEqual:
       case IrOpcode::kFinishRegion:
+      case IrOpcode::kCheckMaps:
         if (IsEscaped(use) && SetEscaped(rep)) {
           TRACE(
               "Setting #%d (%s) to escaped because of use by escaping node "
@@ -839,10 +846,12 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kStringCharCodeAt:
       case IrOpcode::kStringIndexOf:
       case IrOpcode::kObjectIsDetectableCallable:
+      case IrOpcode::kObjectIsNaN:
       case IrOpcode::kObjectIsNonCallable:
       case IrOpcode::kObjectIsNumber:
       case IrOpcode::kObjectIsReceiver:
       case IrOpcode::kObjectIsString:
+      case IrOpcode::kObjectIsSymbol:
       case IrOpcode::kObjectIsUndetectable:
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
@@ -989,6 +998,25 @@ bool EscapeStatusAnalysis::IsNotReachable(Node* node) {
   return aliases_[node->id()] == kNotReachable;
 }
 
+bool EscapeAnalysis::AllObjectsComplete() {
+  for (VirtualState* state : virtual_states_) {
+    if (state) {
+      for (size_t i = 0; i < state->size(); ++i) {
+        if (VirtualObject* object = state->VirtualObjectFromAlias(i)) {
+          if (!object->AllFieldsClear()) {
+            for (size_t i = 0; i < object->field_count(); ++i) {
+              if (object->GetField(i) == nullptr) {
+                return false;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return true;
+}
+
 void EscapeAnalysis::RunObjectAnalysis() {
   virtual_states_.resize(graph()->NodeCount());
   ZoneDeque<Node*> queue(zone());
@@ -1032,6 +1060,7 @@ void EscapeAnalysis::RunObjectAnalysis() {
       danglers.clear();
     }
   }
+
 #ifdef DEBUG
   if (FLAG_trace_turbo_escape) {
     DebugPrint();
@@ -1125,6 +1154,9 @@ bool EscapeAnalysis::Process(Node* node) {
     case IrOpcode::kLoadElement:
       ProcessLoadElement(node);
       break;
+    case IrOpcode::kCheckMaps:
+      ProcessCheckMaps(node);
+      break;
     case IrOpcode::kStart:
       ProcessStart(node);
       break;
@@ -1162,6 +1194,10 @@ void EscapeAnalysis::ProcessAllocationUsers(Node* node) {
       case IrOpcode::kFinishRegion:
       case IrOpcode::kObjectIsSmi:
         break;
+      case IrOpcode::kCheckMaps: {
+        CheckMapsParameters params = CheckMapsParametersOf(node->op());
+        if (params.flags() == CheckMapsFlag::kNone) break;
+      }  // Fallthrough.
       default:
         VirtualState* state = virtual_states_[node->id()];
         if (VirtualObject* obj =
@@ -1515,6 +1551,46 @@ void EscapeAnalysis::ProcessLoadField(Node* node) {
   }
 }
 
+void EscapeAnalysis::ProcessCheckMaps(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kCheckMaps);
+  ForwardVirtualState(node);
+  Node* checked = ResolveReplacement(NodeProperties::GetValueInput(node, 0));
+  if (FLAG_turbo_experimental) {
+    VirtualState* state = virtual_states_[node->id()];
+    if (VirtualObject* object = GetVirtualObject(state, checked)) {
+      if (!object->IsTracked()) {
+        if (status_analysis_->SetEscaped(node)) {
+          TRACE(
+              "Setting #%d (%s) to escaped because checked object #%i is not "
+              "tracked\n",
+              node->id(), node->op()->mnemonic(), object->id());
+        }
+        return;
+      }
+      CheckMapsParameters params = CheckMapsParametersOf(node->op());
+
+      Node* value = object->GetField(HeapObject::kMapOffset / kPointerSize);
+      if (value) {
+        value = ResolveReplacement(value);
+        // TODO(tebbi): We want to extend this beyond constant folding with a
+        // CheckMapsValue operator that takes the load-eliminated map value as
+        // input.
+        if (value->opcode() == IrOpcode::kHeapConstant &&
+            params.maps().contains(ZoneHandleSet<Map>(
+                Handle<Map>::cast(OpParameter<Handle<HeapObject>>(value))))) {
+          TRACE("CheckMaps #%i seems to be redundant (until now).\n",
+                node->id());
+          return;
+        }
+      }
+    }
+  }
+  if (status_analysis_->SetEscaped(node)) {
+    TRACE("Setting #%d (%s) to escaped (checking #%i)\n", node->id(),
+          node->op()->mnemonic(), checked->id());
+  }
+}
+
 void EscapeAnalysis::ProcessLoadElement(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kLoadElement);
   ForwardVirtualState(node);
@@ -1650,6 +1726,8 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
         for (size_t i = 0; i < vobj->field_count(); ++i) {
           if (Node* field = vobj->GetField(i)) {
             cache_->fields().push_back(ResolveReplacement(field));
+          } else {
+            return nullptr;
           }
         }
         int input_count = static_cast<int>(cache_->fields().size());

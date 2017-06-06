@@ -149,6 +149,7 @@ class WasmStackFrame : public StackFrameBase {
   bool IsToplevel() override { return false; }
   bool IsConstructor() override { return false; }
   bool IsStrict() const override { return false; }
+  bool IsInterpreted() const { return code_.is_null(); }
 
   MaybeHandle<String> ToString() override;
 
@@ -161,7 +162,7 @@ class WasmStackFrame : public StackFrameBase {
   // TODO(wasm): Use proper typing.
   Handle<Object> wasm_instance_;
   uint32_t wasm_func_index_;
-  Handle<AbstractCode> code_;
+  Handle<AbstractCode> code_;  // null handle for interpreted frames.
   int offset_;
 
  private:
@@ -279,8 +280,10 @@ class ErrorUtils : public AllStatic {
   T(CallSiteMethod, "CallSite method % expects CallSite as receiver")          \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(CannotPreventExt, "Cannot prevent extensions")                             \
+  T(CannotFreeze, "Cannot freeze")                                             \
   T(CannotFreezeArrayBufferView,                                               \
     "Cannot freeze array buffer views with elements")                          \
+  T(CannotSeal, "Cannot seal")                                                 \
   T(CircularStructure, "Converting circular structure to JSON")                \
   T(ConstructAbstractClass, "Abstract class % not directly constructable")     \
   T(ConstAssign, "Assignment to constant variable.")                           \
@@ -449,13 +452,13 @@ class ErrorUtils : public AllStatic {
   T(ProxyTrapReturnedFalsish, "'%' on proxy: trap returned falsish")           \
   T(ProxyTrapReturnedFalsishFor,                                               \
     "'%' on proxy: trap returned falsish for property '%'")                    \
-  T(ReadGlobalReferenceThroughProxy, "Trying to access '%' through proxy")     \
   T(RedefineDisallowed, "Cannot redefine property: %")                         \
   T(RedefineExternalArray,                                                     \
     "Cannot redefine a property of an object with external array elements")    \
   T(ReduceNoInitial, "Reduce of empty array with no initial value")            \
   T(RegExpFlags,                                                               \
     "Cannot supply flags when constructing one RegExp from another")           \
+  T(RegExpInvalidReplaceString, "Invalid replacement string: '%'")             \
   T(RegExpNonObject, "% getter called on non-object %")                        \
   T(RegExpNonRegExp, "% getter called on non-RegExp object")                   \
   T(ReinitializeIntl, "Trying to re-initialize % object.")                     \
@@ -464,6 +467,11 @@ class ErrorUtils : public AllStatic {
     "'caller' and 'arguments' are restricted function properties and cannot "  \
     "be accessed in this context.")                                            \
   T(ReturnMethodNotCallable, "The iterator's 'return' method is not callable") \
+  T(SharedArrayBufferTooShort,                                                 \
+    "Derived SharedArrayBuffer constructor created a buffer which was too "    \
+    "small")                                                                   \
+  T(SharedArrayBufferSpeciesThis,                                              \
+    "SharedArrayBuffer subclass returned this from species constructor")       \
   T(StaticPrototype, "Classes may not have static property named prototype")   \
   T(StrictCannotAssign, "Cannot assign to read only '%' in strict mode")       \
   T(StrictDeleteProperty, "Cannot delete property '%' of %")                   \
@@ -517,7 +525,7 @@ class ErrorUtils : public AllStatic {
   T(InvalidTimeValue, "Invalid time value")                                    \
   T(InvalidTypedArrayAlignment, "% of % should be a multiple of %")            \
   T(InvalidTypedArrayIndex, "Invalid typed array index")                       \
-  T(InvalidTypedArrayLength, "Invalid typed array length")                     \
+  T(InvalidTypedArrayLength, "Invalid typed array length: %")                  \
   T(LetInLexicalBinding, "let is disallowed as a lexically bound name")        \
   T(LocaleMatcher, "Illegal value for localeMatcher:%")                        \
   T(NormalizationForm, "The normalization form should be one of %.")           \
@@ -551,7 +559,10 @@ class ErrorUtils : public AllStatic {
   T(GeneratorInLegacyContext,                                                  \
     "Generator declarations are not allowed in legacy contexts.")              \
   T(IllegalBreak, "Illegal break statement")                                   \
-  T(IllegalContinue, "Illegal continue statement")                             \
+  T(NoIterationStatement,                                                      \
+    "Illegal continue statement: no surrounding iteration statement")          \
+  T(IllegalContinue,                                                           \
+    "Illegal continue statement: '%' does not denote an iteration statement")  \
   T(IllegalLanguageModeDirective,                                              \
     "Illegal '%' directive in function with non-simple parameter list")        \
   T(IllegalReturn, "Illegal return statement")                                 \
@@ -597,6 +608,9 @@ class ErrorUtils : public AllStatic {
     "Arg string terminates parameters early")                                  \
   T(UnexpectedEndOfArgString, "Unexpected end of arg string")                  \
   T(RuntimeWrongNumArgs, "Runtime function given wrong number of arguments")   \
+  T(SuperNotCalled,                                                            \
+    "Must call super constructor in derived class before accessing 'this' or " \
+    "returning from derived constructor")                                      \
   T(SingleFunctionLiteral, "Single function literal required")                 \
   T(SloppyFunction,                                                            \
     "In non-strict mode code, functions can only be declared at top level, "   \

@@ -31,6 +31,7 @@
 #include "include/libplatform/libplatform.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
+#include "src/trap-handler/trap-handler.h"
 #include "test/cctest/print-extension.h"
 #include "test/cctest/profiler-extension.h"
 #include "test/cctest/trace-extension.h"
@@ -267,6 +268,10 @@ int main(int argc, char* argv[]) {
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(argv[0]);
+
+  if (i::trap_handler::UseTrapHandler()) {
+    v8::V8::RegisterDefaultSignalHandler();
+  }
 
   CcTestArrayBufferAllocator array_buffer_allocator;
   CcTest::set_array_buffer_allocator(&array_buffer_allocator);

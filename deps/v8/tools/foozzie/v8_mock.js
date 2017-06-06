@@ -32,14 +32,38 @@ var __PrettyPrint = function __PrettyPrint(msg) { print(msg); };
   }
 
   var origDate = Date;
+  var constructDate = function(args) {
+    if (args.length == 1) {
+      var result = new origDate(args[0]);
+    } else if (args.length == 2) {
+      var result = new origDate(args[0], args[1]);
+    } else if (args.length == 3) {
+      var result = new origDate(args[0], args[1], args[2]);
+    } else if (args.length == 4) {
+      var result = new origDate(args[0], args[1], args[2], args[3]);
+    } else if (args.length == 5) {
+      var result = new origDate(args[0], args[1], args[2], args[3], args[4]);
+    } else if (args.length == 6) {
+      var result = new origDate(
+          args[0], args[1], args[2], args[3], args[4], args[5]);
+    } else if (args.length >= 7) {
+      var result = new origDate(
+          args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
+    } else {
+      var result = new origDate(mockDateNow());
+    }
+    result.constructor = function(...args) { return constructDate(args); }
+    Object.defineProperty(
+        result, "constructor", { configurable: false, writable: false });
+    return result
+  }
+
   var handler = {
-    construct: function(target, args, newTarget) {
-      if (args.length > 0) {
-        return new (
-            Function.prototype.bind.apply(origDate, [null].concat(args)));
-      } else {
-        return new origDate(mockDateNow());
-      }
+    apply: function (target, thisArg, args) {
+      return constructDate(args)
+    },
+    construct: function (target, args, newTarget) {
+      return constructDate(args)
     },
     get: function(target, property, receiver) {
       if (property == "now") {

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/assembler-inl.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"

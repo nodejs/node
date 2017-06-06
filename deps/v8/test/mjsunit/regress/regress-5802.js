@@ -10,7 +10,6 @@
   var o = { [Symbol.toPrimitive]: () => "o" };
 
   assertTrue(eq(o, o));
-  %BaselineFunctionOnNextCall(eq);
   assertTrue(eq(o, o));
   %OptimizeFunctionOnNextCall(eq);
   assertTrue(eq(o, o));
@@ -29,7 +28,6 @@
   var o = { [Symbol.toPrimitive]: () => "o" };
 
   assertFalse(ne(o, o));
-  %BaselineFunctionOnNextCall(ne);
   assertFalse(ne(o, o));
   %OptimizeFunctionOnNextCall(ne);
   assertFalse(ne(o, o));
@@ -53,7 +51,6 @@
   assertTrue(eq(b, b));
   assertFalse(eq(a, b));
   assertFalse(eq(b, a));
-  %BaselineFunctionOnNextCall(eq);
   assertTrue(eq(a, a));
   assertTrue(eq(b, b));
   assertFalse(eq(a, b));
@@ -90,7 +87,6 @@
   assertFalse(ne(b, b));
   assertTrue(ne(a, b));
   assertTrue(ne(b, a));
-  %BaselineFunctionOnNextCall(ne);
   assertFalse(ne(a, a));
   assertFalse(ne(b, b));
   assertTrue(ne(a, b));

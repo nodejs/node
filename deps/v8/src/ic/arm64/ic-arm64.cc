@@ -4,9 +4,11 @@
 
 #if V8_TARGET_ARCH_ARM64
 
+#include "src/arm64/assembler-arm64-inl.h"
 #include "src/codegen.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -69,7 +71,7 @@ void PatchInlinedSmiCode(Isolate* isolate, Address address,
   // to
   //   tb(!n)z test_reg, #0, <target>
   Instruction* to_patch = info.SmiCheck();
-  PatchingAssembler patcher(isolate, to_patch, 1);
+  PatchingAssembler patcher(isolate, reinterpret_cast<byte*>(to_patch), 1);
   DCHECK(to_patch->IsTestBranch());
   DCHECK(to_patch->ImmTestBranchBit5() == 0);
   DCHECK(to_patch->ImmTestBranchBit40() == 0);

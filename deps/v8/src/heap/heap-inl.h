@@ -852,7 +852,7 @@ AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
 
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
-  heap_->always_allocate_scope_count_.Increment(-1);
+  heap_->always_allocate_scope_count_.Decrement(1);
 }
 
 

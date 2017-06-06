@@ -17,7 +17,6 @@ TEST(CharPredicatesTest, WhiteSpace) {
   EXPECT_TRUE(WhiteSpace::Is(0x000C));
   EXPECT_TRUE(WhiteSpace::Is(' '));
   EXPECT_TRUE(WhiteSpace::Is(0x00A0));
-  EXPECT_TRUE(WhiteSpace::Is(0x180E));
   EXPECT_TRUE(WhiteSpace::Is(0xFEFF));
 }
 
@@ -31,7 +30,6 @@ TEST(CharPredicatesTest, WhiteSpaceOrLineTerminator) {
   EXPECT_TRUE(WhiteSpaceOrLineTerminator::Is(0x000C));
   EXPECT_TRUE(WhiteSpaceOrLineTerminator::Is(' '));
   EXPECT_TRUE(WhiteSpaceOrLineTerminator::Is(0x00A0));
-  EXPECT_TRUE(WhiteSpaceOrLineTerminator::Is(0x180E));
   EXPECT_TRUE(WhiteSpaceOrLineTerminator::Is(0xFEFF));
   // Line terminators
   EXPECT_TRUE(WhiteSpaceOrLineTerminator::Is(0x000A));

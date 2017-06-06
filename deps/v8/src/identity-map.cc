@@ -41,11 +41,6 @@ void IdentityMapBase::EnableIteration() {
 void IdentityMapBase::DisableIteration() {
   CHECK(is_iterable());
   is_iterable_ = false;
-
-  // We might need to resize due to iterator deletion - do this now.
-  if (size_ * kResizeFactor < capacity_ / kResizeFactor) {
-    Resize(capacity_ / kResizeFactor);
-  }
 }
 
 int IdentityMapBase::ScanKeysFor(Object* address) const {
@@ -91,7 +86,7 @@ void* IdentityMapBase::DeleteIndex(int index) {
   size_--;
   DCHECK_GE(size_, 0);
 
-  if (!is_iterable() && (size_ * kResizeFactor < capacity_ / kResizeFactor)) {
+  if (size_ * kResizeFactor < capacity_ / kResizeFactor) {
     Resize(capacity_ / kResizeFactor);
     return ret_value;  // No need to fix collisions as resize reinserts keys.
   }
@@ -110,6 +105,7 @@ void* IdentityMapBase::DeleteIndex(int index) {
       DCHECK_GT(index, next_index);
       if (index < expected_index || expected_index <= next_index) continue;
     }
+
     DCHECK_EQ(not_mapped, keys_[index]);
     DCHECK_NULL(values_[index]);
     std::swap(keys_[index], keys_[next_index]);
@@ -212,7 +208,7 @@ int IdentityMapBase::NextIndex(int index) const {
   DCHECK_LE(index, capacity_);
   CHECK(is_iterable());  // Must be iterable to access by index;
   Object* not_mapped = heap_->not_mapped_symbol();
-  for (index++; index < capacity_; index++) {
+  for (++index; index < capacity_; ++index) {
     if (keys_[index] != not_mapped) {
       return index;
     }

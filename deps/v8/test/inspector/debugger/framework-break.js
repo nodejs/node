@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 // Flags: --allow-natives-syntax
 
-print('Checks that breaks in framework code correctly processed.');
+InspectorTest.log('Checks that breaks in framework code correctly processed.');
 
 InspectorTest.addScript(`
 function frameworkAssert() {
@@ -188,16 +188,16 @@ InspectorTest.runTestSuite([
   },
 
   function testAsyncDOMBreakpoint(next) {
-    schedulePauseOnNextStatement('', '');
+    utils.schedulePauseOnNextStatement('', '');
     InspectorTest.log('> all frames in framework:');
     Protocol.Runtime
         .evaluate(
             {expression: 'asyncDOMBreakpoint()//# sourceURL=framework.js'})
-        .then(() => cancelPauseOnNextStatement())
+        .then(() => utils.cancelPauseOnNextStatement())
         .then(
             () => Protocol.Runtime.evaluate(
                 {expression: '42//# sourceURL=user.js'}))
-        .then(() => schedulePauseOnNextStatement('', ''))
+        .then(() => utils.schedulePauseOnNextStatement('', ''))
         .then(
             () => Protocol.Runtime.evaluate(
                 {expression: 'asyncDOMBreakpoint()//# sourceURL=user.js'}))

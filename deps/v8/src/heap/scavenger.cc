@@ -74,18 +74,19 @@ class ScavengingVisitor : public StaticVisitorBase {
 
     table_.Register(kVisitJSFunction, &EvacuateJSFunction);
 
-    table_.RegisterSpecializations<ObjectEvacuationStrategy<DATA_OBJECT>,
-                                   kVisitDataObject, kVisitDataObjectGeneric>();
+    table_.Register(kVisitDataObject,
+                    &ObjectEvacuationStrategy<DATA_OBJECT>::Visit);
 
-    table_.RegisterSpecializations<ObjectEvacuationStrategy<POINTER_OBJECT>,
-                                   kVisitJSObject, kVisitJSObjectGeneric>();
+    table_.Register(kVisitJSObjectFast,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::Visit);
+    table_.Register(kVisitJSObject,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::Visit);
 
-    table_
-        .RegisterSpecializations<ObjectEvacuationStrategy<POINTER_OBJECT>,
-                                 kVisitJSApiObject, kVisitJSApiObjectGeneric>();
+    table_.Register(kVisitJSApiObject,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::Visit);
 
-    table_.RegisterSpecializations<ObjectEvacuationStrategy<POINTER_OBJECT>,
-                                   kVisitStruct, kVisitStructGeneric>();
+    table_.Register(kVisitStruct,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::Visit);
   }
 
   static VisitorDispatchTable<ScavengingCallback>* GetTable() {
@@ -147,9 +148,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
 
     if (marks_handling == TRANSFER_MARKS) {
-      if (IncrementalMarking::TransferColor(source, target, size)) {
-        MemoryChunk::IncrementLiveBytes(target, size);
-      }
+      IncrementalMarking::TransferColor(source, target);
     }
   }
 
@@ -202,8 +201,10 @@ class ScavengingVisitor : public StaticVisitorBase {
                                    reinterpret_cast<base::AtomicWord>(target));
 
       if (object_contents == POINTER_OBJECT) {
-        heap->promotion_queue()->insert(target, object_size,
-                                        ObjectMarking::IsBlack(object));
+        // TODO(mlippautz): Query collector for marking state.
+        heap->promotion_queue()->insert(
+            target, object_size,
+            ObjectMarking::IsBlack(object, MarkingState::Internal(object)));
       }
       heap->IncrementPromotedObjectsSize(object_size);
       return true;
@@ -247,7 +248,9 @@ class ScavengingVisitor : public StaticVisitorBase {
     DCHECK(map_word.IsForwardingAddress());
     HeapObject* target = map_word.ToForwardingAddress();
 
-    if (ObjectMarking::IsBlack(target)) {
+    // TODO(mlippautz): Notify collector of this object so we don't have to
+    // retrieve the state our of thin air.
+    if (ObjectMarking::IsBlack(target, MarkingState::Internal(target))) {
       // This object is black and it might not be rescanned by marker.
       // We should explicitly record code entry slot for compaction because
       // promotion queue processing (IteratePromotedObjectPointers) will

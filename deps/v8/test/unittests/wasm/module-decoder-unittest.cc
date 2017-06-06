@@ -919,7 +919,21 @@ TEST_F(WasmSignatureDecodeTest, Fail_invalid_param_type2) {
   EXPECT_EQ(nullptr, sig);
 }
 
-class WasmFunctionVerifyTest : public TestWithIsolateAndZone {};
+class WasmFunctionVerifyTest : public TestWithIsolateAndZone {
+ public:
+  WasmFunctionVerifyTest()
+      : instance(&module), env(&module, &instance, bytes) {}
+  virtual ~WasmFunctionVerifyTest() {}
+
+  ModuleBytesEnv* get_env() { return &env; }
+
+ private:
+  WasmModule module;
+  WasmInstance instance;
+  Vector<const byte> bytes;
+  ModuleBytesEnv env;
+  DISALLOW_COPY_AND_ASSIGN(WasmFunctionVerifyTest);
+};
 
 TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
   static const byte data[] = {
@@ -936,8 +950,8 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
       kExprEnd    // body
   };
 
-  FunctionResult result =
-      DecodeWasmFunction(isolate(), zone(), nullptr, data, data + sizeof(data));
+  FunctionResult result = DecodeWasmFunction(isolate(), zone(), get_env(), data,
+                                             data + sizeof(data));
   EXPECT_OK(result);
 
   if (result.val && result.ok()) {
@@ -1540,6 +1554,11 @@ TEST_F(WasmModuleVerifyTest, Multiple_Named_Sections) {
       SECTION(Unknown, 8), 5, 'o', 't', 'h', 'e', 'r', 7, 8,     // --
   };
   EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, Section_Name_No_UTF8) {
+  static const byte data[] = {SECTION(Unknown, 4), 1, 0xff, 17, 18};
+  EXPECT_FAILURE(data);
 }
 
 class WasmModuleCustomSectionTest : public TestWithIsolateAndZone {

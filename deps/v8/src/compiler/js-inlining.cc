@@ -141,12 +141,15 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
     int subcall_count = static_cast<int>(uncaught_subcalls.size());
     if (subcall_count > 0) {
       TRACE(
-          "Inlinee contains %d calls without IfException; "
-          "linking to existing IfException\n",
+          "Inlinee contains %d calls without local exception handler; "
+          "linking to surrounding exception handler\n",
           subcall_count);
     }
     NodeVector on_exception_nodes(local_zone_);
     for (Node* subcall : uncaught_subcalls) {
+      Node* on_success = graph()->NewNode(common()->IfSuccess(), subcall);
+      NodeProperties::ReplaceUses(subcall, subcall, subcall, on_success);
+      NodeProperties::ReplaceControlInput(on_success, subcall);
       Node* on_exception =
           graph()->NewNode(common()->IfException(), subcall, subcall);
       on_exception_nodes.push_back(on_exception);
@@ -215,7 +218,8 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
     ReplaceWithValue(call, value_output, effect_output, control_output);
     return Changed(value_output);
   } else {
-    ReplaceWithValue(call, call, call, jsgraph()->Dead());
+    ReplaceWithValue(call, jsgraph()->Dead(), jsgraph()->Dead(),
+                     jsgraph()->Dead());
     return Changed(call);
   }
 }
@@ -529,40 +533,23 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
   }
 
-  // Find the IfException node, if any.
+  // Calls surrounded by a local try-block are only inlined if the appropriate
+  // flag is active. We also discover the {IfException} projection this way.
   Node* exception_target = nullptr;
-  for (Edge edge : node->use_edges()) {
-    if (NodeProperties::IsControlEdge(edge) &&
-        edge.from()->opcode() == IrOpcode::kIfException) {
-      DCHECK_NULL(exception_target);
-      exception_target = edge.from();
-    }
-  }
-
-  NodeVector uncaught_subcalls(local_zone_);
-
-  if (exception_target != nullptr) {
-    if (!FLAG_inline_into_try) {
-      TRACE(
-          "Try block surrounds #%d:%s and --no-inline-into-try active, so not "
-          "inlining %s into %s.\n",
-          exception_target->id(), exception_target->op()->mnemonic(),
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-      return NoChange();
-    } else {
-      TRACE(
-          "Inlining %s into %s regardless of surrounding try-block to catcher "
-          "#%d:%s\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get(),
-          exception_target->id(), exception_target->op()->mnemonic());
-    }
+  if (NodeProperties::IsExceptionalCall(node, &exception_target) &&
+      !FLAG_inline_into_try) {
+    TRACE(
+        "Try block surrounds #%d:%s and --no-inline-into-try active, so not "
+        "inlining %s into %s.\n",
+        exception_target->id(), exception_target->op()->mnemonic(),
+        shared_info->DebugName()->ToCString().get(),
+        info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
   }
 
   ParseInfo parse_info(shared_info);
   CompilationInfo info(parse_info.zone(), &parse_info,
-                       Handle<JSFunction>::null());
+                       shared_info->GetIsolate(), Handle<JSFunction>::null());
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
   info.MarkAsOptimizeFromBytecode();
 
@@ -586,9 +573,9 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // After this point, we've made a decision to inline this function.
   // We shall not bailout from inlining if we got here.
 
-  TRACE("Inlining %s into %s\n",
-        shared_info->DebugName()->ToCString().get(),
-        info_->shared_info()->DebugName()->ToCString().get());
+  TRACE("Inlining %s into %s%s\n", shared_info->DebugName()->ToCString().get(),
+        info_->shared_info()->DebugName()->ToCString().get(),
+        (exception_target != nullptr) ? " (inside try-block)" : "");
 
   // Determine the targets feedback vector and its context.
   Node* context;
@@ -601,9 +588,13 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   {
     // Run the BytecodeGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
+    JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags;
+    if (info_->is_bailout_on_uninitialized()) {
+      flags |= JSTypeHintLowering::kBailoutOnUninitialized;
+    }
     BytecodeGraphBuilder graph_builder(
         parse_info.zone(), shared_info, feedback_vector, BailoutId::None(),
-        jsgraph(), call.frequency(), source_positions_, inlining_id);
+        jsgraph(), call.frequency(), source_positions_, inlining_id, flags);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.
@@ -611,23 +602,18 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     end = graph()->end();
   }
 
+  // If we are inlining into a surrounding exception handler, we collect all
+  // potentially throwing nodes within the inlinee that are not handled locally
+  // by the inlinee itself. They are later wired into the surrounding handler.
+  NodeVector uncaught_subcalls(local_zone_);
   if (exception_target != nullptr) {
     // Find all uncaught 'calls' in the inlinee.
     AllNodes inlined_nodes(local_zone_, end, graph());
     for (Node* subnode : inlined_nodes.reachable) {
-      // Every possibly throwing node with an IfSuccess should get an
-      // IfException.
-      if (subnode->op()->HasProperty(Operator::kNoThrow)) {
-        continue;
-      }
-      bool hasIfException = false;
-      for (Node* use : subnode->uses()) {
-        if (use->opcode() == IrOpcode::kIfException) {
-          hasIfException = true;
-          break;
-        }
-      }
-      if (!hasIfException) {
+      // Every possibly throwing node should get {IfSuccess} and {IfException}
+      // projections, unless there already is local exception handling.
+      if (subnode->op()->HasProperty(Operator::kNoThrow)) continue;
+      if (!NodeProperties::IsExceptionalCall(subnode)) {
         DCHECK_EQ(2, subnode->op()->ControlOutputCount());
         uncaught_subcalls.push_back(subnode);
       }
@@ -666,9 +652,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       Node* create =
           graph()->NewNode(javascript()->Create(), call.target(), new_target,
                            context, frame_state_inside, effect, control);
-      Node* success = graph()->NewNode(common()->IfSuccess(), create);
-      uncaught_subcalls.push_back(create);  // Adds {IfException}.
-      NodeProperties::ReplaceControlInput(node, success);
+      uncaught_subcalls.push_back(create);  // Adds {IfSuccess} & {IfException}.
+      NodeProperties::ReplaceControlInput(node, create);
       NodeProperties::ReplaceEffectInput(node, create);
       // Insert a check of the return value to determine whether the return
       // value or the implicit receiver should be selected as a result of the

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --cache=code
+
 Debug = debug.Debug
 
 // Simple debug event handler which first time hit will perform 1000 steps and

@@ -46,6 +46,10 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceGeneratorClose(Node* node);
   Reduction ReduceGeneratorGetContext(Node* node);
   Reduction ReduceGeneratorGetInputOrDebugPos(Node* node);
+  Reduction ReduceAsyncGeneratorGetAwaitInputOrDebugPos(Node* node);
+  Reduction ReduceAsyncGeneratorReject(Node* node);
+  Reduction ReduceAsyncGeneratorResolve(Node* node);
+  Reduction ReduceGeneratorSaveInputForAwait(Node* node);
   Reduction ReduceGeneratorGetResumeMode(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
   Reduction ReduceIsJSReceiver(Node* node);

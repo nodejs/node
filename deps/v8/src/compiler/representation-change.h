@@ -12,18 +12,34 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+enum IdentifyZeros { kIdentifyZeros, kDistinguishZeros };
+
 class Truncation final {
  public:
   // Constructors.
-  static Truncation None() { return Truncation(TruncationKind::kNone); }
-  static Truncation Bool() { return Truncation(TruncationKind::kBool); }
-  static Truncation Word32() { return Truncation(TruncationKind::kWord32); }
-  static Truncation Word64() { return Truncation(TruncationKind::kWord64); }
-  static Truncation Float64() { return Truncation(TruncationKind::kFloat64); }
-  static Truncation Any() { return Truncation(TruncationKind::kAny); }
+  static Truncation None() {
+    return Truncation(TruncationKind::kNone, kIdentifyZeros);
+  }
+  static Truncation Bool() {
+    return Truncation(TruncationKind::kBool, kIdentifyZeros);
+  }
+  static Truncation Word32() {
+    return Truncation(TruncationKind::kWord32, kIdentifyZeros);
+  }
+  static Truncation Word64() {
+    return Truncation(TruncationKind::kWord64, kIdentifyZeros);
+  }
+  static Truncation Float64(IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return Truncation(TruncationKind::kFloat64, identify_zeros);
+  }
+  static Truncation Any(IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return Truncation(TruncationKind::kAny, identify_zeros);
+  }
 
   static Truncation Generalize(Truncation t1, Truncation t2) {
-    return Truncation(Generalize(t1.kind(), t2.kind()));
+    return Truncation(
+        Generalize(t1.kind(), t2.kind()),
+        GeneralizeIdentifyZeros(t1.identify_zeros(), t2.identify_zeros()));
   }
 
   // Queries.
@@ -45,16 +61,24 @@ class Truncation final {
     return LessGeneral(kind_, TruncationKind::kFloat64) ||
            LessGeneral(kind_, TruncationKind::kWord64);
   }
+  bool IdentifiesZeroAndMinusZero() const {
+    return identify_zeros() == kIdentifyZeros;
+  }
 
   // Operators.
-  bool operator==(Truncation other) const { return kind() == other.kind(); }
+  bool operator==(Truncation other) const {
+    return kind() == other.kind() && identify_zeros() == other.identify_zeros();
+  }
   bool operator!=(Truncation other) const { return !(*this == other); }
 
   // Debug utilities.
   const char* description() const;
   bool IsLessGeneralThan(Truncation other) {
-    return LessGeneral(kind(), other.kind());
+    return LessGeneral(kind(), other.kind()) &&
+           LessGeneralIdentifyZeros(identify_zeros(), other.identify_zeros());
   }
+
+  IdentifyZeros identify_zeros() const { return identify_zeros_; }
 
  private:
   enum class TruncationKind : uint8_t {
@@ -66,13 +90,21 @@ class Truncation final {
     kAny
   };
 
-  explicit Truncation(TruncationKind kind) : kind_(kind) {}
+  explicit Truncation(TruncationKind kind, IdentifyZeros identify_zeros)
+      : kind_(kind), identify_zeros_(identify_zeros) {
+    DCHECK(kind == TruncationKind::kAny || kind == TruncationKind::kFloat64 ||
+           identify_zeros == kIdentifyZeros);
+  }
   TruncationKind kind() const { return kind_; }
 
   TruncationKind kind_;
+  IdentifyZeros identify_zeros_;
 
   static TruncationKind Generalize(TruncationKind rep1, TruncationKind rep2);
+  static IdentifyZeros GeneralizeIdentifyZeros(IdentifyZeros i1,
+                                               IdentifyZeros i2);
   static bool LessGeneral(TruncationKind rep1, TruncationKind rep2);
+  static bool LessGeneralIdentifyZeros(IdentifyZeros u1, IdentifyZeros u2);
 };
 
 enum class TypeCheckKind : uint8_t {
@@ -119,13 +151,10 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
 class UseInfo {
  public:
   UseInfo(MachineRepresentation representation, Truncation truncation,
-          TypeCheckKind type_check = TypeCheckKind::kNone,
-          CheckForMinusZeroMode minus_zero_check =
-              CheckForMinusZeroMode::kCheckForMinusZero)
+          TypeCheckKind type_check = TypeCheckKind::kNone)
       : representation_(representation),
         truncation_(truncation),
-        type_check_(type_check),
-        minus_zero_check_(minus_zero_check) {}
+        type_check_(type_check) {}
   static UseInfo TruncatingWord32() {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32());
   }
@@ -163,17 +192,14 @@ class UseInfo {
     return UseInfo(MachineRepresentation::kTaggedSigned, Truncation::Any(),
                    TypeCheckKind::kSignedSmall);
   }
-  static UseInfo CheckedSignedSmallAsWord32(
-      CheckForMinusZeroMode minus_zero_mode =
-          CheckForMinusZeroMode::kCheckForMinusZero) {
-    return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
-                   TypeCheckKind::kSignedSmall, minus_zero_mode);
+  static UseInfo CheckedSignedSmallAsWord32(IdentifyZeros identify_zeros) {
+    return UseInfo(MachineRepresentation::kWord32,
+                   Truncation::Any(identify_zeros),
+                   TypeCheckKind::kSignedSmall);
   }
-  static UseInfo CheckedSigned32AsWord32(
-      CheckForMinusZeroMode minus_zero_mode =
-          CheckForMinusZeroMode::kCheckForMinusZero) {
+  static UseInfo CheckedSigned32AsWord32(IdentifyZeros identify_zeros) {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
-                   TypeCheckKind::kSigned32, minus_zero_mode);
+                   TypeCheckKind::kSigned32);
   }
   static UseInfo CheckedNumberAsFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64(),
@@ -208,14 +234,16 @@ class UseInfo {
   MachineRepresentation representation() const { return representation_; }
   Truncation truncation() const { return truncation_; }
   TypeCheckKind type_check() const { return type_check_; }
-  CheckForMinusZeroMode minus_zero_check() const { return minus_zero_check_; }
+  CheckForMinusZeroMode minus_zero_check() const {
+    return truncation().IdentifiesZeroAndMinusZero()
+               ? CheckForMinusZeroMode::kDontCheckForMinusZero
+               : CheckForMinusZeroMode::kCheckForMinusZero;
+  }
 
  private:
   MachineRepresentation representation_;
   Truncation truncation_;
   TypeCheckKind type_check_;
-  // TODO(jarin) Integrate with truncations.
-  CheckForMinusZeroMode minus_zero_check_;
 };
 
 // Contains logic related to changing the representation of values for constants

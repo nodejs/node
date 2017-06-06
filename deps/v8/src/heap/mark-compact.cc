@@ -15,6 +15,7 @@
 #include "src/gdb-jit.h"
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-tracker.h"
+#include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
@@ -43,35 +44,119 @@ const char* Marking::kImpossibleBitPattern = "01";
 // produce invalid {kImpossibleBitPattern} in the marking bitmap by overlapping.
 STATIC_ASSERT(Heap::kMinObjectSizeInWords >= 2);
 
-
-// -------------------------------------------------------------------------
-// MarkCompactCollector
-
-MarkCompactCollector::MarkCompactCollector(Heap* heap)
-    :  // NOLINT
-      heap_(heap),
-      page_parallel_job_semaphore_(0),
-#ifdef DEBUG
-      state_(IDLE),
-#endif
-      was_marked_incrementally_(false),
-      evacuation_(false),
-      compacting_(false),
-      black_allocation_(false),
-      have_code_to_deoptimize_(false),
-      marking_deque_(heap),
-      code_flusher_(nullptr),
-      sweeper_(heap) {
-}
+// =============================================================================
+// Verifiers
+// =============================================================================
 
 #ifdef VERIFY_HEAP
-class VerifyMarkingVisitor : public ObjectVisitor {
+namespace {
+
+class MarkingVerifier : public ObjectVisitor {
  public:
+  virtual void Run() = 0;
+
+ protected:
+  explicit MarkingVerifier(Heap* heap) : heap_(heap) {}
+
+  virtual MarkingState marking_state(MemoryChunk* chunk) = 0;
+
+  void VerifyRoots(VisitMode mode);
+  void VerifyMarkingOnPage(const Page& page, const MarkingState& state,
+                           Address start, Address end);
+  void VerifyMarking(NewSpace* new_space);
+  void VerifyMarking(PagedSpace* paged_space);
+
+  Heap* heap_;
+};
+
+void MarkingVerifier::VerifyRoots(VisitMode mode) {
+  heap_->IterateStrongRoots(this, mode);
+}
+
+void MarkingVerifier::VerifyMarkingOnPage(const Page& page,
+                                          const MarkingState& state,
+                                          Address start, Address end) {
+  HeapObject* object;
+  Address next_object_must_be_here_or_later = start;
+  for (Address current = start; current < end;) {
+    object = HeapObject::FromAddress(current);
+    // One word fillers at the end of a black area can be grey.
+    if (ObjectMarking::IsBlackOrGrey(object, state) &&
+        object->map() != heap_->one_pointer_filler_map()) {
+      CHECK(ObjectMarking::IsBlack(object, state));
+      CHECK(current >= next_object_must_be_here_or_later);
+      object->Iterate(this);
+      next_object_must_be_here_or_later = current + object->Size();
+      // The object is either part of a black area of black allocation or a
+      // regular black object
+      CHECK(
+          state.bitmap()->AllBitsSetInRange(
+              page.AddressToMarkbitIndex(current),
+              page.AddressToMarkbitIndex(next_object_must_be_here_or_later)) ||
+          state.bitmap()->AllBitsClearInRange(
+              page.AddressToMarkbitIndex(current + kPointerSize * 2),
+              page.AddressToMarkbitIndex(next_object_must_be_here_or_later)));
+      current = next_object_must_be_here_or_later;
+    } else {
+      current += kPointerSize;
+    }
+  }
+}
+
+void MarkingVerifier::VerifyMarking(NewSpace* space) {
+  Address end = space->top();
+  // The bottom position is at the start of its page. Allows us to use
+  // page->area_start() as start of range on all pages.
+  CHECK_EQ(space->bottom(), Page::FromAddress(space->bottom())->area_start());
+
+  PageRange range(space->bottom(), end);
+  for (auto it = range.begin(); it != range.end();) {
+    Page* page = *(it++);
+    Address limit = it != range.end() ? page->area_end() : end;
+    CHECK(limit == end || !page->Contains(end));
+    VerifyMarkingOnPage(*page, marking_state(page), page->area_start(), limit);
+  }
+}
+
+void MarkingVerifier::VerifyMarking(PagedSpace* space) {
+  for (Page* p : *space) {
+    VerifyMarkingOnPage(*p, marking_state(p), p->area_start(), p->area_end());
+  }
+}
+
+class FullMarkingVerifier : public MarkingVerifier {
+ public:
+  explicit FullMarkingVerifier(Heap* heap) : MarkingVerifier(heap) {}
+
+  void Run() override {
+    VerifyRoots(VISIT_ONLY_STRONG);
+    VerifyMarking(heap_->new_space());
+    VerifyMarking(heap_->old_space());
+    VerifyMarking(heap_->code_space());
+    VerifyMarking(heap_->map_space());
+
+    LargeObjectIterator it(heap_->lo_space());
+    for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
+      if (ObjectMarking::IsBlackOrGrey(obj, marking_state(obj))) {
+        obj->Iterate(this);
+      }
+    }
+  }
+
+ protected:
+  MarkingState marking_state(MemoryChunk* chunk) override {
+    return MarkingState::Internal(chunk);
+  }
+
+  MarkingState marking_state(HeapObject* object) {
+    return MarkingState::Internal(object);
+  }
+
   void VisitPointers(Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
-        CHECK(ObjectMarking::IsBlackOrGrey(object));
+        CHECK(ObjectMarking::IsBlackOrGrey(object, marking_state(object)));
       }
     }
   }
@@ -93,81 +178,38 @@ class VerifyMarkingVisitor : public ObjectVisitor {
   }
 };
 
-
-static void VerifyMarking(Heap* heap, Address bottom, Address top) {
-  VerifyMarkingVisitor visitor;
-  HeapObject* object;
-  Address next_object_must_be_here_or_later = bottom;
-  for (Address current = bottom; current < top;) {
-    object = HeapObject::FromAddress(current);
-    // One word fillers at the end of a black area can be grey.
-    if (ObjectMarking::IsBlackOrGrey(object) &&
-        object->map() != heap->one_pointer_filler_map()) {
-      CHECK(ObjectMarking::IsBlack(object));
-      CHECK(current >= next_object_must_be_here_or_later);
-      object->Iterate(&visitor);
-      next_object_must_be_here_or_later = current + object->Size();
-      // The object is either part of a black area of black allocation or a
-      // regular black object
-      Page* page = Page::FromAddress(current);
-      CHECK(
-          page->markbits()->AllBitsSetInRange(
-              page->AddressToMarkbitIndex(current),
-              page->AddressToMarkbitIndex(next_object_must_be_here_or_later)) ||
-          page->markbits()->AllBitsClearInRange(
-              page->AddressToMarkbitIndex(current + kPointerSize * 2),
-              page->AddressToMarkbitIndex(next_object_must_be_here_or_later)));
-      current = next_object_must_be_here_or_later;
-    } else {
-      current += kPointerSize;
-    }
-  }
-}
-
-static void VerifyMarking(NewSpace* space) {
-  Address end = space->top();
-  // The bottom position is at the start of its page. Allows us to use
-  // page->area_start() as start of range on all pages.
-  CHECK_EQ(space->bottom(), Page::FromAddress(space->bottom())->area_start());
-
-  PageRange range(space->bottom(), end);
-  for (auto it = range.begin(); it != range.end();) {
-    Page* page = *(it++);
-    Address limit = it != range.end() ? page->area_end() : end;
-    CHECK(limit == end || !page->Contains(end));
-    VerifyMarking(space->heap(), page->area_start(), limit);
-  }
-}
-
-
-static void VerifyMarking(PagedSpace* space) {
-  for (Page* p : *space) {
-    VerifyMarking(space->heap(), p->area_start(), p->area_end());
-  }
-}
-
-
-static void VerifyMarking(Heap* heap) {
-  VerifyMarking(heap->old_space());
-  VerifyMarking(heap->code_space());
-  VerifyMarking(heap->map_space());
-  VerifyMarking(heap->new_space());
-
-  VerifyMarkingVisitor visitor;
-
-  LargeObjectIterator it(heap->lo_space());
-  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-    if (ObjectMarking::IsBlackOrGrey(obj)) {
-      obj->Iterate(&visitor);
-    }
-  }
-
-  heap->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
-}
-
-
-class VerifyEvacuationVisitor : public ObjectVisitor {
+class YoungGenerationMarkingVerifier : public MarkingVerifier {
  public:
+  explicit YoungGenerationMarkingVerifier(Heap* heap) : MarkingVerifier(heap) {}
+
+  MarkingState marking_state(MemoryChunk* chunk) override {
+    return MarkingState::External(chunk);
+  }
+
+  MarkingState marking_state(HeapObject* object) {
+    return MarkingState::External(object);
+  }
+
+  void Run() override {
+    VerifyRoots(VISIT_ALL_IN_SCAVENGE);
+    VerifyMarking(heap_->new_space());
+  }
+
+  void VisitPointers(Object** start, Object** end) override {
+    for (Object** current = start; current < end; current++) {
+      if ((*current)->IsHeapObject()) {
+        HeapObject* object = HeapObject::cast(*current);
+        if (!heap_->InNewSpace(object)) return;
+        CHECK(ObjectMarking::IsBlackOrGrey(object, marking_state(object)));
+      }
+    }
+  }
+};
+
+class EvacuationVerifier : public ObjectVisitor {
+ public:
+  virtual void Run() = 0;
+
   void VisitPointers(Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
@@ -176,61 +218,90 @@ class VerifyEvacuationVisitor : public ObjectVisitor {
       }
     }
   }
+
+ protected:
+  explicit EvacuationVerifier(Heap* heap) : heap_(heap) {}
+
+  void VerifyRoots(VisitMode mode);
+  void VerifyEvacuationOnPage(Address start, Address end);
+  void VerifyEvacuation(NewSpace* new_space);
+  void VerifyEvacuation(PagedSpace* paged_space);
+
+  Heap* heap_;
 };
 
+void EvacuationVerifier::VerifyRoots(VisitMode mode) {
+  heap_->IterateStrongRoots(this, mode);
+}
 
-static void VerifyEvacuation(Page* page) {
-  VerifyEvacuationVisitor visitor;
-  HeapObjectIterator iterator(page);
-  for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
-       heap_object = iterator.Next()) {
-    // We skip free space objects.
-    if (!heap_object->IsFiller()) {
-      heap_object->Iterate(&visitor);
-    }
+void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
+  Address current = start;
+  while (current < end) {
+    HeapObject* object = HeapObject::FromAddress(current);
+    if (!object->IsFiller()) object->Iterate(this);
+    current += object->Size();
   }
 }
 
-
-static void VerifyEvacuation(NewSpace* space) {
-  VerifyEvacuationVisitor visitor;
+void EvacuationVerifier::VerifyEvacuation(NewSpace* space) {
   PageRange range(space->bottom(), space->top());
   for (auto it = range.begin(); it != range.end();) {
     Page* page = *(it++);
     Address current = page->area_start();
     Address limit = it != range.end() ? page->area_end() : space->top();
     CHECK(limit == space->top() || !page->Contains(space->top()));
-    while (current < limit) {
-      HeapObject* object = HeapObject::FromAddress(current);
-      object->Iterate(&visitor);
-      current += object->Size();
-    }
+    VerifyEvacuationOnPage(current, limit);
   }
 }
 
-
-static void VerifyEvacuation(Heap* heap, PagedSpace* space) {
-  if (FLAG_use_allocation_folding && (space == heap->old_space())) {
-    return;
-  }
+void EvacuationVerifier::VerifyEvacuation(PagedSpace* space) {
   for (Page* p : *space) {
     if (p->IsEvacuationCandidate()) continue;
-    VerifyEvacuation(p);
+    if (p->Contains(space->top()))
+      heap_->CreateFillerObjectAt(
+          space->top(), static_cast<int>(space->limit() - space->top()),
+          ClearRecordedSlots::kNo);
+
+    VerifyEvacuationOnPage(p->area_start(), p->area_end());
   }
 }
 
+class FullEvacuationVerifier : public EvacuationVerifier {
+ public:
+  explicit FullEvacuationVerifier(Heap* heap) : EvacuationVerifier(heap) {}
 
-static void VerifyEvacuation(Heap* heap) {
-  VerifyEvacuation(heap, heap->old_space());
-  VerifyEvacuation(heap, heap->code_space());
-  VerifyEvacuation(heap, heap->map_space());
-  VerifyEvacuation(heap->new_space());
+  void Run() override {
+    VerifyRoots(VISIT_ALL);
+    VerifyEvacuation(heap_->new_space());
+    VerifyEvacuation(heap_->old_space());
+    VerifyEvacuation(heap_->code_space());
+    VerifyEvacuation(heap_->map_space());
+  }
+};
 
-  VerifyEvacuationVisitor visitor;
-  heap->IterateStrongRoots(&visitor, VISIT_ALL);
-}
+}  // namespace
 #endif  // VERIFY_HEAP
 
+// =============================================================================
+// MarkCompactCollector
+// =============================================================================
+
+MarkCompactCollector::MarkCompactCollector(Heap* heap)
+    :  // NOLINT
+      heap_(heap),
+      page_parallel_job_semaphore_(0),
+#ifdef DEBUG
+      state_(IDLE),
+#endif
+      was_marked_incrementally_(false),
+      evacuation_(false),
+      compacting_(false),
+      black_allocation_(false),
+      have_code_to_deoptimize_(false),
+      marking_deque_(heap),
+      code_flusher_(nullptr),
+      sweeper_(heap) {
+}
 
 void MarkCompactCollector::SetUp() {
   DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
@@ -247,6 +318,7 @@ void MarkCompactCollector::SetUp() {
   }
 }
 
+void MinorMarkCompactCollector::SetUp() { marking_deque()->SetUp(); }
 
 void MarkCompactCollector::TearDown() {
   AbortCompaction();
@@ -254,6 +326,7 @@ void MarkCompactCollector::TearDown() {
   delete code_flusher_;
 }
 
+void MinorMarkCompactCollector::TearDown() { marking_deque()->TearDown(); }
 
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
   DCHECK(!p->NeverEvacuate());
@@ -308,7 +381,8 @@ void MarkCompactCollector::CollectGarbage() {
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    VerifyMarking(heap_);
+    FullMarkingVerifier verifier(heap());
+    verifier.Run();
   }
 #endif
 
@@ -322,16 +396,18 @@ void MarkCompactCollector::CollectGarbage() {
 #ifdef VERIFY_HEAP
 void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpace* space) {
   for (Page* p : *space) {
-    CHECK(p->markbits()->IsClean());
-    CHECK_EQ(0, p->LiveBytes());
+    const MarkingState state = MarkingState::Internal(p);
+    CHECK(state.bitmap()->IsClean());
+    CHECK_EQ(0, state.live_bytes());
   }
 }
 
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
   for (Page* p : PageRange(space->bottom(), space->top())) {
-    CHECK(p->markbits()->IsClean());
-    CHECK_EQ(0, p->LiveBytes());
+    const MarkingState state = MarkingState::Internal(p);
+    CHECK(state.bitmap()->IsClean());
+    CHECK_EQ(0, state.live_bytes());
   }
 }
 
@@ -344,8 +420,8 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
 
   LargeObjectIterator it(heap_->lo_space());
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-    CHECK(ObjectMarking::IsWhite(obj));
-    CHECK_EQ(0, Page::FromAddress(obj->address())->LiveBytes());
+    CHECK(ObjectMarking::IsWhite(obj, MarkingState::Internal(obj)));
+    CHECK_EQ(0, MarkingState::Internal(obj).live_bytes());
   }
 }
 
@@ -373,14 +449,14 @@ void MarkCompactCollector::VerifyOmittedMapChecks() {
 
 static void ClearMarkbitsInPagedSpace(PagedSpace* space) {
   for (Page* p : *space) {
-    p->ClearLiveness();
+    MarkingState::Internal(p).ClearLiveness();
   }
 }
 
 
 static void ClearMarkbitsInNewSpace(NewSpace* space) {
-  for (Page* page : *space) {
-    page->ClearLiveness();
+  for (Page* p : *space) {
+    MarkingState::Internal(p).ClearLiveness();
   }
 }
 
@@ -390,22 +466,17 @@ void MarkCompactCollector::ClearMarkbits() {
   ClearMarkbitsInPagedSpace(heap_->map_space());
   ClearMarkbitsInPagedSpace(heap_->old_space());
   ClearMarkbitsInNewSpace(heap_->new_space());
-
-  LargeObjectIterator it(heap_->lo_space());
-  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-    ObjectMarking::ClearMarkBit(obj);
-    MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
-    chunk->ResetProgressBar();
-    chunk->ResetLiveBytes();
-  }
+  heap_->lo_space()->ClearMarkingStateOfLiveObjects();
 }
 
 class MarkCompactCollector::Sweeper::SweeperTask : public v8::Task {
  public:
   SweeperTask(Sweeper* sweeper, base::Semaphore* pending_sweeper_tasks,
+              base::AtomicNumber<intptr_t>* num_sweeping_tasks,
               AllocationSpace space_to_start)
       : sweeper_(sweeper),
         pending_sweeper_tasks_(pending_sweeper_tasks),
+        num_sweeping_tasks_(num_sweeping_tasks),
         space_to_start_(space_to_start) {}
 
   virtual ~SweeperTask() {}
@@ -423,11 +494,13 @@ class MarkCompactCollector::Sweeper::SweeperTask : public v8::Task {
       DCHECK_LE(space_id, LAST_PAGED_SPACE);
       sweeper_->ParallelSweepSpace(static_cast<AllocationSpace>(space_id), 0);
     }
+    num_sweeping_tasks_->Decrement(1);
     pending_sweeper_tasks_->Signal();
   }
 
   Sweeper* sweeper_;
   base::Semaphore* pending_sweeper_tasks_;
+  base::AtomicNumber<intptr_t>* num_sweeping_tasks_;
   AllocationSpace space_to_start_;
 
   DISALLOW_COPY_AND_ASSIGN(SweeperTask);
@@ -437,7 +510,10 @@ void MarkCompactCollector::Sweeper::StartSweeping() {
   sweeping_in_progress_ = true;
   ForAllSweepingSpaces([this](AllocationSpace space) {
     std::sort(sweeping_list_[space].begin(), sweeping_list_[space].end(),
-              [](Page* a, Page* b) { return a->LiveBytes() < b->LiveBytes(); });
+              [](Page* a, Page* b) {
+                return MarkingState::Internal(a).live_bytes() <
+                       MarkingState::Internal(b).live_bytes();
+              });
   });
 }
 
@@ -446,8 +522,10 @@ void MarkCompactCollector::Sweeper::StartSweeperTasks() {
     ForAllSweepingSpaces([this](AllocationSpace space) {
       if (space == NEW_SPACE) return;
       num_sweeping_tasks_.Increment(1);
+      semaphore_counter_++;
       V8::GetCurrentPlatform()->CallOnBackgroundThread(
-          new SweeperTask(this, &pending_sweeper_tasks_semaphore_, space),
+          new SweeperTask(this, &pending_sweeper_tasks_semaphore_,
+                          &num_sweeping_tasks_, space),
           v8::Platform::kShortRunningTask);
     });
   }
@@ -467,8 +545,7 @@ void MarkCompactCollector::Sweeper::SweepOrWaitUntilSweepingCompleted(
 }
 
 void MarkCompactCollector::SweepAndRefill(CompactionSpace* space) {
-  if (FLAG_concurrent_sweeping &&
-      !sweeper().IsSweepingCompleted(space->identity())) {
+  if (FLAG_concurrent_sweeping && sweeper().sweeping_in_progress()) {
     sweeper().ParallelSweepSpace(space->identity(), 0);
     space->RefillFreeList();
   }
@@ -488,16 +565,13 @@ void MarkCompactCollector::Sweeper::EnsureCompleted() {
 
   // If sweeping is not completed or not running at all, we try to complete it
   // here.
-  ForAllSweepingSpaces([this](AllocationSpace space) {
-    if (!FLAG_concurrent_sweeping || !this->IsSweepingCompleted(space)) {
-      ParallelSweepSpace(space, 0);
-    }
-  });
+  ForAllSweepingSpaces(
+      [this](AllocationSpace space) { ParallelSweepSpace(space, 0); });
 
   if (FLAG_concurrent_sweeping) {
-    while (num_sweeping_tasks_.Value() > 0) {
+    while (semaphore_counter_ > 0) {
       pending_sweeper_tasks_semaphore_.Wait();
-      num_sweeping_tasks_.Increment(-1);
+      semaphore_counter_--;
     }
   }
 
@@ -512,7 +586,7 @@ void MarkCompactCollector::Sweeper::EnsureCompleted() {
 
 void MarkCompactCollector::Sweeper::EnsureNewSpaceCompleted() {
   if (!sweeping_in_progress_) return;
-  if (!FLAG_concurrent_sweeping || !IsSweepingCompleted(NEW_SPACE)) {
+  if (!FLAG_concurrent_sweeping || sweeping_in_progress()) {
     for (Page* p : *heap_->new_space()) {
       SweepOrWaitUntilSweepingCompleted(p);
     }
@@ -529,25 +603,17 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !evacuation()) {
-    VerifyEvacuation(heap_);
+    FullEvacuationVerifier verifier(heap_);
+    verifier.Run();
   }
 #endif
+
+  if (heap()->memory_allocator()->unmapper()->has_delayed_chunks())
+    heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 }
 
 bool MarkCompactCollector::Sweeper::AreSweeperTasksRunning() {
-  DCHECK(FLAG_concurrent_sweeping);
-  while (pending_sweeper_tasks_semaphore_.WaitFor(
-      base::TimeDelta::FromSeconds(0))) {
-    num_sweeping_tasks_.Increment(-1);
-  }
   return num_sweeping_tasks_.Value() != 0;
-}
-
-bool MarkCompactCollector::Sweeper::IsSweepingCompleted(AllocationSpace space) {
-  DCHECK(FLAG_concurrent_sweeping);
-  if (AreSweeperTasksRunning()) return false;
-  base::LockGuard<base::Mutex> guard(&mutex_);
-  return sweeping_list_[space].empty();
 }
 
 const char* AllocationSpaceName(AllocationSpace space) {
@@ -630,8 +696,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   pages.reserve(number_of_pages);
 
   DCHECK(!sweeping_in_progress());
-  DCHECK(!FLAG_concurrent_sweeping ||
-         sweeper().IsSweepingCompleted(space->identity()));
   Page* owner_of_linear_allocation_area =
       space->top() == space->limit()
           ? nullptr
@@ -643,8 +707,8 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     // of a GC all evacuation candidates are cleared and their slot buffers are
     // released.
     CHECK(!p->IsEvacuationCandidate());
-    CHECK_NULL(p->old_to_old_slots());
-    CHECK_NULL(p->typed_old_to_old_slots());
+    CHECK_NULL(p->slot_set<OLD_TO_OLD>());
+    CHECK_NULL(p->typed_slot_set<OLD_TO_OLD>());
     CHECK(p->SweepingDone());
     DCHECK(p->area_size() == area_size);
     pages.push_back(std::make_pair(p->LiveBytesFromFreeList(), p));
@@ -784,6 +848,8 @@ void MarkCompactCollector::Prepare() {
   // them here.
   heap()->memory_allocator()->unmapper()->WaitUntilCompleted();
 
+  heap()->concurrent_marking()->EnsureTaskCompleted();
+
   // Clear marking bits if incremental marking is aborted.
   if (was_marked_incrementally_ && heap_->ShouldAbortIncrementalMarking()) {
     heap()->incremental_marking()->Stop();
@@ -904,7 +970,7 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
     SharedFunctionInfo* shared = candidate->shared();
 
     Code* code = shared->code();
-    if (ObjectMarking::IsWhite(code)) {
+    if (ObjectMarking::IsWhite(code, MarkingState::Internal(code))) {
       if (FLAG_trace_code_flushing && shared->is_compiled()) {
         PrintF("[code-flushing clears: ");
         shared->ShortPrint();
@@ -922,7 +988,7 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
         candidate->set_code(lazy_compile);
       }
     } else {
-      DCHECK(ObjectMarking::IsBlack(code));
+      DCHECK(ObjectMarking::IsBlack(code, MarkingState::Internal(code)));
       candidate->set_code(code);
     }
 
@@ -956,7 +1022,7 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
     ClearNextCandidate(candidate);
 
     Code* code = candidate->code();
-    if (ObjectMarking::IsWhite(code)) {
+    if (ObjectMarking::IsWhite(code, MarkingState::Internal(code))) {
       if (FLAG_trace_code_flushing && candidate->is_compiled()) {
         PrintF("[code-flushing clears: ");
         candidate->ShortPrint();
@@ -1080,8 +1146,9 @@ class StaticYoungGenerationMarkingVisitor
   inline static void VisitPointer(Heap* heap, HeapObject* object, Object** p) {
     Object* target = *p;
     if (heap->InNewSpace(target)) {
-      if (MarkRecursively(heap, HeapObject::cast(target))) return;
-      heap->mark_compact_collector()->MarkObject(HeapObject::cast(target));
+      HeapObject* target_object = HeapObject::cast(target);
+      if (MarkRecursively(heap, target_object)) return;
+      heap->minor_mark_compact_collector()->MarkObject(target_object);
     }
   }
 
@@ -1090,8 +1157,11 @@ class StaticYoungGenerationMarkingVisitor
     StackLimitCheck check(heap->isolate());
     if (check.HasOverflowed()) return false;
 
-    if (ObjectMarking::IsBlackOrGrey(object)) return true;
-    ObjectMarking::WhiteToBlack(object);
+    if (ObjectMarking::IsBlackOrGrey<MarkBit::NON_ATOMIC>(
+            object, MarkingState::External(object)))
+      return true;
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+        object, MarkingState::External(object));
     IterateBody(object->map(), object);
     return true;
   }
@@ -1128,8 +1198,8 @@ class MarkCompactMarkingVisitor
   // Marks the object black without pushing it on the marking stack.
   // Returns true if object needed marking and false otherwise.
   INLINE(static bool MarkObjectWithoutPush(Heap* heap, HeapObject* object)) {
-    if (ObjectMarking::IsWhite(object)) {
-      ObjectMarking::WhiteToBlack(object);
+    if (ObjectMarking::IsWhite(object, MarkingState::Internal(object))) {
+      ObjectMarking::WhiteToBlack(object, MarkingState::Internal(object));
       return true;
     }
     return false;
@@ -1150,11 +1220,11 @@ class MarkCompactMarkingVisitor
                                          HeapObject* obj)) {
 #ifdef DEBUG
     DCHECK(collector->heap()->Contains(obj));
-    DCHECK(ObjectMarking::IsWhite(obj));
+    DCHECK(ObjectMarking::IsWhite(obj, MarkingState::Internal(obj)));
 #endif
     Map* map = obj->map();
     Heap* heap = obj->GetHeap();
-    ObjectMarking::WhiteToBlack(obj);
+    ObjectMarking::WhiteToBlack(obj, MarkingState::Internal(obj));
     // Mark the map pointer and the body.
     heap->mark_compact_collector()->MarkObject(map);
     IterateBody(map, obj);
@@ -1175,7 +1245,8 @@ class MarkCompactMarkingVisitor
       if (!o->IsHeapObject()) continue;
       collector->RecordSlot(object, p, o);
       HeapObject* obj = HeapObject::cast(o);
-      if (ObjectMarking::IsBlackOrGrey(obj)) continue;
+      if (ObjectMarking::IsBlackOrGrey(obj, MarkingState::Internal(obj)))
+        continue;
       VisitUnmarkedObject(collector, obj);
     }
     return true;
@@ -1208,7 +1279,7 @@ class MarkCompactMarkingVisitor
       // was marked through the compilation cache before marker reached JSRegExp
       // object.
       FixedArray* data = FixedArray::cast(re->data());
-      if (ObjectMarking::IsBlackOrGrey(data)) {
+      if (ObjectMarking::IsBlackOrGrey(data, MarkingState::Internal(data))) {
         Object** slot =
             data->data_start() + JSRegExp::saved_code_index(is_one_byte);
         heap->mark_compact_collector()->RecordSlot(data, slot, code);
@@ -1339,13 +1410,49 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
   heap()->isolate()->compilation_cache()->IterateFunctions(&visitor);
   heap()->isolate()->handle_scope_implementer()->Iterate(&visitor);
 
-  ProcessMarkingDeque<MarkCompactMode::FULL>();
+  ProcessMarkingDeque();
 }
 
+class MinorMarkCompactCollector::RootMarkingVisitor : public ObjectVisitor {
+ public:
+  explicit RootMarkingVisitor(MinorMarkCompactCollector* collector)
+      : collector_(collector) {}
+
+  void VisitPointer(Object** p) override { MarkObjectByPointer(p); }
+
+  void VisitPointers(Object** start, Object** end) override {
+    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
+  }
+
+  // Skip the weak next code link in a code object, which is visited in
+  // ProcessTopOptimizedFrame.
+  void VisitNextCodeLink(Object** p) override {}
+
+ private:
+  void MarkObjectByPointer(Object** p) {
+    if (!(*p)->IsHeapObject()) return;
+
+    HeapObject* object = HeapObject::cast(*p);
+
+    if (!collector_->heap()->InNewSpace(object)) return;
+
+    if (ObjectMarking::IsBlackOrGrey<MarkBit::NON_ATOMIC>(
+            object, MarkingState::External(object)))
+      return;
+
+    Map* map = object->map();
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+        object, MarkingState::External(object));
+    StaticYoungGenerationMarkingVisitor::IterateBody(map, object);
+
+    collector_->EmptyMarkingDeque();
+  }
+
+  MinorMarkCompactCollector* collector_;
+};
 
 // Visitor class for marking heap roots.
-template <MarkCompactMode mode>
-class RootMarkingVisitor : public ObjectVisitor {
+class MarkCompactCollector::RootMarkingVisitor : public ObjectVisitor {
  public:
   explicit RootMarkingVisitor(Heap* heap)
       : collector_(heap->mark_compact_collector()) {}
@@ -1366,30 +1473,22 @@ class RootMarkingVisitor : public ObjectVisitor {
 
     HeapObject* object = HeapObject::cast(*p);
 
-    if (mode == MarkCompactMode::YOUNG_GENERATION &&
-        !collector_->heap()->InNewSpace(object))
+    if (ObjectMarking::IsBlackOrGrey<MarkBit::NON_ATOMIC>(
+            object, MarkingState::Internal(object)))
       return;
-
-    if (ObjectMarking::IsBlackOrGrey(object)) return;
 
     Map* map = object->map();
     // Mark the object.
-    ObjectMarking::WhiteToBlack(object);
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(
+        object, MarkingState::Internal(object));
 
-    switch (mode) {
-      case MarkCompactMode::FULL: {
-        // Mark the map pointer and body, and push them on the marking stack.
-        collector_->MarkObject(map);
-        MarkCompactMarkingVisitor::IterateBody(map, object);
-      } break;
-      case MarkCompactMode::YOUNG_GENERATION:
-        StaticYoungGenerationMarkingVisitor::IterateBody(map, object);
-        break;
-    }
+    // Mark the map pointer and body, and push them on the marking stack.
+    collector_->MarkObject(map);
+    MarkCompactMarkingVisitor::IterateBody(map, object);
 
     // Mark all the objects reachable from the map and body.  May leave
     // overflowed objects in the heap.
-    collector_->EmptyMarkingDeque<mode>();
+    collector_->EmptyMarkingDeque();
   }
 
   MarkCompactCollector* collector_;
@@ -1411,7 +1510,9 @@ class StringTableCleaner : public ObjectVisitor {
     for (Object** p = start; p < end; p++) {
       Object* o = *p;
       if (o->IsHeapObject()) {
-        if (ObjectMarking::IsWhite(HeapObject::cast(o))) {
+        HeapObject* heap_object = HeapObject::cast(o);
+        if (ObjectMarking::IsWhite(heap_object,
+                                   MarkingState::Internal(heap_object))) {
           if (finalize_external_strings) {
             if (o->IsExternalString()) {
               heap_->FinalizeExternalString(String::cast(*p));
@@ -1452,8 +1553,11 @@ typedef StringTableCleaner<true, false> ExternalStringTableCleaner;
 class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
  public:
   virtual Object* RetainAs(Object* object) {
-    DCHECK(!ObjectMarking::IsGrey(HeapObject::cast(object)));
-    if (ObjectMarking::IsBlack(HeapObject::cast(object))) {
+    HeapObject* heap_object = HeapObject::cast(object);
+    DCHECK(!ObjectMarking::IsGrey(heap_object,
+                                  MarkingState::Internal(heap_object)));
+    if (ObjectMarking::IsBlack(heap_object,
+                               MarkingState::Internal(heap_object))) {
       return object;
     } else if (object->IsAllocationSite() &&
                !(AllocationSite::cast(object)->IsZombie())) {
@@ -1461,7 +1565,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
       // space. These sites get a one-time reprieve.
       AllocationSite* site = AllocationSite::cast(object);
       site->MarkZombie();
-      ObjectMarking::WhiteToBlack(site);
+      ObjectMarking::WhiteToBlack(site, MarkingState::Internal(site));
       return object;
     } else {
       return NULL;
@@ -1481,8 +1585,9 @@ void MarkCompactCollector::DiscoverGreyObjectsWithIterator(T* it) {
 
   Map* filler_map = heap()->one_pointer_filler_map();
   for (HeapObject* object = it->Next(); object != NULL; object = it->Next()) {
-    if ((object->map() != filler_map) && ObjectMarking::IsGrey(object)) {
-      ObjectMarking::GreyToBlack(object);
+    if ((object->map() != filler_map) &&
+        ObjectMarking::IsGrey(object, MarkingState::Internal(object))) {
+      ObjectMarking::GreyToBlack(object, MarkingState::Internal(object));
       PushBlack(object);
       if (marking_deque()->IsFull()) return;
     }
@@ -1491,11 +1596,11 @@ void MarkCompactCollector::DiscoverGreyObjectsWithIterator(T* it) {
 
 void MarkCompactCollector::DiscoverGreyObjectsOnPage(MemoryChunk* p) {
   DCHECK(!marking_deque()->IsFull());
-  LiveObjectIterator<kGreyObjects> it(p);
+  LiveObjectIterator<kGreyObjects> it(p, MarkingState::Internal(p));
   HeapObject* object = NULL;
   while ((object = it.Next()) != NULL) {
-    DCHECK(ObjectMarking::IsGrey(object));
-    ObjectMarking::GreyToBlack(object);
+    DCHECK(ObjectMarking::IsGrey(object, MarkingState::Internal(object)));
+    ObjectMarking::GreyToBlack(object, MarkingState::Internal(object));
     PushBlack(object);
     if (marking_deque()->IsFull()) return;
   }
@@ -1577,12 +1682,7 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
   inline void VisitExternalReference(RelocInfo* rinfo) final {}
   inline void VisitExternalReference(Address* p) final {}
   inline void VisitRuntimeEntry(RelocInfo* rinfo) final {}
-  inline void VisitExternalOneByteString(
-      v8::String::ExternalOneByteStringResource** resource) final {}
-  inline void VisitExternalTwoByteString(
-      v8::String::ExternalStringResource** resource) final {}
   inline void VisitInternalReference(RelocInfo* rinfo) final {}
-  inline void VisitEmbedderReference(Object** p, uint16_t class_id) final {}
 
  private:
   inline void RecordMigratedSlot(Object* value, Address slot) {
@@ -1599,20 +1699,21 @@ class RecordMigratedSlotVisitor final : public ObjectVisitor {
   MarkCompactCollector* collector_;
 };
 
-class MarkCompactCollector::HeapObjectVisitor {
+class HeapObjectVisitor {
  public:
   virtual ~HeapObjectVisitor() {}
   virtual bool Visit(HeapObject* object) = 0;
 };
 
-class MarkCompactCollector::EvacuateVisitorBase
-    : public MarkCompactCollector::HeapObjectVisitor {
+class EvacuateVisitorBase : public HeapObjectVisitor {
  protected:
   enum MigrationMode { kFast, kProfiled };
 
-  EvacuateVisitorBase(Heap* heap, CompactionSpaceCollection* compaction_spaces)
+  EvacuateVisitorBase(Heap* heap, CompactionSpaceCollection* compaction_spaces,
+                      RecordMigratedSlotVisitor* record_visitor)
       : heap_(heap),
         compaction_spaces_(compaction_spaces),
+        record_visitor_(record_visitor),
         profiling_(
             heap->isolate()->is_profiling() ||
             heap->isolate()->logger()->is_logging_code_events() ||
@@ -1657,8 +1758,7 @@ class MarkCompactCollector::EvacuateVisitorBase
         PROFILE(heap_->isolate(),
                 CodeMoveEvent(AbstractCode::cast(src), dst_addr));
       }
-      RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
-      dst->IterateBodyFast(dst->map()->instance_type(), size, &visitor);
+      dst->IterateBodyFast(dst->map()->instance_type(), size, record_visitor_);
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size, heap_->code_space());
       if (mode == kProfiled) {
@@ -1668,7 +1768,7 @@ class MarkCompactCollector::EvacuateVisitorBase
       heap_->CopyBlock(dst_addr, src_addr, size);
       Code::cast(dst)->Relocate(dst_addr - src_addr);
       RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
-      dst->IterateBodyFast(dst->map()->instance_type(), size, &visitor);
+      dst->IterateBodyFast(dst->map()->instance_type(), size, record_visitor_);
     } else {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(dest == NEW_SPACE);
@@ -1677,7 +1777,8 @@ class MarkCompactCollector::EvacuateVisitorBase
     if (mode == kProfiled) {
       heap_->OnMoveEvent(dst, src, size);
     }
-    Memory::Address_at(src_addr) = dst_addr;
+    base::NoBarrier_Store(reinterpret_cast<base::AtomicWord*>(src_addr),
+                          reinterpret_cast<base::AtomicWord>(dst_addr));
   }
 
 #ifdef VERIFY_HEAP
@@ -1702,19 +1803,20 @@ class MarkCompactCollector::EvacuateVisitorBase
 
   Heap* heap_;
   CompactionSpaceCollection* compaction_spaces_;
+  RecordMigratedSlotVisitor* record_visitor_;
   bool profiling_;
 };
 
-class MarkCompactCollector::EvacuateNewSpaceVisitor final
-    : public MarkCompactCollector::EvacuateVisitorBase {
+class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
  public:
   static const intptr_t kLabSize = 4 * KB;
   static const intptr_t kMaxLabObjectSize = 256;
 
   explicit EvacuateNewSpaceVisitor(Heap* heap,
                                    CompactionSpaceCollection* compaction_spaces,
+                                   RecordMigratedSlotVisitor* record_visitor,
                                    base::HashMap* local_pretenuring_feedback)
-      : EvacuateVisitorBase(heap, compaction_spaces),
+      : EvacuateVisitorBase(heap, compaction_spaces, record_visitor),
         buffer_(LocalAllocationBuffer::InvalidBuffer()),
         space_to_allocate_(NEW_SPACE),
         promoted_size_(0),
@@ -1741,6 +1843,7 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
 
   intptr_t promoted_size() { return promoted_size_; }
   intptr_t semispace_copied_size() { return semispace_copied_size_; }
+  AllocationInfo CloseLAB() { return buffer_.Close(); }
 
  private:
   enum NewSpaceAllocationMode {
@@ -1848,12 +1951,13 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
 };
 
 template <PageEvacuationMode mode>
-class MarkCompactCollector::EvacuateNewSpacePageVisitor final
-    : public MarkCompactCollector::HeapObjectVisitor {
+class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
  public:
   explicit EvacuateNewSpacePageVisitor(
-      Heap* heap, base::HashMap* local_pretenuring_feedback)
+      Heap* heap, RecordMigratedSlotVisitor* record_visitor,
+      base::HashMap* local_pretenuring_feedback)
       : heap_(heap),
+        record_visitor_(record_visitor),
         moved_bytes_(0),
         local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
@@ -1876,8 +1980,7 @@ class MarkCompactCollector::EvacuateNewSpacePageVisitor final
     heap_->UpdateAllocationSite<Heap::kCached>(object,
                                                local_pretenuring_feedback_);
     if (mode == NEW_TO_OLD) {
-      RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
-      object->IterateBodyFast(&visitor);
+      object->IterateBodyFast(record_visitor_);
     }
     return true;
   }
@@ -1887,16 +1990,17 @@ class MarkCompactCollector::EvacuateNewSpacePageVisitor final
 
  private:
   Heap* heap_;
+  RecordMigratedSlotVisitor* record_visitor_;
   intptr_t moved_bytes_;
   base::HashMap* local_pretenuring_feedback_;
 };
 
-class MarkCompactCollector::EvacuateOldSpaceVisitor final
-    : public MarkCompactCollector::EvacuateVisitorBase {
+class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
  public:
   EvacuateOldSpaceVisitor(Heap* heap,
-                          CompactionSpaceCollection* compaction_spaces)
-      : EvacuateVisitorBase(heap, compaction_spaces) {}
+                          CompactionSpaceCollection* compaction_spaces,
+                          RecordMigratedSlotVisitor* record_visitor)
+      : EvacuateVisitorBase(heap, compaction_spaces, record_visitor) {}
 
   inline bool Visit(HeapObject* object) override {
     CompactionSpace* target_space = compaction_spaces_->Get(
@@ -1910,8 +2014,7 @@ class MarkCompactCollector::EvacuateOldSpaceVisitor final
   }
 };
 
-class MarkCompactCollector::EvacuateRecordOnlyVisitor final
-    : public MarkCompactCollector::HeapObjectVisitor {
+class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
  public:
   explicit EvacuateRecordOnlyVisitor(Heap* heap) : heap_(heap) {}
 
@@ -1945,32 +2048,25 @@ void MarkCompactCollector::DiscoverGreyObjectsInNewSpace() {
 bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
   Object* o = *p;
   if (!o->IsHeapObject()) return false;
-  return ObjectMarking::IsWhite(HeapObject::cast(o));
+  return ObjectMarking::IsWhite(HeapObject::cast(o),
+                                MarkingState::Internal(HeapObject::cast(o)));
 }
 
-
-bool MarkCompactCollector::IsUnmarkedHeapObjectWithHeap(Heap* heap,
-                                                        Object** p) {
-  Object* o = *p;
-  DCHECK(o->IsHeapObject());
-  return ObjectMarking::IsWhite(HeapObject::cast(o));
-}
-
-void MarkCompactCollector::MarkStringTable(
-    RootMarkingVisitor<MarkCompactMode::FULL>* visitor) {
+void MarkCompactCollector::MarkStringTable(RootMarkingVisitor* visitor) {
   StringTable* string_table = heap()->string_table();
   // Mark the string table itself.
-  if (ObjectMarking::IsWhite(string_table)) {
+  if (ObjectMarking::IsWhite(string_table,
+                             MarkingState::Internal(string_table))) {
     // String table could have already been marked by visiting the handles list.
-    ObjectMarking::WhiteToBlack(string_table);
+    ObjectMarking::WhiteToBlack(string_table,
+                                MarkingState::Internal(string_table));
   }
   // Explicitly mark the prefix.
   string_table->IteratePrefix(visitor);
-  ProcessMarkingDeque<MarkCompactMode::FULL>();
+  ProcessMarkingDeque();
 }
 
-void MarkCompactCollector::MarkRoots(
-    RootMarkingVisitor<MarkCompactMode::FULL>* visitor) {
+void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
   // Mark the heap roots including global variables, stack variables,
   // etc., and all objects reachable from them.
   heap()->IterateStrongRoots(visitor, VISIT_ONLY_STRONG);
@@ -1980,48 +2076,15 @@ void MarkCompactCollector::MarkRoots(
 
   // There may be overflowed objects in the heap.  Visit them now.
   while (marking_deque()->overflowed()) {
-    RefillMarkingDeque<MarkCompactMode::FULL>();
-    EmptyMarkingDeque<MarkCompactMode::FULL>();
+    RefillMarkingDeque();
+    EmptyMarkingDeque();
   }
 }
-
-
-void MarkCompactCollector::MarkImplicitRefGroups(
-    MarkObjectFunction mark_object) {
-  List<ImplicitRefGroup*>* ref_groups =
-      isolate()->global_handles()->implicit_ref_groups();
-
-  int last = 0;
-  for (int i = 0; i < ref_groups->length(); i++) {
-    ImplicitRefGroup* entry = ref_groups->at(i);
-    DCHECK(entry != NULL);
-
-    if (ObjectMarking::IsWhite(*entry->parent)) {
-      (*ref_groups)[last++] = entry;
-      continue;
-    }
-
-    Object*** children = entry->children;
-    // A parent object is marked, so mark all child heap objects.
-    for (size_t j = 0; j < entry->length; ++j) {
-      if ((*children[j])->IsHeapObject()) {
-        mark_object(heap(), HeapObject::cast(*children[j]));
-      }
-    }
-
-    // Once the entire group has been marked, dispose it because it's
-    // not needed anymore.
-    delete entry;
-  }
-  ref_groups->Rewind(last);
-}
-
 
 // Mark all objects reachable from the objects on the marking stack.
 // Before: the marking stack contains zero or more heap object pointers.
 // After: the marking stack is empty, and all objects reachable from the
 // marking stack have been marked, or are overflowed in the heap.
-template <MarkCompactMode mode>
 void MarkCompactCollector::EmptyMarkingDeque() {
   while (!marking_deque()->IsEmpty()) {
     HeapObject* object = marking_deque()->Pop();
@@ -2029,19 +2092,12 @@ void MarkCompactCollector::EmptyMarkingDeque() {
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
-    DCHECK(!ObjectMarking::IsWhite(object));
+    DCHECK(!(ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(
+        object, MarkingState::Internal(object))));
 
     Map* map = object->map();
-    switch (mode) {
-      case MarkCompactMode::FULL: {
-        MarkObject(map);
-        MarkCompactMarkingVisitor::IterateBody(map, object);
-      } break;
-      case MarkCompactMode::YOUNG_GENERATION: {
-        DCHECK(ObjectMarking::IsBlack(object));
-        StaticYoungGenerationMarkingVisitor::IterateBody(map, object);
-      } break;
-    }
+    MarkObject(map);
+    MarkCompactMarkingVisitor::IterateBody(map, object);
   }
 }
 
@@ -2051,7 +2107,6 @@ void MarkCompactCollector::EmptyMarkingDeque() {
 // before sweeping completes.  If sweeping completes, there are no remaining
 // overflowed objects in the heap so the overflow flag on the markings stack
 // is cleared.
-template <MarkCompactMode mode>
 void MarkCompactCollector::RefillMarkingDeque() {
   isolate()->CountUsage(v8::Isolate::UseCounterFeature::kMarkDequeOverflow);
   DCHECK(marking_deque()->overflowed());
@@ -2059,32 +2114,28 @@ void MarkCompactCollector::RefillMarkingDeque() {
   DiscoverGreyObjectsInNewSpace();
   if (marking_deque()->IsFull()) return;
 
-  if (mode == MarkCompactMode::FULL) {
-    DiscoverGreyObjectsInSpace(heap()->old_space());
-    if (marking_deque()->IsFull()) return;
-    DiscoverGreyObjectsInSpace(heap()->code_space());
-    if (marking_deque()->IsFull()) return;
-    DiscoverGreyObjectsInSpace(heap()->map_space());
-    if (marking_deque()->IsFull()) return;
-    LargeObjectIterator lo_it(heap()->lo_space());
-    DiscoverGreyObjectsWithIterator(&lo_it);
-    if (marking_deque()->IsFull()) return;
-  }
+  DiscoverGreyObjectsInSpace(heap()->old_space());
+  if (marking_deque()->IsFull()) return;
+  DiscoverGreyObjectsInSpace(heap()->code_space());
+  if (marking_deque()->IsFull()) return;
+  DiscoverGreyObjectsInSpace(heap()->map_space());
+  if (marking_deque()->IsFull()) return;
+  LargeObjectIterator lo_it(heap()->lo_space());
+  DiscoverGreyObjectsWithIterator(&lo_it);
+  if (marking_deque()->IsFull()) return;
 
   marking_deque()->ClearOverflowed();
 }
-
 
 // Mark all objects reachable (transitively) from objects on the marking
 // stack.  Before: the marking stack contains zero or more heap object
 // pointers.  After: the marking stack is empty and there are no overflowed
 // objects in the heap.
-template <MarkCompactMode mode>
 void MarkCompactCollector::ProcessMarkingDeque() {
-  EmptyMarkingDeque<mode>();
+  EmptyMarkingDeque();
   while (marking_deque()->overflowed()) {
-    RefillMarkingDeque<mode>();
-    EmptyMarkingDeque<mode>();
+    RefillMarkingDeque();
+    EmptyMarkingDeque();
   }
   DCHECK(marking_deque()->IsEmpty());
 }
@@ -2104,11 +2155,6 @@ void MarkCompactCollector::ProcessEphemeralMarking(
             0,
             EmbedderHeapTracer::AdvanceTracingActions(
                 EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
-      } else {
-        TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_OBJECT_GROUPING);
-        isolate()->global_handles()->IterateObjectGroups(
-            visitor, &IsUnmarkedHeapObjectWithHeap);
-        MarkImplicitRefGroups(&MarkCompactMarkingVisitor::MarkObject);
       }
     } else {
       // TODO(mlippautz): We currently do not trace through blink when
@@ -2119,7 +2165,7 @@ void MarkCompactCollector::ProcessEphemeralMarking(
     }
     ProcessWeakCollections();
     work_to_do = !marking_deque()->IsEmpty();
-    ProcessMarkingDeque<MarkCompactMode::FULL>();
+    ProcessMarkingDeque();
   }
   CHECK(marking_deque()->IsEmpty());
   CHECK_EQ(0, heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace());
@@ -2136,7 +2182,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
       if (!code->CanDeoptAt(it.frame()->pc())) {
         Code::BodyDescriptor::IterateBody(code, visitor);
       }
-      ProcessMarkingDeque<MarkCompactMode::FULL>();
+      ProcessMarkingDeque();
       return;
     }
   }
@@ -2226,8 +2272,7 @@ void MarkingDeque::StartUncommitTask() {
   }
 }
 
-class MarkCompactCollector::ObjectStatsVisitor
-    : public MarkCompactCollector::HeapObjectVisitor {
+class ObjectStatsVisitor : public HeapObjectVisitor {
  public:
   ObjectStatsVisitor(Heap* heap, ObjectStats* live_stats,
                      ObjectStats* dead_stats)
@@ -2239,10 +2284,10 @@ class MarkCompactCollector::ObjectStatsVisitor
   }
 
   bool Visit(HeapObject* obj) override {
-    if (ObjectMarking::IsBlack(obj)) {
+    if (ObjectMarking::IsBlack(obj, MarkingState::Internal(obj))) {
       live_collector_.CollectStatistics(obj);
     } else {
-      DCHECK(!ObjectMarking::IsGrey(obj));
+      DCHECK(!ObjectMarking::IsGrey(obj, MarkingState::Internal(obj)));
       dead_collector_.CollectStatistics(obj);
     }
     return true;
@@ -2290,7 +2335,7 @@ void MarkCompactCollector::RecordObjectStats() {
   }
 }
 
-SlotCallbackResult MarkCompactCollector::CheckAndMarkObject(
+SlotCallbackResult MinorMarkCompactCollector::CheckAndMarkObject(
     Heap* heap, Address slot_address) {
   Object* object = *reinterpret_cast<Object**>(slot_address);
   if (heap->InNewSpace(object)) {
@@ -2298,10 +2343,11 @@ SlotCallbackResult MarkCompactCollector::CheckAndMarkObject(
     // has to be in ToSpace.
     DCHECK(heap->InToSpace(object));
     HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
-    if (ObjectMarking::IsBlackOrGrey(heap_object)) {
+    const MarkingState state = MarkingState::External(heap_object);
+    if (ObjectMarking::IsBlackOrGrey<MarkBit::NON_ATOMIC>(heap_object, state)) {
       return KEEP_SLOT;
     }
-    ObjectMarking::WhiteToBlack(heap_object);
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC>(heap_object, state);
     StaticYoungGenerationMarkingVisitor::IterateBody(heap_object->map(),
                                                      heap_object);
     return KEEP_SLOT;
@@ -2311,16 +2357,18 @@ SlotCallbackResult MarkCompactCollector::CheckAndMarkObject(
 
 static bool IsUnmarkedObject(Heap* heap, Object** p) {
   DCHECK_IMPLIES(heap->InNewSpace(*p), heap->InToSpace(*p));
-  return heap->InNewSpace(*p) && !ObjectMarking::IsBlack(HeapObject::cast(*p));
+  return heap->InNewSpace(*p) &&
+         !ObjectMarking::IsBlack(HeapObject::cast(*p),
+                                 MarkingState::Internal(HeapObject::cast(*p)));
 }
 
-void MarkCompactCollector::MarkLiveObjectsInYoungGeneration() {
+void MinorMarkCompactCollector::MarkLiveObjects() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK);
 
   PostponeInterruptsScope postpone(isolate());
 
   StaticYoungGenerationMarkingVisitor::Initialize(heap());
-  RootMarkingVisitor<MarkCompactMode::YOUNG_GENERATION> root_visitor(heap());
+  RootMarkingVisitor root_visitor(this);
 
   marking_deque()->StartUsing();
 
@@ -2330,7 +2378,7 @@ void MarkCompactCollector::MarkLiveObjectsInYoungGeneration() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
     heap()->IterateRoots(&root_visitor, VISIT_ALL_IN_SCAVENGE);
-    ProcessMarkingDeque<MarkCompactMode::YOUNG_GENERATION>();
+    ProcessMarkingDeque();
   }
 
   {
@@ -2348,20 +2396,13 @@ void MarkCompactCollector::MarkLiveObjectsInYoungGeneration() {
                                           reinterpret_cast<Address>(addr));
               });
         });
-    ProcessMarkingDeque<MarkCompactMode::YOUNG_GENERATION>();
+    ProcessMarkingDeque();
   }
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_WEAK);
     heap()->VisitEncounteredWeakCollections(&root_visitor);
-    ProcessMarkingDeque<MarkCompactMode::YOUNG_GENERATION>();
-  }
-
-  if (is_code_flushing_enabled()) {
-    TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MINOR_MC_MARK_CODE_FLUSH_CANDIDATES);
-    code_flusher()->IteratePointersToFromSpace(&root_visitor);
-    ProcessMarkingDeque<MarkCompactMode::YOUNG_GENERATION>();
+    ProcessMarkingDeque();
   }
 
   {
@@ -2372,10 +2413,45 @@ void MarkCompactCollector::MarkLiveObjectsInYoungGeneration() {
         ->global_handles()
         ->IterateNewSpaceWeakUnmodifiedRoots<GlobalHandles::VISIT_OTHERS>(
             &root_visitor);
-    ProcessMarkingDeque<MarkCompactMode::YOUNG_GENERATION>();
+    ProcessMarkingDeque();
   }
 
   marking_deque()->StopUsing();
+}
+
+void MinorMarkCompactCollector::ProcessMarkingDeque() {
+  EmptyMarkingDeque();
+  DCHECK(!marking_deque()->overflowed());
+  DCHECK(marking_deque()->IsEmpty());
+}
+
+void MinorMarkCompactCollector::EmptyMarkingDeque() {
+  while (!marking_deque()->IsEmpty()) {
+    HeapObject* object = marking_deque()->Pop();
+
+    DCHECK(!object->IsFiller());
+    DCHECK(object->IsHeapObject());
+    DCHECK(heap()->Contains(object));
+
+    DCHECK(!(ObjectMarking::IsWhite<MarkBit::NON_ATOMIC>(
+        object, MarkingState::External(object))));
+
+    Map* map = object->map();
+    DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC>(
+        object, MarkingState::External(object))));
+    StaticYoungGenerationMarkingVisitor::IterateBody(map, object);
+  }
+}
+
+void MinorMarkCompactCollector::CollectGarbage() {
+  MarkLiveObjects();
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    YoungGenerationMarkingVerifier verifier(heap());
+    verifier.Run();
+  }
+#endif  // VERIFY_HEAP
 }
 
 void MarkCompactCollector::MarkLiveObjects() {
@@ -2409,7 +2485,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     PrepareForCodeFlushing();
   }
 
-  RootMarkingVisitor<MarkCompactMode::FULL> root_visitor(heap());
+  RootMarkingVisitor root_visitor(heap());
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_ROOTS);
@@ -2441,7 +2517,7 @@ void MarkCompactCollector::MarkLiveObjects() {
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES);
       heap()->isolate()->global_handles()->IdentifyWeakHandles(
           &IsUnmarkedHeapObject);
-      ProcessMarkingDeque<MarkCompactMode::FULL>();
+      ProcessMarkingDeque();
     }
     // Then we mark the objects.
 
@@ -2449,7 +2525,7 @@ void MarkCompactCollector::MarkLiveObjects() {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS);
       heap()->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
-      ProcessMarkingDeque<MarkCompactMode::FULL>();
+      ProcessMarkingDeque();
     }
 
     // Repeat Harmony weak maps marking to mark unmarked objects reachable from
@@ -2493,14 +2569,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // Process the weak references.
     MarkCompactWeakObjectRetainer mark_compact_object_retainer;
     heap()->ProcessAllWeakReferences(&mark_compact_object_retainer);
-  }
-
-  {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_GLOBAL_HANDLES);
-
-    // Remove object groups after marking phase.
-    heap()->isolate()->global_handles()->RemoveObjectGroups();
-    heap()->isolate()->global_handles()->RemoveImplicitRefGroups();
   }
 
   // Flush code from collected candidates.
@@ -2594,11 +2662,12 @@ void MarkCompactCollector::ClearSimpleMapTransitions(
   while (weak_cell_obj != Smi::kZero) {
     WeakCell* weak_cell = WeakCell::cast(weak_cell_obj);
     Map* map = Map::cast(weak_cell->value());
-    DCHECK(ObjectMarking::IsWhite(map));
+    DCHECK(ObjectMarking::IsWhite(map, MarkingState::Internal(map)));
     Object* potential_parent = map->constructor_or_backpointer();
     if (potential_parent->IsMap()) {
       Map* parent = Map::cast(potential_parent);
-      if (ObjectMarking::IsBlackOrGrey(parent) &&
+      if (ObjectMarking::IsBlackOrGrey(parent,
+                                       MarkingState::Internal(parent)) &&
           parent->raw_transitions() == weak_cell) {
         ClearSimpleMapTransition(parent, map);
       }
@@ -2637,7 +2706,8 @@ void MarkCompactCollector::ClearFullMapTransitions() {
     if (num_transitions > 0) {
       Map* map = array->GetTarget(0);
       Map* parent = Map::cast(map->constructor_or_backpointer());
-      bool parent_is_alive = ObjectMarking::IsBlackOrGrey(parent);
+      bool parent_is_alive =
+          ObjectMarking::IsBlackOrGrey(parent, MarkingState::Internal(parent));
       DescriptorArray* descriptors =
           parent_is_alive ? parent->instance_descriptors() : nullptr;
       bool descriptors_owner_died =
@@ -2662,7 +2732,7 @@ bool MarkCompactCollector::CompactTransitionArray(
   for (int i = 0; i < num_transitions; ++i) {
     Map* target = transitions->GetTarget(i);
     DCHECK_EQ(target->constructor_or_backpointer(), map);
-    if (ObjectMarking::IsWhite(target)) {
+    if (ObjectMarking::IsWhite(target, MarkingState::Internal(target))) {
       if (descriptors != nullptr &&
           target->instance_descriptors() == descriptors) {
         descriptors_owner_died = true;
@@ -2754,11 +2824,14 @@ void MarkCompactCollector::ProcessWeakCollections() {
   while (weak_collection_obj != Smi::kZero) {
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
-    DCHECK(ObjectMarking::IsBlackOrGrey(weak_collection));
+    DCHECK(ObjectMarking::IsBlackOrGrey(
+        weak_collection, MarkingState::Internal(weak_collection)));
     if (weak_collection->table()->IsHashTable()) {
       ObjectHashTable* table = ObjectHashTable::cast(weak_collection->table());
       for (int i = 0; i < table->Capacity(); i++) {
-        if (ObjectMarking::IsBlackOrGrey(HeapObject::cast(table->KeyAt(i)))) {
+        HeapObject* heap_object = HeapObject::cast(table->KeyAt(i));
+        if (ObjectMarking::IsBlackOrGrey(heap_object,
+                                         MarkingState::Internal(heap_object))) {
           Object** key_slot =
               table->RawFieldOfElementAt(ObjectHashTable::EntryToIndex(i));
           RecordSlot(table, key_slot, *key_slot);
@@ -2780,12 +2853,13 @@ void MarkCompactCollector::ClearWeakCollections() {
   while (weak_collection_obj != Smi::kZero) {
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
-    DCHECK(ObjectMarking::IsBlackOrGrey(weak_collection));
+    DCHECK(ObjectMarking::IsBlackOrGrey(
+        weak_collection, MarkingState::Internal(weak_collection)));
     if (weak_collection->table()->IsHashTable()) {
       ObjectHashTable* table = ObjectHashTable::cast(weak_collection->table());
       for (int i = 0; i < table->Capacity(); i++) {
         HeapObject* key = HeapObject::cast(table->KeyAt(i));
-        if (!ObjectMarking::IsBlackOrGrey(key)) {
+        if (!ObjectMarking::IsBlackOrGrey(key, MarkingState::Internal(key))) {
           table->RemoveEntry(i);
         }
       }
@@ -2826,7 +2900,7 @@ void MarkCompactCollector::ClearWeakCells(Object** non_live_map_list,
     // We do not insert cleared weak cells into the list, so the value
     // cannot be a Smi here.
     HeapObject* value = HeapObject::cast(weak_cell->value());
-    if (!ObjectMarking::IsBlackOrGrey(value)) {
+    if (!ObjectMarking::IsBlackOrGrey(value, MarkingState::Internal(value))) {
       // Cells for new-space objects embedded in optimized code are wrapped in
       // WeakCell and put into Heap::weak_object_to_code_table.
       // Such cells do not have any strong references but we want to keep them
@@ -2835,9 +2909,11 @@ void MarkCompactCollector::ClearWeakCells(Object** non_live_map_list,
       if (value->IsCell()) {
         Object* cell_value = Cell::cast(value)->value();
         if (cell_value->IsHeapObject() &&
-            ObjectMarking::IsBlackOrGrey(HeapObject::cast(cell_value))) {
+            ObjectMarking::IsBlackOrGrey(
+                HeapObject::cast(cell_value),
+                MarkingState::Internal(HeapObject::cast(cell_value)))) {
           // Resurrect the cell.
-          ObjectMarking::WhiteToBlack(value);
+          ObjectMarking::WhiteToBlack(value, MarkingState::Internal(value));
           Object** slot = HeapObject::RawField(value, Cell::kValueOffset);
           RecordSlot(value, slot, *slot);
           slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
@@ -2947,8 +3023,8 @@ static inline SlotCallbackResult UpdateSlot(Object** slot) {
           reinterpret_cast<base::AtomicWord*>(slot),
           reinterpret_cast<base::AtomicWord>(obj),
           reinterpret_cast<base::AtomicWord>(target));
-      DCHECK(!heap_obj->GetHeap()->InFromSpace(target) &&
-             !MarkCompactCollector::IsOnEvacuationCandidate(target));
+      DCHECK(!heap_obj->GetHeap()->InFromSpace(target));
+      DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
     }
   }
   return REMOVE_SLOT;
@@ -3007,8 +3083,9 @@ void MarkCompactCollector::EvacuatePrologue() {
   new_space->ResetAllocationInfo();
 
   // Old space.
-  CHECK(old_space_evacuation_pages_.is_empty());
+  DCHECK(old_space_evacuation_pages_.is_empty());
   old_space_evacuation_pages_.Swap(&evacuation_candidates_);
+  DCHECK(evacuation_candidates_.is_empty());
 }
 
 void MarkCompactCollector::EvacuateEpilogue() {
@@ -3018,7 +3095,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
   ReleaseEvacuationCandidates();
 }
 
-class MarkCompactCollector::Evacuator : public Malloced {
+class Evacuator : public Malloced {
  public:
   enum EvacuationMode {
     kObjectsNewToOld,
@@ -3046,40 +3123,43 @@ class MarkCompactCollector::Evacuator : public Malloced {
     return Page::kAllocatableMemory + kPointerSize;
   }
 
-  explicit Evacuator(MarkCompactCollector* collector)
-      : collector_(collector),
-        compaction_spaces_(collector->heap()),
+  Evacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor)
+      : heap_(heap),
+        compaction_spaces_(heap_),
         local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
-        new_space_visitor_(collector->heap(), &compaction_spaces_,
+        new_space_visitor_(heap_, &compaction_spaces_, record_visitor,
                            &local_pretenuring_feedback_),
-        new_to_new_page_visitor_(collector->heap(),
+        new_to_new_page_visitor_(heap_, record_visitor,
                                  &local_pretenuring_feedback_),
-        new_to_old_page_visitor_(collector->heap(),
+        new_to_old_page_visitor_(heap_, record_visitor,
                                  &local_pretenuring_feedback_),
 
-        old_space_visitor_(collector->heap(), &compaction_spaces_),
+        old_space_visitor_(heap_, &compaction_spaces_, record_visitor),
         duration_(0.0),
         bytes_compacted_(0) {}
 
-  inline bool EvacuatePage(Page* chunk);
+  virtual ~Evacuator() {}
+
+  virtual bool EvacuatePage(Page* page, const MarkingState& state) = 0;
 
   // Merge back locally cached info sequentially. Note that this method needs
   // to be called from the main thread.
   inline void Finalize();
 
   CompactionSpaceCollection* compaction_spaces() { return &compaction_spaces_; }
+  AllocationInfo CloseNewSpaceLAB() { return new_space_visitor_.CloseLAB(); }
 
- private:
+ protected:
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 
-  inline Heap* heap() { return collector_->heap(); }
+  inline Heap* heap() { return heap_; }
 
   void ReportCompactionProgress(double duration, intptr_t bytes_compacted) {
     duration_ += duration;
     bytes_compacted_ += bytes_compacted;
   }
 
-  MarkCompactCollector* collector_;
+  Heap* heap_;
 
   // Locally cached collector data.
   CompactionSpaceCollection compaction_spaces_;
@@ -3098,80 +3178,7 @@ class MarkCompactCollector::Evacuator : public Malloced {
   intptr_t bytes_compacted_;
 };
 
-bool MarkCompactCollector::Evacuator::EvacuatePage(Page* page) {
-  bool success = false;
-  DCHECK(page->SweepingDone());
-  int saved_live_bytes = page->LiveBytes();
-  double evacuation_time = 0.0;
-  Heap* heap = page->heap();
-  {
-    AlwaysAllocateScope always_allocate(heap->isolate());
-    TimedScope timed_scope(&evacuation_time);
-    switch (ComputeEvacuationMode(page)) {
-      case kObjectsNewToOld:
-        success = collector_->VisitLiveObjects(page, &new_space_visitor_,
-                                               kClearMarkbits);
-        DCHECK(success);
-        ArrayBufferTracker::ProcessBuffers(
-            page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
-        break;
-      case kPageNewToOld:
-        success = collector_->VisitLiveObjects(page, &new_to_old_page_visitor_,
-                                               kKeepMarking);
-        DCHECK(success);
-        new_to_old_page_visitor_.account_moved_bytes(page->LiveBytes());
-        // ArrayBufferTracker will be updated during sweeping.
-        break;
-      case kPageNewToNew:
-        success = collector_->VisitLiveObjects(page, &new_to_new_page_visitor_,
-                                               kKeepMarking);
-        DCHECK(success);
-        new_to_new_page_visitor_.account_moved_bytes(page->LiveBytes());
-        // ArrayBufferTracker will be updated during sweeping.
-        break;
-      case kObjectsOldToOld:
-        success = collector_->VisitLiveObjects(page, &old_space_visitor_,
-                                               kClearMarkbits);
-        if (!success) {
-          // Aborted compaction page. We have to record slots here, since we
-          // might not have recorded them in first place.
-          // Note: We mark the page as aborted here to be able to record slots
-          // for code objects in |RecordMigratedSlotVisitor|.
-          page->SetFlag(Page::COMPACTION_WAS_ABORTED);
-          EvacuateRecordOnlyVisitor record_visitor(collector_->heap());
-          success =
-              collector_->VisitLiveObjects(page, &record_visitor, kKeepMarking);
-          ArrayBufferTracker::ProcessBuffers(
-              page, ArrayBufferTracker::kUpdateForwardedKeepOthers);
-          DCHECK(success);
-          // We need to return failure here to indicate that we want this page
-          // added to the sweeper.
-          success = false;
-        } else {
-          ArrayBufferTracker::ProcessBuffers(
-              page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
-        }
-        break;
-    }
-  }
-  ReportCompactionProgress(evacuation_time, saved_live_bytes);
-  if (FLAG_trace_evacuation) {
-    PrintIsolate(heap->isolate(),
-                 "evacuation[%p]: page=%p new_space=%d "
-                 "page_evacuation=%d executable=%d contains_age_mark=%d "
-                 "live_bytes=%d time=%f\n",
-                 static_cast<void*>(this), static_cast<void*>(page),
-                 page->InNewSpace(),
-                 page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
-                     page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
-                 page->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
-                 page->Contains(heap->new_space()->age_mark()),
-                 saved_live_bytes, evacuation_time);
-  }
-  return success;
-}
-
-void MarkCompactCollector::Evacuator::Finalize() {
+void Evacuator::Finalize() {
   heap()->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
   heap()->code_space()->MergeCompactionSpace(
       compaction_spaces_.Get(CODE_SPACE));
@@ -3187,6 +3194,93 @@ void MarkCompactCollector::Evacuator::Finalize() {
       new_to_old_page_visitor_.moved_bytes() +
       new_to_new_page_visitor_.moved_bytes());
   heap()->MergeAllocationSitePretenuringFeedback(local_pretenuring_feedback_);
+}
+
+class FullEvacuator : public Evacuator {
+ public:
+  FullEvacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor)
+      : Evacuator(heap, record_visitor) {}
+
+  bool EvacuatePage(Page* page, const MarkingState& state) override;
+};
+
+bool FullEvacuator::EvacuatePage(Page* page, const MarkingState& state) {
+  bool success = false;
+  DCHECK(page->SweepingDone());
+  intptr_t saved_live_bytes = state.live_bytes();
+  double evacuation_time = 0.0;
+  {
+    AlwaysAllocateScope always_allocate(heap()->isolate());
+    TimedScope timed_scope(&evacuation_time);
+    LiveObjectVisitor object_visitor;
+    switch (ComputeEvacuationMode(page)) {
+      case kObjectsNewToOld:
+        success =
+            object_visitor.VisitBlackObjects(page, state, &new_space_visitor_,
+                                             LiveObjectVisitor::kClearMarkbits);
+        DCHECK(success);
+        ArrayBufferTracker::ProcessBuffers(
+            page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
+        break;
+      case kPageNewToOld:
+        success = object_visitor.VisitBlackObjects(
+            page, state, &new_to_old_page_visitor_,
+            LiveObjectVisitor::kKeepMarking);
+        DCHECK(success);
+        new_to_old_page_visitor_.account_moved_bytes(
+            MarkingState::Internal(page).live_bytes());
+        // ArrayBufferTracker will be updated during sweeping.
+        break;
+      case kPageNewToNew:
+        success = object_visitor.VisitBlackObjects(
+            page, state, &new_to_new_page_visitor_,
+            LiveObjectVisitor::kKeepMarking);
+        DCHECK(success);
+        new_to_new_page_visitor_.account_moved_bytes(
+            MarkingState::Internal(page).live_bytes());
+        // ArrayBufferTracker will be updated during sweeping.
+        break;
+      case kObjectsOldToOld:
+        success =
+            object_visitor.VisitBlackObjects(page, state, &old_space_visitor_,
+                                             LiveObjectVisitor::kClearMarkbits);
+        if (!success) {
+          // Aborted compaction page. We have to record slots here, since we
+          // might not have recorded them in first place.
+          // Note: We mark the page as aborted here to be able to record slots
+          // for code objects in |RecordMigratedSlotVisitor|.
+          page->SetFlag(Page::COMPACTION_WAS_ABORTED);
+          EvacuateRecordOnlyVisitor record_visitor(heap());
+          success = object_visitor.VisitBlackObjects(
+              page, state, &record_visitor, LiveObjectVisitor::kKeepMarking);
+          ArrayBufferTracker::ProcessBuffers(
+              page, ArrayBufferTracker::kUpdateForwardedKeepOthers);
+          DCHECK(success);
+          // We need to return failure here to indicate that we want this page
+          // added to the sweeper.
+          success = false;
+        } else {
+          ArrayBufferTracker::ProcessBuffers(
+              page, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
+        }
+        break;
+    }
+  }
+  ReportCompactionProgress(evacuation_time, saved_live_bytes);
+  if (FLAG_trace_evacuation) {
+    PrintIsolate(heap()->isolate(),
+                 "evacuation[%p]: page=%p new_space=%d "
+                 "page_evacuation=%d executable=%d contains_age_mark=%d "
+                 "live_bytes=%" V8PRIdPTR " time=%f\n",
+                 static_cast<void*>(this), static_cast<void*>(page),
+                 page->InNewSpace(),
+                 page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
+                     page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
+                 page->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
+                 page->Contains(heap()->new_space()->age_mark()),
+                 saved_live_bytes, evacuation_time);
+  }
+  return success;
 }
 
 int MarkCompactCollector::NumberOfParallelCompactionTasks(int pages,
@@ -3220,18 +3314,18 @@ int MarkCompactCollector::NumberOfParallelCompactionTasks(int pages,
 class EvacuationJobTraits {
  public:
   typedef int* PerPageData;  // Pointer to number of aborted pages.
-  typedef MarkCompactCollector::Evacuator* PerTaskData;
+  typedef Evacuator* PerTaskData;
 
   static const bool NeedSequentialFinalization = true;
 
   static bool ProcessPageInParallel(Heap* heap, PerTaskData evacuator,
                                     MemoryChunk* chunk, PerPageData) {
-    return evacuator->EvacuatePage(reinterpret_cast<Page*>(chunk));
+    return evacuator->EvacuatePage(reinterpret_cast<Page*>(chunk),
+                                   MarkingState::Internal(chunk));
   }
 
   static void FinalizePageSequentially(Heap* heap, MemoryChunk* chunk,
                                        bool success, PerPageData data) {
-    using Evacuator = MarkCompactCollector::Evacuator;
     Page* p = static_cast<Page*>(chunk);
     switch (Evacuator::ComputeEvacuationMode(p)) {
       case Evacuator::kPageNewToOld:
@@ -3270,18 +3364,19 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   int abandoned_pages = 0;
   intptr_t live_bytes = 0;
   for (Page* page : old_space_evacuation_pages_) {
-    live_bytes += page->LiveBytes();
+    live_bytes += MarkingState::Internal(page).live_bytes();
     job.AddPage(page, &abandoned_pages);
   }
 
   const bool reduce_memory = heap()->ShouldReduceMemory();
   const Address age_mark = heap()->new_space()->age_mark();
   for (Page* page : new_space_evacuation_pages_) {
-    live_bytes += page->LiveBytes();
+    intptr_t live_bytes_on_page = MarkingState::Internal(page).live_bytes();
+    live_bytes += live_bytes_on_page;
     if (!reduce_memory && !page->NeverEvacuate() &&
-        (page->LiveBytes() > Evacuator::PageEvacuationThreshold()) &&
+        (live_bytes_on_page > Evacuator::PageEvacuationThreshold()) &&
         !page->Contains(age_mark) &&
-        heap()->CanExpandOldGeneration(page->LiveBytes())) {
+        heap()->CanExpandOldGeneration(live_bytes_on_page)) {
       if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
         EvacuateNewSpacePageVisitor<NEW_TO_OLD>::Move(page);
       } else {
@@ -3301,13 +3396,22 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   const int wanted_num_tasks =
       NumberOfParallelCompactionTasks(job.NumberOfPages(), live_bytes);
-  Evacuator** evacuators = new Evacuator*[wanted_num_tasks];
+  FullEvacuator** evacuators = new FullEvacuator*[wanted_num_tasks];
+  RecordMigratedSlotVisitor record_visitor(this);
   for (int i = 0; i < wanted_num_tasks; i++) {
-    evacuators[i] = new Evacuator(this);
+    evacuators[i] = new FullEvacuator(heap(), &record_visitor);
   }
   job.Run(wanted_num_tasks, [evacuators](int i) { return evacuators[i]; });
+  const Address top = heap()->new_space()->top();
   for (int i = 0; i < wanted_num_tasks; i++) {
     evacuators[i]->Finalize();
+    // Try to find the last LAB that was used for new space allocation in
+    // evacuation tasks. If it was adjacent to the current top, move top back.
+    const AllocationInfo info = evacuators[i]->CloseNewSpaceLAB();
+    if (info.limit() != nullptr && info.limit() == top) {
+      DCHECK_NOT_NULL(info.top());
+      *heap()->new_space()->allocation_top_address() = info.top();
+    }
     delete evacuators[i];
   }
   delete[] evacuators;
@@ -3342,10 +3446,10 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
 MarkCompactCollector::Sweeper::ClearOldToNewSlotsMode
 MarkCompactCollector::Sweeper::GetClearOldToNewSlotsMode(Page* p) {
   AllocationSpace identity = p->owner()->identity();
-  if (p->old_to_new_slots() &&
+  if (p->slot_set<OLD_TO_NEW>() &&
       (identity == OLD_SPACE || identity == MAP_SPACE)) {
     return MarkCompactCollector::Sweeper::CLEAR_REGULAR_SLOTS;
-  } else if (p->typed_old_to_new_slots() && identity == CODE_SPACE) {
+  } else if (p->typed_slot_set<OLD_TO_NEW>() && identity == CODE_SPACE) {
     return MarkCompactCollector::Sweeper::CLEAR_TYPED_SLOTS;
   }
   return MarkCompactCollector::Sweeper::DO_NOT_CLEAR;
@@ -3388,11 +3492,11 @@ int MarkCompactCollector::Sweeper::RawSweep(
   intptr_t max_freed_bytes = 0;
   int curr_region = -1;
 
-  LiveObjectIterator<kBlackObjects> it(p);
+  LiveObjectIterator<kBlackObjects> it(p, MarkingState::Internal(p));
   HeapObject* object = NULL;
 
   while ((object = it.Next()) != NULL) {
-    DCHECK(ObjectMarking::IsBlack(object));
+    DCHECK(ObjectMarking::IsBlack(object, MarkingState::Internal(object)));
     Address free_end = object->address();
     if (free_end != free_start) {
       CHECK_GT(free_end, free_start);
@@ -3459,11 +3563,14 @@ int MarkCompactCollector::Sweeper::RawSweep(
 
   // Clear invalid typed slots after collection all free ranges.
   if (slots_clearing_mode == CLEAR_TYPED_SLOTS) {
-    p->typed_old_to_new_slots()->RemoveInvaldSlots(free_ranges);
+    TypedSlotSet* typed_slot_set = p->typed_slot_set<OLD_TO_NEW>();
+    if (typed_slot_set != nullptr) {
+      typed_slot_set->RemoveInvaldSlots(free_ranges);
+    }
   }
 
   // Clear the mark bits of that page and reset live bytes count.
-  p->ClearLiveness();
+  MarkingState::Internal(p).ClearLiveness();
 
   p->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
   if (free_list_mode == IGNORE_FREE_LIST) return 0;
@@ -3482,7 +3589,7 @@ void MarkCompactCollector::InvalidateCode(Code* code) {
     DCHECK(compacting_);
 
     // If the object is white than no slots were recorded on it yet.
-    if (ObjectMarking::IsWhite(code)) return;
+    if (ObjectMarking::IsWhite(code, MarkingState::Internal(code))) return;
 
     // Ignore all slots that might have been recorded in the body of the
     // deoptimized code object. Assumption: no slots will be recorded for
@@ -3497,67 +3604,55 @@ bool MarkCompactCollector::WillBeDeoptimized(Code* code) {
   return code->is_optimized_code() && code->marked_for_deoptimization();
 }
 
-
-#ifdef VERIFY_HEAP
-static void VerifyAllBlackObjects(MemoryChunk* page) {
-  LiveObjectIterator<kAllLiveObjects> it(page);
-  HeapObject* object = NULL;
-  while ((object = it.Next()) != NULL) {
-    CHECK(ObjectMarking::IsBlack(object));
-  }
-}
-#endif  // VERIFY_HEAP
-
 void MarkCompactCollector::RecordLiveSlotsOnPage(Page* page) {
   EvacuateRecordOnlyVisitor visitor(heap());
-  VisitLiveObjects(page, &visitor, kKeepMarking);
+  LiveObjectVisitor object_visitor;
+  object_visitor.VisitBlackObjects(page, MarkingState::Internal(page), &visitor,
+                                   LiveObjectVisitor::kKeepMarking);
 }
 
 template <class Visitor>
-bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page, Visitor* visitor,
-                                            IterationMode mode) {
-#ifdef VERIFY_HEAP
-  VerifyAllBlackObjects(page);
-#endif  // VERIFY_HEAP
-
-  LiveObjectIterator<kBlackObjects> it(page);
+bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
+                                          const MarkingState& state,
+                                          Visitor* visitor,
+                                          IterationMode iteration_mode) {
+  LiveObjectIterator<kBlackObjects> it(chunk, state);
   HeapObject* object = nullptr;
   while ((object = it.Next()) != nullptr) {
-    DCHECK(ObjectMarking::IsBlack(object));
+    DCHECK(ObjectMarking::IsBlack(object, state));
     if (!visitor->Visit(object)) {
-      if (mode == kClearMarkbits) {
-        page->markbits()->ClearRange(
-            page->AddressToMarkbitIndex(page->area_start()),
-            page->AddressToMarkbitIndex(object->address()));
-        if (page->old_to_new_slots() != nullptr) {
-          page->old_to_new_slots()->RemoveRange(
-              0, static_cast<int>(object->address() - page->address()),
+      if (iteration_mode == kClearMarkbits) {
+        state.bitmap()->ClearRange(
+            chunk->AddressToMarkbitIndex(chunk->area_start()),
+            chunk->AddressToMarkbitIndex(object->address()));
+        SlotSet* slot_set = chunk->slot_set<OLD_TO_NEW>();
+        if (slot_set != nullptr) {
+          slot_set->RemoveRange(
+              0, static_cast<int>(object->address() - chunk->address()),
               SlotSet::PREFREE_EMPTY_BUCKETS);
         }
-        if (page->typed_old_to_new_slots() != nullptr) {
-          RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(page, page->address(),
-                                                      object->address());
-        }
-        RecomputeLiveBytes(page);
+        RememberedSet<OLD_TO_NEW>::RemoveRangeTyped(chunk, chunk->address(),
+                                                    object->address());
+        RecomputeLiveBytes(chunk, state);
       }
       return false;
     }
   }
-  if (mode == kClearMarkbits) {
-    page->ClearLiveness();
+  if (iteration_mode == kClearMarkbits) {
+    state.ClearLiveness();
   }
   return true;
 }
 
-
-void MarkCompactCollector::RecomputeLiveBytes(MemoryChunk* page) {
-  LiveObjectIterator<kBlackObjects> it(page);
+void LiveObjectVisitor::RecomputeLiveBytes(MemoryChunk* chunk,
+                                           const MarkingState& state) {
+  LiveObjectIterator<kBlackObjects> it(chunk, state);
   int new_live_size = 0;
   HeapObject* object = nullptr;
   while ((object = it.Next()) != nullptr) {
     new_live_size += object->Size();
   }
-  page->SetLiveBytes(new_live_size);
+  state.SetLiveBytes(new_live_size);
 }
 
 void MarkCompactCollector::Sweeper::AddSweptPageSafe(PagedSpace* space,
@@ -3632,12 +3727,13 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && !sweeper().sweeping_in_progress()) {
-    VerifyEvacuation(heap());
+    FullEvacuationVerifier verifier(heap());
+    verifier.Run();
   }
 #endif
 }
 
-template <PointerDirection direction>
+template <RememberedSetType type>
 class PointerUpdateJobTraits {
  public:
   typedef int PerPageData;  // Per page data is not used in this job.
@@ -3655,7 +3751,7 @@ class PointerUpdateJobTraits {
 
  private:
   static void UpdateUntypedPointers(Heap* heap, MemoryChunk* chunk) {
-    if (direction == OLD_TO_NEW) {
+    if (type == OLD_TO_NEW) {
       RememberedSet<OLD_TO_NEW>::Iterate(chunk, [heap](Address slot) {
         return CheckAndUpdateOldToNewSlot(heap, slot);
       });
@@ -3667,20 +3763,21 @@ class PointerUpdateJobTraits {
   }
 
   static void UpdateTypedPointers(Heap* heap, MemoryChunk* chunk) {
-    if (direction == OLD_TO_OLD) {
+    if (type == OLD_TO_OLD) {
       Isolate* isolate = heap->isolate();
       RememberedSet<OLD_TO_OLD>::IterateTyped(
-          chunk, [isolate](SlotType type, Address host_addr, Address slot) {
-            return UpdateTypedSlotHelper::UpdateTypedSlot(isolate, type, slot,
-                                                          UpdateSlot);
+          chunk,
+          [isolate](SlotType slot_type, Address host_addr, Address slot) {
+            return UpdateTypedSlotHelper::UpdateTypedSlot(isolate, slot_type,
+                                                          slot, UpdateSlot);
           });
     } else {
       Isolate* isolate = heap->isolate();
       RememberedSet<OLD_TO_NEW>::IterateTyped(
           chunk,
-          [isolate, heap](SlotType type, Address host_addr, Address slot) {
+          [isolate, heap](SlotType slot_type, Address host_addr, Address slot) {
             return UpdateTypedSlotHelper::UpdateTypedSlot(
-                isolate, type, slot, [heap](Object** slot) {
+                isolate, slot_type, slot, [heap](Object** slot) {
                   return CheckAndUpdateOldToNewSlot(
                       heap, reinterpret_cast<Address>(slot));
                 });
@@ -3727,7 +3824,9 @@ class PointerUpdateJobTraits {
       // slot has been recorded multiple times in the remembered set. Since
       // there is no forwarding information present we need to check the
       // markbits to determine liveness.
-      if (ObjectMarking::IsBlack(reinterpret_cast<HeapObject*>(slot_reference)))
+      HeapObject* heap_object = reinterpret_cast<HeapObject*>(slot_reference);
+      if (ObjectMarking::IsBlack(heap_object,
+                                 MarkingState::Internal(heap_object)))
         return KEEP_SLOT;
     } else {
       DCHECK(!heap->InNewSpace(slot_reference));
@@ -3745,11 +3844,11 @@ int NumberOfPointerUpdateTasks(int pages) {
   return Min(available_cores, (pages + kPagesPerTask - 1) / kPagesPerTask);
 }
 
-template <PointerDirection direction>
+template <RememberedSetType type>
 void UpdatePointersInParallel(Heap* heap, base::Semaphore* semaphore) {
-  PageParallelJob<PointerUpdateJobTraits<direction> > job(
+  PageParallelJob<PointerUpdateJobTraits<type> > job(
       heap, heap->isolate()->cancelable_task_manager(), semaphore);
-  RememberedSet<direction>::IterateMemoryChunks(
+  RememberedSet<type>::IterateMemoryChunks(
       heap, [&job](MemoryChunk* chunk) { job.AddPage(chunk, 0); });
   int num_pages = job.NumberOfPages();
   int num_tasks = NumberOfPointerUpdateTasks(num_pages);
@@ -3793,7 +3892,7 @@ class ToSpacePointerUpdateJobTraits {
   static void ProcessPageInParallelVisitLive(Heap* heap, PerTaskData visitor,
                                              MemoryChunk* chunk,
                                              PerPageData limits) {
-    LiveObjectIterator<kBlackObjects> it(chunk);
+    LiveObjectIterator<kBlackObjects> it(chunk, MarkingState::Internal(chunk));
     HeapObject* object = NULL;
     while ((object = it.Next()) != NULL) {
       Map* map = object->map();
@@ -3857,7 +3956,7 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
   for (Page* p : old_space_evacuation_pages_) {
     if (!p->IsEvacuationCandidate()) continue;
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
-    p->ResetLiveBytes();
+    MarkingState::Internal(p).SetLiveBytes(0);
     CHECK(p->SweepingDone());
     space->ReleasePage(p);
   }
@@ -3904,11 +4003,13 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
     DCHECK(page->SweepingDone());
 
     // After finishing sweeping of a page we clean up its remembered set.
-    if (page->typed_old_to_new_slots()) {
-      page->typed_old_to_new_slots()->FreeToBeFreedChunks();
+    TypedSlotSet* typed_slot_set = page->typed_slot_set<OLD_TO_NEW>();
+    if (typed_slot_set) {
+      typed_slot_set->FreeToBeFreedChunks();
     }
-    if (page->old_to_new_slots()) {
-      page->old_to_new_slots()->FreeToBeFreedBuckets();
+    SlotSet* slot_set = page->slot_set<OLD_TO_NEW>();
+    if (slot_set) {
+      slot_set->FreeToBeFreedBuckets();
     }
   }
 
@@ -3928,8 +4029,10 @@ void MarkCompactCollector::Sweeper::AddPage(AllocationSpace space, Page* page) {
 void MarkCompactCollector::Sweeper::PrepareToBeSweptPage(AllocationSpace space,
                                                          Page* page) {
   page->concurrent_sweeping_state().SetValue(Page::kSweepingPending);
-  DCHECK_GE(page->area_size(), static_cast<size_t>(page->LiveBytes()));
-  size_t to_sweep = page->area_size() - page->LiveBytes();
+  DCHECK_GE(page->area_size(),
+            static_cast<size_t>(MarkingState::Internal(page).live_bytes()));
+  size_t to_sweep =
+      page->area_size() - MarkingState::Internal(page).live_bytes();
   if (space != NEW_SPACE)
     heap_->paged_space(space)->accounting_stats_.ShrinkSpace(to_sweep);
 }
@@ -3981,7 +4084,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     }
 
     // One unused page is kept, all further are released before sweeping them.
-    if (p->LiveBytes() == 0) {
+    if (MarkingState::Internal(p).live_bytes() == 0) {
       if (unused_page_present) {
         if (FLAG_gc_verbose) {
           PrintIsolate(isolate(), "sweeping: released page: %p",
@@ -4061,8 +4164,8 @@ void MarkCompactCollector::RecordCodeTargetPatch(Address pc, Code* target) {
     Code* host =
         isolate()->inner_pointer_to_code_cache()->GcSafeFindCodeForInnerPointer(
             pc);
-    if (ObjectMarking::IsBlack(host)) {
-      RelocInfo rinfo(isolate(), pc, RelocInfo::CODE_TARGET, 0, host);
+    if (ObjectMarking::IsBlack(host, MarkingState::Internal(host))) {
+      RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, 0, host);
       // The target is always in old space, we don't have to record the slot in
       // the old-to-new remembered set.
       DCHECK(!heap()->InNewSpace(target));

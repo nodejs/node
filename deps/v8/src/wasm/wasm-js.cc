@@ -32,10 +32,6 @@ namespace v8 {
 
 namespace {
 
-#define RANGE_ERROR_MSG                                                        \
-  "Wasm compilation exceeds internal limits in this context for the provided " \
-  "arguments"
-
 // TODO(wasm): move brand check to the respective types, and don't throw
 // in it, rather, use a provided ErrorThrower, or let caller handle it.
 static bool HasBrand(i::Handle<i::Object> value, i::Handle<i::Symbol> sym) {
@@ -76,44 +72,6 @@ i::MaybeHandle<i::WasmModuleObject> GetFirstArgumentAsModule(
   Local<Object> module_obj = Local<Object>::Cast(args[0]);
   return i::Handle<i::WasmModuleObject>::cast(
       v8::Utils::OpenHandle(*module_obj));
-}
-
-bool IsCompilationAllowed(i::Isolate* isolate, ErrorThrower* thrower,
-                          v8::Local<v8::Value> source, bool is_async) {
-  // Allow caller to do one final check on thrower state, rather than
-  // one at each step. No information is lost - failure reason is captured
-  // in the thrower state.
-  if (thrower->error()) return false;
-
-  AllowWasmCompileCallback callback = isolate->allow_wasm_compile_callback();
-  if (callback != nullptr &&
-      !callback(reinterpret_cast<v8::Isolate*>(isolate), source, is_async)) {
-    thrower->RangeError(RANGE_ERROR_MSG);
-    return false;
-  }
-  return true;
-}
-
-bool IsInstantiationAllowed(i::Isolate* isolate, ErrorThrower* thrower,
-                            v8::Local<v8::Value> module_or_bytes,
-                            i::MaybeHandle<i::JSReceiver> ffi, bool is_async) {
-  // Allow caller to do one final check on thrower state, rather than
-  // one at each step. No information is lost - failure reason is captured
-  // in the thrower state.
-  if (thrower->error()) return false;
-  v8::MaybeLocal<v8::Value> v8_ffi;
-  if (!ffi.is_null()) {
-    v8_ffi = v8::Local<v8::Value>::Cast(Utils::ToLocal(ffi.ToHandleChecked()));
-  }
-  AllowWasmInstantiateCallback callback =
-      isolate->allow_wasm_instantiate_callback();
-  if (callback != nullptr &&
-      !callback(reinterpret_cast<v8::Isolate*>(isolate), module_or_bytes,
-                v8_ffi, is_async)) {
-    thrower->RangeError(RANGE_ERROR_MSG);
-    return false;
-  }
-  return true;
 }
 
 i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
@@ -176,6 +134,8 @@ i::MaybeHandle<i::JSReceiver> GetSecondArgumentAsImports(
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (i_isolate->wasm_compile_callback()(args)) return;
+
   HandleScope scope(isolate);
   ErrorThrower thrower(i_isolate, "WebAssembly.compile()");
 
@@ -186,11 +146,12 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return_value.Set(resolver->GetPromise());
 
   auto bytes = GetFirstArgumentAsBytes(args, &thrower);
-  if (!IsCompilationAllowed(i_isolate, &thrower, args[0], true)) {
-    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+  if (thrower.error()) {
+    auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    CHECK_IMPLIES(!maybe.FromMaybe(false),
+                  i_isolate->has_scheduled_exception());
     return;
   }
-  DCHECK(!thrower.error());
   i::Handle<i::JSPromise> promise = Utils::OpenHandle(*resolver->GetPromise());
   i::wasm::AsyncCompile(i_isolate, promise, bytes);
 }
@@ -219,13 +180,16 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (i_isolate->wasm_module_callback()(args)) return;
+
   HandleScope scope(isolate);
   ErrorThrower thrower(i_isolate, "WebAssembly.Module()");
 
   auto bytes = GetFirstArgumentAsBytes(args, &thrower);
-  if (!IsCompilationAllowed(i_isolate, &thrower, args[0], false)) return;
 
-  DCHECK(!thrower.error());
+  if (thrower.error()) {
+    return;
+  }
   i::MaybeHandle<i::Object> module_obj =
       i::wasm::SyncCompile(i_isolate, &thrower, bytes);
   if (module_obj.is_null()) return;
@@ -294,17 +258,15 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (i_isolate->wasm_instance_callback()(args)) return;
+
   ErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
 
   auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
   if (thrower.error()) return;
 
   auto maybe_imports = GetSecondArgumentAsImports(args, &thrower);
-  if (!IsInstantiationAllowed(i_isolate, &thrower, args[0], maybe_imports,
-                              false)) {
-    return;
-  }
-  DCHECK(!thrower.error());
+  if (thrower.error()) return;
 
   i::MaybeHandle<i::Object> instance_object = i::wasm::SyncInstantiate(
       i_isolate, &thrower, maybe_module.ToHandleChecked(), maybe_imports,
@@ -319,6 +281,8 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (i_isolate->wasm_instantiate_callback()(args)) return;
+
   ErrorThrower thrower(i_isolate, "WebAssembly.instantiate()");
 
   HandleScope scope(isolate);
@@ -335,7 +299,9 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError(
         "Argument 0 must be provided and must be either a buffer source or a "
         "WebAssembly.Module object");
-    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    CHECK_IMPLIES(!maybe.FromMaybe(false),
+                  i_isolate->has_scheduled_exception());
     return;
   }
 
@@ -343,18 +309,17 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!first_arg->IsJSObject()) {
     thrower.TypeError(
         "Argument 0 must be a buffer source or a WebAssembly.Module object");
-    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    CHECK_IMPLIES(!maybe.FromMaybe(false),
+                  i_isolate->has_scheduled_exception());
     return;
   }
 
   auto maybe_imports = GetSecondArgumentAsImports(args, &thrower);
   if (thrower.error()) {
-    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
-    return;
-  }
-  if (!IsInstantiationAllowed(i_isolate, &thrower, args[0], maybe_imports,
-                              true)) {
-    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    CHECK_IMPLIES(!maybe.FromMaybe(false),
+                  i_isolate->has_scheduled_exception());
     return;
   }
   i::Handle<i::JSPromise> promise = Utils::OpenHandle(*resolver->GetPromise());
@@ -367,7 +332,9 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     // WebAssembly.instantiate(bytes, imports) -> {module, instance}
     auto bytes = GetFirstArgumentAsBytes(args, &thrower);
     if (thrower.error()) {
-      resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+      auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+      CHECK_IMPLIES(!maybe.FromMaybe(false),
+                    i_isolate->has_scheduled_exception());
       return;
     }
     i::wasm::AsyncCompileAndInstantiate(i_isolate, promise, bytes,
@@ -684,13 +651,14 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
                                              : "maximum memory size exceeded");
     return;
   }
-  int32_t ret = i::wasm::GrowWebAssemblyMemory(
-      i_isolate, receiver, static_cast<uint32_t>(delta_size));
+  int32_t ret = i::WasmMemoryObject::Grow(i_isolate, receiver,
+                                          static_cast<uint32_t>(delta_size));
   if (ret == -1) {
     thrower.RangeError("Unable to grow instance memory.");
     return;
   }
-  i::wasm::DetachWebAssemblyMemoryBuffer(i_isolate, old_buffer);
+  bool free_memory = (delta_size != 0);
+  i::wasm::DetachWebAssemblyMemoryBuffer(i_isolate, old_buffer, free_memory);
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(ret);
 }
@@ -770,16 +738,16 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<Map> prev_map = Handle<Map>(context->sloppy_function_map(), isolate);
 
   InstanceType instance_type = prev_map->instance_type();
-  int internal_fields = JSObject::GetInternalFieldCount(*prev_map);
-  CHECK_EQ(0, internal_fields);
+  int embedder_fields = JSObject::GetEmbedderFieldCount(*prev_map);
+  CHECK_EQ(0, embedder_fields);
   int pre_allocated =
       prev_map->GetInObjectProperties() - prev_map->unused_property_fields();
   int instance_size = 0;
   int in_object_properties = 0;
-  int wasm_internal_fields = internal_fields + 1  // module instance object
-      + 1                  // function arity
-      + 1;                 // function signature
-  JSFunction::CalculateInstanceSizeHelper(instance_type, wasm_internal_fields,
+  int wasm_embedder_fields = embedder_fields + 1  // module instance object
+                             + 1                  // function arity
+                             + 1;                 // function signature
+  JSFunction::CalculateInstanceSizeHelper(instance_type, wasm_embedder_fields,
                                           0, &instance_size,
                                           &in_object_properties);
 

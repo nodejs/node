@@ -175,9 +175,8 @@ Reduction BranchElimination::ReduceStart(Node* node) {
   return UpdateConditions(node, ControlPathConditions::Empty(zone_));
 }
 
-
 const BranchElimination::ControlPathConditions*
-BranchElimination::PathConditionsForControlNodes::Get(Node* node) {
+BranchElimination::PathConditionsForControlNodes::Get(Node* node) const {
   if (static_cast<size_t>(node->id()) < info_for_node_.size()) {
     return info_for_node_[node->id()];
   }

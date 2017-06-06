@@ -54,6 +54,7 @@
   V(did_handle_string, "didHandle")                                \
   V(display_name_string, "displayName")                            \
   V(done_string, "done")                                           \
+  V(dotAll_string, "dotAll")                                       \
   V(dot_catch_string, ".catch")                                    \
   V(dot_for_string, ".for")                                        \
   V(dot_generator_object_string, ".generator_object")              \
@@ -80,7 +81,7 @@
   V(get_string, "get")                                             \
   V(get_space_string, "get ")                                      \
   V(global_string, "global")                                       \
-  V(group_string, "group")                                         \
+  V(groups_string, "groups")                                       \
   V(has_string, "has")                                             \
   V(hour_string, "hour")                                           \
   V(ignoreCase_string, "ignoreCase")                               \
@@ -112,6 +113,10 @@
   V(nan_string, "NaN")                                             \
   V(new_target_string, ".new.target")                              \
   V(next_string, "next")                                           \
+  V(NFC_string, "NFC")                                             \
+  V(NFD_string, "NFD")                                             \
+  V(NFKC_string, "NFKC")                                           \
+  V(NFKD_string, "NFKD")                                           \
   V(not_equal, "not-equal")                                        \
   V(null_string, "null")                                           \
   V(null_to_string, "[object Null]")                               \

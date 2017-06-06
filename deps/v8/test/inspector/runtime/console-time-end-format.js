@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks format of console.timeEnd output');
+InspectorTest.log('Checks format of console.timeEnd output');
 
 Protocol.Runtime.enable();
 Protocol.Runtime.onConsoleAPICalled(message => {
@@ -34,12 +34,12 @@ InspectorTest.runTestSuite([
 ]);
 
 function checkInterval(time) {
-  setCurrentTimeMSForTest(0.0);
+  utils.setCurrentTimeMSForTest(0.0);
   return Protocol.Runtime.evaluate({
     expression: `console.log('js: ' + ${time} + 'ms')`})
     .then(() => Protocol.Runtime.evaluate({
       expression: 'console.time(\'timeEnd\')'}))
-    .then(() => setCurrentTimeMSForTest(time))
+    .then(() => utils.setCurrentTimeMSForTest(time))
     .then(() => Protocol.Runtime.evaluate({
       expression: 'console.timeEnd(\'timeEnd\')'}));
 }

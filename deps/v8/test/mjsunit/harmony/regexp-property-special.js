@@ -49,3 +49,25 @@ f(/[\P{Assigned}]+/u, "🄰🄱🄲");
 f(/[^\P{Assigned}]+/u, "\ufdd0");
 t(/[\P{Assigned}]+/u, "\u{fffff}");
 f(/[\P{Assigned}]/u, "");
+
+f(/[^\u1234\p{ASCII}]+/u, "\u1234");
+t(/[x\P{ASCII}]+/u, "x");
+t(/[\u1234\p{ASCII}]+/u, "\u1234");
+
+// Contributory binary properties are not supported.
+assertThrows("/\\p{Other_Alphabetic}/u");
+assertThrows("/\\P{OAlpha}/u");
+assertThrows("/\\p{Other_Default_Ignorable_Code_Point}/u");
+assertThrows("/\\P{ODI}/u");
+assertThrows("/\\p{Other_Grapheme_Extend}/u");
+assertThrows("/\\P{OGr_Ext}/u");
+assertThrows("/\\p{Other_ID_Continue}/u");
+assertThrows("/\\P{OIDC}/u");
+assertThrows("/\\p{Other_ID_Start}/u");
+assertThrows("/\\P{OIDS}/u");
+assertThrows("/\\p{Other_Lowercase}/u");
+assertThrows("/\\P{OLower}/u");
+assertThrows("/\\p{Other_Math}/u");
+assertThrows("/\\P{OMath}/u");
+assertThrows("/\\p{Other_Uppercase}/u");
+assertThrows("/\\P{OUpper}/u");

@@ -67,6 +67,9 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   int32_t allocatable_double_codes_mask() const {
     return allocatable_double_codes_mask_;
   }
+  int32_t allocatable_float_codes_mask() const {
+    return allocatable_float_codes_mask_;
+  }
   int GetAllocatableGeneralCode(int index) const {
     return allocatable_general_codes_[index];
   }

@@ -214,15 +214,6 @@ class OutOfLineCode : public ZoneObject {
   OutOfLineCode* const next_;
 };
 
-
-// TODO(dcarney): generify this on bleeding_edge and replace this call
-// when merged.
-static inline void FinishCode(MacroAssembler* masm) {
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
-  masm->CheckConstPool(true, false);
-#endif
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

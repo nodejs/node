@@ -28,7 +28,6 @@
 
 #if V8_TARGET_ARCH_ARM64
 
-#define ARM64_DEFINE_REG_STATICS
 #include "src/arm64/assembler-arm64.h"
 
 #include "src/arm64/assembler-arm64-inl.h"
@@ -200,13 +199,14 @@ uint32_t RelocInfo::wasm_function_table_size_reference() {
 }
 
 void RelocInfo::unchecked_update_wasm_memory_reference(
-    Address address, ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+    Isolate* isolate, Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
 }
 
-void RelocInfo::unchecked_update_wasm_size(uint32_t size,
+void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
                                            ICacheFlushMode flush_mode) {
   Memory::uint32_at(Assembler::target_pointer_address_at(pc_)) = size;
+  // No icache flushing needed, see comment in set_target_address_at.
 }
 
 Register GetAllocatableRegisterThatIsNotOneOf(Register reg1, Register reg2,
@@ -528,7 +528,7 @@ void ConstPool::EmitEntries() {
 
       // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
       DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
-      instr->SetImmPCOffsetTarget(assm_->isolate(), assm_->pc());
+      instr->SetImmPCOffsetTarget(assm_->isolate_data(), assm_->pc());
     }
     assm_->dc64(data);
   }
@@ -544,7 +544,7 @@ void ConstPool::EmitEntries() {
 
     // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
     DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
-    instr->SetImmPCOffsetTarget(assm_->isolate(), assm_->pc());
+    instr->SetImmPCOffsetTarget(assm_->isolate_data(), assm_->pc());
     assm_->dc64(unique_it->first);
   }
   unique_entries_.clear();
@@ -553,8 +553,8 @@ void ConstPool::EmitEntries() {
 
 
 // Assembler
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
+Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
+    : AssemblerBase(isolate_data, buffer, buffer_size),
       constpool_(this),
       recorded_ast_id_(TypeFeedbackId::None()),
       unresolved_branches_() {
@@ -675,22 +675,22 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
 
   } else if (branch == next_link) {
     // The branch is the last (but not also the first) instruction in the chain.
-    prev_link->SetImmPCOffsetTarget(isolate(), prev_link);
+    prev_link->SetImmPCOffsetTarget(isolate_data(), prev_link);
 
   } else {
     // The branch is in the middle of the chain.
     if (prev_link->IsTargetInImmPCOffsetRange(next_link)) {
-      prev_link->SetImmPCOffsetTarget(isolate(), next_link);
+      prev_link->SetImmPCOffsetTarget(isolate_data(), next_link);
     } else if (label_veneer != NULL) {
       // Use the veneer for all previous links in the chain.
-      prev_link->SetImmPCOffsetTarget(isolate(), prev_link);
+      prev_link->SetImmPCOffsetTarget(isolate_data(), prev_link);
 
       end_of_chain = false;
       link = next_link;
       while (!end_of_chain) {
         next_link = link->ImmPCOffsetTarget();
         end_of_chain = (link == next_link);
-        link->SetImmPCOffsetTarget(isolate(), label_veneer);
+        link->SetImmPCOffsetTarget(isolate_data(), label_veneer);
         link = next_link;
       }
     } else {
@@ -761,10 +761,11 @@ void Assembler::bind(Label* label) {
       // Internal references do not get patched to an instruction but directly
       // to an address.
       internal_reference_positions_.push_back(linkoffset);
-      PatchingAssembler patcher(isolate(), link, 2);
+      PatchingAssembler patcher(isolate_data(), reinterpret_cast<byte*>(link),
+                                2);
       patcher.dc64(reinterpret_cast<uintptr_t>(pc_));
     } else {
-      link->SetImmPCOffsetTarget(isolate(),
+      link->SetImmPCOffsetTarget(isolate_data(),
                                  reinterpret_cast<Instruction*>(pc_));
     }
 
@@ -1697,19 +1698,19 @@ void Assembler::ldr(const CPURegister& rt, const Immediate& imm) {
 void Assembler::ldar(const Register& rt, const Register& rn) {
   DCHECK(rn.Is64Bits());
   LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? LDAR_w : LDAR_x;
-  Emit(op | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+  Emit(op | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
 void Assembler::ldaxr(const Register& rt, const Register& rn) {
   DCHECK(rn.Is64Bits());
   LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? LDAXR_w : LDAXR_x;
-  Emit(op | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+  Emit(op | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
 void Assembler::stlr(const Register& rt, const Register& rn) {
   DCHECK(rn.Is64Bits());
   LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLR_w : STLR_x;
-  Emit(op | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+  Emit(op | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
 void Assembler::stlxr(const Register& rs, const Register& rt,
@@ -1717,25 +1718,25 @@ void Assembler::stlxr(const Register& rs, const Register& rt,
   DCHECK(rs.Is32Bits());
   DCHECK(rn.Is64Bits());
   LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLXR_w : STLXR_x;
-  Emit(op | Rs(rs) | Rt2(x31) | Rn(rn) | Rt(rt));
+  Emit(op | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
 void Assembler::ldarb(const Register& rt, const Register& rn) {
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
-  Emit(LDAR_b | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+  Emit(LDAR_b | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
 void Assembler::ldaxrb(const Register& rt, const Register& rn) {
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
-  Emit(LDAXR_b | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+  Emit(LDAXR_b | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
 void Assembler::stlrb(const Register& rt, const Register& rn) {
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
-  Emit(STLR_b | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+  Emit(STLR_b | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
 void Assembler::stlxrb(const Register& rs, const Register& rt,
@@ -1743,25 +1744,25 @@ void Assembler::stlxrb(const Register& rs, const Register& rt,
   DCHECK(rs.Is32Bits());
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
-  Emit(STLXR_b | Rs(rs) | Rt2(x31) | Rn(rn) | Rt(rt));
+  Emit(STLXR_b | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
 void Assembler::ldarh(const Register& rt, const Register& rn) {
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
-  Emit(LDAR_h | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+  Emit(LDAR_h | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
 void Assembler::ldaxrh(const Register& rt, const Register& rn) {
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
-  Emit(LDAXR_h | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+  Emit(LDAXR_h | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
 void Assembler::stlrh(const Register& rt, const Register& rn) {
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
-  Emit(STLR_h | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+  Emit(STLR_h | Rs(x31) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
 void Assembler::stlxrh(const Register& rs, const Register& rt,
@@ -1769,7 +1770,7 @@ void Assembler::stlxrh(const Register& rs, const Register& rt,
   DCHECK(rs.Is32Bits());
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
-  Emit(STLXR_h | Rs(rs) | Rt2(x31) | Rn(rn) | Rt(rt));
+  Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
 void Assembler::mov(const Register& rd, const Register& rm) {
@@ -2948,7 +2949,7 @@ void Assembler::GrowBuffer() {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(isolate(), reinterpret_cast<byte*>(pc_), rmode, data, NULL);
+  RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
   if (((rmode >= RelocInfo::COMMENT) &&
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL)) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
@@ -2978,8 +2979,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     }
     DCHECK(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(isolate(), reinterpret_cast<byte*>(pc_),
-                                       rmode, RecordedAstId().ToInt(), NULL);
+      RelocInfo reloc_info_with_ast_id(reinterpret_cast<byte*>(pc_), rmode,
+                                       RecordedAstId().ToInt(), NULL);
       ClearRecordedAstId();
       reloc_info_writer.Write(&reloc_info_with_ast_id);
     } else {
@@ -3068,7 +3069,7 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
-  RelocInfo rinfo(isolate(), buffer_ + location_offset, RelocInfo::VENEER_POOL,
+  RelocInfo rinfo(buffer_ + location_offset, RelocInfo::VENEER_POOL,
                   static_cast<intptr_t>(size), NULL);
   reloc_info_writer.Write(&rinfo);
 }
@@ -3111,7 +3112,7 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection, int margin) {
       // to the label.
       Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
       RemoveBranchFromLabelLinkChain(branch, label, veneer);
-      branch->SetImmPCOffsetTarget(isolate(), veneer);
+      branch->SetImmPCOffsetTarget(isolate_data(), veneer);
       b(label);
 #ifdef DEBUG
       DCHECK(SizeOfCodeGeneratedSince(&veneer_size_check) <=

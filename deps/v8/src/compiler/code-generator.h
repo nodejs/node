@@ -178,6 +178,8 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AssembleTailCallAfterGap(Instruction* instr,
                                 int first_unused_stack_slot);
 
+  void FinishCode();
+
   // ===========================================================================
   // ============== Architecture-specific gap resolver methods. ================
   // ===========================================================================

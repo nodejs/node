@@ -36,7 +36,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::internal::Handle<v8::internal::Script> script =
       factory->NewScript(source.ToHandleChecked());
   v8::internal::ParseInfo info(script);
-  v8::internal::parsing::ParseProgram(&info);
+  v8::internal::parsing::ParseProgram(&info, i_isolate);
   isolate->RequestGarbageCollectionForTesting(
       v8::Isolate::kFullGarbageCollection);
   return 0;

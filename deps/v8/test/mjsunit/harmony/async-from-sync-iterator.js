@@ -668,3 +668,95 @@ if (testFailed) {
   assertThrowsAsync(() => extractedReturn.call(undefined), TypeError);
   assertThrowsAsync(() => extractedReturn.call(1), TypeError);
 })();
+
+(function AsyncFromSyncIteratorOrdering() {
+  let i = 0;
+  let log = [];
+  function r(value, done) {
+    let number = (++i);
+    return {
+      get value() {
+        log.push("get iterResult #" + number + ".value");
+        return {
+          get then() {
+            log.push("get nextValue#" + number + ".then");
+            return (r) => {
+              log.push("call nextValue#" + number + ".then");
+              r(value);
+            }
+          }
+        };
+      },
+      get done() {
+        log.push("get iterResult #" + number + ".done");
+        return done;
+      }
+    };
+  }
+  var results = [r("value1", false), r("value2", false), r("value3", true),
+                 r("value4", false)];
+
+  var iter = {
+    get [Symbol.asyncIterator]() {
+      log.push("get syncIterable[@@asyncIterator]");
+      return null;
+    },
+
+    get [Symbol.iterator]() {
+      log.push("get syncIterable[@@iterator]");
+      return (...args) => {
+        log.push("call syncIterable[@@iterator](" + args.join(", ") + ")");
+        return this;
+      }
+    },
+    next_: 0,
+    get next() {
+      log.push("get syncIterable.next");
+      let i = this.next_++;
+      return (...args) => {
+        log.push("call syncIterable.next(" + args.join(", ") + ")");
+        return results[i];
+      }
+    }
+  };
+
+  async function iterate(iterable) {
+    log.push("before");
+    for await (let x of iterable) {
+      log.push("got value " + x);
+    }
+    log.push("after");
+
+    return log;
+  }
+
+  iterate(iter).then(log => {
+    assertEquals([
+      "before",
+      "get syncIterable[@@asyncIterator]",
+      "get syncIterable[@@iterator]",
+      "call syncIterable[@@iterator]()",
+      "get syncIterable.next",
+      "call syncIterable.next()",
+      "get iterResult #1.done",
+      "get iterResult #1.value",
+      "get nextValue#1.then",
+      "call nextValue#1.then",
+      "got value value1",
+      "get syncIterable.next",
+      "call syncIterable.next()",
+      "get iterResult #2.done",
+      "get iterResult #2.value",
+      "get nextValue#2.then",
+      "call nextValue#2.then",
+      "got value value2",
+      "get syncIterable.next",
+      "call syncIterable.next()",
+      "get iterResult #3.done",
+      "get iterResult #3.value",
+      "get nextValue#3.then",
+      "call nextValue#3.then",
+      "after"
+    ], log)
+  }).catch(x => %AbortJS(String(x)));
+})();

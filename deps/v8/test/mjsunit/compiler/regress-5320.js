@@ -30,9 +30,6 @@
 function OptimizeTruncatingBinaryOp(func) {
   func(42, -2);
   func(31, undefined);
-  %BaselineFunctionOnNextCall(func);
-  func(42, -2);
-  func(31, undefined);
   %OptimizeFunctionOnNextCall(func);
   func(-1, 2.1);
   assertOptimized(func);

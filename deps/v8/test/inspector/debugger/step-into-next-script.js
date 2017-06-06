@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Debugger breaks in next script after stepOut from previous one.');
+InspectorTest.log('Debugger breaks in next script after stepOut from previous one.');
 
 InspectorTest.addScript(`
 function test() {

@@ -48,7 +48,10 @@ class MapUpdater {
         old_map_(old_map),
         old_descriptors_(old_map->instance_descriptors(), isolate_),
         old_nof_(old_map_->NumberOfOwnDescriptors()),
-        new_elements_kind_(old_map_->elements_kind()) {}
+        new_elements_kind_(old_map_->elements_kind()) {
+    // We shouldn't try to update remote objects.
+    DCHECK(!old_map->FindRootMap()->GetConstructor()->IsFunctionTemplateInfo());
+  }
 
   // Prepares for reconfiguring of a property at |descriptor| to data field
   // with given |attributes| and |representation|/|field_type| and

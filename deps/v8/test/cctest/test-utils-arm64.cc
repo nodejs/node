@@ -27,8 +27,9 @@
 
 #include "src/v8.h"
 
+#include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/utils-arm64.h"
-#include "src/macro-assembler.h"
+#include "src/macro-assembler-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
 

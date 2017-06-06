@@ -10,6 +10,7 @@
 #include "src/base/macros.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/java-script-call-frame.h"
+#include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/v8-debugger-script.h"
@@ -25,6 +26,8 @@ class V8InspectorImpl;
 class V8StackTraceImpl;
 
 using protocol::Response;
+using ScheduleStepIntoAsyncCallback =
+    protocol::Debugger::Backend::ScheduleStepIntoAsyncCallback;
 
 class V8Debugger : public v8::debug::DebugDelegate {
  public:
@@ -41,13 +44,17 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
   v8::debug::ExceptionBreakState getPauseOnExceptionsState();
   void setPauseOnExceptionsState(v8::debug::ExceptionBreakState);
-  void setPauseOnNextStatement(bool);
   bool canBreakProgram();
-  void breakProgram();
+  bool breakProgram(int targetContextGroupId);
   void continueProgram();
-  void stepIntoStatement();
-  void stepOverStatement();
-  void stepOutOfFunction();
+
+  void setPauseOnNextStatement(bool, int targetContextGroupId);
+  void stepIntoStatement(int targetContextGroupId);
+  void stepOverStatement(int targetContextGroupId);
+  void stepOutOfFunction(int targetContextGroupId);
+  void scheduleStepIntoAsync(
+      std::unique_ptr<ScheduleStepIntoAsyncCallback> callback,
+      int targetContextGroupId);
 
   Response setScriptSource(
       const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
@@ -79,7 +86,6 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
   void asyncTaskScheduled(const StringView& taskName, void* task,
                           bool recurring);
-  void asyncTaskScheduled(const String16& taskName, void* task, bool recurring);
   void asyncTaskCanceled(void* task);
   void asyncTaskStarted(void* task);
   void asyncTaskFinished(void* task);
@@ -105,7 +111,6 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
   static void v8OOMCallback(void* data);
 
-  static void breakProgramCallback(const v8::FunctionCallbackInfo<v8::Value>&);
   void handleProgramBreak(v8::Local<v8::Context> pausedContext,
                           v8::Local<v8::Object> executionState,
                           v8::Local<v8::Value> exception,
@@ -126,12 +131,24 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::MaybeLocal<v8::Value> generatorScopes(v8::Local<v8::Context>,
                                             v8::Local<v8::Value>);
 
-  void asyncTaskCreated(void* task, void* parentTask);
+  void asyncTaskCreatedForStack(void* task, void* parentTask);
+  void asyncTaskScheduledForStack(const String16& taskName, void* task,
+                                  bool recurring);
+  void asyncTaskCanceledForStack(void* task);
+  void asyncTaskStartedForStack(void* task);
+  void asyncTaskFinishedForStack(void* task);
+
+  void asyncTaskCandidateForStepping(void* task);
+  void asyncTaskStartedForStepping(void* task);
+  void asyncTaskFinishedForStepping(void* task);
+  void asyncTaskCanceledForStepping(void* task);
+
   void registerAsyncTaskIfNeeded(void* task);
 
   // v8::debug::DebugEventListener implementation.
-  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
-                            int parentId) override;
+  void PromiseEventOccurred(v8::Local<v8::Context> context,
+                            v8::debug::PromiseDebugActionType type, int id,
+                            int parentId, bool createdByUser) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
@@ -145,6 +162,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
                             const v8::debug::Location& start,
                             const v8::debug::Location& end) override;
 
+  int currentContextGroupId();
+
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
   int m_enableCount;
@@ -156,6 +175,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   bool m_runningNestedMessageLoop;
   int m_ignoreScriptParsedEventsCounter;
   bool m_scheduledOOMBreak = false;
+  int m_targetContextGroupId = 0;
 
   using AsyncTaskToStackTrace =
       protocol::HashMap<void*, std::unique_ptr<V8StackTraceImpl>>;
@@ -171,6 +191,11 @@ class V8Debugger : public v8::debug::DebugDelegate {
   std::vector<std::unique_ptr<V8StackTraceImpl>> m_currentStacks;
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
   protocol::HashMap<void*, void*> m_parentTask;
+  protocol::HashMap<void*, void*> m_firstNextTask;
+  void* m_taskWithScheduledBreak = nullptr;
+
+  std::unique_ptr<ScheduleStepIntoAsyncCallback> m_stepIntoAsyncCallback;
+  bool m_breakRequested = false;
 
   v8::debug::ExceptionBreakState m_pauseOnExceptionsState;
 

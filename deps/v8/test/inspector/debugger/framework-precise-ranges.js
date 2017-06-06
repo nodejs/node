@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks framework debugging with blackboxed ranges.');
+InspectorTest.log('Checks framework debugging with blackboxed ranges.');
 
 InspectorTest.addScript(
     `
@@ -64,7 +64,7 @@ var testSuite = [
 ];
 
 function testPositions(positions) {
-  schedulePauseOnNextStatement('', '');
+  utils.schedulePauseOnNextStatement('', '');
   return Protocol.Debugger
       .setBlackboxedRanges({scriptId: scriptId, positions: positions})
       .then(InspectorTest.logMessage)

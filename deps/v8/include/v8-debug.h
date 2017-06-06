@@ -8,7 +8,9 @@
 #include "v8.h"  // NOLINT(build/include)
 
 /**
- * Debugger support for the V8 JavaScript engine.
+ * ATTENTION: The debugger API exposed by this file is deprecated and will be
+ *            removed by the end of 2017. Please use the V8 inspector declared
+ *            in include/v8-inspector.h instead.
  */
 namespace v8 {
 
@@ -140,21 +142,19 @@ class V8_EXPORT Debug {
    */
   typedef void (*MessageHandler)(const Message& message);
 
-  /**
-   * This is now a no-op.
-   */
-  typedef void (*DebugMessageDispatchHandler)();
-
-  static bool SetDebugEventListener(Isolate* isolate, EventCallback that,
-                                    Local<Value> data = Local<Value>());
+  V8_DEPRECATED("No longer supported", static bool SetDebugEventListener(
+                                           Isolate* isolate, EventCallback that,
+                                           Local<Value> data = Local<Value>()));
 
   // Schedule a debugger break to happen when JavaScript code is run
   // in the given isolate.
-  static void DebugBreak(Isolate* isolate);
+  V8_DEPRECATED("No longer supported",
+                static void DebugBreak(Isolate* isolate));
 
   // Remove scheduled debugger break in given isolate if it has not
   // happened yet.
-  static void CancelDebugBreak(Isolate* isolate);
+  V8_DEPRECATED("No longer supported",
+                static void CancelDebugBreak(Isolate* isolate));
 
   // Check if a debugger break is scheduled in the given isolate.
   V8_DEPRECATED("No longer supported",
@@ -189,10 +189,10 @@ class V8_EXPORT Debug {
    *   }
    * \endcode
    */
-  // TODO(dcarney): data arg should be a MaybeLocal
-  static MaybeLocal<Value> Call(Local<Context> context,
-                                v8::Local<v8::Function> fun,
-                                Local<Value> data = Local<Value>());
+  V8_DEPRECATED("No longer supported",
+                static MaybeLocal<Value> Call(
+                    Local<Context> context, v8::Local<v8::Function> fun,
+                    Local<Value> data = Local<Value>()));
 
   // This is now a no-op.
   V8_DEPRECATED("No longer supported",
@@ -221,23 +221,28 @@ class V8_EXPORT Debug {
    * (default Isolate if not provided). V8 will abort if LiveEdit is
    * unexpectedly used. LiveEdit is enabled by default.
    */
-  static void SetLiveEditEnabled(Isolate* isolate, bool enable);
+  V8_DEPRECATED("No longer supported",
+                static void SetLiveEditEnabled(Isolate* isolate, bool enable));
 
   /**
    * Returns array of internal properties specific to the value type. Result has
    * the following format: [<name>, <value>,...,<name>, <value>]. Result array
    * will be allocated in the current context.
    */
-  static MaybeLocal<Array> GetInternalProperties(Isolate* isolate,
-                                                 Local<Value> value);
+  V8_DEPRECATED("No longer supported",
+                static MaybeLocal<Array> GetInternalProperties(
+                    Isolate* isolate, Local<Value> value));
 
   /**
    * Defines if the ES2015 tail call elimination feature is enabled or not.
    * The change of this flag triggers deoptimization of all functions that
    * contain calls at tail position.
    */
-  static bool IsTailCallEliminationEnabled(Isolate* isolate);
-  static void SetTailCallEliminationEnabled(Isolate* isolate, bool enabled);
+  V8_DEPRECATED("No longer supported",
+                static bool IsTailCallEliminationEnabled(Isolate* isolate));
+  V8_DEPRECATED("No longer supported",
+                static void SetTailCallEliminationEnabled(Isolate* isolate,
+                                                          bool enabled));
 };
 
 

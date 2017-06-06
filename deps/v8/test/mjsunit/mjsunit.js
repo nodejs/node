@@ -120,6 +120,9 @@ var assertContains;
 // Assert that a string matches a given regex.
 var assertMatches;
 
+// Assert the result of a promise.
+var assertPromiseResult;
+
 // These bits must be in sync with bits defined in Runtime_GetOptimizationStatus
 var V8OptimizationStatus = {
   kIsFunction: 1 << 0,
@@ -140,9 +143,6 @@ var isAlwaysOptimize;
 // Returns true if given function in interpreted.
 var isInterpreted;
 
-// Returns true if given function is compiled by a base-line compiler.
-var isBaselined;
-
 // Returns true if given function is optimized.
 var isOptimized;
 
@@ -151,6 +151,9 @@ var isCrankshafted;
 
 // Returns true if given function is compiled by TurboFan.
 var isTurboFanned;
+
+// Monkey-patchable all-purpose failure handler.
+var failWithMessage;
 
 
 (function () {  // Scope for utility functions.
@@ -215,6 +218,16 @@ var isTurboFanned;
             var mapped = ArrayPrototypeMap.call(value, PrettyPrintArrayElement);
             var joined = ArrayPrototypeJoin.call(mapped, ",");
             return "[" + joined + "]";
+          case "Uint8Array":
+          case "Int8Array":
+          case "Int16Array":
+          case "Uint16Array":
+          case "Uint32Array":
+          case "Int32Array":
+          case "Float32Array":
+          case "Float64Array":
+            var joined = ArrayPrototypeJoin.call(value, ",");
+            return objectClass + "([" + joined + "])";
           case "Object":
             break;
           default:
@@ -236,7 +249,7 @@ var isTurboFanned;
   }
 
 
-  function failWithMessage(message) {
+  failWithMessage = function failWithMessage(message) {
     throw new MjsUnitAssertionError(message);
   }
 
@@ -254,7 +267,7 @@ var isTurboFanned;
     } else {
       message += ":\nexpected:\n" + expectedText + "\nfound:\n" + foundText;
     }
-    throw new MjsUnitAssertionError(message);
+    return failWithMessage(message);
   }
 
 
@@ -332,7 +345,9 @@ var isTurboFanned;
 
   assertEqualsDelta =
       function assertEqualsDelta(expected, found, delta, name_opt) {
-    assertTrue(Math.abs(expected - found) <= delta, name_opt);
+    if (Math.abs(expected - found) > delta) {
+      fail(PrettyPrint(expected) + " +- " + PrettyPrint(delta), found, name_opt);
+    }
   };
 
 
@@ -393,27 +408,26 @@ var isTurboFanned;
 
 
   assertThrows = function assertThrows(code, type_opt, cause_opt) {
-    var threwException = true;
     try {
       if (typeof code === 'function') {
         code();
       } else {
         eval(code);
       }
-      threwException = false;
     } catch (e) {
       if (typeof type_opt === 'function') {
         assertInstanceof(e, type_opt);
       } else if (type_opt !== void 0) {
-        failWithMessage("invalid use of assertThrows, maybe you want assertThrowsEquals");
+        failWithMessage(
+            'invalid use of assertThrows, maybe you want assertThrowsEquals');
       }
       if (arguments.length >= 3) {
-        assertEquals(e.message, cause_opt);
+        assertEquals(cause_opt, e.message);
       }
       // Success.
       return;
     }
-    failWithMessage("Did not throw exception");
+    failWithMessage('Did not throw exception');
   };
 
 
@@ -476,6 +490,30 @@ var isTurboFanned;
     if (!str.match(regexp)) {
       fail("should match '" + regexp + "'", str, name_opt);
     }
+  };
+
+  assertPromiseResult = function(promise, success, fail) {
+    // Use --allow-natives-syntax to use this function. Note that this function
+    // overwrites {failWithMessage} permanently with %AbortJS.
+
+    // We have to patch mjsunit because normal assertion failures just throw
+    // exceptions which are swallowed in a then clause.
+    // We use eval here to avoid parsing issues with the natives syntax.
+    failWithMessage = (msg) => eval("%AbortJS(msg)");
+    if (!fail)
+      fail = result => failWithMessage("assertPromiseResult failed: " + result);
+
+    eval("%IncrementWaitCount()");
+    promise.then(
+      result => {
+        eval("%DecrementWaitCount()");
+        success(result);
+      },
+      result => {
+        eval("%DecrementWaitCount()");
+        fail(result);
+      }
+    );
   };
 
   var OptimizationStatusImpl = undefined;
@@ -542,16 +580,6 @@ var isTurboFanned;
                "not a function");
     return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
            (opt_status & V8OptimizationStatus.kInterpreted) !== 0;
-  }
-
-  // NOTE: This predicate also returns true for functions that have never
-  // been compiled (i.e. that have LazyCompile stub as a code).
-  isBaselined = function isBaselined(fun) {
-    var opt_status = OptimizationStatus(fun, "");
-    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
-               "not a function");
-    return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
-           (opt_status & V8OptimizationStatus.kInterpreted) === 0;
   }
 
   isOptimized = function isOptimized(fun) {

@@ -31,13 +31,21 @@ RUNTIME_FUNCTION(Runtime_GetSubstitution) {
         : match_(match), prefix_(prefix), suffix_(suffix) {}
 
     Handle<String> GetMatch() override { return match_; }
+    Handle<String> GetPrefix() override { return prefix_; }
+    Handle<String> GetSuffix() override { return suffix_; }
+
+    int CaptureCount() override { return 0; }
+    bool HasNamedCaptures() override { return false; }
     MaybeHandle<String> GetCapture(int i, bool* capture_exists) override {
       *capture_exists = false;
       return match_;  // Return arbitrary string handle.
     }
-    Handle<String> GetPrefix() override { return prefix_; }
-    Handle<String> GetSuffix() override { return suffix_; }
-    int CaptureCount() override { return 0; }
+    MaybeHandle<String> GetNamedCapture(Handle<String> name,
+                                        CaptureState* state) override {
+      UNREACHABLE();
+      *state = INVALID;
+      return MaybeHandle<String>();
+    }
 
    private:
     Handle<String> match_, prefix_, suffix_;
@@ -191,15 +199,9 @@ RUNTIME_FUNCTION(Runtime_SubString) {
 RUNTIME_FUNCTION(Runtime_StringAdd) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, obj1, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, obj2, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, str2, 1);
   isolate->counters()->string_add_runtime()->Increment();
-  MaybeHandle<String> maybe_str1(Object::ToString(isolate, obj1));
-  MaybeHandle<String> maybe_str2(Object::ToString(isolate, obj2));
-  Handle<String> str1;
-  Handle<String> str2;
-  maybe_str1.ToHandle(&str1);
-  maybe_str2.ToHandle(&str2);
   RETURN_RESULT_OR_FAILURE(isolate,
                            isolate->factory()->NewConsString(str1, str2));
 }

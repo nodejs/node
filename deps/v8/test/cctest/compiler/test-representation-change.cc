@@ -445,20 +445,16 @@ static void TestMinusZeroCheck(IrOpcode::Value expected, Type* from_type) {
   RepresentationChangerTester r;
 
   CheckChange(expected, MachineRepresentation::kFloat64, from_type,
-              UseInfo::CheckedSignedSmallAsWord32(
-                  CheckForMinusZeroMode::kCheckForMinusZero));
+              UseInfo::CheckedSignedSmallAsWord32(kDistinguishZeros));
 
   CheckChange(expected, MachineRepresentation::kFloat64, from_type,
-              UseInfo::CheckedSignedSmallAsWord32(
-                  CheckForMinusZeroMode::kDontCheckForMinusZero));
+              UseInfo::CheckedSignedSmallAsWord32(kIdentifyZeros));
 
   CheckChange(expected, MachineRepresentation::kFloat64, from_type,
-              UseInfo::CheckedSigned32AsWord32(
-                  CheckForMinusZeroMode::kCheckForMinusZero));
+              UseInfo::CheckedSigned32AsWord32(kDistinguishZeros));
 
   CheckChange(expected, MachineRepresentation::kFloat64, from_type,
-              UseInfo::CheckedSigned32AsWord32(
-                  CheckForMinusZeroMode::kDontCheckForMinusZero));
+              UseInfo::CheckedSigned32AsWord32(kDistinguishZeros));
 }
 
 TEST(MinusZeroCheck) {

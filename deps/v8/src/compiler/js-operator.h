@@ -87,12 +87,12 @@ std::ostream& operator<<(std::ostream&, ConstructParameters const&);
 
 ConstructParameters const& ConstructParametersOf(Operator const*);
 
-// Defines the arity for a JavaScript constructor call with a spread as the last
-// parameters. This is used as a parameter by JSConstructWithSpread
-// operators.
-class ConstructWithSpreadParameters final {
+// Defines the arity for JavaScript calls with a spread as the last
+// parameter. This is used as a parameter by JSConstructWithSpread and
+// JSCallWithSpread operators.
+class SpreadWithArityParameter final {
  public:
-  explicit ConstructWithSpreadParameters(uint32_t arity) : arity_(arity) {}
+  explicit SpreadWithArityParameter(uint32_t arity) : arity_(arity) {}
 
   uint32_t arity() const { return arity_; }
 
@@ -100,17 +100,16 @@ class ConstructWithSpreadParameters final {
   uint32_t const arity_;
 };
 
-bool operator==(ConstructWithSpreadParameters const&,
-                ConstructWithSpreadParameters const&);
-bool operator!=(ConstructWithSpreadParameters const&,
-                ConstructWithSpreadParameters const&);
+bool operator==(SpreadWithArityParameter const&,
+                SpreadWithArityParameter const&);
+bool operator!=(SpreadWithArityParameter const&,
+                SpreadWithArityParameter const&);
 
-size_t hash_value(ConstructWithSpreadParameters const&);
+size_t hash_value(SpreadWithArityParameter const&);
 
-std::ostream& operator<<(std::ostream&, ConstructWithSpreadParameters const&);
+std::ostream& operator<<(std::ostream&, SpreadWithArityParameter const&);
 
-ConstructWithSpreadParameters const& ConstructWithSpreadParametersOf(
-    Operator const*);
+SpreadWithArityParameter const& SpreadWithArityParameterOf(Operator const*);
 
 // Defines the flags for a JavaScript call forwarding parameters. This
 // is used as parameter by JSCallForwardVarargs operators.
@@ -198,29 +197,6 @@ std::ostream& operator<<(std::ostream&, CallParameters const&);
 
 const CallParameters& CallParametersOf(const Operator* op);
 
-// Defines the arity for a JavaScript constructor call with a spread as the last
-// parameters. This is used as a parameter by JSConstructWithSpread
-// operators.
-class CallWithSpreadParameters final {
- public:
-  explicit CallWithSpreadParameters(uint32_t arity) : arity_(arity) {}
-
-  uint32_t arity() const { return arity_; }
-
- private:
-  uint32_t const arity_;
-};
-
-bool operator==(CallWithSpreadParameters const&,
-                CallWithSpreadParameters const&);
-bool operator!=(CallWithSpreadParameters const&,
-                CallWithSpreadParameters const&);
-
-size_t hash_value(CallWithSpreadParameters const&);
-
-std::ostream& operator<<(std::ostream&, CallWithSpreadParameters const&);
-
-CallWithSpreadParameters const& CallWithSpreadParametersOf(Operator const*);
 
 // Defines the arity and the ID for a runtime function call. This is used as a
 // parameter by JSCallRuntime operators.
@@ -356,9 +332,9 @@ const StoreNamedOwnParameters& StoreNamedOwnParametersOf(const Operator* op);
 // Defines the feedback, i.e., vector and index, for storing a data property in
 // an object literal. This is
 // used as a parameter by the JSStoreDataPropertyInLiteral operator.
-class DataPropertyParameters final {
+class FeedbackParameter final {
  public:
-  explicit DataPropertyParameters(VectorSlotPair const& feedback)
+  explicit FeedbackParameter(VectorSlotPair const& feedback)
       : feedback_(feedback) {}
 
   VectorSlotPair const& feedback() const { return feedback_; }
@@ -367,14 +343,14 @@ class DataPropertyParameters final {
   VectorSlotPair const feedback_;
 };
 
-bool operator==(DataPropertyParameters const&, DataPropertyParameters const&);
-bool operator!=(DataPropertyParameters const&, DataPropertyParameters const&);
+bool operator==(FeedbackParameter const&, FeedbackParameter const&);
+bool operator!=(FeedbackParameter const&, FeedbackParameter const&);
 
-size_t hash_value(DataPropertyParameters const&);
+size_t hash_value(FeedbackParameter const&);
 
-std::ostream& operator<<(std::ostream&, DataPropertyParameters const&);
+std::ostream& operator<<(std::ostream&, FeedbackParameter const&);
 
-const DataPropertyParameters& DataPropertyParametersOf(const Operator* op);
+const FeedbackParameter& FeedbackParameterOf(const Operator* op);
 
 // Defines the property of an object for a named access. This is
 // used as a parameter by the JSLoadNamed and JSStoreNamed operators.
@@ -574,6 +550,33 @@ std::ostream& operator<<(std::ostream&, CreateLiteralParameters const&);
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
+class GeneratorStoreParameters final {
+ public:
+  GeneratorStoreParameters(int register_count, SuspendFlags flags)
+      : register_count_(register_count), suspend_flags_(flags) {}
+
+  int register_count() const { return register_count_; }
+  SuspendFlags suspend_flags() const { return suspend_flags_; }
+  SuspendFlags suspend_type() const {
+    return suspend_flags_ & SuspendFlags::kSuspendTypeMask;
+  }
+
+ private:
+  int register_count_;
+  SuspendFlags suspend_flags_;
+};
+
+bool operator==(GeneratorStoreParameters const&,
+                GeneratorStoreParameters const&);
+bool operator!=(GeneratorStoreParameters const&,
+                GeneratorStoreParameters const&);
+
+size_t hash_value(GeneratorStoreParameters const&);
+
+std::ostream& operator<<(std::ostream&, GeneratorStoreParameters const&);
+
+const GeneratorStoreParameters& GeneratorStoreParametersOf(const Operator* op);
+
 BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
 CompareOperationHint CompareOperationHintOf(const Operator* op);
@@ -587,9 +590,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   explicit JSOperatorBuilder(Zone* zone);
 
   const Operator* Equal(CompareOperationHint hint);
-  const Operator* NotEqual(CompareOperationHint hint);
   const Operator* StrictEqual(CompareOperationHint hint);
-  const Operator* StrictNotEqual(CompareOperationHint hint);
   const Operator* LessThan(CompareOperationHint hint);
   const Operator* GreaterThan(CompareOperationHint hint);
   const Operator* LessThanOrEqual(CompareOperationHint hint);
@@ -692,7 +693,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* StoreMessage();
 
   // Used to implement Ignition's SuspendGenerator bytecode.
-  const Operator* GeneratorStore(int register_count);
+  const Operator* GeneratorStore(int register_count,
+                                 SuspendFlags suspend_flags);
 
   // Used to implement Ignition's ResumeGenerator bytecode.
   const Operator* GeneratorRestoreContinuation();

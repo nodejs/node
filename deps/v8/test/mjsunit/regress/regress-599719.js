@@ -15,7 +15,7 @@ function __f_8(global, env) {
     i5 = i5 | 0;
     __f_7();
   }
-  return {'__f_9': __f_9}
+  return {__f_9: __f_9}
 }
 function __f_5() {
   var __v_5 = __f_8({}, {'__f_7': __f_7});

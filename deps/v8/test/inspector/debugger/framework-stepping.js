@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks stepping with blackboxed frames on stack');
+InspectorTest.log('Checks stepping with blackboxed frames on stack');
 
 InspectorTest.addScript(
     `
@@ -47,7 +47,7 @@ Protocol.Debugger.enable()
 
 var testSuite = [
   function testStepIntoFromUser(next) {
-    schedulePauseOnNextStatement('', '');
+    utils.schedulePauseOnNextStatement('', '');
     test('testStepFromUser()', [
       'print',                          // before testStepFromUser call
       'stepInto', 'stepInto', 'print',  // userFoo
@@ -57,7 +57,7 @@ var testSuite = [
   },
 
   function testStepOverFromUser(next) {
-    schedulePauseOnNextStatement('', '');
+    utils.schedulePauseOnNextStatement('', '');
     test('testStepFromUser()', [
       'print',                          // before testStepFromUser call
       'stepInto', 'stepInto', 'print',  // userFoo
@@ -67,7 +67,7 @@ var testSuite = [
   },
 
   function testStepOutFromUser(next) {
-    schedulePauseOnNextStatement('', '');
+    utils.schedulePauseOnNextStatement('', '');
     test('testStepFromUser()', [
       'print',                          // before testStepFromUser call
       'stepInto', 'stepInto', 'print',  // userFoo

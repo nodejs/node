@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks nested scheduled break in framework code.');
+InspectorTest.log('Checks nested scheduled break in framework code.');
 
 InspectorTest.addScript(`
 function frameworkCall(callback) {

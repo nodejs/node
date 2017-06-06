@@ -29,7 +29,8 @@ class BlockingCompilationJob : public CompilationJob {
       : CompilationJob(isolate, &info_, "BlockingCompilationJob",
                        State::kReadyToExecute),
         parse_info_(handle(function->shared())),
-        info_(parse_info_.zone(), &parse_info_, function),
+        info_(parse_info_.zone(), &parse_info_, function->GetIsolate(),
+              function),
         blocking_(false),
         semaphore_(0) {}
   ~BlockingCompilationJob() override = default;
@@ -70,8 +71,8 @@ TEST_F(OptimizingCompileDispatcherTest, Construct) {
 }
 
 TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(
-      RunJS(isolate(), "function f() { function g() {}; return g;}; f();"));
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(test::RunJS(
+      isolate(), "function f() { function g() {}; return g;}; f();"));
   BlockingCompilationJob* job = new BlockingCompilationJob(i_isolate(), fun);
 
   OptimizingCompileDispatcher dispatcher(i_isolate());

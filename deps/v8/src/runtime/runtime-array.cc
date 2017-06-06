@@ -17,20 +17,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_FinishArrayPrototypeSetup) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, prototype, 0);
-  Object* length = prototype->length();
-  CHECK(length->IsSmi());
-  CHECK(Smi::cast(length)->value() == 0);
-  CHECK(prototype->HasFastSmiOrObjectElements());
-  // This is necessary to enable fast checks for absence of elements
-  // on Array.prototype and below.
-  prototype->set_elements(isolate->heap()->empty_fixed_array());
-  return Smi::kZero;
-}
-
 static void InstallCode(
     Isolate* isolate, Handle<JSObject> holder, const char* name,
     Handle<Code> code, int argc = -1,

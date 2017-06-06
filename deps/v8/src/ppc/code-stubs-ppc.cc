@@ -1215,186 +1215,10 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 }
 
 void RegExpExecStub::Generate(MacroAssembler* masm) {
-// Just jump directly to runtime if native RegExp is not selected at compile
-// time or if regexp entry in generated code is turned off runtime switch or
-// at compilation.
 #ifdef V8_INTERPRETED_REGEXP
-  __ TailCallRuntime(Runtime::kRegExpExec);
+  // This case is handled prior to the RegExpExecStub call.
+  __ Abort(kUnexpectedRegExpExecCall);
 #else  // V8_INTERPRETED_REGEXP
-
-  // Stack frame on entry.
-  //  sp[0]: last_match_info (expected JSArray)
-  //  sp[4]: previous index
-  //  sp[8]: subject string
-  //  sp[12]: JSRegExp object
-
-  const int kLastMatchInfoOffset = 0 * kPointerSize;
-  const int kPreviousIndexOffset = 1 * kPointerSize;
-  const int kSubjectOffset = 2 * kPointerSize;
-  const int kJSRegExpOffset = 3 * kPointerSize;
-
-  Label runtime, br_over, encoding_type_UC16;
-
-  // Allocation of registers for this function. These are in callee save
-  // registers and will be preserved by the call to the native RegExp code, as
-  // this code is called using the normal C calling convention. When calling
-  // directly from generated code the native RegExp code will not do a GC and
-  // therefore the content of these registers are safe to use after the call.
-  Register subject = r14;
-  Register regexp_data = r15;
-  Register last_match_info_elements = r16;
-  Register code = r17;
-
-  // Ensure register assigments are consistent with callee save masks
-  DCHECK(subject.bit() & kCalleeSaved);
-  DCHECK(regexp_data.bit() & kCalleeSaved);
-  DCHECK(last_match_info_elements.bit() & kCalleeSaved);
-  DCHECK(code.bit() & kCalleeSaved);
-
-  // Ensure that a RegExp stack is allocated.
-  ExternalReference address_of_regexp_stack_memory_address =
-      ExternalReference::address_of_regexp_stack_memory_address(isolate());
-  ExternalReference address_of_regexp_stack_memory_size =
-      ExternalReference::address_of_regexp_stack_memory_size(isolate());
-  __ mov(r3, Operand(address_of_regexp_stack_memory_size));
-  __ LoadP(r3, MemOperand(r3, 0));
-  __ cmpi(r3, Operand::Zero());
-  __ beq(&runtime);
-
-  // Check that the first argument is a JSRegExp object.
-  __ LoadP(r3, MemOperand(sp, kJSRegExpOffset));
-  __ JumpIfSmi(r3, &runtime);
-  __ CompareObjectType(r3, r4, r4, JS_REGEXP_TYPE);
-  __ bne(&runtime);
-
-  // Check that the RegExp has been compiled (data contains a fixed array).
-  __ LoadP(regexp_data, FieldMemOperand(r3, JSRegExp::kDataOffset));
-  if (FLAG_debug_code) {
-    __ TestIfSmi(regexp_data, r0);
-    __ Check(ne, kUnexpectedTypeForRegExpDataFixedArrayExpected, cr0);
-    __ CompareObjectType(regexp_data, r3, r3, FIXED_ARRAY_TYPE);
-    __ Check(eq, kUnexpectedTypeForRegExpDataFixedArrayExpected);
-  }
-
-  // regexp_data: RegExp data (FixedArray)
-  // Check the type of the RegExp. Only continue if type is JSRegExp::IRREGEXP.
-  __ LoadP(r3, FieldMemOperand(regexp_data, JSRegExp::kDataTagOffset));
-  // DCHECK(Smi::FromInt(JSRegExp::IRREGEXP) < (char *)0xffffu);
-  __ CmpSmiLiteral(r3, Smi::FromInt(JSRegExp::IRREGEXP), r0);
-  __ bne(&runtime);
-
-  // regexp_data: RegExp data (FixedArray)
-  // Check that the number of captures fit in the static offsets vector buffer.
-  __ LoadP(r5,
-           FieldMemOperand(regexp_data, JSRegExp::kIrregexpCaptureCountOffset));
-  // Check (number_of_captures + 1) * 2 <= offsets vector size
-  // Or          number_of_captures * 2 <= offsets vector size - 2
-  // SmiToShortArrayOffset accomplishes the multiplication by 2 and
-  // SmiUntag (which is a nop for 32-bit).
-  __ SmiToShortArrayOffset(r5, r5);
-  STATIC_ASSERT(Isolate::kJSRegexpStaticOffsetsVectorSize >= 2);
-  __ cmpli(r5, Operand(Isolate::kJSRegexpStaticOffsetsVectorSize - 2));
-  __ bgt(&runtime);
-
-  // Reset offset for possibly sliced string.
-  __ li(r11, Operand::Zero());
-  __ LoadP(subject, MemOperand(sp, kSubjectOffset));
-  __ JumpIfSmi(subject, &runtime);
-  __ mr(r6, subject);  // Make a copy of the original subject string.
-  // subject: subject string
-  // r6: subject string
-  // regexp_data: RegExp data (FixedArray)
-  // Handle subject string according to its encoding and representation:
-  // (1) Sequential string?  If yes, go to (4).
-  // (2) Sequential or cons?  If not, go to (5).
-  // (3) Cons string.  If the string is flat, replace subject with first string
-  //     and go to (1). Otherwise bail out to runtime.
-  // (4) Sequential string.  Load regexp code according to encoding.
-  // (E) Carry on.
-  /// [...]
-
-  // Deferred code at the end of the stub:
-  // (5) Long external string?  If not, go to (7).
-  // (6) External string.  Make it, offset-wise, look like a sequential string.
-  //     Go to (4).
-  // (7) Short external string or not a string?  If yes, bail out to runtime.
-  // (8) Sliced or thin string.  Replace subject with parent.  Go to (1).
-
-  Label seq_string /* 4 */, external_string /* 6 */, check_underlying /* 1 */,
-      not_seq_nor_cons /* 5 */, not_long_external /* 7 */;
-
-  __ bind(&check_underlying);
-  __ LoadP(r3, FieldMemOperand(subject, HeapObject::kMapOffset));
-  __ lbz(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
-
-  // (1) Sequential string?  If yes, go to (4).
-
-  STATIC_ASSERT((kIsNotStringMask | kStringRepresentationMask |
-                 kShortExternalStringMask) == 0xa7);
-  __ andi(r4, r3, Operand(kIsNotStringMask | kStringRepresentationMask |
-                          kShortExternalStringMask));
-  STATIC_ASSERT((kStringTag | kSeqStringTag) == 0);
-  __ beq(&seq_string, cr0);  // Go to (4).
-
-  // (2) Sequential or cons? If not, go to (5).
-  STATIC_ASSERT(kConsStringTag < kExternalStringTag);
-  STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
-  STATIC_ASSERT(kThinStringTag > kExternalStringTag);
-  STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
-  STATIC_ASSERT(kShortExternalStringTag > kExternalStringTag);
-  STATIC_ASSERT(kExternalStringTag < 0xffffu);
-  __ cmpi(r4, Operand(kExternalStringTag));
-  __ bge(&not_seq_nor_cons);  // Go to (5).
-
-  // (3) Cons string.  Check that it's flat.
-  // Replace subject with first string and reload instance type.
-  __ LoadP(r3, FieldMemOperand(subject, ConsString::kSecondOffset));
-  __ CompareRoot(r3, Heap::kempty_stringRootIndex);
-  __ bne(&runtime);
-  __ LoadP(subject, FieldMemOperand(subject, ConsString::kFirstOffset));
-  __ b(&check_underlying);
-
-  // (4) Sequential string.  Load regexp code according to encoding.
-  __ bind(&seq_string);
-  // subject: sequential subject string (or look-alike, external string)
-  // r6: original subject string
-  // Load previous index and check range before r6 is overwritten.  We have to
-  // use r6 instead of subject here because subject might have been only made
-  // to look like a sequential string when it actually is an external string.
-  __ LoadP(r4, MemOperand(sp, kPreviousIndexOffset));
-  __ JumpIfNotSmi(r4, &runtime);
-  __ LoadP(r6, FieldMemOperand(r6, String::kLengthOffset));
-  __ cmpl(r6, r4);
-  __ ble(&runtime);
-  __ SmiUntag(r4);
-
-  STATIC_ASSERT(8 == kOneByteStringTag);
-  STATIC_ASSERT(kTwoByteStringTag == 0);
-  STATIC_ASSERT(kStringEncodingMask == 8);
-  __ ExtractBitMask(r6, r3, kStringEncodingMask, SetRC);
-  __ beq(&encoding_type_UC16, cr0);
-  __ LoadP(code,
-           FieldMemOperand(regexp_data, JSRegExp::kDataOneByteCodeOffset));
-  __ b(&br_over);
-  __ bind(&encoding_type_UC16);
-  __ LoadP(code, FieldMemOperand(regexp_data, JSRegExp::kDataUC16CodeOffset));
-  __ bind(&br_over);
-
-  // (E) Carry on.  String handling is done.
-  // code: irregexp code
-  // Check that the irregexp code has been generated for the actual string
-  // encoding. If it has, the field contains a code object otherwise it contains
-  // a smi (code flushing support).
-  __ JumpIfSmi(code, &runtime);
-
-  // r4: previous index
-  // r6: encoding of subject string (1 if one_byte, 0 if two_byte);
-  // code: Address of generated regexp code
-  // subject: Subject string
-  // regexp_data: RegExp data (FixedArray)
-  // All checks done. Now push arguments for native regexp code.
-  __ IncrementCounter(isolate()->counters()->regexp_entry_native(), 1, r3, r5);
-
   // Isolates: note we add an additional parameter here (isolate pointer).
   const int kRegExpExecuteArguments = 10;
   const int kParameterRegisters = 8;
@@ -1404,8 +1228,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Arguments are before that on the stack or in registers.
 
   // Argument 10 (in stack parameter area): Pass current isolate address.
-  __ mov(r3, Operand(ExternalReference::isolate_address(isolate())));
-  __ StoreP(r3, MemOperand(sp, (kStackFrameExtraParamSlot + 1) * kPointerSize));
+  __ mov(r11, Operand(ExternalReference::isolate_address(isolate())));
+  __ StoreP(r11,
+            MemOperand(sp, (kStackFrameExtraParamSlot + 1) * kPointerSize));
 
   // Argument 9 is a dummy that reserves the space used for
   // the return address added by the ExitFrame in native calls.
@@ -1414,11 +1239,15 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ li(r10, Operand(1));
 
   // Argument 7 (r9): Start (high end) of backtracking stack memory area.
-  __ mov(r3, Operand(address_of_regexp_stack_memory_address));
-  __ LoadP(r3, MemOperand(r3, 0));
-  __ mov(r5, Operand(address_of_regexp_stack_memory_size));
-  __ LoadP(r5, MemOperand(r5, 0));
-  __ add(r9, r3, r5);
+  ExternalReference address_of_regexp_stack_memory_address =
+      ExternalReference::address_of_regexp_stack_memory_address(isolate());
+  ExternalReference address_of_regexp_stack_memory_size =
+      ExternalReference::address_of_regexp_stack_memory_size(isolate());
+  __ mov(r11, Operand(address_of_regexp_stack_memory_address));
+  __ LoadP(r11, MemOperand(r11, 0));
+  __ mov(ip, Operand(address_of_regexp_stack_memory_size));
+  __ LoadP(ip, MemOperand(ip, 0));
+  __ add(r9, r11, ip);
 
   // Argument 6 (r8): Set the number of capture registers to zero to force
   // global egexps to behave as non-global.  This does not affect non-global
@@ -1430,205 +1259,29 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
       r7,
       Operand(ExternalReference::address_of_static_offsets_vector(isolate())));
 
-  // For arguments 4 (r6) and 3 (r5) get string length, calculate start of data
-  // and calculate the shift of the index (0 for one-byte and 1 for two-byte).
-  __ addi(r18, subject, Operand(SeqString::kHeaderSize - kHeapObjectTag));
-  __ xori(r6, r6, Operand(1));
-  // Load the length from the original subject string from the previous stack
-  // frame. Therefore we have to use fp, which points exactly to two pointer
-  // sizes below the previous sp. (Because creating a new stack frame pushes
-  // the previous fp onto the stack and moves up sp by 2 * kPointerSize.)
-  __ LoadP(subject, MemOperand(fp, kSubjectOffset + 2 * kPointerSize));
-  // If slice offset is not 0, load the length from the original sliced string.
   // Argument 4, r6: End of string data
   // Argument 3, r5: Start of string data
-  // Prepare start and end index of the input.
-  __ ShiftLeft_(r11, r11, r6);
-  __ add(r11, r18, r11);
-  __ ShiftLeft_(r5, r4, r6);
-  __ add(r5, r11, r5);
-
-  __ LoadP(r18, FieldMemOperand(subject, String::kLengthOffset));
-  __ SmiUntag(r18);
-  __ ShiftLeft_(r6, r18, r6);
-  __ add(r6, r11, r6);
+  CHECK(r6.is(RegExpExecDescriptor::StringEndRegister()));
+  CHECK(r5.is(RegExpExecDescriptor::StringStartRegister()));
 
   // Argument 2 (r4): Previous index.
-  // Already there
+  CHECK(r4.is(RegExpExecDescriptor::LastIndexRegister()));
 
   // Argument 1 (r3): Subject string.
-  __ mr(r3, subject);
+  CHECK(r3.is(RegExpExecDescriptor::StringRegister()));
 
   // Locate the code entry and call it.
-  __ addi(code, code, Operand(Code::kHeaderSize - kHeapObjectTag));
+  Register code_reg = RegExpExecDescriptor::CodeRegister();
+  __ addi(code_reg, code_reg, Operand(Code::kHeaderSize - kHeapObjectTag));
 
   DirectCEntryStub stub(isolate());
-  stub.GenerateCall(masm, code);
+  stub.GenerateCall(masm, code_reg);
 
   __ LeaveExitFrame(false, no_reg, true);
 
-  // r3: result (int32)
-  // subject: subject string (callee saved)
-  // regexp_data: RegExp data (callee saved)
-  // last_match_info_elements: Last match info elements (callee saved)
-  // Check the result.
-  Label success;
-  __ cmpwi(r3, Operand(1));
-  // We expect exactly one result since we force the called regexp to behave
-  // as non-global.
-  __ beq(&success);
-  Label failure;
-  __ cmpwi(r3, Operand(NativeRegExpMacroAssembler::FAILURE));
-  __ beq(&failure);
-  __ cmpwi(r3, Operand(NativeRegExpMacroAssembler::EXCEPTION));
-  // If not exception it can only be retry. Handle that in the runtime system.
-  __ bne(&runtime);
-  // Result must now be exception. If there is no pending exception already a
-  // stack overflow (on the backtrack stack) was detected in RegExp code but
-  // haven't created the exception yet. Handle that in the runtime system.
-  // TODO(592): Rerunning the RegExp to get the stack overflow exception.
-  __ mov(r4, Operand(isolate()->factory()->the_hole_value()));
-  __ mov(r5, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                       isolate())));
-  __ LoadP(r3, MemOperand(r5, 0));
-  __ cmp(r3, r4);
-  __ beq(&runtime);
-
-  // For exception, throw the exception again.
-  __ TailCallRuntime(Runtime::kRegExpExecReThrow);
-
-  __ bind(&failure);
-  // For failure and exception return null.
-  __ mov(r3, Operand(isolate()->factory()->null_value()));
-  __ addi(sp, sp, Operand(4 * kPointerSize));
+  // Return the smi-tagged result.
+  __ SmiTag(r3);
   __ Ret();
-
-  // Process the result from the native regexp code.
-  __ bind(&success);
-  __ LoadP(r4,
-           FieldMemOperand(regexp_data, JSRegExp::kIrregexpCaptureCountOffset));
-  // Calculate number of capture registers (number_of_captures + 1) * 2.
-  // SmiToShortArrayOffset accomplishes the multiplication by 2 and
-  // SmiUntag (which is a nop for 32-bit).
-  __ SmiToShortArrayOffset(r4, r4);
-  __ addi(r4, r4, Operand(2));
-
-  // Check that the last match info is a FixedArray.
-  __ LoadP(last_match_info_elements, MemOperand(sp, kLastMatchInfoOffset));
-  __ JumpIfSmi(last_match_info_elements, &runtime);
-  // Check that the object has fast elements.
-  __ LoadP(r3,
-           FieldMemOperand(last_match_info_elements, HeapObject::kMapOffset));
-  __ CompareRoot(r3, Heap::kFixedArrayMapRootIndex);
-  __ bne(&runtime);
-  // Check that the last match info has space for the capture registers and the
-  // additional information.
-  __ LoadP(
-      r3, FieldMemOperand(last_match_info_elements, FixedArray::kLengthOffset));
-  __ addi(r5, r4, Operand(RegExpMatchInfo::kLastMatchOverhead));
-  __ SmiUntag(r0, r3);
-  __ cmp(r5, r0);
-  __ bgt(&runtime);
-
-  // r4: number of capture registers
-  // subject: subject string
-  // Store the capture count.
-  __ SmiTag(r5, r4);
-  __ StoreP(r5, FieldMemOperand(last_match_info_elements,
-                                RegExpMatchInfo::kNumberOfCapturesOffset),
-            r0);
-  // Store last subject and last input.
-  __ StoreP(subject, FieldMemOperand(last_match_info_elements,
-                                     RegExpMatchInfo::kLastSubjectOffset),
-            r0);
-  __ mr(r5, subject);
-  __ RecordWriteField(last_match_info_elements,
-                      RegExpMatchInfo::kLastSubjectOffset, subject, r10,
-                      kLRHasNotBeenSaved, kDontSaveFPRegs);
-  __ mr(subject, r5);
-  __ StoreP(subject, FieldMemOperand(last_match_info_elements,
-                                     RegExpMatchInfo::kLastInputOffset),
-            r0);
-  __ RecordWriteField(last_match_info_elements,
-                      RegExpMatchInfo::kLastInputOffset, subject, r10,
-                      kLRHasNotBeenSaved, kDontSaveFPRegs);
-
-  // Get the static offsets vector filled by the native regexp code.
-  ExternalReference address_of_static_offsets_vector =
-      ExternalReference::address_of_static_offsets_vector(isolate());
-  __ mov(r5, Operand(address_of_static_offsets_vector));
-
-  // r4: number of capture registers
-  // r5: offsets vector
-  Label next_capture;
-  // Capture register counter starts from number of capture registers and
-  // counts down until wrapping after zero.
-  __ addi(r3, last_match_info_elements,
-          Operand(RegExpMatchInfo::kFirstCaptureOffset - kHeapObjectTag -
-                  kPointerSize));
-  __ addi(r5, r5, Operand(-kIntSize));  // bias down for lwzu
-  __ mtctr(r4);
-  __ bind(&next_capture);
-  // Read the value from the static offsets vector buffer.
-  __ lwzu(r6, MemOperand(r5, kIntSize));
-  // Store the smi value in the last match info.
-  __ SmiTag(r6);
-  __ StorePU(r6, MemOperand(r3, kPointerSize));
-  __ bdnz(&next_capture);
-
-  // Return last match info.
-  __ mr(r3, last_match_info_elements);
-  __ addi(sp, sp, Operand(4 * kPointerSize));
-  __ Ret();
-
-  // Do the runtime call to execute the regexp.
-  __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kRegExpExec);
-
-  // Deferred code for string handling.
-  // (5) Long external string? If not, go to (7).
-  __ bind(&not_seq_nor_cons);
-  // Compare flags are still set.
-  __ bgt(&not_long_external);  // Go to (7).
-
-  // (6) External string.  Make it, offset-wise, look like a sequential string.
-  __ bind(&external_string);
-  __ LoadP(r3, FieldMemOperand(subject, HeapObject::kMapOffset));
-  __ lbz(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
-  if (FLAG_debug_code) {
-    // Assert that we do not have a cons or slice (indirect strings) here.
-    // Sequential strings have already been ruled out.
-    STATIC_ASSERT(kIsIndirectStringMask == 1);
-    __ andi(r0, r3, Operand(kIsIndirectStringMask));
-    __ Assert(eq, kExternalStringExpectedButNotFound, cr0);
-  }
-  __ LoadP(subject,
-           FieldMemOperand(subject, ExternalString::kResourceDataOffset));
-  // Move the pointer so that offset-wise, it looks like a sequential string.
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
-  __ subi(subject, subject,
-          Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  __ b(&seq_string);  // Go to (4).
-
-  // (7) Short external string or not a string?  If yes, bail out to runtime.
-  __ bind(&not_long_external);
-  STATIC_ASSERT(kNotStringTag != 0 && kShortExternalStringTag != 0);
-  __ andi(r0, r4, Operand(kIsNotStringMask | kShortExternalStringMask));
-  __ bne(&runtime, cr0);
-
-  // (8) Sliced or thin string.  Replace subject with parent.  Go to (4).
-  Label thin_string;
-  __ cmpi(r4, Operand(kThinStringTag));
-  __ beq(&thin_string);
-  // Load offset into r11 and replace subject string with parent.
-  __ LoadP(r11, FieldMemOperand(subject, SlicedString::kOffsetOffset));
-  __ SmiUntag(r11);
-  __ LoadP(subject, FieldMemOperand(subject, SlicedString::kParentOffset));
-  __ b(&check_underlying);  // Go to (4).
-
-  __ bind(&thin_string);
-  __ LoadP(subject, FieldMemOperand(subject, ThinString::kActualOffset));
-  __ b(&check_underlying);  // Go to (4).
 #endif  // V8_INTERPRETED_REGEXP
 }
 

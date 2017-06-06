@@ -36,11 +36,11 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 17
 bytecodes: [
   /*   26 E> */ B(StackCheck),
   /*   31 S> */ B(LdaGlobal), U8(0), U8(2),
-                B(ToNumber), R(0),
+                B(ToNumber), R(0), U8(6),
                 B(Ldar), R(0),
                 B(Dec), U8(6),
   /*   44 E> */ B(StaGlobalSloppy), U8(0), U8(4),
@@ -83,11 +83,11 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 17
 bytecodes: [
   /*   27 E> */ B(StackCheck),
   /*   32 S> */ B(LdaGlobal), U8(0), U8(2),
-                B(ToNumber), R(0),
+                B(ToNumber), R(0), U8(6),
                 B(Ldar), R(0),
                 B(Inc), U8(6),
   /*   50 E> */ B(StaGlobalSloppy), U8(0), U8(4),
