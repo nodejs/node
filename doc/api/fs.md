@@ -94,6 +94,12 @@ Error: EISDIR: illegal operation on a directory, read
     <stack trace.>
 ```
 
+*Note:* On Windows Node.js follows the concept of per-drive working directory.
+This behavior can be observed when using a drive path without a backslash. For
+example `fs.readdirSync('c:\\')` can potentially return a different result than
+`fs.readdirSync('c:')`. For more information, see
+[this MSDN page][MSDN-Rel-Path].
+
 ## WHATWG URL object support
 <!-- YAML
 added: v7.6.0
@@ -2835,6 +2841,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [FS Constants]: #fs_fs_constants_1
 [MDN-Date-getTime]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date/getTime
 [MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
+[MSDN-Rel-Path]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx#fully_qualified_vs._relative_paths
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
 [inode]: https://en.wikipedia.org/wiki/Inode
