@@ -294,6 +294,29 @@ function isWarned(emitter) {
     }), delay);
   }
 
+  // set crlfDelay to `Infinity` is allowed
+  {
+    const fi = new FakeInput();
+    const delay = 200;
+    const crlfDelay = Infinity;
+    const rli = new readline.Interface({
+      input: fi,
+      output: fi,
+      terminal: terminal,
+      crlfDelay
+    });
+    let callCount = 0;
+    rli.on('line', function(line) {
+      callCount++;
+    });
+    fi.emit('data', '\r');
+    setTimeout(common.mustCall(() => {
+      fi.emit('data', '\n');
+      assert.strictEqual(callCount, 1);
+      rli.close();
+    }), delay);
+  }
+
   // \t when there is no completer function should behave like an ordinary
   // character
   fi = new FakeInput();

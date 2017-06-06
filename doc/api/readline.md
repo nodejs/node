@@ -369,7 +369,7 @@ changes:
   * `crlfDelay` {number} If the delay between `\r` and `\n` exceeds
     `crlfDelay` milliseconds, both `\r` and `\n` will be treated as separate
     end-of-line input. Default to `100` milliseconds.
-    `crlfDelay` will be coerced to `100` or greater.
+    `crlfDelay` will be coerced to `100` or greater, `Infinity` is allowed.
   * `removeHistoryDuplicates` {boolean} If `true`, when a new input line added
     to the history list duplicates an older one, this removes the older line
     from the list. Defaults to `false`.
