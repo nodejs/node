@@ -1560,25 +1560,6 @@ is passed in it returns `napi_number_expected`.
 This API returns the C int64 primitive equivalent of the given
 JavaScript Number
 
-#### *napi_get_value_string_length*
-<!-- YAML
-added: v8.0.0
--->
-```C
-napi_status napi_get_value_string_length(napi_env env,
-                                         napi_value value,
-                                         int* result)
-```
-
-- `[in] env`: The environment that the API is invoked under.
-- `[in] value`: `napi_value` representing JavaScript string.
-- `[out] result`: Number of characters in the given JavaScript string.
-
-Returns `napi_ok` if the API succeeded. If a non-String `napi_value`
-is passed in it returns `napi_string_expected`.
-
-This API returns the number of characters in the given JavaScript string.
-
 #### *napi_get_value_string_utf8*
 <!-- YAML
 added: v8.0.0
@@ -2100,31 +2081,32 @@ if (status != napi_ok) return status;
 ```C
 typedef enum {
   napi_default = 0,
-  napi_read_only = 1 << 0,
-  napi_dont_enum = 1 << 1,
-  napi_dont_delete = 1 << 2,
-  napi_static_property = 1 << 10,
+  napi_writable = 1 << 0,
+  napi_enumerable = 1 << 1,
+  napi_configurable = 1 << 2,
+
+  // Used with napi_define_class to distinguish static properties
+  // from instance properties. Ignored by napi_define_properties.
+  napi_static = 1 << 10,
 } napi_property_attributes;
 ```
 
 `napi_property_attributes` are flags used to control the behavior of properties
-set on a JavaScript object. They roughly correspond to the attributes listed in
-[Section 6.1.7.1](https://tc39.github.io/ecma262/#table-2) of the
-[ECMAScript Language Specification](https://tc39.github.io/ecma262/). They can
-be one or more of the following bitflags:
+set on a JavaScript object. Other than `napi_static` they correspond to the
+attributes listed in [Section 6.1.7.1](https://tc39.github.io/ecma262/#table-2)
+of the [ECMAScript Language Specification](https://tc39.github.io/ecma262/).
+They can be one or more of the following bitflags:
 
 - `napi_default` - Used to indicate that no explicit attributes are set on the
-given property. By default, a property is Writable, Enumerable, and
- Configurable. This is a deviation from the ECMAScript specification,
- where generally the values for a property descriptor attribute default to
- false if they're not provided.
-- `napi_read_only` - Used to indicate that a given property is not Writable.
-- `napi_dont_enum` - Used to indicate that a given property is not Enumerable.
-- `napi_dont_delete` - Used to indicate that a given property is not.
-Configurable, as defined in
+given property. By default, a property is read only, not enumerable and not
+configurable.
+- `napi_writable`  - Used to indicate that a given property is writable.
+- `napi_enumerable` - Used to indicate that a given property is enumerable.
+- `napi_configurable` - Used to indicate that a given property is
+configurable, as defined in
 [Section 6.1.7.1](https://tc39.github.io/ecma262/#table-2) of the
 [ECMAScript Language Specification](https://tc39.github.io/ecma262/).
-- `napi_static_property` - Used to indicate that the property will be defined as
+- `napi_static` - Used to indicate that the property will be defined as
 a static property on a class as opposed to an instance property, which is the
 default. This is used only by [`napi_define_class`][]. It is ignored by
 `napi_define_properties`.
@@ -2132,7 +2114,9 @@ default. This is used only by [`napi_define_class`][]. It is ignored by
 #### *napi_property_descriptor*
 ```C
 typedef struct {
+  // One of utf8name or name should be NULL.
   const char* utf8name;
+  napi_value name;
 
   napi_callback method;
   napi_callback getter;
@@ -2144,7 +2128,12 @@ typedef struct {
 } napi_property_descriptor;
 ```
 
-- `utf8name`: String describing the key for the property, encoded as UTF8.
+- `utf8name`: Optional String describing the key for the property,
+encoded as UTF8. One of `utf8name` or `name` must be provided for the
+property.
+- `name`: Optional napi_value that points to a JavaScript string or symbol
+to be used as the key for the property.  One of `utf8name` or `name` must
+be provided for the property.
 - `value`: The value that's retrieved by a get access of the property if the
  property is a data property. If this is passed in, set `getter`, `setter`,
  `method` and `data` to `NULL` (since these members won't be used).
