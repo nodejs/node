@@ -39,7 +39,7 @@ const server = net.createServer(function(socket) {
 }).listen(0, function() {
   const conn = net.connect(this.address().port);
   conn.on('data', function(buf) {
-    conn.pause();
+    assert.strictEqual(conn, conn.pause());
     setTimeout(function() {
       conn.destroy();
     }, 20);

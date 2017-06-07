@@ -34,7 +34,10 @@ function connect() {
 
   conns++;
   client.once('close', connect);
-  client.connect(server.address().port, common.localhostIPv4, () => {
-    clientLocalPorts.push(client.localPort);
-  });
+  assert.strictEqual(
+    client,
+    client.connect(server.address().port, common.localhostIPv4, () => {
+      clientLocalPorts.push(client.localPort);
+    })
+  );
 }
