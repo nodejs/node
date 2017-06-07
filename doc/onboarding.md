@@ -115,8 +115,10 @@ onboarding session.
       usually be addressed even if you don’t use it.
       * If you do, it is nice if you are available later to check whether your
         comments have been addressed
-      * Other Collaborators will usually take `Changes requested` to mean that
-        you are considering some of your comments to block the PR from landing.
+      * If you see that the requested changes have been made, you can clear another collaborator's
+        `Changes requested` review.
+      * Use `Changes requested` to indicate that you are considering some of
+        your comments to block the PR from landing.
 
   * What belongs in Node.js:
     * Opinions vary – it’s good to have a broad collaborator base for that reason!
