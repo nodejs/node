@@ -471,7 +471,7 @@ Object* StackGuard::HandleInterrupts() {
   }
 
   if (CheckDebugBreak()) {
-    isolate_->debug()->HandleDebugBreak();
+    isolate_->debug()->HandleDebugBreak(kIgnoreIfTopFrameBlackboxed);
   }
 
   if (CheckAndClearInterrupt(TERMINATE_EXECUTION)) {

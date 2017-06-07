@@ -9,7 +9,7 @@
 # This patch could then hopefully be used for upstreaming tests.
 # The script should be run from the top level directory of the V8 checkout.
 
-git show | grep '+++ b/test/test262/local-tests' | while read test; do
+git show $1 | grep '+++ b/test/test262/local-tests' | while read test; do
   path=${test:6}
   datapath=${path/local-tests/data}
   echo cp $path $datapath

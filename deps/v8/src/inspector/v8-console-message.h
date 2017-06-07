@@ -6,6 +6,8 @@
 #define V8_INSPECTOR_V8CONSOLEMESSAGE_H_
 
 #include <deque>
+#include <map>
+#include <set>
 #include "include/v8.h"
 #include "src/inspector/protocol/Console.h"
 #include "src/inspector/protocol/Forward.h"
@@ -44,9 +46,10 @@ class V8ConsoleMessage {
   ~V8ConsoleMessage();
 
   static std::unique_ptr<V8ConsoleMessage> createForConsoleAPI(
-      double timestamp, ConsoleAPIType,
+      v8::Local<v8::Context> v8Context, int contextId, int groupId,
+      V8InspectorImpl* inspector, double timestamp, ConsoleAPIType,
       const std::vector<v8::Local<v8::Value>>& arguments,
-      std::unique_ptr<V8StackTraceImpl>, InspectedContext*);
+      std::unique_ptr<V8StackTraceImpl>);
 
   static std::unique_ptr<V8ConsoleMessage> createForException(
       double timestamp, const String16& detailedMessage, const String16& url,
@@ -112,11 +115,23 @@ class V8ConsoleMessageStorage {
   void contextDestroyed(int contextId);
   void clear();
 
+  bool shouldReportDeprecationMessage(int contextId, const String16& method);
+  int count(int contextId, const String16& id);
+  void time(int contextId, const String16& id);
+  double timeEnd(int contextId, const String16& id);
+
  private:
   V8InspectorImpl* m_inspector;
   int m_contextGroupId;
   int m_estimatedSize = 0;
   std::deque<std::unique_ptr<V8ConsoleMessage>> m_messages;
+
+  struct PerContextData {
+    std::set<String16> m_reportedDeprecationMessages;
+    std::map<String16, int> m_count;
+    std::map<String16, double> m_time;
+  };
+  std::map<int, PerContextData> m_data;
 };
 
 }  // namespace v8_inspector

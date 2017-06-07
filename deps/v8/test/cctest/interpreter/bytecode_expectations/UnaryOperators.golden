@@ -24,8 +24,8 @@ bytecodes: [
   /*   54 E> */ B(TestEqual), R(0), U8(2),
                 B(JumpIfTrue), U8(13),
   /*   45 E> */ B(StackCheck),
-  /*   65 S> */ B(LdaSmi), I8(10),
-  /*   71 E> */ B(Add), R(0), U8(3),
+  /*   65 S> */ B(Ldar), R(0),
+  /*   71 E> */ B(AddSmi), I8(10), U8(3),
                 B(Star), R(0),
                 B(JumpLoop), U8(15), I8(0),
   /*   79 S> */ B(Ldar), R(0),
@@ -74,13 +74,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 11
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(101),
                 B(Star), R(0),
-  /*   47 S> */ B(LdaSmi), I8(3),
-  /*   61 E> */ B(Mul), R(0), U8(2),
+  /*   47 S> */ B(Nop),
+  /*   61 E> */ B(MulSmi), I8(3), U8(2),
                 B(LdaUndefined),
   /*   67 S> */ B(Return),
 ]
@@ -95,17 +95,16 @@ snippet: "
   var y = void (x * x - 1);
   return y;
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 22
+bytecode array length: 19
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(Wide), B(LdaSmi), I16(1234),
                 B(Star), R(0),
   /*   56 S> */ B(Nop),
   /*   64 E> */ B(Mul), R(0), U8(2),
-                B(Star), R(2),
-  /*   68 E> */ B(SubSmi), I8(1), R(2), U8(3),
+  /*   68 E> */ B(SubSmi), I8(1), U8(3),
                 B(LdaUndefined),
                 B(Star), R(1),
   /*   74 S> */ B(Nop),
@@ -123,13 +122,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(13),
                 B(Star), R(0),
-  /*   46 S> */ B(LdaSmi), I8(-1),
-  /*   53 E> */ B(BitwiseXor), R(0), U8(2),
+  /*   46 S> */ B(Nop),
+  /*   53 E> */ B(BitwiseXorSmi), I8(-1), U8(2),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
@@ -144,13 +143,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(13),
                 B(Star), R(0),
-  /*   46 S> */ B(LdaSmi), I8(1),
-  /*   53 E> */ B(Mul), R(0), U8(2),
+  /*   46 S> */ B(Nop),
+  /*   53 E> */ B(MulSmi), I8(1), U8(2),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
@@ -165,13 +164,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 10
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(13),
                 B(Star), R(0),
-  /*   46 S> */ B(LdaSmi), I8(-1),
-  /*   53 E> */ B(Mul), R(0), U8(2),
+  /*   46 S> */ B(Nop),
+  /*   53 E> */ B(MulSmi), I8(-1), U8(2),
   /*   57 S> */ B(Return),
 ]
 constant pool: [

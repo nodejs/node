@@ -25,7 +25,7 @@ void CheckLocations(
     WasmCompiledModule *compiled_module, debug::Location start,
     debug::Location end,
     std::initializer_list<debug::Location> expected_locations_init) {
-  std::vector<debug::Location> locations;
+  std::vector<debug::BreakLocation> locations;
   bool success =
       compiled_module->GetPossibleBreakpoints(start, end, &locations);
   CHECK(success);
@@ -48,7 +48,7 @@ void CheckLocations(
 }
 void CheckLocationsFail(WasmCompiledModule *compiled_module,
                         debug::Location start, debug::Location end) {
-  std::vector<debug::Location> locations;
+  std::vector<debug::BreakLocation> locations;
   bool success =
       compiled_module->GetPossibleBreakpoints(start, end, &locations);
   CHECK(!success);

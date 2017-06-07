@@ -42,6 +42,16 @@ for (var constructor of typedArrayConstructors) {
   Object.defineProperty(array, 'length', {value: 1});
   assertEquals(array.indexOf(2), 1);
 
+  // Index of infinite value
+  array = new constructor([NaN, 2, 3, +Infinity, -Infinity, 5, 6]);
+  if (constructor == Float32Array || constructor == Float64Array) {
+    assertEquals(3, array.indexOf(Infinity));
+    assertEquals(4, array.indexOf(-Infinity));
+  } else {
+    assertEquals(-1, array.indexOf(Infinity));
+    assertEquals(-1, array.indexOf(-Infinity));
+  }
+  assertEquals(-1, array.indexOf(NaN));
 
   // ----------------------------------------------------------------------
   // %TypedArray%.prototype.lastIndexOf.
@@ -68,4 +78,15 @@ for (var constructor of typedArrayConstructors) {
   Object.defineProperty(array, 'length', {value: 1});
   assertEquals(array.lastIndexOf(2), 10);
   delete array.length;
+
+  // Index of infinite value
+  array = new constructor([NaN, 2, 3, +Infinity, -Infinity, 5, 6]);
+  if (constructor == Float32Array || constructor == Float64Array) {
+    assertEquals(3, array.lastIndexOf(Infinity));
+    assertEquals(4, array.lastIndexOf(-Infinity));
+  } else {
+    assertEquals(-1, array.lastIndexOf(Infinity));
+    assertEquals(-1, array.lastIndexOf(-Infinity));
+  }
+  assertEquals(-1, array.lastIndexOf(NaN));
 }

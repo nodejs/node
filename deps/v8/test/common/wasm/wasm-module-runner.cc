@@ -36,7 +36,7 @@ const WasmModule* DecodeWasmModuleForTesting(
   if (decoding_result.failed()) {
     // Module verification failed. throw.
     thrower->CompileError("WASM.compileRun() failed: %s",
-                          decoding_result.error_msg.get());
+                          decoding_result.error_msg.c_str());
   }
 
   if (thrower->error()) {
@@ -115,6 +115,9 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
                             const ModuleWireBytes& wire_bytes,
                             int function_index, WasmVal* args,
                             bool* possible_nondeterminism) {
+  // Don't execute more than 16k steps.
+  constexpr int kMaxNumSteps = 16 * 1024;
+
   DCHECK_NOT_NULL(module);
   Zone zone(isolate->allocator(), ZONE_NAME);
   v8::internal::HandleScope scope(isolate);
@@ -139,12 +142,12 @@ int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
   instance.globals_start = nullptr;
 
   ModuleBytesEnv env(module, &instance, wire_bytes);
-  WasmInterpreter interpreter(env, isolate->allocator());
+  WasmInterpreter interpreter(isolate, env);
 
   WasmInterpreter::Thread* thread = interpreter.GetThread(0);
   thread->Reset();
-  thread->PushFrame(&(module->functions[function_index]), args);
-  WasmInterpreter::State interpreter_result = thread->Run();
+  thread->InitFrame(&(module->functions[function_index]), args);
+  WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
   if (instance.mem_start) {
     free(instance.mem_start);
   }

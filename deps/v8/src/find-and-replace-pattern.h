@@ -16,7 +16,7 @@ class Object;
 class FindAndReplacePattern {
  public:
   FindAndReplacePattern() : count_(0) {}
-  void Add(Handle<Map> map_to_find, Handle<Object> obj_to_replace) {
+  void Add(Handle<Map> map_to_find, Handle<HeapObject> obj_to_replace) {
     DCHECK(count_ < kMaxCount);
     find_[count_] = map_to_find;
     replace_[count_] = obj_to_replace;
@@ -27,7 +27,7 @@ class FindAndReplacePattern {
   static const int kMaxCount = 4;
   int count_;
   Handle<Map> find_[kMaxCount];
-  Handle<Object> replace_[kMaxCount];
+  Handle<HeapObject> replace_[kMaxCount];
   friend class Code;
 };
 
