@@ -145,7 +145,7 @@ void ProfilerListener::CodeDisableOptEvent(AbstractCode* code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeDeoptEvent(Code* code, Address pc,
+void ProfilerListener::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
                                       int fp_to_sp_delta) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_DEOPT);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;

@@ -42,6 +42,7 @@ IGNORE_SOURCES = {
     '/v8/test/mjsunit/bugs/bug-222.js',
     '/v8/test/mjsunit/bugs/bug-941049.js',
     '/v8/test/mjsunit/regress/regress-crbug-668795.js',
+    '/v8/test/mjsunit/regress/regress-1079.js',
     '/v8/test/mjsunit/regress/regress-2989.js',
   ],
 
@@ -66,6 +67,16 @@ IGNORE_SOURCES = {
 
   'crbug.com/688159': [
     '/v8/test/mjsunit/es7/exponentiation-operator.js',
+  ],
+
+  # TODO(machenbach): Implement blacklisting files for particular configs only,
+  # here ignition_eager.
+  'crbug.com/691589': [
+    '/v8/test/mjsunit/regress/regress-1200351.js',
+  ],
+
+  'crbug.com/691587': [
+    '/v8/test/mjsunit/asm/regress-674089.js',
   ],
 }
 
@@ -100,6 +111,8 @@ IGNORE_OUTPUT = {
         re.compile(r'WebAssembly\.Instance', re.S),
     'crbug.com/681088':
         re.compile(r'TypeError: Cannot read property \w+ of undefined', re.S),
+    'crbug.com/689877':
+        re.compile(r'^.*SyntaxError: .*Stack overflow$', re.M),
   },
   'validate_asm': {
     'validate_asm':
@@ -130,10 +143,6 @@ ALLOWED_LINE_DIFFS = [
   r'^.* is not a function(.*)$',
   r'^(.*) is not a .*$',
 
-  # Ignore lines of stack traces as character positions might not match.
-  r'^    at (?:new )?([^:]*):\d+:\d+(.*)$',
-  r'^(.*):\d+:(.*)$',
-
   # crbug.com/662840
   r"^.*(?:Trying to access ')?(\w*)(?:(?:' through proxy)|"
   r"(?: is not defined))$",
@@ -141,27 +150,19 @@ ALLOWED_LINE_DIFFS = [
   # crbug.com/680064. This subsumes one of the above expressions.
   r'^(.*)TypeError: .* function$',
 
-  # crbug.com/681326
-  r'^(.*<anonymous>):\d+:\d+(.*)$',
+  # crbug.com/664068
+  r'^(.*)(?:Array buffer allocation failed|Invalid array buffer length)(.*)$',
 ]
 
 # Lines matching any of the following regular expressions will be ignored.
 # Use uncompiled regular expressions - they'll be compiled later.
 IGNORE_LINES = [
-  r'^Validation of asm\.js module failed: .+$',
-  r'^.*:\d+: Invalid asm.js: .*$',
   r'^Warning: unknown flag .*$',
   r'^Warning: .+ is deprecated.*$',
   r'^Try --help for options$',
 
-  # crbug.com/677032
-  r'^.*:\d+:.*asm\.js.*: success$',
-
-  # crbug.com/680064
-  r'^\s*at .* \(<anonymous>\)$',
-
-  # crbug.com/689877
-  r'^.*SyntaxError: .*Stack overflow$',
+  # crbug.com/705962
+  r'^\s\[0x[0-9a-f]+\]$',
 ]
 
 

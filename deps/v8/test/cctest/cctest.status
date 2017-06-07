@@ -72,14 +72,18 @@
   'test-ast-types/*': [PASS, NO_VARIANTS],
 
   # This tests API threading, no point in running several variants.
-  # They are also slow in debug mode.
-  'test-api/Threading*': [PASS, NO_VARIANTS, ['mode == debug', SLOW]],
+  'test-api/Threading*': [PASS, SLOW, NO_VARIANTS],
 
   # BUG(2999). The cpu profiler tests are notoriously flaky.
   'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
   'test-cpu-profiler/CollectCpuProfile': [SKIP],
   'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
+
+  # BUG(v8:5193): Flaky.
+  'test-cpu-profiler/FunctionApplySample': [SKIP],
+  'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
 
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
@@ -140,6 +144,7 @@
 
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, TIMEOUT],
+  'test-api/Threading*': [PASS, SKIP],
 }],  # 'arch == arm64 and simulator_run == True'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {
@@ -166,6 +171,9 @@
   'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
+
+  # BUG(v8:5193): Flaky.
+  'test-cpu-profiler/TickEvents': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
@@ -178,12 +186,26 @@
 }],  # 'msan == True'
 
 ##############################################################################
+['tsan == True', {
+  # BUG(v8:6133).
+  'test-cpu-profiler/TickEvents': [SKIP],
+}],  # 'tsan == True'
+
+##############################################################################
 ['no_snap == True', {
   # Slow tests.
   'test-api/ExternalWrap': [PASS, SLOW],
   'test-api/FastReturnValues*': [PASS, SLOW],
   'test-decls/CrossScriptReferences_Simple2': [PASS, SLOW],
+  # "WithWarmup" means starting from a snapshot, for which nosnap builds lack
+  # support.
+  'test-serialize/CustomSnapshotDataBlobWithWarmup': [SKIP],
+  'test-serialize/SnapshotDataBlobWithWarmup': [SKIP],
 }],  # 'no_snap == True'
+['no_snap == False', {
+  # FunctionEntryHooks require bootstrapping from scratch.
+  'test-api/SetFunctionEntryHook': [SKIP],
+}],  # 'no_snap == False'
 
 ##############################################################################
 # TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
@@ -213,9 +235,6 @@
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
 
-  # BUG(v8:5193): Flaky.
-  'test-cpu-profiler/FunctionApplySample': [SKIP],
-
   # BUG(5193): Flaky timeout.
   'test-sampler/LibSamplerCollectSample': [PASS, ['arch == x64', SKIP]],
 
@@ -226,7 +245,6 @@
 ##############################################################################
 ['system == macos', {
   # BUG(v8:5193) Flaky failures.
-  'test-cpu-profiler/FunctionApplySample': [SKIP],
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
 }],  # 'system == macos'
@@ -244,10 +262,6 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
-  'test-run-wasm-simd/RunWasmCompiled_F32x4Add': [SKIP],
-  'test-run-wasm-simd/RunWasmCompiled_F32x4Sub': [SKIP],
-  'test-run-wasm-simd/RunWasmInterpreted_F32x4Add': [SKIP],
-  'test-run-wasm-simd/RunWasmInterpreted_F32x4Sub': [SKIP],
 
   ############################################################################
   # Slow tests.
@@ -365,15 +379,10 @@
 }],  # variant == turbofan_opt
 
 ##############################################################################
-['variant == turbofan or variant == ignition_turbofan', {
+['variant == turbofan', {
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
-}],  # variant == turbofan or variant == ignition_turbofan
-
-##############################################################################
-['variant == asm_wasm', {
-  '*': [SKIP],
-}],  # variant == asm_wasm
+}],  # variant == turbofan
 
 ##############################################################################
 ['variant == wasm_traps', {

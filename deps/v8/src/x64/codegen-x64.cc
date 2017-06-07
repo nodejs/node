@@ -49,7 +49,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);

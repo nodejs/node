@@ -2133,7 +2133,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     get_modrm(*current, &mod, &regop, &rm);
     AppendToBuffer("movmskps %s,", NameOfCPURegister(regop));
     current += PrintRightXMMOperand(current);
-
+  } else if (opcode == 0x70) {
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("pshufw %s, ", NameOfXMMRegister(regop));
+    current += PrintRightXMMOperand(current);
+    AppendToBuffer(", %d", (*current) & 3);
+    current += 1;
   } else if ((opcode & 0xF0) == 0x80) {
     // Jcc: Conditional jump (branch).
     current = data + JumpConditional(data);

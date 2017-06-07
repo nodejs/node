@@ -37,6 +37,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysis {
   bool IsCyclicObjectState(Node* effect, Node* node);
   bool ExistsVirtualAllocate();
   bool SetReplacement(Node* node, Node* rep);
+  bool AllObjectsComplete();
 
  private:
   void RunObjectAnalysis();
@@ -45,6 +46,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysis {
   void ProcessStoreField(Node* node);
   void ProcessLoadElement(Node* node);
   void ProcessStoreElement(Node* node);
+  void ProcessCheckMaps(Node* node);
   void ProcessAllocationUsers(Node* node);
   void ProcessAllocation(Node* node);
   void ProcessFinishRegion(Node* node);

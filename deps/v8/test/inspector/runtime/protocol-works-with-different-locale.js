@@ -13,27 +13,27 @@ InspectorTest.runTestSuite([
 
   function consoleTimeWithCommaAsSeparator(next) {
     InspectorTest.log("set locale to fr_CA.UTF-8 (has comma as separator)");
-    setlocale("fr_CA.UTF-8");
-    setCurrentTimeMSForTest(0.0);
+    utils.setlocale("fr_CA.UTF-8");
+    utils.setCurrentTimeMSForTest(0.0);
     Protocol.Runtime.evaluate({ expression: "console.time(\"a\");"})
-      .then(() => setCurrentTimeMSForTest(0.001))
+      .then(() => utils.setCurrentTimeMSForTest(0.001))
       .then(() => Protocol.Runtime.evaluate({ expression: "console.timeEnd(\"a\");"}))
       .then(next);
   },
 
   function consoleLogWithCommaAsSeparator(next) {
     InspectorTest.log("set locale to fr_CA.UTF-8 (has comma as separator)");
-    setlocale("fr_CA.UTF-8");
+    utils.setlocale("fr_CA.UTF-8");
     Protocol.Runtime.evaluate({ expression: "console.log(239) "}).then(next);
   },
 
   function consoleTimeWithCommaAfterConsoleLog(next) {
     InspectorTest.log("set locale to fr_CA.UTF-8 (has comma as separator)");
-    setlocale("fr_CA.UTF-8");
+    utils.setlocale("fr_CA.UTF-8");
     Protocol.Runtime.evaluate({ expression: "console.log(239) "})
-      .then(() => setCurrentTimeMSForTest(0.0))
+      .then(() => utils.setCurrentTimeMSForTest(0.0))
       .then(() => Protocol.Runtime.evaluate({ expression: "console.time(\"a\");"}))
-      .then(() => setCurrentTimeMSForTest(0.001))
+      .then(() => utils.setCurrentTimeMSForTest(0.001))
       .then(() => Protocol.Runtime.evaluate({ expression: "console.timeEnd(\"a\");"}))
       .then(next);
   }

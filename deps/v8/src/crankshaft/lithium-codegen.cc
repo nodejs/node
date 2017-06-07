@@ -168,7 +168,9 @@ void LCodeGenBase::Comment(const char* format, ...) {
 void LCodeGenBase::DeoptComment(const Deoptimizer::DeoptInfo& deopt_info) {
   SourcePosition position = deopt_info.position;
   int deopt_id = deopt_info.deopt_id;
-  masm()->RecordDeoptReason(deopt_info.deopt_reason, position, deopt_id);
+  if (masm()->isolate()->NeedsSourcePositionsForProfiling()) {
+    masm()->RecordDeoptReason(deopt_info.deopt_reason, position, deopt_id);
+  }
 }
 
 

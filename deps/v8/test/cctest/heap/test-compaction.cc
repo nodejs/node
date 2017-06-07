@@ -26,7 +26,7 @@ void CheckInvariantsOfAbortedPage(Page* page) {
   // 1) Markbits are cleared
   // 2) The page is not marked as evacuation candidate anymore
   // 3) The page is not marked as aborted compaction anymore.
-  CHECK(page->markbits()->IsClean());
+  CHECK(MarkingState::Internal(page).bitmap()->IsClean());
   CHECK(!page->IsEvacuationCandidate());
   CHECK(!page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
 }

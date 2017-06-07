@@ -27,14 +27,12 @@
 
 #include <stdlib.h>
 
+#include "src/arm/simulator-arm.h"
+#include "src/assembler-inl.h"
+#include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
-
-#include "src/macro-assembler.h"
-
-#include "src/arm/macro-assembler-arm.h"
-#include "src/arm/simulator-arm.h"
-
 
 using namespace v8::internal;
 
@@ -158,6 +156,8 @@ TEST(ExtractLane) {
     int32_t i8x16_high[16];
     int32_t f32x4_low[4];
     int32_t f32x4_high[4];
+    int32_t i8x16_low_d[16];
+    int32_t i8x16_high_d[16];
   } T;
   T t;
 
@@ -187,6 +187,15 @@ TEST(ExtractLane) {
     __ str(r5, MemOperand(r0, offsetof(T, i8x16_low) + 4 * i));
   }
 
+  for (int i = 0; i < 8; i++) {
+    __ mov(r4, Operand(i));
+    __ vdup(Neon8, q1, r4);  // q1 = d2,d3
+    __ ExtractLane(r5, d2, NeonS8, i);
+    __ str(r5, MemOperand(r0, offsetof(T, i8x16_low_d) + 4 * i));
+    __ ExtractLane(r5, d3, NeonS8, i);
+    __ str(r5, MemOperand(r0, offsetof(T, i8x16_low_d) + 4 * (i + 8)));
+  }
+
   if (CpuFeatures::IsSupported(VFP32DREGS)) {
     for (int i = 0; i < 4; i++) {
       __ mov(r4, Operand(-i));
@@ -210,6 +219,15 @@ TEST(ExtractLane) {
       __ vdup(Neon8, q15, r4);
       __ ExtractLane(r5, q15, NeonS8, i);
       __ str(r5, MemOperand(r0, offsetof(T, i8x16_high) + 4 * i));
+    }
+
+    for (int i = 0; i < 8; i++) {
+      __ mov(r4, Operand(-i));
+      __ vdup(Neon8, q15, r4);  // q1 = d30,d31
+      __ ExtractLane(r5, d30, NeonS8, i);
+      __ str(r5, MemOperand(r0, offsetof(T, i8x16_high_d) + 4 * i));
+      __ ExtractLane(r5, d31, NeonS8, i);
+      __ str(r5, MemOperand(r0, offsetof(T, i8x16_high_d) + 4 * (i + 8)));
     }
   }
 
@@ -236,6 +254,10 @@ TEST(ExtractLane) {
   for (int i = 0; i < 16; i++) {
     CHECK_EQ(i, t.i8x16_low[i]);
   }
+  for (int i = 0; i < 8; i++) {
+    CHECK_EQ(i, t.i8x16_low_d[i]);
+    CHECK_EQ(i, t.i8x16_low_d[i + 8]);
+  }
   if (CpuFeatures::IsSupported(VFP32DREGS)) {
     for (int i = 0; i < 4; i++) {
       CHECK_EQ(-i, t.i32x4_high[i]);
@@ -246,6 +268,10 @@ TEST(ExtractLane) {
     }
     for (int i = 0; i < 16; i++) {
       CHECK_EQ(-i, t.i8x16_high[i]);
+    }
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(-i, t.i8x16_high_d[i]);
+      CHECK_EQ(-i, t.i8x16_high_d[i + 8]);
     }
   }
 }

@@ -227,7 +227,6 @@ void LClassOfTestAndBranch::PrintDataTo(StringStream* stream) {
               true_block_id(), false_block_id());
 }
 
-
 void LTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add("if typeof ");
   value()->PrintTo(stream);
@@ -1700,7 +1699,6 @@ LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
   LOperand* value = UseRegister(instr->value());
   return new (zone()) LClassOfTestAndBranch(value, TempRegister());
 }
-
 
 LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {
   LOperand* string = UseRegisterAtStart(instr->string());

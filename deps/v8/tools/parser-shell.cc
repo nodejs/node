@@ -99,7 +99,8 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
     info.set_compile_options(v8::ScriptCompiler::kProduceParserCache);
     v8::base::ElapsedTimer timer;
     timer.Start();
-    bool success = parsing::ParseProgram(&info);
+    bool success =
+        parsing::ParseProgram(&info, reinterpret_cast<i::Isolate*>(isolate));
     parse_time1 = timer.Elapsed();
     if (!success) {
       fprintf(stderr, "Parsing failed\n");
@@ -113,7 +114,8 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
     info.set_compile_options(v8::ScriptCompiler::kConsumeParserCache);
     v8::base::ElapsedTimer timer;
     timer.Start();
-    bool success = parsing::ParseProgram(&info);
+    bool success =
+        parsing::ParseProgram(&info, reinterpret_cast<i::Isolate*>(isolate));
     parse_time2 = timer.Elapsed();
     if (!success) {
       fprintf(stderr, "Parsing failed\n");

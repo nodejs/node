@@ -7,7 +7,7 @@
 // NOTE: This is in it's own file because it calls %DisallowCodegenFromStrings,
 // which messes with the isolate's state.
 (function testAsmWithWasmOff() {
-  % DisallowCodegenFromStrings();
+  %DisallowCodegenFromStrings();
   function Module() {
     'use asm';
     function foo() {
@@ -16,5 +16,5 @@
     return {foo: foo};
   }
   Module();
-  assertTrue(% IsAsmWasmCode(Module));
+  assertTrue(%IsAsmWasmCode(Module));
 })();
