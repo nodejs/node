@@ -920,6 +920,9 @@ def configure_node(o):
   else:
     o['variables']['coverage'] = 'false'
 
+  if options.use_xcode and options.use_ninja:
+    raise Exception('--xcode and --ninja cannot be used together.')
+
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib
   output['variables']['node_' + shared_lib] = b(getattr(options, shared_lib))
