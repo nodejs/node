@@ -62,6 +62,12 @@ function verifyFiles(files, blockName, onprogress, ondone) {
     `${(++id < 10 ? '0' : '') + id}_${blockName}`
   );
 
+  // must have a .cc and a .js to be a valid test
+  if (!Object.keys(files).some((name) => /\.cc$/.test(name)) ||
+      !Object.keys(files).some((name) => /\.js$/.test(name))) {
+    return;
+  }
+
   files = Object.keys(files).map(function(name) {
     if (name === 'test.js') {
       files[name] = `'use strict';
