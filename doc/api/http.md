@@ -528,6 +528,8 @@ Once a socket is assigned to this request and is connected
 
 Returns `request`.
 
+Returns `request`.
+
 ### request.write(chunk[, encoding][, callback])
 <!-- YAML
 added: v0.1.29
