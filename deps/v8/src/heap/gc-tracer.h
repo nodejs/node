@@ -31,7 +31,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_INCREMENTAL_WRAPPER_TRACING)                                \
   F(MC_INCREMENTAL_FINALIZE)                                       \
   F(MC_INCREMENTAL_FINALIZE_BODY)                                  \
-  F(MC_INCREMENTAL_FINALIZE_OBJECT_GROUPING)                       \
   F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
   F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)
 
@@ -43,7 +42,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_CLEAR)                                 \
   F(MC_CLEAR_CODE_FLUSH)                      \
   F(MC_CLEAR_DEPENDENT_CODE)                  \
-  F(MC_CLEAR_GLOBAL_HANDLES)                  \
   F(MC_CLEAR_MAPS)                            \
   F(MC_CLEAR_SLOTS_BUFFER)                    \
   F(MC_CLEAR_STORE_BUFFER)                    \
@@ -76,7 +74,6 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_MARK_WRAPPER_EPILOGUE)                 \
   F(MC_MARK_WRAPPER_PROLOGUE)                 \
   F(MC_MARK_WRAPPER_TRACING)                  \
-  F(MC_MARK_OBJECT_GROUPING)                  \
   F(MC_PROLOGUE)                              \
   F(MC_SWEEP)                                 \
   F(MC_SWEEP_CODE)                            \

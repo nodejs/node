@@ -201,14 +201,6 @@ void HeapProfiler::UpdateObjectSizeEvent(Address addr, int size) {
   ids_->UpdateObjectSize(addr, size);
 }
 
-
-void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
-                                         RetainedObjectInfo* info) {
-  // TODO(yurus, marja): Don't route this information through GlobalHandles.
-  heap()->isolate()->global_handles()->SetRetainedObjectInfo(id, info);
-}
-
-
 Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
   HeapObject* object = NULL;
   HeapIterator iterator(heap(), HeapIterator::kFilterUnreachable);

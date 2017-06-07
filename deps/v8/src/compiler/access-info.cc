@@ -372,9 +372,6 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
             if (!optimization.is_simple_api_call()) {
               return false;
             }
-            if (optimization.api_call_info()->fast_handler()->IsCode()) {
-              return false;
-            }
             if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
           }
           if (access_mode == AccessMode::kLoad) {

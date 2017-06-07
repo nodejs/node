@@ -537,7 +537,6 @@ void GCTracer::PrintNVP() const {
           "clear=%1.f "
           "clear.code_flush=%.1f "
           "clear.dependent_code=%.1f "
-          "clear.global_handles=%.1f "
           "clear.maps=%.1f "
           "clear.slots_buffer=%.1f "
           "clear.store_buffer=%.1f "
@@ -563,7 +562,6 @@ void GCTracer::PrintNVP() const {
           "finish=%.1f "
           "mark=%.1f "
           "mark.finish_incremental=%.1f "
-          "mark.object_grouping=%.1f "
           "mark.prepare_code_flush=%.1f "
           "mark.roots=%.1f "
           "mark.weak_closure=%.1f "
@@ -584,7 +582,6 @@ void GCTracer::PrintNVP() const {
           "incremental.finalize.body=%.1f "
           "incremental.finalize.external.prologue=%.1f "
           "incremental.finalize.external.epilogue=%.1f "
-          "incremental.finalize.object_grouping=%.1f "
           "incremental.sweeping=%.1f "
           "incremental.wrapper_prologue=%.1f "
           "incremental.wrapper_tracing=%.1f "
@@ -623,7 +620,6 @@ void GCTracer::PrintNVP() const {
           current_.reduce_memory, current_.scopes[Scope::MC_CLEAR],
           current_.scopes[Scope::MC_CLEAR_CODE_FLUSH],
           current_.scopes[Scope::MC_CLEAR_DEPENDENT_CODE],
-          current_.scopes[Scope::MC_CLEAR_GLOBAL_HANDLES],
           current_.scopes[Scope::MC_CLEAR_MAPS],
           current_.scopes[Scope::MC_CLEAR_SLOTS_BUFFER],
           current_.scopes[Scope::MC_CLEAR_STORE_BUFFER],
@@ -648,7 +644,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES],
           current_.scopes[Scope::MC_FINISH], current_.scopes[Scope::MC_MARK],
           current_.scopes[Scope::MC_MARK_FINISH_INCREMENTAL],
-          current_.scopes[Scope::MC_MARK_OBJECT_GROUPING],
           current_.scopes[Scope::MC_MARK_PREPARE_CODE_FLUSH],
           current_.scopes[Scope::MC_MARK_ROOTS],
           current_.scopes[Scope::MC_MARK_WEAK_CLOSURE],
@@ -668,7 +663,6 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_INCREMENTAL_FINALIZE_BODY],
           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE],
-          current_.scopes[Scope::MC_INCREMENTAL_FINALIZE_OBJECT_GROUPING],
           current_.scopes[Scope::MC_INCREMENTAL_SWEEPING],
           current_.scopes[Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_WRAPPER_TRACING],

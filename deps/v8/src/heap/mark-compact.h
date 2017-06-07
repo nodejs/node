@@ -516,8 +516,6 @@ class MarkCompactCollector {
   static const uint32_t kSingleFreeEncoding = 0;
   static const uint32_t kMultiFreeEncoding = 1;
 
-  static bool IsUnmarkedHeapObjectWithHeap(Heap* heap, Object** p);
-
   inline Heap* heap() const { return heap_; }
   inline Isolate* isolate() const;
 
@@ -568,10 +566,6 @@ class MarkCompactCollector {
   void set_evacuation(bool evacuation) { evacuation_ = evacuation; }
 
   bool evacuation() const { return evacuation_; }
-
-  // Mark objects in implicit references groups if their parent object
-  // is marked.
-  void MarkImplicitRefGroups(MarkObjectFunction mark_object);
 
   MarkingDeque* marking_deque() { return &marking_deque_; }
 

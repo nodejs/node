@@ -1948,14 +1948,6 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
   return ObjectMarking::IsWhite(HeapObject::cast(o));
 }
 
-
-bool MarkCompactCollector::IsUnmarkedHeapObjectWithHeap(Heap* heap,
-                                                        Object** p) {
-  Object* o = *p;
-  DCHECK(o->IsHeapObject());
-  return ObjectMarking::IsWhite(HeapObject::cast(o));
-}
-
 void MarkCompactCollector::MarkStringTable(
     RootMarkingVisitor<MarkCompactMode::FULL>* visitor) {
   StringTable* string_table = heap()->string_table();
@@ -1984,38 +1976,6 @@ void MarkCompactCollector::MarkRoots(
     EmptyMarkingDeque<MarkCompactMode::FULL>();
   }
 }
-
-
-void MarkCompactCollector::MarkImplicitRefGroups(
-    MarkObjectFunction mark_object) {
-  List<ImplicitRefGroup*>* ref_groups =
-      isolate()->global_handles()->implicit_ref_groups();
-
-  int last = 0;
-  for (int i = 0; i < ref_groups->length(); i++) {
-    ImplicitRefGroup* entry = ref_groups->at(i);
-    DCHECK(entry != NULL);
-
-    if (ObjectMarking::IsWhite(*entry->parent)) {
-      (*ref_groups)[last++] = entry;
-      continue;
-    }
-
-    Object*** children = entry->children;
-    // A parent object is marked, so mark all child heap objects.
-    for (size_t j = 0; j < entry->length; ++j) {
-      if ((*children[j])->IsHeapObject()) {
-        mark_object(heap(), HeapObject::cast(*children[j]));
-      }
-    }
-
-    // Once the entire group has been marked, dispose it because it's
-    // not needed anymore.
-    delete entry;
-  }
-  ref_groups->Rewind(last);
-}
-
 
 // Mark all objects reachable from the objects on the marking stack.
 // Before: the marking stack contains zero or more heap object pointers.
@@ -2104,11 +2064,6 @@ void MarkCompactCollector::ProcessEphemeralMarking(
             0,
             EmbedderHeapTracer::AdvanceTracingActions(
                 EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
-      } else {
-        TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_OBJECT_GROUPING);
-        isolate()->global_handles()->IterateObjectGroups(
-            visitor, &IsUnmarkedHeapObjectWithHeap);
-        MarkImplicitRefGroups(&MarkCompactMarkingVisitor::MarkObject);
       }
     } else {
       // TODO(mlippautz): We currently do not trace through blink when
@@ -2493,14 +2448,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // Process the weak references.
     MarkCompactWeakObjectRetainer mark_compact_object_retainer;
     heap()->ProcessAllWeakReferences(&mark_compact_object_retainer);
-  }
-
-  {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_GLOBAL_HANDLES);
-
-    // Remove object groups after marking phase.
-    heap()->isolate()->global_handles()->RemoveObjectGroups();
-    heap()->isolate()->global_handles()->RemoveImplicitRefGroups();
   }
 
   // Flush code from collected candidates.

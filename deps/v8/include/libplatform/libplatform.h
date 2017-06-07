@@ -12,6 +12,8 @@
 namespace v8 {
 namespace platform {
 
+enum class IdleTaskSupport { kDisabled, kEnabled };
+
 /**
  * Returns a new instance of the default v8::Platform implementation.
  *
@@ -21,7 +23,8 @@ namespace platform {
  * processors online will be chosen.
  */
 V8_PLATFORM_EXPORT v8::Platform* CreateDefaultPlatform(
-    int thread_pool_size = 0);
+    int thread_pool_size = 0,
+    IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled);
 
 /**
  * Pumps the message loop for the given isolate.

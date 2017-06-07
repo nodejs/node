@@ -591,24 +591,6 @@ void IncrementalMarking::MarkRoots() {
   heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG);
 }
 
-
-void IncrementalMarking::MarkObjectGroups() {
-  TRACE_GC(heap_->tracer(),
-           GCTracer::Scope::MC_INCREMENTAL_FINALIZE_OBJECT_GROUPING);
-
-  DCHECK(!heap_->local_embedder_heap_tracer()->InUse());
-  DCHECK(!finalize_marking_completed_);
-  DCHECK(IsMarking());
-
-  IncrementalMarkingRootMarkingVisitor visitor(this);
-  heap_->mark_compact_collector()->MarkImplicitRefGroups(&MarkGrey);
-  heap_->isolate()->global_handles()->IterateObjectGroups(
-      &visitor, &MarkCompactCollector::IsUnmarkedHeapObjectWithHeap);
-  heap_->isolate()->global_handles()->RemoveImplicitRefGroups();
-  heap_->isolate()->global_handles()->RemoveObjectGroups();
-}
-
-
 void IncrementalMarking::ProcessWeakCells() {
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
@@ -721,14 +703,11 @@ void IncrementalMarking::FinalizeIncrementally() {
   // After finishing incremental marking, we try to discover all unmarked
   // objects to reduce the marking load in the final pause.
   // 1) We scan and mark the roots again to find all changes to the root set.
-  // 2) We mark the object groups.
-  // 3) Age and retain maps embedded in optimized code.
-  // 4) Remove weak cell with live values from the list of weak cells, they
+  // 2) Age and retain maps embedded in optimized code.
+  // 3) Remove weak cell with live values from the list of weak cells, they
   // do not need processing during GC.
   MarkRoots();
-  if (!heap_->local_embedder_heap_tracer()->InUse()) {
-    MarkObjectGroups();
-  }
+
   if (incremental_marking_finalization_rounds_ == 0) {
     // Map retaining is needed for perfromance, not correctness,
     // so we can do it only once at the beginning of the finalization.

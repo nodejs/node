@@ -2544,8 +2544,7 @@ T* WeakFixedArray::Iterator::Next() {
   return NULL;
 }
 
-
-int ArrayList::Length() {
+int ArrayList::Length() const {
   if (FixedArray::cast(this)->length() == 0) return 0;
   return Smi::cast(FixedArray::cast(this)->get(kLengthIndex))->value();
 }
@@ -2555,8 +2554,7 @@ void ArrayList::SetLength(int length) {
   return FixedArray::cast(this)->set(kLengthIndex, Smi::FromInt(length));
 }
 
-
-Object* ArrayList::Get(int index) {
+Object* ArrayList::Get(int index) const {
   return FixedArray::cast(this)->get(kFirstIndex + index);
 }
 
@@ -5694,7 +5692,6 @@ BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, kNonMasking)
 
 ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
 ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
-ACCESSORS(CallHandlerInfo, fast_handler, Object, kFastHandlerOffset)
 
 ACCESSORS(TemplateInfo, tag, Object, kTagOffset)
 ACCESSORS(TemplateInfo, serial_number, Object, kSerialNumberOffset)
