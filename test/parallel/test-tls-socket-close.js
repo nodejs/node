@@ -32,12 +32,17 @@ const netServer = net.createServer((socket) => {
 
   netSocket = socket;
 }).listen(0, common.mustCall(function() {
-  // connect client
-  tls.connect({
+  connectClient(netServer);
+}));
+
+function connectClient(server) {
+  const tlsConnection = tls.connect({
     host: 'localhost',
-    port: this.address().port,
+    port: server.address().port,
     rejectUnauthorized: false
-  }).write('foo', 'utf8', common.mustCall(() => {
+  });
+
+  tlsConnection.write('foo', 'utf8', common.mustCall(() => {
     assert(netSocket);
     netSocket.setTimeout(1, common.mustCall(() => {
       assert(tlsSocket);
@@ -55,4 +60,10 @@ const netServer = net.createServer((socket) => {
       }, 1);
     }));
   }));
-}));
+  tlsConnection.on('error', (e) => {
+    // Tolerate the occasional ECONNRESET.
+    // Ref: https://github.com/nodejs/node/issues/13184
+    if (e.code !== 'ECONNRESET')
+      throw e;
+  });
+}
