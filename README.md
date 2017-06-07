@@ -331,6 +331,8 @@ more information about the governance of the Node.js project, see
 **Teddy Katz** &lt;teddy.katz@gmail.com&gt;
 * [Olegas](https://github.com/Olegas) -
 **Oleg Elifantiev** &lt;oleg@elifantiev.ru&gt;
+* [orangemocha](https://github.com/orangemocha) -
+**Alexis Campailla** &lt;orangemocha@nodejs.org&gt;
 * [othiym23](https://github.com/othiym23) -
 **Forrest L Norvell** &lt;ogd@aoaioxxysz.net&gt; (he/him)
 * [petkaantonov](https://github.com/petkaantonov) -
