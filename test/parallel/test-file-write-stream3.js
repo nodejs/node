@@ -30,7 +30,7 @@ const filepath = path.join(common.tmpDir, 'write_pos.txt');
 
 
 const cb_expected = 'write open close write open close write open close ';
-let cb_occurred = '';
+var cb_occurred = '';
 
 const fileDataInitial = 'abcdefghijklmnopqrstuvwxyz';
 
