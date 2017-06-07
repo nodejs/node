@@ -7,6 +7,11 @@ if (!common.hasCrypto) {
   return;
 }
 
+if (common.hasFipsCrypto) {
+  console.log('1..0 # Skipped: PFX does not work in FIPS mode');
+  return;
+}
+
 const assert = require('assert');
 const tls = require('tls');
 const fs = require('fs');
