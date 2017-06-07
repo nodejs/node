@@ -19,6 +19,7 @@
     <mod>installTo.isAbsoluteType</mod>
   </config>
   <scripts>
+    <preinstall relative="true" mod="true">osx-pkg-preinstall.sh</preinstall>
     <postinstall relative="true" mod="true">osx-pkg-postinstall.sh</postinstall>
   </scripts>
 </pkgref>
