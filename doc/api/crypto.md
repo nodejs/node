@@ -879,6 +879,13 @@ Calculates the HMAC digest of all of the data passed using [`hmac.update()`][].
 The `encoding` can be `'hex'`, `'latin1'` or `'base64'`. If `encoding` is
 provided a string is returned; otherwise a [`Buffer`][] is returned;
 
+Caution: Code that uses `digest()` directly for comparison with an input value
+is very likely to introduce a
+[timing attack](http://codahale.com/a-lesson-in-timing-attacks/).
+Such a timing attack would allow someone to construct an
+HMAC value for a message of their choosing without possessing the key.
+Use `timingSafeEqual(a, b)` to compare digest values.
+
 The `Hmac` object can not be used again after `hmac.digest()` has been
 called. Multiple calls to `hmac.digest()` will result in an error being thrown.
 
@@ -1615,6 +1622,16 @@ Decrypts `buffer` with `private_key`.
 
 `private_key` can be an object or a string. If `private_key` is a string, it is
 treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
+
+### crypto.timingSafeEqual(a, b)
+
+Returns true if `a` is equal to `b`, without leaking timing information that
+would help an attacker guess one of the values. This is suitable for comparing
+HMAC digests or secret values like authentication cookies or
+[capability urls](http://www.w3.org/TR/capability-urls/).
+
+A `TypeError` will be thrown if either `a` or `b` is not a [`Buffer`][]
+instance.
 
 ### crypto.privateEncrypt(private_key, buffer)
 <!-- YAML
