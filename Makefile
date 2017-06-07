@@ -90,6 +90,7 @@ config.gypi: configure
 	$(error Missing or stale $@, please run ./$<)
 
 install: all
+	-rm -rf $(PREFIX)/lib/node_modules/npm
 	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
 
 uninstall:
