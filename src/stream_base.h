@@ -61,6 +61,10 @@ class ShutdownWrap : public ReqWrap<uv_shutdown_t>,
     return ContainerOf(&ShutdownWrap::req_, req);
   }
 
+  static ShutdownWrap* from_req(uv_shutdown_t* req) {
+    return ContainerOf(&ShutdownWrap::req_, req);
+  }
+
   inline StreamBase* wrap() const { return wrap_; }
   size_t self_size() const override { return sizeof(*this); }
 
@@ -82,6 +86,10 @@ class WriteWrap: public ReqWrap<uv_write_t>,
   inline StreamBase* wrap() const { return wrap_; }
 
   size_t self_size() const override { return storage_size_; }
+
+  static WriteWrap* from_req(uv_write_t* req) {
+    return ContainerOf(&WriteWrap::req_, req);
+  }
 
   static WriteWrap* from_req(uv_write_t* req) {
     return ContainerOf(&WriteWrap::req_, req);
