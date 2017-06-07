@@ -982,8 +982,8 @@ added: v0.3.2
 * `options` {Object}
   * `handshakeTimeout` {number} Abort the connection if the SSL/TLS handshake
     does not finish in the specified number of milliseconds. Defaults to `120`
-    seconds. A `'clientError'` is emitted on the `tls.Server` object whenever a
-    handshake times out.
+    seconds. A `'tlsClientError'` is emitted on the `tls.Server` object whenever
+    a handshake times out.
   * `requestCert` {boolean} If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. Defaults to
     `false`.
