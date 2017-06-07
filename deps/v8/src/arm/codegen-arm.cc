@@ -8,6 +8,7 @@
 
 #include <memory>
 
+#include "src/arm/assembler-arm-inl.h"
 #include "src/arm/simulator-arm.h"
 #include "src/codegen.h"
 #include "src/macro-assembler.h"
@@ -167,7 +168,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
@@ -284,7 +285,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
@@ -464,11 +465,12 @@ void Code::PatchPlatformCodeAge(Isolate* isolate, byte* sequence,
     Assembler::FlushICache(isolate, sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age);
-    CodePatcher patcher(isolate, sequence,
-                        young_length / Assembler::kInstrSize);
-    patcher.masm()->add(r0, pc, Operand(-8));
-    patcher.masm()->ldr(pc, MemOperand(pc, -4));
-    patcher.masm()->emit_code_stub_address(stub);
+    PatchingAssembler patcher(Assembler::IsolateData(isolate), sequence,
+                              young_length / Assembler::kInstrSize);
+    patcher.add(r0, pc, Operand(-8));
+    patcher.ldr(pc, MemOperand(pc, -4));
+    patcher.emit_code_stub_address(stub);
+    patcher.FlushICache(isolate);
   }
 }
 

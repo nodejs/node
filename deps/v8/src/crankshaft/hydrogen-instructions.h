@@ -46,7 +46,6 @@ class SmallMapList;
   V(ControlInstruction)                       \
   V(Instruction)
 
-
 #define HYDROGEN_CONCRETE_INSTRUCTION_LIST(V) \
   V(AbnormalExit)                             \
   V(AccessArgumentsAt)                        \
@@ -4028,12 +4027,10 @@ class HClassOfTestAndBranch final : public HUnaryControlInstruction {
 
  private:
   HClassOfTestAndBranch(HValue* value, Handle<String> class_name)
-      : HUnaryControlInstruction(value, NULL, NULL),
-        class_name_(class_name) { }
+      : HUnaryControlInstruction(value, NULL, NULL), class_name_(class_name) {}
 
   Handle<String> class_name_;
 };
-
 
 class HTypeofIsAndBranch final : public HUnaryControlInstruction {
  public:

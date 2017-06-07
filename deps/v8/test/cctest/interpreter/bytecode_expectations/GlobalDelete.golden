@@ -71,9 +71,9 @@ parameter count: 1
 bytecode array length: 16
 bytecodes: [
   /*   32 E> */ B(StackCheck),
-  /*   39 S> */ B(LdaCurrentContextSlot), U8(3),
+  /*   39 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star), R(0),
-                B(LdaContextSlot), R(0), U8(2), U8(0),
+                B(LdaImmutableContextSlot), R(0), U8(2), U8(0),
                 B(Star), R(1),
                 B(LdaConstant), U8(0),
                 B(DeletePropertySloppy), R(1),
@@ -98,9 +98,9 @@ parameter count: 1
 bytecode array length: 16
 bytecodes: [
   /*   18 E> */ B(StackCheck),
-  /*   25 S> */ B(LdaCurrentContextSlot), U8(3),
+  /*   25 S> */ B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star), R(0),
-                B(LdaContextSlot), R(0), U8(2), U8(0),
+                B(LdaImmutableContextSlot), R(0), U8(2), U8(0),
                 B(Star), R(1),
                 B(LdaConstant), U8(0),
                 B(DeletePropertySloppy), R(1),

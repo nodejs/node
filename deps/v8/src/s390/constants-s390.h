@@ -963,7 +963,9 @@ typedef uint64_t SixByteInstr;
   V(ley, LEY, 0xED64)     /* type = RXY_A LOAD (short)  */                     \
   V(ldy, LDY, 0xED65)     /* type = RXY_A LOAD (long)  */                      \
   V(stey, STEY, 0xED66)   /* type = RXY_A STORE (short)  */                    \
-  V(stdy, STDY, 0xED67)   /* type = RXY_A STORE (long)  */
+  V(stdy, STDY, 0xED67)   /* type = RXY_A STORE (long)  */                     \
+  V(msc, MSC, 0xE353)     /* type = RSY_A MULTIPLY SINGLE (32)  */             \
+  V(msgc, MSGC, 0xE383)   /* type = RSY_A MULTIPLY SINGLE (64)  */
 
 #define S390_RXY_B_OPCODE_LIST(V) \
   V(pfd, PFD, 0xE336) /* type = RXY_B PREFETCH DATA  */
@@ -1715,7 +1717,7 @@ enum Opcode {
 #undef DECLARE_OPCODES
 
       BKPT = 0x0001,  // GDB Software Breakpoint
-  DUMY = 0xE353       // Special dummy opcode
+  DUMY = 0xE352       // Special dummy opcode
 };
 
 // Instruction encoding bits and masks.

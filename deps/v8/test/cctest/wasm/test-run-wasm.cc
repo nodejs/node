@@ -346,7 +346,7 @@ WASM_EXEC_TEST(I32Sar) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(Int32DivS_trap) {
+WASM_EXEC_TEST(Int32DivS_trap) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   const int32_t kMin = std::numeric_limits<int32_t>::min();
@@ -357,7 +357,7 @@ WASM_EXEC_TEST_WITH_TRAP(Int32DivS_trap) {
   CHECK_TRAP(r.Call(kMin, 0));
 }
 
-WASM_EXEC_TEST_WITH_TRAP(Int32RemS_trap) {
+WASM_EXEC_TEST(Int32RemS_trap) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_I32_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   const int32_t kMin = std::numeric_limits<int32_t>::min();
@@ -368,7 +368,7 @@ WASM_EXEC_TEST_WITH_TRAP(Int32RemS_trap) {
   CHECK_TRAP(r.Call(kMin, 0));
 }
 
-WASM_EXEC_TEST_WITH_TRAP(Int32DivU_trap) {
+WASM_EXEC_TEST(Int32DivU_trap) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_I32_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   const int32_t kMin = std::numeric_limits<int32_t>::min();
@@ -379,7 +379,7 @@ WASM_EXEC_TEST_WITH_TRAP(Int32DivU_trap) {
   CHECK_TRAP(r.Call(kMin, 0));
 }
 
-WASM_EXEC_TEST_WITH_TRAP(Int32RemU_trap) {
+WASM_EXEC_TEST(Int32RemU_trap) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_I32_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   CHECK_EQ(17, r.Call(217, 100));
@@ -390,7 +390,7 @@ WASM_EXEC_TEST_WITH_TRAP(Int32RemU_trap) {
   CHECK_EQ(kMin, r.Call(kMin, -1));
 }
 
-WASM_EXEC_TEST_WITH_TRAP(Int32DivS_byzero_const) {
+WASM_EXEC_TEST(Int32DivS_byzero_const) {
   for (int8_t denom = -2; denom < 8; ++denom) {
     WasmRunner<int32_t, int32_t> r(execution_mode);
     BUILD(r, WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_I32V_1(denom)));
@@ -438,7 +438,7 @@ WASM_EXEC_TEST(Int32AsmjsRemS_byzero_const) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(Int32DivU_byzero_const) {
+WASM_EXEC_TEST(Int32DivU_byzero_const) {
   for (uint32_t denom = 0xfffffffe; denom < 8; ++denom) {
     WasmRunner<uint32_t, uint32_t> r(execution_mode);
     BUILD(r, WASM_I32_DIVU(WASM_GET_LOCAL(0), WASM_I32V_1(denom)));
@@ -453,7 +453,7 @@ WASM_EXEC_TEST_WITH_TRAP(Int32DivU_byzero_const) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(Int32DivS_trap_effect) {
+WASM_EXEC_TEST(Int32DivS_trap_effect) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
   r.module().AddMemoryElems<int32_t>(8);
 
@@ -1018,6 +1018,20 @@ WASM_EXEC_TEST(BrTable4_fallthru) {
   CHECK_EQ(108, r.Call(4, 100));
 }
 
+WASM_EXEC_TEST(BrTable_loop_target) {
+  byte code[] = {
+      WASM_LOOP_I(
+          WASM_BLOCK(
+              WASM_BR_TABLE(WASM_GET_LOCAL(0), 2,
+                  BR_TARGET(0), BR_TARGET(1), BR_TARGET(1))),
+          WASM_ONE)};
+
+  WasmRunner<int32_t, int32_t> r(execution_mode);
+  r.Build(code, code + arraysize(code));
+
+  CHECK_EQ(1, r.Call(0));
+}
+
 WASM_EXEC_TEST(F32ReinterpretI32) {
   WasmRunner<int32_t> r(execution_mode);
   int32_t* memory = r.module().AddMemoryElems<int32_t>(8);
@@ -1062,7 +1076,9 @@ WASM_EXEC_TEST(SignallingNanSurvivesI32ReinterpretF32) {
 
 #endif
 
-WASM_EXEC_TEST_WITH_TRAP(LoadMaxUint32Offset) {
+WASM_EXEC_TEST(LoadMaxUint32Offset) {
+  // TODO(eholk): Fix this test for the trap handler.
+  if (trap_handler::UseTrapHandler()) return;
   WasmRunner<int32_t> r(execution_mode);
   r.module().AddMemoryElems<int32_t>(8);
 
@@ -1088,6 +1104,54 @@ WASM_EXEC_TEST(LoadStoreLoad) {
     r.module().WriteMemory(&memory[0], expected);
     CHECK_EQ(expected, r.Call());
   }
+}
+
+WASM_EXEC_TEST(UnalignedFloat32Load) {
+  WasmRunner<float> r(execution_mode);
+  r.module().AddMemoryElems<float>(8);
+  BUILD(r, WASM_LOAD_MEM_ALIGNMENT(MachineType::Float32(), WASM_ONE, 2));
+  r.Call();
+}
+
+WASM_EXEC_TEST(UnalignedFloat64Load) {
+  WasmRunner<double> r(execution_mode);
+  r.module().AddMemoryElems<double>(8);
+  BUILD(r, WASM_LOAD_MEM_ALIGNMENT(MachineType::Float64(), WASM_ONE, 3));
+  r.Call();
+}
+
+WASM_EXEC_TEST(UnalignedInt32Load) {
+  WasmRunner<uint32_t> r(execution_mode);
+  r.module().AddMemoryElems<uint32_t>(8);
+  BUILD(r, WASM_LOAD_MEM_ALIGNMENT(MachineType::Int32(), WASM_ONE, 2));
+  r.Call();
+}
+
+WASM_EXEC_TEST(UnalignedInt32Store) {
+  WasmRunner<int32_t> r(execution_mode);
+  r.module().AddMemoryElems<uint32_t>(8);
+  BUILD(r, WASM_SEQ(WASM_STORE_MEM_ALIGNMENT(MachineType::Int32(), WASM_ONE, 2,
+                                             WASM_I32V_1(1)),
+                    WASM_I32V_1(12)));
+  r.Call();
+}
+
+WASM_EXEC_TEST(UnalignedFloat32Store) {
+  WasmRunner<int32_t> r(execution_mode);
+  r.module().AddMemoryElems<float>(8);
+  BUILD(r, WASM_SEQ(WASM_STORE_MEM_ALIGNMENT(MachineType::Float32(), WASM_ONE,
+                                             2, WASM_F32(1.0)),
+                    WASM_I32V_1(12)));
+  r.Call();
+}
+
+WASM_EXEC_TEST(UnalignedFloat64Store) {
+  WasmRunner<int32_t> r(execution_mode);
+  r.module().AddMemoryElems<double>(8);
+  BUILD(r, WASM_SEQ(WASM_STORE_MEM_ALIGNMENT(MachineType::Float64(), WASM_ONE,
+                                             3, WASM_F64(1.0)),
+                    WASM_I32V_1(12)));
+  r.Call();
 }
 
 WASM_EXEC_TEST(VoidReturn1) {
@@ -1455,7 +1519,9 @@ WASM_EXEC_TEST(LoadMemI32_alignment) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(LoadMemI32_oob) {
+WASM_EXEC_TEST(LoadMemI32_oob) {
+  // TODO(eholk): Fix this test for the trap handler.
+  if (trap_handler::UseTrapHandler()) return;
   WasmRunner<int32_t, uint32_t> r(execution_mode);
   int32_t* memory = r.module().AddMemoryElems<int32_t>(8);
   r.module().RandomizeMemory(1111);
@@ -1473,7 +1539,9 @@ WASM_EXEC_TEST_WITH_TRAP(LoadMemI32_oob) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(LoadMem_offset_oob) {
+WASM_EXEC_TEST(LoadMem_offset_oob) {
+  // TODO(eholk): Fix this test for the trap handler.
+  if (trap_handler::UseTrapHandler()) return;
   static const MachineType machineTypes[] = {
       MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
       MachineType::Uint16(), MachineType::Int32(),  MachineType::Uint32(),
@@ -1522,7 +1590,9 @@ WASM_EXEC_TEST(LoadMemI32_offset) {
   CHECK_EQ(44444444, r.Call(8));
 }
 
-WASM_EXEC_TEST_WITH_TRAP(LoadMemI32_const_oob_misaligned) {
+WASM_EXEC_TEST(LoadMemI32_const_oob_misaligned) {
+  // TODO(eholk): Fix this test for the trap handler.
+  if (trap_handler::UseTrapHandler()) return;
   const int kMemSize = 12;
   // TODO(titzer): Fix misaligned accesses on MIPS and re-enable.
   for (int offset = 0; offset < kMemSize + 5; ++offset) {
@@ -1543,7 +1613,9 @@ WASM_EXEC_TEST_WITH_TRAP(LoadMemI32_const_oob_misaligned) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(LoadMemI32_const_oob) {
+WASM_EXEC_TEST(LoadMemI32_const_oob) {
+  // TODO(eholk): Fix this test for the trap handler.
+  if (trap_handler::UseTrapHandler()) return;
   const int kMemSize = 24;
   for (int offset = 0; offset < kMemSize + 5; offset += 4) {
     for (int index = 0; index < kMemSize + 5; index += 4) {
@@ -1603,7 +1675,9 @@ WASM_EXEC_TEST(StoreMemI32_offset) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(StoreMem_offset_oob) {
+WASM_EXEC_TEST(StoreMem_offset_oob) {
+  // TODO(eholk): Fix this test for the trap handler.
+  if (trap_handler::UseTrapHandler()) return;
   // 64-bit cases are handled in test-run-wasm-64.cc
   static const MachineType machineTypes[] = {
       MachineType::Int8(),    MachineType::Uint8(),  MachineType::Int16(),
@@ -2526,7 +2600,7 @@ WASM_EXEC_TEST(ExprBlock_nested_ifs) {
   CHECK_EQ(14, r.Call(0, 0));
 }
 
-WASM_EXEC_TEST_WITH_TRAP(SimpleCallIndirect) {
+WASM_EXEC_TEST(SimpleCallIndirect) {
   TestSignatures sigs;
   WasmRunner<int32_t, int32_t> r(execution_mode);
 
@@ -2560,7 +2634,7 @@ WASM_EXEC_TEST_WITH_TRAP(SimpleCallIndirect) {
   CHECK_TRAP(r.Call(2));
 }
 
-WASM_EXEC_TEST_WITH_TRAP(MultipleCallIndirect) {
+WASM_EXEC_TEST(MultipleCallIndirect) {
   TestSignatures sigs;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(execution_mode);
 
@@ -2603,7 +2677,7 @@ WASM_EXEC_TEST_WITH_TRAP(MultipleCallIndirect) {
   CHECK_TRAP(r.Call(2, 1, 0));
 }
 
-WASM_EXEC_TEST_WITH_TRAP(CallIndirect_EmptyTable) {
+WASM_EXEC_TEST(CallIndirect_EmptyTable) {
   TestSignatures sigs;
   WasmRunner<int32_t, int32_t> r(execution_mode);
 
@@ -2626,7 +2700,7 @@ WASM_EXEC_TEST_WITH_TRAP(CallIndirect_EmptyTable) {
   CHECK_TRAP(r.Call(2));
 }
 
-WASM_EXEC_TEST_WITH_TRAP(CallIndirect_canonical) {
+WASM_EXEC_TEST(CallIndirect_canonical) {
   TestSignatures sigs;
   WasmRunner<int32_t, int32_t> r(execution_mode);
 
@@ -2764,7 +2838,7 @@ WASM_EXEC_TEST(F64Max) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I32SConvertF32) {
+WASM_EXEC_TEST(I32SConvertF32) {
   WasmRunner<int32_t, float> r(execution_mode);
   BUILD(r, WASM_I32_SCONVERT_F32(WASM_GET_LOCAL(0)));
 
@@ -2784,7 +2858,7 @@ WASM_EXEC_TEST_WITH_TRAP(I32SConvertF32) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I32SConvertF64) {
+WASM_EXEC_TEST(I32SConvertF64) {
   WasmRunner<int32_t, double> r(execution_mode);
   BUILD(r, WASM_I32_SCONVERT_F64(WASM_GET_LOCAL(0)));
 
@@ -2803,7 +2877,7 @@ WASM_EXEC_TEST_WITH_TRAP(I32SConvertF64) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I32UConvertF32) {
+WASM_EXEC_TEST(I32UConvertF32) {
   WasmRunner<uint32_t, float> r(execution_mode);
   BUILD(r, WASM_I32_UCONVERT_F32(WASM_GET_LOCAL(0)));
   // The upper bound is (UINT32_MAX + 1), which is the lowest
@@ -2820,7 +2894,7 @@ WASM_EXEC_TEST_WITH_TRAP(I32UConvertF32) {
   }
 }
 
-WASM_EXEC_TEST_WITH_TRAP(I32UConvertF64) {
+WASM_EXEC_TEST(I32UConvertF64) {
   WasmRunner<uint32_t, double> r(execution_mode);
   BUILD(r, WASM_I32_UCONVERT_F64(WASM_GET_LOCAL(0)));
   // The upper bound is (UINT32_MAX + 1), which is the lowest
@@ -2886,7 +2960,7 @@ TEST(Compile_Wasm_CallIndirect_Many_f32) { CompileCallIndirectMany(kWasmF32); }
 
 TEST(Compile_Wasm_CallIndirect_Many_f64) { CompileCallIndirectMany(kWasmF64); }
 
-WASM_EXEC_TEST_WITH_TRAP(Int32RemS_dead) {
+WASM_EXEC_TEST(Int32RemS_dead) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_I32_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)), WASM_DROP,
         WASM_ZERO);

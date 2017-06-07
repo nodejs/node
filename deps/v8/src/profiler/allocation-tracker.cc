@@ -302,8 +302,7 @@ AllocationTracker::UnresolvedLocation::UnresolvedLocation(
     Script* script, int start, FunctionInfo* info)
     : start_position_(start),
       info_(info) {
-  script_ = Handle<Script>::cast(
-      script->GetIsolate()->global_handles()->Create(script));
+  script_ = script->GetIsolate()->global_handles()->Create(script);
   GlobalHandles::MakeWeak(reinterpret_cast<Object**>(script_.location()), this,
                           &HandleWeakScript, v8::WeakCallbackType::kParameter);
 }

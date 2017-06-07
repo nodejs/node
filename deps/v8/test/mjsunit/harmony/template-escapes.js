@@ -783,3 +783,90 @@ check({
     1
   ]
 })`left${0}\u{110000}${1}right`;
+
+
+
+function checkMultiple(expectedArray) {
+  let results = [];
+  return function consume(strs, ...args) {
+    if (typeof strs === 'undefined') {
+      assertArrayEquals(expectedArray, results);
+    } else {
+      results.push({cooked: strs, raw: strs.raw, exprs: args});
+      return consume;
+    }
+  };
+}
+
+
+checkMultiple([{
+  'cooked': [
+    undefined
+  ],
+  'raw': [
+    '\\u',
+  ],
+  'exprs': []
+}, {
+  'cooked': [
+    undefined
+  ],
+  'raw': [
+    '\\u',
+  ],
+  'exprs': []
+}])`\u``\u`();
+
+checkMultiple([{
+  'cooked': [
+    ' '
+  ],
+  'raw': [
+    ' ',
+  ],
+  'exprs': []
+}, {
+  'cooked': [
+    undefined
+  ],
+  'raw': [
+    '\\u',
+  ],
+  'exprs': []
+}])` ``\u`();
+
+checkMultiple([{
+  'cooked': [
+    undefined
+  ],
+  'raw': [
+    '\\u',
+  ],
+  'exprs': []
+}, {
+  'cooked': [
+    ' '
+  ],
+  'raw': [
+    ' ',
+  ],
+  'exprs': []
+}])`\u`` `();
+
+checkMultiple([{
+  'cooked': [
+    ' '
+  ],
+  'raw': [
+    ' ',
+  ],
+  'exprs': []
+}, {
+  'cooked': [
+    ' '
+  ],
+  'raw': [
+    ' ',
+  ],
+  'exprs': []
+}])` `` `();

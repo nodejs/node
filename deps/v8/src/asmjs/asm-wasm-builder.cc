@@ -91,6 +91,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     FunctionSig::Builder b(zone(), 0, 0);
     init_function_ = builder_->AddFunction(b.Build());
     builder_->MarkStartFunction(init_function_);
+    // Record start of the function, used as position for the stack check.
+    init_function_->SetAsmFunctionStartPosition(literal_->start_position());
   }
 
   void BuildForeignInitFunction() {
@@ -170,7 +172,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       new_func_scope = new (info->zone()) DeclarationScope(
           info->zone(), decl->fun()->scope()->outer_scope(), FUNCTION_SCOPE);
       info->set_asm_function_scope(new_func_scope);
-      if (!Compiler::ParseAndAnalyze(info.get())) {
+      if (!Compiler::ParseAndAnalyze(info.get(), info_->isolate())) {
         decl->fun()->scope()->outer_scope()->RemoveInnerScope(new_func_scope);
         if (isolate_->has_pending_exception()) {
           isolate_->clear_pending_exception();
@@ -224,6 +226,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       RECURSE(Visit(stmt));
       if (typer_failed_) break;
+      // Not stopping when a jump statement is found.
     }
   }
 
@@ -299,6 +302,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   void VisitEmptyParentheses(EmptyParentheses* paren) { UNREACHABLE(); }
 
   void VisitGetIterator(GetIterator* expr) { UNREACHABLE(); }
+
+  void VisitImportCallExpression(ImportCallExpression* expr) { UNREACHABLE(); }
 
   void VisitIfStatement(IfStatement* stmt) {
     DCHECK_EQ(kFuncScope, scope_);
@@ -1066,7 +1071,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (as_init) UnLoadInitFunction();
   }
 
-  void VisitYield(Yield* expr) { UNREACHABLE(); }
+  void VisitSuspend(Suspend* expr) { UNREACHABLE(); }
 
   void VisitThrow(Throw* expr) { UNREACHABLE(); }
 
@@ -2001,6 +2006,9 @@ AsmWasmBuilder::Result AsmWasmBuilder::Run(Handle<FixedArray>* foreign_args) {
                           info_->parse_info()->ast_value_factory(),
                           info_->script(), info_->literal(), &typer_);
   bool success = impl.Build();
+  if (!success) {
+    return {nullptr, nullptr, success};
+  }
   *foreign_args = impl.GetForeignArgs();
   ZoneBuffer* module_buffer = new (zone) ZoneBuffer(zone);
   impl.builder_->WriteTo(*module_buffer);

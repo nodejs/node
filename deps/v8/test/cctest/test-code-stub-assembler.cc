@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cmath>
+
 #include "src/api.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/builtins/builtins-promise.h"
+#include "src/builtins/builtins-promise-gen.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/compiler/node.h"
@@ -23,6 +25,109 @@ using compiler::Node;
 using compiler::CodeAssemblerLabel;
 using compiler::CodeAssemblerVariable;
 using compiler::CodeAssemblerVariableList;
+
+namespace {
+
+void CheckToUint32Result(uint32_t expected, Handle<Object> result) {
+  const int64_t result_int64 = NumberToInt64(*result);
+  const uint32_t result_uint32 = NumberToUint32(*result);
+
+  CHECK_EQ(static_cast<int64_t>(result_uint32), result_int64);
+  CHECK_EQ(expected, result_uint32);
+
+  // Ensure that the result is normalized to a Smi, i.e. a HeapNumber is only
+  // returned if the result is not within Smi range.
+  const bool expected_fits_into_intptr =
+      static_cast<int64_t>(expected) <=
+      static_cast<int64_t>(std::numeric_limits<intptr_t>::max());
+  if (expected_fits_into_intptr &&
+      Smi::IsValid(static_cast<intptr_t>(expected))) {
+    CHECK(result->IsSmi());
+  } else {
+    CHECK(result->IsHeapNumber());
+  }
+}
+
+}  // namespace
+
+TEST(ToUint32) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  Factory* factory = isolate->factory();
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+
+  const int kContextOffset = 2;
+  Node* const context = m.Parameter(kNumParams + kContextOffset);
+  Node* const input = m.Parameter(0);
+  m.Return(m.ToUint32(context, input));
+
+  Handle<Code> code = data.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  // clang-format off
+  double inputs[] = {
+     std::nan("-1"), std::nan("1"), std::nan("2"),
+    -std::numeric_limits<double>::infinity(),
+     std::numeric_limits<double>::infinity(),
+    -0.0, -0.001, -0.5, -0.999, -1.0,
+     0.0,  0.001,  0.5,  0.999,  1.0,
+    -2147483647.9, -2147483648.0, -2147483648.5, -2147483648.9,  // SmiMin.
+     2147483646.9,  2147483647.0,  2147483647.5,  2147483647.9,  // SmiMax.
+    -4294967295.9, -4294967296.0, -4294967296.5, -4294967297.0,  // - 2^32.
+     4294967295.9,  4294967296.0,  4294967296.5,  4294967297.0,  //   2^32.
+  };
+
+  uint32_t expectations[] = {
+     0, 0, 0,
+     0,
+     0,
+     0, 0, 0, 0, 4294967295,
+     0, 0, 0, 0, 1,
+     2147483649, 2147483648, 2147483648, 2147483648,
+     2147483646, 2147483647, 2147483647, 2147483647,
+     1, 0, 0, 4294967295,
+     4294967295, 0, 0, 1,
+  };
+  // clang-format on
+
+  STATIC_ASSERT(arraysize(inputs) == arraysize(expectations));
+
+  const int test_count = arraysize(inputs);
+  for (int i = 0; i < test_count; i++) {
+    Handle<Object> input_obj = factory->NewNumber(inputs[i]);
+    Handle<HeapNumber> input_num;
+
+    // Check with Smi input.
+    if (input_obj->IsSmi()) {
+      Handle<Smi> input_smi = Handle<Smi>::cast(input_obj);
+      Handle<Object> result = ft.Call(input_smi).ToHandleChecked();
+      CheckToUint32Result(expectations[i], result);
+      input_num = factory->NewHeapNumber(inputs[i]);
+    } else {
+      input_num = Handle<HeapNumber>::cast(input_obj);
+    }
+
+    // Check with HeapNumber input.
+    {
+      CHECK(input_num->IsHeapNumber());
+      Handle<Object> result = ft.Call(input_num).ToHandleChecked();
+      CheckToUint32Result(expectations[i], result);
+    }
+  }
+
+  // A couple of final cases for ToNumber conversions.
+  CheckToUint32Result(0, ft.Call(factory->undefined_value()).ToHandleChecked());
+  CheckToUint32Result(0, ft.Call(factory->null_value()).ToHandleChecked());
+  CheckToUint32Result(0, ft.Call(factory->false_value()).ToHandleChecked());
+  CheckToUint32Result(1, ft.Call(factory->true_value()).ToHandleChecked());
+  CheckToUint32Result(
+      42,
+      ft.Call(factory->NewStringFromAsciiChecked("0x2A")).ToHandleChecked());
+
+  ft.CheckThrows(factory->match_symbol());
+}
 
 TEST(FixedArrayAccessSmiIndex) {
   Isolate* isolate(CcTest::InitIsolateOnce());
@@ -1027,23 +1132,27 @@ TEST(TryLookupElement) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  enum Result { kFound, kNotFound, kBailout };
+  enum Result { kFound, kAbsent, kNotFound, kBailout };
   {
     Node* object = m.Parameter(0);
     Node* index = m.SmiUntag(m.Parameter(1));
     Node* expected_result = m.Parameter(2);
 
     Label passed(&m), failed(&m);
-    Label if_found(&m), if_not_found(&m), if_bailout(&m);
+    Label if_found(&m), if_not_found(&m), if_bailout(&m), if_absent(&m);
 
     Node* map = m.LoadMap(object);
     Node* instance_type = m.LoadMapInstanceType(map);
 
-    m.TryLookupElement(object, map, instance_type, index, &if_found,
+    m.TryLookupElement(object, map, instance_type, index, &if_found, &if_absent,
                        &if_not_found, &if_bailout);
 
     m.Bind(&if_found);
     m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
+             &passed, &failed);
+
+    m.Bind(&if_absent);
+    m.Branch(m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kAbsent))),
              &passed, &failed);
 
     m.Bind(&if_not_found);
@@ -1074,6 +1183,7 @@ TEST(TryLookupElement) {
   Handle<Object> smi42(Smi::FromInt(42), isolate);
 
   Handle<Object> expect_found(Smi::FromInt(kFound), isolate);
+  Handle<Object> expect_absent(Smi::FromInt(kAbsent), isolate);
   Handle<Object> expect_not_found(Smi::FromInt(kNotFound), isolate);
   Handle<Object> expect_bailout(Smi::FromInt(kBailout), isolate);
 
@@ -1084,6 +1194,17 @@ TEST(TryLookupElement) {
 #define CHECK_NOT_FOUND(object, index)                      \
   CHECK(!JSReceiver::HasElement(object, index).FromJust()); \
   ft.CheckTrue(object, smi##index, expect_not_found);
+
+#define CHECK_ABSENT(object, index)                                        \
+  {                                                                        \
+    bool success;                                                          \
+    Handle<Smi> smi(Smi::FromInt(index), isolate);                         \
+    LookupIterator it =                                                    \
+        LookupIterator::PropertyOrElement(isolate, object, smi, &success); \
+    CHECK(success);                                                        \
+    CHECK(!JSReceiver::HasProperty(&it).FromJust());                       \
+    ft.CheckTrue(object, smi, expect_absent);                              \
+  }
 
   {
     Handle<JSArray> object = factory->NewJSArray(0, FAST_SMI_ELEMENTS);
@@ -1135,6 +1256,30 @@ TEST(TryLookupElement) {
     CHECK_NOT_FOUND(object, 7);
     CHECK_FOUND(object, 13);
     CHECK_NOT_FOUND(object, 42);
+  }
+
+  {
+    Handle<JSTypedArray> object = factory->NewJSTypedArray(INT32_ELEMENTS, 2);
+    Local<v8::ArrayBuffer> buffer = Utils::ToLocal(object->GetBuffer());
+
+    CHECK_EQ(INT32_ELEMENTS, object->map()->elements_kind());
+
+    CHECK_FOUND(object, 0);
+    CHECK_FOUND(object, 1);
+    CHECK_ABSENT(object, -10);
+    CHECK_ABSENT(object, 13);
+    CHECK_ABSENT(object, 42);
+
+    v8::ArrayBuffer::Contents contents = buffer->Externalize();
+    buffer->Neuter();
+    isolate->array_buffer_allocator()->Free(contents.Data(),
+                                            contents.ByteLength());
+
+    CHECK_ABSENT(object, 0);
+    CHECK_ABSENT(object, 1);
+    CHECK_ABSENT(object, -10);
+    CHECK_ABSENT(object, 13);
+    CHECK_ABSENT(object, 42);
   }
 
   {
@@ -1862,10 +2007,8 @@ TEST(AllocatePromiseResolveThenableJobInfo) {
   Node* const context = p.Parameter(kNumParams + 2);
   Node* const native_context = p.LoadNativeContext(context);
   Node* const thenable = p.AllocateAndInitJSPromise(context);
-  Node* const then_str = p.HeapConstant(isolate->factory()->then_string());
-  Callable getproperty_callable = CodeFactory::GetProperty(isolate);
   Node* const then =
-      p.CallStub(getproperty_callable, context, thenable, then_str);
+      p.GetProperty(context, thenable, isolate->factory()->then_string());
   Node* resolve = nullptr;
   Node* reject = nullptr;
   std::tie(resolve, reject) = p.CreatePromiseResolvingFunctions(

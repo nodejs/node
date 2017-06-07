@@ -13,6 +13,7 @@
 namespace {
 
 const int kTaskRunnerIndex = 2;
+const int kContextGroupIdIndex = 3;
 
 void ReportUncaughtException(v8::Isolate* isolate,
                              const v8::TryCatch& try_catch) {
@@ -46,7 +47,7 @@ TaskRunner::TaskRunner(v8::ExtensionConfiguration* extensions,
 
 TaskRunner::~TaskRunner() { Join(); }
 
-void TaskRunner::InitializeContext() {
+void TaskRunner::InitializeIsolate() {
   v8::Isolate::CreateParams params;
   params.array_buffer_allocator =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
@@ -54,19 +55,37 @@ void TaskRunner::InitializeContext() {
   isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
+  NewContextGroup();
+  if (ready_semaphore_) ready_semaphore_->Signal();
+}
 
+v8::Local<v8::Context> TaskRunner::NewContextGroup() {
   v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate_);
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_, extensions_, global_template);
   context->SetAlignedPointerInEmbedderData(kTaskRunnerIndex, this);
-  context_.Reset(isolate_, context);
+  intptr_t context_group_id = ++last_context_group_id_;
+  // Should be 2-byte aligned.
+  context->SetAlignedPointerInEmbedderData(
+      kContextGroupIdIndex, reinterpret_cast<void*>(context_group_id * 2));
+  contexts_[context_group_id].Reset(isolate_, context);
+  return context;
+}
 
-  if (ready_semaphore_) ready_semaphore_->Signal();
+v8::Local<v8::Context> TaskRunner::GetContext(int context_group_id) {
+  return contexts_[context_group_id].Get(isolate_);
+}
+
+int TaskRunner::GetContextGroupId(v8::Local<v8::Context> context) {
+  return static_cast<int>(
+      reinterpret_cast<intptr_t>(
+          context->GetAlignedPointerFromEmbedderData(kContextGroupIdIndex)) /
+      2);
 }
 
 void TaskRunner::Run() {
-  InitializeContext();
+  InitializeIsolate();
   RunMessageLoop(false);
 }
 
@@ -78,7 +97,7 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
     v8::Isolate::Scope isolate_scope(isolate_);
     if (catch_exceptions_) {
       v8::TryCatch try_catch(isolate_);
-      task->Run(isolate_, context_);
+      task->Run(isolate_, contexts_.begin()->second);
       delete task;
       if (try_catch.HasCaught()) {
         ReportUncaughtException(isolate_, try_catch);
@@ -87,7 +106,7 @@ void TaskRunner::RunMessageLoop(bool only_protocol) {
         _exit(0);
       }
     } else {
-      task->Run(isolate_, context_);
+      task->Run(isolate_, contexts_.begin()->second);
       delete task;
     }
   }
@@ -223,11 +242,7 @@ void ExecuteStringTask::AsyncRun(v8::Isolate* isolate,
              .ToLocal(&script))
       return;
     v8::MaybeLocal<v8::Value> result;
-    if (inspector_)
-      inspector_->willExecuteScript(local_context,
-                                    script->GetUnboundScript()->GetId());
     result = script->Run(local_context);
-    if (inspector_) inspector_->didExecuteScript(local_context);
   } else {
     v8::Local<v8::Module> module;
     if (!v8::ScriptCompiler::CompileModule(isolate, &scriptSource)

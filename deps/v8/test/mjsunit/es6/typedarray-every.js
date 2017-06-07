@@ -98,6 +98,20 @@ function TestTypedArrayForEach(constructor) {
   CheckTypedArrayIsNeutered(a);
   assertEquals(undefined, a[0]);
 
+  // Calling array.buffer midway can change the backing store.
+  a = new constructor(5);
+  a[0] = 42;
+  result = a.every(function (n, index, array) {
+    assertSame(a, array);
+    if (index == 2) {
+      (new constructor(array.buffer))[(index + 1) % 5] = 42;
+    } else {
+      a[(index+1)%5] = 42
+    }
+    return n == 42;
+  });
+  assertEquals(true, result);
+
   // The method must work for typed arrays created from ArrayBuffer.
   // The length of the ArrayBuffer is chosen so it is a multiple of
   // all lengths of the typed array items.

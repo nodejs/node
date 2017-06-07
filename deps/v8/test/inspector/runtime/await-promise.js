@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 // Flags: --expose_gc
 
-print("Tests that Runtime.awaitPromise works.");
+InspectorTest.log("Tests that Runtime.awaitPromise works.");
 
 InspectorTest.addScript(
 `

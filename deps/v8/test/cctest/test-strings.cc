@@ -180,8 +180,9 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x80);
         }
-        building_blocks[i] = factory->NewStringFromAscii(
-            Vector<const char>(buf, len)).ToHandleChecked();
+        building_blocks[i] =
+            factory->NewStringFromOneByte(OneByteVector(buf, len))
+                .ToHandleChecked();
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -1114,16 +1115,9 @@ TEST(CachedHashOverflow) {
   v8::HandleScope handle_scope(CcTest::isolate());
   // Lines must be executed sequentially. Combining them into one script
   // makes the bug go away.
-  const char* lines[] = {
-      "var x = [];",
-      "x[4] = 42;",
-      "var s = \"1073741828\";",
-      "x[s];",
-      "x[s] = 37;",
-      "x[4];",
-      "x[s];",
-      NULL
-  };
+  const char* lines[] = {"var x = [];", "x[4] = 42;", "var s = \"1073741828\";",
+                         "x[s];",       "x[s] = 37;", "x[4];",
+                         "x[s];"};
 
   Handle<Smi> fortytwo(Smi::FromInt(42), isolate);
   Handle<Smi> thirtyseven(Smi::FromInt(37), isolate);
@@ -1136,9 +1130,9 @@ TEST(CachedHashOverflow) {
                                thirtyseven  // Bug yielded 42 here.
   };
 
-  const char* line;
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-  for (int i = 0; (line = lines[i]); i++) {
+  for (size_t i = 0; i < arraysize(lines); i++) {
+    const char* line = lines[i];
     printf("%s\n", line);
     v8::Local<v8::Value> result =
         v8::Script::Compile(context,
@@ -1592,7 +1586,6 @@ TEST(InvalidExternalString) {
     dummy.Dispose();                                                           \
   }
 
-INVALID_STRING_TEST(NewStringFromAscii, char)
 INVALID_STRING_TEST(NewStringFromUtf8, char)
 INVALID_STRING_TEST(NewStringFromOneByte, uint8_t)
 
