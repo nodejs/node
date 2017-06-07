@@ -5,9 +5,11 @@
 #ifndef V8_WASM_RESULT_H_
 #define V8_WASM_RESULT_H_
 
+#include <cstdarg>
 #include <memory>
 
 #include "src/base/compiler-specific.h"
+#include "src/utils.h"
 
 #include "src/handles.h"
 #include "src/globals.h"
@@ -19,71 +21,74 @@ class Isolate;
 
 namespace wasm {
 
-// Error codes for programmatic checking of the decoder's verification.
-enum ErrorCode {
-  kSuccess,
-  kError,  // TODO(titzer): introduce real error codes
-};
-
 // The overall result of decoding a function or a module.
 template <typename T>
-struct Result {
-  Result() : val(), error_code(kSuccess), start(nullptr), error_pc(nullptr) {}
-  Result(Result&& other) { *this = std::move(other); }
-  Result& operator=(Result&& other) {
-    MoveFrom(other);
-    val = other.val;
-    return *this;
-  }
+class Result {
+ public:
+  Result() = default;
 
-  T val;
-  ErrorCode error_code;
-  const byte* start;
-  const byte* error_pc;
-  const byte* error_pt;
-  std::unique_ptr<char[]> error_msg;
+  template <typename S>
+  explicit Result(S&& value) : val(value) {}
 
-  bool ok() const { return error_code == kSuccess; }
-  bool failed() const { return error_code != kSuccess; }
+  template <typename S>
+  Result(Result<S>&& other)
+      : val(std::move(other.val)),
+        error_offset(other.error_offset),
+        error_msg(std::move(other.error_msg)) {}
+
+  Result& operator=(Result&& other) = default;
+
+  T val = T{};
+  uint32_t error_offset = 0;
+  std::string error_msg;
+
+  bool ok() const { return error_msg.empty(); }
+  bool failed() const { return !ok(); }
 
   template <typename V>
-  void MoveFrom(Result<V>& that) {
-    error_code = that.error_code;
-    start = that.start;
-    error_pc = that.error_pc;
-    error_pt = that.error_pt;
-    error_msg = std::move(that.error_msg);
+  void MoveErrorFrom(Result<V>& that) {
+    error_offset = that.error_offset;
+    // Use {swap()} + {clear()} instead of move assign, as {that} might still be
+    // used afterwards.
+    error_msg.swap(that.error_msg);
+    that.error_msg.clear();
+  }
+
+  void PRINTF_FORMAT(2, 3) error(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    verror(format, args);
+    va_end(args);
+  }
+
+  void PRINTF_FORMAT(2, 0) verror(const char* format, va_list args) {
+    size_t len = base::bits::RoundUpToPowerOfTwo32(
+        static_cast<uint32_t>(strlen(format)));
+    // Allocate increasingly large buffers until the message fits.
+    for (;; len *= 2) {
+      DCHECK_GE(kMaxInt, len);
+      error_msg.resize(len);
+      int written =
+          VSNPrintF(Vector<char>(&error_msg.front(), static_cast<int>(len)),
+                    format, args);
+      if (written < 0) continue;              // not enough space.
+      if (written == 0) error_msg = "Error";  // assign default message.
+      return;
+    }
+  }
+
+  static Result<T> PRINTF_FORMAT(1, 2) Error(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    Result<T> result;
+    result.verror(format, args);
+    va_end(args);
+    return result;
   }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Result);
 };
-
-template <typename T>
-std::ostream& operator<<(std::ostream& os, const Result<T>& result) {
-  os << "Result = ";
-  if (result.ok()) {
-    if (result.val != nullptr) {
-      os << *result.val;
-    } else {
-      os << "success (no value)";
-    }
-  } else if (result.error_msg.get() != nullptr) {
-    ptrdiff_t offset = result.error_pc - result.start;
-    if (offset < 0) {
-      os << result.error_msg.get() << " @" << offset;
-    } else {
-      os << result.error_msg.get() << " @+" << offset;
-    }
-  } else {
-    os << result.error_code;
-  }
-  os << std::endl;
-  return os;
-}
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           const ErrorCode& error_code);
 
 // A helper for generating error messages that bubble up to JS exceptions.
 class V8_EXPORT_PRIVATE ErrorThrower {
@@ -100,9 +105,9 @@ class V8_EXPORT_PRIVATE ErrorThrower {
 
   template <typename T>
   void CompileFailed(const char* error, Result<T>& result) {
-    std::ostringstream str;
-    str << error << result;
-    CompileError("%s", str.str().c_str());
+    DCHECK(result.failed());
+    CompileError("%s: %s @+%u", error, result.error_msg.c_str(),
+                 result.error_offset);
   }
 
   i::Handle<i::Object> Reify() {
@@ -122,6 +127,7 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   i::Handle<i::Object> exception_;
   bool wasm_error_ = false;
 };
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

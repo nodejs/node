@@ -77,6 +77,36 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetInputOrDebugPos) {
   return generator->input_or_debug_pos();
 }
 
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorGetAwaitInputOrDebugPos) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSAsyncGeneratorObject, generator, 0);
+
+  return generator->await_input_or_debug_pos();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorResolve) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AsyncGeneratorReject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering
+  UNREACHABLE();
+
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_GeneratorGetResumeMode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

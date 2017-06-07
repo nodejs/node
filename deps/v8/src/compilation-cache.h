@@ -6,7 +6,7 @@
 #define V8_COMPILATION_CACHE_H_
 
 #include "src/allocation.h"
-#include "src/objects.h"
+#include "src/objects/compilation-cache.h"
 
 namespace v8 {
 namespace internal {

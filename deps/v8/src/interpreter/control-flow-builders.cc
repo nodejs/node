@@ -22,12 +22,14 @@ void BreakableControlFlowBuilder::EmitJump(BytecodeLabels* sites) {
   builder()->Jump(sites->New());
 }
 
-void BreakableControlFlowBuilder::EmitJumpIfTrue(BytecodeLabels* sites) {
-  builder()->JumpIfTrue(sites->New());
+void BreakableControlFlowBuilder::EmitJumpIfTrue(
+    BytecodeArrayBuilder::ToBooleanMode mode, BytecodeLabels* sites) {
+  builder()->JumpIfTrue(mode, sites->New());
 }
 
-void BreakableControlFlowBuilder::EmitJumpIfFalse(BytecodeLabels* sites) {
-  builder()->JumpIfFalse(sites->New());
+void BreakableControlFlowBuilder::EmitJumpIfFalse(
+    BytecodeArrayBuilder::ToBooleanMode mode, BytecodeLabels* sites) {
+  builder()->JumpIfFalse(mode, sites->New());
 }
 
 void BreakableControlFlowBuilder::EmitJumpIfUndefined(BytecodeLabels* sites) {
@@ -37,7 +39,6 @@ void BreakableControlFlowBuilder::EmitJumpIfUndefined(BytecodeLabels* sites) {
 void BreakableControlFlowBuilder::EmitJumpIfNull(BytecodeLabels* sites) {
   builder()->JumpIfNull(sites->New());
 }
-
 
 void BlockBuilder::EndBlock() {
   builder()->Bind(&block_end_);

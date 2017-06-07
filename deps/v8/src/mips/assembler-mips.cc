@@ -90,6 +90,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.is_fp64_mode()) supported_ |= 1u << FP64FPU;
 #elif defined(FPU_MODE_FP64)
   supported_ |= 1u << FP64FPU;
+  if (cpu.has_msa()) supported_ |= 1u << MIPS_SIMD;
 #endif
 #if defined(_MIPS_ARCH_MIPS32RX)
   if (cpu.architecture() == 6) {
@@ -210,13 +211,13 @@ uint32_t RelocInfo::wasm_function_table_size_reference() {
 }
 
 void RelocInfo::unchecked_update_wasm_memory_reference(
-    Address address, ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+    Isolate* isolate, Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
 }
 
-void RelocInfo::unchecked_update_wasm_size(uint32_t size,
+void RelocInfo::unchecked_update_wasm_size(Isolate* isolate, uint32_t size,
                                            ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_,
+  Assembler::set_target_address_at(isolate, pc_, host_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
@@ -288,8 +289,8 @@ const Instr kLwSwInstrTypeMask = 0xffe00000;
 const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
+Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
+    : AssemblerBase(isolate_data, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()) {
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
@@ -1167,6 +1168,127 @@ void Assembler::GenInstrJump(Opcode opcode,
   BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
 
+// MSA instructions
+void Assembler::GenInstrMsaI8(SecondaryField operation, uint32_t imm8,
+                              MSARegister ws, MSARegister wd) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(ws.is_valid() && wd.is_valid() && is_uint8(imm8));
+  Instr instr = MSA | operation | ((imm8 & kImm8Mask) << kWtShift) |
+                (ws.code() << kWsShift) | (wd.code() << kWdShift);
+  emit(instr);
+}
+
+void Assembler::GenInstrMsaI5(SecondaryField operation, SecondaryField df,
+                              int32_t imm5, MSARegister ws, MSARegister wd) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(ws.is_valid() && wd.is_valid());
+  DCHECK((operation == MAXI_S) || (operation == MINI_S) ||
+                 (operation == CEQI) || (operation == CLTI_S) ||
+                 (operation == CLEI_S)
+             ? is_int5(imm5)
+             : is_uint5(imm5));
+  Instr instr = MSA | operation | df | ((imm5 & kImm5Mask) << kWtShift) |
+                (ws.code() << kWsShift) | (wd.code() << kWdShift);
+  emit(instr);
+}
+
+void Assembler::GenInstrMsaBit(SecondaryField operation, SecondaryField df,
+                               uint32_t m, MSARegister ws, MSARegister wd) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(ws.is_valid() && wd.is_valid() && is_valid_msa_df_m(df, m));
+  Instr instr = MSA | operation | df | (m << kWtShift) |
+                (ws.code() << kWsShift) | (wd.code() << kWdShift);
+  emit(instr);
+}
+
+void Assembler::GenInstrMsaI10(SecondaryField operation, SecondaryField df,
+                               int32_t imm10, MSARegister wd) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(wd.is_valid() && is_int10(imm10));
+  Instr instr = MSA | operation | df | ((imm10 & kImm10Mask) << kWsShift) |
+                (wd.code() << kWdShift);
+  emit(instr);
+}
+
+template <typename RegType>
+void Assembler::GenInstrMsa3R(SecondaryField operation, SecondaryField df,
+                              RegType t, MSARegister ws, MSARegister wd) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(t.is_valid() && ws.is_valid() && wd.is_valid());
+  Instr instr = MSA | operation | df | (t.code() << kWtShift) |
+                (ws.code() << kWsShift) | (wd.code() << kWdShift);
+  emit(instr);
+}
+
+template <typename DstType, typename SrcType>
+void Assembler::GenInstrMsaElm(SecondaryField operation, SecondaryField df,
+                               uint32_t n, SrcType src, DstType dst) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(src.is_valid() && dst.is_valid() && is_valid_msa_df_n(df, n));
+  Instr instr = MSA | operation | df | (n << kWtShift) |
+                (src.code() << kWsShift) | (dst.code() << kWdShift) |
+                MSA_ELM_MINOR;
+  emit(instr);
+}
+
+void Assembler::GenInstrMsa3RF(SecondaryField operation, uint32_t df,
+                               MSARegister wt, MSARegister ws, MSARegister wd) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(wt.is_valid() && ws.is_valid() && wd.is_valid());
+  DCHECK(df < 2);
+  Instr instr = MSA | operation | (df << 21) | (wt.code() << kWtShift) |
+                (ws.code() << kWsShift) | (wd.code() << kWdShift);
+  emit(instr);
+}
+
+void Assembler::GenInstrMsaVec(SecondaryField operation, MSARegister wt,
+                               MSARegister ws, MSARegister wd) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(wt.is_valid() && ws.is_valid() && wd.is_valid());
+  Instr instr = MSA | operation | (wt.code() << kWtShift) |
+                (ws.code() << kWsShift) | (wd.code() << kWdShift) |
+                MSA_VEC_2R_2RF_MINOR;
+  emit(instr);
+}
+
+void Assembler::GenInstrMsaMI10(SecondaryField operation, int32_t s10,
+                                Register rs, MSARegister wd) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(rs.is_valid() && wd.is_valid() && is_int10(s10));
+  Instr instr = MSA | operation | ((s10 & kImm10Mask) << kWtShift) |
+                (rs.code() << kWsShift) | (wd.code() << kWdShift);
+  emit(instr);
+}
+
+void Assembler::GenInstrMsa2R(SecondaryField operation, SecondaryField df,
+                              MSARegister ws, MSARegister wd) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(ws.is_valid() && wd.is_valid());
+  Instr instr = MSA | MSA_2R_FORMAT | operation | df | (ws.code() << kWsShift) |
+                (wd.code() << kWdShift) | MSA_VEC_2R_2RF_MINOR;
+  emit(instr);
+}
+
+void Assembler::GenInstrMsa2RF(SecondaryField operation, SecondaryField df,
+                               MSARegister ws, MSARegister wd) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(ws.is_valid() && wd.is_valid());
+  Instr instr = MSA | MSA_2RF_FORMAT | operation | df |
+                (ws.code() << kWsShift) | (wd.code() << kWdShift) |
+                MSA_VEC_2R_2RF_MINOR;
+  emit(instr);
+}
+
+void Assembler::GenInstrMsaBranch(SecondaryField operation, MSARegister wt,
+                                  int32_t offset16) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(wt.is_valid() && is_int16(offset16));
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  Instr instr =
+      COP1 | operation | (wt.code() << kWtShift) | (offset16 & kImm16Mask);
+  emit(instr);
+  BlockTrampolinePoolFor(1);  // For associated delay slot.
+}
 
 // Returns the next free trampoline entry.
 int32_t Assembler::get_trampoline_entry(int32_t pos) {
@@ -2019,15 +2141,7 @@ void Assembler::stop(const char* msg, uint32_t code) {
 #if V8_HOST_ARCH_MIPS
   break_(0x54321);
 #else  // V8_HOST_ARCH_MIPS
-  BlockTrampolinePoolFor(2);
-  // The Simulator will handle the stop instruction and get the message address.
-  // On MIPS stop() is just a special kind of break_().
   break_(code, true);
-  // Do not embed the message string address! We used to do this, but that
-  // made snapshots created from position-independent executable builds
-  // non-deterministic.
-  // TODO(yangguo): remove this field entirely.
-  nop();
 #endif
 }
 
@@ -2227,90 +2341,12 @@ void Assembler::lwc1(FPURegister fd, const MemOperand& src) {
 }
 
 
-void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
-  // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
-  // load to two 32-bit loads.
-  if (IsFp32Mode()) {  // fp32 mode.
-    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
-      GenInstrImmediate(LWC1, src.rm(), fd,
-                        src.offset_ + Register::kMantissaOffset);
-      FPURegister nextfpreg;
-      nextfpreg.setcode(fd.code() + 1);
-      GenInstrImmediate(LWC1, src.rm(), nextfpreg,
-                        src.offset_ + Register::kExponentOffset);
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      int32_t off16 = LoadUpperOffsetForTwoMemoryAccesses(src);
-      GenInstrImmediate(LWC1, at, fd, off16 + Register::kMantissaOffset);
-      FPURegister nextfpreg;
-      nextfpreg.setcode(fd.code() + 1);
-      GenInstrImmediate(LWC1, at, nextfpreg, off16 + Register::kExponentOffset);
-    }
-  } else {
-    DCHECK(IsFp64Mode() || IsFpxxMode());
-    // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
-    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
-      GenInstrImmediate(LWC1, src.rm(), fd,
-                        src.offset_ + Register::kMantissaOffset);
-      GenInstrImmediate(LW, src.rm(), at,
-                        src.offset_ + Register::kExponentOffset);
-      mthc1(at, fd);
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      int32_t off16 = LoadUpperOffsetForTwoMemoryAccesses(src);
-      GenInstrImmediate(LWC1, at, fd, off16 + Register::kMantissaOffset);
-      GenInstrImmediate(LW, at, at, off16 + Register::kExponentOffset);
-      mthc1(at, fd);
-    }
-  }
-}
-
-
 void Assembler::swc1(FPURegister fd, const MemOperand& src) {
   if (is_int16(src.offset_)) {
     GenInstrImmediate(SWC1, src.rm(), fd, src.offset_);
   } else {  // Offset > 16 bits, use multiple instructions to load.
     int32_t off16 = LoadRegPlusUpperOffsetPartToAt(src);
     GenInstrImmediate(SWC1, at, fd, off16);
-  }
-}
-
-
-void Assembler::sdc1(FPURegister fd, const MemOperand& src) {
-  // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
-  // store to two 32-bit stores.
-  DCHECK(!src.rm().is(at));
-  DCHECK(!src.rm().is(t8));
-  if (IsFp32Mode()) {  // fp32 mode.
-    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
-      GenInstrImmediate(SWC1, src.rm(), fd,
-                        src.offset_ + Register::kMantissaOffset);
-      FPURegister nextfpreg;
-      nextfpreg.setcode(fd.code() + 1);
-      GenInstrImmediate(SWC1, src.rm(), nextfpreg,
-                        src.offset_ + Register::kExponentOffset);
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      int32_t off16 = LoadUpperOffsetForTwoMemoryAccesses(src);
-      GenInstrImmediate(SWC1, at, fd, off16 + Register::kMantissaOffset);
-      FPURegister nextfpreg;
-      nextfpreg.setcode(fd.code() + 1);
-      GenInstrImmediate(SWC1, at, nextfpreg, off16 + Register::kExponentOffset);
-    }
-  } else {
-    DCHECK(IsFp64Mode() || IsFpxxMode());
-    // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
-    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
-      GenInstrImmediate(SWC1, src.rm(), fd,
-                        src.offset_ + Register::kMantissaOffset);
-      mfhc1(at, fd);
-      GenInstrImmediate(SW, src.rm(), at,
-                        src.offset_ + Register::kExponentOffset);
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      int32_t off16 = LoadUpperOffsetForTwoMemoryAccesses(src);
-      GenInstrImmediate(SWC1, at, fd, off16 + Register::kMantissaOffset);
-      mfhc1(t8, fd);
-      GenInstrImmediate(SW, at, t8, off16 + Register::kExponentOffset);
-    }
   }
 }
 
@@ -2955,6 +2991,505 @@ void Assembler::bc1t(int16_t offset, uint16_t cc) {
   emit(instr);
 }
 
+// ---------- MSA instructions ------------
+#define MSA_BRANCH_LIST(V) \
+  V(bz_v, BZ_V)            \
+  V(bz_b, BZ_B)            \
+  V(bz_h, BZ_H)            \
+  V(bz_w, BZ_W)            \
+  V(bz_d, BZ_D)            \
+  V(bnz_v, BNZ_V)          \
+  V(bnz_b, BNZ_B)          \
+  V(bnz_h, BNZ_H)          \
+  V(bnz_w, BNZ_W)          \
+  V(bnz_d, BNZ_D)
+
+#define MSA_BRANCH(name, opcode)                         \
+  void Assembler::name(MSARegister wt, int16_t offset) { \
+    GenInstrMsaBranch(opcode, wt, offset);               \
+  }
+
+MSA_BRANCH_LIST(MSA_BRANCH)
+#undef MSA_BRANCH
+#undef MSA_BRANCH_LIST
+
+#define MSA_LD_ST_LIST(V) \
+  V(ld_b, LD_B)           \
+  V(ld_h, LD_H)           \
+  V(ld_w, LD_W)           \
+  V(ld_d, LD_D)           \
+  V(st_b, ST_B)           \
+  V(st_h, ST_H)           \
+  V(st_w, ST_W)           \
+  V(st_d, ST_D)
+
+#define MSA_LD_ST(name, opcode)                                \
+  void Assembler::name(MSARegister wd, const MemOperand& rs) { \
+    if (is_int10(rs.offset())) {                               \
+      GenInstrMsaMI10(opcode, rs.offset(), rs.rm(), wd);       \
+    } else {                                                   \
+      LoadRegPlusOffsetToAt(rs);                               \
+      GenInstrMsaMI10(opcode, 0, at, wd);                      \
+    }                                                          \
+  }
+
+MSA_LD_ST_LIST(MSA_LD_ST)
+#undef MSA_LD_ST
+#undef MSA_BRANCH_LIST
+
+#define MSA_I10_LIST(V) \
+  V(ldi_b, I5_DF_b)     \
+  V(ldi_h, I5_DF_h)     \
+  V(ldi_w, I5_DF_w)     \
+  V(ldi_d, I5_DF_d)
+
+#define MSA_I10(name, format)                           \
+  void Assembler::name(MSARegister wd, int32_t imm10) { \
+    GenInstrMsaI10(LDI, format, imm10, wd);             \
+  }
+MSA_I10_LIST(MSA_I10)
+#undef MSA_I10
+#undef MSA_I10_LIST
+
+#define MSA_I5_LIST(V) \
+  V(addvi, ADDVI)      \
+  V(subvi, SUBVI)      \
+  V(maxi_s, MAXI_S)    \
+  V(maxi_u, MAXI_U)    \
+  V(mini_s, MINI_S)    \
+  V(mini_u, MINI_U)    \
+  V(ceqi, CEQI)        \
+  V(clti_s, CLTI_S)    \
+  V(clti_u, CLTI_U)    \
+  V(clei_s, CLEI_S)    \
+  V(clei_u, CLEI_U)
+
+#define MSA_I5_FORMAT(name, opcode, format)                       \
+  void Assembler::name##_##format(MSARegister wd, MSARegister ws, \
+                                  uint32_t imm5) {                \
+    GenInstrMsaI5(opcode, I5_DF_##format, imm5, ws, wd);          \
+  }
+
+#define MSA_I5(name, opcode)     \
+  MSA_I5_FORMAT(name, opcode, b) \
+  MSA_I5_FORMAT(name, opcode, h) \
+  MSA_I5_FORMAT(name, opcode, w) \
+  MSA_I5_FORMAT(name, opcode, d)
+
+MSA_I5_LIST(MSA_I5)
+#undef MSA_I5
+#undef MSA_I5_FORMAT
+#undef MSA_I5_LIST
+
+#define MSA_I8_LIST(V) \
+  V(andi_b, ANDI_B)    \
+  V(ori_b, ORI_B)      \
+  V(nori_b, NORI_B)    \
+  V(xori_b, XORI_B)    \
+  V(bmnzi_b, BMNZI_B)  \
+  V(bmzi_b, BMZI_B)    \
+  V(bseli_b, BSELI_B)  \
+  V(shf_b, SHF_B)      \
+  V(shf_h, SHF_H)      \
+  V(shf_w, SHF_W)
+
+#define MSA_I8(name, opcode)                                            \
+  void Assembler::name(MSARegister wd, MSARegister ws, uint32_t imm8) { \
+    GenInstrMsaI8(opcode, imm8, ws, wd);                                \
+  }
+
+MSA_I8_LIST(MSA_I8)
+#undef MSA_I8
+#undef MSA_I8_LIST
+
+#define MSA_VEC_LIST(V) \
+  V(and_v, AND_V)       \
+  V(or_v, OR_V)         \
+  V(nor_v, NOR_V)       \
+  V(xor_v, XOR_V)       \
+  V(bmnz_v, BMNZ_V)     \
+  V(bmz_v, BMZ_V)       \
+  V(bsel_v, BSEL_V)
+
+#define MSA_VEC(name, opcode)                                            \
+  void Assembler::name(MSARegister wd, MSARegister ws, MSARegister wt) { \
+    GenInstrMsaVec(opcode, wt, ws, wd);                                  \
+  }
+
+MSA_VEC_LIST(MSA_VEC)
+#undef MSA_VEC
+#undef MSA_VEC_LIST
+
+#define MSA_2R_LIST(V) \
+  V(pcnt, PCNT)        \
+  V(nloc, NLOC)        \
+  V(nlzc, NLZC)
+
+#define MSA_2R_FORMAT(name, opcode, format)                         \
+  void Assembler::name##_##format(MSARegister wd, MSARegister ws) { \
+    GenInstrMsa2R(opcode, MSA_2R_DF_##format, ws, wd);              \
+  }
+
+#define MSA_2R(name, opcode)     \
+  MSA_2R_FORMAT(name, opcode, b) \
+  MSA_2R_FORMAT(name, opcode, h) \
+  MSA_2R_FORMAT(name, opcode, w) \
+  MSA_2R_FORMAT(name, opcode, d)
+
+MSA_2R_LIST(MSA_2R)
+#undef MSA_2R
+#undef MSA_2R_FORMAT
+#undef MSA_2R_LIST
+
+#define MSA_FILL(format)                                              \
+  void Assembler::fill_##format(MSARegister wd, Register rs) {        \
+    DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));     \
+    DCHECK(rs.is_valid() && wd.is_valid());                           \
+    Instr instr = MSA | MSA_2R_FORMAT | FILL | MSA_2R_DF_##format |   \
+                  (rs.code() << kWsShift) | (wd.code() << kWdShift) | \
+                  MSA_VEC_2R_2RF_MINOR;                               \
+    emit(instr);                                                      \
+  }
+
+MSA_FILL(b)
+MSA_FILL(h)
+MSA_FILL(w)
+#undef MSA_FILL
+
+#define MSA_2RF_LIST(V) \
+  V(fclass, FCLASS)     \
+  V(ftrunc_s, FTRUNC_S) \
+  V(ftrunc_u, FTRUNC_U) \
+  V(fsqrt, FSQRT)       \
+  V(frsqrt, FRSQRT)     \
+  V(frcp, FRCP)         \
+  V(frint, FRINT)       \
+  V(flog2, FLOG2)       \
+  V(fexupl, FEXUPL)     \
+  V(fexupr, FEXUPR)     \
+  V(ffql, FFQL)         \
+  V(ffqr, FFQR)         \
+  V(ftint_s, FTINT_S)   \
+  V(ftint_u, FTINT_U)   \
+  V(ffint_s, FFINT_S)   \
+  V(ffint_u, FFINT_U)
+
+#define MSA_2RF_FORMAT(name, opcode, format)                        \
+  void Assembler::name##_##format(MSARegister wd, MSARegister ws) { \
+    GenInstrMsa2RF(opcode, MSA_2RF_DF_##format, ws, wd);            \
+  }
+
+#define MSA_2RF(name, opcode)     \
+  MSA_2RF_FORMAT(name, opcode, w) \
+  MSA_2RF_FORMAT(name, opcode, d)
+
+MSA_2RF_LIST(MSA_2RF)
+#undef MSA_2RF
+#undef MSA_2RF_FORMAT
+#undef MSA_2RF_LIST
+
+#define MSA_3R_LIST(V)  \
+  V(sll, SLL_MSA)       \
+  V(sra, SRA_MSA)       \
+  V(srl, SRL_MSA)       \
+  V(bclr, BCLR)         \
+  V(bset, BSET)         \
+  V(bneg, BNEG)         \
+  V(binsl, BINSL)       \
+  V(binsr, BINSR)       \
+  V(addv, ADDV)         \
+  V(subv, SUBV)         \
+  V(max_s, MAX_S)       \
+  V(max_u, MAX_U)       \
+  V(min_s, MIN_S)       \
+  V(min_u, MIN_U)       \
+  V(max_a, MAX_A)       \
+  V(min_a, MIN_A)       \
+  V(ceq, CEQ)           \
+  V(clt_s, CLT_S)       \
+  V(clt_u, CLT_U)       \
+  V(cle_s, CLE_S)       \
+  V(cle_u, CLE_U)       \
+  V(add_a, ADD_A)       \
+  V(adds_a, ADDS_A)     \
+  V(adds_s, ADDS_S)     \
+  V(adds_u, ADDS_U)     \
+  V(ave_s, AVE_S)       \
+  V(ave_u, AVE_U)       \
+  V(aver_s, AVER_S)     \
+  V(aver_u, AVER_U)     \
+  V(subs_s, SUBS_S)     \
+  V(subs_u, SUBS_U)     \
+  V(subsus_u, SUBSUS_U) \
+  V(subsuu_s, SUBSUU_S) \
+  V(asub_s, ASUB_S)     \
+  V(asub_u, ASUB_U)     \
+  V(mulv, MULV)         \
+  V(maddv, MADDV)       \
+  V(msubv, MSUBV)       \
+  V(div_s, DIV_S_MSA)   \
+  V(div_u, DIV_U)       \
+  V(mod_s, MOD_S)       \
+  V(mod_u, MOD_U)       \
+  V(dotp_s, DOTP_S)     \
+  V(dotp_u, DOTP_U)     \
+  V(dpadd_s, DPADD_S)   \
+  V(dpadd_u, DPADD_U)   \
+  V(dpsub_s, DPSUB_S)   \
+  V(dpsub_u, DPSUB_U)   \
+  V(pckev, PCKEV)       \
+  V(pckod, PCKOD)       \
+  V(ilvl, ILVL)         \
+  V(ilvr, ILVR)         \
+  V(ilvev, ILVEV)       \
+  V(ilvod, ILVOD)       \
+  V(vshf, VSHF)         \
+  V(srar, SRAR)         \
+  V(srlr, SRLR)         \
+  V(hadd_s, HADD_S)     \
+  V(hadd_u, HADD_U)     \
+  V(hsub_s, HSUB_S)     \
+  V(hsub_u, HSUB_U)
+
+#define MSA_3R_FORMAT(name, opcode, format)                             \
+  void Assembler::name##_##format(MSARegister wd, MSARegister ws,       \
+                                  MSARegister wt) {                     \
+    GenInstrMsa3R<MSARegister>(opcode, MSA_3R_DF_##format, wt, ws, wd); \
+  }
+
+#define MSA_3R_FORMAT_SLD_SPLAT(name, opcode, format)                \
+  void Assembler::name##_##format(MSARegister wd, MSARegister ws,    \
+                                  Register rt) {                     \
+    GenInstrMsa3R<Register>(opcode, MSA_3R_DF_##format, rt, ws, wd); \
+  }
+
+#define MSA_3R(name, opcode)     \
+  MSA_3R_FORMAT(name, opcode, b) \
+  MSA_3R_FORMAT(name, opcode, h) \
+  MSA_3R_FORMAT(name, opcode, w) \
+  MSA_3R_FORMAT(name, opcode, d)
+
+#define MSA_3R_SLD_SPLAT(name, opcode)     \
+  MSA_3R_FORMAT_SLD_SPLAT(name, opcode, b) \
+  MSA_3R_FORMAT_SLD_SPLAT(name, opcode, h) \
+  MSA_3R_FORMAT_SLD_SPLAT(name, opcode, w) \
+  MSA_3R_FORMAT_SLD_SPLAT(name, opcode, d)
+
+MSA_3R_LIST(MSA_3R)
+MSA_3R_SLD_SPLAT(sld, SLD)
+MSA_3R_SLD_SPLAT(splat, SPLAT)
+
+#undef MSA_3R
+#undef MSA_3R_FORMAT
+#undef MSA_3R_FORMAT_SLD_SPLAT
+#undef MSA_3R_SLD_SPLAT
+#undef MSA_3R_LIST
+
+#define MSA_3RF_LIST1(V) \
+  V(fcaf, FCAF)          \
+  V(fcun, FCUN)          \
+  V(fceq, FCEQ)          \
+  V(fcueq, FCUEQ)        \
+  V(fclt, FCLT)          \
+  V(fcult, FCULT)        \
+  V(fcle, FCLE)          \
+  V(fcule, FCULE)        \
+  V(fsaf, FSAF)          \
+  V(fsun, FSUN)          \
+  V(fseq, FSEQ)          \
+  V(fsueq, FSUEQ)        \
+  V(fslt, FSLT)          \
+  V(fsult, FSULT)        \
+  V(fsle, FSLE)          \
+  V(fsule, FSULE)        \
+  V(fadd, FADD)          \
+  V(fsub, FSUB)          \
+  V(fmul, FMUL)          \
+  V(fdiv, FDIV)          \
+  V(fmadd, FMADD)        \
+  V(fmsub, FMSUB)        \
+  V(fexp2, FEXP2)        \
+  V(fmin, FMIN)          \
+  V(fmin_a, FMIN_A)      \
+  V(fmax, FMAX)          \
+  V(fmax_a, FMAX_A)      \
+  V(fcor, FCOR)          \
+  V(fcune, FCUNE)        \
+  V(fcne, FCNE)          \
+  V(fsor, FSOR)          \
+  V(fsune, FSUNE)        \
+  V(fsne, FSNE)
+
+#define MSA_3RF_LIST2(V) \
+  V(fexdo, FEXDO)        \
+  V(ftq, FTQ)            \
+  V(mul_q, MUL_Q)        \
+  V(madd_q, MADD_Q)      \
+  V(msub_q, MSUB_Q)      \
+  V(mulr_q, MULR_Q)      \
+  V(maddr_q, MADDR_Q)    \
+  V(msubr_q, MSUBR_Q)
+
+#define MSA_3RF_FORMAT(name, opcode, df, df_c)                \
+  void Assembler::name##_##df(MSARegister wd, MSARegister ws, \
+                              MSARegister wt) {               \
+    GenInstrMsa3RF(opcode, df_c, wt, ws, wd);                 \
+  }
+
+#define MSA_3RF_1(name, opcode)      \
+  MSA_3RF_FORMAT(name, opcode, w, 0) \
+  MSA_3RF_FORMAT(name, opcode, d, 1)
+
+#define MSA_3RF_2(name, opcode)      \
+  MSA_3RF_FORMAT(name, opcode, h, 0) \
+  MSA_3RF_FORMAT(name, opcode, w, 1)
+
+MSA_3RF_LIST1(MSA_3RF_1)
+MSA_3RF_LIST2(MSA_3RF_2)
+#undef MSA_3RF_1
+#undef MSA_3RF_2
+#undef MSA_3RF_FORMAT
+#undef MSA_3RF_LIST1
+#undef MSA_3RF_LIST2
+
+void Assembler::sldi_b(MSARegister wd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<MSARegister, MSARegister>(SLDI, ELM_DF_B, n, ws, wd);
+}
+
+void Assembler::sldi_h(MSARegister wd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<MSARegister, MSARegister>(SLDI, ELM_DF_H, n, ws, wd);
+}
+
+void Assembler::sldi_w(MSARegister wd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<MSARegister, MSARegister>(SLDI, ELM_DF_W, n, ws, wd);
+}
+
+void Assembler::sldi_d(MSARegister wd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<MSARegister, MSARegister>(SLDI, ELM_DF_D, n, ws, wd);
+}
+
+void Assembler::splati_b(MSARegister wd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<MSARegister, MSARegister>(SPLATI, ELM_DF_B, n, ws, wd);
+}
+
+void Assembler::splati_h(MSARegister wd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<MSARegister, MSARegister>(SPLATI, ELM_DF_H, n, ws, wd);
+}
+
+void Assembler::splati_w(MSARegister wd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<MSARegister, MSARegister>(SPLATI, ELM_DF_W, n, ws, wd);
+}
+
+void Assembler::splati_d(MSARegister wd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<MSARegister, MSARegister>(SPLATI, ELM_DF_D, n, ws, wd);
+}
+
+void Assembler::copy_s_b(Register rd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<Register, MSARegister>(COPY_S, ELM_DF_B, n, ws, rd);
+}
+
+void Assembler::copy_s_h(Register rd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<Register, MSARegister>(COPY_S, ELM_DF_H, n, ws, rd);
+}
+
+void Assembler::copy_s_w(Register rd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<Register, MSARegister>(COPY_S, ELM_DF_W, n, ws, rd);
+}
+
+void Assembler::copy_u_b(Register rd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<Register, MSARegister>(COPY_U, ELM_DF_B, n, ws, rd);
+}
+
+void Assembler::copy_u_h(Register rd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<Register, MSARegister>(COPY_U, ELM_DF_H, n, ws, rd);
+}
+
+void Assembler::copy_u_w(Register rd, MSARegister ws, uint32_t n) {
+  GenInstrMsaElm<Register, MSARegister>(COPY_U, ELM_DF_W, n, ws, rd);
+}
+
+void Assembler::insert_b(MSARegister wd, uint32_t n, Register rs) {
+  GenInstrMsaElm<MSARegister, Register>(INSERT, ELM_DF_B, n, rs, wd);
+}
+
+void Assembler::insert_h(MSARegister wd, uint32_t n, Register rs) {
+  GenInstrMsaElm<MSARegister, Register>(INSERT, ELM_DF_H, n, rs, wd);
+}
+
+void Assembler::insert_w(MSARegister wd, uint32_t n, Register rs) {
+  GenInstrMsaElm<MSARegister, Register>(INSERT, ELM_DF_W, n, rs, wd);
+}
+
+void Assembler::insve_b(MSARegister wd, uint32_t n, MSARegister ws) {
+  GenInstrMsaElm<MSARegister, MSARegister>(INSVE, ELM_DF_B, n, ws, wd);
+}
+
+void Assembler::insve_h(MSARegister wd, uint32_t n, MSARegister ws) {
+  GenInstrMsaElm<MSARegister, MSARegister>(INSVE, ELM_DF_H, n, ws, wd);
+}
+
+void Assembler::insve_w(MSARegister wd, uint32_t n, MSARegister ws) {
+  GenInstrMsaElm<MSARegister, MSARegister>(INSVE, ELM_DF_W, n, ws, wd);
+}
+
+void Assembler::insve_d(MSARegister wd, uint32_t n, MSARegister ws) {
+  GenInstrMsaElm<MSARegister, MSARegister>(INSVE, ELM_DF_D, n, ws, wd);
+}
+
+void Assembler::move_v(MSARegister wd, MSARegister ws) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(ws.is_valid() && wd.is_valid());
+  Instr instr = MSA | MOVE_V | (ws.code() << kWsShift) |
+                (wd.code() << kWdShift) | MSA_ELM_MINOR;
+  emit(instr);
+}
+
+void Assembler::ctcmsa(MSAControlRegister cd, Register rs) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(cd.is_valid() && rs.is_valid());
+  Instr instr = MSA | CTCMSA | (rs.code() << kWsShift) |
+                (cd.code() << kWdShift) | MSA_ELM_MINOR;
+  emit(instr);
+}
+
+void Assembler::cfcmsa(Register rd, MSAControlRegister cs) {
+  DCHECK(IsMipsArchVariant(kMips32r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(rd.is_valid() && cs.is_valid());
+  Instr instr = MSA | CFCMSA | (cs.code() << kWsShift) |
+                (rd.code() << kWdShift) | MSA_ELM_MINOR;
+  emit(instr);
+}
+
+#define MSA_BIT_LIST(V) \
+  V(slli, SLLI)         \
+  V(srai, SRAI)         \
+  V(srli, SRLI)         \
+  V(bclri, BCLRI)       \
+  V(bseti, BSETI)       \
+  V(bnegi, BNEGI)       \
+  V(binsli, BINSLI)     \
+  V(binsri, BINSRI)     \
+  V(sat_s, SAT_S)       \
+  V(sat_u, SAT_U)       \
+  V(srari, SRARI)       \
+  V(srlri, SRLRI)
+
+#define MSA_BIT_FORMAT(name, opcode, format)                      \
+  void Assembler::name##_##format(MSARegister wd, MSARegister ws, \
+                                  uint32_t m) {                   \
+    GenInstrMsaBit(opcode, BIT_DF_##format, m, ws, wd);           \
+  }
+
+#define MSA_BIT(name, opcode)     \
+  MSA_BIT_FORMAT(name, opcode, b) \
+  MSA_BIT_FORMAT(name, opcode, h) \
+  MSA_BIT_FORMAT(name, opcode, w) \
+  MSA_BIT_FORMAT(name, opcode, d)
+
+MSA_BIT_LIST(MSA_BIT)
+#undef MSA_BIT
+#undef MSA_BIT_FORMAT
+#undef MSA_BIT_LIST
 
 int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
                                          intptr_t pc_delta) {
@@ -3091,7 +3626,7 @@ void Assembler::dd(Label* label) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(isolate(), pc_, rmode, data, NULL);
+  RelocInfo rinfo(pc_, rmode, data, NULL);
   if (rmode >= RelocInfo::COMMENT &&
       rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL) {
     // Adjust code for new modes.
@@ -3106,8 +3641,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     }
     DCHECK(buffer_space() >= kMaxRelocSize);  // Too late to grow buffer here.
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(isolate(), pc_, rmode,
-                                       RecordedAstId().ToInt(), NULL);
+      RelocInfo reloc_info_with_ast_id(pc_, rmode, RecordedAstId().ToInt(),
+                                       NULL);
       ClearRecordedAstId();
       reloc_info_writer.Write(&reloc_info_with_ast_id);
     } else {
@@ -3245,6 +3780,8 @@ void Assembler::QuietNaN(HeapObject* object) {
 void Assembler::set_target_address_at(Isolate* isolate, Address pc,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
+  DCHECK_IMPLIES(isolate == nullptr, icache_flush_mode == SKIP_ICACHE_FLUSH);
+
   Instr instr2 = instr_at(pc + kInstrSize);
   uint32_t rt_code = GetRtField(instr2);
   uint32_t* p = reinterpret_cast<uint32_t*>(pc);

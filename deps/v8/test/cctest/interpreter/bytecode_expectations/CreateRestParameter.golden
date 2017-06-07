@@ -11,14 +11,17 @@ snippet: "
   function f(...restArgs) { return restArgs; }
   f();
 "
-frame size: 1
+frame size: 2
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 13
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(0),
+                B(LdaTheHole),
+                B(Star), R(1),
   /*   10 E> */ B(StackCheck),
-  /*   26 S> */ B(Nop),
+                B(Mov), R(0), R(1),
+  /*   26 S> */ B(Ldar), R(1),
   /*   43 S> */ B(Return),
 ]
 constant pool: [
@@ -31,17 +34,20 @@ snippet: "
   function f(a, ...restArgs) { return restArgs; }
   f();
 "
-frame size: 2
+frame size: 3
 parameter count: 2
-bytecode array length: 13
+bytecode array length: 19
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(0),
                 B(LdaTheHole),
                 B(Star), R(1),
+                B(LdaTheHole),
+                B(Star), R(2),
   /*   10 E> */ B(StackCheck),
                 B(Mov), R(arg0), R(1),
-  /*   29 S> */ B(Ldar), R(0),
+                B(Mov), R(0), R(2),
+  /*   29 S> */ B(Ldar), R(2),
   /*   46 S> */ B(Return),
 ]
 constant pool: [
@@ -54,18 +60,21 @@ snippet: "
   function f(a, ...restArgs) { return restArgs[0]; }
   f();
 "
-frame size: 2
+frame size: 3
 parameter count: 2
-bytecode array length: 15
+bytecode array length: 21
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(0),
                 B(LdaTheHole),
                 B(Star), R(1),
+                B(LdaTheHole),
+                B(Star), R(2),
   /*   10 E> */ B(StackCheck),
                 B(Mov), R(arg0), R(1),
+                B(Mov), R(0), R(2),
   /*   29 S> */ B(LdaZero),
-  /*   44 E> */ B(LdaKeyedProperty), R(0), U8(2),
+  /*   44 E> */ B(LdaKeyedProperty), R(2), U8(2),
   /*   49 S> */ B(Return),
 ]
 constant pool: [
@@ -78,24 +87,27 @@ snippet: "
   function f(a, ...restArgs) { return restArgs[0] + arguments[0]; }
   f();
 "
-frame size: 4
+frame size: 5
 parameter count: 2
-bytecode array length: 27
+bytecode array length: 33
 bytecodes: [
                 B(CreateUnmappedArguments),
-                B(Star), R(2),
+                B(Star), R(3),
                 B(CreateRestParameter),
                 B(Star), R(0),
                 B(LdaTheHole),
                 B(Star), R(1),
+                B(LdaTheHole),
+                B(Star), R(2),
   /*   10 E> */ B(StackCheck),
                 B(Mov), R(arg0), R(1),
+                B(Mov), R(0), R(2),
   /*   29 S> */ B(LdaZero),
-  /*   44 E> */ B(LdaKeyedProperty), R(0), U8(2),
-                B(Star), R(3),
+  /*   44 E> */ B(LdaKeyedProperty), R(2), U8(2),
+                B(Star), R(4),
                 B(LdaZero),
-  /*   59 E> */ B(LdaKeyedProperty), R(2), U8(4),
-  /*   48 E> */ B(Add), R(3), U8(6),
+  /*   59 E> */ B(LdaKeyedProperty), R(3), U8(4),
+  /*   48 E> */ B(Add), R(4), U8(6),
   /*   64 S> */ B(Return),
 ]
 constant pool: [

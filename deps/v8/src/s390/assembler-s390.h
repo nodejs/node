@@ -127,15 +127,15 @@ struct Register {
         kAfterLast,
     kCode_no_reg = -1
   };
-  static const int kNumRegisters = Code::kAfterLast;
+  static constexpr int kNumRegisters = Code::kAfterLast;
 
 #define REGISTER_COUNT(R) 1 +
-  static const int kNumAllocatable =
+  static constexpr int kNumAllocatable =
       ALLOCATABLE_GENERAL_REGISTERS(REGISTER_COUNT) 0;
 #undef REGISTER_COUNT
 
 #define REGISTER_BIT(R) 1 << kCode_##R |
-  static const RegList kAllocatable =
+  static constexpr RegList kAllocatable =
       ALLOCATABLE_GENERAL_REGISTERS(REGISTER_BIT) 0;
 #undef REGISTER_BIT
 
@@ -163,11 +163,11 @@ struct Register {
   }
 
 #if V8_TARGET_LITTLE_ENDIAN
-  static const int kMantissaOffset = 0;
-  static const int kExponentOffset = 4;
+  static constexpr int kMantissaOffset = 0;
+  static constexpr int kExponentOffset = 4;
 #else
-  static const int kMantissaOffset = 4;
-  static const int kExponentOffset = 0;
+  static constexpr int kMantissaOffset = 4;
+  static constexpr int kExponentOffset = 0;
 #endif
 
   // Unfortunately we can't make this private in a struct.
@@ -176,18 +176,18 @@ struct Register {
 
 typedef struct Register Register;
 
-#define DECLARE_REGISTER(R) const Register R = {Register::kCode_##R};
-GENERAL_REGISTERS(DECLARE_REGISTER)
-#undef DECLARE_REGISTER
-const Register no_reg = {Register::kCode_no_reg};
+#define DEFINE_REGISTER(R) constexpr Register R = {Register::kCode_##R};
+GENERAL_REGISTERS(DEFINE_REGISTER)
+#undef DEFINE_REGISTER
+constexpr Register no_reg = {Register::kCode_no_reg};
 
 // Register aliases
-const Register kLithiumScratch = r1;  // lithium scratch.
-const Register kRootRegister = r10;   // Roots array pointer.
-const Register cp = r13;              // JavaScript context pointer.
+constexpr Register kLithiumScratch = r1;  // lithium scratch.
+constexpr Register kRootRegister = r10;   // Roots array pointer.
+constexpr Register cp = r13;              // JavaScript context pointer.
 
-static const bool kSimpleFPAliasing = true;
-static const bool kSimdMaskRegisters = false;
+constexpr bool kSimpleFPAliasing = true;
+constexpr bool kSimdMaskRegisters = false;
 
 // Double word FP register.
 struct DoubleRegister {
@@ -199,8 +199,8 @@ struct DoubleRegister {
     kCode_no_reg = -1
   };
 
-  static const int kNumRegisters = Code::kAfterLast;
-  static const int kMaxNumRegisters = kNumRegisters;
+  static constexpr int kNumRegisters = Code::kAfterLast;
+  static constexpr int kMaxNumRegisters = kNumRegisters;
 
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
@@ -228,17 +228,14 @@ typedef DoubleRegister FloatRegister;
 // TODO(john.yan) Define SIMD registers.
 typedef DoubleRegister Simd128Register;
 
-#define DECLARE_REGISTER(R) \
-  const DoubleRegister R = {DoubleRegister::kCode_##R};
-DOUBLE_REGISTERS(DECLARE_REGISTER)
-#undef DECLARE_REGISTER
-const Register no_dreg = {Register::kCode_no_reg};
+#define DEFINE_REGISTER(R) \
+  constexpr DoubleRegister R = {DoubleRegister::kCode_##R};
+DOUBLE_REGISTERS(DEFINE_REGISTER)
+#undef DEFINE_REGISTER
+constexpr Register no_dreg = {Register::kCode_no_reg};
 
-// Aliases for double registers.  Defined using #define instead of
-// "static const DoubleRegister&" because Clang complains otherwise when a
-// compilation unit that includes this header doesn't use the variables.
-#define kDoubleRegZero d14
-#define kScratchDoubleReg d13
+constexpr DoubleRegister kDoubleRegZero = d14;
+constexpr DoubleRegister kScratchDoubleReg = d13;
 
 Register ToRegister(int num);
 
@@ -259,24 +256,24 @@ struct CRegister {
   int reg_code;
 };
 
-const CRegister no_creg = {-1};
+constexpr CRegister no_creg = {-1};
 
-const CRegister cr0 = {0};
-const CRegister cr1 = {1};
-const CRegister cr2 = {2};
-const CRegister cr3 = {3};
-const CRegister cr4 = {4};
-const CRegister cr5 = {5};
-const CRegister cr6 = {6};
-const CRegister cr7 = {7};
+constexpr CRegister cr0 = {0};
+constexpr CRegister cr1 = {1};
+constexpr CRegister cr2 = {2};
+constexpr CRegister cr3 = {3};
+constexpr CRegister cr4 = {4};
+constexpr CRegister cr5 = {5};
+constexpr CRegister cr6 = {6};
+constexpr CRegister cr7 = {7};
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
 #if V8_TARGET_ARCH_S390X
-const RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE64;
+constexpr RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE64;
 #else
-const RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE32;
+constexpr RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE32;
 #endif
 
 // Class Operand represents a shifter operand in data processing instructions
@@ -400,7 +397,9 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(Isolate* isolate, void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size)
+      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
+  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
   virtual ~Assembler() {}
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -444,6 +443,7 @@ class Assembler : public AssemblerBase {
   void load_label_offset(Register r1, Label* L);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
+  // The isolate argument is unused (and may be nullptr) when skipping flushing.
   INLINE(static Address target_address_at(Address pc, Address constant_pool));
   INLINE(static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
@@ -479,13 +479,13 @@ class Assembler : public AssemblerBase {
   // are split across two consecutive instructions and don't exist separately
   // in the code, so the serializer should not step forwards in memory after
   // a target is resolved and written.
-  static const int kSpecialTargetSize = 0;
+  static constexpr int kSpecialTargetSize = 0;
 
 // Number of bytes for instructions used to store pointer sized constant.
 #if V8_TARGET_ARCH_S390X
-  static const int kBytesForPtrConstant = 12;  // IIHF + IILF
+  static constexpr int kBytesForPtrConstant = 12;  // IIHF + IILF
 #else
-  static const int kBytesForPtrConstant = 6;  // IILF
+  static constexpr int kBytesForPtrConstant = 6;  // IILF
 #endif
 
   // Distance between the instruction referring to the address of the call
@@ -494,27 +494,28 @@ class Assembler : public AssemblerBase {
   // Offset between call target address and return address
   // for BRASL calls
   // Patch will be appiled to other FIXED_SEQUENCE call
-  static const int kCallTargetAddressOffset = 6;
+  static constexpr int kCallTargetAddressOffset = 6;
 
 // The length of FIXED_SEQUENCE call
 // iihf    r8, <address_hi>  // <64-bit only>
 // iilf    r8, <address_lo>
 // basr    r14, r8
 #if V8_TARGET_ARCH_S390X
-  static const int kCallSequenceLength = 14;
+  static constexpr int kCallSequenceLength = 14;
 #else
-  static const int kCallSequenceLength = 8;
+  static constexpr int kCallSequenceLength = 8;
 #endif
 
   // This is the length of the BreakLocationIterator::SetDebugBreakAtReturn()
   // code patch FIXED_SEQUENCE in bytes!
   // JS Return Sequence = Call Sequence + BKPT
-  // static const int kJSReturnSequenceLength = kCallSequenceLength + 2;
+  // static constexpr int kJSReturnSequenceLength = kCallSequenceLength + 2;
 
   // This is the length of the code sequence from SetDebugBreakAtSlot()
   // FIXED_SEQUENCE in bytes!
-  static const int kDebugBreakSlotLength = kCallSequenceLength;
-  static const int kPatchDebugBreakSlotReturnOffset = kCallTargetAddressOffset;
+  static constexpr int kDebugBreakSlotLength = kCallSequenceLength;
+  static constexpr int kPatchDebugBreakSlotReturnOffset =
+      kCallTargetAddressOffset;
 
   // Length to patch between the start of the JS return sequence
   // from SetDebugBreakAtReturn and the address from
@@ -523,13 +524,13 @@ class Assembler : public AssemblerBase {
   // frame->pc() in Debug::SetAfterBreakTarget will point to BKPT in
   // JS return sequence, so the length to patch will not include BKPT
   // instruction length.
-  // static const int kPatchReturnSequenceAddressOffset =
+  // static constexpr int kPatchReturnSequenceAddressOffset =
   //     kCallSequenceLength - kPatchDebugBreakSlotReturnOffset;
 
   // Length to patch between the start of the FIXED call sequence from
   // SetDebugBreakAtSlot() and the the address from
   // break_address_from_return_address.
-  static const int kPatchDebugBreakSlotAddressOffset =
+  static constexpr int kPatchDebugBreakSlotAddressOffset =
       kDebugBreakSlotLength - kPatchDebugBreakSlotReturnOffset;
 
   static inline int encode_crbit(const CRegister& cr, enum CRBit crbit) {
@@ -1065,6 +1066,11 @@ class Assembler : public AssemblerBase {
   void cliy(const MemOperand& mem, const Operand& imm);
   void clc(const MemOperand& opnd1, const MemOperand& opnd2, Length length);
 
+  // Compare and Swap Instructions
+  void cs(Register r1, Register r2, const MemOperand& src);
+  void csy(Register r1, Register r2, const MemOperand& src);
+  void csg(Register r1, Register r2, const MemOperand& src);
+
   // Test Under Mask Instructions
   void tm(const MemOperand& mem, const Operand& imm);
   void tmy(const MemOperand& mem, const Operand& imm);
@@ -1203,9 +1209,13 @@ class Assembler : public AssemblerBase {
 
   // Floating Point Arithmetic Instructions
   void adb(DoubleRegister r1, const MemOperand& opnd);
+  void aeb(DoubleRegister r1, const MemOperand& opnd);
   void sdb(DoubleRegister r1, const MemOperand& opnd);
+  void seb(DoubleRegister r1, const MemOperand& opnd);
   void mdb(DoubleRegister r1, const MemOperand& opnd);
+  void meeb(DoubleRegister r1, const MemOperand& opnd);
   void ddb(DoubleRegister r1, const MemOperand& opnd);
+  void deb(DoubleRegister r1, const MemOperand& opnd);
   void sqdb(DoubleRegister r1, const MemOperand& opnd);
   void ldeb(DoubleRegister r1, const MemOperand& opnd);
 
@@ -1361,11 +1371,11 @@ class Assembler : public AssemblerBase {
   // the generated instructions. This is so that multi-instruction sequences do
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
-  static const int kGap = 32;
+  static constexpr int kGap = 32;
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
-  static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
+  static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
   std::vector<DeferredRelocInfo> relocations_;
 

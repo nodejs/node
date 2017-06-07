@@ -95,21 +95,70 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolAsyncIteratorInvalid) {
       isolate, NewTypeError(MessageTemplate::kSymbolAsyncIteratorInvalid));
 }
 
+#define THROW_ERROR(isolate, args, call)                              \
+  HandleScope scope(isolate);                                         \
+  DCHECK_LE(1, args.length());                                        \
+  CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);                         \
+                                                                      \
+  Handle<Object> undefined = isolate->factory()->undefined_value();   \
+  Handle<Object> arg0 = (args.length() > 1) ? args.at(1) : undefined; \
+  Handle<Object> arg1 = (args.length() > 2) ? args.at(2) : undefined; \
+  Handle<Object> arg2 = (args.length() > 3) ? args.at(3) : undefined; \
+                                                                      \
+  MessageTemplate::Template message_id =                              \
+      static_cast<MessageTemplate::Template>(message_id_smi);         \
+                                                                      \
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate, call(message_id, arg0, arg1, arg2));
+
+RUNTIME_FUNCTION(Runtime_ThrowRangeError) {
+  THROW_ERROR(isolate, args, NewRangeError);
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
+  THROW_ERROR(isolate, args, NewTypeError);
+}
+
+#undef THROW_ERROR
+
+namespace {
+
+const char* ElementsKindToType(ElementsKind fixed_elements_kind) {
+  switch (fixed_elements_kind) {
+#define ELEMENTS_KIND_CASE(Type, type, TYPE, ctype, size) \
+  case TYPE##_ELEMENTS:                                   \
+    return #Type "Array";
+
+    TYPED_ARRAYS(ELEMENTS_KIND_CASE)
+#undef ELEMENTS_KIND_CASE
+
+    default:
+      UNREACHABLE();
+      return "";
+  }
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_ThrowInvalidTypedArrayAlignment) {
   HandleScope scope(isolate);
-  DCHECK_LE(1, args.length());
-  CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Map, map, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, problem_string, 1);
 
-  Handle<Object> undefined = isolate->factory()->undefined_value();
-  Handle<Object> arg0 = (args.length() > 1) ? args.at(1) : undefined;
-  Handle<Object> arg1 = (args.length() > 2) ? args.at(2) : undefined;
-  Handle<Object> arg2 = (args.length() > 3) ? args.at(3) : undefined;
+  ElementsKind kind = map->elements_kind();
 
-  MessageTemplate::Template message_id =
-      static_cast<MessageTemplate::Template>(message_id_smi);
+  Handle<String> type =
+      isolate->factory()->NewStringFromAsciiChecked(ElementsKindToType(kind));
 
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                 NewTypeError(message_id, arg0, arg1, arg2));
+  ExternalArrayType external_type =
+      isolate->factory()->GetArrayTypeFromElementsKind(kind);
+  size_t size = isolate->factory()->GetExternalArrayElementSize(external_type);
+  Handle<Object> element_size =
+      handle(Smi::FromInt(static_cast<int>(size)), isolate);
+
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewRangeError(MessageTemplate::kInvalidTypedArrayAlignment,
+                             problem_string, type, element_size));
 }
 
 RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
@@ -367,7 +416,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     std::unique_ptr<ParseInfo> info(new ParseInfo(location.shared()));
-    if (parsing::ParseAny(info.get())) {
+    if (parsing::ParseAny(info.get(), isolate)) {
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info->literal(), location.start_pos());
       if (str->length() > 0) return str;

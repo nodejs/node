@@ -21,12 +21,17 @@ class JSOperatorBuilder;
 class JSContextSpecialization final : public AdvancedReducer {
  public:
   JSContextSpecialization(Editor* editor, JSGraph* jsgraph,
-                          MaybeHandle<Context> context)
-      : AdvancedReducer(editor), jsgraph_(jsgraph), context_(context) {}
+                          MaybeHandle<Context> context,
+                          MaybeHandle<JSFunction> closure)
+      : AdvancedReducer(editor),
+        jsgraph_(jsgraph),
+        context_(context),
+        closure_(closure) {}
 
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceParameter(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
 
@@ -39,9 +44,11 @@ class JSContextSpecialization final : public AdvancedReducer {
   JSOperatorBuilder* javascript() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   MaybeHandle<Context> context() const { return context_; }
+  MaybeHandle<JSFunction> closure() const { return closure_; }
 
   JSGraph* const jsgraph_;
   MaybeHandle<Context> context_;
+  MaybeHandle<JSFunction> closure_;
 
   DISALLOW_COPY_AND_ASSIGN(JSContextSpecialization);
 };

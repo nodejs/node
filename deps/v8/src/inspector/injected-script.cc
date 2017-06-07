@@ -406,9 +406,12 @@ Response InjectedScript::wrapEvaluateResult(
 }
 
 v8::Local<v8::Object> InjectedScript::commandLineAPI() {
-  if (m_commandLineAPI.IsEmpty())
-    m_commandLineAPI.Reset(m_context->isolate(),
-                           V8Console::createCommandLineAPI(m_context));
+  if (m_commandLineAPI.IsEmpty()) {
+    m_commandLineAPI.Reset(
+        m_context->isolate(),
+        m_context->inspector()->console()->createCommandLineAPI(
+            m_context->context()));
+  }
   return m_commandLineAPI.Get(m_context->isolate());
 }
 

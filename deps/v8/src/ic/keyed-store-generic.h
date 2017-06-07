@@ -20,6 +20,12 @@ class KeyedStoreGenericGenerator {
                        LanguageMode language_mode);
 };
 
+class StoreICUninitializedGenerator {
+ public:
+  static void Generate(compiler::CodeAssemblerState* state,
+                       LanguageMode language_mode);
+};
+
 }  // namespace internal
 }  // namespace v8
 

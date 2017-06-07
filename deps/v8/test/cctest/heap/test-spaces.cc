@@ -401,53 +401,6 @@ TEST(OldSpace) {
   delete memory_allocator;
 }
 
-
-TEST(CompactionSpace) {
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator != nullptr);
-  CHECK(memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize(),
-                                0));
-  TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
-
-  CompactionSpace* compaction_space =
-      new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
-  CHECK(compaction_space != NULL);
-  CHECK(compaction_space->SetUp());
-
-  OldSpace* old_space = new OldSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
-  CHECK(old_space != NULL);
-  CHECK(old_space->SetUp());
-
-  // Cannot loop until "Available()" since we initially have 0 bytes available
-  // and would thus neither grow, nor be able to allocate an object.
-  const int kNumObjects = 100;
-  const int kNumObjectsPerPage =
-      compaction_space->AreaSize() / kMaxRegularHeapObjectSize;
-  const int kExpectedPages =
-      (kNumObjects + kNumObjectsPerPage - 1) / kNumObjectsPerPage;
-  for (int i = 0; i < kNumObjects; i++) {
-    compaction_space->AllocateRawUnaligned(kMaxRegularHeapObjectSize)
-        .ToObjectChecked();
-  }
-  int pages_in_old_space = old_space->CountTotalPages();
-  int pages_in_compaction_space = compaction_space->CountTotalPages();
-  CHECK_EQ(pages_in_compaction_space, kExpectedPages);
-  CHECK_LE(pages_in_old_space, 1);
-
-  old_space->MergeCompactionSpace(compaction_space);
-  CHECK_EQ(old_space->CountTotalPages(),
-           pages_in_old_space + pages_in_compaction_space);
-
-  delete compaction_space;
-  delete old_space;
-
-  memory_allocator->TearDown();
-  delete memory_allocator;
-}
-
-
 TEST(LargeObjectSpace) {
   // This test does not initialize allocated objects, which confuses the
   // incremental marker.
@@ -530,8 +483,8 @@ TEST(SizeOfInitialHeap) {
   // requires no extra space.
   CompileRun("/*empty*/");
   for (int i = FIRST_PAGED_SPACE; i <= LAST_PAGED_SPACE; i++) {
-    // Debug code can be very large, so skip CODE_SPACE if we are generating it.
-    if (i == CODE_SPACE && i::FLAG_debug_code) continue;
+    // Skip CODE_SPACE, since we had to generate code even for an empty script.
+    if (i == CODE_SPACE) continue;
     CHECK_EQ(page_count[i], isolate->heap()->paged_space(i)->CountTotalPages());
   }
 

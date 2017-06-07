@@ -44,7 +44,6 @@ class IdentityMapBase {
   RawEntry GetEntry(Object* key);
   RawEntry FindEntry(Object* key) const;
   void* DeleteEntry(Object* key);
-  void* DeleteIndex(int index);
   void Clear();
 
   V8_EXPORT_PRIVATE RawEntry EntryAtIndex(int index) const;
@@ -62,6 +61,7 @@ class IdentityMapBase {
   int InsertKey(Object* address);
   int Lookup(Object* key) const;
   int LookupOrInsert(Object* key);
+  void* DeleteIndex(int index);
   void Rehash();
   void Resize(int new_capacity);
   int Hash(Object* address) const;
@@ -122,12 +122,6 @@ class IdentityMap : public IdentityMapBase {
   class Iterator {
    public:
     Iterator& operator++() {
-      index_ = map_->NextIndex(index_);
-      return *this;
-    }
-
-    Iterator& DeleteAndIncrement() {
-      map_->DeleteIndex(index_);
       index_ = map_->NextIndex(index_);
       return *this;
     }

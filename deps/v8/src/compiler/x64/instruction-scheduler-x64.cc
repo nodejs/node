@@ -123,11 +123,23 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Lea:
     case kX64Dec32:
     case kX64Inc32:
-    case kX64Int32x4Create:
-    case kX64Int32x4ExtractLane:
-    case kX64Int32x4ReplaceLane:
-    case kX64Int32x4Add:
-    case kX64Int32x4Sub:
+    case kX64I32x4Splat:
+    case kX64I32x4ExtractLane:
+    case kX64I32x4ReplaceLane:
+    case kX64I32x4Shl:
+    case kX64I32x4ShrS:
+    case kX64I32x4Add:
+    case kX64I32x4Sub:
+    case kX64I32x4Mul:
+    case kX64I32x4MinS:
+    case kX64I32x4MaxS:
+    case kX64I32x4Eq:
+    case kX64I32x4Ne:
+    case kX64I32x4ShrU:
+    case kX64I32x4MinU:
+    case kX64I32x4MaxU:
+    case kX64S128Zero:
+    case kX64S32x4Select:
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;
@@ -177,11 +189,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Push:
     case kX64Poke:
       return kHasSideEffect;
-
-    case kX64Xchgb:
-    case kX64Xchgw:
-    case kX64Xchgl:
-      return kIsLoadOperation | kHasSideEffect;
 
 #define CASE(Name) case k##Name:
     COMMON_ARCH_OPCODE_LIST(CASE)

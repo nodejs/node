@@ -5,6 +5,8 @@
 #ifndef V8_PARSING_PREPARSE_DATA_H_
 #define V8_PARSING_PREPARSE_DATA_H_
 
+#include <unordered_map>
+
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
 #include "src/collector.h"
@@ -52,17 +54,13 @@ class PreParserLogger final {
       : end_(-1),
         num_parameters_(-1),
         function_length_(-1),
-        has_duplicate_parameters_(false),
         num_inner_functions_(-1) {}
 
   void LogFunction(int end, int num_parameters, int function_length,
-                   bool has_duplicate_parameters, int properties,
                    int num_inner_functions) {
     end_ = end;
     num_parameters_ = num_parameters;
     function_length_ = function_length;
-    has_duplicate_parameters_ = has_duplicate_parameters;
-    properties_ = properties;
     num_inner_functions_ = num_inner_functions;
   }
 
@@ -73,12 +71,6 @@ class PreParserLogger final {
   int function_length() const {
     return function_length_;
   }
-  bool has_duplicate_parameters() const {
-    return has_duplicate_parameters_;
-  }
-  int properties() const {
-    return properties_;
-  }
   int num_inner_functions() const { return num_inner_functions_; }
 
  private:
@@ -86,8 +78,6 @@ class PreParserLogger final {
   // For function entries.
   int num_parameters_;
   int function_length_;
-  bool has_duplicate_parameters_;
-  int properties_;
   int num_inner_functions_;
 };
 
@@ -96,7 +86,6 @@ class ParserLogger final {
   ParserLogger();
 
   void LogFunction(int start, int end, int num_parameters, int function_length,
-                   bool has_duplicate_parameters, int properties,
                    LanguageMode language_mode, bool uses_super_property,
                    bool calls_eval, int num_inner_functions);
 
@@ -111,6 +100,45 @@ class ParserLogger final {
 #endif
 };
 
+class PreParseData final {
+ public:
+  struct FunctionData {
+    int end;
+    int num_parameters;
+    int function_length;
+    int num_inner_functions;
+    LanguageMode language_mode;
+    bool uses_super_property : 1;
+    bool calls_eval : 1;
+
+    FunctionData() : end(-1) {}
+
+    FunctionData(int end, int num_parameters, int function_length,
+                 int num_inner_functions, LanguageMode language_mode,
+                 bool uses_super_property, bool calls_eval)
+        : end(end),
+          num_parameters(num_parameters),
+          function_length(function_length),
+          num_inner_functions(num_inner_functions),
+          language_mode(language_mode),
+          uses_super_property(uses_super_property),
+          calls_eval(calls_eval) {}
+
+    bool is_valid() const { return end > 0; }
+  };
+
+  FunctionData GetFunctionData(int start) const;
+  void AddFunctionData(int start, FunctionData&& data);
+  void AddFunctionData(int start, const FunctionData& data);
+  size_t size() const;
+
+  typedef std::unordered_map<int, FunctionData>::const_iterator const_iterator;
+  const_iterator begin() const;
+  const_iterator end() const;
+
+ private:
+  std::unordered_map<int, FunctionData> functions_;
+};
 
 }  // namespace internal
 }  // namespace v8.

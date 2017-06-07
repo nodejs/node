@@ -7,6 +7,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/contexts.h"
@@ -18,12 +19,28 @@ namespace compiler {
 
 Reduction JSContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kParameter:
+      return ReduceParameter(node);
     case IrOpcode::kJSLoadContext:
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSStoreContext:
       return ReduceJSStoreContext(node);
     default:
       break;
+  }
+  return NoChange();
+}
+
+Reduction JSContextSpecialization::ReduceParameter(Node* node) {
+  DCHECK_EQ(IrOpcode::kParameter, node->opcode());
+  int const index = ParameterIndexOf(node->op());
+  if (index == Linkage::kJSCallClosureParamIndex) {
+    // Constant-fold the function parameter {node}.
+    Handle<JSFunction> function;
+    if (closure().ToHandle(&function)) {
+      Node* value = jsgraph()->HeapConstant(function);
+      return Replace(value);
+    }
   }
   return NoChange();
 }

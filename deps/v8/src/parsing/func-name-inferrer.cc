@@ -53,35 +53,26 @@ void FuncNameInferrer::RemoveAsyncKeywordFromEnd() {
   }
 }
 
-const AstString* FuncNameInferrer::MakeNameFromStack() {
-  return MakeNameFromStackHelper(0, ast_value_factory_->empty_string());
-}
-
-const AstString* FuncNameInferrer::MakeNameFromStackHelper(
-    int pos, const AstString* prev) {
-  if (pos >= names_stack_.length()) return prev;
-  if (pos < names_stack_.length() - 1 &&
-      names_stack_.at(pos).type == kVariableName &&
-      names_stack_.at(pos + 1).type == kVariableName) {
+const AstConsString* FuncNameInferrer::MakeNameFromStack() {
+  AstConsString* result = ast_value_factory_->NewConsString();
+  for (int pos = 0; pos < names_stack_.length(); pos++) {
     // Skip consecutive variable declarations.
-    return MakeNameFromStackHelper(pos + 1, prev);
-  } else {
-    if (prev->length() > 0) {
-      const AstRawString* name = names_stack_.at(pos).name;
-      if (prev->length() + name->length() + 1 > String::kMaxLength) return prev;
-      const AstConsString* curr = ast_value_factory_->NewConsString(
-          ast_value_factory_->dot_string(), name);
-      curr = ast_value_factory_->NewConsString(prev, curr);
-      return MakeNameFromStackHelper(pos + 1, curr);
-    } else {
-      return MakeNameFromStackHelper(pos + 1, names_stack_.at(pos).name);
+    if (pos + 1 < names_stack_.length() &&
+        names_stack_.at(pos).type == kVariableName &&
+        names_stack_.at(pos + 1).type == kVariableName) {
+      continue;
     }
+    // Add name. Separate names with ".".
+    if (!result->IsEmpty()) {
+      result->AddString(zone(), ast_value_factory_->dot_string());
+    }
+    result->AddString(zone(), names_stack_.at(pos).name);
   }
+  return result;
 }
-
 
 void FuncNameInferrer::InferFunctionsNames() {
-  const AstString* func_name = MakeNameFromStack();
+  const AstConsString* func_name = MakeNameFromStack();
   for (int i = 0; i < funcs_to_infer_.length(); ++i) {
     funcs_to_infer_[i]->set_raw_inferred_name(func_name);
   }

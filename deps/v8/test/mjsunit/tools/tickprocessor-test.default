@@ -33,7 +33,7 @@ Statistical profiling result from v8.log, (13 ticks, 2 unaccounted, 0 excluded).
  [Bottom up (heavy) profile]:
   Note: percentage shows a share of a particular caller in the total
   amount of its parent calls.
-  Callers occupying less than 2.0% are not shown.
+  Callers occupying less than 1.0% are not shown.
 
    ticks parent  name
       3   23.1%  /lib32/libm-2.7.so

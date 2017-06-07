@@ -51,11 +51,6 @@ function k(x) {
 }
 
 f(g(1));
-assertUnoptimized(f);
-assertUnoptimized(g);
-
-%BaselineFunctionOnNextCall(f);
-%BaselineFunctionOnNextCall(g);
 f(g(2));
 assertUnoptimized(f);
 assertUnoptimized(g);

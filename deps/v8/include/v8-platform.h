@@ -212,6 +212,14 @@ class Platform {
 
   /** Removes tracing state change observer. */
   virtual void RemoveTraceStateObserver(TraceStateObserver*) {}
+
+  typedef void (*StackTracePrinter)();
+
+  /**
+   * Returns a function pointer that print a stack trace of the current stack
+   * on invocation. Disables printing of the stack trace if nullptr.
+   */
+  virtual StackTracePrinter GetStackTracePrinter() { return nullptr; }
 };
 
 }  // namespace v8

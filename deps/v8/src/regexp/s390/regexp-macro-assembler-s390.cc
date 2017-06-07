@@ -376,7 +376,7 @@ void RegExpMacroAssemblerS390::CheckNotBackReference(int start_reg,
     __ LoadP(r5, MemOperand(frame_pointer(), kStringStartMinusOne));
     __ AddP(r5, r5, r3);
     __ CmpP(current_input_offset(), r5);
-    BranchOrBacktrack(lt, on_no_match);
+    BranchOrBacktrack(le, on_no_match);
   } else {
     __ AddP(r0, r3, current_input_offset());
     BranchOrBacktrack(gt, on_no_match, cr0);

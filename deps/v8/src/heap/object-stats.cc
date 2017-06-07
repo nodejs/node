@@ -10,6 +10,8 @@
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
+#include "src/objects/code-cache-inl.h"
+#include "src/objects/compilation-cache-inl.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -343,7 +345,8 @@ static bool IsCowArray(Heap* heap, FixedArrayBase* array) {
 
 static bool SameLiveness(HeapObject* obj1, HeapObject* obj2) {
   return obj1 == nullptr || obj2 == nullptr ||
-         ObjectMarking::Color(obj1) == ObjectMarking::Color(obj2);
+         ObjectMarking::Color(obj1, MarkingState::Internal(obj1)) ==
+             ObjectMarking::Color(obj2, MarkingState::Internal(obj2));
 }
 
 bool ObjectStatsCollector::RecordFixedArrayHelper(HeapObject* parent,

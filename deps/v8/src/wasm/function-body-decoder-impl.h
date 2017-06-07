@@ -14,96 +14,103 @@ namespace wasm {
 
 struct WasmGlobal;
 
+// Use this macro to check a condition if checked == true, and DCHECK the
+// condition otherwise.
+#define CHECKED_COND(cond)   \
+  (checked ? (cond) : ([&] { \
+    DCHECK(cond);            \
+    return true;             \
+  })())
+
 // Helpers for decoding different kinds of operands which follow bytecodes.
+template <bool checked>
 struct LocalIndexOperand {
   uint32_t index;
-  ValueType type;
+  ValueType type = kWasmStmt;
   unsigned length;
 
   inline LocalIndexOperand(Decoder* decoder, const byte* pc) {
-    index = decoder->checked_read_u32v(pc, 1, &length, "local index");
-    type = kWasmStmt;
+    index = decoder->read_u32v<checked>(pc + 1, &length, "local index");
   }
 };
 
+template <bool checked>
 struct ImmI32Operand {
   int32_t value;
   unsigned length;
   inline ImmI32Operand(Decoder* decoder, const byte* pc) {
-    value = decoder->checked_read_i32v(pc, 1, &length, "immi32");
+    value = decoder->read_i32v<checked>(pc + 1, &length, "immi32");
   }
 };
 
+template <bool checked>
 struct ImmI64Operand {
   int64_t value;
   unsigned length;
   inline ImmI64Operand(Decoder* decoder, const byte* pc) {
-    value = decoder->checked_read_i64v(pc, 1, &length, "immi64");
+    value = decoder->read_i64v<checked>(pc + 1, &length, "immi64");
   }
 };
 
+template <bool checked>
 struct ImmF32Operand {
   float value;
-  unsigned length;
+  unsigned length = 4;
   inline ImmF32Operand(Decoder* decoder, const byte* pc) {
     // Avoid bit_cast because it might not preserve the signalling bit of a NaN.
-    uint32_t tmp = decoder->checked_read_u32(pc, 1, "immf32");
+    uint32_t tmp = decoder->read_u32<checked>(pc + 1, "immf32");
     memcpy(&value, &tmp, sizeof(value));
-    length = 4;
   }
 };
 
+template <bool checked>
 struct ImmF64Operand {
   double value;
-  unsigned length;
+  unsigned length = 8;
   inline ImmF64Operand(Decoder* decoder, const byte* pc) {
     // Avoid bit_cast because it might not preserve the signalling bit of a NaN.
-    uint64_t tmp = decoder->checked_read_u64(pc, 1, "immf64");
+    uint64_t tmp = decoder->read_u64<checked>(pc + 1, "immf64");
     memcpy(&value, &tmp, sizeof(value));
-    length = 8;
   }
 };
 
+template <bool checked>
 struct GlobalIndexOperand {
   uint32_t index;
-  ValueType type;
-  const WasmGlobal* global;
+  ValueType type = kWasmStmt;
+  const WasmGlobal* global = nullptr;
   unsigned length;
 
   inline GlobalIndexOperand(Decoder* decoder, const byte* pc) {
-    index = decoder->checked_read_u32v(pc, 1, &length, "global index");
-    global = nullptr;
-    type = kWasmStmt;
+    index = decoder->read_u32v<checked>(pc + 1, &length, "global index");
   }
 };
 
+template <bool checked>
 struct BlockTypeOperand {
-  uint32_t arity;
-  const byte* types;  // pointer to encoded types for the block.
-  unsigned length;
+  uint32_t arity = 0;
+  const byte* types = nullptr;  // pointer to encoded types for the block.
+  unsigned length = 1;
 
   inline BlockTypeOperand(Decoder* decoder, const byte* pc) {
-    uint8_t val = decoder->checked_read_u8(pc, 1, "block type");
+    uint8_t val = decoder->read_u8<checked>(pc + 1, "block type");
     ValueType type = kWasmStmt;
-    length = 1;
-    arity = 0;
-    types = nullptr;
     if (decode_local_type(val, &type)) {
       arity = type == kWasmStmt ? 0 : 1;
       types = pc + 1;
     } else {
       // Handle multi-value blocks.
-      if (!FLAG_wasm_mv_prototype) {
-        decoder->error(pc, pc + 1, "invalid block arity > 1");
+      if (!CHECKED_COND(FLAG_wasm_mv_prototype)) {
+        decoder->error(pc + 1, "invalid block arity > 1");
         return;
       }
-      if (val != kMultivalBlock) {
-        decoder->error(pc, pc + 1, "invalid block type");
+      if (!CHECKED_COND(val == kMultivalBlock)) {
+        decoder->error(pc + 1, "invalid block type");
         return;
       }
       // Decode and check the types vector of the block.
       unsigned len = 0;
-      uint32_t count = decoder->checked_read_u32v(pc, 2, &len, "block arity");
+      uint32_t count = decoder->read_u32v<checked>(pc + 2, &len, "block arity");
       // {count} is encoded as {arity-2}, so that a {0} count here corresponds
       // to a block with 2 values. This makes invalid/redundant encodings
       // impossible.
@@ -113,18 +120,19 @@ struct BlockTypeOperand {
 
       for (uint32_t i = 0; i < arity; i++) {
         uint32_t offset = 1 + 1 + len + i;
-        val = decoder->checked_read_u8(pc, offset, "block type");
+        val = decoder->read_u8<checked>(pc + offset, "block type");
         decode_local_type(val, &type);
-        if (type == kWasmStmt) {
-          decoder->error(pc, pc + offset, "invalid block type");
+        if (!CHECKED_COND(type != kWasmStmt)) {
+          decoder->error(pc + offset, "invalid block type");
           return;
         }
       }
     }
   }
+
   // Decode a byte representing a local type. Return {false} if the encoded
   // byte was invalid or {kMultivalBlock}.
-  bool decode_local_type(uint8_t val, ValueType* result) {
+  inline bool decode_local_type(uint8_t val, ValueType* result) {
     switch (static_cast<ValueTypeCode>(val)) {
       case kLocalVoid:
         *result = kWasmStmt;
@@ -167,77 +175,72 @@ struct BlockTypeOperand {
 };
 
 struct Control;
+template <bool checked>
 struct BreakDepthOperand {
   uint32_t depth;
-  Control* target;
+  Control* target = nullptr;
   unsigned length;
   inline BreakDepthOperand(Decoder* decoder, const byte* pc) {
-    depth = decoder->checked_read_u32v(pc, 1, &length, "break depth");
-    target = nullptr;
+    depth = decoder->read_u32v<checked>(pc + 1, &length, "break depth");
   }
 };
 
+template <bool checked>
 struct CallIndirectOperand {
   uint32_t table_index;
   uint32_t index;
-  FunctionSig* sig;
+  FunctionSig* sig = nullptr;
   unsigned length;
   inline CallIndirectOperand(Decoder* decoder, const byte* pc) {
     unsigned len = 0;
-    index = decoder->checked_read_u32v(pc, 1, &len, "signature index");
-    table_index = decoder->checked_read_u8(pc, 1 + len, "table index");
-    if (table_index != 0) {
-      decoder->error(pc, pc + 1 + len, "expected table index 0, found %u",
-                     table_index);
+    index = decoder->read_u32v<checked>(pc + 1, &len, "signature index");
+    table_index = decoder->read_u8<checked>(pc + 1 + len, "table index");
+    if (!CHECKED_COND(table_index == 0)) {
+      decoder->errorf(pc + 1 + len, "expected table index 0, found %u",
+                      table_index);
     }
     length = 1 + len;
-    sig = nullptr;
   }
 };
 
+template <bool checked>
 struct CallFunctionOperand {
   uint32_t index;
-  FunctionSig* sig;
+  FunctionSig* sig = nullptr;
   unsigned length;
   inline CallFunctionOperand(Decoder* decoder, const byte* pc) {
-    unsigned len1 = 0;
-    unsigned len2 = 0;
-    index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "function index");
-    length = len1 + len2;
-    sig = nullptr;
+    index = decoder->read_u32v<checked>(pc + 1, &length, "function index");
   }
 };
 
+template <bool checked>
 struct MemoryIndexOperand {
   uint32_t index;
-  unsigned length;
+  unsigned length = 1;
   inline MemoryIndexOperand(Decoder* decoder, const byte* pc) {
-    index = decoder->checked_read_u8(pc, 1, "memory index");
-    if (index != 0) {
-      decoder->error(pc, pc + 1, "expected memory index 0, found %u", index);
+    index = decoder->read_u8<checked>(pc + 1, "memory index");
+    if (!CHECKED_COND(index == 0)) {
+      decoder->errorf(pc + 1, "expected memory index 0, found %u", index);
     }
-    length = 1;
   }
 };
 
+template <bool checked>
 struct BranchTableOperand {
   uint32_t table_count;
   const byte* start;
   const byte* table;
   inline BranchTableOperand(Decoder* decoder, const byte* pc) {
-    DCHECK_EQ(kExprBrTable, decoder->checked_read_u8(pc, 0, "opcode"));
+    DCHECK_EQ(kExprBrTable, decoder->read_u8<checked>(pc, "opcode"));
     start = pc + 1;
-    unsigned len1 = 0;
-    table_count = decoder->checked_read_u32v(pc, 1, &len1, "table count");
-    if (table_count > (UINT_MAX / sizeof(uint32_t)) - 1 ||
-        len1 > UINT_MAX - (table_count + 1) * sizeof(uint32_t)) {
-      decoder->error(pc, "branch table size overflow");
-    }
-    table = pc + 1 + len1;
+    unsigned len = 0;
+    table_count = decoder->read_u32v<checked>(pc + 1, &len, "table count");
+    table = pc + 1 + len;
   }
 };
 
 // A helper to iterate over a branch table.
+template <bool checked>
 class BranchTableIterator {
  public:
   unsigned cur_index() { return index_; }
@@ -245,9 +248,9 @@ class BranchTableIterator {
   uint32_t next() {
     DCHECK(has_next());
     index_++;
-    unsigned length = 0;
+    unsigned length;
     uint32_t result =
-        decoder_->checked_read_u32v(pc_, 0, &length, "branch table entry");
+        decoder_->read_u32v<checked>(pc_, &length, "branch table entry");
     pc_ += length;
     return result;
   }
@@ -259,7 +262,7 @@ class BranchTableIterator {
   }
   const byte* pc() { return pc_; }
 
-  BranchTableIterator(Decoder* decoder, BranchTableOperand& operand)
+  BranchTableIterator(Decoder* decoder, BranchTableOperand<checked>& operand)
       : decoder_(decoder),
         start_(operand.start),
         pc_(operand.table),
@@ -274,6 +277,7 @@ class BranchTableIterator {
   uint32_t table_count_;  // the count of entries, not including default.
 };
 
+template <bool checked>
 struct MemoryAccessOperand {
   uint32_t alignment;
   uint32_t offset;
@@ -282,41 +286,43 @@ struct MemoryAccessOperand {
                              uint32_t max_alignment) {
     unsigned alignment_length;
     alignment =
-        decoder->checked_read_u32v(pc, 1, &alignment_length, "alignment");
-    if (max_alignment < alignment) {
-      decoder->error(pc, pc + 1,
-                     "invalid alignment; expected maximum alignment is %u, "
-                     "actual alignment is %u",
-                     max_alignment, alignment);
+        decoder->read_u32v<checked>(pc + 1, &alignment_length, "alignment");
+    if (!CHECKED_COND(alignment <= max_alignment)) {
+      decoder->errorf(pc + 1,
+                      "invalid alignment; expected maximum alignment is %u, "
+                      "actual alignment is %u",
+                      max_alignment, alignment);
     }
     unsigned offset_length;
-    offset = decoder->checked_read_u32v(pc, 1 + alignment_length,
-                                        &offset_length, "offset");
+    offset = decoder->read_u32v<checked>(pc + 1 + alignment_length,
+                                         &offset_length, "offset");
     length = alignment_length + offset_length;
   }
 };
 
 // Operand for SIMD lane operations.
+template <bool checked>
 struct SimdLaneOperand {
   uint8_t lane;
-  unsigned length;
+  unsigned length = 1;
 
   inline SimdLaneOperand(Decoder* decoder, const byte* pc) {
-    lane = decoder->checked_read_u8(pc, 2, "lane");
-    length = 1;
+    lane = decoder->read_u8<checked>(pc + 2, "lane");
   }
 };
 
 // Operand for SIMD shift operations.
+template <bool checked>
 struct SimdShiftOperand {
   uint8_t shift;
-  unsigned length;
+  unsigned length = 1;
 
   inline SimdShiftOperand(Decoder* decoder, const byte* pc) {
-    shift = decoder->checked_read_u8(pc, 2, "shift");
-    length = 1;
+    shift = decoder->read_u8<checked>(pc + 2, "shift");
   }
 };
+
+#undef CHECKED_COND
 
 }  // namespace wasm
 }  // namespace internal

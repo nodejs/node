@@ -112,16 +112,16 @@ snippet: "
   };
   f();
 "
-frame size: 2
+frame size: 1
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 21
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   25 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
-  /*   30 S> */ B(JumpIfToBooleanFalse), U8(13),
-  /*   43 S> */ B(AddSmi), I8(1), R(0), U8(2),
-                B(Mov), R(0), R(1),
+  /*   30 S> */ B(JumpIfToBooleanFalse), U8(11),
+  /*   43 S> */ B(Ldar), R(0),
+                B(AddSmi), I8(1), U8(2),
                 B(Star), R(0),
                 B(Jump), U8(5),
   /*   66 S> */ B(LdaSmi), I8(2),

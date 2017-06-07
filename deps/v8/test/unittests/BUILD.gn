@@ -12,9 +12,11 @@ v8_executable("unittests") {
     "../../testing/gtest-support.h",
     "api/access-check-unittest.cc",
     "api/exception-unittest.cc",
+    "api/interceptor-unittest.cc",
     "api/isolate-unittest.cc",
     "api/remote-object-unittest.cc",
     "api/v8-object-unittest.cc",
+    "asmjs/asm-scanner-unittest.cc",
     "base/atomic-utils-unittest.cc",
     "base/bits-unittest.cc",
     "base/cpu-unittest.cc",
@@ -107,15 +109,14 @@ v8_executable("unittests") {
     "heap/memory-reducer-unittest.cc",
     "heap/scavenge-job-unittest.cc",
     "heap/slot-set-unittest.cc",
+    "heap/spaces-unittest.cc",
     "heap/unmapper-unittest.cc",
     "interpreter/bytecode-array-builder-unittest.cc",
     "interpreter/bytecode-array-iterator-unittest.cc",
     "interpreter/bytecode-array-random-iterator-unittest.cc",
     "interpreter/bytecode-array-writer-unittest.cc",
-    "interpreter/bytecode-dead-code-optimizer-unittest.cc",
     "interpreter/bytecode-decoder-unittest.cc",
     "interpreter/bytecode-operands-unittest.cc",
-    "interpreter/bytecode-peephole-optimizer-unittest.cc",
     "interpreter/bytecode-pipeline-unittest.cc",
     "interpreter/bytecode-register-allocator-unittest.cc",
     "interpreter/bytecode-register-optimizer-unittest.cc",
@@ -148,6 +149,7 @@ v8_executable("unittests") {
     "wasm/wasm-module-builder-unittest.cc",
     "wasm/wasm-opcodes-unittest.cc",
     "zone/segmentpool-unittest.cc",
+    "zone/zone-allocator-unittest.cc",
     "zone/zone-chunk-list-unittest.cc",
     "zone/zone-unittest.cc",
   ]
@@ -181,7 +183,7 @@ v8_executable("unittests") {
   #}],
 
   deps = [
-    "../..:v8",
+    "../..:v8_builtins_generators",
     "../..:v8_libbase",
     "../..:v8_libplatform",
     "//build/config/sanitizers:deps",
@@ -192,6 +194,17 @@ v8_executable("unittests") {
 
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]
+  }
+
+  defines = []
+
+  if (is_component_build) {
+    # unittests can't be built against a shared library, so we
+    # need to depend on the underlying static target in that case.
+    deps += [ "../..:v8_maybe_snapshot" ]
+    defines += [ "BUILDING_V8_SHARED" ]
+  } else {
+    deps += [ "../..:v8" ]
   }
 
   if (is_win) {

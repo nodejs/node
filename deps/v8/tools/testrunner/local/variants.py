@@ -8,12 +8,14 @@ ALL_VARIANT_FLAGS = {
   "stress": [["--stress-opt", "--always-opt"]],
   "turbofan": [["--turbo"]],
   "turbofan_opt": [["--turbo", "--always-opt"]],
-  "nocrankshaft": [["--nocrankshaft"]],
-  "ignition": [["--ignition"]],
-  "ignition_staging": [["--ignition-staging"]],
-  "ignition_turbofan": [["--ignition-staging", "--turbo"]],
-  "asm_wasm": [["--validate-asm"]],
-  "wasm_traps": [["--wasm_guard_pages", "--invoke-weak-callbacks"]],
+  "noturbofan": [["--no-turbo"]],
+  "noturbofan_stress": [["--no-turbo", "--stress-opt", "--always-opt"]],
+  "fullcode": [["--nocrankshaft", "--no-turbo"]],
+  # No optimization actually means no profile guided optimization -
+  # %OptimizeFunctionOnNextCall still works.
+  "nooptimization": [["--nocrankshaft"]],
+  "asm_wasm": [["--validate-asm", "--fast-validate-asm", "--stress-validate-asm", "--suppress-asm-messages"]],
+  "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
 
 # FAST_VARIANTS implies no --always-opt.
@@ -21,14 +23,16 @@ FAST_VARIANT_FLAGS = {
   "default": [[]],
   "stress": [["--stress-opt"]],
   "turbofan": [["--turbo"]],
-  "nocrankshaft": [["--nocrankshaft"]],
-  "ignition": [["--ignition"]],
-  "ignition_staging": [["--ignition-staging"]],
-  "ignition_turbofan": [["--ignition-staging", "--turbo"]],
-  "asm_wasm": [["--validate-asm"]],
-  "wasm_traps": [["--wasm_guard_pages", "--invoke-weak-callbacks"]],
+  "noturbofan": [["--no-turbo"]],
+  "noturbofan_stress": [["--no-turbo", "--stress-opt"]],
+  "fullcode": [["--nocrankshaft", "--no-turbo"]],
+  # No optimization actually means no profile guided optimization -
+  # %OptimizeFunctionOnNextCall still works.
+  "nooptimization": [["--nocrankshaft"]],
+  "asm_wasm": [["--validate-asm", "--fast-validate-asm", "--stress-validate-asm", "--suppress-asm-messages"]],
+  "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
 
 ALL_VARIANTS = set(["default", "stress", "turbofan", "turbofan_opt",
-                    "nocrankshaft", "ignition", "ignition_staging",
-                    "ignition_turbofan", "asm_wasm", "wasm_traps"])
+                    "noturbofan", "noturbofan_stress", "fullcode",
+                    "nooptimization", "asm_wasm", "wasm_traps"])

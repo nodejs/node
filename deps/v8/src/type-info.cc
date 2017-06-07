@@ -89,7 +89,7 @@ InlineCacheState TypeFeedbackOracle::LoadInlineCacheState(FeedbackSlot slot) {
 bool TypeFeedbackOracle::StoreIsUninitialized(FeedbackSlot slot) {
   if (!slot.IsInvalid()) {
     FeedbackSlotKind kind = feedback_vector_->GetKind(slot);
-    if (IsStoreICKind(kind)) {
+    if (IsStoreICKind(kind) || IsStoreGlobalICKind(kind)) {
       StoreICNexus nexus(feedback_vector_, slot);
       return nexus.StateFromFeedback() == UNINITIALIZED;
     } else if (IsKeyedStoreICKind(kind)) {
@@ -454,7 +454,8 @@ void TypeFeedbackOracle::CollectReceiverTypes(StubCache* stub_cache,
 void TypeFeedbackOracle::CollectReceiverTypes(FeedbackSlot slot,
                                               SmallMapList* types) {
   FeedbackSlotKind kind = feedback_vector_->GetKind(slot);
-  if (IsStoreICKind(kind) || IsStoreOwnICKind(kind)) {
+  if (IsStoreICKind(kind) || IsStoreOwnICKind(kind) ||
+      IsStoreGlobalICKind(kind)) {
     StoreICNexus nexus(feedback_vector_, slot);
     CollectReceiverTypes(&nexus, types);
   } else {

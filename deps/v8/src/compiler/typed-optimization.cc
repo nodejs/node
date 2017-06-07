@@ -78,6 +78,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceCheckHeapObject(node);
     case IrOpcode::kCheckMaps:
       return ReduceCheckMaps(node);
+    case IrOpcode::kCheckNumber:
+      return ReduceCheckNumber(node);
     case IrOpcode::kCheckString:
       return ReduceCheckString(node);
     case IrOpcode::kLoadField:
@@ -96,6 +98,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceReferenceEqual(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
+    case IrOpcode::kSpeculativeToNumber:
+      return ReduceSpeculativeToNumber(node);
     default:
       break;
   }
@@ -150,6 +154,16 @@ Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
   return NoChange();
 }
 
+Reduction TypedOptimization::ReduceCheckNumber(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::Number())) {
+    ReplaceWithValue(node, input);
+    return Replace(input);
+  }
+  return NoChange();
+}
+
 Reduction TypedOptimization::ReduceCheckString(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type* const input_type = NodeProperties::GetType(input);
@@ -195,7 +209,8 @@ Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
     return Replace(input);
   }
   if (input_type->Is(Type::PlainNumber()) &&
-      input->opcode() == IrOpcode::kNumberDivide) {
+      (input->opcode() == IrOpcode::kNumberDivide ||
+       input->opcode() == IrOpcode::kSpeculativeNumberDivide)) {
     Node* const lhs = NodeProperties::GetValueInput(input, 0);
     Type* const lhs_type = NodeProperties::GetType(lhs);
     Node* const rhs = NodeProperties::GetValueInput(input, 1);
@@ -306,6 +321,18 @@ Reduction TypedOptimization::ReduceSelect(Node* node) {
     type = Type::Intersect(node_type, type, graph()->zone());
     NodeProperties::SetType(node, type);
     return Changed(node);
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceSpeculativeToNumber(Node* node) {
+  DCHECK_EQ(IrOpcode::kSpeculativeToNumber, node->opcode());
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::Number())) {
+    // SpeculativeToNumber(x:number) => x
+    ReplaceWithValue(node, input);
+    return Replace(input);
   }
   return NoChange();
 }

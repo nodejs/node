@@ -40,8 +40,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
         return kVisitSlicedString;
 
       case kExternalStringTag:
-        return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
-                                   instance_size, has_unboxed_fields);
+        return kVisitDataObject;
 
       case kThinStringTag:
         return kVisitThinString;
@@ -97,8 +96,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
       return kVisitSharedFunctionInfo;
 
     case JS_PROXY_TYPE:
-      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 instance_size, has_unboxed_fields);
+      return kVisitStruct;
 
     case SYMBOL_TYPE:
       return kVisitSymbol;
@@ -112,6 +110,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_VALUE_TYPE:
     case JS_DATE_TYPE:
@@ -166,24 +165,19 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
-      return GetVisitorIdForSize(kVisitJSObject, kVisitJSObjectGeneric,
-                                 instance_size, has_unboxed_fields);
+      return has_unboxed_fields ? kVisitJSObject : kVisitJSObjectFast;
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
-      return GetVisitorIdForSize(kVisitJSApiObject, kVisitJSApiObjectGeneric,
-                                 instance_size, has_unboxed_fields);
+      return kVisitJSApiObject;
 
     case JS_FUNCTION_TYPE:
       return kVisitJSFunction;
 
     case FILLER_TYPE:
-      if (instance_size == kPointerSize) return kVisitDataObjectGeneric;
-    // Fall through.
     case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
-      return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
-                                 instance_size, has_unboxed_fields);
+      return kVisitDataObject;
 
     case FIXED_UINT8_ARRAY_TYPE:
     case FIXED_INT8_ARRAY_TYPE:
@@ -205,8 +199,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
         return kVisitAllocationSite;
       }
 
-      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
-                                 instance_size, has_unboxed_fields);
+      return kVisitStruct;
 
     default:
       UNREACHABLE();

@@ -619,36 +619,6 @@ class LocalDeclEncoder {
 #define WASM_GROW_MEMORY(x) x, kExprGrowMemory, 0
 #define WASM_MEMORY_SIZE kExprMemorySize, 0
 
-//------------------------------------------------------------------------------
-// Simd Operations.
-//------------------------------------------------------------------------------
-// TODO(bbudge) Migrate these into tests.
-#define WASM_SIMD_F32x4_SPLAT(x) \
-  x, kSimdPrefix, static_cast<byte>(kExprF32x4Splat)
-#define WASM_SIMD_F32x4_EXTRACT_LANE(lane, x)               \
-  x, kSimdPrefix, static_cast<byte>(kExprF32x4ExtractLane), \
-      static_cast<byte>(lane)
-#define WASM_SIMD_F32x4_REPLACE_LANE(lane, x, y)               \
-  x, y, kSimdPrefix, static_cast<byte>(kExprF32x4ReplaceLane), \
-      static_cast<byte>(lane)
-#define WASM_SIMD_F32x4_ADD(x, y) \
-  x, y, kSimdPrefix, static_cast<byte>(kExprF32x4Add)
-#define WASM_SIMD_F32x4_SUB(x, y) \
-  x, y, kSimdPrefix, static_cast<byte>(kExprF32x4Sub)
-
-#define WASM_SIMD_I32x4_SPLAT(x) \
-  x, kSimdPrefix, static_cast<byte>(kExprI32x4Splat)
-#define WASM_SIMD_I32x4_EXTRACT_LANE(lane, x)               \
-  x, kSimdPrefix, static_cast<byte>(kExprI32x4ExtractLane), \
-      static_cast<byte>(lane)
-#define WASM_SIMD_I32x4_REPLACE_LANE(lane, x, y)               \
-  x, y, kSimdPrefix, static_cast<byte>(kExprI32x4ReplaceLane), \
-      static_cast<byte>(lane)
-#define WASM_SIMD_I32x4_ADD(x, y) \
-  x, y, kSimdPrefix, static_cast<byte>(kExprI32x4Add)
-#define WASM_SIMD_I32x4_SUB(x, y) \
-  x, y, kSimdPrefix, static_cast<byte>(kExprI32x4Sub)
-
 #define SIG_ENTRY_v_v kWasmFunctionTypeForm, 0, 0
 #define SIZEOF_SIG_ENTRY_v_v 3
 

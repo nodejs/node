@@ -36,9 +36,12 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 
 #define TRACER_SCOPES(F)                      \
   INCREMENTAL_SCOPES(F)                       \
-  F(EXTERNAL_EPILOGUE)                        \
-  F(EXTERNAL_PROLOGUE)                        \
-  F(EXTERNAL_WEAK_GLOBAL_HANDLES)             \
+  F(HEAP_EPILOGUE)                            \
+  F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)           \
+  F(HEAP_EXTERNAL_EPILOGUE)                   \
+  F(HEAP_EXTERNAL_PROLOGUE)                   \
+  F(HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES)        \
+  F(HEAP_PROLOGUE)                            \
   F(MC_CLEAR)                                 \
   F(MC_CLEAR_CODE_FLUSH)                      \
   F(MC_CLEAR_DEPENDENT_CODE)                  \
@@ -79,6 +82,7 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MC_SWEEP_CODE)                            \
   F(MC_SWEEP_MAP)                             \
   F(MC_SWEEP_OLD)                             \
+  F(MC_MINOR_MC)                              \
   F(MINOR_MC_MARK)                            \
   F(MINOR_MC_MARK_CODE_FLUSH_CANDIDATES)      \
   F(MINOR_MC_MARK_GLOBAL_HANDLES)             \
@@ -371,9 +375,9 @@ class V8_EXPORT_PRIVATE GCTracer {
   void PRINTF_FORMAT(2, 3) Output(const char* format, ...) const;
 
   double TotalExternalTime() const {
-    return current_.scopes[Scope::EXTERNAL_WEAK_GLOBAL_HANDLES] +
-           current_.scopes[Scope::EXTERNAL_EPILOGUE] +
-           current_.scopes[Scope::EXTERNAL_PROLOGUE] +
+    return current_.scopes[Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES] +
+           current_.scopes[Scope::HEAP_EXTERNAL_EPILOGUE] +
+           current_.scopes[Scope::HEAP_EXTERNAL_PROLOGUE] +
            current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE] +
            current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE];
   }

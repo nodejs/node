@@ -20,7 +20,7 @@ const uint8_t kWasmFunctionTypeForm = 0x60;
 const uint8_t kWasmAnyFunctionTypeForm = 0x70;
 const uint8_t kResizableMaximumFlag = 1;
 
-enum WasmSectionCode {
+enum SectionCode {
   kUnknownSectionCode = 0,   // code for unknown sections
   kTypeSectionCode = 1,      // Function signature declarations
   kImportSectionCode = 2,    // Import declarations
@@ -36,11 +36,13 @@ enum WasmSectionCode {
   kNameSectionCode = 12,     // Name section (encoded as a string)
 };
 
+enum NameSectionType : uint8_t { kFunction = 1, kLocal = 2 };
+
 inline bool IsValidSectionCode(uint8_t byte) {
   return kTypeSectionCode <= byte && byte <= kDataSectionCode;
 }
 
-const char* SectionName(WasmSectionCode code);
+const char* SectionName(SectionCode code);
 
 typedef Result<const WasmModule*> ModuleResult;
 typedef Result<WasmFunction*> FunctionResult;
@@ -74,12 +76,6 @@ V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunction(Isolate* isolate,
                                                     ModuleBytesEnv* env,
                                                     const byte* function_start,
                                                     const byte* function_end);
-
-// Extracts the function offset table from the wasm module bytes.
-// Returns a vector with <offset, length> entries, or failure if the wasm bytes
-// are detected as invalid. Note that this validation is not complete.
-FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
-                                                const byte* module_end);
 
 V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,
                                                             const byte* end);

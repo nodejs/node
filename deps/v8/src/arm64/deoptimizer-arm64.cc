@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api.h"
+#include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/frames-arm64.h"
+#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
@@ -94,11 +97,17 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // caller-saved registers here. Callee-saved registers can be stored directly
   // in the input frame.
 
-  // Save all allocatable floating point registers.
-  CPURegList saved_fp_registers(
+  // Save all allocatable double registers.
+  CPURegList saved_double_registers(
       CPURegister::kFPRegister, kDRegSizeInBits,
       RegisterConfiguration::Crankshaft()->allocatable_double_codes_mask());
-  __ PushCPURegList(saved_fp_registers);
+  __ PushCPURegList(saved_double_registers);
+
+  // Save all allocatable float registers.
+  CPURegList saved_float_registers(
+      CPURegister::kFPRegister, kSRegSizeInBits,
+      RegisterConfiguration::Crankshaft()->allocatable_float_codes_mask());
+  __ PushCPURegList(saved_float_registers);
 
   // We save all the registers expcept jssp, sp and lr.
   CPURegList saved_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 27);
@@ -110,10 +119,13 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   const int kSavedRegistersAreaSize =
       (saved_registers.Count() * kXRegSize) +
-      (saved_fp_registers.Count() * kDRegSize);
+      (saved_double_registers.Count() * kDRegSize) +
+      (saved_float_registers.Count() * kSRegSize);
 
   // Floating point registers are saved on the stack above core registers.
-  const int kFPRegistersOffset = saved_registers.Count() * kXRegSize;
+  const int kFloatRegistersOffset = saved_registers.Count() * kXRegSize;
+  const int kDoubleRegistersOffset =
+      kFloatRegistersOffset + saved_float_registers.Count() * kSRegSize;
 
   // Get the bailout id from the stack.
   Register bailout_id = x2;
@@ -165,15 +177,26 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ Str(x2, MemOperand(x1, offset));
   }
 
-  // Copy FP registers to the input frame.
-  CPURegList copy_fp_to_input = saved_fp_registers;
-  for (int i = 0; i < saved_fp_registers.Count(); i++) {
-    int src_offset = kFPRegistersOffset + (i * kDoubleSize);
+  // Copy double registers to the input frame.
+  CPURegList copy_double_to_input = saved_double_registers;
+  for (int i = 0; i < saved_double_registers.Count(); i++) {
+    int src_offset = kDoubleRegistersOffset + (i * kDoubleSize);
     __ Peek(x2, src_offset);
-    CPURegister reg = copy_fp_to_input.PopLowestIndex();
+    CPURegister reg = copy_double_to_input.PopLowestIndex();
     int dst_offset = FrameDescription::double_registers_offset() +
                      (reg.code() * kDoubleSize);
     __ Str(x2, MemOperand(x1, dst_offset));
+  }
+
+  // Copy float registers to the input frame.
+  CPURegList copy_float_to_input = saved_float_registers;
+  for (int i = 0; i < saved_float_registers.Count(); i++) {
+    int src_offset = kFloatRegistersOffset + (i * kFloatSize);
+    __ Peek(w2, src_offset);
+    CPURegister reg = copy_float_to_input.PopLowestIndex();
+    int dst_offset =
+        FrameDescription::float_registers_offset() + (reg.code() * kFloatSize);
+    __ Str(w2, MemOperand(x1, dst_offset));
   }
 
   // Remove the bailout id and the saved registers from the stack.
@@ -241,11 +264,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ B(lt, &outer_push_loop);
 
   __ Ldr(x1, MemOperand(x4, Deoptimizer::input_offset()));
-  DCHECK(!saved_fp_registers.IncludesAliasOf(crankshaft_fp_scratch) &&
-         !saved_fp_registers.IncludesAliasOf(fp_zero) &&
-         !saved_fp_registers.IncludesAliasOf(fp_scratch));
-  while (!saved_fp_registers.IsEmpty()) {
-    const CPURegister reg = saved_fp_registers.PopLowestIndex();
+  DCHECK(!saved_double_registers.IncludesAliasOf(crankshaft_fp_scratch) &&
+         !saved_double_registers.IncludesAliasOf(fp_zero) &&
+         !saved_double_registers.IncludesAliasOf(fp_scratch));
+  while (!saved_double_registers.IsEmpty()) {
+    const CPURegister reg = saved_double_registers.PopLowestIndex();
     int src_offset = FrameDescription::double_registers_offset() +
                      (reg.code() * kDoubleSize);
     __ Ldr(reg, MemOperand(x1, src_offset));

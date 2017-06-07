@@ -39,14 +39,14 @@ class SnapshotData : public SerializedData {
   bool IsSane();
 
   // The data header consists of uint32_t-sized entries:
-  // [0] magic number and external reference count
-  // [1] version hash
-  // [2] number of reservation size entries
-  // [3] payload length
+  // [0] magic number and (internal) external reference count
+  // [1] API-provided external reference count
+  // [2] version hash
+  // [3] number of reservation size entries
+  // [4] payload length
   // ... reservations
   // ... serialized payload
-  static const int kCheckSumOffset = kMagicNumberOffset + kInt32Size;
-  static const int kNumReservationsOffset = kCheckSumOffset + kInt32Size;
+  static const int kNumReservationsOffset = kVersionHashOffset + kInt32Size;
   static const int kPayloadLengthOffset = kNumReservationsOffset + kInt32Size;
   static const int kHeaderSize = kPayloadLengthOffset + kInt32Size;
 };
@@ -60,7 +60,7 @@ class Snapshot : public AllStatic {
   static MaybeHandle<Context> NewContextFromSnapshot(
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
       size_t context_index,
-      v8::DeserializeInternalFieldsCallback internal_fields_deserializer);
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
   static bool HaveASnapshotToStartFrom(Isolate* isolate);
 

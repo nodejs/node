@@ -354,7 +354,8 @@ TEST(Regress5829) {
   heap->CreateFillerObjectAt(old_end - kPointerSize, kPointerSize,
                              ClearRecordedSlots::kNo);
   heap->old_space()->EmptyAllocationInfo();
-  LiveObjectIterator<kGreyObjects> it(Page::FromAddress(array->address()));
+  Page* page = Page::FromAddress(array->address());
+  LiveObjectIterator<kGreyObjects> it(page, MarkingState::Internal(page));
   HeapObject* object = nullptr;
   while ((object = it.Next()) != nullptr) {
     CHECK(!object->IsFiller());

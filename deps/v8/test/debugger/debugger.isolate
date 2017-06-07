@@ -3,15 +3,11 @@
 # found in the LICENSE file.
 
 {
-  'conditions': [
-    ['v8_enable_inspector==1', {
-      'variables': {
-        'files': [
-          './',
-        ],
-      },
-    }],
-  ],
+  'variables': {
+    'files': [
+      './',
+    ],
+  },
   'includes': [
     '../../src/d8.isolate',
     '../../tools/testrunner/testrunner.isolate',

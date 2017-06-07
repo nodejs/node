@@ -8,6 +8,7 @@
 #include "src/factory.h"
 #include "src/globals.h"
 #include "src/objects-inl.h"
+#include "src/objects/compilation-cache-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -170,11 +171,19 @@ InfoVectorPair CompilationCacheScript::Lookup(
   // to see if we actually found a cached script. If so, we return a
   // handle created in the caller's handle scope.
   if (result.has_shared()) {
+#ifdef DEBUG
+    // Since HasOrigin can allocate, we need to protect the SharedFunctionInfo
+    // and the FeedbackVector with handles during the call.
     Handle<SharedFunctionInfo> shared(result.shared(), isolate());
-    // TODO(mvstanton): Make sure HasOrigin can't allocate, or it will
-    // mess up our InfoVectorPair.
+    Handle<Cell> vector_handle;
+    if (result.has_vector()) {
+      vector_handle = Handle<Cell>(result.vector(), isolate());
+    }
     DCHECK(
         HasOrigin(shared, name, line_offset, column_offset, resource_options));
+    result =
+        InfoVectorPair(*shared, result.has_vector() ? *vector_handle : nullptr);
+#endif
     isolate()->counters()->compilation_cache_hits()->Increment();
   } else {
     isolate()->counters()->compilation_cache_misses()->Increment();

@@ -764,3 +764,42 @@ re.lastIndex = NaN;
 assertEquals(NaN, re.lastIndex);
 "abc".search(re);
 assertEquals(NaN, re.lastIndex);
+
+// Annex B changes: https://github.com/tc39/ecma262/pull/303
+
+assertThrows("/{1}/", SyntaxError);
+assertTrue(/^{*$/.test("{{{"));
+assertTrue(/^}*$/.test("}}}"));
+assertTrue(/]/.test("]"));
+assertTrue(/^\c%$/.test("\\c%"));   // We go into ExtendedPatternCharacter.
+assertTrue(/^\d%$/.test("2%"));     // ... CharacterClassEscape.
+assertTrue(/^\e%$/.test("e%"));     // ... IdentityEscape.
+assertTrue(/^\ca$/.test("\u{1}"));  // ... ControlLetter.
+assertTrue(/^\cA$/.test("\u{1}"));  // ... ControlLetter.
+assertTrue(/^\c9$/.test("\\c9"));   // ... ExtendedPatternCharacter.
+assertTrue(/^\c$/.test("\\c"));   // ... ExtendedPatternCharacter.
+assertTrue(/^[\c%]*$/.test("\\c%"));  // TODO(v8:6201): Not covered by the spec.
+assertTrue(/^[\c:]*$/.test("\\c:"));  // TODO(v8:6201): Not covered by the spec.
+assertTrue(/^[\c0]*$/.test("\u{10}"));  // ... ClassControlLetter.
+assertTrue(/^[\c1]*$/.test("\u{11}"));  // ('0' % 32 == 0x10)
+assertTrue(/^[\c2]*$/.test("\u{12}"));
+assertTrue(/^[\c3]*$/.test("\u{13}"));
+assertTrue(/^[\c4]*$/.test("\u{14}"));
+assertTrue(/^[\c5]*$/.test("\u{15}"));
+assertTrue(/^[\c6]*$/.test("\u{16}"));
+assertTrue(/^[\c7]*$/.test("\u{17}"));
+assertTrue(/^[\c8]*$/.test("\u{18}"));
+assertTrue(/^[\c9]*$/.test("\u{19}"));
+assertTrue(/^[\c_]*$/.test("\u{1F}"));
+assertTrue(/^[\c11]*$/.test("\u{11}1"));
+assertTrue(/^[\8]*$/.test("8"));  // ... ClassEscape ~~> IdentityEscape.
+assertTrue(/^[\7]*$/.test("\u{7}"));  // ... ClassEscape
+                                      // ~~> LegacyOctalEscapeSequence.
+assertTrue(/^[\11]*$/.test("\u{9}"));
+assertTrue(/^[\111]*$/.test("\u{49}"));
+assertTrue(/^[\222]*$/.test("\u{92}"));
+assertTrue(/^[\333]*$/.test("\u{DB}"));
+assertTrue(/^[\444]*$/.test("\u{24}4"));
+assertTrue(/^[\d-X]*$/.test("234-X-432"));  // CharacterRangeOrUnion.
+assertTrue(/^[\d-X-Z]*$/.test("234-XZ-432"));
+assertFalse(/^[\d-X-Z]*$/.test("234-XYZ-432"));

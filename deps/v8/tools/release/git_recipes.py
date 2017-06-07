@@ -206,7 +206,7 @@ class GitRecipesMixin(object):
     self.Git(MakeArgs(args), **kwargs)
 
   def GitUpload(self, reviewer="", author="", force=False, cq=False,
-                bypass_hooks=False, cc="", **kwargs):
+                bypass_hooks=False, cc="", use_gerrit=False, **kwargs):
     args = ["cl upload --send-mail"]
     if author:
       args += ["--email", Quoted(author)]
@@ -220,6 +220,8 @@ class GitRecipesMixin(object):
       args.append("--bypass-hooks")
     if cc:
       args += ["--cc", Quoted(cc)]
+    if use_gerrit:
+      args += ["--gerrit"]
     # TODO(machenbach): Check output in forced mode. Verify that all required
     # base files were uploaded, if not retry.
     self.Git(MakeArgs(args), pipe=False, **kwargs)
@@ -241,10 +243,6 @@ class GitRecipesMixin(object):
   def GitCLLand(self, **kwargs):
     self.Git(
         "cl land -f --bypass-hooks", retry_on=lambda x: x is None, **kwargs)
-
-  def GitCLAddComment(self, message, **kwargs):
-    args = ["cl", "comments", "-a", Quoted(message)]
-    self.Git(MakeArgs(args), **kwargs)
 
   def GitDiff(self, loc1, loc2, **kwargs):
     return self.Git(MakeArgs(["diff", loc1, loc2]), **kwargs)

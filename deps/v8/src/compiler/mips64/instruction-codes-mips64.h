@@ -166,7 +166,29 @@ namespace compiler {
   V(Mips64StackClaim)               \
   V(Mips64Seb)                      \
   V(Mips64Seh)                      \
-  V(Mips64AssertEqual)
+  V(Mips64AssertEqual)              \
+  V(Mips64S128Zero)                 \
+  V(Mips64I32x4Splat)               \
+  V(Mips64I32x4ExtractLane)         \
+  V(Mips64I32x4ReplaceLane)         \
+  V(Mips64I32x4Add)                 \
+  V(Mips64I32x4Sub)                 \
+  V(Mips64F32x4Splat)               \
+  V(Mips64F32x4ExtractLane)         \
+  V(Mips64F32x4ReplaceLane)         \
+  V(Mips64F32x4SConvertI32x4)       \
+  V(Mips64F32x4UConvertI32x4)       \
+  V(Mips64I32x4Mul)                 \
+  V(Mips64I32x4MaxS)                \
+  V(Mips64I32x4MinS)                \
+  V(Mips64I32x4Eq)                  \
+  V(Mips64I32x4Ne)                  \
+  V(Mips64I32x4Shl)                 \
+  V(Mips64I32x4ShrS)                \
+  V(Mips64I32x4ShrU)                \
+  V(Mips64I32x4MaxU)                \
+  V(Mips64I32x4MinU)                \
+  V(Mips64S32x4Select)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

@@ -27,6 +27,8 @@ enum class FeedbackSlotKind {
   kLoadGlobalNotInsideTypeof,
   kLoadGlobalInsideTypeof,
   kLoadKeyed,
+  kStoreGlobalSloppy,
+  kStoreGlobalStrict,
   kStoreNamedSloppy,
   kStoreNamedStrict,
   kStoreOwnNamed,
@@ -36,6 +38,7 @@ enum class FeedbackSlotKind {
   kCompareOp,
   kToBoolean,
   kStoreDataPropertyInLiteral,
+  kTypeProfile,
   kCreateClosure,
   kLiteral,
   // This is a general purpose slot that occupies one feedback vector element.
@@ -61,6 +64,11 @@ inline bool IsKeyedLoadICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kLoadKeyed;
 }
 
+inline bool IsStoreGlobalICKind(FeedbackSlotKind kind) {
+  return kind == FeedbackSlotKind::kStoreGlobalSloppy ||
+         kind == FeedbackSlotKind::kStoreGlobalStrict;
+}
+
 inline bool IsStoreICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kStoreNamedSloppy ||
          kind == FeedbackSlotKind::kStoreNamedStrict;
@@ -75,6 +83,10 @@ inline bool IsKeyedStoreICKind(FeedbackSlotKind kind) {
          kind == FeedbackSlotKind::kStoreKeyedStrict;
 }
 
+inline bool IsTypeProfileKind(FeedbackSlotKind kind) {
+  return kind == FeedbackSlotKind::kTypeProfile;
+}
+
 inline TypeofMode GetTypeofModeFromSlotKind(FeedbackSlotKind kind) {
   DCHECK(IsLoadGlobalICKind(kind));
   return (kind == FeedbackSlotKind::kLoadGlobalInsideTypeof)
@@ -84,8 +96,9 @@ inline TypeofMode GetTypeofModeFromSlotKind(FeedbackSlotKind kind) {
 
 inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
   DCHECK(IsStoreICKind(kind) || IsStoreOwnICKind(kind) ||
-         IsKeyedStoreICKind(kind));
+         IsStoreGlobalICKind(kind) || IsKeyedStoreICKind(kind));
   return (kind == FeedbackSlotKind::kStoreNamedSloppy ||
+          kind == FeedbackSlotKind::kStoreGlobalSloppy ||
           kind == FeedbackSlotKind::kStoreKeyedSloppy)
              ? SLOPPY
              : STRICT;
@@ -127,6 +140,13 @@ class FeedbackVectorSpecBase {
     return AddSlot(FeedbackSlotKind::kStoreOwnNamed);
   }
 
+  FeedbackSlot AddStoreGlobalICSlot(LanguageMode language_mode) {
+    STATIC_ASSERT(LANGUAGE_END == 2);
+    return AddSlot(is_strict(language_mode)
+                       ? FeedbackSlotKind::kStoreGlobalStrict
+                       : FeedbackSlotKind::kStoreGlobalSloppy);
+  }
+
   FeedbackSlot AddKeyedStoreICSlot(LanguageMode language_mode) {
     STATIC_ASSERT(LANGUAGE_END == 2);
     return AddSlot(is_strict(language_mode)
@@ -149,6 +169,8 @@ class FeedbackVectorSpecBase {
   FeedbackSlot AddStoreDataPropertyInLiteralICSlot() {
     return AddSlot(FeedbackSlotKind::kStoreDataPropertyInLiteral);
   }
+
+  FeedbackSlot AddTypeProfileSlot();
 
 #ifdef OBJECT_PRINT
   // For gdb debugging.
@@ -201,6 +223,13 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
     return static_cast<FeedbackSlotKind>(slot_kinds_.at(slot.ToInt()));
   }
 
+  bool HasTypeProfileSlot() const;
+
+  // If used, the TypeProfileSlot is always added as the first slot and its
+  // index is constant. If other slots are added before the TypeProfileSlot,
+  // this number changes.
+  static const int kTypeProfileSlotIndex = 2;
+
  private:
   friend class FeedbackVectorSpecBase<FeedbackVectorSpec>;
 
@@ -249,6 +278,7 @@ class FeedbackMetadata : public FixedArray {
   DECLARE_PRINTER(FeedbackMetadata)
 
   static const char* Kind2String(FeedbackSlotKind kind);
+  bool HasTypeProfileSlot() const;
 
  private:
   static const int kFeedbackSlotKindBits = 5;
@@ -307,6 +337,8 @@ class FeedbackVector : public FixedArray {
   // Returns slot kind for given slot.
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
+  FeedbackSlot GetTypeProfileSlot() const;
+
   static Handle<FeedbackVector> New(Isolate* isolate,
                                     Handle<SharedFunctionInfo> shared);
 
@@ -322,7 +354,9 @@ class FeedbackVector : public FixedArray {
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedLoadIC)
   DEFINE_SLOT_KIND_PREDICATE(IsStoreIC)
   DEFINE_SLOT_KIND_PREDICATE(IsStoreOwnIC)
+  DEFINE_SLOT_KIND_PREDICATE(IsStoreGlobalIC)
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedStoreIC)
+  DEFINE_SLOT_KIND_PREDICATE(IsTypeProfile)
 #undef DEFINE_SLOT_KIND_PREDICATE
 
   // Returns typeof mode encoded into kind of given slot.
@@ -466,13 +500,19 @@ class FeedbackNexus {
 
   virtual void Clear() { ConfigureUninitialized(); }
   virtual void ConfigureUninitialized();
-  virtual void ConfigurePremonomorphic();
-  virtual void ConfigureMegamorphic();
+  void ConfigurePremonomorphic();
+  void ConfigureMegamorphic(IcCheckType property_type);
 
   inline Object* GetFeedback() const;
   inline Object* GetFeedbackExtra() const;
 
   inline Isolate* GetIsolate() const;
+
+  void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
+                            Handle<Object> handler);
+
+  void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
+                            List<Handle<Object>>* handlers);
 
  protected:
   inline void SetFeedback(Object* feedback,
@@ -482,8 +522,6 @@ class FeedbackNexus {
 
   Handle<FixedArray> EnsureArrayOfSize(int length);
   Handle<FixedArray> EnsureExtraArrayOfSize(int length);
-  void InstallHandlers(Handle<FixedArray> array, MapHandleList* maps,
-                       List<Handle<Object>>* handlers);
 
  private:
   // The reason for having a vector handle and a raw pointer is that we can and
@@ -506,11 +544,7 @@ class CallICNexus final : public FeedbackNexus {
     DCHECK(vector->IsCallIC(slot));
   }
 
-  void ConfigureUninitialized() override;
-  void ConfigureMonomorphicArray();
-  void ConfigureMonomorphic(Handle<JSFunction> function);
-  void ConfigureMegamorphic() final;
-  void ConfigureMegamorphic(int call_count);
+  void ConfigureUninitialized() final;
 
   InlineCacheState StateFromFeedback() const final;
 
@@ -546,11 +580,6 @@ class LoadICNexus : public FeedbackNexus {
 
   void Clear() override { ConfigurePremonomorphic(); }
 
-  void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Object> handler);
-
-  void ConfigurePolymorphic(MapHandleList* maps,
-                            List<Handle<Object>>* handlers);
-
   InlineCacheState StateFromFeedback() const override;
 };
 
@@ -577,8 +606,6 @@ class LoadGlobalICNexus : public FeedbackNexus {
     return length == 0;
   }
 
-  void ConfigureMegamorphic() override { UNREACHABLE(); }
-
   void ConfigureUninitialized() override;
   void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
   void ConfigureHandlerMode(Handle<Object> handler);
@@ -599,15 +626,6 @@ class KeyedLoadICNexus : public FeedbackNexus {
 
   void Clear() override { ConfigurePremonomorphic(); }
 
-  // name can be a null handle for element loads.
-  void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
-                            Handle<Object> handler);
-  // name can be null.
-  void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
-                            List<Handle<Object>>* handlers);
-
-  void ConfigureMegamorphicKeyed(IcCheckType property_type);
-
   IcCheckType GetKeyType() const;
   InlineCacheState StateFromFeedback() const override;
   Name* FindFirstName() const override;
@@ -617,19 +635,16 @@ class StoreICNexus : public FeedbackNexus {
  public:
   StoreICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot));
+    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot) ||
+           vector->IsStoreGlobalIC(slot));
   }
   StoreICNexus(FeedbackVector* vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot));
+    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot) ||
+           vector->IsStoreGlobalIC(slot));
   }
 
   void Clear() override { ConfigurePremonomorphic(); }
-
-  void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Object> handler);
-
-  void ConfigurePolymorphic(MapHandleList* maps,
-                            List<Handle<Object>>* handlers);
 
   InlineCacheState StateFromFeedback() const override;
 };
@@ -650,17 +665,6 @@ class KeyedStoreICNexus : public FeedbackNexus {
   }
 
   void Clear() override { ConfigurePremonomorphic(); }
-
-  // name can be a null handle for element loads.
-  void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
-                            Handle<Object> handler);
-  // name can be null.
-  void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
-                            List<Handle<Object>>* handlers);
-  void ConfigurePolymorphic(MapHandleList* maps,
-                            MapHandleList* transitioned_maps,
-                            List<Handle<Object>>* handlers);
-  void ConfigureMegamorphicKeyed(IcCheckType property_type);
 
   KeyedAccessStoreMode GetKeyedAccessStoreMode() const;
   IcCheckType GetKeyType() const;
@@ -738,6 +742,26 @@ class StoreDataPropertyInLiteralICNexus : public FeedbackNexus {
   }
 
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map);
+
+  InlineCacheState StateFromFeedback() const override;
+};
+
+// For each assignment, store the type of the value in the collection of types
+// in the feedback vector.
+class CollectTypeProfileNexus : public FeedbackNexus {
+ public:
+  CollectTypeProfileNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackSlotKind::kTypeProfile, vector->GetKind(slot));
+  }
+  CollectTypeProfileNexus(FeedbackVector* vector, FeedbackSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackSlotKind::kTypeProfile, vector->GetKind(slot));
+  }
+
+  // Add a type to the list of types for source position <position>.
+  void Collect(Handle<String> type, int position);
+  JSObject* GetTypeProfile() const;
 
   InlineCacheState StateFromFeedback() const override;
 };

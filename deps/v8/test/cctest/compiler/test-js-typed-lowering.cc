@@ -824,17 +824,6 @@ void CheckEqualityReduction(JSTypedLoweringTester* R, bool strict, Node* l,
       Node* r = R->reduce(eq);
       R->CheckBinop(expected, r);
     }
-
-    {
-      const Operator* op =
-          strict ? R->javascript.StrictNotEqual(CompareOperationHint::kAny)
-                 : R->javascript.NotEqual(CompareOperationHint::kAny);
-      Node* ne = R->Binop(op, p0, p1);
-      Node* n = R->reduce(ne);
-      CHECK_EQ(IrOpcode::kBooleanNot, n->opcode());
-      Node* r = n->InputAt(0);
-      R->CheckBinop(expected, r);
-    }
   }
 }
 

@@ -30,6 +30,7 @@
   # Modules which are only meant to be imported from by other tests, not to be
   # tested standalone.
   'modules-skip*': [SKIP],
+  'harmony/modules-skip*': [SKIP],
 
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
@@ -84,7 +85,7 @@
 
   # Issue 488: this test sometimes times out.
   # TODO(arm): This seems to flush out a bug on arm with simulator.
-  'array-constructor': [PASS, TIMEOUT, ['arch == arm and simulator == True', SKIP]],
+  'array-constructor': [PASS, SLOW, ['arch == arm and simulator == True', SKIP]],
 
   # Issue 4413: this test sometimes times out with TSAN because we trigger
   # the slow path in C++ with holey arrays in Function.prototype.apply.
@@ -146,21 +147,33 @@
 
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
+  'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
+  'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
+  'harmony/regexp-property-script-extensions': [PASS, SLOW],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
+  'regress/regress-1122': [PASS, SLOW],
+  'regress/regress-605470': [PASS, SLOW],
+  'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
   'regress/regress-crbug-474297': [PASS, ['gc_stress == False', SKIP]],
-  'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
+  'wasm/embenchen/*': [PASS, SLOW],
+  'wasm/unreachable-validation': [PASS, SLOW],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
   'es6/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
   'regress/regress-5036': [PASS, ['no_i18n == True', FAIL]],
+  'es7/regexp-ui-word': [PASS, ['no_i18n == True', FAIL]],
   # desugaring regexp property class relies on ICU.
   'harmony/regexp-property-*': [PASS, ['no_i18n == True', FAIL]],
 
   # noi18n build cannot parse characters in supplementary plane.
   'harmony/regexp-named-captures': [PASS, ['no_i18n == True', FAIL]],
+
+  # noi18n cannot turn on ICU backend for Date
+  'icu-date-to-string': [PASS, ['no_i18n == True', SKIP]],
+  'icu-date-lord-howe': [PASS, ['no_i18n == True', SKIP]],
 
   # Allocates a large array buffer, which TSAN sometimes cannot handle.
   'regress/regress-599717': [PASS, ['tsan', SKIP]],
@@ -173,8 +186,15 @@
   #                  which makes the test useless.
   'big-object-literal': [PASS, ['mode == debug', SKIP]],
 
-  # BUG(v8:5807): Flaky data race.
-  'wasm/embenchen/fannkuch': [PASS, ['tsan', SKIP]],
+  # BUG(v8:5778): These fail with --future, which we are about to turn on.
+  # Investigate.
+  'regress/regress-105': [SKIP],
+
+  # BUG(v8:6101): This fails because of a hole deopt, need to investigate.
+  'getters-on-elements': [SKIP],
+
+  # BUG(v8:6113).
+  'es6/array-iterator-turbo': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -293,7 +313,6 @@
 
   # Slow tests.
   'array-concat': [PASS, SLOW],
-  'array-constructor': [PASS, SLOW],
   'array-indexing': [PASS, SLOW],
   'array-reduce': [PASS, SLOW],
   'array-sort': [PASS, SLOW],
@@ -306,8 +325,8 @@
   'json2': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
+  'messages': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
-  'regress/regress-1122': [PASS, SLOW],
   'regress/regress-2185-2': [PASS, SLOW],
   'regress/regress-2185': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
@@ -344,6 +363,10 @@
   'big-object-literal': [SKIP],
   'regress/regress-crbug-178790': [SKIP],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4639
+  # The failed allocation causes an asan/msan/tsan error
+  'es6/typedarray-construct-offset-not-smi': [SKIP],
+
   # Exception thrown during bootstrapping on ASAN builds, see issue 4236.
   'regress/regress-1132': [SKIP],
 }],  # 'asan == True'
@@ -363,6 +386,11 @@
 
   # Flaky with baseline?
   'regress/regress-2185-2': [SKIP],
+
+  # Slow tests with --nocrankshaft.
+  'compiler/osr-one': [PASS, SLOW],
+  'compiler/osr-two': [PASS, SLOW],
+  'wasm/grow-memory': [PASS, SLOW],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -519,6 +547,10 @@
 
   # BUG(v8:4495).
   'es6/collections': [PASS, ['arch == ia32', FAST_VARIANTS]],
+
+  # Setting the timezone and locale with environment variables unavailable
+  'icu-date-to-string': [SKIP],
+  'icu-date-lord-howe': [SKIP],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -550,7 +582,6 @@
   'es6/tail-call-megatest*': [SKIP],
 
   # Forced optimisation path tests.
-  'shared-function-tier-up-default': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 
   # Fails deopt_fuzzer due to --deopt_every_n_times or
@@ -585,7 +616,7 @@
 }],  # 'arch == ppc64'
 
 ##############################################################################
-['variant == nocrankshaft', {
+['variant == fullcode', {
   'es6/array-iterator-turbo': [SKIP],
 }],  # variant == nocranshaft
 
@@ -596,7 +627,23 @@
   'array-natives-elements': [SKIP],
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
+
+  # Slow tests.
+  'regress/regress-2185-2': [SKIP],
 }],  # variant == stress
+
+##############################################################################
+['variant == noturbofan_stress', {
+  # Slow tests.
+  'ignition/regress-599001-verifyheap': [SKIP],
+  'regress/regress-2185-2': [SKIP],
+}],  # variant == noturbofan_stress
+
+##############################################################################
+['variant == nooptimization', {
+  # Slow tests.
+  'regress/regress-2185-2': [SKIP],
+}],  # variant == nooptimization
 
 ##############################################################################
 ['variant == turbofan_opt', {
@@ -623,21 +670,8 @@
 
 ##############################################################################
 ['variant == asm_wasm', {
-  # Skip stuff uninteresting for asm.js
-  'bugs/*': [SKIP],
-  'compiler/*': [SKIP],
-  'es6/*': [SKIP],
-  'es7/*': [SKIP],
-  'es8/*': [SKIP],
-  'harmony/*': [SKIP],
-  'ignition/*': [SKIP],
-  'lithium/*': [SKIP],
-  'third_party/*': [SKIP],
-  'tools/*': [SKIP],
-  'apply': [SKIP],
-  'math-*': [SKIP],
-  'unicode-test': [SKIP],
-  'whitespaces': [SKIP],
+  # Issue 6127: Currently {StashCode} breaks the source position table.
+  'wasm/asm-wasm-expr': [SKIP],
 }],  # variant == asm_wasm
 
 ['variant == wasm_traps', {
@@ -657,14 +691,5 @@
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
 }],  # variant == wasm_traps
-
-##############################################################################
-# This test allocates a 2G block of memory and if there are multiple
-# varients this leads kills by the OOM killer, crashes or messages
-# indicating the OS cannot allocate memory, exclude for Node.js runs
-# re-evalute when we move up to v8 5.1
-[ALWAYS, {
-'regress/regress-crbug-514081': [PASS, NO_VARIANTS],
-}],  # ALWAYS
 
 ]
