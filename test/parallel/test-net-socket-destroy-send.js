@@ -10,7 +10,8 @@ server.listen(0, common.mustCall(function() {
   const conn = net.createConnection(port);
 
   conn.on('connect', common.mustCall(function() {
-    conn.destroy();
+    // Test destroy returns this, even on multiple calls when it short-circuits.
+    assert.strictEqual(conn, conn.destroy().destroy());
     conn.on('error', common.mustCall(function(err) {
       assert.strictEqual(err.message, 'This socket is closed');
     }));
