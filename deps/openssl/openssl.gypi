@@ -319,7 +319,6 @@
       'openssl/crypto/ecdsa/ecs_vrf.c',
       'openssl/crypto/engine/eng_all.c',
       'openssl/crypto/engine/eng_cnf.c',
-      'openssl/crypto/engine/eng_cryptodev.c',
       'openssl/crypto/engine/eng_ctrl.c',
       'openssl/crypto/engine/eng_dyn.c',
       'openssl/crypto/engine/eng_err.c',
