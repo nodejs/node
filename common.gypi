@@ -228,6 +228,7 @@
         'DataExecutionPrevention': 2, # enable DEP
         'AllowIsolation': 'true',
         'SuppressStartupBanner': 'true',
+        'LargeAddressAware': 2, # enable 4GB mem with 32-bit executable on 64-bit Windows
       },
     },
     'msvs_disabled_warnings': [4351, 4355, 4800],
