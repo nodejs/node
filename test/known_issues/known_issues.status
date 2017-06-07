@@ -5,6 +5,7 @@ prefix known_issues
 # sample-test                        : SKIP
 
 [true] # This section applies to all platforms
+test-child-process-spawnsync: crash
 
 [$system==win32]
 test-stdout-buffer-flush-on-exit: SKIP
