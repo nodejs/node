@@ -1963,8 +1963,8 @@ napi_status napi_wrap(napi_env env,
 
   // Insert the wrapper into the object's prototype chain.
   v8::Local<v8::Value> proto = obj->GetPrototype();
-  wrapper->SetPrototype(proto);
-  obj->SetPrototype(wrapper);
+  wrapper->SetPrototype(context, proto).ToChecked();
+  obj->SetPrototype(context, wrapper).ToChecked();
 
   if (result != nullptr) {
     // The returned reference should be deleted via napi_delete_reference()
