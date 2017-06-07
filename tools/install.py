@@ -20,8 +20,8 @@ def abspath(*args):
 
 def load_config():
   s = open('config.gypi').read()
-  s = re.sub(r'#.*?\n', '', s) # strip comments
-  s = re.sub(r'\'', '"', s) # convert quotes
+  s = re.sub(r'#.*\n?', '', s) # strip comments
+  s = s.replace("'", '"') # convert quotes
   return json.loads(s)
 
 def try_unlink(path):
