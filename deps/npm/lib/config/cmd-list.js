@@ -24,7 +24,7 @@ var affordances = {
   'la': 'ls',
   'll': 'ls',
   'verison': 'version',
-  'isntall': 'install',
+  'install': 'install',
   'dist-tags': 'dist-tag',
   'apihelp': 'help',
   'find-dupes': 'dedupe',
