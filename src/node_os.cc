@@ -149,7 +149,7 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
 
   int err = uv_cpu_info(&cpu_infos, &count);
   if (err)
-    return;
+    return env->ThrowUVException(err, "uv_cpu_info");
 
   CHECK(args[0]->IsFunction());
   Local<Function> addfn = args[0].As<Function>();
@@ -210,10 +210,13 @@ static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetUptime(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   double uptime;
   int err = uv_uptime(&uptime);
   if (err == 0)
     args.GetReturnValue().Set(uptime);
+  else
+    return env->ThrowUVException(err, "uv_uptime");
 }
 
 
