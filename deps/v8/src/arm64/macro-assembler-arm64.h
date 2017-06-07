@@ -1973,7 +1973,7 @@ class MacroAssembler : public Assembler {
   // in the label chain) is out of range. In that case the caller is responsible
   // for generating appropriate code.
   // Otherwise it returns false.
-  // This function also checks wether veneers need to be emitted.
+  // This function also checks whether veneers need to be emitted.
   bool NeedExtraInstructionsOrRegisterBranch(Label *label,
                                              ImmBranchType branch_type);
 };
