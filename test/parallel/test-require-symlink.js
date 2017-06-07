@@ -10,6 +10,8 @@ const util = require('util');
 
 common.refreshTmpDir();
 
+common.refreshTmpDir();
+
 const linkTarget = path.join(common.fixturesDir,
                              '/module-require-symlink/node_modules/dep2/');
 
