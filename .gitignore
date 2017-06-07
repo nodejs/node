@@ -110,3 +110,6 @@ icu_config.gypi
 # Xcode workspaces and project folders
 *.xcodeproj
 *.xcworkspace
+
+#AppCode IDE folder
+/.idea
