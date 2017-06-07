@@ -37,7 +37,7 @@ onboarding session.
     * Always continue to PR from your own github fork
       * Branches in the nodejs/node repository are only for release lines
     * [See "Updating Node.js from Upstream"](./onboarding-extras.md#updating-nodejs-from-upstream)
-    * Make new branches for all commits you make!
+    * Make a new branch for each PR you submit.
 
   * Notifications:
     * Use [https://github.com/notifications](https://github.com/notifications) or set up email
