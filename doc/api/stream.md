@@ -247,7 +247,11 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
         // see if we should continue, or wait
         // don't pass the callback, because we're not done yet.
         ok = writer.write(data, encoding);
-      }
+        // prevent writing fail
+        if (!ok) {
+          i++;
+        }
+      }
     } while (i > 0 && ok);
     if (i > 0) {
       // had to stop early!
