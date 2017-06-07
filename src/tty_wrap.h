@@ -48,6 +48,7 @@ class TTYWrap : public StreamWrap {
           int* init_err);
 
   static void GuessHandleType(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void FdProtected(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsTTY(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetWindowSize(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetRawMode(const v8::FunctionCallbackInfo<v8::Value>& args);
