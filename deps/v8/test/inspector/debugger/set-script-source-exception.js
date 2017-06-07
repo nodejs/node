@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Check that setScriptSource completes correctly when an exception is thrown.');
+InspectorTest.log('Check that setScriptSource completes correctly when an exception is thrown.');
 
 Protocol.Debugger.enable();
 

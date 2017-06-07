@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Checks that console.assert works and points to correct call frame.");
+InspectorTest.log("Checks that console.assert works and points to correct call frame.");
 
 InspectorTest.addScript(`
 function testFunction() {

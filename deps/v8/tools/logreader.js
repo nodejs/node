@@ -158,7 +158,7 @@ LogReader.prototype.processStack = function(pc, func, stack) {
     } else if (firstChar != 'o') {
       fullStack.push(parseInt(frame, 16));
     } else {
-      print("dropping: " + frame);
+      this.printError("dropping: " + frame);
     }
   }
   return fullStack;

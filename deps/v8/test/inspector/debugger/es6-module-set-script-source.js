@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks that Debugger.setScriptSource doesn\'t crash with modules');
+InspectorTest.log('Checks that Debugger.setScriptSource doesn\'t crash with modules');
 
 var module1 = `
 export function foo() {

@@ -141,6 +141,22 @@ static void VisitRR(InstructionSelector* selector, ArchOpcode opcode,
                  g.UseRegister(node->InputAt(0)));
 }
 
+static void VisitRRI(InstructionSelector* selector, ArchOpcode opcode,
+                     Node* node) {
+  Mips64OperandGenerator g(selector);
+  int32_t imm = OpParameter<int32_t>(node);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)), g.UseImmediate(imm));
+}
+
+static void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode,
+                      Node* node) {
+  Mips64OperandGenerator g(selector);
+  int32_t imm = OpParameter<int32_t>(node);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)), g.UseImmediate(imm),
+                 g.UseRegister(node->InputAt(1)));
+}
 
 static void VisitRRR(InstructionSelector* selector, ArchOpcode opcode,
                      Node* node) {
@@ -150,6 +166,12 @@ static void VisitRRR(InstructionSelector* selector, ArchOpcode opcode,
                  g.UseRegister(node->InputAt(1)));
 }
 
+void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
+  Mips64OperandGenerator g(selector);
+  selector->Emit(
+      opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
+}
 
 static void VisitRRO(InstructionSelector* selector, ArchOpcode opcode,
                      Node* node) {
@@ -686,7 +708,7 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
   if (m.left().IsWord32And() && m.right().HasValue()) {
     uint32_t lsb = m.right().Value() & 0x1f;
     Int32BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue()) {
+    if (mleft.right().HasValue() && mleft.right().Value() != 0) {
       // Select Ext for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
       uint32_t mask = (mleft.right().Value() >> lsb) << lsb;
@@ -779,7 +801,7 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
   if (m.left().IsWord64And() && m.right().HasValue()) {
     uint32_t lsb = m.right().Value() & 0x3f;
     Int64BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue()) {
+    if (mleft.right().HasValue() && mleft.right().Value() != 0) {
       // Select Dext for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
       uint64_t mask = (mleft.right().Value() >> lsb) << lsb;
@@ -1229,6 +1251,10 @@ void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
 
 void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   VisitRR(this, kMips64TruncUwD, node);
+}
+
+void InstructionSelector::VisitChangeFloat64ToUint64(Node* node) {
+  VisitRR(this, kMips64TruncUlD, node);
 }
 
 void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
@@ -2630,6 +2656,134 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
          addr_reg, g.TempImmediate(0), g.UseRegisterOrImmediateZero(value));
   }
+}
+
+void InstructionSelector::VisitAtomicExchange(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitAtomicAdd(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicSub(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicAnd(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicOr(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitAtomicXor(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
+  UNREACHABLE();
+}
+
+void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
+  UNREACHABLE();
+}
+
+void InstructionSelector::VisitI32x4Splat(Node* node) {
+  VisitRR(this, kMips64I32x4Splat, node);
+}
+
+void InstructionSelector::VisitI32x4ExtractLane(Node* node) {
+  VisitRRI(this, kMips64I32x4ExtractLane, node);
+}
+
+void InstructionSelector::VisitI32x4ReplaceLane(Node* node) {
+  VisitRRIR(this, kMips64I32x4ReplaceLane, node);
+}
+
+void InstructionSelector::VisitI32x4Add(Node* node) {
+  VisitRRR(this, kMips64I32x4Add, node);
+}
+
+void InstructionSelector::VisitI32x4Sub(Node* node) {
+  VisitRRR(this, kMips64I32x4Sub, node);
+}
+
+void InstructionSelector::VisitS128Zero(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64S128Zero, g.DefineSameAsFirst(node));
+}
+
+void InstructionSelector::VisitS1x4Zero(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64S128Zero, g.DefineSameAsFirst(node));
+}
+
+void InstructionSelector::VisitS1x8Zero(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64S128Zero, g.DefineSameAsFirst(node));
+}
+
+void InstructionSelector::VisitS1x16Zero(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64S128Zero, g.DefineSameAsFirst(node));
+}
+
+void InstructionSelector::VisitF32x4Splat(Node* node) {
+  VisitRR(this, kMips64F32x4Splat, node);
+}
+
+void InstructionSelector::VisitF32x4ExtractLane(Node* node) {
+  VisitRRI(this, kMips64F32x4ExtractLane, node);
+}
+
+void InstructionSelector::VisitF32x4ReplaceLane(Node* node) {
+  VisitRRIR(this, kMips64F32x4ReplaceLane, node);
+}
+
+void InstructionSelector::VisitF32x4SConvertI32x4(Node* node) {
+  VisitRR(this, kMips64F32x4SConvertI32x4, node);
+}
+
+void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
+  VisitRR(this, kMips64F32x4UConvertI32x4, node);
+}
+
+void InstructionSelector::VisitI32x4Mul(Node* node) {
+  VisitRRR(this, kMips64I32x4Mul, node);
+}
+
+void InstructionSelector::VisitI32x4MaxS(Node* node) {
+  VisitRRR(this, kMips64I32x4MaxS, node);
+}
+
+void InstructionSelector::VisitI32x4MinS(Node* node) {
+  VisitRRR(this, kMips64I32x4MinS, node);
+}
+
+void InstructionSelector::VisitI32x4Eq(Node* node) {
+  VisitRRR(this, kMips64I32x4Eq, node);
+}
+
+void InstructionSelector::VisitI32x4Ne(Node* node) {
+  VisitRRR(this, kMips64I32x4Ne, node);
+}
+
+void InstructionSelector::VisitI32x4Shl(Node* node) {
+  VisitRRI(this, kMips64I32x4Shl, node);
+}
+
+void InstructionSelector::VisitI32x4ShrS(Node* node) {
+  VisitRRI(this, kMips64I32x4ShrS, node);
+}
+
+void InstructionSelector::VisitI32x4ShrU(Node* node) {
+  VisitRRI(this, kMips64I32x4ShrU, node);
+}
+
+void InstructionSelector::VisitI32x4MaxU(Node* node) {
+  VisitRRR(this, kMips64I32x4MaxU, node);
+}
+
+void InstructionSelector::VisitI32x4MinU(Node* node) {
+  VisitRRR(this, kMips64I32x4MinU, node);
+}
+
+void InstructionSelector::VisitS32x4Select(Node* node) {
+  VisitRRRR(this, kMips64S32x4Select, node);
 }
 
 // static

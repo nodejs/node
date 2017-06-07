@@ -67,10 +67,10 @@ struct MemoryAccess {
   MemoryAccess(Kind kind, Size size, size_t offset, int value = 0)
       : kind(kind), size(size), offset(offset), value(value) {}
 
-  Kind kind;
-  Size size;
-  size_t offset;
-  int value;
+  Kind kind = Kind::None;
+  Size size = Size::Byte;
+  size_t offset = 0;
+  int value = 0;
 };
 
 struct TestData {

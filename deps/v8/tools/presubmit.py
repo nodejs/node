@@ -521,6 +521,12 @@ def CheckDeps(workspace):
   return subprocess.call([sys.executable, checkdeps_py, workspace]) == 0
 
 
+def PyTests(workspace):
+  test_scripts = join(workspace, 'tools', 'release', 'test_scripts.py')
+  return subprocess.call(
+      [sys.executable, test_scripts], stdout=subprocess.PIPE) == 0
+
+
 def GetOptions():
   result = optparse.OptionParser()
   result.add_option('--no-lint', help="Do not run cpplint", default=False,
@@ -543,6 +549,8 @@ def Main():
   success &= SourceProcessor().RunOnPath(workspace)
   print "Running status-files check..."
   success &= StatusFilesProcessor().RunOnPath(workspace)
+  print "Running python tests..."
+  success &= PyTests(workspace)
   if success:
     return 0
   else:

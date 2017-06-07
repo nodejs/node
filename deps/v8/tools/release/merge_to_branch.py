@@ -166,17 +166,6 @@ class CommitLocal(Step):
     TextToFile(self["new_commit_msg"], self.Config("COMMITMSG_FILE"))
     self.GitCommit(file_name=self.Config("COMMITMSG_FILE"))
 
-class AddInformationalComment(Step):
-  MESSAGE = 'Show additional information.'
-
-  def RunStep(self):
-    message = ("NOTE: This script will no longer automatically "
-     "update include/v8-version.h "
-     "and create a tag. This is done automatically by the autotag bot. "
-     "Please call the merge_to_branch.py with --help for more information.")
-
-    self.GitCLAddComment(message)
-
 class CommitRepository(Step):
   MESSAGE = "Commit to the repository."
 
@@ -262,7 +251,6 @@ class MergeToBranch(ScriptsBase):
       ApplyPatches,
       CommitLocal,
       UploadStep,
-      AddInformationalComment,
       CommitRepository,
       CleanUp,
     ]

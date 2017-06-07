@@ -467,8 +467,7 @@ void AstTyper::VisitAssignment(Assignment* expr) {
   }
 }
 
-
-void AstTyper::VisitYield(Yield* expr) {
+void AstTyper::VisitSuspend(Suspend* expr) {
   RECURSE(Visit(expr->generator_object()));
   RECURSE(Visit(expr->expression()));
 
@@ -756,6 +755,10 @@ void AstTyper::VisitEmptyParentheses(EmptyParentheses* expr) {
 }
 
 void AstTyper::VisitGetIterator(GetIterator* expr) { UNREACHABLE(); }
+
+void AstTyper::VisitImportCallExpression(ImportCallExpression* expr) {
+  UNREACHABLE();
+}
 
 void AstTyper::VisitThisFunction(ThisFunction* expr) {}
 

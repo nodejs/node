@@ -27,8 +27,10 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   static int GetParameterCountAfterLowering(
       Signature<MachineRepresentation>* signature);
 
-  static const int kLowerWordOffset;
-  static const int kHigherWordOffset;
+  // Determine whether the given type is i64 and has to be passed via two
+  // parameters on the given machine.
+  static bool IsI64AsTwoParameters(MachineOperatorBuilder* machine,
+                                   MachineRepresentation type);
 
  private:
   enum class State : uint8_t { kUnvisited, kOnStack, kVisited };

@@ -74,6 +74,8 @@ void Int64Lowering::LowerGraph() {
   }
 }
 
+namespace {
+
 static int GetParameterIndexAfterLowering(
     Signature<MachineRepresentation>* signature, int old_index) {
   int result = old_index;
@@ -85,6 +87,19 @@ static int GetParameterIndexAfterLowering(
   return result;
 }
 
+int GetReturnCountAfterLowering(Signature<MachineRepresentation>* signature) {
+  int result = static_cast<int>(signature->return_count());
+  for (int i = 0; i < static_cast<int>(signature->return_count()); i++) {
+    if (signature->GetReturn(i) == MachineRepresentation::kWord64) {
+      result++;
+    }
+  }
+  return result;
+}
+
+}  // namespace
+
+// static
 int Int64Lowering::GetParameterCountAfterLowering(
     Signature<MachineRepresentation>* signature) {
   // GetParameterIndexAfterLowering(parameter_count) returns the parameter count
@@ -93,15 +108,10 @@ int Int64Lowering::GetParameterCountAfterLowering(
       signature, static_cast<int>(signature->parameter_count()));
 }
 
-static int GetReturnCountAfterLowering(
-    Signature<MachineRepresentation>* signature) {
-  int result = static_cast<int>(signature->return_count());
-  for (int i = 0; i < static_cast<int>(signature->return_count()); i++) {
-    if (signature->GetReturn(i) == MachineRepresentation::kWord64) {
-      result++;
-    }
-  }
-  return result;
+// static
+bool Int64Lowering::IsI64AsTwoParameters(MachineOperatorBuilder* machine,
+                                         MachineRepresentation type) {
+  return machine->Is32() && type == MachineRepresentation::kWord64;
 }
 
 void Int64Lowering::GetIndexNodes(Node* index, Node*& index_low,
@@ -119,14 +129,6 @@ void Int64Lowering::GetIndexNodes(Node* index, Node*& index_low,
   index_high = index;
 #endif
 }
-
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-const int Int64Lowering::kLowerWordOffset = 0;
-const int Int64Lowering::kHigherWordOffset = 4;
-#elif defined(V8_TARGET_BIG_ENDIAN)
-const int Int64Lowering::kLowerWordOffset = 4;
-const int Int64Lowering::kHigherWordOffset = 0;
-#endif
 
 void Int64Lowering::LowerNode(Node* node) {
   switch (node->opcode()) {
@@ -276,10 +278,13 @@ void Int64Lowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kReturn: {
+      int input_count = node->InputCount();
       DefaultLowering(node);
-      int new_return_count = GetReturnCountAfterLowering(signature());
-      if (static_cast<int>(signature()->return_count()) != new_return_count) {
-        NodeProperties::ChangeOp(node, common()->Return(new_return_count));
+      if (input_count != node->InputCount()) {
+        int new_return_count = GetReturnCountAfterLowering(signature());
+        if (static_cast<int>(signature()->return_count()) != new_return_count) {
+          NodeProperties::ChangeOp(node, common()->Return(new_return_count));
+        }
       }
       break;
     }
@@ -561,7 +566,8 @@ void Int64Lowering::LowerNode(Node* node) {
               StoreRepresentation(MachineRepresentation::kWord32,
                                   WriteBarrierKind::kNoWriteBarrier)),
           stack_slot,
-          graph()->NewNode(common()->Int32Constant(kHigherWordOffset)),
+          graph()->NewNode(
+              common()->Int32Constant(kInt64UpperHalfMemoryOffset)),
           GetReplacementHigh(input), graph()->start(), graph()->start());
 
       Node* store_low_word = graph()->NewNode(
@@ -569,7 +575,8 @@ void Int64Lowering::LowerNode(Node* node) {
               StoreRepresentation(MachineRepresentation::kWord32,
                                   WriteBarrierKind::kNoWriteBarrier)),
           stack_slot,
-          graph()->NewNode(common()->Int32Constant(kLowerWordOffset)),
+          graph()->NewNode(
+              common()->Int32Constant(kInt64LowerHalfMemoryOffset)),
           GetReplacementLow(input), store_high_word, graph()->start());
 
       Node* load =
@@ -597,13 +604,15 @@ void Int64Lowering::LowerNode(Node* node) {
 
       Node* high_node = graph()->NewNode(
           machine()->Load(MachineType::Int32()), stack_slot,
-          graph()->NewNode(common()->Int32Constant(kHigherWordOffset)), store,
-          graph()->start());
+          graph()->NewNode(
+              common()->Int32Constant(kInt64UpperHalfMemoryOffset)),
+          store, graph()->start());
 
       Node* low_node = graph()->NewNode(
           machine()->Load(MachineType::Int32()), stack_slot,
-          graph()->NewNode(common()->Int32Constant(kLowerWordOffset)), store,
-          graph()->start());
+          graph()->NewNode(
+              common()->Int32Constant(kInt64LowerHalfMemoryOffset)),
+          store, graph()->start());
       ReplaceNode(node, low_node, high_node);
       break;
     }

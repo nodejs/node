@@ -599,6 +599,9 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
     CHECK(func->has_initial_map());
     Handle<Map> initial_map(func->initial_map());
 
+    // If the object is slow-mode already, bail out.
+    if (obj->map()->is_dictionary_map()) continue;
+
     // There must be at least some slack.
     CHECK_LT(fields_count, obj->map()->GetInObjectProperties());
 

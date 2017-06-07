@@ -1065,7 +1065,6 @@ class LHasInstanceTypeAndBranch final : public LControlInstruction<1, 0> {
   void PrintDataTo(StringStream* stream) override;
 };
 
-
 class LClassOfTestAndBranch final : public LControlInstruction<1, 1> {
  public:
   LClassOfTestAndBranch(LOperand* value, LOperand* temp) {
@@ -1076,13 +1075,11 @@ class LClassOfTestAndBranch final : public LControlInstruction<1, 1> {
   LOperand* value() { return inputs_[0]; }
   LOperand* temp() { return temps_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(ClassOfTestAndBranch,
-                               "class-of-test-and-branch")
+  DECLARE_CONCRETE_INSTRUCTION(ClassOfTestAndBranch, "class-of-test-and-branch")
   DECLARE_HYDROGEN_ACCESSOR(ClassOfTestAndBranch)
 
   void PrintDataTo(StringStream* stream) override;
 };
-
 
 class LCmpT final : public LTemplateInstruction<1, 3, 0> {
  public:

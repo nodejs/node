@@ -1,0 +1,56 @@
+Checks createContext().
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 1
+            name : 
+            origin : 
+        }
+    }
+}
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 2
+            name : 
+            origin : 
+        }
+    }
+}
+{
+    id : <messageId>
+    result : {
+    }
+}
+#debugger;
+
+setTimeout(x => x #* 3, 0)
+
+Reported script's execution id: 2
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 1
+            name : 
+            origin : 
+        }
+    }
+}
+{
+    method : Runtime.executionContextCreated
+    params : {
+        context : {
+            id : 2
+            name : 
+            origin : 
+        }
+    }
+}
+#debugger;
+
+setTimeout(x => x #* 3, 0)
+
+Reported script's execution id: 2

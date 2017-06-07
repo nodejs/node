@@ -152,12 +152,9 @@ class LCodeGen: public LCodeGenBase {
  private:
   Scope* scope() const { return scope_; }
 
-  void EmitClassOfTest(Label* if_true,
-                       Label* if_false,
-                       Handle<String> class_name,
-                       Register input,
-                       Register temporary,
-                       Register temporary2);
+  void EmitClassOfTest(Label* if_true, Label* if_false,
+                       Handle<String> class_name, Register input,
+                       Register temporary, Register temporary2);
 
   bool HasAllocatedStackSlots() const {
     return chunk()->HasAllocatedStackSlots();

@@ -10,6 +10,7 @@ namespace internal {
 
 class AstValueFactory;
 class DoExpression;
+class Isolate;
 class ParseInfo;
 class Parser;
 class DeclarationScope;
@@ -23,7 +24,7 @@ class Rewriter {
   //
   // Assumes code has been parsed and scopes have been analyzed.  Mutates the
   // AST, so the AST should not continue to be used in the case of failure.
-  static bool Rewrite(ParseInfo* info);
+  static bool Rewrite(ParseInfo* info, Isolate* isolate);
 
   // Rewrite a list of statements, using the same rules as a top-level program,
   // to ensure identical behaviour of completion result.  The temporary is added
