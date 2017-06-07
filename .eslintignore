@@ -1,6 +1,7 @@
 lib/internal/v8_prof_polyfill.js
 lib/punycode.js
 test/addons/??_*/
+test/addons/0*
 test/fixtures
 test/disabled
 test/tmp*/
