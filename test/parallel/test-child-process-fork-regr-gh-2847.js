@@ -61,8 +61,8 @@ const server = net.createServer(function(s) {
         // Ignore errors when sending the second handle because the worker
         // may already have exited.
         if (err) {
-          if ((err.message !== 'channel closed') &&
-             (err.code !== 'ECONNREFUSED')) {
+          if ((err.message !== 'channel closed') ||
+              (err.code !== 'ECONNREFUSED')) {
             throw err;
           }
         }
