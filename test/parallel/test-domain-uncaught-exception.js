@@ -23,7 +23,7 @@ function test1() {
    */
   const d = domain.create();
   d.run(function() {
-    setTimeout(function onTimeout() {
+    setImmediate(function onTimeout() {
       throw new Error('boom!');
     }, 1);
   });
@@ -94,7 +94,7 @@ function test4() {
 
   d5.run(function() {
     d6.run(function() {
-      setTimeout(function onTimeout() {
+      setImmediate(function onTimeout() {
         throw new Error('boom!');
       }, 1);
     });
@@ -145,7 +145,7 @@ function test6() {
 
   d9.run(function() {
     d10.run(function() {
-      setTimeout(function onTimeout() {
+      setImmediate(function onTimeout() {
         throw new Error('boom!');
       }, 1);
     });
