@@ -59,7 +59,7 @@ class AsmTyperHarnessBuilder {
     info_.set_ast_value_factory_owned(false);
     Parser parser(&info_);
 
-    if (!Compiler::ParseAndAnalyze(&info_)) {
+    if (!Compiler::ParseAndAnalyze(&info_, isolate_)) {
       std::cerr << "Failed to parse:\n" << source_ << "\n";
       CHECK(false);
     }

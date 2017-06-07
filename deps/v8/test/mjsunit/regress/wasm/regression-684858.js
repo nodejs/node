@@ -10,7 +10,7 @@ var name = 'regression_684858';
 function patchNameLength(buffer) {
   var count = 0;
   var view = new Uint8Array(buffer);
-  for (var i = 0, e = view.length - name.length; i < e; ++i) {
+  for (var i = 0, e = view.length - name.length; i <= e; ++i) {
     var subs = String.fromCharCode.apply(null, view.slice(i, i + name.length));
     if (subs != name) continue;
     ++count;

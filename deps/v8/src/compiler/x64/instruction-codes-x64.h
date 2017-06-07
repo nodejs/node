@@ -143,14 +143,23 @@ namespace compiler {
   V(X64Push)                       \
   V(X64Poke)                       \
   V(X64StackCheck)                 \
-  V(X64Xchgb)                      \
-  V(X64Xchgw)                      \
-  V(X64Xchgl)                      \
-  V(X64Int32x4Create)              \
-  V(X64Int32x4ExtractLane)         \
-  V(X64Int32x4ReplaceLane)         \
-  V(X64Int32x4Add)                 \
-  V(X64Int32x4Sub)
+  V(X64I32x4Splat)                 \
+  V(X64I32x4ExtractLane)           \
+  V(X64I32x4ReplaceLane)           \
+  V(X64I32x4Shl)                   \
+  V(X64I32x4ShrS)                  \
+  V(X64I32x4Add)                   \
+  V(X64I32x4Sub)                   \
+  V(X64I32x4Mul)                   \
+  V(X64I32x4MinS)                  \
+  V(X64I32x4MaxS)                  \
+  V(X64I32x4Eq)                    \
+  V(X64I32x4Ne)                    \
+  V(X64I32x4ShrU)                  \
+  V(X64I32x4MinU)                  \
+  V(X64I32x4MaxU)                  \
+  V(X64S32x4Select)                \
+  V(X64S128Zero)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

@@ -11,8 +11,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-typedef Signature<ValueType> FunctionSig;
-
 #define CASE_OP(name, str) \
   case kExpr##name:        \
     return str;
@@ -20,14 +18,17 @@ typedef Signature<ValueType> FunctionSig;
 #define CASE_I64_OP(name, str) CASE_OP(I64##name, "i64." str)
 #define CASE_F32_OP(name, str) CASE_OP(F32##name, "f32." str)
 #define CASE_F64_OP(name, str) CASE_OP(F64##name, "f64." str)
-#define CASE_S128_OP(name, str) CASE_OP(S128##name, "s128." str)
 #define CASE_F32x4_OP(name, str) CASE_OP(F32x4##name, "f32x4." str)
 #define CASE_I32x4_OP(name, str) CASE_OP(I32x4##name, "i32x4." str)
 #define CASE_I16x8_OP(name, str) CASE_OP(I16x8##name, "i16x8." str)
 #define CASE_I8x16_OP(name, str) CASE_OP(I8x16##name, "i8x16." str)
+#define CASE_S128_OP(name, str) CASE_OP(S128##name, "s128." str)
 #define CASE_S32x4_OP(name, str) CASE_OP(S32x4##name, "s32x4." str)
 #define CASE_S16x8_OP(name, str) CASE_OP(S16x8##name, "s16x8." str)
 #define CASE_S8x16_OP(name, str) CASE_OP(S8x16##name, "s8x16." str)
+#define CASE_S1x4_OP(name, str) CASE_OP(S1x4##name, "s1x4." str)
+#define CASE_S1x8_OP(name, str) CASE_OP(S1x8##name, "s1x8." str)
+#define CASE_S1x16_OP(name, str) CASE_OP(S1x16##name, "s1x16." str)
 #define CASE_INT_OP(name, str) CASE_I32_OP(name, str) CASE_I64_OP(name, str)
 #define CASE_FLOAT_OP(name, str) CASE_F32_OP(name, str) CASE_F64_OP(name, str)
 #define CASE_ALL_OP(name, str) CASE_FLOAT_OP(name, str) CASE_INT_OP(name, str)
@@ -126,10 +127,12 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIGN_OP(INT, LoadMem8, "load8")
     CASE_SIGN_OP(INT, LoadMem16, "load16")
     CASE_SIGN_OP(I64, LoadMem32, "load32")
+    CASE_S128_OP(LoadMem, "load128")
     CASE_ALL_OP(StoreMem, "store")
     CASE_INT_OP(StoreMem8, "store8")
     CASE_INT_OP(StoreMem16, "store16")
     CASE_I64_OP(StoreMem32, "store32")
+    CASE_S128_OP(StoreMem, "store128")
 
     // Non-standard opcodes.
     CASE_OP(Try, "try")
@@ -175,7 +178,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F32x4_OP(Sqrt, "sqrt")
     CASE_F32x4_OP(Div, "div")
     CASE_F32x4_OP(RecipApprox, "recip_approx")
-    CASE_F32x4_OP(SqrtApprox, "sqrt_approx")
+    CASE_F32x4_OP(RecipRefine, "recip_refine")
+    CASE_F32x4_OP(RecipSqrtApprox, "recip_sqrt_approx")
+    CASE_F32x4_OP(RecipSqrtRefine, "recip_sqrt_refine")
     CASE_F32x4_OP(Min, "min")
     CASE_F32x4_OP(Max, "max")
     CASE_F32x4_OP(MinNum, "min_num")
@@ -186,6 +191,12 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_F32x4_OP(Ge, "ge")
     CASE_CONVERT_OP(Convert, F32x4, I32x4, "i32", "convert")
     CASE_CONVERT_OP(Convert, I32x4, F32x4, "f32", "convert")
+    CASE_CONVERT_OP(Convert, I32x4, I16x8Low, "i32", "convert")
+    CASE_CONVERT_OP(Convert, I32x4, I16x8High, "i32", "convert")
+    CASE_CONVERT_OP(Convert, I16x8, I32x4, "i32", "convert")
+    CASE_CONVERT_OP(Convert, I16x8, I8x16Low, "i32", "convert")
+    CASE_CONVERT_OP(Convert, I16x8, I8x16High, "i32", "convert")
+    CASE_CONVERT_OP(Convert, I8x16, I16x8, "i32", "convert")
     CASE_F32x4_OP(ExtractLane, "extract_lane")
     CASE_F32x4_OP(ReplaceLane, "replace_lane")
     CASE_SIMDI_OP(ExtractLane, "extract_lane")
@@ -202,9 +213,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIGN_OP(I8x16, AddSaturate, "add_saturate")
     CASE_SIGN_OP(I16x8, SubSaturate, "sub_saturate")
     CASE_SIGN_OP(I8x16, SubSaturate, "sub_saturate")
+    CASE_S128_OP(And, "and")
     CASE_S128_OP(Or, "or")
     CASE_S128_OP(Xor, "xor")
-    CASE_S128_OP(And, "and")
     CASE_S128_OP(Not, "not")
     CASE_S32x4_OP(Select, "select")
     CASE_S32x4_OP(Swizzle, "swizzle")
@@ -215,6 +226,24 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S8x16_OP(Select, "select")
     CASE_S8x16_OP(Swizzle, "swizzle")
     CASE_S8x16_OP(Shuffle, "shuffle")
+    CASE_S1x4_OP(And, "and")
+    CASE_S1x4_OP(Or, "or")
+    CASE_S1x4_OP(Xor, "xor")
+    CASE_S1x4_OP(Not, "not")
+    CASE_S1x4_OP(AnyTrue, "any_true")
+    CASE_S1x4_OP(AllTrue, "all_true")
+    CASE_S1x8_OP(And, "and")
+    CASE_S1x8_OP(Or, "or")
+    CASE_S1x8_OP(Xor, "xor")
+    CASE_S1x8_OP(Not, "not")
+    CASE_S1x8_OP(AnyTrue, "any_true")
+    CASE_S1x8_OP(AllTrue, "all_true")
+    CASE_S1x16_OP(And, "and")
+    CASE_S1x16_OP(Or, "or")
+    CASE_S1x16_OP(Xor, "xor")
+    CASE_S1x16_OP(Not, "not")
+    CASE_S1x16_OP(AnyTrue, "any_true")
+    CASE_S1x16_OP(AllTrue, "all_true")
 
     // Atomic operations.
     CASE_L32_OP(AtomicAdd, "atomic_add")
@@ -244,15 +273,22 @@ bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {
 
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";
-  for (size_t i = 0; i < sig.return_count(); ++i) {
-    os << WasmOpcodes::ShortNameOf(sig.GetReturn(i));
+  for (auto ret : sig.returns()) {
+    os << WasmOpcodes::ShortNameOf(ret);
   }
   os << "_";
   if (sig.parameter_count() == 0) os << "v";
-  for (size_t i = 0; i < sig.parameter_count(); ++i) {
-    os << WasmOpcodes::ShortNameOf(sig.GetParam(i));
+  for (auto param : sig.parameters()) {
+    os << WasmOpcodes::ShortNameOf(param);
   }
   return os;
+}
+
+bool IsJSCompatibleSignature(const FunctionSig* sig) {
+  for (auto type : sig->all()) {
+    if (type == wasm::kWasmI64 || type == wasm::kWasmS128) return false;
+  }
+  return true;
 }
 
 #define DECLARE_SIG_ENUM(name, ...) kSigEnum_##name,

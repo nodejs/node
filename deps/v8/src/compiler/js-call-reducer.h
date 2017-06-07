@@ -27,19 +27,11 @@ class SimplifiedOperatorBuilder;
 // which might allow inlining or other optimizations to be performed afterwards.
 class JSCallReducer final : public AdvancedReducer {
  public:
-  // Flags that control the mode of operation.
-  enum Flag {
-    kNoFlags = 0u,
-    kDeoptimizationEnabled = 1u << 0,
-  };
-  typedef base::Flags<Flag> Flags;
-
-  JSCallReducer(Editor* editor, JSGraph* jsgraph, Flags flags,
+  JSCallReducer(Editor* editor, JSGraph* jsgraph,
                 Handle<Context> native_context,
                 CompilationDependencies* dependencies)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
-        flags_(flags),
         native_context_(native_context),
         dependencies_(dependencies) {}
 
@@ -47,6 +39,7 @@ class JSCallReducer final : public AdvancedReducer {
 
  private:
   Reduction ReduceArrayConstructor(Node* node);
+  Reduction ReduceBooleanConstructor(Node* node);
   Reduction ReduceCallApiFunction(
       Node* node, Node* target,
       Handle<FunctionTemplateInfo> function_template_info);
@@ -68,7 +61,6 @@ class JSCallReducer final : public AdvancedReducer {
                             Handle<JSObject>* holder);
 
   Graph* graph() const;
-  Flags flags() const { return flags_; }
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
   Factory* factory() const;
@@ -79,12 +71,9 @@ class JSCallReducer final : public AdvancedReducer {
   CompilationDependencies* dependencies() const { return dependencies_; }
 
   JSGraph* const jsgraph_;
-  Flags const flags_;
   Handle<Context> const native_context_;
   CompilationDependencies* const dependencies_;
 };
-
-DEFINE_OPERATORS_FOR_FLAGS(JSCallReducer::Flags)
 
 }  // namespace compiler
 }  // namespace internal

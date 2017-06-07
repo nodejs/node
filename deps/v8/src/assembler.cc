@@ -138,34 +138,39 @@ const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 // -----------------------------------------------------------------------------
 // Implementation of AssemblerBase
 
-AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
-    : isolate_(isolate),
-      jit_cookie_(0),
+AssemblerBase::IsolateData::IsolateData(Isolate* isolate)
+    : serializer_enabled_(isolate->serializer_enabled())
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
+      ,
+      max_old_generation_size_(isolate->heap()->MaxOldGenerationSize())
+#endif
+#if V8_TARGET_ARCH_X64
+      ,
+      code_range_start_(
+          isolate->heap()->memory_allocator()->code_range()->start())
+#endif
+{
+}
+
+AssemblerBase::AssemblerBase(IsolateData isolate_data, void* buffer,
+                             int buffer_size)
+    : isolate_data_(isolate_data),
       enabled_cpu_features_(0),
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false),
-      // We may use the assembler without an isolate.
-      serializer_enabled_(isolate && isolate->serializer_enabled()),
       constant_pool_available_(false) {
-  DCHECK_NOT_NULL(isolate);
-  if (FLAG_mask_constants_with_cookie) {
-    jit_cookie_ = isolate->random_number_generator()->NextInt();
-  }
   own_buffer_ = buffer == NULL;
   if (buffer_size == 0) buffer_size = kMinimalBufferSize;
   DCHECK(buffer_size > 0);
   if (own_buffer_) buffer = NewArray<byte>(buffer_size);
   buffer_ = static_cast<byte*>(buffer);
   buffer_size_ = buffer_size;
-
   pc_ = buffer_;
 }
-
 
 AssemblerBase::~AssemblerBase() {
   if (own_buffer_) DeleteArray(buffer_);
 }
-
 
 void AssemblerBase::FlushICache(Isolate* isolate, void* start, size_t size) {
   if (size == 0) return;
@@ -178,10 +183,9 @@ void AssemblerBase::FlushICache(Isolate* isolate, void* start, size_t size) {
 #endif  // USE_SIMULATOR
 }
 
-
-void AssemblerBase::Print() {
+void AssemblerBase::Print(Isolate* isolate) {
   OFStream os(stdout);
-  v8::internal::Disassembler::Decode(isolate(), &os, buffer_, pc_, nullptr);
+  v8::internal::Disassembler::Decode(isolate, &os, buffer_, pc_, nullptr);
 }
 
 
@@ -308,68 +312,62 @@ const int kCodeWithIdTag = 0;
 const int kDeoptReasonTag = 1;
 
 void RelocInfo::update_wasm_memory_reference(
-    Address old_base, Address new_base, ICacheFlushMode icache_flush_mode) {
+    Isolate* isolate, Address old_base, Address new_base,
+    ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmMemoryReference(rmode_));
   DCHECK_GE(wasm_memory_reference(), old_base);
   Address updated_reference = new_base + (wasm_memory_reference() - old_base);
   // The reference is not checked here but at runtime. Validity of references
   // may change over time.
-  unchecked_update_wasm_memory_reference(updated_reference, icache_flush_mode);
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
-  }
+  unchecked_update_wasm_memory_reference(isolate, updated_reference,
+                                         icache_flush_mode);
 }
 
-void RelocInfo::update_wasm_memory_size(uint32_t old_size, uint32_t new_size,
+void RelocInfo::update_wasm_memory_size(Isolate* isolate, uint32_t old_size,
+                                        uint32_t new_size,
                                         ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmMemorySizeReference(rmode_));
   uint32_t current_size_reference = wasm_memory_size_reference();
   uint32_t updated_size_reference =
       new_size + (current_size_reference - old_size);
-  unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
-  }
+  unchecked_update_wasm_size(isolate, updated_size_reference,
+                             icache_flush_mode);
 }
 
 void RelocInfo::update_wasm_global_reference(
-    Address old_base, Address new_base, ICacheFlushMode icache_flush_mode) {
+    Isolate* isolate, Address old_base, Address new_base,
+    ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmGlobalReference(rmode_));
   Address updated_reference;
-  DCHECK(reinterpret_cast<uintptr_t>(old_base) <=
-         reinterpret_cast<uintptr_t>(wasm_global_reference()));
+  DCHECK_LE(old_base, wasm_global_reference());
   updated_reference = new_base + (wasm_global_reference() - old_base);
-  DCHECK(reinterpret_cast<uintptr_t>(new_base) <=
-         reinterpret_cast<uintptr_t>(updated_reference));
-  unchecked_update_wasm_memory_reference(updated_reference, icache_flush_mode);
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(int32_t));
-  }
+  DCHECK_LE(new_base, updated_reference);
+  unchecked_update_wasm_memory_reference(isolate, updated_reference,
+                                         icache_flush_mode);
 }
 
 void RelocInfo::update_wasm_function_table_size_reference(
-    uint32_t old_size, uint32_t new_size, ICacheFlushMode icache_flush_mode) {
+    Isolate* isolate, uint32_t old_size, uint32_t new_size,
+    ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmFunctionTableSizeReference(rmode_));
   uint32_t current_size_reference = wasm_function_table_size_reference();
   uint32_t updated_size_reference =
       new_size + (current_size_reference - old_size);
-  unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
-  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
-  }
+  unchecked_update_wasm_size(isolate, updated_size_reference,
+                             icache_flush_mode);
 }
 
-void RelocInfo::set_target_address(Address target,
+void RelocInfo::set_target_address(Isolate* isolate, Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(isolate_, pc_, host_, target,
+  Assembler::set_target_address_at(isolate, pc_, host_, target,
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
       IsCodeTarget(rmode_)) {
-    Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
+    Code* target_code = Code::GetCodeFromTargetAddress(target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  target_code);
   }
 }
 
@@ -652,9 +650,7 @@ void RelocIterator::next() {
   done_ = true;
 }
 
-
-RelocIterator::RelocIterator(Code* code, int mode_mask)
-    : rinfo_(code->map()->GetIsolate()) {
+RelocIterator::RelocIterator(Code* code, int mode_mask) {
   rinfo_.host_ = code;
   rinfo_.pc_ = code->instruction_start();
   rinfo_.data_ = 0;
@@ -677,9 +673,7 @@ RelocIterator::RelocIterator(Code* code, int mode_mask)
   next();
 }
 
-
-RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
-    : rinfo_(desc.origin->isolate()) {
+RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
   rinfo_.pc_ = desc.buffer;
   rinfo_.data_ = 0;
   // Relocation info is read backwards.
@@ -702,7 +696,7 @@ bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
 }
 
 #ifdef DEBUG
-bool RelocInfo::RequiresRelocation(const CodeDesc& desc) {
+bool RelocInfo::RequiresRelocation(Isolate* isolate, const CodeDesc& desc) {
   // Ensure there are no code targets or embedded objects present in the
   // deoptimization entries, they would require relocation after code
   // generation.
@@ -1234,6 +1228,11 @@ ExternalReference ExternalReference::address_of_regexp_stack_limit(
   return ExternalReference(isolate->regexp_stack()->limit_address());
 }
 
+ExternalReference ExternalReference::address_of_regexp_dotall_flag(
+    Isolate* isolate) {
+  return ExternalReference(&FLAG_harmony_regexp_dotall);
+}
+
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
   return ExternalReference(isolate->heap()->store_buffer_top_address());
 }
@@ -1544,6 +1543,23 @@ void* libc_memchr(void* string, int character, size_t search_length) {
 
 ExternalReference ExternalReference::libc_memchr_function(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memchr)));
+}
+
+void* libc_memcpy(void* dest, const void* src, size_t n) {
+  return memcpy(dest, src, n);
+}
+
+ExternalReference ExternalReference::libc_memcpy_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memcpy)));
+}
+
+void* libc_memset(void* dest, int byte, size_t n) {
+  DCHECK_EQ(static_cast<char>(byte), byte);
+  return memset(dest, byte, n);
+}
+
+ExternalReference ExternalReference::libc_memset_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memset)));
 }
 
 ExternalReference ExternalReference::page_flags(Page* page) {
@@ -1902,13 +1918,11 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 
 void Assembler::RecordDeoptReason(DeoptimizeReason reason,
                                   SourcePosition position, int id) {
-  if (FLAG_trace_deopt || isolate()->is_profiling()) {
-    EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
-    RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
-    RecordRelocInfo(RelocInfo::DEOPT_REASON, static_cast<int>(reason));
-    RecordRelocInfo(RelocInfo::DEOPT_ID, id);
-  }
+  EnsureSpace ensure_space(this);
+  RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
+  RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
+  RecordRelocInfo(RelocInfo::DEOPT_REASON, static_cast<int>(reason));
+  RecordRelocInfo(RelocInfo::DEOPT_ID, id);
 }
 
 

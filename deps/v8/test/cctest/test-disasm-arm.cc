@@ -28,12 +28,13 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
-
+#include "src/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -932,10 +933,14 @@ TEST(Neon) {
               "f421420f       vld1.8 {d4, d5, d6, d7}, [r1]");
       COMPARE(vst1(Neon16, NeonListOperand(d17, 4), NeonMemOperand(r9)),
               "f449124f       vst1.16 {d17, d18, d19, d20}, [r9]");
-      COMPARE(vmovl(NeonU8, q3, d1),
-              "f3886a11       vmovl.u8 q3, d1");
-      COMPARE(vmovl(NeonU8, q4, d2),
-              "f3888a12       vmovl.u8 q4, d2");
+      COMPARE(vmovl(NeonU8, q3, d1), "f3886a11       vmovl.u8 q3, d1");
+      COMPARE(vmovl(NeonU8, q4, d2), "f3888a12       vmovl.u8 q4, d2");
+      COMPARE(vmovl(NeonS16, q4, d2), "f2908a12       vmovl.s16 q4, d2");
+      COMPARE(vmovl(NeonU32, q4, d2), "f3a08a12       vmovl.u32 q4, d2");
+
+      COMPARE(vqmovn(NeonU8, d16, q8), "f3f202e0       vqmovn.u16 d16, q8");
+      COMPARE(vqmovn(NeonS16, d16, q8), "f3f602a0       vqmovn.s32 d16, q8");
+      COMPARE(vqmovn(NeonU32, d2, q4), "f3ba22c8       vqmovn.u64 d2, q4");
 
       COMPARE(vmov(NeonS8, d0, 0, r0), "ee400b10       vmov.8 d0[0], r0");
       COMPARE(vmov(NeonU8, d1, 1, r1), "ee411b30       vmov.8 d1[1], r1");
@@ -1039,6 +1044,12 @@ TEST(Neon) {
               "f3142670       vmin.u16 q1, q2, q8");
       COMPARE(vmax(NeonS32, q15, q0, q8),
               "f260e660       vmax.s32 q15, q0, q8");
+      COMPARE(vpmax(NeonS8, d0, d1, d2),
+              "f2010a02       vpmax.s8 d0, d1, d2");
+      COMPARE(vpmin(NeonU16, d1, d2, d8),
+              "f3121a18       vpmin.u16 d1, d2, d8");
+      COMPARE(vpmax(NeonS32, d15, d0, d8),
+              "f220fa08       vpmax.s32 d15, d0, d8");
       COMPARE(vadd(q15, q0, q8),
               "f240ed60       vadd.f32 q15, q0, q8");
       COMPARE(vadd(Neon8, q0, q1, q2),
@@ -1131,10 +1142,20 @@ TEST(Neon) {
               "f350e170       vbsl q15, q0, q8");
       COMPARE(vext(q15, q0, q8, 3),
               "f2f0e360       vext.8 q15, q0, q8, #3");
+      COMPARE(vzip(Neon16, d15, d0),
+              "f3b6f180       vzip.16 d15, d0");
       COMPARE(vzip(Neon16, q15, q0),
               "f3f6e1c0       vzip.16 q15, q0");
+      COMPARE(vuzp(Neon16, d15, d0),
+              "f3b6f100       vuzp.16 d15, d0");
+      COMPARE(vuzp(Neon16, q15, q0),
+              "f3f6e140       vuzp.16 q15, q0");
       COMPARE(vrev64(Neon8, q15, q0),
               "f3f0e040       vrev64.8 q15, q0");
+      COMPARE(vtrn(Neon16, d15, d0),
+              "f3b6f080       vtrn.16 d15, d0");
+      COMPARE(vtrn(Neon16, q15, q0),
+              "f3f6e0c0       vtrn.16 q15, q0");
       COMPARE(vtbl(d0, NeonListOperand(d1, 1), d2),
               "f3b10802       vtbl.8 d0, {d1}, d2");
       COMPARE(vtbl(d31, NeonListOperand(d0, 2), d4),

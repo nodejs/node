@@ -8,7 +8,6 @@
   function foo(x, y) { return x << y; }
 
   foo(1.1, 0.1);
-  %BaselineFunctionOnNextCall(foo);
   foo(0.1, 1.1);
   %OptimizeFunctionOnNextCall(foo);
   foo(undefined, 1.1);
@@ -33,7 +32,6 @@
   function foo(x, y) { return x >> y; }
 
   foo(1.1, 0.1);
-  %BaselineFunctionOnNextCall(foo);
   foo(0.1, 1.1);
   %OptimizeFunctionOnNextCall(foo);
   foo(undefined, 1.1);
@@ -58,7 +56,6 @@
   function foo(x, y) { return x >>> y; }
 
   foo(1.1, 0.1);
-  %BaselineFunctionOnNextCall(foo);
   foo(0.1, 1.1);
   %OptimizeFunctionOnNextCall(foo);
   foo(undefined, 1.1);
@@ -83,7 +80,6 @@
   function foo(x, y) { return x ^ y; }
 
   foo(1.1, 0.1);
-  %BaselineFunctionOnNextCall(foo);
   foo(0.1, 1.1);
   %OptimizeFunctionOnNextCall(foo);
   foo(undefined, 1.1);
@@ -108,7 +104,6 @@
   function foo(x, y) { return x | y; }
 
   foo(1.1, 0.1);
-  %BaselineFunctionOnNextCall(foo);
   foo(0.1, 1.1);
   %OptimizeFunctionOnNextCall(foo);
   foo(undefined, 1.1);
@@ -133,7 +128,6 @@
   function foo(x, y) { return x & y; }
 
   foo(1.1, 0.1);
-  %BaselineFunctionOnNextCall(foo);
   foo(0.1, 1.1);
   %OptimizeFunctionOnNextCall(foo);
   foo(undefined, 1.1);

@@ -555,8 +555,6 @@ typedef uint32_t Instr;
   V(evlhhousplatx, EVLHHOUSPLATX, 0x1000030C)                                  \
   /* Vector Load Word into Two Half Words Even */                              \
   V(evlwhe, EVLWHE, 0x10000311)                                                \
-  /* Vector Load Word into Two Half Words Even Indexed */                      \
-  V(evlwhex, EVLWHEX, 0x10000310)                                              \
   /* Vector Load Word into Two Half Words Odd Signed (with sign extension) */  \
   V(evlwhos, EVLWHOS, 0x10000317)                                              \
   /* Vector Load Word into Two Half Words Odd Signed Indexed (with sign */     \
@@ -1079,63 +1077,165 @@ typedef uint32_t Instr;
   /* Vector Compare Greater Than Unsigned Word */                              \
   V(vcmpgtuw, VCMPGTUW, 0x10000286)
 
-#define PPC_X_OPCODE_LIST(V)                                                   \
+#define PPC_X_OPCODE_A_FORM_LIST(V) \
+  /* Modulo Signed Dword */         \
+  V(modsd, MODSD, 0x7C000612)       \
+  /*  Modulo Unsigned Dword */      \
+  V(modud, MODUD, 0x7C000212)       \
+  /* Modulo Signed Word */          \
+  V(modsw, MODSW, 0x7C000616)       \
+  /* Modulo Unsigned Word */        \
+  V(moduw, MODUW, 0x7C000216)
+
+#define PPC_X_OPCODE_B_FORM_LIST(V)      \
+  /* XOR */                              \
+  V(xor_, XORX, 0x7C000278)              \
+  /* AND */                              \
+  V(and_, ANDX, 0x7C000038)              \
+  /* AND with Complement */              \
+  V(andc, ANDCX, 0x7C000078)             \
+  /* OR */                               \
+  V(orx, ORX, 0x7C000378)                \
+  /* OR with Complement */               \
+  V(orc, ORC, 0x7C000338)                \
+  /* NOR */                              \
+  V(nor, NORX, 0x7C0000F8)               \
+  /* Shift Right Word */                 \
+  V(srw, SRWX, 0x7C000430)               \
+  /* Shift Left Word */                  \
+  V(slw, SLWX, 0x7C000030)               \
+  /* Shift Right Algebraic Word */       \
+  V(sraw, SRAW, 0x7C000630)              \
+  /* Shift Left Doubleword */            \
+  V(sld, SLDX, 0x7C000036)               \
+  /* Shift Right Algebraic Doubleword */ \
+  V(srad, SRAD, 0x7C000634)              \
+  /* Shift Right Doubleword */           \
+  V(srd, SRDX, 0x7C000436)
+
+#define PPC_X_OPCODE_C_FORM_LIST(V)    \
+  /* Count Leading Zeros Word */       \
+  V(cntlzw, CNTLZWX, 0x7C000034)       \
+  /* Count Leading Zeros Doubleword */ \
+  V(cntlzd, CNTLZDX, 0x7C000074)       \
+  /* Population Count Byte-wise */     \
+  V(popcntb, POPCNTB, 0x7C0000F4)      \
+  /* Population Count Words */         \
+  V(popcntw, POPCNTW, 0x7C0002F4)      \
+  /* Population Count Doubleword */    \
+  V(popcntd, POPCNTD, 0x7C0003F4)      \
+  /* Extend Sign Byte */               \
+  V(extsb, EXTSB, 0x7C000774)          \
+  /* Extend Sign Halfword */           \
+  V(extsh, EXTSH, 0x7C000734)
+
+#define PPC_X_OPCODE_D_FORM_LIST(V)                     \
+  /* Load Halfword Byte-Reverse Indexed */              \
+  V(lhbrx, LHBRX, 0x7C00062C)                           \
+  /* Load Word Byte-Reverse Indexed */                  \
+  V(lwbrx, LWBRX, 0x7C00042C)                           \
+  /* Load Doubleword Byte-Reverse Indexed */            \
+  V(ldbrx, LDBRX, 0x7C000428)                           \
+  /* Load Byte and Zero Indexed */                      \
+  V(lbzx, LBZX, 0x7C0000AE)                             \
+  /* Load Byte and Zero with Update Indexed */          \
+  V(lbzux, LBZUX, 0x7C0000EE)                           \
+  /* Load Halfword and Zero Indexed */                  \
+  V(lhzx, LHZX, 0x7C00022E)                             \
+  /* Load Halfword and Zero with Update Indexed */      \
+  V(lhzux, LHZUX, 0x7C00026E)                           \
+  /* Load Halfword Algebraic Indexed */                 \
+  V(lhax, LHAX, 0x7C0002AE)                             \
+  /* Load Word and Zero Indexed */                      \
+  V(lwzx, LWZX, 0x7C00002E)                             \
+  /* Load Word and Zero with Update Indexed */          \
+  V(lwzux, LWZUX, 0x7C00006E)                           \
+  /* Load Doubleword Indexed */                         \
+  V(ldx, LDX, 0x7C00002A)                               \
+  /* Load Doubleword with Update Indexed */             \
+  V(ldux, LDUX, 0x7C00006A)                             \
+  /* Load Floating-Point Double Indexed */              \
+  V(lfdx, LFDX, 0x7C0004AE)                             \
+  /* Load Floating-Point Single Indexed */              \
+  V(lfsx, LFSX, 0x7C00042E)                             \
+  /* Load Floating-Point Double with Update Indexed */  \
+  V(lfdux, LFDUX, 0x7C0004EE)                           \
+  /* Load Floating-Point Single with Update Indexed */  \
+  V(lfsux, LFSUX, 0x7C00046E)                           \
+  /* Store Byte with Update Indexed */                  \
+  V(stbux, STBUX, 0x7C0001EE)                           \
+  /* Store Byte Indexed */                              \
+  V(stbx, STBX, 0x7C0001AE)                             \
+  /* Store Halfword with Update Indexed */              \
+  V(sthux, STHUX, 0x7C00036E)                           \
+  /* Store Halfword Indexed */                          \
+  V(sthx, STHX, 0x7C00032E)                             \
+  /* Store Word with Update Indexed */                  \
+  V(stwux, STWUX, 0x7C00016E)                           \
+  /* Store Word Indexed */                              \
+  V(stwx, STWX, 0x7C00012E)                             \
+  /* Store Doubleword with Update Indexed */            \
+  V(stdux, STDUX, 0x7C00016A)                           \
+  /* Store Doubleword Indexed */                        \
+  V(stdx, STDX, 0x7C00012A)                             \
+  /* Store Floating-Point Double with Update Indexed */ \
+  V(stfdux, STFDUX, 0x7C0005EE)                         \
+  /* Store Floating-Point Double Indexed */             \
+  V(stfdx, STFDX, 0x7C0005AE)                           \
+  /* Store Floating-Point Single with Update Indexed */ \
+  V(stfsux, STFSUX, 0x7C00056E)                         \
+  /* Store Floating-Point Single Indexed */             \
+  V(stfsx, STFSX, 0x7C00052E)
+
+#define PPC_X_OPCODE_E_FORM_LIST(V)          \
+  /* Shift Right Algebraic Word Immediate */ \
+  V(srawi, SRAWIX, 0x7C000670)
+
+#define PPC_X_OPCODE_F_FORM_LIST(V) \
+  /* Compare */                     \
+  V(cmp, CMP, 0x7C000000)           \
+  /* Compare Logical */             \
+  V(cmpl, CMPL, 0x7C000040)
+
+#define PPC_X_OPCODE_EH_S_FORM_LIST(V)              \
+  /* Store Byte Conditional Indexed */              \
+  V(stbcx, STBCX, 0x7C00056D)                       \
+  /* Store Halfword Conditional Indexed Xform */    \
+  V(sthcx, STHCX, 0x7C0005AD)                       \
+  /* Store Word Conditional Indexed & record CR0 */ \
+  V(stwcx, STWCX, 0x7C00012D)
+
+#define PPC_X_OPCODE_EH_L_FORM_LIST(V)          \
+  /* Load Byte And Reserve Indexed */           \
+  V(lbarx, LBARX, 0x7C000068)                   \
+  /* Load Halfword And Reserve Indexed Xform */ \
+  V(lharx, LHARX, 0x7C0000E8)                   \
+  /* Load Word and Reserve Indexed */           \
+  V(lwarx, LWARX, 0x7C000028)
+
+#define PPC_X_OPCODE_UNUSED_LIST(V)                                            \
   /* Bit Permute Doubleword */                                                 \
   V(bpermd, BPERMD, 0x7C0001F8)                                                \
-  /* Count Leading Zeros Doubleword */                                         \
-  V(cntlzd, CNTLZDX, 0x7C000074)                                               \
   /* Extend Sign Word */                                                       \
   V(extsw, EXTSW, 0x7C0007B4)                                                  \
   /* Load Doubleword And Reserve Indexed */                                    \
   V(ldarx, LDARX, 0x7C0000A8)                                                  \
-  /* Load Doubleword Byte-Reverse Indexed */                                   \
-  V(ldbrx, LDBRX, 0x7C000428)                                                  \
-  /* Load Doubleword with Update Indexed */                                    \
-  V(ldux, LDUX, 0x7C00006A)                                                    \
-  /* Load Doubleword Indexed */                                                \
-  V(ldx, LDX, 0x7C00002A)                                                      \
   /* Load Word Algebraic with Update Indexed */                                \
   V(lwaux, LWAUX, 0x7C0002EA)                                                  \
   /* Load Word Algebraic Indexed */                                            \
   V(lwax, LWAX, 0x7C0002AA)                                                    \
-  /* Modulo Signed Dword */                                                    \
-  V(modsd, MODSD, 0x7C000612)                                                  \
-  /*  Modulo Unsigned Dword */                                                 \
-  V(modud, MODUD, 0x7C000212)                                                  \
-  /* Population Count Doubleword */                                            \
-  V(popcntd, POPCNTD, 0x7C0003F4)                                              \
   /* Parity Doubleword */                                                      \
   V(prtyd, PRTYD, 0x7C000174)                                                  \
-  /* Shift Left Doubleword */                                                  \
-  V(sld, SLDX, 0x7C000036)                                                     \
-  /* Shift Right Algebraic Doubleword */                                       \
-  V(srad, SRAD, 0x7C000634)                                                    \
-  /* Shift Right Doubleword */                                                 \
-  V(srd, SRDX, 0x7C000436)                                                     \
   /* Store Doubleword Byte-Reverse Indexed */                                  \
   V(stdbrx, STDBRX, 0x7C000528)                                                \
   /* Store Doubleword Conditional Indexed & record CR0 */                      \
   V(stdcx, STDCX, 0x7C0001AD)                                                  \
-  /* Store Doubleword with Update Indexed */                                   \
-  V(stdux, STDUX, 0x7C00016A)                                                  \
-  /* Store Doubleword Indexed */                                               \
-  V(stdx, STDX, 0x7C00012A)                                                    \
   /* Trap Doubleword */                                                        \
   V(td, TD, 0x7C000088)                                                        \
-  /* AND */                                                                    \
-  V(andx, ANDX, 0x7C000038)                                                    \
-  /* AND with Complement */                                                    \
-  V(andc, ANDCX, 0x7C000078)                                                   \
   /* Branch Conditional to Branch Target Address Register */                   \
   V(bctar, BCTAR, 0x4C000460)                                                  \
-  /* Compare */                                                                \
-  V(cmp, CMP, 0x7C000000)                                                      \
   /* Compare Byte */                                                           \
   V(cmpb, CMPB, 0x7C0003F8)                                                    \
-  /* Compare Logical */                                                        \
-  V(cmpl, CMPL, 0x7C000040)                                                    \
-  /* Count Leading Zeros Word */                                               \
-  V(cntlzw, CNTLZWX, 0x7C000034)                                               \
   /* Data Cache Block Flush */                                                 \
   V(dcbf, DCBF, 0x7C0000AC)                                                    \
   /* Data Cache Block Store */                                                 \
@@ -1148,94 +1248,22 @@ typedef uint32_t Instr;
   V(dcbz, DCBZ, 0x7C0007EC)                                                    \
   /* Equivalent */                                                             \
   V(eqv, EQV, 0x7C000238)                                                      \
-  /* Extend Sign Byte */                                                       \
-  V(extsb, EXTSB, 0x7C000774)                                                  \
-  /* Extend Sign Halfword */                                                   \
-  V(extsh, EXTSH, 0x7C000734)                                                  \
   /* Instruction Cache Block Invalidate */                                     \
   V(icbi, ICBI, 0x7C0007AC)                                                    \
-  /* Load Byte And Reserve Indexed */                                          \
-  V(lbarx, LBARX, 0x7C000068)                                                  \
-  /* Load Byte and Zero with Update Indexed */                                 \
-  V(lbzux, LBZUX, 0x7C0000EE)                                                  \
-  /* Load Byte and Zero Indexed */                                             \
-  V(lbzx, LBZX, 0x7C0000AE)                                                    \
-  /* Load Halfword And Reserve Indexed Xform */                                \
-  V(lharx, LHARX, 0x7C0000E8)                                                  \
-  /* Load Halfword Algebraic with Update Indexed */                            \
-  V(lhaux, LHAUX, 0x7C0002EE)                                                  \
-  /* Load Halfword Algebraic Indexed */                                        \
-  V(lhax, LHAX, 0x7C0002AE)                                                    \
-  /* Load Halfword Byte-Reverse Indexed */                                     \
-  V(lhbrx, LHBRX, 0x7C00062C)                                                  \
-  /* Load Halfword and Zero with Update Indexed */                             \
-  V(lhzux, LHZUX, 0x7C00026E)                                                  \
-  /* Load Halfword and Zero Indexed */                                         \
-  V(lhzx, LHZX, 0x7C00022E)                                                    \
-  /* Load Word and Reserve Indexed */                                          \
-  V(lwarx, LWARX, 0x7C000028)                                                  \
-  /* Load Word Byte-Reverse Indexed */                                         \
-  V(lwbrx, LWBRX, 0x7C00042C)                                                  \
-  /* Load Word and Zero with Update Indexed */                                 \
-  V(lwzux, LWZUX, 0x7C00006E)                                                  \
-  /* Load Word and Zero Indexed */                                             \
-  V(lwzx, LWZX, 0x7C00002E)                                                    \
-  /* Modulo Signed Word */                                                     \
-  V(mods, MODSW, 0x7C000616)                                                   \
-  /* Modulo Unsigned Word */                                                   \
-  V(moduw, MODUW, 0x7C000216)                                                  \
   /* NAND */                                                                   \
   V(nand, NAND, 0x7C0003B8)                                                    \
-  /* NOR */                                                                    \
-  V(nor, NORX, 0x7C0000F8)                                                     \
-  /* OR */                                                                     \
-  V(orx, ORX, 0x7C000378)                                                      \
-  /* OR with Complement */                                                     \
-  V(orc, ORC, 0x7C000338)                                                      \
-  /* Population Count Byte-wise */                                             \
-  V(popcntb, POPCNTB, 0x7C0000F4)                                              \
-  /* Population Count Words */                                                 \
-  V(popcntw, POPCNTW, 0x7C0002F4)                                              \
   /* Parity Word */                                                            \
   V(prtyw, PRTYW, 0x7C000134)                                                  \
-  /* Shift Left Word */                                                        \
-  V(slw, SLWX, 0x7C000030)                                                     \
-  /* Shift Right Algebraic Word */                                             \
-  V(sraw, SRAW, 0x7C000630)                                                    \
-  /* Shift Right Algebraic Word Immediate */                                   \
-  V(srawi, SRAWIX, 0x7C000670)                                                 \
-  /* Shift Right Word */                                                       \
-  V(srw, SRWX, 0x7C000430)                                                     \
-  /* Store Byte Conditional Indexed */                                         \
-  V(stbcx, STBCX, 0x7C00056D)                                                  \
-  /* Store Byte with Update Indexed */                                         \
-  V(stbux, STBUX, 0x7C0001EE)                                                  \
-  /* Store Byte Indexed */                                                     \
-  V(stbx, STBX, 0x7C0001AE)                                                    \
   /* Store Halfword Byte-Reverse Indexed */                                    \
   V(sthbrx, STHBRX, 0x7C00072C)                                                \
-  /* Store Halfword Conditional Indexed Xform */                               \
-  V(sthcx, STHCX, 0x7C0005AD)                                                  \
-  /* Store Halfword with Update Indexed */                                     \
-  V(sthux, STHUX, 0x7C00036E)                                                  \
-  /* Store Halfword Indexed */                                                 \
-  V(sthx, STHX, 0x7C00032E)                                                    \
   /* Store Word Byte-Reverse Indexed */                                        \
   V(stwbrx, STWBRX, 0x7C00052C)                                                \
-  /* Store Word Conditional Indexed & record CR0 */                            \
-  V(stwcx, STWCX, 0x7C00012D)                                                  \
-  /* Store Word with Update Indexed */                                         \
-  V(stwux, STWUX, 0x7C00016E)                                                  \
-  /* Store Word Indexed */                                                     \
-  V(stwx, STWX, 0x7C00012E)                                                    \
   /* Synchronize */                                                            \
   V(sync, SYNC, 0x7C0004AC)                                                    \
   /* Trap Word */                                                              \
   V(tw, TW, 0x7C000008)                                                        \
   /* ExecuExecuted No Operation */                                             \
   V(xnop, XNOP, 0x68000000)                                                    \
-  /* XOR */                                                                    \
-  V(xorx, XORX, 0x7C000278)                                                    \
   /* Convert Binary Coded Decimal To Declets */                                \
   V(cbcdtd, CBCDTD, 0x7C000274)                                                \
   /* Convert Declets To Binary Coded Decimal */                                \
@@ -1332,8 +1360,6 @@ typedef uint32_t Instr;
   V(dcbi, DCBI, 0x7C0003AC)                                                    \
   /* Instruction Cache Block Touch */                                          \
   V(icbt, ICBT, 0x7C00002C)                                                    \
-  /* Memory Barrier */                                                         \
-  V(mbar, MBAR, 0x7C0006AC)                                                    \
   /* Move to Condition Register from XER */                                    \
   V(mcrxr, MCRXR, 0x7C000400)                                                  \
   /* TLB Invalidate Local Indexed */                                           \
@@ -1436,30 +1462,14 @@ typedef uint32_t Instr;
   V(ftdiv, FTDIV, 0xFC000100)                                                  \
   /* Floating Test for software Square Root */                                 \
   V(ftsqrt, FTSQRT, 0xFC000140)                                                \
-  /* Load Floating-Point Double with Update Indexed */                         \
-  V(lfdux, LFDUX, 0x7C0004EE)                                                  \
-  /* Load Floating-Point Double Indexed */                                     \
-  V(lfdx, LFDX, 0x7C0004AE)                                                    \
   /* Load Floating-Point as Integer Word Algebraic Indexed */                  \
   V(lfiwax, LFIWAX, 0x7C0006AE)                                                \
   /* Load Floating-Point as Integer Word and Zero Indexed */                   \
   V(lfiwzx, LFIWZX, 0x7C0006EE)                                                \
-  /* Load Floating-Point Single with Update Indexed */                         \
-  V(lfsux, LFSUX, 0x7C00046E)                                                  \
-  /* Load Floating-Point Single Indexed */                                     \
-  V(lfsx, LFSX, 0x7C00042E)                                                    \
   /* Move To Condition Register from FPSCR */                                  \
   V(mcrfs, MCRFS, 0xFC000080)                                                  \
-  /* Store Floating-Point Double with Update Indexed */                        \
-  V(stfdux, STFDUX, 0x7C0005EE)                                                \
-  /* Store Floating-Point Double Indexed */                                    \
-  V(stfdx, STFDX, 0x7C0005AE)                                                  \
   /* Store Floating-Point as Integer Word Indexed */                           \
   V(stfiwx, STFIWX, 0x7C0007AE)                                                \
-  /* Store Floating-Point Single with Update Indexed */                        \
-  V(stfsux, STFSUX, 0x7C00056E)                                                \
-  /* Store Floating-Point Single Indexed */                                    \
-  V(stfsx, STFSX, 0x7C00052E)                                                  \
   /* Load Floating-Point Double Pair Indexed */                                \
   V(lfdpx, LFDPX, 0x7C00062E)                                                  \
   /* Store Floating-Point Double Pair Indexed */                               \
@@ -1662,6 +1672,16 @@ typedef uint32_t Instr;
   /* Wait for Interrupt */                                                     \
   V(wait, WAIT, 0x7C00007C)
 
+#define PPC_X_OPCODE_LIST(V)     \
+  PPC_X_OPCODE_A_FORM_LIST(V)    \
+  PPC_X_OPCODE_B_FORM_LIST(V)    \
+  PPC_X_OPCODE_C_FORM_LIST(V)    \
+  PPC_X_OPCODE_D_FORM_LIST(V)    \
+  PPC_X_OPCODE_E_FORM_LIST(V)    \
+  PPC_X_OPCODE_F_FORM_LIST(V)    \
+  PPC_X_OPCODE_EH_L_FORM_LIST(V) \
+  PPC_X_OPCODE_UNUSED_LIST(V)
+
 #define PPC_EVS_OPCODE_LIST(V)                                                 \
   /* Vector Select */                                                          \
   V(evsel, EVSEL, 0x10000278)
@@ -1683,6 +1703,9 @@ typedef uint32_t Instr;
   V(stfdp, STFDP, 0xF4000000)                                                  \
   /* Store Quadword */                                                         \
   V(stq, STQ, 0xF8000002)
+
+#define PPC_DQ_OPCODE_LIST(V)                                                  \
+  V(lsq, LSQ, 0xE0000000)
 
 #define PPC_D_OPCODE_LIST(V)                                                   \
   /* Trap Doubleword Immediate */                                              \
@@ -2025,87 +2048,40 @@ typedef uint32_t Instr;
   V(addg, ADDG, 0x7C000094)                                                    \
   /* Multiply Accumulate Cross Halfword to Word Modulo Signed */               \
   V(macchw, MACCHW, 0x10000158)                                                \
-  /* Multiply Accumulate Cross Halfword to Word Modulo Signed & record OV */   \
-  V(macchwo, MACCHWO, 0x10000158)                                              \
   /* Multiply Accumulate Cross Halfword to Word Saturate Signed */             \
   V(macchws, MACCHWS, 0x100001D8)                                              \
-  /* Multiply Accumulate Cross Halfword to Word Saturate Signed & record */    \
-  /* OV */                                                                     \
-  V(macchwso, MACCHWSO, 0x100001D8)                                            \
   /* Multiply Accumulate Cross Halfword to Word Saturate Unsigned */           \
   V(macchwsu, MACCHWSU, 0x10000198)                                            \
-  /* Multiply Accumulate Cross Halfword to Word Saturate Unsigned & record */  \
-  /* OV */                                                                     \
-  V(macchwsuo, MACCHWSUO, 0x10000198)                                          \
   /* Multiply Accumulate Cross Halfword to Word Modulo Unsigned */             \
   V(macchwu, MACCHWU, 0x10000118)                                              \
-  /* Multiply Accumulate Cross Halfword to Word Modulo Unsigned & record */    \
-  /* OV */                                                                     \
-  V(macchwuo, MACCHWUO, 0x10000118)                                            \
   /* Multiply Accumulate High Halfword to Word Modulo Signed */                \
   V(machhw, MACHHW, 0x10000058)                                                \
-  /* Multiply Accumulate High Halfword to Word Modulo Signed & record OV */    \
-  V(machhwo, MACHHWO, 0x10000058)                                              \
   /* Multiply Accumulate High Halfword to Word Saturate Signed */              \
   V(machhws, MACHHWS, 0x100000D8)                                              \
-  /* Multiply Accumulate High Halfword to Word Saturate Signed & record OV */  \
-  V(machhwso, MACHHWSO, 0x100000D8)                                            \
   /* Multiply Accumulate High Halfword to Word Saturate Unsigned */            \
   V(machhwsu, MACHHWSU, 0x10000098)                                            \
-  /* Multiply Accumulate High Halfword to Word Saturate Unsigned & record */   \
-  /* OV */                                                                     \
-  V(machhwsuo, MACHHWSUO, 0x10000098)                                          \
   /* Multiply Accumulate High Halfword to Word Modulo Unsigned */              \
   V(machhwu, MACHHWU, 0x10000018)                                              \
-  /* Multiply Accumulate High Halfword to Word Modulo Unsigned & record OV */  \
-  V(machhwuo, MACHHWUO, 0x10000018)                                            \
   /* Multiply Accumulate Low Halfword to Word Modulo Signed */                 \
   V(maclhw, MACLHW, 0x10000358)                                                \
-  /* Multiply Accumulate Low Halfword to Word Modulo Signed & record OV */     \
-  V(maclhwo, MACLHWO, 0x10000358)                                              \
   /* Multiply Accumulate Low Halfword to Word Saturate Signed */               \
   V(maclhws, MACLHWS, 0x100003D8)                                              \
-  /* Multiply Accumulate Low Halfword to Word Saturate Signed & record OV */   \
-  V(maclhwso, MACLHWSO, 0x100003D8)                                            \
   /* Multiply Accumulate Low Halfword to Word Saturate Unsigned */             \
   V(maclhwsu, MACLHWSU, 0x10000398)                                            \
-  /* Multiply Accumulate Low Halfword to Word Saturate Unsigned & record */    \
-  /* OV */                                                                     \
-  V(maclhwsuo, MACLHWSUO, 0x10000398)                                          \
   /* Multiply Accumulate Low Halfword to Word Modulo Unsigned */               \
   V(maclhwu, MACLHWU, 0x10000318)                                              \
-  /* Multiply Accumulate Low Halfword to Word Modulo Unsigned & record OV */   \
-  V(maclhwuo, MACLHWUO, 0x10000318)                                            \
   /* Negative Multiply Accumulate Cross Halfword to Word Modulo Signed */      \
   V(nmacchw, NMACCHW, 0x1000015C)                                              \
-  /* Negative Multiply Accumulate Cross Halfword to Word Modulo Signed & */    \
-  /* record OV */                                                              \
-  V(nmacchwo, NMACCHWO, 0x1000015C)                                            \
   /* Negative Multiply Accumulate Cross Halfword to Word Saturate Signed */    \
   V(nmacchws, NMACCHWS, 0x100001DC)                                            \
-  /* Negative Multiply Accumulate Cross Halfword to Word Saturate Signed & */  \
-  /* record OV */                                                              \
-  V(nmacchwso, NMACCHWSO, 0x100001DC)                                          \
   /* Negative Multiply Accumulate High Halfword to Word Modulo Signed */       \
   V(nmachhw, NMACHHW, 0x1000005C)                                              \
-  /* Negative Multiply Accumulate High Halfword to Word Modulo Signed & */     \
-  /* record OV */                                                              \
-  V(nmachhwo, NMACHHWO, 0x1000005C)                                            \
   /* Negative Multiply Accumulate High Halfword to Word Saturate Signed */     \
   V(nmachhws, NMACHHWS, 0x100000DC)                                            \
-  /* Negative Multiply Accumulate High Halfword to Word Saturate Signed & */   \
-  /* record OV */                                                              \
-  V(nmachhwso, NMACHHWSO, 0x100000DC)                                          \
   /* Negative Multiply Accumulate Low Halfword to Word Modulo Signed */        \
   V(nmaclhw, NMACLHW, 0x1000035C)                                              \
-  /* Negative Multiply Accumulate Low Halfword to Word Modulo Signed & */      \
-  /* record OV */                                                              \
-  V(nmaclhwo, NMACLHWO, 0x1000035C)                                            \
   /* Negative Multiply Accumulate Low Halfword to Word Saturate Signed */      \
   V(nmaclhws, NMACLHWS, 0x100003DC)                                            \
-  /* Negative Multiply Accumulate Low Halfword to Word Saturate Signed & */    \
-  /* record OV */                                                              \
-  V(nmaclhwso, NMACLHWSO, 0x100003DC)
 
 #define PPC_XL_OPCODE_LIST(V)                                                  \
   /* Branch Conditional to Count Register */                                   \
@@ -2533,35 +2509,35 @@ typedef uint32_t Instr;
   /* System Call */                                                            \
   V(sc, SC, 0x44000002)
 
-
-#define PPC_OPCODE_LIST(V)    \
-  PPC_X_OPCODE_LIST(V)        \
-  PPC_XO_OPCODE_LIST(V)       \
-  PPC_DS_OPCODE_LIST(V)       \
-  PPC_MDS_OPCODE_LIST(V)      \
-  PPC_MD_OPCODE_LIST(V)       \
-  PPC_XS_OPCODE_LIST(V)       \
-  PPC_D_OPCODE_LIST(V)        \
-  PPC_I_OPCODE_LIST(V)        \
-  PPC_B_OPCODE_LIST(V)        \
-  PPC_XL_OPCODE_LIST(V)       \
-  PPC_A_OPCODE_LIST(V)        \
-  PPC_XFX_OPCODE_LIST(V)      \
-  PPC_M_OPCODE_LIST(V)        \
-  PPC_SC_OPCODE_LIST(V)       \
-  PPC_Z23_OPCODE_LIST(V)      \
-  PPC_Z22_OPCODE_LIST(V)      \
-  PPC_EVX_OPCODE_LIST(V)      \
-  PPC_XFL_OPCODE_LIST(V)      \
-  PPC_EVS_OPCODE_LIST(V)      \
-  PPC_VX_OPCODE_LIST(V)       \
-  PPC_VA_OPCODE_LIST(V)       \
-  PPC_VC_OPCODE_LIST(V)       \
-  PPC_XX1_OPCODE_LIST(V)      \
-  PPC_XX2_OPCODE_LIST(V)      \
-  PPC_XX3_OPCODE_LIST(V)      \
+#define PPC_OPCODE_LIST(V)       \
+  PPC_X_OPCODE_LIST(V)           \
+  PPC_X_OPCODE_EH_S_FORM_LIST(V) \
+  PPC_XO_OPCODE_LIST(V)          \
+  PPC_DS_OPCODE_LIST(V)          \
+  PPC_DQ_OPCODE_LIST(V)          \
+  PPC_MDS_OPCODE_LIST(V)         \
+  PPC_MD_OPCODE_LIST(V)          \
+  PPC_XS_OPCODE_LIST(V)          \
+  PPC_D_OPCODE_LIST(V)           \
+  PPC_I_OPCODE_LIST(V)           \
+  PPC_B_OPCODE_LIST(V)           \
+  PPC_XL_OPCODE_LIST(V)          \
+  PPC_A_OPCODE_LIST(V)           \
+  PPC_XFX_OPCODE_LIST(V)         \
+  PPC_M_OPCODE_LIST(V)           \
+  PPC_SC_OPCODE_LIST(V)          \
+  PPC_Z23_OPCODE_LIST(V)         \
+  PPC_Z22_OPCODE_LIST(V)         \
+  PPC_EVX_OPCODE_LIST(V)         \
+  PPC_XFL_OPCODE_LIST(V)         \
+  PPC_EVS_OPCODE_LIST(V)         \
+  PPC_VX_OPCODE_LIST(V)          \
+  PPC_VA_OPCODE_LIST(V)          \
+  PPC_VC_OPCODE_LIST(V)          \
+  PPC_XX1_OPCODE_LIST(V)         \
+  PPC_XX2_OPCODE_LIST(V)         \
+  PPC_XX3_OPCODE_LIST(V)         \
   PPC_XX4_OPCODE_LIST(V)
-
 
 enum Opcode : uint32_t {
 #define DECLARE_INSTRUCTION(name, opcode_name, opcode_value)                   \
@@ -2640,6 +2616,11 @@ enum OEBit {
 enum RCBit {   // Bit 0
   SetRC = 1,   // LT,GT,EQ,SO
   LeaveRC = 0  // None
+};
+// Exclusive Access hint bit
+enum EHBit {   // Bit 0
+  SetEH = 1,   // Exclusive Access
+  LeaveEH = 0  // Atomic Update
 };
 
 // Link bit
@@ -2817,9 +2798,117 @@ class Instruction {
   DECLARE_STATIC_ACCESSOR(RCValue);
 
   inline int OpcodeValue() const { return static_cast<Opcode>(Bits(31, 26)); }
-  inline Opcode OpcodeField() const {
+  inline uint32_t OpcodeField() const {
     return static_cast<Opcode>(BitField(31, 26));
   }
+
+#define OPCODE_CASES(name, opcode_name, opcode_value) \
+  case opcode_name:
+
+  inline Opcode OpcodeBase() const {
+    uint32_t opcode = OpcodeField();
+    uint32_t extcode = OpcodeField();
+    switch (opcode) {
+      PPC_D_OPCODE_LIST(OPCODE_CASES)
+      PPC_I_OPCODE_LIST(OPCODE_CASES)
+      PPC_B_OPCODE_LIST(OPCODE_CASES)
+      PPC_M_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+
+    opcode = extcode | BitField(10, 0);
+    switch (opcode) {
+      PPC_VX_OPCODE_LIST(OPCODE_CASES)
+      PPC_X_OPCODE_EH_S_FORM_LIST(OPCODE_CASES)
+      return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(9, 0);
+    switch (opcode) {
+      PPC_VC_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(10, 1) | BitField(20, 20);
+    switch (opcode) {
+      PPC_XFX_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(10, 1);
+    switch (opcode) {
+      PPC_X_OPCODE_LIST(OPCODE_CASES)
+      PPC_XL_OPCODE_LIST(OPCODE_CASES)
+      PPC_XFL_OPCODE_LIST(OPCODE_CASES)
+      PPC_XX1_OPCODE_LIST(OPCODE_CASES)
+      PPC_XX2_OPCODE_LIST(OPCODE_CASES)
+      PPC_EVX_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(9, 1);
+    switch (opcode) {
+      PPC_XO_OPCODE_LIST(OPCODE_CASES)
+      PPC_Z22_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(10, 2);
+    switch (opcode) {
+      PPC_XS_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(10, 3);
+    switch (opcode) {
+      PPC_EVS_OPCODE_LIST(OPCODE_CASES)
+      PPC_XX3_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(8, 1);
+    switch (opcode) {
+      PPC_Z23_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+     }
+    opcode = extcode | BitField(5, 0);
+    switch (opcode) {
+      PPC_VA_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(5, 1);
+    switch (opcode) {
+      PPC_A_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(4, 1);
+    switch (opcode) {
+      PPC_MDS_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(4, 2);
+    switch (opcode) {
+      PPC_MD_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(5, 4);
+    switch (opcode) {
+      PPC_XX4_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(2, 0);
+    switch (opcode) {
+      PPC_DQ_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(1, 0);
+    switch (opcode) {
+      PPC_DS_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    opcode = extcode | BitField(1, 1);
+    switch (opcode) {
+      PPC_SC_OPCODE_LIST(OPCODE_CASES)
+        return static_cast<Opcode>(opcode);
+    }
+    UNIMPLEMENTED();
+    return static_cast<Opcode>(0);
+  }
+
+#undef OPCODE_CASES
 
   // Fields used in Software interrupt instructions
   inline SoftwareInterruptCodes SvcValue() const {

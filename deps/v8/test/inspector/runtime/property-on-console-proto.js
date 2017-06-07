@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Tests that property defined on console.__proto__ doesn't observable on other Objects.");
+InspectorTest.log("Tests that property defined on console.__proto__ doesn't observable on other Objects.");
 
 InspectorTest.addScript(`
 function testFunction()

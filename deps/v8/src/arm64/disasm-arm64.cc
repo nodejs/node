@@ -916,10 +916,10 @@ void DisassemblingDecoder::VisitLoadStorePairOffset(Instruction* instr) {
 
 void DisassemblingDecoder::VisitLoadStoreAcquireRelease(Instruction *instr) {
   const char *mnemonic = "unimplemented";
-  const char *form = "'Wt, ['Xn]";
-  const char *form_x = "'Xt, ['Xn]";
-  const char *form_stlx = "'Ws, 'Wt, ['Xn]";
-  const char *form_stlx_x = "'Ws, 'Xt, ['Xn]";
+  const char* form = "'Wt, ['Xns]";
+  const char* form_x = "'Xt, ['Xns]";
+  const char* form_stlx = "'Ws, 'Wt, ['Xns]";
+  const char* form_stlx_x = "'Ws, 'Xt, ['Xns]";
 
   switch (instr->Mask(LoadStoreAcquireReleaseMask)) {
     case LDAXR_b: mnemonic = "ldaxrb"; break;
@@ -938,7 +938,8 @@ void DisassemblingDecoder::VisitLoadStoreAcquireRelease(Instruction *instr) {
     case STLXR_b: mnemonic = "stlxrb"; form = form_stlx; break;
     case STLXR_w: mnemonic = "stlxr"; form = form_stlx; break;
     case STLXR_x: mnemonic = "stlxr"; form = form_stlx_x; break;
-    default: form = "(LoadStoreAcquireReleaseMask)";
+    default:
+      form = "(LoadStoreAcquireRelease)";
   }
   Format(instr, mnemonic, form);
 }

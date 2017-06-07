@@ -15,7 +15,7 @@ namespace internal {
 #include "src/flag-definitions.h"  // NOLINT
 
 // The global list of all flags.
-class FlagList {
+class V8_EXPORT_PRIVATE FlagList {
  public:
   // The list of all flags with a value different from the default
   // and their values. The format of the list is like the format of the

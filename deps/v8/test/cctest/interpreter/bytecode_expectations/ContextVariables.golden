@@ -75,18 +75,16 @@ handlers: [
 snippet: "
   var a; (function() { a = 2; })(); return a;
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 22
+bytecode array length: 17
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
-  /*   41 S> */ B(LdaUndefined),
-                B(Star), R(2),
-                B(CreateClosure), U8(0), U8(4), U8(2),
+  /*   41 S> */ B(CreateClosure), U8(0), U8(4), U8(2),
                 B(Star), R(1),
-  /*   64 E> */ B(Call), R(1), R(2), U8(1), U8(2),
+  /*   64 E> */ B(CallUndefinedReceiver0), R(1), U8(2),
   /*   68 S> */ B(LdaCurrentContextSlot), U8(4),
   /*   78 S> */ B(Return),
 ]
@@ -388,9 +386,9 @@ snippet: "
   var b = 100;
   return b
 "
-frame size: 3
+frame size: 2
 parameter count: 1
-bytecode array length: 792
+bytecode array length: 787
 bytecodes: [
                 B(CreateFunctionContext), U8(254),
                 B(PushContext), R(0),
@@ -901,11 +899,9 @@ bytecodes: [
   /* 3421 E> */ B(StaCurrentContextSlot), U8(254),
   /* 3435 S> */ B(LdaZero),
   /* 3435 E> */ B(StaCurrentContextSlot), U8(255),
-  /* 3438 S> */ B(LdaUndefined),
-                B(Star), R(2),
-                B(LdaGlobal), U8(0), U8(4),
+  /* 3438 S> */ B(LdaGlobal), U8(0), U8(4),
                 B(Star), R(1),
-  /* 3438 E> */ B(Call), R(1), R(2), U8(1), U8(2),
+  /* 3438 E> */ B(CallUndefinedReceiver0), R(1), U8(2),
   /* 3454 S> */ B(LdaSmi), I8(100),
   /* 3454 E> */ B(Wide), B(StaCurrentContextSlot), U16(256),
   /* 3459 S> */ B(Wide), B(LdaCurrentContextSlot), U16(256),

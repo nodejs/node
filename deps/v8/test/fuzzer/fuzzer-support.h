@@ -16,7 +16,7 @@ class FuzzerSupport {
 
   static FuzzerSupport* Get();
 
-  v8::Isolate* GetIsolate();
+  v8::Isolate* GetIsolate() const;
   v8::Local<v8::Context> GetContext();
 
  private:

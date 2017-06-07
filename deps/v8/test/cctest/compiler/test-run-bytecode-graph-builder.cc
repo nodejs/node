@@ -125,7 +125,8 @@ class BytecodeGraphTester {
     // having to instantiate a ParseInfo first. Fix this!
     ParseInfo parse_info(handle(function->shared()));
 
-    CompilationInfo compilation_info(parse_info.zone(), &parse_info, function);
+    CompilationInfo compilation_info(parse_info.zone(), &parse_info,
+                                     function->GetIsolate(), function);
     compilation_info.SetOptimizing();
     compilation_info.MarkAsDeoptimizationEnabled();
     compilation_info.MarkAsOptimizeFromBytecode();
@@ -827,6 +828,49 @@ TEST(BytecodeGraphBuilderTypeOf) {
   }
 }
 
+TEST(BytecodeGraphBuilderCompareTypeOf) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<1> snippets[] = {
+      {"return typeof p1 === 'number';",
+       {factory->true_value(), factory->NewNumber(1.1)}},
+      {"return typeof p1 === 'string';",
+       {factory->false_value(), factory->NewNumber(1.1)}},
+      {"return typeof p1 === 'string';",
+       {factory->true_value(), factory->NewStringFromStaticChars("string")}},
+      {"return typeof p1 === 'string';",
+       {factory->false_value(), factory->undefined_value()}},
+      {"return typeof p1 === 'undefined';",
+       {factory->true_value(), factory->undefined_value()}},
+      {"return typeof p1 === 'object';",
+       {factory->true_value(), factory->null_value()}},
+      {"return typeof p1 === 'object';",
+       {factory->true_value(), BytecodeGraphTester::NewObject("({val : 10})")}},
+      {"return typeof p1 === 'function';",
+       {factory->false_value(),
+        BytecodeGraphTester::NewObject("({val : 10})")}},
+      {"return typeof p1 === 'symbol';",
+       {factory->true_value(), factory->NewSymbol()}},
+      {"return typeof p1 === 'symbol';",
+       {factory->false_value(), factory->NewStringFromStaticChars("string")}},
+      {"return typeof p1 === 'other';",
+       {factory->false_value(), factory->NewNumber(1.1)}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s(p1) { %s }\n%s({});", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, script.start());
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> return_value =
+        callable(snippets[i].parameter(0)).ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
 
 TEST(BytecodeGraphBuilderCountOperation) {
   HandleAndZoneScope scope;

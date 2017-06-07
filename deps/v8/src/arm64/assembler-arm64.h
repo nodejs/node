@@ -10,6 +10,7 @@
 #include <map>
 #include <vector>
 
+#include "src/arm64/constants-arm64.h"
 #include "src/arm64/instructions-arm64.h"
 #include "src/assembler.h"
 #include "src/globals.h"
@@ -63,8 +64,8 @@ namespace internal {
   R(d25) R(d26) R(d27) R(d28)
 // clang-format on
 
-static const int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
-
+constexpr int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
+static const int kNoCodeAgeSequenceLength = 5 * kInstructionSize;
 
 // Some CPURegister methods can return Register and FPRegister types, so we
 // need to declare them in advance.
@@ -89,6 +90,11 @@ struct CPURegister {
     kFPRegister,
     kNoRegister
   };
+
+  constexpr CPURegister() : CPURegister(0, 0, CPURegister::kNoRegister) {}
+
+  constexpr CPURegister(int reg_code, int reg_size, RegisterType reg_type)
+      : reg_code(reg_code), reg_size(reg_size), reg_type(reg_type) {}
 
   static CPURegister Create(int code, int size, RegisterType type) {
     CPURegister r = {code, size, type};
@@ -138,25 +144,9 @@ struct Register : public CPURegister {
     return Register(CPURegister::Create(code, size, CPURegister::kRegister));
   }
 
-  Register() {
-    reg_code = 0;
-    reg_size = 0;
-    reg_type = CPURegister::kNoRegister;
-  }
+  constexpr Register() : CPURegister() {}
 
-  explicit Register(const CPURegister& r) {
-    reg_code = r.reg_code;
-    reg_size = r.reg_size;
-    reg_type = r.reg_type;
-    DCHECK(IsValidOrNone());
-  }
-
-  Register(const Register& r) {  // NOLINT(runtime/explicit)
-    reg_code = r.reg_code;
-    reg_size = r.reg_size;
-    reg_type = r.reg_type;
-    DCHECK(IsValidOrNone());
-  }
+  constexpr explicit Register(const CPURegister& r) : CPURegister(r) {}
 
   bool IsValid() const {
     DCHECK(IsRegister() || IsNone());
@@ -170,7 +160,7 @@ struct Register : public CPURegister {
   // These memebers are necessary for compilation.
   // A few of them may be unused for now.
 
-  static const int kNumRegisters = kNumberOfRegisters;
+  static constexpr int kNumRegisters = kNumberOfRegisters;
   STATIC_ASSERT(kNumRegisters == Code::kAfterLast);
   static int NumRegisters() { return kNumRegisters; }
 
@@ -197,8 +187,8 @@ struct Register : public CPURegister {
   // End of V8 compatibility section -----------------------
 };
 
-static const bool kSimpleFPAliasing = true;
-static const bool kSimdMaskRegisters = false;
+constexpr bool kSimpleFPAliasing = true;
+constexpr bool kSimdMaskRegisters = false;
 
 struct FPRegister : public CPURegister {
   enum Code {
@@ -214,25 +204,9 @@ struct FPRegister : public CPURegister {
         CPURegister::Create(code, size, CPURegister::kFPRegister));
   }
 
-  FPRegister() {
-    reg_code = 0;
-    reg_size = 0;
-    reg_type = CPURegister::kNoRegister;
-  }
+  constexpr FPRegister() : CPURegister() {}
 
-  explicit FPRegister(const CPURegister& r) {
-    reg_code = r.reg_code;
-    reg_size = r.reg_size;
-    reg_type = r.reg_type;
-    DCHECK(IsValidOrNone());
-  }
-
-  FPRegister(const FPRegister& r) {  // NOLINT(runtime/explicit)
-    reg_code = r.reg_code;
-    reg_size = r.reg_size;
-    reg_type = r.reg_type;
-    DCHECK(IsValidOrNone());
-  }
+  constexpr explicit FPRegister(const CPURegister& r) : CPURegister(r) {}
 
   bool IsValid() const {
     DCHECK(IsFPRegister() || IsNone());
@@ -243,7 +217,7 @@ struct FPRegister : public CPURegister {
   static FPRegister DRegFromCode(unsigned code);
 
   // Start of V8 compatibility section ---------------------
-  static const int kMaxNumRegisters = kNumberOfFPRegisters;
+  static constexpr int kMaxNumRegisters = kNumberOfFPRegisters;
   STATIC_ASSERT(kMaxNumRegisters == Code::kAfterLast);
 
   // Crankshaft can use all the FP registers except:
@@ -261,54 +235,41 @@ struct FPRegister : public CPURegister {
 STATIC_ASSERT(sizeof(CPURegister) == sizeof(Register));
 STATIC_ASSERT(sizeof(CPURegister) == sizeof(FPRegister));
 
-
-#if defined(ARM64_DEFINE_REG_STATICS)
-#define INITIALIZE_REGISTER(register_class, name, code, size, type)      \
-  const CPURegister init_##register_class##_##name = {code, size, type}; \
-  const register_class& name = *reinterpret_cast<const register_class*>( \
-                                    &init_##register_class##_##name)
-#define ALIAS_REGISTER(register_class, alias, name)                       \
-  const register_class& alias = *reinterpret_cast<const register_class*>( \
-                                     &init_##register_class##_##name)
-#else
-#define INITIALIZE_REGISTER(register_class, name, code, size, type) \
-  extern const register_class& name
+#define DEFINE_REGISTER(register_class, name, code, size, type) \
+  constexpr register_class name { CPURegister(code, size, type) }
 #define ALIAS_REGISTER(register_class, alias, name) \
-  extern const register_class& alias
-#endif  // defined(ARM64_DEFINE_REG_STATICS)
+  constexpr register_class alias = name
 
 // No*Reg is used to indicate an unused argument, or an error case. Note that
 // these all compare equal (using the Is() method). The Register and FPRegister
 // variants are provided for convenience.
-INITIALIZE_REGISTER(Register, NoReg, 0, 0, CPURegister::kNoRegister);
-INITIALIZE_REGISTER(FPRegister, NoFPReg, 0, 0, CPURegister::kNoRegister);
-INITIALIZE_REGISTER(CPURegister, NoCPUReg, 0, 0, CPURegister::kNoRegister);
+DEFINE_REGISTER(Register, NoReg, 0, 0, CPURegister::kNoRegister);
+DEFINE_REGISTER(FPRegister, NoFPReg, 0, 0, CPURegister::kNoRegister);
+DEFINE_REGISTER(CPURegister, NoCPUReg, 0, 0, CPURegister::kNoRegister);
 
 // v8 compatibility.
-INITIALIZE_REGISTER(Register, no_reg, 0, 0, CPURegister::kNoRegister);
+DEFINE_REGISTER(Register, no_reg, 0, 0, CPURegister::kNoRegister);
 
-#define DEFINE_REGISTERS(N)                                                  \
-  INITIALIZE_REGISTER(Register, w##N, N,                                     \
-                      kWRegSizeInBits, CPURegister::kRegister);              \
-  INITIALIZE_REGISTER(Register, x##N, N,                                     \
-                      kXRegSizeInBits, CPURegister::kRegister);
+#define DEFINE_REGISTERS(N)                                                    \
+  DEFINE_REGISTER(Register, w##N, N, kWRegSizeInBits, CPURegister::kRegister); \
+  DEFINE_REGISTER(Register, x##N, N, kXRegSizeInBits, CPURegister::kRegister);
 GENERAL_REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
 
-INITIALIZE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits,
-                    CPURegister::kRegister);
-INITIALIZE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits,
-                    CPURegister::kRegister);
+DEFINE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits,
+                CPURegister::kRegister);
+DEFINE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits,
+                CPURegister::kRegister);
 
-#define DEFINE_FPREGISTERS(N)                                                  \
-  INITIALIZE_REGISTER(FPRegister, s##N, N,                                     \
-                      kSRegSizeInBits, CPURegister::kFPRegister);              \
-  INITIALIZE_REGISTER(FPRegister, d##N, N,                                     \
-                      kDRegSizeInBits, CPURegister::kFPRegister);
+#define DEFINE_FPREGISTERS(N)                           \
+  DEFINE_REGISTER(FPRegister, s##N, N, kSRegSizeInBits, \
+                  CPURegister::kFPRegister);            \
+  DEFINE_REGISTER(FPRegister, d##N, N, kDRegSizeInBits, \
+                  CPURegister::kFPRegister);
 GENERAL_REGISTER_CODE_LIST(DEFINE_FPREGISTERS)
 #undef DEFINE_FPREGISTERS
 
-#undef INITIALIZE_REGISTER
+#undef DEFINE_REGISTER
 
 // Registers aliases.
 ALIAS_REGISTER(Register, ip0, x16);
@@ -566,8 +527,8 @@ class Immediate {
 
 // -----------------------------------------------------------------------------
 // Operands.
-const int kSmiShift = kSmiTagSize + kSmiShiftSize;
-const uint64_t kSmiShiftMask = (1UL << kSmiShift) - 1;
+constexpr int kSmiShift = kSmiTagSize + kSmiShiftSize;
+constexpr uint64_t kSmiShiftMask = (1UL << kSmiShift) - 1;
 
 // Represents an operand in a machine instruction.
 class Operand {
@@ -756,7 +717,9 @@ class Assembler : public AssemblerBase {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(Isolate* arg_isolate, void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size)
+      : Assembler(IsolateData(isolate), buffer, buffer_size) {}
+  Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
 
   virtual ~Assembler();
 
@@ -807,6 +770,7 @@ class Assembler : public AssemblerBase {
   inline static Address target_pointer_address_at(Address pc);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
+  // The isolate argument is unused (and may be nullptr) when skipping flushing.
   inline static Address target_address_at(Address pc, Address constant_pool);
   inline static void set_target_address_at(
       Isolate* isolate, Address pc, Address constant_pool, Address target,
@@ -836,7 +800,7 @@ class Assembler : public AssemblerBase {
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // All addresses in the constant pool are the same size as pointers.
-  static const int kSpecialTargetSize = kPointerSize;
+  static constexpr int kSpecialTargetSize = kPointerSize;
 
   // The sizes of the call sequences emitted by MacroAssembler::Call.
   // Wherever possible, use MacroAssembler::CallSize instead of these constants,
@@ -851,8 +815,8 @@ class Assembler : public AssemblerBase {
   // With relocation:
   //  ldr   temp, =target
   //  blr   temp
-  static const int kCallSizeWithoutRelocation = 4 * kInstructionSize;
-  static const int kCallSizeWithRelocation = 2 * kInstructionSize;
+  static constexpr int kCallSizeWithoutRelocation = 4 * kInstructionSize;
+  static constexpr int kCallSizeWithRelocation = 2 * kInstructionSize;
 
   // Size of the generated code in bytes
   uint64_t SizeOfGeneratedCode() const {
@@ -884,12 +848,12 @@ class Assembler : public AssemblerBase {
     return SizeOfCodeGeneratedSince(label) / kInstructionSize;
   }
 
-  static const int kPatchDebugBreakSlotAddressOffset =  0;
+  static constexpr int kPatchDebugBreakSlotAddressOffset = 0;
 
   // Number of instructions necessary to be able to later patch it to a call.
-  static const int kDebugBreakSlotInstructions = 5;
-  static const int kDebugBreakSlotLength =
-    kDebugBreakSlotInstructions * kInstructionSize;
+  static constexpr int kDebugBreakSlotInstructions = 5;
+  static constexpr int kDebugBreakSlotLength =
+      kDebugBreakSlotInstructions * kInstructionSize;
 
   // Prevent contant pool emission until EndBlockConstPool is called.
   // Call to this function can be nested but must be followed by an equal
@@ -1847,7 +1811,7 @@ class Assembler : public AssemblerBase {
   // The maximum code size generated for a veneer. Currently one branch
   // instruction. This is for code size checking purposes, and can be extended
   // in the future for example if we decide to add nops between the veneers.
-  static const int kMaxVeneerCodeSize = 1 * kInstructionSize;
+  static constexpr int kMaxVeneerCodeSize = 1 * kInstructionSize;
 
   void RecordVeneerPool(int location_offset, int size);
   // Emits veneers for branches that are approaching their maximum range.
@@ -2000,7 +1964,7 @@ class Assembler : public AssemblerBase {
   // suitable for fields that take instruction offsets.
   inline int LinkAndGetInstructionOffsetTo(Label* label);
 
-  static const int kStartOfLabelLinkChain = 0;
+  static constexpr int kStartOfLabelLinkChain = 0;
 
   // Verify that a label's link chain is intact.
   void CheckLabelLinkChain(Label const * label);
@@ -2061,17 +2025,17 @@ class Assembler : public AssemblerBase {
   // expensive. By default we only check again once a number of instructions
   // has been generated. That also means that the sizing of the buffers is not
   // an exact science, and that we rely on some slop to not overrun buffers.
-  static const int kCheckConstPoolInterval = 128;
+  static constexpr int kCheckConstPoolInterval = 128;
 
   // Distance to first use after a which a pool will be emitted. Pool entries
   // are accessed with pc relative load therefore this cannot be more than
   // 1 * MB. Since constant pool emission checks are interval based this value
   // is an approximation.
-  static const int kApproxMaxDistToConstPool = 64 * KB;
+  static constexpr int kApproxMaxDistToConstPool = 64 * KB;
 
   // Number of pool entries after which a pool will be emitted. Since constant
   // pool emission checks are interval based this value is an approximation.
-  static const int kApproxMaxPoolEntryCount = 512;
+  static constexpr int kApproxMaxPoolEntryCount = 512;
 
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
@@ -2082,8 +2046,9 @@ class Assembler : public AssemblerBase {
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
-  static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
+  static constexpr int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
+
   // Internal reference positions, required for (potential) patching in
   // GrowBuffer(); contains only those internal references whose labels
   // are already bound.
@@ -2121,7 +2086,7 @@ class Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries, and debug strings encoded in the instruction
   // stream.
-  static const int kGap = 128;
+  static constexpr int kGap = 128;
 
  public:
   class FarBranchInfo {
@@ -2151,13 +2116,13 @@ class Assembler : public AssemblerBase {
 
   // We generate a veneer for a branch if we reach within this distance of the
   // limit of the range.
-  static const int kVeneerDistanceMargin = 1 * KB;
+  static constexpr int kVeneerDistanceMargin = 1 * KB;
   // The factor of 2 is a finger in the air guess. With a default margin of
   // 1KB, that leaves us an addional 256 instructions to avoid generating a
   // protective branch.
-  static const int kVeneerNoProtectionFactor = 2;
-  static const int kVeneerDistanceCheckMargin =
-    kVeneerNoProtectionFactor * kVeneerDistanceMargin;
+  static constexpr int kVeneerNoProtectionFactor = 2;
+  static constexpr int kVeneerDistanceCheckMargin =
+      kVeneerNoProtectionFactor * kVeneerDistanceMargin;
   int unresolved_branches_first_limit() const {
     DCHECK(!unresolved_branches_.empty());
     return unresolved_branches_.begin()->first;
@@ -2195,14 +2160,18 @@ class PatchingAssembler : public Assembler {
   // If more or fewer instructions than expected are generated or if some
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
-  PatchingAssembler(Isolate* isolate, Instruction* start, unsigned count)
-      : Assembler(isolate, reinterpret_cast<byte*>(start),
-                  count * kInstructionSize + kGap) {
-    StartBlockPools();
+
+  // This version will flush at destruction.
+  PatchingAssembler(Isolate* isolate, byte* start, unsigned count)
+      : PatchingAssembler(IsolateData(isolate), start, count) {
+    CHECK_NOT_NULL(isolate);
+    isolate_ = isolate;
   }
 
-  PatchingAssembler(Isolate* isolate, byte* start, unsigned count)
-      : Assembler(isolate, start, count * kInstructionSize + kGap) {
+  // This version will not flush.
+  PatchingAssembler(IsolateData isolate_data, byte* start, unsigned count)
+      : Assembler(isolate_data, start, count * kInstructionSize + kGap),
+        isolate_(nullptr) {
     // Block constant pool emission.
     StartBlockPools();
   }
@@ -2217,13 +2186,16 @@ class PatchingAssembler : public Assembler {
     DCHECK(IsConstPoolEmpty());
     // Flush the Instruction cache.
     size_t length = buffer_size_ - kGap;
-    Assembler::FlushICache(isolate(), buffer_, length);
+    if (isolate_ != nullptr) Assembler::FlushICache(isolate_, buffer_, length);
   }
 
   // See definition of PatchAdrFar() for details.
-  static const int kAdrFarPatchableNNops = 2;
-  static const int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 2;
+  static constexpr int kAdrFarPatchableNNops = 2;
+  static constexpr int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 2;
   void PatchAdrFar(int64_t target_offset);
+
+ private:
+  Isolate* isolate_;
 };
 
 

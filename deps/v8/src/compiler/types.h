@@ -139,7 +139,8 @@ namespace compiler {
   V(Unsigned32OrMinusZero,        kUnsigned32 | kMinusZero) \
   V(Unsigned32OrMinusZeroOrNaN,   kUnsigned32 | kMinusZero | kNaN) \
   V(Integral32,                   kSigned32 | kUnsigned32) \
-  V(Integral32OrMinusZeroOrNaN,   kIntegral32 | kMinusZero | kNaN) \
+  V(Integral32OrMinusZero,        kIntegral32 | kMinusZero) \
+  V(Integral32OrMinusZeroOrNaN,   kIntegral32OrMinusZero | kNaN) \
   V(PlainNumber,                  kIntegral32 | kOtherNumber) \
   V(OrderedNumber,                kPlainNumber | kMinusZero) \
   V(MinusZeroOrNaN,               kMinusZero | kNaN) \
@@ -155,6 +156,7 @@ namespace compiler {
   V(NullOrNumber,                 kNull | kNumber) \
   V(NullOrUndefined,              kNull | kUndefined) \
   V(Undetectable,                 kNullOrUndefined | kOtherUndetectable) \
+  V(NumberOrHole,                 kNumber | kHole) \
   V(NumberOrOddball,              kNumber | kNullOrUndefined | kBoolean | \
                                   kHole) \
   V(NumberOrString,               kNumber | kString) \

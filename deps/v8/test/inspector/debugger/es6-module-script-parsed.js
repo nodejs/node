@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Debugger.scriptParsed and Debugger.scriptFailedToParse with ES6 module');
+InspectorTest.log('Debugger.scriptParsed and Debugger.scriptFailedToParse with ES6 module');
 
 let moduleSource = `
 export function foo() {
