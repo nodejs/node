@@ -7,28 +7,28 @@ using node::crypto::CryptoFactory;
 using node::crypto::Crypto;
 using node::crypto::OpenSSL;
 
-const char version[] = "openssl_1_0_2e";
+const char version[] = "openssl_1_1_0f";
 
-TEST(CryptFactoryTest, Version) {
+TEST(OpenSSL_1_1_0e, Version) {
   EXPECT_EQ(CryptoFactory::Get(version)->Version(), version);
 }
 
-TEST(CryptFactoryTest, Name) {
+TEST(OpenSSL_1_1_0e, Name) {
   EXPECT_EQ(CryptoFactory::Get(version)->Name(), "openssl");
 }
 
-TEST(CryptFactoryTest, HasSNI) {
+TEST(OpenSSL_1_1_0e, HasSNI) {
   EXPECT_TRUE(CryptoFactory::Get(version)->HasSNI());
 }
 
-TEST(CryptFactoryTest, HasNPN) {
+TEST(OpenSSL_1_1_0e, HasNPN) {
   EXPECT_TRUE(CryptoFactory::Get(version)->HasNPN());
 }
 
-TEST(CryptFactoryTest, HasALPN) {
+TEST(OpenSSL_1_1_0e, HasALPN) {
   EXPECT_FALSE(CryptoFactory::Get(version)->HasALPN());
 }
 
-TEST(CryptFactoryTest, HasOCSP) {
+TEST(OpenSSL_1_1_0e, HasOCSP) {
   EXPECT_TRUE(CryptoFactory::Get(version)->HasOCSP());
 }

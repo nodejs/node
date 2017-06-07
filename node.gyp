@@ -654,7 +654,6 @@
         'test/cctest/test_util.cc',
         'test/cctest/test_url.cc',
         'test/cctest/test_crypto_factory.cc',
-        'test/cctest/test_crypto_openssl_1_0_2e.cc',
       ],
 
       'sources!': [
@@ -662,6 +661,12 @@
       ],
 
       'conditions': [
+        [ 'node_crypto_version=="openssl_1_0_2e"', {
+          'sources+': ['test/cctest/test_openssl_1_0_2e.cc'],
+        }],
+        [ 'node_crypto_version=="openssl_1_1_0f"', {
+          'sources+': ['test/cctest/test_openssl_1_1_0f.cc'],
+        }],
         ['v8_enable_inspector==1', {
           'sources': [
             'test/cctest/test_inspector_socket.cc',

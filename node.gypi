@@ -102,7 +102,6 @@
         'src/node_crypto_factory.h',
         'src/node_crypto_factory.cc',
         'src/crypto_impl/openssl.h',
-        'src/crypto_impl/openssl_1_0_2e.cc',
         'src/crypto_impl/node_crypto.cc',
         'src/crypto_impl/node_crypto_bio.cc',
         'src/crypto_impl/node_crypto_clienthello.cc',
@@ -113,6 +112,12 @@
         'src/crypto_impl/tls_wrap.h'
       ],
       'conditions': [
+        [ 'node_crypto_version=="openssl_1_0_2e"', {
+          'sources+': ['src/crypto_impl/openssl_1_0_2e.cc'],
+        }],
+        [ 'node_crypto_version=="openssl_1_1_0f"', {
+          'sources+': ['src/crypto_impl/openssl_1_1_0f.cc'],
+        }],
         ['openssl_fips != ""', {
           'defines': [ 'NODE_FIPS_MODE' ],
         }],
