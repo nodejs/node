@@ -27,13 +27,14 @@ module.exports = http.createServer(function(req, res) {
     dom.add(res);
   }
 
-  // URL format: /<type>/<length>/<chunks>/<responseBehavior>
+  // URL format: /<type>/<length>/<chunks>/<responseBehavior>/chunkedEnc
   var params = req.url.split('/');
   var command = params[1];
   var body = '';
   var arg = params[2];
   var n_chunks = parseInt(params[3], 10);
   var resHow = (params.length >= 5 ? params[4] : 'normal');
+  var chunkedEnc = (params.length >= 6 && params[5] === 'false' ? false : true);
   var status = 200;
 
   var n, i;
@@ -95,48 +96,43 @@ module.exports = http.createServer(function(req, res) {
 
   // example: http://localhost:port/bytes/512/4
   // sends a 512 byte body in 4 chunks of 128 bytes
-  if (n_chunks > 0) {
-    switch (resHow) {
-      case 'setHeader':
-        res.statusCode = status;
-        res.setHeader('Content-Type', 'text/plain');
+  var len = body.length;
+  switch (resHow) {
+    case 'setHeader':
+      res.statusCode = status;
+      res.setHeader('Content-Type', 'text/plain');
+      if (chunkedEnc)
         res.setHeader('Transfer-Encoding', 'chunked');
-        break;
-      case 'setHeaderWH':
-        res.setHeader('Content-Type', 'text/plain');
+      else
+        res.setHeader('Content-Length', len.toString());
+      break;
+    case 'setHeaderWH':
+      res.setHeader('Content-Type', 'text/plain');
+      if (chunkedEnc)
         res.writeHead(status, { 'Transfer-Encoding': 'chunked' });
-        break;
-      default:
+      else
+        res.writeHead(status, { 'Content-Length': len.toString() });
+      break;
+    default:
+      if (chunkedEnc) {
         res.writeHead(status, {
           'Content-Type': 'text/plain',
           'Transfer-Encoding': 'chunked'
         });
-    }
-    // send body in chunks
-    var len = body.length;
-    var step = Math.floor(len / n_chunks) || 1;
-
-    for (i = 0, n = (n_chunks - 1); i < n; ++i) {
-      res.write(body.slice(i * step, i * step + step));
-    }
-    res.end(body.slice((n_chunks - 1) * step));
-  } else {
-    switch (resHow) {
-      case 'setHeader':
-        res.statusCode = status;
-        res.setHeader('Content-Type', 'text/plain');
-        res.setHeader('Content-Length', body.length.toString());
-        break;
-      case 'setHeaderWH':
-        res.setHeader('Content-Type', 'text/plain');
-        res.writeHead(status, { 'Content-Length': body.length.toString() });
-        break;
-      default:
+      } else {
         res.writeHead(status, {
           'Content-Type': 'text/plain',
-          'Content-Length': body.length.toString()
+          'Content-Length': len.toString()
         });
-    }
+      }
+  }
+  // send body in chunks
+  if (n_chunks > 1) {
+    var step = Math.floor(len / n_chunks) || 1;
+    for (i = 0, n = (n_chunks - 1); i < n; ++i)
+      res.write(body.slice(i * step, i * step + step));
+    res.end(body.slice((n_chunks - 1) * step));
+  } else {
     res.end(body);
   }
 });
