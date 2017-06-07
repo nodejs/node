@@ -335,7 +335,8 @@ Stats {
   birthtime: Mon, 10 Oct 2011 23:24:11 GMT }
 ```
 
-Please note that `atime`, `mtime`, `birthtime`, and `ctime` are
+*Note*:
+* `atime`, `mtime`, `birthtime`, and `ctime` are
 instances of [`Date`][MDN-Date] object and appropriate methods should be used
 to compare the values of these objects. For most general uses
 [`getTime()`][MDN-Date-getTime] will return the number of milliseconds elapsed
@@ -343,6 +344,9 @@ since _1 January 1970 00:00:00 UTC_ and this integer should be sufficient for
 any comparison, however there are additional methods which can be used for
 displaying fuzzy information. More details can be found in the
 [MDN JavaScript Reference][MDN-Date] page.
+* For copying a `Stats` object in a backward compatible way with versions < 8,
+the `toJSON` method can be used:  
+`const copy = stats.toJSON ? stats.toJSON() : Object.assign({}, stats);`
 
 ### Stat Time Values
 
