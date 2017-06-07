@@ -199,6 +199,10 @@ more information about the governance of the Node.js project, see
 **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt;
 * [jasnell](https://github.com/jasnell) -
 **James M Snell** &lt;jasnell@gmail.com&gt; (he/him)
+* [joyeecheung](https://github.com/joyeecheung) -
+**Joyee Cheung** &lt;joyeec9h3@gmail.com&gt; (she/her)
+* [mcollina](https://github.com/mcollina) -
+**Matteo Collina** &lt;matteo.collina@gmail.com&gt; (he/him)
 * [mhdawson](https://github.com/mhdawson) -
 **Michael Dawson** &lt;michael_dawson@ca.ibm.com&gt; (he/him)
 * [misterdjules](https://github.com/misterdjules) -
@@ -301,8 +305,6 @@ more information about the governance of the Node.js project, see
 **João Reis** &lt;reis@janeasystems.com&gt;
 * [joshgav](https://github.com/joshgav) -
 **Josh Gavant** &lt;josh.gavant@outlook.com&gt;
-* [joyeecheung](https://github.com/joyeecheung) -
-**Joyee Cheung** &lt;joyeec9h3@gmail.com&gt; (she/her)
 * [julianduque](https://github.com/julianduque) -
 **Julian Duque** &lt;julianduquej@gmail.com&gt; (he/him)
 * [JungMinu](https://github.com/JungMinu) -
@@ -319,8 +321,6 @@ more information about the governance of the Node.js project, see
 **Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
 * [matthewloring](https://github.com/matthewloring) -
 **Matthew Loring** &lt;mattloring@google.com&gt;
-* [mcollina](https://github.com/mcollina) -
-**Matteo Collina** &lt;matteo.collina@gmail.com&gt; (he/him)
 * [micnic](https://github.com/micnic) -
 **Nicu Micleușanu** &lt;micnic90@gmail.com&gt; (he/him)
 * [mikeal](https://github.com/mikeal) -
