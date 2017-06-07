@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<installer-gui-script minSpecVersion="2">
+    <pkg-ref id="org.nodejs.node.pkg"/>
+    <pkg-ref id="org.nodejs.npm.pkg"/>
+    <title>Node.js</title>
+    <welcome file="welcome.rtf" mime-type="text/rtf"/>
+    <conclusion file="conclusion.rtf" mime-type="text/rtf"/>
+    <allowed-os-versions>
+      <os-version min="10.7.0"/>
+    </allowed-os-versions>
+    <license file="LICENSE"/>
+    <background file="osx_installer_logo.png" alignment="topleft" mime-type="image/png"/>
+    <options customize="allow" require-scripts="false"/>
+    <choices-outline>
+        <line choice="org.nodejs.node.pkg"/>
+        <line choice="org.nodejs.npm.pkg"/>
+    </choices-outline>
+    <choice id="org.nodejs.node.pkg" visible="true" title="Node.js" starts_selected="true" starts_enabled="true" starts_visible="true">
+        <pkg-ref id="org.nodejs.node.pkg"/>
+    </choice>
+    <pkg-ref id="org.nodejs.node.pkg" version="1" onConclusion="none">org.nodejs.node.pkg</pkg-ref>
+    <choice id="org.nodejs.npm.pkg" visible="true" title="npm" starts_selected="true" starts_enabled="true" starts_visible="true">
+        <pkg-ref id="org.nodejs.npm.pkg"/>
+    </choice>
+    <pkg-ref id="org.nodejs.npm.pkg" version="1" onConclusion="none">org.nodejs.npm.pkg</pkg-ref>
+</installer-gui-script>
