@@ -54,7 +54,6 @@ onboarding session.
     * The project has the goals of its contributors
 
   * There are some higher-level goals and values
-    * Not everything belongs in core (if it can be done reasonably in userland, let it stay in userland)
     * Empathy towards users matters (this is in part why we onboard people)
     * Generally: try to be nice to people!
     * The best outcome is for people who come to our issue tracker to feel like they can come back again.
