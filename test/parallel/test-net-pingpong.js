@@ -16,10 +16,13 @@ function pingPongTest(port, host) {
 
   function onSocket(socket) {
     assert.strictEqual(socket.server, server);
-    server.getConnections(common.mustCall(function(err, connections) {
-      assert.ifError(err);
-      assert.strictEqual(connections, 1);
-    }));
+    assert.strictEqual(
+      server,
+      server.getConnections(common.mustCall(function(err, connections) {
+        assert.ifError(err);
+        assert.strictEqual(connections, 1);
+      }))
+    );
 
     socket.setNoDelay();
     socket.timeout = 0;
