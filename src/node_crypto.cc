@@ -95,7 +95,6 @@ using v8::DEFAULT;
 using v8::DontDelete;
 using v8::EscapableHandleScope;
 using v8::Exception;
-using v8::External;
 using v8::False;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -349,15 +348,6 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
          Integer::NewFromUnsigned(env->isolate(), kTicketKeyNameIndex));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kTicketKeyIVIndex"),
          Integer::NewFromUnsigned(env->isolate(), kTicketKeyIVIndex));
-
-  t->PrototypeTemplate()->SetAccessor(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
-      CtxGetter,
-      nullptr,
-      env->as_external(),
-      DEFAULT,
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete),
-      AccessorSignature::New(env->isolate(), t));
 
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext"),
               t->GetFunction());
@@ -1294,17 +1284,6 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
 }
 
 
-
-
-void SecureContext::CtxGetter(Local<String> property,
-                              const PropertyCallbackInfo<Value>& info) {
-  SecureContext* sc;
-  ASSIGN_OR_RETURN_UNWRAP(&sc, info.This());
-  Local<External> ext = External::New(info.GetIsolate(), sc->ctx_);
-  info.GetReturnValue().Set(ext);
-}
-
-
 template <bool primary>
 void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   SecureContext* wrap;
@@ -1366,15 +1345,6 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
 
   env->SetProtoMethod(t, "getALPNNegotiatedProtocol", GetALPNNegotiatedProto);
   env->SetProtoMethod(t, "setALPNProtocols", SetALPNProtocols);
-
-  t->PrototypeTemplate()->SetAccessor(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "_external"),
-      SSLGetter,
-      nullptr,
-      env->as_external(),
-      DEFAULT,
-      static_cast<PropertyAttribute>(ReadOnly | DontDelete),
-      AccessorSignature::New(env->isolate(), t));
 }
 
 
@@ -2531,17 +2501,6 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
   w->cert_cb_arg_ = nullptr;
 
   cb(arg);
-}
-
-
-template <class Base>
-void SSLWrap<Base>::SSLGetter(Local<String> property,
-                              const PropertyCallbackInfo<Value>& info) {
-  Base* base;
-  ASSIGN_OR_RETURN_UNWRAP(&base, info.This());
-  SSL* ssl = base->ssl_;
-  Local<External> ext = External::New(info.GetIsolate(), ssl);
-  info.GetReturnValue().Set(ext);
 }
 
 
