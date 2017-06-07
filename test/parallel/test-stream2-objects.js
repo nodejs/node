@@ -322,6 +322,31 @@ test('can write strings as objects', function(t) {
   w.end();
 });
 
+test('can write falsey values', function(t) {
+  var w = new Writable({
+    objectMode: true
+  });
+  var list = [];
+
+  w._write = function(chunk, encoding, cb) {
+    list.push(chunk);
+    process.nextTick(cb);
+  };
+
+  w.on('finish', function() {
+    assert.deepEqual(list, [false, 0, '', null, undefined]);
+
+    t.end();
+  });
+
+  w.write(false);
+  w.write(0);
+  w.write('');
+  w.write(null);
+  w.write(undefined);
+  w.end();
+});
+
 test('buffers finish until cb is called', function(t) {
   const w = new Writable({
     objectMode: true
