@@ -580,7 +580,7 @@ changes:
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} default = `'utf8'`
-  * `mode` {integer} default = `0o666`
+  * `mode` {integer} default = `0666`
   * `flag` {string} default = `'a'`
 * `callback` {Function}
 
@@ -623,7 +623,7 @@ changes:
 * `data` {string|Buffer}
 * `options` {Object|string}
   * `encoding` {string|null} default = `'utf8'`
-  * `mode` {integer} default = `0o666`
+  * `mode` {integer} default = `0666`
   * `flag` {string} default = `'a'`
 
 The synchronous version of [`fs.appendFile()`][]. Returns `undefined`.
@@ -772,7 +772,7 @@ const defaults = {
   flags: 'r',
   encoding: null,
   fd: null,
-  mode: 0o666,
+  mode: 0666,
   autoClose: true
 };
 ```
@@ -842,7 +842,7 @@ const defaults = {
   flags: 'w',
   defaultEncoding: 'utf8',
   fd: null,
-  mode: 0o666,
+  mode: 0666,
   autoClose: true
 };
 ```
@@ -1385,7 +1385,7 @@ changes:
 * `callback` {Function}
 
 Asynchronous mkdir(2). No arguments other than a possible exception are given
-to the completion callback. `mode` defaults to `0o777`.
+to the completion callback. `mode` defaults to `0777`.
 
 ## fs.mkdirSync(path[, mode])
 <!-- YAML
@@ -2500,7 +2500,7 @@ changes:
 * `data` {string|Buffer|Uint8Array}
 * `options` {Object|string}
   * `encoding` {string|null} default = `'utf8'`
-  * `mode` {integer} default = `0o666`
+  * `mode` {integer} default = `0666`
   * `flag` {string} default = `'w'`
 * `callback` {Function}
 
@@ -2550,7 +2550,7 @@ changes:
 * `data` {string|Buffer|Uint8Array}
 * `options` {Object|string}
   * `encoding` {string|null} default = `'utf8'`
-  * `mode` {integer} default = `0o666`
+  * `mode` {integer} default = `0666`
   * `flag` {string} default = `'w'`
 
 The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
