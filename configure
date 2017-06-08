@@ -1298,11 +1298,18 @@ def configure_intl(o):
         pprint.pformat(icu_config, indent=2) + '\n')
   return  # end of configure_intl
 
-def configure_inspector(o):
-  disable_inspector = (options.without_inspector or
-                       options.with_intl in (None, 'none') or
-                       options.without_ssl)
-  o['variables']['v8_enable_inspector'] = 0 if disable_inspector else 1
+def configure_debugger(o):
+  implicit_disable = (options.with_intl in (None, 'none') or
+                      options.without_ssl)
+  if implicit_disable and not options.without_inspector:
+    options.without_inspector = True
+    print('********************* Warning *************************')
+    print('Setting --without_ssl or --without-intl will disable the')
+    print('`inspector` protocol. Ever since the removal of the `debug`')
+    print('protocol this is the only available debugger API, so it will leave')
+    print('the binary with no debug interface.')
+  print('*********************************************************')
+  o['variables']['v8_enable_inspector'] = 0 if options.without_inspector else 1
 
 output = {
   'variables': {},
@@ -1334,7 +1341,7 @@ configure_v8(output)
 configure_openssl(output)
 configure_intl(output)
 configure_static(output)
-configure_inspector(output)
+configure_debugger(output)
 
 # variables should be a root level element,
 # move everything else to target_defaults
