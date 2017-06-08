@@ -131,3 +131,15 @@ const objects = [
 
   assert.deepStrictEqual(v8.deserialize(buf), expectedResult);
 }
+
+{
+  assert.throws(
+    () => { v8.Serializer(); },
+    /^TypeError: Class constructor Serializer cannot be invoked without 'new'$/
+  );
+
+  assert.throws(
+    () => { v8.Deserializer(); },
+    /^TypeError: Class constructor Deserializer cannot be invoked without 'new'$/
+  );
+}
