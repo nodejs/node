@@ -31,12 +31,12 @@ function onexit() {
   hooks.sanityCheck('PBKDF2REQUEST');
 
   const as = hooks.activitiesOfTypes('PBKDF2REQUEST');
-  assert.strictEqual(as.length, 1, 'one activity');
+  assert.strictEqual(as.length, 1);
 
   const a = as[0];
-  assert.strictEqual(a.type, 'PBKDF2REQUEST', 'random byte request');
-  assert.strictEqual(typeof a.uid, 'number', 'uid is a number');
-  assert.strictEqual(a.triggerId, 1, 'parent uid 1');
+  assert.strictEqual(a.type, 'PBKDF2REQUEST');
+  assert.strictEqual(typeof a.uid, 'number');
+  assert.strictEqual(a.triggerId, 1);
   checkInvocations(a, { init: 1, before: 1, after: 1, destroy: 1 },
                    'when process exits');
 }

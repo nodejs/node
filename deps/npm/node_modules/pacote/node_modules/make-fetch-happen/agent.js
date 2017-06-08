@@ -126,6 +126,7 @@ function getProxy (proxyUrl, opts, isHttps) {
     port: proxyUrl.port,
     protocol: proxyUrl.protocol,
     path: proxyUrl.path,
+    auth: proxyUrl.auth,
     ca: opts.ca,
     cert: opts.cert,
     key: opts.key,

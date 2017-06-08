@@ -17,7 +17,7 @@ dns.resolve('localhost', common.mustCall(onresolved));
 function onresolved() {
   const as = hooks.activitiesOfTypes('QUERYWRAP');
   const a = as[0];
-  assert.strictEqual(as.length, 1, 'one activity in onresolved callback');
+  assert.strictEqual(as.length, 1);
   checkInvocations(a, { init: 1, before: 1 }, 'while in onresolved callback');
   tick(1E4);
 }
@@ -29,12 +29,12 @@ function onexit() {
   hooks.sanityCheck('QUERYWRAP');
 
   const as = hooks.activitiesOfTypes('QUERYWRAP');
-  assert.strictEqual(as.length, 1, 'one activity on process exit');
+  assert.strictEqual(as.length, 1);
   const a = as[0];
 
-  assert.strictEqual(a.type, 'QUERYWRAP', 'query wrap');
-  assert.strictEqual(typeof a.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof a.triggerId, 'number', 'triggerId is a number');
+  assert.strictEqual(a.type, 'QUERYWRAP');
+  assert.strictEqual(typeof a.uid, 'number');
+  assert.strictEqual(typeof a.triggerId, 'number');
   checkInvocations(a, { init: 1, before: 1, after: 1, destroy: 1 },
                    'when process exits');
 }

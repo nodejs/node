@@ -342,8 +342,10 @@ static int eckey_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
     }
 
     if (!PKCS8_pkey_set0(p8, OBJ_nid2obj(NID_X9_62_id_ecPublicKey), 0,
-                         ptype, pval, ep, eplen))
+                         ptype, pval, ep, eplen)) {
+        OPENSSL_free(ep);
         return 0;
+    }
 
     return 1;
 }

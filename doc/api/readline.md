@@ -310,7 +310,7 @@ For example:
 ```js
 rl.write('Delete this!');
 // Simulate Ctrl+u to delete the line written previously
-rl.write(null, {ctrl: true, name: 'u'});
+rl.write(null, { ctrl: true, name: 'u' });
 ```
 
 *Note*: The `rl.write()` method will write the data to the `readline`

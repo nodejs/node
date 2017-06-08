@@ -2,12 +2,16 @@
 
 const Buffer = require('safe-buffer').Buffer
 
+const crypto = require('crypto')
 const npm = require('../npm')
 const log = require('npmlog')
 let pack
 const path = require('path')
 
 let effectiveOwner
+
+const npmSession = crypto.randomBytes(8).toString('hex')
+log.verbose('npm-session', npmSession)
 
 module.exports = pacoteOpts
 function pacoteOpts (moreOpts) {
@@ -17,13 +21,17 @@ function pacoteOpts (moreOpts) {
   const ownerStats = calculateOwner()
   const opts = {
     cache: path.join(npm.config.get('cache'), '_cacache'),
+    ca: npm.config.get('ca'),
+    cert: npm.config.get('cert'),
     defaultTag: npm.config.get('tag'),
     dirPacker: pack.packGitDep,
     hashAlgorithm: 'sha1',
+    key: npm.config.get('key'),
     localAddress: npm.config.get('local-address'),
     log: log,
     maxAge: npm.config.get('cache-min'),
     maxSockets: npm.config.get('maxsockets'),
+    npmSession: npmSession,
     offline: npm.config.get('offline'),
     preferOffline: npm.config.get('prefer-offline') || npm.config.get('cache-min') > 9999,
     preferOnline: npm.config.get('prefer-online') || npm.config.get('cache-max') <= 0,

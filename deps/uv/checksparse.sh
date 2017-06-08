@@ -93,6 +93,7 @@ test/test-cwd-and-chdir.c
 test/test-delayed-accept.c
 test/test-dlerror.c
 test/test-embed.c
+test/test-env-vars.c
 test/test-error.c
 test/test-fail-always.c
 test/test-fs-event.c
@@ -103,6 +104,7 @@ test/test-get-loadavg.c
 test/test-get-memory.c
 test/test-get-passwd.c
 test/test-getaddrinfo.c
+test/test-gethostname.c
 test/test-getsockname.c
 test/test-homedir.c
 test/test-hrtime.c
@@ -165,6 +167,7 @@ test/test-udp-multicast-ttl.c
 test/test-udp-open.c
 test/test-udp-options.c
 test/test-udp-send-and-recv.c
+test/test-udp-send-hang-loop.c
 test/test-walk-handles.c
 test/test-watcher-cross-stop.c
 "

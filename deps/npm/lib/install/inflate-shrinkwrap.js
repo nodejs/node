@@ -19,12 +19,12 @@ module.exports = function (tree, swdeps, opts, finishInflating) {
     fetchPackageMetadata = BB.promisify(require('../fetch-package-metadata.js'))
     addBundled = BB.promisify(fetchPackageMetadata.addBundled)
   }
-  if (!npm.config.get('shrinkwrap') || !npm.config.get('package-lock')) {
-    return finishInflating()
-  }
   if (arguments.length === 3) {
     finishInflating = opts
     opts = {}
+  }
+  if (!npm.config.get('shrinkwrap') || !npm.config.get('package-lock')) {
+    return finishInflating()
   }
   tree.loaded = true
   return inflateShrinkwrap(tree.path, tree, swdeps, opts).then(

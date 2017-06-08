@@ -34,7 +34,12 @@ static CRITICAL_SECTION uv__signal_lock;
 
 static BOOL WINAPI uv__signal_control_handler(DWORD type);
 
-void uv_signals_init() {
+int uv__signal_start(uv_signal_t* handle,
+                     uv_signal_cb signal_cb,
+                     int signum,
+                     int oneshot);
+
+void uv_signals_init(void) {
   InitializeCriticalSection(&uv__signal_lock);
   if (!SetConsoleCtrlHandler(uv__signal_control_handler, TRUE))
     abort();
@@ -70,7 +75,9 @@ RB_GENERATE_STATIC(uv_signal_tree_s, uv_signal_s, tree_entry, uv__signal_compare
 int uv__signal_dispatch(int signum) {
   uv_signal_t lookup;
   uv_signal_t* handle;
-  int dispatched = 0;
+  int dispatched;
+
+  dispatched = 0;
 
   EnterCriticalSection(&uv__signal_lock);
 
@@ -83,11 +90,16 @@ int uv__signal_dispatch(int signum) {
     unsigned long previous = InterlockedExchange(
             (volatile LONG*) &handle->pending_signum, signum);
 
+    if (handle->flags & UV__SIGNAL_ONE_SHOT_DISPATCHED)
+      continue;
+
     if (!previous) {
       POST_COMPLETION_FOR_REQ(handle->loop, &handle->signal_req);
     }
 
     dispatched = 1;
+    if (handle->flags & UV__SIGNAL_ONE_SHOT)
+      handle->flags |= UV__SIGNAL_ONE_SHOT_DISPATCHED;
   }
 
   LeaveCriticalSection(&uv__signal_lock);
@@ -128,17 +140,13 @@ static BOOL WINAPI uv__signal_control_handler(DWORD type) {
 
 
 int uv_signal_init(uv_loop_t* loop, uv_signal_t* handle) {
-  uv_req_t* req;
-
   uv__handle_init(loop, (uv_handle_t*) handle, UV_SIGNAL);
   handle->pending_signum = 0;
   handle->signum = 0;
   handle->signal_cb = NULL;
 
-  req = &handle->signal_req;
-  uv_req_init(loop, req);
-  req->type = UV_SIGNAL_REQ;
-  req->data = handle;
+  UV_REQ_INIT(&handle->signal_req, UV_SIGNAL_REQ);
+  handle->signal_req.data = handle;
 
   return 0;
 }
@@ -166,6 +174,21 @@ int uv_signal_stop(uv_signal_t* handle) {
 
 
 int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
+  return uv__signal_start(handle, signal_cb, signum, 0);
+}
+
+
+int uv_signal_start_oneshot(uv_signal_t* handle,
+                            uv_signal_cb signal_cb,
+                            int signum) {
+  return uv__signal_start(handle, signal_cb, signum, 1);
+}
+
+
+int uv__signal_start(uv_signal_t* handle,
+                            uv_signal_cb signal_cb,
+                            int signum,
+                            int oneshot) {
   /* Test for invalid signal values. */
   if (signum != SIGWINCH && (signum <= 0 || signum >= NSIG))
     return UV_EINVAL;
@@ -189,6 +212,9 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
   EnterCriticalSection(&uv__signal_lock);
 
   handle->signum = signum;
+  if (oneshot)
+    handle->flags |= UV__SIGNAL_ONE_SHOT;
+
   RB_INSERT(uv_signal_tree_s, &uv__signal_tree, handle);
 
   LeaveCriticalSection(&uv__signal_lock);
@@ -216,6 +242,9 @@ void uv_process_signal_req(uv_loop_t* loop, uv_signal_t* handle,
   /* while the signal_req is pending. */
   if (dispatched_signum == handle->signum)
     handle->signal_cb(handle, dispatched_signum);
+
+  if (handle->flags & UV__SIGNAL_ONE_SHOT)
+    uv_signal_stop(handle);
 
   if (handle->flags & UV__HANDLE_CLOSING) {
     /* When it is closing, it must be stopped at this point. */

@@ -30,17 +30,30 @@ class SocketServerDelegate {
   virtual void ServerDone() = 0;
 };
 
+// HTTP Server, writes messages requested as TransportActions, and responds
+// to HTTP requests and WS upgrades.
+
+
+
 class InspectorSocketServer {
  public:
   using ServerCallback = void (*)(InspectorSocketServer*);
   InspectorSocketServer(SocketServerDelegate* delegate,
+                        uv_loop_t* loop,
                         const std::string& host,
                         int port,
                         FILE* out = stderr);
-  bool Start(uv_loop_t* loop);
+  // Start listening on host/port
+  bool Start();
+
+  // Called by the TransportAction sent with InspectorIo::Write():
+  //   kKill and kStop
   void Stop(ServerCallback callback);
+  //   kSendMessage
   void Send(int session_id, const std::string& message);
+  //   kKill
   void TerminateConnections();
+
   int port() {
     return port_;
   }

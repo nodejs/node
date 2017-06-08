@@ -13,12 +13,11 @@ hooks.enable();
 setImmediate(common.mustCall(onimmediate));
 
 const as = hooks.activitiesOfTypes('Immediate');
-assert.strictEqual(as.length, 1,
-                   'one immediate when first set immediate installed');
+assert.strictEqual(as.length, 1);
 const imd1 = as[0];
-assert.strictEqual(imd1.type, 'Immediate', 'immediate');
-assert.strictEqual(typeof imd1.uid, 'number', 'uid is a number');
-assert.strictEqual(typeof imd1.triggerId, 'number', 'triggerId is a number');
+assert.strictEqual(imd1.type, 'Immediate');
+assert.strictEqual(typeof imd1.uid, 'number');
+assert.strictEqual(typeof imd1.triggerId, 'number');
 checkInvocations(imd1, { init: 1 },
                  'imd1: when first set immediate installed');
 
@@ -26,20 +25,18 @@ let imd2;
 
 function onimmediate() {
   let as = hooks.activitiesOfTypes('Immediate');
-  assert.strictEqual(as.length, 1,
-                     'one immediate when first set immediate triggered');
+  assert.strictEqual(as.length, 1);
   checkInvocations(imd1, { init: 1, before: 1 },
                    'imd1: when first set immediate triggered');
 
   // install second immediate
   setImmediate(common.mustCall(onimmediateTwo));
   as = hooks.activitiesOfTypes('Immediate');
-  assert.strictEqual(as.length, 2,
-                     'two immediates when second set immediate installed');
+  assert.strictEqual(as.length, 2);
   imd2 = as[1];
-  assert.strictEqual(imd2.type, 'Immediate', 'immediate');
-  assert.strictEqual(typeof imd2.uid, 'number', 'uid is a number');
-  assert.strictEqual(typeof imd2.triggerId, 'number', 'triggerId is a number');
+  assert.strictEqual(imd2.type, 'Immediate');
+  assert.strictEqual(typeof imd2.uid, 'number');
+  assert.strictEqual(typeof imd2.triggerId, 'number');
   checkInvocations(imd1, { init: 1, before: 1 },
                    'imd1: when second set immediate installed');
   checkInvocations(imd2, { init: 1 },

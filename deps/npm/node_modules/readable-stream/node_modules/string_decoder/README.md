@@ -7,8 +7,6 @@
 [![NPM](https://nodei.co/npm-dl/string_decoder.png?&months=6&height=3)](https://nodei.co/npm/string_decoder/)
 
 
-[![Sauce Test Status](https://saucelabs.com/browser-matrix/string_decoder.svg)](https://saucelabs.com/u/string_decoder)
-
 ```bash
 npm install --save string_decoder
 ```

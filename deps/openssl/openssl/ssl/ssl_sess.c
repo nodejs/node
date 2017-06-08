@@ -1006,7 +1006,8 @@ int SSL_SESSION_set1_id_context(SSL_SESSION *s, const unsigned char *sid_ctx,
         return 0;
     }
     s->sid_ctx_length = sid_ctx_len;
-    memcpy(s->sid_ctx, sid_ctx, sid_ctx_len);
+    if (s->sid_ctx != sid_ctx)
+        memcpy(s->sid_ctx, sid_ctx, sid_ctx_len);
 
     return 1;
 }

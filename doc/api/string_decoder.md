@@ -7,13 +7,13 @@ strings in a manner that preserves encoded multi-byte UTF-8 and UTF-16
 characters. It can be accessed using:
 
 ```js
-const StringDecoder = require('string_decoder').StringDecoder;
+const { StringDecoder } = require('string_decoder');
 ```
 
 The following example shows the basic use of the `StringDecoder` class.
 
 ```js
-const StringDecoder = require('string_decoder').StringDecoder;
+const { StringDecoder } = require('string_decoder');
 const decoder = new StringDecoder('utf8');
 
 const cent = Buffer.from([0xC2, 0xA2]);
@@ -32,7 +32,7 @@ In the following example, the three UTF-8 encoded bytes of the European Euro
 symbol (`€`) are written over three separate operations:
 
 ```js
-const StringDecoder = require('string_decoder').StringDecoder;
+const { StringDecoder } = require('string_decoder');
 const decoder = new StringDecoder('utf8');
 
 decoder.write(Buffer.from([0xE2]));

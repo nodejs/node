@@ -10,6 +10,7 @@ const url = require('url');
 const DEBUG = false;
 const TIMEOUT = 15 * 1000;
 const EXPECT_ALIVE_SYMBOL = Symbol('isAlive');
+const DONT_EXPECT_RESPONSE_SYMBOL = Symbol('dontExpectResponse');
 const mainScript = path.join(common.fixturesDir, 'loop.js');
 
 function send(socket, message, id, callback) {
@@ -183,7 +184,6 @@ TestSession.prototype.processMessage_ = function(message) {
   this.messagefilter_ && this.messagefilter_(message);
   const id = message['id'];
   if (id) {
-    assert.strictEqual(id, this.expectedId_);
     this.expectedId_++;
     if (this.responseCheckers_[id]) {
       const messageJSON = JSON.stringify(message);
@@ -207,16 +207,21 @@ TestSession.prototype.sendAll_ = function(commands, callback) {
   if (!commands.length) {
     callback();
   } else {
-    this.lastId_++;
+    let id = ++this.lastId_;
     let command = commands[0];
     if (command instanceof Array) {
-      this.responseCheckers_[this.lastId_] = command[1];
+      this.responseCheckers_[id] = command[1];
       command = command[0];
     }
     if (command instanceof Function)
       command = command();
-    this.messages_[this.lastId_] = command;
-    send(this.socket_, command, this.lastId_,
+    if (!command[DONT_EXPECT_RESPONSE_SYMBOL]) {
+      this.messages_[id] = command;
+    } else {
+      id += 100000;
+      this.lastId_--;
+    }
+    send(this.socket_, command, id,
          () => this.sendAll_(commands.slice(1), callback));
   }
 };
@@ -497,12 +502,13 @@ Harness.prototype.kill = function() {
 
 exports.startNodeForInspectorTest = function(callback,
                                              inspectorFlags = ['--inspect-brk'],
-                                             opt_script_contents) {
+                                             scriptContents = '',
+                                             scriptFile = mainScript) {
   const args = [].concat(inspectorFlags);
-  if (opt_script_contents) {
-    args.push('-e', opt_script_contents);
+  if (scriptContents) {
+    args.push('-e', scriptContents);
   } else {
-    args.push(mainScript);
+    args.push(scriptFile);
   }
 
   const child = spawn(process.execPath, args);
@@ -533,4 +539,8 @@ exports.startNodeForInspectorTest = function(callback,
 
 exports.mainScriptSource = function() {
   return fs.readFileSync(mainScript, 'utf8');
+};
+
+exports.markMessageNoResponse = function(message) {
+  message[DONT_EXPECT_RESPONSE_SYMBOL] = true;
 };

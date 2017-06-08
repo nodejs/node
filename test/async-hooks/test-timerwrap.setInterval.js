@@ -14,16 +14,16 @@ let count = 0;
 const iv = setInterval(common.mustCall(oninterval, 3), TIMEOUT);
 
 const as = hooks.activitiesOfTypes('TIMERWRAP');
-assert.strictEqual(as.length, 1, 'one timer wrap when interval installed');
+assert.strictEqual(as.length, 1);
 const t = as[0];
-assert.strictEqual(t.type, 'TIMERWRAP', 'timer wrap');
-assert.strictEqual(typeof t.uid, 'number', 'uid is a number');
-assert.strictEqual(typeof t.triggerId, 'number', 'triggerId is a number');
+assert.strictEqual(t.type, 'TIMERWRAP');
+assert.strictEqual(typeof t.uid, 'number');
+assert.strictEqual(typeof t.triggerId, 'number');
 checkInvocations(t, { init: 1 }, 't: when first timer installed');
 
 function oninterval() {
   count++;
-  assert.strictEqual(as.length, 1, 'one timer wrap when timer is triggered');
+  assert.strictEqual(as.length, 1);
   switch (count) {
     case 1: {
       checkInvocations(t, { init: 1, before: 1 },

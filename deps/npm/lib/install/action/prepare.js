@@ -11,8 +11,8 @@ module.exports = function (staging, pkg, log, next) {
   // see https://github.com/npm/npm/issues/10074 for details
   if (pkg.package && pkg.package.scripts && pkg.package.scripts.prepublish) {
     prepublishWarning([
-      'As of npm@5, `prepublish` scripts will run only for `npm publish`.',
-      '(In npm@4 and previous versions, it also runs for `npm install`.)',
+      'As of npm@5, `prepublish` scripts are deprecated.',
+      'Use `prepare` for build steps and `prepublishOnly` for upload-only.',
       'See the deprecation note in `npm help scripts` for more information.'
     ])
   }

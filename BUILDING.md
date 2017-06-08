@@ -35,7 +35,7 @@ Support is divided into three tiers:
 
 |  System      | Support type | Version                          | Architectures        | Notes            |
 |--------------|--------------|----------------------------------|----------------------|------------------|
-| GNU/Linux    | Tier 1       | kernel >= 2.6.18, glibc >= 2.5   | x86, x64, arm, arm64 |                  |
+| GNU/Linux    | Tier 1       | kernel >= 2.6.32, glibc >= 2.12  | x86, x64, arm, arm64 |                  |
 | macOS        | Tier 1       | >= 10.10                         | x64                  |                  |
 | Windows      | Tier 1       | >= Windows 7 / 2008 R2           | x86, x64             | vs2015 or vs2017 |
 | SmartOS      | Tier 2       | >= 15 < 16.4                     | x86, x64             | see note1        |
@@ -81,13 +81,12 @@ Prerequisites:
 * Python 2.6 or 2.7
 * GNU Make 3.81 or newer
 
-On macOS, you will also need:
-* [Xcode](https://developer.apple.com/xcode/download/)
-  - You also need to install the `Command Line Tools` via Xcode. You can find
-    this under the menu `Xcode -> Preferences -> Downloads`
-  - This step will install `gcc` and the related toolchain containing `make`
-
-* After building, you may want to setup [firewall rules](tools/macosx-firewall.sh)
+On macOS you will need to install the `Xcode Command Line Tools` by running
+`xcode-select --install`. Alternatively, if you already have the full Xcode
+installed, you can find them under the menu `Xcode -> Open Developer Tool ->
+More Developer Tools...`. This step will install `clang`, `clang++`, and
+`make`.
+* You may want to setup [firewall rules](tools/macosx-firewall.sh)
 to avoid popups asking to accept incoming network connections when running tests:
 
 ```console
@@ -119,7 +118,7 @@ and not a newer version.
 
 To run the tests:
 
-```
+```console
 $ make test
 ```
 
@@ -167,7 +166,7 @@ Prerequisites:
     including the Community edition (remember to select
     "Common Tools for Visual C++ 2015" feature during installation).
   * [Visual Studio 2017](https://www.visualstudio.com/downloads/), any edition (including the Build Tools SKU).
-    __Required Components:__ "MSbuild", "VC++ 2017 v141 toolset" and one of the Windows SDKs (10 or 8.1).
+    **Required Components:** "MSbuild", "VC++ 2017 v141 toolset" and one of the Windows SDKs (10 or 8.1).
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.

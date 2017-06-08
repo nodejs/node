@@ -335,8 +335,8 @@ static void really_close(uv_handle_t* handle) {
 // Called when the test leaves inspector socket in active state
 static void manual_inspector_socket_cleanup() {
   EXPECT_EQ(0, uv_is_active(
-                   reinterpret_cast<uv_handle_t*>(&inspector.client)));
-  really_close(reinterpret_cast<uv_handle_t*>(&inspector.client));
+                   reinterpret_cast<uv_handle_t*>(&inspector.tcp)));
+  really_close(reinterpret_cast<uv_handle_t*>(&inspector.tcp));
   delete inspector.ws_state;
   inspector.ws_state = nullptr;
   delete inspector.http_parsing_state;
@@ -346,7 +346,7 @@ static void manual_inspector_socket_cleanup() {
 
 static void assert_both_sockets_closed() {
   SPIN_WHILE(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)));
-  SPIN_WHILE(uv_is_active(reinterpret_cast<uv_handle_t*>(&inspector.client)));
+  SPIN_WHILE(uv_is_active(reinterpret_cast<uv_handle_t*>(&inspector.tcp)));
 }
 
 static void on_connection(uv_connect_t* connect, int status) {

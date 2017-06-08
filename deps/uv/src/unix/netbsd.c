@@ -27,14 +27,11 @@
 
 #include <kvm.h>
 #include <paths.h>
-#include <ifaddrs.h>
 #include <unistd.h>
 #include <time.h>
 #include <stdlib.h>
 #include <fcntl.h>
 
-#include <net/if.h>
-#include <net/if_dl.h>
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -42,9 +39,6 @@
 
 #include <unistd.h>
 #include <time.h>
-
-#undef NANOSEC
-#define NANOSEC ((uint64_t) 1e9)
 
 static char *process_title;
 
@@ -55,13 +49,6 @@ int uv__platform_loop_init(uv_loop_t* loop) {
 
 
 void uv__platform_loop_delete(uv_loop_t* loop) {
-}
-
-
-uint64_t uv__hrtime(uv_clocktype_t type) {
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (((uint64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
 }
 
 
@@ -282,99 +269,4 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   }
 
   uv__free(cpu_infos);
-}
-
-
-int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
-  struct ifaddrs *addrs, *ent;
-  uv_interface_address_t* address;
-  int i;
-  struct sockaddr_dl *sa_addr;
-
-  if (getifaddrs(&addrs))
-    return -errno;
-
-  *count = 0;
-
-  /* Count the number of interfaces */
-  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)) ||
-        (ent->ifa_addr == NULL) ||
-        (ent->ifa_addr->sa_family != PF_INET)) {
-      continue;
-    }
-    (*count)++;
-  }
-
-  *addresses = uv__malloc(*count * sizeof(**addresses));
-
-  if (!(*addresses)) {
-    freeifaddrs(addrs);
-    return -ENOMEM;
-  }
-
-  address = *addresses;
-
-  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)))
-      continue;
-
-    if (ent->ifa_addr == NULL)
-      continue;
-
-    if (ent->ifa_addr->sa_family != PF_INET)
-      continue;
-
-    address->name = uv__strdup(ent->ifa_name);
-
-    if (ent->ifa_addr->sa_family == AF_INET6) {
-      address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
-    } else {
-      address->address.address4 = *((struct sockaddr_in*) ent->ifa_addr);
-    }
-
-    if (ent->ifa_netmask->sa_family == AF_INET6) {
-      address->netmask.netmask6 = *((struct sockaddr_in6*) ent->ifa_netmask);
-    } else {
-      address->netmask.netmask4 = *((struct sockaddr_in*) ent->ifa_netmask);
-    }
-
-    address->is_internal = !!(ent->ifa_flags & IFF_LOOPBACK);
-
-    address++;
-  }
-
-  /* Fill in physical addresses for each interface */
-  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)) ||
-        (ent->ifa_addr == NULL) ||
-        (ent->ifa_addr->sa_family != AF_LINK)) {
-      continue;
-    }
-
-    address = *addresses;
-
-    for (i = 0; i < (*count); i++) {
-      if (strcmp(address->name, ent->ifa_name) == 0) {
-        sa_addr = (struct sockaddr_dl*)(ent->ifa_addr);
-        memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
-      }
-      address++;
-    }
-  }
-
-  freeifaddrs(addrs);
-
-  return 0;
-}
-
-
-void uv_free_interface_addresses(uv_interface_address_t* addresses, int count) {
-  int i;
-
-  for (i = 0; i < count; i++) {
-    uv__free(addresses[i].name);
-  }
-
-  uv__free(addresses);
 }

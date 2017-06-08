@@ -39,9 +39,9 @@ function doctor (args, silent, cb) {
     [getLatestNpmVersion],
     [getLatestNodejsVersion, args['node-url']],
     [getGitPath],
-    [checkFilesPermission, npm.cache, 6],
-    [checkFilesPermission, globalNodeModules, 4],
-    [checkFilesPermission, localNodeModules, 6],
+    [checkFilesPermission, npm.cache, 4, 6],
+    [checkFilesPermission, globalNodeModules, 4, 4],
+    [checkFilesPermission, localNodeModules, 6, 6],
     [verifyCachedFiles, path.join(npm.cache, '_cacache')]
   ]
 

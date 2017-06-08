@@ -648,6 +648,8 @@ server will still send some data.
 If `data` is specified, it is equivalent to calling
 `socket.write(data, encoding)` followed by [`socket.end()`][].
 
+Returns `socket`.
+
 ### socket.localAddress
 <!-- YAML
 added: v0.9.6
@@ -884,7 +886,7 @@ in the [`net.createServer()`][] section:
 
 ```js
 const net = require('net');
-const client = net.createConnection({port: 8124}, () => {
+const client = net.createConnection({ port: 8124 }, () => {
   //'connect' listener
   console.log('connected to server!');
   client.write('world!\r\n');
@@ -902,7 +904,7 @@ To connect on the socket `/tmp/echo.sock` the second line would just be
 changed to
 
 ```js
-const client = net.createConnection({path: '/tmp/echo.sock'});
+const client = net.createConnection({ path: '/tmp/echo.sock' });
 ```
 
 ### net.createConnection(path[, connectListener])

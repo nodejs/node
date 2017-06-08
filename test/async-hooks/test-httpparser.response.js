@@ -30,12 +30,9 @@ const parser = new HTTPParser(RESPONSE);
 const as = hooks.activitiesOfTypes('HTTPPARSER');
 const httpparser = as[0];
 
-assert.strictEqual(
-  as.length, 1,
-  '1 httpparser created synchronously when creating new httpparser');
-assert.strictEqual(typeof httpparser.uid, 'number', 'uid is a number');
-assert.strictEqual(typeof httpparser.triggerId,
-                   'number', 'triggerId is a number');
+assert.strictEqual(as.length, 1);
+assert.strictEqual(typeof httpparser.uid, 'number');
+assert.strictEqual(typeof httpparser.triggerId, 'number');
 checkInvocations(httpparser, { init: 1 }, 'when created new Httphttpparser');
 
 parser[kOnHeadersComplete] = common.mustCall(onheadersComplete);

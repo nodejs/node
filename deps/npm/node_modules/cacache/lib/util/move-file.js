@@ -2,6 +2,8 @@
 
 const fs = require('graceful-fs')
 const BB = require('bluebird')
+const chmod = BB.promisify(fs.chmod)
+const unlink = BB.promisify(fs.unlink)
 let move
 let pinflight
 
@@ -27,8 +29,11 @@ function moveFile (src, dest) {
           return cb(err)
         }
       }
-      return fs.unlink(src, cb)
+      return cb()
     })
+  }).then(() => {
+    // content should never change for any reason, so make it read-only
+    return BB.join(unlink(src), process.platform !== 'win32' && chmod(dest, '0444'))
   }).catch(err => {
     if (process.platform !== 'win32') {
       throw err

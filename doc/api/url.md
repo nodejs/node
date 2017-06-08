@@ -55,7 +55,7 @@ properties of a WHATWG `URL` object.
 Parsing the URL string using the WHATWG API:
 
 ```js
-const URL = require('url').URL;
+const { URL } = require('url');
 const myURL =
   new URL('https://user:pass@sub.host.com:8080/p/a/t/h?query=string#hash');
 ```
@@ -92,6 +92,7 @@ Creates a new `URL` object by parsing the `input` relative to the `base`. If
 `base` is passed as a string, it will be parsed equivalent to `new URL(base)`.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('/foo', 'https://example.org/');
   // https://example.org/foo
 ```
@@ -101,7 +102,8 @@ that an effort will be made to coerce the given values into strings. For
 instance:
 
 ```js
-const myURL = new URL({toString: () => 'https://example.org/'});
+const { URL } = require('url');
+const myURL = new URL({ toString: () => 'https://example.org/' });
   // https://example.org/
 ```
 
@@ -109,6 +111,7 @@ Unicode characters appearing within the hostname of `input` will be
 automatically converted to ASCII using the [Punycode][] algorithm.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://你好你好');
   // https://xn--6qqa088eba/
 ```
@@ -122,6 +125,7 @@ Additional [examples of parsed URLs][] may be found in the WHATWG URL Standard.
 Gets and sets the fragment portion of the URL.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://example.org/foo#bar');
 console.log(myURL.hash);
   // Prints #bar
@@ -143,6 +147,7 @@ percent-encode may vary somewhat from what the [`url.parse()`][] and
 Gets and sets the host portion of the URL.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://example.org:81/foo');
 console.log(myURL.host);
   // Prints example.org:81
@@ -163,6 +168,7 @@ Gets and sets the hostname portion of the URL. The key difference between
 port.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://example.org:81/foo');
 console.log(myURL.hostname);
   // Prints example.org
@@ -181,11 +187,13 @@ Invalid hostname values assigned to the `hostname` property are ignored.
 Gets and sets the serialized URL.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://example.org/foo');
 console.log(myURL.href);
   // Prints https://example.org/foo
 
 myURL.href = 'https://example.com/bar';
+console.log(myURL.href);
   // Prints https://example.com/bar
 ```
 
@@ -208,12 +216,14 @@ may be contained within the hostname will be encoded as-is without [Punycode][]
 encoding.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://example.org/foo/bar?baz');
 console.log(myURL.origin);
   // Prints https://example.org
 ```
 
 ```js
+const { URL } = require('url');
 const idnURL = new URL('https://你好你好');
 console.log(idnURL.origin);
   // Prints https://你好你好
@@ -229,6 +239,7 @@ console.log(idnURL.hostname);
 Gets and sets the password portion of the URL.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://abc:xyz@example.com');
 console.log(myURL.password);
   // Prints xyz
@@ -250,6 +261,7 @@ percent-encode may vary somewhat from what the [`url.parse()`][] and
 Gets and sets the path portion of the URL.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://example.org/abc/xyz?123');
 console.log(myURL.pathname);
   // Prints /abc/xyz
@@ -271,6 +283,7 @@ to percent-encode may vary somewhat from what the [`url.parse()`][] and
 Gets and sets the port portion of the URL.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://example.org:8888');
 console.log(myURL.port);
   // Prints 8888
@@ -326,13 +339,14 @@ lies outside the range denoted above, it is ignored.
 Gets and sets the protocol portion of the URL.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://example.org');
 console.log(myURL.protocol);
   // Prints https:
 
 myURL.protocol = 'ftp';
 console.log(myURL.href);
-  // Prints ftp://example.org
+  // Prints ftp://example.org/
 ```
 
 Invalid URL protocol values assigned to the `protocol` property are ignored.
@@ -344,6 +358,7 @@ Invalid URL protocol values assigned to the `protocol` property are ignored.
 Gets and sets the serialized query portion of the URL.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://example.org/abc?123');
 console.log(myURL.search);
   // Prints ?123
@@ -374,13 +389,14 @@ documentation for details.
 Gets and sets the username portion of the URL.
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://abc:xyz@example.com');
 console.log(myURL.username);
   // Prints abc
 
 myURL.username = '123';
 console.log(myURL.href);
-  // Prints https://123:xyz@example.com
+  // Prints https://123:xyz@example.com/
 ```
 
 Any invalid URL characters appearing in the value assigned the `username`
@@ -411,6 +427,7 @@ This method is automatically called when an `URL` object is serialized
 with [`JSON.stringify()`][].
 
 ```js
+const { URL } = require('url');
 const myURLs = [
   new URL('https://www.example.com'),
   new URL('https://test.example.org')
@@ -515,7 +532,7 @@ const params = new URLSearchParams({
   query: ['first', 'second']
 });
 console.log(params.getAll('query'));
-  // Prints ['first,second']
+  // Prints [ 'first,second' ]
 console.log(params.toString());
   // Prints 'user=abc&query=first%2Csecond'
 ```
@@ -571,7 +588,8 @@ console.log(params.toString());
 new URLSearchParams([
   ['user', 'abc', 'error']
 ]);
-  // Throws TypeError: Each query pair must be a name/value tuple
+  // Throws TypeError [ERR_INVALID_TUPLE]:
+  //        Each query pair must be an iterable [name, value] tuple
 ```
 
 #### urlSearchParams.append(name, value)
@@ -605,7 +623,7 @@ Alias for [`urlSearchParams[@@iterator]()`][`urlSearchParams@@iterator()`].
 Iterates over each name-value pair in the query and invokes the given function.
 
 ```js
-const URL = require('url').URL;
+const { URL } = require('url');
 const myURL = new URL('https://example.org/?a=b&c=d');
 myURL.searchParams.forEach((value, name, searchParams) => {
   console.log(name, value, myURL.searchParams === searchParams);
@@ -694,6 +712,7 @@ with the same name is preserved.
 This method can be used, in particular, to increase cache hits.
 
 ```js
+const { URLSearchParams } = require('url');
 const params = new URLSearchParams('query[]=abc&type=search&query[]=123');
 params.sort();
 console.log(params.toString());
@@ -808,6 +827,7 @@ of the output.
 For example:
 
 ```js
+const { URL } = require('url');
 const myURL = new URL('https://a:b@你好你好?abc#foo');
 
 console.log(myURL.href);
@@ -816,8 +836,8 @@ console.log(myURL.href);
 console.log(myURL.toString());
   // Prints https://a:b@xn--6qqa088eba/?abc#foo
 
-console.log(url.format(myURL, {fragment: false, unicode: true, auth: false}));
-  // Prints 'https://你好你好?abc'
+console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
+  // Prints 'https://你好你好/?abc'
 ```
 
 ## Legacy URL API
@@ -1041,6 +1061,7 @@ manner similar to that of a Web browser resolving an anchor tag HREF.
 For example:
 
 ```js
+const url = require('url');
 url.resolve('/one/two/three', 'four');         // '/one/two/four'
 url.resolve('http://example.com/', '/one');    // 'http://example.com/one'
 url.resolve('http://example.com/one', '/two'); // 'http://example.com/two'
@@ -1096,7 +1117,7 @@ using the [Punycode][] algorithm. Note, however, that a hostname *may* contain
 *both* Punycode encoded and percent-encoded characters. For example:
 
 ```js
-const URL = require('url').URL;
+const { URL } = require('url');
 const myURL = new URL('https://%CF%80.com/foo');
 console.log(myURL.href);
   // Prints https://xn--1xa.com/foo

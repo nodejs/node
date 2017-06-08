@@ -47,7 +47,6 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   int err;
 
   pipe_fname = NULL;
-  sockfd = -1;
 
   /* Already bound? */
   if (uv__stream_fd(handle) >= 0)
@@ -76,7 +75,9 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
     /* Convert ENOENT to EACCES for compatibility with Windows. */
     if (err == -ENOENT)
       err = -EACCES;
-    goto err_bind;
+
+    uv__close(sockfd);
+    goto err_socket;
   }
 
   /* Success. */
@@ -84,9 +85,6 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   handle->pipe_fname = pipe_fname; /* Is a strdup'ed copy. */
   handle->io_watcher.fd = sockfd;
   return 0;
-
-err_bind:
-  uv__close(sockfd);
 
 err_socket:
   uv__free((void*)pipe_fname);
@@ -183,6 +181,14 @@ void uv_pipe_connect(uv_connect_t* req,
 
   if (r == -1 && errno != EINPROGRESS) {
     err = -errno;
+#if defined(__CYGWIN__) || defined(__MSYS__)
+    /* EBADF is supposed to mean that the socket fd is bad, but
+       Cygwin reports EBADF instead of ENOTSOCK when the file is
+       not a socket.  We do not expect to see a bad fd here
+       (e.g. due to new_sock), so translate the error.  */
+    if (err == -EBADF)
+      err = -ENOTSOCK;
+#endif
     goto out;
   }
 

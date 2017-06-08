@@ -782,7 +782,7 @@ changes:
     verification fails; `err.code` contains the OpenSSL error code. Defaults to
     `true`.
   * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
-    An array of strings, Buffer`s or `Uint8Array`s, or a single `Buffer` or
+    An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
     format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
     first byte is the length of the next protocol name. Passing an array is
@@ -1034,7 +1034,7 @@ changes:
     connection which is not authorized with the list of supplied CAs. This
     option only has an effect if `requestCert` is `true`. Defaults to `true`.
   * `NPNProtocols` {string[]|Buffer[]|Uint8Array[]|Buffer|Uint8Array}
-    An array of strings, Buffer`s or `Uint8Array`s, or a single `Buffer` or
+    An array of strings, `Buffer`s or `Uint8Array`s, or a single `Buffer` or
     `Uint8Array` containing supported NPN protocols. `Buffer`s should have the
     format `[len][name][len][name]...` e.g. `0x05hello0x05world`, where the
     first byte is the length of the next protocol name. Passing an array is

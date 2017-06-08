@@ -23,24 +23,22 @@ nodeVersionSpawn
 // synchronously
 const processes = hooks.activitiesOfTypes('PROCESSWRAP');
 const pipes = hooks.activitiesOfTypes('PIPEWRAP');
-assert.strictEqual(processes.length, 1,
-                   '1 processwrap created when process created');
-assert.strictEqual(pipes.length, 3,
-                   '3 pipe wraps created when process created');
+assert.strictEqual(processes.length, 1);
+assert.strictEqual(pipes.length, 3);
 
 const processwrap = processes[0];
 const pipe1 = pipes[0];
 const pipe2 = pipes[1];
 const pipe3 = pipes[2];
 
-assert.strictEqual(processwrap.type, 'PROCESSWRAP', 'process wrap type');
-assert.strictEqual(processwrap.triggerId, 1, 'processwrap triggerId is 1');
+assert.strictEqual(processwrap.type, 'PROCESSWRAP');
+assert.strictEqual(processwrap.triggerId, 1);
 checkInvocations(processwrap, { init: 1 },
                  'processwrap when sleep.spawn was called');
 
 [ pipe1, pipe2, pipe3 ].forEach((x) => {
-  assert(x.type, 'PIPEWRAP', 'pipe wrap type');
-  assert.strictEqual(x.triggerId, 1, 'pipe wrap triggerId is 1');
+  assert.strictEqual(x.type, 'PIPEWRAP');
+  assert.strictEqual(x.triggerId, 1);
   checkInvocations(x, { init: 1 }, 'pipe wrap when sleep.spawn was called');
 });
 
@@ -71,14 +69,14 @@ function onexit() {
     'processwrap while in onsleepClose callback');
 
   [ pipe1, pipe2, pipe3 ].forEach((x) => {
-    assert(x.type, 'PIPEWRAP', 'pipe wrap type');
-    assert.strictEqual(x.triggerId, 1, 'pipe wrap triggerId is 1');
+    assert.strictEqual(x.type, 'PIPEWRAP');
+    assert.strictEqual(x.triggerId, 1);
   });
 
   const ioEvents = Math.min(pipe2.before.length, pipe2.after.length);
   // 2 events without any IO and at least one more for the node version data.
   // Usually it is just one event, but it can be more.
-  assert.ok(ioEvents >= 3, 'at least 3 stdout io events.');
+  assert.ok(ioEvents >= 3, `at least 3 stdout io events, got ${ioEvents}`);
 
   checkInvocations(pipe1, { init: 1, before: 2, after: 2 },
                    'pipe wrap when sleep.spawn was called');

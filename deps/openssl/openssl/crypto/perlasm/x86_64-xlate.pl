@@ -415,7 +415,7 @@ my %globals;
 	}
     }
 }
-{ package expr;		# pick up expressioins
+{ package expr;		# pick up expressions
     sub re {
 	my	$self = shift;	# single instance is enough...
 	local	*line = shift;
@@ -978,7 +978,7 @@ close STDOUT;
 # the area above user stack pointer in true asynchronous manner...
 #
 # All the above means that if assembler programmer adheres to Unix
-# register and stack layout, but disregards the "red zone" existense,
+# register and stack layout, but disregards the "red zone" existence,
 # it's possible to use following prologue and epilogue to "gear" from
 # Unix to Win64 ABI in leaf functions with not more than 6 arguments.
 #

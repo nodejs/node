@@ -1,8 +1,10 @@
 @include documentation
 @include synopsis
 @include assert
+@include async_hooks
 @include buffer
 @include addons
+@include n-api
 @include child_process
 @include cluster
 @include cli

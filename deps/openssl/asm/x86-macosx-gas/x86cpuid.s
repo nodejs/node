@@ -19,10 +19,10 @@ L_OPENSSL_ia32_cpuid_begin:
 	popl	%eax
 	xorl	%eax,%ecx
 	xorl	%eax,%eax
-	btl	$21,%ecx
-	jnc	L000nocpuid
 	movl	20(%esp),%esi
 	movl	%eax,8(%esi)
+	btl	$21,%ecx
+	jnc	L000nocpuid
 	.byte	0x0f,0xa2
 	movl	%eax,%edi
 	xorl	%eax,%eax
@@ -73,40 +73,32 @@ L_OPENSSL_ia32_cpuid_begin:
 	andl	$4026531839,%edx
 	jmp	L002generic
 L001intel:
-	cmpl	$7,%edi
-	jb	L003cacheinfo
-	movl	20(%esp),%esi
-	movl	$7,%eax
-	xorl	%ecx,%ecx
-	.byte	0x0f,0xa2
-	movl	%ebx,8(%esi)
-L003cacheinfo:
 	cmpl	$4,%edi
-	movl	$-1,%edi
-	jb	L004nocacheinfo
+	movl	$-1,%esi
+	jb	L003nocacheinfo
 	movl	$4,%eax
 	movl	$0,%ecx
 	.byte	0x0f,0xa2
-	movl	%eax,%edi
-	shrl	$14,%edi
-	andl	$4095,%edi
-L004nocacheinfo:
+	movl	%eax,%esi
+	shrl	$14,%esi
+	andl	$4095,%esi
+L003nocacheinfo:
 	movl	$1,%eax
 	xorl	%ecx,%ecx
 	.byte	0x0f,0xa2
 	andl	$3220176895,%edx
 	cmpl	$0,%ebp
-	jne	L005notintel
+	jne	L004notintel
 	orl	$1073741824,%edx
 	andb	$15,%ah
 	cmpb	$15,%ah
-	jne	L005notintel
+	jne	L004notintel
 	orl	$1048576,%edx
-L005notintel:
+L004notintel:
 	btl	$28,%edx
 	jnc	L002generic
 	andl	$4026531839,%edx
-	cmpl	$0,%edi
+	cmpl	$0,%esi
 	je	L002generic
 	orl	$268435456,%edx
 	shrl	$16,%ebx
@@ -118,7 +110,15 @@ L002generic:
 	andl	$4294965247,%ecx
 	movl	%edx,%esi
 	orl	%ecx,%ebp
-	btl	$27,%ecx
+	cmpl	$7,%edi
+	movl	20(%esp),%edi
+	jb	L005no_extended_info
+	movl	$7,%eax
+	xorl	%ecx,%ecx
+	.byte	0x0f,0xa2
+	movl	%ebx,8(%edi)
+L005no_extended_info:
+	btl	$27,%ebp
 	jnc	L006clear_avx
 	xorl	%ecx,%ecx
 .byte	15,1,208
@@ -132,7 +132,6 @@ L008clear_xmm:
 	andl	$4278190079,%esi
 L006clear_avx:
 	andl	$4026525695,%ebp
-	movl	20(%esp),%edi
 	andl	$4294967263,8(%edi)
 L007done:
 	movl	%esi,%eax

@@ -131,10 +131,10 @@ Generally identical to `assert.deepEqual()` with three exceptions:
 ```js
 const assert = require('assert');
 
-assert.deepEqual({a: 1}, {a: '1'});
+assert.deepEqual({ a: 1 }, { a: '1' });
 // OK, because 1 == '1'
 
-assert.deepStrictEqual({a: 1}, {a: '1'});
+assert.deepStrictEqual({ a: 1 }, { a: '1' });
 // AssertionError: { a: 1 } deepStrictEqual { a: '1' }
 // because 1 !== '1' using strict equality
 
@@ -248,7 +248,7 @@ assert.equal(1, '1');
 
 assert.equal(1, 2);
 // AssertionError: 1 == 2
-assert.equal({a: {b: 1}}, {a: {b: 1}});
+assert.equal({ a: { b: 1 } }, { a: { b: 1 } });
 //AssertionError: { a: { b: 1 } } == { a: { b: 1 } }
 ```
 
@@ -368,10 +368,10 @@ Tests for deep strict inequality. Opposite of [`assert.deepStrictEqual()`][].
 ```js
 const assert = require('assert');
 
-assert.notDeepEqual({a: 1}, {a: '1'});
+assert.notDeepEqual({ a: 1 }, { a: '1' });
 // AssertionError: { a: 1 } notDeepEqual { a: '1' }
 
-assert.notDeepStrictEqual({a: 1}, {a: '1'});
+assert.notDeepStrictEqual({ a: 1 }, { a: '1' });
 // OK
 ```
 

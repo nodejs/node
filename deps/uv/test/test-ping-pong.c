@@ -27,7 +27,11 @@
 
 static int completed_pingers = 0;
 
+#if defined(__CYGWIN__) || defined(__MSYS__)
+#define NUM_PINGS 100 /* fewer pings to avoid timeout */
+#else
 #define NUM_PINGS 1000
+#endif
 
 /* 64 bytes is enough for a pinger */
 #define BUFSIZE 10240

@@ -14,11 +14,10 @@ const sock = dgram.createSocket('udp4');
 
 const as = hooks.activitiesOfTypes('UDPWRAP');
 const udpwrap = as[0];
-assert.strictEqual(as.length, 1,
-                   'one UDPWRAP handle after dgram.createSocket call');
-assert.strictEqual(udpwrap.type, 'UDPWRAP', 'udp wrap');
-assert.strictEqual(typeof udpwrap.uid, 'number', 'uid is a number');
-assert.strictEqual(typeof udpwrap.triggerId, 'number', 'triggerId is a number');
+assert.strictEqual(as.length, 1);
+assert.strictEqual(udpwrap.type, 'UDPWRAP');
+assert.strictEqual(typeof udpwrap.uid, 'number');
+assert.strictEqual(typeof udpwrap.triggerId, 'number');
 checkInvocations(udpwrap, { init: 1 }, 'after dgram.createSocket call');
 
 sock.close(common.mustCall(onsockClosed));

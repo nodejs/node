@@ -526,10 +526,10 @@ class Environment {
   inline uint32_t watched_providers() const;
 
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
-  static inline Environment* from_destroy_ids_idle_handle(uv_idle_t* handle);
+  static inline Environment* from_destroy_ids_timer_handle(uv_timer_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
-  inline uv_idle_t* destroy_ids_idle_handle();
+  inline uv_timer_t* destroy_ids_timer_handle();
 
   // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
@@ -662,7 +662,7 @@ class Environment {
   IsolateData* const isolate_data_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
-  uv_idle_t destroy_ids_idle_handle_;
+  uv_timer_t destroy_ids_timer_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
   AsyncHooks async_hooks_;

@@ -47,8 +47,12 @@ TEST_IMPL(platform_output) {
   printf("uv_cwd: %s\n", buffer);
 
   err = uv_resident_set_memory(&rss);
+#if defined(__CYGWIN__) || defined(__MSYS__)
+  ASSERT(err == UV_ENOSYS);
+#else
   ASSERT(err == 0);
   printf("uv_resident_set_memory: %llu\n", (unsigned long long) rss);
+#endif
 
   err = uv_uptime(&uptime);
   ASSERT(err == 0);
@@ -73,6 +77,9 @@ TEST_IMPL(platform_output) {
          (unsigned long long) rusage.ru_maxrss);
 
   err = uv_cpu_info(&cpus, &count);
+#if defined(__CYGWIN__) || defined(__MSYS__)
+  ASSERT(err == UV_ENOSYS);
+#else
   ASSERT(err == 0);
 
   printf("uv_cpu_info:\n");
@@ -88,6 +95,7 @@ TEST_IMPL(platform_output) {
     printf("  times.nice: %llu\n",
            (unsigned long long) cpus[i].cpu_times.nice);
   }
+#endif
   uv_free_cpu_info(cpus, count);
 
   err = uv_interface_addresses(&interfaces, &count);

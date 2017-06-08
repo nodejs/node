@@ -28,14 +28,30 @@ template<typename Transport>
 using TransportAndIo = std::pair<Transport*, InspectorIo*>;
 
 std::string GetProcessTitle() {
-  // uv_get_process_title will trim the title if it is too long.
   char title[2048];
   int err = uv_get_process_title(title, sizeof(title));
   if (err == 0) {
     return title;
   } else {
+    // Title is too long, or could not be retrieved.
     return "Node.js";
   }
+}
+
+std::string ScriptPath(uv_loop_t* loop, const std::string& script_name) {
+  std::string script_path;
+
+  if (!script_name.empty()) {
+    uv_fs_t req;
+    req.ptr = nullptr;
+    if (0 == uv_fs_realpath(loop, &req, script_name.c_str(), nullptr)) {
+      CHECK_NE(req.ptr, nullptr);
+      script_path = std::string(static_cast<char*>(req.ptr));
+    }
+    uv_fs_req_cleanup(&req);
+  }
+
+  return script_path;
 }
 
 // UUID RFC: https://www.ietf.org/rfc/rfc4122.txt
@@ -97,6 +113,7 @@ int CloseAsyncAndLoop(uv_async_t* async) {
   return uv_loop_close(async->loop);
 }
 
+// Delete main_thread_req_ on async handle close
 void ReleasePairOnAsyncClose(uv_handle_t* async) {
   AsyncAndAgent* pair = node::ContainerOf(&AsyncAndAgent::first,
                                           reinterpret_cast<uv_async_t*>(async));
@@ -117,19 +134,26 @@ std::unique_ptr<StringBuffer> Utf8ToStringView(const std::string& message) {
 class IoSessionDelegate : public InspectorSessionDelegate {
  public:
   explicit IoSessionDelegate(InspectorIo* io) : io_(io) { }
-  bool WaitForFrontendMessage() override;
-  void OnMessage(const v8_inspector::StringView& message) override;
+  bool WaitForFrontendMessageWhilePaused() override;
+  void SendMessageToFrontend(const v8_inspector::StringView& message) override;
  private:
   InspectorIo* io_;
 };
 
+// Passed to InspectorSocketServer to handle WS inspector protocol events,
+// mostly session start, message received, and session end.
 class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
  public:
   InspectorIoDelegate(InspectorIo* io, const std::string& script_path,
                       const std::string& script_name, bool wait);
+  // Calls PostIncomingMessage() with appropriate InspectorAction:
+  //   kStartSession
   bool StartSession(int session_id, const std::string& target_id) override;
+  //   kSendMessage
   void MessageReceived(int session_id, const std::string& message) override;
+  //   kEndSession
   void EndSession(int session_id) override;
+
   std::vector<std::string> GetTargetIds() override;
   std::string GetTargetTitle(const std::string& id) override;
   std::string GetTargetUrl(const std::string& id) override;
@@ -137,6 +161,7 @@ class InspectorIoDelegate: public node::inspector::SocketServerDelegate {
   void ServerDone() override {
     io_->ServerDone();
   }
+
  private:
   InspectorIo* io_;
   bool connected_;
@@ -172,27 +197,27 @@ InspectorIo::InspectorIo(Environment* env, v8::Platform* platform,
                          bool wait_for_connect)
                          : options_(options), thread_(), delegate_(nullptr),
                            state_(State::kNew), parent_env_(env),
-                           io_thread_req_(), platform_(platform),
+                           thread_req_(), platform_(platform),
                            dispatching_messages_(false), session_id_(0),
                            script_name_(path),
-                           wait_for_connect_(wait_for_connect) {
+                           wait_for_connect_(wait_for_connect), port_(-1) {
   main_thread_req_ = new AsyncAndAgent({uv_async_t(), env->inspector_agent()});
   CHECK_EQ(0, uv_async_init(env->event_loop(), &main_thread_req_->first,
-                            InspectorIo::MainThreadAsyncCb));
+                            InspectorIo::MainThreadReqAsyncCb));
   uv_unref(reinterpret_cast<uv_handle_t*>(&main_thread_req_->first));
-  CHECK_EQ(0, uv_sem_init(&start_sem_, 0));
+  CHECK_EQ(0, uv_sem_init(&thread_start_sem_, 0));
 }
 
 InspectorIo::~InspectorIo() {
-  uv_sem_destroy(&start_sem_);
+  uv_sem_destroy(&thread_start_sem_);
   uv_close(reinterpret_cast<uv_handle_t*>(&main_thread_req_->first),
            ReleasePairOnAsyncClose);
 }
 
 bool InspectorIo::Start() {
   CHECK_EQ(state_, State::kNew);
-  CHECK_EQ(uv_thread_create(&thread_, InspectorIo::ThreadCbIO, this), 0);
-  uv_sem_wait(&start_sem_);
+  CHECK_EQ(uv_thread_create(&thread_, InspectorIo::ThreadMain, this), 0);
+  uv_sem_wait(&thread_start_sem_);
 
   if (state_ == State::kError) {
     return false;
@@ -234,75 +259,66 @@ void InspectorIo::WaitForDisconnect() {
 }
 
 // static
-void InspectorIo::ThreadCbIO(void* io) {
-  static_cast<InspectorIo*>(io)->WorkerRunIO<InspectorSocketServer>();
+void InspectorIo::ThreadMain(void* io) {
+  static_cast<InspectorIo*>(io)->ThreadMain<InspectorSocketServer>();
 }
 
 // static
 template <typename Transport>
-void InspectorIo::WriteCbIO(uv_async_t* async) {
-  TransportAndIo<Transport>* io_and_transport =
+void InspectorIo::IoThreadAsyncCb(uv_async_t* async) {
+  TransportAndIo<Transport>* transport_and_io =
       static_cast<TransportAndIo<Transport>*>(async->data);
-  if (io_and_transport == nullptr) {
+  if (transport_and_io == nullptr) {
     return;
   }
-  MessageQueue<TransportAction> outgoing_messages;
-  InspectorIo* io = io_and_transport->second;
-  io->SwapBehindLock(&io->outgoing_message_queue_, &outgoing_messages);
-  for (const auto& outgoing : outgoing_messages) {
+  Transport* transport = transport_and_io->first;
+  InspectorIo* io = transport_and_io->second;
+  MessageQueue<TransportAction> outgoing_message_queue;
+  io->SwapBehindLock(&io->outgoing_message_queue_, &outgoing_message_queue);
+  for (const auto& outgoing : outgoing_message_queue) {
     switch (std::get<0>(outgoing)) {
     case TransportAction::kKill:
-      io_and_transport->first->TerminateConnections();
+      transport->TerminateConnections();
       // Fallthrough
     case TransportAction::kStop:
-      io_and_transport->first->Stop(nullptr);
+      transport->Stop(nullptr);
       break;
     case TransportAction::kSendMessage:
       std::string message = StringViewToUtf8(std::get<2>(outgoing)->string());
-      io_and_transport->first->Send(std::get<1>(outgoing), message);
+      transport->Send(std::get<1>(outgoing), message);
       break;
     }
   }
 }
 
 template<typename Transport>
-void InspectorIo::WorkerRunIO() {
+void InspectorIo::ThreadMain() {
   uv_loop_t loop;
   loop.data = nullptr;
   int err = uv_loop_init(&loop);
   CHECK_EQ(err, 0);
-  io_thread_req_.data = nullptr;
-  err = uv_async_init(&loop, &io_thread_req_, WriteCbIO<Transport>);
+  thread_req_.data = nullptr;
+  err = uv_async_init(&loop, &thread_req_, IoThreadAsyncCb<Transport>);
   CHECK_EQ(err, 0);
-  std::string script_path;
-  if (!script_name_.empty()) {
-    uv_fs_t req;
-    req.ptr = nullptr;
-    if (0 == uv_fs_realpath(&loop, &req, script_name_.c_str(), nullptr)) {
-      CHECK_NE(req.ptr, nullptr);
-      script_path = std::string(static_cast<char*>(req.ptr));
-    }
-    uv_fs_req_cleanup(&req);
-  }
+  std::string script_path = ScriptPath(&loop, script_name_);
   InspectorIoDelegate delegate(this, script_path, script_name_,
                                wait_for_connect_);
   delegate_ = &delegate;
-  InspectorSocketServer server(&delegate,
-                               options_.host_name(),
-                               options_.port());
+  Transport server(&delegate, &loop, options_.host_name(), options_.port());
   TransportAndIo<Transport> queue_transport(&server, this);
-  io_thread_req_.data = &queue_transport;
-  if (!server.Start(&loop)) {
+  thread_req_.data = &queue_transport;
+  if (!server.Start()) {
     state_ = State::kError;  // Safe, main thread is waiting on semaphore
-    CHECK_EQ(0, CloseAsyncAndLoop(&io_thread_req_));
-    uv_sem_post(&start_sem_);
+    CHECK_EQ(0, CloseAsyncAndLoop(&thread_req_));
+    uv_sem_post(&thread_start_sem_);
     return;
   }
+  port_ = server.port();  // Safe, main thread is waiting on semaphore.
   if (!wait_for_connect_) {
-    uv_sem_post(&start_sem_);
+    uv_sem_post(&thread_start_sem_);
   }
   uv_run(&loop, UV_RUN_DEFAULT);
-  io_thread_req_.data = nullptr;
+  thread_req_.data = nullptr;
   CHECK_EQ(uv_loop_close(&loop), 0);
   delegate_ = nullptr;
 }
@@ -338,7 +354,12 @@ void InspectorIo::PostIncomingMessage(InspectorAction action, int session_id,
   NotifyMessageReceived();
 }
 
-void InspectorIo::WaitForFrontendMessage() {
+std::vector<std::string> InspectorIo::GetTargetIds() const {
+  return delegate_ ? delegate_->GetTargetIds() : std::vector<std::string>();
+}
+
+void InspectorIo::WaitForFrontendMessageWhilePaused() {
+  dispatching_messages_ = false;
   Mutex::ScopedLock scoped_lock(state_lock_);
   if (incoming_message_queue_.empty())
     incoming_message_cond_.Wait(scoped_lock);
@@ -357,11 +378,15 @@ void InspectorIo::DispatchMessages() {
   if (dispatching_messages_)
     return;
   dispatching_messages_ = true;
-  MessageQueue<InspectorAction> tasks;
+  bool had_messages = false;
   do {
-    tasks.clear();
-    SwapBehindLock(&incoming_message_queue_, &tasks);
-    for (const auto& task : tasks) {
+    if (dispatching_message_queue_.empty())
+      SwapBehindLock(&incoming_message_queue_, &dispatching_message_queue_);
+    had_messages = !dispatching_message_queue_.empty();
+    while (!dispatching_message_queue_.empty()) {
+      MessageQueue<InspectorAction>::value_type task;
+      std::swap(dispatching_message_queue_.front(), task);
+      dispatching_message_queue_.pop_front();
       StringView message = std::get<2>(task)->string();
       switch (std::get<0>(task)) {
       case InspectorAction::kStartSession:
@@ -388,12 +413,12 @@ void InspectorIo::DispatchMessages() {
         break;
       }
     }
-  } while (!tasks.empty());
+  } while (had_messages);
   dispatching_messages_ = false;
 }
 
 // static
-void InspectorIo::MainThreadAsyncCb(uv_async_t* req) {
+void InspectorIo::MainThreadReqAsyncCb(uv_async_t* req) {
   AsyncAndAgent* pair = node::ContainerOf(&AsyncAndAgent::first, req);
   // Note that this may be called after io was closed or even after a new
   // one was created and ran.
@@ -408,7 +433,7 @@ void InspectorIo::Write(TransportAction action, int session_id,
     return;
   AppendMessage(&outgoing_message_queue_, action, session_id,
                 StringBuffer::create(inspector_message));
-  int err = uv_async_send(&io_thread_req_);
+  int err = uv_async_send(&thread_req_);
   CHECK_EQ(0, err);
 }
 
@@ -469,12 +494,13 @@ std::string InspectorIoDelegate::GetTargetUrl(const std::string& id) {
   return "file://" + script_path_;
 }
 
-bool IoSessionDelegate::WaitForFrontendMessage() {
-  io_->WaitForFrontendMessage();
+bool IoSessionDelegate::WaitForFrontendMessageWhilePaused() {
+  io_->WaitForFrontendMessageWhilePaused();
   return true;
 }
 
-void IoSessionDelegate::OnMessage(const v8_inspector::StringView& message) {
+void IoSessionDelegate::SendMessageToFrontend(
+    const v8_inspector::StringView& message) {
   io_->Write(TransportAction::kSendMessage, io_->session_id_, message);
 }
 

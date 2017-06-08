@@ -54,6 +54,12 @@ path.posix.basename('/tmp/myfile.html');
 // Returns: 'myfile.html'
 ```
 
+*Note:* On Windows Node.js follows the concept of per-drive working directory.
+This behavior can be observed when using a drive path without a backslash. For
+example `path.resolve('c:\\')` can potentially return a different result than
+`path.resolve('c:')`. For more information, see
+[this MSDN page][MSDN-Rel-Path].
+
 ## path.basename(path[, ext])
 <!-- YAML
 added: v0.1.25
@@ -550,3 +556,4 @@ of the `path` methods.
 [`path.posix`]: #path_path_posix
 [`path.sep`]: #path_path_sep
 [`path.win32`]: #path_path_win32
+[MSDN-Rel-Path]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx#fully_qualified_vs._relative_paths

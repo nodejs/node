@@ -1,6 +1,9 @@
 #include <node_api.h>
 #include "../common.h"
 #include <string.h>
+#include <stdlib.h>
+
+static int test_value = 3;
 
 napi_value Get(napi_env env, napi_callback_info info) {
   size_t argc = 2;
@@ -138,6 +141,31 @@ napi_value Inflate(napi_env env, napi_callback_info info) {
   return obj;
 }
 
+napi_value Wrap(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value arg;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &arg, NULL, NULL));
+
+  int32_t* data = malloc(sizeof(int32_t));
+  *data = test_value;
+  NAPI_CALL(env, napi_wrap(env, arg, data, NULL, NULL, NULL));
+  return NULL;
+}
+
+napi_value Unwrap(napi_env env, napi_callback_info info) {
+  size_t argc = 1;
+  napi_value arg;
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &arg, NULL, NULL));
+
+  void* data;
+  NAPI_CALL(env, napi_unwrap(env, arg, &data));
+
+  bool is_expected = (data != NULL && *(int*)data == 3);
+  napi_value result;
+  NAPI_CALL(env, napi_get_boolean(env, is_expected, &result));
+  return result;
+}
+
 void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NAPI_PROPERTY("Get", Get),
@@ -145,6 +173,8 @@ void Init(napi_env env, napi_value exports, napi_value module, void* priv) {
     DECLARE_NAPI_PROPERTY("Has", Has),
     DECLARE_NAPI_PROPERTY("New", New),
     DECLARE_NAPI_PROPERTY("Inflate", Inflate),
+    DECLARE_NAPI_PROPERTY("Wrap", Wrap),
+    DECLARE_NAPI_PROPERTY("Unwrap", Unwrap),
   };
 
   NAPI_CALL_RETURN_VOID(env, napi_define_properties(

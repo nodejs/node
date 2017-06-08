@@ -64,20 +64,24 @@ fs.watchFile(enoentFile, {interval: 0}, common.mustCall(function(curr, prev) {
   }
 }, 2));
 
-// Watch events should callback with a filename on supported systems
-if (common.isLinux || common.isOSX || common.isWindows || common.isAix) {
+// Watch events should callback with a filename on supported systems.
+// Omitting AIX. It works but not reliably.
+if (common.isLinux || common.isOSX || common.isWindows) {
   const dir = common.tmpDir + '/watch';
 
   fs.mkdir(dir, common.mustCall(function(err) {
     if (err) assert.fail(err);
 
     fs.watch(dir, common.mustCall(function(eventType, filename) {
+      clearInterval(interval);
       this._handle.close();
       assert.strictEqual(filename, 'foo.txt');
     }));
 
-    fs.writeFile(`${dir}/foo.txt`, 'foo', common.mustCall(function(err) {
-      if (err) assert.fail(err);
-    }));
+    const interval = setInterval(() => {
+      fs.writeFile(`${dir}/foo.txt`, 'foo', common.mustCall(function(err) {
+        if (err) assert.fail(err);
+      }));
+    }, 1);
   }));
 }

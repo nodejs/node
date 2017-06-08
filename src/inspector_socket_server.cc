@@ -230,9 +230,9 @@ class SocketSession {
 
  private:
   enum class State { kHttp, kWebSocket, kClosing, kEOF, kDeclined };
-  static void CloseCallback_(InspectorSocket* socket, int code);
-  static void ReadCallback_(uv_stream_t* stream, ssize_t read,
-                            const uv_buf_t* buf);
+  static void CloseCallback(InspectorSocket* socket, int code);
+  static void ReadCallback(uv_stream_t* stream, ssize_t read,
+                           const uv_buf_t* buf);
   void OnRemoteDataIO(ssize_t read, const uv_buf_t* buf);
   const int id_;
   InspectorSocket socket_;
@@ -242,9 +242,10 @@ class SocketSession {
 };
 
 InspectorSocketServer::InspectorSocketServer(SocketServerDelegate* delegate,
+                                             uv_loop_t* loop,
                                              const std::string& host,
                                              int port,
-                                             FILE* out) : loop_(nullptr),
+                                             FILE* out) : loop_(loop),
                                                           delegate_(delegate),
                                                           host_(host),
                                                           port_(port),
@@ -254,7 +255,6 @@ InspectorSocketServer::InspectorSocketServer(SocketServerDelegate* delegate,
                                                           out_(out) {
   state_ = ServerState::kNew;
 }
-
 
 // static
 bool InspectorSocketServer::HandshakeCallback(InspectorSocket* socket,
@@ -361,7 +361,7 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket) {
     }
     if (!connected) {
       std::string host;
-      GetSocketHost(&socket->client, &host);
+      GetSocketHost(&socket->tcp, &host);
       std::string address = GetWsUrl(host, port_, id);
       std::ostringstream frontend_url;
       frontend_url << "chrome-devtools://devtools/bundled";
@@ -374,9 +374,8 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket) {
   SendHttpResponse(socket, MapsToString(response));
 }
 
-bool InspectorSocketServer::Start(uv_loop_t* loop) {
+bool InspectorSocketServer::Start() {
   CHECK_EQ(state_, ServerState::kNew);
-  loop_ = loop;
   sockaddr_in addr;
   uv_tcp_init(loop_, &server_);
   uv_ip4_addr(host_.c_str(), port_, &addr);
@@ -470,11 +469,11 @@ SocketSession::SocketSession(InspectorSocketServer* server, int id)
 void SocketSession::Close() {
   CHECK_NE(state_, State::kClosing);
   state_ = State::kClosing;
-  inspector_close(&socket_, CloseCallback_);
+  inspector_close(&socket_, CloseCallback);
 }
 
 // static
-void SocketSession::CloseCallback_(InspectorSocket* socket, int code) {
+void SocketSession::CloseCallback(InspectorSocket* socket, int code) {
   SocketSession* session = SocketSession::From(socket);
   CHECK_EQ(State::kClosing, session->state_);
   session->server_->SessionTerminated(session);
@@ -483,12 +482,12 @@ void SocketSession::CloseCallback_(InspectorSocket* socket, int code) {
 void SocketSession::FrontendConnected() {
   CHECK_EQ(State::kHttp, state_);
   state_ = State::kWebSocket;
-  inspector_read_start(&socket_, OnBufferAlloc, ReadCallback_);
+  inspector_read_start(&socket_, OnBufferAlloc, ReadCallback);
 }
 
 // static
-void SocketSession::ReadCallback_(uv_stream_t* stream, ssize_t read,
-                                  const uv_buf_t* buf) {
+void SocketSession::ReadCallback(uv_stream_t* stream, ssize_t read,
+                                 const uv_buf_t* buf) {
   InspectorSocket* socket = inspector_from_stream(stream);
   SocketSession::From(socket)->OnRemoteDataIO(read, buf);
 }

@@ -204,6 +204,12 @@ fail.
 
 If `fn` is not provided, `common.noop` will be used.
 
+### mustNotCall([msg])
+* `msg` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) default = 'function should not have been called'
+* return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
+
+Returns a function that triggers an `AssertionError` if it is invoked. `msg` is used as the error message for the `AssertionError`.
+
 ### nodeProcessAborted(exitCode, signal)
 * `exitCode` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type)
 * `signal` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)

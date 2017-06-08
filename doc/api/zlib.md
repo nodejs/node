@@ -102,10 +102,10 @@ http.createServer((request, response) => {
 
   // Note: This is not a conformant accept-encoding parser.
   // See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
-  if (acceptEncoding.match(/\bdeflate\b/)) {
+  if (/\bdeflate\b/.test(acceptEncoding)) {
     response.writeHead(200, { 'Content-Encoding': 'deflate' });
     raw.pipe(zlib.createDeflate()).pipe(response);
-  } else if (acceptEncoding.match(/\bgzip\b/)) {
+  } else if (/\bgzip\b/.test(acceptEncoding)) {
     response.writeHead(200, { 'Content-Encoding': 'gzip' });
     raw.pipe(zlib.createGzip()).pipe(response);
   } else {
@@ -119,7 +119,7 @@ By default, the `zlib` methods will throw an error when decompressing
 truncated data. However, if it is known that the data is incomplete, or
 the desire is to inspect only the beginning of a compressed file, it is
 possible to suppress the default error handling by changing the flushing
-method that is used to compressed the last chunk of input data:
+method that is used to decompress the last chunk of input data:
 
 ```js
 // This is a truncated version of the buffer from the above examples
@@ -127,7 +127,7 @@ const buffer = Buffer.from('eJzT0yMA', 'base64');
 
 zlib.unzip(
   buffer,
-  {finishFlush: zlib.constants.Z_SYNC_FLUSH},
+  { finishFlush: zlib.constants.Z_SYNC_FLUSH },
   (err, buffer) => {
     if (!err) {
       console.log(buffer.toString());
@@ -301,6 +301,7 @@ ignored by the decompression classes.
 * `strategy` {integer} (compression only)
 * `dictionary` {Buffer|TypedArray|DataView} (deflate/inflate only, empty dictionary by
   default)
+* `info` {boolean} (If `true`, returns an object with `buffer` and `engine`)
 
 See the description of `deflateInit2` and `inflateInit2` at
 <http://zlib.net/manual.html#Advanced> for more information on these.
@@ -384,6 +385,17 @@ added: v0.5.8
 
 Not exported by the `zlib` module. It is documented here because it is the base
 class of the compressor/decompressor classes.
+
+### zlib.bytesRead
+<!-- YAML
+added: v8.1.0
+-->
+
+* {number}
+
+The `zlib.bytesRead` property specifies the number of bytes read by the engine
+before the bytes are processed (compressed or decompressed, as appropriate for
+the derived class).
 
 ### zlib.flush([kind], callback)
 <!-- YAML

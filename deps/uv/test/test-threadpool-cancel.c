@@ -60,7 +60,10 @@ static void saturate_threadpool(void) {
   char buf[64];
   size_t i;
 
-  snprintf(buf, sizeof(buf), "UV_THREADPOOL_SIZE=%zu", ARRAY_SIZE(pause_reqs));
+  snprintf(buf,
+           sizeof(buf),
+           "UV_THREADPOOL_SIZE=%lu",
+           (unsigned long)ARRAY_SIZE(pause_reqs));
   putenv(buf);
 
   loop = uv_default_loop();
