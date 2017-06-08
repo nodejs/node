@@ -39,6 +39,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="product.wxs" />
+    <Compile Include="NodeExitDialog.wxs" />
     <Compile Include="..\..\..\npm.wxs">
       <Link>npm.wxs</Link>
     </Compile>
