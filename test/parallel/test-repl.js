@@ -134,6 +134,27 @@ function error_test() {
     // Uncaught error throws and prints out
     { client: client_unix, send: 'throw new Error(\'test error\');',
       expect: /^Error: test error/ },
+    // Throws primitive and prints out
+    { client: client_unix, send: 'throw null;',
+      expect: 'null' },
+    // Throws Object without toString() method and prints out
+    { client: client_unix, send: 'throw Object.create(null);',
+      expect: '{}' },
+    // Throws Object with bad toString() method and prints out
+    {
+      client: client_unix,
+      send: 'var e = { toString() { throw new Error(\'test\'); } }; throw e;',
+      expect: /{ toString: \[Function: toString\] }/
+    },
+    // Throws Symbol and prints out
+    { client: client_unix, send: 'throw Symbol(\'test\');',
+      expect: /^Symbol\(test\)/ },
+    // Throws Error without stack and prints out
+    {
+      client: client_unix,
+      send: 'var e = new Error(\'test error\'); delete e.stack; throw e;',
+      expect: /^\[Error: test error\]/
+    },
     // Common syntax error is treated as multiline command
     { client: client_unix, send: 'function test_func() {',
       expect: prompt_multiline },
