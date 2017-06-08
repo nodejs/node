@@ -192,15 +192,15 @@ Every new resource is assigned a unique ID.
 ###### `type`
 
 The `type` is a string that represents the type of resource that caused
-`init` to call. Generally it will be the name of the resource's constructor.
-The resource types provided by the built-in Node.js modules are:
+`init` to be called. Generally it will correspond the name of the resource's
+constructor.
 
 ```
 FSEVENTWRAP, FSREQWRAP, GETADDRINFOREQWRAP, GETNAMEINFOREQWRAP, HTTPPARSER,
 JSSTREAM, PIPECONNECTWRAP, PIPEWRAP, PROCESSWRAP, QUERYWRAP, SHUTDOWNWRAP,
 SIGNALWRAP, STATWATCHER, TCPCONNECTWRAP, TCPWRAP, TIMERWRAP, TTYWRAP,
 UDPSENDWRAP, UDPWRAP, WRITEWRAP, ZLIB, SSLCONNECTION, PBKDF2REQUEST,
-RANDOMBYTESREQUEST, TLSWRAP
+RANDOMBYTESREQUEST, TLSWRAP, Timeout, Immediate, TickObject
 ```
 
 There is also the `PROMISE` resource type, which is used to track `Promise`
