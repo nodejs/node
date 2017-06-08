@@ -40,9 +40,10 @@ function Benchmark(fn, configs, options) {
 Benchmark.prototype._parseArgs = function(argv, configs) {
   const cliOptions = {};
   const extraOptions = {};
+  const validArgRE = /^(.+?)=([\s\S]*)$/;
   // Parse configuration arguments
   for (const arg of argv) {
-    const match = arg.match(/^(.+?)=([\s\S]*)$/);
+    const match = arg.match(validArgRE);
     if (!match) {
       console.error(`bad argument: ${arg}`);
       process.exit(1);
