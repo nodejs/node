@@ -3409,6 +3409,26 @@ test_double_content_length_error (int req)
 }
 
 void
+test_single_content_length_error (int req)
+{
+  http_parser parser;
+  http_parser_init(&parser, req ? HTTP_REQUEST : HTTP_RESPONSE);
+  size_t parsed;
+  const char *buf;
+  buf = req ?
+    "GET / HTTP/1.1\r\n" :
+    "HTTP/1.1 200 OK\r\n";
+  parsed = http_parser_execute(&parser, &settings_null, buf, strlen(buf));
+  assert(parsed == strlen(buf));
+
+  buf = "Content-Length: 1\r\nContent-Length-in-Bits: 8\r\n\r\n";
+  size_t buflen = strlen(buf);
+
+  parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+  assert(parsed == buflen);
+}
+
+void
 test_chunked_content_length_error (int req)
 {
   http_parser parser;
@@ -3850,11 +3870,10 @@ test_message_connect (const struct message *msg)
 {
   char *buf = (char*) msg->raw;
   size_t buflen = strlen(msg->raw);
-  size_t nread;
 
   parser_init(msg->type);
 
-  nread = parse_connect(buf, buflen);
+  parse_connect(buf, buflen);
 
   if (num_messages != 1) {
     printf("\n*** num_messages != 1 after testing '%s' ***\n\n", msg->name);
@@ -3912,11 +3931,13 @@ main (void)
 
   //// HEADER FIELD CONDITIONS
   test_double_content_length_error(HTTP_REQUEST);
+  test_single_content_length_error(HTTP_REQUEST);
   test_chunked_content_length_error(HTTP_REQUEST);
   test_header_cr_no_lf_error(HTTP_REQUEST);
   test_invalid_header_field_token_error(HTTP_REQUEST);
   test_invalid_header_field_content_error(HTTP_REQUEST);
   test_double_content_length_error(HTTP_RESPONSE);
+  test_single_content_length_error(HTTP_REQUEST);
   test_chunked_content_length_error(HTTP_RESPONSE);
   test_header_cr_no_lf_error(HTTP_RESPONSE);
   test_invalid_header_field_token_error(HTTP_RESPONSE);
