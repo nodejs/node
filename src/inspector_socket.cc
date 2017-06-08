@@ -390,7 +390,8 @@ static void generate_accept_string(const std::string& client_key,
   char hash[SHA_DIGEST_LENGTH];
   SHA1(reinterpret_cast<const unsigned char*>(&input[0]), input.size(),
        reinterpret_cast<unsigned char*>(hash));
-  node::base64_encode(hash, sizeof(hash), *buffer, sizeof(*buffer));
+  size_t bufferlen = base64_encoded_size(sizeof(*buffer));
+  node::base64_encode(hash, sizeof(hash), *buffer, bufferlen);
 }
 
 static int header_value_cb(http_parser* parser, const char* at, size_t length) {
