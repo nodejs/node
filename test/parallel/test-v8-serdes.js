@@ -133,17 +133,19 @@ const objects = [
 }
 
 {
-  try {
-    v8.Serializer();
-  } catch (e) {
-    const m = "Class constructor Serializer cannot be invoked without 'new'";
-    assert.strictEqual(e.message, m);
-  }
+  assert.throws(
+    () => {
+      v8.Serializer();
+    },
+    Error,
+    "Class constructor Serializer cannot be invoked without 'new'"
+  );
 
-  try {
-    v8.Deserializer();
-  } catch (e) {
-    const m = "Class constructor Deserializer cannot be invoked without 'new'";
-    assert.strictEqual(e.message, m);
-  }
+  assert.throws(
+    () => {
+      v8.Derializer();
+    },
+    Error,
+    "Class constructor Deserializer cannot be invoked without 'new'"
+  );
 }
