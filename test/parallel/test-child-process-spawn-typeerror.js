@@ -88,6 +88,7 @@ assert.throws(function() {
 
 // Argument types for combinatorics
 const a = [];
+const attr = ['foo'];
 const o = {};
 function c() {}
 const s = 'string';
@@ -174,6 +175,8 @@ assert.throws(function() { execFile(cmd, u, o, s); }, TypeError);
 assert.throws(function() { execFile(cmd, n, o, s); }, TypeError);
 assert.doesNotThrow(function() { execFile(cmd, c, s); });
 
+// Check arguments array is not empty for execFile
+assert.doesNotThrow(function() { execFile(cmd, attr, o, c); });
 
 // verify that fork has same argument parsing behaviour as spawn
 //
