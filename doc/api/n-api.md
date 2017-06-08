@@ -407,7 +407,9 @@ This API queries a `napi_value` to check if it represents an error object.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_create_error(napi_env env, const char* msg);
+NODE_EXTERN napi_status napi_create_error(napi_env env,
+                                          const char* msg,
+                                          napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
 - `[in] msg`: C string representing the text to be associated with.
@@ -422,7 +424,9 @@ This API returns a JavaScript Error with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_create_type_error(napi_env env, const char* msg);
+NODE_EXTERN napi_status napi_create_type_error(napi_env env,
+                                               const char* msg,
+                                               napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
 - `[in] msg`: C string representing the text to be associated with.
@@ -438,7 +442,9 @@ This API returns a JavaScript TypeError with the text provided.
 added: v8.0.0
 -->
 ```C
-NODE_EXTERN napi_status napi_create_range_error(napi_env env, const char* msg);
+NODE_EXTERN napi_status napi_create_range_error(napi_env env,
+                                                const char* msg,
+                                                napi_value* result);
 ```
 - `[in] env`: The environment that the API is invoked under.
 - `[in] msg`: C string representing the text to be associated with.
