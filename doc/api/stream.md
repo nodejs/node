@@ -1282,7 +1282,7 @@ For example:
 const { Writable } = require('stream');
 
 const myWritable = new Writable({
-  write(chunk, encoding, callback) {
+  _write(chunk, encoding, callback) {
     // ...
   }
 });
@@ -1353,10 +1353,10 @@ Or, using the Simplified Constructor approach:
 const { Writable } = require('stream');
 
 const myWritable = new Writable({
-  write(chunk, encoding, callback) {
+  _write(chunk, encoding, callback) {
     // ...
   },
-  writev(chunks, callback) {
+  _writev(chunks, callback) {
     // ...
   }
 });
@@ -1467,7 +1467,7 @@ predictable handling of errors.
 const { Writable } = require('stream');
 
 const myWritable = new Writable({
-  write(chunk, encoding, callback) {
+  _write(chunk, encoding, callback) {
     if (chunk.toString().indexOf('a') >= 0) {
       callback(new Error('chunk is invalid'));
     } else {
