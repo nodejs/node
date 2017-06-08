@@ -68,6 +68,10 @@ const unknownSignal = common.expectsError({
 assert.throws(function() { process.kill(1, 'test'); },
               unknownSignal);
 
+// Test that kill throws an error for invalid signal
+
+assert.throws(function() { process.kill(1, 'test'); }, Error);
+
 // Test kill argument processing in valid cases.
 //
 // Monkey patch _kill so that we don't actually send any signals, particularly
