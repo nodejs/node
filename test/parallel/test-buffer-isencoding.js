@@ -21,6 +21,7 @@ const assert = require('assert');
   'utf-7',
   'Unicode-FTW',
   'new gnu gun',
+  '',
   false,
   NaN,
   {},
