@@ -336,10 +336,9 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
   Local<Context> context = promise->CreationContext();
   Environment* env = Environment::GetCurrent(context);
   Local<Value> resource_object_value = promise->GetInternalField(0);
-  Local<Object> resource_object;
   PromiseWrap* wrap = nullptr;
   if (resource_object_value->IsObject()) {
-    resource_object = resource_object_value.As<Object>();
+    Local<Object> resource_object = resource_object_value.As<Object>();
     wrap = Unwrap<PromiseWrap>(resource_object);
   }
   if (type == PromiseHookType::kInit || wrap == nullptr) {
