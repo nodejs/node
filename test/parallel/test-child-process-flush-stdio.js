@@ -26,8 +26,10 @@ function spawnWithReadable() {
     assert.strictEqual(Buffer.concat(buffer).toString().trim(), '123');
   }));
   p.stdout.on('readable', function() {
-    let buf;
-    while (buf = this.read())
-      buffer.push(buf);
+    setImmediate(() => {
+      let buf;
+      while (buf = this.read())
+        buffer.push(buf);
+    });
   });
 }
