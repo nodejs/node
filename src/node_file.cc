@@ -546,7 +546,8 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Used to speed up module loading.  Returns 0 if the path refers to
-// a file, 1 when it's a directory or < 0 on error (usually -ENOENT.)
+// a file, 1 when it's a directory, 2 when it's anything else, or < 0 on
+// error (usually -ENOENT.)
 // The speedup comes from not creating thousands of Stat and Error objects.
 static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -558,7 +559,14 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
   int rc = uv_fs_stat(env->event_loop(), &req, *path, nullptr);
   if (rc == 0) {
     const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
-    rc = !!(s->st_mode & S_IFDIR);
+
+    if (s->st_mode & S_IFREG) {
+      rc = 0;
+    } else if (s->st_mode & S_IFDIR) {
+      rc = 1;
+    } else {
+      rc = 2;
+    }
   }
   uv_fs_req_cleanup(&req);
 
