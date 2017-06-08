@@ -28,7 +28,7 @@ const testResBody = 'other stuff!\n';
 
 const server = http.createServer(function(req, res) {
   assert.ok(!('date' in req.headers),
-            'Request headers contained a Date.');
+            'Request headers did not contain a date.');
   res.writeHead(200, {
     'Content-Type': 'text/plain'
   });
@@ -45,7 +45,7 @@ server.addListener('listening', function() {
   };
   const req = http.request(options, function(res) {
     assert.ok('date' in res.headers,
-              'Response headers didn\'t contain a Date.');
+              'Response headers contain a Date.');
     res.addListener('end', function() {
       server.close();
       process.exit();
