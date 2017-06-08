@@ -1175,8 +1175,9 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Ticket keys");
 
-  if (Buffer::Length(args[0]) != 48) {
-    return env->ThrowTypeError("Ticket keys length must be 48 bytes");
+  long length = SSL_CTX_get_tlsext_ticket_keys(wrap->ctx_, NULL, 0);
+  if (Buffer::Length(args[0]) != (size_t)length) {
+    return env->ThrowTypeError("Ticket keys length incorrect");
   }
 
   if (SSL_CTX_set_tlsext_ticket_keys(wrap->ctx_,

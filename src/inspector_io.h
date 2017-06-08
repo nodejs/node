@@ -18,6 +18,7 @@
 // Forward declaration to break recursive dependency chain with src/env.h.
 namespace node {
 class Environment;
+extern std::string crypto_version;
 }  // namespace node
 
 namespace v8_inspector {
@@ -27,6 +28,7 @@ class StringView;
 
 namespace node {
 namespace inspector {
+
 
 class InspectorIoDelegate;
 

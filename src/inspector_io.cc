@@ -4,7 +4,8 @@
 #include "env.h"
 #include "env-inl.h"
 #include "node.h"
-#include "crypto_impl/node_crypto.h"
+#include "node_crypto.h"
+#include "node_crypto_factory.h"
 #include "node_mutex.h"
 #include "v8-inspector.h"
 #include "util.h"
@@ -18,11 +19,13 @@
 
 
 namespace node {
+extern std::string crypto_version;
 namespace inspector {
 namespace {
 using AsyncAndAgent = std::pair<uv_async_t, Agent*>;
 using v8_inspector::StringBuffer;
 using v8_inspector::StringView;
+
 
 template<typename Transport>
 using TransportAndIo = std::pair<Transport*, InspectorIo*>;
@@ -58,8 +61,10 @@ std::string ScriptPath(uv_loop_t* loop, const std::string& script_name) {
 // Used ver 4 - with numbers
 std::string GenerateID() {
   uint16_t buffer[8];
-  CHECK(crypto::EntropySource(reinterpret_cast<unsigned char*>(buffer),
-                              sizeof(buffer)));
+  auto crypto = crypto::CryptoFactory::Get(crypto_version);
+  auto entropy_source = crypto->GetEntropySource();
+  CHECK(entropy_source(reinterpret_cast<unsigned char*>(buffer),
+                       sizeof(buffer)));
 
   char uuid[256];
   snprintf(uuid, sizeof(uuid), "%04x%04x-%04x-%04x-%04x-%04x%04x%04x",

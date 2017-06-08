@@ -33,6 +33,11 @@ if (!common.opensslCli) {
   return;
 }
 
+if (!common.isOpenSSL10) {
+  common.skip('OpenSSL version is > 1.0.x');
+  return;
+}
+
 const tls = require('tls');
 
 const exec = require('child_process').exec;

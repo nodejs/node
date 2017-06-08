@@ -1,7 +1,7 @@
 #ifndef SRC_CRYPTO_IMPL_OPENSSL_H_
 #define SRC_CRYPTO_IMPL_OPENSSL_H_
 
-#include "../node_crypto.h"
+#include "../../node_crypto.h"
 
 namespace node {
 namespace crypto {

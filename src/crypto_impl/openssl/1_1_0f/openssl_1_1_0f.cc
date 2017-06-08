@@ -1,24 +1,25 @@
-#include "openssl.h"
-#include "../node_crypto_factory.h"
+#include "../openssl.h"
+#include "../../../node_crypto_factory.h"
 #include "node_crypto.h"
 
 namespace node {
 namespace crypto {
 
-constexpr char version_[] = "openssl_1_0_2e";
+constexpr char version_[] = "1.1.0f";
+constexpr char typeversion_[] = "openssl_1_1_0f";
 
 const std::string OpenSSL::Version() {
   return version_;
 }
 
 void Crypto::RegisterCrypto() {
-  CryptoFactory::Register(version_, []() -> Crypto* {
+  CryptoFactory::Register(typeversion_, []() -> Crypto* {
      return new OpenSSL();
   });
 }
 
 void Crypto::UnregisterCrypto() {
-  CryptoFactory::Unregister(version_);
+  CryptoFactory::Unregister(typeversion_);
 }
 
 bool OpenSSL::HasSNI() {

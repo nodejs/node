@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "libplatform/libplatform.h"
 #include "node_crypto_factory.h"
-#include "crypto_impl/openssl.h"
+#include "crypto_impl/openssl/openssl.h"
 
 using node::crypto::CryptoFactory;
 using node::crypto::Crypto;
@@ -10,7 +10,7 @@ using node::crypto::OpenSSL;
 const char version[] = "openssl_1_1_0f";
 
 TEST(OpenSSL_1_1_0e, Version) {
-  EXPECT_EQ(CryptoFactory::Get(version)->Version(), version);
+  EXPECT_EQ(CryptoFactory::Get(version)->Version(), "1.1.0f");
 }
 
 TEST(OpenSSL_1_1_0e, Name) {

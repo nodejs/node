@@ -16,6 +16,11 @@ if (common.opensslCli === false) {
   return;
 }
 
+if (!common.isOpenSSL10) {
+  common.skip('node compiled without OpenSSL CLI version > 1.1.x.');
+  return;
+}
+
 const cert = fs.readFileSync(`${common.fixturesDir}/test_cert.pem`);
 const key = fs.readFileSync(`${common.fixturesDir}/test_key.pem`);
 const server = tls.createServer({ cert: cert, key: key }, common.mustNotCall());
