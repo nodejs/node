@@ -52,7 +52,7 @@ Node.js has two IRC channels:
 [#Node.js](http://webchat.freenode.net/?channels=node.js) for general help and
 questions, and
 [#Node-dev](http://webchat.freenode.net/?channels=node-dev) for development of
-Node.js core specifically.
+Node.js core specifically).
 
 ### Step 2: Branch
 
