@@ -24,15 +24,14 @@ switch (process.argv[2]) {
                          async_hooks.triggerId());
     async_hooks.emitBefore(async_hooks.currentId());
     break;
-}
+  case 'test_callback_abort':
+    initHooks({
+      oninit: common.mustCall(() => { throw new Error('test_callback_abort'); })
+    }).enable();
 
-if (process.execArgv.includes('--abort-on-uncaught-exception')) {
-  initHooks({
-    oninit: common.mustCall(() => { throw new Error('test_callback_abort'); })
-  }).enable();
-
-  async_hooks.emitInit(async_hooks.currentId(), 'test_callback_abort',
-                       async_hooks.triggerId());
+    async_hooks.emitInit(async_hooks.currentId(), 'test_callback_abort',
+                         async_hooks.triggerId());
+    break;
 }
 
 const c1 = spawnSync(`${process.execPath}`, [__filename, 'test_init_callback']);
