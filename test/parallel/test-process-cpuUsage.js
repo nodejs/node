@@ -44,6 +44,11 @@ const invalidSystemArgument = common.expectsError({
 });
 
 
+const invalidUserArgument =
+    /^TypeError: value of user property of argument is invalid$/;
+const invalidSystemArgument =
+    /^TypeError: value of system property of argument is invalid$/;
+
 // Ensure that an invalid shape for the previous value argument throws an error.
 assert.throws(() => {
   process.cpuUsage(1);
