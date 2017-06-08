@@ -35,8 +35,10 @@ $ git remote add upstream git://github.com/nodejs/node.git
 
 #### Which branch?
 
-For developing new features and bug fixes, the `master` branch should be pulled
-and built upon.
+For developing new features and bug fixes, the `master` branch should be
+pulled and built upon.  See the section on
+[backporting](#backporting-to-current-and-lts-branches) if you would like
+the fix to be backported to other releases.
 
 #### Dependencies
 
@@ -311,6 +313,40 @@ doesn't need to wait. A Pull Request may well take longer to be
 merged in. All these precautions are important because Node.js is
 widely used, so don't be discouraged!
 
+### Backporting to Current and LTS Branches
+
+Before backporting or contributing to the LTS releases make sure you are
+familiar with the [LTS information and schedules](https://github.com/nodejs/LTS#lts-schedule)
+
+Commits which have already landed on master will be candidates for the
+"current" release branch(es) and can then also become candidates for
+inclusion into the "Active LTS" branch(es), especially if they are bug
+fixes.  Any change can be considered for LTS by requesting @nodejs/lts apply
+the appropriate `lts-watch-vX.x` label for the branch you would like it
+backported to.  If a commit is not to be considered for backporting please
+ask for it to be labelled with `dont-land-on-vX.x`.  If it is to be backported
+and can be cherry-picked cleanly it will be done by someone from the release
+team.  Generally all changes should have landed in the current release for
+at least two weeks before considering backporting to the LTS releases.
+
+If a manual backport is required when porting your change to the current or
+LTS branches you may be asked to submit a PR against the staging branch of
+the release line the backport is targetting `vX.x-staging`.  The easiest way
+to do the backport this is to use git cherry-pick to pull across the commit
+hash from master and manually resolve the conflicts using these commands:
+
+```
+   $ git cherry-pick HASH
+   // fix all conflicts that are reported
+   $ git cherry-pick --continue
+```
+
+When you submit it, please include "vX.x backport" in the PR title.
+
+If you need to reference other relevant pull requests regarding the
+conflicts, list them as "Refs:" links in the PR message.
+
+
 ### Check Out the Collaborator's Guide
 
 If you want to know more about the code review and the landing process,
@@ -343,3 +379,4 @@ By making a contribution to this project, I certify that:
   personal information I submit with it, including my sign-off) is
   maintained indefinitely and may be redistributed consistent with
   this project or the open source license(s) involved.
+
