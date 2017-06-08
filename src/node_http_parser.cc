@@ -151,7 +151,10 @@ struct StringPtr {
 
   Local<String> ToString(Environment* env) const {
     if (str_)
-      return OneByteString(env->isolate(), str_, size_);
+      return String::NewFromUtf8(env->isolate(),
+                                 str_,
+                                 String::kNormalString,
+                                 size_);
     else
       return String::Empty(env->isolate());
   }
