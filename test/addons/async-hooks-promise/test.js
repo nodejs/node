@@ -36,8 +36,12 @@ assert.strictEqual(
 
 hook1.disable();
 
-// Check that internal fields are no longer being set.
-assert.strictEqual(
-  binding.getPromiseField(Promise.resolve(1)),
-  0,
-  'Promise internal field used despite missing enabled AsyncHook');
+// Check that internal fields are no longer being set. This needs to be delayed
+// a bit because the `disable()` call only schedules disabling the hook in a
+// future microtask.
+setImmediate(() => {
+  assert.strictEqual(
+    binding.getPromiseField(Promise.resolve(1)),
+    0,
+    'Promise internal field used despite missing enabled AsyncHook');
+});

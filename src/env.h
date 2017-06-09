@@ -709,6 +709,7 @@ class Environment {
   struct PromiseHookCallback {
     promise_hook_func cb_;
     void* arg_;
+    size_t enable_count_;
   };
   std::vector<PromiseHookCallback> promise_hooks_;
 
