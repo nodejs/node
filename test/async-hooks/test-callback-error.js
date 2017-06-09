@@ -12,7 +12,7 @@ switch (process.argv[2]) {
       oninit: common.mustCall(() => { throw new Error('test_init_callback'); })
     }).enable();
 
-    async_hooks.emitInit(async_hooks.currentId(), 'test_init_callback_type',
+    async_hooks.emitInit(async_hooks.currentAsyncId(), 'test_init_callback_type',
                          async_hooks.triggerId());
     break;
   case 'test_callback':
@@ -20,16 +20,16 @@ switch (process.argv[2]) {
       onbefore: common.mustCall(() => { throw new Error('test_callback'); })
     }).enable();
 
-    async_hooks.emitInit(async_hooks.currentId(), 'test_callback_type',
+    async_hooks.emitInit(async_hooks.currentAsyncId(), 'test_callback_type',
                          async_hooks.triggerId());
-    async_hooks.emitBefore(async_hooks.currentId());
+    async_hooks.emitBefore(async_hooks.currentAsyncId());
     break;
   case 'test_callback_abort':
     initHooks({
       oninit: common.mustCall(() => { throw new Error('test_callback_abort'); })
     }).enable();
 
-    async_hooks.emitInit(async_hooks.currentId(), 'test_callback_abort',
+    async_hooks.emitInit(async_hooks.currentAsyncId(), 'test_callback_abort',
                          async_hooks.triggerId());
     break;
 }
