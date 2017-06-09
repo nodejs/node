@@ -1706,7 +1706,7 @@ changes:
                  parameter in case of success.
   - version: v5.0.0
     pr-url: https://github.com/nodejs/node/pull/3163
-    description: The `file` parameter can be a file descriptor now.
+    description: The `path` parameter can be a file descriptor now.
 -->
 
 * `path` {string|Buffer|URL|integer} filename or file descriptor
@@ -1766,7 +1766,7 @@ changes:
                  protocol. Support is currently still *experimental*.
   - version: v5.0.0
     pr-url: https://github.com/nodejs/node/pull/3163
-    description: The `file` parameter can be a file descriptor now.
+    description: The `path` parameter can be a file descriptor now.
 -->
 
 * `path` {string|Buffer|URL|integer} filename or file descriptor
@@ -1774,7 +1774,7 @@ changes:
   * `encoding` {string|null} default = `null`
   * `flag` {string} default = `'r'`
 
-Synchronous version of [`fs.readFile`][]. Returns the contents of the `file`.
+Synchronous version of [`fs.readFile()`][]. Returns the contents of the `path`.
 
 If the `encoding` option is specified then this function returns a
 string. Otherwise it returns a buffer.
@@ -2838,7 +2838,8 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`fs.mkdtemp()`]: #fs_fs_mkdtemp_prefix_options_callback
 [`fs.open()`]: #fs_fs_open_path_flags_mode_callback
 [`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
-[`fs.readFile`]: #fs_fs_readfile_file_options_callback
+[`fs.readFile()`]: #fs_fs_readfile_path_options_callback
+[`fs.readFileSync()`]: #fs_fs_readfilesync_path_options
 [`fs.stat()`]: #fs_fs_stat_path_callback
 [`fs.utimes()`]: #fs_fs_utimes_path_atime_mtime_callback
 [`fs.watch()`]: #fs_fs_watch_filename_options_listener
