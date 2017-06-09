@@ -124,13 +124,23 @@ const stat = promisify(fs.stat);
 {
   const o = {};
   const fn = promisify(function(cb) {
-
     cb(null, this === o);
   });
 
   o.fn = fn;
 
   o.fn().then(common.mustCall(function(val) {
+    assert(val);
+  }));
+}
+
+{
+  const o = {};
+  const fn = promisify(function(cb) {
+    cb(null, this === o);
+  }, o);
+
+  fn().then(common.mustCall(function(val) {
     assert(val);
   }));
 }
