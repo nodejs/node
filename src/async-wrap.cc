@@ -333,12 +333,7 @@ void PromiseWrap::GetParentId(Local<String> property,
 
 static void PromiseHook(PromiseHookType type, Local<Promise> promise,
                         Local<Value> parent, void* arg) {
-  Local<Context> context = promise->CreationContext();
-  Environment* env = Environment::GetCurrent(context);
-
-  // PromiseHook() should never be called if no hooks have been enabled.
-  CHECK_GT(env->async_hooks()->fields()[AsyncHooks::kTotals], 0);
-
+  Environment* env = static_cast<Environment*>(arg);
   Local<Value> resource_object_value = promise->GetInternalField(0);
   PromiseWrap* wrap = nullptr;
   if (resource_object_value->IsObject()) {
@@ -376,9 +371,18 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
 
   CHECK_NE(wrap, nullptr);
   if (type == PromiseHookType::kBefore) {
+    env->async_hooks()->push_ids(wrap->get_id(), wrap->get_trigger_id());
     PreCallbackExecution(wrap, false);
   } else if (type == PromiseHookType::kAfter) {
     PostCallbackExecution(wrap, false);
+    if (env->current_async_id() == wrap->get_id()) {
+      // This condition might not be true if async_hooks was enabled during
+      // the promise callback execution.
+      // Popping it off the stack can be skipped in that case, because is is
+      // known that it would correspond to exactly one call with
+      // PromiseHookType::kBefore that was not witnessed by the PromiseHook.
+      env->async_hooks()->pop_ids(wrap->get_id());
+    }
   }
 }
 
@@ -429,13 +433,19 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
 
 static void EnablePromiseHook(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  env->AddPromiseHook(PromiseHook, nullptr);
+  env->AddPromiseHook(PromiseHook, static_cast<void*>(env));
 }
 
 
 static void DisablePromiseHook(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  env->RemovePromiseHook(PromiseHook, nullptr);
+
+  // Delay the call to `RemovePromiseHook` because we might currently be
+  // between the `before` and `after` calls of a Promise.
+  env->isolate()->EnqueueMicrotask([](void* data) {
+    Environment* env = static_cast<Environment*>(data);
+    env->RemovePromiseHook(PromiseHook, data);
+  }, static_cast<void*>(env));
 }
 
 
