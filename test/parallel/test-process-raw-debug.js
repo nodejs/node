@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const os = require('os');
 
@@ -63,10 +63,7 @@ function child() {
     throw new Error('No ticking!');
   };
 
-  const stderr = process.stderr;
-  stderr.write = function() {
-    throw new Error('No writing to stderr!');
-  };
+  common.hijackStderr(common.mustNotCall('stderr.write must not be called.'));
 
   process._rawDebug('I can still %s!', 'debug');
 }

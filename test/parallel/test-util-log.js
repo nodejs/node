@@ -20,19 +20,18 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
 
-const stdout_write = global.process.stdout.write;
 const strings = [];
-global.process.stdout.write = function(string) {
-  strings.push(string);
-};
-console._stderr = process.stdout;
+common.hijackStdout(function(data) {
+  strings.push(data);
+});
+common.hijackStderr(common.mustNotCall('stderr.write must not be called'));
 
 const tests = [
   {input: 'foo', output: 'foo'},
@@ -56,4 +55,6 @@ tests.forEach(function(test) {
   assert.strictEqual(match[1], test.output);
 });
 
-global.process.stdout.write = stdout_write;
+assert.strictEqual(process.stdout.writeTimes, tests.length);
+
+common.restoreStdout();
