@@ -350,11 +350,11 @@ static void PromiseHook(PromiseHookType type, Local<Promise> promise,
     bool silent = type != PromiseHookType::kInit;
     PromiseWrap* parent_wrap = nullptr;
 
-    // set parent promise's async Id as this promise's triggerId
+    // set parent promise's async Id as this promise's triggerAsyncId
     if (parent->IsPromise()) {
       // parent promise exists, current promise
       // is a chained promise, so we set parent promise's id as
-      // current promise's triggerId
+      // current promise's triggerAsyncId
       Local<Promise> parent_promise = parent.As<Promise>();
       Local<Value> parent_resource = parent_promise->GetInternalField(0);
       if (parent_resource->IsObject()) {

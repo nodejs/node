@@ -18,7 +18,7 @@ assert.strictEqual(as.length, 1);
 const t = as[0];
 assert.strictEqual(t.type, 'TIMERWRAP');
 assert.strictEqual(typeof t.uid, 'number');
-assert.strictEqual(typeof t.triggerId, 'number');
+assert.strictEqual(typeof t.triggerAsyncId, 'number');
 checkInvocations(t, { init: 1 }, 't: when first timer installed');
 
 function oninterval() {

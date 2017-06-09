@@ -43,7 +43,7 @@ function onlistening() {
 
   assert.strictEqual(svr.type, 'TLSWRAP');
   assert.strictEqual(typeof svr.uid, 'number');
-  assert.strictEqual(typeof svr.triggerId, 'number');
+  assert.strictEqual(typeof svr.triggerAsyncId, 'number');
   checkInvocations(svr, { init: 1 }, 'server: when client connecting');
 }
 
@@ -56,7 +56,7 @@ function onsecureConnection() {
   client = as[1];
   assert.strictEqual(client.type, 'TLSWRAP');
   assert.strictEqual(typeof client.uid, 'number');
-  assert.strictEqual(typeof client.triggerId, 'number');
+  assert.strictEqual(typeof client.triggerAsyncId, 'number');
 
   // TODO(thlorenz) which callback did the server wrap execute that already
   // finished as well?

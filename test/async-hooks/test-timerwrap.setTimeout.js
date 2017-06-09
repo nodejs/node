@@ -17,7 +17,7 @@ assert.strictEqual(as.length, 1);
 const t1 = as[0];
 assert.strictEqual(t1.type, 'TIMERWRAP');
 assert.strictEqual(typeof t1.uid, 'number');
-assert.strictEqual(typeof t1.triggerId, 'number');
+assert.strictEqual(typeof t1.triggerAsyncId, 'number');
 checkInvocations(t1, { init: 1 }, 't1: when first timer installed');
 
 function ontimeout() {
@@ -48,7 +48,7 @@ function onsecondTimeout() {
   t2 = as[1];
   assert.strictEqual(t2.type, 'TIMERWRAP');
   assert.strictEqual(typeof t2.uid, 'number');
-  assert.strictEqual(typeof t2.triggerId, 'number');
+  assert.strictEqual(typeof t2.triggerAsyncId, 'number');
   checkInvocations(t1, { init: 1, before: 2, after: 1 },
                    't1: when third timer installed');
   checkInvocations(t2, { init: 1 },

@@ -14,7 +14,7 @@ switch (process.argv[2]) {
 
     async_hooks.emitInit(async_hooks.executionAsyncId(),
                          'test_init_callback_type',
-                         async_hooks.triggerId());
+                         async_hooks.triggerAsyncId());
     break;
   case 'test_callback':
     initHooks({
@@ -22,7 +22,7 @@ switch (process.argv[2]) {
     }).enable();
 
     async_hooks.emitInit(async_hooks.executionAsyncId(), 'test_callback_type',
-                         async_hooks.triggerId());
+                         async_hooks.triggerAsyncId());
     async_hooks.emitBefore(async_hooks.executionAsyncId());
     break;
   case 'test_callback_abort':
@@ -31,7 +31,7 @@ switch (process.argv[2]) {
     }).enable();
 
     async_hooks.emitInit(async_hooks.executionAsyncId(), 'test_callback_abort',
-                         async_hooks.triggerId());
+                         async_hooks.triggerAsyncId());
     break;
 }
 

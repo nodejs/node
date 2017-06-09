@@ -48,7 +48,7 @@ function checkDestroyedWriteWraps(n, stage) {
   function checkValidWriteWrap(w) {
     assert.strictEqual(w.type, 'WRITEWRAP');
     assert.strictEqual(typeof w.uid, 'number');
-    assert.strictEqual(typeof w.triggerId, 'number');
+    assert.strictEqual(typeof w.triggerAsyncId, 'number');
 
     checkInvocations(w, { init: 1 }, `when ${stage}`);
   }

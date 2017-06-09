@@ -55,7 +55,7 @@ function onexit() {
   const a = as[0];
   assert.strictEqual(a.type, 'SHUTDOWNWRAP');
   assert.strictEqual(typeof a.uid, 'number');
-  assert.strictEqual(typeof a.triggerId, 'number');
+  assert.strictEqual(typeof a.triggerAsyncId, 'number');
   checkInvocations(as[0], { init: 1, before: 1, after: 1, destroy: 1 },
                    'when process exits');
 }

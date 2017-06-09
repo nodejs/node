@@ -3,26 +3,26 @@ require('../common');
 
 const assert = require('assert');
 const async_hooks = require('async_hooks');
-const triggerId = async_hooks.triggerId;
+const triggerAsyncId = async_hooks.triggerAsyncId;
 
-const triggerId0 = triggerId();
-let triggerId1;
+const triggerAsyncId0 = triggerAsyncId();
+let triggerAsyncId1;
 
 process.nextTick(() => {
   process.nextTick(() => {
-    triggerId1 = triggerId();
+    triggerAsyncId1 = triggerAsyncId();
     assert.notStrictEqual(
-      triggerId0,
-      triggerId1,
+      triggerAsyncId0,
+      triggerAsyncId1,
       'Async resources having different causal ancestry ' +
-      'should have different triggerIds');
+      'should have different triggerAsyncIds');
   });
   process.nextTick(() => {
-    const triggerId2 = triggerId();
+    const triggerAsyncId2 = triggerAsyncId();
     assert.strictEqual(
-      triggerId1,
-      triggerId2,
+      triggerAsyncId1,
+      triggerAsyncId2,
       'Async resources having the same causal ancestry ' +
-      'should have the same triggerId');
+      'should have the same triggerAsyncId');
   });
 });

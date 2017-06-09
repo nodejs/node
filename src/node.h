@@ -530,7 +530,7 @@ NODE_EXTERN void AddPromiseHook(v8::Isolate* isolate,
  * I/O from native code. */
 NODE_EXTERN async_uid AsyncHooksGetCurrentId(v8::Isolate* isolate);
 
-/* Return same value as async_hooks.triggerId(); */
+/* Return same value as async_hooks.triggerAsyncId(); */
 NODE_EXTERN async_uid AsyncHooksGetTriggerId(v8::Isolate* isolate);
 
 /* If the native API doesn't inherit from the helper class then the callbacks
@@ -554,7 +554,7 @@ NODE_EXTERN void EmitAsyncDestroy(v8::Isolate* isolate, async_uid id);
  * These methods may create handles on their own, so run them inside a
  * HandleScope.
  *
- * `asyncId` and `triggerId` should correspond to the values returned by
+ * `asyncId` and `triggerAsyncId` should correspond to the values returned by
  * `EmitAsyncInit()` and `AsyncHooksGetTriggerId()`, respectively, when the
  * invoking resource was created. If these values are unknown, 0 can be passed.
  * */
@@ -565,7 +565,7 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        int argc,
                                        v8::Local<v8::Value>* argv,
                                        async_uid asyncId,
-                                       async_uid triggerId);
+                                       async_uid triggerAsyncId);
 NODE_EXTERN
 v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Object> recv,
@@ -573,7 +573,7 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        int argc,
                                        v8::Local<v8::Value>* argv,
                                        async_uid asyncId,
-                                       async_uid triggerId);
+                                       async_uid triggerAsyncId);
 NODE_EXTERN
 v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        v8::Local<v8::Object> recv,
@@ -581,7 +581,7 @@ v8::MaybeLocal<v8::Value> MakeCallback(v8::Isolate* isolate,
                                        int argc,
                                        v8::Local<v8::Value>* argv,
                                        async_uid asyncId,
-                                       async_uid triggerId);
+                                       async_uid triggerAsyncId);
 
 /* Helper class users can optionally inherit from. If
  * `AsyncResource::MakeCallback()` is used, then all four callbacks will be

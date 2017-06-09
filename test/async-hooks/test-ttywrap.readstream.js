@@ -17,7 +17,7 @@ assert.strictEqual(as.length, 1);
 const tty = as[0];
 assert.strictEqual(tty.type, 'TTYWRAP');
 assert.strictEqual(typeof tty.uid, 'number');
-assert.strictEqual(typeof tty.triggerId, 'number');
+assert.strictEqual(typeof tty.triggerAsyncId, 'number');
 checkInvocations(tty, { init: 1 }, 'when tty created');
 
 ttyStream.end(common.mustCall(onend));

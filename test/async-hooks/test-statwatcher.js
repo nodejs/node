@@ -20,7 +20,7 @@ assert.strictEqual(as.length, 1);
 const statwatcher1 = as[0];
 assert.strictEqual(statwatcher1.type, 'STATWATCHER');
 assert.strictEqual(typeof statwatcher1.uid, 'number');
-assert.strictEqual(statwatcher1.triggerId, 1);
+assert.strictEqual(statwatcher1.triggerAsyncId, 1);
 checkInvocations(statwatcher1, { init: 1 },
                  'watcher1: when started to watch file');
 
@@ -32,7 +32,7 @@ assert.strictEqual(as.length, 2);
 const statwatcher2 = as[1];
 assert.strictEqual(statwatcher2.type, 'STATWATCHER');
 assert.strictEqual(typeof statwatcher2.uid, 'number');
-assert.strictEqual(statwatcher2.triggerId, 1);
+assert.strictEqual(statwatcher2.triggerAsyncId, 1);
 checkInvocations(statwatcher1, { init: 1 },
                  'watcher1: when started to watch second file');
 checkInvocations(statwatcher2, { init: 1 },
