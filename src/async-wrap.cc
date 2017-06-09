@@ -731,12 +731,12 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 /* Public C++ embedder API */
 
 
-async_uid AsyncHooksGetCurrentId(Isolate* isolate) {
+async_uid AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
   return Environment::GetCurrent(isolate)->current_async_id();
 }
 
 
-async_uid AsyncHooksGetTriggerId(Isolate* isolate) {
+async_uid AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
   return Environment::GetCurrent(isolate)->get_init_trigger_id();
 }
 
