@@ -82,11 +82,14 @@ or `writeStream.rows` properties have changed. No arguments are passed to the
 listener callback when called.
 
 ```js
+process.stdin.setRawMode(true);
 process.stdout.on('resize', () => {
   console.log('screen size has changed!');
   console.log(`${process.stdout.columns}x${process.stdout.rows}`);
 });
 ```
+
+*Note:* Unrealiable event handler execution on all Windows platforms.
 
 ### writeStream.columns
 <!-- YAML
