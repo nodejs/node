@@ -605,7 +605,7 @@ The DebugContext will be removed in V8 soon and will not be available in Node
 
 Type: Runtime
 
-`async_hooks.currentId()` was renamed to `async_hooks.currentAsyncId()` for
+`async_hooks.currentId()` was renamed to `async_hooks.executionAsyncId()` for
 clarity.
 
 *Note*: change was made while `async_hooks` was an experimental API.

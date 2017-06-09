@@ -21,8 +21,8 @@ assert.strictEqual(typeof new AsyncResource('default_trigger_id').triggerId(),
                    'number');
 
 // create first custom event 'alcazares' with triggerId derived
-// from async_hooks currentAsyncId
-const alcaTriggerId = async_hooks.currentAsyncId();
+// from async_hooks executionAsyncId
+const alcaTriggerId = async_hooks.executionAsyncId();
 const alcaEvent = new AsyncResource('alcazares', alcaTriggerId);
 const alcazaresActivities = hooks.activitiesOfTypes([ 'alcazares' ]);
 
